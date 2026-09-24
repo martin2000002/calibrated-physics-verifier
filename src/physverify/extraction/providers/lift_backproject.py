@@ -1,0 +1,196 @@
+"""Back-projection of tracked masks through depth and intrinsics (ADR 0005, 4.1-4.4)."""
+
+from __future__ import annotations
+
+import math
+from dataclasses import replace
+from typing import Any, ClassVar, Literal
+
+import numpy as np
+from numpy.typing import NDArray
+from pydantic import BaseModel, Field
+
+from physverify.extraction._base import StageContext, WeightSpec
+from physverify.extraction.pipeline import PENDING_SOURCE_KEY
+from physverify.extraction.providers._common import ProviderParams, expect_params, lookup_label
+from physverify.extraction.providers._lifting import (
+    LiftErrors,
+    ObjectSummary,
+    ShiftStrategy,
+    SummaryOptions,
+    closed_form_sigma,
+    focal_rel_sigma,
+    lift_depth,
+    monte_carlo_sigma,
+    object_position,
+    object_summary,
+)
+from physverify.schema.io import stable_hash
+from physverify.schema.perception import CameraModel, DepthMap, IntrinsicsSource, MaskTrack
+from physverify.schema.stages import Stage
+from physverify.schema.states import CoordFrame, ObjectStateTable, PrimitiveKind
+
+FloatArray = NDArray[np.float64]
+WORLD_DOWN = np.array([0.0, 0.0, -1.0])
+LEVEL_CAMERA_GRAVITY = np.array([0.0, 1.0, 0.0])
+SEED_HEX_DIGITS = 16
+
+GravityMode = Literal["auto", "camera_pose", "level_camera", "none"]
+
+
+class Params(ProviderParams):
+    shift: ShiftStrategy = ShiftStrategy.ZERO_SHIFT
+    gravity: GravityMode = "auto"
+    gravity_by_dataset: dict[str, GravityMode] = {}
+    level_sigma_deg: float = Field(default=10.0, ge=0.0)
+    pose_sigma_deg: float = Field(default=2.0, ge=0.0)
+    min_area_px: int = Field(default=9, ge=1)
+    erode_px: int = Field(default=1, ge=0)
+    extent_percentiles: tuple[float, float] = (2.0, 98.0)
+    center_offset_frac: dict[PrimitiveKind, float] = {
+        PrimitiveKind.SPHERE: 0.354,
+        PrimitiveKind.CYLINDER: 0.354,
+        PrimitiveKind.BOX: 0.5,
+        PrimitiveKind.UNKNOWN: 0.4,
+    }
+    primitive_by_label: dict[str, PrimitiveKind] = {
+        "ball": PrimitiveKind.SPHERE,
+        "sphere": PrimitiveKind.SPHERE,
+        "cube": PrimitiveKind.BOX,
+        "box": PrimitiveKind.BOX,
+        "cylinder": PrimitiveKind.CYLINDER,
+    }
+    sigma_mode: Literal["closed_form", "monte_carlo"] = "closed_form"
+    mc_draws: int = Field(default=500, ge=2)
+
+
+class BackprojectLift:
+    stage: ClassVar[Stage] = Stage.LIFT
+    name: ClassVar[str] = "backproject"
+    version: ClassVar[str] = "1"
+    requires: ClassVar[tuple[Stage, ...]] = (Stage.TRACK, Stage.DEPTH, Stage.CAMERA)
+    heavy: ClassVar[bool] = False
+    is_ground_truth: ClassVar[bool] = False
+    error_profile_reads: ClassVar[tuple[Stage, ...]] = (Stage.TRACK, Stage.DEPTH)
+    reads_own_error: ClassVar[bool] = True
+    weights: ClassVar[tuple[WeightSpec, ...]] = ()
+    Params: ClassVar[type[BaseModel]] = Params
+
+    def __init__(self, params: BaseModel) -> None:
+        self.params = expect_params(params, Params)
+
+    def run(self, ctx: StageContext) -> ObjectStateTable:
+        track = ctx.require(Stage.TRACK, MaskTrack)
+        depth = ctx.require(Stage.DEPTH, DepthMap)
+        camera = ctx.require(Stage.CAMERA, CameraModel)
+        z, valid, unit = lift_depth(depth, track, self.params.shift)
+        primitives = [self._primitive(label) for label in track.labels]
+        table = ObjectStateTable.blank(
+            clip_id=ctx.clip.clip_id,
+            frame=CoordFrame.CAMERA_OPENCV,
+            unit=unit,
+            source_key=PENDING_SOURCE_KEY,
+            t=ctx.sampling.times(),
+            frame_index=np.asarray(ctx.sampling.frame_indices, dtype=np.int64),
+            object_ids=track.object_ids.tolist(),
+            labels=track.labels.tolist(),
+            primitive=[kind.value for kind in primitives],
+        )
+        fields = _mutable_fields(table)
+        errors = _lift_errors(ctx, camera)
+        rng = np.random.default_rng(int(stable_hash(ctx.clip.clip_id)[:SEED_HEX_DIGITS], 16))
+        for t_index in range(track.masks.shape[0]):
+            for n_index, primitive in enumerate(primitives):
+                summary = object_summary(
+                    track.masks[t_index, n_index],
+                    z[t_index],
+                    valid[t_index],
+                    camera.K,
+                    self._options,
+                )
+                self._fill(fields, (t_index, n_index), summary, primitive, camera, errors, rng)
+        fields["confidence"] = np.clip(track.scores.astype(np.float64), 0.0, 1.0)
+        mode = self.params.gravity_by_dataset.get(ctx.clip.dataset, self.params.gravity)
+        gravity, gravity_sigma = self._gravity(camera, mode)
+        return replace(table, **fields, gravity_dir=gravity, gravity_dir_sigma=gravity_sigma)
+
+    @property
+    def _options(self) -> SummaryOptions:
+        return SummaryOptions(
+            erode_px=self.params.erode_px,
+            extent_percentiles=self.params.extent_percentiles,
+            min_area_px=self.params.min_area_px,
+        )
+
+    def _primitive(self, label: str) -> PrimitiveKind:
+        return lookup_label(label, self.params.primitive_by_label) or PrimitiveKind.UNKNOWN
+
+    def _fill(
+        self,
+        fields: dict[str, Any],
+        cell: tuple[int, int],
+        summary: ObjectSummary | None,
+        primitive: PrimitiveKind,
+        camera: CameraModel,
+        errors: LiftErrors,
+        rng: np.random.Generator,
+    ) -> None:
+        if summary is None:
+            fields["visible"][cell] = False
+            fields["in_frame"][cell] = False
+            return
+        offset = self.params.center_offset_frac[primitive]
+        position = object_position(summary.centre, summary.extents, offset)
+        if self.params.sigma_mode == "monte_carlo":
+            pos_sigma, size_sigma = monte_carlo_sigma(
+                summary, camera.K, offset, errors, rng, self.params.mc_draws
+            )
+        else:
+            pos_sigma, size_sigma = closed_form_sigma(
+                position, summary.extents, summary.r_eq_px, camera.K, errors
+            )
+        fields["position"][cell] = position
+        fields["position_sigma"][cell] = pos_sigma
+        fields["size"][cell] = summary.extents
+        fields["size_sigma"][cell] = size_sigma
+
+    def _gravity(self, camera: CameraModel, mode: GravityMode) -> tuple[FloatArray, float]:
+        """Gravity direction in camera coordinates and its angular sigma in radians (4.3)."""
+        if mode == "auto":
+            mode = "camera_pose" if camera.world_from_camera is not None else "level_camera"
+        if mode == "level_camera":
+            return LEVEL_CAMERA_GRAVITY.copy(), math.radians(self.params.level_sigma_deg)
+        if mode == "none" or camera.world_from_camera is None:
+            return np.full(3, np.nan), math.nan
+        pose = np.asarray(camera.world_from_camera, dtype=np.float64)
+        rotation = pose[0, :3, :3] if pose.ndim == 3 else pose[:3, :3]
+        exact = camera.source is IntrinsicsSource.GROUND_TRUTH
+        sigma = 0.0 if exact else math.radians(self.params.pose_sigma_deg)
+        gravity: FloatArray = rotation.T @ WORLD_DOWN
+        return gravity, sigma
+
+
+def _mutable_fields(table: ObjectStateTable) -> dict[str, Any]:
+    names = ("position", "position_sigma", "size", "size_sigma", "visible", "in_frame")
+    return {name: np.array(getattr(table, name), copy=True) for name in names}
+
+
+def _focal_phi(camera: CameraModel) -> float:
+    if camera.source is IntrinsicsSource.GROUND_TRUTH:
+        return 0.0
+    if not (math.isfinite(camera.fov_deg) and math.isfinite(camera.fov_sigma_deg)):
+        return math.nan
+    return focal_rel_sigma(camera.fov_deg, camera.fov_sigma_deg)
+
+
+def _lift_errors(ctx: StageContext, camera: CameraModel) -> LiftErrors:
+    return LiftErrors(
+        depth_rel=ctx.error_entry(Stage.DEPTH, "depth_rel"),
+        centroid_px_rel=ctx.error_entry(Stage.TRACK, "centroid_px_rel"),
+        centroid_rel=ctx.error_entry(Stage.LIFT, "centroid_rel"),
+        size_rel=ctx.error_entry(Stage.LIFT, "size_rel"),
+        phi=_focal_phi(camera),
+    )
+
+
+PLUGINS = (BackprojectLift,)
