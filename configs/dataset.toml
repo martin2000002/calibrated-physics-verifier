@@ -1,0 +1,24 @@
+# Seed owned by cycle A4 (ADR 0003, section 5): the synthetic dataset as data.
+# The base table is the `fast` profile used on the laptop.
+
+[dataset]
+version = "v1"
+seed = 0
+resolution = 128
+n_frames = 24
+fps = 24
+samples_per_pixel = 64
+background = "plain"
+assets = "kubasic"
+
+[dataset.subsets.local]
+clips_per_family = 4
+
+[dataset.subsets.full]
+clips_per_family = 40
+
+[dataset.profiles.precise]
+resolution = 256
+samples_per_pixel = 64
+background = "hdri"
+assets = "gso"

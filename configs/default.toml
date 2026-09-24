@@ -1,0 +1,16 @@
+# Frozen defaults (ADR 0003, section 5). Machine-specific values go in configs/local.toml.
+# Relative paths are anchored at the repository root; every other data path derives from data_dir.
+
+[paths]
+data_dir = "data"
+annotations_dir = "annotations"
+hf_home = "~/.cache/huggingface"
+
+[runtime]
+threads = 4
+device = "cpu"
+default_profile = "fast"
+max_frame_bytes = 1_500_000_000
+# Empty string = no heavy-job lock (for example on the H200). local.toml sets it on the laptop.
+heavy_lock = ""
+docker_image = "kubricdockerhub/kubruntu@sha256:a4152c8066ffbd7bd303e4ea79c3ce250f190368cb07479fb6763308f165a17f"

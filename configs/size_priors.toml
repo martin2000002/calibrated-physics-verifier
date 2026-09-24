@@ -1,0 +1,17 @@
+# Frozen table: object label -> prior on its characteristic size (full extent, meters).
+# These are ESTIMATES, not measurements: mean_m is a typical size and rel_spread its relative
+# standard deviation. Single source of truth: cycle A4 samples synthetic object sizes from it and
+# uses its keys as labels, the size-prior scale provider (A5) reads it through settings, and
+# real-dataset phrases map to its keys. Only the main thread changes it (SCHEMA CHANGE REQUEST).
+
+[size_priors.cube]
+mean_m = 0.10
+rel_spread = 0.5
+
+[size_priors.ball]
+mean_m = 0.10
+rel_spread = 0.5
+
+[size_priors.cylinder]
+mean_m = 0.10
+rel_spread = 0.5

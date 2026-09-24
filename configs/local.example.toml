@@ -1,0 +1,12 @@
+# Copy to configs/local.toml (ignored by git) and adapt to the machine.
+# Values here override configs/*.toml and the active profile; PHYSVERIFY__SECTION__KEY and
+# command-line options override them in turn. ${VAR} is expanded from the environment.
+
+[runtime]
+threads = 4
+device = "cpu"
+heavy_lock = "${XDG_RUNTIME_DIR}/physverify-heavy.lock"
+# lock_timeout_s = 600
+
+# [paths]
+# data_dir = "/mnt/big-disk/physverify-data"

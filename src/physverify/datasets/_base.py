@@ -1,0 +1,207 @@
+"""Dataset contracts: frame access, ground truth per stage, and dataset discovery.
+
+``ArrayGroundTruthStore`` is the one place where native-resolution ground truth is resampled to
+a ``FrameSampling`` (nearest neighbour for masks and depth, K scaled by the resize factors).
+"""
+
+from __future__ import annotations
+
+import math
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
+from pathlib import Path
+from typing import TYPE_CHECKING, ClassVar, Protocol, runtime_checkable
+
+import numpy as np
+from numpy.typing import NDArray
+
+from physverify.core.errors import MissingInputError
+from physverify.core.resample import resize_depth, resize_masks, scale_intrinsics
+from physverify.schema.clip import ClipManifest, FrameSampling
+from physverify.schema.contacts import ContactTable
+from physverify.schema.perception import (
+    CameraModel,
+    DepthKind,
+    DepthMap,
+    Detections,
+    IntrinsicsSource,
+    MaskTrack,
+)
+from physverify.schema.scene import SceneSpec
+from physverify.schema.stages import STAGE_ORDER, Stage
+from physverify.schema.states import CoordFrame, ObjectStateTable
+
+if TYPE_CHECKING:
+    from physverify.config.models import Settings
+
+
+@runtime_checkable
+class VideoSource(Protocol):
+    """Decoded RGB frames; ``frames`` reduces each frame before keeping it."""
+
+    @property
+    def real_fps(self) -> float: ...
+
+    @property
+    def n_frames(self) -> int: ...
+
+    @property
+    def native_size(self) -> tuple[int, int]: ...
+
+    def frames(
+        self, start: int, stop: int, step: int = 1, max_side: int | None = None
+    ) -> NDArray[np.uint8]:
+        """(T', h, w, 3) uint8 RGB for native indices range(start, stop, step)."""
+        ...
+
+
+@runtime_checkable
+class GroundTruthStore(Protocol):
+    """Canonical ground truth of one clip; pixel outputs follow the requested sampling."""
+
+    @property
+    def version(self) -> str: ...
+
+    def stages(self) -> tuple[Stage, ...]: ...
+
+    def detections(self, sampling: FrameSampling) -> Detections: ...
+
+    def masks(self, sampling: FrameSampling) -> MaskTrack: ...
+
+    def depth(self, sampling: FrameSampling) -> DepthMap:
+        """Metric z layer (``DepthKind.METRIC_Z``)."""
+        ...
+
+    def camera(self, sampling: FrameSampling) -> CameraModel: ...
+
+    def states(self, frame: CoordFrame) -> ObjectStateTable:
+        """Native-rate states in meters with zero sigma."""
+        ...
+
+    def contacts(self, frame: CoordFrame) -> ContactTable: ...
+
+    def scene(self) -> SceneSpec | None: ...
+
+
+@runtime_checkable
+class DatasetSource(Protocol):
+    """A dataset plugin; constructed as ``cls(settings)`` and registered by ``name``."""
+
+    name: ClassVar[str]
+
+    def __init__(self, settings: Settings) -> None: ...
+
+    def clips(self, subset: str | None = None) -> Sequence[ClipManifest]: ...
+
+    def video(self, clip: ClipManifest) -> VideoSource: ...
+
+    def ground_truth(self, clip: ClipManifest) -> GroundTruthStore | None: ...
+
+    def fetch(self, subset: str | None, dest: Path) -> None: ...
+
+
+@dataclass(frozen=True, eq=False)
+class NativeGroundTruth:
+    """Ground-truth layers at native resolution for the native frames ``frame_indices``.
+
+    ``segmentation`` value k > 0 is ``object_ids[k - 1]``; ``z`` is metric depth along the
+    optical axis (0 or non-finite = no surface); ``K`` is OpenCV intrinsics in native pixels.
+    """
+
+    version: str
+    frame_indices: NDArray[np.int64]
+    segmentation: NDArray[np.uint32]
+    z: NDArray[np.float32]
+    object_ids: NDArray[np.str_]
+    labels: NDArray[np.str_]
+    K: NDArray[np.float64]
+    world_from_camera: NDArray[np.float64]
+    states: Mapping[CoordFrame, ObjectStateTable]
+    contacts: Mapping[CoordFrame, ContactTable]
+    scene: SceneSpec | None = None
+
+
+class ArrayGroundTruthStore:
+    """GroundTruthStore over in-memory native layers."""
+
+    def __init__(self, native: NativeGroundTruth) -> None:
+        self._native = native
+
+    @property
+    def version(self) -> str:
+        return self._native.version
+
+    def stages(self) -> tuple[Stage, ...]:
+        return STAGE_ORDER
+
+    def _rows(self, sampling: FrameSampling) -> NDArray[np.int64]:
+        native = self._native.frame_indices.tolist()
+        wanted = sampling.frame_indices.tolist()
+        missing = sorted(set(wanted) - set(native))
+        if missing:
+            raise MissingInputError(f"ground truth lacks native frames {missing[:5]}")
+        return np.array([native.index(i) for i in wanted], dtype=np.int64)
+
+    def _object_masks(self, rows: NDArray[np.int64]) -> NDArray[np.bool_]:
+        labels = np.arange(1, self._native.object_ids.shape[0] + 1, dtype=np.uint32)
+        seg = self._native.segmentation[rows]
+        masks: NDArray[np.bool_] = seg[:, None, :, :] == labels[None, :, None, None]
+        return masks
+
+    def detections(self, sampling: FrameSampling) -> Detections:
+        masks = self.masks(sampling).masks[0]
+        visible = [k for k in range(masks.shape[0]) if bool(masks[k].any())]
+        boxes = np.array([_box(masks[k]) for k in visible], dtype=np.float64).reshape(-1, 4)
+        return Detections(
+            sampling=sampling,
+            frame_index=int(sampling.frame_indices[0]),
+            boxes_xyxy=boxes,
+            scores=np.ones(len(visible)),
+            labels=self._native.labels[visible].astype(str),
+            object_ids=self._native.object_ids[visible].astype(str),
+        )
+
+    def masks(self, sampling: FrameSampling) -> MaskTrack:
+        masks = resize_masks(self._object_masks(self._rows(sampling)), sampling.size)
+        return MaskTrack(
+            sampling=sampling,
+            object_ids=self._native.object_ids,
+            labels=self._native.labels,
+            masks=masks,
+            scores=masks.any(axis=(2, 3)).astype(np.float64),
+        )
+
+    def depth(self, sampling: FrameSampling) -> DepthMap:
+        z = self._native.z[self._rows(sampling)]
+        valid = np.isfinite(z) & (z > 0)
+        depth, valid = resize_depth(
+            np.where(valid, z, 0.0).astype(np.float32), valid, sampling.size
+        )
+        return DepthMap(sampling=sampling, depth=depth, kind=DepthKind.METRIC_Z, valid=valid)
+
+    def camera(self, sampling: FrameSampling) -> CameraModel:
+        K = scale_intrinsics(self._native.K, sampling.native_size, sampling.size)  # noqa: N806
+        return CameraModel(
+            sampling=sampling,
+            K=K,
+            source=IntrinsicsSource.GROUND_TRUTH,
+            fov_deg=math.degrees(2.0 * math.atan(sampling.width / (2.0 * K[0, 0]))),
+            fov_sigma_deg=0.0,
+            world_from_camera=self._native.world_from_camera,
+        )
+
+    def states(self, frame: CoordFrame) -> ObjectStateTable:
+        return self._native.states[frame]
+
+    def contacts(self, frame: CoordFrame) -> ContactTable:
+        return self._native.contacts[frame]
+
+    def scene(self) -> SceneSpec | None:
+        return self._native.scene
+
+
+def _box(mask: NDArray[np.bool_]) -> list[float]:
+    """Tight xyxy box in continuous pixel coordinates (pixel i spans [i, i + 1])."""
+    rows = np.flatnonzero(mask.any(axis=1))
+    cols = np.flatnonzero(mask.any(axis=0))
+    return [float(cols[0]), float(rows[0]), float(cols[-1] + 1), float(rows[-1] + 1)]
