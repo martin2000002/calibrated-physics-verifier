@@ -53,6 +53,18 @@ f3_collision = ["r3_energy_gain", "r4_vanish"]
 f4_stack = ["r2_unsupported_rest", "r4_teleport", "r4_vanish"]
 f5_contact = ["r1_penetration", "r4_teleport", "r4_vanish"]
 
+# Level sweep for the local monotonicity test (H1): all four levels of one perturbation per
+# check family (R1, R3, R5b) on the same clean scenes. With `local` and `smoke` on disk it adds
+# 8 clips.
+[dataset.subsets.levels]
+scenes_per_family = 1
+levels = [1, 2, 3, 4]
+
+[dataset.subsets.levels.perturbations]
+f1_projectile = ["r5b_gravity_scale"]
+f2_bounce = ["r3_restitution_gain"]
+f5_contact = ["r1_penetration"]
+
 # H200 only (920 clips at the precise profile).
 [dataset.subsets.full]
 scenes_per_family = 40
