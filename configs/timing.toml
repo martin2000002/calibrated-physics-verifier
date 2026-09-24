@@ -1,0 +1,87 @@
+# Per-clip cost harness (cycle A3). Only runs on the university H200 (--device cuda --profile precise) are
+# measurements; every run elsewhere is a harness check. All video generation happens on the H200.
+# The laptop proof of Entregable 1 (about 25 synthetic clips, 5 Physics-IQ and 5 PISA) never measures cost.
+# This file holds no cost figures, from the laptop or from the literature.
+
+[timing]
+order = ["wan21_generate", "extract_pipeline", "verify_checks", "kubric_render"]
+valid_profile = "precise"
+# Provisional heuristic, not calibrated: a statistic whose iqr / median exceeds it is flagged as
+# unstable in the summary. Nothing is discarded.
+max_iqr_rel = 0.10
+# Per-clip total = sum of the across-clip medians of these measures (not the median of a sum).
+# Adding a pipeline component to the total is adding its measure here.
+total_measures = ["generate.b1.per_video_s", "extract.span_s", "verify.wall_s"]
+
+[timing.targets.wan21_generate]
+warmup = 1
+warmup_scope = "target"  # one warm-up per process (kernels, autotuning); the model stays loaded
+repetitions = 3
+
+[timing.targets.extract_pipeline]
+warmup = 0  # every call already runs a warm cell before the timed one
+warmup_scope = "clip"
+repetitions = 3
+
+[timing.targets.verify_checks]
+warmup = 1
+warmup_scope = "target"
+repetitions = 5
+
+[timing.targets.kubric_render]
+warmup = 1
+warmup_scope = "target"
+repetitions = 3
+max_clips = 3
+
+# Must match what the fine-tuning cycles (A11-A13) generate with; if they change resolution,
+# frames or steps, update this table and re-run the benchmark on the H200.
+[timing.generation]
+model_ref = "Wan-AI/Wan2.1-T2V-1.3B-Diffusers/model_index.json"
+revision = "0fad780a534b6463e45facd96134c9f345acfa5b"
+sha256 = "b8b28e022329acf975e027579a1d2dc3de44dba28f4c909b98a880fbf5b0de7d"
+height = 480
+width = 832
+num_frames = 81
+fps = 16
+num_inference_steps = 50
+guidance_scale = 6.0
+flow_shift = 8.0
+batch_sizes = [1, 4]
+dtype = "bfloat16"
+vae_dtype = "float32"
+seed = 0
+negative_prompt = ""
+subset = "timing_wan21"
+
+[[timing.generation.prompts]]
+id = "ball_drop"
+text = "A red rubber ball is dropped from shoulder height and falls onto a wooden floor, static camera."
+queries = ["ball"]
+
+[[timing.generation.prompts]]
+id = "ball_bounce"
+text = "A tennis ball bounces several times on a concrete floor until it comes to rest, static camera."
+queries = ["ball"]
+
+[[timing.generation.prompts]]
+id = "ramp_slide"
+text = "A wooden block slides down an inclined ramp and stops on a table, static camera."
+queries = ["block", "ramp"]
+
+[[timing.generation.prompts]]
+id = "ball_collision"
+text = "Two billiard balls roll toward each other on a green table and collide, static camera."
+queries = [{ phrase = "ball", expected_count = 2 }]
+
+[[timing.generation.prompts]]
+id = "cube_fall"
+text = "A small metal cube falls from above onto a wooden table and comes to rest, static camera."
+queries = ["cube", "table"]
+
+# Laptop profile: harness checks only, one repetition per target.
+[timing.profiles.fast]
+targets.wan21_generate.repetitions = 1
+targets.extract_pipeline.repetitions = 1
+targets.verify_checks.repetitions = 1
+targets.kubric_render.repetitions = 1
