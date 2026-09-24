@@ -1,0 +1,1 @@
+{"data":{"frame_span":null,"level":3,"magnitude":0.2,"magnitude_kind":"check_unit","magnitude_unit":"g_rel_error","name":"r5b_gravity_scale","params":{"gravity":[0.0,0.0,-7.848000000000001],"gravity_scale":0.8,"target_magnitude":0.2},"seed":23594614024949314,"target_checks":["R5b"],"target_objects":["ball_0"]},"schema_version":"1.0","type":"PerturbationRecord"}

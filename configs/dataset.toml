@@ -1,24 +1,76 @@
-# Seed owned by cycle A4 (ADR 0003, section 5): the synthetic dataset as data.
-# The base table is the `fast` profile used on the laptop.
+# Synthetic Kubric dataset (cycle A4, ADR 0004). The base table is the `fast` profile used on the
+# laptop; `precise` is the H200 profile. Clip content depends on everything here except
+# [dataset.render], [dataset.subsets] and `version`: changing it requires a new `version`.
 
 [dataset]
 version = "v1"
 seed = 0
-resolution = 128
 n_frames = 24
 fps = 24
+step_rate = 240
+resolution = 128
 samples_per_pixel = 64
 background = "plain"
 assets = "kubasic"
+calib_fraction = 0.5
 
+[dataset.floor]
+friction = 0.6
+# The floor is fully elastic so the object's restitution drives each bounce. Bullet's combined
+# value is not the plain product (0.824 on a ball gave e = 0.900), so e_clean is always measured.
+restitution = 1.0
+
+[dataset.contacts]
+tol_m = 0.002
+gap_frames = 0.25
+impact_max_frames = 0.5
+impact_min_speed = 0.05
+normal_split_deg = 10.0
+area_split_rel = 0.25
+drift_split_m = 0.01
+
+[dataset.render]
+jobs_per_process = 20
+workers = 1
+far_z_m = 1e4
+
+[dataset.subsets.smoke]
+scenes_per_family = 1
+levels = [4]
+perturbations = { f2_bounce = ["r3_restitution_gain"] }
+
+# Deliverable 1 is a local proof of the pipeline, not the dataset: one scene per family and one mid
+# level of every applicable perturbation (23 clips, 7 simulations). The full dataset below is
+# generated on the H200: `physverify --profile precise dataset build --subset full`.
 [dataset.subsets.local]
-clips_per_family = 4
+scenes_per_family = 1
+levels = [3]
 
+[dataset.subsets.local.perturbations]
+f1_projectile = ["r4_resize", "r4_vanish", "r5a_gravity_switch", "r5a_object_gravity", "r5b_gravity_scale"]
+f2_bounce = ["r3_restitution_gain", "r4_resize", "r4_teleport", "r4_vanish", "r5b_gravity_scale"]
+f3_collision = ["r3_energy_gain", "r4_vanish"]
+f4_stack = ["r2_unsupported_rest", "r4_teleport", "r4_vanish"]
+f5_contact = ["r1_penetration", "r4_teleport", "r4_vanish"]
+
+# H200 only (920 clips at the precise profile).
 [dataset.subsets.full]
-clips_per_family = 40
+scenes_per_family = 40
+levels = [1, 2, 3, 4]
+level_mode = "cycle"
+
+[dataset.subsets.full.perturbations]
+f1_projectile = ["r4_resize", "r4_vanish", "r5a_gravity_switch", "r5a_object_gravity", "r5b_gravity_scale"]
+f2_bounce = ["r3_restitution_gain", "r4_resize", "r4_teleport", "r4_vanish", "r5b_gravity_scale"]
+f3_collision = ["r3_energy_gain", "r4_vanish"]
+f4_stack = ["r2_unsupported_rest", "r4_teleport", "r4_vanish"]
+f5_contact = ["r1_penetration", "r4_teleport", "r4_vanish"]
 
 [dataset.profiles.precise]
+version = "v1-precise"
 resolution = 256
 samples_per_pixel = 64
 background = "hdri"
-assets = "gso"
+
+[dataset.profiles.precise.render]
+workers = 8
