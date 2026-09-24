@@ -15,6 +15,7 @@ from physverify.extraction.providers.contacts_proximity import (
     Params,
     ProximityContacts,
     contact_probability,
+    nan_median,
 )
 from physverify.physics.geometry import characteristic_lengths
 from physverify.schema.constants import ENV_ID
@@ -110,3 +111,8 @@ def test_contact_probability_limits() -> None:
     assert contact_probability(0.02, 0.015, 0.0) == 0.0
     assert contact_probability(0.015, 0.015, 0.003) == pytest.approx(0.5)
     assert math.isnan(contact_probability(0.0, 0.015, math.nan))
+
+
+def test_nan_median_skips_nan_and_is_nan_when_all_are_nan() -> None:
+    assert nan_median([1.0, math.nan, 3.0]) == 2.0
+    assert math.isnan(nan_median([math.nan, math.nan]))

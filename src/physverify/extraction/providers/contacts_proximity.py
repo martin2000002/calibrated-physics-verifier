@@ -219,7 +219,7 @@ class ContactScene:
         placed = [self.bodies[middle.frame][pair.a]]
         if pair.b is not None:
             placed.append(self.bodies[middle.frame][pair.b])
-        speed = float(np.nanmedian([c.normal_speed for c in interval]))
+        speed = nan_median([c.normal_speed for c in interval])
         resting = (
             len(interval) >= self.params.min_rest_frames
             and speed <= self.params.rest_speed_rel * pair.length
@@ -251,6 +251,13 @@ def object_lengths(states: ObjectStateTable) -> FloatArray:
         warnings.simplefilter("ignore", RuntimeWarning)
         median: FloatArray = np.nanmedian(lengths, axis=0)
     return median
+
+
+def nan_median(values: Sequence[float]) -> float:
+    """``np.nanmedian`` without the all-NaN warning: NaN when every value is NaN."""
+    array = np.asarray(values, dtype=np.float64)
+    known = array[~np.isnan(array)]
+    return float(np.median(known)) if known.size else math.nan
 
 
 def unit_mean(normals: FloatArray) -> FloatArray:

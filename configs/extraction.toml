@@ -19,6 +19,10 @@ kubric_synthetic = 24
 physics_iq = 16
 pisa_real = 60
 
+# Local depth resolution: 518 and 392 were OOM-killed on the 7.6 GB laptop (ADR 0007, section 13.3).
+[extraction.providers.depth.vda_small]
+input_size = 280
+
 [extraction.profiles.precise.plan]
 track = "sam2_1_hiera_tiny"
 
@@ -28,3 +32,6 @@ max_side = 960
 [extraction.profiles.precise.sampling.target_fps]
 physics_iq = 30
 pisa_real = 120
+
+[extraction.profiles.precise.providers.depth.vda_small]
+input_size = 518

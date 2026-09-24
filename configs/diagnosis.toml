@@ -1,0 +1,109 @@
+# Extractor diagnosis (cycle A6, ADR 0007). Local values are the Entregable 1 proof of the
+# pipeline on this laptop (about 25 synthetic + 5 Physics-IQ + 5 PISA clips). Full datasets and
+# the large runs belong to the H200: `physverify --profile precise --device cuda ... --subset full`.
+# Every threshold-dependent number (verdict flips, fail rates) is provisional until A8.
+[diagnosis]
+dataset = "kubric_synthetic"
+subset = "local"
+profile_split = "calib"
+report_split = "eval"
+min_samples = 30
+
+[diagnosis.metrics]
+boundary_tol_frac = 0.008
+depth_alignment = "clip"
+depth_eps_frac = 1e-3
+contact_min_tiou = 0.3
+impact_half_window_s = 0.125
+
+[diagnosis.end_to_end]
+min_span_iou = 0.1
+z_levels = [1.0, 2.0]
+
+[diagnosis.factorial]
+fixed_ground_truth = ["detect", "camera"]
+bootstrap = 1000
+seed = 0
+ci = 0.95
+
+[diagnosis.scale]
+providers = ["size_prior", "free_fall"]
+
+[diagnosis.real]
+datasets = ["physics_iq", "pisa_real"]
+motion_threshold = 127
+motion_min_frac = 1e-4
+moving_iou = 0.95
+fall_speed_drop = 0.5
+min_fall_frames = 6
+
+[diagnosis.profiles.precise]
+subset = "full"
+
+[physics_iq]
+bucket_url = "https://storage.googleapis.com/physics-iq-benchmark"
+listing_url = "https://storage.googleapis.com/storage/v1/b/physics-iq-benchmark/o"
+license = "CC-BY-4.0"
+fps_file = 16
+view = "center"
+takes = [1]
+max_clips = 5
+max_frames = 48
+local = [
+    "ball-and-block-fall",
+    "balls-collide",
+    "ball-rolls-off",
+    "unstable-block-stack",
+    "stable-blocks",
+]
+full_dynamic = [
+    "ball-and-block-fall",
+    "ball-hits-duck",
+    "ball-hits-nothing",
+    "ball-in-basket",
+    "ball-ramp",
+    "ball-rolls-off",
+    "ball-rolls-on-glass",
+    "ball-train",
+    "balls-collide",
+    "block-domino",
+    "dominos-with-space",
+    "double-cradle",
+    "duck-and-dominos",
+    "duck-falls-in-box",
+    "marble-run-x",
+    "marble-run-y",
+    "mirror-ball-fall",
+    "roll-behind-box",
+    "roll-front-box",
+    "roll-in-box",
+    "single-cradle",
+    "solid-ball-peakaboo",
+    "two-balls-pass",
+    "unstable-block-stack",
+]
+full_static = ["duck-static", "stable-blocks", "glass-stays-same"]
+retries = 3
+
+[physics_iq.profiles.precise]
+fps_file = 30
+takes = [1, 2]
+max_clips = 0
+max_frames = 0
+
+[pisa_real]
+repo_url = "https://huggingface.co/datasets/nyu-visionx/pisa-experiments"
+revision = "8f66e855fca40b7d9ab7ef947c51b52668adc762"
+archive = "pisabench/real.zip"
+license = "Apache-2.0"
+real_fps = 120.0        # estimated capture rate; `diagnose real` reports a time-base check
+max_clips = 5
+max_frames = 96         # 0.8 s; target_fps 60 -> step 2 -> 48 samples
+seed = 0
+local_ids = ["0313", "0265", "0166", "0018", "0054"]  # seed-0 selection, pinned 2026-09-24
+fall_verbs = ["falls", "drops", "is dropped", "tumbles", "slides", "rolls", "topples"]
+retries = 3
+
+[pisa_real.profiles.precise]
+max_clips = 0
+max_frames = 0

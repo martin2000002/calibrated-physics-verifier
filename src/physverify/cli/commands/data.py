@@ -1,24 +1,81 @@
-"""``physverify data`` (stub owned by cycle A6)."""
+"""``physverify data fetch``: download the real datasets into ``paths.raw_dir`` (ADR 0007 §4.3).
+
+A heavy command (network and disk). A second run with the files intact transfers nothing.
+"""
 
 from __future__ import annotations
 
-from typing import Annotated
+import time
+from collections.abc import Callable, Mapping, Sequence
+from pathlib import Path
+from typing import TYPE_CHECKING, Annotated, Any
 
 import typer
 
-from physverify.cli.context import not_implemented
+from physverify.cli.context import app_context, heavy_command
+from physverify.core.errors import UsageError
+from physverify.datasets._download import MANIFEST_FILE, read_manifest
+from physverify.diagnosis.settings import diagnosis_settings
+
+if TYPE_CHECKING:
+    from physverify.config.models import Settings
 
 NAME = "data"
 OWNER = "A6"
-IMPLEMENTED = False
+IMPLEMENTED = True
+BYTES_PER_MB = 1_000_000
 
-app = typer.Typer(
-    help="Download real datasets. Not implemented yet (cycle A6).", no_args_is_help=True
-)
+app = typer.Typer(help="Download the real datasets (Physics-IQ, PISA).", no_args_is_help=True)
 
 
-@app.command("fetch", help="Fetch physics_iq or pisa_real.")
-def fetch(
-    dataset: Annotated[str | None, typer.Argument(help="physics_iq or pisa_real.")] = None,
+def fetch_targets(
+    registry: Mapping[str, type[Any]], downloadable: Sequence[str], dataset: str | None
+) -> list[type[Any]]:
+    """The dataset classes to fetch: ``dataset``, or every downloadable one when it is None."""
+    if dataset is not None and dataset not in downloadable:
+        raise UsageError(f"{dataset!r} cannot be downloaded; downloadable: {list(downloadable)}")
+    names = downloadable if dataset is None else (dataset,)
+    unregistered = [name for name in names if name not in registry]
+    if unregistered:
+        raise UsageError(f"datasets {unregistered} are not registered")
+    return [registry[name] for name in names]
+
+
+def fetch_summary(dest: Path, elapsed_s: float) -> str:
+    manifest = read_manifest(dest / MANIFEST_FILE)
+    if manifest is None:
+        return f"{dest.name}: no manifest written ({elapsed_s:.1f} s)"
+    size_mb = sum(f.size for f in manifest.files) / BYTES_PER_MB
+    return (
+        f"{manifest.dataset} [{manifest.subset}]: {len(manifest.clips)} clips, "
+        f"{len(manifest.files)} files, {size_mb:.1f} MB, {elapsed_s:.1f} s -> {dest}"
+    )
+
+
+def fetch_all(
+    classes: Sequence[type[Any]],
+    settings: Settings,
+    subset: str | None,
+    echo: Callable[[str], None],
+    clock: Callable[[], float] = time.monotonic,
 ) -> None:
-    not_implemented(OWNER, "data fetch")
+    for cls in classes:
+        dest = settings.paths.raw_dir / cls.name
+        started = clock()
+        cls(settings).fetch(subset, dest)
+        echo(fetch_summary(dest, clock() - started))
+
+
+@app.command("fetch", help="Fetch physics_iq and/or pisa_real (default: diagnosis.real.datasets).")
+@heavy_command
+def fetch(
+    dataset: Annotated[
+        str | None, typer.Argument(help="physics_iq or pisa_real (default: both).")
+    ] = None,
+    subset: Annotated[str | None, typer.Option(help="local or full (default: local).")] = None,
+) -> None:
+    context = app_context()
+    settings = context.settings
+    downloadable = diagnosis_settings(settings).real.datasets
+    classes = fetch_targets(context.registry("datasets"), downloadable, dataset)
+    fetch_all(classes, settings, subset, typer.echo)

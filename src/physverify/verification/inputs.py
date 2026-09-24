@@ -116,6 +116,30 @@ def provenance(names: Mapping[Stage, str], scale: ScaleEstimate | None) -> dict[
     return {stage.value: name for stage, name in names.items()} | {SCALE_SOURCE_KEY: source.value}
 
 
+def perceived_inputs(
+    clip: ClipManifest,
+    outputs: Mapping[Stage, StageOutput],
+    names: Mapping[Stage, str],
+    level: InputLevel,
+) -> CheckInputs:
+    """States from KINEMATICS, contacts from CONTACTS, scale from SCALE; raises
+    ``MissingInputError`` without states and ``InputsError`` on an invalid table."""
+    states = _output(outputs, Stage.KINEMATICS, ObjectStateTable)
+    if states is None:
+        raise MissingInputError(f"no {Stage.KINEMATICS.value} output")
+    scale = _output(outputs, Stage.SCALE, ScaleEstimate)
+    raw = RawInputs(
+        clip=clip,
+        states=states,
+        contacts=_output(outputs, Stage.CONTACTS, ContactTable),
+        scale=scale,
+        scene=None,
+        level=level,
+        provenance=provenance(names, scale),
+    )
+    return build_inputs(raw)
+
+
 def refuse_heavy(dataset: str) -> NoReturn:
     """Lock factory of ``verify``: a heavy stage missing from the cache fails its clip."""
     raise MissingInputError(
@@ -231,21 +255,11 @@ class PerceivedSource:
                 yield self._one(clip, found)
 
     def _one(self, clip: ClipManifest, found: StageOutputs) -> ClipInputs:
-        states = _output(found.outputs, Stage.KINEMATICS, ObjectStateTable)
-        if states is None:
-            error = f"MissingInputError: no {Stage.KINEMATICS.value} output"
-            return ClipInputs(clip, None, error, self._level)
-        scale = _output(found.outputs, Stage.SCALE, ScaleEstimate)
-        raw = RawInputs(
-            clip=clip,
-            states=states,
-            contacts=_output(found.outputs, Stage.CONTACTS, ContactTable),
-            scale=scale,
-            scene=None,
-            level=self._level,
-            provenance=provenance(found.names, scale),
-        )
-        return _prepared(raw)
+        try:
+            inputs = perceived_inputs(clip, found.outputs, found.names, self._level)
+        except DOMAIN_ERRORS as exc:
+            return ClipInputs(clip, None, error_message(exc), self._level)
+        return ClipInputs(clip, inputs, None)
 
 
 def _output[O](outputs: Mapping[Stage, StageOutput], stage: Stage, kind: type[O]) -> O | None:
