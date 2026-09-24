@@ -8,10 +8,17 @@ from typing import Any
 
 import pytest
 from fakes import FakeTrack
-from support import chain_keys, entry, profile_of, sampling_of, truth_outputs, with_sigma
+from support import (
+    SettingsFactory,
+    chain_keys,
+    entry,
+    profile_of,
+    sampling_of,
+    truth_outputs,
+    with_sigma,
+)
 from synthetic_clip import SyntheticClip
 
-from conftest import SettingsFactory
 from physverify.extraction._base import GROUND_TRUTH, StageProvider
 from physverify.extraction.cache import StageCache, stage_key
 from physverify.extraction.plan import StagePlan, resolve_plan

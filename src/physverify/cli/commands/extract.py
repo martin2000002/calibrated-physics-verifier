@@ -6,6 +6,7 @@ import datetime as dt
 import json
 import math
 from collections.abc import Callable, Sequence
+from contextlib import AbstractContextManager
 from dataclasses import asdict
 from pathlib import Path
 from typing import Annotated, Any
@@ -96,7 +97,7 @@ def run(
 ) -> None:
     context = app_context()
     settings = context.settings
-    source = _dataset(context, dataset)
+    source = resolve_dataset(context, dataset)
     selected = select_clips(source.clips(subset), clips or ())
     plan = resolve_plan(
         settings,
@@ -119,7 +120,7 @@ def run(
     typer.echo(f"run: {run_context.run_dir}")
     recorder = EventRecorder(ConsoleObserver(typer.echo))
     try:
-        report = ExtractionPipeline(plan, _deps(context, recorder)).run(source, selected)
+        report = ExtractionPipeline(plan, pipeline_deps(context, recorder)).run(source, selected)
     except Exception as exc:
         write_events(events_path, recorder.aborted_report(exc))
         raise
@@ -148,7 +149,7 @@ def fetch_weights() -> None:
             )
 
 
-def _dataset(context: AppContext, name: str) -> DatasetSource:
+def resolve_dataset(context: AppContext, name: str) -> DatasetSource:
     registry = context.registry("datasets")
     if name not in registry:
         raise UsageError(f"unknown dataset {name!r}; known: {sorted(registry)}")
@@ -166,11 +167,17 @@ def select_clips(clips: Sequence[ClipManifest], wanted: Sequence[str]) -> list[C
     return [by_id[clip_id] for clip_id in dict.fromkeys(wanted)]
 
 
-def _deps(context: AppContext, observer: StageObserver) -> PipelineDeps:
+def pipeline_deps(
+    context: AppContext,
+    observer: StageObserver | None,
+    heavy_lock: Callable[[], AbstractContextManager[object]] | None = None,
+) -> PipelineDeps:
+    """``heavy_lock`` replaces the machine lock, e.g. with one that refuses in commands that must
+    never run a heavy stage."""
     settings = context.settings
     return PipelineDeps(
         cache=StageCache(settings.paths.cache_dir),
-        lock=LazyLock(context.heavy_lock),
+        lock=LazyLock(heavy_lock or context.heavy_lock),
         paths=settings.paths,
         device=settings.runtime.device,
         threads=settings.runtime.threads,

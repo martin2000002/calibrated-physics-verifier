@@ -10,10 +10,9 @@ from typing import ClassVar
 
 import pytest
 from fakes import FAKE, JOURNAL, FakeTrack
-from support import CountingLock, plan_overrides, run_pipeline
+from support import CountingLock, SettingsFactory, plan_overrides, run_pipeline
 from synthetic_clip import SyntheticFixtureDataset
 
-from conftest import SettingsFactory
 from physverify.config.models import PathsSettings
 from physverify.core.errors import ConfigError, MissingInputError
 from physverify.extraction._base import StageProvider, WeightKind, WeightSpec, provider_key

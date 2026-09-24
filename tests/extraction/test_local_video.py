@@ -9,8 +9,8 @@ from typing import Any
 import cv2
 import numpy as np
 import pytest
+from support import SettingsFactory
 
-from conftest import SettingsFactory
 from physverify.core.errors import ConfigError, MissingInputError
 from physverify.datasets.local_video import MANIFEST_FILE, QUERIES_SUFFIX, LocalVideoDataset
 from physverify.schema.clip import ObjectQuery, TimeSource

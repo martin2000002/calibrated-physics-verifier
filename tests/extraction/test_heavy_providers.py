@@ -15,10 +15,9 @@ import numpy as np
 import pytest
 from fakes import DISPARITY_A, affine_disparity, fixture_truth
 from numpy.typing import NDArray
-from support import plan_overrides, run_pipeline
+from support import SettingsFactory, plan_overrides, run_pipeline
 from synthetic_clip import SyntheticFixtureDataset
 
-from conftest import SettingsFactory
 from physverify.core.errors import PluginError
 from physverify.extraction import pipeline
 from physverify.extraction._base import StageProvider

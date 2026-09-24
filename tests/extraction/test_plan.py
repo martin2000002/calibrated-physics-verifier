@@ -9,8 +9,8 @@ from typing import Any, ClassVar
 
 import pytest
 from pydantic import BaseModel
+from support import SettingsFactory
 
-from conftest import SettingsFactory
 from physverify.config.models import SizePriorTable
 from physverify.core.errors import ConfigError
 from physverify.extraction._base import GROUND_TRUTH, StageProvider

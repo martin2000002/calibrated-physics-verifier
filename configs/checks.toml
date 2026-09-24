@@ -1,0 +1,41 @@
+# Checks R1-R5b and verdict policy (cycle A7). Every threshold is PROVISIONAL until the H1
+# calibration (A8) writes data/calibration/thresholds.json, which then takes precedence.
+# Entregable 1 is a local proof of the pipeline: ~25 synthetic clips (5 families x 1 seed x
+# none + 1 mid level per applicable perturbation) plus 5 Physics-IQ and 5 PISA clips.
+# The full dataset and the large runs happen on the H200.
+# Frame counts (min_*_frames, fit_frames, side_frames) count table ROWS; margins
+# (impact_margin_frames) are NATIVE frames. Perceived tables may be strided (extraction.toml).
+# Any check id (R1, R2, R3a, R3b, R4_missing, R4_size, R4_jump, R5a, R5b) accepts a
+# [checks.<id>] table overriding fields of its Params; unknown fields are a ConfigError.
+
+[checks.R2]            # plugin defaults live in checks/r2_equilibrium.py; override here
+friction = 0.6
+mass_floor = 0.2
+
+[verification]
+policy = "threshold"
+
+[verification.policies.threshold]
+k_sigma = 2.0
+on_unknown_sigma = "abstain"
+
+[verification.thresholds]   # provisional, check units
+R1 = 0.05
+R2 = 0.01
+R3a = 0.05
+R3b = 0.05
+R4_missing = 2
+R4_size = 0.10
+R4_jump = 0.50
+R5a = 0.15
+R5b = 0.15
+
+[verification.specificity]
+abs_tol = 1e-3
+rel_tol = 0.02
+null_tol = 1e-3
+# Physical couplings: reported as "expected coupling", never failed.
+# r5b_gravity_scale -> R4_jump: a stronger g enlarges the second difference g dt^2 / L of every row.
+# r5a_gravity_switch -> R5b: one parabola over a flight whose g rotates by theta mid-flight fits
+#   |a| ~ g cos(theta / 2) (0.4 % on the local f1 clip, far below the R5b threshold).
+couplings = [["r5b_gravity_scale", "R4_jump"], ["r5a_gravity_switch", "R5b"]]

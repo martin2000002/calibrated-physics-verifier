@@ -10,6 +10,7 @@ import pytest
 from fakes import FAKE, JOURNAL
 from support import (
     CountingLock,
+    SettingsFactory,
     entry,
     load_output,
     plan_overrides,
@@ -18,7 +19,6 @@ from support import (
 )
 from synthetic_clip import SyntheticFixtureDataset
 
-from conftest import SettingsFactory
 from physverify.config.models import Settings
 from physverify.extraction._base import StageProvider
 from physverify.extraction.pipeline import ExtractionReport

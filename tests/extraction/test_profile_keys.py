@@ -8,6 +8,7 @@ from dataclasses import replace
 import pytest
 from fakes import FAKE
 from support import (
+    SettingsFactory,
     chain_keys,
     entry,
     make_context,
@@ -20,7 +21,6 @@ from support import (
 )
 from synthetic_clip import SyntheticClip, SyntheticFixtureDataset
 
-from conftest import SettingsFactory
 from physverify.extraction._base import StageProvider
 from physverify.extraction.cache import StageCache, profile_keys
 from physverify.extraction.plan import ResolvedPlan, resolve_plan

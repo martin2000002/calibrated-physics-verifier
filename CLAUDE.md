@@ -118,7 +118,7 @@ SCHEMA CHANGE REQUEST: <what and why>
 |---|---|
 | A4 dataset | `kubric_worker/build_scene.py`, `kubric_worker/tasks/{simulate,contacts,render}.py`, `synth/*.py`, `synth/families/f*.py`, `synth/perturbations/` except `_base.py`, `datasets/kubric_synthetic.py`, `cli/commands/dataset.py`, `configs/dataset.toml`, `tests/synth/**`, `tests/kubric_worker/**` |
 | A5 extractor | `extraction/{settings,plan,cache,pipeline,weights,matching}.py`, `extraction/providers/*.py`, `physics/{kinematics,uncertainty}.py`, `datasets/local_video.py`, `cli/commands/extract.py`, `configs/extraction.toml`, `tests/extraction/**` |
-| A7 checks | `checks/r*.py`, `physics/equilibrium.py`, `verification/{inputs,runner}.py`, `verification/policies/*.py`, `cli/commands/verify.py`, `configs/checks.toml`, `tests/checks/**`, `tests/verification/**` |
+| A7 checks | `checks/r*.py`, `checks/_common.py`, `physics/{equilibrium,tracks}.py`, `verification/{inputs,runner,sweep}.py`, `verification/policies/*.py`, `cli/commands/verify.py`, `configs/checks.toml`, `tests/checks/**`, `tests/verification/**` |
 | A6 diagnosis | `diagnosis/` except `_base.py`, `datasets/{physics_iq,pisa_real}.py`, `annotations/*.json`, `cli/commands/{diagnose,data}.py`, `configs/diagnosis.toml`, `tests/diagnosis/**` |
 | A3 timing | `timing/` except `_base.py`, `cli/commands/timing.py`, `scripts/h200/**` (must not assume Docker), `configs/timing.toml`, `tests/timing/**` |
 

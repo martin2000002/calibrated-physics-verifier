@@ -74,3 +74,12 @@ uv run --no-sync mypy
 | `physverify.cli` | `physverify` command line; subcommands are discovered from `cli/commands/` |
 
 Data, model weights and run outputs live under `data/` (ignored by git).
+
+## Adding a check
+
+A check is one file, `src/physverify/checks/<id>_<name>.py`, that exports a `PLUGINS` tuple. Each class in it
+satisfies `physverify.checks._base.Check`: a `check_id`, the `requires` set of inputs it needs, its
+`magnitude_unit`, a pydantic `Params` model with its defaults, and `evaluate(inputs)`. Defaults can be overridden
+in a `[checks.<id>]` table of `configs/checks.toml`. The registry discovers the file on its own; no other module
+changes. Perturbations, stage providers, diagnosis metrics and timing targets follow the same pattern in their
+own packages.

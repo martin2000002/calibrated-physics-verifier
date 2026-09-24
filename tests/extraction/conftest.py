@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import socket
 import sys
-from collections.abc import Callable, Iterator, Mapping
+from collections.abc import Iterator, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -17,14 +17,13 @@ if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
 from fakes import FAKES, JOURNAL  # noqa: E402
+from support import SettingsFactory  # noqa: E402
 from synthetic_clip import SyntheticClip, SyntheticFixtureDataset, build_clip  # noqa: E402
 
 from physverify.cli.context import PLUGIN_KINDS  # noqa: E402
 from physverify.config.loader import load_settings  # noqa: E402
 from physverify.config.models import RuntimeSettings, Settings  # noqa: E402
 from physverify.extraction._base import StageProvider, provider_key  # noqa: E402
-
-SettingsFactory = Callable[..., Settings]
 
 
 def _refuse(*args: Any, **kwargs: Any) -> Any:

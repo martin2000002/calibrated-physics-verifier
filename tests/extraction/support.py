@@ -41,6 +41,8 @@ from physverify.schema.outputs import StageOutput
 from physverify.schema.stages import STAGE_ORDER, Stage
 from physverify.schema.states import ObjectStateTable
 
+SettingsFactory = Callable[..., Settings]
+
 UNUSED_PATHS = PathsSettings.model_validate({"data_dir": "/nonexistent/physverify-tests"})
 
 
