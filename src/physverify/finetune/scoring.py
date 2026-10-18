@@ -120,6 +120,28 @@ def candidate_score(
     )
 
 
+def restamp(
+    score: CandidateScore, scorer: AggregateScorer, aggregate: AggregateScore
+) -> CandidateScore:
+    """The stored score under a new scorer stamp; the check summaries and signals are kept."""
+    return score.model_copy(
+        update={
+            "scorer": scorer.name,
+            "scorer_version": scorer.version,
+            "calibrated": scorer.calibrated,
+            "thresholds": scorer.thresholds(),
+            "score": aggregate.score,
+            "sigma": aggregate.sigma,
+            "abstained": aggregate.abstained or aggregate.score is None,
+            "reason": aggregate.reason,
+            "n_decided": aggregate.n_decided,
+            "n_failed": aggregate.n_failed,
+            "coverage": aggregate.coverage,
+            "decided": sorted(aggregate.decided),
+        }
+    )
+
+
 def pending(
     store: CampaignStore,
     model_tag: str,

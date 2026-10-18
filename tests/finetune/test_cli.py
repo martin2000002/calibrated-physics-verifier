@@ -72,6 +72,16 @@ def test_gpu_subcommands_exit_2_on_cpu(
     assert "--device cuda" in result.err
 
 
+@pytest.mark.parametrize("step", ["generate", "score"])
+def test_the_eval_split_is_left_to_h3(
+    cli: CliRunner, env: dict[str, str], tmp_path: Path, step: str
+) -> None:
+    result = cli("--device", "cuda", "finetune", step, "--split", "eval", env=env)
+    assert result.code == 2
+    assert f"physverify h3 {step}" in result.err
+    assert not (tmp_path / "data").exists() or not any((tmp_path / "data").rglob("*.json*"))
+
+
 def test_prompts_build_writes_and_checks_the_set(
     cli: CliRunner, env: dict[str, str], store: CampaignStore, labels: None
 ) -> None:

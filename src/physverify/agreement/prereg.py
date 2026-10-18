@@ -7,7 +7,7 @@ on the test subset recomputes every frozen hash and refuses to run when one chan
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, ValidationError
@@ -70,16 +70,21 @@ def load_preregistration(path: Path) -> Preregistration:
         raise ConfigError(f"{path} is invalid:\n{exc}") from exc
 
 
-def changed_fields(frozen: Preregistration, current: Mapping[str, object]) -> list[str]:
+def changed_fields(
+    frozen: BaseModel, current: Mapping[str, object], *, fields: Sequence[str] = FROZEN_FIELDS
+) -> list[str]:
     """Names of the frozen fields whose current value differs."""
     stored = frozen.model_dump()
-    return [name for name in FROZEN_FIELDS if name in current and stored[name] != current[name]]
+    return [name for name in fields if name in current and stored[name] != current[name]]
 
 
-def require_unchanged(frozen: Preregistration, current: Mapping[str, object]) -> None:
-    changed = changed_fields(frozen, current)
+def require_unchanged(
+    frozen: BaseModel, current: Mapping[str, object], *, fields: Sequence[str] = FROZEN_FIELDS
+) -> None:
+    changed = changed_fields(frozen, current, fields=fields)
     if changed:
-        detail = ", ".join(f"{n}: {frozen.model_dump()[n]!r} -> {current[n]!r}" for n in changed)
+        stored = frozen.model_dump()
+        detail = ", ".join(f"{n}: {stored[n]!r} -> {current[n]!r}" for n in changed)
         raise ConfigError(
             f"the pre-registration no longer holds ({detail}); the test is not comparable"
         )

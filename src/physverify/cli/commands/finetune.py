@@ -16,12 +16,11 @@ from typing import Annotated, Any, Final
 
 import typer
 
-from physverify.cli.commands.extract import pipeline_deps, resolve_dataset
+from physverify.cli.commands._finetune_deps import candidate_generator, require_cuda, scoring_deps
 from physverify.cli.commands.timing import _timing_directory
 from physverify.cli.context import AppContext, app_context, heavy_command
-from physverify.config.models import Settings
 from physverify.core.errors import EXIT_ERROR, UsageError
-from physverify.extraction.plan import resolve_plan
+from physverify.evaluation.arms import EVAL_SPLIT
 from physverify.finetune.budget import (
     PAIR_MEASURE,
     FinetuneBudgetQuery,
@@ -45,7 +44,7 @@ from physverify.finetune.records import (
     write_records,
 )
 from physverify.finetune.scorers._base import AggregateScorer
-from physverify.finetune.scoring import ScoringDeps, build_scorer, rescorer, score_candidates
+from physverify.finetune.scoring import build_scorer, rescorer, score_candidates
 from physverify.finetune.seeds import parse_shard
 from physverify.finetune.selection import Selection, choose, evaluate_checkpoint, spaced
 from physverify.finetune.settings import (
@@ -81,32 +80,16 @@ from physverify.finetune.trainer import (
     stored_pairs,
 )
 from physverify.finetune.wan_lora import load_wan_adapter_model
-from physverify.runtime.heavy import NullLock
 from physverify.runtime.runs import current_commit
-from physverify.schema.checks import InputLevel
 from physverify.timing.budget import BudgetError, cost_from_results
-from physverify.timing.envinfo import TorchCudaProbe
-from physverify.timing.generation import load_wan_pipeline, snapshot_dir, snapshot_problem
+from physverify.timing.generation import snapshot_dir, snapshot_problem
 from physverify.timing.report import load_results, load_samples
 from physverify.timing.settings import load_timing
 from physverify.timing.stats import across_medians, stat_rows
-from physverify.verification.inputs import PerceivedSource, PipelineOutputLoader
-from physverify.verification.runner import (
-    CHECKS_SECTION,
-    VERIFICATION_SECTION,
-    ChecksSettings,
-    VerificationRunner,
-    VerificationSettings,
-    build_checks,
-    build_policy,
-    load_thresholds,
-)
 
 NAME = "finetune"
 OWNER = "A11"
 IMPLEMENTED = True
-DATASET: Final = "local_video"
-NESTED_LOCK: Final = "held by finetune"
 DEFAULT_RUN: Final = "main"
 SIGMA_LEVELS: Final = (0.1, 0.25, 0.5, 0.75, 0.9)
 PILOT_PROMPTS: Final = 20
@@ -115,7 +98,7 @@ app = typer.Typer(no_args_is_help=True, help="Preference pairs and Flow-DPO LoRA
 prompts_app = typer.Typer(no_args_is_help=True, help="The prompt set (prompts.jsonl).")
 app.add_typer(prompts_app, name="prompts")
 
-SplitOption = Annotated[str, typer.Option(help="train, dev or eval.")]
+SplitOption = Annotated[str, typer.Option(help="train or dev (eval belongs to `h3`).")]
 ScorerOption = Annotated[
     str | None, typer.Option(help="calibrated or provisional (default: finetune.scorer).")
 ]
@@ -131,19 +114,22 @@ def _store(context: AppContext) -> CampaignStore:
     return CampaignStore.from_settings(context.settings)
 
 
-def require_cuda(settings: Settings) -> None:
-    device = settings.runtime.device
-    if not device.startswith("cuda"):
-        raise UsageError(f"this subcommand needs --device cuda (device is {device!r})")
-    if not TorchCudaProbe().available():
-        raise UsageError("this subcommand needs a CUDA device and none is available")
-
-
 def parse_split(split: str) -> PromptSplit:
     for known in SPLITS:
         if split == known:
             return known
     raise UsageError(f"--split must be one of {list(SPLITS)}, got {split!r}")
+
+
+def campaign_split(split: str, h3_step: str) -> PromptSplit:
+    """A train or dev split; the eval candidates and scores are H3's (ADR 0013), whose
+    generation stamp and pre-registration a finetune run would break."""
+    parsed = parse_split(split)
+    if parsed == EVAL_SPLIT:
+        raise UsageError(
+            f"the eval split belongs to H3: run `physverify h3 {h3_step} --arm base|ft`"
+        )
+    return parsed
 
 
 def campaign_prompts(store: CampaignStore, split: PromptSplit | None = None) -> list[PromptRecord]:
@@ -183,29 +169,6 @@ def prompts_build(
         typer.echo(f"  {split}: {sum(r.split == split for r in records)}")
 
 
-def _generator(
-    context: AppContext, store: CampaignStore, adapter: Path | None
-) -> CandidateGenerator:
-    settings = context.settings
-    gen = generator_settings(settings)
-    problem = snapshot_problem(gen, settings.paths)
-    if problem is not None:
-        raise UsageError(f"Wan2.1 weights: {problem}")
-    if adapter is not None and not adapter.exists():
-        raise UsageError(f"adapter {adapter} does not exist")
-    device = settings.runtime.device
-    snapshot = snapshot_dir(gen, settings.paths)
-    return CandidateGenerator(
-        store,
-        gen,
-        _cfg(context).candidates,
-        pipe_factory=lambda: load_wan_pipeline(snapshot, gen, device),
-        device=device,
-        adapter=adapter,
-        commit=current_commit(settings.repo_root),
-    )
-
-
 def _generate(
     generator: CandidateGenerator,
     prompts: Sequence[PromptRecord],
@@ -227,30 +190,12 @@ def generate(
     shard: ShardOption = None,
     limit: Annotated[int | None, typer.Option(min=1, help="At most N candidates.")] = None,
 ) -> None:
+    which = campaign_split(split, "generate")
     context = app_context()
     require_cuda(context.settings)
     store = _store(context)
-    prompts = campaign_prompts(store, parse_split(split))
-    _generate(_generator(context, store, adapter), prompts, shard, limit)
-
-
-def scoring_deps(context: AppContext) -> ScoringDeps:
-    """Perceived inputs from the extraction pipeline over ``local_video``, checks from A7."""
-    settings = context.settings
-    verification = settings.section(VERIFICATION_SECTION, VerificationSettings)
-    runner = VerificationRunner(
-        build_checks(context.registry("checks"), settings.section(CHECKS_SECTION, ChecksSettings)),
-        build_policy(context.registry("policies"), verification),
-        load_thresholds(settings.paths.thresholds, verification.thresholds),
-    )
-    dataset = resolve_dataset(context, DATASET)
-    plan = resolve_plan(settings, context.registry("providers"), dataset=DATASET, gt_stages=())
-    loader = PipelineOutputLoader(plan, pipeline_deps(context, None, lambda: NullLock(NESTED_LOCK)))
-    return ScoringDeps(
-        clips=dataset.clips,
-        source=PerceivedSource(dataset, loader, InputLevel.PERCEIVED),
-        runner=runner,
-    )
+    prompts = campaign_prompts(store, which)
+    _generate(candidate_generator(context, store, adapter), prompts, shard, limit)
 
 
 def _scorer(context: AppContext, name: str | None) -> AggregateScorer:
@@ -287,10 +232,11 @@ def score(
     scorer: ScorerOption = None,
     shard: ShardOption = None,
 ) -> None:
+    which = campaign_split(split, "score")
     context = app_context()
     require_cuda(context.settings)
     store = _store(context)
-    prompts = campaign_prompts(store, parse_split(split))
+    prompts = campaign_prompts(store, which)
     _score(context, store, model_tag, prompts, _scorer(context, scorer), shard)
 
 
@@ -616,12 +562,12 @@ def select(scorer: ScorerOption = None, run_id: RunIdOption = DEFAULT_RUN) -> No
     require_cuda(context.settings)
     active = _scorer(context, scorer)
     dev = campaign_prompts(store, "dev")
-    _generate(_generator(context, store, None), dev, None, None)
+    _generate(candidate_generator(context, store, None), dev, None, None)
     base = _score(context, store, BASE_TAG, dev, active)
     results = []
     for step in spaced(list(found), cfg.select.checkpoints):
         adapter = found[step] / ADAPTER_DIR
-        generator = _generator(context, store, adapter)
+        generator = candidate_generator(context, store, adapter)
         _generate(generator, dev, None, None)
         scores = _score(context, store, generator.model_tag, dev, active)
         results.append(

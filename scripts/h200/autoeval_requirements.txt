@@ -1,0 +1,15 @@
+# VideoPhy-2 AutoEval environment (ADR 0013 D4), installed by setup_autoeval.sh into its own venv.
+# The exact versions that passed the gate are in $PHYSVERIFY_H200_ROOT/autoeval/autoeval_freeze.txt.
+--extra-index-url https://download.pytorch.org/whl/cu121
+# The only upstream pin (root requirements.txt; VIDEOPHY2/requirements.txt does not exist).
+transformers==4.28.1
+# Our choice, not upstream: a torch, peft and numpy of the transformers 4.28 era (Python 3.10).
+torch==2.1.2+cu121
+peft==0.3.0
+numpy<2
+# Unpinned upstream; resolved at setup and recorded in the freeze file.
+decord
+einops
+sentencepiece
+opencv-python
+pandas

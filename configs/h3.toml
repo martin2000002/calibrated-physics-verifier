@@ -1,0 +1,52 @@
+# H3: fine-tuned vs base vs best-of-8 under the verifier and VideoPhy-2 AutoEval (cycle A13,
+# ADR 0013). Every value here is pre-registered: `physverify h3 freeze` hashes this section
+# (without [h3.autoeval], which is machine-local and enters through the judge stamps).
+# Fix eval_store_latents before the first eval video: store_latents is inside config_hash.
+
+[h3]
+exclude_tags = ["demo"]          # the demo scenes are generated with k = 1 and never analysed
+selection_run = "main"
+alpha = 0.05
+ci = 0.95
+power = 0.80
+bootstrap_n = 10000
+bootstrap_seed = 20261018
+wilcoxon_method = "asymptotic"   # pinned (ADR 0013, judge fix R2); scipy version goes in the prereg
+zero_method = "pratt"
+correction = false
+# Half the spread of AutoEval means across generators with n >= 300 in the published table,
+# truncated to two decimals; `h3 freeze` recomputes them and stops on a mismatch.
+noninferiority_margin_pc = 0.13
+sa_guard_margin = 0.05
+margin_min_generator_n = 300
+generator_column = "model_name"
+max_objects_ok_drop = 0.10
+min_ft_pairs_per_prompt = 2
+cross_fit_checks_a = []          # empty: S4 is not run
+eval_store_latents = false
+
+[h3.gate]
+n = 50
+subset = "v2_test"
+part = "v2_test"
+columns = { pc = "pc_pred", sa = "sa_pred" }
+min_exact = 0.90
+max_mae = 0.25
+max_parse_fail = 2
+
+[h3.usability]
+max_parse_fail_share = 0.10
+max_modal_share = 0.90
+
+[h3.autoeval]
+# root comes from PHYSVERIFY__H3__AUTOEVAL__ROOT (scripts/h200 set it to $H200_ROOT).
+venv = "venvs/videophy2"
+repo_dir = "autoeval/repo"
+checkpoint_dir = "autoeval/ckpt"
+freeze_file = "autoeval/autoeval_freeze.txt"
+hf_repo = "videophysics/videophy_2_auto"
+hf_revision = "ca38370e1dcc79c99c7017dd8755d0a087299afc"
+code_commit = "7d8b5ca65425758d2c4fc5435015609d429d9480"
+num_frames = 32
+batch_size = 1
+timeout_s = 7200.0

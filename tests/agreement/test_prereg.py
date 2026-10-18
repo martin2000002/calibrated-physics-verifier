@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from pydantic import BaseModel
 
 from physverify.agreement.prereg import (
     FROZEN_FIELDS,
@@ -38,6 +39,16 @@ RECORD = Preregistration(
 )
 
 
+class OtherRecord(BaseModel):
+    seed: int
+    commit: str
+    note: str
+
+
+OTHER = OtherRecord(seed=1, commit="abc", note="free")
+OTHER_FIELDS = ("seed", "commit")
+
+
 def _current(**changes: object) -> dict[str, object]:
     stored = RECORD.model_dump()
     return {**{name: stored[name] for name in FROZEN_FIELDS}, **changes}
@@ -55,6 +66,18 @@ def test_every_changed_frozen_field_is_named() -> None:
     assert changed_fields(RECORD, current) == ["commit", "profile"]
     with pytest.raises(ConfigError, match="commit: 'abc' -> 'def'"):
         require_unchanged(RECORD, current)
+
+
+def test_another_model_is_checked_on_its_own_fields() -> None:
+    current = {"seed": 2, "commit": "abc", "note": "edited", "rule": "other"}
+    assert changed_fields(OTHER, current, fields=OTHER_FIELDS) == ["seed"]
+    with pytest.raises(ConfigError, match="seed: 1 -> 2"):
+        require_unchanged(OTHER, current, fields=OTHER_FIELDS)
+
+
+def test_fields_outside_the_list_or_absent_from_the_state_are_ignored() -> None:
+    require_unchanged(OTHER, {"commit": "abc", "note": "edited"}, fields=OTHER_FIELDS)
+    assert changed_fields(OTHER, {"note": "edited"}, fields=OTHER_FIELDS) == []
 
 
 def test_a_missing_or_invalid_file_is_refused(tmp_path: Path) -> None:
