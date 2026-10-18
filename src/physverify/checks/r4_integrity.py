@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 
 from physverify.checks._base import CheckInputs
 from physverify.checks._common import CommonParams, abstain, first_max, unscored
-from physverify.physics.finite_diff import second_difference_sigma
+from physverify.physics.finite_diff import third_difference, third_difference_sigma
 from physverify.physics.geometry import characteristic_length, characteristic_lengths
 from physverify.physics.measures.r4_integrity import jump_ratio, missing_frames, size_change_ratio
 from physverify.physics.tracks import (
@@ -110,9 +110,10 @@ class SizeConstancyCheck:
 
 
 class ContinuityCheck:
-    """R4_jump [jump_over_size]: max ||p[k+1] - 2 p[k] + p[k-1]|| / L over consecutive rows,
-    skipping the rows whose stencil spans an impact (D13, D14.6: the smooth part grows with
-    (row_step * dt)^2, a teleport does not)."""
+    """R4_jump [jump_over_size]: max ||p[k+2] - 3 p[k+1] + 3 p[k] - p[k-1]|| / (2 L) over
+    consecutive rows, skipping the rows whose stencil spans an impact (D13, D14.6: the smooth
+    part grows with (row_step * dt)^3 and vanishes under constant acceleration, a teleport does
+    not)."""
 
     check_id: ClassVar[str] = "R4_jump"
     requires: ClassVar[frozenset[str]] = frozenset({"contacts"})
@@ -141,15 +142,15 @@ class ContinuityCheck:
             return abstain(type(self), inputs, (object_id,), reason, None, details)
         per_row = np.array(
             [
-                jump_ratio(position[k - 1 : k + 2], extents, exclude[k - 1 : k + 2])
-                for k in range(1, position.shape[0] - 1)
+                jump_ratio(position[k - 1 : k + 3], extents, exclude[k - 1 : k + 3])
+                for k in range(1, position.shape[0] - 2)
             ]
         )
         k = 1 + first_max(per_row)
         sigma = _jump_sigma(
-            position[k - 1 : k + 2], states.position_sigma[k, index], characteristic_length(extents)
+            position[k - 1 : k + 3], states.position_sigma[k, index], characteristic_length(extents)
         )
-        span = native_span(states.frame_index, k - 1, k + 1)
+        span = native_span(states.frame_index, k - 1, k + 2)
         return unscored(
             type(self), inputs, (object_id,), magnitude, sigma, span, {**details, "row": k}
         )
@@ -163,14 +164,15 @@ def _size_sigma(ratio: float, extents: FloatArray, extents_sigma: FloatArray) ->
 
 
 def _jump_sigma(window: FloatArray, position_sigma: FloatArray, length: float) -> float:
-    """sqrt(6) sigma_p / L with sigma_p the position sigma along the jump direction."""
-    jump = window[2] - 2.0 * window[1] + window[0]
+    """sqrt(20) sigma_p / (2 L) = sqrt(5) sigma_p / L with sigma_p the position sigma along the
+    jump direction."""
+    jump = third_difference(window)[0]
     norm = float(np.linalg.norm(jump))
     if norm > 0.0:
         along = float(np.linalg.norm(jump / norm * position_sigma))
     else:
         along = math.sqrt(float(np.mean(position_sigma**2)))
-    return second_difference_sigma(along, 1.0) / length
+    return third_difference_sigma(along, 1.0) / (2.0 * length)
 
 
 PLUGINS = (PermanenceCheck, SizeConstancyCheck, ContinuityCheck)

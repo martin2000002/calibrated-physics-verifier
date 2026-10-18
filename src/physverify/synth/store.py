@@ -4,7 +4,7 @@
   plan.json
   scenes/<sim_id>/{spec.json, states.npz, raw_collisions.npz, sim_meta.json}
   clips/<clip_id>/{states_variant.npz, contacts_provisional.json, record.json, closest.npz,
-                   contacts_world.json, layers.npz, kubric_meta.json, frames/%06d.png,
+                   contacts_world.json, layers.npz, kubric_meta.json, frames/%06d.png, video.mp4,
                    camera.json, states_world.npz, states_camera.npz, contacts_camera.json,
                    gt_meta.json, manifest.json}
   manifest.jsonl
@@ -49,6 +49,7 @@ CONTACTS_WORLD = "contacts_world.json"
 LAYERS = "layers.npz"
 KUBRIC_META = "kubric_meta.json"
 FRAMES_DIR = "frames"
+VIDEO = "video.mp4"
 CAMERA = "camera.json"
 STATES_WORLD = "states_world.npz"
 STATES_CAMERA = "states_camera.npz"

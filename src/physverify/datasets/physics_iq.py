@@ -5,7 +5,6 @@ pixel-change mask, downloaded from the public GCS bucket. There is no per-stage 
 from __future__ import annotations
 
 import datetime as dt
-import functools
 import re
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
@@ -30,11 +29,11 @@ from physverify.datasets._download import (
     UrllibClient,
     fetch_file,
     intact,
+    list_objects,
     load_annotations,
     read_manifest,
     relative_to_data,
     resolve_data_path,
-    retrying,
     write_manifest,
 )
 from physverify.schema.clip import ClipManifest, FrameSampling, ObjectQuery, Split, TimeSource
@@ -49,7 +48,6 @@ LOCAL = "local"
 FULL = "full"
 REVISION = "unversioned bucket, md5 per object"
 FETCH_HINT = "physverify data fetch physics_iq"
-LISTING_FIELDS = "items(name,size,md5Hash),nextPageToken"
 NAME_PATTERN = re.compile(
     r"^(\d{4})_(testing-videos|video-masks)_(\d+)FPS_perspective-(\w+)_take-(\d)_trimmed-(.+)\.mp4$"
 )
@@ -144,22 +142,6 @@ def select_files(names: Iterable[str], s: PhysicsIQSettings, subset: str) -> tup
     if missing:
         raise MissingInputError(f"physics_iq: no testing video and mask for {missing}")
     return tuple(selected)
-
-
-def list_objects(
-    client: HttpClient, listing_url: str, prefix: str, retries: int
-) -> list[Mapping[str, Any]]:
-    """Every object under ``prefix`` of the bucket listing, following ``nextPageToken``."""
-    items: list[Mapping[str, Any]] = []
-    params = {"prefix": prefix, "fields": LISTING_FIELDS}
-    while True:
-        request = functools.partial(client.get_json, listing_url, dict(params))
-        page = retrying(request, retries, f"listing {prefix}")
-        items += page.get("items", [])
-        token = page.get("nextPageToken")
-        if not token:
-            return items
-        params["pageToken"] = str(token)
 
 
 class PhysicsIQDataset:

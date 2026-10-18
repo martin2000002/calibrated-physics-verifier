@@ -6,16 +6,28 @@ physics checks R1-R5 (interpenetration, support equilibrium, collision energy, o
 free-fall shape and gravity value) and reports each verdict with the propagated measurement error,
 abstaining when the error is too large to decide.
 
-Part of an undergraduate thesis (Computer Science, USFQ). The architecture is documented in
-ADR 0003 (`../Knowledge/decisions/0003-arquitectura-repo.md`, outside this repository); agents
-and contributors follow [`CLAUDE.md`](CLAUDE.md).
+Part of an undergraduate thesis (Computer Science, USFQ). The package map below describes the
+architecture.
 
 ## Status
 
-Scaffold: schemas, configuration, plugin registries, heavy-job lock, container boundary, physics
-geometry and measures, and the `doctor` command are implemented and tested. The `dataset`,
-`extract`, `verify`, `diagnose`, `data` and `timing` commands are stubs that exit with code 3 and
-name the cycle that owns them.
+Every command is implemented and tested. Check thresholds are provisional until the calibration
+activity (A8).
+
+| Command | What it does | Activity |
+|---|---|---|
+| `dataset` | Kubric synthetic dataset: five scene families, ten perturbation types at four magnitude levels, per-stage ground truth | A4 |
+| `extract` | Eight-stage perception pipeline (detection, tracking, depth, camera, 3D lifting, scale with provenance, kinematics, contacts), `fast` (CPU) and `precise` (GPU) profiles | A5 |
+| `diagnose` | Extractor error per stage, end to end and by factorial attribution, plus real video (Physics-IQ, PISA) | A6 |
+| `data` | Download of the real datasets (Physics-IQ, PISA) | A6 |
+| `verify` | Checks R1-R5b (nine measures) on ground-truth ("oracle") or perceived states, with verdict intervals and abstention | A7 |
+| `timing` | Per-clip cost harness; only runs on the H200 (`--device cuda --profile precise`) count as measurements | A3 |
+| `doctor` | Effective configuration, paths, lock and package versions | - |
+
+Current results come from a local test of the chain on CPU with the `fast` profile and a small set
+of clips (32 synthetic, 5 Physics-IQ, 5 PISA). They show that the chain works end to end; they are
+not the final experiment. The full dataset, the `precise` profile and the timing measurements run on
+the GPU server.
 
 ## Installation
 

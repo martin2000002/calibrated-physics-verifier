@@ -4,22 +4,30 @@ from __future__ import annotations
 
 import dataclasses
 import math
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 import pytest
 
-from physverify.physics.geometry import Plane, contact_manifold
+from physverify.physics.geometry import (
+    Plane,
+    contact_manifold,
+    convex_hull_indices,
+    project_to_plane,
+)
 from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactKind, ContactRecord, ManifoldKind, RawCollisions
 from physverify.schema.scene import SceneSpec
 from physverify.schema.states import ObjectStateTable
 from physverify.synth.contacts_gt import (
+    CLOSEST_SOURCE,
     EVENT_STEP_OFFSET,
     ClosestSamples,
     Patch,
     classify_interval,
+    contact_table,
     event_frames_to_native,
     from_closest,
     from_raw_events,
@@ -293,3 +301,108 @@ def test_event_penetration_is_measured_on_the_primitives(bank: Any, clean_ds: An
     (record,) = cube_records(table)
     assert record.point_distances is None
     assert record.max_penetration == pytest.approx(0.001, abs=1e-9)
+
+
+CYLINDER = "cylinder_1"
+
+
+def pair_rows(
+    object_id: str, frames: Sequence[int], points: list[Any], distances: list[float]
+) -> ClosestSamples:
+    """``getClosestPoints`` rows against the floor at ``frames``, cycling through ``points``."""
+    picks = [k % len(points) for k in range(len(frames))]
+    point = np.array([points[k] for k in picks], dtype=np.float64)
+    n = len(frames)
+    return ClosestSamples(
+        frame=np.asarray(list(frames), dtype=np.int64),
+        a=np.asarray([object_id] * n),
+        b=np.asarray([ENV_ID] * n),
+        point_a=point,
+        point_b=point.copy(),
+        normal_on_b=np.tile(UP, (n, 1)),
+        distance=np.array([distances[k % len(distances)] for k in picks], dtype=np.float64),
+    )
+
+
+def closest_record(states: ObjectStateTable, samples: ClosestSamples, cfg: Any) -> ContactRecord:
+    table = from_closest(samples, contact_table(states.clip_id, []), states, cfg)
+    (record,) = [r for r in table.records if r.kind is ContactKind.RESTING]
+    return record
+
+
+def inside(point: Any, polygon: Any) -> bool:
+    hull = polygon[convex_hull_indices(polygon)]
+    edges = np.roll(hull, -1, axis=0) - hull
+    to_point = point - hull
+    return bool(np.all(edges[:, 0] * to_point[:, 1] - edges[:, 1] * to_point[:, 0] > 0.0))
+
+
+def rim(states: ObjectStateTable, object_id: str, degrees: list[float]) -> list[Any]:
+    index = states.object_index(object_id)
+    centre, radius = states.position[0, index], float(states.size[0, index, 0]) / 2.0
+    return [
+        np.array([centre[0] + radius * math.cos(a), centre[1] + radius * math.sin(a), 0.0])
+        for a in np.radians(degrees)
+    ]
+
+
+def test_an_upright_cylinder_from_closest_points_takes_the_primitive_ring(
+    bank: Any, clean_ds: Any
+) -> None:
+    states = bank.analytic("f4_stack").states
+    points = rim(states, CYLINDER, [0.0, 20.0, 40.0])
+    distances = [0.0, -0.0004, 0.0]
+    samples = pair_rows(CYLINDER, range(states.n_frames), points, distances)
+    record = closest_record(states, samples, clean_ds.contacts)
+    assert record.manifold is ManifoldKind.PRIMITIVE
+    assert record.source == f"primitive:{CLOSEST_SOURCE}"
+    assert record.points.shape[0] >= 6
+    centre = states.position[0, states.object_index(CYLINDER)]
+    polygon = project_to_plane(record.points, UP)
+    assert inside(project_to_plane(centre, UP)[0], polygon)
+    assert not inside(project_to_plane(centre, UP)[0], project_to_plane(np.array(points), UP))
+    assert record.max_penetration == pytest.approx(max(0.0, -min(distances)), abs=1e-12)
+
+
+def test_a_resting_sphere_keeps_the_closest_points(bank: Any, clean_ds: Any) -> None:
+    states = bank.analytic("f2_bounce").states
+    index = states.object_index("ball_0")
+    contact = states.position[0, index] - [0.0, 0.0, float(states.size[0, index, 2]) / 2.0]
+    samples = pair_rows("ball_0", range(4, 10), [contact], [0.0])
+    record = closest_record(states, samples, clean_ds.contacts)
+    assert record.manifold is ManifoldKind.MEASURED
+    assert record.source == CLOSEST_SOURCE
+    assert record.points == pytest.approx(contact.reshape(1, 3))
+
+
+def test_a_tilted_cylinder_keeps_the_closest_points(bank: Any, clean_ds: Any) -> None:
+    clip = bank.analytic("f4_stack")
+    half = math.radians(15.0)
+    quaternion = clip.states.quaternion.copy()
+    quaternion[:, clip.states.object_index(CYLINDER)] = [math.cos(half), math.sin(half), 0.0, 0.0]
+    states = dataclasses.replace(clip.states, quaternion=quaternion)
+    points = rim(states, CYLINDER, [0.0, 20.0, 40.0])
+    samples = pair_rows(CYLINDER, range(states.n_frames), points, [0.0])
+    record = closest_record(states, samples, clean_ds.contacts)
+    assert record.manifold is ManifoldKind.MEASURED
+    assert record.source == CLOSEST_SOURCE
+    assert sorted(map(tuple, record.points)) == pytest.approx(sorted(map(tuple, points)))
+
+
+def test_a_face_contact_without_a_primitive_manifold_keeps_the_closest_points(
+    bank: Any, clean_ds: Any
+) -> None:
+    """Bullet reports the cube within tol_m (its collision margin) while the primitives stand
+    1 cm apart: there is no primitive patch to take, so Bullet's points stay."""
+    clip = bank.analytic("f4_stack")
+    lift = np.zeros_like(clip.states.position)
+    lift[:, clip.states.object_index(CUBE), 2] = 0.01
+    states = dataclasses.replace(clip.states, position=clip.states.position + lift)
+    quad = list(corners(clip.states))[:3]
+    frames = [f for f in range(states.n_frames) for _ in quad]
+    samples = pair_rows(CUBE, frames, quad, [0.001])
+    assert clean_ds.contacts.tol_m >= 0.001
+    record = closest_record(states, samples, clean_ds.contacts)
+    assert record.manifold is ManifoldKind.MEASURED
+    assert record.source == CLOSEST_SOURCE
+    assert record.points.shape == (3, 3)

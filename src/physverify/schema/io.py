@@ -214,6 +214,17 @@ def dumps(payload: Any) -> str:
     return json.dumps(encode(payload), sort_keys=True, allow_nan=True, separators=(",", ":"))
 
 
+def json_ready(value: Any) -> Any:
+    """Plain JSON for ``allow_nan=False``: tuples as lists, keys as str, NaN and inf as null."""
+    if isinstance(value, float):
+        return value if math.isfinite(value) else None
+    if isinstance(value, Mapping):
+        return {str(k): json_ready(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [json_ready(v) for v in value]
+    return value
+
+
 def stable_hash(payload: Any) -> str:
     """sha256 of the canonical JSON of ``payload`` (sorted keys, arrays and enums encoded)."""
     return hashlib.sha256(dumps(payload).encode("utf-8")).hexdigest()

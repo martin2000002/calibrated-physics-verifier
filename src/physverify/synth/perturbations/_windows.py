@@ -79,11 +79,13 @@ def rest_mask(states: ObjectStateTable, index: int, v_tol: float = 0.02) -> Mask
 
 
 def impact_frames(object_id: str, contacts: ContactTable, n_frames: int) -> Mask:
-    """Frames touched by an impact record of the object (the only ones jump_ratio skips)."""
+    """Rows k whose jump_ratio stencil (frames k-1..k+2) touches an impact record of the object:
+    floor(t_start) - 1 <= k <= ceil(t_end) (the only rows jump_ratio skips)."""
     mask = np.zeros(n_frames, dtype=bool)
     for record in records_of(object_id, contacts):
         if record.kind is ContactKind.IMPACT:
-            lo, hi = max(0, math.floor(record.t_start)), min(n_frames - 1, math.ceil(record.t_end))
+            lo = max(0, math.floor(record.t_start) - 1)
+            hi = min(n_frames - 1, math.ceil(record.t_end))
             mask[lo : hi + 1] = True
     return mask
 

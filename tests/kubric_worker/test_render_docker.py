@@ -53,7 +53,7 @@ def container(
         image=image,
         src_dir=repo_root / "src",
         data_dir=data_dir,
-        threads=1,
+        threads=2,
         uid=os.getuid(),
         gid=os.getgid(),
     )
@@ -153,6 +153,7 @@ def test_tasks_in_one_container_process(container: Any) -> None:
     assert set(np.unique(layers.segmentation).tolist()) <= {0, 1, 2}
     assert 1 in layers.segmentation and 2 in layers.segmentation
     meta = read_json(clip / "kubric_meta.json")
+    assert meta["render_threads"] == runner.threads
     K = opencv_intrinsics(meta["k_norm"], WIDTH, HEIGHT)  # noqa: N806
     world_from_camera = opencv_world_from_camera(meta["matrix_world"])
     uv, _ = project(meta["probe_points"], K, world_from_camera)

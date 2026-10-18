@@ -58,8 +58,11 @@ RECORDED_LEAKS = {
     ("f5_contact", "r4_teleport"): {"R1"},
 }
 # A re-simulation under another gravity changes Bullet's impact penetration and restitution,
-# both speed dependent (R1, R3a); R4_jump carries a g dt^2 / L term and scales with g.
+# both speed dependent (R1, R3a). R4_jump is a third difference: any constant g leaves it at 0.
 RESIMULATION_LEAKS = {"R1", "R3a"}
+# Physical couplings: rotating g mid-flight is a jump of the acceleration, which leaves a
+# one-row peak |delta g| dt^2 / (2 L) in R4_jump at the switch.
+COUPLINGS = {("f1_projectile", "r5a_gravity_switch"): {"R4_jump"}}
 # R5a needs two flights of R5A_MIN_FRAMES; a longer or shorter bounce flight of the f2 clip leaves
 # one and R5a becomes undefined (NaN), which is not a value leak (ADR 0004 §9.2).
 UNDEFINED = {
@@ -194,7 +197,8 @@ def test_analytic_edits_move_only_their_own_measure(family: str, sweep: Sweep) -
     base = sweep.base("analytic", family)
     for (name, level), edit in sweep.edits("analytic", family).items():
         own, after, magnitude = OWN_KEY[name], edit.measures, edit.record.magnitude
-        assert moved(base, after) <= {own}, (name, level, report(base, after, moved(base, after)))
+        allowed = {own} | COUPLINGS.get((family, name), set())
+        assert moved(base, after) <= allowed, (name, level, report(base, after, moved(base, after)))
         assert undefined(base, after) <= UNDEFINED.get((family, name), set()), (name, level)
         if base[own] < magnitude - tolerance(magnitude):
             assert abs(after[own] - magnitude) <= tolerance(magnitude), (name, level)
@@ -205,6 +209,7 @@ def test_recorded_edits_move_only_documented_measures(family: str, sweep: Sweep)
     base = sweep.base("recorded", family)
     for (name, level), edit in sweep.edits("recorded", family).items():
         allowed = {OWN_KEY[name]} | RECORDED_LEAKS.get((family, name), set())
+        allowed |= COUPLINGS.get((family, name), set())
         after = edit.measures
         assert moved(base, after) <= allowed, (name, level, report(base, after, moved(base, after)))
         assert not undefined(base, after), (name, level)
@@ -228,10 +233,8 @@ def test_gravity_scale_reaches_each_level_on_the_analytic_clip(
         magnitude = measured(plugin, clip.states, clip.contacts, record)
         assert abs(magnitude - target) <= tolerance(target), (level, magnitude)
         after = measure_all(scene, clip.states, clip.contacts, tol)
-        assert moved(base, after) <= {"R5b", "R4_jump"}, report(base, after, moved(base, after))
+        assert moved(base, after) <= {"R5b"}, report(base, after, moved(base, after))
         assert undefined(base, after) <= UNDEFINED.get((family, plugin.name), set())
-        scale = float(record.params["gravity_scale"])
-        assert after["R4_jump"] == pytest.approx(scale * base["R4_jump"], rel=0.02)
 
 
 @pytest.mark.parametrize("family", GRAVITY_FAMILIES)
@@ -246,10 +249,10 @@ def test_gravity_scale_is_measured_on_the_recorded_resimulation(
     tol = ds.contacts.tol_m
     base = measure_all(clean.scene, clean.states, clean.contacts, tol)
     after = measure_all(clip.scene, clip.states, clip.contacts, tol)
-    assert moved(base, after) <= {"R5b", "R4_jump"} | RESIMULATION_LEAKS
+    assert moved(base, after) <= {"R5b"} | RESIMULATION_LEAKS, report(
+        base, after, moved(base, after)
+    )
     assert not undefined(base, after)
-    scale = float(record.params["gravity_scale"])
-    assert after["R4_jump"] == pytest.approx(scale * base["R4_jump"], rel=0.02)
 
 
 def test_edits_are_seeded(bank: Any, ds: DatasetSettings, plugins: dict[str, Any]) -> None:

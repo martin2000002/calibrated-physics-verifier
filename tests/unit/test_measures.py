@@ -10,6 +10,7 @@ from physverify.physics.finite_diff import (
     central_difference_sigma,
     second_difference,
     second_difference_sigma,
+    third_difference_sigma,
 )
 from physverify.physics.measures.r1_penetration import penetration_ratio
 from physverify.physics.measures.r2_support import overhang_fraction
@@ -78,13 +79,68 @@ def test_size_change_ratio() -> None:
 
 
 def test_jump_ratio_and_exclusion() -> None:
+    """A one-row spike of 0.5 enters the third difference with weights 1, 3, 3, 1 at rows
+    k = 1..4 (of which rows 1..3 have a full stencil): the peak is 3 * 0.5 / (2 L) = 1.5 at
+    rows 2 and 3; excluding them leaves row 1 with 0.5 / (2 L) = 0.5."""
     t = np.arange(6, dtype=float)
     positions = np.column_stack([t, np.zeros(6), np.zeros(6)])
     positions[3, 0] += 0.5
-    assert jump_ratio(positions, (0.5, 0.5, 0.5)) == pytest.approx(1.0 / 0.5)
+    assert jump_ratio(positions, (0.5, 0.5, 0.5)) == pytest.approx(1.5)
     exclude = np.zeros(6, dtype=bool)
-    exclude[2:5] = True
-    assert jump_ratio(positions, (0.5, 0.5, 0.5), exclude) == pytest.approx(0.0)
+    exclude[2:4] = True
+    assert jump_ratio(positions, (0.5, 0.5, 0.5), exclude) == pytest.approx(0.5)
+    exclude[1] = True
+    assert math.isnan(jump_ratio(positions, (0.5, 0.5, 0.5), exclude))
+
+
+EXTENTS = (0.2, 0.1, 0.4)
+LENGTH = (0.2 * 0.1 * 0.4) ** (1.0 / 3.0)
+
+
+def _parabola(acceleration: tuple[float, float, float], n: int = 24) -> np.ndarray:
+    t = np.arange(n, dtype=float) / 24.0
+    p0, v0 = np.array([0.1, -0.3, 1.2]), np.array([1.5, 0.4, 2.0])
+    return np.asarray(p0 + np.outer(t, v0) + 0.5 * np.outer(t**2, acceleration))
+
+
+@pytest.mark.parametrize(
+    "acceleration",
+    [(0.0, 0.0, -9.81), (0.0, 0.0, -2.0), (3.0, -1.0, -14.0), (0.0, 0.0, 0.0), (-4.9, 0.0, 0.0)],
+    ids=["g", "weak-g", "tilted-g", "uniform-motion", "uniform-friction"],
+)
+def test_jump_ratio_vanishes_under_constant_acceleration(
+    acceleration: tuple[float, float, float],
+) -> None:
+    assert jump_ratio(_parabola(acceleration), EXTENTS) < 1e-9
+
+
+def test_jump_ratio_of_a_body_at_rest_is_zero() -> None:
+    assert jump_ratio(np.tile([0.3, 0.2, 0.05], (10, 1)), EXTENTS) == pytest.approx(0.0, abs=1e-12)
+
+
+@pytest.mark.parametrize("flight", [True, False])
+def test_jump_ratio_of_a_step_is_the_step_over_the_length(flight: bool) -> None:
+    rng = np.random.default_rng(3)
+    direction = rng.normal(size=3)
+    step = 0.07 * direction / np.linalg.norm(direction)
+    positions = _parabola((0.0, 0.0, -9.81)) if flight else np.tile([0.3, 0.2, 0.05], (24, 1))
+    positions[12:] += step
+    assert jump_ratio(positions, EXTENTS) == pytest.approx(0.07 / LENGTH, rel=1e-9)
+
+
+def test_an_excluded_row_skips_its_four_row_stencil() -> None:
+    positions = np.tile([0.3, 0.2, 0.05], (10, 1))
+    positions[5:] += [0.0, 0.05, 0.0]
+    exclude = np.zeros(10, dtype=bool)
+    exclude[3:6] = True
+    assert jump_ratio(positions, EXTENTS, exclude) == pytest.approx(0.0, abs=1e-12)
+    exclude[5] = False
+    assert jump_ratio(positions, EXTENTS, exclude) == pytest.approx(0.025 / LENGTH, rel=1e-9)
+
+
+def test_jump_ratio_needs_four_rows() -> None:
+    assert math.isnan(jump_ratio(np.zeros((3, 3)), EXTENTS))
+    assert jump_ratio(np.zeros((4, 3)), EXTENTS) == 0.0
 
 
 def test_fall_fit_is_exact_on_a_parabola() -> None:
@@ -125,6 +181,7 @@ def test_differences_are_exact_for_quadratics_on_uneven_grids() -> None:
 def test_difference_sigmas() -> None:
     assert central_difference_sigma(0.1, 0.5) == pytest.approx(0.1 / (math.sqrt(2) * 0.5))
     assert second_difference_sigma(0.1, 0.5) == pytest.approx(math.sqrt(6) * 0.1 / 0.25)
+    assert third_difference_sigma(0.1, 0.5) == pytest.approx(math.sqrt(20) * 0.1 / 0.125)
 
 
 def _second_difference_coverage(seed: int, replicas: int) -> float:

@@ -1,4 +1,7 @@
-"""PASS/FAIL when the k-sigma interval of a magnitude clears its threshold (ADR 0006 §3.6)."""
+"""PASS/FAIL when the k-sigma interval of a magnitude clears its threshold (ADR 0006 §3.6).
+
+A calibrated entry (ADR 0009) also corrects the magnitude by its measured bias and scales its
+sigma by the measured factor before the comparison."""
 
 from __future__ import annotations
 
@@ -11,7 +14,7 @@ from pydantic import Field
 
 from physverify.config.models import FrozenModel
 from physverify.schema.checks import AbstainReason, CheckResult, Verdict
-from physverify.verification.runner import tau_of
+from physverify.verification.runner import ThresholdEntry, entry_of
 
 Decision = tuple[Verdict, AbstainReason | None]
 
@@ -31,11 +34,16 @@ class ThresholdPolicy:
     def decide(self, result: CheckResult, thresholds: Mapping[str, Any]) -> CheckResult:
         if result.verdict is Verdict.ABSTAIN or result.magnitude is None:
             return result
-        tau = tau_of(thresholds, result.check_id)
-        if tau is None:
+        entry = entry_of(thresholds, result.check_id)
+        if entry is None:
             return result
-        verdict, reason = self._judge(result.magnitude, result.sigma, tau)
-        return replace(result, verdict=verdict, abstain_reason=reason, threshold=tau)
+        verdict, reason = self.judge(result.magnitude, result.sigma, entry)
+        return replace(result, verdict=verdict, abstain_reason=reason, threshold=entry.tau)
+
+    def judge(self, magnitude: float, sigma: float, entry: ThresholdEntry) -> Decision:
+        """Verdict of m - bias against tau with the interval k * factor * sigma."""
+        factor = math.nan if entry.sigma_factor is None else entry.sigma_factor
+        return self._judge(magnitude - entry.bias, factor * sigma, entry.tau)
 
     def _judge(self, magnitude: float, sigma: float, tau: float) -> Decision:
         if math.isnan(sigma):

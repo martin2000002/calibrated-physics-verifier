@@ -54,6 +54,15 @@ def second_difference(x: ArrayLike, t: ArrayLike) -> FloatArray:
     return _pad(values, interior)
 
 
+def third_difference(x: ArrayLike) -> FloatArray:
+    """Unscaled third difference on uniformly spaced rows, one value per stencil k-1..k+2:
+    x(k+2) - 3 x(k+1) + 3 x(k) - x(k-1). Zero for any quadratic; empty below 4 rows."""
+    values = np.asarray(x, dtype=np.float64)
+    if values.shape[0] < 4:
+        return np.empty((0, *values.shape[1:]), dtype=np.float64)
+    return np.asarray(values[3:] - 3.0 * values[2:-1] + 3.0 * values[1:-2] - values[:-3])
+
+
 def central_difference_sigma(sigma_x: float, dt: float) -> float:
     """Sigma of (x+ - x-) / (2 dt) for independent position noise sigma_x."""
     return sigma_x / (math.sqrt(2.0) * dt)
@@ -62,3 +71,9 @@ def central_difference_sigma(sigma_x: float, dt: float) -> float:
 def second_difference_sigma(sigma_x: float, dt: float) -> float:
     """Sigma of (x+ - 2x + x-) / dt^2 for independent position noise: sqrt(6) sigma_x / dt^2."""
     return math.sqrt(6.0) * sigma_x / dt**2
+
+
+def third_difference_sigma(sigma_x: float, dt: float) -> float:
+    """Sigma of (x(k+2) - 3x(k+1) + 3x(k) - x(k-1)) / dt^3 for independent position noise:
+    sqrt(1 + 9 + 9 + 1) sigma_x / dt^3 = sqrt(20) sigma_x / dt^3."""
+    return math.sqrt(20.0) * sigma_x / dt**3

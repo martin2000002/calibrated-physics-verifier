@@ -8,6 +8,7 @@ import math
 import numpy as np
 from numpy.typing import ArrayLike
 
+from physverify.physics.finite_diff import third_difference
 from physverify.physics.geometry import characteristic_length, characteristic_lengths
 
 
@@ -32,15 +33,20 @@ def size_change_ratio(extents_t: ArrayLike) -> float:
 
 
 def jump_ratio(positions: ArrayLike, extents: ArrayLike, exclude: ArrayLike | None = None) -> float:
-    """max_t |p(t+1) - 2 p(t) + p(t-1)| / L, skipping frames t flagged in ``exclude`` (for
-    example impacts) and frames with unknown positions. NaN when no frame qualifies."""
+    """max_k |p(k+2) - 3 p(k+1) + 3 p(k) - p(k-1)| / (2 L), skipping rows k flagged in
+    ``exclude`` (for example impacts) and stencils with unknown positions. NaN when no row
+    qualifies (fewer than 4 rows).
+
+    The third difference vanishes under any constant acceleration (flight, rest, uniform
+    friction, any g), so no scale or gravity direction is needed. A step d between rows j and
+    j + 1 gives |D3| = d, 2d, d at k = j - 1, j, j + 1: the measure is exactly d / L."""
     p = np.asarray(positions, dtype=np.float64).reshape(-1, 3)
-    if p.shape[0] < 3:
+    if p.shape[0] < 4:
         return math.nan
-    jumps = np.linalg.norm(p[2:] - 2.0 * p[1:-1] + p[:-2], axis=1)
+    jumps = np.linalg.norm(third_difference(p), axis=1) / 2.0
     keep = np.isfinite(jumps)
     if exclude is not None:
-        keep &= ~np.asarray(exclude, dtype=bool).reshape(-1)[1:-1]
+        keep &= ~np.asarray(exclude, dtype=bool).reshape(-1)[1:-2]
     if not bool(np.any(keep)):
         return math.nan
     return float(np.max(jumps[keep])) / characteristic_length(extents)

@@ -8,6 +8,7 @@ from physverify.cli.context import PLUGIN_KINDS
 
 EXPECTED = {
     "wan21_generate": True,
+    "dpo_step": True,
     "extract_pipeline": False,
     "verify_checks": False,
     "kubric_render": False,

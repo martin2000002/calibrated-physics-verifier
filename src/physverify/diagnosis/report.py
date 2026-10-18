@@ -24,6 +24,7 @@ from physverify.runtime.runs import RunContext
 from physverify.schema.checks import AbstainReason, Verdict
 from physverify.schema.clip import ClipManifest, Split
 from physverify.schema.error_profile import ErrorProfile, no_profile_hash
+from physverify.schema.io import json_ready
 from physverify.schema.stages import Stage
 
 REPORT_DIR = "diagnosis"
@@ -48,18 +49,8 @@ def profile_hash(profile: ErrorProfile | None) -> str:
 
 class ReportModel(FrozenModel):
     def to_json(self) -> str:
-        payload = _finite(self.model_dump(mode="json"))
+        payload = json_ready(self.model_dump(mode="json"))
         return json.dumps(payload, sort_keys=True, indent=2, allow_nan=False) + "\n"
-
-
-def _finite(value: Any) -> Any:
-    if isinstance(value, float):
-        return value if math.isfinite(value) else None
-    if isinstance(value, dict):
-        return {key: _finite(item) for key, item in value.items()}
-    if isinstance(value, list):
-        return [_finite(item) for item in value]
-    return value
 
 
 class Coverage(ReportModel):

@@ -35,7 +35,9 @@ abs_tol = 1e-3
 rel_tol = 0.02
 null_tol = 1e-3
 # Physical couplings: reported as "expected coupling", never failed.
-# r5b_gravity_scale -> R4_jump: a stronger g enlarges the second difference g dt^2 / L of every row.
 # r5a_gravity_switch -> R5b: one parabola over a flight whose g rotates by theta mid-flight fits
 #   |a| ~ g cos(theta / 2) (0.4 % on the local f1 clip, far below the R5b threshold).
-couplings = [["r5b_gravity_scale", "R4_jump"], ["r5a_gravity_switch", "R5b"]]
+# r5a_gravity_switch -> R4_jump: the switch is a jump of the acceleration; the third difference
+#   peaks at most |delta g| dt^2 / (2 L), spread over the stencils around the switch (0.0135 on
+#   the local f1 clip; threshold 0.50).
+couplings = [["r5a_gravity_switch", "R5b"], ["r5a_gravity_switch", "R4_jump"]]

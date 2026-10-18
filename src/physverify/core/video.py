@@ -3,6 +3,7 @@ checked against a byte budget before decoding starts (never materialise native 4
 
 from __future__ import annotations
 
+import os
 from collections.abc import Iterator, Sequence
 from pathlib import Path
 
@@ -16,6 +17,8 @@ from physverify.schema.clip import scaled_size
 
 Frames = NDArray[np.uint8]
 FRAME_SUFFIXES = (".png", ".jpg", ".jpeg")
+# MPEG-4 Part 2: the codec every opencv-python wheel can write (H.264 needs an external encoder).
+MP4_FOURCC = "mp4v"
 
 
 def check_frame_budget(n_frames: int, size: tuple[int, int], max_frame_bytes: int) -> None:
@@ -27,6 +30,25 @@ def check_frame_budget(n_frames: int, size: tuple[int, int], max_frame_bytes: in
             f"(runtime.max_frame_bytes = {max_frame_bytes / 1e9:.2f} GB); "
             "lower max_side or target_fps"
         )
+
+
+def write_mp4(frames: Frames, path: Path, fps: float) -> None:
+    """Encode T x H x W x 3 RGB frames as MP4, written to a temporary file renamed into place."""
+    if frames.ndim != 4 or frames.shape[-1] != 3 or len(frames) == 0:
+        raise ValueError(f"expected T x H x W x 3 frames, got shape {frames.shape}")
+    height, width = int(frames.shape[1]), int(frames.shape[2])
+    partial = path.with_name(f".{path.name}.partial.mp4")
+    writer = cv2.VideoWriter(
+        str(partial), cv2.VideoWriter.fourcc(*MP4_FOURCC), fps, (width, height)
+    )
+    if not writer.isOpened():
+        raise RuntimeError(f"cannot open an MP4 writer for {path}")
+    try:
+        for frame in frames:
+            writer.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
+    finally:
+        writer.release()
+    os.replace(partial, path)
 
 
 def _selection(start: int, stop: int, step: int, n_frames: int) -> range:

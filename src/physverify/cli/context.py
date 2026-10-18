@@ -23,7 +23,7 @@ from physverify.core.registry import Registry, discover, discover_modules
 from physverify.datasets._base import DatasetSource
 from physverify.diagnosis._base import StageMetric, metric_key
 from physverify.extraction._base import StageProvider, provider_key, validate_provider
-from physverify.runtime.docker import DockerRunner
+from physverify.runtime.container import ContainerEngine, make_runner
 from physverify.runtime.heavy import LOCK_HELD_ENV, HeavyLock, NullLock
 from physverify.synth.families._base import SceneFamily
 from physverify.synth.perturbations._base import (
@@ -150,16 +150,9 @@ class AppContext:
             Path(self.settings.runtime.heavy_lock), timeout, self.invocation.argv, self._err
         )
 
-    def docker(self) -> DockerRunner:
-        settings = self.settings
-        return DockerRunner(
-            image=settings.runtime.docker_image,
-            src_dir=settings.repo_root / "src",
-            data_dir=settings.paths.data_dir,
-            threads=settings.runtime.threads,
-            uid=os.getuid(),
-            gid=os.getgid(),
-        )
+    def docker(self) -> ContainerEngine:
+        """The Kubric container runner of the configured engine (``[container]``)."""
+        return make_runner(self.settings, os.getuid(), os.getgid())
 
     def registry(self, kind: str) -> Registry[Any]:
         if kind not in PLUGIN_KINDS:

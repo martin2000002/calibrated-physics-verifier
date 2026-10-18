@@ -113,13 +113,13 @@ def flight_mask(
 
 
 def impact_stencil_mask(object_id: str, contacts: ContactTable, frame_index: IntArray) -> BoolArray:
-    """Rows whose second-difference stencil spans an impact of the object.
+    """Rows whose third-difference stencil (rows k-1..k+2) spans an impact of the object.
 
-    Row k is excluded when the closed interval [fi[k-1], fi[k+1]] meets [t_start - q, t_end + q].
+    Row k is excluded when the closed interval [fi[k-1], fi[k+2]] meets [t_start - q, t_end + q].
     A bound on a sampled frame is treated as quantized: the event lies strictly within one step
     beyond it (perceived contacts snap to frames). Fractional ground-truth bounds keep A4's
-    floor(t_start) <= k <= ceil(t_end) at the native rate; integer bounds exclude one more row on
-    each side. The first and last rows use a virtual neighbour one step outside the table.
+    floor(t_start) - 1 <= k <= ceil(t_end) at the native rate; integer bounds exclude one more
+    row on each side. Rows past the ends use virtual neighbours one or two steps outside.
     """
     fi = np.asarray(frame_index, dtype=np.int64)
     excluded = np.zeros(fi.shape, dtype=np.bool_)
@@ -127,7 +127,7 @@ def impact_stencil_mask(object_id: str, contacts: ContactTable, frame_index: Int
         return excluded
     step = row_step(fi)
     before = np.concatenate([[fi[0] - step], fi[:-1]])
-    after = np.concatenate([fi[1:], [fi[-1] + step]])
+    after = np.concatenate([fi, fi[-1] + step * np.arange(1, 3)])[2:]
     for record in records_of(object_id, contacts):
         if record.kind is ContactKind.IMPACT:
             q = step - 1

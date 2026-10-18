@@ -8,7 +8,6 @@ from __future__ import annotations
 import datetime as dt
 import json
 import re
-import string
 import zipfile
 from collections.abc import Callable, Mapping, Sequence
 from contextlib import ExitStack
@@ -25,18 +24,19 @@ from physverify.core.video import Mp4VideoSource
 from physverify.datasets._base import GroundTruthStore, VideoSource
 from physverify.datasets._download import (
     MANIFEST_FILE,
-    ChecksumError,
     FetchedFile,
     FetchManifest,
+    extract_member,
     intact,
     load_annotations,
     read_manifest,
     relative_to_data,
+    remote_zip,
     resolve_data_path,
     retrying,
-    save_atomic,
     write_manifest,
 )
+from physverify.datasets._queries import derive_queries
 from physverify.diagnosis.atomic_io import write_text_atomic
 from physverify.extraction.providers._common import lookup_label
 from physverify.extraction.providers.scale_size_prior import SIZE_PRIORS_SECTION
@@ -56,7 +56,6 @@ CLIP_INFO = "clip_info.json"
 INDEX_FILE = "index.json"
 FETCH_HINT = "physverify data fetch pisa_real"
 CLIP_INFO_PATTERN = re.compile(rf"^{ARCHIVE_ROOT}/([^/]+)/{re.escape(CLIP_INFO)}$")
-ARTICLES = ("a", "an", "the")
 
 log = get_logger("datasets.pisa_real")
 ArchiveOpener = Callable[[str], zipfile.ZipFile]
@@ -74,25 +73,6 @@ class PisaRealSettings(FrozenModel):
     local_ids: tuple[str, ...]
     fall_verbs: tuple[str, ...]
     retries: int = Field(ge=0)
-
-
-def remote_zip(url: str) -> zipfile.ZipFile:
-    from remotezip import RemoteZip  # type: ignore[import-untyped]
-
-    archive: zipfile.ZipFile = RemoteZip(url)
-    return archive
-
-
-def derive_queries(prompt: str, fall_verbs: Sequence[str]) -> tuple[ObjectQuery, ...]:
-    """The words before the first fall verb: 'A white bottle falls.' -> ('white bottle', 1)."""
-    words = [w for w in (w.strip(string.punctuation) for w in prompt.lower().split()) if w]
-    if words and words[0] in ARTICLES:
-        words = words[1:]
-    text = f" {' '.join(words)} "
-    cuts = [i for verb in fall_verbs if (i := text.find(f" {verb.lower()} ")) >= 0]
-    phrase = text[: min(cuts)] if cuts else text
-    phrase = phrase.strip()
-    return (ObjectQuery(phrase, 1),) if phrase else ()
 
 
 def select_ids(
@@ -129,15 +109,6 @@ class _Archive:
             opened = retrying(lambda: self._opener(self._url), self._retries, f"open {self._url}")
             self._zip = self._stack.enter_context(opened)
         return self._zip
-
-
-def extract_member(archive: zipfile.ZipFile, member: str, target: Path) -> int:
-    """Extract one member through a ``.part``; zipfile checks the CRC-32 at the end of the read."""
-    try:
-        with archive.open(member) as body:
-            return save_atomic(body, target)
-    except zipfile.BadZipFile as exc:
-        raise ChecksumError(f"{member}: {exc}") from exc
 
 
 class PisaRealDataset:

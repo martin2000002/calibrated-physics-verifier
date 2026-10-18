@@ -126,3 +126,38 @@ def test_a_calibration_file_takes_precedence(tmp_path: Path) -> None:
     path.write_text(json.dumps({"status": "calibrated"}), encoding="utf-8")
     with pytest.raises(ConfigError):
         load_thresholds(path, {})
+
+
+def calibrated(entry: dict[str, object]) -> dict[str, object]:
+    return {"status": "calibrated", "source": "h1", "checks": {"R1": {"tau": TAU, **entry}}}
+
+
+def test_the_calibrated_bias_is_subtracted_before_the_comparison() -> None:
+    policy = ThresholdPolicy()
+    assert policy.decide(result(1.2, 0.0), THRESHOLDS).verdict is Verdict.FAIL
+    assert policy.decide(result(1.2, 0.0), calibrated({"bias": 0.3})).verdict is Verdict.PASS
+
+
+def test_the_sigma_factor_widens_the_interval() -> None:
+    policy = ThresholdPolicy()
+    assert policy.decide(result(1.3, 0.1), THRESHOLDS).verdict is Verdict.FAIL
+    widened = policy.decide(result(1.3, 0.1), calibrated({"sigma_factor": 2.0}))
+    assert widened.abstain_reason is AbstainReason.INTERVAL_CROSSES_THRESHOLD
+
+
+def test_an_unmeasured_sigma_factor_abstains() -> None:
+    decided = ThresholdPolicy().decide(result(1.5, 0.1), calibrated({"sigma_factor": None}))
+    assert (decided.verdict, decided.abstain_reason) == (
+        Verdict.ABSTAIN,
+        AbstainReason.UNKNOWN_UNCERTAINTY,
+    )
+
+
+def test_a_calibrated_table_may_name_its_artifact(tmp_path: Path) -> None:
+    path = tmp_path / "thresholds.json"
+    table = {**calibrated({}), "artifact": {"path": "calibration.json", "sha256": "ab"}}
+    path.write_text(json.dumps(table), encoding="utf-8")
+    assert load_thresholds(path, {})["artifact"] == {"path": "calibration.json", "sha256": "ab"}
+    path.write_text(json.dumps({**table, "artifact": {"path": "x"}}), encoding="utf-8")
+    with pytest.raises(ConfigError):
+        load_thresholds(path, {})

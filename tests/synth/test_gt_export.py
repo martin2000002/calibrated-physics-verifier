@@ -15,6 +15,7 @@ import pytest
 
 from physverify.config.loader import load_settings
 from physverify.config.models import Settings
+from physverify.core.video import Mp4VideoSource
 from physverify.datasets.kubric_synthetic import KubricSynthetic, load_native
 from physverify.schema.contacts import ContactTable
 from physverify.schema.render import RenderLayers
@@ -49,6 +50,7 @@ from physverify.synth.store import (
     LAYERS,
     RECORD,
     VARIANT_STATES,
+    VIDEO,
     DatasetStore,
     Step,
     atomic_save,
@@ -265,6 +267,9 @@ def test_exported_clips_round_trip(
         gt = dataset.ground_truth(clip)
         assert gt.version == meta["gt_version"]
         assert dataset.video(clip).n_frames == scene.n_frames
+        video = Mp4VideoSource(clip_dir / VIDEO, data_settings.runtime.max_frame_bytes)
+        assert video.n_frames == scene.n_frames
+        assert video.native_size == tuple(scene.resolution)
         assert np.asarray(camera["K"]) == pytest.approx(
             spec_intrinsics(scene.camera, tuple(scene.resolution)), abs=1e-9
         )

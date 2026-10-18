@@ -10,3 +10,9 @@ heavy_lock = "${XDG_RUNTIME_DIR}/physverify-heavy.lock"
 
 # [paths]
 # data_dir = "/mnt/big-disk/physverify-data"
+
+# Container engine for the Kubric tasks (default docker). On a host without Docker or root:
+# [container]
+# engine = "udocker"
+# udocker_bin = "/path/to/udocker"
+# udocker_container = "kub"   # created with `udocker create --name=kub <image>`

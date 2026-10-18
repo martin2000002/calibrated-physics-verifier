@@ -148,6 +148,7 @@ def test_bootstrap_skips_non_finite_values() -> None:
     result = bootstrap(ITEMS, mean_value, n=20, seed=0, ci=0.95)
     assert math.isnan(result.intervals["nan"].low)
     assert math.isnan(result.intervals["nan"].high)
+    assert result.non_finite == {"mean": 0, "nan": 20}
 
 
 def test_bootstrap_drops_and_counts_replicas_without_blocks() -> None:

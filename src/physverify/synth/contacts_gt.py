@@ -420,10 +420,11 @@ def to_record(
             source=source,
         )
     indices = reduce_manifold_indices(pair.point, normal)
-    if indices.size < 3:
-        fallback = _primitive_record(pair, states, cfg, normal, source)
-        if fallback is not None:
-            return fallback
+    reason = _primitive_reason(source, int(indices.size))
+    if reason is not None:
+        primitive = _primitive_record(pair, states, cfg, normal, reason)
+        if primitive is not None:
+            return primitive
     distances = pair.distance[indices]
     measured = bool(np.all(np.isfinite(distances)))
     return ContactRecord(
@@ -437,15 +438,30 @@ def to_record(
         manifold=ManifoldKind.MEASURED,
         point_normals=pair.normal[indices],
         point_distances=distances if measured else None,
-        max_penetration=(
-            max(0.0, -float(pair.distance.min()))
-            if measured
-            else primitive_penetration(pair, states)
-        ),
+        max_penetration=max_penetration(pair, states),
         peak_force=peak,
         confidence=1.0,
         source=source,
     )
+
+
+def _primitive_reason(source: str, n_points: int) -> str | None:
+    """Why a resting record takes the primitive footprint, or None to keep Bullet's points.
+
+    ``getClosestPoints`` gives about one point per pair and frame, so the union over a run
+    depends on how many frames it lasted, not on the geometry: face-to-face pairs from closest
+    points always take the primitive. Event rows (two to four points per step) only when they
+    left fewer than 3 points."""
+    if source == CLOSEST_SOURCE:
+        return source
+    return f"sparse_{source}" if n_points < 3 else None
+
+
+def max_penetration(pair: PairSamples, states: ObjectStateTable) -> float:
+    """max(0, -min distance) of the measured rows; on the primitives when a distance is unknown."""
+    if pair.distance.size and bool(np.all(np.isfinite(pair.distance))):
+        return max(0.0, -float(pair.distance.min()))
+    return primitive_penetration(pair, states)
 
 
 def primitive_penetration(pair: PairSamples, states: ObjectStateTable) -> float:
@@ -460,9 +476,10 @@ def primitive_penetration(pair: PairSamples, states: ObjectStateTable) -> float:
 
 
 def _primitive_record(
-    pair: PairSamples, states: ObjectStateTable, cfg: ContactSettings, normal: Vec, source: str
+    pair: PairSamples, states: ObjectStateTable, cfg: ContactSettings, normal: Vec, reason: str
 ) -> ContactRecord | None:
-    """``contact_manifold`` at the middle frame when a face-to-face pair left < 3 points."""
+    """``contact_manifold`` of a face-to-face pair at the middle frame of the run; None for other
+    pairs or when the primitives do not touch within ``max(tol_m, 1e-4)``."""
     mid = round(float(pair.frame[0] + pair.frame[-1]) / 2.0)
     body_a, body_b = _body(states, pair.a, mid), _body(states, pair.b, mid)
     if not (isinstance(body_a, Solid) and _face_to_face(body_a, body_b)):
@@ -482,9 +499,9 @@ def _primitive_record(
         manifold=ManifoldKind.PRIMITIVE,
         point_normals=manifold.normals[keep],
         point_distances=manifold.distances[keep],
-        max_penetration=primitive_penetration(pair, states),
+        max_penetration=max_penetration(pair, states),
         confidence=1.0,
-        source=f"{PRIMITIVE_SOURCE}:sparse_{source}",
+        source=f"{PRIMITIVE_SOURCE}:{reason}",
     )
 
 

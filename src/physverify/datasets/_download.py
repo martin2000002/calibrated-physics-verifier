@@ -7,6 +7,7 @@ match, so an interrupted fetch never leaves a file that looks complete.
 from __future__ import annotations
 
 import base64
+import functools
 import hashlib
 import http.client
 import json
@@ -14,6 +15,7 @@ import os
 import time
 import urllib.parse
 import urllib.request
+import zipfile
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -35,6 +37,7 @@ HTTP_OK = 200
 HTTP_PARTIAL = 206
 TIMEOUT_S = 60.0
 BACKOFF_S = 2.0
+LISTING_FIELDS = "items(name,size,md5Hash),nextPageToken"
 
 log = get_logger("datasets.download")
 Sleep = Callable[[float], None]
@@ -59,6 +62,12 @@ class HttpClient(Protocol):
         ...
 
 
+def ascii_url(url: str) -> str:
+    """Percent-encodes the non-ASCII characters of ``url`` (dataset file names carry ``’``);
+    reserved characters and existing escapes are kept."""
+    return urllib.parse.quote(url, safe=":/?#[]@!$&'()*+,;=%~")
+
+
 class UrllibClient:
     """Standard-library client with a timeout; retries are the caller's (``retrying``)."""
 
@@ -73,7 +82,7 @@ class UrllibClient:
 
     def open_range(self, url: str, start: int) -> tuple[int, BinaryIO]:
         headers = {"Range": f"bytes={start}-"} if start > 0 else {}
-        request = urllib.request.Request(url, headers=headers)
+        request = urllib.request.Request(ascii_url(url), headers=headers)
         response = urllib.request.urlopen(request, timeout=self._timeout_s)
         return int(response.status), response
 
@@ -127,6 +136,22 @@ def retrying[T](action: Callable[[], T], retries: int, what: str, sleep: Sleep =
             log.warning("%s: %s; retrying", what, exc)
             sleep(BACKOFF_S * 2**attempt)
             attempt += 1
+
+
+def list_objects(
+    client: HttpClient, listing_url: str, prefix: str, retries: int
+) -> list[Mapping[str, Any]]:
+    """Every object under ``prefix`` of a GCS bucket listing, following ``nextPageToken``."""
+    items: list[Mapping[str, Any]] = []
+    params = {"prefix": prefix, "fields": LISTING_FIELDS}
+    while True:
+        request = functools.partial(client.get_json, listing_url, dict(params))
+        page = retrying(request, retries, f"listing {prefix}")
+        items += page.get("items", [])
+        token = page.get("nextPageToken")
+        if not token:
+            return items
+        params["pageToken"] = str(token)
 
 
 def md5_b64(path: Path) -> str:
@@ -213,6 +238,23 @@ def save_atomic(source: IO[bytes], target: Path) -> int:
         raise
     os.replace(part, target)
     return written
+
+
+def remote_zip(url: str) -> zipfile.ZipFile:
+    """A zip read member by member through HTTP ranges (the archive is never downloaded whole)."""
+    from remotezip import RemoteZip  # type: ignore[import-untyped]
+
+    archive: zipfile.ZipFile = RemoteZip(url)
+    return archive
+
+
+def extract_member(archive: zipfile.ZipFile, member: str, target: Path) -> int:
+    """Extract one member through a ``.part``; zipfile checks the CRC-32 at the end of the read."""
+    try:
+        with archive.open(member) as body:
+            return save_atomic(body, target)
+    except zipfile.BadZipFile as exc:
+        raise ChecksumError(f"{member}: {exc}") from exc
 
 
 def write_manifest(path: Path, manifest: FetchManifest) -> None:

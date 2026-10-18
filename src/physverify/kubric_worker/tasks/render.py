@@ -1,8 +1,9 @@
 """Render one clip per job with Blender (through Kubric) from keyframes of its variant states.
 
-Job keys: clip_id, spec_path, states_path, layers_path, meta_path, failed_path, floor. Each
-object gets position, quaternion and scale keyframes per native frame; where it is not visible
-it sits under the opaque floor. ``kubric_meta.json`` is written last and marks the job done.
+Job keys: clip_id, spec_path, states_path, layers_path, meta_path, failed_path, floor, threads
+(Blender's fixed thread count). Each object gets position, quaternion and scale keyframes per
+native frame; where it is not visible it sits under the opaque floor. ``kubric_meta.json`` is
+written last and marks the job done.
 """
 
 from __future__ import annotations
@@ -50,6 +51,7 @@ def render_clip(job: dict[str, Any]) -> None:
                 pose_keyframes(states, k, bounds, extents)
             ):
                 _keyframe(asset, kubric_frame(i), position, quaternion, scale)
+        render_threads = fix_render_threads(int(job["threads"]))
         frame_seconds = _render_frames(built.renderer, spec.n_frames)
         start = time.perf_counter()
         out = built.renderer.postprocess(built.renderer.scratch_dir, return_layers=LAYERS)
@@ -61,6 +63,7 @@ def render_clip(job: dict[str, Any]) -> None:
         meta = {
             "clip_id": job["clip_id"],
             "frame_seconds": frame_seconds,
+            "render_threads": render_threads,
             "postprocess_seconds": postprocess_seconds,
             "k_norm": np.asarray(camera.intrinsics, dtype=np.float64).tolist(),
             "matrix_world": np.asarray(camera.matrix_world, dtype=np.float64).tolist(),
@@ -138,6 +141,17 @@ def _keyframe(
     asset.scale = tuple(scale)
     for attribute in ("position", "quaternion", "scale"):
         asset.keyframe_insert(attribute, frame)
+
+
+def fix_render_threads(threads: int) -> int:
+    """Cycles defaults to one thread per host core; with several renderers per host that
+    oversubscribes the CPU, so each process uses ``runtime.threads`` (ADR 0003, section 6)."""
+    import bpy
+
+    settings = bpy.context.scene.render
+    settings.threads_mode = "FIXED"
+    settings.threads = max(1, threads)
+    return int(settings.threads)
 
 
 def _render_frames(renderer: Any, n_frames: int) -> list[float]:

@@ -50,9 +50,21 @@ class ChecksSettings(RootModel[dict[str, dict[str, Any]]]):
 
 
 class ThresholdEntry(BaseModel):
+    """``tau`` in check units. The H1 calibration (ADR 0009) may add the measured bias of the
+    magnitude and the factor of its sigma; ``sigma_factor`` None: the error was not measured."""
+
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     tau: float
+    bias: float = 0.0
+    sigma_factor: float | None = Field(default=1.0, ge=0.0)
+
+
+class ArtifactRef(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    path: str
+    sha256: str
 
 
 class ThresholdTable(BaseModel):
@@ -63,6 +75,7 @@ class ThresholdTable(BaseModel):
     status: Literal["provisional", "calibrated"]
     source: str
     checks: dict[str, ThresholdEntry]
+    artifact: ArtifactRef | None = None
 
 
 def build_checks(
@@ -104,8 +117,13 @@ def load_thresholds(path: Path, provisional: Mapping[str, float]) -> Mapping[str
 
 
 def tau_of(thresholds: Mapping[str, Any], check_id: str) -> float | None:
+    entry = entry_of(thresholds, check_id)
+    return None if entry is None else entry.tau
+
+
+def entry_of(thresholds: Mapping[str, Any], check_id: str) -> ThresholdEntry | None:
     entry = thresholds.get("checks", {}).get(check_id)
-    return None if entry is None else float(entry["tau"])
+    return None if entry is None else _validated(ThresholdEntry, entry, f"thresholds.{check_id}")
 
 
 def thresholds_label(thresholds: Mapping[str, Any]) -> str:

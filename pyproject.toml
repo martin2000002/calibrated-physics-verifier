@@ -42,7 +42,7 @@ perception = [
 ]
 analysis = ["pandas>=2.2", "matplotlib", "scikit-learn>=1.5"]
 data = ["remotezip", "huggingface-hub"]
-generation = ["diffusers>=0.37"]
+generation = ["diffusers>=0.37", "peft>=0.21,<0.22"]
 
 [tool.uv]
 default-groups = ["dev", "cpu", "perception", "analysis", "data"]

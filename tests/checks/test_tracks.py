@@ -24,6 +24,7 @@ from physverify.physics.tracks import (
 from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactKind, ContactRecord, ContactTable, ManifoldKind
 from physverify.schema.states import CoordFrame, LengthUnit
+from physverify.synth.perturbations._windows import impact_frames
 
 NATIVE = np.arange(12, dtype=np.int64)
 EVEN = np.arange(0, 24, 2, dtype=np.int64)
@@ -97,9 +98,9 @@ def test_contact_rows(
 @pytest.mark.parametrize(
     ("frame_index", "bounds", "expected"),
     [
-        (NATIVE, (5.4, 5.4), {5, 6}),
-        (NATIVE, (5.0, 5.0), {4, 5, 6}),
-        (EVEN, (6.0, 6.0), {4, 6, 8}),
+        (NATIVE, (5.4, 5.4), {4, 5, 6}),
+        (NATIVE, (5.0, 5.0), {3, 4, 5, 6}),
+        (EVEN, (6.0, 6.0), {2, 4, 6, 8}),
     ],
 )
 def test_impact_stencil_mask(
@@ -108,6 +109,16 @@ def test_impact_stencil_mask(
     contacts = table(record(*bounds), record(0.0, 11.0, ContactKind.RESTING))
     mask = impact_stencil_mask("ball", contacts, frame_index)
     assert frames_of(mask, frame_index) == expected
+
+
+@pytest.mark.parametrize("n_rows", [1, 2, 3])
+def test_stencil_mask_virtual_neighbours_reach_two_steps_past_the_end(n_rows: int) -> None:
+    frame_index = np.arange(5, 5 + n_rows, dtype=np.int64)
+    last = int(frame_index[-1])
+    reached = impact_stencil_mask("ball", table(record(last + 2.0, last + 2.0)), frame_index)
+    missed = impact_stencil_mask("ball", table(record(last + 2.5, last + 2.5)), frame_index)
+    assert bool(reached[-1])
+    assert not bool(np.any(missed))
 
 
 def a4_flight(records: list[ContactRecord], n: int, margin: int) -> np.ndarray:
@@ -120,10 +131,11 @@ def a4_flight(records: list[ContactRecord], n: int, margin: int) -> np.ndarray:
 
 
 def a4_impact_frames(records: list[ContactRecord], n: int) -> np.ndarray:
-    """A4's floor/ceil rows, one row wider on each bound that falls on a frame (quantized)."""
+    """A4's rows floor(t_start) - 1 <= k <= ceil(t_end) of the 4-row stencil, one row wider on
+    each bound that falls on a frame (quantized)."""
     mask = np.zeros(n, dtype=bool)
     for r in records:
-        lo = math.floor(r.t_start) - int(r.t_start.is_integer())
+        lo = math.floor(r.t_start) - 1 - int(r.t_start.is_integer())
         hi = math.ceil(r.t_end) + int(r.t_end.is_integer())
         lo, hi = max(0, lo), min(n - 1, hi)
         if r.kind is ContactKind.IMPACT and lo <= hi:
@@ -165,6 +177,22 @@ def test_native_windows_match_a4_formulas() -> None:
     np.testing.assert_array_equal(
         impact_stencil_mask("ball", table(*records), frame_index), a4_impact_frames(records, n)
     )
+
+
+def test_native_stencil_mask_is_a4_impact_frames_on_fractional_bounds() -> None:
+    rng = np.random.default_rng(1)
+    n = 40
+    frame_index = np.arange(n, dtype=np.int64)
+    records = [
+        r
+        for r in random_records(rng, n, 80)
+        if not (r.t_start.is_integer() or r.t_end.is_integer())
+    ]
+    assert len(records) > 20
+    for r in records:
+        np.testing.assert_array_equal(
+            impact_stencil_mask("ball", table(r), frame_index), impact_frames("ball", table(r), n)
+        )
 
 
 def test_flight_mask_ignores_other_objects() -> None:

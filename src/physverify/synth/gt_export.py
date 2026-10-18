@@ -1,6 +1,7 @@
 """Canonical ground truth of every rendered clip (ADR 0004, section 3.7): PNG frames, WORLD and
 CAMERA state and contact tables, OpenCV camera, final perturbation record, ``gt_meta.json`` (the
 step marker, written last) and the clip manifest; ``manifest.jsonl`` indexes the exported clips.
+``video.mp4`` is a lossy copy of the frames for viewing; extraction reads the PNG frames.
 
 Kubric's camera is OpenGL (x right, y up, looking along -z) with intrinsics normalized to the
 image size: u = fx * x / (-z) + 0.5 and v = -fy * y / (-z) + 0.5, times W and H in pixels.
@@ -22,6 +23,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from physverify.core.hashing import params_hash
+from physverify.core.video import write_mp4
 from physverify.physics.finite_diff import central_difference
 from physverify.physics.geometry import matrix_from_quaternion, quaternion_from_matrix
 from physverify.schema.clip import ClipManifest, ObjectQuery, TimeSource
@@ -58,6 +60,7 @@ from physverify.synth.store import (
     STATES_CAMERA,
     STATES_WORLD,
     VARIANT_STATES,
+    VIDEO,
     DatasetStore,
     Step,
     atomic_save,
@@ -364,6 +367,7 @@ def export_clip(
         plugin, PerturbationRecord.load_json(clip_dir / RECORD), variant, states, contacts
     )
     write_frames(layers.rgba, clip_dir / FRAMES_DIR)
+    write_mp4(layers.rgba[..., :3], clip_dir / VIDEO, float(scene.frame_rate))
     atomic_save(states, clip_dir / STATES_WORLD)
     atomic_save(camera_states(states, world_from_camera), clip_dir / STATES_CAMERA)
     atomic_save(camera_contacts(contacts, world_from_camera), clip_dir / CONTACTS_CAMERA)

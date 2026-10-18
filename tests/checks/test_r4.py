@@ -15,6 +15,7 @@ from physverify.checks.r4_integrity import (
     SizeConstancyCheck,
     SizeParams,
 )
+from physverify.physics.finite_diff import third_difference
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
 from physverify.schema.constants import STANDARD_GRAVITY
 
@@ -141,7 +142,7 @@ def test_size_with_too_few_known_rows_abstains() -> None:
 def test_teleport_at_rest_is_detected(pitch: float) -> None:
     result = jump(sc.teleport(0.3, frame=16, pitch_deg=pitch))
     assert result.magnitude == pytest.approx(0.3 / BALL_LENGTH, abs=1e-9)
-    assert result.frame_span == (14, 16)
+    assert result.frame_span == (14, 17)
     assert result.details["row"] == 15
     assert result.sigma == 0.0
 
@@ -154,7 +155,26 @@ def test_strided_teleport_keeps_magnitude_and_native_span(step: int) -> None:
     fi = case.states.frame_index
     k = int(np.flatnonzero(fi >= 18)[0]) - 1
     assert result.magnitude == pytest.approx(native.magnitude, abs=1e-9)
-    assert result.frame_span == (int(fi[k - 1]), int(fi[k + 1]))
+    assert result.frame_span == (int(fi[k - 1]), int(fi[k + 2]))
+
+
+@pytest.mark.parametrize("pitch", [0.0, 25.0])
+def test_teleport_in_flight_is_the_step_over_the_length(pitch: float) -> None:
+    result = jump(sc.teleport(0.3, frame=16, flight=True, pitch_deg=pitch))
+    assert result.magnitude == pytest.approx(0.3 / BALL_LENGTH, rel=1e-9)
+    assert result.details["row"] == 15
+
+
+@pytest.mark.parametrize("g", [STANDARD_GRAVITY, 3.0, 25.0])
+@pytest.mark.parametrize("pitch", [0.0, 25.0])
+def test_clean_flight_gives_zero_without_scale(g: float, pitch: float) -> None:
+    case = sc.parabola(g=g, pitch_deg=pitch)
+    for scale in (case.scale, None):
+        result = jump(replace(case, scale=scale))
+        assert result.verdict is not Verdict.ABSTAIN
+        assert result.magnitude is not None
+        assert result.magnitude < 1e-6
+        assert result.sigma == 0.0
 
 
 @pytest.mark.parametrize("step", [1, 2, 3])
@@ -164,13 +184,12 @@ def test_bounce_impact_is_excluded(step: int, offset: float, quantize: bool) -> 
     """Quantized contacts (a sub-frame impact snapped to one frame) still exclude the stencil."""
     case = sc.strided(sc.bounce(impact_frame=sc.EVENT_FRAME + offset), step, quantize=quantize)
     result = jump(case)
-    smooth = STANDARD_GRAVITY * (step * sc.DT) ** 2 / BALL_LENGTH
     assert result.details["excluded_rows"] > 0
     assert result.magnitude is not None
-    assert result.magnitude <= 1.01 * smooth
+    assert result.magnitude < 1e-6
 
 
-def test_jump_without_three_known_rows_abstains() -> None:
+def test_jump_without_four_known_rows_abstains() -> None:
     hidden = range(1, sc.FRAMES, 2)
     case = sc.with_values(sc.rolling_ball(), "position", "ball", hidden, math.nan)
     result = jump(case)
@@ -184,7 +203,7 @@ def test_jump_sigma_projects_the_position_sigma_on_the_jump() -> None:
     case = replace(case, states=replace(case.states, position_sigma=sigma))
     result = jump(case)
     along = np.abs(case.view.vector(np.array([0.0, 1.0, 0.0])))
-    expected = math.sqrt(6) * float(np.linalg.norm(along * sigma[0, 0])) / BALL_LENGTH
+    expected = math.sqrt(5) * float(np.linalg.norm(along * sigma[0, 0])) / BALL_LENGTH
     assert result.sigma == pytest.approx(expected, rel=1e-9)
 
 
@@ -197,3 +216,13 @@ def test_jump_requires_contacts() -> None:
 def test_first_max_prefers_the_earliest_tie() -> None:
     assert first_max(np.array([1.0, 3.0, 3.0 * (1 + 1e-12), math.nan])) == 1
     assert first_max(np.array([2.0, 1.0])) == 0
+
+
+def test_third_difference_coefficients() -> None:
+    steps = np.eye(5)
+    assert np.array_equal(third_difference(steps), [[-1, 3, -3, 1, 0], [0, -1, 3, -3, 1]])
+    t = np.arange(6, dtype=np.float64)
+    quadratic = np.stack([2.0 - 0.5 * t + 3.0 * t**2, -4.9 * t**2], axis=1)
+    assert np.allclose(third_difference(quadratic), 0.0, atol=1e-12)
+    assert third_difference(t[:3]).shape == (0,)
+    assert third_difference(np.zeros((3, 3))).shape == (0, 3)

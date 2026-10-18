@@ -16,6 +16,32 @@ WORKER_MODULE = "physverify.kubric_worker"
 Runner = Callable[..., "subprocess.CompletedProcess[bytes]"]
 
 
+def container_path(data_dir: Path, host_path: Path) -> str:
+    """Host path under ``data_dir`` as seen inside the container (``/data/...``)."""
+    try:
+        relative = host_path.resolve().relative_to(data_dir.resolve())
+    except ValueError as exc:
+        raise UsageError(f"{host_path} is outside the data directory {data_dir}") from exc
+    return str(CONTAINER_DATA.joinpath(*relative.parts))
+
+
+def container_env(threads: int) -> list[tuple[str, str]]:
+    """Environment every engine passes to the worker process."""
+    return [
+        ("PYTHONPATH", CONTAINER_SRC),
+        ("HOME", "/tmp"),
+        ("OMP_NUM_THREADS", str(threads)),
+    ]
+
+
+def worker_command(task: str, jobs_container_path: str, threads: int) -> list[str]:
+    return [
+        "python3", "-m", WORKER_MODULE, task,
+        "--jobs", jobs_container_path,
+        "--threads", str(threads),
+    ]  # fmt: skip
+
+
 @dataclass(frozen=True)
 class DockerRunner:
     image: str
@@ -26,30 +52,28 @@ class DockerRunner:
     gid: int
 
     def container_path(self, host_path: Path) -> str:
-        """Host path under ``data_dir`` as seen inside the container (``/data/...``)."""
-        try:
-            relative = host_path.resolve().relative_to(self.data_dir.resolve())
-        except ValueError as exc:
-            raise UsageError(f"{host_path} is outside the data directory {self.data_dir}") from exc
-        return str(CONTAINER_DATA.joinpath(*relative.parts))
+        return container_path(self.data_dir, host_path)
 
     def argv(self, task: str, jobs: Path) -> list[str]:
         if not self.image:
             raise ConfigError("runtime.docker_image is empty")
+        env = [
+            arg for name, value in container_env(self.threads) for arg in ("-e", f"{name}={value}")
+        ]
         return [
             "docker", "run", "--rm",
             "--user", f"{self.uid}:{self.gid}",
             "-v", f"{self.src_dir.resolve()}:{CONTAINER_SRC}:ro",
             "-v", f"{self.data_dir.resolve()}:{CONTAINER_DATA}",
             "-w", str(CONTAINER_DATA),
-            "-e", f"PYTHONPATH={CONTAINER_SRC}",
-            "-e", "HOME=/tmp",
-            "-e", f"OMP_NUM_THREADS={self.threads}",
+            *env,
             self.image,
-            "python3", "-m", WORKER_MODULE, task,
-            "--jobs", self.container_path(jobs),
-            "--threads", str(self.threads),
+            *worker_command(task, self.container_path(jobs), self.threads),
         ]  # fmt: skip
+
+    def probe_argv(self) -> list[str]:
+        """Exits 0 when the image is available locally."""
+        return ["docker", "image", "inspect", self.image]
 
     def run(
         self, task: str, jobs: Path, runner: Runner = subprocess.run

@@ -10,6 +10,7 @@ from typing import Annotated
 import typer
 
 from physverify.cli.context import AppContext, app_context
+from physverify.runtime.container import describe as describe_engine
 from physverify.runtime.heavy import describe_holder, lock_holder_pids
 
 NAME = "doctor"
@@ -43,6 +44,7 @@ def report_lines(context: AppContext) -> list[str]:
         f"config_hash: {settings.config_hash()[:12]}",
         *(f"paths.{name}: {value}" for name, value in settings.paths.model_dump().items()),
         f"docker_image: {settings.runtime.docker_image or '(unset)'}",
+        f"container_engine: {describe_engine(settings)}",
     ]
     return lines + lock_lines(context)
 

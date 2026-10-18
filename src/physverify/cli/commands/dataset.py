@@ -12,8 +12,8 @@ from typing import Annotated, Any
 import typer
 
 from physverify.cli.context import AppContext, app_context, heavy_command
-from physverify.core.errors import MissingInputError, PhysverifyError
-from physverify.runtime.docker import DockerRunner
+from physverify.core.errors import MissingInputError, PhysverifyError, UsageError
+from physverify.runtime.container import container_settings, missing_reason
 from physverify.synth.generate import (
     load_plan,
     plan_subset,
@@ -39,7 +39,7 @@ from physverify.synth.settings import (
 )
 from physverify.synth.simulate import StepReport
 from physverify.synth.simulate import simulate as simulate_scenes
-from physverify.synth.store import DatasetStore, Step
+from physverify.synth.store import ContainerRunner, DatasetStore, Step
 
 NAME = "dataset"
 OWNER = "A4"
@@ -91,14 +91,12 @@ class DatasetJob:
             )
         return plan.subset(self.subset)
 
-    def runner(self, run: Run = subprocess.run) -> DockerRunner:
-        docker = self.context.docker()
-        image = self.context.settings.runtime.docker_image
-        if not image_present(image, run):
-            raise MissingInputError(
-                f"Kubric image {image!r} is not available: run `physverify dataset pull-image`"
-            )
-        return docker
+    def runner(self, run: Run = subprocess.run) -> ContainerRunner:
+        runner = self.context.docker()
+        reason = missing_reason(self.context.settings, runner, run)
+        if reason is not None:
+            raise MissingInputError(f"the Kubric container is not available: {reason}")
+        return runner
 
 
 def image_present(image: str, run: Run = subprocess.run) -> bool:
@@ -143,11 +141,11 @@ def run_generate(job: DatasetJob) -> DatasetPlan:
     return plan
 
 
-def run_simulate(job: DatasetJob, runner: DockerRunner) -> list[str]:
+def run_simulate(job: DatasetJob, runner: ContainerRunner) -> list[str]:
     return _report("simulate", simulate_scenes(job.plan(), job.store, runner, job.ds))
 
 
-def run_perturb(job: DatasetJob, runner: DockerRunner) -> list[str]:
+def run_perturb(job: DatasetJob, runner: ContainerRunner) -> list[str]:
     plan = job.plan()
     applied = apply_variants(plan, job.store, job.plugins, job.ds)
     launched = closest_points(plan, job.store, runner, job.ds)
@@ -163,7 +161,7 @@ def run_perturb(job: DatasetJob, runner: DockerRunner) -> list[str]:
 
 
 def run_render(
-    job: DatasetJob, runner: DockerRunner, limit: int | None, clips: Sequence[str] | None
+    job: DatasetJob, runner: ContainerRunner, limit: int | None, clips: Sequence[str] | None
 ) -> list[str]:
     report = render_clips(job.plan(), job.store, runner, job.ds, limit=limit, clip_ids=clips)
     failures = _report("render", report)
@@ -209,7 +207,14 @@ def status_lines(plan: DatasetPlan, store: DatasetStore) -> list[str]:
 @app.command("pull-image", help="Pull the pinned Kubric image (heavy).")
 @heavy_command
 def pull_image() -> None:
-    image = app_context().settings.runtime.docker_image
+    settings = app_context().settings
+    engine = container_settings(settings).engine
+    if engine != "docker":
+        raise UsageError(
+            f"pull-image only drives docker; container.engine is {engine!r} "
+            "(on the H200, scripts/h200/run_kubric.sh pulls and creates the container)"
+        )
+    image = settings.runtime.docker_image
     if subprocess.run(["docker", "pull", image], check=False).returncode != 0:
         raise PhysverifyError(f"docker pull {image} failed")
 

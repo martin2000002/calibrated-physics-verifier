@@ -9,7 +9,7 @@ from __future__ import annotations
 import itertools
 import math
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Protocol
 
 import numpy as np
@@ -119,9 +119,13 @@ class Clustered(Protocol):
 
 @dataclass(frozen=True)
 class BootstrapResult:
+    """``non_finite`` counts, per key, the kept replicas whose value was NaN or infinite (for
+    example kappa on a one-class resample); they are left out of that key's interval."""
+
     intervals: Mapping[str, Interval]
     replicas: int
     dropped: int
+    non_finite: Mapping[str, int] = field(default_factory=dict)
 
 
 def _interval(values: Sequence[float], ci: float) -> Interval:
@@ -146,7 +150,7 @@ def bootstrap[B: Clustered](
 
     ``clusters`` are the clip ids to resample (default: the clips of ``blocks``); a replica that
     draws only clips without blocks is dropped and counted. Non-finite values of a key are left
-    out of that key's interval.
+    out of that key's interval and counted in ``non_finite``.
     """
     ids = tuple(sorted(set(clusters) if clusters is not None else {b.clip_id for b in blocks}))
     if n <= 0 or not ids:
@@ -165,4 +169,8 @@ def bootstrap[B: Clustered](
         for key, value in statistic(sample).items():
             draws.setdefault(key, []).append(value)
     intervals = {key: _interval(values, ci) for key, values in sorted(draws.items())}
-    return BootstrapResult(intervals=intervals, replicas=n - dropped, dropped=dropped)
+    non_finite = {
+        key: int(np.sum(~np.isfinite(np.asarray(values, dtype=np.float64))))
+        for key, values in sorted(draws.items())
+    }
+    return BootstrapResult(intervals, n - dropped, dropped, non_finite)
