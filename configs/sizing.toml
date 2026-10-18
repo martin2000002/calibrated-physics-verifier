@@ -1,0 +1,64 @@
+# Size estimator learned on Objectron (cycle A9, ADR 0010). Only box annotations are fetched:
+# Objectron is C-UDA 1.0, so only fitted coefficients (configs/size_model.toml) are versioned.
+[sizing]
+bucket_url = "https://storage.googleapis.com/objectron"
+listing_url = "https://storage.googleapis.com/storage/v1/b/objectron/o"
+license = "C-UDA-1.0"
+classes = ["bike", "book", "bottle", "camera", "cereal_box", "chair", "cup", "laptop", "shoe"]
+per_class_train = 150
+per_class_test = 60
+seed = 0
+folds = 5                  # grouped by video
+min_extent_m = 0.01
+coverage_target = 0.683    # conformal factor: this share of |log error| / sigma is <= 1
+baseline_prior = "cube"    # B0: the frozen prior an unknown label gets today
+head_bytes = 8192          # Sequence.objects are written first; a ranged GET reads only them
+workers = 8
+retries = 3
+bootstrap = 1000
+ci = 0.95
+
+# Phrase -> Objectron class or [sizing.fixed] key (matched like size_priors: phrase, then words).
+[sizing.labels]
+mug = "cup"
+glass = "cup"
+"coffee cup" = "cup"
+notebook = "book"
+"cereal box" = "cereal_box"
+cereal = "cereal_box"
+sneaker = "shoe"
+boot = "shoe"
+"water bottle" = "bottle"
+"wine bottle" = "bottle"
+computer = "laptop"
+notebook_computer = "laptop"
+bicycle = "bike"
+# "tennis ball" and "soccer ball" match only as whole phrases: a lone "tennis" or "football"
+# (racket, American football) must not get a regulation ball size.
+
+# Regulation diameters (L of a sphere is its diameter). Estimates: rel_spread covers the allowed
+# range plus non-regulation balls of the same name, never below 0.05.
+[sizing.fixed."tennis ball"]
+mean_m = 0.067
+rel_spread = 0.05
+source = "ITF Rules of Tennis 2024, Appendix I: diameter 6.54-6.86 cm"
+
+[sizing.fixed."soccer ball"]
+mean_m = 0.22
+rel_spread = 0.05
+source = "IFAB Laws of the Game 2024/25, Law 2: circumference 68-70 cm (size 5)"
+
+[sizing.fixed.basketball]
+mean_m = 0.243
+rel_spread = 0.05
+source = "FIBA Official Basketball Rules 2024, Equipment: circumference 74.9-78.0 cm (size 7)"
+
+[sizing.e2e]
+classes = ["cup", "bottle", "book", "shoe", "cereal_box"]   # tabletop classes A11 also renders
+videos = 10                # R2 asks for 20; 10 keeps the MOV downloads near 300 MB (each is deleted after decoding)
+seconds = 2.0
+fps = 15.0                 # native 30 fps, every second frame
+max_side = 640
+max_video_mb = 40.0        # larger MOVs are skipped for the next candidate of the class
+subset = "objectron"
+min_box_iou = 0.3          # projected box vs perceived mask bbox; clips below are excluded
