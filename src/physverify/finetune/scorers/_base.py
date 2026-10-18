@@ -1,0 +1,47 @@
+"""Contract of a clip scorer: verifier results of one candidate -> one score in [0, 1] (ADR 0012).
+
+A higher score is more physically consistent; an abstention is ``score = None``. ``only`` restricts
+the score to a set of checks, so two candidates of one prompt are compared on the checks decided
+in both (ADR 0009, Juicio 7) and abstaining never pays.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, field
+from typing import ClassVar, Protocol, runtime_checkable
+
+from physverify.config.models import Settings
+from physverify.schema.checks import CheckResult
+
+
+@dataclass(frozen=True)
+class AggregateScore:
+    score: float | None
+    sigma: float | None
+    abstained: bool
+    reason: str | None
+    n_decided: int
+    n_failed: int
+    coverage: float
+    decided: frozenset[str] = frozenset()
+    per_check: Mapping[str, float] = field(default_factory=dict)
+
+
+@runtime_checkable
+class AggregateScorer(Protocol):
+    """Constructed as ``cls(settings)``; ``unavailable`` names what is missing (exit 2), or None."""
+
+    name: ClassVar[str]
+    version: ClassVar[str]
+    calibrated: ClassVar[bool]
+
+    def __init__(self, settings: Settings) -> None: ...
+
+    def unavailable(self) -> str | None: ...
+
+    def thresholds(self) -> str: ...
+
+    def score(
+        self, results: Sequence[CheckResult], only: frozenset[str] | None = None
+    ) -> AggregateScore: ...

@@ -1,0 +1,241 @@
+# Preference pairs and Flow-DPO LoRA fine-tuning of Wan2.1-T2V-1.3B (cycle A11, ADR 0012).
+# Generator parameters are NOT here: they come from [timing.generation] (configs/timing.toml),
+# so the cost measured by A3 is the cost of these videos.
+# Values marked [estimated] come from the literature or a guess and are fixed by the pilot
+# (20 train prompts x K = 4); stop and review A8/A9 if pairs per prompt < 0.3, abstention per
+# candidate > 50 %, or fewer than 6 of 10 inspected pairs show a better winner.
+
+[finetune]
+campaign = "wan21_v1"
+scorer = "calibrated"
+
+[finetune.prompts]
+seed = 0
+n_train = 200
+n_dev = 32
+n_eval = 60
+eval_unseen_fraction = 0.5
+val_fraction = 0.1
+# Query nouns must have a size prior (sizing.model.sized_labels). These two do not: the checks
+# that need a metric scale abstain on them (declared; no scale is invented).
+unscaled_queries = ["domino", "table"]
+
+[finetune.prompts.slots]
+color = ["red", "blue", "green", "yellow", "white", "black"]
+material = ["wooden", "metal", "rubber"]
+surface = ["wooden floor", "concrete floor", "carpet", "tiled floor"]
+primitive = ["cube", "ball", "cylinder"]
+item = ["cup", "bottle", "book", "shoe", "cereal box"]
+ball = ["tennis ball", "basketball", "soccer ball"]
+
+[[finetune.prompts.families]]
+name = "fall"
+target_checks = ["R5a", "R5b", "R4_jump"]
+[[finetune.prompts.families.templates]]
+id = "fall_drop"
+text = "A {color} {material} {primitive} falls from about one meter onto a {surface}, static camera"
+queries = [{ phrase = "{primitive}", expected_count = 1 }]
+[[finetune.prompts.families.templates]]
+id = "fall_shelf"
+text = "A {color} {item} falls off a shelf onto a {surface}, static camera"
+queries = [{ phrase = "{item}", expected_count = 1 }]
+[[finetune.prompts.families.templates]]
+id = "fall_release"
+holdout = true
+text = "A hand lets go of a {color} {item} and it drops onto a {surface}, static camera"
+queries = [{ phrase = "{item}", expected_count = 1 }]
+
+[[finetune.prompts.families]]
+name = "bounce"
+target_checks = ["R3a", "R5a"]
+[[finetune.prompts.families.templates]]
+id = "bounce_rubber"
+text = "A {color} rubber ball is dropped and bounces several times on a {surface}, static camera"
+queries = [{ phrase = "ball", expected_count = 1 }]
+[[finetune.prompts.families.templates]]
+id = "bounce_sport"
+text = "A {ball} is dropped and bounces several times on a {surface}, static camera"
+queries = [{ phrase = "{ball}", expected_count = 1 }]
+[[finetune.prompts.families.templates]]
+id = "bounce_shoulder"
+text = "A {ball} is dropped from shoulder height onto a {surface} and bounces, static camera"
+queries = [{ phrase = "{ball}", expected_count = 1 }]
+[[finetune.prompts.families.templates]]
+id = "bounce_rest"
+holdout = true
+text = "A {ball} bounces on a {surface} a few times and comes to rest, static camera"
+queries = [{ phrase = "{ball}", expected_count = 1 }]
+
+[[finetune.prompts.families]]
+name = "collision"
+target_checks = ["R3b", "R1"]
+[[finetune.prompts.families.templates]]
+id = "collision_pair"
+text = "Two {color} {material} {primitive}s move toward each other on a {surface} and collide, static camera"
+queries = [{ phrase = "{primitive}", expected_count = 2 }]
+[[finetune.prompts.families.templates]]
+id = "collision_item"
+text = "A {color} {item} slides into another {item} on a {surface}, static camera"
+queries = [{ phrase = "{item}", expected_count = 2 }]
+[[finetune.prompts.families.templates]]
+id = "collision_roll"
+holdout = true
+text = "A {ball} rolls across a {surface} and hits a {color} {item}, static camera"
+queries = [{ phrase = "{ball}", expected_count = 1 }, { phrase = "{item}", expected_count = 1 }]
+
+[[finetune.prompts.families]]
+name = "stack"
+target_checks = ["R2", "R1"]
+[[finetune.prompts.families.templates]]
+id = "stack_tower"
+text = "A tower of three {color} wooden cubes stands on a {surface}; a ball hits it, static camera"
+queries = [{ phrase = "cube", expected_count = 3 }, { phrase = "ball", expected_count = 1 }]
+[[finetune.prompts.families.templates]]
+id = "stack_knock"
+text = "Three {color} {material} cubes are stacked on a {surface} and a {ball} knocks them over, static camera"
+queries = [{ phrase = "cube", expected_count = 3 }, { phrase = "{ball}", expected_count = 1 }]
+[[finetune.prompts.families.templates]]
+id = "stack_item"
+holdout = true
+text = "A {color} {item} rests on top of two stacked {material} cubes on a {surface}, static camera"
+queries = [{ phrase = "{item}", expected_count = 1 }, { phrase = "cube", expected_count = 2 }]
+
+[[finetune.prompts.families]]
+name = "support"
+target_checks = ["R2", "R5a"]
+[[finetune.prompts.families.templates]]
+id = "support_edge"
+text = "A {color} {item} rests near the edge of a table and is pushed off, falling to the {surface}, static camera"
+queries = [{ phrase = "{item}", expected_count = 1 }, { phrase = "table", expected_count = 1 }]
+[[finetune.prompts.families.templates]]
+id = "support_block"
+text = "A {color} {material} {primitive} rests near the edge of a table and is pushed off, falling to the {surface}, static camera"
+queries = [{ phrase = "{primitive}", expected_count = 1 }, { phrase = "table", expected_count = 1 }]
+[[finetune.prompts.families.templates]]
+id = "support_slip"
+holdout = true
+text = "A {color} {item} placed half over the edge of a table tips and falls to the {surface}, static camera"
+queries = [{ phrase = "{item}", expected_count = 1 }, { phrase = "table", expected_count = 1 }]
+
+[[finetune.prompts.families]]
+name = "slide"
+target_checks = ["R4_missing", "R4_size", "R1"]
+[[finetune.prompts.families.templates]]
+id = "slide_block"
+text = "A {color} {material} {primitive} slides across a {surface} and stops, static camera"
+queries = [{ phrase = "{primitive}", expected_count = 1 }]
+[[finetune.prompts.families.templates]]
+id = "slide_item"
+text = "A {color} {item} slides across a {surface} and stops, static camera"
+queries = [{ phrase = "{item}", expected_count = 1 }]
+[[finetune.prompts.families.templates]]
+id = "slide_push"
+holdout = true
+text = "A hand pushes a {color} {item} along a {surface}; it slides and stops, static camera"
+queries = [{ phrase = "{item}", expected_count = 1 }]
+
+[[finetune.prompts.families]]
+name = "domino"
+target_checks = ["R1", "R3b", "R2"]
+[[finetune.prompts.families.templates]]
+id = "domino_row"
+text = "A row of five {color} dominoes topples one after another on a {surface}, static camera"
+queries = [{ phrase = "domino", expected_count = 5 }]
+[[finetune.prompts.families.templates]]
+id = "domino_line"
+text = "Five {color} {material} dominoes stand in a line on a {surface} and fall in sequence, static camera"
+queries = [{ phrase = "domino", expected_count = 5 }]
+[[finetune.prompts.families.templates]]
+id = "domino_tip"
+holdout = true
+text = "A finger tips a {color} domino, which knocks down four more dominoes on a {surface}, static camera"
+queries = [{ phrase = "domino", expected_count = 5 }]
+
+[[finetune.prompts.fixed_eval]]
+id = "demo-domino-chain"
+family = "domino"
+text = "A long chain of wooden dominoes topples one after another across a wooden floor, static camera"
+queries = [{ phrase = "domino" }]
+target_checks = ["R1", "R3b", "R2"]
+
+[[finetune.prompts.fixed_eval]]
+id = "demo-block-tower"
+family = "stack"
+text = "A tall tower of red wooden blocks on a table is hit by a ball and collapses, static camera"
+queries = [{ phrase = "cube" }, { phrase = "ball", expected_count = 1 }, { phrase = "table", expected_count = 1 }]
+target_checks = ["R2", "R1"]
+
+[finetune.candidates]
+k_train = 4             # VideoDPO uses 4 (Juicio 6)
+k_eval = 8              # base, best-of-8 baseline
+k_eval_finetuned = 4    # seeds k = 0..3, paired with the base
+k_dev = 2               # per dev prompt and checkpoint, base included
+base_seed = 0
+store_latents = true    # float32, about 8.4 MB each
+
+[finetune.pairs]        # [estimated] until the pilot
+min_margin = 0.10
+sigma_k = 1.0
+max_pairs_per_prompt = 1
+min_motion = 0.5        # half an object size of travel
+min_motion_ratio = 0.5
+min_coverage = 0.0
+require_object_count = true
+weight_by_margin = false
+margin_ref = 0.5
+
+[finetune.lora]         # [estimated] r = 32 as Gravity Adapter (5B); PhyGDPO uses 48 on 14B
+rank = 32
+alpha = 32
+dropout = 0.0
+target_modules = [
+  "attn1.to_q", "attn1.to_k", "attn1.to_v", "attn1.to_out.0",
+  "attn2.to_q", "attn2.to_k", "attn2.to_v", "attn2.to_out.0",
+  "ffn.net.0.proj", "ffn.net.2",
+]
+
+[finetune.train]        # [estimated] from the literature, not measured
+# Sized for about 200 prompts: 180 train prompts (10 % val) give at most 180 pairs
+# (max_pairs_per_prompt = 1), at least 54 at the pilot's stop rule of 0.3 pairs per prompt.
+# epochs 3 and grad_accum 4 give ceil(3 P / 4) = 41..135 optimizer steps. Warmup, checkpoint
+# spacing and the beta-grid length are fractions of those steps, resolved at run time.
+beta = 500.0
+lr = 5e-5
+weight_decay = 1e-4
+grad_accum = 4
+epochs = 3.0
+warmup_fraction = 0.1        # 4..13 steps
+checkpoint_fraction = 0.2    # 5 or 6 checkpoints, all kept (keep_last unset)
+grad_clip = 1.0
+seed = 0
+gradient_checkpointing = true
+beta_grid = [100.0, 500.0, 2500.0, 5000.0]
+beta_grid_fraction = 0.25    # 4 runs of a quarter: the grid costs about one main run
+beta_kl_factor = 2.0
+
+[finetune.select]
+checkpoints = 3
+max_abstention_rise = 0.10
+max_motion_drop = 0.20
+ci_z = 1.96
+
+[finetune.profiles.fast]   # end-to-end check: 2 prompts, K = 2, 2 steps
+campaign = "wan21_smoke"
+
+[finetune.profiles.fast.prompts]
+n_train = 2
+n_dev = 0
+n_eval = 0
+val_fraction = 0.0
+
+[finetune.profiles.fast.candidates]
+k_train = 2
+
+[finetune.profiles.fast.train]
+max_steps = 2
+grad_accum = 1
+warmup_fraction = 0.0
+checkpoint_fraction = 0.5
+
+[finetune.profiles.fast.select]
+checkpoints = 1
