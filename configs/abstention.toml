@@ -1,0 +1,14 @@
+# Abstention by risk-coverage (cycle A9, ADR 0010): sweep k_sigma of the threshold policy,
+# pick k* on calib. k* is reported; the main thread sets [verification.policies.threshold].
+[abstention]
+risk_target = 0.10
+ci = 0.95
+alpha_max = 0.5
+alpha_min = 1e-4
+grid_points = 25
+bootstrap = 1000
+seed = 0
+dataset = "kubric_synthetic"
+calib_split = "calib"
+eval_split = "eval"
+real_datasets = ["physics_iq", "pisa_real"]
