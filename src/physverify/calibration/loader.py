@@ -1,0 +1,218 @@
+"""Typed access to ``calibration.json``: the only reader of the artifact (ADR 0009 §7)."""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import math
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+from pydantic import ValidationError
+
+from physverify.calibration.schema import (
+    CALIBRATION_SCHEMA,
+    CALIBRATION_VERSION,
+    LENIENT,
+    OK,
+    SCHEMA_KEY,
+    CalibrationArtifact,
+    CheckCalibration,
+)
+from physverify.calibration.schema import Stratum as StratumModel
+from physverify.calibration.settings import calibration_settings
+from physverify.config.models import Settings
+from physverify.core.errors import PhysverifyError
+from physverify.schema.checks import InputLevel
+from physverify.verification.runner import CALIBRATED, ArtifactRef, ThresholdEntry, ThresholdTable
+
+
+class CalibrationError(PhysverifyError):
+    """Missing, unreadable or incompatible calibration artifact."""
+
+
+class StaleCalibrationError(CalibrationError):
+    """The artifact was fitted with other check parameters than the active registry."""
+
+
+class KSigmaMismatchError(CalibrationError):
+    """A k_sigma other than the one the stratum was calibrated with."""
+
+
+def default_artifact_path(settings: Settings) -> Path:
+    """``paths.calibration_dir`` / ``[calibration].artifact``."""
+    return settings.paths.calibration_dir / calibration_settings(settings).artifact
+
+
+def projection_name(level: InputLevel, profile: str) -> str:
+    return f"thresholds.{level.value}.{profile}.json"
+
+
+def sha256_of(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+@dataclass(frozen=True)
+class Stratum:
+    """One (input level, sampling profile) of the artifact. ``checks_hash`` is the hash of the
+    check parameters it was fitted with (``calibration.settings.checks_hash`` of the registry):
+    a consumer stamps it to tie a score to this calibration."""
+
+    model: StratumModel
+    source: str
+    artifact: ArtifactRef | None
+    checks_hash: str | None = None
+
+    @property
+    def level(self) -> InputLevel:
+        return self.model.level
+
+    @property
+    def profile(self) -> str:
+        return self.model.profile
+
+    @property
+    def on_unknown_sigma(self) -> str:
+        return self.model.on_unknown_sigma
+
+    def check(self, check_id: str) -> CheckCalibration | None:
+        return self.model.checks.get(check_id)
+
+    def _ok(self, check_id: str) -> CheckCalibration | None:
+        check = self.check(check_id)
+        return check if check is not None and check.status == OK else None
+
+    def tau(self, check_id: str) -> float | None:
+        check = self._ok(check_id)
+        return None if check is None else check.tau
+
+    def weight(self, check_id: str) -> float:
+        check = self._ok(check_id)
+        return 0.0 if check is None else check.weight.value
+
+    def max_weight(self) -> float:
+        return max((self.weight(c) for c in self.model.checks), default=0.0)
+
+    def sigma_correction(self, check_id: str) -> tuple[float, float]:
+        """(bias, factor); factor NaN when the error was not measured."""
+        check = self.check(check_id)
+        if check is None or check.sigma.factor is None:
+            return (0.0 if check is None else check.sigma.bias), math.nan
+        return check.sigma.bias, check.sigma.factor
+
+    def entry(self, check_id: str) -> ThresholdEntry | None:
+        check = self._ok(check_id)
+        if check is None or check.tau is None:
+            return None
+        return ThresholdEntry(tau=check.tau, bias=check.sigma.bias, sigma_factor=check.sigma.factor)
+
+    def score_threshold(self) -> float | None:
+        """Flag a clip when 1 - S exceeds it."""
+        return self.model.aggregate.score_threshold
+
+    def thresholds_projection(self, root: Path | None = None) -> dict[str, Any]:
+        """``ThresholdTable`` of the ``ok`` checks; the others stay UNSCORED under the policy.
+        The artifact path is written relative to ``root`` (``paths.calibration_dir``) when it
+        lies under it, so the table does not pin one machine's absolute path."""
+        entries = {c: e for c in sorted(self.model.checks) if (e := self.entry(c)) is not None}
+        table = ThresholdTable(
+            status=CALIBRATED, source=self.source, checks=entries, artifact=self._ref(root)
+        )
+        return table.model_dump(mode="json")
+
+    def _ref(self, root: Path | None) -> ArtifactRef | None:
+        if self.artifact is None or root is None:
+            return self.artifact
+        path = Path(self.artifact.path)
+        if not path.resolve().is_relative_to(root.resolve()):
+            return self.artifact
+        relative = path.resolve().relative_to(root.resolve()).as_posix()
+        return self.artifact.model_copy(update={"path": relative})
+
+
+@dataclass(frozen=True)
+class Calibration:
+    artifact: CalibrationArtifact
+    path: Path | None
+    sha256: str
+
+    @property
+    def version(self) -> str:
+        return self.artifact.version
+
+    @property
+    def status(self) -> str:
+        return self.artifact.status
+
+    @property
+    def commit(self) -> str:
+        return self.artifact.commit
+
+    @property
+    def run_id(self) -> str:
+        return self.artifact.run_id
+
+    def strata(self) -> tuple[tuple[InputLevel, str], ...]:
+        return tuple((s.level, s.profile) for s in self.artifact.strata)
+
+    def stratum(self, level: InputLevel, profile: str) -> Stratum:
+        for model in self.artifact.strata:
+            if model.level is level and model.profile == profile:
+                return self._wrap(model)
+        known = [f"{lv.value}/{p}" for lv, p in self.strata()]
+        raise CalibrationError(f"no stratum {level.value}/{profile} in the artifact; has {known}")
+
+    def _wrap(self, model: StratumModel) -> Stratum:
+        name = self.path.name if self.path is not None else "calibration"
+        source = f"{name}#{model.level.value}/{model.profile}@{self.run_id}"
+        ref = None if self.path is None else ArtifactRef(path=str(self.path), sha256=self.sha256)
+        return Stratum(
+            model=model, source=source, artifact=ref, checks_hash=self.artifact.checks_hash
+        )
+
+
+def load_calibration(path: Path, *, checks_hash: str | None = None) -> Calibration:
+    """The artifact at ``path``; ``checks_hash`` of the active registry rejects a stale one."""
+    if not path.is_file():
+        raise CalibrationError(f"no calibration artifact at {path}: run `calibrate fit`")
+    calibration = parse_calibration(path.read_text(encoding="utf-8"), path=path)
+    if checks_hash is not None and calibration.artifact.checks_hash != checks_hash:
+        raise StaleCalibrationError(
+            f"{path} was fitted with other check parameters "
+            f"({calibration.artifact.checks_hash[:12]} != {checks_hash[:12]}): refit"
+        )
+    return calibration
+
+
+def parse_calibration(text: str, *, path: Path | None = None) -> Calibration:
+    label = str(path) if path is not None else "calibration"
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise CalibrationError(f"{label} is not valid JSON: {exc}") from exc
+    if not isinstance(data, dict) or data.get(SCHEMA_KEY) != CALIBRATION_SCHEMA:
+        raise CalibrationError(f"{label} is not a {CALIBRATION_SCHEMA} artifact")
+    lenient = _compatible(str(data.get("version", "")), label)
+    try:
+        artifact = CalibrationArtifact.model_validate(data, context={LENIENT: lenient})
+    except ValidationError as exc:
+        raise CalibrationError(f"{label} is invalid:\n{exc}") from exc
+    return Calibration(artifact=artifact, path=path, sha256=sha256_of(text))
+
+
+def _compatible(version: str, label: str) -> bool:
+    """Same major; True when the minor is newer (unknown optional fields are dropped)."""
+    ours, theirs = _semver(CALIBRATION_VERSION) or (0, 0, 0), _semver(version)
+    if theirs is None or theirs[0] != ours[0]:
+        raise CalibrationError(
+            f"{label} has version {version!r}; this code reads {ours[0]}.x ({CALIBRATION_VERSION})"
+        )
+    return theirs[1] > ours[1]
+
+
+def _semver(version: str) -> tuple[int, int, int] | None:
+    parts = version.split(".")
+    if len(parts) != 3 or not all(p.isdigit() for p in parts):
+        return None
+    return int(parts[0]), int(parts[1]), int(parts[2])

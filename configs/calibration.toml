@@ -1,0 +1,39 @@
+# H1 calibration (cycle A8, ADR 0009). Fit on split=calib only; eval and real clips are held out
+# and only scored by `calibrate evaluate`. k_sigma and couplings are read from [verification].
+[calibration]
+dataset = "kubric_synthetic"
+subset = "full"
+levels = ["oracle", "perceived"]
+alpha = 0.05                 # target FPR per clean scene (L_C)
+beta = 0.05                  # miss rate for L_D
+folds = 5                    # grouped by scene
+bootstrap = 2000
+seed = 0
+ci = 0.95
+min_sigma_pairs = 10
+platt_l2 = 0.01
+ld_max_extrapolation = 1.0   # L_D beyond 2x the largest tested magnitude is censored
+real_datasets = ["physics_iq", "pisa_real"]
+artifact = "calibration.json"            # under paths.calibration_dir
+stage_profile = "stage_errors.recalibrated.json"
+
+# Numerical tolerance epsilon_c per check, in check units: tau = max(q, epsilon_c), where q is
+# the conformal quantile. It only bites when the clean clips are exact up to rounding (the oracle);
+# a perceived q is far above it. Chosen from the oracle clean clips of `local` + `levels`
+# (2026-10-18): about 100x the largest clean value that is rounding noise and >= 25x below the
+# smallest level-1 effect. Float32 relative noise is ~1e-7 (R5b clean 4.3e-8; R4_jump and R5a on
+# contact-free scenes ~1e-14), level-1 effects are >= 0.05 (relative units), 0.25 (R4_jump), 1 frame.
+[calibration.tau_tolerance]
+R1 = 1e-5            # pen_over_size; clean 0..0.046 (real contact penetration, q covers it)
+R2 = 1e-5            # residual_over_weight; clean exactly 0
+R3a = 1e-5           # e_minus_1; clean -0.27..0.034
+R3b = 1e-5           # dE_over_E; clean -0.077
+R4_missing = 0.5     # frames (integer): half a frame, one missing frame fails
+R4_size = 1e-5       # rel_size_change; clean exactly 0
+R4_jump = 0.01       # jump_over_size; clean 1e-14 free flight, up to 2.8e-3 at bounces (frame
+                     # discretisation, 3.5x below), L1 teleport 0.25 (25x above)
+R5a = 1e-5           # accel_rel_diff; clean <= 3.8e-14
+R5b = 1e-5           # g_rel_error; clean 4.3e-8 (float32 rounding of g)
+
+[calibration.profiles.fast]
+subset = "local"
