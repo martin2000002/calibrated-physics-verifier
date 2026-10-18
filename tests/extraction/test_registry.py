@@ -20,9 +20,12 @@ PROVIDERS_DIR = REPO / "src" / "physverify" / "extraction" / "providers"
 LAZY_MODULES = ("torch", "transformers", "huggingface_hub", "timm")
 EXPECTED = {
     "detect/grounding_dino_tiny",
+    "detect/grounding_dino_tiny_per_query",
+    "detect/grounding_dino_base",
     "track/edgetam",
     "track/sam2_1_hiera_tiny",
     "depth/vda_small",
+    "depth/vda_metric_small",
     "camera/assumed_fov",
     "lift/backproject",
     "scale/size_prior",
@@ -34,9 +37,12 @@ EXPECTED = {
 }
 HEAVY = {
     "detect/grounding_dino_tiny",
+    "detect/grounding_dino_tiny_per_query",
+    "detect/grounding_dino_base",
     "track/edgetam",
     "track/sam2_1_hiera_tiny",
     "depth/vda_small",
+    "depth/vda_metric_small",
 }
 
 
@@ -48,10 +54,10 @@ def registry() -> dict[str, type[StageProvider]]:
     return dict(context.registry("providers"))
 
 
-def test_registry_has_exactly_the_nineteen_providers(
+def test_registry_has_exactly_the_twenty_two_providers(
     registry: dict[str, type[StageProvider]],
 ) -> None:
-    assert len(EXPECTED) == 19
+    assert len(EXPECTED) == 22
     assert set(registry) == EXPECTED
 
 
@@ -87,7 +93,7 @@ def test_building_the_registry_imports_no_heavy_library() -> None:
         "import sys\n"
         "from physverify.cli.context import PLUGIN_KINDS\n"
         "import physverify.extraction.weights, physverify.extraction.pipeline\n"
-        "assert len(PLUGIN_KINDS['providers']()) == 19\n"
+        "assert len(PLUGIN_KINDS['providers']()) == 22\n"
         f"print(sorted(m for m in {LAZY_MODULES!r} if m in sys.modules))\n"
     )
     done = subprocess.run(

@@ -16,9 +16,11 @@ OPTIONS = MetricSettings(
 )
 EXPECTED = {
     "detect/box",
+    "detect/label",
     "track/mask",
     "depth/absrel",
     "depth/object_rel",
+    "depth/object_parts",
     "camera/fov",
     "lift/position",
     "scale/relative",

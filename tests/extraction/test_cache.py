@@ -119,6 +119,25 @@ def test_a_size_prior_override_invalidates_only_the_scale(
     assert changed == [Stage.SCALE]
 
 
+def test_the_precise_detector_reuses_depth_and_camera(
+    make_settings: SettingsFactory,
+    real_providers: Mapping[str, type[StageProvider]],
+    fixture_clip: SyntheticClip,
+) -> None:
+    before = resolve_plan(
+        make_settings("extraction.plan.detect=grounding_dino_tiny", profile="precise"),
+        real_providers,
+        dataset="x",
+    )
+    after = resolve_plan(make_settings(profile="precise"), real_providers, dataset="x")
+    keys = [
+        chain_keys(plan, fixture_clip.manifest, gt_version=None, profile=P0)
+        for plan in (before, after)
+    ]
+    reused = [stage for stage in STAGE_ORDER if keys[0][stage] == keys[1][stage]]
+    assert reused == [Stage.DEPTH, Stage.CAMERA]
+
+
 def meta_for(stage: Stage, provider: str, key: str, clip_id: str) -> StageArtifactMeta:
     return StageArtifactMeta(
         stage=stage,

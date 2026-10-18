@@ -200,21 +200,25 @@ profile, the other A rows `precise`. Every option is a root `--set` placed befor
 `runtime.threads`, `runtime.heavy_lock=$P1_DATA/p1.lock`, `paths.data_dir=$P1_DATA`,
 `paths.hf_home=$P1_HF`, a per-configuration `paths.error_profile` (written by `diagnose stages
 --write-profile` from `calib`, read by every later step), the dataset version (`v1`: 128 px, plain;
-`v1-precise`: 256 px, HDRI, `$PHYSVERIFY_H200_ROOT/kubric-data/synthetic`) and the row's own
-settings. The selection is `--subset local` on `v1`, `--subset full` (or `PHYSVERIFY_P1_CLIPS`) on
+`v1-precise`: 256 px, HDRI) and the row's own settings. The selection is `--subset local` on `v1`, `--subset full` (or `PHYSVERIFY_P1_CLIPS`) on
 `v1-precise`.
 
 `P1_DATA` is `PHYSVERIFY_P1_DATA` (default `$PHYSVERIFY_H200_ROOT/p1/data`) and `P1_HF` is
 `PHYSVERIFY_P1_HF` (default `$PHYSVERIFY_H200_ROOT/p1/hf`). The first run seeds them, reading only:
 `synthetic`, `weights` and `vendor` from `$PHYSVERIFY_H200_ROOT/Repo/data`, the whole HF `hub/`
 (hard links when possible) and `thresholds.perceived.fast.json`, pinned as
-`$P1_DATA/calibration/thresholds.json`; existing copies are kept. Per configuration it runs
-`extract fetch-weights`, `extract run`, `diagnose stages`, `scripts/analysis/p1_scene_bootstrap.py
-collect` (to `$P1_DATA/runs/p1-<set>-<ID>.json`), `diagnose end-to-end`, `verify --level perceived`
+`$P1_DATA/calibration/thresholds.json`; existing copies are kept. On `v1-precise` it links
+`$P1_DATA/synthetic/v1-precise` to `$PHYSVERIFY_H200_ROOT/kubric-data/synthetic/v1-precise`, since
+manifest video paths are relative to `paths.data_dir`. A pinned table with no `checks` stops the
+batch (every verdict would be UNSCORED) unless `PHYSVERIFY_P1_PROVISIONAL=1`, which points
+`paths.thresholds` at a missing file so verify falls back to `configs/checks.toml`, and records
+`provisional:<sha of checks.toml>` in the manifest. Per configuration it runs
+`extract fetch-weights`, `extract run`, `diagnose stages`, `scene-stats per-clip` (to
+`$P1_DATA/runs/p1-<set>-<ID>.json`; compare two with `scene-stats delta`), `diagnose end-to-end`, `verify --level perceived`
 and, with `PHYSVERIFY_P1_ATTRIBUTION=1`, `diagnose attribution`. Exit 1 (some clips failed) is
 reported and tolerated; any other failure stops the batch. Logs go to `$P1_DATA/runs/p1-logs/`, and
 `$P1_DATA/runs/p1-manifest.tsv` records per step the run directory, `CUDA_VISIBLE_DEVICES`, the
-sha256 of `src/**/*.py` and of the pinned thresholds. Exit 2 without a CUDA GPU, before any `uv`.
+sha256 of `src/**/*.py` and of the thresholds. Exit 2 without a CUDA GPU, before any `uv`.
 
 ## H3 comparison
 

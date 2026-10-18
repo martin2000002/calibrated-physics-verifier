@@ -7,7 +7,7 @@ the most queries seeds the tracker. torch and transformers are imported inside t
 from __future__ import annotations
 
 import re
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Any, ClassVar
 
@@ -160,7 +160,21 @@ class GroundingDinoDetector:
 
     def __init__(self, params: BaseModel) -> None:
         self.params = expect_params(params, Params)
-        self._model: LazyModel[tuple[Any, Any]] = LazyModel(load_detector)
+        self._model: LazyModel[tuple[Any, Any]] = LazyModel(self.loader())
+
+    def loader(self) -> Callable[[StageContext], tuple[Any, Any]]:
+        return load_detector
+
+    def select_frame(
+        self,
+        model: Any,
+        processor: Any,
+        frame: NDArray[np.uint8],
+        queries: Sequence[ObjectQuery],
+        device: str,
+    ) -> Selection:
+        raw = detect(model, processor, frame, queries, self.params, device)
+        return select(raw, queries, self.params)
 
     def run(self, ctx: StageContext) -> Detections:
         queries = ctx.clip.object_queries
@@ -172,18 +186,17 @@ class GroundingDinoDetector:
         frames = ctx.video.frames(s.start, stop, s.step, s.max_side)
         set_torch_threads(ctx.threads)
         model, processor = self._model.get(ctx)
-        raws = [
-            detect(model, processor, frame, queries, self.params, ctx.device) for frame in frames
+        selections = [
+            self.select_frame(model, processor, frame, queries, ctx.device) for frame in frames
         ]
-        selections = [select(raw, queries, self.params) for raw in raws]
         row = best_frame(selections)
         return to_detections(s, row, selections[row], queries)
 
 
-def load_detector(ctx: StageContext) -> tuple[Any, Any]:
+def load_detector(ctx: StageContext, spec: WeightSpec = WEIGHTS) -> tuple[Any, Any]:
     import transformers
 
-    snapshot = local_path(WEIGHTS, ctx.paths)
+    snapshot = local_path(spec, ctx.paths)
     with hub_offline():
         model: Any = transformers.GroundingDinoForObjectDetection.from_pretrained(snapshot)
         processor = transformers.AutoProcessor.from_pretrained(snapshot)

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import importlib
 import sys
+from collections.abc import Callable
 from pathlib import Path
 from types import ModuleType
 from typing import Any, ClassVar
@@ -64,7 +65,13 @@ class VideoDepthAnythingSmall:
 
     def __init__(self, params: BaseModel) -> None:
         self.params = expect_params(params, Params)
-        self._model: LazyModel[Any] = LazyModel(load_model)
+        self._model: LazyModel[Any] = LazyModel(self.loader())
+
+    def loader(self) -> Callable[[StageContext], Any]:
+        return load_model
+
+    def depth_kind(self) -> DepthKind:
+        return DepthKind.AFFINE_DISPARITY
 
     def run(self, ctx: StageContext) -> DepthMap:
         s = ctx.sampling
@@ -78,17 +85,21 @@ class VideoDepthAnythingSmall:
             device=ctx.device,
             fp32=ctx.device == "cpu",
         )
-        return to_depth_map(s, np.asarray(depths, dtype=np.float32))
+        return to_depth_map(s, np.asarray(depths, dtype=np.float32), self.depth_kind())
 
 
-def to_depth_map(sampling: FrameSampling, disparity: NDArray[np.float32]) -> DepthMap:
+def to_depth_map(
+    sampling: FrameSampling,
+    disparity: NDArray[np.float32],
+    kind: DepthKind = DepthKind.AFFINE_DISPARITY,
+) -> DepthMap:
     valid = np.isfinite(disparity)
     if disparity.shape[1:] != (sampling.height, sampling.width):
         disparity, valid = resize_depth(disparity, valid, sampling.size)
     return DepthMap(
         sampling=sampling,
         depth=np.where(valid, disparity, 0.0).astype(np.float32),
-        kind=DepthKind.AFFINE_DISPARITY,
+        kind=kind,
         valid=valid,
     )
 
@@ -105,7 +116,7 @@ def module_locations(module: ModuleType) -> tuple[Path, ...]:
     return tuple(Path(portion) for portion in portions or ())
 
 
-def check_vendored_namespace(root: Path) -> None:
+def check_vendored_namespace(root: Path, provider: str = "depth/vda_small") -> None:
     """R6: the checkout's top-level ``utils`` must not be shadowed by another package."""
     loaded = sys.modules.get(VENDORED_TOP_LEVEL)
     if loaded is None:
@@ -115,21 +126,28 @@ def check_vendored_namespace(root: Path) -> None:
     if not locations or not all(path.resolve().is_relative_to(base) for path in locations):
         found = ", ".join(str(path) for path in locations) or "?"
         raise PluginError(
-            f"depth/vda_small: a top-level {VENDORED_TOP_LEVEL!r} package from {found} "
+            f"{provider}: a top-level {VENDORED_TOP_LEVEL!r} package from {found} "
             f"is already imported and would shadow the one in {root}"
         )
 
 
-def load_model(ctx: StageContext) -> Any:
+def load_model(
+    ctx: StageContext,
+    checkpoint: WeightSpec = CHECKPOINT,
+    metric: bool = False,
+    provider: str = "depth/vda_small",
+) -> Any:
+    """The vendored model; ``metric`` selects the metric head, which skips the per-window
+    scale-and-shift alignment of the relative one (video_depth.py:135)."""
     import torch
 
     root = local_path(CODE, ctx.paths)
-    check_vendored_namespace(root)
+    check_vendored_namespace(root, provider)
     with vendored_import_path(root):
         module = importlib.import_module(VENDORED_MODULE)
-    model = module.VideoDepthAnything(**ENCODER)
+    model = module.VideoDepthAnything(**ENCODER, metric=metric)
     state = torch.load(
-        weight_file(CHECKPOINT, ctx.paths), map_location=ctx.device, weights_only=True
+        weight_file(checkpoint, ctx.paths), map_location=ctx.device, weights_only=True
     )
     model.load_state_dict(state, strict=True)
     return model.to(ctx.device).eval()

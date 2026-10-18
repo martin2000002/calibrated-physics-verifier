@@ -10,6 +10,7 @@ from typing import ClassVar
 import numpy as np
 
 from physverify.diagnosis.cases import (
+    BoolArray,
     FloatArray,
     MetricCase,
     MetricOutcome,
@@ -51,9 +52,15 @@ def object_depths(
     return out
 
 
+def comparable_pairs(z_pred: FloatArray, z_true: FloatArray) -> BoolArray:
+    """The object-frames ``relative_object_error`` keeps: both depths finite and positive."""
+    ok: BoolArray = np.isfinite(z_pred) & np.isfinite(z_true) & (z_pred > 0) & (z_true > 0)
+    return ok
+
+
 def relative_object_error(z_pred: FloatArray, z_true: FloatArray) -> FloatArray:
     """s z_pred/z_true - 1 with s = exp(median log(z_true/z_pred)) over the finite pairs."""
-    ok = np.isfinite(z_pred) & np.isfinite(z_true) & (z_pred > 0) & (z_true > 0)
+    ok = comparable_pairs(z_pred, z_true)
     if not ok.any():
         return np.zeros(0)
     scale = float(np.exp(np.median(np.log(z_true[ok] / z_pred[ok]))))

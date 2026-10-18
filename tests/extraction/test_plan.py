@@ -42,6 +42,8 @@ def test_fast_and_precise_come_from_the_extraction_config(
     )
     assert fast.names[Stage.TRACK] == "edgetam" and fast.sampling.max_side == 640
     assert precise.names[Stage.TRACK] == "sam2_1_hiera_tiny" and precise.sampling.max_side == 960
+    assert fast.names[Stage.DETECT] == "grounding_dino_tiny"
+    assert precise.names[Stage.DETECT] == "grounding_dino_base"
     assert [step.stage for step in fast.stages] == list(STAGE_ORDER)
     assert fast.names[Stage.LIFT] == precise.names[Stage.LIFT] == "backproject"
     assert fast.ground_truth_stages() == ()

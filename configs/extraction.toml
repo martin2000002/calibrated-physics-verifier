@@ -23,7 +23,9 @@ pisa_real = 60
 [extraction.providers.depth.vda_small]
 input_size = 280
 
+# One query per object with the base detector: recall +0.16 on held-out v1-precise scenes (ADR 0014).
 [extraction.profiles.precise.plan]
+detect = "grounding_dino_base"
 track = "sam2_1_hiera_tiny"
 
 [extraction.profiles.precise.sampling]
