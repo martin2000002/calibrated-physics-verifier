@@ -1,0 +1,265 @@
+"""Files of one comparison under ``<verify run>/agreement/`` (ADR 0011 C5)."""
+
+from __future__ import annotations
+
+import csv
+import json
+import math
+from collections.abc import Mapping, Sequence
+from pathlib import Path
+from typing import Any
+
+from physverify.agreement.breakdown import AGGREGATE
+from physverify.agreement.error_sample import CATEGORIES
+from physverify.agreement.items import ComparisonItem
+from physverify.agreement.pipeline import Comparison
+from physverify.diagnosis.atomic_io import write_text_atomic
+from physverify.schema.checks import AbstainReason
+from physverify.schema.io import json_ready
+
+REPORT_DIR = "agreement"
+HONESTY = (
+    "Verifier magnitudes come from perceived inputs: depth, size and scale are learned "
+    "estimates, never measurements, and carry their measured error (sigma, NaN when unknown).",
+    "Time comes from the container rate of generated videos, which need not match physical "
+    "time; the sensitivity block repeats the primary metrics without the time-dependent checks.",
+    "The reference VLM numbers are the published AutoEval predictions, joined by video URL and "
+    "cut at the published thresholds; nothing was tuned on test.",
+)
+
+
+def _write_csv(path: Path, rows: Sequence[Mapping[str, object]], columns: Sequence[str]) -> None:
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(columns))
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def item_record(item: ComparisonItem) -> dict[str, object]:
+    return {
+        "clip_id": item.clip_id,
+        "version": item.row.version,
+        "generator": item.row.generator,
+        "caption": item.row.caption,
+        "human_raw": item.row.human_raw,
+        "human_implausible": int(item.human_implausible),
+        "vlm_raw": item.row.reference_raw,
+        "vlm_implausible": "" if item.vlm_implausible is None else int(item.vlm_implausible),
+        "verifier_outcome": item.outcome.value,
+        "verifier_score": item.decision.score,
+        "deciding_check": item.decision.deciding_check or "",
+        "abstain_reasons": ";".join(item.decision.reasons),
+    }
+
+
+def write_comparison(out_dir: Path, comparison: Comparison) -> None:
+    out_dir.mkdir(parents=True, exist_ok=True)
+    items = [item_record(item) for item in comparison.items]
+    _write_csv(out_dir / "items.csv", items, list(items[0]) if items else ["clip_id"])
+    for name, rows in (
+        ("per_check.csv", comparison.per_check),
+        ("per_generator.csv", comparison.per_generator),
+        ("errors.csv", comparison.errors),
+    ):
+        _write_csv(out_dir / name, rows, list(rows[0]) if rows else ["clip_id"])
+    text = json.dumps(json_ready(comparison.metrics), indent=2, sort_keys=True)
+    write_text_atomic(out_dir / "metrics.json", text + "\n")
+    write_text_atomic(out_dir / "summary.md", summary(comparison.metrics))
+
+
+def _fmt(value: Any) -> str:
+    if value is None or (isinstance(value, float) and not math.isfinite(value)):
+        return "n/a"
+    if isinstance(value, float) and value.is_integer() and abs(value) >= 1:
+        return str(int(value))
+    return f"{value:.3f}" if isinstance(value, float) else str(value)
+
+
+def _interval(block: Mapping[str, Any], key: str) -> str:
+    low, high = block.get("bootstrap", {}).get("intervals", {}).get(key, [None, None])
+    return f"[{_fmt(low)}, {_fmt(high)}]"
+
+
+SYSTEM_COLUMNS = (
+    ("accuracy", "acc"),
+    ("balanced_accuracy", "bal acc"),
+    ("f1_implausible", "F1"),
+    ("kappa", "kappa"),
+    ("pearson", "Pearson"),
+    ("spearman", "Spearman"),
+    ("auc", "AUC"),
+    ("predicted_implausible_rate", "pred implausible"),
+)
+BOOTSTRAPPED = ("accuracy", "balanced_accuracy", "kappa")
+PER_CHECK_COLUMNS = (
+    "check_id",
+    "n_scored",
+    "fail_rate_human_implausible",
+    "fail_rate_human_plausible",
+    "accuracy_alone",
+    "balanced_accuracy_alone",
+    "accuracy_without",
+)
+PER_GENERATOR_COLUMNS = (
+    "group",
+    "n",
+    "human_implausible_rate",
+    "verifier_accuracy",
+    "vlm_accuracy",
+    "verifier_balanced_accuracy",
+    "vlm_balanced_accuracy",
+)
+
+
+def _table(columns: Sequence[str], rows: Sequence[Sequence[str]]) -> list[str]:
+    head = [f"| {' | '.join(columns)} |", f"|{'---|' * len(columns)}"]
+    return head + [f"| {' | '.join(row)} |" for row in rows]
+
+
+def _cell(block: Mapping[str, Any], system: str, key: str) -> str:
+    value = _fmt(block[system].get(key))
+    if system in ("verifier", "vlm") and key in BOOTSTRAPPED and block.get("bootstrap"):
+        value += f" {_interval(block, f'{system}.{key}')}"
+    return value
+
+
+def _system_rows(block: Mapping[str, Any]) -> list[list[str]]:
+    systems = ["verifier", "vlm", *(f"constants.{c}" for c in block["constants"])]
+    rows = []
+    for name in systems:
+        view = {**block, name: block["constants"][name.split(".")[1]]} if "." in name else block
+        cells = [_cell(view, name, key) for key, _ in SYSTEM_COLUMNS]
+        rows.append([name, _fmt(view[name]["n"]), *cells])
+    return rows
+
+
+def _paired_line(block: Mapping[str, Any]) -> str:
+    if not block.get("paired"):
+        return "Not paired: the VLM is evaluated on its own clips."
+    mcnemar = block["mcnemar"]
+    return (
+        f"McNemar b (verifier right only) {mcnemar['b_verifier_only']}, c (VLM right only) "
+        f"{mcnemar['c_vlm_only']}, p = {_fmt(mcnemar['p_value'])}; discordant rate "
+        f"{_fmt(block['discordant_rate'])}; MDE accuracy {_fmt(block['mde_accuracy'])}; "
+        f"differences (verifier - VLM): accuracy {_interval(block, 'difference.accuracy')}, "
+        f"balanced accuracy {_interval(block, 'difference.balanced_accuracy')}, kappa "
+        f"{_interval(block, 'difference.kappa')}; {_bootstrap_note(block)}."
+    )
+
+
+def _bootstrap_note(block: Mapping[str, Any]) -> str:
+    boot = block.get("bootstrap", {})
+    nan = {k: v for k, v in boot.get("non_finite", {}).items() if v}
+    return f"caption bootstrap {boot.get('replicas', 0)} replicas, NaN replicas {nan or 'none'}"
+
+
+def _group_title(group: str) -> str:
+    if group == AGGREGATE:
+        return f"## Group {group} (aggregate: decides H2)"
+    return f"## Group {group} (descriptive only: too few pairs to test H2 on one version)"
+
+
+def _group_lines(group: str, policies: Mapping[str, Any]) -> list[str]:
+    lines = [_group_title(group), ""]
+    columns = ["system", "n", *(label for _, label in SYSTEM_COLUMNS)]
+    for block in policies.values():
+        lines += [f"Policy `{block['policy']}`:", ""]
+        lines += [*_table(columns, _system_rows(block)), "", _paired_line(block), ""]
+    return lines
+
+
+def _difference(block: Mapping[str, Any], key: str) -> float:
+    return float(block["verifier"][key] - block["vlm"][key])
+
+
+def _sign_flip_lines(groups: Mapping[str, Any], policy: str) -> list[str]:
+    """Judge Q4: say so when v1 and v2 disagree on who is ahead."""
+    if "v1" not in groups or "v2" not in groups:
+        return ["Sign flip between versions: not applicable (one version only)."]
+    flips = []
+    for key in ("accuracy", "kappa"):
+        d1, d2 = (_difference(groups[g][policy], key) for g in ("v1", "v2"))
+        if math.isfinite(d1) and math.isfinite(d2) and d1 * d2 < 0:
+            flips.append(f"{key} (v1 {_fmt(d1)}, v2 {_fmt(d2)})")
+    if not flips:
+        return ["Sign flip between versions: none (verifier - VLM has the same sign in v1, v2)."]
+    return [f"Sign flip between versions in verifier - VLM (descriptive): {'; '.join(flips)}."]
+
+
+def _verdict_lines(verdict: Mapping[str, Any], primary: Mapping[str, Any]) -> list[str]:
+    ver, vlm = (_fmt(primary[s]["predicted_implausible_rate"]) for s in ("verifier", "vlm"))
+    rate = f"verifier predicts implausible on {ver} of clips, the VLM on {vlm}"
+    if not verdict["applicable"]:
+        return [f"**H2: {verdict['reason']}.** The numbers below test the pipeline only; {rate}."]
+    state = "supported" if verdict["supported"] else "not supported"
+    low, high = verdict["kappa_difference_ci"]
+    return [
+        f"**H2 {state}** (McNemar p = {_fmt(verdict['mcnemar_p'])}, accuracy difference "
+        f"{_fmt(verdict['accuracy_difference'])}, kappa difference CI [{_fmt(low)}, {_fmt(high)}]; "
+        f"minimum detectable accuracy difference {_fmt(verdict['mde_accuracy'])}); {rate}."
+    ]
+
+
+def _abstention_lines(abstention: Mapping[str, Any], coverage: Mapping[str, Any]) -> list[str]:
+    """INTERVAL_CROSSES_THRESHOLD is shown apart: the evidence exists but is too uncertain."""
+    reasons = dict(abstention["reasons"])
+    crossing = reasons.pop(AbstainReason.INTERVAL_CROSSES_THRESHOLD.value, 0)
+    decided = ", ".join(
+        f"{g} {_fmt(c['coverage'])} ({_fmt(c['decided'])}/{_fmt(c['n'])})"
+        for g, c in coverage.items()
+    )
+    return [
+        f"Verifier outcomes: {abstention['outcomes']}. Coverage (decided fraction): {decided}.",
+        f"Undecided clips with an interval crossing the threshold: {crossing}; "
+        f"other abstention reasons: {reasons}.",
+    ]
+
+
+def _breakdown_lines(title: str, columns: Sequence[str], rows: Sequence[Any]) -> list[str]:
+    body = [[_fmt(row.get(c)) for c in columns] for row in rows]
+    return [f"## {title}", "", *(_table(columns, body) if body else ["(none)"]), ""]
+
+
+def _sensitivity_lines(block: Mapping[str, Any]) -> list[str]:
+    lines = [
+        "## Sensitivity without the time-dependent checks",
+        "",
+        f"Excluded: {', '.join(block['excluded']) or 'none'}; policy as_plausible, no bootstrap.",
+        "",
+    ]
+    columns = ["group", "system", "n", *(label for _, label in SYSTEM_COLUMNS)]
+    rows = [[g, *row] for g, view in block["groups"].items() for row in _system_rows(view)[:2]]
+    return [*lines, *_table(columns, rows), ""]
+
+
+def _header_lines(metrics: Mapping[str, Any]) -> list[str]:
+    counts, run = metrics["counts"], metrics["run"]
+    primary = metrics["groups"][AGGREGATE][metrics["primary_policy"]]
+    return [
+        "# Verifier vs reference VLM on VideoPhy human labels",
+        "",
+        f"Rule: `{metrics['rule']}`. Primary policy: `{metrics['primary_policy']}`. "
+        f"Pre-registered: {'yes' if metrics['preregistered'] else 'no (exploratory)'}. "
+        f"Run: `{run['path']}` ({run['profile']}, {run['device']}).",
+        "",
+        *_verdict_lines(metrics["h2_verdict"], primary),
+        "",
+        f"Rows {counts['rows']}, compared {counts['compared']}; left out: no human label "
+        f"{counts['human_missing']}, no VLM prediction {counts['vlm_missing']}. Clips missing "
+        f"from the run: {counts['not_verified']} (compared as check_error abstentions).",
+        *_abstention_lines(metrics["abstention"], metrics["coverage"]),
+        *_sign_flip_lines(metrics["groups"], metrics["primary_policy"]),
+        "",
+    ]
+
+
+def summary(metrics: Mapping[str, Any]) -> str:
+    lines = _header_lines(metrics)
+    for group, policies in metrics["groups"].items():
+        lines += _group_lines(group, policies)
+    lines += _breakdown_lines("Per check", PER_CHECK_COLUMNS, metrics["per_check"])
+    lines += _breakdown_lines("Per generator", PER_GENERATOR_COLUMNS, metrics["per_generator"])
+    lines += _sensitivity_lines(metrics["sensitivity_without_time_dependent"])
+    lines += ["Honesty notes:", "", *(f"- {note}" for note in HONESTY)]
+    lines += ["", f"errors.csv categories (filled by hand): {', '.join(CATEGORIES)}.", ""]
+    return "\n".join(lines)

@@ -1,0 +1,138 @@
+# Verifier vs the reference VLM on VideoPhy human labels (cycle A10, ADR 0011, hypothesis H2).
+# Every file is pinned by revision (and sha256 for the label tables). Nothing here is tuned on
+# test: the score cut is fixed on h2_dev by `agreement freeze` and frozen in preregistration.json.
+
+[videophy]
+hub_url = "https://huggingface.co"
+license = "MIT (labels); videos under each generator's terms"
+retries = 3
+max_frames = 0                 # 0 = every frame of the clip
+filter_version = 2            # 2: swing verbs back in the rigid list (the review decides)
+subset_file = "videophy_subset.json"     # under paths.annotations_dir (D2, hand review)
+queries_file = "videophy_queries.json"   # under paths.annotations_dir (D11)
+reviewed_subsets = ["v1_test", "v2_test", "h2_test"]
+# Five fixed clips of h2_dev for the local smoke run (C6): the smallest non-empty zip members.
+smoke_ids = ["v1-a8208f4dd41e", "v1-0c18f4197635", "v1-af1ab1837daf", "v2-2d1753e7ddc4", "v2-bb3c51cd270a"]
+
+[videophy.subsets]
+v1_test = ["v1_test"]
+v2_test = ["v2_test"]
+h2_test = ["v1_test", "v2_test"]
+v1_dev = ["v1_dev"]
+v2_dev = ["v2_dev"]
+h2_dev = ["v1_dev", "v2_dev"]
+
+# Lexical object-object rule (D2a): keep = rigid_event and none of the exclusion lists. Words
+# match whole lowercase tokens; an entry with a space matches that token sequence.
+[videophy.filter]
+rigid_event = [
+  "fall", "falls", "falling", "fell", "drop", "drops", "dropped", "dropping",
+  "bounce", "bounces", "bouncing", "bounced", "roll", "rolls", "rolling", "rolled",
+  "slide", "slides", "sliding", "slid", "topple", "topples", "toppling", "toppled",
+  "tumble", "tumbles", "tumbling", "tumbled", "collide", "collides", "colliding", "collided",
+  "hit", "hits", "hitting", "strike", "strikes", "striking", "struck", "crash", "crashes",
+  "crashing", "crashed", "knock", "knocks", "knocked", "knocking", "land", "lands", "landing",
+  "tip", "tips", "tipped", "teetering", "stack", "stacked", "rest", "rests", "resting",
+  "lean", "leans", "leaning", "spin", "spins", "spinning", "spun", "rotate", "rotates",
+  "rotating", "smacks", "nudge", "nudges", "nudged", "pushed", "rocking",
+  "swing", "swings", "swinging",
+]
+human_agent = [
+  "man", "woman", "person", "people", "someone", "child", "children", "hand", "hands",
+  "foot", "feet", "finger", "fingers", "elbow", "arm", "leg", "player", "chef", "worker",
+  "librarian", "gymnast", "mechanic", "farmer", "potter", "scientist", "student", "artist",
+  "detective", "chemist", "hiker", "climber", "rider", "frog", "fish", "chicken", "worm",
+  "insect", "tongue", "hair", "skin", "their", "his", "her", "kicked", "thrown", "tossed",
+]
+nonrigid = [
+  "cloth", "fabric", "paper", "papers", "rope", "string", "clay", "cheese", "dough",
+  "playdough", "sponge", "towel", "tarp", "curtain", "banner", "tablecloth", "jacket",
+  "shirt", "feather", "kite", "streamer", "ribbon", "balloon", "cord", "wire", "spring",
+  "foam", "styrofoam", "marshmallow", "marshmallows", "pancake", "pancakes", "pizza", "rubber",
+]
+fracture = [
+  "shatter", "shatters", "shattered", "break", "breaks", "breaking", "broken", "crack",
+  "cracks", "crumpling", "crushing", "crushes", "crushed", "squashed", "tear", "rips",
+  "dent", "fracture", "pieces",
+]
+fluid = [
+  "water", "liquid", "juice", "oil", "sand", "dust", "mud", "soil", "snow", "pond",
+  "puddle", "pour", "pours", "poured", "spill", "spills", "splash", "splashes", "syrup",
+  "paint", "ink", "flour", "salt", "grass", "grassy",
+]
+
+# One table per (version, split). human/reference: value >= cut is "physically plausible"
+# (v1 majority_pc and physics are 0/1; v2 pc is 1-5 and the paper uses pc >= 4; the AutoEval
+# cuts are the published ones, never tuned). scope_* restricts rows before the lexical rule.
+[videophy.parts.v1_test]
+version = "v1"
+split = "test"
+labels = { repo = "datasets/videophysics/videophy_test_public", revision = "7841cc96c45b068eba84f42b95494530a8502b06", file = "videophy_test_public.csv", sha256 = "15bf81d7f188c0c8fb6f5a122d811ce8ff5b4acb4a9b96ce5eb15aa03ca38a7d" }
+reference = { repo = "datasets/videophysics/videophy_autoeval_scores", revision = "3209a0d69702be8672e6fb76f505c5197a694439", file = "videophy_autoeval_scores.csv", sha256 = "6fc6e1b861fed4566680211931ccbef42d58ad7e591ff0590e558234183f8079" }
+videos = { repo = "videophysics/videophy-test-videos", revision = "ca83be276abbffba15ffd5c6c57b6b28b91b4baa", file = "videophy_test_videos.zip", prefix = "test_videos/" }
+human_column = "majority_pc"
+human_cut = 1.0
+reference_column = "pc"
+reference_cut = 0.5
+reference_name = "VideoCon-Physics"
+generator_column = "source"
+scope_column = "states_of_matter"
+scope_value = "solid_solid"
+
+[videophy.parts.v2_test]
+version = "v2"
+split = "test"
+labels = { repo = "datasets/videophysics/videophy2_test", revision = "90b81ffa54f565d9e40e83b7a2c247ba1dccfa2b", file = "videophy2_test.csv", sha256 = "85a6690b9508b7e69c592f3cbcbc4113efd3a573eb5ec69d6ae030a8ffb8a4e7" }
+reference = { repo = "datasets/videophysics/videophy2_autoeval_scores", revision = "5d6fd05cd3d8f0a86a1da828bb44df6f42cf699c", file = "videophy2_autoeval_scores.csv", sha256 = "ffaf935317fee5af0d5940a9b92be4f439337e8ac4596c00e573055f27b4015d" }
+videos = { repo = "datasets/videophysics/videophy2_test_videos", revision = "1b920c23525d460ec47c42a135cd2eeb805a64be", file = "videophy2_test .zip", prefix = "" }
+human_column = "pc"
+human_cut = 4.0
+reference_column = "pc_pred"
+reference_cut = 4.0
+reference_name = "VideoPhy-2-AutoEval"
+generator_column = "model_name"
+scope_column = "category"
+scope_value = "Object Interactions"
+rules_column = "human_violated_rules"
+
+[videophy.parts.v1_dev]
+version = "v1"
+split = "dev"
+labels = { repo = "datasets/videophysics/videophy_train_public", revision = "ee4750a7ee7d93bf7e2ceeb7f2a51fc7c93be4a2", file = "train.csv", sha256 = "fbad0a3fb5e95f242d4292a419effe42916f928bc8a36bb6e8cc865da34c94d4" }
+videos = { repo = "videophysics/videophy-train-videos", revision = "5d328c43e9e237e03b2cd487d551c3af7c9ad8b3", file = "train_videos.zip", prefix = "train_videos/" }
+human_column = "physics"
+human_cut = 1.0
+generator_column = "source"
+scope_column = "states_of_matter"
+scope_value = "solid_solid"
+
+[videophy.parts.v2_dev]
+version = "v2"
+split = "dev"
+labels = { repo = "datasets/videophysics/videophy2_train", revision = "5c2a69593b39d28a77ef2b9dbf7acbd2b9f38f6c", file = "videophy2_training.csv", sha256 = "076a03584da28a0622aa9f3bdad71f52c3d8afef2025d34f7ecd9e4ef081a42c" }
+videos = { repo = "datasets/videophysics/videophy2_train", revision = "5c2a69593b39d28a77ef2b9dbf7acbd2b9f38f6c", file = "videophy2_train.zip", prefix = "videophy2_train/" }
+human_column = "pc"
+human_cut = 4.0
+generator_column = ""          # deduced from the directory of video_url
+scope_column = "category"
+scope_value = "Object Interactions"
+rules_column = "human_violated_rules"
+
+[agreement]
+rule = "provisional_any_fail"          # "calibrated" once A8 publishes data/calibration/calibration.json
+primary_policy = "as_plausible"
+alpha = 0.05
+power = 0.8
+bootstrap_n = 10000
+bootstrap_seed = 20261017
+ci = 0.95
+error_sample_per_class = 15
+error_seed = 20261017
+exclude_checks = []
+time_dependent_checks = ["R5b", "R4_jump"]
+dev_subset = "h2_dev"
+test_subset = "h2_test"
+preregistration = "agreement/preregistration.json"   # under paths.data_dir
+
+[agreement.profiles.fast]
+bootstrap_n = 1000

@@ -1,0 +1,218 @@
+{
+  "A bag of oranges falls from a conveyor belt and scatters on the floor.": [
+    "bag of oranges"
+  ],
+  "A bat swinging and hitting a baseball.": [
+    "bat swinging"
+  ],
+  "A billiard ball is struck and rolls across a felt-covered pool table, hitting another ball.": [
+    "billiard ball"
+  ],
+  "A bottle cap is rolled up a smooth, polished stone surface, reflecting light as it rolls back down.": [
+    "bottle cap"
+  ],
+  "A bowling ball is pushed off a table, rolling across a polished wooden floor.": [
+    "bowling ball"
+  ],
+  "A bowling ball rolls down a polished wooden lane, hitting the pins at the end.": [
+    "bowling ball"
+  ],
+  "A brick is pushed at the very edge of a wall, rocking perilously before its position is steady once more.": [
+    "brick"
+  ],
+  "A car crashes into a stack of cardboard boxes, sending the boxes flying in all directions.": [
+    "car"
+  ],
+  "A car's hood, propped open with a stick, is lifted from the other side; the stick comes loose and the hood begins to fall": [
+    "car's hood propped open with a stick"
+  ],
+  "A coin spins on a flat surface, coming to rest on heads.": [
+    "coin"
+  ],
+  "A crane gently lifts a pallet of bricks, the bricks remain stacked.": [
+    "crane gently lifts a pallet of bricks the bricks remain"
+  ],
+  "A crane's claw gently nudges a large container, causing it to shift a few centimeters.": [
+    "crane's claw gently"
+  ],
+  "A cylindrical object is rolled across a patterned carpet, its rotation gradually slowing.": [
+    "cylindrical object"
+  ],
+  "A fidget spinner rotates quickly, then friction brings it to a standstill.": [
+    "fidget spinner"
+  ],
+  "A glass globe is spun on its base, continuing to rotate steadily and smoothly.": [
+    "glass globe"
+  ],
+  "A heavy bowling pin is nudged with the tip of a bowling ball, causing it to fall.": [
+    "heavy bowling pin"
+  ],
+  "A heavy metal toolbox is pushed off a workbench; it falls with a loud clang.": [
+    "heavy metal toolbox"
+  ],
+  "A heavy steel beam, resting on two supports, is lifted at one end by a crane until the beam begins to rotate and slides off the supports.": [
+    "heavy steel beam"
+  ],
+  "A heavy weight is pushed a few centimeters with a bar; the weight moves slightly and makes a small metallic sound (only the movement is relevant for the visual prompt).": [
+    "heavy weight"
+  ],
+  "A large stone rolls down a hillside, leaving a visible path in the dirt.": [
+    "large stone"
+  ],
+  "A large, circular mirror is slightly poked, causing a minor shift in its reflected image, though it does not spin.": [
+    "large circular mirror"
+  ],
+  "A large, flat piece of slate rests on a steeply angled rock face, held firm by friction.": [
+    "large flat piece of slate"
+  ],
+  "A large, orange plastic egg is rolled up a plastic slide, then rolls down, ending at the bottom.": [
+    "large orange plastic egg"
+  ],
+  "A metal die is rolled across a felt-covered table, coming to rest on a number six.": [
+    "metal die"
+  ],
+  "A pile of oranges is balanced on a curved, unstable surface; the oranges roll off in several directions.": [
+    "pile of oranges"
+  ],
+  "A plate is spun rapidly on a turntable, its movement creating a slight blur.": [
+    "plate"
+  ],
+  "A roulette wheel is spun forcefully, the ball bouncing before settling in a slot.": [
+    "roulette wheel"
+  ],
+  "A single domino tips over, causing a chain reaction of dominoes falling down a long slanted line.": [
+    "single domino"
+  ],
+  "A small, painted rock is rolled up a sandy incline, leaving a visible trail as it rolls back down.": [
+    "small painted rock"
+  ],
+  "A small, rectangular piece of cardboard is placed on a sloped glass surface; it slides down slowly, leaving no visible trace.": [
+    "small rectangular piece of cardboard"
+  ],
+  "A spinning top made of wood slows and falls onto a wooden floor.": [],
+  "A stack of dominoes is carefully balanced; one domino is nudged, initiating a chain reaction that causes the entire stack to fall.": [],
+  "A steel ball bearing rolls across a flat surface and collides with another ball bearing, both ceasing motion.": [
+    "steel ball bearing"
+  ],
+  "A swing swinging freely in the air.": [],
+  "A tall, thin candle, stood upright in a candlestick, is knocked over and falls onto its side.": [
+    "tall thin candle stood upright in a candlestick"
+  ],
+  "A tire rolling down the asphalt road.": [
+    "tire"
+  ],
+  "A tool pokes a stack of wooden planks, leaving a slight mark on the top plank.": [
+    "tool pokes a"
+  ],
+  "A tower of jenga blocks teetering.": [
+    "tower of jenga blocks"
+  ],
+  "A volleyball is spiked downward; it hits the ground forcefully.": [
+    "volleyball"
+  ],
+  "A wheel continually rolling along the asphalt road.": [
+    "wheel continually"
+  ],
+  "A wheel steadily rolls across a cement path.": [
+    "wheel steadily"
+  ],
+  "A wind-up toy is wound up and released, its rotating propellers pushed into motion.": [
+    "wind-up toy"
+  ],
+  "An object shaped like a globe is poked, causing it to spin on its axis, revealing different countries.": [
+    "object shaped like a globe"
+  ],
+  "An overhead shot shows the cue ball striking the target ball dead center and continuing to a different pocket.": [
+    "overhead shot shows the cue ball"
+  ],
+  "Apple topples off a stack of paperback books.": [
+    "apple"
+  ],
+  "Ball bounces off the floor.": [
+    "ball"
+  ],
+  "Bike leans against the rough brick wall.": [
+    "bike"
+  ],
+  "Book falls onto the floor.": [
+    "book"
+  ],
+  "Book slides across the glass table.": [
+    "book"
+  ],
+  "Bottle cap rolls energetically on the shiny tabletop.": [
+    "bottle cap"
+  ],
+  "Bottle crashes onto concrete floor.": [
+    "bottle"
+  ],
+  "Bottle topples off the table.": [
+    "bottle"
+  ],
+  "Brick falling onto another brick.": [
+    "brick"
+  ],
+  "Candle slides along a smooth ceramic plate.": [
+    "candle"
+  ],
+  "Ceramic mug crashing into tiled floor.": [
+    "ceramic mug"
+  ],
+  "Coin spins rapidly on a wooden table.": [
+    "coin"
+  ],
+  "Darts lands in the middle of the cork dartboard.": [
+    "darts"
+  ],
+  "Dominoes toppling one after another on the table.": [
+    "dominoes"
+  ],
+  "Door swings against the polished door frame.": [
+    "door"
+  ],
+  "Hammer smacks the nail.": [
+    "hammer"
+  ],
+  "Hammer striking down upon a stubborn nail.": [
+    "hammer"
+  ],
+  "Hard candy rolling on flat surface.": [
+    "hard candy"
+  ],
+  "Heavy hammer hits the nail into the wood plank.": [
+    "heavy hammer"
+  ],
+  "Plastic lotion bottle nudges against bathroom mirror.": [
+    "plastic lotion bottle"
+  ],
+  "Skateboard rolls swiftly over the bumpy sidewalk.": [
+    "skateboard"
+  ],
+  "Slipped book crashes against the carpeted floor.": [
+    "slipped book"
+  ],
+  "Soap bar sliding off the ceramic dish.": [
+    "soap bar"
+  ],
+  "The ball knocks over a ceramic pot.": [
+    "ball"
+  ],
+  "The coffee cup rests on a cork coaster.": [
+    "coffee cup"
+  ],
+  "The cue strikes the pool ball sharply.": [
+    "cue"
+  ],
+  "The rock topples the carefully stacked pile of cans.": [
+    "rock"
+  ],
+  "Well-used broom leans against the kitchen pantry door.": [
+    "well-used broom"
+  ],
+  "Wooden ladder leaning against the brick wall.": [
+    "wooden ladder"
+  ],
+  "Wooden pencil rolls around on a flat desk.": [
+    "wooden pencil"
+  ]
+}
