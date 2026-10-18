@@ -2,8 +2,8 @@
 
 The base weights stay in the generator dtype and frozen; the LoRA weights train in float32. The
 reference model is the same transformer with the adapter disabled, so no second copy is loaded.
-The adapter is saved with ``save_lora_adapter``, the format ``load_lora_adapter`` reads at
-generation time.
+The adapter is one ``ADAPTER_FILE`` written by ``save_adapter`` and read back by ``load_adapter``
+(generation) or ``WanAdapterModel.load`` (resume), so both sides name the same file.
 """
 
 from __future__ import annotations
@@ -21,6 +21,7 @@ from physverify.timing.settings import GenerationSettings
 TRANSFORMER: Final = "transformer"
 ADAPTER_NAME: Final = "default"
 LORA_KEY: Final = "lora_"
+ADAPTER_FILE: Final = "pytorch_lora_weights.safetensors"
 
 
 class WanAdapterModel:
@@ -49,19 +50,58 @@ class WanAdapterModel:
         return [p for p in self._transformer.parameters() if p.requires_grad]
 
     def save(self, directory: Path) -> None:
-        directory.mkdir(parents=True, exist_ok=True)
-        self._transformer.save_lora_adapter(str(directory), adapter_name=ADAPTER_NAME)
+        save_adapter(self._transformer, directory)
 
     def load(self, directory: Path) -> None:
         peft = importlib.import_module("peft")
         safetensors = importlib.import_module("safetensors.torch")
-        files = sorted(directory.glob("*.safetensors"))
-        if len(files) != 1:
-            raise FileNotFoundError(f"expected one adapter file in {directory}, found {files}")
-        state = safetensors.load_file(str(files[0]))
+        state = safetensors.load_file(str(adapter_file(directory)))
         state = {key.removeprefix(f"{TRANSFORMER}."): value for key, value in state.items()}
         result = peft.set_peft_model_state_dict(self._transformer, state, adapter_name=ADAPTER_NAME)
         check_lora_load(result, ADAPTER_NAME)
+
+
+def adapter_file(directory: Path) -> Path:
+    path = directory / ADAPTER_FILE
+    if not path.is_file():
+        raise FileNotFoundError(f"no adapter file {ADAPTER_FILE} in {directory}")
+    return path
+
+
+def save_adapter(transformer: Any, directory: Path) -> None:
+    directory.mkdir(parents=True, exist_ok=True)
+    transformer.save_lora_adapter(
+        str(directory), adapter_name=ADAPTER_NAME, weight_name=ADAPTER_FILE, safe_serialization=True
+    )
+
+
+def load_adapter(transformer: Any, directory: Path) -> None:
+    """Injects the saved adapter into a transformer without one. ``load_lora_adapter`` falls back
+    to ``.bin`` unless the safetensors file is named, and only warns on unmatched keys, so the file
+    is named and the loaded keys are compared with the file's."""
+    path = adapter_file(directory)
+    transformer.load_lora_adapter(
+        str(directory),
+        prefix=None,
+        weight_name=ADAPTER_FILE,
+        use_safetensors=True,
+        adapter_name=ADAPTER_NAME,
+    )
+    check_adapter_keys(transformer, path)
+
+
+def check_adapter_keys(transformer: Any, path: Path) -> None:
+    peft = importlib.import_module("peft")
+    safe_open = importlib.import_module("safetensors").safe_open
+    with safe_open(str(path), framework="pt") as handle:
+        saved = set(handle.keys())
+    loaded = set(peft.get_peft_model_state_dict(transformer, adapter_name=ADAPTER_NAME))
+    if saved != loaded:
+        missing, unexpected = sorted(saved - loaded), sorted(loaded - saved)
+        raise ValueError(
+            f"adapter {path} does not match the model: {len(missing)} saved keys not loaded "
+            f"{missing[:3]}, {len(unexpected)} model keys not in the file {unexpected[:3]}"
+        )
 
 
 def check_lora_load(result: Any, adapter_name: str) -> None:

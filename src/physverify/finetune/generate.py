@@ -21,6 +21,7 @@ from physverify.finetune.records import BASE_TAG, CandidateRecord, PromptRecord,
 from physverify.finetune.seeds import WHOLE, Shard, candidate_id, candidate_seed
 from physverify.finetune.settings import CandidateSettings, PromptSplit
 from physverify.finetune.store import CampaignStore
+from physverify.finetune.wan_lora import load_adapter
 from physverify.schema.io import stable_hash
 from physverify.timing.generation import call_kwargs, is_out_of_memory, torch_generator
 from physverify.timing.mp4 import to_uint8, write_mp4
@@ -75,7 +76,7 @@ def save_safetensors(tensors: Mapping[str, Any], path: Path) -> None:
 
 
 def default_adapter_loader(pipe: Pipeline, adapter: Path) -> None:
-    pipe.transformer.load_lora_adapter(str(adapter), prefix=None)
+    load_adapter(pipe.transformer, adapter)
 
 
 def adapter_tag(adapter: Path) -> str:
