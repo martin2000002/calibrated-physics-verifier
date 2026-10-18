@@ -11,8 +11,14 @@ import pytest
 from physverify.config.loader import load_settings
 from physverify.config.models import Settings
 from physverify.core.errors import ConfigError, UsageError
-from physverify.runtime.container import describe, make_runner, missing_reason
-from physverify.runtime.docker import CONTAINER_SRC, DockerRunner
+from physverify.runtime.container import (
+    ContainerSettings,
+    describe,
+    make_runner,
+    missing_reason,
+    preflight_problem,
+)
+from physverify.runtime.docker import CONTAINER_SRC, DockerRunner, preflight_command
 from physverify.runtime.udocker import UdockerRunner
 
 UDOCKER = "/opt/udocker/bin/udocker"
@@ -161,6 +167,60 @@ def test_missing_reason(config_dir: Path, environ: dict[str, str]) -> None:
     assert reason is not None and "inspect kub" in reason and "run_kubric.sh" in reason
     missing = missing_reason(udocker_settings, udocker, _probe(None))
     assert missing is not None and "cannot run" in missing
+
+
+@pytest.mark.parametrize("build", [_udocker, _docker])
+def test_preflight_runs_with_the_build_mounts(tmp_path: Path, build: Any) -> None:
+    runner = build(tmp_path)
+    build_argv = runner.argv("render", _jobs(tmp_path))
+    preflight = runner.command_argv(preflight_command())
+    prefix = len(build_argv) - 8
+    assert preflight[:prefix] == build_argv[:prefix]
+    assert preflight[prefix:] == ["python3", "-c", preflight_command()[-1]]
+    assert "physverify.kubric_worker.build_scene" in preflight[-1]
+    assert all(module in preflight[-1] for module in ("kubric", "bpy", "pybullet"))
+
+
+def test_preflight_problem(tmp_path: Path) -> None:
+    runner = _udocker(tmp_path)
+    assert preflight_problem(runner, 5.0, _probe(0)) is None
+    failed = preflight_problem(runner, 5.0, _probe(1))
+    assert failed is not None and "exited 1" in failed and "build_scene" in failed
+    missing = preflight_problem(runner, 5.0, _probe(None))
+    assert missing is not None and "cannot run" in missing
+
+
+def test_preflight_problem_times_out(tmp_path: Path) -> None:
+    seen: list[float] = []
+
+    def hang(argv: list[str], *, timeout: float, **_: Any) -> Any:
+        seen.append(timeout)
+        raise subprocess.TimeoutExpired(argv, timeout)
+
+    problem = preflight_problem(_udocker(tmp_path), 7.5, hang)
+    assert seen == [7.5]
+    assert problem is not None and "did not finish in 7.5 s" in problem
+
+
+def test_doctor_probes_the_container(
+    cli: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seen: list[Any] = []
+
+    def fake(runner: Any, timeout_s: float) -> str | None:
+        seen.append((runner, timeout_s))
+        return None if len(seen) == 1 else "boom"
+
+    monkeypatch.setattr("physverify.cli.commands.doctor.preflight_problem", fake)
+    env = {"PHYSVERIFY__PATHS__DATA_DIR": str(tmp_path / "data")}
+    ok = cli("doctor", "--probe-container", env=env)
+    assert ok.code == 0 and "container_probe: ok" in ok.out
+    assert isinstance(seen[0][0], DockerRunner) and (tmp_path / "data").is_dir()
+    assert seen[0][1] == ContainerSettings().preflight_timeout_s
+    env["PHYSVERIFY__CONTAINER__PREFLIGHT_TIMEOUT_S"] = "9"
+    failed = cli("doctor", "--probe-container", env=env)
+    assert seen[1][1] == 9.0
+    assert failed.code == 1 and "boom" in failed.err
 
 
 def test_doctor_reports_the_engine(cli: Any) -> None:

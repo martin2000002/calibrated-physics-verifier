@@ -113,7 +113,8 @@ def _pv(command: str, threads: int = 6) -> str:
 
 
 SETUP = [
-    "uv sync --no-default-groups --group dev --group cu128 --group perception --group generation --group data",
+    "uv sync --no-default-groups --group dev --group cu128 --group perception --group generation"
+    " --group data",
     "uv run --no-sync python -c import sys, torch; sys.exit(0 if torch.cuda.is_available() else 2)",
     _pv("extract fetch-weights"),
     "uv run --no-sync physverify --profile fast extract fetch-weights",

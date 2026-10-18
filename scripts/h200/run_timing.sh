@@ -11,11 +11,7 @@ prepare_render() {
         echo "docker does not respond: kubric_render will be skipped" >&2
         return 0
     fi
-    local image
-    image="$(pv doctor 2>/dev/null | sed -n 's/^docker_image: //p' || true)"
-    if [[ -n "$image" && "$image" != "(unset)" ]] && ! docker image inspect "$image" >/dev/null 2>&1; then
-        pv dataset pull-image || return 1
-    fi
+    ensure_kubric_image pv >/dev/null || return 1
     pv dataset generate --subset smoke \
         && pv dataset simulate --subset smoke \
         && pv dataset perturb --subset smoke

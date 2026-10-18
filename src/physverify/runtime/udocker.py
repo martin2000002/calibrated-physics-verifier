@@ -9,6 +9,7 @@ worker is told not to write ``.pyc`` files into the shared source tree.
 from __future__ import annotations
 
 import subprocess
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -41,6 +42,9 @@ class UdockerRunner:
         return container_path(self.data_dir, host_path)
 
     def argv(self, task: str, jobs: Path) -> list[str]:
+        return self.command_argv(worker_command(task, self.container_path(jobs), self.threads))
+
+    def command_argv(self, command: Sequence[str]) -> list[str]:
         env = [*container_env(self.threads), *EXTRA_ENV]
         return [
             self.bin, "run", "--nobanner",
@@ -49,7 +53,7 @@ class UdockerRunner:
             f"--workdir={CONTAINER_DATA}",
             *(f"--env={name}={value}" for name, value in env),
             self.container,
-            *worker_command(task, self.container_path(jobs), self.threads),
+            *command,
         ]  # fmt: skip
 
     def probe_argv(self) -> list[str]:

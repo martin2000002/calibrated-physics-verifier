@@ -10,7 +10,10 @@ from typing import Annotated
 import typer
 
 from physverify.cli.context import AppContext, app_context
+from physverify.core.errors import PhysverifyError
+from physverify.runtime.container import container_settings, preflight_problem
 from physverify.runtime.container import describe as describe_engine
+from physverify.runtime.docker import PREFLIGHT_IMPORTS
 from physverify.runtime.heavy import describe_holder, lock_holder_pids
 
 NAME = "doctor"
@@ -60,6 +63,15 @@ def lock_lines(context: AppContext) -> list[str]:
     return [f"heavy_lock: {path} (held by {describe_holder(path)})"]
 
 
+def container_probe(context: AppContext) -> None:
+    context.settings.paths.data_dir.mkdir(parents=True, exist_ok=True)
+    timeout_s = container_settings(context.settings).preflight_timeout_s
+    problem = preflight_problem(context.docker(), timeout_s)
+    if problem is not None:
+        raise PhysverifyError(f"container_probe: failed; {problem}")
+    typer.echo(f"container_probe: ok ({', '.join(PREFLIGHT_IMPORTS)})")
+
+
 @app.callback()
 def doctor(
     ctx: typer.Context,
@@ -67,10 +79,16 @@ def doctor(
         float | None,
         typer.Option(help="Hold the heavy lock for this many seconds (tests the lock)."),
     ] = None,
+    probe_container: Annotated[
+        bool,
+        typer.Option(help="Import the Kubric build's modules in the container, with its mounts."),
+    ] = False,
 ) -> None:
     context = app_context(ctx)
     for line in report_lines(context):
         typer.echo(line)
+    if probe_container:
+        container_probe(context)
     if lock_probe is None:
         return
     with context.heavy_lock():

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import subprocess
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
@@ -12,6 +12,7 @@ from physverify.core.errors import ConfigError, UsageError
 CONTAINER_SRC = "/app/src"
 CONTAINER_DATA = PurePosixPath("/data")
 WORKER_MODULE = "physverify.kubric_worker"
+PREFLIGHT_IMPORTS = ("kubric", "bpy", "pybullet", f"{WORKER_MODULE}.build_scene")
 
 Runner = Callable[..., "subprocess.CompletedProcess[bytes]"]
 
@@ -42,6 +43,11 @@ def worker_command(task: str, jobs_container_path: str, threads: int) -> list[st
     ]  # fmt: skip
 
 
+def preflight_command() -> list[str]:
+    """Imports what a build needs, from the mounted source tree as the worker sees it."""
+    return ["python3", "-c", f"import {', '.join(PREFLIGHT_IMPORTS)}"]
+
+
 @dataclass(frozen=True)
 class DockerRunner:
     image: str
@@ -55,6 +61,9 @@ class DockerRunner:
         return container_path(self.data_dir, host_path)
 
     def argv(self, task: str, jobs: Path) -> list[str]:
+        return self.command_argv(worker_command(task, self.container_path(jobs), self.threads))
+
+    def command_argv(self, command: Sequence[str]) -> list[str]:
         if not self.image:
             raise ConfigError("runtime.docker_image is empty")
         env = [
@@ -68,7 +77,7 @@ class DockerRunner:
             "-w", str(CONTAINER_DATA),
             *env,
             self.image,
-            *worker_command(task, self.container_path(jobs), self.threads),
+            *command,
         ]  # fmt: skip
 
     def probe_argv(self) -> list[str]:
