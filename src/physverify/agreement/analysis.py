@@ -20,6 +20,7 @@ from physverify.agreement.stats import (
     balanced_accuracy,
     caption_bootstrap,
     classification,
+    clustered_mcnemar,
     cohen_kappa,
     correlations,
     design_effect,
@@ -35,6 +36,13 @@ class BootstrapPlan:
     n: int
     seed: int
     ci: float
+    exact_max: int = 0
+    """Discordant captions up to which the caption McNemar is enumerated exactly."""
+
+
+SECONDARY_TESTS: tuple[str, ...] = ("mcnemar_caption_permutation",)
+"""Pre-registered secondary tests (frozen in the H2 pre-registration); the primary stays
+``mcnemar``."""
 
 
 def _scores(items: Sequence[ComparisonItem], index: Sequence[int], attr: str) -> Scores:
@@ -166,6 +174,15 @@ def _paired(
     discordant = (test_result.b + test_result.c) / y.size if y.size else math.nan
     positions = list(range(len(view.index)))
     captions = [items[i].row.caption for i in view.index]
+    by_caption = clustered_mcnemar(
+        y,
+        view.verifier,
+        p_vlm,
+        captions,
+        exact_max=plan.exact_max,
+        n=plan.n,
+        seed=plan.seed,
+    )
     boot = caption_bootstrap(
         positions,
         lambda k: captions[k],
@@ -180,6 +197,7 @@ def _paired(
             "c_vlm_only": test_result.c,
             "p_value": test_result.p_value,
         },
+        "mcnemar_caption_permutation": asdict(by_caption),
         "discordant_rate": discordant,
         "mde_accuracy": mde_accuracy(y.size, discordant, *test),
         "bootstrap": {

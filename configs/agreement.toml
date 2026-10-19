@@ -126,6 +126,7 @@ power = 0.8
 bootstrap_n = 10000
 bootstrap_seed = 20261017
 ci = 0.95
+permutation_exact_max = 20             # caption McNemar (secondary): exact up to 20 discordant captions, else Monte Carlo
 error_sample_per_class = 15
 error_seed = 20261017
 # Excluded and time-dependent check ids live in [check_scope] (configs/check_scope.toml).

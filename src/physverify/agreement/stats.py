@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
+from typing import Final
 
 import numpy as np
 from numpy.typing import NDArray
@@ -96,6 +97,78 @@ def mcnemar_exact(y: Labels, a: Labels, b: Labels) -> McNemar:
     n = only_a + only_b
     p = 1.0 if n == 0 else float(binomtest(only_a, n, 0.5, alternative="two-sided").pvalue)
     return McNemar(only_a, only_b, p)
+
+
+@dataclass(frozen=True)
+class CaptionMcNemar:
+    """McNemar by caption sign flip: ``statistic`` is the sum over captions of the per-caption
+    difference (verifier-only minus VLM-only correct clips); ``method`` exact or monte_carlo."""
+
+    statistic: int
+    discordant_captions: int
+    p_value: float
+    method: str
+    replicas: int
+
+
+EXACT: Final = "exact"
+MONTE_CARLO: Final = "monte_carlo"
+_TIE: Final = 1e-9
+
+
+def caption_differences(y: Labels, a: Labels, b: Labels, captions: Sequence[str]) -> list[int]:
+    """Per caption, clips only ``a`` gets right minus clips only ``b`` gets right."""
+    sums: dict[str, int] = {}
+    diff = ((a == y) & (b != y)).astype(int) - ((a != y) & (b == y)).astype(int)
+    for caption, d in zip(captions, diff.tolist(), strict=True):
+        sums[caption] = sums.get(caption, 0) + int(d)
+    return [d for d in sums.values() if d != 0]
+
+
+def _sign_flip_exact(diffs: Sequence[int], observed: int) -> float:
+    """P(|sum s_c d_c| >= |observed|), s_c = +-1 with probability 1/2 (exact convolution)."""
+    dist: dict[int, float] = {0: 1.0}
+    for d in diffs:
+        nxt: dict[int, float] = {}
+        for total, prob in dist.items():
+            for step in (d, -d):
+                nxt[total + step] = nxt.get(total + step, 0.0) + prob / 2
+        dist = nxt
+    return float(min(1.0, sum(p for t, p in dist.items() if abs(t) >= abs(observed) - _TIE)))
+
+
+def _sign_flip_monte_carlo(diffs: Sequence[int], observed: int, n: int, seed: int) -> float:
+    """(1 + hits) / (n + 1) over ``n`` random sign flips (Phipson and Smyth 2010)."""
+    rng = np.random.default_rng(seed)
+    signs = rng.choice(np.asarray([-1, 1]), size=(n, len(diffs)))
+    totals = np.abs(signs @ np.asarray(diffs, dtype=np.int64))
+    hits = int(np.sum(totals >= abs(observed) - _TIE))
+    return (1 + hits) / (n + 1)
+
+
+def clustered_mcnemar(
+    y: Labels,
+    a: Labels,
+    b: Labels,
+    captions: Sequence[str],
+    *,
+    exact_max: int,
+    n: int,
+    seed: int,
+) -> CaptionMcNemar:
+    """Two-sided McNemar that keeps the videos of one caption together: under H0 each caption's
+    difference is equally likely to have either sign. Exact up to ``exact_max`` discordant
+    captions (then it equals ``mcnemar_exact`` with one caption per clip), Monte Carlo above;
+    NaN when Monte Carlo is needed with ``n`` = 0."""
+    diffs = caption_differences(y, a, b, captions)
+    observed = sum(diffs)
+    m = len(diffs)
+    if m <= exact_max:
+        return CaptionMcNemar(observed, m, _sign_flip_exact(diffs, observed), EXACT, 0)
+    if n == 0:
+        return CaptionMcNemar(observed, m, math.nan, MONTE_CARLO, 0)
+    p_value = _sign_flip_monte_carlo(diffs, observed, n, seed)
+    return CaptionMcNemar(observed, m, p_value, MONTE_CARLO, n)
 
 
 def mde_accuracy(n: float, discordant: float, alpha: float, power: float) -> float:
