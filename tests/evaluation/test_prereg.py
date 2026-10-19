@@ -13,6 +13,7 @@ from physverify.evaluation.prereg import (
     AUDIT_FIELDS,
     EVAL_DATA_DEVIATION,
     H3_FIELDS,
+    REFREEZE_MUTABLE,
     CandidateSnapshot,
     FreezeRequest,
     H3Preregistration,
@@ -245,3 +246,10 @@ def test_a_new_stop_rule_state_refreezes_and_its_deviation_is_audit_only() -> No
     new = plan_freeze(record(), "sha0", record(stop_rule=fired), request())
     assert new is not None and new.deviations == []
     assert "stop_rule" in identity(new) and "stop_rule_deviation" not in identity(new)
+
+
+def test_the_secondary_tests_are_frozen() -> None:
+    assert "secondary_tests" in H3_FIELDS
+    assert "secondary_tests" not in REFREEZE_MUTABLE
+    old, new = record(secondary_tests=["S1"]), record(secondary_tests=["S1", "S5"])
+    assert identity(old) != identity(new)

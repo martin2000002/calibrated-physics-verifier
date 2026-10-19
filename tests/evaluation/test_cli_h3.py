@@ -18,6 +18,7 @@ from physverify.agreement.prereg import file_sha256  # noqa: E402
 from physverify.calibration.settings import active_checks_hash  # noqa: E402
 from physverify.cli.commands.h3 import GATE_LINE, GATE_PASSED  # noqa: E402
 from physverify.core.errors import UsageError  # noqa: E402
+from physverify.evaluation.analysis import SECONDARY_TESTS  # noqa: E402
 from physverify.evaluation.compare import (  # noqa: E402
     eval_judges,
     external_status,
@@ -108,6 +109,7 @@ def test_freeze_records_the_state_and_is_idempotent(
 ) -> None:
     assert frozen.adapter_tag == campaign.ft_tag
     assert frozen.rule_status == "provisional"
+    assert tuple(frozen.secondary_tests) == SECONDARY_TESTS
     assert frozen.margins == {"pc": 0.13, "sa": 0.05}
     again = cli("h3", "freeze", env=h3_environ)
     assert again.code == 0, again.err

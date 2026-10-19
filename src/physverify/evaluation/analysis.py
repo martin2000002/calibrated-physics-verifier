@@ -38,6 +38,14 @@ ABSTENTION = "FT abstention rate minus base"
 MOTION = "FT median motion against (1 - max_motion_drop) x base median"
 OBJECTS = "base objects_ok rate minus FT"
 HOLM_TESTS = ("verifier_ft_vs_base", "pc_ft_vs_base", "pc_bo8_vs_random")
+SECONDARY_TESTS = (
+    "S1_ft_drop_reason",
+    "S2_template_clusters",
+    "S3_cross_pairs",
+    "S4_check_cross_fit",
+    "S5_template_mean_wilcoxon",
+)
+"""The pre-registered sensitivities, in order; S5 is ADR 0015 1.7 (template means, Wilcoxon)."""
 JudgeValues = Mapping[JudgeKey, float | None]
 
 
@@ -423,14 +431,30 @@ def analyse(inputs: AnalysisInputs) -> H3Analysis:
         bo8_vs_base_verifier=paired_test(as_diffs(_bo8_verifier(arms, picks)), cfg),
         guards=guards,
         g5_left_out=left_out if inputs.has_ft else 0,
-        sensitivities={
-            "S1_ft_drop_reason": _test(s1, cfg),
-            "S2_template_clusters": _clustered(primary_found, templates, cfg),
-            "S3_cross_pairs": _test(cross_ft_vs_base(arms, inputs.rescore, n), cfg),
-            "S4_check_cross_fit": _cross_fit(inputs),
-        },
+        sensitivities=dict(
+            zip(
+                SECONDARY_TESTS,
+                (
+                    _test(s1, cfg),
+                    _clustered(primary_found, templates, cfg),
+                    _test(cross_ft_vs_base(arms, inputs.rescore, n), cfg),
+                    _cross_fit(inputs),
+                    _test(template_means(primary_found, templates), cfg),
+                ),
+                strict=True,
+            )
+        ),
         strata=_strata(primary_found[0], arms, cfg),
     )
+
+
+def template_means(found: tuple[Values, int], templates: Mapping[str, str]) -> tuple[Values, int]:
+    """One value per template, the mean of its prompts' differences (the unit of S5)."""
+    values, dropped = found
+    groups: dict[str, list[float]] = {}
+    for prompt_id, value in values.items():
+        groups.setdefault(templates[prompt_id], []).append(value)
+    return {t: mean for t, v in groups.items() if (mean := _mean(v)) is not None}, dropped
 
 
 def _clustered(

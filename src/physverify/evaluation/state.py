@@ -17,7 +17,13 @@ from physverify.calibration.loader import CalibrationError, load_calibration
 from physverify.calibration.settings import check_registry
 from physverify.config.models import Settings
 from physverify.core.errors import MissingInputError, PhysverifyError
-from physverify.evaluation.analysis import JudgeValues, crn_ft_vs_base, judged, judged_against_base
+from physverify.evaluation.analysis import (
+    SECONDARY_TESTS,
+    JudgeValues,
+    crn_ft_vs_base,
+    judged,
+    judged_against_base,
+)
 from physverify.evaluation.arms import EVAL_SPLIT, PromptArms, analysis_prompts, build_arms
 from physverify.evaluation.campaign import all_eval_records, candidate_snapshot
 from physverify.evaluation.gate import usability
@@ -254,6 +260,7 @@ def current_record(inputs: FreezeInputs, now: dt.datetime) -> H3Preregistration:
         stop_rule=inputs.stop_rule,
         created_utc=now.astimezone(dt.UTC).isoformat(timespec="seconds"),
         exclusion_record_sha256=check_scope(inputs.settings, check_registry()).record_sha256,
+        secondary_tests=list(SECONDARY_TESTS),
     )
 
 
