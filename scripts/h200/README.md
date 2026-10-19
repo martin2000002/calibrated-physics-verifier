@@ -251,17 +251,22 @@ peft, numpy and Python versions are our choice, and the freeze file records the 
 `PHYSVERIFY_AUTOEVAL_UPSTREAM` overrides the clone URL. The GPU steps exit 2 without a CUDA GPU
 before any `uv` call.
 
-## GT velocity migration (ADR 0004, WP-G 1.C)
+## GT migrations (ADR 0004: WP-G 1.C velocity, WP-H floor crossing)
 
-`migrate_velocity.sh` moves a stored dataset to `velocity_convention = "position"` in place (CPU
-only, no version bump): `dataset migrate-velocity`, a rebuild of every listed subset (only the
-renders whose poses changed are redone), `extract purge` of the re-rendered clips on every cache
-root, oracle sweeps with `fit_source` position and velocity, and `dataset audit-migration` against
-a copy taken before. Every written path must lie under `PHYSVERIFY_MIGRATE_ROOT`; the header lists
-the variables and the commands for a dev copy and for the full v1-precise dataset.
+`migrate_velocity.sh` runs one GT migration of a stored dataset in place (CPU only, no version
+bump), picked by `PHYSVERIFY_MIGRATE_NAME`: `velocity-position` (default) moves it to
+`velocity_convention = "position"`, and `floor-crossing` re-solves the floor bounces whose row
+after the crossing was already under the floor (it needs a dataset on `velocity-position`). Each
+run is `dataset migrate --name <name>`, a rebuild of every listed subset (only the renders whose
+poses changed are redone), `extract purge` of the re-rendered clips on every cache root, oracle
+sweeps with `fit_source` position and velocity, and `dataset audit-migration --name <name>`
+against a copy taken before. Every written path must lie under `PHYSVERIFY_MIGRATE_ROOT`; the
+header lists the variables and the commands for a dev copy and for the full v1-precise dataset.
+A plan whose `gt_revision` is older than the checkout's is refused by every build step until the
+`floor-crossing` migration has run on it.
 
 It holds the Kubric lock (`PHYSVERIFY_MIGRATE_LOCK`, default `${PHYSVERIFY_KUBRIC_LOCK:-$ROOT/kubric.lock}`),
-so it never renders beside a `run_kubric.sh` build. It stops after `migrate-velocity` when any clip
+so it never renders beside a `run_kubric.sh` build. It stops after `dataset migrate` when any clip
 changed state (applied or skipped) until `PHYSVERIFY_MIGRATE_ALLOW_STATUS_CHANGES=1`, and moves the
-calibration artifacts fitted on the old GT into `<calibration dir>/stale-velocity-position/` once,
+calibration artifacts fitted on the old GT into `<calibration dir>/stale-<name>/` once,
 printing a notice; recalibrate afterwards. `calibration-baseline-*` directories are refused.

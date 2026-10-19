@@ -1,32 +1,38 @@
 #!/usr/bin/env bash
-# Migrates a stored Kubric dataset to the position-consistent GT velocity (WP-G 1.C, ADR 0004)
-# in place, CPU only, and audits the result. Resumes when run again.
+# Runs a GT migration of a stored Kubric dataset in place (ADR 0004), CPU only, and audits the
+# result. Resumes when run again. PHYSVERIFY_MIGRATE_NAME picks it: velocity-position (default,
+# the position-consistent GT velocity of WP-G 1.C) or floor-crossing (the floor bounce solved from
+# the row before a penetrated one, WP-H).
 #
 #   1. Optionally copies a source dataset and cache in (read only on the source).
 #   2. Keeps a copy of the dataset as it was (the audit's "before"): copied into <before>.partial,
 #      marked complete there and only then moved into place, so an interrupted copy is redone.
-#   3. `dataset migrate-velocity`: APPLY again on every clip; renders whose poses, sizes or hidden
-#      frames changed are discarded and listed in <dataset>/migrations/velocity-position.json.
+#   3. `dataset migrate --name <name>`: APPLY again on every clip; renders whose poses, sizes or
+#      hidden frames changed are discarded and listed in <dataset>/migrations/<name>.json.
 #      A clip whose state changed (applied <-> skipped) stops the script here unless allowed.
 #      Calibration artifacts fitted on the old GT are then moved aside (below).
 #   4. `dataset build --subset S` for every subset: renders the discarded clips and exports all.
 #   5. `extract purge --clips-from <manifest>` on every cache root (perception caches of the
 #      re-rendered clips; the cache key has no frame hash).
 #   6. Oracle sweeps of every verify subset with fit_source=position (default) and =velocity.
-#   7. `dataset audit-migration`: re-renders, frames/mp4, contacts, records, labels, rest cells,
-#      stale cache, written to $OUT/audit.json.
+#   7. `dataset audit-migration --name <name>`: re-renders, frames/mp4, contacts, records, labels,
+#      rest cells, stale cache (plus impact frames, floor, GT metadata and every floor bounce for
+#      floor-crossing), written to $OUT/audit.json. $OUT is $DATA_DIR/runs/migrate-velocity-<version>
+#      for velocity-position and $DATA_DIR/runs/migrate-<name>-<version> otherwise.
 #
 # Required:
 #   PHYSVERIFY_MIGRATE_ROOT     every path written (data, cache, lock, HOME) must be under it
 #   PHYSVERIFY_MIGRATE_VERSION  dataset version to migrate (v1 for the default profile,
 #                               v1-precise for precise)
 # Optional:
+#   PHYSVERIFY_MIGRATE_NAME          migration to run (default: velocity-position)
 #   PHYSVERIFY__PATHS__DATA_DIR      data dir holding synthetic/<version> (default: $ROOT/data)
 #   PHYSVERIFY_MIGRATE_SOURCE_DATA   dataset directory copied into synthetic/<version> first
 #   PHYSVERIFY_MIGRATE_SOURCE_CACHE  cache directory copied into paths.cache_dir first
 #   PHYSVERIFY_MIGRATE_BEFORE        the copy taken before migrating (default: the source dataset
 #                                    when given, used as is and never written; else
-#                                    $DATA_DIR/migration-before/<version>)
+#                                    $DATA_DIR/migration-before/<version> for velocity-position
+#                                    and $DATA_DIR/migration-before/<name>/<version> otherwise)
 #   PHYSVERIFY_MIGRATE_LOCK          heavy lock held by every pv step (default: the Kubric lock of
 #                                    run_kubric.sh, ${PHYSVERIFY_KUBRIC_LOCK:-$ROOT/kubric.lock}, so
 #                                    a migration and a Kubric build never render at once)
@@ -34,7 +40,7 @@
 #   PHYSVERIFY_MIGRATE_CALIBRATION_DIRS  calibration dirs besides paths.calibration_dir, space
 #                                    separated. Their artifacts fitted on the old GT (thresholds.*,
 #                                    stage_errors*, stage_sigma.json, calibration.json,
-#                                    abstention.json) are moved into <dir>/stale-velocity-position/
+#                                    abstention.json) are moved into <dir>/stale-<name>/
 #                                    once, so nothing loads them as current; a calibration-baseline-*
 #                                    directory (the frozen A8 v1 baseline) is refused.
 #   PHYSVERIFY_MIGRATE_SUBSETS       subsets to build (default: full)
@@ -59,6 +65,8 @@
 #   PHYSVERIFY_MIGRATE_CALIBRATION_DIRS="/home/mmonterot/work/p1/data/calibration" \
 #   PHYSVERIFY_MIGRATE_SUBSETS=full \
 #   bash scripts/h200/migrate_velocity.sh
+# The floor crossing (WP-H) runs the same way with PHYSVERIFY_MIGRATE_NAME=floor-crossing, on a
+# dataset already on velocity-position (its plan hash is refused otherwise).
 set -euo pipefail
 
 die() {
@@ -78,6 +86,8 @@ SUBSETS="${PHYSVERIFY_MIGRATE_SUBSETS:-full}"
 VERIFY="${PHYSVERIFY_MIGRATE_VERIFY:-$SUBSETS}"
 SOURCE_DATA="${PHYSVERIFY_MIGRATE_SOURCE_DATA:-}"
 SOURCE_CACHE="${PHYSVERIFY_MIGRATE_SOURCE_CACHE:-}"
+NAME="${PHYSVERIFY_MIGRATE_NAME:-velocity-position}"
+[[ "$NAME" =~ ^[a-z][a-z0-9-]*$ ]] || die "PHYSVERIFY_MIGRATE_NAME must be a migration name, got '$NAME'"
 for name in THREADS WORKERS JOBS; do
     [[ "${!name}" =~ ^[1-9][0-9]*$ ]] || die "$name must be a positive integer, got '${!name}'"
 done
@@ -138,8 +148,15 @@ done
 docker info >/dev/null 2>&1 || die "docker does not respond"
 
 DATASET="$SYNTH_DIR/$VERSION"
-MANIFEST="$DATASET/migrations/velocity-position.json"
-OUT="$DATA_DIR/runs/migrate-velocity-$VERSION"
+MANIFEST="$DATASET/migrations/$NAME.json"
+# The velocity migration keeps the paths it had before it was one of several.
+if [[ "$NAME" == velocity-position ]]; then
+    OUT="$DATA_DIR/runs/migrate-velocity-$VERSION"
+    BEFORE_DEFAULT="$DATA_DIR/migration-before/$VERSION"
+else
+    OUT="$DATA_DIR/runs/migrate-$NAME-$VERSION"
+    BEFORE_DEFAULT="$DATA_DIR/migration-before/$NAME/$VERSION"
+fi
 mkdir -p "$OUT"
 LOG="$OUT/migrate-$(date -u +%Y%m%dT%H%M%SZ).log"
 exec > >(tee -a "$LOG") 2>&1
@@ -155,7 +172,7 @@ if [[ -n "$SOURCE_CACHE" && ! -f "$MANIFEST" ]]; then
 fi
 [[ -f "$DATASET/plan.json" ]] || die "no dataset at $DATASET"
 
-BEFORE="${PHYSVERIFY_MIGRATE_BEFORE:-${SOURCE_DATA:-$DATA_DIR/migration-before/$VERSION}}"
+BEFORE="${PHYSVERIFY_MIGRATE_BEFORE:-${SOURCE_DATA:-$BEFORE_DEFAULT}}"
 COMPLETE=.migration-before-complete
 if [[ -n "$SOURCE_DATA" && "$(realpath -m "$BEFORE")" == "$(realpath -m "$SOURCE_DATA")" ]]; then
     printf 'before: the source dataset %s (read only)\n' "$BEFORE"
@@ -170,16 +187,16 @@ elif [[ ! -f "$BEFORE/$COMPLETE" ]]; then
 fi
 
 COMMIT="$(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null || echo "${PHYSVERIFY_MIGRATE_COMMIT:?no git checkout: set PHYSVERIFY_MIGRATE_COMMIT}")"
-MIGRATED="$(pv dataset migrate-velocity --commit "$COMMIT")"
+MIGRATED="$(pv dataset migrate --name "$NAME" --commit "$COMMIT")"
 printf '%s\n' "$MIGRATED"
 CHANGES="$(sed -n 's/.* \([0-9][0-9]*\) status changes;.*/\1/p' <<<"$MIGRATED")"
-[[ -n "$CHANGES" ]] || die "no status change count in the migrate-velocity output"
+[[ -n "$CHANGES" ]] || die "no status change count in the migrate output"
 if [[ "$CHANGES" != 0 && "${PHYSVERIFY_MIGRATE_ALLOW_STATUS_CHANGES:-0}" != 1 ]]; then
     die "$CHANGES clips changed state (status_changes in $MANIFEST); review them, then rerun" \
         "with PHYSVERIFY_MIGRATE_ALLOW_STATUS_CHANGES=1"
 fi
 
-STALE=stale-velocity-position
+STALE="stale-$NAME"
 if [[ ! -f "$OUT/calibration-moved" ]]; then
     for dir in "${CALIBRATION_DIRS[@]}"; do
         [[ -d "$dir" ]] || continue
@@ -187,8 +204,8 @@ if [[ ! -f "$OUT/calibration-moved" ]]; then
         for file in "$dir"/thresholds.* "$dir"/stage_errors* "$dir"/stage_sigma.json \
             "$dir"/calibration.json "$dir"/abstention.json; do
             [[ -f "$file" ]] || continue
-            printf 'NOTICE: %s was fitted on the old GT velocities; moved to %s/\n' \
-                "$file" "$dir/$STALE"
+            printf 'NOTICE: %s was fitted on the GT before %s; moved to %s/\n' \
+                "$file" "$NAME" "$dir/$STALE"
             mv "$file" "$dir/$STALE/"
         done
     done
@@ -218,4 +235,4 @@ for subset in $VERIFY; do
         [[ "$source" == position ]] && tables+=(--table "$run_dir/table.csv")
     done
 done
-pv dataset audit-migration --before "$BEFORE" --out "$OUT/audit.json" "${purge[@]}" "${tables[@]}"
+pv dataset audit-migration --name "$NAME" --before "$BEFORE" --out "$OUT/audit.json" "${purge[@]}" "${tables[@]}"
