@@ -23,7 +23,12 @@ from physverify.schema.scene import PerturbationRecord
 from physverify.schema.states import ObjectStateTable, PrimitiveKind
 from physverify.synth.gt_export import DATASET_NAME, final_record
 from physverify.synth.kinematics_gt import corrected_cells
-from physverify.synth.migrate import FLOOR_CROSSING, rerender_clip_ids
+from physverify.synth.migrate import (
+    COVERS_KEY,
+    FLOOR_CROSSING,
+    rerender_clip_ids,
+    velocity_migration,
+)
 from physverify.synth.perturb import load_simulation
 from physverify.synth.perturbations._ballistics import impact_velocity
 from physverify.synth.perturbations._edit import (
@@ -62,6 +67,8 @@ RERENDER_IF_CANDIDATES_MOVE = frozenset({"r4_resize", "r1_penetration", "r4_tele
 CONTACTS_FIXED = frozenset({NONE, "r5b_gravity_scale"})
 LABEL_WATCH = ("r5a_", "r5b_")
 MAGNITUDE_TOL = 1e-9
+# Key of the velocity-convention migration in the maps below (its name carries the convention).
+VELOCITY = "velocity"
 REST_TOL_M = 1e-9
 INTEGER_TOL = 1e-9
 # The closed form assumes a ballistic step from the source row to k; Bullet's float64 velocities
@@ -184,13 +191,22 @@ def _bounce_row(object_id: str, case: BounceCase) -> dict[str, Any]:
     }
 
 
-PREDICTIONS: Mapping[str, Callable[[AuditInputs], Prediction]] = {
-    FLOOR_CROSSING: floor_crossing_prediction
-}
+def covered_migrations(inputs: AuditInputs) -> list[str]:
+    """What the run brought in: the velocity convention when it was that migration, plus the
+    ground-truth fixes its manifest ``covers`` (a manifest from before the field covers itself)."""
+    covers = read_json(inputs.manifest).get(COVERS_KEY)
+    if inputs.migration == velocity_migration(inputs.ds):
+        return [VELOCITY, *(covers or [])]
+    return [str(name) for name in (covers if covers is not None else [inputs.migration])]
 
 
 def prediction_for(inputs: AuditInputs) -> Prediction:
-    return PREDICTIONS.get(inputs.migration, velocity_prediction)(inputs)
+    """The union of the predictions of every migration the run covers."""
+    parts = [PREDICTIONS[name](inputs) for name in covered_migrations(inputs)]
+    certain = frozenset().union(*(p.certain for p in parts))
+    possible = frozenset().union(*(p.possible for p in parts)) - certain
+    bounces = {k: v for p in parts for k, v in p.bounces.items()}
+    return Prediction(certain, possible, bounces)
 
 
 def rerender_audit(inputs: AuditInputs, prediction: Prediction) -> dict[str, Any]:
@@ -529,15 +545,26 @@ def audit(
         "rest": rest_audit(inputs),
         "cache": cache_audit(inputs, cache_roots),
     }
-    if inputs.migration == FLOOR_CROSSING:
-        rows = bounce_cases(inputs)
-        report |= {
-            "impact_frames": integer_impact_check(inputs, prediction),
-            "floor": floor_audit(inputs),
-            "gt_meta": gt_meta_audit(inputs, rows),
-            "bounces": bounce_summary(rows),
-        }
+    for name in covered_migrations(inputs):
+        report |= EXTRA_AUDITS.get(name, _no_extra)(inputs, prediction)
     return report
+
+
+def floor_crossing_audits(inputs: AuditInputs, prediction: Prediction) -> dict[str, Any]:
+    rows = bounce_cases(inputs)
+    return {
+        "impact_frames": integer_impact_check(inputs, prediction),
+        "floor": floor_audit(inputs),
+        "gt_meta": gt_meta_audit(inputs, rows),
+        "bounces": bounce_summary(rows),
+    }
+
+
+def _no_extra(inputs: AuditInputs, prediction: Prediction) -> dict[str, Any]:
+    return {}
+
+
+type ExtraAudit = Callable[[AuditInputs, Prediction], dict[str, Any]]
 
 
 def _case_row(
@@ -675,3 +702,10 @@ def _apex(states: ObjectStateTable, k: int, i: int) -> bool:
 def _release(states: ObjectStateTable, k: int, i: int) -> bool:
     moving = np.linalg.norm(states.position[1, i] - states.position[0, i]) > REST_TOL_M
     return bool(k == 0 and moving and states.velocity[1, i, 2] < 0.0)
+
+
+PREDICTIONS: Mapping[str, Callable[[AuditInputs], Prediction]] = {
+    VELOCITY: velocity_prediction,
+    FLOOR_CROSSING: floor_crossing_prediction,
+}
+EXTRA_AUDITS: Mapping[str, ExtraAudit] = {FLOOR_CROSSING: floor_crossing_audits}
