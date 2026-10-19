@@ -12,9 +12,10 @@ import typer
 
 from physverify.agreement.decision import import_calibration
 from physverify.agreement.prereg import (
-    changed_fields,
     file_sha256,
     load_preregistration,
+    logged_comparisons,
+    plan_refreeze,
     write_preregistration,
 )
 from physverify.agreement.report import REPORT_DIR, write_comparison
@@ -24,6 +25,7 @@ from physverify.agreement.workflow import (
     audit,
     draft_queries,
     freeze,
+    log_test_comparison,
     reviewed_candidates,
     run_comparison,
     sized_labels_or_none,
@@ -31,7 +33,7 @@ from physverify.agreement.workflow import (
 )
 from physverify.cli.commands.data import fetch_all
 from physverify.cli.context import app_context, heavy_command
-from physverify.core.errors import ConfigError, UsageError
+from physverify.core.errors import ConfigError
 from physverify.core.log import get_logger
 from physverify.datasets._videophy_review import (
     REVIEWED,
@@ -141,28 +143,36 @@ def _record(dataset: VideophyDataset, chosen: str) -> None:
 def freeze_command(
     run_dir: RunOption,
     force: Annotated[
-        bool, typer.Option("--force", help="Replace an existing pre-registration (logged).")
+        bool, typer.Option("--force", help="Replace an existing pre-registration (archived).")
     ] = False,
+    declare_deviation: Annotated[
+        str | None,
+        typer.Option(help="Why the freeze is redone after a test comparison (makes H2 post hoc)."),
+    ] = None,
 ) -> None:
     settings = app_context().settings
-    path, record_ = freeze(
+    path, current = freeze(
         settings, _dataset(), run_dir, import_calibration, dt.datetime.now(dt.UTC)
     )
     previous = file_sha256(path)
+    old = None if previous is None else load_preregistration(path)
+    record_ = plan_refreeze(
+        old,
+        previous,
+        current,
+        force=force,
+        deviation=declare_deviation,
+        tested=bool(logged_comparisons(path)),
+    )
+    if record_ is None:
+        typer.echo(f"preregistration: {path}")
+        typer.echo("unchanged frozen state; the existing pre-registration is kept")
+        return
     if previous is not None:
-        changed = changed_fields(load_preregistration(path), record_.model_dump())
-        if not changed and not force:
-            typer.echo(f"preregistration: {path}")
-            typer.echo("unchanged frozen state; the existing pre-registration is kept")
-            return
-        if not force:
-            raise UsageError(
-                f"{path} exists with a different frozen state ({', '.join(changed)}); "
-                "the test comparison is already pre-registered"
-            )
         log.warning("replacing pre-registration %s (sha256 %s)", path, previous)
         typer.echo(f"replacing pre-registration {path} (sha256 {previous})", err=True)
-        record_ = record_.model_copy(update={"replaces_sha256": previous})
+    if record_.post_hoc:
+        typer.echo("WARNING: a test comparison already exists; H2 is now post hoc", err=True)
     write_preregistration(path, record_)
     typer.echo(f"preregistration: {path}")
     typer.echo(
@@ -182,10 +192,12 @@ def compare_command(
     comparison = run_comparison(app_context().settings, _dataset(), request, import_calibration)
     out_dir = run_dir / REPORT_DIR
     write_comparison(out_dir, comparison)
+    log_test_comparison(app_context().settings, comparison, run_dir, dt.datetime.now(dt.UTC))
     verdict = comparison.metrics["h2_verdict"]
     typer.echo(f"agreement: {out_dir}")
     typer.echo(f"rule: {comparison.metrics['rule']}; compared {comparison.counts.compared}")
     if not verdict["applicable"]:
         typer.echo(f"H2: {verdict['reason']}")
     else:
-        typer.echo(f"H2: {'supported' if verdict['supported'] else 'not supported'}")
+        post_hoc = " (POST HOC)" if verdict["post_hoc"] else ""
+        typer.echo(f"H2: {'supported' if verdict['supported'] else 'not supported'}{post_hoc}")

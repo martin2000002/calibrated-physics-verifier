@@ -7,16 +7,17 @@ only reported.
 
 from __future__ import annotations
 
-import datetime as dt
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
 
+from physverify.agreement.prereg import FreezeAudit, earliest_mtime, frozen_before
 from physverify.core.errors import UsageError
 from physverify.evaluation.analysis import AnalysisInputs, analyse
 from physverify.evaluation.arms import EVAL_SPLIT, analysis_prompts, build_arms
 from physverify.evaluation.campaign import eval_ids, eval_scores
+from physverify.evaluation.judging import gate_problem
 from physverify.evaluation.layout import H3Layout
 from physverify.evaluation.prereg import (
     H3Preregistration,
@@ -34,7 +35,7 @@ from physverify.evaluation.records import (
     keyed_values,
     load_judge_output,
 )
-from physverify.evaluation.report import FreezeAudit, H3Report
+from physverify.evaluation.report import H3Report
 from physverify.evaluation.settings import H3Settings
 from physverify.evaluation.stats import method_label
 from physverify.evaluation.verdict import ExternalStatus, VerdictInputs, h3_verdict
@@ -105,10 +106,10 @@ def eval_judges(
 def external_status(
     layout: H3Layout, prereg: H3Preregistration, outputs: Mapping[str, JudgeOutput | None]
 ) -> ExternalStatus:
-    if not layout.gate.is_file():
-        return "not_run"
-    if not read_record(layout.gate, GateReport).passed:
-        return "failed_gate"
+    """A gate that did not run the frozen judge stamps counts as not run."""
+    gate = read_record(layout.gate, GateReport) if layout.gate.is_file() else None
+    if gate_problem(gate, prereg.judge_stamps) is not None:
+        return "failed_gate" if gate is not None and not gate.passed else "not_run"
     if prereg.usability is None:
         return "not_run"
     if not prereg.usability.usable:
@@ -126,13 +127,6 @@ def task_values(
     return merged
 
 
-def earliest_mtime(paths: Iterable[Path]) -> str | None:
-    times = [p.stat().st_mtime for p in paths if p.is_file()]
-    if not times:
-        return None
-    return dt.datetime.fromtimestamp(min(times), dt.UTC).isoformat(timespec="seconds")
-
-
 def eval_files(inputs: CompareInputs, tags: Sequence[str]) -> list[Path]:
     store, layout = inputs.store, inputs.layout
     scores = [
@@ -147,11 +141,12 @@ def audit(inputs: CompareInputs, tags: Sequence[str]) -> FreezeAudit:
     return FreezeAudit(
         prereg_sha256=inputs.prereg_sha256,
         versions=len(chain(inputs.layout, inputs.prereg)),
+        created_utc=inputs.prereg.created_utc,
+        replaces_sha256=inputs.prereg.replaces_sha256,
         first_created_utc=first,
         earliest_eval_utc=earliest,
-        blind=None
-        if earliest is None
-        else dt.datetime.fromisoformat(first) <= dt.datetime.fromisoformat(earliest),
+        blind=frozen_before(first, earliest),
+        post_hoc=inputs.prereg.post_hoc,
         frozen_commit=inputs.prereg.commit,
         report_commit=inputs.commit,
         deviations=list(inputs.prereg.deviations),
@@ -192,6 +187,7 @@ def build_compare(inputs: CompareInputs) -> H3Report:
             rule_status=prereg.rule_status,
             contaminated=prereg.contaminated,
             label_matches=True,
+            post_hoc=prereg.post_hoc,
             has_ft_model=tag is not None,
             primary=result.primary,
             external_status=status,

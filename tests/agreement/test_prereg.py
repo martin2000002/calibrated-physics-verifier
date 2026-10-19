@@ -9,13 +9,21 @@ from pydantic import BaseModel
 
 from physverify.agreement.prereg import (
     FROZEN_FIELDS,
+    LoggedComparison,
     Preregistration,
     changed_fields,
+    file_sha256,
+    frozen_before,
     load_preregistration,
+    log_comparison,
+    logged_comparisons,
+    plan_refreeze,
+    preregistration_chain,
+    replaced_path,
     require_unchanged,
     write_preregistration,
 )
-from physverify.core.errors import ConfigError, MissingInputError
+from physverify.core.errors import ConfigError, MissingInputError, UsageError
 
 RECORD = Preregistration(
     created_utc="2026-10-17T00:00:00Z",
@@ -87,3 +95,68 @@ def test_a_missing_or_invalid_file_is_refused(tmp_path: Path) -> None:
     bad.write_text('{"commit": 1}', encoding="utf-8")
     with pytest.raises(ConfigError, match="invalid"):
         load_preregistration(bad)
+
+
+def test_the_rule_label_is_frozen() -> None:
+    assert "rule_label" in FROZEN_FIELDS
+    assert changed_fields(RECORD, _current(rule_label="calibrated:x")) == ["rule_label"]
+
+
+def _plan(old: Preregistration | None, current: Preregistration, **kwargs: object):
+    options: dict[str, object] = {"force": False, "deviation": None, "tested": False, **kwargs}
+    return plan_refreeze(old, None if old is None else "a" * 64, current, **options)  # type: ignore[arg-type]
+
+
+def test_a_first_freeze_is_written_and_an_unchanged_one_is_kept() -> None:
+    first = _plan(None, RECORD)
+    assert first is not None and first.replaces_sha256 is None and not first.post_hoc
+    assert _plan(RECORD, RECORD) is None
+
+
+def test_a_changed_state_needs_force_and_records_what_it_replaces() -> None:
+    other = RECORD.model_copy(update={"profile": "fast"})
+    with pytest.raises(UsageError, match="profile"):
+        _plan(RECORD, other)
+    forced = _plan(RECORD, other, force=True)
+    assert forced is not None and forced.replaces_sha256 == "a" * 64
+    assert not forced.post_hoc and forced.deviations == []
+
+
+def test_a_refreeze_after_a_test_comparison_must_declare_a_deviation() -> None:
+    other = RECORD.model_copy(update={"rule_label": "calibrated:x"})
+    with pytest.raises(UsageError, match="--declare-deviation"):
+        _plan(RECORD, other, force=True, tested=True)
+    late = _plan(RECORD, other, force=True, tested=True, deviation="new thresholds")
+    assert late is not None and late.post_hoc
+    assert late.deviations == ["new thresholds (changed: ['rule_label'])"]
+    later = _plan(late, other.model_copy(update={"profile": "fast"}), force=True)
+    assert later is not None and later.post_hoc and later.deviations == late.deviations
+
+
+def test_a_replaced_file_is_archived_and_the_chain_walks_back(tmp_path: Path) -> None:
+    path = tmp_path / "preregistration.json"
+    write_preregistration(path, RECORD)
+    first_sha = file_sha256(path)
+    assert first_sha is not None
+    second = RECORD.model_copy(update={"replaces_sha256": first_sha, "profile": "fast"})
+    write_preregistration(path, second)
+    assert load_preregistration(replaced_path(path, first_sha)) == RECORD
+    assert preregistration_chain(path, second) == [second, RECORD]
+
+
+def test_the_comparison_log_round_trips(tmp_path: Path) -> None:
+    path = tmp_path / "preregistration.json"
+    assert logged_comparisons(path) == []
+    entries = [
+        LoggedComparison(prereg_sha256="a", run=f"runs/{n}", compared_utc="2026-10-18T00:00:00")
+        for n in range(2)
+    ]
+    for entry in entries:
+        log_comparison(path, entry)
+    assert logged_comparisons(path) == entries
+
+
+def test_a_freeze_is_blind_only_before_the_earliest_eval_file() -> None:
+    assert frozen_before("2026-10-17T00:00:00+00:00", "2026-10-18T00:00:00+00:00") is True
+    assert frozen_before("2026-10-19T00:00:00+00:00", "2026-10-18T00:00:00+00:00") is False
+    assert frozen_before("2026-10-19T00:00:00+00:00", None) is None

@@ -127,6 +127,33 @@ def test_freeze_refuses_a_different_frozen_state_without_force(cli, world) -> No
     assert load_preregistration(path).replaces_sha256 is not None
 
 
+def test_a_refreeze_after_a_test_comparison_is_post_hoc_and_audited(cli, world) -> None:
+    world.keep_all()
+    dev, changed = str(_dev(world)), ("--set", "agreement.alpha=0.1")
+    assert cli(*FAST, "agreement", "freeze", "--verify-run", dev).code == 0
+    run = _test(world)
+    assert cli(*FAST, "agreement", "compare", "--verify-run", str(run)).code == 0
+    metrics = json.loads((run / REPORT_DIR / "metrics.json").read_text(encoding="utf-8"))
+    audit = metrics["preregistration"]
+    assert audit["versions"] == 1 and audit["post_hoc"] is False
+    assert metrics["h2_verdict"]["post_hoc"] is False
+    refused = cli(*FAST, *changed, "agreement", "freeze", "--verify-run", dev, "--force")
+    assert refused.code == 2 and "--declare-deviation" in refused.err
+    late = ("--force", "--declare-deviation", "alpha corrected")
+    forced = cli(*FAST, *changed, "agreement", "freeze", "--verify-run", dev, *late)
+    assert forced.code == 0, forced.err
+    assert "post hoc" in forced.err
+    path = Path(forced.out.split("preregistration: ", 1)[1].splitlines()[0])
+    record = load_preregistration(path)
+    assert record.post_hoc and record.deviations[0].startswith("alpha corrected")
+    assert cli(*FAST, *changed, "agreement", "compare", "--verify-run", str(run)).code == 0
+    metrics = json.loads((run / REPORT_DIR / "metrics.json").read_text(encoding="utf-8"))
+    assert metrics["preregistration"]["versions"] == 2
+    assert metrics["preregistration"]["post_hoc"] is True
+    assert metrics["h2_verdict"]["post_hoc"] is True
+    assert "post hoc" in (run / REPORT_DIR / "summary.md").read_text(encoding="utf-8").lower()
+
+
 def test_subset_check_fails_while_pending_and_passes_once_recorded(cli, world) -> None:
     assert cli(*FAST, "agreement", "subset").code == 0
     pending = cli(*FAST, "agreement", "subset", "--check")

@@ -94,8 +94,12 @@ def _grouped[T](items: Sequence[T], key: str) -> dict[str, tuple[T, ...]]:
     return {name: tuple(group) for name, group in groups.items()}
 
 
+def run_files(run_dir: Path) -> list[Path]:
+    return [run_dir / name for name in (RUN_FILE, TABLE_FILE, CHECKS_FILE)]
+
+
 def load_run(run_dir: Path) -> VerifyRun:
-    paths = [run_dir / name for name in (RUN_FILE, TABLE_FILE, CHECKS_FILE)]
+    paths = run_files(run_dir)
     missing = [str(p) for p in paths if not p.is_file()]
     if missing:
         raise MissingInputError(f"not a finished verify run: missing {', '.join(missing)}")

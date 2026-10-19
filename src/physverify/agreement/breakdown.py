@@ -6,10 +6,10 @@ from collections.abc import Callable, Mapping, Sequence
 
 import numpy as np
 
-from physverify.agreement.abstention import AS_PLAUSIBLE, labels_of, policy_view
+from physverify.agreement.abstention import labels_of, policy_view
+from physverify.agreement.decision import ClipDecision
 from physverify.agreement.items import ComparisonItem
 from physverify.agreement.stats import accuracy, balanced_accuracy
-from physverify.schema.checks import Verdict
 from physverify.verification.runner import RowStatus
 
 # The pooled group H2 is decided on; each version alone is descriptive (too few pairs).
@@ -18,67 +18,78 @@ AGGREGATE = "all"
 Redecide = Callable[[frozenset[str]], Sequence[ComparisonItem]]
 
 
-def _fails(item: ComparisonItem, check_id: str) -> bool:
-    return any(r.check_id == check_id and r.verdict is Verdict.FAIL for r in item.check_rows)
+def _human(item: ComparisonItem) -> bool:
+    return item.human_implausible
 
 
-def _fail_rate(items: Sequence[ComparisonItem], check_id: str, human: bool) -> float:
+def _implausible_rate(items: Sequence[ComparisonItem], human: bool) -> float:
     group = [it for it in items if it.human_implausible is human]
-    return sum(_fails(it, check_id) for it in group) / len(group) if group else float("nan")
+    hits = sum(it.outcome is ClipDecision.IMPLAUSIBLE for it in group)
+    return hits / len(group) if group else float("nan")
 
 
-def primary_accuracy(items: Sequence[ComparisonItem]) -> float:
-    view = policy_view(items, AS_PLAUSIBLE)
-    return accuracy(labels_of(items, view.index, lambda it: it.human_implausible), view.verifier)
+def policy_accuracy(items: Sequence[ComparisonItem], policy: str) -> float:
+    view = policy_view(items, policy)
+    return accuracy(labels_of(items, view.index, _human), view.verifier)
 
 
-def per_check(items: Sequence[ComparisonItem], redecide: Redecide) -> list[dict[str, object]]:
-    """n scored, FAIL rate by human label, the check alone (FAIL = implausible), and the
-    accuracy of the rule without it."""
+def _scored(items: Sequence[ComparisonItem], check_id: str) -> int:
+    return sum(
+        r.check_id == check_id and r.status is RowStatus.SCORED
+        for it in items
+        for r in it.check_rows
+    )
+
+
+def per_check(
+    items: Sequence[ComparisonItem], redecide: Redecide, policy: str
+) -> list[dict[str, object]]:
+    """Per check: n scored, and the compared rule decided on that check alone (every other check
+    excluded, so a calibrated rule uses its own tau and the frozen cut, never the verify run's
+    provisional verdicts): its implausible rate by human label and its accuracy under
+    ``policy``; then the accuracy of the rule without the check."""
     check_ids = sorted({r.check_id for it in items for r in it.check_rows})
-    y = labels_of(items, range(len(items)), lambda it: it.human_implausible)
     rows: list[dict[str, object]] = []
     for check_id in check_ids:
-        alone = np.asarray([int(_fails(it, check_id)) for it in items], dtype=np.int_)
+        alone = redecide(frozenset(check_ids) - {check_id})
+        view = policy_view(alone, policy)
+        y = labels_of(alone, view.index, _human)
         rows.append(
             {
                 "check_id": check_id,
-                "n_scored": sum(
-                    r.check_id == check_id and r.status is RowStatus.SCORED
-                    for it in items
-                    for r in it.check_rows
-                ),
-                "fail_rate_human_implausible": _fail_rate(items, check_id, True),
-                "fail_rate_human_plausible": _fail_rate(items, check_id, False),
-                "accuracy_alone": accuracy(y, alone),
-                "balanced_accuracy_alone": balanced_accuracy(y, alone),
-                "accuracy_without": primary_accuracy(redecide(frozenset({check_id}))),
+                "n_scored": _scored(items, check_id),
+                "fail_rate_human_implausible": _implausible_rate(alone, True),
+                "fail_rate_human_plausible": _implausible_rate(alone, False),
+                "accuracy_alone": accuracy(y, view.verifier),
+                "balanced_accuracy_alone": balanced_accuracy(y, view.verifier),
+                "accuracy_without": policy_accuracy(redecide(frozenset({check_id})), policy),
             }
         )
     return rows
 
 
 def per_group(
-    items: Sequence[ComparisonItem], key: Callable[[ComparisonItem], str]
+    items: Sequence[ComparisonItem], key: Callable[[ComparisonItem], str], policy: str
 ) -> list[dict[str, object]]:
-    """Primary-policy accuracy of the verifier and the VLM within each group."""
+    """Accuracy of the verifier and the VLM within each group, under ``policy``."""
     groups: dict[str, list[ComparisonItem]] = {}
     for item in items:
         groups.setdefault(key(item), []).append(item)
     rows: list[dict[str, object]] = []
     for name, group in sorted(groups.items()):
-        view = policy_view(group, AS_PLAUSIBLE)
-        y = labels_of(group, view.index, lambda it: it.human_implausible)
-        vlm = labels_of(group, view.index, lambda it: it.vlm_implausible)
+        view = policy_view(group, policy)
+        y = labels_of(group, view.index, _human)
+        y_vlm = labels_of(group, view.vlm_index, _human)
+        vlm = labels_of(group, view.vlm_index, lambda it: it.vlm_implausible)
         rows.append(
             {
                 "group": name,
                 "n": len(view.index),
                 "human_implausible_rate": float(np.mean(y)) if y.size else float("nan"),
                 "verifier_accuracy": accuracy(y, view.verifier),
-                "vlm_accuracy": accuracy(y, vlm),
+                "vlm_accuracy": accuracy(y_vlm, vlm),
                 "verifier_balanced_accuracy": balanced_accuracy(y, view.verifier),
-                "vlm_balanced_accuracy": balanced_accuracy(y, vlm),
+                "vlm_balanced_accuracy": balanced_accuracy(y_vlm, vlm),
             }
         )
     return rows

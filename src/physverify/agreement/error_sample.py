@@ -10,7 +10,7 @@ from collections.abc import Callable, Mapping, Sequence
 
 import numpy as np
 
-from physverify.agreement.abstention import AS_PLAUSIBLE, policy_view
+from physverify.agreement.abstention import policy_view
 from physverify.agreement.items import ComparisonItem
 from physverify.schema.checks import CheckResult
 
@@ -71,9 +71,10 @@ def sample_errors(
     seed: int,
     tau: Tau,
     results: Mapping[str, Sequence[CheckResult]],
+    policy: str,
 ) -> list[dict[str, object]]:
-    """Up to ``per_class`` false positives and false negatives per version, primary policy."""
-    view = policy_view(items, AS_PLAUSIBLE)
+    """Up to ``per_class`` false positives and false negatives per version under ``policy``."""
+    view = policy_view(items, policy)
     rng = np.random.default_rng(seed)
     rows: list[dict[str, object]] = []
     for version in sorted({it.row.version for it in items}):
