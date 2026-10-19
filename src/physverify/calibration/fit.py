@@ -35,15 +35,17 @@ from physverify.calibration.stats import (
 )
 from physverify.calibration.table import CalibrationRow, Role, corrected, unique_row_step
 from physverify.calibration.thresholds import (
-    Rule,
     Tau,
     cv_verdicts,
     detection_limit,
     detections,
+    fails,
     fit_tau,
     fpr_summary,
     tpr_by_level,
+    verdict_of,
 )
+from physverify.calibration.verdict import Rule, clip_verdict
 from physverify.calibration.weights import Flag, Labelled, fit_probability, normalised, raw_weight
 from physverify.schema.checks import CheckResult, InputLevel, Verdict
 from physverify.verification.policies.threshold import ThresholdPolicy
@@ -183,7 +185,7 @@ def fit_check(
     positives = [r for r in rows if r.role is Role.POSITIVE]
     tau = fit_tau(clean, sigma.bias, settings.alpha, tolerance)
     cv = cv_verdicts(clean, rule, settings, tolerance)
-    flags = [Flag(r.scene_id, True, rule.fails(r, tau.value)) for r in positives if r.has_event]
+    flags = [Flag(r.scene_id, True, fails(r, rule, tau.value)) for r in positives if r.has_event]
     flags += [
         Flag(r.scene_id, False, cv[r.clip_id] is Verdict.FAIL) for r in clean if r.clip_id in cv
     ]
@@ -195,6 +197,7 @@ def fit_check(
         tau_tolerance=tolerance,
         tau_conformal=tau.conformal,
         n_clean_scenes=tau.n,
+        n_clean_dropped=tau.n_dropped,
         n_positive_clips=sum(r.has_event for r in positives),
         n_off_target_clips=sum(r.role is Role.OFF_TARGET and r.scored for r in rows),
         fpr=fpr_summary(rows, rule, tau.value, cv, settings),
@@ -204,22 +207,39 @@ def fit_check(
         detection_limit=detection_limit(detections(positives, rule, tau.value), mu_unit, settings),
         monotonicity=monotonicity(deltas(rows, sigma.bias), settings),
         weight=raw_weight(flags, settings),
-        probability=fit_probability(_labelled(rows, sigma.bias), tau.value, settings),
+        probability=fit_probability(platt_data(rows, rule, tau.value), tau.value, settings),
         sigma=sigma,
     )
 
 
+LABELLED_ROLES = (Role.POSITIVE, Role.CLEAN, Role.OFF_TARGET)
+
+
 def _labelled(rows: Sequence[CalibrationRow], bias: float) -> list[Labelled]:
+    """The clip's max corrected magnitude: the threshold-free ranking the AUROC measures."""
     return [
         Labelled(r.scene_id, corrected(r, bias), r.role is Role.POSITIVE)
         for r in rows
-        if r.scored and r.role in (Role.POSITIVE, Role.CLEAN, Role.OFF_TARGET)
+        if r.scored and r.role in LABELLED_ROLES
     ]
+
+
+def platt_data(rows: Sequence[CalibrationRow], rule: Rule, tau: float | None) -> list[Labelled]:
+    """The magnitude of the clip outcome, the one ``score_clip`` passes to p_c, so that p_c is
+    fitted on what it is applied to. Rows whose outcome has no magnitude are left out."""
+    found: list[Labelled] = []
+    for r in rows:
+        if not r.scored or r.role not in LABELLED_ROLES:
+            continue
+        magnitude = clip_verdict(r.subjects, rule, tau).magnitude
+        if magnitude is not None:
+            found.append(Labelled(r.scene_id, magnitude, r.role is Role.POSITIVE))
+    return found
 
 
 def _abstention(rows: Sequence[CalibrationRow], rule: Rule, tau: float | None, ci: float) -> Rate:
     judged = [r for r in rows if r.has_event and r.role is not Role.COUPLED]
-    abstained = sum(rule.verdict(r, tau) is Verdict.ABSTAIN for r in judged)
+    abstained = sum(verdict_of(r, rule, tau) is Verdict.ABSTAIN for r in judged)
     return rate(abstained, len(judged), ci)
 
 
@@ -257,7 +277,9 @@ def _empty_aggregate() -> Aggregate:
 
 
 def fit_aggregate(model: Stratum, data: LevelData, settings: CalibrationSettings) -> Aggregate:
-    """s* = conformal quantile of 1 - S over the clean clips (one per scene)."""
+    """s* = conformal quantile of 1 - S over the clean clips (one per scene). In-sample: tau, p_c
+    and the weights behind S were fitted on the same clips, so its coverage is optimistic (the
+    held-out flag rate is measured by ``evaluate``)."""
     from physverify.calibration.apply import score_clip
 
     view = StratumView(model=model, source="fit", artifact=None)
@@ -277,6 +299,7 @@ def fit_aggregate(model: Stratum, data: LevelData, settings: CalibrationSettings
     return Aggregate(
         score_threshold=threshold.value,
         sufficient=threshold.sufficient,
+        score_threshold_in_sample=True,
         n_clean_scenes=sum(not p for _, _, p in scored),
         n_perturbed_clips=sum(p for _, _, p in scored),
         auroc=auroc_of(scored, settings),

@@ -15,7 +15,7 @@ from physverify.diagnosis.report import ReportModel
 from physverify.schema.checks import InputLevel
 
 CALIBRATION_SCHEMA = "physverify.calibration"
-CALIBRATION_VERSION = "1.0.0"
+CALIBRATION_VERSION = "1.1.0"
 EVALUATION_SCHEMA = "physverify.calibration.evaluation"
 LENIENT = "lenient"
 """Validation-context flag: drop keys this version does not know (newer minor version)."""
@@ -184,6 +184,8 @@ class CheckCalibration(ArtifactModel):
     tau_conformal: float | None = None
     """The conformal quantile q before the tolerance."""
     n_clean_scenes: int
+    n_clean_dropped: int = 0
+    """Clean scenes whose magnitude was NaN: counted, not ranked by the conformal quantile."""
     n_positive_clips: int
     n_off_target_clips: int
     fpr: Fpr
@@ -202,6 +204,8 @@ class Aggregate(ArtifactModel):
 
     score_threshold: float | None
     sufficient: bool
+    score_threshold_in_sample: bool = True
+    """s* is fitted on the clips that also fitted tau, p_c and the weights: optimistic."""
     n_clean_scenes: int
     n_perturbed_clips: int
     auroc: Auroc

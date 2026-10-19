@@ -11,6 +11,7 @@ import numpy as np
 from physverify.calibration.schema import Ci, DetectionLimit, Fpr, LevelTpr, OpenSide, Rate
 from physverify.calibration.settings import CalibrationSettings
 from physverify.calibration.stats import (
+    clopper_pearson_lower,
     clustered_rate,
     conformal_quantile,
     fit_logistic,
@@ -25,49 +26,46 @@ from physverify.calibration.table import (
     corrected,
     require_one_clean_per_scene,
 )
+from physverify.calibration.verdict import DECIDED, Rule, clip_verdict
 from physverify.schema.checks import Verdict
-from physverify.verification.policies.threshold import ThresholdPolicy
-from physverify.verification.runner import ThresholdEntry
 
-DECIDED = (Verdict.PASS, Verdict.FAIL)
+NOT_DETERMINED = "not_determined"
+"""The lowest level looks fully detected but too few clips bound the rate above 1 - beta."""
 
 
-@dataclass(frozen=True)
-class Rule:
-    """The verdict rule of ``ThresholdPolicy`` with the measured bias and sigma factor."""
+def verdict_of(row: CalibrationRow, rule: Rule, tau: float | None) -> Verdict:
+    """The clip verdict of ``row``'s check, judged on its subjects (``clip_verdict``)."""
+    return clip_verdict(row.subjects, rule, tau).verdict
 
-    policy: ThresholdPolicy
-    bias: float
-    factor: float | None
 
-    def verdict(self, row: CalibrationRow, tau: float | None) -> Verdict:
-        if tau is None or row.magnitude is None or not row.scored:
-            return Verdict.ABSTAIN
-        entry = ThresholdEntry(tau=tau, bias=self.bias, sigma_factor=self.factor)
-        return self.policy.judge(row.magnitude, row.sigma, entry)[0]
-
-    def fails(self, row: CalibrationRow, tau: float | None) -> bool:
-        return self.verdict(row, tau) is Verdict.FAIL
+def fails(row: CalibrationRow, rule: Rule, tau: float | None) -> bool:
+    return verdict_of(row, rule, tau) is Verdict.FAIL
 
 
 @dataclass(frozen=True)
 class Tau:
-    """``value`` = max(q, tolerance); ``conformal`` = q."""
+    """``value`` = max(q, tolerance); ``conformal`` = q; ``n`` the ranked clean scenes and
+    ``n_dropped`` the NaN magnitudes left out of the rank."""
 
     value: float | None
     sufficient: bool
     n: int
     conformal: float | None = None
+    n_dropped: int = 0
 
 
 def fit_tau(clean: Sequence[CalibrationRow], bias: float, alpha: float, tolerance: float) -> Tau:
     """Conformal quantile q over one clean clip per scene; tau = max(q, tolerance). The tolerance
-    keeps a q made of floating-point noise (oracle clean ~1e-14) from becoming the threshold."""
+    keeps a q made of floating-point noise (oracle clean ~1e-14) from becoming the threshold.
+
+    q ranks the clip's max corrected magnitude over its subjects, while ``clip_verdict`` judges
+    each subject. The coverage still holds: a subject i FAILs only if m_i - b - k sigma_i > tau,
+    so m_max - b >= m_i - b > tau, and P(clean clip FAILs) <= P(m_max - b > tau) <= alpha."""
     require_one_clean_per_scene(clean)
     values = [corrected(row, bias) for row in clean if row.scored]
     found = conformal_quantile(values, alpha)
     value = None if found.value is None else max(found.value, tolerance)
-    return Tau(value, found.sufficient, len(values), found.value)
+    return Tau(value, found.sufficient, found.n, found.value, found.n_dropped)
 
 
 def cv_verdicts(
@@ -80,7 +78,7 @@ def cv_verdicts(
         train = [r for r in scored if r.scene_id not in fold]
         tau = fit_tau(train, rule.bias, settings.alpha, tolerance).value
         for row in (r for r in scored if r.scene_id in fold):
-            found[row.clip_id] = rule.verdict(row, tau)
+            found[row.clip_id] = verdict_of(row, rule, tau)
     return found
 
 
@@ -101,9 +99,11 @@ def fpr_summary(
     clean = [r for r in rows if r.role is Role.CLEAN and r.scored]
     off = [r for r in rows if r.role is Role.OFF_TARGET and r.scored]
     off_rate = off_target_rate(off, rule, tau, settings)
-    off_fails = [r for r in off if rule.fails(r, tau)]
+    off_fails = [r for r in off if fails(r, rule, tau)]
     cv_total, cv_decided = false_positive_rates(list(cv.values()), settings.ci)
-    in_total, in_decided = false_positive_rates([rule.verdict(r, tau) for r in clean], settings.ci)
+    in_total, in_decided = false_positive_rates(
+        [verdict_of(r, rule, tau) for r in clean], settings.ci
+    )
     low = off_rate.ci.low
     return Fpr(
         cv=cv_total,
@@ -120,7 +120,7 @@ def off_target_rate(
     off: Sequence[CalibrationRow], rule: Rule, tau: float | None, settings: CalibrationSettings
 ) -> Rate:
     """Several perturbed clips share a scene: the interval is clustered by scene."""
-    flags = [(r.scene_id, rule.fails(r, tau)) for r in off]
+    flags = [(r.scene_id, fails(r, rule, tau)) for r in off]
     return clustered_rate(flags, settings.bootstrap, settings.seed, settings.ci)
 
 
@@ -130,7 +130,7 @@ def tpr_by_level(
     levels: list[LevelTpr] = []
     for level in sorted({r.pert_level for r in positives}):
         members = [r for r in positives if r.pert_level == level and r.has_event]
-        verdicts = [rule.verdict(r, tau) for r in members]
+        verdicts = [verdict_of(r, rule, tau) for r in members]
         detected = sum(v is Verdict.FAIL for v in verdicts)
         decided = sum(v in DECIDED for v in verdicts)
         levels.append(
@@ -158,7 +158,7 @@ def detections(
     positives: Sequence[CalibrationRow], rule: Rule, tau: float | None
 ) -> tuple[Detection, ...]:
     return tuple(
-        Detection(r.scene_id, r.mu, rule.fails(r, tau), r.pert_level)
+        Detection(r.scene_id, r.mu, fails(r, rule, tau), r.pert_level)
         for r in positives
         if r.has_event and r.mu is not None and r.mu > 0.0
     )
@@ -167,7 +167,12 @@ def detections(
 def detection_limit(
     found: Sequence[Detection], unit: str, settings: CalibrationSettings
 ) -> DetectionLimit:
-    """L_D = exp((logit(1 - beta) - b0) / b1) from P(d | mu) = expit(b0 + b1 log mu)."""
+    """L_D = exp((logit(1 - beta) - b0) / b1) from P(d | mu) = expit(b0 + b1 log mu).
+
+    Censored below only when the one-sided Clopper-Pearson lower bound of the detection rate at
+    the lowest level reaches 1 - beta (5/5 detected bounds it at about 0.55, which shows nothing).
+    When the fit fails although that level looks fully detected, or extrapolates below the
+    tested range, L_D is not determined."""
     base = {"unit": unit, "beta": settings.beta, "n": len(found)}
     if not found:
         return DetectionLimit(
@@ -175,10 +180,16 @@ def detection_limit(
         )
     lowest = min(d.level for d in found)
     at_lowest = [d.detected for d in found if d.level == lowest]
-    if np.mean(at_lowest) >= 1.0 - settings.beta:
-        bound = min(d.mu for d in found)
-        return DetectionLimit(value=None, ci=Ci(), censored="below", bound=bound, **base)
+    detected, mu_min = sum(at_lowest), min(d.mu for d in found)
+    if clopper_pearson_lower(detected, len(at_lowest), settings.ci) >= 1.0 - settings.beta:
+        return DetectionLimit(value=None, ci=Ci(), censored="below", bound=mu_min, **base)
     value = ld_point(found, settings)
+    fully = detected >= (1.0 - settings.beta) * len(at_lowest)
+    below_range = value is not None and value < mu_min / (1.0 + settings.ld_max_extrapolation)
+    if (value is None and fully) or below_range:
+        return DetectionLimit(
+            value=None, ci=Ci(), censored="none", bound=None, reason=NOT_DETERMINED, **base
+        )
     if value is None:
         bound = max(d.mu for d in found)
         return DetectionLimit(value=None, ci=Ci(), censored="above", bound=bound, **base)

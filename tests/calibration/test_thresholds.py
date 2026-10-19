@@ -11,15 +11,17 @@ from calibration_cases import row, settings
 from physverify.calibration.fit import check_status
 from physverify.calibration.table import CalibrationDataError, Role
 from physverify.calibration.thresholds import (
+    NOT_DETERMINED,
     Detection,
-    Rule,
     cv_verdicts,
     detection_limit,
+    fails,
     false_positive_rates,
     fit_tau,
     fpr_summary,
     tpr_by_level,
 )
+from physverify.calibration.verdict import Rule
 from physverify.schema.checks import Verdict
 from physverify.verification.policies.threshold import ThresholdPolicy
 
@@ -69,9 +71,9 @@ def test_floating_point_noise_falls_back_to_the_tolerance() -> None:
     cv = cv_verdicts(noise, RULE, settings(), 1e-5)
     assert all(v is Verdict.PASS for v in cv.values())
     fresh = clean_rows(np.abs(rng.normal(0.0, 1e-14, 200)))
-    assert not any(RULE.fails(r, tau.value) for r in fresh)
+    assert not any(fails(r, RULE, tau.value) for r in fresh)
     without = fit_tau(noise, 0.0, ALPHA, 0.0).value
-    assert without is not None and any(RULE.fails(r, without) for r in fresh)
+    assert without is not None and any(fails(r, RULE, without) for r in fresh)
 
 
 def test_two_clean_clips_of_one_scene_are_rejected() -> None:
@@ -195,9 +197,20 @@ def test_the_detection_limit_point_is_recovered() -> None:
     assert float(np.median(errors)) <= 0.15
 
 
-def test_perfect_detection_from_the_lowest_level_is_censored_below() -> None:
-    found = [Detection(f"s{i}", mu, True, lv) for i in range(5) for lv, mu in ((1, 0.05), (2, 0.1))]
-    ld = detection_limit(found, "u", settings())
+def perfect(n: int) -> list[Detection]:
+    return [Detection(f"s{i}", mu, True, lv) for i in range(n) for lv, mu in ((1, 0.05), (2, 0.1))]
+
+
+@pytest.mark.parametrize("n", [5, 20])
+def test_few_perfect_detections_do_not_censor_below(n: int) -> None:
+    """5/5 and 20/20 bound the rate at about 0.55 and 0.86 (< 0.95): L_D is not determined."""
+    ld = detection_limit(perfect(n), "u", settings())
+    assert (ld.censored, ld.value, ld.bound, ld.reason) == ("none", None, None, NOT_DETERMINED)
+
+
+def test_perfect_detection_with_enough_clips_is_censored_below() -> None:
+    """60/60 bounds the one-sided 95 % Clopper-Pearson rate at 0.951 >= 0.95."""
+    ld = detection_limit(perfect(60), "u", settings())
     assert (ld.censored, ld.bound, ld.value) == ("below", 0.05, None)
 
 

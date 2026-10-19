@@ -5,9 +5,9 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
-from physverify.calibration.apply import policy_for, score_clip
+from physverify.calibration.apply import policy_for, rule_for, score_clip
 from physverify.calibration.fit import LevelData
-from physverify.calibration.loader import Calibration, Stratum
+from physverify.calibration.loader import Calibration, CalibrationError, Stratum
 from physverify.calibration.monotonicity import scene_kendall
 from physverify.calibration.schema import (
     DatasetRef,
@@ -20,13 +20,20 @@ from physverify.calibration.schema import (
 )
 from physverify.calibration.settings import CalibrationConfig
 from physverify.calibration.stats import clustered_rate
-from physverify.calibration.table import CalibrationRow, Role, require_one_clean_per_scene
+from physverify.calibration.table import (
+    CalibrationRow,
+    Role,
+    require_one_clean_per_scene,
+    unique_row_step,
+)
 from physverify.calibration.thresholds import (
-    Rule,
+    fails,
     false_positive_rates,
     off_target_rate,
     tpr_by_level,
+    verdict_of,
 )
+from physverify.calibration.verdict import Rule
 from physverify.schema.checks import CheckResult
 from physverify.schema.clip import Split
 
@@ -44,10 +51,13 @@ class EvaluationInputs:
 
 @dataclass(frozen=True)
 class EvaluationMeta:
+    """``profile`` is the sampling profile the evaluated clips were run with."""
+
     created_utc: str
     run_id: str
     artifact_path: str
     dataset: DatasetRef
+    profile: str
 
 
 def evaluate(
@@ -56,12 +66,18 @@ def evaluate(
     meta: EvaluationMeta,
     config: CalibrationConfig,
 ) -> EvaluationReport:
+    """Applies the strata of the run's level and profile; raises CalibrationError when there is
+    none or when the data's row_step differs from the stratum's."""
     strata = tuple(
-        _stratum(calibration.stratum(item.synthetic.level, profile), item, config)
+        _stratum(_matching(calibration.stratum(level, profile), item, meta.profile), item, config)
         for item in inputs
         for level, profile in calibration.strata()
-        if level is item.synthetic.level
+        if level is item.synthetic.level and profile == meta.profile
     )
+    if not strata:
+        raise CalibrationError(
+            f"the artifact has no stratum of profile {meta.profile!r} at the evaluated levels"
+        )
     return EvaluationReport(
         created_utc=meta.created_utc,
         run_id=meta.run_id,
@@ -74,9 +90,17 @@ def evaluate(
     )
 
 
+def _matching(stratum: Stratum, item: EvaluationInputs, profile: str) -> Stratum:
+    named = {"synthetic": item.synthetic, **item.real}
+    for name, data in sorted(named.items()):
+        problem = stratum.time_base_problem(profile, unique_row_step(data.rows))
+        if problem is not None:
+            raise CalibrationError(f"{name} clips: {problem}")
+    return stratum
+
+
 def _rule(stratum: Stratum, check_id: str) -> Rule:
-    sigma = stratum.model.checks[check_id].sigma
-    return Rule(policy_for(stratum), sigma.bias, sigma.factor)
+    return rule_for(stratum, check_id, policy_for(stratum))
 
 
 def _stratum(
@@ -112,7 +136,7 @@ def heldout_check(
     clean = [r for r in mine if r.role is Role.CLEAN]
     require_one_clean_per_scene(clean)
     total, decided = false_positive_rates(
-        [rule.verdict(r, check.tau) for r in clean if r.scored], config.calibration.ci
+        [verdict_of(r, rule, check.tau) for r in clean if r.scored], config.calibration.ci
     )
     return HeldoutCheck(
         check_id=check_id,
@@ -134,7 +158,7 @@ def _real_fpr(
     check = stratum.model.checks[check_id]
     rule = _rule(stratum, check_id)
     mine = [r for r in rows if r.check_id == check_id and r.scored]
-    flags = [(r.scene_id, rule.fails(r, check.tau)) for r in mine]
+    flags = [(r.scene_id, fails(r, rule, check.tau)) for r in mine]
     cal = config.calibration
     return clustered_rate(flags, cal.bootstrap, cal.seed, cal.ci)
 

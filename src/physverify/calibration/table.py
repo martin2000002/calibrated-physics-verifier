@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from physverify.core.errors import PhysverifyError
-from physverify.schema.checks import InputLevel
+from physverify.schema.checks import CheckResult, InputLevel
 from physverify.schema.clip import ClipManifest, Split
 from physverify.schema.scene import MagnitudeKind, PerturbationRecord
 from physverify.synth.perturbations.none import NAME as NONE
@@ -31,7 +31,8 @@ class Role(StrEnum):
 
 @dataclass(frozen=True)
 class CalibrationRow:
-    """``magnitude`` is the clip's max over subjects; ``mu`` the injected magnitude (A4)."""
+    """``magnitude`` is the clip's max over subjects (what tau is fitted on); ``subjects`` the
+    per-subject results the clip verdict judges; ``mu`` the injected magnitude (A4)."""
 
     clip_id: str
     scene_id: str
@@ -48,6 +49,7 @@ class CalibrationRow:
     mu: float | None
     mu_unit: str
     row_step: int
+    subjects: tuple[CheckResult, ...] = ()
 
     @property
     def has_event(self) -> bool:
@@ -95,6 +97,7 @@ def build_rows(
     clips = {clip.clip_id: clip for clip in report.clips}
     if split is not None:
         _require_split(clips.values(), split)
+    subjects = results_by_row(report.results)
     rows: list[CalibrationRow] = []
     for row in report.table:
         clip = clips[row.clip_id]
@@ -117,9 +120,18 @@ def build_rows(
                 mu=record.magnitude if record is not None and role is Role.POSITIVE else None,
                 mu_unit="" if record is None else record.magnitude_unit,
                 row_step=row.row_step,
+                subjects=tuple(subjects.get((row.clip_id, row.check_id), ())),
             )
         )
     return tuple(rows)
+
+
+def results_by_row(results: Sequence[CheckResult]) -> dict[tuple[str, str], list[CheckResult]]:
+    """(clip_id, check_id) -> its per-subject results."""
+    found: dict[tuple[str, str], list[CheckResult]] = {}
+    for result in results:
+        found.setdefault((result.clip_id, result.check_id), []).append(result)
+    return found
 
 
 def _require_split(clips: Collection[ClipManifest], split: Split) -> None:

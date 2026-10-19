@@ -13,6 +13,7 @@ from physverify.calibration.stats import (
     auroc,
     balanced_weights,
     clopper_pearson,
+    clopper_pearson_lower,
     clustered_rate,
     conformal_index,
     conformal_quantile,
@@ -48,6 +49,23 @@ def test_conformal_rank_needs_19_scenes_at_alpha_005() -> None:
     short = conformal_quantile(np.arange(1.0, 19.0), 0.05)
     assert (short.value, short.sufficient) == (18.0, False)
     assert conformal_quantile([math.nan], 0.05).value is None
+
+
+def test_conformal_counts_nan_and_ranks_infinity_as_the_largest() -> None:
+    """calibration.md #8: a NaN is dropped and counted; +inf is not silently dropped."""
+    values = [*np.arange(1.0, 20.0), math.nan]
+    found = conformal_quantile(values, 0.05)
+    assert (found.value, found.n, found.n_dropped) == (19.0, 19, 1)
+    with_inf = conformal_quantile([*np.arange(1.0, 19.0), math.inf], 0.05)
+    assert (with_inf.value, with_inf.sufficient, with_inf.n) == (None, False, 19)
+    below = conformal_quantile([*np.arange(1.0, 40.0), math.inf], 0.05)
+    assert below.value == 39.0 and below.sufficient
+
+
+@pytest.mark.parametrize(("k", "n", "low"), [(5, 5, 0.05 ** (1 / 5)), (20, 20, 0.05 ** (1 / 20))])
+def test_the_one_sided_lower_bound_of_perfect_rates(k: int, n: int, low: float) -> None:
+    assert clopper_pearson_lower(k, n, 0.95) == pytest.approx(low)
+    assert clopper_pearson_lower(0, 0, 0.95) == 0.0
 
 
 def test_folds_never_split_a_scene() -> None:
