@@ -27,7 +27,7 @@ class AgreementSettings(FrozenModel):
     bootstrap_n: int = Field(ge=0)
     bootstrap_seed: int
     ci: float = Field(gt=0, lt=1)
-    permutation_exact_max: int = Field(default=20, ge=0)
+    permutation_exact_max: int = Field(ge=0)
     """Discordant captions up to which the secondary caption McNemar is exact (2^m flips)."""
     error_sample_per_class: int = Field(ge=0)
     error_seed: int
