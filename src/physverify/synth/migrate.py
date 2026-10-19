@@ -167,10 +167,9 @@ def load_or_start(
     return stored
 
 
-def rewrite_plan(store: DatasetStore, plan: DatasetPlan, new_hash: str) -> DatasetPlan:
-    """The stored plan under the current content hash and ground-truth revision (APPLY is about
-    to run again on every clip it reached, with this checkout's code)."""
-    data = plan.to_json() | {"config_hash": new_hash, "gt_revision": GT_REVISION}
+def rewrite_plan(store: DatasetStore, plan: DatasetPlan, **fields: Any) -> DatasetPlan:
+    """The stored plan with ``fields`` replaced."""
+    data = plan.to_json() | fields
     atomic_write_json(store.plan_path, data)
     return DatasetPlan.from_json(data)
 
@@ -213,7 +212,7 @@ def reapply(
     manifest = load_or_start(path, plan, store, ds, commit, name, now)
     if COMPLETED_KEY in manifest:
         return _report(path, 0, manifest)
-    plan = rewrite_plan(store, plan, ds.content_hash())
+    plan = rewrite_plan(store, plan, config_hash=ds.content_hash())
     reached = reached_apply(plan, manifest["status_before"])
     reopen_apply(reached, store)
     report = apply_variants(reached, store, plugins, ds)
@@ -224,6 +223,9 @@ def reapply(
         | {c for c in manifest["rendered_before"] if not store.is_done(Step.RENDER, c)}
     )
     after = statuses(plan, store)
+    # The revision is raised only once APPLY has run on every reached clip: a crash before this
+    # leaves the old revision, which every build step refuses until the migration is rerun.
+    rewrite_plan(store, plan, gt_revision=GT_REVISION)
     manifest |= {
         RERENDER_KEY: rerender,
         "status_after": after,
