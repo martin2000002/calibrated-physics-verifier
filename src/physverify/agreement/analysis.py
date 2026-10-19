@@ -150,9 +150,12 @@ def _paired(
     }
 
 
-def h2_verdict(primary: Mapping[str, Any], calibrated: bool, alpha: float) -> dict[str, Any]:
+def h2_verdict(
+    primary: Mapping[str, Any], calibrated: bool, alpha: float, *, post_hoc: bool = False
+) -> dict[str, Any]:
     """H2 holds when McNemar p < alpha with the verifier more accurate AND the lower CI bound of
-    kappa_verifier - kappa_vlm is above 0. Only the calibrated rule can support or reject it."""
+    kappa_verifier - kappa_vlm is above 0. Only the calibrated rule can support or reject it.
+    ``post_hoc``: the pre-registration was replaced after a test comparison."""
     mcnemar = primary.get("mcnemar", {})
     p_value = float(mcnemar.get("p_value", math.nan))
     acc_gain = primary["verifier"]["accuracy"] - primary["vlm"]["accuracy"]
@@ -172,6 +175,7 @@ def h2_verdict(primary: Mapping[str, Any], calibrated: bool, alpha: float) -> di
         "accuracy_difference": acc_gain,
         "kappa_difference_ci": list(interval),
         "mde_accuracy": primary.get("mde_accuracy", math.nan),
+        "post_hoc": post_hoc,
     }
 
 

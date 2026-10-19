@@ -94,8 +94,8 @@ BOOTSTRAPPED = ("accuracy", "balanced_accuracy", "kappa")
 PER_CHECK_COLUMNS = (
     "check_id",
     "n_scored",
-    "fail_rate_human_implausible",
-    "fail_rate_human_plausible",
+    "implausible_rate_alone_human_implausible",
+    "implausible_rate_alone_human_plausible",
     "accuracy_alone",
     "balanced_accuracy_alone",
     "accuracy_without",
@@ -192,6 +192,8 @@ def _verdict_lines(verdict: Mapping[str, Any], primary: Mapping[str, Any]) -> li
     if not verdict["applicable"]:
         return [f"**H2: {verdict['reason']}.** The numbers below test the pipeline only; {rate}."]
     state = "supported" if verdict["supported"] else "not supported"
+    if verdict.get("post_hoc"):
+        state += " (POST HOC: the pre-registration was replaced after a test comparison)"
     low, high = verdict["kappa_difference_ci"]
     return [
         f"**H2 {state}** (McNemar p = {_fmt(verdict['mcnemar_p'])}, accuracy difference "
@@ -224,12 +226,29 @@ def _sensitivity_lines(block: Mapping[str, Any]) -> list[str]:
     lines = [
         "## Sensitivity without the time-dependent checks",
         "",
-        f"Excluded: {', '.join(block['excluded']) or 'none'}; policy as_plausible, no bootstrap.",
+        f"Excluded: {', '.join(block['excluded']) or 'none'}; policy {block['policy']}, "
+        "no bootstrap.",
         "",
     ]
     columns = ["group", "system", "n", *(label for _, label in SYSTEM_COLUMNS)]
     rows = [[g, *row] for g, view in block["groups"].items() for row in _system_rows(view)[:2]]
     return [*lines, *_table(columns, rows), ""]
+
+
+def _audit_lines(audit: Mapping[str, Any] | None) -> list[str]:
+    if audit is None:
+        return []
+    deviations = "; ".join(audit["deviations"]) or "none"
+    return [
+        f"Pre-registration {audit['prereg_sha256'][:12]} (created {audit['created_utc']}, "
+        f"replaces {(audit['replaces_sha256'] or 'none')[:12]}, {audit['versions']} version(s), "
+        f"first frozen {audit['first_created_utc']}); verify run files from "
+        f"{audit['earliest_eval_utc'] or 'n/a'}, first freeze before them: {audit['blind']}, "
+        f"current freeze after them: {audit.get('frozen_after_eval')} "
+        "(file times are informational); post hoc: "
+        f"{'YES' if audit['post_hoc'] else 'no'}; deviations: {deviations}.",
+        "",
+    ]
 
 
 def _header_lines(metrics: Mapping[str, Any]) -> list[str]:
@@ -242,6 +261,7 @@ def _header_lines(metrics: Mapping[str, Any]) -> list[str]:
         f"Pre-registered: {'yes' if metrics['preregistered'] else 'no (exploratory)'}. "
         f"Run: `{run['path']}` ({run['profile']}, {run['device']}).",
         "",
+        *_audit_lines(metrics.get("preregistration")),
         *_verdict_lines(metrics["h2_verdict"], primary),
         "",
         f"Rows {counts['rows']}, compared {counts['compared']}; left out: no human label "

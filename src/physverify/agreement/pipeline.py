@@ -11,7 +11,6 @@ from typing import Any
 import numpy as np
 
 from physverify.agreement.abstention import (
-    AS_PLAUSIBLE,
     POLICIES,
     abstention_counts,
     decided,
@@ -35,6 +34,7 @@ from physverify.agreement.items import (
     decide_all,
     implausible,
 )
+from physverify.agreement.prereg import FreezeAudit
 from physverify.agreement.run_io import VerifyRun
 from physverify.agreement.settings import AgreementSettings
 from physverify.datasets._videophy_tables import VideophyRow
@@ -50,6 +50,7 @@ class ComparisonInputs:
     dev_tuned_cut: float | None
     dev_majority: int | None
     preregistered: bool
+    audit: FreezeAudit | None = None
 
 
 @dataclass(frozen=True)
@@ -60,6 +61,7 @@ class Comparison:
     per_check: list[dict[str, object]]
     per_generator: list[dict[str, object]]
     errors: list[dict[str, object]]
+    audit: FreezeAudit | None = None
 
 
 def _items(
@@ -100,10 +102,12 @@ def _sensitivity(inputs: ComparisonInputs) -> dict[str, Any]:
     timeless, _ = _items(inputs, frozenset(inputs.agreement.time_dependent_checks))
     plan = BootstrapPlan(0, inputs.agreement.bootstrap_seed, inputs.agreement.ci)
     test = (inputs.agreement.alpha, inputs.agreement.power)
+    policy = inputs.agreement.primary_policy
     return {
         "excluded": list(inputs.agreement.time_dependent_checks),
+        "policy": policy,
         "groups": {
-            g: evaluate_view(m, policy_view(m, AS_PLAUSIBLE), inputs.dev_majority, plan, test)
+            g: evaluate_view(m, policy_view(m, policy), inputs.dev_majority, plan, test)
             for g, m in by_version(timeless).items()
         },
     }
@@ -126,11 +130,18 @@ def compare(inputs: ComparisonInputs) -> Comparison:
     plan = BootstrapPlan(agreement.bootstrap_n, agreement.bootstrap_seed, agreement.ci)
     groups = _groups(inputs, items, plan)
     primary = groups[AGGREGATE][agreement.primary_policy]
-    checks = per_check(items, lambda excluded: _items(inputs, excluded)[0])
-    generators = per_group(items, lambda it: f"{it.row.version}:{it.row.generator}")
+    policy = agreement.primary_policy
+
+    def redecide(excluded: frozenset[str]) -> list[ComparisonItem]:
+        return _items(inputs, excluded)[0]
+
+    checks = per_check(items, redecide, inputs.run.check_ids, policy)
+    generators = per_group(items, lambda it: f"{it.row.version}:{it.row.generator}", policy)
+    audit = inputs.audit
     metrics: dict[str, Any] = {
         "rule": rule.label,
         "preregistered": inputs.preregistered,
+        "preregistration": None if audit is None else audit.model_dump(),
         "run": {
             "path": str(inputs.run.path),
             "profile": inputs.run.profile,
@@ -149,7 +160,10 @@ def compare(inputs: ComparisonInputs) -> Comparison:
         "sensitivity_without_time_dependent": _sensitivity(inputs),
         "risk_coverage_vlm": {g: risk_coverage(m) for g, m in by_version(items).items()},
         "h2_verdict": h2_verdict(
-            primary, rule.name == CALIBRATED_NAME and inputs.preregistered, agreement.alpha
+            primary,
+            rule.name == CALIBRATED_NAME and inputs.preregistered,
+            agreement.alpha,
+            post_hoc=audit is not None and audit.post_hoc,
         ),
     }
     return Comparison(
@@ -164,7 +178,9 @@ def compare(inputs: ComparisonInputs) -> Comparison:
             agreement.error_seed,
             rule.tau,
             inputs.run.results,
+            policy,
         ),
+        audit=audit,
     )
 
 

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import datetime as dt
+import os
 from pathlib import Path
 
 import pytest
@@ -9,13 +11,24 @@ from pydantic import BaseModel
 
 from physverify.agreement.prereg import (
     FROZEN_FIELDS,
+    LoggedComparison,
     Preregistration,
     changed_fields,
+    file_sha256,
+    frozen_after,
+    frozen_before,
     load_preregistration,
+    log_comparison,
+    logged_comparisons,
+    plan_refreeze,
+    preregistration_chain,
+    replaced_path,
     require_unchanged,
     write_preregistration,
 )
-from physverify.core.errors import ConfigError, MissingInputError
+from physverify.agreement.run_io import VerifyRun
+from physverify.agreement.workflow import freeze_audit
+from physverify.core.errors import ConfigError, MissingInputError, UsageError
 
 RECORD = Preregistration(
     created_utc="2026-10-17T00:00:00Z",
@@ -87,3 +100,99 @@ def test_a_missing_or_invalid_file_is_refused(tmp_path: Path) -> None:
     bad.write_text('{"commit": 1}', encoding="utf-8")
     with pytest.raises(ConfigError, match="invalid"):
         load_preregistration(bad)
+
+
+def test_the_rule_label_is_frozen() -> None:
+    assert "rule_label" in FROZEN_FIELDS
+    assert changed_fields(RECORD, _current(rule_label="calibrated:x")) == ["rule_label"]
+
+
+def _plan(old: Preregistration | None, current: Preregistration, **kwargs: object):
+    options: dict[str, object] = {"force": False, "deviation": None, "tested": False, **kwargs}
+    return plan_refreeze(old, None if old is None else "a" * 64, current, **options)  # type: ignore[arg-type]
+
+
+def test_a_first_freeze_is_written_and_an_unchanged_one_is_kept() -> None:
+    first = _plan(None, RECORD)
+    assert first is not None and first.replaces_sha256 is None and not first.post_hoc
+    assert _plan(RECORD, RECORD) is None
+
+
+def test_a_changed_state_needs_force_and_records_what_it_replaces() -> None:
+    other = RECORD.model_copy(update={"profile": "fast"})
+    with pytest.raises(UsageError, match="profile"):
+        _plan(RECORD, other)
+    forced = _plan(RECORD, other, force=True)
+    assert forced is not None and forced.replaces_sha256 == "a" * 64
+    assert not forced.post_hoc and forced.deviations == []
+
+
+def test_a_refreeze_after_a_test_comparison_must_declare_a_deviation() -> None:
+    other = RECORD.model_copy(update={"rule_label": "calibrated:x"})
+    with pytest.raises(UsageError, match="--declare-deviation"):
+        _plan(RECORD, other, force=True, tested=True)
+    late = _plan(RECORD, other, force=True, tested=True, deviation="new thresholds")
+    assert late is not None and late.post_hoc
+    assert late.deviations == ["new thresholds (changed: ['rule_label'])"]
+    later = _plan(late, other.model_copy(update={"profile": "fast"}), force=True)
+    assert later is not None and later.post_hoc and later.deviations == late.deviations
+
+
+def test_a_replaced_file_is_archived_and_the_chain_walks_back(tmp_path: Path) -> None:
+    path = tmp_path / "preregistration.json"
+    write_preregistration(path, RECORD)
+    first_sha = file_sha256(path)
+    assert first_sha is not None
+    second = RECORD.model_copy(update={"replaces_sha256": first_sha, "profile": "fast"})
+    write_preregistration(path, second)
+    assert load_preregistration(replaced_path(path, first_sha)) == RECORD
+    assert preregistration_chain(path, second) == [second, RECORD]
+
+
+def test_the_comparison_log_round_trips(tmp_path: Path) -> None:
+    path = tmp_path / "preregistration.json"
+    assert logged_comparisons(path) == []
+    entries = [
+        LoggedComparison(prereg_sha256="a", run=f"runs/{n}", compared_utc="2026-10-18T00:00:00")
+        for n in range(2)
+    ]
+    for entry in entries:
+        log_comparison(path, entry)
+    assert logged_comparisons(path) == entries
+
+
+def _audit(tmp_path: Path, record: Preregistration, logged: list[LoggedComparison], mtime: float):
+    path = tmp_path / "preregistration.json"
+    write_preregistration(path, record)
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    (run_dir / "table.csv").write_text("", encoding="utf-8")
+    os.utime(run_dir / "table.csv", (mtime, mtime))
+    run = VerifyRun(path=run_dir, run={}, rows={}, results={})
+    return freeze_audit(path, record, run, "def", logged), file_sha256(path)
+
+
+def test_a_comparison_logged_under_another_preregistration_makes_the_audit_post_hoc(
+    tmp_path: Path,
+) -> None:
+    after = dt.datetime(2026, 10, 18, tzinfo=dt.UTC).timestamp()
+    clean, sha = _audit(tmp_path / "a", RECORD, [], after)
+    assert not clean.post_hoc and clean.frozen_after_eval is False and clean.blind is True
+    same = [LoggedComparison(prereg_sha256=sha or "", run="r", compared_utc="t")]
+    assert not _audit(tmp_path / "b", RECORD, same, after)[0].post_hoc
+    other = [LoggedComparison(prereg_sha256="e" * 64, run="r", compared_utc="t")]
+    edited, _ = _audit(tmp_path / "c", RECORD, other, after)
+    assert edited.post_hoc and not RECORD.post_hoc
+
+
+def test_a_freeze_newer_than_the_eval_files_is_flagged(tmp_path: Path) -> None:
+    before = dt.datetime(2026, 10, 16, tzinfo=dt.UTC).timestamp()
+    audit, _ = _audit(tmp_path, RECORD, [], before)
+    assert audit.frozen_after_eval is True and audit.blind is False
+    assert frozen_after("2026-10-17T00:00:00+00:00", None) is None
+
+
+def test_a_freeze_is_blind_only_before_the_earliest_eval_file() -> None:
+    assert frozen_before("2026-10-17T00:00:00+00:00", "2026-10-18T00:00:00+00:00") is True
+    assert frozen_before("2026-10-19T00:00:00+00:00", "2026-10-18T00:00:00+00:00") is False
+    assert frozen_before("2026-10-19T00:00:00+00:00", None) is None

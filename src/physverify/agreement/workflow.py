@@ -19,12 +19,21 @@ from physverify.agreement.decision import (
 )
 from physverify.agreement.pipeline import Comparison, ComparisonInputs, compare, freeze_dev
 from physverify.agreement.prereg import (
+    FreezeAudit,
+    LoggedComparison,
     Preregistration,
+    compared_under_other,
+    earliest_mtime,
     file_sha256,
+    frozen_after,
+    frozen_before,
     load_preregistration,
+    log_comparison,
+    logged_comparisons,
+    preregistration_chain,
     require_unchanged,
 )
-from physverify.agreement.run_io import VerifyRun, load_run
+from physverify.agreement.run_io import VerifyRun, load_run, run_files
 from physverify.agreement.settings import (
     SECTION,
     AgreementSettings,
@@ -113,6 +122,7 @@ def frozen_state(
         if setup.artifact is None
         else file_sha256(setup.artifact),
         "rule": setup.rule.name,
+        "rule_label": setup.rule.label,
         "profile": profile,
     }
 
@@ -137,7 +147,6 @@ def freeze[S: CalibrationStratum](
         {
             **state,
             "created_utc": now.isoformat(),
-            "rule_label": setup.rule.label,
             "device": run.device,
             "dev_run": str(run_dir),
             "dev_subset": agreement.dev_subset,
@@ -172,6 +181,35 @@ def _frozen(
     return (load_preregistration(path) if path.is_file() else None), False
 
 
+def freeze_audit(
+    path: Path,
+    frozen: Preregistration,
+    run: VerifyRun,
+    commit: str,
+    logged: Sequence[LoggedComparison],
+) -> FreezeAudit:
+    """``earliest_eval_utc`` is the oldest file time of the compared verify run. A logged test
+    comparison under another pre-registration makes it post hoc even if the flag was edited."""
+    chain = preregistration_chain(path, frozen)
+    first = chain[-1].created_utc
+    earliest = earliest_mtime(run_files(run.path))
+    sha256 = file_sha256(path) or ""
+    return FreezeAudit(
+        prereg_sha256=sha256,
+        versions=len(chain),
+        created_utc=frozen.created_utc,
+        replaces_sha256=frozen.replaces_sha256,
+        first_created_utc=first,
+        earliest_eval_utc=earliest,
+        blind=frozen_before(first, earliest),
+        frozen_after_eval=frozen_after(frozen.created_utc, earliest),
+        post_hoc=frozen.post_hoc or compared_under_other(logged, sha256),
+        frozen_commit=frozen.commit,
+        report_commit=commit,
+        deviations=list(frozen.deviations),
+    )
+
+
 def run_comparison[S: CalibrationStratum](
     settings: Settings, dataset: VideophyDataset, request: CompareRequest, api_loader: ApiLoader[S]
 ) -> Comparison:
@@ -185,10 +223,16 @@ def run_comparison[S: CalibrationStratum](
     rows = dataset.rows(subset)
     setup = build_rule(settings, agreement, run.profile, api_loader)
     check_run(run, rows, setup, None)
-    path = request.preregistration or preregistration_path(settings, agreement)
+    default_path = preregistration_path(settings, agreement)
+    path = request.preregistration or default_path
     state = frozen_state(settings, dataset, setup, run.profile)
     on_test = any(row.split is Split.EVAL for row in rows)
     frozen, preregistered = _frozen(path, on_test, state)
+    audit_ = (
+        freeze_audit(path, frozen, run, str(state["commit"]), logged_comparisons(default_path))
+        if preregistered and frozen is not None
+        else None
+    )
     return compare(
         ComparisonInputs(
             rows=rows,
@@ -199,8 +243,25 @@ def run_comparison[S: CalibrationStratum](
             dev_tuned_cut=None if frozen is None else frozen.dev_tuned_cut,
             dev_majority=None if frozen is None else frozen.dev_majority,
             preregistered=preregistered,
+            audit=audit_,
         )
     )
+
+
+def log_test_comparison(
+    settings: Settings, comparison: Comparison, run_dir: Path, now: dt.datetime
+) -> Path | None:
+    """Logs a pre-registered comparison next to the file ``agreement freeze`` writes, so a
+    later refreeze is known to be post hoc."""
+    audit_ = comparison.audit
+    if audit_ is None:
+        return None
+    path = preregistration_path(settings, agreement_settings(settings))
+    entry = LoggedComparison(
+        prereg_sha256=audit_.prereg_sha256, run=str(run_dir), compared_utc=now.isoformat()
+    )
+    log_comparison(path, entry)
+    return path
 
 
 def reviewed_candidates(dataset: VideophyDataset, subset: str) -> dict[str, list[VideophyRow]]:

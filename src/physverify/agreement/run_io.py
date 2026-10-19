@@ -35,6 +35,12 @@ class VerifyRun:
     results: Mapping[str, tuple[CheckResult, ...]]
 
     @property
+    def check_ids(self) -> frozenset[str]:
+        """Every check with a table row or a result: the set a clip rule decides over."""
+        rows = {r.check_id for clip in self.rows.values() for r in clip}
+        return frozenset(rows | {r.check_id for clip in self.results.values() for r in clip})
+
+    @property
     def profile(self) -> str:
         return str(self.run.get("profile", ""))
 
@@ -94,8 +100,12 @@ def _grouped[T](items: Sequence[T], key: str) -> dict[str, tuple[T, ...]]:
     return {name: tuple(group) for name, group in groups.items()}
 
 
+def run_files(run_dir: Path) -> list[Path]:
+    return [run_dir / name for name in (RUN_FILE, TABLE_FILE, CHECKS_FILE)]
+
+
 def load_run(run_dir: Path) -> VerifyRun:
-    paths = [run_dir / name for name in (RUN_FILE, TABLE_FILE, CHECKS_FILE)]
+    paths = run_files(run_dir)
     missing = [str(p) for p in paths if not p.is_file()]
     if missing:
         raise MissingInputError(f"not a finished verify run: missing {', '.join(missing)}")

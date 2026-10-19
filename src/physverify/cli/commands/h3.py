@@ -256,7 +256,11 @@ def freeze(
         bool, typer.Option(help="Replace a pre-registration whose state changed.")
     ] = False,
     declare_deviation: Annotated[
-        str | None, typer.Option(help="Why a non-recalibration field changed (with --force).")
+        str | None,
+        typer.Option(
+            help="Why a non-recalibration field changed, or any field once eval data exist "
+            "(with --force; the latter makes the verdict post hoc)."
+        ),
     ] = None,
 ) -> None:
     h = _h3()
@@ -282,6 +286,7 @@ def _freeze_lines(record: H3Preregistration) -> list[str]:
         f"margins {json.dumps(record.margins)}; external judge usable on dev: {usability}",
         f"MDE (estimated on dev): verifier {record.mde.verifier_mde}, PC {record.mde.pc_mde}",
         *[f"deviation: {d}" for d in record.deviations],
+        *(["POST HOC: refrozen after eval data existed"] if record.post_hoc else []),
     ]
 
 

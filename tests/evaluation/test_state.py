@@ -5,7 +5,7 @@ from pathlib import Path
 from physverify.evaluation.layout import H3Layout
 from physverify.evaluation.records import TASKS, JudgeOutput, JudgeRow
 from physverify.evaluation.settings import H3Settings
-from physverify.evaluation.state import DEV_SPLIT, dev_pc, dev_usability
+from physverify.evaluation.state import DEV_SPLIT, contaminated, dev_pc, dev_usability
 from physverify.finetune.records import BASE_TAG, write_record
 
 STAMPS = {task: f"stamp-{task}" for task in TASKS}
@@ -47,3 +47,10 @@ def test_dev_pc_skips_outputs_of_another_pc_stamp(tmp_path: Path) -> None:
     found = dev_pc(layout, [BASE_TAG], STAMPS["pc"])
     assert len(found) == 8 and found[(BASE_TAG, "d0__k00")] == 1.0
     assert dev_pc(layout, [BASE_TAG], "older-judge") == {}
+
+
+def test_contamination_is_unknown_without_a_dataset_record() -> None:
+    assert contaminated(None) is None
+    assert contaminated({"name": "kubric", "split": "calib"}) is False
+    assert contaminated({"name": "local_video", "split": "calib"}) is True
+    assert contaminated({"name": "kubric", "split": "eval"}) is True

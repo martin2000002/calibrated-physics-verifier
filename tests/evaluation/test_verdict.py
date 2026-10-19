@@ -56,6 +56,7 @@ def _inputs(**update: Any) -> VerdictInputs:
         {"rule_status": "provisional"},
         {"rule_status": "unavailable"},
         {"contaminated": True},
+        {"contaminated": None},
         {"label_matches": False},
     ],
 )
@@ -180,3 +181,16 @@ def test_the_verdict_product_table(
         if tested and external.startswith("contradicted"):
             assert result.external_outcome == "contradicted", case
             assert result.verdict != VERIFIER_ONLY, case
+
+
+def test_unknown_provenance_is_named_and_never_clean() -> None:
+    result = h3_verdict(_inputs(contaminated=None))
+    assert result.verdict == NO_VERDICT
+    assert "calibration dataset provenance is unknown" in result.reasons
+
+
+def test_a_post_hoc_freeze_marks_the_verdict_without_changing_its_tier() -> None:
+    plain, late = h3_verdict(_inputs()), h3_verdict(_inputs(post_hoc=True))
+    assert not plain.post_hoc and late.post_hoc
+    assert late.verdict == plain.verdict
+    assert late.reasons[-1].startswith("post hoc")

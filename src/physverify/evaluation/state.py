@@ -93,10 +93,11 @@ def calibration_dataset(path: Path) -> dict[str, Any] | None:
         return None
 
 
-def contaminated(dataset: Mapping[str, Any] | None) -> bool:
-    """Calibrated on our own videos or outside the calibration split (ADR 0013 D9)."""
+def contaminated(dataset: Mapping[str, Any] | None) -> bool | None:
+    """Calibrated on our own videos or outside the calibration split (ADR 0013 D9); None when
+    the calibration dataset is unknown (missing or unreadable artefact), never assumed clean."""
     if dataset is None:
-        return False
+        return None
     return dataset.get("name") == CONTAMINATED_DATASET or dataset.get("split") != CALIB_SPLIT
 
 
