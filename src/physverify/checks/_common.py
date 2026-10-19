@@ -32,6 +32,12 @@ class CommonParams(FrozenModel):
     seed: int = Field(default=0, ge=0)
 
 
+class OcclusionParams(CommonParams):
+    """Occlusion fraction from which an object counts as hidden (checks that read occlusion)."""
+
+    occluded_at: float = Field(default=0.9, gt=0.0, le=1.0)
+
+
 class FallParams(CommonParams):
     """Flight search and fall filter shared by R5a and R5b.
 

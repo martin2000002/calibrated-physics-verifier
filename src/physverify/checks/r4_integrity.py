@@ -11,7 +11,7 @@ from numpy.typing import NDArray
 from pydantic import BaseModel, Field
 
 from physverify.checks._base import CheckInputs
-from physverify.checks._common import CommonParams, abstain, first_max, unscored
+from physverify.checks._common import CommonParams, OcclusionParams, abstain, first_max, unscored
 from physverify.physics.finite_diff import third_difference, third_difference_sigma
 from physverify.physics.geometry import characteristic_length, characteristic_lengths
 from physverify.physics.measures.r4_integrity import jump_ratio, missing_frames, size_change_ratio
@@ -27,11 +27,11 @@ from physverify.schema.contacts import ContactTable
 FloatArray = NDArray[np.float64]
 
 
-class PermanenceParams(CommonParams):
-    occluded_at: float = Field(default=0.9, gt=0.0, le=1.0)
+class PermanenceParams(OcclusionParams):
+    pass
 
 
-class SizeParams(CommonParams):
+class SizeParams(OcclusionParams):
     min_size_frames: int = Field(default=3, ge=2)
 
 
@@ -78,7 +78,14 @@ class PermanenceCheck:
 
 
 class SizeConstancyCheck:
-    """R4_size [rel_size_change]: max_t |L_t / median(L) - 1| of the object's extents."""
+    """R4_size [rel_size_change]: max_t |L_t / median(L) - 1| of the object's extents.
+
+    Rows out of frame or with a known occlusion >= ``occluded_at`` are left out: their extents
+    describe the visible part, not the object. Unknown (NaN) occlusion keeps the row, since
+    perceived tables never carry occlusion; a truncated perceived mask (at the image border or
+    behind another object) therefore still enters the measure. ABSTAIN only when fewer than
+    ``min_size_frames`` rows with known extents remain.
+    """
 
     check_id: ClassVar[str] = "R4_size"
     requires: ClassVar[frozenset[str]] = frozenset()
@@ -96,24 +103,42 @@ class SizeConstancyCheck:
         subject = (str(states.object_ids[index]),)
         size = states.size[:, index]
         lengths = characteristic_lengths(size)
-        known = np.flatnonzero(np.isfinite(lengths))
+        whole = self._whole_rows(states.in_frame[:, index], states.occlusion[:, index])
+        known = np.flatnonzero(whole & np.isfinite(lengths))
+        excluded = int(np.count_nonzero(~whole))
         if known.size < self.params.min_size_frames:
-            details = {"size_rows": int(known.size), "min_size_frames": self.params.min_size_frames}
+            details = {
+                "size_rows": int(known.size),
+                "excluded_rows": excluded,
+                "min_size_frames": self.params.min_size_frames,
+            }
             return abstain(type(self), inputs, subject, AbstainReason.TOO_FEW_FRAMES, None, details)
         ratios = lengths[known] / np.median(lengths[known])
         pick = first_max(np.abs(ratios - 1.0))
         row = int(known[pick])
         sigma = _size_sigma(float(ratios[pick]), size[row], states.size_sigma[row, index])
         span = native_span(states.frame_index, row, row)
-        details = {"row": row, "size_rows": int(known.size)}
-        return unscored(type(self), inputs, subject, size_change_ratio(size), sigma, span, details)
+        details = {"row": row, "size_rows": int(known.size), "excluded_rows": excluded}
+        magnitude = size_change_ratio(size[known])
+        return unscored(type(self), inputs, subject, magnitude, sigma, span, details)
+
+    def _whole_rows(self, in_frame: NDArray[np.bool_], occlusion: FloatArray) -> NDArray[np.bool_]:
+        """In frame and not known to be occluded (NaN >= x is False, so NaN keeps the row)."""
+        return in_frame & ~(occlusion >= self.params.occluded_at)
 
 
 class ContinuityCheck:
     """R4_jump [jump_over_size]: max ||p[k+2] - 3 p[k+1] + 3 p[k] - p[k-1]|| / (2 L) over
     consecutive rows, skipping the rows whose stencil spans an impact (D13, D14.6: the smooth
     part grows with (row_step * dt)^3 and vanishes under constant acceleration, a teleport does
-    not)."""
+    not).
+
+    Like every maximum over noisy rows, the value is biased upward: with position noise sigma_p
+    a clean track gives about sqrt(20) sigma_p / (2 L) per row and more at the maximum, growing
+    with the number of rows. ``sigma`` is the per-row sigma at the peak, not the spread of the
+    maximum. The bias is not corrected here: tau is a conformal quantile of this same maximum
+    over clean clips (``calibration.thresholds.fit_tau``), so the null distribution already
+    contains it."""
 
     check_id: ClassVar[str] = "R4_jump"
     requires: ClassVar[frozenset[str]] = frozenset({"contacts"})
