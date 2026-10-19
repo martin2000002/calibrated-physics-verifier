@@ -7,12 +7,14 @@ import pytest
 
 from physverify.agreement.prereg import file_sha256
 from physverify.core.errors import ConfigError, PhysverifyError, UsageError
+from physverify.evaluation.analysis import SECONDARY_TESTS
 from physverify.evaluation.layout import H3Layout
 from physverify.evaluation.margins import MarginDerivation
 from physverify.evaluation.prereg import (
     AUDIT_FIELDS,
     EVAL_DATA_DEVIATION,
     H3_FIELDS,
+    REFREEZE_MUTABLE,
     CandidateSnapshot,
     FreezeRequest,
     H3Preregistration,
@@ -245,3 +247,18 @@ def test_a_new_stop_rule_state_refreezes_and_its_deviation_is_audit_only() -> No
     new = plan_freeze(record(), "sha0", record(stop_rule=fired), request())
     assert new is not None and new.deviations == []
     assert "stop_rule" in identity(new) and "stop_rule_deviation" not in identity(new)
+
+
+def test_the_secondary_tests_are_frozen() -> None:
+    assert "secondary_tests" in H3_FIELDS
+    assert "secondary_tests" not in REFREEZE_MUTABLE
+    old, new = record(secondary_tests=["S1"]), record(secondary_tests=["S1", "S5"])
+    assert identity(old) != identity(new)
+
+
+def test_a_freeze_without_secondary_tests_refuses_the_current_ones() -> None:
+    """A pre-registration frozen before S5 (an empty or absent list) no longer holds."""
+    current = identity(record(secondary_tests=list(SECONDARY_TESTS)))
+    with pytest.raises(ConfigError, match="secondary_tests"):
+        require_unchanged(record(secondary_tests=[]), current)
+    require_unchanged(record(secondary_tests=[]), identity(record(secondary_tests=[])))

@@ -15,7 +15,7 @@ from physverify.diagnosis.report import ReportModel
 from physverify.schema.checks import InputLevel
 
 CALIBRATION_SCHEMA = "physverify.calibration"
-CALIBRATION_VERSION = "1.2.0"
+CALIBRATION_VERSION = "1.3.0"
 EVALUATION_SCHEMA = "physverify.calibration.evaluation"
 LENIENT = "lenient"
 """Validation-context flag: drop keys this version does not know (newer minor version)."""
@@ -314,6 +314,14 @@ class EvaluationStratum(ArtifactModel):
     """Share of real clips whose aggregate score is flagged (check_id ``score``)."""
 
 
+class H1PrimaryView(ArtifactModel):
+    """The strata restricted to the primary scenes (ADR 0015 1.4); real video is not repeated."""
+
+    scenes: tuple[str, ...]
+    dataset: DatasetRef
+    strata: tuple[EvaluationStratum, ...]
+
+
 class EvaluationReport(ArtifactModel):
     schema_: str = Field(default=EVALUATION_SCHEMA, alias=SCHEMA_KEY)
     version: str = CALIBRATION_VERSION
@@ -327,3 +335,5 @@ class EvaluationReport(ArtifactModel):
     strata: tuple[EvaluationStratum, ...]
     real_sets: tuple[DatasetRef, ...] = ()
     """The real clip sets the evaluation scored (empty before 1.2.0): what rule 1.5 checks."""
+    h1_primary: H1PrimaryView | None = None
+    """The H1 primary view (from 1.3.0); ``strata`` stays the all-scenes view."""

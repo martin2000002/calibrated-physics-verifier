@@ -2,7 +2,8 @@
 
 ``r2-clips`` lists the clips both R2 detector arms must verify (``verify --policy raw``);
 ``decide`` reads the artifact, its evaluation and the two runs and writes the decision record
-that ``[check_scope]`` merges. Not heavy: nothing here runs a model.
+that ``[check_scope]`` merges; ``show`` prints that record and its sha256. Not heavy: nothing
+here runs a model.
 """
 
 from __future__ import annotations
@@ -21,6 +22,7 @@ from physverify.calibration.collect import read_run, run_level_of
 from physverify.calibration.exclusion_record import (
     ExclusionInputError,
     ExclusionRecord,
+    load_record,
     parse_record,
 )
 from physverify.calibration.exclusions import (
@@ -331,3 +333,37 @@ def decide_command(
     _write((target, run.run_dir / target.name), text)
     _write((target.with_suffix(".md"), run.run_dir / target.with_suffix(".md").name), markdown)
     typer.echo(f"record: {target} sha256 {record.sha256}")
+
+
+@app.command("show", help="Print the decision record and its sha256 (what H2/H3 freeze on).")
+def show_command(
+    checks_hash: Annotated[
+        bool, typer.Option(help="Refuse a record decided with other check parameters.")
+    ] = True,
+) -> None:
+    context = app_context()
+    settings = context.settings
+    target = record_path(_scope(context), settings.paths.calibration_dir)
+    if target is None:
+        raise UsageError("[check_scope].decision_record is unset: there is no record to show")
+    if not target.is_file():
+        raise UsageError(f"no decision record at {target}: run `physverify exclusions decide`")
+    if checks_hash:
+        record = load_record(target, active_checks_hash(settings, context.registry("checks")))
+    else:
+        record = parse_record(target.read_text(encoding="utf-8"), str(target))
+        typer.echo("note: checks_hash not validated against the active check parameters")
+    typer.echo(record_markdown(record), nl=False)
+    _artifact_note(default_artifact_path(settings), record)
+    typer.echo(f"record: {target} sha256 {record.sha256}")
+
+
+def _artifact_note(artifact: Path, record: ExclusionRecord) -> None:
+    if not artifact.is_file():
+        return
+    current = sha256_of(artifact.read_text(encoding="utf-8"))
+    if current != record.inputs.artifact_sha256:
+        typer.echo(
+            f"note: {artifact} (sha256 {current[:12]}) is not the artifact the record was "
+            f"decided on ({record.inputs.artifact_sha256[:12]})"
+        )

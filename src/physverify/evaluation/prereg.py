@@ -78,6 +78,8 @@ class H3Preregistration(_Model):
     created_utc: str
     exclusion_record_sha256: str | None = None
     """The ADR 0015 decision record the scorer's excluded checks came from (None: none)."""
+    secondary_tests: list[str] = Field(default_factory=list)
+    """The sensitivities ``analyse`` reports (``analysis.SECONDARY_TESTS``); frozen."""
     stop_rule_deviation: str | None = None
     """The text that let a fired pilot stop rule through (ADR 0012): H3 then has no verdict."""
     replaces_sha256: str | None = None

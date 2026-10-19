@@ -5,15 +5,18 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
+from check_rows import UNCACHED, write_check_rows
 
-SCRIPTS = Path(__file__).resolve().parents[2] / "scripts" / "h200"
-SCRIPT_NAMES = ("_common.sh", "setup.sh", "run_h2.sh")
+REPO = Path(__file__).resolve().parents[2]
+SCRIPTS = REPO / "scripts" / "h200"
+SCRIPT_NAMES = ("_common.sh", "setup.sh", "run_h2.sh", "a8v2_query.py")
 TOOLS = (
-    "bash", "basename", "cat", "cp", "dirname", "grep", "head", "ln", "mkdir", "mktemp", "mv",
-    "nproc", "rm", "sed", "tee",
+    "bash", "basename", "cat", "cmp", "cp", "dirname", "grep", "head", "ln", "mkdir", "mktemp",
+    "mv", "nproc", "rm", "sed", "tee",
 )  # fmt: skip
 PV = "uv run --no-sync physverify --profile precise --device cuda --set runtime.threads=2 "
 PV_CPU = PV.replace("--device cuda", "--device cpu")
@@ -21,15 +24,21 @@ PREFLIGHT = (
     f"{PV_CPU}verify --dataset videophy --level perceived --subset h2_dev --clips v1-a8208f4dd41e"
 )
 
-# Each extract/verify call creates the next numbered run and prints it like the real commands.
+# Each extract/verify call creates the next numbered run and prints it like the real commands; the
+# preflight verify writes its checks.jsonl, which the real helper reads unless they are the clean
+# rows and REAL_QUERY is unset (its import costs seconds).
 FAKE_UV = """#!/bin/bash
 printf 'uv %s\\n' "$*" >> "$CALLS"
 [[ "${PHYSVERIFY__CHECK_SCOPE__REQUIRE_DECISION_RECORD:-}" == true ]] \\
     || echo "no record" >> "$CALLS"
 case "$*" in
+  "run --no-sync python "*)
+    [[ -z "${REAL_QUERY:-}" ]] && cmp -s "$CLEAN_CHECKS" "${!#}/checks.jsonl" && exit 0
+    shift 3; PYTHONPATH="$REAL_SRC" exec "$REAL_PYTHON" "$@" ;;
   *" --clips "*)
     n=$(( $(cat "$COUNTER" 2>/dev/null || echo 0) + 1 )); echo "$n" > "$COUNTER"
-    mkdir -p "$RUNS/run$n"; echo "run: $RUNS/run$n"; echo "${PREFLIGHT_OUT:-}"
+    mkdir -p "$RUNS/run$n"; echo "run: $RUNS/run$n"
+    cp "${PREFLIGHT_CHECKS:-$CLEAN_CHECKS}" "$RUNS/run$n/checks.jsonl"
     exit "${PREFLIGHT_EXIT:-0}" ;;
   *" extract run "*|*" verify "*)
     n=$(( $(cat "$COUNTER" 2>/dev/null || echo 0) + 1 )); echo "$n" > "$COUNTER"
@@ -69,7 +78,11 @@ class Sandbox:
             assert found is not None, tool
             (tools / tool).symlink_to(found)
         self.bash = tools / "bash"
+        self.uncached = write_check_rows(root / "uncached.jsonl", error=UNCACHED)
         self.env = {
+            "REAL_PYTHON": sys.executable,
+            "REAL_SRC": str(REPO / "src"),
+            "CLEAN_CHECKS": str(write_check_rows(root / "clean.jsonl")),
             "PATH": f"{self.fakes}:{tools}",
             "HOME": str(root),
             "TMPDIR": str(root),
@@ -128,7 +141,7 @@ def test_without_a_gpu_nothing_touches_uv(sandbox: Sandbox) -> None:
 
 def test_dev_freeze_then_test_compare_and_the_latest_link(sandbox: Sandbox) -> None:
     sandbox.install()
-    result = sandbox.run(CLIP_EXIT="1")
+    result = sandbox.run(CLIP_EXIT="1", REAL_QUERY="1")
     assert result.returncode == 0, result.stderr
     calls = [c for c in sandbox.uv_calls() if "physverify" in c and "fetch-weights" not in c]
     assert calls[-10:] == [
@@ -155,9 +168,11 @@ def test_every_step_requires_the_exclusion_record(sandbox: Sandbox) -> None:
 
 
 def test_an_uncached_preflight_clip_stops_before_any_extraction(sandbox: Sandbox) -> None:
+    """verify exits 0 on an uncached clip; only its checks.jsonl carries the error."""
     sandbox.install()
-    result = sandbox.run(PREFLIGHT_OUT="error: a heavy stage is not cached", PREFLIGHT_EXIT="1")
+    result = sandbox.run(PREFLIGHT_CHECKS=str(sandbox.uncached))
     assert result.returncode == 2 and "preflight" in result.stderr
+    assert "heavy stage is not cached" in result.stderr
     assert not any(" extract run " in call for call in sandbox.uv_calls())
 
 
@@ -165,6 +180,7 @@ def test_a_failed_preflight_clip_with_its_cache_is_not_fatal(sandbox: Sandbox) -
     sandbox.install()
     result = sandbox.run(PREFLIGHT_EXIT="1")
     assert result.returncode == 0, result.stderr
+    assert any("a8v2_query.py run-errors" in call for call in sandbox.uv_calls())
 
 
 def test_the_h2_device_can_be_overridden(sandbox: Sandbox) -> None:

@@ -24,7 +24,12 @@ from physverify.calibration.collect import (
     run_level_of,
     sigma_pairs,
 )
-from physverify.calibration.evaluate import EvaluationInputs, EvaluationMeta, evaluate
+from physverify.calibration.evaluate import (
+    EvaluationInputs,
+    EvaluationMeta,
+    PrimaryScope,
+    evaluate,
+)
 from physverify.calibration.fit import FitInputs, FitMeta, LevelData, fit_calibration
 from physverify.calibration.loader import (
     Calibration,
@@ -44,6 +49,7 @@ from physverify.calibration.report import (
     curves_csv,
     evaluation_markdown,
 )
+from physverify.calibration.scenes import h1_scope, in_scope
 from physverify.calibration.schema import DatasetRef, StageFactor, StageSigma
 from physverify.calibration.settings import (
     CalibrationConfig,
@@ -475,11 +481,22 @@ def evaluate_command(
             for name, (src, real_clips) in sorted(sources.items())
             if any(name in item.real for item in inputs)
         ),
+        primary=_primary_scope(session, source, name, chosen),
     )
     report = evaluate(calibration, inputs, meta, session.config)
     _write(session.run.run_dir / EVALUATION_FILE, report.to_json())
     _write(session.run.run_dir / EVALUATION_MD, evaluation_markdown(report))
     typer.echo(f"evaluation: {session.run.run_dir / EVALUATION_FILE}")
+
+
+def _primary_scope(
+    session: Session, source: DatasetSource, subset: str, clips: Sequence[ClipManifest]
+) -> PrimaryScope | None:
+    scope = h1_scope(session.context.settings)
+    if not scope.primary_scenes:
+        return None
+    kept = [c for c in clips if in_scope(scene_of(c), scope.indices)]
+    return PrimaryScope(scope=scope, dataset=_dataset_ref(source, subset, "all", kept))
 
 
 def _eval_data(

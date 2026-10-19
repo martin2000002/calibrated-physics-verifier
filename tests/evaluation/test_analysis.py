@@ -7,11 +7,13 @@ import pytest
 
 from physverify.config.models import Settings
 from physverify.evaluation.analysis import (
+    SECONDARY_TESTS,
     AnalysisInputs,
     analyse,
     ft_vs_bo8,
     judged_vs_bo8,
     missing_pair_guard,
+    template_means,
     worst_case,
 )
 from physverify.evaluation.arms import PromptArms, analysis_prompts, build_arms
@@ -154,6 +156,15 @@ def test_a_clear_improvement_is_supported_by_the_verifier(
     assert set(result.strata) == {"seen", "unseen", "family:f0", "family:f1"}
     assert result.sensitivities["S4_check_cross_fit"] is None
     assert result.arms["bo8"].n == 8 and result.arms["ft"].n == 32
+    assert tuple(result.sensitivities) == SECONDARY_TESTS
+    s5 = result.sensitivities["S5_template_mean_wilcoxon"]
+    assert s5 is not None and s5.n == 4 and s5.hl is not None and s5.hl > 0
+
+
+def test_template_means_average_the_prompts_of_a_template() -> None:
+    values = {"a": 1.0, "b": 3.0, "c": 5.0}
+    templates = {"a": "t0", "b": "t0", "c": "t1"}
+    assert template_means((values, 2), templates) == ({"t0": 2.0, "t1": 5.0}, 2)
 
 
 def test_without_a_fine_tuned_model_no_guard_is_evaluated(
