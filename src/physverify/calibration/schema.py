@@ -15,7 +15,7 @@ from physverify.diagnosis.report import ReportModel
 from physverify.schema.checks import InputLevel
 
 CALIBRATION_SCHEMA = "physverify.calibration"
-CALIBRATION_VERSION = "1.1.0"
+CALIBRATION_VERSION = "1.2.0"
 EVALUATION_SCHEMA = "physverify.calibration.evaluation"
 LENIENT = "lenient"
 """Validation-context flag: drop keys this version does not know (newer minor version)."""
@@ -325,3 +325,5 @@ class EvaluationReport(ArtifactModel):
     dataset: DatasetRef
     real_datasets: tuple[str, ...]
     strata: tuple[EvaluationStratum, ...]
+    real_sets: tuple[DatasetRef, ...] = ()
+    """The real clip sets the evaluation scored (empty before 1.2.0): what rule 1.5 checks."""

@@ -58,6 +58,7 @@ class EvaluationMeta:
     artifact_path: str
     dataset: DatasetRef
     profile: str
+    real_sets: tuple[DatasetRef, ...] = ()
 
 
 def evaluate(
@@ -86,6 +87,7 @@ def evaluate(
         artifact_run_id=calibration.run_id,
         dataset=meta.dataset,
         real_datasets=tuple(sorted({name for item in inputs for name in item.real})),
+        real_sets=meta.real_sets,
         strata=strata,
     )
 

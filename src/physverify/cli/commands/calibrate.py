@@ -458,18 +458,22 @@ def evaluate_command(
     name = subset or cal.subset
     chosen = select_clips(source.clips(name), clips or ())
     levels = sorted({lv for lv, _ in calibration.strata()})
+    sources = _real_sources(session) if real else {}
     inputs = tuple(
-        EvaluationInputs(
-            _eval_data(session, source, chosen, lv), _real_data(session, lv) if real else {}
-        )
+        EvaluationInputs(_eval_data(session, source, chosen, lv), _real_data(session, lv, sources))
         for lv in levels
     )
+    real_subset = diagnosis_settings(session.context.settings).subset
     meta = EvaluationMeta(
         created_utc=session.run.created_utc,
         run_id=session.run.run_id,
         artifact_path=str(calibration.path),
         dataset=_dataset_ref(source, name, "all", chosen),
         profile=session.context.settings.profile,
+        real_sets=tuple(
+            _dataset_ref(src, real_subset, "all", real_clips)
+            for _, (src, real_clips) in sorted(sources.items())
+        ),
     )
     report = evaluate(calibration, inputs, meta, session.config)
     _write(session.run.run_dir / EVALUATION_FILE, report.to_json())
@@ -484,16 +488,30 @@ def _eval_data(
     return level_data(level, report, _check_units(session), session.config, split=None, pairs=None)
 
 
-def _real_data(session: Session, level: InputLevel) -> dict[str, LevelData]:
-    """Real video has no ground truth: only the perceived stratum is scored on it."""
-    if level is InputLevel.ORACLE:
-        return {}
+RealSources = dict[str, tuple[DatasetSource, tuple[ClipManifest, ...]]]
+
+
+def _real_sources(session: Session) -> RealSources:
+    """The real datasets that resolve, with their clips of the ``diagnosis.subset``."""
     subset = diagnosis_settings(session.context.settings).subset
-    found: dict[str, LevelData] = {}
+    found: RealSources = {}
     for name in session.config.calibration.real_datasets:
         try:
             source = resolve_dataset(session.context, name)
-            found[name] = _eval_data(session, source, source.clips(subset), level)
+            found[name] = (source, tuple(source.clips(subset)))
+        except PhysverifyError as exc:
+            typer.echo(f"real dataset {name} skipped: {exc}")
+    return found
+
+
+def _real_data(session: Session, level: InputLevel, sources: RealSources) -> dict[str, LevelData]:
+    """Real video has no ground truth: only the perceived stratum is scored on it."""
+    if level is InputLevel.ORACLE:
+        return {}
+    found: dict[str, LevelData] = {}
+    for name, (source, clips) in sources.items():
+        try:
+            found[name] = _eval_data(session, source, clips, level)
         except PhysverifyError as exc:
             typer.echo(f"real dataset {name} skipped: {exc}")
     return found

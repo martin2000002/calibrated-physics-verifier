@@ -16,8 +16,17 @@ GT_MIGRATIONS = ("floor-crossing", "pair-collision")
 GT_REVISION = len(GT_MIGRATIONS)
 
 
+SCENE_INDEX_SEP = "-s"
+
+
 def scene_id_of(family: str, index: int) -> str:
-    return f"{family}-s{index:03d}"
+    return f"{family}{SCENE_INDEX_SEP}{index:03d}"
+
+
+def family_of_scene(scene_id: str) -> str:
+    """Inverse of ``scene_id_of`` for the family; an id without an index is its own family."""
+    family, sep, index = scene_id.rpartition(SCENE_INDEX_SEP)
+    return family if sep and index.isdigit() else scene_id
 
 
 def clip_id_of(scene_id: str, perturbation: str, level: int) -> str:
