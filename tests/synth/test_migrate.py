@@ -22,6 +22,7 @@ from physverify.synth.migrate import (
     migrate_velocity,
     rerender_clip_ids,
 )
+from physverify.synth.migration_audit import AuditInputs, audit
 from physverify.synth.perturb import apply_variants, instantiate
 from physverify.synth.plan import DatasetPlan
 from physverify.synth.settings import DatasetSettings, load_dataset_settings
@@ -169,3 +170,27 @@ def test_a_plan_with_other_content_is_refused(
     with pytest.raises(ConfigError, match="migration refused"):
         migrate_velocity(store, plugins, position_ds, COMMIT, clock)
     assert not (store.root / "migrations").exists()
+
+
+def test_the_audit_compares_the_migration_with_the_copy_taken_before(
+    tmp_path: Path, position_ds: DatasetSettings, families: Any, perturbations: Any
+) -> None:
+    plan, store, plugins = legacy(tmp_path, position_ds, families, perturbations)
+    before = DatasetStore(tmp_path / "before")
+    shutil.copytree(store.root, before.root)
+    report = migrate_velocity(store, plugins, position_ds, COMMIT, clock)
+    inputs = AuditInputs(plan, store, before, report.manifest, plugins, position_ds)
+    found = audit(inputs, [tmp_path / "cache"], [])
+    edited = clip_of(plan, "r3_restitution_gain")
+    assert found["rerender"] == {
+        "observed": [edited],
+        "predicted_always": [edited],
+        "missing_from_always": [],
+        "conditional_rerendered": [],
+        "unexpected": [],
+    }
+    assert found["media"] == {"kept": 1, "frames_differ": [], "mp4_differ": []}
+    assert found["contacts"]["fixed_changed"] == []
+    assert found["labels"]["r3_off_nominal"] == {}
+    assert found["rest"]["other_cells"] == []
+    assert found["cache"]["stale_meta"] == {}

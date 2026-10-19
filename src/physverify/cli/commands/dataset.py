@@ -7,6 +7,7 @@ import subprocess
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from functools import cached_property
+from pathlib import Path
 from typing import Annotated, Any
 
 import typer
@@ -23,7 +24,8 @@ from physverify.synth.generate import (
     write_specs,
 )
 from physverify.synth.gt_export import export_all
-from physverify.synth.migrate import migrate_velocity
+from physverify.synth.migrate import manifest_path, migrate_velocity
+from physverify.synth.migration_audit import AuditInputs, audit
 from physverify.synth.perturb import (
     apply_variants,
     closest_points,
@@ -41,7 +43,7 @@ from physverify.synth.settings import (
 )
 from physverify.synth.simulate import StepReport
 from physverify.synth.simulate import simulate as simulate_scenes
-from physverify.synth.store import ContainerRunner, DatasetStore, Step
+from physverify.synth.store import ContainerRunner, DatasetStore, Step, atomic_write_json
 
 NAME = "dataset"
 OWNER = "A4"
@@ -291,6 +293,32 @@ def migrate_velocity_command(
         f"{len(report.status_changes)} status changes; manifest {report.manifest}"
     )
     typer.echo("next: `physverify dataset build --subset <name>` for every built subset")
+
+
+@app.command(
+    "audit-migration",
+    help="Acceptance audit of migrate-velocity against a copy of the dataset taken before it "
+    "(re-renders, frames, contacts, records, labels, rest cells, stale cache); JSON to --out.",
+)
+def audit_migration(
+    before: Annotated[Path, typer.Option(help="The dataset directory copied before migrating.")],
+    out: Annotated[Path, typer.Option(help="Where to write the JSON report.")],
+    cache_root: Annotated[
+        list[Path] | None, typer.Option(help="Cache root (repeatable; default: paths.cache_dir).")
+    ] = None,
+    table: Annotated[
+        list[Path] | None, typer.Option(help="table.csv of an oracle verify run (repeatable).")
+    ] = None,
+) -> None:
+    job = _job(None)
+    plan = job.plan()
+    inputs = AuditInputs(
+        plan, job.store, DatasetStore(before), manifest_path(job.store, job.ds), job.plugins, job.ds
+    )
+    roots = cache_root or [job.context.settings.paths.cache_dir]
+    report = audit(inputs, roots, table or [])
+    atomic_write_json(out, report)
+    typer.echo(f"audit-migration: {out}")
 
 
 @app.command("build", help="generate, simulate, perturb, render and export-gt under one lock.")
