@@ -14,6 +14,7 @@ import typer
 from physverify.cli.context import AppContext, app_context, heavy_command
 from physverify.core.errors import MissingInputError, PhysverifyError, UsageError
 from physverify.runtime.container import container_settings, missing_reason
+from physverify.runtime.runs import current_commit
 from physverify.synth.generate import (
     load_plan,
     plan_subset,
@@ -22,6 +23,7 @@ from physverify.synth.generate import (
     write_specs,
 )
 from physverify.synth.gt_export import export_all
+from physverify.synth.migrate import migrate_velocity
 from physverify.synth.perturb import (
     apply_variants,
     closest_points,
@@ -66,12 +68,13 @@ class DatasetJob:
     """What every subcommand needs, resolved from the CLI context."""
 
     context: AppContext
-    subset: str
+    subset: str | None
 
     @cached_property
     def ds(self) -> DatasetSettings:
         ds = load_dataset_settings(self.context.settings)
-        subset_settings(ds, self.subset)
+        if self.subset is not None:
+            subset_settings(ds, self.subset)
         return ds
 
     @cached_property
@@ -87,9 +90,14 @@ class DatasetJob:
         if plan is None:
             raise MissingInputError(
                 f"nothing planned in {self.store.root}: run `physverify dataset generate "
-                f"--subset {self.subset}`"
+                f"--subset {self.subset or 'local'}`"
             )
         return plan.subset(self.subset)
+
+    def subset_name(self) -> str:
+        if self.subset is None:
+            raise UsageError("this step needs --subset")
+        return self.subset
 
     def runner(self, run: Run = subprocess.run) -> ContainerRunner:
         runner = self.context.docker()
@@ -105,7 +113,7 @@ def image_present(image: str, run: Run = subprocess.run) -> bool:
     )
 
 
-def _job(subset: str) -> DatasetJob:
+def _job(subset: str | None) -> DatasetJob:
     job = DatasetJob(app_context(), subset)
     _ = job.ds
     return job
@@ -128,7 +136,7 @@ def _fail_if(failures: Sequence[str]) -> None:
 def run_generate(job: DatasetJob) -> DatasetPlan:
     registry = job.context.registry("families")
     perturbations = job.context.registry("perturbations")
-    plan = plan_subset(job.ds, registry, perturbations, job.subset)
+    plan = plan_subset(job.ds, registry, perturbations, job.subset_name())
     save_plan(job.store, plan)
     written = write_specs(
         plan, job.store, registry, job.plugins, job.ds, load_size_priors(job.context.settings)
@@ -147,7 +155,7 @@ def run_simulate(job: DatasetJob, runner: ContainerRunner) -> list[str]:
 
 def run_perturb(job: DatasetJob, runner: ContainerRunner) -> list[str]:
     plan = job.plan()
-    applied = apply_variants(plan, job.store, job.plugins, job.ds)
+    applied = apply_variants(plan, job.store, job.plugins, job.ds).applied
     launched = closest_points(plan, job.store, runner, job.ds)
     contacts = ground_truth_contacts(plan, job.store, job.ds)
     failed = [
@@ -260,6 +268,29 @@ def list_command(subset: SubsetOption = "local") -> None:
     job = _job(subset)
     for line in status_lines(job.plan(), job.store):
         typer.echo(line)
+
+
+@app.command(
+    "migrate-velocity",
+    help="Re-run APPLY on every simulated clip under the configured velocity_convention, keeping "
+    "the version and every render whose inputs did not change; writes migrations/<name>.json.",
+)
+@heavy_command
+def migrate_velocity_command(
+    commit: Annotated[
+        str | None, typer.Option(help="Commit to log (default: HEAD of the repository).")
+    ] = None,
+) -> None:
+    job = _job(None)
+    settings = job.context.settings
+    report = migrate_velocity(
+        job.store, job.plugins, job.ds, commit or current_commit(settings.repo_root)
+    )
+    typer.echo(
+        f"migrate-velocity: {report.applied} applied, {len(report.rerender)} renders discarded, "
+        f"{len(report.status_changes)} status changes; manifest {report.manifest}"
+    )
+    typer.echo("next: `physverify dataset build --subset <name>` for every built subset")
 
 
 @app.command("build", help="generate, simulate, perturb, render and export-gt under one lock.")

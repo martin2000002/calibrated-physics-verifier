@@ -58,6 +58,12 @@ def settings(config_dir: Path, environ: dict[str, str]) -> Settings:
 
 
 @pytest.fixture
+def data_settings(config_dir: Path, environ: dict[str, str], tmp_path: Path) -> Settings:
+    env = environ | {"PHYSVERIFY__PATHS__DATA_DIR": str(tmp_path / "data")}
+    return load_settings(config_dir, environ=env)
+
+
+@pytest.fixture
 def ds(settings: Settings) -> DatasetSettings:
     return load_dataset_settings(settings)
 
