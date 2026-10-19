@@ -41,6 +41,8 @@ class CalibrationSettings(FrozenModel):
     stage_profile: str = "stage_errors.recalibrated.json"
     tau_tolerance: dict[str, NonNegativeFloat] = Field(default_factory=dict)
     """epsilon_c per check in check units: tau = max(q, epsilon_c); absent = 0."""
+    require_calibrated_artifact: bool = False
+    """A consumer also requires artifact status ``calibrated``, not only a usable stratum."""
 
 
 @dataclass(frozen=True)

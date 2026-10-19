@@ -16,6 +16,9 @@ ld_max_extrapolation = 1.0   # L_D beyond 2x the largest tested magnitude is cen
 real_datasets = ["physics_iq", "pisa_real"]
 artifact = "calibration.json"            # under paths.calibration_dir
 stage_profile = "stage_errors.recalibrated.json"
+# Consumers (H2, H3, publish) score with a stratum that is usable on its own; true also requires
+# the whole artifact to be `calibrated` (ADR 0009 read literally). Not part of any fit hash.
+require_calibrated_artifact = false
 
 # Numerical tolerance epsilon_c per check, in check units: tau = max(q, epsilon_c), where q is
 # the conformal quantile. It only bites when the clean clips are exact up to rounding (the oracle);

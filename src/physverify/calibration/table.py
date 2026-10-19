@@ -7,12 +7,14 @@ from collections.abc import Collection, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 
+from physverify.calibration.loader import MixedRowStepError
+from physverify.calibration.loader import unique_row_step as unique_step
 from physverify.core.errors import PhysverifyError
 from physverify.schema.checks import CheckResult, InputLevel
 from physverify.schema.clip import ClipManifest, Split
 from physverify.schema.scene import MagnitudeKind, PerturbationRecord
 from physverify.synth.perturbations.none import NAME as NONE
-from physverify.verification.runner import UNKNOWN_ROW_STEP, RowStatus, VerificationReport
+from physverify.verification.runner import RowStatus, VerificationReport
 from physverify.verification.sweep import CheckIdentity, perturbation_name, target_check_ids
 
 CLEAN_LEVEL = 0
@@ -145,10 +147,10 @@ def _require_split(clips: Collection[ClipManifest], split: Split) -> None:
 
 def unique_row_step(rows: Sequence[CalibrationRow]) -> int:
     """D4: one time step per stratum (ADR 0006 R9); clips without a time axis are ignored."""
-    steps = {row.row_step for row in rows if row.row_step != UNKNOWN_ROW_STEP}
-    if len(steps) > 1:
-        raise CalibrationDataError(f"rows mix several row_step values {sorted(steps)}")
-    return steps.pop() if steps else UNKNOWN_ROW_STEP
+    try:
+        return unique_step(row.row_step for row in rows)
+    except MixedRowStepError as exc:
+        raise CalibrationDataError(str(exc)) from exc
 
 
 def require_one_clean_per_scene(rows: Sequence[CalibrationRow]) -> None:

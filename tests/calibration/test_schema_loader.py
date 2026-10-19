@@ -7,13 +7,18 @@ from pathlib import Path
 
 import pytest
 from calibration_cases import artifact_of, check_calibration, fitted_artifact, stratum_model
+from stratum_cases import FIXTURE_CHECKS_HASH, write_artifact
 
 from physverify.calibration.loader import (
     CalibrationError,
+    MixedRowStepError,
     StaleCalibrationError,
+    UnusableStratumError,
     load_calibration,
+    open_stratum,
     parse_calibration,
     projection_name,
+    unique_row_step,
     usable_stratum,
 )
 from physverify.calibration.schema import CALIBRATION_VERSION, CheckCalibration
@@ -164,6 +169,99 @@ def test_another_profile_or_row_step_is_not_usable(tmp_path: Path, text: str) ->
     assert other is not None and "no stratum" in other
     step = usable(path, row_step=2)
     assert step is not None and "row_step 1" in step
+
+
+def opened(
+    path: Path,
+    *,
+    checks_hash: str = FIXTURE_CHECKS_HASH,
+    row_step: int = 1,
+    profile: str = "fast",
+    require_calibrated: bool = False,
+) -> object:
+    return open_stratum(
+        path,
+        InputLevel.PERCEIVED,
+        profile,
+        checks_hash=checks_hash,
+        row_step=row_step,
+        require_calibrated=require_calibrated,
+    )
+
+
+def test_open_stratum_returns_a_usable_stratum(tmp_path: Path) -> None:
+    stratum = opened(write_artifact(tmp_path / "c.json"))
+    assert getattr(stratum, "source", "").endswith("#perceived/fast@run-a")
+
+
+@pytest.mark.parametrize(
+    ("change", "message"),
+    [
+        ({"checks_hash": "other"}, "refit"),
+        ({"profile": "precise"}, "no stratum"),
+        ({"row_step": 2}, "row_step 1"),
+    ],
+)
+def test_a_mismatch_is_a_configuration_error_not_an_unusable_stratum(
+    tmp_path: Path, change: dict[str, object], message: str
+) -> None:
+    path = write_artifact(tmp_path / "c.json")
+    with pytest.raises(CalibrationError, match=message) as caught:
+        opened(path, **change)  # type: ignore[arg-type]
+    assert not isinstance(caught.value, UnusableStratumError)
+
+
+def test_a_stale_artifact_raises_the_stale_error(tmp_path: Path) -> None:
+    with pytest.raises(StaleCalibrationError):
+        opened(write_artifact(tmp_path / "c.json"), checks_hash="other")
+
+
+def test_a_missing_artifact_is_a_configuration_error(tmp_path: Path) -> None:
+    with pytest.raises(CalibrationError, match="calibrate fit") as caught:
+        opened(tmp_path / "absent.json")
+    assert not isinstance(caught.value, UnusableStratumError)
+
+
+def test_an_unready_stratum_is_unusable(tmp_path: Path) -> None:
+    with pytest.raises(UnusableStratumError, match="aggregate threshold s\\* is insufficient"):
+        opened(write_artifact(tmp_path / "c.json", ready=False))
+
+
+def test_no_ok_check_with_weight_is_unusable(tmp_path: Path) -> None:
+    checks = {"R1": check_calibration(tau=0.5, weight=0.0)}
+    model = stratum_model(checks, InputLevel.PERCEIVED, 0.5)
+    path = tmp_path / "c.json"
+    path.write_text(artifact_of((model,)).to_json(), encoding="utf-8")
+    with pytest.raises(UnusableStratumError, match="no check is ok"):
+        opened(path)
+
+
+def test_require_calibrated_turns_an_insufficient_artifact_unusable(tmp_path: Path) -> None:
+    """Judge change 4: the artifact status is a state of the fit, not a configuration error."""
+    path = write_artifact(tmp_path / "c.json", status="insufficient")
+    assert opened(path) is not None
+    with pytest.raises(UnusableStratumError, match="not 'calibrated'"):
+        opened(path, require_calibrated=True)
+    calibrated = write_artifact(tmp_path / "d.json", status="calibrated")
+    assert opened(calibrated, require_calibrated=True) is not None
+
+
+def test_usable_stratum_is_the_message_of_open_stratum(tmp_path: Path) -> None:
+    path = write_artifact(tmp_path / "c.json", ready=False)
+    with pytest.raises(UnusableStratumError) as caught:
+        opened(path)
+    message = usable_stratum(
+        path, InputLevel.PERCEIVED, "fast", checks_hash=FIXTURE_CHECKS_HASH, row_step=1
+    )
+    assert message == str(caught.value)
+
+
+def test_unique_row_step_ignores_unknown_and_refuses_a_mix() -> None:
+    assert unique_row_step([0, 2, 2, 0]) == 2
+    assert unique_row_step([0, 0]) == 0
+    assert unique_row_step([]) == 0
+    with pytest.raises(MixedRowStepError, match="row_step"):
+        unique_row_step([1, 2])
 
 
 def _artifact_path(

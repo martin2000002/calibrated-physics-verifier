@@ -6,28 +6,21 @@ import math
 from collections.abc import Mapping, Sequence
 
 import numpy as np
+from stratum_cases import (
+    DATASET,
+    PROFILE,
+    artifact_of,
+    check_calibration,
+    dataset_ref,
+    stratum_model,
+    view,
+)
 
 from physverify.calibration.collect import level_data
 from physverify.calibration.fit import FitInputs, FitMeta, LevelData, fit_calibration
-from physverify.calibration.loader import Stratum as StratumView
 from physverify.calibration.schema import (
-    Aggregate,
-    Auroc,
     CalibrationArtifact,
-    CheckCalibration,
-    CheckStatus,
-    Ci,
-    DatasetRef,
-    DetectionLimit,
-    Fpr,
-    Monotonicity,
-    Probability,
-    Rate,
-    SettingsSnapshot,
-    SigmaCorrection,
     StageSigma,
-    Stratum,
-    Weight,
 )
 from physverify.calibration.settings import CalibrationConfig, CalibrationSettings
 from physverify.calibration.table import CalibrationRow, Role
@@ -38,8 +31,8 @@ from physverify.verification.policies.threshold import ThresholdParams
 from physverify.verification.runner import RowStatus, TableRow, VerificationReport
 from physverify.verification.sweep import CheckUnit
 
-DATASET = "calib_fixture"
-PROFILE = "fast"
+__all__ = ["DATASET", "PROFILE", "artifact_of", "check_calibration", "stratum_model", "view"]
+
 CHECKS = (
     CheckUnit("R1", "pen_over_size"),
     CheckUnit("R3a", "e_minus_1"),
@@ -276,18 +269,6 @@ def synthetic_level(report: VerificationReport, level: InputLevel) -> LevelData:
     return level_data(level, report, CHECKS, config(), split=Split.CALIB)
 
 
-def dataset_ref(n_clips: int = 0) -> DatasetRef:
-    return DatasetRef(
-        name=DATASET,
-        version="v1",
-        subset="test",
-        split="calib",
-        n_clips=n_clips,
-        n_scenes=0,
-        clip_ids_hash="hash",
-    )
-
-
 def fit_meta(run_id: str = "run-a", created_utc: str = "2026-10-17T00:00:00Z") -> FitMeta:
     return FitMeta(
         created_utc=created_utc,
@@ -310,122 +291,3 @@ def fitted_artifact(
         (synthetic_level(report, InputLevel.ORACLE),), CHECKS, fit_meta(run_id=run_id)
     )
     return fit_calibration(inputs, config(**update))
-
-
-# --- hand-made strata for apply -------------------------------------------------------------------
-
-
-def _rate() -> Rate:
-    return Rate(value=None, ci=Ci(), k=0, n=0)
-
-
-def check_calibration(
-    *,
-    tau: float | None,
-    a: float | None = 0.0,
-    b: float | None = 4.0,
-    scale: float = 0.1,
-    weight: float = 1.0,
-    bias: float = 0.0,
-    factor: float | None = 1.0,
-    status: CheckStatus = "ok",
-    unit: str = "u",
-) -> CheckCalibration:
-    empty = Auroc(value=None, ci=Ci(), n_positive=0, n_negative=0)
-    return CheckCalibration(
-        unit=unit,
-        status=status,
-        tau=tau,
-        n_clean_scenes=20,
-        n_positive_clips=20,
-        n_off_target_clips=0,
-        fpr=Fpr(
-            cv=_rate(),
-            cv_decided=_rate(),
-            in_sample=_rate(),
-            in_sample_decided=_rate(),
-            off_target=_rate(),
-            undeclared_coupling=False,
-        ),
-        tpr_by_level=(),
-        auroc=empty,
-        abstention_rate=_rate(),
-        detection_limit=DetectionLimit(
-            value=None, ci=Ci(), censored="none", bound=None, unit=unit, beta=0.05, n=0
-        ),
-        monotonicity=Monotonicity(
-            kendall_tau_b=None,
-            ci=Ci(),
-            n_pairs=0,
-            n_scenes=0,
-            median_delta_by_level={},
-            monotone_medians=True,
-            h1_pass=False,
-        ),
-        weight=Weight(
-            value=weight, informedness=None, informedness_ci=Ci(), n_positive=0, n_negative=0
-        ),
-        probability=Probability(a=a, b=b, scale=scale, ece_cv=None, ece_ci=Ci(), n=0),
-        sigma=SigmaCorrection(
-            bias=bias,
-            bias_ci=Ci(),
-            factor=factor,
-            factor_ci=Ci(),
-            n_pairs=0,
-            coverage_before=(),
-            coverage_after=(),
-        ),
-    )
-
-
-def stratum_model(
-    checks: Mapping[str, CheckCalibration],
-    level: InputLevel = InputLevel.PERCEIVED,
-    score_threshold: float | None = None,
-) -> Stratum:
-    empty = Auroc(value=None, ci=Ci(), n_positive=0, n_negative=0)
-    return Stratum(
-        level=level,
-        profile=PROFILE,
-        row_step=1,
-        k_sigma=2.0,
-        on_unknown_sigma="abstain",
-        checks=dict(checks),
-        aggregate=Aggregate(
-            score_threshold=score_threshold,
-            sufficient=score_threshold is not None,
-            n_clean_scenes=0,
-            n_perturbed_clips=0,
-            auroc=empty,
-        ),
-    )
-
-
-def view(checks: Mapping[str, CheckCalibration]) -> StratumView:
-    return StratumView(model=stratum_model(checks), source="test", artifact=None)
-
-
-def artifact_of(strata: Sequence[Stratum], run_id: str = "run-a") -> CalibrationArtifact:
-    return CalibrationArtifact(
-        status="insufficient",
-        created_utc="2026-10-17T00:00:00Z",
-        run_id=run_id,
-        commit="abc",
-        config_hash="cfg",
-        checks_hash="checks",
-        error_profile_hash="profile",
-        dataset=dataset_ref(),
-        settings=SettingsSnapshot(
-            alpha=0.05,
-            beta=0.05,
-            k_sigma=2.0,
-            folds=5,
-            bootstrap=200,
-            seed=0,
-            ci=0.95,
-            min_sigma_pairs=10,
-            platt_l2=0.01,
-        ),
-        strata=tuple(strata),
-        stage_sigma=StageSigma(path=None, hash=None),
-    )
