@@ -1,23 +1,33 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 from cli_runner import CliRunner
 
-from physverify.cli.commands.finetune import DEFAULT_RUN
+from physverify.cli.commands.finetune import (
+    DEFAULT_RUN,
+    _beta,
+    _check_current,
+    _check_resume,
+    status_lines,
+)
 from physverify.config.models import Settings
+from physverify.core.errors import UsageError
 from physverify.finetune.records import (
     CandidateRecord,
     CandidateScore,
     PairRecord,
+    PairsReport,
     read_records,
     write_record,
     write_records,
 )
 from physverify.finetune.scorers.provisional import ProvisionalScorer
-from physverify.finetune.store import PAIRS_FILE, REPORT_FILE, CampaignStore
+from physverify.finetune.settings import load_finetune
+from physverify.finetune.store import PAIRS_FILE, REPORT_FILE, RUN_FILE, CampaignStore
 from physverify.finetune.trainer import STATE_FILE, checkpoint_name
 from physverify.schema.checks import CheckResult, Verdict
 from physverify.schema.io import write_jsonl
@@ -174,6 +184,7 @@ def _write_stored_scores(
     make_result: Callable[..., CheckResult],
     thresholds: str,
     version: str,
+    candidate_hash: str = "h",
 ) -> None:
     for prompt in [p for p in store.prompts() if p.split == "train"]:
         for k, value in enumerate([0.9, 0.2]):
@@ -205,6 +216,7 @@ def _write_stored_scores(
                 thresholds=thresholds,
                 results_path=str(checks),
                 scorer_version=version,
+                candidate_config_hash=candidate_hash,
             )
             write_record(store.score_path("base", "provisional", cid), score)
 
@@ -226,6 +238,7 @@ def test_pairs_and_status_run_on_cpu_from_stored_scores(
     pairs = read_records(store.pairs_dir("provisional") / PAIRS_FILE, PairRecord)
     assert len(pairs) == 2 and all(p.winner.endswith("__k00") for p in pairs)
     assert (store.pairs_dir("provisional") / REPORT_FILE).is_file()
+    assert "1.000 per scored prompt (2 scored)" in result.out
     status = cli("finetune", "status", env=env)
     assert status.code == 0
     assert "pairs/provisional: 2" in status.out
@@ -246,7 +259,148 @@ def test_pairs_refuse_scores_of_an_older_provisional_version(
     _write_stored_scores(store, make_score, make_result, thresholds, "1")
     result = cli("finetune", "pairs", "--scorer", "provisional", env=env)
     assert result.code == 2
-    assert "new campaign" in result.err
+    assert "finetune score --split train" in result.err
+
+
+def test_pairs_refuse_scores_of_another_candidate_config(
+    cli: CliRunner,
+    env: dict[str, str],
+    store: CampaignStore,
+    labels: None,
+    make_score: Score,
+    make_result: Callable[..., CheckResult],
+    make_settings: Callable[..., Settings],
+) -> None:
+    assert cli("finetune", "prompts", "build", env=env).code == 0
+    thresholds = ProvisionalScorer(make_settings()).thresholds()
+    version = ProvisionalScorer.version
+    _write_stored_scores(store, make_score, make_result, thresholds, version, "old")
+    result = cli("finetune", "pairs", "--scorer", "provisional", env=env)
+    assert result.code == 2 and "stale" in result.err
+
+
+def test_pairs_ignore_stale_scores_of_prompts_outside_train(
+    cli: CliRunner,
+    env: dict[str, str],
+    store: CampaignStore,
+    labels: None,
+    make_score: Score,
+    make_result: Callable[..., CheckResult],
+    make_settings: Callable[..., Settings],
+) -> None:
+    assert cli("finetune", "prompts", "build", env=env).code == 0
+    thresholds = ProvisionalScorer(make_settings()).thresholds()
+    _write_stored_scores(store, make_score, make_result, thresholds, ProvisionalScorer.version)
+    restamped = make_score("eval-0001__k00", 0.5, scorer_version="frozen", thresholds="frozen")
+    write_record(store.score_path("base", "provisional", restamped.candidate_id), restamped)
+    result = cli("finetune", "pairs", "--scorer", "provisional", env=env)
+    assert result.code == 0, result.err
+
+
+def test_the_pilot_draws_train_prompts_only(cli: CliRunner, env: dict[str, str]) -> None:
+    result = cli(
+        "--device", "cuda", "finetune", "generate", "--split", "dev", "--pilot", "2", env=env
+    )
+    assert result.code == 2 and "--pilot" in result.err
+
+
+def test_select_refuses_stale_checkpoint_scores(
+    store: CampaignStore, make_score: Score, make_settings: Callable[..., Settings]
+) -> None:
+    scorer = ProvisionalScorer(make_settings())
+    tag = "lora-abc"
+    record = CandidateRecord(
+        candidate_id="d__k00",
+        prompt_id="d",
+        split="dev",
+        k=0,
+        seed=0,
+        model_tag=tag,
+        video_path="v.mp4",
+        latents_path=None,
+        embeds_path="e",
+        config_hash="h",
+    )
+    write_record(store.meta_path(tag, "d", 0), record)
+    fields = {"model_tag": tag, "thresholds": scorer.thresholds(), "candidate_config_hash": "h"}
+    current = make_score("d__k00", 0.5, scorer_version=scorer.version, **fields)
+    _check_current(store, tag, [current], scorer, "dev")
+    old = current.model_copy(update={"scorer_version": "0"})
+    with pytest.raises(UsageError, match=f"--split dev --model-tag {tag}"):
+        _check_current(store, tag, [old], scorer, "dev")
+
+
+def test_resume_compares_every_run_field_but_commit_and_beta_source(tmp_path: Path) -> None:
+    path = tmp_path / RUN_FILE
+    record = {
+        "pairs_sha256": "p",
+        "train": {"lr": 1e-4, "seed": 0},
+        "lora": {"rank": 16},
+        "base_model": {"revision": "r"},
+        "commit": "c1",
+        "beta_source": "--beta",
+    }
+    path.write_text(json.dumps(record), encoding="utf-8")
+    _check_resume(path, {**record, "commit": "c2", "beta_source": "beta_grid.json"})
+    changes = [
+        ("train", {"lr": 5e-5, "seed": 0}),
+        ("lora", {"rank": 8}),
+        ("base_model", {"revision": "s"}),
+        ("pairs_sha256", "q"),
+    ]
+    for key, value in changes:
+        with pytest.raises(UsageError, match=key):
+            _check_resume(path, {**record, key: value})
+    with pytest.raises(UsageError, match="new_key"):
+        _check_resume(path, {**record, "new_key": 1})
+
+
+def test_a_run_from_before_base_model_tracking_must_be_restarted(tmp_path: Path) -> None:
+    path = tmp_path / RUN_FILE
+    record = {"pairs_sha256": "p", "train": {"lr": 1e-4}, "commit": "c1"}
+    path.write_text(json.dumps(record), encoding="utf-8")
+    with pytest.raises(UsageError, match="predates base-model tracking.*must be restarted"):
+        _check_resume(path, {**record, "base_model": {"revision": "r"}})
+
+
+def test_status_reads_a_pairs_report_without_the_scored_prompt_yield(
+    store: CampaignStore, cli: CliRunner, env: dict[str, str]
+) -> None:
+    assert cli("finetune", "prompts", "build", env=env).code == 0
+    report = PairsReport(
+        scorer="provisional",
+        scorer_version="1",
+        calibrated=False,
+        thresholds="t",
+        prompts=4,
+        candidates=16,
+        eligible=12,
+        pairs=2,
+        dropped={},
+        rejected={},
+        yield_per_prompt=0.5,
+    )
+    path = store.pairs_dir("provisional") / REPORT_FILE
+    path.parent.mkdir(parents=True)
+    path.write_text(report.model_dump_json(exclude={"scored_prompts", "yield_per_scored_prompt"}))
+    loaded = PairsReport.model_validate_json(path.read_text())
+    assert loaded.measured_yield == 0.5
+    lines = status_lines(store)
+    assert any("pairs/provisional: 2 (0.500 per prompt (4)" in line for line in lines), lines
+    assert any("older report" in line for line in lines)
+
+
+def test_the_beta_grid_choice_is_tied_to_its_pairs(
+    store: CampaignStore, make_settings: Callable[..., Settings]
+) -> None:
+    cfg = load_finetune(make_settings())
+    assert _beta(store, cfg, None, "p") == (cfg.train.beta, "finetune.train.beta")
+    store.beta_path().parent.mkdir(parents=True)
+    store.beta_path().write_text(json.dumps({"chosen": 500.0, "pairs_sha256": "p"}), "utf-8")
+    assert _beta(store, cfg, None, "p") == (500.0, str(store.beta_path()))
+    assert _beta(store, cfg, 7.0, "q") == (7.0, "--beta")
+    with pytest.raises(UsageError, match="other pairs"):
+        _beta(store, cfg, None, "q")
 
 
 def test_status_without_prompts(cli: CliRunner, env: dict[str, str]) -> None:

@@ -134,8 +134,8 @@ def test_pairs_are_decided_on_the_common_checks(make_score: Score, rules: PairSe
     assert (pair.score_w, pair.score_l, pair.common_checks) == (0.5, 0.3, ["R1"])
 
 
-def test_the_report_accounts_for_every_candidate(make_score: Score, rules: PairSettings) -> None:
-    prompts = [
+def _prompts(*ids: str) -> list[PromptRecord]:
+    return [
         PromptRecord(
             prompt_id=pid,
             text=pid,
@@ -145,8 +145,12 @@ def test_the_report_accounts_for_every_candidate(make_score: Score, rules: PairS
             target_checks=["R5a"],
             split="train",
         )
-        for pid in ("p", "q")
+        for pid in ids
     ]
+
+
+def test_the_report_accounts_for_every_candidate(make_score: Score, rules: PairSettings) -> None:
+    prompts = _prompts("p", "q")
     scores = [
         make_score("p__k00", 0.9),
         make_score("p__k01", 0.2),
@@ -158,8 +162,18 @@ def test_the_report_accounts_for_every_candidate(make_score: Score, rules: PairS
     assert report.candidates == len(scores)
     assert report.eligible + sum(report.dropped.values()) == report.candidates
     assert report.pairs == len(pairs) == 1
-    assert report.yield_per_prompt == 0.5
+    assert report.yield_per_prompt == report.yield_per_scored_prompt == 0.5
     assert report.scorer == "provisional" and not report.calibrated
+
+
+def test_unscored_prompts_lower_only_the_all_prompt_yield(
+    make_score: Score, rules: PairSettings
+) -> None:
+    scores = [make_score("p__k00", 0.9), make_score("p__k01", 0.2)]
+    _, report = build_pairs(_prompts("p", "q", "r", "s"), scores, rules, FakeRescore())
+    assert (report.pairs, report.prompts, report.scored_prompts) == (1, 4, 1)
+    assert report.yield_per_prompt == 0.25
+    assert report.yield_per_scored_prompt == 1.0
 
 
 def test_mixed_scorers_are_refused(make_score: Score) -> None:

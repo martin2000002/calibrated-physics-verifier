@@ -1,8 +1,9 @@
 """Hand-copied videos listed in ``<raw_dir>/local_video/<subset>/manifest.json`` (ADR 0005, 3.11).
 
 A clip is an mp4 (container rate unless ``real_fps`` is declared) or a directory of numbered
-frames (``real_fps`` required). Queries come from the manifest, else from
-``<clip_id>.queries.json`` beside it, else none. There is no ground truth.
+frames (``real_fps`` required). Its id is the manifest's ``clip_id``, else the file or directory
+name. Queries come from the manifest, else from ``<clip_id>.queries.json`` beside it, else none.
+There is no ground truth.
 """
 
 from __future__ import annotations
@@ -41,6 +42,7 @@ class ClipEntry(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     video: str = Field(min_length=1)
+    clip_id: str | None = Field(default=None, min_length=1)
     real_fps: float | None = Field(default=None, gt=0)
     queries: QueryList | None = None
 
@@ -59,6 +61,8 @@ def to_queries(entries: QueryList) -> tuple[ObjectQuery, ...]:
 
 
 def clip_id_of(entry: ClipEntry) -> str:
+    if entry.clip_id is not None:
+        return entry.clip_id
     path = Path(entry.video)
     return path.name if entry.video.endswith("/") else path.stem
 

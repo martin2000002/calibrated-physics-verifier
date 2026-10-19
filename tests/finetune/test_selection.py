@@ -7,7 +7,14 @@ import pytest
 from physverify.config.models import Settings
 from physverify.finetune.records import CandidateScore
 from physverify.finetune.scorers._base import AggregateScore
-from physverify.finetune.selection import choose, evaluate_checkpoint, spaced
+from physverify.finetune.selection import (
+    CheckpointResult,
+    Selection,
+    beats_base,
+    choose,
+    evaluate_checkpoint,
+    spaced,
+)
 from physverify.finetune.settings import SelectSettings, load_finetune
 
 Score = Callable[..., CandidateScore]
@@ -89,3 +96,36 @@ def test_choose_skips_suspected_checkpoints(
     )
     assert choose([good, better, hacked]) == better
     assert choose([hacked]) is None
+
+
+def _checkpoint(diff: float | None, ci: tuple[float, float] | None) -> CheckpointResult:
+    return CheckpointResult(
+        step=1,
+        adapter="a",
+        model_tag="lora-a",
+        n=4,
+        n_paired=4,
+        mean_score=0.5,
+        paired_diff=diff,
+        ci=ci,
+        abstention=0.0,
+        base_abstention=0.0,
+        motion=1.0,
+        base_motion=1.0,
+        suspected_hacking=False,
+    )
+
+
+def test_beats_base_needs_a_positive_diff_with_a_ci_above_zero() -> None:
+    assert beats_base(_checkpoint(0.1, (0.02, 0.18)))
+    assert not beats_base(_checkpoint(0.1, (-0.02, 0.22)))
+    assert not beats_base(_checkpoint(-0.1, (-0.2, -0.01)))
+    assert not beats_base(_checkpoint(0.1, None))
+    assert not beats_base(None)
+
+
+def test_a_selection_without_beats_base_reads_as_not_beating_it() -> None:
+    chosen = _checkpoint(0.1, (0.02, 0.18))
+    stored = {"run_id": "main", "scorer": "s", "thresholds": "t", "selected": chosen.model_dump()}
+    selection = Selection.model_validate({**stored, "checkpoints": [chosen.model_dump()]})
+    assert selection.beats_base is False

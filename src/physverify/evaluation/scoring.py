@@ -10,15 +10,14 @@ from physverify.evaluation.prereg import H3Preregistration, stamp_problem
 from physverify.evaluation.records import ScoringManifest
 from physverify.finetune.records import CandidateScore, write_record, write_records
 from physverify.finetune.scorers._base import AggregateScorer
-from physverify.finetune.scoring import restamp
+from physverify.finetune.scoring import restamp, same_stamp
 from physverify.finetune.store import CampaignStore
 from physverify.schema.checks import CheckResult
 from physverify.schema.io import read_jsonl
 
 
 def stale(scores: Sequence[CandidateScore], scorer: AggregateScorer) -> list[CandidateScore]:
-    stamp = (scorer.version, scorer.thresholds())
-    return [s for s in scores if (s.scorer_version, s.thresholds) != stamp]
+    return [s for s in scores if not same_stamp(s, scorer)]
 
 
 def manifest(

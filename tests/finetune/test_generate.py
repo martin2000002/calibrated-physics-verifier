@@ -6,16 +6,19 @@ from typing import Any
 
 import numpy as np
 import pytest
+import safetensors.torch
 import torch
 from pydantic import BaseModel
 from safetensors.torch import load_file
 
 from physverify.config.models import Settings
+from physverify.core.errors import UsageError
 from physverify.datasets.local_video import QueryEntry
 from physverify.finetune.generate import (
     CandidateGenerator,
     LatentCapture,
     adapter_tag,
+    save_safetensors,
 )
 from physverify.finetune.records import BASE_TAG, CandidateRecord, PromptRecord, read_record
 from physverify.finetune.settings import FinetuneSettings, generator_settings, load_finetune
@@ -147,13 +150,47 @@ def test_an_interrupted_run_resumes_without_redoing_candidates(
     assert _generator(store, gen, cfg, FakePipe()).plan(prompts) == []
 
 
-def test_another_generator_config_regenerates(
+def test_another_generator_config_is_refused_over_stored_candidates(
     store: CampaignStore, gen: GenerationSettings, cfg: FinetuneSettings
 ) -> None:
     prompts = [_prompt(0)]
     _run(_generator(store, gen, cfg, FakePipe()), prompts)
+    stored = {p: p.read_bytes() for p in sorted(store.root.rglob("*")) if p.is_file()}
+    videos = {p: p.read_bytes() for p in sorted(store.video_dir(BASE_TAG).glob("*.mp4"))}
     changed = gen.model_copy(update={"guidance_scale": gen.guidance_scale + 1})
-    assert len(_generator(store, changed, cfg, FakePipe()).plan(prompts)) == cfg.candidates.k_train
+    pipe = FakePipe()
+    with pytest.raises(UsageError, match=f"another campaign than {store.campaign} "):
+        _run(_generator(store, changed, cfg, pipe), prompts)
+    assert pipe.calls == []
+    assert {p: p.read_bytes() for p in sorted(store.root.rglob("*")) if p.is_file()} == stored
+    assert {p: p.read_bytes() for p in sorted(store.video_dir(BASE_TAG).glob("*.mp4"))} == videos
+
+
+def test_a_new_prompt_still_generates_beside_a_matching_campaign(
+    store: CampaignStore, gen: GenerationSettings, cfg: FinetuneSettings
+) -> None:
+    _run(_generator(store, gen, cfg, FakePipe()), [_prompt(0)])
+    plan = _generator(store, gen, cfg, FakePipe()).plan([_prompt(0), _prompt(1)])
+    assert {r.prompt_id for r in plan} == {_prompt(1).prompt_id}
+
+
+def test_tensor_writes_use_a_unique_temp_file_and_leave_none(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    temps: list[str] = []
+    real = safetensors.torch.save_file
+
+    def recording(tensors: Any, filename: str) -> None:
+        temps.append(filename)
+        real(tensors, filename)
+
+    monkeypatch.setattr(safetensors.torch, "save_file", recording)
+    path = tmp_path / "embeds" / "p.safetensors"
+    save_safetensors({"x": torch.ones(2)}, path)
+    save_safetensors({"x": torch.zeros(2)}, path)
+    assert len(set(temps)) == 2 and str(path) not in temps
+    assert torch.equal(load_file(str(path))["x"], torch.zeros(2))
+    assert [p.name for p in path.parent.iterdir()] == [path.name]
 
 
 def test_latent_capture_keeps_embeds_at_step_zero_and_latents_at_the_last() -> None:
