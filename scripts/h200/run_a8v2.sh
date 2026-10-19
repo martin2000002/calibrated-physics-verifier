@@ -258,6 +258,8 @@ begin() {
     CALL_K=0
     LAST_LOG=""
     echo "== step $CUR_N: $CUR_NAME"
+    # A killed rerun must not leave an earlier 0 as the step's last row.
+    row running
 }
 
 row() {

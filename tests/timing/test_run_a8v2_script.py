@@ -174,9 +174,13 @@ class Sandbox:
             if line.startswith(("pv ", "migrate "))
         ]
 
-    def steps(self) -> list[list[str]]:
+    def rows(self) -> list[list[str]]:
         text = (self.out / "steps.tsv").read_text(encoding="utf-8")
         return [line.split("\t") for line in text.splitlines()]
+
+    def steps(self) -> list[list[str]]:
+        """The rows that close a step, without the ones written when it starts."""
+        return [row for row in self.rows() if row[2] != "running"]
 
 
 def _done(sandbox: Sandbox, steps: int, *, saves: int | None = None) -> None:
@@ -293,6 +297,8 @@ def test_the_full_run_preflights_then_runs_every_step_in_order(sandbox: Sandbox)
         "size eval",
     ]
     assert [row[1] for row in sandbox.steps()] == ["preflight", *STEP_NAMES]
+    opened = [row[0] for row in sandbox.rows() if row[2] == "running"]
+    assert opened == ["pre", *(str(k) for k in range(len(STEP_NAMES)))]
     summary = (sandbox.out / "summary.md").read_text(encoding="utf-8")
     assert "sha256 abc123" in summary
     assert "## H1 primary" in summary and "| lift | 3 |" in summary
@@ -639,6 +645,10 @@ def test_a_second_instance_is_refused(sandbox: Sandbox) -> None:
         ("0\tmigrate\t0\t1\t-\n1\textract-synthetic\t0\t1\t-\n", "step 2 has not completed"),
         ("2\tstages\t0\t1\t-\n2\tstages\t2\t1\t-\n", "step 2 has not completed (last exit '2')"),
         ("2\tstages\t1\t1\t-\n", "step 2 has not completed (last exit '1')"),
+        (
+            "2\tstages\t0\t1\t-\n2\tstages\trunning\t0\t-\n",
+            "step 2 has not completed (last exit 'running')",
+        ),
     ],
 )
 def test_a_start_after_an_incomplete_step_is_refused(
