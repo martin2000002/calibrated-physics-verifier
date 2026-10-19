@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from types import MappingProxyType
@@ -26,6 +27,7 @@ from physverify.verification.runner import CALIBRATED, write_report
 EXIT_USAGE = 2
 RUN_ID = "raw-oracle"
 REPORT = synthetic_report(40)
+FAMILY_REPORT = synthetic_report(40, prefix="family-s")
 FAST = ("--set", "calibration.bootstrap=100")
 STRICT = ("--set", "calibration.require_calibrated_artifact=true")
 
@@ -214,3 +216,51 @@ def test_a_policy_decided_run_is_refused(cli: CliRunner, settings: Settings) -> 
     result = cli("calibrate", "fit", "--dataset", DATASET, "--from-run", "decided")
     assert result.code != 0
     assert "--policy raw" in result.err + result.out
+
+
+class _ReportRunner:
+    def run(self, source: object, clips: Sequence[ClipManifest]) -> object:
+        return REPORT
+
+
+def _evaluate_cli(cli: CliRunner, raw_run: str, tmp_path: Path, *extra: str) -> dict[str, Any]:
+    out = tmp_path / "cal" / "calibration.json"
+    fit(cli, raw_run, out)
+    result = cli(*FAST, *extra, "calibrate", "evaluate", "--dataset", DATASET, "--no-real",
+                 "--artifact", str(out))  # fmt: skip
+    assert result.code == 0, result.err
+    path = Path(result.out.split("evaluation: ")[1].split()[0])
+    data: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
+    return data
+
+
+@pytest.fixture
+def family_run(monkeypatch: pytest.MonkeyPatch, settings: Settings) -> str:
+    """A raw run whose scene ids end in ``-sNNN`` like Kubric's; ``calibrate evaluate`` scores
+    that report instead of running the checks."""
+    monkeypatch.setattr(sys.modules[__name__], "REPORT", FAMILY_REPORT)
+    monkeypatch.setattr(calibrate, "_raw_runner", lambda session: _ReportRunner())
+    monkeypatch.setattr(calibrate, "_source", lambda session, dataset, level: None)
+    folder = settings.paths.runs_dir / "family"
+    folder.mkdir(parents=True)
+    write_report(folder, FAMILY_REPORT)
+    return "family"
+
+
+def test_evaluate_adds_the_h1_primary_view_of_the_configured_scenes(
+    cli: CliRunner, family_run: str, tmp_path: Path
+) -> None:
+    """ADR 0015 1.4 through the command: s000 and s011-s039 of the 40 scenes."""
+    data = _evaluate_cli(cli, family_run, tmp_path)
+    primary = data["h1_primary"]
+    assert primary["scenes"] == ["s000", "s011-s039"]
+    assert primary["dataset"]["n_scenes"] == 30
+    assert data["dataset"]["n_scenes"] == 40
+    assert primary["dataset"]["n_clips"] * 40 == data["dataset"]["n_clips"] * 30
+
+
+def test_evaluate_without_primary_scenes_has_no_h1_view(
+    cli: CliRunner, family_run: str, tmp_path: Path
+) -> None:
+    data = _evaluate_cli(cli, family_run, tmp_path, "--set", "h1_scope.primary_scenes=[]")
+    assert data["h1_primary"] is None

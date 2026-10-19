@@ -7,6 +7,7 @@ import pytest
 
 from physverify.agreement.prereg import file_sha256
 from physverify.core.errors import ConfigError, PhysverifyError, UsageError
+from physverify.evaluation.analysis import SECONDARY_TESTS
 from physverify.evaluation.layout import H3Layout
 from physverify.evaluation.margins import MarginDerivation
 from physverify.evaluation.prereg import (
@@ -253,3 +254,11 @@ def test_the_secondary_tests_are_frozen() -> None:
     assert "secondary_tests" not in REFREEZE_MUTABLE
     old, new = record(secondary_tests=["S1"]), record(secondary_tests=["S1", "S5"])
     assert identity(old) != identity(new)
+
+
+def test_a_freeze_without_secondary_tests_refuses_the_current_ones() -> None:
+    """A pre-registration frozen before S5 (an empty or absent list) no longer holds."""
+    current = identity(record(secondary_tests=list(SECONDARY_TESTS)))
+    with pytest.raises(ConfigError, match="secondary_tests"):
+        require_unchanged(record(secondary_tests=[]), current)
+    require_unchanged(record(secondary_tests=[]), identity(record(secondary_tests=[])))

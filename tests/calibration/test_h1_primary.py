@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 from calibration_cases import CHECKS, config, dataset_ref, fitted_artifact, synthetic_report
+from records import error_profile
 
 from physverify.calibration.collect import level_data
 from physverify.calibration.evaluate import (
@@ -18,10 +19,17 @@ from physverify.calibration.loader import parse_calibration
 from physverify.calibration.report import evaluation_markdown
 from physverify.calibration.scenes import SceneScope, expand, h1_scope, in_scope, scene_index
 from physverify.calibration.schema import CalibrationArtifact, EvaluationReport
+from physverify.calibration.settings import active_checks_hash
+from physverify.cli.context import PLUGIN_KINDS
 from physverify.config.loader import load_settings
+from physverify.config.models import Settings
 from physverify.core.errors import ConfigError
+from physverify.core.hashing import error_profile_hash
+from physverify.extraction.cache import plan_entry_filter, plan_params_hashes, profile_keys
+from physverify.extraction.plan import resolve_plan
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import Split
+from physverify.schema.stages import Stage
 
 PRIMARY = ("s000", "s011-s039")
 
@@ -49,6 +57,29 @@ def test_scene_ids_match_by_trailing_index() -> None:
 def test_the_shipped_scope_is_the_adr_one(repo_root: Path) -> None:
     settings = load_settings(repo_root / "configs", environ={})
     assert h1_scope(settings).primary_scenes == PRIMARY
+
+
+def _hashes(settings: Settings) -> tuple[str, tuple[str, ...], dict[Stage, str]]:
+    """``checks_hash``, the error-profile hash and the params hash of every stage of the plan."""
+    plan = resolve_plan(settings, PLUGIN_KINDS["providers"](), dataset="kubric_synthetic")
+    accept = plan_entry_filter(plan)
+    profile = error_profile()
+    stages = tuple(
+        error_profile_hash(profile, profile_keys(step.provider, plan.names), accept)
+        for step in plan.stages
+    )
+    return active_checks_hash(settings), stages, plan_params_hashes(plan.stages)
+
+
+def test_the_scope_changes_neither_checks_hash_nor_the_error_profile_hash(repo_root: Path) -> None:
+    """A report filter only (ADR 0015 1.4): the artifact, decide and the cache keys keep."""
+    configs = repo_root / "configs"
+    shipped = load_settings(configs, environ={}, profile="precise")
+    moved = load_settings(
+        configs, environ={}, profile="precise", overrides=['h1_scope.primary_scenes=["s001"]']
+    )
+    assert h1_scope(moved).primary_scenes != h1_scope(shipped).primary_scenes
+    assert _hashes(moved) == _hashes(shipped)
 
 
 @pytest.fixture(scope="module")
