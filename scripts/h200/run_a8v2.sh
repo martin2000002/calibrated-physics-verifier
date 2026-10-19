@@ -206,8 +206,13 @@ stop() {
     die "step $CUR_N ($CUR_NAME): $*"
 }
 
+# fatal TOLERATED CODE: whether CODE stops the step (75, the busy lock, is never tolerated).
+fatal() {
+    [[ "$2" -eq 75 || ("$2" -ne 0 && "$2" -ne "$1") ]]
+}
+
 # run_logged TOLERATED -- CMD...: CMD with its output also in a log of the step; exits with its
-# code unless that is 0 or TOLERATED (75, the busy lock, is never tolerated).
+# code if fatal.
 run_logged() {
     local tolerated="$1"
     shift 2
@@ -218,7 +223,7 @@ run_logged() {
     "$@" 2>&1 | tee -a "$LAST_LOG"
     local code="${PIPESTATUS[0]}"
     set -e
-    if [[ "$code" -eq 75 || ("$code" -ne 0 && "$code" -ne "$tolerated") ]]; then
+    if fatal "$tolerated" "$code"; then
         row "$code"
         echo "step $CUR_N ($CUR_NAME) failed ($code): $*; log $LAST_LOG" >&2
         exit "$code"
@@ -376,6 +381,7 @@ step_1() {
 
 # Round-robin shards of the full selection, each a `diagnose stages` without the profile; the heavy
 # cache keys do not depend on the error profile and its writes are atomic, so they can overlap.
+# Like the profile call after them, they tolerate exit 1 (failed clips) and nothing else.
 diag_shards() {
     query clips kubric_synthetic full >"$OUT/diag_clips.txt" \
         || stop "cannot list the kubric_synthetic clips"
@@ -401,7 +407,7 @@ diag_shards() {
         code=0
         wait "${pids[$i]}" || code=$?
         note "step 2 shard $i ($DIAG_THREADS threads): exit $code, log ${logs[$i]}"
-        [[ "$code" -eq 0 ]] || failed=$((failed + 1))
+        ! fatal 1 "$code" || failed=$((failed + 1))
     done
     [[ "$failed" -eq 0 ]] || stop "$failed of ${#pids[@]} diagnose shards failed"
 }

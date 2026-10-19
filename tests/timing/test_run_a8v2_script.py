@@ -64,7 +64,7 @@ case "$*" in
     else cp "$CLEAN_CHECKS" "$RUN/checks.jsonl"; fi ;;
   *" extract run "*) new_run; exit "${EXTRACT_EXIT:-0}" ;;
   *"--no-lock diagnose stages "*)
-    [[ "$* " != *" --clips ${FAILED_SHARD_CLIP:-none} "* ]] || exit 1 ;;
+    [[ "$* " != *" --clips ${FAILED_SHARD_CLIP:-none} "* ]] || exit "${SHARD_EXIT:-1}" ;;
   *" diagnose stages "*) new_run ;;
   *" calibrate evaluate "*)
     new_run
@@ -442,8 +442,18 @@ def test_diag_shards_threads_can_be_set(sandbox: Sandbox) -> None:
     assert all("--set runtime.threads=3 " in line for line in shard_lines)
 
 
-def test_a_failed_diag_shard_stops_step_2_before_the_profile(sandbox: Sandbox) -> None:
-    result = sandbox.run("2", PHYSVERIFY_A8V2_DIAG_SHARDS="2", FAILED_SHARD_CLIP="k4")
+def test_a_diag_shard_with_failed_clips_is_tolerated(sandbox: Sandbox) -> None:
+    env = {"PHYSVERIFY_A8V2_DIAG_SHARDS": "2", "FAILED_SHARD_CLIP": "k4"}
+    assert sandbox.run("2", FIT_EXIT="1", **env).returncode == 1
+    summary = (sandbox.out / "summary.md").read_text(encoding="utf-8")
+    assert "step 2 shard 1 (16 threads): exit 1" in summary
+    assert any("--write-profile" in c for c in sandbox.commands())
+
+
+@pytest.mark.parametrize("code", ["75", "3"])
+def test_a_failed_diag_shard_stops_step_2_before_the_profile(sandbox: Sandbox, code: str) -> None:
+    env = {"PHYSVERIFY_A8V2_DIAG_SHARDS": "2", "FAILED_SHARD_CLIP": "k4", "SHARD_EXIT": code}
+    result = sandbox.run("2", **env)
     assert result.returncode == 2
     assert "1 of 2 diagnose shards failed" in result.stderr
     assert sandbox.steps()[-1][:3] == ["2", "stages", "2"]
