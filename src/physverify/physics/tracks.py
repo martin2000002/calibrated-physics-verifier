@@ -10,7 +10,7 @@ from __future__ import annotations
 import math
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 from numpy.typing import NDArray
@@ -46,22 +46,67 @@ class PlacedBody:
 
 
 @dataclass(frozen=True, eq=False)
-class LineFit:
-    """y(t) = y0 + slope (t - t0); ``cov`` holds the (y0, slope) covariance per component."""
+class PolyFit:
+    """y(t) = sum_k coef[k] (t - t0)^k per component; ``cov`` holds the coefficient covariance
+    per component (None when an input sigma is unknown)."""
 
     t0: float
-    y0: FloatArray
-    slope: FloatArray
-    cov: FloatArray | None
+    coef: FloatArray  # (degree + 1, *shape)
+    cov: FloatArray | None  # (*shape, degree + 1, degree + 1)
 
-    def at(self, t: float) -> tuple[FloatArray, FloatArray]:
-        tau = t - self.t0
-        value = np.asarray(self.y0 + self.slope * tau, dtype=np.float64)
+    @property
+    def degree(self) -> int:
+        return int(self.coef.shape[0]) - 1
+
+    def value_at(self, t: float, derivative: int = 0) -> tuple[FloatArray, FloatArray]:
+        """The ``derivative``-th time derivative of the fit at ``t`` and its sigma."""
+        basis = _derivative_basis(self.degree, t - self.t0, derivative)
+        value = np.asarray(np.tensordot(basis, self.coef, axes=1), dtype=np.float64)
         if self.cov is None:
             return value, np.full(value.shape, math.nan)
-        basis = np.array([1.0, tau])
         variance = np.einsum("i,...ij,j->...", basis, self.cov, basis)
         return value, np.sqrt(np.maximum(variance, 0.0))
+
+
+def _derivative_basis(degree: int, tau: float, derivative: int) -> FloatArray:
+    """d^r/dt^r of (1, tau, ..., tau^degree): k! / (k - r)! tau^(k - r), zero for k < r."""
+    return np.array(
+        [
+            math.perm(k, derivative) * tau ** (k - derivative) if k >= derivative else 0.0
+            for k in range(degree + 1)
+        ]
+    )
+
+
+FitSource = Literal["position", "velocity"]
+# Polynomial degree of the per-side fit: between impacts the only force is gravity, so the
+# position is a parabola and the velocity a line.
+MOTION_DEGREE: dict[str, int] = {"position": 2, "velocity": 1}
+
+
+@dataclass(frozen=True, eq=False)
+class MotionFit:
+    """Constant-acceleration motion fitted on positions (parabola) or velocities (line)."""
+
+    fit: PolyFit
+    source: FitSource
+
+    @property
+    def _order(self) -> int:
+        """Time derivative of the fitted quantity that gives the velocity."""
+        return 1 if self.source == "position" else 0
+
+    def velocity_at(self, t: float) -> tuple[FloatArray, FloatArray]:
+        return self.fit.value_at(t, self._order)
+
+    @property
+    def acceleration(self) -> FloatArray:
+        return self.fit.value_at(self.fit.t0, self._order + 1)[0]
+
+
+def motion_fit(t: FloatArray, y: FloatArray, sigma: FloatArray, source: FitSource) -> MotionFit:
+    """MotionFit of positions or velocities ``y`` (n, 3) sampled at times ``t``."""
+    return MotionFit(poly_fit(t, y, sigma, MOTION_DEGREE[source]), source)
 
 
 def row_step(frame_index: IntArray) -> int:
@@ -278,37 +323,38 @@ def _distances(record: ContactRecord) -> FloatArray:
     return record.point_distances
 
 
-def line_fit(t: FloatArray, y: FloatArray, sigma: FloatArray) -> LineFit:
-    """Least squares y = y0 + slope (t - t0) per component, t0 = mean(t), weights 1/sigma^2.
+def poly_fit(t: FloatArray, y: FloatArray, sigma: FloatArray, degree: int) -> PolyFit:
+    """Least-squares polynomial of ``degree`` in t - t0 per component, t0 = mean(t), weights
+    1/sigma^2.
 
     With any zero sigma the fit is unweighted and the covariance still propagates the given
     sigmas; with any NaN sigma the covariance is unknown (None).
     """
     times = np.asarray(t, dtype=np.float64)
     values = np.asarray(y, dtype=np.float64)
-    if times.ndim != 1 or values.shape[:1] != times.shape or times.size < 2:
-        raise ValueError("line_fit needs >= 2 samples with y rows matching t")
-    if not float(np.ptp(times)) > 0:
-        raise ValueError("line_fit needs at least two distinct times")
+    if degree < 0 or times.ndim != 1 or values.shape[:1] != times.shape:
+        raise ValueError("poly_fit needs degree >= 0 and y rows matching t")
+    if np.unique(times).size <= degree:
+        raise ValueError(f"a degree {degree} fit needs at least {degree + 1} distinct times")
     sigmas = np.broadcast_to(np.asarray(sigma, dtype=np.float64), values.shape)
     n, shape = times.size, values.shape[1:]
     flat_y, flat_s = values.reshape(n, -1), sigmas.reshape(n, -1)
     t0 = float(times.mean())
-    design = np.column_stack([np.ones(n), times - t0])
+    design = np.vander(times - t0, degree + 1, increasing=True)
     known = bool(np.all(np.isfinite(flat_s)))
     gain = _fit_gains(design, flat_s)
     coef = np.einsum("mkn,nm->km", gain, flat_y)
     cov = (gain * (flat_s.T**2)[:, None, :]) @ gain.transpose(0, 2, 1) if known else None
-    return LineFit(
+    return PolyFit(
         t0=t0,
-        y0=coef[0].reshape(shape),
-        slope=coef[1].reshape(shape),
-        cov=None if cov is None else cov.reshape((*shape, 2, 2)),
+        coef=coef.reshape((degree + 1, *shape)),
+        cov=None if cov is None else cov.reshape((*shape, degree + 1, degree + 1)),
     )
 
 
 def _fit_gains(design: FloatArray, sigma: FloatArray) -> FloatArray:
-    """(m, 2, n) matrices G_j with coefficients_j = G_j y_j, one per column of ``sigma``."""
+    """(m, p, n) matrices G_j with coefficients_j = G_j y_j, one per column of ``sigma``, for
+    an (n, p) design matrix."""
     usable = np.all(np.isfinite(sigma) & (sigma > 0), axis=0)
     safe = np.where(usable, sigma, 1.0)
     weights = np.where(usable, 1.0 / safe**2, 1.0).T

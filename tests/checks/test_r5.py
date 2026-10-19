@@ -152,6 +152,32 @@ def test_flight_without_gravity_is_not_a_fall() -> None:
     assert run(FallShapeCheck(FallShapeParams()), sc.collision()) == []
 
 
+def hovering_ball(sigma: float = 0.01) -> sc.Case:
+    """A sphere held in the air without contacts, seen with position noise and no velocities."""
+    ball = sc.still("ball", PrimitiveKind.SPHERE, sc.cube(2 * sc.BALL_RADIUS), [0.0, 0.0, 1.0])
+    case = sc.build("hover", [ball])
+    states = case.states
+    noise = np.random.default_rng(0).normal(0.0, sigma, states.position.shape)
+    noisy = replace(
+        states,
+        position=states.position + noise,
+        position_sigma=np.full(states.position.shape, sigma),
+        velocity=np.full(states.velocity.shape, math.nan),
+    )
+    return replace(case, states=noisy)
+
+
+@pytest.mark.parametrize(
+    ("check", "params"),
+    [(FallShapeCheck, FallShapeParams), (GravityValueCheck, GravityValueParams)],
+)
+def test_noisy_hovering_is_not_a_fall(check: type, params: type) -> None:
+    case = hovering_ball()
+    assert run(check(params()), case) == []
+    unfiltered = params(min_travel_lengths=0.0, travel_sigmas=0.0)
+    assert run(check(unfiltered), case) != []
+
+
 def test_shape_sigma_follows_position_noise() -> None:
     case = sc.with_sigma(sc.parabola(g_after=1.3 * G, change_frame=18), position=0.002)
     result = shape(case)
@@ -217,3 +243,8 @@ def test_gravity_sigma_adds_the_scale_sigma_in_quadrature() -> None:
     assert gravity(case).sigma == pytest.approx(1.2 * 0.1, rel=1e-9)
     nan = sc.with_sigma(sc.parabola(), position=math.nan)
     assert math.isnan(gravity(nan).sigma)
+
+
+@pytest.mark.parametrize("g_rel", [0.0, 0.5])
+def test_gravity_value_scores_weak_gravity(g_rel: float) -> None:
+    assert gravity(sc.parabola(g=g_rel * G)).magnitude == pytest.approx(abs(g_rel - 1.0), abs=1e-9)

@@ -11,12 +11,11 @@ import numpy as np
 from pydantic import BaseModel, Field
 
 from physverify.checks._base import CheckInputs
-from physverify.checks._common import CommonParams, abstain, unscored
+from physverify.checks._common import FallParams, abstain, find_falls, unscored
 from physverify.physics.measures.r5_gravity import gravity_rel_error
 from physverify.physics.tracks import (
     MIN_FIT_ROWS,
     Flight,
-    find_flights,
     fit_flight,
     flights_span,
 )
@@ -29,11 +28,9 @@ from physverify.schema.states import ObjectStateTable, PrimitiveKind
 SUBJECT: tuple[str, ...] = ()
 
 
-class GravityValueParams(CommonParams):
+class GravityValueParams(FallParams):
     min_flight_frames: int = Field(default=4, ge=MIN_FIT_ROWS)
     primitives: tuple[PrimitiveKind, ...] = (PrimitiveKind.SPHERE,)
-    rest_speed: float = Field(default=0.1, ge=0.0)
-    jump_gate: float = Field(default=3.0, gt=1.0)
 
 
 class GravityValueCheck:
@@ -77,13 +74,12 @@ class GravityValueCheck:
         return [self._scored(inputs, long, scale, details)]
 
     def _flights(self, states: ObjectStateTable, contacts: ContactTable) -> list[Flight]:
-        p = self.params
-        kinds = {kind.value for kind in p.primitives}
+        kinds = {kind.value for kind in self.params.primitives}
         return [
             flight
             for i in range(states.n_objects)
             if str(states.primitive[i]) in kinds
-            for flight in find_flights(states, contacts, i, p.rest_speed, p.jump_gate)
+            for flight in find_falls(states, contacts, i, self.params)
         ]
 
     def _scored(

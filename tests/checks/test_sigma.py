@@ -18,14 +18,17 @@ from physverify.schema.constants import STANDARD_GRAVITY
 DRAWS = 4000
 RATIO_BAND = (0.9, 1.1)
 POSITION_SIGMA = 0.002
-VELOCITY_SIGMA = 0.01
 REL_SIGMA = 0.05
 G_FACTOR = 1.2
+# R3a's sigma is itself a Monte Carlo (about 5 % sampling noise at its default draws): the
+# reference runs it with many draws and the noisy draws, whose sigma is unused, with few.
+REFERENCE_PARAMS: dict[str, dict[str, int]] = {"R3a": {"mc_draws": DRAWS}}
+DRAW_PARAMS: dict[str, dict[str, int]] = {"R3a": {"mc_draws": 2}}
 
 
-def make(check_id: str) -> Check:
+def make(check_id: str, **overrides: int) -> Check:
     cls = PLUGIN_KINDS["checks"]()[check_id]
-    check: Check = cls(cls.Params())
+    check: Check = cls(cls.Params(**overrides))
     return check
 
 
@@ -43,9 +46,9 @@ def monte_carlo_ratio(
     ``weighted`` keeps the input sigmas in every draw (checks whose fits weight by them); else
     the draws carry zero sigma so the check skips its own propagation.
     """
-    check = make(check_id)
+    check = make(check_id, **DRAW_PARAMS.get(check_id, {}))
     noisy = sc.with_sigma(case, **noise)
-    reference = scored(check, noisy.inputs())
+    reference = scored(make(check_id, **REFERENCE_PARAMS.get(check_id, {})), noisy.inputs())
     draw_case = noisy if weighted else sc.with_sigma(case, **dict.fromkeys(noise, 0.0))
     base = {name: getattr(case.states, name) for name in noise}
     draw_inputs = draw_case.inputs()
@@ -78,7 +81,7 @@ def short_bounce() -> sc.Case:
             {"position": POSITION_SIGMA, "size": POSITION_SIGMA},
             False,
         ),
-        ("R3a", short_bounce, {"velocity": VELOCITY_SIGMA}, True),
+        ("R3a", short_bounce, {"position": POSITION_SIGMA}, True),
         ("R4_jump", lambda: sc.teleport(frames=12, frame=6), {"position": POSITION_SIGMA}, True),
         ("R5b", stronger_gravity, {"position": POSITION_SIGMA}, True),
         (
@@ -101,7 +104,7 @@ def test_closed_form_sigma_matches_monte_carlo(
     ("check_id", "case", "unknown"),
     [
         ("R1", sc.overlapping_spheres, ("position",)),
-        ("R3a", sc.bounce, ("velocity",)),
+        ("R3a", sc.bounce, ("position",)),
         ("R4_jump", sc.teleport, ("position",)),
         ("R5b", stronger_gravity, ("position",)),
     ],

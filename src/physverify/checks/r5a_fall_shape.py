@@ -20,9 +20,10 @@ from pydantic import BaseModel, Field
 
 from physverify.checks._base import CheckInputs
 from physverify.checks._common import (
-    CommonParams,
+    FallParams,
     abstain,
     check_rng,
+    find_falls,
     first_max,
     mc_sigma,
     unscored,
@@ -36,7 +37,6 @@ from physverify.physics.tracks import (
     MIN_FIT_ROWS,
     Flight,
     body_length,
-    find_flights,
     fit_flight,
     flights_span,
     native_span,
@@ -49,13 +49,11 @@ FloatArray = NDArray[np.float64]
 IntArray = NDArray[np.int64]
 
 
-class FallShapeParams(CommonParams):
+class FallShapeParams(FallParams):
     min_flight_frames: int = Field(default=6, ge=MIN_FIT_ROWS)
     side_frames: int = Field(default=4, ge=MIN_FIT_ROWS)
-    rest_speed: float = Field(default=0.1, ge=0.0)
-    jump_gate: float = Field(default=3.0, gt=1.0)
-    # A flight whose fitted drop |a| T^2 / 2 stays below this many body lengths has no fall to
-    # shape (for example a drift without gravity); its ratio would divide noise by noise.
+    # After the shared fall filter, a flight whose fitted drop |a| T^2 / 2 stays below this many
+    # body lengths has no acceleration to shape (a drift without gravity): its ratio is 0 / 0.
     min_drop_lengths: float = Field(default=1e-6, ge=0.0)
 
 
@@ -73,7 +71,9 @@ class Candidate:
 class FallShapeCheck:
     """R5a [accel_rel_diff]: per object, the largest inconsistency between the two sides of a
     split flight or between consecutive flights; per object pair, between their first flights.
-    Does not need the gravity direction (D10): ``lateral_accel_ratio`` is null without it."""
+    Does not need the gravity direction (D10): ``lateral_accel_ratio`` is null without it.
+    Under noise the maximum over candidates is biased upward and its sigma is the chosen
+    candidate's own, not the sigma of the maximum (a known limitation, left to calibration)."""
 
     check_id: ClassVar[str] = "R5a"
     requires: ClassVar[frozenset[str]] = frozenset({"contacts"})
@@ -98,11 +98,10 @@ class FallShapeCheck:
         return results
 
     def _falls(self, states: ObjectStateTable, contacts: ContactTable, index: int) -> list[Flight]:
-        p = self.params
-        flights = find_flights(states, contacts, index, p.rest_speed, p.jump_gate)
-        return [f for f in flights if self._is_fall(states, f)]
+        flights = find_falls(states, contacts, index, self.params)
+        return [f for f in flights if self._accelerates(states, f)]
 
-    def _is_fall(self, states: ObjectStateTable, flight: Flight) -> bool:
+    def _accelerates(self, states: ObjectStateTable, flight: Flight) -> bool:
         fit = fit_flight(states, flight)
         duration = float(states.t[flight.rows[-1]] - states.t[flight.rows[0]])
         drop = 0.5 * float(np.linalg.norm(fit.a)) * duration**2
