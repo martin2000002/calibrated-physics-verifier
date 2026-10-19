@@ -204,7 +204,7 @@ def build_pairs(
     pairs: list[PairRecord] = []
     dropped: Counter[str] = Counter()
     rejected: Counter[str] = Counter()
-    eligible = candidates = 0
+    eligible = candidates = scored = 0
     for prompt in prompts:
         group = grouped.get(prompt.prompt_id, [])
         result = form_pairs(group, rules, rescore, stamp)
@@ -213,14 +213,21 @@ def build_pairs(
         rejected += result.rejected
         eligible += result.eligible
         candidates += len(group)
+        scored += bool(group)
     report = PairsReport(
         **stamp.model_dump(),
         prompts=len(prompts),
+        scored_prompts=scored,
         candidates=candidates,
         eligible=eligible,
         pairs=len(pairs),
         dropped=dict(sorted(dropped.items())),
         rejected=dict(sorted(rejected.items())),
-        yield_per_prompt=len(pairs) / len(prompts) if prompts else 0.0,
+        yield_per_prompt=_per(len(pairs), len(prompts)),
+        yield_per_scored_prompt=_per(len(pairs), scored),
     )
     return pairs, report
+
+
+def _per(count: int, total: int) -> float:
+    return count / total if total else 0.0

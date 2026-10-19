@@ -82,9 +82,13 @@ class ScorerStamp(_Record):
 
 
 class CandidateScore(ScorerStamp):
+    """``candidate_config_hash`` is the scored candidate's ``config_hash``; None (older scores)
+    counts as stale."""
+
     candidate_id: str
     prompt_id: str
     model_tag: str
+    candidate_config_hash: str | None = None
     score: float | None = Field(None, ge=0, le=1)
     sigma: float | None = Field(None, ge=0)
     abstained: bool
@@ -117,13 +121,18 @@ class PairRecord(ScorerStamp):
 
 
 class PairsReport(ScorerStamp):
+    """Yield over every prompt of the split and over the prompts with at least one score; a
+    pilot scores only some prompts, so its measured yield is ``yield_per_scored_prompt``."""
+
     prompts: int
+    scored_prompts: int
     candidates: int
     eligible: int
     pairs: int
     dropped: dict[str, int]
     rejected: dict[str, int]
     yield_per_prompt: float
+    yield_per_scored_prompt: float
 
 
 def write_records(path: Path, records: Iterable[BaseModel]) -> None:

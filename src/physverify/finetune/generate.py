@@ -16,8 +16,15 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Final
 
-from physverify.core.errors import PhysverifyError
-from physverify.finetune.records import BASE_TAG, CandidateRecord, PromptRecord, write_record
+from physverify.core.errors import PhysverifyError, UsageError
+from physverify.diagnosis.atomic_io import write_atomic
+from physverify.finetune.records import (
+    BASE_TAG,
+    CandidateRecord,
+    PromptRecord,
+    read_record,
+    write_record,
+)
 from physverify.finetune.seeds import WHOLE, Shard, candidate_id, candidate_seed
 from physverify.finetune.settings import CandidateSettings, PromptSplit
 from physverify.finetune.store import CampaignStore
@@ -34,6 +41,7 @@ LATENTS_KEY: Final = "latents"
 EMBEDS_KEY: Final = "prompt_embeds"
 ADAPTER_HASH_CHARS: Final = 12
 HASH_EXCLUDED: Final = frozenset({"prompts", "subset", "batch_sizes"})
+SHOWN_CONFLICTS: Final = 5
 
 Pipeline = Any
 PipeFactory = Callable[[], Pipeline]
@@ -69,10 +77,8 @@ class LatentCapture:
 def save_safetensors(tensors: Mapping[str, Any], path: Path) -> None:
     """Atomic ``safetensors`` write of contiguous CPU tensors."""
     save_file = importlib.import_module("safetensors.torch").save_file
-    path.parent.mkdir(parents=True, exist_ok=True)
-    partial = path.with_name(f".{path.name}.partial")
-    save_file({k: v.contiguous() for k, v in tensors.items()}, str(partial))
-    partial.replace(path)
+    contiguous = {k: v.contiguous() for k, v in tensors.items()}
+    write_atomic(path, lambda temp: save_file(contiguous, str(temp)))
 
 
 def default_adapter_loader(pipe: Pipeline, adapter: Path) -> None:
@@ -153,15 +159,31 @@ class CandidateGenerator:
         shard: Shard = WHOLE,
         k: int | None = None,
     ) -> list[CandidateRecord]:
-        """Candidates still to generate, in prompt order then k; complete ones are skipped."""
-        records = []
+        """Candidates still to generate, in prompt order then k; complete ones are skipped.
+
+        Raises UsageError when a stored candidate has another ``config_hash``."""
+        records, conflicts = [], []
         for prompt in prompts:
             count = k if k is not None else self.k_for(prompt.split, self._adapter is not None)
             for index in range(count):
                 record = self.record(prompt, index)
-                if shard.owns(record.candidate_id) and not self._store.is_complete(record):
+                if not shard.owns(record.candidate_id):
+                    continue
+                if self._stored_hash(record) not in (None, record.config_hash):
+                    conflicts.append(record.candidate_id)
+                elif not self._store.is_complete(record):
                     records.append(record)
+        if conflicts:
+            raise UsageError(
+                f"{len(conflicts)} stored candidates of {self.model_tag} were generated with "
+                f"another configuration (e.g. {conflicts[:SHOWN_CONFLICTS]}); regenerating them "
+                "would leave their scores and extraction stale: use a new finetune.campaign"
+            )
         return records
+
+    def _stored_hash(self, record: CandidateRecord) -> str | None:
+        meta = self._store.meta_path(record.model_tag, record.prompt_id, record.k)
+        return read_record(meta, CandidateRecord).config_hash if meta.is_file() else None
 
     def record(self, prompt: PromptRecord, k: int, gen_s: float | None = None) -> CandidateRecord:
         seed = candidate_seed(self._cand.base_seed, prompt.prompt_id, k)

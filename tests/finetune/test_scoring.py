@@ -13,10 +13,24 @@ from physverify.calibration.apply import ClipScore
 from physverify.config.models import Settings
 from physverify.core.errors import UsageError
 from physverify.datasets.local_video import QueryEntry
-from physverify.finetune.records import CandidateRecord, PromptRecord, write_record
+from physverify.finetune.records import (
+    CandidateRecord,
+    CandidateScore,
+    PromptRecord,
+    read_record,
+    write_record,
+)
 from physverify.finetune.scorers.calibrated import CalibratedScorer, to_aggregate
 from physverify.finetune.scorers.provisional import ProvisionalScorer, provisional_score
-from physverify.finetune.scoring import ScoringDeps, rescorer, score_candidates, scorer_registry
+from physverify.finetune.scoring import (
+    ScoringDeps,
+    pending,
+    rescorer,
+    score_candidates,
+    scorer_registry,
+    stale_scores,
+)
+from physverify.finetune.seeds import WHOLE
 from physverify.finetune.store import CampaignStore
 from physverify.schema.checks import CheckResult, Verdict
 from physverify.schema.clip import ClipManifest, Split, TimeSource
@@ -164,6 +178,75 @@ def test_scoring_writes_stamped_scores_and_resumes(
     score_candidates(store, "base", [prompt], scorer, deps)
     assert runner.runs == 1
     assert rescorer(scorer)(first, frozenset({"R1"})).score == pytest.approx(1 / 1.2)
+
+
+def _scored_store(
+    tmp_path: Path, settings: Settings, prompt: PromptRecord, states: ObjectStateTable, runner: Any
+) -> tuple[CampaignStore, ScoringDeps, ProvisionalScorer]:
+    store = CampaignStore(tmp_path / "ft", tmp_path / "raw", "c")
+    _write_candidates(store, 3)
+    deps = ScoringDeps(
+        clips=lambda subset: [_clip(f"{PROMPT}__k{k:02d}") for k in range(3)],
+        source=FakeSource(states),
+        runner=runner,
+    )
+    scorer = ProvisionalScorer(settings)
+    score_candidates(store, "base", [prompt], scorer, deps)
+    return store, deps, scorer
+
+
+def _rewrite(store: CampaignStore, cid: str, **update: Any) -> None:
+    path = store.score_path("base", "provisional", cid)
+    write_record(path, read_record(path, CandidateScore).model_copy(update=update))
+
+
+def test_scores_carry_the_candidate_config_hash(
+    tmp_path: Path,
+    settings: Settings,
+    prompt: PromptRecord,
+    states: ObjectStateTable,
+    make_result: Result,
+) -> None:
+    store, _, scorer = _scored_store(tmp_path, settings, prompt, states, FakeRunner(make_result))
+    scores = store.scores("base", "provisional")
+    assert {s.candidate_config_hash for s in scores} == {"h"}
+    assert stale_scores(scores, scorer, store.candidates("base")) == []
+
+
+def test_a_stale_stamp_or_candidate_hash_is_scored_again(
+    tmp_path: Path,
+    settings: Settings,
+    prompt: PromptRecord,
+    states: ObjectStateTable,
+    make_result: Result,
+) -> None:
+    runner = FakeRunner(make_result)
+    store, deps, scorer = _scored_store(tmp_path, settings, prompt, states, runner)
+    _rewrite(store, f"{PROMPT}__k00", scorer_version="0")
+    _rewrite(store, f"{PROMPT}__k01", candidate_config_hash=None)
+    kept = store.score_path("base", "provisional", f"{PROMPT}__k02").read_bytes()
+    stale = stale_scores(store.scores("base", "provisional"), scorer, store.candidates("base"))
+    assert stale == [f"{PROMPT}__k00", f"{PROMPT}__k01"]
+    todo = pending(store, "base", scorer, {PROMPT: prompt}, WHOLE)
+    assert [r.candidate_id for r in todo] == stale
+    scores = score_candidates(store, "base", [prompt], scorer, deps)
+    assert runner.runs == 2
+    assert stale_scores(scores, scorer, store.candidates("base")) == []
+    assert store.score_path("base", "provisional", f"{PROMPT}__k02").read_bytes() == kept
+
+
+def test_a_candidate_with_another_config_hash_is_pending(
+    tmp_path: Path,
+    settings: Settings,
+    prompt: PromptRecord,
+    states: ObjectStateTable,
+    make_result: Result,
+) -> None:
+    store, _, scorer = _scored_store(tmp_path, settings, prompt, states, FakeRunner(make_result))
+    meta = store.meta_path("base", PROMPT, 1)
+    write_record(meta, read_record(meta, CandidateRecord).model_copy(update={"config_hash": "h2"}))
+    todo = pending(store, "base", scorer, {PROMPT: prompt}, WHOLE)
+    assert [r.candidate_id for r in todo] == [f"{PROMPT}__k01"]
 
 
 def test_provisional_score_by_hand(make_result: Result) -> None:

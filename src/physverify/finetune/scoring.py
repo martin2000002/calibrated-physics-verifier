@@ -2,7 +2,8 @@
 
 The perceived inputs come from the normal extraction pipeline over the campaign's ``local_video``
 subset; the checks and their verdicts from ``VerificationRunner``. Each candidate writes its
-check results and then its ``CandidateScore`` (the completion mark), so a rerun skips it.
+check results and then its ``CandidateScore`` (the completion mark), so a rerun skips it unless
+the score is stale: another scorer stamp, or another candidate ``config_hash`` (or none recorded).
 """
 
 from __future__ import annotations
@@ -19,6 +20,7 @@ from physverify.finetune.records import (
     CandidateScore,
     CheckSummary,
     PromptRecord,
+    read_record,
     write_record,
     write_records,
 )
@@ -105,6 +107,7 @@ def candidate_score(
         candidate_id=record.candidate_id,
         prompt_id=record.prompt_id,
         model_tag=record.model_tag,
+        candidate_config_hash=record.config_hash,
         score=aggregate.score,
         sigma=aggregate.sigma,
         abstained=aggregate.abstained or aggregate.score is None,
@@ -142,10 +145,39 @@ def restamp(
     )
 
 
+def same_stamp(score: CandidateScore, scorer: AggregateScorer) -> bool:
+    return (score.scorer_version, score.thresholds) == (scorer.version, scorer.thresholds())
+
+
+def is_current(score: CandidateScore, scorer: AggregateScorer, config_hash: str | None) -> bool:
+    """The score is of the active scorer stamp and of the candidate as it is stored now."""
+    hashed = score.candidate_config_hash is not None
+    return hashed and score.candidate_config_hash == config_hash and same_stamp(score, scorer)
+
+
+def stale_scores(
+    scores: Sequence[CandidateScore],
+    scorer: AggregateScorer,
+    candidates: Sequence[CandidateRecord],
+) -> list[str]:
+    """Candidate ids whose score is not current (a score without a candidate is stale too)."""
+    hashes = {record.candidate_id: record.config_hash for record in candidates}
+    return sorted(
+        s.candidate_id for s in scores if not is_current(s, scorer, hashes.get(s.candidate_id))
+    )
+
+
+def _scored(store: CampaignStore, record: CandidateRecord, scorer: AggregateScorer) -> bool:
+    path = store.score_path(record.model_tag, scorer.name, record.candidate_id)
+    if not path.is_file():
+        return False
+    return is_current(read_record(path, CandidateScore), scorer, record.config_hash)
+
+
 def pending(
     store: CampaignStore,
     model_tag: str,
-    scorer: str,
+    scorer: AggregateScorer,
     prompts: Mapping[str, PromptRecord],
     shard: Shard,
 ) -> list[CandidateRecord]:
@@ -154,7 +186,7 @@ def pending(
         for record in store.candidates(model_tag)
         if record.prompt_id in prompts
         and shard.owns(record.candidate_id)
-        and not store.score_path(model_tag, scorer, record.candidate_id).is_file()
+        and not _scored(store, record, scorer)
     ]
 
 
@@ -166,12 +198,13 @@ def score_candidates(
     deps: ScoringDeps,
     shard: Shard = WHOLE,
 ) -> list[CandidateScore]:
-    """Scores every candidate of ``prompts`` not yet scored; returns all scores of the tag."""
+    """Scores every candidate of ``prompts`` without a current score; returns all scores of the
+    tag."""
     reason = scorer.unavailable()
     if reason is not None:
         raise UsageError(f"scorer {scorer.name} is unavailable: {reason}")
     by_id = {prompt.prompt_id: prompt for prompt in prompts}
-    todo = pending(store, model_tag, scorer.name, by_id, shard)
+    todo = pending(store, model_tag, scorer, by_id, shard)
     if todo:
         clips = {clip.clip_id: clip for clip in deps.clips(store.subset(model_tag))}
         missing = sorted(r.candidate_id for r in todo if r.candidate_id not in clips)

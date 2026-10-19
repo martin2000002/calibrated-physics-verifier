@@ -1,7 +1,8 @@
 """``physverify finetune``: preference pairs from the verifier and Flow-DPO LoRA (ADR 0012, 3.10).
 
-Every step resumes: ``generate`` skips complete candidates, ``score`` scored ones, ``train`` starts
-from the last checkpoint. The GPU subcommands exit 2 without ``--device cuda`` and a CUDA device,
+Every step resumes: ``generate`` skips complete candidates, ``score`` the ones with a current
+score (same scorer stamp, same candidate ``config_hash``), ``train`` starts from the last
+checkpoint. The GPU subcommands exit 2 without ``--device cuda`` and a CUDA device,
 before they write anything.
 """
 
@@ -20,6 +21,7 @@ from physverify.cli.commands._finetune_deps import candidate_generator, require_
 from physverify.cli.commands.timing import _timing_directory
 from physverify.cli.context import AppContext, app_context, heavy_command
 from physverify.core.errors import EXIT_ERROR, UsageError
+from physverify.diagnosis.atomic_io import write_text_atomic
 from physverify.evaluation.arms import EVAL_SPLIT
 from physverify.finetune.budget import (
     PAIR_MEASURE,
@@ -30,10 +32,10 @@ from physverify.finetune.budget import (
 from physverify.finetune.dpo import ShiftedFlowNoise
 from physverify.finetune.generate import CandidateGenerator
 from physverify.finetune.pairs import build_pairs
+from physverify.finetune.pilot import fit_and_val, pilot_prompts
 from physverify.finetune.prompts import build_prompt_set, sizing_labels
 from physverify.finetune.records import (
     BASE_TAG,
-    VAL_TAG,
     CandidateScore,
     PairRecord,
     PairsReport,
@@ -44,9 +46,15 @@ from physverify.finetune.records import (
     write_records,
 )
 from physverify.finetune.scorers._base import AggregateScorer
-from physverify.finetune.scoring import build_scorer, rescorer, score_candidates
+from physverify.finetune.scoring import build_scorer, rescorer, score_candidates, stale_scores
 from physverify.finetune.seeds import parse_shard
-from physverify.finetune.selection import Selection, choose, evaluate_checkpoint, spaced
+from physverify.finetune.selection import (
+    CheckpointResult,
+    Selection,
+    choose,
+    evaluate_checkpoint,
+    spaced,
+)
 from physverify.finetune.settings import (
     SPLITS,
     FinetuneSettings,
@@ -93,6 +101,9 @@ IMPLEMENTED = True
 DEFAULT_RUN: Final = "main"
 SIGMA_LEVELS: Final = (0.1, 0.25, 0.5, 0.75, 0.9)
 PILOT_PROMPTS: Final = 20
+RESUME_IGNORED: Final = frozenset({"commit", "beta_source"})
+SHOWN_STALE: Final = 5
+BASE_MODEL_FIELDS: Final = ("model_ref", "revision", "sha256", "dtype")
 
 app = typer.Typer(no_args_is_help=True, help="Preference pairs and Flow-DPO LoRA of Wan2.1.")
 prompts_app = typer.Typer(no_args_is_help=True, help="The prompt set (prompts.jsonl).")
@@ -189,12 +200,20 @@ def generate(
     adapter: Annotated[Path | None, typer.Option(help="LoRA adapter directory.")] = None,
     shard: ShardOption = None,
     limit: Annotated[int | None, typer.Option(min=1, help="At most N candidates.")] = None,
+    pilot: Annotated[
+        int | None,
+        typer.Option(min=1, help="Only N fit prompts of train, spread across the families."),
+    ] = None,
 ) -> None:
     which = campaign_split(split, "generate")
+    if pilot is not None and which != "train":
+        raise UsageError("--pilot draws train prompts: use it with --split train")
     context = app_context()
     require_cuda(context.settings)
     store = _store(context)
     prompts = campaign_prompts(store, which)
+    if pilot is not None:
+        prompts = pilot_prompts(prompts, pilot)
     _generate(candidate_generator(context, store, adapter), prompts, shard, limit)
 
 
@@ -240,16 +259,20 @@ def score(
     _score(context, store, model_tag, prompts, _scorer(context, scorer), shard)
 
 
-def _check_stamp(scores: Sequence[CandidateScore], scorer: AggregateScorer) -> None:
-    stale = {
-        s.candidate_id
-        for s in scores
-        if (s.scorer_version, s.thresholds) != (scorer.version, scorer.thresholds())
-    }
+def _check_current(
+    store: CampaignStore,
+    model_tag: str,
+    scores: Sequence[CandidateScore],
+    scorer: AggregateScorer,
+    split: PromptSplit,
+) -> None:
+    """Refuses scores of another scorer stamp or of another candidate config_hash."""
+    stale = stale_scores(scores, scorer, store.candidates(model_tag))
     if stale:
         raise UsageError(
-            f"{len(stale)} scores come from another {scorer.name} version or thresholds; "
-            "score them again in a new campaign"
+            f"{len(stale)} {model_tag} scores are stale (another {scorer.name} version or "
+            f"thresholds, or another candidate configuration; e.g. {stale[:SHOWN_STALE]}): run "
+            f"'finetune score --split {split} --model-tag {model_tag}' to score them again"
         )
 
 
@@ -268,9 +291,9 @@ def _pairs_of(
 
 def _report_lines(label: str, report: PairsReport) -> list[str]:
     return [
-        f"{label}: {report.pairs} pairs from {report.prompts} prompts "
-        f"({report.yield_per_prompt:.3f} per prompt); {report.eligible}/{report.candidates} "
-        "candidates eligible",
+        f"{label}: {report.pairs} pairs; {report.yield_per_scored_prompt:.3f} per scored prompt "
+        f"({report.scored_prompts} scored), {report.yield_per_prompt:.3f} per prompt "
+        f"({report.prompts}); {report.eligible}/{report.candidates} candidates eligible",
         f"  dropped: {json.dumps(report.dropped, sort_keys=True)}",
         f"  rejected: {json.dumps(report.rejected, sort_keys=True)}",
     ]
@@ -282,14 +305,14 @@ def pairs(scorer: ScorerOption = None) -> None:
     store = _store(context)
     active = _scorer(context, scorer)
     train = campaign_prompts(store, "train")
-    scores = store.scores(BASE_TAG, active.name)
+    train_ids = {p.prompt_id for p in train}
+    scores = [s for s in store.scores(BASE_TAG, active.name) if s.prompt_id in train_ids]
     if not scores:
         raise UsageError(
             f"no {active.name} scores of {BASE_TAG}: run 'finetune score --split train'"
         )
-    _check_stamp(scores, active)
-    fit = [p for p in train if VAL_TAG not in p.tags]
-    held = [p for p in train if VAL_TAG in p.tags]
+    _check_current(store, BASE_TAG, scores, active, "train")
+    fit, held = fit_and_val(train)
     directory = store.pairs_dir(active.name)
     outputs = (
         (fit, PAIRS_FILE, REPORT_FILE, "train"),
@@ -360,12 +383,20 @@ def _pairs_hash(pairs: Sequence[PairRecord]) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-def _beta(store: CampaignStore, cfg: FinetuneSettings, beta: float | None) -> tuple[float, str]:
+def _beta(
+    store: CampaignStore, cfg: FinetuneSettings, beta: float | None, pairs_sha256: str
+) -> tuple[float, str]:
+    """``--beta``, else the beta grid's choice on these very pairs, else the configured beta."""
     if beta is not None:
         return beta, "--beta"
     path = store.beta_path()
     if path.is_file():
-        return float(json.loads(path.read_text(encoding="utf-8"))["chosen"]), str(path)
+        grid = json.loads(path.read_text(encoding="utf-8"))
+        if grid.get("pairs_sha256") != pairs_sha256:
+            raise UsageError(
+                f"{path} was chosen on other pairs: run 'finetune beta-grid' again or pass --beta"
+            )
+        return float(grid["chosen"]), str(path)
     return cfg.train.beta, "finetune.train.beta"
 
 
@@ -395,6 +426,7 @@ def run_record(
         "warmup_steps": plan.warmup,
         "checkpoint_every": plan.checkpoint_every,
         "flow_shift": gen.flow_shift,
+        "base_model": gen.model_dump(mode="json", include=set(BASE_MODEL_FIELDS)),
         "sigma_quantiles": sigma,
         "lora": cfg.lora.model_dump(mode="json"),
         "train": cfg.train.model_dump(mode="json"),
@@ -402,14 +434,14 @@ def run_record(
     }
 
 
-RESUME_KEYS: Final = ("pairs_sha256", "beta", "steps", "warmup_steps", "checkpoint_every")
-
-
 def _check_resume(path: Path, record: dict[str, Any]) -> None:
+    """Every field of run.json but the commit and the beta's source must be unchanged: the pairs,
+    the base model, the whole TrainSettings and LoRA dumps and the resolved schedule."""
     if not path.is_file():
         return
     previous = json.loads(path.read_text(encoding="utf-8"))
-    changed = [k for k in RESUME_KEYS if previous.get(k) != record[k]]
+    keys = (previous.keys() | record.keys()) - RESUME_IGNORED
+    changed = sorted(k for k in keys if previous.get(k) != record.get(k))
     if changed:
         raise UsageError(f"{path}: {changed} changed since this run started; use a new --run-id")
 
@@ -445,7 +477,7 @@ def _start(run_dir: Path, record: dict[str, Any], resume: bool) -> None:
     if resume:
         _check_resume(run_dir / RUN_FILE, record)
     run_dir.mkdir(parents=True, exist_ok=True)
-    (run_dir / RUN_FILE).write_text(json.dumps(record, indent=2, sort_keys=True), encoding="utf-8")
+    write_text_atomic(run_dir / RUN_FILE, json.dumps(record, indent=2, sort_keys=True))
 
 
 def _run(trainer: DpoTrainer, resume: bool, max_steps: int | None, force: bool) -> Any:
@@ -484,7 +516,7 @@ def train(
         raise UsageError(f"{run_dir} holds checkpoints: resume, use a new --run-id or --force")
     require_cuda(context.settings)
     data, val, _ = _sources(context, store, name)
-    chosen, source = _beta(store, cfg, beta)
+    chosen, source = _beta(store, cfg, beta, _pairs_hash(pairs_))
     record = run_record(context, run_id, pairs_, len(val), chosen, source, plan, max_steps)
     _start(run_dir, record, resume)
     gen = generator_settings(context.settings)
@@ -544,9 +576,10 @@ def beta_grid(
     payload = {
         "chosen": chosen,
         "steps": plan.total,
+        "pairs_sha256": _pairs_hash(pairs_),
         "results": {f"{b:g}": vars(m) for b, m in results.items()},
     }
-    store.beta_path().write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    write_text_atomic(store.beta_path(), json.dumps(payload, indent=2, sort_keys=True))
     typer.echo(f"chosen beta: {chosen:g} ({store.beta_path()})")
 
 
@@ -564,12 +597,14 @@ def select(scorer: ScorerOption = None, run_id: RunIdOption = DEFAULT_RUN) -> No
     dev = campaign_prompts(store, "dev")
     _generate(candidate_generator(context, store, None), dev, None, None)
     base = _score(context, store, BASE_TAG, dev, active)
+    _check_current(store, BASE_TAG, base, active, "dev")
     results = []
     for step in spaced(list(found), cfg.select.checkpoints):
         adapter = found[step] / ADAPTER_DIR
         generator = candidate_generator(context, store, adapter)
         _generate(generator, dev, None, None)
         scores = _score(context, store, generator.model_tag, dev, active)
+        _check_current(store, generator.model_tag, scores, active, "dev")
         results.append(
             evaluate_checkpoint(
                 step,
@@ -597,6 +632,18 @@ def select(scorer: ScorerOption = None, run_id: RunIdOption = DEFAULT_RUN) -> No
         typer.echo(f"step {result.step}: paired diff {result.paired_diff} ci {result.ci}{flag}")
     chosen = selection.selected
     typer.echo(f"selected: {chosen.adapter if chosen else 'none'} ({path})")
+    if not beats_base(chosen):
+        typer.echo(
+            "warning: no checkpoint beats the base on dev (paired diff <= 0 or its CI holds 0)",
+            err=True,
+        )
+
+
+def beats_base(chosen: CheckpointResult | None) -> bool:
+    """The chosen checkpoint's paired difference with the base is positive and its CI excludes 0."""
+    if chosen is None or chosen.paired_diff is None or chosen.paired_diff <= 0:
+        return False
+    return chosen.ci is not None and chosen.ci[0] > 0
 
 
 def _yield(store: CampaignStore, scorer: str, given: float | None) -> tuple[float, bool]:
@@ -604,7 +651,7 @@ def _yield(store: CampaignStore, scorer: str, given: float | None) -> tuple[floa
     if given is not None:
         return given, False
     if path.is_file():
-        return read_record(path, PairsReport).yield_per_prompt, True
+        return read_record(path, PairsReport).yield_per_scored_prompt, True
     raise UsageError(f"no measured pair yield ({path} missing): pass --pair-yield")
 
 
@@ -678,7 +725,9 @@ def status_lines(store: CampaignStore) -> list[str]:
         if report.is_file():
             parsed = read_record(report, PairsReport)
             lines.append(
-                f"  pairs/{directory.name}: {parsed.pairs} ({parsed.yield_per_prompt:.3f}/prompt)"
+                f"  pairs/{directory.name}: {parsed.pairs} "
+                f"({parsed.yield_per_scored_prompt:.3f}/scored prompt, "
+                f"{parsed.yield_per_prompt:.3f}/prompt)"
             )
     for run in store.train_runs():
         found = checkpoints(store.train_dir(run))
