@@ -16,7 +16,7 @@ from cli_runner import CliRunner
 from exclusion_cases import PRECISE, R2_PERT, evaluation, r5a_check, real_fpr, record, rules
 from stratum_cases import artifact_of, check_calibration, stratum_model
 
-from physverify.calibration.exclusion_record import ExclusionInputError
+from physverify.calibration.exclusion_record import ExclusionInputError, parse_record
 from physverify.calibration.loader import default_artifact_path, parse_calibration
 from physverify.calibration.settings import active_checks_hash, check_registry
 from physverify.cli import context
@@ -278,3 +278,51 @@ def test_an_arm_without_its_checks_hash_is_refused(cli: CliRunner, world: Settin
     (world.paths.runs_dir / "tiny" / CHECKS_HASH_FILE).unlink()
     result = _decide(cli, world, "--dry-run")
     assert result.code == 2 and "checks_hash" in result.err
+
+
+def _written(cli: CliRunner, world: Settings) -> Path:
+    assert _decide(cli, world).code == 0
+    return world.paths.calibration_dir / "exclusions.json"
+
+
+def test_show_prints_the_record_and_its_sha(cli: CliRunner, world: Settings) -> None:
+    target = _written(cli, world)
+    sha = parse_record(target.read_text(encoding="utf-8"), "x").sha256
+    shown = cli("exclusions", "show")
+    assert shown.code == 0, shown.err
+    assert f"record: {target} sha256 {sha}" in shown.out
+    assert "note:" not in shown.out
+
+
+def test_show_without_a_record_is_a_usage_error(cli: CliRunner, world: Settings) -> None:
+    result = cli("exclusions", "show")
+    assert result.code == 2 and "exclusions decide" in result.err
+
+
+def test_show_refuses_an_edited_record(cli: CliRunner, world: Settings) -> None:
+    target = _written(cli, world)
+    data = json.loads(target.read_text(encoding="utf-8"))
+    data["exclude_checks"] = ["R2"]
+    target.write_text(json.dumps(data), encoding="utf-8")
+    result = cli("exclusions", "show")
+    assert result.code == 2 and "edited" in result.err
+
+
+def test_show_checks_the_active_checks_hash_unless_told(cli: CliRunner, world: Settings) -> None:
+    target = _written(cli, world)
+    record = parse_record(target.read_text(encoding="utf-8"), "x")
+    other = record.model_copy(update={"checks_hash": "f" * 64}).sealed()
+    target.write_text(other.to_json(), encoding="utf-8")
+    refused = cli("exclusions", "show")
+    assert refused.code == 2 and "other check parameters" in refused.err
+    shown = cli("exclusions", "show", "--no-checks-hash")
+    assert shown.code == 0, shown.err
+    assert "not validated" in shown.out and f"sha256 {other.sha256}" in shown.out
+
+
+def test_show_notes_an_artifact_that_changed(cli: CliRunner, world: Settings) -> None:
+    _written(cli, world)
+    artifact = default_artifact_path(world)
+    artifact.write_text(artifact.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+    shown = cli("exclusions", "show")
+    assert shown.code == 0 and "is not the artifact the record was decided on" in shown.out
