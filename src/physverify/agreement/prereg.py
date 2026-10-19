@@ -32,6 +32,8 @@ FROZEN_FIELDS = (
     "calibration_gate",
     "dev_icc",
     "dev_design_effect",
+    "exclusion_record_sha256",
+    "secondary_tests",
 )
 REPLACED_DIR: Final = "replaced"
 COMPARISON_LOG_SUFFIX: Final = ".test_comparisons.jsonl"
@@ -64,6 +66,9 @@ class Preregistration(BaseModel):
     dev_design_effect: float | None = None
     """Estimated on h2_dev (caption ANOVA ICC of the primary discordance); the clustered MDE of
     the test comparison uses it, so the test data do not decide how it is read."""
+    exclusion_record_sha256: str | None = None
+    """The ADR 0015 decision record the excluded checks came from (None: none was decided)."""
+    secondary_tests: list[str] = Field(default_factory=list)
     replaces_sha256: str | None = None
     deviations: list[str] = Field(default_factory=list)
     post_hoc: bool = False

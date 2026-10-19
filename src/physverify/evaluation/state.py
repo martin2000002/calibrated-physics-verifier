@@ -14,6 +14,7 @@ import scipy
 
 from physverify.agreement.prereg import file_sha256
 from physverify.calibration.loader import CalibrationError, load_calibration
+from physverify.calibration.settings import check_registry
 from physverify.config.models import Settings
 from physverify.core.errors import MissingInputError, PhysverifyError
 from physverify.evaluation.analysis import JudgeValues, crn_ft_vs_base, judged, judged_against_base
@@ -45,6 +46,7 @@ from physverify.finetune.settings import FinetuneSettings
 from physverify.finetune.stop_rule import StopRuleState
 from physverify.finetune.store import CampaignStore
 from physverify.schema.io import stable_hash
+from physverify.verification.scope import check_scope, require_record_for
 
 PLAIN_SECTIONS: Final = (FINETUNE_SECTION, "checks", "verification", "extraction")
 TIMING: Final = ("timing", "generation")
@@ -251,6 +253,16 @@ def current_record(inputs: FreezeInputs, now: dt.datetime) -> H3Preregistration:
         eval_candidates_at_freeze=candidate_snapshot(all_eval_records(inputs.store)),
         stop_rule=inputs.stop_rule,
         created_utc=now.astimezone(dt.UTC).isoformat(timespec="seconds"),
+        exclusion_record_sha256=check_scope(inputs.settings, check_registry()).record_sha256,
+    )
+
+
+def require_exclusion_record(settings: Settings, current: H3Preregistration) -> None:
+    """A calibrated H3 rule is frozen only on the decision record of its artifact (ADR 0015)."""
+    require_record_for(
+        check_scope(settings, check_registry()),
+        calibrated=current.rule_status == "calibrated",
+        artifact_sha256=current.calibration_artifact_sha256,
     )
 
 

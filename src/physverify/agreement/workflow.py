@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from physverify.agreement.analysis import SECONDARY_TESTS
 from physverify.agreement.decision import (
     CALIBRATED_NAME,
     CalibrationApi,
@@ -66,7 +67,7 @@ from physverify.verification.runner import (
     thresholds_label,
 )
 from physverify.verification.scope import SECTION as SCOPE_SECTION
-from physverify.verification.scope import check_scope
+from physverify.verification.scope import CheckScope, check_scope, require_record_for
 
 if TYPE_CHECKING:
     from physverify.config.models import Settings
@@ -87,20 +88,20 @@ class RuleSetup:
     scope: RuleScope = RuleScope()
     gate: str | None = None
     calibration: dict[str, object] | None = None
+    checks: CheckScope = CheckScope()
+    """The ``[check_scope]`` the rule excludes with, its decision record included."""
 
     @property
     def primary(self) -> ClipDecisionRule:
         return self.rule.excluding(self.scope.primary_excluded)
 
 
-def rule_scope(
-    settings: Settings, agreement: AgreementSettings
-) -> tuple[frozenset[str], RuleScope]:
+def rule_scope(settings: Settings, agreement: AgreementSettings) -> tuple[CheckScope, RuleScope]:
     """``[check_scope]`` for H2: the excluded checks and the time-dependent ones."""
     scope = check_scope(settings, check_registry())
     timed = frozenset(scope.time_dependent_checks)
     primary = timed if agreement.exclude_time_dependent else frozenset()
-    return frozenset(scope.exclude_checks), RuleScope(timed, primary)
+    return scope, RuleScope(timed, primary)
 
 
 def build_rule[S: CalibrationStratum](
@@ -109,9 +110,10 @@ def build_rule[S: CalibrationStratum](
     run: VerifyRun,
     api_loader: ApiLoader[S],
 ) -> RuleSetup:
-    excluded, scope = rule_scope(settings, agreement)
+    checks, scope = rule_scope(settings, agreement)
+    excluded = frozenset(checks.exclude_checks)
     if agreement.rule != CALIBRATED_NAME:
-        return _provisional(settings, excluded, scope, None)
+        return _provisional(settings, checks, scope, None)
     api = api_loader()
     artifact = api.default_artifact_path(settings)
     request = StratumRequest(
@@ -126,13 +128,13 @@ def build_rule[S: CalibrationStratum](
     except UnusableCalibrationError as exc:
         if agreement.on_unusable_stratum == "error":
             raise ConfigError(f"calibration {artifact}: {exc}") from exc
-        return _provisional(settings, excluded, scope, str(exc), artifact)
-    return RuleSetup(rule, artifact, None, scope, calibration=dict(rule.status))
+        return _provisional(settings, checks, scope, str(exc), artifact)
+    return RuleSetup(rule, artifact, None, scope, calibration=dict(rule.status), checks=checks)
 
 
 def _provisional(
     settings: Settings,
-    excluded: frozenset[str],
+    checks: CheckScope,
     scope: RuleScope,
     gate: str | None,
     artifact: Path | None = None,
@@ -141,8 +143,8 @@ def _provisional(
     keeps the artifact so the freeze binds the one whose stratum was found unusable."""
     verification = settings.section(VERIFICATION_SECTION, VerificationSettings)
     thresholds = load_thresholds(settings.paths.thresholds, verification.thresholds)
-    rule = ProvisionalAnyFail(thresholds, excluded)
-    return RuleSetup(rule, artifact, thresholds_label(thresholds), scope, gate)
+    rule = ProvisionalAnyFail(thresholds, frozenset(checks.exclude_checks))
+    return RuleSetup(rule, artifact, thresholds_label(thresholds), scope, gate, checks=checks)
 
 
 def check_run(
@@ -185,6 +187,8 @@ def frozen_state(
         "rule_label": setup.rule.label,
         "profile": profile,
         "calibration_gate": setup.gate,
+        "exclusion_record_sha256": setup.checks.record_sha256,
+        "secondary_tests": list(SECONDARY_TESTS),
     }
 
 
@@ -199,6 +203,11 @@ def freeze[S: CalibrationStratum](
     run = load_run(run_dir)
     rows = dataset.rows(agreement.dev_subset)
     setup = build_rule(settings, agreement, run, api_loader)
+    require_record_for(
+        setup.checks,
+        calibrated=agreement.rule == CALIBRATED_NAME,
+        artifact_sha256=None if setup.artifact is None else file_sha256(setup.artifact),
+    )
     check_run(run, rows, setup, Split.CALIB)
     dev = freeze_dev(rows, setup.primary, run, agreement.primary_policy)
     if dev.n == 0:

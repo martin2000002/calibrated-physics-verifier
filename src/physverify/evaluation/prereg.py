@@ -76,6 +76,8 @@ class H3Preregistration(_Model):
     eval_candidates_at_freeze: CandidateSnapshot
     stop_rule: StopRuleState
     created_utc: str
+    exclusion_record_sha256: str | None = None
+    """The ADR 0015 decision record the scorer's excluded checks came from (None: none)."""
     stop_rule_deviation: str | None = None
     """The text that let a fired pilot stop rule through (ADR 0012): H3 then has no verdict."""
     replaces_sha256: str | None = None
@@ -107,6 +109,7 @@ REFREEZE_MUTABLE: Final = frozenset(
         "contaminated",
         "mde",
         "stop_rule",
+        "exclusion_record_sha256",
     }
 )
 

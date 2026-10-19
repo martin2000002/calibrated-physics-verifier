@@ -10,6 +10,7 @@ CALIBRATION_TESTS = str(Path(__file__).resolve().parent.parent / "calibration")
 if CALIBRATION_TESTS not in sys.path:
     sys.path.insert(0, CALIBRATION_TESTS)
 
+from exclusion_cases import write_record  # noqa: E402
 from stratum_cases import write_artifact  # noqa: E402
 
 from physverify.agreement.prereg import file_sha256, load_preregistration  # noqa: E402
@@ -227,10 +228,15 @@ STOP = ("--set", 'agreement.on_unusable_stratum="error"')
 STRICT = ("--set", "calibration.require_calibrated_artifact=true")
 
 
-def _artifact(world, **kwargs) -> Path:
+def _artifact(world, *, record: bool = True, **kwargs) -> Path:
+    """The artifact and, unless ``record`` is False, its ADR 0015 decision record."""
     active = active_checks_hash(world.settings)
     options = {"profile": "precise", "checks_hash": active, **kwargs}
-    return write_artifact(default_artifact_path(world.settings), **options)
+    artifact = write_artifact(default_artifact_path(world.settings), **options)
+    if record:
+        path = world.settings.paths.calibration_dir / "exclusions.json"
+        write_record(path, artifact_sha256=file_sha256(artifact) or "", checks_hash=active)
+    return artifact
 
 
 def _metrics(run: Path) -> dict:
@@ -260,6 +266,19 @@ def test_an_unusable_stratum_runs_descriptive_and_h2_is_not_evaluable(cli, world
     assert _metrics(run)["calibration"]["gate"] == verdict["gate"]
     text = (run / REPORT_DIR / "summary.md").read_text(encoding="utf-8")
     assert "H2 not evaluable with the calibrated rule" in text
+
+
+def test_a_calibrated_freeze_needs_the_decision_record_of_its_artifact(cli, world) -> None:
+    _artifact(world, record=False)
+    missing = _freeze(cli, world, *CALIBRATED)
+    assert missing.code == 2 and "exclusions decide" in missing.err
+    _artifact(world)
+    frozen = _freeze(cli, world, *CALIBRATED)
+    assert frozen.code == 0, frozen.err
+    prereg = load_preregistration(Path(frozen.out.split("preregistration: ", 1)[1].splitlines()[0]))
+    record = (world.settings.paths.calibration_dir / "exclusions.json").read_text(encoding="utf-8")
+    assert prereg.exclusion_record_sha256 == json.loads(record)["sha256"]
+    assert prereg.secondary_tests == ["mcnemar_caption_permutation"]
 
 
 def test_on_unusable_stratum_error_stops(cli, world) -> None:

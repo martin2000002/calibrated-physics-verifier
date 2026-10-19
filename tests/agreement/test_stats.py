@@ -15,6 +15,7 @@ from physverify.agreement.stats import (
     auc,
     balanced_accuracy,
     caption_bootstrap,
+    clustered_mcnemar,
     cohen_kappa,
     design_effect,
     f1_positive,
@@ -179,3 +180,37 @@ def test_the_clustered_mde_is_never_below_the_independent_one(seed: int) -> None
     plain = mde_accuracy(80, d, 0.05, 0.8)
     clustered = mde_accuracy(80 / effect.deff, d, 0.05, 0.8)
     assert math.isnan(clustered) or clustered >= plain
+
+
+def _paired_labels(seed: int, n: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    rng = np.random.default_rng(seed)
+    return tuple(rng.integers(0, 2, n) for _ in range(3))  # type: ignore[return-value]
+
+
+@pytest.mark.parametrize("seed", [0, 1, 2, 3])
+def test_the_caption_mcnemar_with_one_caption_per_clip_is_the_exact_mcnemar(seed: int) -> None:
+    y, a, b = _paired_labels(seed, 30)
+    captions = [f"c{i}" for i in range(y.size)]
+    found = clustered_mcnemar(y, a, b, captions, exact_max=40, n=0, seed=0)
+    assert found.method == "exact"
+    assert found.p_value == pytest.approx(mcnemar_exact(y, a, b).p_value, abs=1e-12)
+
+
+def test_the_caption_mcnemar_sums_within_a_caption() -> None:
+    y = np.asarray([1, 1, 1, 1])
+    a = np.asarray([1, 1, 0, 1])
+    b = np.asarray([0, 0, 1, 1])
+    found = clustered_mcnemar(y, a, b, ["x", "x", "z", "z"], exact_max=5, n=0, seed=0)
+    assert (found.statistic, found.discordant_captions) == (1, 2)
+    assert found.p_value == pytest.approx(1.0)
+
+
+def test_the_monte_carlo_caption_mcnemar_adds_one_and_tracks_the_exact() -> None:
+    y, a, b = _paired_labels(7, 60)
+    captions = [f"c{i // 2}" for i in range(y.size)]
+    exact = clustered_mcnemar(y, a, b, captions, exact_max=60, n=0, seed=0)
+    sampled = clustered_mcnemar(y, a, b, captions, exact_max=0, n=4000, seed=3)
+    assert sampled.method == "monte_carlo" and sampled.replicas == 4000
+    assert sampled.p_value >= 1 / 4001
+    assert sampled.p_value == pytest.approx(exact.p_value, abs=0.03)
+    assert math.isnan(clustered_mcnemar(y, a, b, captions, exact_max=0, n=0, seed=0).p_value)

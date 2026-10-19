@@ -131,7 +131,12 @@ def _sensitivity(inputs: ComparisonInputs) -> dict[str, Any]:
     scope = inputs.scope
     in_primary = not scope.primary_excluded
     moved, _ = _items(inputs, scope.time_dependent if in_primary else frozenset())
-    plan = BootstrapPlan(0, inputs.agreement.bootstrap_seed, inputs.agreement.ci)
+    plan = BootstrapPlan(
+        0,
+        inputs.agreement.bootstrap_seed,
+        inputs.agreement.ci,
+        inputs.agreement.permutation_exact_max,
+    )
     test = (inputs.agreement.alpha, inputs.agreement.power)
     policy = inputs.agreement.primary_policy
     return {
@@ -161,7 +166,12 @@ def compare(inputs: ComparisonInputs) -> Comparison:
     rule = inputs.rule
     primary_excluded = inputs.scope.primary_excluded
     items, counts = _items(inputs, primary_excluded)
-    plan = BootstrapPlan(agreement.bootstrap_n, agreement.bootstrap_seed, agreement.ci)
+    plan = BootstrapPlan(
+        agreement.bootstrap_n,
+        agreement.bootstrap_seed,
+        agreement.ci,
+        agreement.permutation_exact_max,
+    )
     groups = _groups(inputs, items, plan)
     primary = groups[AGGREGATE][agreement.primary_policy]
     policy = agreement.primary_policy

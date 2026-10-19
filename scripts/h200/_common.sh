@@ -49,8 +49,9 @@ THREADS="${PHYSVERIFY_TIMING_THREADS:-$(nproc)}"
 [[ "$THREADS" =~ ^[1-9][0-9]*$ ]] \
     || die "PHYSVERIFY_TIMING_THREADS must be a positive integer, got '$THREADS'"
 
-# A script that may run without a GPU (run_demo.sh scoring a given video) sets PV_DEVICE=cpu.
-PV_DEVICE="cuda"
+# A script that may run without a GPU (run_demo.sh scoring a given video) sets PV_DEVICE=cpu, before
+# or after sourcing this file; an exported PV_DEVICE is kept.
+PV_DEVICE="${PV_DEVICE:-cuda}"
 
 pv() {
     uv run --no-sync physverify --profile precise --device "$PV_DEVICE" \

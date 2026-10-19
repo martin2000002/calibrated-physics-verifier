@@ -14,6 +14,7 @@ from physverify.schema.checks import CheckResult, InputLevel
 from physverify.schema.clip import ClipManifest, Split
 from physverify.schema.scene import MagnitudeKind, PerturbationRecord
 from physverify.synth.perturbations.none import NAME as NONE
+from physverify.synth.plan import scene_id_of
 from physverify.verification.runner import RowStatus, VerificationReport
 from physverify.verification.sweep import CheckIdentity, perturbation_name, target_check_ids
 
@@ -64,6 +65,12 @@ class CalibrationRow:
 
 def scene_of(clip: ClipManifest) -> str:
     return clip.scene_id or clip.clip_id
+
+
+def in_family(scene_id: str, family: str) -> bool:
+    """Whether ``scene_id`` is ``scene_id_of(family, index)`` for its trailing index."""
+    index = scene_id[len(scene_id.rstrip("0123456789")) :]
+    return bool(index) and scene_id_of(family, int(index)) == scene_id
 
 
 def role_of(
