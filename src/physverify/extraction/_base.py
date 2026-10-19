@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import ClassVar, Protocol, TypeVar, runtime_checkable
 
@@ -46,7 +46,10 @@ class WeightSpec:
 
 @dataclass(frozen=True)
 class StageContext:
-    """Everything a provider may read; ``upstream`` holds only the stages it requires."""
+    """Everything a provider may read; ``upstream`` holds only the stages it requires.
+
+    ``plan_params_hash`` maps each stage of the plan to the hash of its provider params; a
+    profile entry is read only when it was measured with those params."""
 
     clip: ClipManifest
     video: VideoSource
@@ -58,6 +61,7 @@ class StageContext:
     device: str
     threads: int
     paths: PathsSettings
+    plan_params_hash: Mapping[Stage, str] = field(default_factory=dict)
 
     def require(self, stage: Stage, kind: type[O]) -> O:
         output = self.upstream.get(stage)
@@ -78,15 +82,17 @@ class StageContext:
     def error_entry(self, stage: Stage, quantity: str) -> ErrorEntry | None:
         """Error of the provider that ran ``stage`` in the active plan (None = unknown sigma).
 
-        A ground-truth upstream contributes zero error."""
+        A ground-truth upstream contributes zero error; a stage without a plan params hash has
+        no readable entry."""
         provider = self.plan.get(stage)
         if provider is None:
             return None
         if provider == GROUND_TRUTH:
             return ErrorEntry.exact(stage, GROUND_TRUTH, quantity)
-        if self.error_profile is None:
+        expected = self.plan_params_hash.get(stage)
+        if self.error_profile is None or expected is None:
             return None
-        return self.error_profile.lookup(stage, provider, quantity)
+        return self.error_profile.lookup(stage, provider, quantity, expected)
 
 
 def error_profile_keys(

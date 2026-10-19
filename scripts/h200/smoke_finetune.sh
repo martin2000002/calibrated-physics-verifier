@@ -13,7 +13,10 @@ RUN_ID=smoke
 SMOKE_CAMPAIGN=wan21_smoke
 
 pv_fast() {
+    local profile_option
+    mapfile -t profile_option < <(error_profile_option fast)
     uv run --no-sync physverify --profile fast --device cuda --set "runtime.threads=$THREADS" \
+        "${profile_option[@]}" \
         --set finetune.pairs.min_margin=0 --set finetune.pairs.min_motion=0 \
         --set finetune.pairs.sigma_k=0 --set finetune.pairs.require_object_count=false \
         --set finetune.pairs.min_motion_ratio=0 --set finetune.pairs.max_pairs_per_prompt=2 \

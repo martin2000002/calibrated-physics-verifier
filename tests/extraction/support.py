@@ -19,7 +19,7 @@ from physverify.extraction._base import (
     StageEvent,
     StageProvider,
 )
-from physverify.extraction.cache import StageCache, stage_key
+from physverify.extraction.cache import StageCache, plan_params_hashes, stage_key
 from physverify.extraction.pipeline import (
     ExtractionPipeline,
     ExtractionReport,
@@ -43,6 +43,9 @@ from physverify.schema.states import ObjectStateTable
 
 SettingsFactory = Callable[..., Settings]
 
+TEST_PARAMS_HASH = "test-params"
+"""Plan params hash of ``make_context``; entries without a ``params_hash`` condition match it."""
+
 UNUSED_PATHS = PathsSettings.model_validate({"data_dir": "/nonexistent/physverify-tests"})
 
 
@@ -60,12 +63,14 @@ def make_context(
     manifest: ClipManifest | None = None,
 ) -> StageContext:
     manifest = manifest or clip.manifest
+    names = dict(plan or dict.fromkeys(STAGE_ORDER, GROUND_TRUTH))
     return StageContext(
         clip=manifest,
         video=clip.video,
         sampling=sampling_of(manifest),
         upstream=dict(upstream or {}),
-        plan=dict(plan or dict.fromkeys(STAGE_ORDER, GROUND_TRUTH)),
+        plan=names,
+        plan_params_hash=dict.fromkeys(names, TEST_PARAMS_HASH),
         gt=gt,
         error_profile=profile,
         device="cpu",
@@ -198,14 +203,17 @@ def chain_keys(
 ) -> dict[Stage, str]:
     """Stage keys in plan order, computed the way the pipeline computes them."""
     sampling = resolve_sampling(clip, plan.sampling)
+    params = plan_params_hashes(plan.stages)
     keys: dict[Stage, str] = {}
     for step in plan.stages:
         keys[step.stage] = stage_key(
             step,
             clip_id=clip.clip_id,
+            object_queries=clip.object_queries,
             sampling=sampling,
             upstream=keys,
             plan=plan.names,
+            plan_params=params,
             gt_version=gt_version if step.provider.is_ground_truth else None,
             error_profile=profile,
             device=device,

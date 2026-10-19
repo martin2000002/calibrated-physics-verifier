@@ -14,14 +14,21 @@ from typing import Final, Protocol
 
 from physverify.config.models import PathsSettings
 from physverify.core.errors import MissingInputError, ResourceBudgetError
-from physverify.core.hashing import error_profile_hash, params_hash, sampling_hash, upstream_keys
+from physverify.core.hashing import error_profile_hash, sampling_hash, upstream_keys
+from physverify.core.log import get_logger
 from physverify.datasets._base import DatasetSource
 from physverify.extraction._base import StageContext, StageEvent, StageObserver, StageProvider
-from physverify.extraction.cache import StageCache, profile_keys, stage_key
+from physverify.extraction.cache import (
+    StageCache,
+    plan_params_hashes,
+    profile_keys,
+    stage_key,
+    step_params_hash,
+)
 from physverify.extraction.plan import ResolvedPlan, StagePlan
 from physverify.extraction.weights import missing_weights
 from physverify.schema.clip import ClipManifest, FrameSampling, resolve_sampling
-from physverify.schema.error_profile import ErrorProfile
+from physverify.schema.error_profile import PARAMS_HASH_CONDITION, ErrorProfile
 from physverify.schema.errors import SchemaError
 from physverify.schema.outputs import StageOutput, check_stage_output
 from physverify.schema.scale import ScaleEstimate
@@ -34,6 +41,8 @@ PENDING_SOURCE_KEY: Final = "pending"
 DOMAIN_ERRORS: Final = (MissingInputError, ResourceBudgetError, SchemaError, ValueError)
 LIGHT_DEVICE: Final = "cpu"
 KIB_PER_MIB: Final = 1024.0
+
+log = get_logger("extraction.pipeline")
 
 
 class LazyLock:
@@ -160,8 +169,10 @@ class ExtractionPipeline:
         self._plan = plan
         self._deps = deps
         self._names = dict(plan.names)
+        self._params = plan_params_hashes(plan.stages)
 
     def run(self, dataset: DatasetSource, clips: Sequence[ClipManifest]) -> ExtractionReport:
+        self._warn_rejected_entries()
         progress = _Progress()
         cells = [cell for clip in clips if (cell := self._prepare(dataset, clip, progress))]
         self._check_weights(cells)
@@ -175,6 +186,26 @@ class ExtractionPipeline:
         return ExtractionReport(
             tuple(progress.events), tuple(progress.failures), dict(progress.keys)
         )
+
+    def _warn_rejected_entries(self) -> None:
+        """Loud, once per entry: a params mismatch turns that sigma unknown (NaN)."""
+        profile = self._deps.error_profile
+        if profile is None:
+            return
+        keys = {
+            key for step in self._plan.stages for key in profile_keys(step.provider, self._names)
+        }
+        for entry in profile.rejected(keys, self._params):
+            log.warning(
+                "error profile entry %s/%s %s was measured with params_hash %s but the plan uses "
+                "%s; it is ignored and its sigma is unknown (re-run `diagnose stages "
+                "--write-profile` for this profile)",
+                entry.stage.value,
+                entry.provider,
+                entry.quantity,
+                entry.conditions.get(PARAMS_HASH_CONDITION),
+                self._params[entry.stage],
+            )
 
     def _prepare(
         self, dataset: DatasetSource, clip: ClipManifest, progress: _Progress
@@ -208,9 +239,11 @@ class ExtractionPipeline:
         return stage_key(
             step,
             clip_id=cell.clip.clip_id,
+            object_queries=cell.clip.object_queries,
             sampling=cell.sampling,
             upstream=cell.keys,
             plan=self._names,
+            plan_params=self._params,
             gt_version=cell.gt_version if step.provider.is_ground_truth else None,
             error_profile=self._deps.error_profile,
             device=self._deps.device,
@@ -288,6 +321,7 @@ class ExtractionPipeline:
             sampling=cell.sampling,
             upstream=upstream,
             plan=self._names,
+            plan_params_hash=self._params,
             gt=dataset.ground_truth(cell.clip) if step.provider.is_ground_truth else None,
             error_profile=self._deps.error_profile,
             device=self._deps.device,
@@ -338,11 +372,11 @@ class ExtractionPipeline:
             stage=step.stage,
             provider=provider.name,
             provider_version=provider.version,
-            params_hash=params_hash(step.params.model_dump(mode="json")),
+            params_hash=step_params_hash(step),
             sampling_hash=sampling_hash(cell.sampling),
             upstream=upstream_keys(provider.requires, cell.keys),
             error_profile_hash=error_profile_hash(
-                self._deps.error_profile, profile_keys(provider, self._names)
+                self._deps.error_profile, profile_keys(provider, self._names), self._params
             ),
             gt_version=cell.gt_version if provider.is_ground_truth else None,
             device=self._deps.device if provider.heavy else None,

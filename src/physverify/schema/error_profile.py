@@ -24,6 +24,10 @@ if TYPE_CHECKING:
 
 MAX_RESIDUALS = 1000
 """Residuals kept per entry for Monte Carlo resampling."""
+PARAMS_HASH_CONDITION = "params_hash"
+"""``conditions`` key: hash of the provider params the entry was measured with."""
+PROFILE_CONDITION = "profile"
+"""``conditions`` key: extraction profile (fast, precise) the entry was measured under."""
 
 
 @dataclass(frozen=True, eq=False)
@@ -44,6 +48,13 @@ class ErrorEntry(Record):
     @property
     def key(self) -> tuple[Stage, str]:
         return (self.stage, self.provider)
+
+    def measured_with(self, params_hash: str | None) -> bool:
+        """False only when the entry declares a ``params_hash`` other than ``params_hash``.
+
+        None means "do not filter"; an entry without the condition (hand-written) is unbound."""
+        declared = self.conditions.get(PARAMS_HASH_CONDITION)
+        return params_hash is None or declared is None or declared == params_hash
 
     @classmethod
     def exact(cls, stage: Stage, provider: str, quantity: str, unit: str = "") -> Self:
@@ -99,16 +110,48 @@ class ErrorProfile(Record):
     entries: tuple[ErrorEntry, ...]
     schema_version: str = SCHEMA_VERSION
 
-    def lookup(self, stage: Stage, provider: str, quantity: str) -> ErrorEntry | None:
+    def lookup(
+        self, stage: Stage, provider: str, quantity: str, params_hash: str | None = None
+    ) -> ErrorEntry | None:
+        """The entry, or None when absent or measured with other params (no fallback)."""
         for entry in self.entries:
             if entry.key == (stage, provider) and entry.quantity == quantity:
-                return entry
+                return entry if entry.measured_with(params_hash) else None
         return None
 
-    def entries_hash(self, keys: Iterable[tuple[Stage, str]]) -> str:
-        """Hash of the entries of the given (stage, provider) keys only."""
+    def selected(
+        self,
+        keys: Iterable[tuple[Stage, str]],
+        params_hashes: Mapping[Stage, str] | None = None,
+    ) -> tuple[ErrorEntry, ...]:
+        """Entries of the given (stage, provider) keys that ``lookup`` can return."""
         wanted = set(keys)
-        selected = [e.to_dict() for e in self.entries if e.key in wanted]
+        return tuple(
+            e
+            for e in self.entries
+            if e.key in wanted and e.measured_with(_expected(params_hashes, e.stage))
+        )
+
+    def rejected(
+        self, keys: Iterable[tuple[Stage, str]], params_hashes: Mapping[Stage, str]
+    ) -> tuple[ErrorEntry, ...]:
+        """Entries of the given keys that ``lookup`` refuses because their params differ."""
+        wanted = set(keys)
+        return tuple(
+            e
+            for e in self.entries
+            if e.key in wanted and not e.measured_with(params_hashes.get(e.stage))
+        )
+
+    def entries_hash(
+        self,
+        keys: Iterable[tuple[Stage, str]],
+        params_hashes: Mapping[Stage, str] | None = None,
+    ) -> str:
+        """Hash of the entries ``lookup`` can return for the given (stage, provider) keys only.
+
+        When every entry passes the params filter the hash equals the unfiltered one."""
+        selected = [e.to_dict() for e in self.selected(keys, params_hashes)]
         return stable_hash(
             sorted(selected, key=lambda d: (d["stage"], d["provider"], d["quantity"]))
         )
@@ -134,6 +177,10 @@ class ErrorProfile(Record):
             entries=tuple(ErrorEntry.from_dict(e) for e in data["entries"]),
             schema_version=data["schema_version"],
         )
+
+
+def _expected(params_hashes: Mapping[Stage, str] | None, stage: Stage) -> str | None:
+    return None if params_hashes is None else params_hashes.get(stage)
 
 
 def no_profile_hash() -> str:

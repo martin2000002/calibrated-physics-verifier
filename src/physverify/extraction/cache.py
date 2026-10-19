@@ -9,21 +9,21 @@ from __future__ import annotations
 import json
 import os
 import shutil
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
 from types import MappingProxyType
-from typing import Literal, cast
+from typing import Any, Literal, cast
 
 from pydantic import BaseModel
 
-from physverify.core.hashing import cache_key
+from physverify.core.hashing import cache_key, params_hash
 from physverify.extraction._base import StageProvider, error_profile_keys
 from physverify.extraction.plan import StagePlan
-from physverify.schema.clip import FrameSampling
+from physverify.schema.clip import FrameSampling, ObjectQuery
 from physverify.schema.error_profile import ErrorProfile
 from physverify.schema.errors import SchemaError
 from physverify.schema.outputs import STAGE_OUTPUT_TYPES, StageOutput
-from physverify.schema.stages import Stage, StageArtifactMeta
+from physverify.schema.stages import Stage, StageArtifactMeta, stage_index
 
 READS_OWN_ERROR_ATTR = "reads_own_error"
 OUTPUT_STEM = "output"
@@ -49,17 +49,44 @@ def profile_keys(
     return keys
 
 
+def step_params_hash(step: StagePlan) -> str:
+    """The params hash of a step, as stage metadata and profile entries record it."""
+    return params_hash(step.params.model_dump(mode="json"))
+
+
+def plan_params_hashes(steps: Iterable[StagePlan]) -> dict[Stage, str]:
+    return {step.stage: step_params_hash(step) for step in steps}
+
+
+def stage_inputs(
+    provider: type[StageProvider], object_queries: Sequence[ObjectQuery], sampling: FrameSampling
+) -> dict[str, Any] | None:
+    """Clip data a provider reads besides its pixels; None keeps a stage's earlier key.
+
+    Only perceived DETECT reads the queries. Only light stages from LIFT on read the time
+    base, so the heavy DETECT, TRACK and DEPTH artifacts survive a corrected fps."""
+    inputs: dict[str, Any] = {}
+    if provider.stage is Stage.DETECT and not provider.is_ground_truth:
+        inputs["object_queries"] = [query.to_dict() for query in object_queries]
+    if not provider.heavy and stage_index(provider.stage) >= stage_index(Stage.LIFT):
+        inputs["seconds_per_frame"] = sampling.seconds_per_frame
+    return inputs or None
+
+
 def stage_key(
     step: StagePlan,
     *,
     clip_id: str,
+    object_queries: Sequence[ObjectQuery],
     sampling: FrameSampling,
     upstream: Mapping[Stage, str],
     plan: Mapping[Stage, str],
+    plan_params: Mapping[Stage, str],
     gt_version: str | None,
     error_profile: ErrorProfile | None,
     device: str,
 ) -> str:
+    """``plan_params`` (stage -> params hash) drops profile entries measured with other params."""
     provider = step.provider
     return cache_key(
         clip_id=clip_id,
@@ -76,6 +103,8 @@ def stage_key(
         error_profile_keys=profile_keys(provider, plan),
         heavy=provider.heavy,
         device=device,
+        error_profile_params=plan_params,
+        inputs=stage_inputs(provider, object_queries, sampling),
     )
 
 

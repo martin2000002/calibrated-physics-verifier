@@ -52,7 +52,23 @@ THREADS="${PHYSVERIFY_TIMING_THREADS:-$(nproc)}"
 # A script that may run without a GPU (run_demo.sh scoring a given video) sets PV_DEVICE=cpu.
 PV_DEVICE="cuda"
 
+# Prints the root option that gives extraction profile $1 its own error profile,
+# <calibration_dir>/stage_errors.<profile>.json: fast and precise entries are measured on different
+# data and must never share a file. Nothing is printed when PHYSVERIFY__PATHS__ERROR_PROFILE is set or
+# the file does not exist yet; the configured default then applies, and entries measured with other
+# params are rejected loudly by the lookup.
+error_profile_option() {
+    [[ -z "${PHYSVERIFY__PATHS__ERROR_PROFILE:-}" ]] || return 0
+    local data_dir="${PHYSVERIFY__PATHS__DATA_DIR:-$REPO_ROOT/data}"
+    local calibration_dir="${PHYSVERIFY__PATHS__CALIBRATION_DIR:-$data_dir/calibration}"
+    local file="$calibration_dir/stage_errors.$1.json"
+    [[ -f "$file" ]] || return 0
+    printf '%s\n' "--set" "paths.error_profile=$file"
+}
+
 pv() {
+    local profile_option
+    mapfile -t profile_option < <(error_profile_option precise)
     uv run --no-sync physverify --profile precise --device "$PV_DEVICE" \
-        --set "runtime.threads=$THREADS" "$@"
+        --set "runtime.threads=$THREADS" "${profile_option[@]}" "$@"
 }

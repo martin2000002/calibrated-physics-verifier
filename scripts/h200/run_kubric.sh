@@ -38,7 +38,9 @@ export PHYSVERIFY__RUNTIME__HEAVY_LOCK="${PHYSVERIFY_KUBRIC_LOCK:-$H200_ROOT/kub
 export PHYSVERIFY__RUNTIME__LOCK_TIMEOUT_S=0
 
 kv() {
-    uv run --no-sync physverify --profile "$PROFILE" \
+    local profile_option
+    mapfile -t profile_option < <(error_profile_option "$PROFILE")
+    uv run --no-sync physverify --profile "$PROFILE" "${profile_option[@]}" \
         --set "runtime.threads=$KUBRIC_THREADS" \
         --set "dataset.render.workers=$WORKERS" \
         --set "dataset.render.jobs_per_process=$JOBS" "$@"
