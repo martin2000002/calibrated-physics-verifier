@@ -10,7 +10,7 @@ import csv
 import hashlib
 import math
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -64,7 +64,9 @@ LABEL_WATCH = ("r5a_", "r5b_")
 MAGNITUDE_TOL = 1e-9
 REST_TOL_M = 1e-9
 INTEGER_TOL = 1e-9
-CLOSED_FORM_TOL = 1e-9
+# The closed form assumes a ballistic step from the source row to k; Bullet's float64 velocities
+# miss it by ~1e-8 m/s (|e_new - e_pred| <= 7.3e-9 on the dry run); WP-H itself moves e by ~1e-2.
+CLOSED_FORM_TOL = 1e-6
 FLOOR_TOL_M = 1e-9
 # GT metadata a floor-crossing migration may move on a kept clip whose simulation has a
 # penetrated bounce: R3a and e_clean are measured on it, and e_clean is a parameter of the edits.
@@ -90,10 +92,12 @@ class AuditInputs:
 
 @dataclass(frozen=True)
 class Prediction:
-    """Clips whose render the migration must discard, and those it may discard."""
+    """Clips whose render the migration must discard, those it may discard, and the penetrated
+    bounces behind each prediction."""
 
     certain: frozenset[str]
     possible: frozenset[str]
+    bounces: Mapping[str, list[dict[str, Any]]] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -146,6 +150,7 @@ def floor_crossing_prediction(inputs: AuditInputs) -> Prediction:
     analytic flights with such a target only move if their e_clean changes a later bounce."""
     certain: set[str] = set()
     possible: set[str] = set()
+    bounces: dict[str, list[dict[str, Any]]] = {}
     for variant in rendered_before(inputs):
         record = _record(inputs.before, variant)
         if variant.perturbation not in ANALYTIC_FLIGHT or record is None:
@@ -153,16 +158,30 @@ def floor_crossing_prediction(inputs: AuditInputs) -> Prediction:
         scene, states, contacts = load_simulation(
             inputs.after, variant.sim_id, variant.sim_id, inputs.ds
         )
-        cases = [
-            first_bounce_case(states, contacts, states.object_index(o), gravity_of(scene))
+        cases = {
+            o: first_bounce_case(states, contacts, states.object_index(o), gravity_of(scene))
             for o in record.target_objects
-        ]
-        penetrated = [c for c in cases if c is not None and c.penetrated]
+        }
+        penetrated = {o: c for o, c in cases.items() if c is not None and c.penetrated}
         if not penetrated:
             continue
-        sure = variant.perturbation == RESTITUTION_GAIN and penetrated[0].status == "previous_row"
+        first = next(iter(penetrated.values()))
+        sure = variant.perturbation == RESTITUTION_GAIN and first.status == "previous_row"
         (certain if sure else possible).add(variant.clip_id)
-    return Prediction(frozenset(certain), frozenset(possible))
+        bounces[variant.clip_id] = [_bounce_row(o, c) for o, c in penetrated.items()]
+    return Prediction(frozenset(certain), frozenset(possible), bounces)
+
+
+def _bounce_row(object_id: str, case: BounceCase) -> dict[str, Any]:
+    src, t_c = (None, math.nan) if case.now is None else case.now[1:]
+    return {
+        "object": object_id,
+        "k": case.k,
+        "src": src,
+        "t_c": t_c,
+        "depth_m": case.depth_m,
+        "status": case.status,
+    }
 
 
 PREDICTIONS: Mapping[str, Callable[[AuditInputs], Prediction]] = {
@@ -181,7 +200,10 @@ def rerender_audit(inputs: AuditInputs, prediction: Prediction) -> dict[str, Any
         "observed": sorted(observed),
         "predicted_certain": sorted(prediction.certain),
         "missing_from_certain": sorted(prediction.certain - observed),
-        "conditional_rerendered": sorted(observed & prediction.possible),
+        "predicted_possible": sorted(prediction.possible),
+        "conditional_rerendered": {
+            c: prediction.bounces.get(c, []) for c in sorted(observed & prediction.possible)
+        },
         "unexpected": sorted(observed - prediction.certain - prediction.possible),
     }
 
@@ -293,15 +315,17 @@ def bounce_summary(rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     def ids(keep: Callable[[Mapping[str, Any]], bool]) -> list[str]:
         return [str(r["id"]) for r in rows if keep(r)]
 
+    solved = [r for r in rows if r["status"] == "previous_row"]
     return {
         "bounces": len(rows),
         "penetrated": [r for r in rows if r["penetrated"]],
-        "closed_form_mismatch": ids(
-            lambda r: (
-                r["status"] == "previous_row"
-                and not abs(r["e_new"] - r["e_pred"]) <= CLOSED_FORM_TOL
-            )
+        "closed_form_tol": CLOSED_FORM_TOL,
+        "closed_form_max_error": max(
+            (abs(r["e_new"] - r["e_pred"]) for r in solved), default=math.nan
         ),
+        "closed_form_mismatch": [
+            str(r["id"]) for r in solved if not abs(r["e_new"] - r["e_pred"]) <= CLOSED_FORM_TOL
+        ],
         "unresolved_now": ids(lambda r: r["status"] == "unresolved"),
         "row_moved": ids(lambda r: r["status"] == "moved"),
         "resting_previous_row": ids(lambda r: r["penetrated"] and r["resting_previous_row"]),

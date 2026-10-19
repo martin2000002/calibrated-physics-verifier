@@ -19,7 +19,7 @@ from physverify.config.models import Settings
 from physverify.core.errors import ConfigError, MissingInputError, UsageError
 from physverify.schema.scene import PerturbationRecord
 from physverify.schema.states import ObjectStateTable
-from physverify.synth import migration_audit
+from physverify.synth import migrate, migration_audit
 from physverify.synth.generate import load_plan, plan_subset, save_plan
 from physverify.synth.gt_export import read_index
 from physverify.synth.migrate import (
@@ -32,7 +32,14 @@ from physverify.synth.migrate import (
     reapply,
     rerender_clip_ids,
 )
-from physverify.synth.migration_audit import AuditInputs, audit
+from physverify.synth.migration_audit import (
+    CLOSED_FORM_TOL,
+    RERENDER_IF_CANDIDATES_MOVE,
+    AuditInputs,
+    Prediction,
+    audit,
+    rerender_audit,
+)
 from physverify.synth.perturb import apply_variants, instantiate
 from physverify.synth.perturbations import _measure, r3_restitution_gain
 from physverify.synth.perturbations._ballistics import time_to_height
@@ -231,7 +238,10 @@ def test_the_audit_compares_the_migration_with_the_copy_taken_before(
         "observed": [edited],
         "predicted_certain": [edited],
         "missing_from_certain": [],
-        "conditional_rerendered": [],
+        "predicted_possible": sorted(
+            v.clip_id for v in plan.variants if v.perturbation in RERENDER_IF_CANDIDATES_MOVE
+        ),
+        "conditional_rerendered": {},
         "unexpected": [],
     }
     assert found["media"] == {"kept": 1, "frames_differ": [], "mp4_differ": []}
@@ -367,6 +377,8 @@ def test_the_floor_crossing_migration_rerenders_only_the_moved_flight(
     assert found["rerender"]["predicted_certain"] == [edited]
     assert found["rerender"]["missing_from_certain"] == []
     assert found["rerender"]["unexpected"] == []
+    assert found["rerender"]["conditional_rerendered"] == {}
+    assert set(found["rerender"]["predicted_possible"]).isdisjoint({edited, unedited})
     assert found["impact_frames"] == {
         "before": [edited],
         "after": [],
@@ -379,8 +391,60 @@ def test_the_floor_crossing_migration_rerenders_only_the_moved_flight(
         ("previous_row", 6, 5)
     ]
     assert bounces["closed_form_mismatch"] == []
+    assert bounces["closed_form_max_error"] <= bounces["closed_form_tol"] == CLOSED_FORM_TOL
     assert bounces["unresolved_now"] == [] and bounces["row_moved"] == []
     assert found["gt_meta"]["unexplained"] == {}
+
+
+def test_a_migration_cut_short_keeps_the_old_gt_revision(
+    tmp_path: Path,
+    position_ds: DatasetSettings,
+    families: Any,
+    perturbations: Any,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    plan, store, plugins = before_floor_crossing(
+        tmp_path, position_ds, families, perturbations, monkeypatch
+    )
+
+    def crash(*args: Any) -> None:
+        apply_variants(*args)
+        raise RuntimeError("killed")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(migrate, "apply_variants", crash)
+        with pytest.raises(RuntimeError, match="killed"):
+            reapply(store, plugins, position_ds, COMMIT, FLOOR_CROSSING, clock)
+    assert COMPLETED_KEY not in read_json(manifest_path(store, FLOOR_CROSSING))
+    cut = load_plan(store)
+    assert cut is not None and cut.gt_revision == 0
+    with pytest.raises(ConfigError, match=f"migrate --name {FLOOR_CROSSING}"):
+        cut.check_gt_revision()
+    report = reapply(store, plugins, position_ds, COMMIT, FLOOR_CROSSING, clock)
+    assert report.rerender == (clip_of(plan, "r3_restitution_gain"),)
+    done = load_plan(store)
+    assert done is not None and done.gt_revision == GT_REVISION
+
+
+def test_a_conditional_rerender_is_listed_with_its_penetrated_bounce(
+    tmp_path: Path, position_ds: DatasetSettings, families: Any, perturbations: Any
+) -> None:
+    plan, store, plugins = build(
+        tmp_path / "store", position_ds, position_ds.content_hash(), families, perturbations
+    )
+    manifest = tmp_path / "manifest.json"
+    atomic_write_json(manifest, {COMPLETED_KEY: "now", RERENDER_KEY: ["sure", "maybe"]})
+    bounce = {"object": "ball_0", "k": 6, "src": 5}
+    prediction = Prediction(
+        frozenset({"sure"}),
+        frozenset({"maybe", "kept"}),
+        {"maybe": [bounce], "kept": [bounce]},
+    )
+    inputs = AuditInputs(plan, store, store, manifest, plugins, position_ds, FLOOR_CROSSING)
+    found = rerender_audit(inputs, prediction)
+    assert found["predicted_possible"] == ["kept", "maybe"]
+    assert found["conditional_rerendered"] == {"maybe": [bounce]}
+    assert found["unexpected"] == [] and found["missing_from_certain"] == []
 
 
 def test_the_floor_crossing_migration_needs_the_velocity_one_first(
