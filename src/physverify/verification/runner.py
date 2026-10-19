@@ -21,6 +21,7 @@ from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Ver
 from physverify.schema.clip import ClipManifest
 from physverify.schema.io import write_jsonl
 from physverify.verification._base import VerdictPolicy
+from physverify.verification.decisive import Judged, decisive
 from physverify.verification.inputs import ClipInputs, InputSource
 from physverify.verification.sweep import SpecificitySettings
 
@@ -227,9 +228,9 @@ def aggregate(
     *,
     row_step: int = UNKNOWN_ROW_STEP,
 ) -> TableRow:
-    """Max magnitude over scored subjects (and its sigma); FAIL if any fails, PASS if all pass."""
+    """Magnitude and sigma of the ``decisive`` scored subject; FAIL if any fails, PASS if all do."""
     scored = [r for r in results if r.magnitude is not None]
-    worst = max(scored, key=lambda r: r.magnitude or 0.0, default=None)
+    worst = decisive(scored)
     reasons = Counter(r.abstain_reason for r in results if r.abstain_reason is not None)
     return TableRow(
         clip_id=clip_id,
@@ -237,7 +238,7 @@ def aggregate(
         status=_status(results, scored),
         magnitude=None if worst is None else worst.magnitude,
         sigma=math.nan if worst is None else worst.sigma,
-        verdict=_verdict(results),
+        verdict=row_verdict(results),
         abstain_reason=reasons.most_common(1)[0][0] if reasons and _abstains(results) else None,
         n_subjects=len(results),
         n_abstained=sum(1 for r in results if r.verdict is Verdict.ABSTAIN),
@@ -252,7 +253,8 @@ def _status(results: Sequence[CheckResult], scored: Sequence[CheckResult]) -> Ro
     return RowStatus.SCORED if scored else RowStatus.ABSTAINED
 
 
-def _verdict(results: Sequence[CheckResult]) -> Verdict | None:
+def row_verdict(results: Sequence[Judged]) -> Verdict | None:
+    """FAIL if any subject fails, PASS if all pass, else UNSCORED if any is, else ABSTAIN."""
     if not results:
         return None
     verdicts = {r.verdict for r in results}
@@ -264,7 +266,7 @@ def _verdict(results: Sequence[CheckResult]) -> Verdict | None:
 
 
 def _abstains(results: Sequence[CheckResult]) -> bool:
-    return _verdict(results) is Verdict.ABSTAIN
+    return row_verdict(results) is Verdict.ABSTAIN
 
 
 def _row_step(inputs: CheckInputs | None) -> int:

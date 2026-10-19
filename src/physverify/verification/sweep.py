@@ -22,6 +22,7 @@ from physverify.schema.clip import ClipManifest
 from physverify.schema.io import encode
 from physverify.schema.scene import MagnitudeKind, PerturbationRecord
 from physverify.synth.perturbations.none import NAME as NONE
+from physverify.verification.decisive import decisive, size
 
 if TYPE_CHECKING:
     from physverify.verification.runner import TableRow, VerificationReport
@@ -29,6 +30,7 @@ if TYPE_CHECKING:
 MATRIX_FILE = "sweep_matrix.csv"
 SPECIFICITY_FILE = "specificity.json"
 PERFECT_ORDER = 1.0
+MIN_RANKED_LEVELS = 2
 
 
 class SpecificitySettings(BaseModel):
@@ -83,6 +85,8 @@ class RuleOutcome:
     expected: float | None
     observed: float | None
     detail: str = ""
+    undefined: bool = False
+    """The rule cannot be judged (a ranking of one level); neither a pass nor a failure."""
 
 
 @dataclass(frozen=True)
@@ -93,7 +97,11 @@ class SpecificityReport:
 
     @property
     def failures(self) -> tuple[RuleOutcome, ...]:
-        return tuple(o for o in self.outcomes if not o.passed and o.rule is not Rule.COUPLING)
+        return tuple(
+            o
+            for o in self.outcomes
+            if not o.passed and not o.undefined and o.rule is not Rule.COUPLING
+        )
 
     @property
     def passed(self) -> bool:
@@ -142,14 +150,13 @@ def target_check_ids(
 def target_value(
     record: PerturbationRecord, check_id: str, results: Sequence[CheckResult]
 ) -> float | None:
-    """Max magnitude of ``check_id`` over the subjects that cover the perturbed objects."""
+    """Magnitude of the ``decisive`` subject of ``check_id`` among those that cover the perturbed
+    objects; None when it is not finite."""
     targets = set(record.target_objects)
-    values = [
-        r.magnitude
-        for r in results
-        if r.check_id == check_id and r.magnitude is not None and _covers(r.subject, targets)
-    ]
-    return max(values, default=None)
+    covering = [r for r in results if r.check_id == check_id and _covers(r.subject, targets)]
+    chosen = decisive(covering)
+    value = size(None if chosen is None else chosen.magnitude)
+    return value if math.isfinite(value) else None
 
 
 def _covers(subject: Sequence[str], targets: set[str]) -> bool:
@@ -198,11 +205,11 @@ def specificity(report: VerificationReport, settings: SpecificitySettings) -> Sp
 def null_band(
     clips: Sequence[_Clip], check_ids: Sequence[str], null_tol: float
 ) -> dict[str, float]:
-    """Per check: max magnitude over the unperturbed variants plus ``null_tol``."""
+    """Per check: max finite magnitude over the unperturbed variants plus ``null_tol``."""
     clean = [clip for clip in clips if clip.name == NONE]
     band: dict[str, float] = {}
     for check_id in check_ids:
-        values = [m for clip in clean if (m := clip.magnitude(check_id)) is not None]
+        values = [m for clip in clean if math.isfinite(m := size(clip.magnitude(check_id)))]
         band[check_id] = max(values, default=0.0) + null_tol
     return band
 
@@ -286,7 +293,14 @@ def _ranking(name: str, check_id: str, members: Sequence[_Clip]) -> RuleOutcome:
         )
     tau = kendall(measured)
     detail = f"n_levels={len(measured)}"
-    passed = math.isnan(tau) or tau == PERFECT_ORDER
+    if len(measured) < MIN_RANKED_LEVELS:
+        detail += ": order undefined"
+        return RuleOutcome(
+            Rule.INJECTED_PARAMETER, name, check_id, ids, False, PERFECT_ORDER, tau, detail, True
+        )
+    if math.isnan(tau):
+        detail += ": tied magnitudes, order undefined"
+    passed = tau == PERFECT_ORDER
     return RuleOutcome(
         Rule.INJECTED_PARAMETER, name, check_id, ids, passed, PERFECT_ORDER, tau, detail
     )
@@ -294,7 +308,7 @@ def _ranking(name: str, check_id: str, members: Sequence[_Clip]) -> RuleOutcome:
 
 def kendall(pairs: Sequence[tuple[float, float]]) -> float:
     """Kendall tau between injected level and measured magnitude; NaN below two levels."""
-    if len(pairs) < 2:
+    if len(pairs) < MIN_RANKED_LEVELS:
         return math.nan
     x, y = zip(*pairs, strict=True)
     return float(kendalltau(x, y).statistic)

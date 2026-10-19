@@ -1,8 +1,9 @@
 """The clip verdict of one check, shared by ``fit`` and ``apply`` (ADR 0009 D5, D11).
 
-A check yields one result per subject. The clip outcome is its worst FAIL, else its largest PASS
-when every subject passes, else an abstention. Fit-time rates, weights and Platt fits use the same
-outcome that ``score_clip`` applies, so what the artifact reports is what deployment does.
+A check yields one result per subject. The clip verdict is the run table's (``row_verdict``) and
+its magnitude that of the ``decisive`` subject, as in the table. Fit-time rates, weights and
+Platt fits use the same outcome that ``score_clip`` applies, so what the artifact reports is what
+deployment does.
 """
 
 from __future__ import annotations
@@ -12,8 +13,9 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 from physverify.schema.checks import AbstainReason, CheckResult, Verdict
+from physverify.verification.decisive import decisive
 from physverify.verification.policies.threshold import ThresholdPolicy
-from physverify.verification.runner import ThresholdEntry
+from physverify.verification.runner import ThresholdEntry, row_verdict
 
 DECIDED = (Verdict.PASS, Verdict.FAIL)
 
@@ -32,7 +34,7 @@ class Rule:
 
 @dataclass(frozen=True)
 class Outcome:
-    """A check's verdict on a clip and the subject that decides it. ``magnitude`` is m - bias and
+    """A check's verdict on a clip and its ``decisive`` subject. ``magnitude`` is m - bias and
     ``sigma`` factor * sigma (NaN: not measured); ``judged`` is True when the policy compared the
     subject with tau; ``result`` is None when the check had no event on the clip."""
 
@@ -67,19 +69,22 @@ def _with(
 
 
 def clip_verdict(results: Sequence[CheckResult], rule: Rule, tau: float | None) -> Outcome:
-    """The worst FAIL, else the largest PASS when every subject passes, else the undecided subject
-    of largest magnitude (``NO_EVENT`` for no result). ``tau`` is explicit because the
-    cross-validated FPR judges each fold with its own tau."""
+    """The verdict of the set (``row_verdict``) with the magnitude, sigma and ``result`` of the
+    ``decisive`` subject: an abstained clip reports its largest non-abstained subject when it has
+    one, and is ``judged`` only when decided. Its reason is that of the largest abstained subject,
+    where the run table keeps the most common one. ``NO_EVENT`` for no result. ``tau`` is explicit
+    because the cross-validated FPR judges each fold with its own tau."""
     outcomes = [subject_outcome(r, rule, tau) for r in results]
-    if not outcomes:
+    chosen = decisive(outcomes)
+    verdict = row_verdict(outcomes)
+    if chosen is None or verdict is None:
         return NO_EVENT
-    failed = [o for o in outcomes if o.verdict is Verdict.FAIL]
-    if failed:
-        return max(failed, key=_size)
-    if all(o.verdict is Verdict.PASS for o in outcomes):
-        return max(outcomes, key=_size)
-    return max((o for o in outcomes if o.verdict not in DECIDED), key=_size)
+    if verdict is chosen.verdict:
+        return chosen
+    judged = chosen.judged and verdict in DECIDED
+    return _with(chosen, verdict, _abstain_reason(outcomes), judged=judged)
 
 
-def _size(outcome: Outcome) -> float:
-    return -math.inf if outcome.magnitude is None else outcome.magnitude
+def _abstain_reason(outcomes: Sequence[Outcome]) -> AbstainReason | None:
+    abstained = decisive([o for o in outcomes if o.verdict is Verdict.ABSTAIN])
+    return None if abstained is None else abstained.abstain_reason

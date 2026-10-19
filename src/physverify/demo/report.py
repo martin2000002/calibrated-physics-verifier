@@ -18,7 +18,8 @@ from pydantic import BaseModel, ConfigDict, Field
 from physverify.diagnosis.atomic_io import write_text_atomic
 from physverify.finetune.records import CheckSummary, PromptRecord, finite_or_none
 from physverify.finetune.scorers._base import AggregateScore, AggregateScorer
-from physverify.schema.checks import CheckResult, Verdict
+from physverify.schema.checks import CheckResult
+from physverify.verification.decisive import decisive
 
 REPORT_JSON: Final = "report.json"
 REPORT_MD: Final = "report.md"
@@ -117,9 +118,7 @@ def rule_info(scorer: AggregateScorer, note: str | None = None) -> RuleInfo:
 
 
 def _worst(results: Sequence[CheckResult]) -> CheckResult | None:
-    failed = [r for r in results if r.verdict is Verdict.FAIL]
-    pool = failed or [r for r in results if r.magnitude is not None]
-    return max(pool, key=lambda r: r.magnitude or 0.0, default=None)
+    return decisive([r for r in results if r.magnitude is not None])
 
 
 def check_row(

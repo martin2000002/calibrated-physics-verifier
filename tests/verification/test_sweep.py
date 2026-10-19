@@ -8,7 +8,7 @@ import math
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import replace
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import check_scenarios as sc
 import pytest
@@ -242,3 +242,55 @@ def test_the_matrix_and_the_files(tmp_path: Path) -> None:
     written = json.loads((tmp_path / SPECIFICITY_FILE).read_text(encoding="utf-8"))
     assert written["passed"] is spec.passed
     assert len(written["outcomes"]) == len(spec.outcomes)
+
+
+def test_the_null_band_ignores_nan_magnitudes() -> None:
+    values: Values = {
+        "none": {"R1": [(PAIR, math.nan), (("a",), 0.002)], "R2": [(("a",), math.nan)]}
+    }
+    spec = specificity(sweep([clip("none", None)], values), SpecificitySettings())
+    assert spec.null_band["R1"] == pytest.approx(0.003)
+    assert spec.null_band["R2"] == pytest.approx(1e-3)
+
+
+PEN = (Rule.CHECK_UNIT, "r1_penetration", "R1")
+
+
+def test_a_nan_subject_listed_first_does_not_set_the_observed_value() -> None:
+    items = [clip("pen", record("r1_penetration", "R1", 0.1, "pen_over_size"))]
+    values: Values = {"pen": {"R1": [(PAIR, math.nan), (PAIR, 0.1015)]}}
+    found = outcome(specificity(sweep(items, values), SpecificitySettings()), *PEN)
+    assert found.observed == 0.1015 and found.passed
+
+
+def test_an_all_nan_target_gives_no_magnitude() -> None:
+    items = [clip("pen", record("r1_penetration", "R1", 0.1, "pen_over_size"))]
+    values: Values = {"pen": {"R1": [(PAIR, math.nan)]}}
+    found = outcome(specificity(sweep(items, values), SpecificitySettings()), *PEN)
+    assert found.observed is None and not found.passed
+
+
+def ranked(items: Sequence[ClipInputs], values: Values) -> tuple[SpecificityReport, RuleOutcome]:
+    spec = specificity(
+        sweep([clip("none", None), *items], {**CLEAN, **values}), SpecificitySettings()
+    )
+    (found,) = [o for o in spec.outcomes if o.rule is Rule.INJECTED_PARAMETER]
+    return spec, found
+
+
+def test_a_nan_level_fails_the_ranking() -> None:
+    spec, found = ranked(*overhang("s1", [0.1, 0.2], [0.2, math.nan]))
+    assert not found.passed and not found.undefined and found in spec.failures
+    assert "no magnitude on some level" in found.detail
+
+
+def test_tied_levels_fail_the_ranking() -> None:
+    spec, found = ranked(*overhang("s1", [0.1, 0.2], [0.3, 0.3]))
+    assert math.isnan(cast(float, found.observed)) and not found.passed
+    assert found in spec.failures and "tied" in found.detail
+
+
+def test_a_single_level_ranking_is_undefined_not_passed_nor_failed() -> None:
+    spec, found = ranked(*overhang("s1", [0.1], [0.3]))
+    assert found.undefined and not found.passed and found not in spec.failures
+    assert spec.passed

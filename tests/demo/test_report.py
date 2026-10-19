@@ -16,6 +16,7 @@ from physverify.demo.report import (
     RuleInfo,
     VideoReport,
     build_report,
+    check_row,
     read_report,
     render_markdown,
     rule_info,
@@ -24,8 +25,9 @@ from physverify.demo.report import (
     write_report,
 )
 from physverify.finetune.records import CheckSummary, PromptRecord
+from physverify.finetune.scorers._base import AggregateScore
 from physverify.finetune.scorers.provisional import ProvisionalScorer
-from physverify.schema.checks import CheckResult
+from physverify.schema.checks import CheckResult, Verdict
 
 CID = "p__k00"
 Results = Callable[[str], list[CheckResult]]
@@ -132,3 +134,15 @@ def test_reports_round_trip(tmp_path: Path, settings: Settings, clip_results: Re
     assert (tmp_path / "r" / REPORT_MD).is_file()
     assert read_report(tmp_path / "r") == report
     assert read_report(tmp_path / "r" / REPORT_JSON) == report
+
+
+def test_a_nan_subject_listed_first_does_not_pick_the_row_span(
+    make_result: Callable[..., CheckResult],
+) -> None:
+    results = [
+        make_result("R1", Verdict.PASS, float("nan"), 1.0, frame_span=(0, 1)),
+        make_result("R1", Verdict.PASS, 0.2, 1.0, frame_span=(5, 9)),
+    ]
+    summary = CheckSummary(status="scored", magnitude=0.2, sigma=None, verdict="PASS", unit="")
+    aggregate = AggregateScore(None, None, True, None, 0, 0, 0.0)
+    assert check_row("R1", summary, results, aggregate).frame_span == (5, 9)
