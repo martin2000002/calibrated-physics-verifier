@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import fcntl
 import os
 import re
 import shutil
@@ -16,8 +17,8 @@ REPO = Path(__file__).resolve().parents[2]
 H200 = REPO / "scripts" / "h200"
 SCRIPT = H200 / "run_a8v2.sh"
 TOOLS = (
-    "basename", "bash", "cat", "cmp", "cp", "dirname", "env", "grep", "head", "mkdir", "mv",
-    "nice", "nproc", "realpath", "sed", "sort", "tee", "touch", "tr",
+    "awk", "basename", "bash", "cat", "cmp", "cp", "dirname", "env", "flock", "grep", "head",
+    "mkdir", "mv", "nice", "nproc", "realpath", "sed", "sort", "tee", "touch", "tr",
 )  # fmt: skip
 PREFIX = re.compile(r"^--profile precise --device cpu --set runtime\.threads=\d+ ")
 # The query helper runs for real on run-errors (it reads the checks.jsonl verify wrote) unless the
@@ -62,7 +63,9 @@ case "$*" in
     new_run
     if [[ -n "${NOT_CACHED:-}" ]]; then cp "$UNCACHED_CHECKS" "$RUN/checks.jsonl"
     else cp "$CLEAN_CHECKS" "$RUN/checks.jsonl"; fi ;;
-  *" extract run "*) new_run; exit "${EXTRACT_EXIT:-0}" ;;
+  *" extract run "*)
+    [[ -z "${LATE_PS:-}" ]] || echo "$LATE_PS" > "$DATA/ps_late"
+    new_run; exit "${EXTRACT_EXIT:-0}" ;;
   *"--no-lock diagnose stages "*)
     [[ "$* " != *" --clips ${FAILED_SHARD_CLIP:-none} "* ]] || exit "${SHARD_EXIT:-1}" ;;
   *" diagnose stages "*) new_run ;;
@@ -84,12 +87,20 @@ exit 0
 FAKE_MIGRATE = """#!/bin/bash
 printf 'migrate %s %s\\n' "$PHYSVERIFY_MIGRATE_NAME" "${PHYSVERIFY_LOCK_HELD-unset}" >> "$CALLS"
 """
-FAKE_PS = '#!/bin/bash\nprintf "%s\\n" "${PS_OUT:-  1 init}"\n'
+FAKE_PS = """#!/bin/bash
+printf "%s\\n" "${PS_OUT:-  1 init}"
+cat "$DATA/ps_late" 2>/dev/null || true
+"""
 FAKE_GIT = '#!/bin/bash\n[[ "$*" != *" diff "* ]] || exit "${DIRTY:-0}"\necho c0ffee1234567\n'
 STEP_NAMES = (
     "migrate", "extract-synthetic", "stages", "relift", "stage-sigma", "fit", "evaluate",
     "abstain", "r2-arms", "decide", "size-eval", "gravity",
 )  # fmt: skip
+
+
+SAVES = {
+    2: ("STAGES_RUN",), 6: ("EVAL_JSON",), 8: ("R2_BASE_RUN", "R2_TINY_RUN"), 9: ("RECORD_SHA",)
+}  # fmt: skip
 
 
 def _executable(path: Path, text: str) -> None:
@@ -163,9 +174,25 @@ class Sandbox:
             if line.startswith(("pv ", "migrate "))
         ]
 
-    def steps(self) -> list[list[str]]:
+    def rows(self) -> list[list[str]]:
         text = (self.out / "steps.tsv").read_text(encoding="utf-8")
         return [line.split("\t") for line in text.splitlines()]
+
+    def steps(self) -> list[list[str]]:
+        """The rows that close a step, without the ones written when it starts."""
+        return [row for row in self.rows() if row[2] != "running"]
+
+
+def _done(sandbox: Sandbox, steps: int, *, saves: int | None = None) -> None:
+    """Records steps 0..steps-1 as completed, with the state keys of steps 0..saves-1."""
+    sandbox.out.mkdir(exist_ok=True)
+    rows = "".join(f"{k}\t{STEP_NAMES[k]}\t0\t1\t-\n" for k in range(steps))
+    with (sandbox.out / "steps.tsv").open("a", encoding="utf-8") as tsv:
+        tsv.write(rows)
+    last = steps if saves is None else saves
+    lines = [f"{key}=x{k}\n" for k in range(last) for key in SAVES.get(k, ())]
+    with (sandbox.out / "state.env").open("a", encoding="utf-8") as state:
+        state.write("".join(lines))
 
 
 @pytest.fixture
@@ -219,15 +246,19 @@ def test_a_cache_or_profile_other_than_the_shards_stops_after_doctor(
 
 
 def test_r2_arms_with_different_check_parameters_stop_before_decide(sandbox: Sandbox) -> None:
+    _done(sandbox, 8)
     result = sandbox.run("8", HASH="1")
     assert result.returncode == 2
     assert "different check parameters" in result.stderr
     assert sandbox.steps()[-1][:3] == ["8", "r2-arms", "2"]
 
 
-@pytest.mark.parametrize("start", ["x", "12", "-1", "01"])
-def test_a_bad_start_step_is_a_usage_error(sandbox: Sandbox, start: str) -> None:
-    result = sandbox.run(start)
+@pytest.mark.parametrize(
+    "args",
+    [("x",), ("12",), ("-1",), ("01",), ("3", "2"), ("0", "12"), ("0", "y"), ("0", "1", "2")],
+)
+def test_a_bad_step_range_is_a_usage_error(sandbox: Sandbox, args: tuple[str, ...]) -> None:
+    result = sandbox.run(*args)
     assert result.returncode == 2
     assert sandbox.lines() == []
 
@@ -266,6 +297,8 @@ def test_the_full_run_preflights_then_runs_every_step_in_order(sandbox: Sandbox)
         "size eval",
     ]
     assert [row[1] for row in sandbox.steps()] == ["preflight", *STEP_NAMES]
+    opened = [row[0] for row in sandbox.rows() if row[2] == "running"]
+    assert opened == ["pre", *(str(k) for k in range(len(STEP_NAMES)))]
     summary = (sandbox.out / "summary.md").read_text(encoding="utf-8")
     assert "sha256 abc123" in summary
     assert "## H1 primary" in summary and "| lift | 3 |" in summary
@@ -283,13 +316,15 @@ def test_a_resumed_decide_reads_the_saved_state_and_skips_the_preflight(sandbox:
 
 
 def test_decide_without_saved_runs_asks_to_rerun_them(sandbox: Sandbox) -> None:
+    _done(sandbox, 9, saves=6)
     result = sandbox.run("9")
     assert result.returncode == 2
-    assert "rerun from 6" in result.stderr
-    assert sandbox.steps()[-1][:3] == ["9", "decide", "2"]
+    assert "recorded no EVAL_JSON" in result.stderr and "rerun from 6" in result.stderr
+    assert sandbox.commands() == ["doctor"]
 
 
 def test_resuming_after_the_migration_does_not_need_it(sandbox: Sandbox) -> None:
+    _done(sandbox, 1)
     result = sandbox.run("1")
     assert result.returncode == 0, result.stderr
     assert not any(c.startswith("migrate") for c in sandbox.commands())
@@ -341,6 +376,7 @@ def _timed(sandbox: Sandbox) -> list[str]:
 
 def test_the_estimate_times_a_clip_once_and_never_after_step_2(sandbox: Sandbox) -> None:
     ks = "--dataset kubric_synthetic --subset full"
+    _done(sandbox, 3)
     assert sandbox.run("3", FIT_EXIT="1").returncode == 1
     assert _timed(sandbox) == []
     summary = (sandbox.out / "summary.md").read_text(encoding="utf-8")
@@ -356,7 +392,7 @@ def test_the_estimate_times_a_clip_once_and_never_after_step_2(sandbox: Sandbox)
 
 def test_an_interrupted_estimate_does_not_time_the_same_clip_again(sandbox: Sandbox) -> None:
     ks = "--dataset kubric_synthetic --subset full"
-    (sandbox.out).mkdir()
+    _done(sandbox, 1)
     (sandbox.out / "state.env").write_text("TIMED_CLIPS=k2\n", encoding="utf-8")
     assert sandbox.run("1", FIT_EXIT="1").returncode == 1
     assert _timed(sandbox) == [f"diagnose stages {ks} --clips k3"]
@@ -369,6 +405,7 @@ def test_an_interrupted_estimate_does_not_time_the_same_clip_again(sandbox: Sand
 
 
 def test_failed_clips_of_extract_are_tolerated_and_noted(sandbox: Sandbox) -> None:
+    _done(sandbox, 1)
     result = sandbox.run("1", EXTRACT_EXIT="1")
     assert result.returncode == 0, result.stderr
     assert "some clips failed" in (sandbox.out / "summary.md").read_text(encoding="utf-8")
@@ -376,6 +413,7 @@ def test_failed_clips_of_extract_are_tolerated_and_noted(sandbox: Sandbox) -> No
 
 @pytest.mark.parametrize("code", ["1", "75"])
 def test_a_failed_fit_stops_with_its_code(sandbox: Sandbox, code: str) -> None:
+    _done(sandbox, 5)
     result = sandbox.run("5", FIT_EXIT=code)
     assert result.returncode == int(code)
     assert sandbox.steps()[-1][:3] == ["5", "fit", code]
@@ -383,6 +421,7 @@ def test_a_failed_fit_stops_with_its_code(sandbox: Sandbox, code: str) -> None:
 
 
 def test_a_skipped_real_dataset_stops_the_evaluation(sandbox: Sandbox) -> None:
+    _done(sandbox, 6)
     result = sandbox.run("6", SKIP="1")
     assert result.returncode == 2
     assert "skipped" in result.stderr
@@ -390,6 +429,7 @@ def test_a_skipped_real_dataset_stops_the_evaluation(sandbox: Sandbox) -> None:
 
 
 def test_an_evaluation_failing_its_checks_stops_the_run(sandbox: Sandbox) -> None:
+    _done(sandbox, 6)
     result = sandbox.run("6", EVAL_QUERY_EXIT="2")
     assert result.returncode == 2
     assert sandbox.steps()[-1][:3] == ["6", "evaluate", "2"]
@@ -406,6 +446,7 @@ def test_a_pisa_selection_other_than_the_extracted_one_stops_at_startup(sandbox:
 
 
 def test_a_pisa_subset_applies_to_every_call(sandbox: Sandbox) -> None:
+    _done(sandbox, 2)
     result = sandbox.run("2", PISA_SELECTED="p2", PHYSVERIFY_A8V2_PISA_MAX_CLIPS="1")
     assert result.returncode == 0, result.stderr
     calls = [line for line in sandbox.lines() if line.startswith(("pv ", "query "))]
@@ -418,6 +459,7 @@ def _shards(sandbox: Sandbox) -> list[str]:
 
 def test_diag_shards_warm_the_cache_before_the_profile_call(sandbox: Sandbox) -> None:
     ks = "--dataset kubric_synthetic --subset full"
+    _done(sandbox, 2)
     result = sandbox.run("2", PHYSVERIFY_A8V2_DIAG_SHARDS="2", FIT_EXIT="1")
     assert result.returncode == 1
     assert _shards(sandbox) == [
@@ -436,6 +478,7 @@ def test_diag_shards_warm_the_cache_before_the_profile_call(sandbox: Sandbox) ->
 
 def test_diag_shards_threads_can_be_set(sandbox: Sandbox) -> None:
     env = {"PHYSVERIFY_A8V2_DIAG_SHARDS": "8", "PHYSVERIFY_A8V2_DIAG_THREADS": "3"}
+    _done(sandbox, 2)
     assert sandbox.run("2", FIT_EXIT="1", **env).returncode == 1
     assert len(_shards(sandbox)) == 5
     shard_lines = [line for line in sandbox.lines() if "--no-lock" in line]
@@ -444,6 +487,7 @@ def test_diag_shards_threads_can_be_set(sandbox: Sandbox) -> None:
 
 def test_a_diag_shard_with_failed_clips_is_tolerated(sandbox: Sandbox) -> None:
     env = {"PHYSVERIFY_A8V2_DIAG_SHARDS": "2", "FAILED_SHARD_CLIP": "k4"}
+    _done(sandbox, 2)
     assert sandbox.run("2", FIT_EXIT="1", **env).returncode == 1
     summary = (sandbox.out / "summary.md").read_text(encoding="utf-8")
     assert "step 2 shard 1 (16 threads): exit 1" in summary
@@ -453,6 +497,7 @@ def test_a_diag_shard_with_failed_clips_is_tolerated(sandbox: Sandbox) -> None:
 @pytest.mark.parametrize("code", ["75", "3"])
 def test_a_failed_diag_shard_stops_step_2_before_the_profile(sandbox: Sandbox, code: str) -> None:
     env = {"PHYSVERIFY_A8V2_DIAG_SHARDS": "2", "FAILED_SHARD_CLIP": "k4", "SHARD_EXIT": code}
+    _done(sandbox, 2)
     result = sandbox.run("2", **env)
     assert result.returncode == 2
     assert "1 of 2 diagnose shards failed" in result.stderr
@@ -470,3 +515,197 @@ def test_bad_diag_shard_settings_are_usage_errors(sandbox: Sandbox, env: dict[st
     assert result.returncode == 2
     assert "PHYSVERIFY_A8V2_DIAG_" in result.stderr
     assert sandbox.lines() == []
+
+
+KS = "--dataset kubric_synthetic --subset full"
+SHARD = "python -c from physverify.cli.main import main; main() --profile precise --device cpu"
+
+
+def _extracting(dataset: str) -> str:
+    return f"4242 {SHARD} extract run --dataset {dataset} --subset full --clips x1"
+
+
+def _verified(sandbox: Sandbox) -> list[str]:
+    return [c.split()[2] for c in sandbox.commands() if c.startswith("verify --dataset")]
+
+
+def test_a_range_runs_only_its_steps_and_a_later_start_resumes_from_state(
+    sandbox: Sandbox,
+) -> None:
+    first = sandbox.run("0", "2")
+    assert first.returncode == 0, first.stderr
+    assert "stopped after step 2 as requested" in first.stdout
+    assert sandbox.commands() == [
+        "doctor",
+        "verify --dataset kubric_synthetic --level perceived --subset full --clips k2",
+        f"diagnose stages {KS} --clips k2",
+        "migrate pair-collision unset",
+        f"extract run {KS}",
+        f"diagnose stages {KS} --write-profile",
+    ]
+    assert [row[1] for row in sandbox.steps()] == ["preflight", *STEP_NAMES[:3]]
+    stages_run = sandbox.data / "runs" / "r4"
+    assert f"STAGES_RUN={stages_run}" in (sandbox.out / "state.env").read_text(encoding="utf-8")
+    sandbox.calls.unlink()
+    rest = sandbox.run("3")
+    assert rest.returncode == 0, rest.stderr
+    assert "stopped after step" not in rest.stdout
+    assert [row[1] for row in sandbox.steps()] == [
+        "preflight", *STEP_NAMES[:3], "preflight", *STEP_NAMES[3:]
+    ]  # fmt: skip
+    assert _verified(sandbox)[:3] == ["kubric_synthetic", "physics_iq", "pisa_real"]
+    assert not _timed(sandbox)
+    assert f"query gravity {stages_run}/diagnosis/stages.json" in sandbox.lines()
+
+
+@pytest.mark.parametrize(
+    ("args", "datasets"),
+    [
+        (("0", "2"), ["kubric_synthetic"]),
+        (("1", "1"), ["kubric_synthetic"]),
+        (("3", "5"), ["kubric_synthetic", "physics_iq", "pisa_real"]),
+        (("0",), ["kubric_synthetic", "physics_iq", "pisa_real"]),
+        (("10", "10"), []),
+    ],
+)
+def test_the_preflight_checks_only_the_datasets_of_the_range(
+    sandbox: Sandbox, args: tuple[str, ...], datasets: list[str]
+) -> None:
+    _done(sandbox, int(args[0]))
+    result = sandbox.run(*args)
+    assert result.returncode == 0, result.stderr
+    preflights = [c for c in sandbox.commands() if "--level perceived --subset full" in c]
+    assert [c.split()[2] for c in preflights] == datasets
+    queried = {line.split()[2] for line in sandbox.lines() if line.startswith("query clips ")}
+    assert queried <= {*datasets}
+
+
+def test_the_pisa_selection_is_checked_only_by_ranges_that_read_it(sandbox: Sandbox) -> None:
+    assert sandbox.run("0", "2", PISA_SELECTED="p1").returncode == 0
+    result = sandbox.run("3", PISA_SELECTED="p1")
+    assert result.returncode == 2
+    assert "set PHYSVERIFY_A8V2_PISA_MAX_CLIPS" in result.stderr
+
+
+def test_a_pisa_extraction_blocks_only_ranges_that_touch_pisa(sandbox: Sandbox) -> None:
+    busy = _extracting("pisa_real")
+    first = sandbox.run("0", "2", PS_OUT=busy)
+    assert first.returncode == 0, first.stderr
+    sandbox.calls.unlink()
+    later = sandbox.run("3", PS_OUT=busy)
+    assert later.returncode == 2
+    assert "still running" in later.stderr and "--dataset pisa_real" in later.stderr
+    assert sandbox.lines() == []
+
+
+@pytest.mark.parametrize(
+    "busy",
+    [
+        _extracting("local_video"),
+        f"4242 {SHARD} extract run --dataset=local_video --subset s",
+    ],
+)
+def test_jobs_outside_the_range_never_block(sandbox: Sandbox, busy: str) -> None:
+    result = sandbox.run(PS_OUT=f"  1 init\n{busy}")
+    assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.parametrize(
+    "busy",
+    [
+        f"4242 {SHARD} extract run --subset full",
+        f"4242 {SHARD} extract run --dataset",
+        f"4242 {SHARD} extract run --dataset $DS --subset full",
+        f"4242 {SHARD} extract run --dataset local_video --dataset kubric_synthetic",
+        f"4242 {SHARD} dataset build --version v2",
+        "4242 physverify dataset migrate pair-collision",
+        _extracting("kubric_synthetic"),
+    ],
+)
+def test_an_unreadable_or_kubric_job_blocks_the_kubric_range(sandbox: Sandbox, busy: str) -> None:
+    result = sandbox.run("0", "2", PS_OUT=f"  1 init\n{busy}")
+    assert result.returncode == 2
+    assert "still running" in result.stderr
+    assert sandbox.lines() == []
+
+
+def test_a_second_instance_is_refused(sandbox: Sandbox) -> None:
+    sandbox.out.mkdir()
+    with (sandbox.out / "run.lock").open("w") as held:
+        fcntl.flock(held, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        result = sandbox.run("0", "2")
+    assert result.returncode == 2
+    assert "another run_a8v2.sh holds" in result.stderr
+    assert sandbox.lines() == []
+
+
+@pytest.mark.parametrize(
+    ("rows", "message"),
+    [
+        ("0\tmigrate\t0\t1\t-\n1\textract-synthetic\t0\t1\t-\n", "step 2 has not completed"),
+        ("2\tstages\t0\t1\t-\n2\tstages\t2\t1\t-\n", "step 2 has not completed (last exit '2')"),
+        ("2\tstages\t1\t1\t-\n", "step 2 has not completed (last exit '1')"),
+        (
+            "2\tstages\t0\t1\t-\n2\tstages\trunning\t0\t-\n",
+            "step 2 has not completed (last exit 'running')",
+        ),
+    ],
+)
+def test_a_start_after_an_incomplete_step_is_refused(
+    sandbox: Sandbox, rows: str, message: str
+) -> None:
+    _done(sandbox, 2)
+    with (sandbox.out / "steps.tsv").open("a", encoding="utf-8") as tsv:
+        tsv.write(rows)
+    result = sandbox.run("3")
+    assert result.returncode == 2
+    assert message in result.stderr and "rerun from" in result.stderr
+    assert sandbox.commands() == ["doctor"]
+
+
+def test_a_step_rerun_successfully_counts_as_completed(sandbox: Sandbox) -> None:
+    (sandbox.out).mkdir()
+    (sandbox.out / "steps.tsv").write_text("0\tmigrate\t2\t1\t-\n", encoding="utf-8")
+    _done(sandbox, 3)
+    result = sandbox.run("3", "3")
+    assert result.returncode == 0, result.stderr
+
+
+def test_a_start_without_the_state_of_step_2_is_refused(sandbox: Sandbox) -> None:
+    _done(sandbox, 3, saves=0)
+    result = sandbox.run("3")
+    assert result.returncode == 2
+    assert "step 2 recorded no STAGES_RUN" in result.stderr
+
+
+@pytest.mark.parametrize(
+    "busy",
+    [
+        f"4242 {SHARD} diagnose stages --dataset kubric_synthetic --subset full --write-profile",
+        f"4242 {SHARD} --no-lock diagnose stages --dataset kubric_synthetic --clips k1",
+        f"4242 {SHARD} diagnose stages --dataset pisa_real",
+        f"4242 {SHARD} diagnose real",
+        f"4242 {SHARD} diagnose real --dataset all",
+    ],
+)
+def test_a_diagnose_job_on_the_range_blocks(sandbox: Sandbox, busy: str) -> None:
+    _done(sandbox, 3)
+    result = sandbox.run("3", PS_OUT=busy)
+    assert result.returncode == 2
+    assert "still running" in result.stderr
+    assert sandbox.lines() == []
+
+
+def test_a_job_started_after_startup_stops_the_next_step(sandbox: Sandbox) -> None:
+    result = sandbox.run("0", "2", LATE_PS=_extracting("kubric_synthetic"))
+    assert result.returncode == 2
+    assert "still running" in result.stderr
+    assert sandbox.steps()[-1][:3] == ["1", "extract-synthetic", "0"]
+    assert not any("--write-profile" in c for c in sandbox.commands())
+
+
+def test_a_start_at_7_checks_the_pisa_selection(sandbox: Sandbox) -> None:
+    _done(sandbox, 7)
+    result = sandbox.run("7", PISA_SELECTED="p1")
+    assert result.returncode == 2
+    assert "set PHYSVERIFY_A8V2_PISA_MAX_CLIPS" in result.stderr
