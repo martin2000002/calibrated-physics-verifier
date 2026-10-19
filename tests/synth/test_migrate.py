@@ -160,6 +160,18 @@ def test_a_crashed_migration_still_lists_the_render_it_discarded(
     assert again.rerender == report.rerender
 
 
+def test_a_clip_apply_never_reached_stays_pending(
+    tmp_path: Path, position_ds: DatasetSettings, families: Any, perturbations: Any
+) -> None:
+    plan, store, plugins = legacy(tmp_path, position_ds, families, perturbations)
+    pending = clip_of(plan, "r3_restitution_gain")
+    shutil.rmtree(store.clip_dir(pending))
+    report = migrate_velocity(store, plugins, position_ds, COMMIT, clock)
+    assert report.applied == len(plan.variants) - 1
+    assert not store.is_done(Step.APPLY, pending)
+    assert report.status_changes == {} and report.rerender == ()
+
+
 def test_a_plan_with_other_content_is_refused(
     tmp_path: Path, position_ds: DatasetSettings, families: Any, perturbations: Any
 ) -> None:

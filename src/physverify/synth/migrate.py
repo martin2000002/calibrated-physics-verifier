@@ -1,6 +1,7 @@
 """Migrating a stored dataset to ``velocity_convention`` without bumping its version (WP-G 1.C).
 
-APPLY is reopened for every simulated clip and run again on the whole plan; ``discard_downstream``
+APPLY is reopened and run again on every clip it had already reached (applied or skipped; a clip
+never applied stays pending for its own build); ``discard_downstream``
 drops a render only where the poses, sizes or hidden frames changed. The manifest
 ``<dataset>/migrations/velocity-<convention>.json`` is written before anything changes and
 completed afterwards, so a crashed run resumes and still lists every discarded render; once
@@ -8,6 +9,7 @@ completed, running it again changes nothing."""
 
 from __future__ import annotations
 
+import dataclasses
 import datetime as dt
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
@@ -128,8 +130,14 @@ def rewrite_plan_hash(store: DatasetStore, plan: DatasetPlan, new_hash: str) -> 
     return DatasetPlan.from_json(data)
 
 
+def reached_apply(plan: DatasetPlan, status_before: Mapping[str, Mapping[str, Any]]) -> DatasetPlan:
+    """The part of the plan APPLY had reached before the migration (applied or skipped)."""
+    variants = tuple(v for v in plan.variants if status_before[v.clip_id]["state"] != "pending")
+    return dataclasses.replace(plan, variants=variants)
+
+
 def reopen_apply(plan: DatasetPlan, store: DatasetStore) -> int:
-    """APPLY pending again for every simulated clip (skipped clips get a new chance)."""
+    """APPLY pending again for every simulated clip of ``plan`` (skipped ones get a new chance)."""
     reopened = 0
     for variant in plan.variants:
         if not store.is_done(Step.SIMULATE, variant.sim_id):
@@ -148,7 +156,7 @@ def migrate_velocity(
     commit: str,
     now: Clock = lambda: dt.datetime.now(dt.UTC),
 ) -> MigrationReport:
-    """Re-run APPLY on every simulated clip of the stored plan under ``ds.velocity_convention``."""
+    """Re-run APPLY under ``ds.velocity_convention`` on every clip of the stored plan it reached."""
     plan = load_plan(store)
     if plan is None:
         raise MissingInputError(f"nothing planned in {store.root}")
@@ -158,8 +166,9 @@ def migrate_velocity(
     if "completed_utc" in manifest:
         return _report(path, 0, manifest)
     plan = rewrite_plan_hash(store, plan, ds.content_hash())
-    reopen_apply(plan, store)
-    report = apply_variants(plan, store, plugins, ds)
+    reached = reached_apply(plan, manifest["status_before"])
+    reopen_apply(reached, store)
+    report = apply_variants(reached, store, plugins, ds)
     rerender = sorted(
         set(manifest[RERENDER_KEY])
         | {c for c in manifest["rendered_before"] if not store.is_done(Step.RENDER, c)}
