@@ -2,6 +2,9 @@
 # H2 (ADR 0011): dev pass (fetch, extract, verify, freeze) then test pass (fetch, extract, verify,
 # compare) on VideoPhy. Needs the recorded caption review in annotations/videophy_subset.json.
 # Extract and verify exit 1 when some clips fail; those clips are counted by compare, not fatal.
+# They run on PHYSVERIFY_H2_DEVICE (default cpu): the VideoPhy stage cache was computed on the CPU
+# and the device is part of its key, so cuda would recompute every heavy stage. A one-clip verify
+# preflight stops early when that cache is not the one this device reads.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/_common.sh"
 cd "$REPO_ROOT"
@@ -9,6 +12,9 @@ cd "$REPO_ROOT"
 H2_LINK="h2-latest"
 DEV_SUBSET="${PHYSVERIFY_H2_DEV:-h2_dev}"
 TEST_SUBSET="${PHYSVERIFY_H2_TEST:-h2_test}"
+H2_DEVICE="${PHYSVERIFY_H2_DEVICE:-cpu}"
+PREFLIGHT_CLIP="${PHYSVERIFY_H2_PREFLIGHT_CLIP:-v1-a8208f4dd41e}"
+NOT_CACHED="heavy stage is not cached"
 
 # step TOLERATED -- ARGS: runs physverify ARGS with its output also in $STEP_LOG; exits with the
 # command's code unless it is 0 or TOLERATED.
@@ -36,8 +42,20 @@ run_of() {
     printf '%s\n' "$run_dir"
 }
 
+# One cached clip verified on H2_DEVICE; exit 1 (a failed clip) is inspected, not fatal.
+preflight() {
+    local PV_DEVICE="$H2_DEVICE"
+    step 1 -- verify --dataset videophy --level perceived --subset "$DEV_SUBSET" \
+        --clips "$PREFLIGHT_CLIP"
+    if grep -q "$NOT_CACHED" "$STEP_LOG"; then
+        die "preflight: $PREFLIGHT_CLIP is not cached for --device $H2_DEVICE (see $STEP_LOG)"
+    fi
+    run_of >/dev/null
+}
+
 pass() {
     local subset="$1"
+    local PV_DEVICE="$H2_DEVICE"
     step 0 -- agreement fetch --subset "$subset"
     step 1 -- extract run --dataset videophy --subset "$subset"
     run_of >/dev/null
@@ -48,6 +66,7 @@ pass() {
 require_cuda
 bash scripts/h200/setup.sh
 pv agreement subset --check || die "record the caption review first (agreement subset --record)"
+preflight
 
 pass "$DEV_SUBSET"
 # On a re-run, freeze keeps an unchanged pre-registration and exits 2 if the frozen state moved.

@@ -16,11 +16,19 @@ TOOLS = (
     "nproc", "rm", "sed", "tee",
 )  # fmt: skip
 PV = "uv run --no-sync physverify --profile precise --device cuda --set runtime.threads=2 "
+PV_CPU = PV.replace("--device cuda", "--device cpu")
+PREFLIGHT = (
+    f"{PV_CPU}verify --dataset videophy --level perceived --subset h2_dev --clips v1-a8208f4dd41e"
+)
 
 # Each extract/verify call creates the next numbered run and prints it like the real commands.
 FAKE_UV = """#!/bin/bash
 printf 'uv %s\\n' "$*" >> "$CALLS"
 case "$*" in
+  *" --clips "*)
+    n=$(( $(cat "$COUNTER" 2>/dev/null || echo 0) + 1 )); echo "$n" > "$COUNTER"
+    mkdir -p "$RUNS/run$n"; echo "run: $RUNS/run$n"; echo "${PREFLIGHT_OUT:-}"
+    exit "${PREFLIGHT_EXIT:-0}" ;;
   *" extract run "*|*" verify "*)
     n=$(( $(cat "$COUNTER" 2>/dev/null || echo 0) + 1 )); echo "$n" > "$COUNTER"
     mkdir -p "$RUNS/run$n"; echo "run: $RUNS/run$n"; exit "${CLIP_EXIT:-0}" ;;
@@ -98,9 +106,9 @@ def sandbox(tmp_path: Path) -> Sandbox:
 
 def _pass(subset: str) -> list[str]:
     return [
-        f"{PV}agreement fetch --subset {subset}",
-        f"{PV}extract run --dataset videophy --subset {subset}",
-        f"{PV}verify --dataset videophy --level perceived --subset {subset}",
+        f"{PV_CPU}agreement fetch --subset {subset}",
+        f"{PV_CPU}extract run --dataset videophy --subset {subset}",
+        f"{PV_CPU}verify --dataset videophy --level perceived --subset {subset}",
     ]
 
 
@@ -121,19 +129,40 @@ def test_dev_freeze_then_test_compare_and_the_latest_link(sandbox: Sandbox) -> N
     result = sandbox.run(CLIP_EXIT="1")
     assert result.returncode == 0, result.stderr
     calls = [c for c in sandbox.uv_calls() if "physverify" in c and "fetch-weights" not in c]
-    assert calls[-9:] == [
+    assert calls[-10:] == [
         f"{PV}agreement subset --check",
+        PREFLIGHT,
         *_pass("h2_dev"),
-        f"{PV}agreement freeze --verify-run {sandbox.runs}/run2",
+        f"{PV}agreement freeze --verify-run {sandbox.runs}/run3",
         *_pass("h2_test"),
-        f"{PV}agreement compare --verify-run {sandbox.runs}/run4 --subset h2_test",
+        f"{PV}agreement compare --verify-run {sandbox.runs}/run5 --subset h2_test",
     ]
     link = sandbox.runs / "h2-latest"
-    assert link.is_symlink() and os.readlink(link) == "run4"
-    assert (sandbox.runs / "run2" / "freeze.log").is_file()
-    assert (sandbox.runs / "run4" / "agreement.log").is_file()
-    assert (sandbox.runs / "run4" / "agreement" / "preregistration.json").is_file()
-    assert (sandbox.runs / "run3.log").read_text(encoding="utf-8").startswith("run: ")
+    assert link.is_symlink() and os.readlink(link) == "run5"
+    assert (sandbox.runs / "run1.log").is_file()
+    assert (sandbox.runs / "run3" / "freeze.log").is_file()
+    assert (sandbox.runs / "run5" / "agreement.log").is_file()
+    assert (sandbox.runs / "run5" / "agreement" / "preregistration.json").is_file()
+    assert (sandbox.runs / "run4.log").read_text(encoding="utf-8").startswith("run: ")
+
+
+def test_an_uncached_preflight_clip_stops_before_any_extraction(sandbox: Sandbox) -> None:
+    sandbox.install()
+    result = sandbox.run(PREFLIGHT_OUT="error: a heavy stage is not cached", PREFLIGHT_EXIT="1")
+    assert result.returncode == 2 and "preflight" in result.stderr
+    assert not any(" extract run " in call for call in sandbox.uv_calls())
+
+
+def test_a_failed_preflight_clip_with_its_cache_is_not_fatal(sandbox: Sandbox) -> None:
+    sandbox.install()
+    result = sandbox.run(PREFLIGHT_EXIT="1")
+    assert result.returncode == 0, result.stderr
+
+
+def test_the_h2_device_can_be_overridden(sandbox: Sandbox) -> None:
+    sandbox.install()
+    assert sandbox.run(PHYSVERIFY_H2_DEVICE="cuda").returncode == 0
+    assert f"{PV}extract run --dataset videophy --subset h2_dev" in sandbox.uv_calls()
 
 
 def test_a_failed_compare_stops_before_the_link(sandbox: Sandbox) -> None:
@@ -157,8 +186,8 @@ def test_rerunning_with_the_same_frozen_state_reuses_the_preregistration(
     assert sandbox.run().returncode == 0
     again = sandbox.run()
     assert again.returncode == 0, again.stderr
-    assert os.readlink(sandbox.runs / "h2-latest") == "run8"
-    copied = sandbox.runs / "run8" / "agreement" / "preregistration.json"
+    assert os.readlink(sandbox.runs / "h2-latest") == "run10"
+    copied = sandbox.runs / "run10" / "agreement" / "preregistration.json"
     assert copied.read_text(encoding="utf-8").strip() == "state-a"
 
 
@@ -169,5 +198,5 @@ def test_rerunning_with_a_different_frozen_state_stops_before_the_test_pass(
     assert sandbox.run().returncode == 0
     changed = sandbox.run(FROZEN_STATE="state-b")
     assert changed.returncode == 2
-    assert sandbox.uv_calls()[-1].endswith(f"agreement freeze --verify-run {sandbox.runs}/run6")
-    assert os.readlink(sandbox.runs / "h2-latest") == "run4"
+    assert sandbox.uv_calls()[-1].endswith(f"agreement freeze --verify-run {sandbox.runs}/run8")
+    assert os.readlink(sandbox.runs / "h2-latest") == "run5"
