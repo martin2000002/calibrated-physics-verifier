@@ -228,12 +228,17 @@ def horizontal_face_normals(states: ObjectStateTable, index: int, frame: int) ->
     return [n for n in normals if abs(float(n @ UP)) < 0.05]
 
 
-def first_floor_impact(object_id: str, contacts: ContactTable) -> ContactRecord | None:
-    impacts = [
+def floor_impacts(object_id: str, contacts: ContactTable) -> list[ContactRecord]:
+    """Every IMPACT record of the object with the floor (ENV on either side)."""
+    return [
         r
         for r in records_of(object_id, contacts)
         if r.kind is ContactKind.IMPACT and ENV_ID in (r.object_a, r.object_b)
     ]
+
+
+def first_floor_impact(object_id: str, contacts: ContactTable) -> ContactRecord | None:
+    impacts = floor_impacts(object_id, contacts)
     return min(impacts, key=lambda r: r.t_start) if impacts else None
 
 
