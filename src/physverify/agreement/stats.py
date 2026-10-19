@@ -98,11 +98,12 @@ def mcnemar_exact(y: Labels, a: Labels, b: Labels) -> McNemar:
     return McNemar(only_a, only_b, p)
 
 
-def mde_accuracy(n: int, discordant: float, alpha: float, power: float) -> float:
+def mde_accuracy(n: float, discordant: float, alpha: float, power: float) -> float:
     """Smallest accuracy difference a paired McNemar test detects (Connor 1987), by bisection on
     n * delta^2 = (z_a sqrt(d) + z_b sqrt(d - delta^2))^2 over 0 < delta <= d (an accuracy
     difference cannot exceed the discordant proportion d). NaN without discordant pairs or when
-    even delta = d is not detectable with ``n`` pairs."""
+    even delta = d is not detectable with ``n`` pairs. ``n`` may be an effective size
+    (pairs over a design effect)."""
     from scipy.stats import norm
 
     if n <= 0 or not 0.0 < discordant <= 1.0:
@@ -121,6 +122,47 @@ def mde_accuracy(n: int, discordant: float, alpha: float, power: float) -> float
         mid = (low + high) / 2.0
         low, high = (mid, high) if needed(mid) > n else (low, mid)
     return high
+
+
+@dataclass(frozen=True)
+class DesignEffect:
+    """Estimated design effect of clustering ``indicator`` by caption (Kish): ``deff`` = 1 +
+    (m_w - 1) icc, with m_w = sum(n_i^2) / N the size-weighted mean cluster size (it equals the
+    mean when every cluster has the same size). ``icc`` is the one-way ANOVA estimator, clipped
+    to [0, 1], whose mean cluster size for unequal sizes is m0 = (N - sum(n_i^2) / N) / (k - 1)."""
+
+    deff: float
+    icc: float
+    m0: float
+    clusters: int
+    n: int
+
+
+def design_effect(clusters: Sequence[str], indicator: Sequence[float] | Labels) -> DesignEffect:
+    """NaN without two clusters; every cluster of one item gives deff 1 (no clustering)."""
+    groups: dict[str, list[float]] = {}
+    for cluster, value in zip(clusters, indicator, strict=True):
+        groups.setdefault(cluster, []).append(float(value))
+    n, k = len(clusters), len(groups)
+    if k < 2:
+        return DesignEffect(math.nan, math.nan, math.nan, k, n)
+    sizes = np.asarray([len(v) for v in groups.values()], dtype=np.float64)
+    weighted = float(np.sum(sizes**2) / n)
+    m0 = (n - weighted) / (k - 1)
+    icc = _anova_icc(list(groups.values()), m0) if n > k else 0.0
+    return DesignEffect(1.0 + (weighted - 1.0) * icc, icc, m0, k, n)
+
+
+def _anova_icc(groups: Sequence[Sequence[float]], m0: float) -> float:
+    values = np.concatenate([np.asarray(g, dtype=np.float64) for g in groups])
+    grand = float(np.mean(values))
+    n, k = values.size, len(groups)
+    between = sum(len(g) * (float(np.mean(g)) - grand) ** 2 for g in groups) / (k - 1)
+    within = sum(float(np.sum((np.asarray(g) - np.mean(g)) ** 2)) for g in groups) / (n - k)
+    denominator = between + (m0 - 1.0) * within
+    if denominator <= 0.0:
+        return 0.0
+    return float(min(1.0, max(0.0, (between - within) / denominator)))
 
 
 @dataclass(frozen=True)

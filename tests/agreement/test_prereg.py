@@ -107,6 +107,17 @@ def test_the_rule_label_is_frozen() -> None:
     assert changed_fields(RECORD, _current(rule_label="calibrated:x")) == ["rule_label"]
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [("calibration_gate", "aggregate insufficient"), ("dev_icc", 0.2), ("dev_design_effect", 1.4)],
+)
+def test_the_gate_and_the_dev_design_effect_are_frozen(field: str, value: object) -> None:
+    assert field in FROZEN_FIELDS
+    assert changed_fields(RECORD, _current(**{field: value})) == [field]
+    with pytest.raises(UsageError, match=field):
+        _plan(RECORD, RECORD.model_copy(update={field: value}))
+
+
 def _plan(old: Preregistration | None, current: Preregistration, **kwargs: object):
     options: dict[str, object] = {"force": False, "deviation": None, "tested": False, **kwargs}
     return plan_refreeze(old, None if old is None else "a" * 64, current, **options)  # type: ignore[arg-type]

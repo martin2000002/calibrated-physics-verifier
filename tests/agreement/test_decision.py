@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 from pathlib import Path
-from types import MappingProxyType
+from types import MappingProxyType, SimpleNamespace
 from typing import Any
 
 import numpy as np
@@ -24,11 +24,13 @@ from physverify.agreement.decision import (
     CalibrationApi,
     ClipDecision,
     ProvisionalAnyFail,
+    StratumRequest,
+    UnusableCalibrationError,
     calibrated_rule,
 )
 from physverify.agreement.items import build_items, decide_all
-from physverify.agreement.run_io import load_run
-from physverify.core.errors import ConfigError
+from physverify.agreement.run_io import VerifyRun, load_run, run_row_step
+from physverify.core.errors import ConfigError, UsageError
 from physverify.schema.checks import InputLevel
 from physverify.verification.runner import RowStatus
 
@@ -85,21 +87,26 @@ class FakeStratum:
     def score_threshold(self) -> float | None:
         return 0.9
 
-
-class FakeCalibration:
-    run_id = "cal-1"
-
-    def __init__(self, missing: bool) -> None:
-        self.missing = missing
-
-    def stratum(self, level: InputLevel, profile: str) -> FakeStratum:
-        if self.missing:
-            raise LookupError(f"no stratum {level.value}/{profile}")
-        return FakeStratum()
+    def check_status(self) -> dict[str, Any]:
+        return {"source": self.source, "checks": {"R1": {"status": "ok", "weight": 1.0}}}
 
 
-def _api(score: Score, missing: bool = False) -> tuple[CalibrationApi, list[Any]]:
+class FakeError(Exception):
+    pass
+
+
+class FakeUnusableError(FakeError):
+    pass
+
+
+def _api(score: Score, problem: Exception | None = None) -> tuple[CalibrationApi, list[Any]]:
     calls: list[Any] = []
+
+    def open_stratum(path: Path, level: InputLevel, profile: str, **kwargs: Any) -> FakeStratum:
+        calls.append(("open", level, profile, kwargs))
+        if problem is not None:
+            raise problem
+        return FakeStratum()
 
     def score_clip(
         results: Any, stratum: Any, k_sigma: float | None = None, *, only: Any = None
@@ -108,19 +115,31 @@ def _api(score: Score, missing: bool = False) -> tuple[CalibrationApi, list[Any]
         return score
 
     api = CalibrationApi(
-        load_calibration=lambda path: FakeCalibration(missing),
+        open_stratum=open_stratum,
         default_artifact_path=lambda settings: Path("unused"),
+        active_checks_hash=lambda settings: "hash",
+        require_calibrated=lambda settings: False,
         score_clip=score_clip,
-        error=LookupError,
+        error=FakeError,
+        unusable_error=FakeUnusableError,
     )
     return api, calls
 
 
-def test_the_calibrated_rule_scores_one_minus_s(world, tmp_path: Path) -> None:
-    artifact = tmp_path / "calibration.json"
-    artifact.write_text("{}", encoding="utf-8")
+def _request(profile: str = "fast", row_step: int = 1) -> StratumRequest:
+    return StratumRequest(Path("calibration.json"), profile, row_step, "hash", True)
+
+
+def test_the_calibrated_rule_scores_one_minus_s(world) -> None:
     api, calls = _api(Score(0.25, per_check={"R1": 0.7, "R3a": 0.1}, abstained_checks=("R5b",)))
-    rule = calibrated_rule(api, artifact, "precise", ())
+    rule = calibrated_rule(api, _request("precise", 2), ())
+    opened = calls.pop(0)
+    assert opened == (
+        "open",
+        InputLevel.PERCEIVED,
+        "precise",
+        {"checks_hash": "hash", "row_step": 2, "require_calibrated": True},
+    )
     run = load_run(world.run("r", {"v1t/a1": [world.FAIL, world.NO_EVENT]}))
     decision = decide_all(rule, run)[world.clip("v1t/a1")]
     assert decision.fixed is None and decision.score == pytest.approx(0.75)
@@ -128,35 +147,35 @@ def test_the_calibrated_rule_scores_one_minus_s(world, tmp_path: Path) -> None:
     assert decision.outcome(0.5) is ClipDecision.IMPLAUSIBLE
     assert decision.outcome(0.8) is ClipDecision.PLAUSIBLE
     assert rule.kubric_threshold == 0.9 and "precise@cal-1" in rule.label
+    assert rule.status["checks"] == {"R1": {"status": "ok", "weight": 1.0}}
     assert calls == [(None, None)]  # the stratum's own k_sigma
     decide_all(rule.excluding(["R1"]), run)
     assert calls[-1] == (None, {"R3a"})
 
 
-def test_s_none_is_an_abstention_with_the_scorer_reason(world, tmp_path: Path) -> None:
-    artifact = tmp_path / "calibration.json"
-    artifact.write_text("{}", encoding="utf-8")
-    rule = calibrated_rule(_api(Score(None, "no_informative_check"))[0], artifact, "fast", ())
+def test_s_none_is_an_abstention_with_the_scorer_reason(world) -> None:
+    rule = calibrated_rule(_api(Score(None, "no_informative_check"))[0], _request(), ())
     run = load_run(world.run("r", {"v1t/a1": [world.CROSSING]}))
     decision = decide_all(rule, run)[world.clip("v1t/a1")]
     assert decision.fixed is ClipDecision.ABSTAIN
     assert decision.reasons == ("no_informative_check",)
 
 
-def test_a_missing_artefact_or_stratum_is_a_config_error(tmp_path: Path) -> None:
-    api, _ = _api(Score(1.0))
-    with pytest.raises(ConfigError, match="missing"):
-        calibrated_rule(api, tmp_path / "absent.json", "fast", ())
-    artifact = tmp_path / "calibration.json"
-    artifact.write_text("{}", encoding="utf-8")
-    with pytest.raises(ConfigError, match="no stratum"):
-        calibrated_rule(_api(Score(1.0), missing=True)[0], artifact, "fast", ())
+def test_a_configuration_problem_is_a_config_error() -> None:
+    api, _ = _api(Score(1.0), FakeError("no calibration artifact at x: run `calibrate fit`"))
+    with pytest.raises(ConfigError, match="no calibration artifact"):
+        calibrated_rule(api, _request(), ())
 
 
-def test_a_calibrated_decision_needs_the_frozen_cut(world, tmp_path: Path) -> None:
-    artifact = tmp_path / "calibration.json"
-    artifact.write_text("{}", encoding="utf-8")
-    rule: CalibratedRule = calibrated_rule(_api(Score(0.5))[0], artifact, "fast", ())
+def test_an_unusable_stratum_is_left_to_the_caller() -> None:
+    api, _ = _api(Score(1.0), FakeUnusableError("aggregate not ready"))
+    with pytest.raises(UnusableCalibrationError, match="aggregate not ready") as caught:
+        calibrated_rule(api, _request(), ())
+    assert not isinstance(caught.value, ConfigError)
+
+
+def test_a_calibrated_decision_needs_the_frozen_cut(world) -> None:
+    rule: CalibratedRule = calibrated_rule(_api(Score(0.5))[0], _request(), ())
     run = load_run(world.run("r", {"v1t/a1": [world.FAIL]}))
     with pytest.raises(ConfigError, match="agreement freeze"):
         build_items(
@@ -211,3 +230,15 @@ def test_abstention_counts_keep_the_interval_reason_apart(world) -> None:
     counts = abstention_counts(_items(world)[0])
     assert counts["outcomes"] == {"abstain": 1, "implausible": 1, "no_evidence": 1, "plausible": 1}
     assert counts["reasons"] == {"INTERVAL_CROSSES_THRESHOLD": 1}
+
+
+def _stepped(*steps: int) -> VerifyRun:
+    rows = {f"c{i}": [SimpleNamespace(row_step=s)] for i, s in enumerate(steps)}
+    return VerifyRun(path=Path("run"), run={}, rows=rows, results={})  # type: ignore[arg-type]
+
+
+def test_a_run_has_one_time_base_and_mixed_steps_are_refused() -> None:
+    assert run_row_step(_stepped(2, 0, 2)) == 2
+    assert run_row_step(_stepped(0)) == 0
+    with pytest.raises(UsageError, match="one time base per run"):
+        run_row_step(_stepped(1, 2))

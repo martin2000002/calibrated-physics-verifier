@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from typing import Any
 
 import numpy as np
@@ -22,6 +22,7 @@ from physverify.agreement.stats import (
     classification,
     cohen_kappa,
     correlations,
+    design_effect,
     mcnemar_exact,
     mde_accuracy,
 )
@@ -91,8 +92,10 @@ def evaluate_view(
     dev_majority: int | None,
     plan: BootstrapPlan,
     test: tuple[float, float],
+    dev_deff: float | None = None,
 ) -> dict[str, Any]:
-    """``test`` is (alpha, power) for the minimum detectable difference."""
+    """``test`` is (alpha, power) for the minimum detectable difference; ``dev_deff`` is the
+    design effect frozen on dev, which the clustered MDE uses when given."""
     y = labels_of(items, view.index, lambda it: it.human_implausible)
     human = _scores(items, view.index, "human_score")
     result: dict[str, Any] = {
@@ -109,7 +112,46 @@ def evaluate_view(
     )
     if view.paired:
         result.update(_paired(items, view, y, p_vlm, plan, test))
+        result.update(_clustered_mde(items, view, y, p_vlm, test, dev_deff))
     return result
+
+
+def discordance(
+    items: Sequence[ComparisonItem], view: PolicyView, y: Labels, p_vlm: Labels
+) -> tuple[list[str], Labels]:
+    """Caption and McNemar discordance (exactly one system right) of each paired item."""
+    captions = [items[i].row.caption for i in view.index]
+    return captions, ((view.verifier == y) != (p_vlm == y)).astype(np.int_)
+
+
+def view_design_effect(items: Sequence[ComparisonItem], view: PolicyView) -> dict[str, float | int]:
+    """The design effect of the paired discordance of ``view`` (frozen on dev by ``freeze``)."""
+    y = labels_of(items, view.index, lambda it: it.human_implausible)
+    p_vlm = labels_of(items, view.vlm_index, lambda it: it.vlm_implausible)
+    return asdict(design_effect(*discordance(items, view, y, p_vlm)))
+
+
+def _clustered_mde(
+    items: Sequence[ComparisonItem],
+    view: PolicyView,
+    y: Labels,
+    p_vlm: Labels,
+    test: tuple[float, float],
+    dev_deff: float | None,
+) -> dict[str, Any]:
+    """The MDE with ``n / deff`` effective pairs; clips of one caption are not independent."""
+    captions, indicator = discordance(items, view, y, p_vlm)
+    local = design_effect(captions, indicator)
+    deff = local.deff if dev_deff is None else dev_deff
+    discordant = float(np.mean(indicator)) if indicator.size else math.nan
+    return {
+        "mde_accuracy_clustered": mde_accuracy(y.size / deff, discordant, *test)
+        if math.isfinite(deff) and deff > 0
+        else math.nan,
+        "design_effect_used": deff,
+        "design_effect_source": "this_data" if dev_deff is None else "dev",
+        "design_effect": asdict(local),
+    }
 
 
 def _paired(
@@ -150,12 +192,23 @@ def _paired(
     }
 
 
+NOT_EVALUABLE = "not_evaluable"
+PIPELINE_TEST = "pipeline_test"
+EVALUATED = "evaluated"
+
+
 def h2_verdict(
-    primary: Mapping[str, Any], calibrated: bool, alpha: float, *, post_hoc: bool = False
+    primary: Mapping[str, Any],
+    calibrated: bool,
+    alpha: float,
+    *,
+    post_hoc: bool = False,
+    gate: str | None = None,
 ) -> dict[str, Any]:
     """H2 holds when McNemar p < alpha with the verifier more accurate AND the lower CI bound of
     kappa_verifier - kappa_vlm is above 0. Only the calibrated rule can support or reject it.
-    ``post_hoc``: the pre-registration was replaced after a test comparison."""
+    ``post_hoc``: the pre-registration was replaced after a test comparison. ``gate``: the
+    calibrated stratum was not usable and the provisional rule ran instead (not evaluable)."""
     mcnemar = primary.get("mcnemar", {})
     p_value = float(mcnemar.get("p_value", math.nan))
     acc_gain = primary["verifier"]["accuracy"] - primary["vlm"]["accuracy"]
@@ -165,18 +218,32 @@ def h2_verdict(
         .get("difference.kappa", [math.nan, math.nan])
     )
     holds = bool(p_value < alpha and acc_gain > 0 and interval[0] > 0)
+    applicable = calibrated and gate is None
     return {
-        "applicable": calibrated,
-        "supported": holds if calibrated else None,
-        "reason": "calibrated rule"
-        if calibrated
-        else "pipeline test, no H2 verdict (provisional rule)",
+        "applicable": applicable,
+        "supported": holds if applicable else None,
+        "status": _status(calibrated, gate),
+        "reason": _verdict_reason(calibrated, gate),
+        "gate": gate,
         "mcnemar_p": p_value,
         "accuracy_difference": acc_gain,
         "kappa_difference_ci": list(interval),
         "mde_accuracy": primary.get("mde_accuracy", math.nan),
+        "mde_accuracy_clustered": primary.get("mde_accuracy_clustered", math.nan),
         "post_hoc": post_hoc,
     }
+
+
+def _status(calibrated: bool, gate: str | None) -> str:
+    if gate is not None:
+        return NOT_EVALUABLE
+    return EVALUATED if calibrated else PIPELINE_TEST
+
+
+def _verdict_reason(calibrated: bool, gate: str | None) -> str:
+    if gate is not None:
+        return f"not evaluable with the calibrated rule: {gate}"
+    return "calibrated rule" if calibrated else "pipeline test, no H2 verdict (provisional rule)"
 
 
 def best_cut(y: Labels, score: Scores) -> float | None:

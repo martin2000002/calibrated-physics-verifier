@@ -29,6 +29,9 @@ FROZEN_FIELDS = (
     "rule",
     "rule_label",
     "profile",
+    "calibration_gate",
+    "dev_icc",
+    "dev_design_effect",
 )
 REPLACED_DIR: Final = "replaced"
 COMPARISON_LOG_SUFFIX: Final = ".test_comparisons.jsonl"
@@ -55,6 +58,12 @@ class Preregistration(BaseModel):
     dev_cut: float | None
     dev_tuned_cut: float | None
     kubric_threshold: float | None
+    calibration_gate: str | None = None
+    """Why the calibrated stratum was not usable at freeze (the provisional rule ran)."""
+    dev_icc: float | None = None
+    dev_design_effect: float | None = None
+    """Estimated on h2_dev (caption ANOVA ICC of the primary discordance); the clustered MDE of
+    the test comparison uses it, so the test data do not decide how it is read."""
     replaces_sha256: str | None = None
     deviations: list[str] = Field(default_factory=list)
     post_hoc: bool = False

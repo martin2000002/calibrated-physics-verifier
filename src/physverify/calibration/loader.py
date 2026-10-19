@@ -79,6 +79,7 @@ class Stratum:
     source: str
     artifact: ArtifactRef | None
     checks_hash: str | None = None
+    artifact_status: str | None = None
 
     @property
     def level(self) -> InputLevel:
@@ -143,11 +144,17 @@ class Stratum:
             return f"{self.source}: no check is ok with a weight > 0"
         return None
 
-    def check_status(self) -> dict[str, dict[str, Any]]:
-        """Fit status and weight of every check of the stratum, for reports."""
+    def check_status(self) -> dict[str, Any]:
+        """The stratum's state for reports: its label, hashes and each check's fit status."""
         return {
-            c: {"status": self.model.checks[c].status, "weight": self.weight(c)}
-            for c in sorted(self.model.checks)
+            "source": self.source,
+            "artifact_status": self.artifact_status,
+            "checks_hash": self.checks_hash,
+            "aggregate_sufficient": self.model.aggregate.sufficient,
+            "checks": {
+                c: {"status": self.model.checks[c].status, "weight": self.weight(c)}
+                for c in sorted(self.model.checks)
+            },
         }
 
     def score_threshold(self) -> float | None:
@@ -211,7 +218,11 @@ class Calibration:
         source = f"{name}#{model.level.value}/{model.profile}@{self.run_id}"
         ref = None if self.path is None else ArtifactRef(path=str(self.path), sha256=self.sha256)
         return Stratum(
-            model=model, source=source, artifact=ref, checks_hash=self.artifact.checks_hash
+            model=model,
+            source=source,
+            artifact=ref,
+            checks_hash=self.artifact.checks_hash,
+            artifact_status=self.artifact.status,
         )
 
 

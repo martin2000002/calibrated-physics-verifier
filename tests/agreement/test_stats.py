@@ -16,6 +16,7 @@ from physverify.agreement.stats import (
     balanced_accuracy,
     caption_bootstrap,
     cohen_kappa,
+    design_effect,
     f1_positive,
     mcnemar_exact,
     mde_accuracy,
@@ -134,3 +135,47 @@ def test_h2_needs_the_calibrated_rule_and_both_conditions() -> None:
     assert provisional["supported"] is None and "no H2 verdict" in provisional["reason"]
     weak = {**primary, "bootstrap": {"intervals": {"difference.kappa": [-0.01, 0.3]}}}
     assert h2_verdict(weak, True, 0.05)["supported"] is False
+
+
+def test_h2_with_a_gate_is_not_evaluable_whatever_the_numbers() -> None:
+    primary = {
+        "verifier": {"accuracy": 0.9},
+        "vlm": {"accuracy": 0.5},
+        "mcnemar": {"p_value": 0.001},
+        "bootstrap": {"intervals": {"difference.kappa": [0.02, 0.3]}},
+    }
+    gated = h2_verdict(primary, False, 0.05, gate="aggregate insufficient")
+    assert gated["status"] == "not_evaluable" and gated["applicable"] is False
+    assert gated["supported"] is None and "aggregate insufficient" in gated["reason"]
+    assert h2_verdict(primary, True, 0.05)["status"] == "evaluated"
+    assert h2_verdict(primary, False, 0.05)["status"] == "pipeline_test"
+
+
+def test_singleton_clusters_have_no_design_effect() -> None:
+    effect = design_effect(["a", "b", "c", "d"], [1, 0, 1, 0])
+    assert effect.deff == 1.0 and effect.icc == 0.0 and effect.clusters == 4
+
+
+def test_fewer_than_two_clusters_give_nan() -> None:
+    assert math.isnan(design_effect(["a", "a"], [1, 0]).deff)
+
+
+def test_the_anova_icc_matches_the_hand_computation() -> None:
+    # Two captions of 3 items: means 1 and 1/3, grand 2/3; MSB = 3 * 2 * (1/3)^2 / 1 = 2/3,
+    # MSW = (0 + 2/3) / 4 = 1/6, m0 = 3, ICC = (2/3 - 1/6) / (2/3 + 2/6) = 1/2, deff = 1 + 2/2.
+    effect = design_effect(["a"] * 3 + ["b"] * 3, [1, 1, 1, 1, 0, 0])
+    assert effect.icc == pytest.approx(0.5, abs=EXACT)
+    assert effect.deff == pytest.approx(2.0, abs=EXACT)
+
+
+@pytest.mark.parametrize("seed", range(5))
+def test_the_clustered_mde_is_never_below_the_independent_one(seed: int) -> None:
+    rng = np.random.default_rng(seed)
+    clusters = [str(c) for c in rng.integers(0, 12, size=80)]
+    indicator = rng.integers(0, 2, size=80)
+    effect = design_effect(clusters, indicator)
+    assert effect.deff >= 1.0
+    d = float(np.mean(indicator))
+    plain = mde_accuracy(80, d, 0.05, 0.8)
+    clustered = mde_accuracy(80 / effect.deff, d, 0.05, 0.8)
+    assert math.isnan(clustered) or clustered >= plain

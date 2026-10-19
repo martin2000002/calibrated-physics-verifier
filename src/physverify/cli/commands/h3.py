@@ -18,7 +18,7 @@ import typer
 
 from physverify.agreement.prereg import file_sha256
 from physverify.calibration.loader import default_artifact_path
-from physverify.calibration.settings import checks_hash
+from physverify.calibration.settings import active_checks_hash
 from physverify.cli.commands._finetune_deps import candidate_generator, require_cuda, scoring_deps
 from physverify.cli.context import AppContext, app_context, heavy_command
 from physverify.core.errors import EXIT_ERROR, ConfigError, MissingInputError, UsageError
@@ -64,14 +64,12 @@ from physverify.evaluation.settings import H3Settings, load_h3
 from physverify.evaluation.state import DEV_SPLIT, FreezeInputs, current_record
 from physverify.finetune.records import BASE_TAG, PromptRecord, read_record, write_record
 from physverify.finetune.scorers._base import AggregateScorer
-from physverify.finetune.scorers.calibrated import check_registry
 from physverify.finetune.scoring import build_scorer, rescorer, score_candidates, scorer_registry
 from physverify.finetune.seeds import parse_shard
 from physverify.finetune.selection import Selection
 from physverify.finetune.settings import FinetuneSettings, load_finetune
 from physverify.finetune.store import SELECTED_FILE, CampaignStore
 from physverify.runtime.runs import current_commit
-from physverify.verification.runner import CHECKS_SECTION, ChecksSettings
 
 NAME = "h3"
 OWNER = "A13"
@@ -148,8 +146,7 @@ def _active_scorer(h: H3Context) -> AggregateScorer:
 
 
 def _checks_hash(h: H3Context) -> str:
-    settings = h.context.settings
-    return checks_hash(check_registry(), settings.section(CHECKS_SECTION, ChecksSettings))
+    return active_checks_hash(h.context.settings, h.context.registry("checks"))
 
 
 def _judge(h: H3Context) -> Videophy2AutoevalJudge:

@@ -47,8 +47,8 @@ from physverify.calibration.report import (
 from physverify.calibration.schema import DatasetRef, StageFactor, StageSigma
 from physverify.calibration.settings import (
     CalibrationConfig,
+    active_checks_hash,
     calibration_config,
-    checks_hash,
 )
 from physverify.calibration.sigma import factor_map, recalibrate_profile, stage_factors
 from physverify.calibration.table import scene_of
@@ -158,7 +158,7 @@ def _check_units(session: Session) -> tuple[CheckUnit, ...]:
 
 
 def _checks_hash(session: Session) -> str:
-    return checks_hash(session.context.registry("checks"), _overrides(session))
+    return active_checks_hash(session.context.settings, session.context.registry("checks"))
 
 
 def _source(session: Session, dataset: DatasetSource, level: InputLevel) -> InputSource:
