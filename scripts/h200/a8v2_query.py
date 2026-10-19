@@ -165,9 +165,7 @@ def _lines(args: argparse.Namespace) -> list[str]:
             _source(_settings(args.overrides), args.dataset), args.subset, args.split
         ),
         "rerendered": lambda: rerendered(args.manifest, missing_ok=args.missing_ok),
-        "evaluation": lambda: evaluation_lines(
-            args.path, _allowed_sets(_settings(args.overrides))
-        ),
+        "evaluation": lambda: evaluation_lines(args.path, _allowed_sets(_settings(args.overrides))),
         "gravity": lambda: gravity_lines(args.path),
     }
     return commands[args.command]()

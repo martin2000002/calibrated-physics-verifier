@@ -70,7 +70,11 @@ def _inputs() -> EvaluationInputs:
 
 def _meta(primary: PrimaryScope | None) -> EvaluationMeta:
     return EvaluationMeta(
-        "2026-10-19T00:00:00Z", "eval-a", "calibration.json", dataset_ref(), "fast",
+        "2026-10-19T00:00:00Z",
+        "eval-a",
+        "calibration.json",
+        dataset_ref(),
+        "fast",
         primary=primary,
     )
 
@@ -101,9 +105,7 @@ def test_the_primary_view_keeps_only_its_scenes(artifact: CalibrationArtifact) -
     assert r1.fpr_clean.n == 20
     assert next(c for c in whole.checks if c.check_id == "R1").fpr_clean.n == 30
     assert primary.real == () and primary.real_clip_flags == ()
-    assert {k.scene_id for k in primary.scene_kendall} <= {
-        f"f1-s{i:03d}" for i in expand(PRIMARY)
-    }
+    assert {k.scene_id for k in primary.scene_kendall} <= {f"f1-s{i:03d}" for i in expand(PRIMARY)}
 
 
 def test_an_empty_scope_gives_no_view(artifact: CalibrationArtifact) -> None:
