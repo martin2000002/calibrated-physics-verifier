@@ -32,7 +32,7 @@ from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactKind, ContactTable
 from physverify.schema.scene import PerturbationRecord, SceneSpec
 from physverify.schema.states import ObjectStateTable, PrimitiveKind
-from physverify.synth.perturbations._ballistics import impact_velocity, time_to_height
+from physverify.synth.perturbations._ballistics import EPS_T, impact_velocity, time_to_height
 from physverify.synth.perturbations._windows import (
     UP,
     flight_mask,
@@ -187,7 +187,7 @@ def floor_crossing(
     t_src = float(states.t[src])
     z, vz = float(states.position[src, index, 2]), float(states.velocity[src, index, 2])
     tau = time_to_height(z, vz, gz, radius)
-    if not math.isfinite(tau) or t_src + tau > float(states.t[src + 1]) + 1e-12:
+    if not math.isfinite(tau) or t_src + tau > float(states.t[src + 1]) + EPS_T:
         return None
     return src, t_src + tau
 
