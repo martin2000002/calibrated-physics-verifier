@@ -22,7 +22,8 @@ HONESTY = (
     "Verifier magnitudes come from perceived inputs: depth, size and scale are learned "
     "estimates, never measurements, and carry their measured error (sigma, NaN when unknown).",
     "Time comes from the container rate of generated videos, which need not match physical "
-    "time; the sensitivity block repeats the primary metrics without the time-dependent checks.",
+    "time; the sensitivity block repeats the primary metrics with the time-dependent checks "
+    "moved out of (or back into) the primary.",
     "The reference VLM numbers are the published AutoEval predictions, joined by video URL and "
     "cut at the published thresholds; nothing was tuned on test.",
 )
@@ -140,10 +141,23 @@ def _paired_line(block: Mapping[str, Any]) -> str:
     return (
         f"McNemar b (verifier right only) {mcnemar['b_verifier_only']}, c (VLM right only) "
         f"{mcnemar['c_vlm_only']}, p = {_fmt(mcnemar['p_value'])}; discordant rate "
-        f"{_fmt(block['discordant_rate'])}; MDE accuracy {_fmt(block['mde_accuracy'])}; "
+        f"{_fmt(block['discordant_rate'])}; MDE accuracy {_fmt(block['mde_accuracy'])}"
+        f"{_clustered_note(block)}; "
         f"differences (verifier - VLM): accuracy {_interval(block, 'difference.accuracy')}, "
         f"balanced accuracy {_interval(block, 'difference.balanced_accuracy')}, kappa "
         f"{_interval(block, 'difference.kappa')}; {_bootstrap_note(block)}."
+    )
+
+
+def _clustered_note(block: Mapping[str, Any]) -> str:
+    """The clustered MDE is an estimate: its design effect is estimated from the data."""
+    if "mde_accuracy_clustered" not in block:
+        return ""
+    local = block["design_effect"]
+    return (
+        f" (estimated with clips clustered by caption: {_fmt(block['mde_accuracy_clustered'])}, "
+        f"design effect {_fmt(block['design_effect_used'])} from {block['design_effect_source']}; "
+        f"this data: design effect {_fmt(local['deff'])}, ICC {_fmt(local['icc'])})"
     )
 
 
@@ -189,6 +203,8 @@ def _sign_flip_lines(groups: Mapping[str, Any], policy: str) -> list[str]:
 def _verdict_lines(verdict: Mapping[str, Any], primary: Mapping[str, Any]) -> list[str]:
     ver, vlm = (_fmt(primary[s]["predicted_implausible_rate"]) for s in ("verifier", "vlm"))
     rate = f"verifier predicts implausible on {ver} of clips, the VLM on {vlm}"
+    if verdict.get("gate") is not None:
+        return _not_evaluable_lines(verdict, rate)
     if not verdict["applicable"]:
         return [f"**H2: {verdict['reason']}.** The numbers below test the pipeline only; {rate}."]
     state = "supported" if verdict["supported"] else "not supported"
@@ -198,7 +214,18 @@ def _verdict_lines(verdict: Mapping[str, Any], primary: Mapping[str, Any]) -> li
     return [
         f"**H2 {state}** (McNemar p = {_fmt(verdict['mcnemar_p'])}, accuracy difference "
         f"{_fmt(verdict['accuracy_difference'])}, kappa difference CI [{_fmt(low)}, {_fmt(high)}]; "
-        f"minimum detectable accuracy difference {_fmt(verdict['mde_accuracy'])}); {rate}."
+        f"minimum detectable accuracy difference {_fmt(verdict['mde_accuracy'])}, estimated "
+        f"with caption clustering {_fmt(verdict.get('mde_accuracy_clustered'))}); {rate}."
+    ]
+
+
+def _not_evaluable_lines(verdict: Mapping[str, Any], rate: str) -> list[str]:
+    """Item 1.3: the stratum was not usable, so the provisional rule ran and H2 has no verdict."""
+    return [
+        f"**H2 not evaluable with the calibrated rule** ({verdict['gate']}). The numbers below "
+        f"are descriptive, from the provisional rule; {rate}.",
+        "Abstention and coverage follow; the `decided_only` policy block shows the agreement "
+        "on the clips the verifier decided, which is descriptive as well.",
     ]
 
 
@@ -223,11 +250,12 @@ def _breakdown_lines(title: str, columns: Sequence[str], rows: Sequence[Any]) ->
 
 
 def _sensitivity_lines(block: Mapping[str, Any]) -> list[str]:
+    moved = "without" if block["time_dependent_in_primary"] else "with"
     lines = [
-        "## Sensitivity without the time-dependent checks",
+        f"## Sensitivity {moved} the time-dependent checks",
         "",
-        f"Excluded: {', '.join(block['excluded']) or 'none'}; policy {block['policy']}, "
-        "no bootstrap.",
+        f"Time-dependent: {', '.join(block['time_dependent']) or 'none'}; excluded here: "
+        f"{', '.join(block['excluded']) or 'none'}; policy {block['policy']}, no bootstrap.",
         "",
     ]
     columns = ["group", "system", "n", *(label for _, label in SYSTEM_COLUMNS)]
@@ -279,7 +307,7 @@ def summary(metrics: Mapping[str, Any]) -> str:
         lines += _group_lines(group, policies)
     lines += _breakdown_lines("Per check", PER_CHECK_COLUMNS, metrics["per_check"])
     lines += _breakdown_lines("Per generator", PER_GENERATOR_COLUMNS, metrics["per_generator"])
-    lines += _sensitivity_lines(metrics["sensitivity_without_time_dependent"])
+    lines += _sensitivity_lines(metrics["sensitivity_time_dependent"])
     lines += ["Honesty notes:", "", *(f"- {note}" for note in HONESTY)]
     lines += ["", f"errors.csv categories (filled by hand): {', '.join(CATEGORIES)}.", ""]
     return "\n".join(lines)

@@ -11,7 +11,8 @@ from dataclasses import dataclass, fields
 from pathlib import Path
 from typing import Any
 
-from physverify.core.errors import MissingInputError
+from physverify.calibration.loader import MixedRowStepError, unique_row_step
+from physverify.core.errors import MissingInputError, UsageError
 from physverify.schema.checks import AbstainReason, CheckResult, Verdict
 from physverify.schema.io import read_jsonl
 from physverify.verification.runner import (
@@ -55,6 +56,14 @@ class VerifyRun:
             for r in clip
             if THRESHOLDS_KEY in r.provenance
         )
+
+
+def run_row_step(run: VerifyRun) -> int:
+    """The run's single time base (``UNKNOWN_ROW_STEP`` when no row has a time axis)."""
+    try:
+        return unique_row_step(r.row_step for clip in run.rows.values() for r in clip)
+    except MixedRowStepError as exc:
+        raise UsageError(f"{run.path}: {exc}") from exc
 
 
 def _optional(text: str) -> str | None:

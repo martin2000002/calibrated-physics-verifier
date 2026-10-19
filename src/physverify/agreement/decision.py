@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any, Protocol
 
-from physverify.core.errors import ConfigError
+from physverify.core.errors import ConfigError, PhysverifyError
 from physverify.schema.checks import CheckResult, InputLevel, Verdict
 from physverify.verification.runner import RowStatus, TableRow, tau_of, thresholds_label
 
@@ -159,6 +159,13 @@ class CalibrationStratum(Protocol):
 
     def score_threshold(self) -> float | None: ...
 
+    def check_status(self) -> dict[str, Any]: ...
+
+
+class UnusableCalibrationError(PhysverifyError):
+    """The calibrated stratum matches the run but cannot score yet (item 1.3): the workflow
+    falls back to the provisional rule or stops, per ``[agreement].on_unusable_stratum``."""
+
 
 class ScoredClip(Protocol):
     """A8's clip score (ADR 0009 §3): S in [0, 1] or None when it abstains."""
@@ -187,8 +194,19 @@ class ScoreClip[S: CalibrationStratum](Protocol):
     ) -> ScoredClip: ...
 
 
-class LoadedCalibration[S: CalibrationStratum](Protocol):
-    def stratum(self, level: InputLevel, profile: str) -> S: ...
+class OpenStratum[S: CalibrationStratum](Protocol):
+    """A8's ``open_stratum``: the one gate in front of a stratum."""
+
+    def __call__(
+        self,
+        path: Path,
+        level: InputLevel,
+        profile: str,
+        *,
+        checks_hash: str,
+        row_step: int,
+        require_calibrated: bool = False,
+    ) -> S: ...
 
 
 class CalibratedRule[S: CalibrationStratum]:
@@ -210,6 +228,11 @@ class CalibratedRule[S: CalibrationStratum]:
     @property
     def label(self) -> str:
         return f"{self.name}:{self._stratum.source}"
+
+    @property
+    def status(self) -> dict[str, Any]:
+        """The stratum's state per check, for ``metrics["calibration"]``."""
+        return self._stratum.check_status()
 
     @property
     def kubric_threshold(self) -> float | None:
@@ -240,12 +263,17 @@ class CalibratedRule[S: CalibrationStratum]:
 
 @dataclass(frozen=True)
 class CalibrationApi[S: CalibrationStratum]:
-    """The A8 entry points, injected so tests can pass a fake."""
+    """The A8 entry points, injected so tests can pass a fake. ``error`` is a configuration
+    problem (missing or stale artifact, another stratum or time base); ``unusable_error``, a
+    subclass of it, a stratum that cannot score yet."""
 
-    load_calibration: Callable[[Path], LoadedCalibration[S]]
+    open_stratum: OpenStratum[S]
     default_artifact_path: Callable[[Settings], Path]
+    active_checks_hash: Callable[[Settings], str]
+    require_calibrated: Callable[[Settings], bool]
     score_clip: ScoreClip[S]
     error: type[Exception]
+    unusable_error: type[Exception]
 
 
 def import_calibration() -> CalibrationApi[Stratum]:
@@ -254,25 +282,51 @@ def import_calibration() -> CalibrationApi[Stratum]:
         from physverify.calibration.apply import score_clip
         from physverify.calibration.loader import (
             CalibrationError,
+            UnusableStratumError,
             default_artifact_path,
-            load_calibration,
+            open_stratum,
         )
+        from physverify.calibration.settings import active_checks_hash, calibration_settings
     except ImportError as exc:
         raise ConfigError(f"the calibrated rule needs A8's calibration package: {exc}") from exc
-    return CalibrationApi(load_calibration, default_artifact_path, score_clip, CalibrationError)
+    return CalibrationApi(
+        open_stratum=open_stratum,
+        default_artifact_path=default_artifact_path,
+        active_checks_hash=active_checks_hash,
+        require_calibrated=lambda s: calibration_settings(s).require_calibrated_artifact,
+        score_clip=score_clip,
+        error=CalibrationError,
+        unusable_error=UnusableStratumError,
+    )
+
+
+@dataclass(frozen=True)
+class StratumRequest:
+    """What the run asks of the stratum: its profile, time base and check parameters."""
+
+    artifact: Path
+    profile: str
+    row_step: int
+    checks_hash: str
+    require_calibrated: bool = False
 
 
 def calibrated_rule[S: CalibrationStratum](
-    api: CalibrationApi[S], artifact: Path, profile: str, excluded: Collection[str]
+    api: CalibrationApi[S], request: StratumRequest, excluded: Collection[str]
 ) -> CalibratedRule[S]:
-    """Missing artefact or stratum: a configuration error (exit 2), never a silent fallback."""
-    if not artifact.is_file():
-        raise ConfigError(
-            f"calibration artefact {artifact} is missing; run `physverify calibrate fit`"
-        )
+    """A configuration problem is a ``ConfigError`` (exit 2), never a silent fallback; a
+    stratum that cannot score yet is ``UnusableCalibrationError``, which the caller handles."""
     try:
-        calibration = api.load_calibration(artifact)
-        stratum = calibration.stratum(InputLevel.PERCEIVED, profile)
+        stratum = api.open_stratum(
+            request.artifact,
+            InputLevel.PERCEIVED,
+            request.profile,
+            checks_hash=request.checks_hash,
+            row_step=request.row_step,
+            require_calibrated=request.require_calibrated,
+        )
+    except api.unusable_error as exc:
+        raise UnusableCalibrationError(str(exc)) from exc
     except api.error as exc:
-        raise ConfigError(f"calibration {artifact}: {exc}") from exc
+        raise ConfigError(f"calibration {request.artifact}: {exc}") from exc
     return CalibratedRule(stratum, api.score_clip, excluded)

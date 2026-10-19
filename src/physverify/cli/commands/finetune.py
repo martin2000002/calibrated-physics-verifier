@@ -8,6 +8,7 @@ before they write anything.
 
 from __future__ import annotations
 
+import datetime as dt
 import gc
 import hashlib
 import json
@@ -17,7 +18,20 @@ from typing import Annotated, Any, Final
 
 import typer
 
-from physverify.cli.commands._finetune_deps import candidate_generator, require_cuda, scoring_deps
+from physverify.cli.commands._finetune_deps import (
+    candidate_generator,
+    require_cuda,
+    scoring_deps,
+    write_calibration_status,
+)
+from physverify.cli.commands._stop_rule import (
+    StopRuleDeviationOption,
+    current_verdict,
+    pairs_on_disk,
+    require_stop_rule,
+    verdict_lines,
+    write_verdict,
+)
 from physverify.cli.commands.timing import _timing_directory
 from physverify.cli.context import AppContext, app_context, heavy_command
 from physverify.core.errors import EXIT_ERROR, UsageError
@@ -63,8 +77,10 @@ from physverify.finetune.settings import (
     generator_settings,
     load_finetune,
 )
+from physverify.finetune.stop_rule import PilotReview, pairs_sha256, review_sample
 from physverify.finetune.store import (
     PAIRS_FILE,
+    PILOT_REVIEW_FILE,
     REPORT_FILE,
     RUN_FILE,
     SELECTED_FILE,
@@ -236,6 +252,7 @@ def _score(
     scores = score_candidates(
         store, model_tag, prompts, scorer, scoring_deps(context), parse_shard(shard)
     )
+    write_calibration_status(store, model_tag, scorer)
     wanted = {p.prompt_id for p in prompts}
     selected = [s for s in scores if s.prompt_id in wanted]
     abstained = sum(s.score is None for s in selected)
@@ -335,7 +352,50 @@ def pairs(scorer: ScorerOption = None) -> None:
             write_record(directory / report_file, report)
             for line in _report_lines(label, report):
                 typer.echo(line)
+    verdict = current_verdict(context.settings, _cfg(context), store, active)
+    write_verdict(store, active.name, verdict)
+    for line in verdict_lines(verdict):
+        typer.echo(line)
     typer.echo(f"pairs: {directory}")
+
+
+@app.command("pilot-review", help="Record the hand review of the pilot pairs (stop rule).")
+def pilot_review(
+    sample: Annotated[bool, typer.Option(help="Print the pairs to inspect.")] = False,
+    better: Annotated[
+        int | None, typer.Option(min=0, help="How many of them show a better winner.")
+    ] = None,
+    note: Annotated[str | None, typer.Option(help="Free text kept with the review.")] = None,
+    scorer: ScorerOption = None,
+) -> None:
+    if sample == (better is not None):
+        raise UsageError("pass either --sample or --better N")
+    context = app_context()
+    store = _store(context)
+    name = scorer or _cfg(context).scorer
+    pairs_ = pairs_on_disk(store, name)
+    if not pairs_:
+        raise UsageError(f"there are no {name} pairs: run 'finetune pairs'")
+    drawn = review_sample(pairs_, _cfg(context).stop_rule)
+    if better is None:
+        for pair in drawn:
+            typer.echo(
+                f"{pair.pair_id}: winner {pair.winner} ({pair.score_w:.3f}) "
+                f"loser {pair.loser} ({pair.score_l:.3f})"
+            )
+        return
+    if better > len(drawn):
+        raise UsageError(f"--better {better} exceeds the {len(drawn)} inspected pairs")
+    review = PilotReview(
+        pairs_sha256=pairs_sha256(pairs_),
+        inspected=[p.pair_id for p in drawn],
+        better=better,
+        note=note,
+        created_utc=dt.datetime.now(dt.UTC).isoformat(),
+    )
+    path = store.pairs_dir(name) / PILOT_REVIEW_FILE
+    write_record(path, review)
+    typer.echo(f"pilot review: {better} of {len(drawn)} better ({path})")
 
 
 def load_pairs(store: CampaignStore, scorer: str, name: str = PAIRS_FILE) -> list[PairRecord]:
@@ -388,11 +448,6 @@ def _model(context: AppContext) -> Any:
     )
 
 
-def _pairs_hash(pairs: Sequence[PairRecord]) -> str:
-    text = "".join(p.model_dump_json() + "\n" for p in pairs)
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()
-
-
 def _beta(
     store: CampaignStore, cfg: FinetuneSettings, beta: float | None, pairs_sha256: str
 ) -> tuple[float, str]:
@@ -408,6 +463,13 @@ def _beta(
             )
         return float(grid["chosen"]), str(path)
     return cfg.train.beta, "finetune.train.beta"
+
+
+def _require_stop_rule(
+    context: AppContext, store: CampaignStore, name: str, deviation: str | None
+) -> None:
+    scorer = build_scorer(name, context.settings)
+    require_stop_rule(context.settings, _cfg(context), store, scorer, deviation)
 
 
 def run_record(
@@ -426,7 +488,7 @@ def run_record(
     return {
         "run_id": run_id,
         **pairs[0].model_dump(include={"scorer", "scorer_version", "calibrated", "thresholds"}),
-        "pairs_sha256": _pairs_hash(pairs),
+        "pairs_sha256": pairs_sha256(pairs),
         "n_pairs": len(pairs),
         "n_val_pairs": n_val,
         "beta": beta,
@@ -520,6 +582,7 @@ def train(
     allow_provisional: Annotated[
         bool, typer.Option(help="Train on pairs of an uncalibrated scorer.")
     ] = False,
+    stop_rule_deviation: StopRuleDeviationOption = None,
 ) -> None:
     context = app_context()
     cfg = _cfg(context)
@@ -527,13 +590,14 @@ def train(
     name = scorer or cfg.scorer
     pairs_ = load_pairs(store, name)
     require_calibrated(pairs_, allow_provisional)
+    _require_stop_rule(context, store, name, stop_rule_deviation)
     plan = train_schedule(cfg, len(pairs_), max_steps)
     run_dir = store.train_dir(run_id)
     if not resume and not force and checkpoints(run_dir):
         raise UsageError(f"{run_dir} holds checkpoints: resume, use a new --run-id or --force")
     require_cuda(context.settings)
     data, val, _ = _sources(context, store, name)
-    chosen, source = _beta(store, cfg, beta, _pairs_hash(pairs_))
+    chosen, source = _beta(store, cfg, beta, pairs_sha256(pairs_))
     record = run_record(context, run_id, pairs_, len(val), chosen, source, plan, max_steps)
     _start(run_dir, record, resume)
     gen = generator_settings(context.settings)
@@ -558,6 +622,7 @@ def beta_grid(
     allow_provisional: Annotated[
         bool, typer.Option(help="Train on pairs of an uncalibrated scorer.")
     ] = False,
+    stop_rule_deviation: StopRuleDeviationOption = None,
 ) -> None:
     context = app_context()
     cfg = _cfg(context)
@@ -565,6 +630,7 @@ def beta_grid(
     name = scorer or cfg.scorer
     pairs_ = load_pairs(store, name)
     require_calibrated(pairs_, allow_provisional)
+    _require_stop_rule(context, store, name, stop_rule_deviation)
     plan = grid_schedule(cfg, len(pairs_))
     require_cuda(context.settings)
     data, val, _ = _sources(context, store, name)
@@ -593,7 +659,7 @@ def beta_grid(
     payload = {
         "chosen": chosen,
         "steps": plan.total,
-        "pairs_sha256": _pairs_hash(pairs_),
+        "pairs_sha256": pairs_sha256(pairs_),
         "results": {f"{b:g}": vars(m) for b, m in results.items()},
     }
     write_text_atomic(store.beta_path(), json.dumps(payload, indent=2, sort_keys=True))

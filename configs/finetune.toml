@@ -2,12 +2,21 @@
 # Generator parameters are NOT here: they come from [timing.generation] (configs/timing.toml),
 # so the cost measured by A3 is the cost of these videos.
 # Values marked [estimated] come from the literature or a guess and are fixed by the pilot
-# (20 train prompts x K = 4); stop and review A8/A9 if pairs per prompt < 0.3, abstention per
-# candidate > 50 %, or fewer than 6 of 10 inspected pairs show a better winner.
+# (20 train prompts x K = 4); [finetune.stop_rule] holds the pilot's stop rule.
 
 [finetune]
 campaign = "wan21_v1"
 scorer = "calibrated"
+exclude_time_dependent = true      # every scorer leaves [check_scope].time_dependent_checks out
+on_family_without_targets = "error"  # "keep": a family left without target checks is scored anyway
+
+[finetune.stop_rule]    # train, beta-grid, h3 generate and h3 freeze refuse when it fires
+enforce = true          # false: only report it
+min_pairs_per_prompt = 0.3
+max_candidate_abstention = 0.5
+inspected = 10          # pairs inspected by hand ('finetune pilot-review'); all when fewer
+min_better_fraction = 0.6
+seed = 0
 
 [finetune.prompts]
 seed = 0
@@ -239,3 +248,6 @@ checkpoint_fraction = 0.5
 
 [finetune.profiles.fast.select]
 checkpoints = 1
+
+[finetune.profiles.fast.stop_rule]   # the smoke run has 2 prompts
+enforce = false

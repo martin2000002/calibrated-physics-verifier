@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Final
 
@@ -9,14 +10,18 @@ from physverify.cli.commands.extract import pipeline_deps, resolve_dataset
 from physverify.cli.context import AppContext
 from physverify.config.models import Settings
 from physverify.core.errors import UsageError
+from physverify.diagnosis.atomic_io import write_text_atomic
 from physverify.extraction.plan import resolve_plan
 from physverify.finetune.generate import CandidateGenerator
+from physverify.finetune.scorers._base import AggregateScorer
+from physverify.finetune.scorers._status import CalibrationStatusSource
 from physverify.finetune.scoring import ScoringDeps
 from physverify.finetune.settings import CandidateSettings, generator_settings, load_finetune
 from physverify.finetune.store import CampaignStore
 from physverify.runtime.heavy import NullLock
 from physverify.runtime.runs import current_commit
 from physverify.schema.checks import InputLevel
+from physverify.schema.io import json_ready
 from physverify.timing.envinfo import TorchCudaProbe
 from physverify.timing.generation import load_wan_pipeline, snapshot_dir, snapshot_problem
 from physverify.verification.inputs import PerceivedSource, PipelineOutputLoader
@@ -87,3 +92,13 @@ def scoring_deps(context: AppContext) -> ScoringDeps:
         source=PerceivedSource(dataset, loader, InputLevel.PERCEIVED),
         runner=runner,
     )
+
+
+def write_calibration_status(store: CampaignStore, model_tag: str, scorer: AggregateScorer) -> None:
+    """Per check, the calibration state the scores were made under (calibrated scorer only)."""
+    if not isinstance(scorer, CalibrationStatusSource):
+        return
+    status = scorer.calibration_status()
+    if status is not None:
+        text = json.dumps(json_ready(dict(status)), indent=2, sort_keys=True)
+        write_text_atomic(store.calibration_status_path(model_tag, scorer.name), text)

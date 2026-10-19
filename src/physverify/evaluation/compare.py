@@ -42,6 +42,7 @@ from physverify.evaluation.verdict import ExternalStatus, VerdictInputs, h3_verd
 from physverify.finetune.pairs import Rescore, stamp_of
 from physverify.finetune.records import BASE_TAG, CandidateScore, read_record
 from physverify.finetune.settings import FinetuneSettings
+from physverify.finetune.stop_rule import fired_reason
 from physverify.finetune.store import CampaignStore
 
 RESCORE_HINT: Final = "run `physverify h3 rescore`"
@@ -189,6 +190,7 @@ def build_compare(inputs: CompareInputs) -> H3Report:
             contaminated=prereg.contaminated,
             label_matches=True,
             post_hoc=prereg.post_hoc,
+            stop_rule_fired=fired_reason(prereg.stop_rule, prereg.stop_rule_deviation),
             has_ft_model=tag is not None,
             primary=result.primary,
             external_status=status,

@@ -25,8 +25,10 @@ from physverify.finetune.records import (
     write_record,
     write_records,
 )
+from physverify.finetune.scope import require_family_targets, scoped, scorer_exclusion
 from physverify.finetune.scorers._base import AggregateScore, AggregateScorer
 from physverify.finetune.seeds import WHOLE, Shard
+from physverify.finetune.settings import load_finetune
 from physverify.finetune.signals import motion_index, objects_ok
 from physverify.finetune.store import CampaignStore
 from physverify.schema.checks import CheckResult
@@ -45,10 +47,14 @@ def scorer_registry() -> Registry[type[AggregateScorer]]:
 
 
 def build_scorer(name: str, settings: Settings) -> AggregateScorer:
+    """The one scorer factory: every scorer is wrapped in ``[check_scope]`` (``ScopedScorer``)."""
     registry = scorer_registry()
     if name not in registry:
         raise UsageError(f"unknown scorer {name!r}; known: {sorted(registry)}")
-    return registry[name](settings)
+    cfg = load_finetune(settings)
+    excluded = scorer_exclusion(settings, cfg)
+    require_family_targets(cfg, excluded)
+    return scoped(registry[name](settings), excluded)
 
 
 class Runner(Protocol):

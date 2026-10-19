@@ -9,17 +9,20 @@ from pydantic import Field, NonNegativeFloat
 
 from physverify.checks._base import Check
 from physverify.config.models import FrozenModel, Settings
+from physverify.core.registry import discover
 from physverify.diagnosis.settings import diagnosis_settings
 from physverify.schema.checks import InputLevel
 from physverify.schema.io import stable_hash
 from physverify.verification.policies.threshold import ThresholdParams
 from physverify.verification.runner import (
+    CHECKS_SECTION,
     VERIFICATION_SECTION,
     ChecksSettings,
     VerificationSettings,
 )
 
 SECTION = "calibration"
+CHECKS_PACKAGE = "physverify.checks"
 THRESHOLD_POLICY = "threshold"
 
 
@@ -41,6 +44,8 @@ class CalibrationSettings(FrozenModel):
     stage_profile: str = "stage_errors.recalibrated.json"
     tau_tolerance: dict[str, NonNegativeFloat] = Field(default_factory=dict)
     """epsilon_c per check in check units: tau = max(q, epsilon_c); absent = 0."""
+    require_calibrated_artifact: bool = False
+    """A consumer also requires artifact status ``calibrated``, not only a usable stratum."""
 
 
 @dataclass(frozen=True)
@@ -77,3 +82,16 @@ def checks_hash(registry: Mapping[str, type[Check]], overrides: ChecksSettings) 
         for check_id, check in sorted(registry.items())
     }
     return stable_hash(params)
+
+
+def check_registry() -> Mapping[str, type[Check]]:
+    return discover(CHECKS_PACKAGE, (Check,), "check_id")
+
+
+def active_checks_hash(
+    settings: Settings, registry: Mapping[str, type[Check]] | None = None
+) -> str:
+    """``checks_hash`` of the registry under the ``[checks]`` overrides of ``settings``: what a
+    consumer compares with the artifact's own hash."""
+    overrides = settings.section(CHECKS_SECTION, ChecksSettings)
+    return checks_hash(check_registry() if registry is None else registry, overrides)

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import Field, model_validator
 
@@ -29,8 +29,12 @@ class AgreementSettings(FrozenModel):
     ci: float = Field(gt=0, lt=1)
     error_sample_per_class: int = Field(ge=0)
     error_seed: int
-    exclude_checks: tuple[str, ...] = ()
-    time_dependent_checks: tuple[str, ...] = ()
+    on_unusable_stratum: Literal["descriptive", "error"] = "descriptive"
+    """A calibrated rule whose stratum cannot score yet: fall back to the provisional rule and
+    report H2 as not evaluable, or stop with a configuration error (item 1.3)."""
+    exclude_time_dependent: bool = False
+    """Leave [check_scope].time_dependent_checks out of the primary rule; ADR 0011 keeps them
+    (true is a pre-registration change, declared in ADR 0011 before the freeze)."""
     dev_subset: str
     test_subset: str
     preregistration: str

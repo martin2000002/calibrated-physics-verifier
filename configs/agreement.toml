@@ -128,8 +128,9 @@ bootstrap_seed = 20261017
 ci = 0.95
 error_sample_per_class = 15
 error_seed = 20261017
-exclude_checks = []
-time_dependent_checks = ["R5b", "R4_jump"]
+# Excluded and time-dependent check ids live in [check_scope] (configs/check_scope.toml).
+on_unusable_stratum = "descriptive"    # calibrated rule, stratum not usable: provisional + "not evaluable"; "error" = exit 2
+exclude_time_dependent = false         # ADR 0011: R5b/R4_jump stay in the primary (sensitivity without them)
 dev_subset = "h2_dev"
 test_subset = "h2_test"
 preregistration = "agreement/preregistration.json"   # under paths.data_dir

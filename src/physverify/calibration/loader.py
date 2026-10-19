@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -42,6 +43,15 @@ class StaleCalibrationError(CalibrationError):
     """The artifact was fitted with other check parameters than the active registry."""
 
 
+class UnusableStratumError(CalibrationError):
+    """The stratum loads and matches the run but cannot score yet: a state of the fit (readiness,
+    or a non-calibrated artifact when one is required), not a configuration error."""
+
+
+class MixedRowStepError(CalibrationError):
+    """Rows of one run were extracted with different time bases."""
+
+
 class KSigmaMismatchError(CalibrationError):
     """A k_sigma other than the one the stratum was calibrated with."""
 
@@ -69,6 +79,7 @@ class Stratum:
     source: str
     artifact: ArtifactRef | None
     checks_hash: str | None = None
+    artifact_status: str | None = None
 
     @property
     def level(self) -> InputLevel:
@@ -133,6 +144,19 @@ class Stratum:
             return f"{self.source}: no check is ok with a weight > 0"
         return None
 
+    def check_status(self) -> dict[str, Any]:
+        """The stratum's state for reports: its label, hashes and each check's fit status."""
+        return {
+            "source": self.source,
+            "artifact_status": self.artifact_status,
+            "checks_hash": self.checks_hash,
+            "aggregate_sufficient": self.model.aggregate.sufficient,
+            "checks": {
+                c: {"status": self.model.checks[c].status, "weight": self.weight(c)}
+                for c in sorted(self.model.checks)
+            },
+        }
+
     def score_threshold(self) -> float | None:
         """Flag a clip when 1 - S exceeds it."""
         return self.model.aggregate.score_threshold
@@ -194,7 +218,11 @@ class Calibration:
         source = f"{name}#{model.level.value}/{model.profile}@{self.run_id}"
         ref = None if self.path is None else ArtifactRef(path=str(self.path), sha256=self.sha256)
         return Stratum(
-            model=model, source=source, artifact=ref, checks_hash=self.artifact.checks_hash
+            model=model,
+            source=source,
+            artifact=ref,
+            checks_hash=self.artifact.checks_hash,
+            artifact_status=self.artifact.status,
         )
 
 
@@ -211,20 +239,54 @@ def load_calibration(path: Path, *, checks_hash: str | None = None) -> Calibrati
     return calibration
 
 
+def open_stratum(
+    path: Path,
+    level: InputLevel,
+    profile: str,
+    *,
+    checks_hash: str,
+    row_step: int,
+    require_calibrated: bool = False,
+) -> Stratum:
+    """The one gate a consumer (H2, A11/H3, publish) applies before scoring with a stratum.
+
+    A missing or stale artifact, a missing stratum or another time base raise
+    ``CalibrationError`` (a configuration error). A stratum that matches but cannot score (its
+    aggregate is insufficient, no check is ok with a weight > 0, or the artifact is not
+    ``calibrated`` while ``require_calibrated``) raises ``UnusableStratumError``. Only this
+    stratum is required by default: the artifact is ``calibrated`` only when every check of
+    every stratum is ok."""
+    calibration = load_calibration(path, checks_hash=checks_hash)
+    stratum = calibration.stratum(level, profile)
+    mismatch = stratum.time_base_problem(profile, row_step)
+    if mismatch is not None:
+        raise CalibrationError(mismatch)
+    problem = stratum.readiness_problem()
+    if problem is None and require_calibrated and calibration.status != CALIBRATED:
+        problem = f"{path.name} has status {calibration.status!r}, not {CALIBRATED!r}"
+    if problem is not None:
+        raise UnusableStratumError(problem)
+    return stratum
+
+
 def usable_stratum(
     path: Path, level: InputLevel, profile: str, *, checks_hash: str, row_step: int
 ) -> str | None:
-    """The one gate a consumer (H2, A11/H3) applies before scoring with a stratum: the problem
-    as a message, None when the stratum is usable. Usable = the artifact loads and was fitted
-    with ``checks_hash``, it has the (``level``, ``profile``) stratum, the stratum's time base
-    matches the run's ``row_step``, its aggregate is sufficient and at least one check is ok
-    with a weight > 0. Only this stratum is required, not the artifact status (the artifact is
-    ``calibrated`` only when every check of every stratum is ok)."""
+    """``open_stratum`` as a message: the problem, None when the stratum is usable."""
     try:
-        stratum = load_calibration(path, checks_hash=checks_hash).stratum(level, profile)
+        open_stratum(path, level, profile, checks_hash=checks_hash, row_step=row_step)
     except CalibrationError as exc:
         return str(exc)
-    return stratum.time_base_problem(profile, row_step) or stratum.readiness_problem()
+    return None
+
+
+def unique_row_step(steps: Iterable[int]) -> int:
+    """The single time base of a run; ``UNKNOWN_ROW_STEP`` entries (no time axis) are ignored,
+    and a run with none of them known is ``UNKNOWN_ROW_STEP``."""
+    known = sorted({s for s in steps if s != UNKNOWN_ROW_STEP})
+    if len(known) > 1:
+        raise MixedRowStepError(f"rows with different row_step {known}: one time base per run")
+    return known[0] if known else UNKNOWN_ROW_STEP
 
 
 def parse_calibration(text: str, *, path: Path | None = None) -> Calibration:

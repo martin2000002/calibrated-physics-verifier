@@ -293,3 +293,69 @@ def test_external_status_needs_the_gate_of_the_frozen_judge_stamps(
     assert external_status(layout, usable, outputs) == "ok"
     write_record(layout.gate, gate({task: "another-stamp" for task in frozen.judge_stamps}))
     assert external_status(layout, usable, outputs) == "not_run"
+
+
+ENFORCE = ("--set", "finetune.stop_rule.enforce=true")
+
+
+@pytest.mark.parametrize("argv", [("freeze",), ("--device", "cpu", "generate")])
+def test_a_fired_stop_rule_blocks_the_eval_arm(
+    cli: CliRunner, campaign: Any, h3_environ: dict[str, str], argv: tuple[str, ...]
+) -> None:
+    campaign.build()
+    options, command = (argv[:-1], argv[-1:])
+    result = cli(*ENFORCE, *options, "h3", *command, env=h3_environ)
+    assert result.code == 2
+    assert "pilot stop rule fired" in result.err and "not evaluable" in result.err
+    assert not campaign.layout.prereg.exists()
+    declared = cli(
+        *ENFORCE,
+        *options,
+        "h3",
+        *command,
+        "--stop-rule-deviation",
+        "pilot accepted",
+        env=h3_environ,
+    )
+    verdict = json.loads(
+        (campaign.store.pairs_dir(campaign.scorer.name) / "stop_rule.json").read_text("utf-8")
+    )
+    assert verdict["deviation"] == "pilot accepted" and not verdict["passed"]
+    assert "pilot stop rule fired" not in declared.err
+    if command == ("freeze",):
+        assert declared.code == 0, declared.err
+        prereg = json.loads(campaign.layout.prereg.read_text("utf-8"))
+        assert prereg["stop_rule_deviation"] == "pilot accepted"
+        assert not prereg["stop_rule"]["passed"] and prereg["deviations"] == []
+        assert "NO VERDICT: pilot stop rule fired" in declared.out
+    else:
+        assert declared.code == 2 and "--device cuda" in declared.err
+
+
+def test_a_freeze_deviation_does_not_let_a_fired_stop_rule_through(
+    cli: CliRunner, campaign: Any, h3_environ: dict[str, str]
+) -> None:
+    campaign.build()
+    other = cli(*ENFORCE, "h3", "freeze", "--declare-deviation", "alpha fixed", env=h3_environ)
+    assert other.code == 2 and "--stop-rule-deviation" in other.err
+    assert not campaign.layout.prereg.exists()
+
+
+def test_a_stop_rule_file_of_other_pairs_is_not_enough(
+    cli: CliRunner, campaign: Any, h3_environ: dict[str, str]
+) -> None:
+    campaign.build()
+    path = campaign.store.pairs_dir(campaign.scorer.name) / "stop_rule.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"passed": True, "pairs_sha256": "other"}), "utf-8")
+    result = cli(*ENFORCE, "h3", "freeze", env=h3_environ)
+    assert result.code == 2 and "pilot stop rule fired" in result.err
+
+
+def test_the_stop_rule_is_off_in_the_fast_profile(
+    cli: CliRunner, campaign: Any, h3_environ: dict[str, str]
+) -> None:
+    campaign.build()
+    result = cli("h3", "freeze", env=h3_environ)
+    assert result.code == 0, result.err
+    assert "pilot stop rule: FIRED (reported only)" in result.err

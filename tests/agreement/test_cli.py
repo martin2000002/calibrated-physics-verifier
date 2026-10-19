@@ -3,12 +3,21 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
-from physverify.agreement.prereg import load_preregistration
-from physverify.agreement.report import REPORT_DIR, _sign_flip_lines
-from physverify.datasets._videophy_review import PENDING, load_review
-from physverify.schema.checks import InputLevel
+CALIBRATION_TESTS = str(Path(__file__).resolve().parent.parent / "calibration")
+if CALIBRATION_TESTS not in sys.path:
+    sys.path.insert(0, CALIBRATION_TESTS)
+
+from stratum_cases import write_artifact  # noqa: E402
+
+from physverify.agreement.prereg import file_sha256, load_preregistration  # noqa: E402
+from physverify.agreement.report import REPORT_DIR, _sign_flip_lines  # noqa: E402
+from physverify.calibration.loader import default_artifact_path  # noqa: E402
+from physverify.calibration.settings import active_checks_hash  # noqa: E402
+from physverify.datasets._videophy_review import PENDING, load_review  # noqa: E402
+from physverify.schema.checks import InputLevel  # noqa: E402
 
 FAST = ("--set", "agreement.bootstrap_n=50")
 
@@ -189,6 +198,7 @@ def test_the_summary_renders_every_c5_block(cli, world) -> None:
         "## Per check",
         "## Per generator",
         "## Sensitivity without the time-dependent checks",
+        "Time-dependent: R4_jump, R5b",
         "Coverage (decided fraction): all ",
         "verifier predicts implausible on",
         "Sign flip between versions",
@@ -210,3 +220,137 @@ def test_a_sign_flip_between_versions_is_reported() -> None:
     (line,) = _sign_flip_lines(groups, "p")
     assert "accuracy (v1 0.100, v2 -0.100)" in line and "kappa" not in line
     assert "none" in _sign_flip_lines({"v1": groups["v1"], "v2": groups["v1"]}, "p")[0]
+
+
+CALIBRATED = ("--set", 'agreement.rule="calibrated"')
+STOP = ("--set", 'agreement.on_unusable_stratum="error"')
+STRICT = ("--set", "calibration.require_calibrated_artifact=true")
+
+
+def _artifact(world, **kwargs) -> Path:
+    active = active_checks_hash(world.settings)
+    options = {"profile": "precise", "checks_hash": active, **kwargs}
+    return write_artifact(default_artifact_path(world.settings), **options)
+
+
+def _metrics(run: Path) -> dict:
+    return json.loads((run / REPORT_DIR / "metrics.json").read_text(encoding="utf-8"))
+
+
+def _freeze(cli, world, *options: str, after: tuple[str, ...] = ()):
+    world.keep_all()
+    dev = world.root / "runs" / "dev"
+    dev = dev if dev.is_dir() else _dev(world)
+    return cli(*FAST, *options, "agreement", "freeze", "--verify-run", str(dev), *after)
+
+
+def test_an_unusable_stratum_runs_descriptive_and_h2_is_not_evaluable(cli, world) -> None:
+    artifact = _artifact(world, ready=False)
+    frozen = _freeze(cli, world, *CALIBRATED)
+    assert frozen.code == 0, frozen.err
+    path = Path(frozen.out.split("preregistration: ", 1)[1].splitlines()[0])
+    prereg = load_preregistration(path)
+    assert "aggregate threshold" in str(prereg.calibration_gate)
+    assert prereg.calibration_artifact_sha256 == file_sha256(artifact)
+    run = _test(world)
+    result = cli(*FAST, *CALIBRATED, "agreement", "compare", "--verify-run", str(run))
+    assert result.code == 0, result.err
+    verdict = _metrics(run)["h2_verdict"]
+    assert verdict["status"] == "not_evaluable" and verdict["supported"] is None
+    assert _metrics(run)["calibration"]["gate"] == verdict["gate"]
+    text = (run / REPORT_DIR / "summary.md").read_text(encoding="utf-8")
+    assert "H2 not evaluable with the calibrated rule" in text
+
+
+def test_on_unusable_stratum_error_stops(cli, world) -> None:
+    _artifact(world, ready=False)
+    result = _freeze(cli, world, *CALIBRATED, *STOP)
+    assert result.code == 2 and "aggregate threshold" in result.err
+
+
+def test_a_stale_artifact_stops_in_both_modes(cli, world) -> None:
+    _artifact(world, checks_hash="another")
+    for mode in ((), STOP):
+        result = _freeze(cli, world, *CALIBRATED, *mode)
+        assert result.code == 2 and "other check parameters" in result.err
+
+
+def test_the_fallback_still_checks_the_thresholds_label(cli, world) -> None:
+    _artifact(world, ready=False)
+    assert _freeze(cli, world, *CALIBRATED).code == 0
+    relabelled = world.run("relabelled", {"v1t/a1": [world.FAIL]}, label="calibrated:x")
+    result = cli(*FAST, *CALIBRATED, "agreement", "compare", "--verify-run", str(relabelled))
+    assert result.code == 2 and "thresholds" in result.err
+
+
+def test_require_calibrated_turns_an_insufficient_artifact_descriptive(cli, world) -> None:
+    _artifact(world)  # status "insufficient", stratum ready
+    assert _freeze(cli, world, *CALIBRATED, *STRICT).code == 0
+    run = _test(world)
+    result = cli(*FAST, *CALIBRATED, *STRICT, "agreement", "compare", "--verify-run", str(run))
+    assert result.code == 0, result.err
+    gate = _metrics(run)["h2_verdict"]["gate"]
+    assert "not 'calibrated'" in gate and str(world.settings.paths.calibration_dir) not in gate
+
+
+def test_a_usable_stratum_reports_its_state_per_check(cli, world) -> None:
+    _artifact(world)
+    frozen = _freeze(cli, world, *CALIBRATED)
+    assert frozen.code == 0, frozen.err
+    run = _test(world)
+    result = cli(*FAST, *CALIBRATED, "agreement", "compare", "--verify-run", str(run))
+    assert result.code == 0, result.err
+    calibration = _metrics(run)["calibration"]
+    assert calibration["gate"] is None
+    assert calibration["stratum"]["checks"]["R1"]["status"] == "ok"
+    assert _metrics(run)["h2_verdict"]["status"] == "evaluated"
+
+
+def test_the_dev_design_effect_is_used_only_where_it_was_estimated(cli, world) -> None:
+    frozen = _freeze(cli, world)
+    assert frozen.code == 0, frozen.err
+    path = Path(frozen.out.split("preregistration: ", 1)[1].splitlines()[0])
+    dev = load_preregistration(path).dev_design_effect
+    run = _test(world)
+    assert cli(*FAST, "agreement", "compare", "--verify-run", str(run)).code == 0
+    metrics = _metrics(run)
+    primary = (metrics["h2_group"], metrics["primary_policy"])
+    sources = {
+        (group, policy): view.get("design_effect_source")
+        for group, views in metrics["groups"].items()
+        for policy, view in views.items()
+    }
+    assert sources.pop(primary) == ("this_data" if dev is None else "dev")
+    assert sources and set(sources.values()) <= {"this_data", None}
+
+
+def test_a_calibrated_refreeze_after_a_fallback_comparison_is_post_hoc(cli, world) -> None:
+    _artifact(world, ready=False)
+    assert _freeze(cli, world, *CALIBRATED).code == 0
+    run = _test(world)
+    assert cli(*FAST, *CALIBRATED, "agreement", "compare", "--verify-run", str(run)).code == 0
+    _artifact(world)
+    stale = cli(*FAST, *CALIBRATED, "agreement", "compare", "--verify-run", str(run))
+    assert stale.code == 2 and "calibration_gate" in stale.err
+    late = ("--force", "--declare-deviation", "stratum became usable")
+    refrozen = _freeze(cli, world, *CALIBRATED, after=late)
+    assert refrozen.code == 0, refrozen.err
+    assert cli(*FAST, *CALIBRATED, "agreement", "compare", "--verify-run", str(run)).code == 0
+    assert _metrics(run)["h2_verdict"]["post_hoc"] is True
+
+
+def test_an_unknown_check_scope_id_is_a_config_error(cli, world) -> None:
+    result = _freeze(cli, world, "--set", 'check_scope.exclude_checks=["R99"]')
+    assert result.code == 2 and "R99" in result.err
+
+
+def test_the_time_dependent_checks_can_join_the_primary_exclusion(cli, world) -> None:
+    timed = ("--set", "agreement.exclude_time_dependent=true")
+    assert _freeze(cli, world, *timed).code == 0
+    run = _test(world)
+    assert cli(*FAST, *timed, "agreement", "compare", "--verify-run", str(run)).code == 0
+    metrics = _metrics(run)
+    assert metrics["primary_excluded"] == ["R4_jump", "R5b"]
+    assert metrics["sensitivity_time_dependent"]["time_dependent_in_primary"] is False
+    text = (run / REPORT_DIR / "summary.md").read_text(encoding="utf-8")
+    assert "## Sensitivity with the time-dependent checks" in text

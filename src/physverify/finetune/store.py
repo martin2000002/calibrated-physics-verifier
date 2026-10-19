@@ -5,8 +5,10 @@
   prompts.jsonl
   embeds/<prompt_id>.safetensors
   candidates/<model_tag>/<prompt_id>/kNN.latents.safetensors, kNN.meta.json
-  scores/<model_tag>/<scorer>/<candidate_id>.json, checks/<candidate_id>.jsonl, scores.jsonl
-  pairs/<scorer>/pairs.jsonl, report.json, val_pairs.jsonl, val_report.json
+  scores/<model_tag>/<scorer>/<candidate_id>.json, checks/<candidate_id>.jsonl, scores.jsonl,
+    calibration/status.json
+  pairs/<scorer>/pairs.jsonl, report.json, val_pairs.jsonl, val_report.json, pilot_review.json,
+    stop_rule.json
   train/<run_id>/step-<n>/, metrics.csv, val.csv, run.json
   train/beta_grid.json
   select/<run_id>/selected.json
@@ -50,6 +52,9 @@ PAIRS_FILE: Final = "pairs.jsonl"
 REPORT_FILE: Final = "report.json"
 VAL_PAIRS_FILE: Final = "val_pairs.jsonl"
 VAL_REPORT_FILE: Final = "val_report.json"
+PILOT_REVIEW_FILE: Final = "pilot_review.json"
+STOP_RULE_FILE: Final = "stop_rule.json"
+CALIBRATION_STATUS: Final = ("calibration", "status.json")
 RUN_FILE: Final = "run.json"
 BETA_FILE: Final = "beta_grid.json"
 SELECTED_FILE: Final = "selected.json"
@@ -147,6 +152,10 @@ class CampaignStore:
 
     def checks_path(self, model_tag: str, scorer: str, cid: str) -> Path:
         return self.score_dir(model_tag, scorer) / "checks" / f"{cid}.jsonl"
+
+    def calibration_status_path(self, model_tag: str, scorer: str) -> Path:
+        """In a subdirectory, so ``scores`` never reads it as a candidate's score."""
+        return self.score_dir(model_tag, scorer).joinpath(*CALIBRATION_STATUS)
 
     def scores_path(self, model_tag: str, scorer: str) -> Path:
         return self.score_dir(model_tag, scorer) / SCORES_FILE

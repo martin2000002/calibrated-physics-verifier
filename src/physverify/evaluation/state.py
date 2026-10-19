@@ -42,6 +42,7 @@ from physverify.finetune.scorers._base import AggregateScorer
 from physverify.finetune.selection import Selection
 from physverify.finetune.settings import SECTION as FINETUNE_SECTION
 from physverify.finetune.settings import FinetuneSettings
+from physverify.finetune.stop_rule import StopRuleState
 from physverify.finetune.store import CampaignStore
 from physverify.schema.io import stable_hash
 
@@ -197,6 +198,7 @@ class FreezeInputs:
     margin_rows: Sequence[Mapping[str, str]]
     margin_source: Path
     commit: str
+    stop_rule: StopRuleState
 
 
 def ft_tag(selection: Selection) -> str | None:
@@ -247,6 +249,7 @@ def current_record(inputs: FreezeInputs, now: dt.datetime) -> H3Preregistration:
         usability=dev_usability(inputs.layout, dev_tags, stamps, inputs.cfg),
         scipy_version=scipy.__version__,
         eval_candidates_at_freeze=candidate_snapshot(all_eval_records(inputs.store)),
+        stop_rule=inputs.stop_rule,
         created_utc=now.astimezone(dt.UTC).isoformat(timespec="seconds"),
     )
 

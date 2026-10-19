@@ -30,7 +30,8 @@ from physverify.finetune.records import (
     write_record,
     write_records,
 )
-from physverify.finetune.scorers.provisional import ProvisionalScorer
+from physverify.finetune.scorers._base import AggregateScorer
+from physverify.finetune.scoring import build_scorer
 from physverify.finetune.seeds import candidate_id
 from physverify.finetune.selection import CheckpointResult, Selection
 from physverify.finetune.settings import load_finetune
@@ -175,7 +176,7 @@ class Campaign:
     layout: H3Layout
     adapter: Path
     ft_tag: str
-    scorer: ProvisionalScorer
+    scorer: AggregateScorer
 
     def write_prompts(self) -> list[PromptRecord]:
         prompts = campaign_prompts()
@@ -311,5 +312,5 @@ def campaign(h3_settings: Settings, tmp_path: Path) -> Campaign:
         layout=H3Layout.of(store.root),
         adapter=adapter,
         ft_tag=adapter_tag(adapter),
-        scorer=ProvisionalScorer(h3_settings),
+        scorer=build_scorer(SCORER, h3_settings),
     )

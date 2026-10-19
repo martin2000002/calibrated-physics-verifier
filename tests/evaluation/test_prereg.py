@@ -28,6 +28,7 @@ from physverify.evaluation.prereg import (
     stamp_problem,
     write_prereg,
 )
+from physverify.finetune.stop_rule import StopRuleState
 
 DERIVATION = MarginDerivation(
     column="pc_pred",
@@ -78,6 +79,7 @@ def record(**update: Any) -> H3Preregistration:
         "usability": None,
         "scipy_version": "1.14",
         "eval_candidates_at_freeze": CandidateSnapshot(n=0, sha256="e"),
+        "stop_rule": StopRuleState(passed=True, enforced=True, reasons=[], pairs_sha256="p"),
         "created_utc": "2026-10-18T00:00:00+00:00",
     }
     return H3Preregistration(**{**fields, **update})
@@ -236,3 +238,10 @@ def test_refreezes_keep_the_chain_to_the_first_freeze(tmp_path: Path) -> None:
 def test_a_missing_prereg_names_the_freeze(tmp_path: Path) -> None:
     with pytest.raises(UsageError, match="h3 freeze"):
         load_prereg(tmp_path / "none.json")
+
+
+def test_a_new_stop_rule_state_refreezes_and_its_deviation_is_audit_only() -> None:
+    fired = StopRuleState(passed=False, enforced=True, reasons=["r"], pairs_sha256="q")
+    new = plan_freeze(record(), "sha0", record(stop_rule=fired), request())
+    assert new is not None and new.deviations == []
+    assert "stop_rule" in identity(new) and "stop_rule_deviation" not in identity(new)

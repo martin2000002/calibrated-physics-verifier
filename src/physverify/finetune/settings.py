@@ -146,15 +146,33 @@ class SelectSettings(_Section):
     ci_z: float = Field(1.96, gt=0)
 
 
+class StopRuleSettings(_Section):
+    """The pilot's stop rule (ADR 0012): too few pairs, too many abstentions or too few better
+    winners on inspection mean H3 is not evaluable with this verifier. ``enforce = false`` only
+    reports it."""
+
+    enforce: bool = True
+    min_pairs_per_prompt: float = Field(0.3, ge=0)
+    max_candidate_abstention: float = Field(0.5, ge=0, le=1)
+    inspected: int = Field(10, ge=1)
+    min_better_fraction: float = Field(0.6, ge=0, le=1)
+    seed: int = 0
+
+
 class FinetuneSettings(_Section):
     campaign: str = Field(pattern=SLUG_PATTERN)
     scorer: str = "calibrated"
+    exclude_time_dependent: bool = True
+    """Leave ``[check_scope].time_dependent_checks`` out of every scorer (item 1.17)."""
+    on_family_without_targets: Literal["error", "keep"] = "error"
+    """A family whose ``target_checks`` are all excluded: refuse, or keep it scored by others."""
     prompts: PromptSetSettings
     candidates: CandidateSettings
     pairs: PairSettings
     lora: LoraSettings
     train: TrainSettings
     select: SelectSettings = Field(default_factory=SelectSettings)
+    stop_rule: StopRuleSettings = Field(default_factory=StopRuleSettings)
 
 
 def load_finetune(settings: Settings) -> FinetuneSettings:

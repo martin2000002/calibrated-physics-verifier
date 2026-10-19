@@ -18,8 +18,18 @@ import typer
 
 from physverify.agreement.prereg import file_sha256
 from physverify.calibration.loader import default_artifact_path
-from physverify.calibration.settings import checks_hash
-from physverify.cli.commands._finetune_deps import candidate_generator, require_cuda, scoring_deps
+from physverify.calibration.settings import active_checks_hash
+from physverify.cli.commands._finetune_deps import (
+    candidate_generator,
+    require_cuda,
+    scoring_deps,
+    write_calibration_status,
+)
+from physverify.cli.commands._stop_rule import (
+    StopRuleDeviationOption,
+    current_verdict,
+    require_stop_rule,
+)
 from physverify.cli.context import AppContext, app_context, heavy_command
 from physverify.core.errors import EXIT_ERROR, ConfigError, MissingInputError, UsageError
 from physverify.datasets._videophy_tables import LABELS_DIR, read_table
@@ -64,14 +74,13 @@ from physverify.evaluation.settings import H3Settings, load_h3
 from physverify.evaluation.state import DEV_SPLIT, FreezeInputs, current_record
 from physverify.finetune.records import BASE_TAG, PromptRecord, read_record, write_record
 from physverify.finetune.scorers._base import AggregateScorer
-from physverify.finetune.scorers.calibrated import check_registry
 from physverify.finetune.scoring import build_scorer, rescorer, score_candidates, scorer_registry
 from physverify.finetune.seeds import parse_shard
 from physverify.finetune.selection import Selection
 from physverify.finetune.settings import FinetuneSettings, load_finetune
+from physverify.finetune.stop_rule import fired_reason, frozen_state
 from physverify.finetune.store import SELECTED_FILE, CampaignStore
 from physverify.runtime.runs import current_commit
-from physverify.verification.runner import CHECKS_SECTION, ChecksSettings
 
 NAME = "h3"
 OWNER = "A13"
@@ -148,8 +157,7 @@ def _active_scorer(h: H3Context) -> AggregateScorer:
 
 
 def _checks_hash(h: H3Context) -> str:
-    settings = h.context.settings
-    return checks_hash(check_registry(), settings.section(CHECKS_SECTION, ChecksSettings))
+    return active_checks_hash(h.context.settings, h.context.registry("checks"))
 
 
 def _judge(h: H3Context) -> Videophy2AutoevalJudge:
@@ -199,6 +207,7 @@ def _current(h: H3Context) -> H3Preregistration:
         margin_rows=_reference_rows(source),
         margin_source=source,
         commit=current_commit(settings.repo_root),
+        stop_rule=frozen_state(current_verdict(settings, h.finetune, h.store, scorer)),
     )
     try:
         return current_record(inputs, dt.datetime.now(dt.UTC))
@@ -222,8 +231,14 @@ def _tags(prereg: H3Preregistration) -> list[str]:
 
 @app.command("generate", help="Generate the eval candidates of one arm (resumes).")
 @heavy_command
-def generate(arm: ArmOption = "base", shard: ShardOption = None, limit: int | None = None) -> None:
+def generate(
+    arm: ArmOption = "base",
+    shard: ShardOption = None,
+    limit: int | None = None,
+    stop_rule_deviation: StopRuleDeviationOption = None,
+) -> None:
     h = _h3()
+    _require_stop_rule(h, stop_rule_deviation)
     require_cuda(h.context.settings)
     tag, adapter = _arm(h, arm)
     candidates = h.finetune.candidates.model_copy(
@@ -245,6 +260,11 @@ def generate(arm: ArmOption = "base", shard: ShardOption = None, limit: int | No
     typer.echo(f"{tag}: generated {len(report.generated)} eval candidates")
 
 
+def _require_stop_rule(h: H3Context, deviation: str | None) -> bool:
+    """The eval arm runs only when the pilot showed the verifier can rank candidates."""
+    return require_stop_rule(h.context.settings, h.finetune, h.store, _scorer(h), deviation).passed
+
+
 def _eval_data(h: H3Context) -> bool:
     scorers = list(scorer_registry())
     return has_eval_scores(h.store, scorers) or bool(h.layout.judge_outputs(EVAL_SPLIT))
@@ -262,9 +282,13 @@ def freeze(
             "(with --force; the latter makes the verdict post hoc)."
         ),
     ] = None,
+    stop_rule_deviation: StopRuleDeviationOption = None,
 ) -> None:
     h = _h3()
-    current = _current(h)
+    passed = _require_stop_rule(h, stop_rule_deviation)
+    current = _current(h).model_copy(
+        update={"stop_rule_deviation": None if passed else stop_rule_deviation}
+    )
     request = FreezeRequest(force, declare_deviation, _eval_data(h), h.layout.gate.is_file())
     old = optional_prereg(h.layout.prereg)
     record = plan_freeze(old, file_sha256(h.layout.prereg), current, request)
@@ -279,6 +303,7 @@ def freeze(
 
 def _freeze_lines(record: H3Preregistration) -> list[str]:
     usability = "not judged yet" if record.usability is None else str(record.usability.usable)
+    fired = fired_reason(record.stop_rule, record.stop_rule_deviation)
     return [
         f"rule {record.rule} ({record.rule_status}, label {record.rule_label}); "
         f"contaminated {record.contaminated}",
@@ -286,6 +311,7 @@ def _freeze_lines(record: H3Preregistration) -> list[str]:
         f"margins {json.dumps(record.margins)}; external judge usable on dev: {usability}",
         f"MDE (estimated on dev): verifier {record.mde.verifier_mde}, PC {record.mde.pc_mde}",
         *[f"deviation: {d}" for d in record.deviations],
+        *([] if fired is None else [f"NO VERDICT: {fired}"]),
         *(["POST HOC: refrozen after eval data existed"] if record.post_hoc else []),
     ]
 
@@ -306,6 +332,7 @@ def score(arm: ArmOption = "base", shard: ShardOption = None) -> None:
     prompts = eval_prompts(_prompts(h))
     deps = scoring_deps(h.context)
     score_candidates(h.store, tag, prompts, scorer, deps, parse_shard(shard))
+    write_calibration_status(h.store, tag, scorer)
     record = manifest(h.store, tag, scorer, _checks_hash(h), sha256)
     write_record(h.layout.scoring(tag, scorer.name), record)
     typer.echo(f"{tag}/{scorer.name}: {record.n} eval scores under {record.stamp}")

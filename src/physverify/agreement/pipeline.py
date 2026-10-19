@@ -23,6 +23,7 @@ from physverify.agreement.analysis import (
     cut_metrics,
     evaluate_view,
     h2_verdict,
+    view_design_effect,
 )
 from physverify.agreement.breakdown import AGGREGATE, by_version, per_check, per_group
 from physverify.agreement.decision import CALIBRATED_NAME, ClipDecisionRule
@@ -41,6 +42,16 @@ from physverify.datasets._videophy_tables import VideophyRow
 
 
 @dataclass(frozen=True)
+class RuleScope:
+    """``rule`` already leaves out ``[check_scope].exclude_checks``; ``primary_excluded`` are the
+    time-dependent checks when the primary also leaves them out, and ``time_dependent`` the ones
+    the sensitivity block moves in or out."""
+
+    time_dependent: frozenset[str] = frozenset()
+    primary_excluded: frozenset[str] = frozenset()
+
+
+@dataclass(frozen=True)
 class ComparisonInputs:
     rows: Sequence[VideophyRow]
     run: VerifyRun
@@ -51,6 +62,11 @@ class ComparisonInputs:
     dev_majority: int | None
     preregistered: bool
     audit: FreezeAudit | None = None
+    scope: RuleScope = RuleScope()
+    gate: str | None = None
+    """Why the calibrated stratum was not usable (the provisional rule ran instead)."""
+    calibration: dict[str, Any] | None = None
+    dev_design_effect: float | None = None
 
 
 @dataclass(frozen=True)
@@ -78,12 +94,24 @@ def _groups(
     return {
         group: {
             policy: evaluate_view(
-                members, policy_view(members, policy), inputs.dev_majority, plan, test
+                members,
+                policy_view(members, policy),
+                inputs.dev_majority,
+                plan,
+                test,
+                _frozen_design_effect(inputs, group, policy),
             )
             for policy in POLICIES
         }
         for group, members in by_version(items).items()
     }
+
+
+def _frozen_design_effect(inputs: ComparisonInputs, group: str, policy: str) -> float | None:
+    """The dev design effect was estimated on the aggregate primary view only; every other
+    view estimates its own on the compared data."""
+    primary = group == AGGREGATE and policy == inputs.agreement.primary_policy
+    return inputs.dev_design_effect if primary else None
 
 
 def _secondary(
@@ -98,17 +126,22 @@ def _secondary(
 
 
 def _sensitivity(inputs: ComparisonInputs) -> dict[str, Any]:
-    """The primary policy without the checks that need a trusted time base (Juicio change 7)."""
-    timeless, _ = _items(inputs, frozenset(inputs.agreement.time_dependent_checks))
+    """The primary policy with the time-dependent checks moved: out of the primary by default
+    (Juicio change 7), back in when the primary already leaves them out."""
+    scope = inputs.scope
+    in_primary = not scope.primary_excluded
+    moved, _ = _items(inputs, scope.time_dependent if in_primary else frozenset())
     plan = BootstrapPlan(0, inputs.agreement.bootstrap_seed, inputs.agreement.ci)
     test = (inputs.agreement.alpha, inputs.agreement.power)
     policy = inputs.agreement.primary_policy
     return {
-        "excluded": list(inputs.agreement.time_dependent_checks),
+        "time_dependent": sorted(scope.time_dependent),
+        "time_dependent_in_primary": in_primary,
+        "excluded": sorted(scope.time_dependent) if in_primary else [],
         "policy": policy,
         "groups": {
             g: evaluate_view(m, policy_view(m, policy), inputs.dev_majority, plan, test)
-            for g, m in by_version(timeless).items()
+            for g, m in by_version(moved).items()
         },
     }
 
@@ -126,20 +159,23 @@ def _coverage(items: Sequence[ComparisonItem]) -> dict[str, float]:
 def compare(inputs: ComparisonInputs) -> Comparison:
     agreement = inputs.agreement
     rule = inputs.rule
-    items, counts = _items(inputs, frozenset())
+    primary_excluded = inputs.scope.primary_excluded
+    items, counts = _items(inputs, primary_excluded)
     plan = BootstrapPlan(agreement.bootstrap_n, agreement.bootstrap_seed, agreement.ci)
     groups = _groups(inputs, items, plan)
     primary = groups[AGGREGATE][agreement.primary_policy]
     policy = agreement.primary_policy
 
     def redecide(excluded: frozenset[str]) -> list[ComparisonItem]:
-        return _items(inputs, excluded)[0]
+        return _items(inputs, primary_excluded | excluded)[0]
 
     checks = per_check(items, redecide, inputs.run.check_ids, policy)
     generators = per_group(items, lambda it: f"{it.row.version}:{it.row.generator}", policy)
     audit = inputs.audit
     metrics: dict[str, Any] = {
         "rule": rule.label,
+        "calibration": {"gate": inputs.gate, "stratum": inputs.calibration},
+        "primary_excluded": sorted(primary_excluded),
         "preregistered": inputs.preregistered,
         "preregistration": None if audit is None else audit.model_dump(),
         "run": {
@@ -157,13 +193,14 @@ def compare(inputs: ComparisonInputs) -> Comparison:
         "per_check": checks,
         "per_generator": generators,
         "secondary_cuts": _secondary(rule, inputs, items),
-        "sensitivity_without_time_dependent": _sensitivity(inputs),
+        "sensitivity_time_dependent": _sensitivity(inputs),
         "risk_coverage_vlm": {g: risk_coverage(m) for g, m in by_version(items).items()},
         "h2_verdict": h2_verdict(
             primary,
             rule.name == CALIBRATED_NAME and inputs.preregistered,
             agreement.alpha,
             post_hoc=audit is not None and audit.post_hoc,
+            gate=inputs.gate,
         ),
     }
     return Comparison(
@@ -190,11 +227,16 @@ class DevFreeze:
     majority: int | None
     cut: float | None
     tuned_cut: float | None
+    design: dict[str, float | int] | None = None
+    """Estimated design effect of the primary policy's discordance on dev (frozen, item 1.3)."""
 
 
-def freeze_dev(rows: Sequence[VideophyRow], rule: ClipDecisionRule, run: VerifyRun) -> DevFreeze:
-    """On h2_dev: the majority class, and the cut of maximum balanced accuracy on the score
-    (primary for the calibrated rule, secondary ``dev_tuned`` for the provisional one)."""
+def freeze_dev(
+    rows: Sequence[VideophyRow], rule: ClipDecisionRule, run: VerifyRun, policy: str
+) -> DevFreeze:
+    """On h2_dev: the majority class, the cut of maximum balanced accuracy on the score
+    (primary for the calibrated rule, secondary ``dev_tuned`` for the provisional one) and the
+    design effect of ``policy`` under that cut."""
     decisions = decide_all(rule, run)
     labelled = [
         (label, decisions[r.clip_id].score)
@@ -208,6 +250,9 @@ def freeze_dev(rows: Sequence[VideophyRow], rule: ClipDecisionRule, run: VerifyR
     majority = int(np.mean(y) > 0.5)
     cut = best_cut(y, score)
     calibrated = rule.name == CALIBRATED_NAME
-    return DevFreeze(
-        len(labelled), majority, cut if calibrated else None, None if calibrated else cut
-    )
+    primary_cut = cut if calibrated else None
+    design = None
+    if primary_cut is not None or not calibrated:
+        items, _ = build_items(rows, decisions, run, primary_cut)
+        design = view_design_effect(items, policy_view(items, policy))
+    return DevFreeze(len(labelled), majority, primary_cut, None if calibrated else cut, design)

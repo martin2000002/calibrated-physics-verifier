@@ -27,6 +27,7 @@ EXIT_USAGE = 2
 RUN_ID = "raw-oracle"
 REPORT = synthetic_report(40)
 FAST = ("--set", "calibration.bootstrap=100")
+STRICT = ("--set", "calibration.require_calibrated_artifact=true")
 
 
 class CalibFixtureDataset:
@@ -123,8 +124,9 @@ def test_publish_refuses_an_artifact_that_is_not_calibrated(
 ) -> None:
     out = tmp_path / "calibration.json"
     fit(cli, raw_run, out)
-    result = cli("calibrate", "publish", "--level", "oracle", "--artifact", str(out))
+    result = cli(*STRICT, "calibrate", "publish", "--level", "oracle", "--artifact", str(out))
     assert result.code == EXIT_USAGE and "--force" in result.err
+    assert "not 'calibrated'" in result.err
     assert not settings.paths.thresholds.exists()
 
 
@@ -134,9 +136,11 @@ def test_publish_writes_the_thresholds_verify_reads(
     out = settings.paths.calibration_dir / "calibration.json"
     fit(cli, raw_run, out)
     before = sha256(out)
-    result = cli("calibrate", "publish", "--level", "oracle", "--artifact", str(out), "--force")
+    result = cli(
+        *STRICT, "calibrate", "publish", "--level", "oracle", "--artifact", str(out), "--force"
+    )
     assert result.code == 0, result.err
-    assert "warning: publishing an artifact that is insufficient" in result.err
+    assert "warning: publishing a stratum that is not usable" in result.err
     published = json.loads(settings.paths.thresholds.read_text(encoding="utf-8"))
     assert published["status"] == CALIBRATED
     assert published["artifact"]["sha256"] == before
@@ -144,6 +148,32 @@ def test_publish_writes_the_thresholds_verify_reads(
     shown = cli("calibrate", "show", "--artifact", str(out))
     assert shown.code == 0 and "R1 ok tau" in shown.out
     assert sha256(out) == before
+
+
+def test_publish_follows_the_consumers_gate(
+    cli: CliRunner, raw_run: str, tmp_path: Path, settings: Settings
+) -> None:
+    """Without require_calibrated_artifact only the stratum is required (0b.2): the fixture is
+    ``insufficient`` but its oracle stratum is usable, as H2 and H3 would see it."""
+    out = tmp_path / "calibration.json"
+    fit(cli, raw_run, out)
+    assert load_calibration(out).status == "insufficient"
+    result = cli("calibrate", "publish", "--level", "oracle", "--artifact", str(out))
+    assert result.code == 0, result.err
+    assert "warning" not in result.err
+    assert settings.paths.thresholds.is_file()
+
+
+def test_publish_rejects_a_stale_artifact_even_with_force(
+    cli: CliRunner, raw_run: str, tmp_path: Path
+) -> None:
+    out = tmp_path / "calibration.json"
+    fit(cli, raw_run, out)
+    stale = ("--set", "checks.R2.friction=0.9")
+    result = cli(
+        *stale, "calibrate", "publish", "--level", "oracle", "--artifact", str(out), "--force"
+    )
+    assert result.code == EXIT_USAGE and "refit" in result.err
 
 
 def test_two_runs_at_one_level_are_refused(

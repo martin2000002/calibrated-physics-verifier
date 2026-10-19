@@ -22,6 +22,7 @@ from physverify.evaluation.verdict import (
     VerdictInputs,
     h3_verdict,
 )
+from physverify.finetune.stop_rule import StopRuleState, fired_reason
 
 MARGIN = 0.13
 
@@ -194,3 +195,12 @@ def test_a_post_hoc_freeze_marks_the_verdict_without_changing_its_tier() -> None
     assert not plain.post_hoc and late.post_hoc
     assert late.verdict == plain.verdict
     assert late.reasons[-1].startswith("post hoc")
+
+
+def test_a_fired_stop_rule_leaves_h3_without_a_verdict() -> None:
+    state = StopRuleState(passed=False, enforced=True, reasons=["few pairs"], pairs_sha256="p")
+    reason = fired_reason(state, "pilot accepted")
+    assert reason is not None and "'pilot accepted'" in reason
+    result = h3_verdict(_inputs(stop_rule_fired=reason))
+    assert result.verdict == NO_VERDICT and reason in result.reasons
+    assert fired_reason(state.model_copy(update={"passed": True}), None) is None

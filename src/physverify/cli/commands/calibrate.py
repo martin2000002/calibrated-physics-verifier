@@ -28,9 +28,12 @@ from physverify.calibration.evaluate import EvaluationInputs, EvaluationMeta, ev
 from physverify.calibration.fit import FitInputs, FitMeta, LevelData, fit_calibration
 from physverify.calibration.loader import (
     Calibration,
+    CalibrationError,
     Stratum,
+    UnusableStratumError,
     default_artifact_path,
     load_calibration,
+    open_stratum,
     projection_name,
 )
 from physverify.calibration.report import (
@@ -44,8 +47,8 @@ from physverify.calibration.report import (
 from physverify.calibration.schema import DatasetRef, StageFactor, StageSigma
 from physverify.calibration.settings import (
     CalibrationConfig,
+    active_checks_hash,
     calibration_config,
-    checks_hash,
 )
 from physverify.calibration.sigma import factor_map, recalibrate_profile, stage_factors
 from physverify.calibration.table import scene_of
@@ -84,8 +87,8 @@ from physverify.verification.inputs import (
 )
 from physverify.verification.policies.raw import RawPolicy
 from physverify.verification.runner import (
-    CALIBRATED,
     CHECKS_SECTION,
+    UNKNOWN_ROW_STEP,
     ChecksSettings,
     VerificationReport,
     VerificationRunner,
@@ -155,7 +158,7 @@ def _check_units(session: Session) -> tuple[CheckUnit, ...]:
 
 
 def _checks_hash(session: Session) -> str:
-    return checks_hash(session.context.registry("checks"), _overrides(session))
+    return active_checks_hash(session.context.settings, session.context.registry("checks"))
 
 
 def _source(session: Session, dataset: DatasetSource, level: InputLevel) -> InputSource:
@@ -506,29 +509,41 @@ def publish(
     profile: ProfileOption = None,
     artifact: ArtifactOption = None,
     force: Annotated[
-        bool, typer.Option(help="Publish an artifact that is not calibrated (warns).")
+        bool, typer.Option(help="Publish a stratum that is not usable yet (warns).")
     ] = False,
 ) -> None:
     session = _session()
-    calibration = _artifact(session, artifact)
     if level not in (InputLevel.ORACLE.value, InputLevel.PERCEIVED.value):
         raise UsageError("--level must be oracle or perceived")
-    if calibration.status != CALIBRATED:
-        if not force:
-            raise UsageError(
-                f"{calibration.path} is {calibration.status}, not {CALIBRATED}: refit on more "
-                "scenes or pass --force"
-            )
-        typer.echo(
-            f"warning: publishing an artifact that is {calibration.status}; "
-            "only its ok checks decide",
-            err=True,
-        )
-    stratum = calibration.stratum(InputLevel(level), profile or session.context.settings.profile)
+    path = artifact or default_artifact_path(session.context.settings)
+    stratum = _publishable(session, path, InputLevel(level), profile, force=force)
     settings = session.context.settings
     target = settings.paths.thresholds
     _write(target, _projection_text(stratum, settings.paths.calibration_dir))
     typer.echo(f"thresholds: {target} ({stratum.source})")
+
+
+def _publishable(
+    session: Session, path: Path, level: InputLevel, profile: str | None, *, force: bool
+) -> Stratum:
+    """The stratum through the consumers' gate; ``force`` publishes one that is not usable."""
+    name = profile or session.context.settings.profile
+    try:
+        return open_stratum(
+            path,
+            level,
+            name,
+            checks_hash=_checks_hash(session),
+            row_step=UNKNOWN_ROW_STEP,
+            require_calibrated=session.config.calibration.require_calibrated_artifact,
+        )
+    except UnusableStratumError as exc:
+        if not force:
+            raise UsageError(f"{exc}: refit on more scenes or pass --force") from exc
+        typer.echo(f"warning: publishing a stratum that is not usable ({exc})", err=True)
+    except CalibrationError as exc:
+        raise UsageError(str(exc)) from exc
+    return load_calibration(path).stratum(level, name)
 
 
 @app.command("show", help="Summary of the artifact per stratum and check.")

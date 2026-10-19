@@ -4,6 +4,7 @@ calibration API (ADR 0011 D10): the CLI only parses options and prints."""
 from __future__ import annotations
 
 import datetime as dt
+import math
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -15,9 +16,17 @@ from physverify.agreement.decision import (
     CalibrationStratum,
     ClipDecisionRule,
     ProvisionalAnyFail,
+    StratumRequest,
+    UnusableCalibrationError,
     calibrated_rule,
 )
-from physverify.agreement.pipeline import Comparison, ComparisonInputs, compare, freeze_dev
+from physverify.agreement.pipeline import (
+    Comparison,
+    ComparisonInputs,
+    RuleScope,
+    compare,
+    freeze_dev,
+)
 from physverify.agreement.prereg import (
     FreezeAudit,
     LoggedComparison,
@@ -33,13 +42,14 @@ from physverify.agreement.prereg import (
     preregistration_chain,
     require_unchanged,
 )
-from physverify.agreement.run_io import VerifyRun, load_run, run_files
+from physverify.agreement.run_io import VerifyRun, load_run, run_files, run_row_step
 from physverify.agreement.settings import (
     SECTION,
     AgreementSettings,
     agreement_settings,
     preregistration_path,
 )
+from physverify.calibration.settings import check_registry
 from physverify.core.errors import ConfigError, UsageError
 from physverify.datasets._queries import derive_queries
 from physverify.datasets._videophy_review import REVIEWED, SubsetReview, load_review, template
@@ -55,6 +65,8 @@ from physverify.verification.runner import (
     load_thresholds,
     thresholds_label,
 )
+from physverify.verification.scope import SECTION as SCOPE_SECTION
+from physverify.verification.scope import check_scope
 
 if TYPE_CHECKING:
     from physverify.config.models import Settings
@@ -65,25 +77,72 @@ type ApiLoader[S: CalibrationStratum] = Callable[[], CalibrationApi[S]]
 
 @dataclass(frozen=True)
 class RuleSetup:
-    """``thresholds`` is the label verify must have used (provisional rule only)."""
+    """``thresholds`` is the label verify must have used (provisional rule, also as the
+    fallback); ``gate`` why the calibrated stratum was not usable, and ``calibration`` its state
+    per check when it was opened."""
 
     rule: ClipDecisionRule
     artifact: Path | None
     thresholds: str | None
+    scope: RuleScope = RuleScope()
+    gate: str | None = None
+    calibration: dict[str, object] | None = None
+
+    @property
+    def primary(self) -> ClipDecisionRule:
+        return self.rule.excluding(self.scope.primary_excluded)
+
+
+def rule_scope(
+    settings: Settings, agreement: AgreementSettings
+) -> tuple[frozenset[str], RuleScope]:
+    """``[check_scope]`` for H2: the excluded checks and the time-dependent ones."""
+    scope = check_scope(settings, check_registry())
+    timed = frozenset(scope.time_dependent_checks)
+    primary = timed if agreement.exclude_time_dependent else frozenset()
+    return frozenset(scope.exclude_checks), RuleScope(timed, primary)
 
 
 def build_rule[S: CalibrationStratum](
-    settings: Settings, agreement: AgreementSettings, profile: str, api_loader: ApiLoader[S]
+    settings: Settings,
+    agreement: AgreementSettings,
+    run: VerifyRun,
+    api_loader: ApiLoader[S],
 ) -> RuleSetup:
-    excluded = agreement.exclude_checks
-    if agreement.rule == CALIBRATED_NAME:
-        api = api_loader()
-        artifact = api.default_artifact_path(settings)
-        rule = calibrated_rule(api, artifact, profile, excluded)
-        return RuleSetup(rule, artifact, None)
+    excluded, scope = rule_scope(settings, agreement)
+    if agreement.rule != CALIBRATED_NAME:
+        return _provisional(settings, excluded, scope, None)
+    api = api_loader()
+    artifact = api.default_artifact_path(settings)
+    request = StratumRequest(
+        artifact=artifact,
+        profile=run.profile,
+        row_step=run_row_step(run),
+        checks_hash=api.active_checks_hash(settings),
+        require_calibrated=api.require_calibrated(settings),
+    )
+    try:
+        rule = calibrated_rule(api, request, excluded)
+    except UnusableCalibrationError as exc:
+        if agreement.on_unusable_stratum == "error":
+            raise ConfigError(f"calibration {artifact}: {exc}") from exc
+        return _provisional(settings, excluded, scope, str(exc), artifact)
+    return RuleSetup(rule, artifact, None, scope, calibration=dict(rule.status))
+
+
+def _provisional(
+    settings: Settings,
+    excluded: frozenset[str],
+    scope: RuleScope,
+    gate: str | None,
+    artifact: Path | None = None,
+) -> RuleSetup:
+    """The provisional rule, also the fallback of an unusable stratum (descriptive H2), which
+    keeps the artifact so the freeze binds the one whose stratum was found unusable."""
     verification = settings.section(VERIFICATION_SECTION, VerificationSettings)
     thresholds = load_thresholds(settings.paths.thresholds, verification.thresholds)
-    return RuleSetup(ProvisionalAnyFail(thresholds, excluded), None, thresholds_label(thresholds))
+    rule = ProvisionalAnyFail(thresholds, excluded)
+    return RuleSetup(rule, artifact, thresholds_label(thresholds), scope, gate)
 
 
 def check_run(
@@ -112,7 +171,8 @@ def frozen_state(
     """Current values of the pre-registered fields (``prereg.FROZEN_FIELDS``)."""
     review = load_review(dataset.subset_path)
     subsets = {} if review is None else {p: r.sha256 for p, r in review.subsets.items()}
-    config = {name: settings.sections.get(name) for name in (SECTION, VIDEOPHY_SECTION)}
+    sections = (SECTION, VIDEOPHY_SECTION, SCOPE_SECTION)
+    config = {name: settings.sections.get(name) for name in sections}
     return {
         "commit": current_commit(settings.repo_root),
         "agreement_config_sha256": stable_hash(config),
@@ -124,6 +184,7 @@ def frozen_state(
         "rule": setup.rule.name,
         "rule_label": setup.rule.label,
         "profile": profile,
+        "calibration_gate": setup.gate,
     }
 
 
@@ -137,9 +198,9 @@ def freeze[S: CalibrationStratum](
     agreement = agreement_settings(settings)
     run = load_run(run_dir)
     rows = dataset.rows(agreement.dev_subset)
-    setup = build_rule(settings, agreement, run.profile, api_loader)
+    setup = build_rule(settings, agreement, run, api_loader)
     check_run(run, rows, setup, Split.CALIB)
-    dev = freeze_dev(rows, setup.rule, run)
+    dev = freeze_dev(rows, setup.primary, run, agreement.primary_policy)
     if dev.n == 0:
         raise UsageError(f"{run_dir} has no labelled clip of {agreement.dev_subset}")
     state = frozen_state(settings, dataset, setup, run.profile)
@@ -156,9 +217,16 @@ def freeze[S: CalibrationStratum](
             "dev_cut": dev.cut,
             "dev_tuned_cut": dev.tuned_cut,
             "kubric_threshold": setup.rule.kubric_threshold,
+            "dev_icc": _finite(dev.design, "icc"),
+            "dev_design_effect": _finite(dev.design, "deff"),
         }
     )
     return preregistration_path(settings, agreement), record
+
+
+def _finite(design: Mapping[str, float | int] | None, key: str) -> float | None:
+    value = None if design is None else float(design[key])
+    return value if value is not None and math.isfinite(value) else None
 
 
 @dataclass(frozen=True)
@@ -221,7 +289,7 @@ def run_comparison[S: CalibrationStratum](
     subset = request.subset or agreement.test_subset
     run = load_run(request.run_dir)
     rows = dataset.rows(subset)
-    setup = build_rule(settings, agreement, run.profile, api_loader)
+    setup = build_rule(settings, agreement, run, api_loader)
     check_run(run, rows, setup, None)
     default_path = preregistration_path(settings, agreement)
     path = request.preregistration or default_path
@@ -244,6 +312,10 @@ def run_comparison[S: CalibrationStratum](
             dev_majority=None if frozen is None else frozen.dev_majority,
             preregistered=preregistered,
             audit=audit_,
+            scope=setup.scope,
+            gate=setup.gate,
+            calibration=setup.calibration,
+            dev_design_effect=None if frozen is None else frozen.dev_design_effect,
         )
     )
 

@@ -54,6 +54,7 @@ class VerdictInputs:
     alpha: float
     guards: Mapping[str, GuardState] = field(default_factory=dict)
     post_hoc: bool = False
+    stop_rule_fired: str | None = None
 
 
 class H3Verdict(BaseModel):
@@ -98,6 +99,8 @@ def _provisional_reasons(v: VerdictInputs) -> list[str]:
         reasons.append("calibration dataset is contaminated")
     if not v.label_matches:
         reasons.append("score stamp differs from the frozen rule label")
+    if v.stop_rule_fired is not None:
+        reasons.append(v.stop_rule_fired)
     return reasons
 
 
