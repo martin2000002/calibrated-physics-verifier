@@ -6,26 +6,35 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
+from check_rows import UNCACHED, write_check_rows
 
-H200 = Path(__file__).resolve().parents[2] / "scripts" / "h200"
+REPO = Path(__file__).resolve().parents[2]
+H200 = REPO / "scripts" / "h200"
 SCRIPT = H200 / "run_a8v2.sh"
 TOOLS = (
-    "basename", "bash", "cat", "cmp", "dirname", "env", "grep", "head", "mkdir", "mv", "nproc",
-    "realpath", "sed", "sort", "tee", "touch", "tr",
+    "basename", "bash", "cat", "cmp", "cp", "dirname", "env", "grep", "head", "mkdir", "mv",
+    "nice", "nproc", "realpath", "sed", "sort", "tee", "touch", "tr",
 )  # fmt: skip
 PREFIX = re.compile(r"^--profile precise --device cpu --set runtime\.threads=\d+ ")
+# The query helper runs for real on run-errors (it reads the checks.jsonl verify wrote) unless the
+# run holds the clean rows and REAL_QUERY is unset: its import costs seconds per call.
 FAKE_PYTHON = r"""#!/bin/bash
 if [[ "$1" != -c ]]; then
-    shift
-    printf 'query %s\n' "$*" >> "$CALLS"
+    printf 'query %s\n' "${*:2}" >> "$CALLS"
     case "$*" in
+      *"run-errors "*)
+        [[ -z "${REAL_QUERY:-}" ]] && cmp -s "$CLEAN_CHECKS" "${!#}/checks.jsonl" && exit 0
+        PYTHONPATH="$REAL_SRC" exec "$REAL_PYTHON" "$@" ;;
       *"clips pisa_real full") printf '%s\n' ${PISA_SELECTED:-p1 p2} ;;
       *"clips kubric_synthetic full --split calib") printf 'k1\nk2\nk3\n' ;;
+      *"clips kubric_synthetic full") printf 'k1\nk2\nk3\nk4\nk5\n' ;;
       *"clips physics_iq full") echo q1 ;;
-      *"rerendered "*) echo k1 ;;
+      *"rerendered "*"--missing-ok") echo k1 ;;
+      *"rerendered "*) echo k1; exit "${MIGRATED_EXIT:-0}" ;;
       *"evaluation "*) echo "## H1 primary"; exit "${EVAL_QUERY_EXIT:-0}" ;;
       *"gravity "*) echo "| lift | 3 |" ;;
     esac
@@ -47,11 +56,15 @@ case "$*" in
     echo "paths.cache_dir: ${CACHE:-$DATA/cache} (env)"
     echo "paths.error_profile: ${PROFILE_FILE:-$DATA/calibration/stage_errors.precise.json}"
     echo "paths.synthetic_dir: $DATA/synthetic"
+    echo "paths.data_dir: $DATA"
     echo "heavy_lock: $PHYSVERIFY__RUNTIME__HEAVY_LOCK (free)" ;;
   *" verify "*)
     new_run
-    if [[ -n "${NOT_CACHED:-}" ]]; then echo "a heavy stage is not cached"; exit 1; fi ;;
+    if [[ -n "${NOT_CACHED:-}" ]]; then cp "$UNCACHED_CHECKS" "$RUN/checks.jsonl"
+    else cp "$CLEAN_CHECKS" "$RUN/checks.jsonl"; fi ;;
   *" extract run "*) new_run; exit "${EXTRACT_EXIT:-0}" ;;
+  *"--no-lock diagnose stages "*)
+    [[ "$* " != *" --clips ${FAILED_SHARD_CLIP:-none} "* ]] || exit 1 ;;
   *" diagnose stages "*) new_run ;;
   *" calibrate evaluate "*)
     new_run
@@ -72,7 +85,7 @@ FAKE_MIGRATE = """#!/bin/bash
 printf 'migrate %s %s\\n' "$PHYSVERIFY_MIGRATE_NAME" "${PHYSVERIFY_LOCK_HELD-unset}" >> "$CALLS"
 """
 FAKE_PS = '#!/bin/bash\nprintf "%s\\n" "${PS_OUT:-  1 init}"\n'
-FAKE_GIT = "#!/bin/bash\necho c0ffee1234567\n"
+FAKE_GIT = '#!/bin/bash\n[[ "$*" != *" diff "* ]] || exit "${DIRTY:-0}"\necho c0ffee1234567\n'
 STEP_NAMES = (
     "migrate", "extract-synthetic", "stages", "relift", "stage-sigma", "fit", "evaluate",
     "abstain", "r2-arms", "decide", "size-eval", "gravity",
@@ -95,6 +108,7 @@ class Sandbox:
         self.script = scripts / SCRIPT.name
         shutil.copy2(SCRIPT, self.script)
         shutil.copy2(H200 / "_common.sh", scripts / "_common.sh")
+        shutil.copy2(H200 / "a8v2_query.py", scripts / "a8v2_query.py")
         _executable(scripts / "migrate_velocity.sh", FAKE_MIGRATE)
         tools, fakes = self.root / "tools", self.root / "fakes"
         tools.mkdir()
@@ -114,6 +128,10 @@ class Sandbox:
         self.data.mkdir()
         self.env = {
             "PATH": f"{fakes}:{tools}",
+            "REAL_PYTHON": sys.executable,
+            "REAL_SRC": str(REPO / "src"),
+            "CLEAN_CHECKS": str(write_check_rows(self.root / "clean.jsonl")),
+            "UNCACHED_CHECKS": str(write_check_rows(self.root / "uncached.jsonl", error=UNCACHED)),
             "CALLS": str(self.calls),
             "DATA": str(self.data),
             "PHYSVERIFY_H200_ROOT": str(self.root),
@@ -215,7 +233,7 @@ def test_a_bad_start_step_is_a_usage_error(sandbox: Sandbox, start: str) -> None
 
 
 def test_the_full_run_preflights_then_runs_every_step_in_order(sandbox: Sandbox) -> None:
-    result = sandbox.run()
+    result = sandbox.run(REAL_QUERY="1")
     assert result.returncode == 0, result.stderr
     assert all(PREFIX.match(line[3:]) for line in sandbox.lines() if line.startswith("pv "))
     ks = "--dataset kubric_synthetic --subset full"
@@ -278,10 +296,76 @@ def test_resuming_after_the_migration_does_not_need_it(sandbox: Sandbox) -> None
 
 
 def test_an_uncached_preflight_clip_stops_before_the_migration(sandbox: Sandbox) -> None:
+    """verify exits 0 on an uncached clip; only its checks.jsonl carries the error."""
     result = sandbox.run(NOT_CACHED="1")
     assert result.returncode == 2
-    assert "is not cached" in result.stderr
+    assert "is not cached" in result.stderr and "heavy stage is not cached" in result.stderr
+    assert sandbox.steps()[-1][:3] == ["pre", "preflight", "2"]
     assert not any(c.startswith("migrate") for c in sandbox.commands())
+
+
+def test_uncommitted_changes_stop_it_before_any_call(sandbox: Sandbox) -> None:
+    result = sandbox.run(DIRTY="1")
+    assert result.returncode == 2
+    assert "uncommitted changes" in result.stderr
+    assert sandbox.lines() == []
+
+
+def _audit(sandbox: Sandbox) -> Path:
+    audit = sandbox.data / "runs" / "migrate-pair-collision-v1-precise" / "audit.json"
+    audit.parent.mkdir(parents=True)
+    audit.write_text("{}", encoding="utf-8")
+    return audit
+
+
+def test_a_completed_migration_is_not_rerun(sandbox: Sandbox) -> None:
+    audit = _audit(sandbox)
+    result = sandbox.run()
+    assert result.returncode == 0, result.stderr
+    assert not any(c.startswith("migrate") for c in sandbox.commands())
+    assert "already complete" in (sandbox.out / "summary.md").read_text(encoding="utf-8")
+    assert str(audit) in (sandbox.out / "summary.md").read_text(encoding="utf-8")
+
+
+def test_an_incomplete_manifest_reruns_the_migration(sandbox: Sandbox) -> None:
+    _audit(sandbox)
+    result = sandbox.run(MIGRATED_EXIT="2")
+    assert result.returncode == 2
+    assert "migrate pair-collision unset" in sandbox.commands()
+    assert sandbox.steps()[-1][:3] == ["1", "extract-synthetic", "2"]
+
+
+def _timed(sandbox: Sandbox) -> list[str]:
+    return [c for c in sandbox.commands() if c.startswith("diagnose stages") and "--clips" in c]
+
+
+def test_the_estimate_times_a_clip_once_and_never_after_step_2(sandbox: Sandbox) -> None:
+    ks = "--dataset kubric_synthetic --subset full"
+    assert sandbox.run("3", FIT_EXIT="1").returncode == 1
+    assert _timed(sandbox) == []
+    summary = (sandbox.out / "summary.md").read_text(encoding="utf-8")
+    assert "estimate: none, step 2 has already begun" in summary
+    assert sandbox.run("1", FIT_EXIT="1").returncode == 1
+    assert _timed(sandbox) == [f"diagnose stages {ks} --clips k2"]
+    assert "model loading included" in (sandbox.out / "summary.md").read_text(encoding="utf-8")
+    sandbox.calls.unlink()
+    assert sandbox.run("1").returncode == 0
+    assert _timed(sandbox) == []
+    assert "step 2 has already begun" in (sandbox.out / "summary.md").read_text(encoding="utf-8")
+
+
+def test_an_interrupted_estimate_does_not_time_the_same_clip_again(sandbox: Sandbox) -> None:
+    ks = "--dataset kubric_synthetic --subset full"
+    (sandbox.out).mkdir()
+    (sandbox.out / "state.env").write_text("TIMED_CLIPS=k2\n", encoding="utf-8")
+    assert sandbox.run("1", FIT_EXIT="1").returncode == 1
+    assert _timed(sandbox) == [f"diagnose stages {ks} --clips k3"]
+    (sandbox.out / "state.env").write_text("TIMED_CLIPS='k2 k3'\n", encoding="utf-8")
+    sandbox.calls.unlink()
+    assert sandbox.run("1", FIT_EXIT="1").returncode == 1
+    assert _timed(sandbox) == []
+    summary = (sandbox.out / "summary.md").read_text(encoding="utf-8")
+    assert "every extracted calib clip has been timed before" in summary
 
 
 def test_failed_clips_of_extract_are_tolerated_and_noted(sandbox: Sandbox) -> None:
@@ -326,3 +410,53 @@ def test_a_pisa_subset_applies_to_every_call(sandbox: Sandbox) -> None:
     assert result.returncode == 0, result.stderr
     calls = [line for line in sandbox.lines() if line.startswith(("pv ", "query "))]
     assert calls and all("--set pisa_real.max_clips=1" in line for line in calls)
+
+
+def _shards(sandbox: Sandbox) -> list[str]:
+    return sorted(c for c in sandbox.commands() if c.startswith("--no-lock"))
+
+
+def test_diag_shards_warm_the_cache_before_the_profile_call(sandbox: Sandbox) -> None:
+    ks = "--dataset kubric_synthetic --subset full"
+    result = sandbox.run("2", PHYSVERIFY_A8V2_DIAG_SHARDS="2", FIT_EXIT="1")
+    assert result.returncode == 1
+    assert _shards(sandbox) == [
+        f"--no-lock diagnose stages {ks} --clips k1 --clips k3 --clips k5",
+        f"--no-lock diagnose stages {ks} --clips k2 --clips k4",
+    ]
+    shard_lines = [line for line in sandbox.lines() if "--no-lock" in line]
+    assert all("--set runtime.threads=16 " in line for line in shard_lines)
+    assert not any("--write-profile" in line for line in shard_lines)
+    commands = sandbox.commands()
+    profile = commands.index(f"diagnose stages {ks} --write-profile")
+    assert all(commands.index(shard) < profile for shard in _shards(sandbox))
+    summary = (sandbox.out / "summary.md").read_text(encoding="utf-8")
+    assert "step 2 shard 1 (16 threads): exit 0" in summary
+
+
+def test_diag_shards_threads_can_be_set(sandbox: Sandbox) -> None:
+    env = {"PHYSVERIFY_A8V2_DIAG_SHARDS": "8", "PHYSVERIFY_A8V2_DIAG_THREADS": "3"}
+    assert sandbox.run("2", FIT_EXIT="1", **env).returncode == 1
+    assert len(_shards(sandbox)) == 5
+    shard_lines = [line for line in sandbox.lines() if "--no-lock" in line]
+    assert all("--set runtime.threads=3 " in line for line in shard_lines)
+
+
+def test_a_failed_diag_shard_stops_step_2_before_the_profile(sandbox: Sandbox) -> None:
+    result = sandbox.run("2", PHYSVERIFY_A8V2_DIAG_SHARDS="2", FAILED_SHARD_CLIP="k4")
+    assert result.returncode == 2
+    assert "1 of 2 diagnose shards failed" in result.stderr
+    assert sandbox.steps()[-1][:3] == ["2", "stages", "2"]
+    assert not any("--write-profile" in c for c in sandbox.commands())
+
+
+@pytest.mark.parametrize(
+    "env",
+    [{"PHYSVERIFY_A8V2_DIAG_SHARDS": "0"}, {"PHYSVERIFY_A8V2_DIAG_SHARDS": "2",
+                                             "PHYSVERIFY_A8V2_DIAG_THREADS": "x"}],
+)  # fmt: skip
+def test_bad_diag_shard_settings_are_usage_errors(sandbox: Sandbox, env: dict[str, str]) -> None:
+    result = sandbox.run("2", **env)
+    assert result.returncode == 2
+    assert "PHYSVERIFY_A8V2_DIAG_" in result.stderr
+    assert sandbox.lines() == []

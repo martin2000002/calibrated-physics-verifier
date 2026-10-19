@@ -9,13 +9,19 @@
 #
 #   bash scripts/h200/run_a8v2.sh [FROM]     FROM: first step to run (0-11, default 0)
 #
-#   startup  no running extract/dataset job; HEAD is PHYSVERIFY_A8V2_EXPECT_COMMIT; paths.cache_dir
-#            is PHYSVERIFY_A8V2_CACHE_DIR; the PISA selection is within what the shards extracted
-#   pre      (FROM <= 8) one cached clip per dataset verified, so a wrong cache stops here and not
-#            after days of recomputation; one timed `diagnose stages` clip (cost of steps 2 and 4)
-#    0 migrate            migrate_velocity.sh with pair-collision (needs docker)
+#   startup  no running extract/dataset job; HEAD is PHYSVERIFY_A8V2_EXPECT_COMMIT with no
+#            uncommitted change under src, configs or scripts; paths.cache_dir is
+#            PHYSVERIFY_A8V2_CACHE_DIR; the PISA selection is within what the shards extracted
+#   pre      (FROM <= 8) one cached clip per dataset verified (any error in its checks.jsonl
+#            stops), so a wrong cache stops here and not after days of recomputation; before step 2
+#            has begun, one timed `diagnose stages` calib clip not timed before (cost of steps 2, 4)
+#    0 migrate            migrate_velocity.sh with pair-collision (needs docker); skipped when its
+#                         manifest is complete and its audit.json exists, so a rerun never purges
 #    1 extract-synthetic  re-extracts kubric_synthetic/full (only the re-rendered clips are new)
-#    2 stages             diagnose stages --write-profile (the error profile)
+#    2 stages             diagnose stages --write-profile (the error profile); with
+#                         PHYSVERIFY_A8V2_DIAG_SHARDS first that many parallel `diagnose stages`
+#                         shards of the full selection fill the heavy cache, which does not depend
+#                         on the error profile, and the single profile-writing call reads it
 #    3 relift             extract run again on kubric_synthetic, physics_iq and pisa_real (LIFT
 #                         reads the new profile)
 #    4 stage-sigma        calibrate stage-sigma
@@ -48,6 +54,8 @@
 #   PHYSVERIFY_A8V2_PISA_MAX_CLIPS  pisa_real.max_clips (default: the precise profile's, all)
 #   PHYSVERIFY_A8V2_PREFLIGHT_KUBRIC / _PHYSICS_IQ / _PISA   preflight clip ids
 #   PHYSVERIFY_A8V2_DECIDE_REPLACE  1 to supersede a different decision record
+#   PHYSVERIFY_A8V2_DIAG_SHARDS     step 2 warm-up shards (default: none), --no-lock under nice
+#   PHYSVERIFY_A8V2_DIAG_THREADS    runtime.threads of each shard (default THREADS / SHARDS)
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/_common.sh"
 cd "$REPO_ROOT"
@@ -56,7 +64,6 @@ LAST_STEP=11
 FROM="${1:-0}"
 [[ "$FROM" =~ ^(0|[1-9][0-9]*)$ && "$FROM" -le "$LAST_STEP" ]] \
     || die "FROM must be a step number 0-$LAST_STEP, got '$FROM'"
-NOT_CACHED="heavy stage is not cached"
 BUSY_JOBS='physverify(\.cli\.main)?.*(extract run|dataset (build|migrate))'
 
 # The shards ran with --no-lock, so the heavy lock cannot tell whether they are done.
@@ -68,6 +75,8 @@ EXPECT="${PHYSVERIFY_A8V2_EXPECT_COMMIT:-}"
 [[ ${#EXPECT} -ge 7 ]] || die "set PHYSVERIFY_A8V2_EXPECT_COMMIT to the commit this run uses"
 HEAD_COMMIT="$(git -C "$REPO_ROOT" rev-parse HEAD)" || die "$REPO_ROOT is not a git checkout"
 [[ "$HEAD_COMMIT" == "$EXPECT"* ]] || die "HEAD is $HEAD_COMMIT, expected $EXPECT"
+git -C "$REPO_ROOT" diff --quiet HEAD -- src configs scripts \
+    || die "uncommitted changes under src, configs or scripts: the run would not be $HEAD_COMMIT"
 PY="${PHYSVERIFY_A8V2_PYTHON:-/home/mmonterot/dev/venv/bin/python}"
 [[ -x "$PY" ]] || die "no interpreter at $PY (PHYSVERIFY_A8V2_PYTHON)"
 EXPECT_CACHE="${PHYSVERIFY_A8V2_CACHE_DIR:-}"
@@ -92,9 +101,21 @@ if [[ -n "${PHYSVERIFY_A8V2_PISA_MAX_CLIPS:-}" ]]; then
     PISA_SET=(--set "pisa_real.max_clips=$PHYSVERIFY_A8V2_PISA_MAX_CLIPS")
 fi
 KS=(--dataset kubric_synthetic --subset full)
+DIAG_SHARDS="${PHYSVERIFY_A8V2_DIAG_SHARDS:-}"
+DIAG_THREADS=""
+if [[ -n "$DIAG_SHARDS" ]]; then
+    [[ "$DIAG_SHARDS" =~ ^[1-9][0-9]*$ ]] \
+        || die "PHYSVERIFY_A8V2_DIAG_SHARDS must be a positive integer, got '$DIAG_SHARDS'"
+    per_shard=$((THREADS / DIAG_SHARDS))
+    DIAG_THREADS="${PHYSVERIFY_A8V2_DIAG_THREADS:-$((per_shard > 0 ? per_shard : 1))}"
+    [[ "$DIAG_THREADS" =~ ^[1-9][0-9]*$ ]] \
+        || die "PHYSVERIFY_A8V2_DIAG_THREADS must be a positive integer, got '$DIAG_THREADS'"
+fi
+# A prefix of every physverify call (the step 2 shards run under nice).
+PV_NICE=()
 
 pv() {
-    env PYTHONPATH="$REPO_ROOT/src" "$PY" -c "from physverify.cli.main import main; main()" \
+    "${PV_NICE[@]}" env PYTHONPATH="$REPO_ROOT/src" "$PY" -c "from physverify.cli.main import main; main()" \
         --profile precise --device "$PV_DEVICE" --set "runtime.threads=$THREADS" \
         "${PISA_SET[@]}" "$@"
 }
@@ -120,6 +141,7 @@ SYNTH_DIR="$(doctor_value paths.synthetic_dir)"
 VERSION="${PHYSVERIFY_A8V2_VERSION:-v1-precise}"
 MIGRATION=pair-collision
 MANIFEST="$SYNTH_DIR/$VERSION/migrations/$MIGRATION.json"
+AUDIT="$(doctor_value paths.data_dir)/runs/migrate-$MIGRATION-$VERSION/audit.json"
 SHARDS="${PHYSVERIFY_A8V2_SHARDS:-$H200_ROOT/logs/shards}"
 
 OUT="${PHYSVERIFY_A8V2_DIR:-$H200_ROOT/a8v2}"
@@ -273,12 +295,41 @@ preflight_verify() {
     local dataset="$1" clip="$2"
     [[ -n "$clip" ]] || stop "no extracted $dataset clip to preflight"
     call 1 -- verify --dataset "$dataset" --level perceived --subset full --clips "$clip"
-    if grep -q "$NOT_CACHED" "$LAST_LOG"; then
-        stop "$dataset clip $clip is not cached for --device cpu (see $LAST_LOG)"
-    fi
-    local run
+    local run errors
     run="$(run_of)"
+    # verify exits 0 on an uncached clip: its rows abstain with the error in checks.jsonl.
+    errors="$(query run-errors "$run" 2>&1)" \
+        || stop "$dataset clip $clip failed or is not cached for --device cpu:"$'\n'"$errors"
     note "preflight: $dataset $clip cached, run $run"
+}
+
+# The cost of steps 2 and 4 from one calib clip whose variants were never computed: none once
+# step 2 has begun, and each clip is timed at most once.
+estimate() {
+    if [[ "$FROM" -gt 2 || -n "${STAGES_BEGUN:-}" ]]; then
+        note "estimate: none, step 2 has already begun and its variants are cached"
+        return
+    fi
+    query clips kubric_synthetic full --split calib >"$OUT/kubric_calib.txt" \
+        || die "cannot list the kubric_synthetic calib clips"
+    query rerendered "$MANIFEST" --missing-ok >"$OUT/estimate_excluded.txt" \
+        || die "cannot read $MANIFEST"
+    tr -s ' ' '\n' <<<"${TIMED_CLIPS:-}" >>"$OUT/estimate_excluded.txt"
+    local clip calib start seconds
+    clip="$(first_extracted "$SHARDS/kubric_full.ids" "$OUT/kubric_calib.txt" \
+        "$OUT/estimate_excluded.txt")"
+    if [[ -z "$clip" ]]; then
+        note "estimate: none, every extracted calib clip has been timed before"
+        return
+    fi
+    save TIMED_CLIPS "${TIMED_CLIPS:+$TIMED_CLIPS }$clip"
+    calib="$(grep -c . "$OUT/kubric_calib.txt" || true)"
+    start=$SECONDS
+    call 1 -- diagnose stages "${KS[@]}" --clips "$clip"
+    seconds=$((SECONDS - start))
+    note "estimate: diagnose stages took ${seconds}s on calib clip $clip, not computed before," \
+        "model loading included; steps 2 and 4 each take about $((seconds * calib))s on the" \
+        "$calib calib clips (one-clip estimate, high by the load time)"
 }
 
 # A wrong cache would recompute every clip in extract run; one cached clip per dataset proves it.
@@ -295,27 +346,23 @@ preflight() {
     preflight_verify kubric_synthetic "$kubric"
     preflight_verify physics_iq "$physics"
     preflight_verify pisa_real "$pisa"
-    local calib start seconds
-    query clips kubric_synthetic full --split calib >"$OUT/kubric_calib.txt" \
-        || die "cannot list the kubric_synthetic calib clips"
-    calib="$(grep -c . "$OUT/kubric_calib.txt" || true)"
-    start=$SECONDS
-    call 1 -- diagnose stages "${KS[@]}" --clips "$kubric"
-    seconds=$((SECONDS - start))
-    note "estimate: diagnose stages took ${seconds}s on one calib clip ($kubric); steps 2 and 4" \
-        "each take about $((seconds * calib))s on the $calib calib clips (one-clip estimate)"
+    estimate
     row 0
 }
 
 # --- steps -------------------------------------------------------------------------------------
 
 step_0() {
+    if query rerendered "$MANIFEST" >/dev/null 2>&1 && [[ -f "$AUDIT" ]]; then
+        note "migration $MIGRATION: already complete ($MANIFEST, $AUDIT), not rerun"
+        return
+    fi
     run_logged 0 -- env -u PHYSVERIFY_LOCK_HELD \
         PHYSVERIFY_MIGRATE_ROOT="$H200_ROOT" PHYSVERIFY_MIGRATE_VERSION="$VERSION" \
         PHYSVERIFY_MIGRATE_NAME="$MIGRATION" PHYSVERIFY_MIGRATE_SUBSETS=full \
         PHYSVERIFY_MIGRATE_PYTHON="$PY" PHYSVERIFY_MIGRATE_LOCK="$PHYSVERIFY__RUNTIME__HEAVY_LOCK" \
         bash "$REPO_ROOT/scripts/h200/migrate_velocity.sh"
-    note "migration $MIGRATION: audit $PHYSVERIFY__PATHS__DATA_DIR/runs/migrate-$MIGRATION-$VERSION/audit.json"
+    note "migration $MIGRATION: audit $AUDIT"
 }
 
 step_1() {
@@ -327,7 +374,41 @@ step_1() {
     note "re-rendered clips: $(grep -c . "$OUT/rerendered.txt" || true), failed: ${failed:-0}"
 }
 
+# Round-robin shards of the full selection, each a `diagnose stages` without the profile; the heavy
+# cache keys do not depend on the error profile and its writes are atomic, so they can overlap.
+diag_shards() {
+    query clips kubric_synthetic full >"$OUT/diag_clips.txt" \
+        || stop "cannot list the kubric_synthetic clips"
+    local i id log pids=() logs=() clips=()
+    for ((i = 0; i < DIAG_SHARDS; i++)); do
+        clips=()
+        while IFS= read -r id; do
+            clips+=(--clips "$id")
+        done < <(sed -n "$((i + 1))~${DIAG_SHARDS}p" "$OUT/diag_clips.txt")
+        [[ ${#clips[@]} -gt 0 ]] || continue
+        log="$LOGS/$CUR_N-$CUR_NAME-shard-$i.log"
+        (
+            THREADS="$DIAG_THREADS"
+            PV_NICE=(nice -n 5)
+            pv --no-lock diagnose stages "${KS[@]}" "${clips[@]}"
+        ) >"$log" 2>&1 &
+        pids+=("$!")
+        logs+=("$log")
+    done
+    [[ ${#pids[@]} -gt 0 ]] || stop "no kubric_synthetic clips to shard"
+    local code failed=0
+    for i in "${!pids[@]}"; do
+        code=0
+        wait "${pids[$i]}" || code=$?
+        note "step 2 shard $i ($DIAG_THREADS threads): exit $code, log ${logs[$i]}"
+        [[ "$code" -eq 0 ]] || failed=$((failed + 1))
+    done
+    [[ "$failed" -eq 0 ]] || stop "$failed of ${#pids[@]} diagnose shards failed"
+}
+
 step_2() {
+    save STAGES_BEGUN 1
+    [[ -z "$DIAG_SHARDS" ]] || diag_shards
     call 1 -- diagnose stages "${KS[@]}" --write-profile
     local run
     run="$(run_of)"
