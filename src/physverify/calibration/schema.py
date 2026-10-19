@@ -20,12 +20,14 @@ EVALUATION_SCHEMA = "physverify.calibration.evaluation"
 LENIENT = "lenient"
 """Validation-context flag: drop keys this version does not know (newer minor version)."""
 
-CheckStatus = Literal["ok", "insufficient", "no_positives", "no_negatives"]
+CheckStatus = Literal["ok", "insufficient", "no_positives", "no_negatives", "unranked_negatives"]
 RateCi = Literal["clopper_pearson", "scene_bootstrap", "clopper_pearson_scenes"]
 OpenSide = Literal["low", "high"]
 ArtifactStatus = Literal["calibrated", "insufficient", "provisional"]
 Censoring = Literal["none", "below", "above"]
 OK: CheckStatus = "ok"
+UNRANKED_NEGATIVES: CheckStatus = "unranked_negatives"
+"""Clean clips have an event but every magnitude is NaN: the measurement is missing, not data."""
 
 
 SCHEMA_KEY = "schema"

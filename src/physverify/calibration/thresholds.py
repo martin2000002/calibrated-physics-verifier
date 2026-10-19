@@ -30,7 +30,8 @@ from physverify.calibration.verdict import DECIDED, Rule, clip_verdict
 from physverify.schema.checks import Verdict
 
 NOT_DETERMINED = "not_determined"
-"""The lowest level looks fully detected but too few clips bound the rate above 1 - beta."""
+"""L_D is neither bounded below (too few clips bound the lowest-level rate above 1 - beta) nor
+estimated (the fit fails or extrapolates below the tested range)."""
 
 
 def verdict_of(row: CalibrationRow, rule: Rule, tau: float | None) -> Verdict:
@@ -58,9 +59,11 @@ def fit_tau(clean: Sequence[CalibrationRow], bias: float, alpha: float, toleranc
     """Conformal quantile q over one clean clip per scene; tau = max(q, tolerance). The tolerance
     keeps a q made of floating-point noise (oracle clean ~1e-14) from becoming the threshold.
 
-    q ranks the clip's max corrected magnitude over its subjects, while ``clip_verdict`` judges
-    each subject. The coverage still holds: a subject i FAILs only if m_i - b - k sigma_i > tau,
-    so m_max - b >= m_i - b > tau, and P(clean clip FAILs) <= P(m_max - b > tau) <= alpha."""
+    q ranks m_max, the NaN-ignoring max magnitude over the clip's subjects (``subject_max``),
+    while ``clip_verdict`` judges each subject. The coverage still holds: a subject i FAILs only
+    if its m_i is a number and m_i - b - k sigma_i > tau, so m_max - b >= m_i - b > tau, and
+    P(clean clip FAILs) <= P(m_max - b > tau) <= alpha. A clip is dropped from the rank (counted
+    in ``n_dropped``) only when no subject has a numeric magnitude, and then none can FAIL."""
     require_one_clean_per_scene(clean)
     values = [corrected(row, bias) for row in clean if row.scored]
     found = conformal_quantile(values, alpha)
@@ -171,8 +174,9 @@ def detection_limit(
 
     Censored below only when the one-sided Clopper-Pearson lower bound of the detection rate at
     the lowest level reaches 1 - beta (5/5 detected bounds it at about 0.55, which shows nothing).
-    When the fit fails although that level looks fully detected, or extrapolates below the
-    tested range, L_D is not determined."""
+    When the fit fails although the lowest level has some detection, or extrapolates below the
+    tested range, L_D is not determined; ``above`` is left for a failed fit with nothing
+    detected at the lowest level."""
     base = {"unit": unit, "beta": settings.beta, "n": len(found)}
     if not found:
         return DetectionLimit(
@@ -184,9 +188,8 @@ def detection_limit(
     if clopper_pearson_lower(detected, len(at_lowest), settings.ci) >= 1.0 - settings.beta:
         return DetectionLimit(value=None, ci=Ci(), censored="below", bound=mu_min, **base)
     value = ld_point(found, settings)
-    fully = detected >= (1.0 - settings.beta) * len(at_lowest)
     below_range = value is not None and value < mu_min / (1.0 + settings.ld_max_extrapolation)
-    if (value is None and fully) or below_range:
+    if (value is None and detected > 0) or below_range:
         return DetectionLimit(
             value=None, ci=Ci(), censored="none", bound=None, reason=NOT_DETERMINED, **base
         )

@@ -123,6 +123,7 @@ def build_rows(
                 subjects=tuple(subjects.get((row.clip_id, row.check_id), ())),
             )
         )
+    require_subjects(rows)
     return tuple(rows)
 
 
@@ -165,6 +166,24 @@ def require_one_clean_per_scene(rows: Sequence[CalibrationRow]) -> None:
             )
 
 
+def subject_max(row: CalibrationRow) -> float:
+    """The NaN-ignoring max magnitude over the row's subjects (NaN when none is a number). It is
+    taken from the subjects, not the table row, so a NaN subject cannot hide a larger one."""
+    values = [
+        r.magnitude for r in row.subjects if r.magnitude is not None and not math.isnan(r.magnitude)
+    ]
+    return max(values, default=math.nan)
+
+
 def corrected(row: CalibrationRow, bias: float) -> float:
-    """m - bias of a scored row, NaN otherwise."""
-    return math.nan if row.magnitude is None else row.magnitude - bias
+    """``subject_max`` - bias of a scored row, NaN otherwise."""
+    return subject_max(row) - bias if row.scored else math.nan
+
+
+def require_subjects(rows: Sequence[CalibrationRow]) -> None:
+    """A scored row is judged on its subjects; one without them cannot be calibrated."""
+    missing = sorted({f"{r.clip_id}/{r.check_id}" for r in rows if r.scored and not r.subjects})
+    if missing:
+        raise CalibrationDataError(
+            f"{len(missing)} scored rows have no per-subject results: {missing[:5]}"
+        )

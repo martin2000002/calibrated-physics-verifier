@@ -9,6 +9,7 @@ from physverify.calibration.loader import Stratum as StratumView
 from physverify.calibration.monotonicity import deltas, monotonicity
 from physverify.calibration.schema import (
     OK,
+    UNRANKED_NEGATIVES,
     Aggregate,
     ArtifactStatus,
     Auroc,
@@ -33,7 +34,13 @@ from physverify.calibration.stats import (
     rate,
     scene_bootstrap,
 )
-from physverify.calibration.table import CalibrationRow, Role, corrected, unique_row_step
+from physverify.calibration.table import (
+    CalibrationRow,
+    Role,
+    corrected,
+    require_subjects,
+    unique_row_step,
+)
 from physverify.calibration.thresholds import (
     Tau,
     cv_verdicts,
@@ -45,7 +52,7 @@ from physverify.calibration.thresholds import (
     tpr_by_level,
     verdict_of,
 )
-from physverify.calibration.verdict import Rule, clip_verdict
+from physverify.calibration.verdict import DECIDED, Rule, clip_verdict
 from physverify.calibration.weights import Flag, Labelled, fit_probability, normalised, raw_weight
 from physverify.schema.checks import CheckResult, InputLevel, Verdict
 from physverify.verification.policies.threshold import ThresholdPolicy
@@ -164,9 +171,10 @@ def _sigma(data: LevelData, check_id: str, settings: CalibrationSettings) -> Sig
 
 
 def check_status(tau: Tau, positives: Sequence[CalibrationRow]) -> CheckStatus:
-    """No clean scene at all, then too few for the conformal rank (AC2), then no positives."""
+    """No clean scene at all (or only NaN ones), then too few for the conformal rank (AC2), then
+    no positives."""
     if tau.n == 0:
-        return "no_negatives"
+        return UNRANKED_NEGATIVES if tau.n_dropped else "no_negatives"
     if not tau.sufficient:
         return "insufficient"
     return OK if any(r.has_event for r in positives) else "no_positives"
@@ -183,6 +191,7 @@ def fit_check(
     tolerance = settings.tau_tolerance.get(check.check_id, 0.0)
     clean = [r for r in rows if r.role is Role.CLEAN]
     positives = [r for r in rows if r.role is Role.POSITIVE]
+    require_subjects(rows)
     tau = fit_tau(clean, sigma.bias, settings.alpha, tolerance)
     cv = cv_verdicts(clean, rule, settings, tolerance)
     flags = [Flag(r.scene_id, True, fails(r, rule, tau.value)) for r in positives if r.has_event]
@@ -225,19 +234,23 @@ def _labelled(rows: Sequence[CalibrationRow], bias: float) -> list[Labelled]:
 
 
 def platt_data(rows: Sequence[CalibrationRow], rule: Rule, tau: float | None) -> list[Labelled]:
-    """The magnitude of the clip outcome, the one ``score_clip`` passes to p_c, so that p_c is
-    fitted on what it is applied to. Rows whose outcome has no magnitude are left out."""
+    """The magnitude of the decided clip outcomes, the ones ``score_clip`` passes to p_c, so that
+    p_c is fitted on what it is applied to. Undecided clips are left out."""
     found: list[Labelled] = []
     for r in rows:
         if not r.scored or r.role not in LABELLED_ROLES:
             continue
-        magnitude = clip_verdict(r.subjects, rule, tau).magnitude
-        if magnitude is not None:
-            found.append(Labelled(r.scene_id, magnitude, r.role is Role.POSITIVE))
+        outcome = clip_verdict(r.subjects, rule, tau)
+        if outcome.verdict in DECIDED and outcome.magnitude is not None:
+            found.append(Labelled(r.scene_id, outcome.magnitude, r.role is Role.POSITIVE))
     return found
 
 
 def _abstention(rows: Sequence[CalibrationRow], rule: Rule, tau: float | None, ci: float) -> Rate:
+    """ABSTAIN over the clips with an event. Without tau no clip is judged, so the rate is
+    undefined (value None, n 0) rather than 0 or 1."""
+    if tau is None:
+        return rate(0, 0, ci)
     judged = [r for r in rows if r.has_event and r.role is not Role.COUPLED]
     abstained = sum(verdict_of(r, rule, tau) is Verdict.ABSTAIN for r in judged)
     return rate(abstained, len(judged), ci)

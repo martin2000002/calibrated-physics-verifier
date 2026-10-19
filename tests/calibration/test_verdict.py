@@ -6,6 +6,7 @@ from collections.abc import Sequence
 from typing import Any, cast
 
 import numpy as np
+import pytest
 from calibration_cases import (
     CHECKS,
     check_calibration,
@@ -22,13 +23,13 @@ from physverify.calibration.apply import check_outcome, policy_for, rule_for, sc
 from physverify.calibration.collect import level_data
 from physverify.calibration.fit import FitInputs, fit_calibration, platt_data
 from physverify.calibration.loader import Stratum as StratumView
-from physverify.calibration.table import Role, results_by_row
+from physverify.calibration.table import CalibrationDataError, Role, results_by_row
 from physverify.calibration.thresholds import tpr_by_level, verdict_of
 from physverify.calibration.verdict import DECIDED, NO_EVENT, Rule, clip_verdict
 from physverify.schema.checks import CheckResult, InputLevel, Verdict
 from physverify.schema.clip import Split
 from physverify.verification.policies.threshold import ThresholdPolicy
-from physverify.verification.runner import VerificationReport, aggregate
+from physverify.verification.runner import RowStatus, VerificationReport, aggregate
 
 RULE = Rule(ThresholdPolicy(), bias=0.0, factor=1.0)
 TAU = 0.08
@@ -66,6 +67,25 @@ def test_a_missing_input_makes_a_passing_check_abstain_in_fit_and_apply() -> Non
     stratum = view({"R1": check_calibration(tau=TAU)})
     clip = score_clip(subjects, stratum)
     assert clip.abstained_checks == ("R1",) and clip.decided_checks == ()
+
+
+def test_platt_is_fitted_on_decided_outcomes_only() -> None:
+    """A clip whose sigma straddles tau abstains in ``score_clip``, so it gets no p_c in the fit."""
+    straddling = result("R1", "c", 0.10, 0.5, InputLevel.ORACLE)
+    undecided = row(0.10, sigma=0.5, subjects=[straddling])
+    decided = row(0.20, scene="s1")
+    assert [d.magnitude for d in platt_data([undecided, decided], RULE, TAU)] == [0.20]
+
+
+def test_a_scored_row_without_its_subject_results_is_rejected() -> None:
+    report = synthetic_report(20)
+    target = next(r for r in report.table if r.status is RowStatus.SCORED)
+    kept = tuple(
+        r for r in report.results if (r.clip_id, r.check_id) != (target.clip_id, target.check_id)
+    )
+    broken = VerificationReport(results=kept, table=report.table, clips=report.clips)
+    with pytest.raises(CalibrationDataError, match="no per-subject results"):
+        level_data(InputLevel.ORACLE, broken, CHECKS, config(), split=Split.CALIB)
 
 
 def test_no_tau_or_no_event_leaves_the_check_unscored() -> None:

@@ -60,6 +60,7 @@ def test_the_statuses_follow_the_data(artifact: CalibrationArtifact) -> None:
     assert r1.detection_limit.reason == NOT_DETERMINED  # 40/40 detected: bound 0.93 < 0.95
     assert stratum.checks["R3a"].tau is not None and stratum.checks["R3a"].weight.value == 0.0
     assert stratum.checks["R5b"].tau is None
+    assert stratum.checks["R5b"].abstention_rate.value is None  # no tau: nothing is judged
     assert stratum.aggregate.score_threshold is not None
     assert artifact.status == "insufficient"  # not every check is ok
 
