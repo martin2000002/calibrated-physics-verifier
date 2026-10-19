@@ -118,9 +118,11 @@ SCHEMA CHANGE REQUEST: <what and why>
 |---|---|
 | A4 dataset | `kubric_worker/build_scene.py`, `kubric_worker/tasks/{simulate,contacts,render}.py`, `synth/*.py`, `synth/families/f*.py`, `synth/perturbations/` except `_base.py`, `datasets/kubric_synthetic.py`, `cli/commands/dataset.py`, `configs/dataset.toml`, `tests/synth/**`, `tests/kubric_worker/**` |
 | A5 extractor | `extraction/{settings,plan,cache,pipeline,weights,matching}.py`, `extraction/providers/*.py`, `physics/{kinematics,uncertainty}.py`, `datasets/local_video.py`, `cli/commands/extract.py`, `configs/extraction.toml`, `tests/extraction/**` |
-| A7 checks | `checks/r*.py`, `checks/_common.py`, `physics/{equilibrium,tracks}.py`, `verification/{inputs,runner,sweep}.py`, `verification/policies/*.py`, `cli/commands/verify.py`, `configs/checks.toml`, `tests/checks/**`, `tests/verification/**` |
+| A7 checks | `checks/r*.py`, `checks/_common.py`, `physics/{equilibrium,tracks}.py`, `verification/{inputs,runner,sweep,scope}.py`, `verification/policies/*.py`, `cli/commands/verify.py`, `configs/checks.toml`, `tests/checks/**`, `tests/verification/**` |
 | A6 diagnosis | `diagnosis/` except `_base.py`, `datasets/{_download,physics_iq,pisa_real}.py`, `annotations/*.json`, `cli/commands/{diagnose,data}.py`, `configs/diagnosis.toml`, `tests/diagnosis/**` |
 | A3 timing | `timing/` except `_base.py`, `cli/commands/timing.py`, `scripts/h200/**` (must not assume Docker), `configs/timing.toml`, `tests/timing/**` |
+| A11 preference / H3 | `finetune/{scope,stop_rule}.py`, `finetune/scorers/_status.py`, `cli/commands/{_stop_rule,_finetune_deps}.py`, `tests/finetune/test_{check_scope,stop_rule}.py` |
 
+`configs/check_scope.toml` is shared by A7 (H2 rule scope) and A11 (H3 scorer scope): both read it only through `verification/scope.py`.
 `configs/size_priors.toml` belongs to no cycle: it is frozen so that A4 (sampling synthetic sizes
 and labels) and A5 (the `scale/size_prior` provider) read the same table.
