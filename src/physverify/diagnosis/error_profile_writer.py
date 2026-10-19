@@ -9,9 +9,16 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
+from physverify.core.errors import ConfigError
 from physverify.diagnosis.atomic_io import write_atomic
 from physverify.diagnosis.cases import sample_stats
-from physverify.schema.error_profile import MAX_RESIDUALS, ErrorEntry, ErrorProfile
+from physverify.schema.error_profile import (
+    MAX_RESIDUALS,
+    PARAMS_HASH_CONDITION,
+    PROFILE_CONDITION,
+    ErrorEntry,
+    ErrorProfile,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
@@ -133,10 +140,10 @@ def entry_conditions(meta: ProfileMeta, samples: MetricSamples) -> dict[str, Any
         "subset": meta.subset,
         "dataset": meta.dataset,
         "dataset_version": meta.dataset_version,
-        "profile": meta.profile,
+        PROFILE_CONDITION: meta.profile,
         "n_clips": len(samples.outcomes),
         "upstream": UPSTREAM_CONDITION,
-        "params_hash": samples.provider.params_hash,
+        PARAMS_HASH_CONDITION: samples.provider.params_hash,
     }
 
 
@@ -176,16 +183,59 @@ def entry_identity(entry: ErrorEntry) -> tuple[str, str, str]:
     return (entry.stage.value, entry.provider, entry.quantity)
 
 
-def merge_profiles(previous: ErrorProfile | None, fresh: ErrorProfile) -> ErrorProfile:
-    """Entries of ``fresh`` replace the same (stage, provider, quantity); the rest are kept."""
-    renewed = {entry_identity(e) for e in fresh.entries}
+IDENTITY_CONDITIONS = (PROFILE_CONDITION, PARAMS_HASH_CONDITION)
+"""Conditions an entry may only be replaced under: one file per extraction profile."""
+
+
+def conflicting_entries(
+    previous: ErrorProfile, fresh: ErrorProfile
+) -> tuple[tuple[ErrorEntry, ErrorEntry], ...]:
+    """(previous, fresh) pairs of one identity whose profile or params_hash differ."""
+    renewed = {entry_identity(e): e for e in fresh.entries}
+    return tuple(
+        (old, new)
+        for old in previous.entries
+        if (new := renewed.get(entry_identity(old))) is not None
+        and any(old.conditions.get(c) != new.conditions.get(c) for c in IDENTITY_CONDITIONS)
+    )
+
+
+def merge_profiles(
+    previous: ErrorProfile | None, fresh: ErrorProfile, *, replace_mismatched: bool = False
+) -> ErrorProfile:
+    """Entries of ``fresh`` replace the same (stage, provider, quantity); the rest are kept.
+
+    Replacing an entry measured under another profile or other params is refused unless
+    ``replace_mismatched``: that is a different file (``paths.error_profile``) or a deliberate
+    re-measurement."""
     kept = () if previous is None else previous.entries
+    conflicts = (
+        () if previous is None or replace_mismatched else conflicting_entries(previous, fresh)
+    )
+    if conflicts:
+        raise ConfigError(_conflict_message(conflicts))
+    renewed = {entry_identity(e) for e in fresh.entries}
     merged = [e for e in kept if entry_identity(e) not in renewed] + list(fresh.entries)
     return ErrorProfile(
         created_utc=fresh.created_utc,
         run_id=fresh.run_id,
         commit=fresh.commit,
         entries=tuple(sorted(merged, key=entry_identity)),
+    )
+
+
+def _conflict_message(conflicts: Iterable[tuple[ErrorEntry, ErrorEntry]]) -> str:
+    lines = [
+        f"{'/'.join(entry_identity(old))}: "
+        + ", ".join(
+            f"{c} {old.conditions.get(c)!r} -> {new.conditions.get(c)!r}"
+            for c in IDENTITY_CONDITIONS
+        )
+        for old, new in conflicts
+    ]
+    return (
+        "refusing to replace error-profile entries measured under another profile or params "
+        "(use one paths.error_profile per profile):\n  " + "\n  ".join(lines)
     )
 
 

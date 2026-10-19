@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import ClassVar, Protocol, TypeVar, runtime_checkable
 
@@ -17,7 +17,7 @@ from physverify.config.models import PathsSettings
 from physverify.core.errors import InvalidPluginError, MissingInputError
 from physverify.datasets._base import GroundTruthStore, VideoSource
 from physverify.schema.clip import ClipManifest, FrameSampling
-from physverify.schema.error_profile import ErrorEntry, ErrorProfile
+from physverify.schema.error_profile import EntryFilter, ErrorEntry, ErrorProfile
 from physverify.schema.errors import SchemaError
 from physverify.schema.outputs import StageOutput
 from physverify.schema.stages import Stage, check_upstream_order, stage_index
@@ -46,7 +46,10 @@ class WeightSpec:
 
 @dataclass(frozen=True)
 class StageContext:
-    """Everything a provider may read; ``upstream`` holds only the stages it requires."""
+    """Everything a provider may read; ``upstream`` holds only the stages it requires.
+
+    ``entry_filter`` holds the plan's profile and stage params hashes; a profile entry is read
+    only when it was measured under that profile with those params."""
 
     clip: ClipManifest
     video: VideoSource
@@ -58,6 +61,7 @@ class StageContext:
     device: str
     threads: int
     paths: PathsSettings
+    entry_filter: EntryFilter = field(default_factory=EntryFilter)
 
     def require(self, stage: Stage, kind: type[O]) -> O:
         output = self.upstream.get(stage)
@@ -78,15 +82,16 @@ class StageContext:
     def error_entry(self, stage: Stage, quantity: str) -> ErrorEntry | None:
         """Error of the provider that ran ``stage`` in the active plan (None = unknown sigma).
 
-        A ground-truth upstream contributes zero error."""
+        A ground-truth upstream contributes zero error; a stage without a plan params hash has
+        no readable entry."""
         provider = self.plan.get(stage)
         if provider is None:
             return None
         if provider == GROUND_TRUTH:
             return ErrorEntry.exact(stage, GROUND_TRUTH, quantity)
-        if self.error_profile is None:
+        if self.error_profile is None or stage not in self.entry_filter.params_hashes:
             return None
-        return self.error_profile.lookup(stage, provider, quantity)
+        return self.error_profile.lookup(stage, provider, quantity, self.entry_filter)
 
 
 def error_profile_keys(

@@ -7,7 +7,7 @@ from typing import Any
 
 from physverify.core.errors import MissingInputError
 from physverify.schema.clip import FrameSampling
-from physverify.schema.error_profile import ErrorProfile, no_profile_hash
+from physverify.schema.error_profile import EntryFilter, ErrorProfile, no_profile_hash
 from physverify.schema.io import SCHEMA_VERSION, stable_hash
 from physverify.schema.stages import Stage
 
@@ -23,9 +23,17 @@ def params_hash(params: Mapping[str, Any]) -> str:
     return stable_hash(dict(params))
 
 
-def error_profile_hash(profile: ErrorProfile | None, keys: tuple[tuple[Stage, str], ...]) -> str:
-    """Hash of the declared profile entries only; a missing profile equals an empty one."""
-    return no_profile_hash() if profile is None else profile.entries_hash(keys)
+def error_profile_hash(
+    profile: ErrorProfile | None,
+    keys: tuple[tuple[Stage, str], ...],
+    accept: EntryFilter | None = None,
+) -> str:
+    """Hash of the declared entries a lookup can return; a missing profile equals an empty one.
+
+    ``accept`` drops the entries measured under another profile or with other params."""
+    if profile is None:
+        return no_profile_hash()
+    return profile.entries_hash(keys, accept)
 
 
 def upstream_keys(requires: tuple[Stage, ...], upstream: Mapping[Stage, str]) -> dict[Stage, str]:
@@ -52,8 +60,13 @@ def cache_key(
     error_profile_keys: tuple[tuple[Stage, str], ...],
     heavy: bool,
     device: str,
+    error_profile_filter: EntryFilter | None = None,
+    inputs: Mapping[str, Any] | None = None,
 ) -> str:
-    """sha256 of everything that can change a stage output, and nothing else."""
+    """sha256 of everything that can change a stage output, and nothing else.
+
+    ``inputs`` holds clip data the provider reads besides pixels (e.g. object queries); None
+    leaves the payload, and so every key computed without it, unchanged."""
     payload: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
         "clip_id": clip_id,
@@ -63,8 +76,12 @@ def cache_key(
         "params": params_hash(params),
         "sampling": sampling_hash(sampling),
         "upstream": upstream_keys(requires, upstream),
-        "error_profile": error_profile_hash(error_profile, error_profile_keys),
+        "error_profile": error_profile_hash(
+            error_profile, error_profile_keys, error_profile_filter
+        ),
     }
+    if inputs is not None:
+        payload["inputs"] = dict(inputs)
     if is_ground_truth:
         payload["gt_version"] = gt_version
     if heavy:

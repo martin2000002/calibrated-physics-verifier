@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Mapping
 from dataclasses import replace
 
@@ -21,10 +22,11 @@ from support import (
 )
 from synthetic_clip import SyntheticClip, SyntheticFixtureDataset
 
+from physverify.diagnosis.stage_errors import provider_ref
 from physverify.extraction._base import StageProvider
-from physverify.extraction.cache import StageCache, profile_keys
+from physverify.extraction.cache import StageCache, plan_params_hashes, profile_keys
 from physverify.extraction.plan import ResolvedPlan, resolve_plan
-from physverify.schema.error_profile import ErrorProfile
+from physverify.schema.error_profile import ErrorEntry, ErrorProfile
 from physverify.schema.io import stable_hash
 from physverify.schema.stages import STAGE_ORDER, Stage, StageArtifactMeta
 
@@ -136,3 +138,74 @@ def test_a_pipeline_run_with_a_new_own_entry_recomputes_from_lift(
 
     assert lift_meta(first.keys) != lift_meta(second.keys)
     assert all(first.keys[(clip_id, s)] == second.keys[(clip_id, s)] for s in ABOVE_LIFT)
+
+
+def test_an_entry_with_other_params_is_ignored_loudly_and_only_lift_on_recomputes(
+    make_settings: SettingsFactory,
+    providers: Providers,
+    fixture_dataset: SyntheticFixtureDataset,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    settings = make_settings(*plan_overrides(detect=FAKE, track=FAKE, depth=FAKE))
+    plan = resolve_plan(settings, providers, dataset=fixture_dataset.name)
+    params = plan_params_hashes(plan.stages)
+
+    def bound(stage: Stage, provider: str, quantity: str, measured: str) -> ErrorEntry:
+        return entry(stage, provider, quantity, 0.1, conditions={"params_hash": measured})
+
+    track = bound(Stage.TRACK, FAKE, "centroid_px_rel", params[Stage.TRACK])
+    lift = bound(Stage.LIFT, "backproject", "centroid_rel", params[Stage.LIFT])
+    depth = bound(Stage.DEPTH, FAKE, "depth_rel", params[Stage.DEPTH])
+    stale = replace(depth, conditions={"params_hash": "stale"})
+    first = run_pipeline(
+        settings, providers, fixture_dataset, profile=profile_of(track, depth, lift)
+    )
+    with caplog.at_level(logging.WARNING, logger="physverify.extraction.pipeline"):
+        second = run_pipeline(
+            settings, providers, fixture_dataset, profile=profile_of(track, stale, lift)
+        )
+    assert first.failures == second.failures == ()
+    assert [event.stage for event in second.events if not event.cached] == FROM_LIFT
+    warnings = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
+    assert len(warnings) == 1 and f"depth/{FAKE} depth_rel" in warnings[0]
+    assert "stale" in warnings[0] and params[Stage.DEPTH] in warnings[0]
+    third = run_pipeline(settings, providers, fixture_dataset, profile=profile_of(track, lift))
+    assert all(event.cached for event in third.events)
+
+
+def test_an_entry_of_another_profile_with_the_same_params_is_ignored_loudly(
+    make_settings: SettingsFactory,
+    providers: Providers,
+    fixture_dataset: SyntheticFixtureDataset,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    settings = make_settings(*plan_overrides(detect=FAKE, track=FAKE, depth=FAKE))
+    plan = resolve_plan(settings, providers, dataset=fixture_dataset.name)
+    measured = plan_params_hashes(plan.stages)[Stage.LIFT]
+    other = "precise" if plan.profile != "precise" else "fast"
+    foreign = entry(
+        Stage.LIFT,
+        "backproject",
+        "centroid_rel",
+        0.1,
+        conditions={"params_hash": measured, "profile": other},
+    )
+    first = run_pipeline(settings, providers, fixture_dataset, profile=profile_of())
+    with caplog.at_level(logging.WARNING, logger="physverify.extraction.pipeline"):
+        second = run_pipeline(settings, providers, fixture_dataset, profile=profile_of(foreign))
+    assert first.failures == second.failures == ()
+    assert all(event.cached for event in second.events)
+    warnings = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
+    assert len(warnings) == 1 and f"profile {other}" in warnings[0]
+    assert f"plan is profile {plan.profile}" in warnings[0]
+
+
+@pytest.mark.parametrize("profile", ["fast", "precise"])
+def test_the_writer_and_the_pipeline_hash_the_same_params(
+    make_settings: SettingsFactory, real_providers: Providers, profile: str
+) -> None:
+    plan = resolve_plan(make_settings(profile=profile), real_providers, dataset="x")
+    hashes = plan_params_hashes(plan.stages)
+    assert all(
+        provider_ref(plan, step.stage).params_hash == hashes[step.stage] for step in plan.stages
+    )

@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from physverify.config.loader import load_settings
-from physverify.config.models import SizePriorTable
+from physverify.config.models import PathsSettings, SizePriorTable
 from physverify.core.errors import ConfigError
 
 BASE = """
@@ -87,7 +87,7 @@ def test_paths_derive_from_data_dir_and_expand_env(tmp_path: Path) -> None:
     _write(tmp_path / "configs", "default.toml", '[paths]\ndata_dir = "${BIG}/data"\n')
     settings = load_settings(tmp_path / "configs", environ={"BIG": "/mnt/big", "HOME": "/h"})
     assert settings.paths.cache_dir == Path("/mnt/big/data/cache")
-    assert settings.paths.error_profile == Path("/mnt/big/data/calibration/stage_errors.json")
+    assert settings.paths.error_profile == Path("/mnt/big/data/calibration/stage_errors.fast.json")
     assert settings.paths.hf_home == Path("/h/.cache/huggingface")
     assert settings.repo_root == (tmp_path).resolve()
 
@@ -118,3 +118,28 @@ def test_section_validation_error_is_a_config_error(config_dir: Path) -> None:
     settings = load_settings(config_dir, environ={}, overrides=("size_priors.cube.mean_m=-1",))
     with pytest.raises(ConfigError, match="size_priors"):
         settings.section("size_priors", SizePriorTable)
+
+
+def test_the_error_profile_defaults_to_one_file_per_profile(config_dir: Path) -> None:
+    fast = load_settings(config_dir, environ={})
+    precise = load_settings(config_dir, environ={}, profile="precise")
+    assert fast.paths.error_profile == fast.paths.calibration_dir / "stage_errors.fast.json"
+    assert (
+        precise.paths.error_profile == precise.paths.calibration_dir / "stage_errors.precise.json"
+    )
+
+
+def test_an_explicit_error_profile_wins_over_the_profile_default(config_dir: Path) -> None:
+    by_env = load_settings(
+        config_dir, environ={"PHYSVERIFY__PATHS__ERROR_PROFILE": "/x/env.json"}, profile="precise"
+    )
+    by_set = load_settings(
+        config_dir, environ={}, profile="precise", overrides=("paths.error_profile=/x/set.json",)
+    )
+    assert by_env.paths.error_profile == Path("/x/env.json")
+    assert by_set.paths.error_profile == Path("/x/set.json")
+
+
+def test_direct_validation_without_a_profile_keeps_the_shared_name() -> None:
+    paths = PathsSettings.model_validate({"data_dir": "/d"})
+    assert paths.error_profile == Path("/d/calibration/stage_errors.json")

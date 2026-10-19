@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Callable, Sequence
+from dataclasses import replace
 from pathlib import Path
 from types import MappingProxyType
 
@@ -12,6 +13,7 @@ import pytest
 from synthetic_clip import SyntheticFixtureDataset, manifest
 
 from physverify.config.models import Settings
+from physverify.core.errors import ConfigError
 from physverify.diagnosis.cases import MetricOutcome
 from physverify.diagnosis.error_profile_writer import (
     PROFILE_UNIT,
@@ -25,7 +27,7 @@ from physverify.diagnosis.error_profile_writer import (
 )
 from physverify.extraction._base import GROUND_TRUTH, StageContext
 from physverify.schema.clip import FrameSampling
-from physverify.schema.error_profile import MAX_RESIDUALS, ErrorEntry, ErrorProfile
+from physverify.schema.error_profile import MAX_RESIDUALS, EntryFilter, ErrorEntry, ErrorProfile
 from physverify.schema.stages import Stage
 
 META = ProfileMeta(
@@ -38,6 +40,7 @@ META = ProfileMeta(
     dataset_version="v1",
     profile="fast",
 )
+PARAMS_HASH = "abc123"
 CONTRACT = (
     (Stage.TRACK, "centroid_px_rel"),
     (Stage.DEPTH, "depth_rel"),
@@ -48,7 +51,7 @@ CONTRACT = (
 
 
 def provider(stage: Stage, name: str) -> ProviderRef:
-    return ProviderRef(stage=stage, name=name, version="1", params_hash="abc123")
+    return ProviderRef(stage=stage, name=name, version="1", params_hash=PARAMS_HASH)
 
 
 def samples(
@@ -200,7 +203,13 @@ def test_failed_write_keeps_the_previous_profile(
     assert [p.name for p in tmp_path.iterdir()] == [path.name]
 
 
-def stage_context(settings: Settings, plan: dict[Stage, str], loaded: ErrorProfile) -> StageContext:
+def stage_context(
+    settings: Settings,
+    plan: dict[Stage, str],
+    loaded: ErrorProfile,
+    params_hash: str = PARAMS_HASH,
+    profile_name: str = "fast",
+) -> StageContext:
     clip = manifest()
     return StageContext(
         clip=clip,
@@ -217,6 +226,7 @@ def stage_context(settings: Settings, plan: dict[Stage, str], loaded: ErrorProfi
         ),
         upstream=MappingProxyType({}),
         plan=MappingProxyType(plan),
+        entry_filter=EntryFilter(profile_name, dict.fromkeys(plan, params_hash)),
         gt=None,
         error_profile=loaded,
         device="cpu",
@@ -254,3 +264,49 @@ def test_light_providers_read_the_contract_entries(
     )
     track_entry = exact.error_entry(Stage.TRACK, "centroid_px_rel")
     assert track_entry is not None and track_entry.sigma == 0.0
+
+
+def conditioned(stage: Stage, quantity: str, bias: float, **conditions: str) -> ErrorEntry:
+    base = entry(stage, "diag_fake", quantity, bias)
+    return replace(base, conditions={"profile": "fast", "params_hash": PARAMS_HASH, **conditions})
+
+
+@pytest.mark.parametrize("changed", [{"profile": "precise"}, {"params_hash": "other"}])
+def test_merge_refuses_an_entry_of_another_profile_or_params(changed: dict[str, str]) -> None:
+    previous = profile("run-old", conditioned(Stage.TRACK, "centroid_px_rel", 9.0))
+    fresh = profile("run-fresh", conditioned(Stage.TRACK, "centroid_px_rel", 0.25, **changed))
+    with pytest.raises(ConfigError, match="track/diag_fake/centroid_px_rel"):
+        merge_profiles(previous, fresh)
+    merged = merge_profiles(previous, fresh, replace_mismatched=True)
+    assert [e.bias for e in merged.entries] == [0.25]
+
+
+def test_merge_then_lookup_returns_the_fresh_entry_for_its_params() -> None:
+    previous = profile(
+        "run-old",
+        conditioned(Stage.TRACK, "centroid_px_rel", 9.0),
+        conditioned(Stage.DEPTH, "depth_rel", 0.5),
+    )
+    fresh = profile("run-fresh", conditioned(Stage.TRACK, "centroid_px_rel", 0.25))
+    merged = merge_profiles(previous, fresh)
+    plan = EntryFilter("fast", {Stage.TRACK: PARAMS_HASH})
+    found = merged.lookup(Stage.TRACK, "diag_fake", "centroid_px_rel", plan)
+    assert found is not None and found.bias == 0.25
+    other = EntryFilter("fast", {Stage.TRACK: "other"})
+    assert merged.lookup(Stage.TRACK, "diag_fake", "centroid_px_rel", other) is None
+
+
+def test_a_reader_with_other_params_gets_no_entry(
+    tmp_path: Path, make_settings: Callable[..., Settings]
+) -> None:
+    track = samples(
+        "track/mask", provider(Stage.TRACK, "diag_fake"), {"a": {"centroid_px_rel": [0.1, 0.3]}}
+    )
+    loaded = build_profile((track,), META, min_samples=2).profile
+    plan = {Stage.TRACK: "diag_fake"}
+    same = stage_context(make_settings(), plan, loaded)
+    other = stage_context(make_settings(), plan, loaded, params_hash="other")
+    precise = stage_context(make_settings(), plan, loaded, profile_name="precise")
+    assert same.error_entry(Stage.TRACK, "centroid_px_rel") is not None
+    assert other.error_entry(Stage.TRACK, "centroid_px_rel") is None
+    assert precise.error_entry(Stage.TRACK, "centroid_px_rel") is None

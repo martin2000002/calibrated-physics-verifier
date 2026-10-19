@@ -8,7 +8,15 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, TypeVar
 
-from pydantic import BaseModel, ConfigDict, Field, RootModel, ValidationError, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    RootModel,
+    ValidationError,
+    ValidationInfo,
+    model_validator,
+)
 
 from physverify.core.errors import ConfigError
 from physverify.schema.io import stable_hash
@@ -26,10 +34,12 @@ _DERIVED_DIRS = {
     "weights_dir": "weights",
     "vendor_dir": "vendor",
 }
-_CALIBRATION_FILES = {
-    "error_profile": "stage_errors.json",
-    "thresholds": "thresholds.json",
-}
+_CALIBRATION_FILES = {"thresholds": "thresholds.json"}
+ERROR_PROFILE_FILE = "stage_errors.{profile}.json"
+UNPROFILED_ERROR_PROFILE_FILE = "stage_errors.json"
+"""Error-profile file name when no extraction profile is known (direct validation only)."""
+PROFILE_CONTEXT = "profile"
+"""Validation-context key of the active extraction profile, which names its error profile."""
 
 
 class FrozenModel(BaseModel):
@@ -38,7 +48,11 @@ class FrozenModel(BaseModel):
 
 class PathsSettings(FrozenModel):
     """Data locations. Unset directories derive from ``data_dir``; the loader anchors relative
-    paths at the repository root and ``~`` at the injected HOME."""
+    paths at the repository root and ``~`` at the injected HOME.
+
+    The error profile defaults to ``stage_errors.<profile>.json``: entries of different
+    extraction profiles are measured on different data and never share a file. A missing file
+    has no fallback, so reads and ``--write-profile`` always use the same per-profile file."""
 
     data_dir: Path = Path("data")
     raw_dir: Path
@@ -55,7 +69,7 @@ class PathsSettings(FrozenModel):
 
     @model_validator(mode="before")
     @classmethod
-    def _derive(cls, data: Any) -> Any:
+    def _derive(cls, data: Any, info: ValidationInfo) -> Any:
         if not isinstance(data, Mapping):
             return data
         filled = dict(data)
@@ -63,6 +77,8 @@ class PathsSettings(FrozenModel):
         for name, sub in _DERIVED_DIRS.items():
             filled.setdefault(name, root / sub)
         calibration = Path(filled["calibration_dir"])
+        profile = (info.context or {}).get(PROFILE_CONTEXT)
+        filled.setdefault("error_profile", calibration / error_profile_file(profile))
         for name, file_name in _CALIBRATION_FILES.items():
             filled.setdefault(name, calibration / file_name)
         return filled
@@ -71,6 +87,13 @@ class PathsSettings(FrozenModel):
         """Copy with ``~`` expanded to ``home`` and relative paths made absolute under ``root``."""
         values = {name: _anchor(value, root, home) for name, value in self}
         return PathsSettings(**values)
+
+
+def error_profile_file(profile: str | None) -> str:
+    """Default error-profile file name of an extraction profile."""
+    if profile is None:
+        return UNPROFILED_ERROR_PROFILE_FILE
+    return ERROR_PROFILE_FILE.format(profile=profile)
 
 
 def _anchor(path: Path, root: Path, home: Path) -> Path:

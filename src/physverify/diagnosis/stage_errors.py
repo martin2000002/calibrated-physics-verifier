@@ -10,7 +10,6 @@ from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from types import MappingProxyType
 
-from physverify.core.hashing import params_hash
 from physverify.datasets._base import DatasetSource
 from physverify.diagnosis.cases import MetricCase, MetricOutcome, SampledMetric, pool, summarize
 from physverify.diagnosis.chain import ChainRunner, VariantOutputs, warm_variants
@@ -35,6 +34,7 @@ from physverify.diagnosis.report import (
     z_coverage,
 )
 from physverify.diagnosis.settings import DiagnosisSettings, MetricSettings
+from physverify.extraction.cache import step_params_hash
 from physverify.extraction.plan import ResolvedPlan
 from physverify.physics.uncertainty import entry_rms
 from physverify.schema.clip import ClipManifest, Split
@@ -77,7 +77,7 @@ def provider_ref(plan: ResolvedPlan, stage: Stage) -> ProviderRef:
         stage=stage,
         name=step.provider.name,
         version=step.provider.version,
-        params_hash=params_hash(step.params.model_dump(mode="json")),
+        params_hash=step_params_hash(step),
     )
 
 
@@ -269,7 +269,11 @@ def profile_rows(build: ProfileBuild, written: bool) -> tuple[ProfileEntryRow, .
 
 
 def run_stage_errors(
-    ctx: DiagnosisContext, clips: Sequence[ClipManifest], *, write_profile: bool
+    ctx: DiagnosisContext,
+    clips: Sequence[ClipManifest],
+    *,
+    write_profile: bool,
+    replace_mismatched: bool = False,
 ) -> StageErrorReport:
     diag = ctx.diag
     dataset = ctx.dataset()
@@ -281,7 +285,9 @@ def run_stage_errors(
     calib_samples = measure(runner, calib, ctx.metrics, pairs, diag.metrics)
     version = dataset_versions(dataset, calib).get(dataset.name, "")
     build = build_profile(calib_samples, profile_meta(ctx, dataset, version), diag.min_samples)
-    merged = merge_profiles(ctx.deps.error_profile, build.profile)
+    merged = merge_profiles(
+        ctx.deps.error_profile, build.profile, replace_mismatched=replace_mismatched
+    )
     path = ctx.settings.paths.error_profile
     if write_profile:
         save_profile(path, merged)
