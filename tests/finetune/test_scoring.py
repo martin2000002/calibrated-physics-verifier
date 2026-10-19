@@ -368,13 +368,13 @@ def _clip_score(**update: Any) -> ClipScore:
 
 def test_the_calibrated_scorer_wraps_score_clip(settings: Settings, make_result: Result) -> None:
     calls: list[tuple[Any, ...]] = []
-    stratum = _stratum(HASH)
+    stratum = _stratum()
 
     def score_clip(results: Any, got: Any, k: float | None = None, only: Any = None) -> ClipScore:
         calls.append((got, k, only))
         return _clip_score()
 
-    scorer = _scorer(settings, _calibration_modules(score_clip, "calibrated", stratum))
+    scorer = _scorer(settings, _calibration_modules(score_clip, stratum))
     assert scorer.unavailable() is None
     assert scorer.thresholds() == (
         f"calibrated:thresholds.json#perceived/precise@run7@checks:{HASH[:12]}"
@@ -388,42 +388,30 @@ def test_the_calibrated_scorer_wraps_score_clip(settings: Settings, make_result:
     assert dict(score.per_check) == {"R1": 0.9, "R2": 0.4}
 
 
-def test_an_insufficient_calibration_makes_the_scorer_unavailable(
-    settings: Settings, make_result: Result
-) -> None:
-    modules = _calibration_modules(lambda *a, **k: _clip_score(), "insufficient", _stratum(HASH))
-    scorer = _scorer(settings, modules)
-    reason = scorer.unavailable()
-    assert reason is not None and "'insufficient'" in reason
-    with pytest.raises(UsageError, match="insufficient"):
-        scorer.score([make_result("R1", Verdict.PASS)])
-
-
-@pytest.mark.parametrize("fitted", ["f" * 64, None])
-def test_a_calibration_of_other_check_parameters_is_unavailable(
-    settings: Settings, make_result: Result, fitted: str | None
-) -> None:
-    modules = _calibration_modules(lambda *a, **k: _clip_score(), "calibrated", _stratum(fitted))
-    scorer = _scorer(settings, modules)
-    reason = scorer.unavailable()
-    assert reason is not None and "other check parameters" in reason
-    with pytest.raises(UsageError, match="refit"):
-        scorer.score([make_result("R1", Verdict.PASS)])
-
-
 HASH = "a" * 64
 
 
-def _stratum(checks_hash: str | None) -> SimpleNamespace:
-    return SimpleNamespace(source="thresholds.json#perceived/precise@run7", checks_hash=checks_hash)
+class FakeCalibrationError(Exception):
+    pass
+
+
+def _stratum() -> SimpleNamespace:
+    return SimpleNamespace(
+        source="thresholds.json#perceived/precise@run7",
+        time_base_problem=lambda profile, step: None,
+        check_status=lambda: {"source": "thresholds.json#perceived/precise@run7"},
+    )
 
 
 def _scorer(settings: Settings, modules: dict[str, Any]) -> CalibratedScorer:
-    def checks_hash(registry: Any, overrides: Any) -> str:
-        assert registry == {"R1": object} and overrides is not None
+    def active_checks_hash(got: Settings, registry: Any) -> str:
+        assert got is settings and registry == {"R1": object}
         return HASH
 
-    modules["physverify.calibration.settings"] = SimpleNamespace(checks_hash=checks_hash)
+    modules["physverify.calibration.settings"] = SimpleNamespace(
+        active_checks_hash=active_checks_hash,
+        calibration_settings=lambda s: SimpleNamespace(require_calibrated_artifact=False),
+    )
     return CalibratedScorer(
         settings,
         import_module=modules.__getitem__,  # type: ignore[arg-type]
@@ -431,15 +419,18 @@ def _scorer(settings: Settings, modules: dict[str, Any]) -> CalibratedScorer:
     )
 
 
-def _calibration_modules(score_clip: Any, status: str, stratum: Any) -> dict[str, Any]:
-    calibration = SimpleNamespace(
-        run_id="run7", status=status, stratum=lambda level, profile: stratum
-    )
+def _calibration_modules(score_clip: Any, stratum: Any) -> dict[str, Any]:
+    def open_stratum(path: Path, level: Any, profile: str, **options: Any) -> Any:
+        assert options["checks_hash"] == HASH and not options["require_calibrated"]
+        return stratum
+
     return {
         "physverify.calibration.apply": SimpleNamespace(score_clip=score_clip),
         "physverify.calibration.loader": SimpleNamespace(
             default_artifact_path=lambda s: Path("cal/thresholds.json"),
-            load_calibration=lambda path: calibration,
+            open_stratum=open_stratum,
+            unique_row_step=lambda steps: max(steps),
+            CalibrationError=FakeCalibrationError,
         ),
     }
 

@@ -26,6 +26,7 @@ from physverify.finetune.records import (
     write_records,
 )
 from physverify.finetune.scorers.provisional import ProvisionalScorer
+from physverify.finetune.scoring import build_scorer
 from physverify.finetune.settings import load_finetune
 from physverify.finetune.store import PAIRS_FILE, REPORT_FILE, RUN_FILE, CampaignStore
 from physverify.finetune.trainer import STATE_FILE, checkpoint_name
@@ -39,6 +40,7 @@ SUBCOMMANDS = (
     ("pairs",),
     ("train",),
     ("beta-grid",),
+    ("pilot-review",),
     ("select",),
     ("budget",),
     ("status",),
@@ -231,7 +233,7 @@ def test_pairs_and_status_run_on_cpu_from_stored_scores(
     make_settings: Callable[..., Settings],
 ) -> None:
     assert cli("finetune", "prompts", "build", env=env).code == 0
-    thresholds = ProvisionalScorer(make_settings()).thresholds()
+    thresholds = build_scorer("provisional", make_settings()).thresholds()
     _write_stored_scores(store, make_score, make_result, thresholds, ProvisionalScorer.version)
     result = cli("finetune", "pairs", "--scorer", "provisional", env=env)
     assert result.code == 0, result.err
@@ -255,7 +257,7 @@ def test_pairs_refuse_scores_of_an_older_provisional_version(
     make_settings: Callable[..., Settings],
 ) -> None:
     assert cli("finetune", "prompts", "build", env=env).code == 0
-    thresholds = ProvisionalScorer(make_settings()).thresholds()
+    thresholds = build_scorer("provisional", make_settings()).thresholds()
     _write_stored_scores(store, make_score, make_result, thresholds, "1")
     result = cli("finetune", "pairs", "--scorer", "provisional", env=env)
     assert result.code == 2
@@ -272,7 +274,7 @@ def test_pairs_refuse_scores_of_another_candidate_config(
     make_settings: Callable[..., Settings],
 ) -> None:
     assert cli("finetune", "prompts", "build", env=env).code == 0
-    thresholds = ProvisionalScorer(make_settings()).thresholds()
+    thresholds = build_scorer("provisional", make_settings()).thresholds()
     version = ProvisionalScorer.version
     _write_stored_scores(store, make_score, make_result, thresholds, version, "old")
     result = cli("finetune", "pairs", "--scorer", "provisional", env=env)
@@ -289,7 +291,7 @@ def test_pairs_ignore_stale_scores_of_prompts_outside_train(
     make_settings: Callable[..., Settings],
 ) -> None:
     assert cli("finetune", "prompts", "build", env=env).code == 0
-    thresholds = ProvisionalScorer(make_settings()).thresholds()
+    thresholds = build_scorer("provisional", make_settings()).thresholds()
     _write_stored_scores(store, make_score, make_result, thresholds, ProvisionalScorer.version)
     restamped = make_score("eval-0001__k00", 0.5, scorer_version="frozen", thresholds="frozen")
     write_record(store.score_path("base", "provisional", restamped.candidate_id), restamped)
@@ -414,3 +416,81 @@ def test_budget_refuses_a_directory_that_is_not_a_timing_run(
     result = cli("finetune", "budget", "--timing-run", str(tmp_path), "--gpu-hours", "10", env=env)
     assert result.code == 2
     assert "not a timing run" in result.err
+
+
+def _stop_pairs(store: CampaignStore, thresholds: str, n_pairs: int, scored: int) -> None:
+    """``n_pairs`` stored pairs of the active provisional stamp out of ``scored`` prompts."""
+    stamp = {"scorer": "provisional", "scorer_version": ProvisionalScorer.version}
+    stamp |= {"calibrated": False, "thresholds": thresholds}
+    pairs = [
+        _pair(False).model_copy(update={**stamp, "pair_id": f"p{i:02d}", "prompt_id": f"p{i:02d}"})
+        for i in range(n_pairs)
+    ]
+    write_records(store.pairs_dir("provisional") / PAIRS_FILE, pairs)
+    report = PairsReport(
+        **stamp,
+        prompts=scored,
+        scored_prompts=scored,
+        candidates=4 * scored,
+        eligible=4 * scored,
+        pairs=n_pairs,
+        dropped={},
+        rejected={},
+        yield_per_prompt=n_pairs / scored,
+        yield_per_scored_prompt=n_pairs / scored,
+    )
+    write_record(store.pairs_dir("provisional") / REPORT_FILE, report)
+
+
+@pytest.mark.parametrize(("n_pairs", "fires"), [(10, True), (12, False)])
+def test_train_obeys_the_pilot_stop_rule(
+    cli: CliRunner,
+    env: dict[str, str],
+    store: CampaignStore,
+    labels: None,
+    make_score: Score,
+    make_result: Callable[..., CheckResult],
+    make_settings: Callable[..., Settings],
+    n_pairs: int,
+    fires: bool,
+) -> None:
+    assert cli("finetune", "prompts", "build", env=env).code == 0
+    thresholds = build_scorer("provisional", make_settings()).thresholds()
+    _write_stored_scores(store, make_score, make_result, thresholds, ProvisionalScorer.version)
+    _stop_pairs(store, thresholds, n_pairs, 40)
+    review = ("finetune", "pilot-review", "--scorer", "provisional")
+    sample = cli(*review, "--sample", env=env)
+    assert sample.code == 0 and len(sample.out.splitlines()) == 10
+    assert cli(*review, "--better", "6", env=env).code == 0
+    enforce = ("--set", "finetune.stop_rule.enforce=true", "--device", "cpu")
+    train = (*enforce, "finetune", "train", "--scorer", "provisional", "--allow-provisional")
+    result = cli(*train, env=env)
+    verdict = json.loads((store.pairs_dir("provisional") / "stop_rule.json").read_text())
+    assert result.code == 2
+    if fires:
+        assert "pilot stop rule fired: pairs per scored prompt 0.25 < 0.3" in result.err
+        assert not verdict["passed"] and verdict["deviation"] is None
+        declared = cli(*train, "--declare-deviation", "pilot too small", env=env)
+        assert declared.code == 2 and "--device cuda" in declared.err
+        kept = json.loads((store.pairs_dir("provisional") / "stop_rule.json").read_text())
+        assert kept["deviation"] == "pilot too small"
+    else:
+        assert "--device cuda" in result.err and "stop rule" not in result.err
+        assert verdict["passed"] and verdict["measured"]["better"] == 6
+
+
+def test_the_stop_rule_is_only_reported_when_not_enforced(
+    cli: CliRunner, env: dict[str, str], store: CampaignStore
+) -> None:
+    write_records(store.pairs_dir("provisional") / PAIRS_FILE, [_pair(False)])
+    train = ("--device", "cpu", "finetune", "train", "--scorer", "provisional")
+    result = cli(*train, "--allow-provisional", env=env)
+    assert result.code == 2 and "--device cuda" in result.err
+    assert "pilot stop rule: FIRED (reported only)" in result.err
+    verdict = json.loads((store.pairs_dir("provisional") / "stop_rule.json").read_text())
+    assert not verdict["passed"] and not verdict["enforced"]
+
+
+def test_pilot_review_needs_one_mode(cli: CliRunner, env: dict[str, str]) -> None:
+    result = cli("finetune", "pilot-review", "--scorer", "provisional", env=env)
+    assert result.code == 2 and "--sample or --better" in result.err
