@@ -24,6 +24,8 @@ PREFLIGHT = (
 # Each extract/verify call creates the next numbered run and prints it like the real commands.
 FAKE_UV = """#!/bin/bash
 printf 'uv %s\\n' "$*" >> "$CALLS"
+[[ "${PHYSVERIFY__CHECK_SCOPE__REQUIRE_DECISION_RECORD:-}" == true ]] \\
+    || echo "no record" >> "$CALLS"
 case "$*" in
   *" --clips "*)
     n=$(( $(cat "$COUNTER" 2>/dev/null || echo 0) + 1 )); echo "$n" > "$COUNTER"
@@ -144,6 +146,12 @@ def test_dev_freeze_then_test_compare_and_the_latest_link(sandbox: Sandbox) -> N
     assert (sandbox.runs / "run5" / "agreement.log").is_file()
     assert (sandbox.runs / "run5" / "agreement" / "preregistration.json").is_file()
     assert (sandbox.runs / "run4.log").read_text(encoding="utf-8").startswith("run: ")
+
+
+def test_every_step_requires_the_exclusion_record(sandbox: Sandbox) -> None:
+    sandbox.install()
+    assert sandbox.run().returncode == 0
+    assert sandbox.calls.read_text(encoding="utf-8").count("no record") == 0
 
 
 def test_an_uncached_preflight_clip_stops_before_any_extraction(sandbox: Sandbox) -> None:

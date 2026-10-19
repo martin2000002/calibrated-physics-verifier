@@ -15,6 +15,8 @@ TEST_SUBSET="${PHYSVERIFY_H2_TEST:-h2_test}"
 H2_DEVICE="${PHYSVERIFY_H2_DEVICE:-cpu}"
 PREFLIGHT_CLIP="${PHYSVERIFY_H2_PREFLIGHT_CLIP:-v1-a8208f4dd41e}"
 NOT_CACHED="heavy stage is not cached"
+# ADR 0015 runbook step 10: no H2 step runs without the sealed exclusion record.
+export PHYSVERIFY__CHECK_SCOPE__REQUIRE_DECISION_RECORD=true
 
 # step TOLERATED -- ARGS: runs physverify ARGS with its output also in $STEP_LOG; exits with the
 # command's code unless it is 0 or TOLERATED.
