@@ -14,6 +14,7 @@ from typing import Any
 
 import numpy as np
 
+from physverify.extraction.cache import StageCache
 from physverify.schema.contacts import ContactTable
 from physverify.schema.scene import PerturbationRecord
 from physverify.schema.states import ObjectStateTable
@@ -205,7 +206,7 @@ def cache_audit(inputs: AuditInputs, cache_roots: Sequence[Path]) -> dict[str, A
         frames = list((inputs.after.clip_dir(clip_id) / FRAMES_DIR).glob("*.png"))
         newest = min((p.stat().st_mtime for p in frames), default=float("inf"))
         for root in cache_roots:
-            metas = (root / DATASET_NAME / clip_id).rglob("meta.json")
+            metas = StageCache(root).metas(DATASET_NAME, clip_id)
             count = sum(p.stat().st_mtime < newest for p in metas)
             if count:
                 stale[f"{root}:{clip_id}"] = count
