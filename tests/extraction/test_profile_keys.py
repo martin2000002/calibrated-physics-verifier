@@ -200,6 +200,20 @@ def test_an_entry_of_another_profile_with_the_same_params_is_ignored_loudly(
     assert f"plan is profile {plan.profile}" in warnings[0]
 
 
+def test_a_missing_error_profile_is_reported_once(
+    make_settings: SettingsFactory,
+    providers: Providers,
+    fixture_dataset: SyntheticFixtureDataset,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    settings = make_settings(*plan_overrides(detect=FAKE, track=FAKE, depth=FAKE))
+    with caplog.at_level(logging.WARNING, logger="physverify.extraction.pipeline"):
+        report = run_pipeline(settings, providers, fixture_dataset, profile=None)
+    assert report.failures == ()
+    warnings = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
+    assert len(warnings) == 1 and "no error profile is loaded" in warnings[0]
+
+
 @pytest.mark.parametrize("profile", ["fast", "precise"])
 def test_the_writer_and_the_pipeline_hash_the_same_params(
     make_settings: SettingsFactory, real_providers: Providers, profile: str

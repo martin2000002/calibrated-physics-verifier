@@ -190,11 +190,17 @@ class ExtractionPipeline:
     def _warn_rejected_entries(self) -> None:
         """Loud, once per entry: a profile or params mismatch turns that sigma unknown (NaN)."""
         profile = self._deps.error_profile
-        if profile is None:
-            return
         keys = {
             key for step in self._plan.stages for key in profile_keys(step.provider, self._names)
         }
+        if profile is None:
+            if keys:
+                log.warning(
+                    "no error profile is loaded for profile %s (paths.error_profile is missing); "
+                    "every measured sigma is unknown (run `diagnose stages --write-profile`)",
+                    self._filter.profile,
+                )
+            return
         for entry in profile.rejected(keys, self._filter):
             log.warning(
                 "error profile entry %s/%s %s was measured under profile %s with params_hash %s "
