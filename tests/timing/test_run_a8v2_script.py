@@ -13,7 +13,7 @@ import pytest
 H200 = Path(__file__).resolve().parents[2] / "scripts" / "h200"
 SCRIPT = H200 / "run_a8v2.sh"
 TOOLS = (
-    "basename", "bash", "cat", "dirname", "env", "grep", "head", "mkdir", "mv", "nproc",
+    "basename", "bash", "cat", "cmp", "dirname", "env", "grep", "head", "mkdir", "mv", "nproc",
     "realpath", "sed", "sort", "tee", "touch", "tr",
 )  # fmt: skip
 PREFIX = re.compile(r"^--profile precise --device cpu --set runtime\.threads=\d+ ")
@@ -39,12 +39,13 @@ new_run() {
     echo "$n" > "$DATA/counter"
     RUN="$DATA/runs/r$n"
     mkdir -p "$RUN/diagnosis"
-    echo "hash$n" > "$RUN/checks_hash.txt"
+    if [[ -n "${HASH:-}" ]]; then echo "h$n"; else echo same; fi > "$RUN/checks_hash.txt"
     echo "run: $RUN"
 }
 case "$*" in
   *" doctor")
     echo "paths.cache_dir: ${CACHE:-$DATA/cache} (env)"
+    echo "paths.error_profile: ${PROFILE_FILE:-$DATA/calibration/stage_errors.precise.json}"
     echo "paths.synthetic_dir: $DATA/synthetic"
     echo "heavy_lock: $PHYSVERIFY__RUNTIME__HEAVY_LOCK (free)" ;;
   *" verify "*)
@@ -183,11 +184,27 @@ def test_commit_and_cache_are_required(sandbox: Sandbox, env: dict[str, str], me
     assert sandbox.lines() == []
 
 
-def test_a_cache_other_than_the_shards_stops_after_doctor(sandbox: Sandbox) -> None:
-    result = sandbox.run(CACHE="/elsewhere/cache")
+@pytest.mark.parametrize(
+    ("env", "message"),
+    [
+        ({"CACHE": "/elsewhere/cache"}, "not the shards'"),
+        ({"PROFILE_FILE": "/c/stage_errors.recalibrated.json"}, "not stage_errors.precise.json"),
+    ],
+)
+def test_a_cache_or_profile_other_than_the_shards_stops_after_doctor(
+    sandbox: Sandbox, env: dict[str, str], message: str
+) -> None:
+    result = sandbox.run(**env)
     assert result.returncode == 2
-    assert "not the shards'" in result.stderr
+    assert message in result.stderr
     assert sandbox.commands() == ["doctor"]
+
+
+def test_r2_arms_with_different_check_parameters_stop_before_decide(sandbox: Sandbox) -> None:
+    result = sandbox.run("8", HASH="1")
+    assert result.returncode == 2
+    assert "different check parameters" in result.stderr
+    assert sandbox.steps()[-1][:3] == ["8", "r2-arms", "2"]
 
 
 @pytest.mark.parametrize("start", ["x", "12", "-1", "01"])

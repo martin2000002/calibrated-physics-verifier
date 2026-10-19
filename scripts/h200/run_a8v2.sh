@@ -112,6 +112,10 @@ DOCTOR="$(pv doctor)" || die "physverify doctor failed"
 CACHE_DIR="$(doctor_value paths.cache_dir)"
 [[ -n "$CACHE_DIR" && "$(realpath -m "$CACHE_DIR")" == "$(realpath -m "$EXPECT_CACHE")" ]] \
     || die "doctor reports paths.cache_dir '$CACHE_DIR', not the shards' $EXPECT_CACHE"
+# The profile of 1.19: the precise one, never a recalibrated copy.
+ERROR_PROFILE="$(doctor_value paths.error_profile)"
+[[ "$(basename "$ERROR_PROFILE")" == stage_errors.precise.json ]] \
+    || die "doctor reports paths.error_profile '$ERROR_PROFILE', not stage_errors.precise.json"
 SYNTH_DIR="$(doctor_value paths.synthetic_dir)"
 VERSION="${PHYSVERIFY_A8V2_VERSION:-v1-precise}"
 MIGRATION=pair-collision
@@ -367,21 +371,23 @@ step_7() {
 step_8() {
     local clips_file="$OUT/r2_clips.txt"
     call 0 -- exclusions r2-clips --out "$clips_file"
-    local clips=() id run
+    local clips=() id base run
     while IFS= read -r id; do
         [[ -z "$id" ]] || clips+=(--clips "$id")
     done <"$clips_file"
     [[ ${#clips[@]} -gt 0 ]] || stop "no R2 clips in $clips_file"
     call 1 -- verify "${KS[@]}" --level perceived --policy raw "${clips[@]}"
-    run="$(run_of)"
-    save R2_BASE_RUN "$(basename "$run")"
-    note "R2 base arm: $run, checks_hash $(cat "$run/checks_hash.txt" 2>/dev/null || echo '?')"
+    base="$(run_of)"
+    save R2_BASE_RUN "$(basename "$base")"
+    note "R2 base arm: $base, checks_hash $(cat "$base/checks_hash.txt" 2>/dev/null || echo '?')"
     local tiny=(--set extraction.plan.detect=grounding_dino_tiny)
     call 1 -- "${tiny[@]}" extract run "${KS[@]}" "${clips[@]}"
     call 1 -- "${tiny[@]}" verify "${KS[@]}" --level perceived --policy raw "${clips[@]}"
     run="$(run_of)"
     save R2_TINY_RUN "$(basename "$run")"
     note "R2 tiny arm: $run, checks_hash $(cat "$run/checks_hash.txt" 2>/dev/null || echo '?')"
+    cmp -s "$base/checks_hash.txt" "$run/checks_hash.txt" \
+        || stop "the R2 arms ran with different check parameters (checks_hash.txt)"
 }
 
 step_9() {
