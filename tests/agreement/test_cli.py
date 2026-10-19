@@ -12,7 +12,7 @@ if CALIBRATION_TESTS not in sys.path:
 
 from stratum_cases import write_artifact  # noqa: E402
 
-from physverify.agreement.prereg import load_preregistration  # noqa: E402
+from physverify.agreement.prereg import file_sha256, load_preregistration  # noqa: E402
 from physverify.agreement.report import REPORT_DIR, _sign_flip_lines  # noqa: E402
 from physverify.calibration.loader import default_artifact_path  # noqa: E402
 from physverify.calibration.settings import active_checks_hash  # noqa: E402
@@ -245,11 +245,13 @@ def _freeze(cli, world, *options: str, after: tuple[str, ...] = ()):
 
 
 def test_an_unusable_stratum_runs_descriptive_and_h2_is_not_evaluable(cli, world) -> None:
-    _artifact(world, ready=False)
+    artifact = _artifact(world, ready=False)
     frozen = _freeze(cli, world, *CALIBRATED)
     assert frozen.code == 0, frozen.err
     path = Path(frozen.out.split("preregistration: ", 1)[1].splitlines()[0])
-    assert "aggregate threshold" in str(load_preregistration(path).calibration_gate)
+    prereg = load_preregistration(path)
+    assert "aggregate threshold" in str(prereg.calibration_gate)
+    assert prereg.calibration_artifact_sha256 == file_sha256(artifact)
     run = _test(world)
     result = cli(*FAST, *CALIBRATED, "agreement", "compare", "--verify-run", str(run))
     assert result.code == 0, result.err
@@ -287,7 +289,8 @@ def test_require_calibrated_turns_an_insufficient_artifact_descriptive(cli, worl
     run = _test(world)
     result = cli(*FAST, *CALIBRATED, *STRICT, "agreement", "compare", "--verify-run", str(run))
     assert result.code == 0, result.err
-    assert "not 'calibrated'" in _metrics(run)["h2_verdict"]["gate"]
+    gate = _metrics(run)["h2_verdict"]["gate"]
+    assert "not 'calibrated'" in gate and str(world.settings.paths.calibration_dir) not in gate
 
 
 def test_a_usable_stratum_reports_its_state_per_check(cli, world) -> None:
@@ -301,6 +304,24 @@ def test_a_usable_stratum_reports_its_state_per_check(cli, world) -> None:
     assert calibration["gate"] is None
     assert calibration["stratum"]["checks"]["R1"]["status"] == "ok"
     assert _metrics(run)["h2_verdict"]["status"] == "evaluated"
+
+
+def test_the_dev_design_effect_is_used_only_where_it_was_estimated(cli, world) -> None:
+    frozen = _freeze(cli, world)
+    assert frozen.code == 0, frozen.err
+    path = Path(frozen.out.split("preregistration: ", 1)[1].splitlines()[0])
+    dev = load_preregistration(path).dev_design_effect
+    run = _test(world)
+    assert cli(*FAST, "agreement", "compare", "--verify-run", str(run)).code == 0
+    metrics = _metrics(run)
+    primary = (metrics["h2_group"], metrics["primary_policy"])
+    sources = {
+        (group, policy): view.get("design_effect_source")
+        for group, views in metrics["groups"].items()
+        for policy, view in views.items()
+    }
+    assert sources.pop(primary) == ("this_data" if dev is None else "dev")
+    assert sources and set(sources.values()) <= {"this_data", None}
 
 
 def test_a_calibrated_refreeze_after_a_fallback_comparison_is_post_hoc(cli, world) -> None:

@@ -91,16 +91,27 @@ def _groups(
     inputs: ComparisonInputs, items: Sequence[ComparisonItem], plan: BootstrapPlan
 ) -> dict[str, Any]:
     test = (inputs.agreement.alpha, inputs.agreement.power)
-    deff = inputs.dev_design_effect
     return {
         group: {
             policy: evaluate_view(
-                members, policy_view(members, policy), inputs.dev_majority, plan, test, deff
+                members,
+                policy_view(members, policy),
+                inputs.dev_majority,
+                plan,
+                test,
+                _frozen_design_effect(inputs, group, policy),
             )
             for policy in POLICIES
         }
         for group, members in by_version(items).items()
     }
+
+
+def _frozen_design_effect(inputs: ComparisonInputs, group: str, policy: str) -> float | None:
+    """The dev design effect was estimated on the aggregate primary view only; every other
+    view estimates its own on the compared data."""
+    primary = group == AGGREGATE and policy == inputs.agreement.primary_policy
+    return inputs.dev_design_effect if primary else None
 
 
 def _secondary(

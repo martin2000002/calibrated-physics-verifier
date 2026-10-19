@@ -126,18 +126,23 @@ def build_rule[S: CalibrationStratum](
     except UnusableCalibrationError as exc:
         if agreement.on_unusable_stratum == "error":
             raise ConfigError(f"calibration {artifact}: {exc}") from exc
-        return _provisional(settings, excluded, scope, str(exc))
+        return _provisional(settings, excluded, scope, str(exc), artifact)
     return RuleSetup(rule, artifact, None, scope, calibration=dict(rule.status))
 
 
 def _provisional(
-    settings: Settings, excluded: frozenset[str], scope: RuleScope, gate: str | None
+    settings: Settings,
+    excluded: frozenset[str],
+    scope: RuleScope,
+    gate: str | None,
+    artifact: Path | None = None,
 ) -> RuleSetup:
-    """The provisional rule, also the fallback of an unusable stratum (descriptive H2)."""
+    """The provisional rule, also the fallback of an unusable stratum (descriptive H2), which
+    keeps the artifact so the freeze binds the one whose stratum was found unusable."""
     verification = settings.section(VERIFICATION_SECTION, VerificationSettings)
     thresholds = load_thresholds(settings.paths.thresholds, verification.thresholds)
     rule = ProvisionalAnyFail(thresholds, excluded)
-    return RuleSetup(rule, None, thresholds_label(thresholds), scope, gate)
+    return RuleSetup(rule, artifact, thresholds_label(thresholds), scope, gate)
 
 
 def check_run(

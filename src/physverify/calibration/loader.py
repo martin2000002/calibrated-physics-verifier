@@ -263,7 +263,7 @@ def open_stratum(
         raise CalibrationError(mismatch)
     problem = stratum.readiness_problem()
     if problem is None and require_calibrated and calibration.status != CALIBRATED:
-        problem = f"{path} has status {calibration.status!r}, not {CALIBRATED!r}"
+        problem = f"{path.name} has status {calibration.status!r}, not {CALIBRATED!r}"
     if problem is not None:
         raise UnusableStratumError(problem)
     return stratum
