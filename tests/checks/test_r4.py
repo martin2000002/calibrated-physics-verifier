@@ -16,6 +16,7 @@ from physverify.checks.r4_integrity import (
     SizeParams,
 )
 from physverify.physics.finite_diff import third_difference
+from physverify.physics.measures.r4_integrity import size_change_ratio
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
 from physverify.schema.constants import STANDARD_GRAVITY
 
@@ -133,6 +134,62 @@ def test_size_with_too_few_known_rows_abstains() -> None:
     result = size(case)
     assert result.abstain_reason is AbstainReason.TOO_FEW_FRAMES
     assert result.frame_span is None
+
+
+def size_glitch(frames: range, factor: float = 0.5) -> sc.Case:
+    case = sc.rolling_ball(clip_id="size_glitch")
+    shrunk = case.states.size[np.isin(case.states.frame_index, list(frames)), 0] * factor
+    return sc.with_values(case, "size", "ball", frames, shrunk)
+
+
+def test_size_glitch_is_measured_when_the_rows_are_whole() -> None:
+    result = size(sc.with_values(size_glitch(range(10, 12)), "occlusion", "ball", [10, 11], 0.5))
+    assert result.magnitude == pytest.approx(0.5, abs=1e-9)
+    assert result.details["excluded_rows"] == 0
+
+
+def test_occluded_and_out_of_frame_rows_are_left_out() -> None:
+    case = sc.with_values(size_glitch(range(10, 13)), "occlusion", "ball", [10, 11], 0.95)
+    case = sc.with_values(case, "in_frame", "ball", [12], False)
+    result = size(case)
+    assert result.verdict is Verdict.UNSCORED
+    assert result.magnitude == pytest.approx(0.0, abs=1e-12)
+    assert result.details["excluded_rows"] == 3
+    assert result.details["size_rows"] == sc.FRAMES - 3
+
+
+def test_unknown_occlusion_keeps_the_perceived_result() -> None:
+    """Perceived tables carry NaN occlusion and unseen rows as in_frame False with NaN size: the
+    result equals the unfiltered measure over every known row (the behaviour before the filter)."""
+    unseen = range(3, 6)
+    case = sc.with_sigma(size_glitch(range(20, 22)), size=0.002)
+    case = sc.with_values(case, "occlusion", "ball", range(sc.FRAMES), math.nan)
+    case = sc.with_values(case, "in_frame", "ball", unseen, False)
+    case = sc.with_values(case, "size", "ball", unseen, math.nan)
+    result = size(case)
+    known = sc.with_values(case, "occlusion", "ball", range(sc.FRAMES), 0.0)
+    reference = size(sc.with_values(known, "in_frame", "ball", unseen, True))
+    assert result.magnitude == size_change_ratio(case.states.size[:, 0])
+    assert result.magnitude == pytest.approx(0.5, abs=1e-9)
+    assert (result.verdict, result.magnitude, result.sigma, result.frame_span) == (
+        reference.verdict,
+        reference.magnitude,
+        reference.sigma,
+        reference.frame_span,
+    )
+    assert result.details["size_rows"] == sc.FRAMES - len(unseen)
+
+
+@pytest.mark.parametrize("whole", [2, 3])
+def test_size_abstains_only_below_min_size_frames(whole: int) -> None:
+    hidden = range(whole, sc.FRAMES)
+    result = size(sc.with_values(sc.rolling_ball(), "occlusion", "ball", hidden, 0.95))
+    if whole < SizeParams().min_size_frames:
+        assert result.abstain_reason is AbstainReason.TOO_FEW_FRAMES
+        assert result.details["excluded_rows"] == len(hidden)
+    else:
+        assert result.verdict is Verdict.UNSCORED
+        assert result.details["size_rows"] == whole
 
 
 # --- R4_jump ----------------------------------------------------------------------------------

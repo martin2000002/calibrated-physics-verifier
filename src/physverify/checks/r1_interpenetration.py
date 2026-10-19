@@ -9,10 +9,10 @@ from typing import Any, ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from physverify.checks._base import CheckInputs
-from physverify.checks._common import CommonParams, abstain, unscored
+from physverify.checks._common import OcclusionParams, abstain, unscored
 from physverify.physics.geometry import Body, Plane, characteristic_length, signed_distance
 from physverify.physics.measures.r1_penetration import penetration_ratio
 from physverify.physics.tracks import native_span, place_body, support_plane
@@ -29,8 +29,8 @@ JACOBIAN_STEP = 1e-6
 SEPARATED_SIGMAS = 3.0
 
 
-class InterpenetrationParams(CommonParams):
-    occluded_at: float = Field(default=0.9, gt=0.0, le=1.0)
+class InterpenetrationParams(OcclusionParams):
+    pass
 
 
 @dataclass(frozen=True)
@@ -42,7 +42,14 @@ class _Peak:
 
 
 class InterpenetrationCheck:
-    """R1 [pen_over_size]: max over rows of the penetration depth over the smaller L."""
+    """R1 [pen_over_size]: max over rows of the penetration depth over the smaller L.
+
+    The maximum of noisy per-row values is biased upward: with position or size noise a clean
+    contact (true d = 0) still yields max_t max(0, -d_t) / L > 0, growing with the noise and the
+    number of rows. ``sigma`` is the per-row sigma at the peak, not the spread of the maximum.
+    The bias is not corrected here: tau is a conformal quantile of this same maximum over clean
+    clips (``calibration.thresholds.fit_tau``), so the null distribution already contains it.
+    """
 
     check_id: ClassVar[str] = "R1"
     requires: ClassVar[frozenset[str]] = frozenset()
