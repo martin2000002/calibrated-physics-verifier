@@ -71,7 +71,12 @@ from physverify.evaluation.records import (
 from physverify.evaluation.report import write_report
 from physverify.evaluation.scoring import frozen_stamp_problem, manifest, rescore, stale
 from physverify.evaluation.settings import H3Settings, load_h3
-from physverify.evaluation.state import DEV_SPLIT, FreezeInputs, current_record
+from physverify.evaluation.state import (
+    DEV_SPLIT,
+    FreezeInputs,
+    current_record,
+    require_exclusion_record,
+)
 from physverify.finetune.records import BASE_TAG, PromptRecord, read_record, write_record
 from physverify.finetune.scorers._base import AggregateScorer
 from physverify.finetune.scoring import build_scorer, rescorer, score_candidates, scorer_registry
@@ -289,6 +294,7 @@ def freeze(
     current = _current(h).model_copy(
         update={"stop_rule_deviation": None if passed else stop_rule_deviation}
     )
+    require_exclusion_record(h.context.settings, current)
     request = FreezeRequest(force, declare_deviation, _eval_data(h), h.layout.gate.is_file())
     old = optional_prereg(h.layout.prereg)
     record = plan_freeze(old, file_sha256(h.layout.prereg), current, request)

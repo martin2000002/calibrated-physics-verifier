@@ -2,33 +2,41 @@ from __future__ import annotations
 
 import ast
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
-import pytest
-from cli_runner import CliRunner
+CALIBRATION_TESTS = str(Path(__file__).resolve().parent.parent / "calibration")
+if CALIBRATION_TESTS not in sys.path:
+    sys.path.insert(0, CALIBRATION_TESTS)
 
-from physverify.agreement.prereg import file_sha256
-from physverify.cli.commands.h3 import GATE_LINE, GATE_PASSED
-from physverify.core.errors import UsageError
-from physverify.evaluation.compare import (
+import pytest  # noqa: E402
+from cli_runner import CliRunner  # noqa: E402
+from exclusion_cases import write_record as write_exclusions  # noqa: E402
+
+from physverify.agreement.prereg import file_sha256  # noqa: E402
+from physverify.calibration.settings import active_checks_hash  # noqa: E402
+from physverify.cli.commands.h3 import GATE_LINE, GATE_PASSED  # noqa: E402
+from physverify.core.errors import UsageError  # noqa: E402
+from physverify.evaluation.compare import (  # noqa: E402
     eval_judges,
     external_status,
     require_bound,
     require_stamp,
     task_values,
 )
-from physverify.evaluation.prereg import H3Preregistration, chain_shas, load_prereg
-from physverify.evaluation.records import (
+from physverify.evaluation.prereg import H3Preregistration, chain_shas, load_prereg  # noqa: E402
+from physverify.evaluation.records import (  # noqa: E402
     GateReport,
     GateTask,
     JudgeOutput,
     JudgeRow,
     Usability,
 )
-from physverify.evaluation.scoring import manifest
-from physverify.evaluation.verdict import NO_VERDICT
-from physverify.finetune.records import BASE_TAG, write_record
+from physverify.evaluation.scoring import manifest  # noqa: E402
+from physverify.evaluation.state import require_exclusion_record  # noqa: E402
+from physverify.evaluation.verdict import NO_VERDICT  # noqa: E402
+from physverify.finetune.records import BASE_TAG, write_record  # noqa: E402
 
 SUBCOMMANDS = (
     "generate",
@@ -359,3 +367,38 @@ def test_the_stop_rule_is_off_in_the_fast_profile(
     result = cli("h3", "freeze", env=h3_environ)
     assert result.code == 0, result.err
     assert "pilot stop rule: FIRED (reported only)" in result.err
+
+
+def _exclusion_record(campaign: Any, artifact_sha256: str = "artifact") -> str:
+    settings = campaign.settings
+    path = settings.paths.calibration_dir / "exclusions.json"
+    found = write_exclusions(
+        path, artifact_sha256=artifact_sha256, checks_hash=active_checks_hash(settings)
+    )
+    return found.sha256
+
+
+def test_freeze_records_the_exclusion_record_sha(
+    cli: CliRunner, campaign: Any, h3_environ: dict[str, str]
+) -> None:
+    campaign.build()
+    sha256 = _exclusion_record(campaign)
+    result = cli("h3", "freeze", env=h3_environ)
+    assert result.code == 0, result.err
+    assert load_prereg(campaign.layout.prereg).exclusion_record_sha256 == sha256
+
+
+def test_a_calibrated_h3_rule_needs_the_record_of_its_artifact(
+    campaign: Any, frozen: H3Preregistration
+) -> None:
+    calibrated = frozen.model_copy(
+        update={"rule_status": "calibrated", "calibration_artifact_sha256": "artifact"}
+    )
+    require_exclusion_record(campaign.settings, frozen)
+    with pytest.raises(UsageError, match="exclusions decide"):
+        require_exclusion_record(campaign.settings, calibrated)
+    _exclusion_record(campaign, "artifact")
+    require_exclusion_record(campaign.settings, calibrated)
+    _exclusion_record(campaign, "another")
+    with pytest.raises(UsageError, match="decide again"):
+        require_exclusion_record(campaign.settings, calibrated)
