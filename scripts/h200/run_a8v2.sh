@@ -7,14 +7,18 @@
 # run_kubric_cpu_shards.sh) and never uses a GPU: every call is --profile precise --device cpu,
 # the device the cache keys were computed with.
 #
-#   bash scripts/h200/run_a8v2.sh [FROM]     FROM: first step to run (0-11, default 0)
+#   bash scripts/h200/run_a8v2.sh [FROM [TO]]   steps FROM..TO (default 0..11); a TO below 11
+#                                               stops there with exit 0, `FROM=TO+1` resumes
 #
-#   startup  no running extract/dataset job; HEAD is PHYSVERIFY_A8V2_EXPECT_COMMIT with no
-#            uncommitted change under src, configs or scripts; paths.cache_dir is
-#            PHYSVERIFY_A8V2_CACHE_DIR; the PISA selection is within what the shards extracted
-#   pre      (FROM <= 8) one cached clip per dataset verified (any error in its checks.jsonl
-#            stops), so a wrong cache stops here and not after days of recomputation; before step 2
-#            has begun, one timed `diagnose stages` calib clip not timed before (cost of steps 2, 4)
+#   startup  no running extract/dataset job on a dataset steps FROM..TO touch (STEP_DATASETS; one
+#            whose --dataset cannot be read always blocks); HEAD is PHYSVERIFY_A8V2_EXPECT_COMMIT
+#            with no uncommitted change under src, configs or scripts; paths.cache_dir is
+#            PHYSVERIFY_A8V2_CACHE_DIR; when the range touches pisa_real and FROM <= 6, the PISA
+#            selection is within what the shards extracted
+#   pre      (FROM <= 8) one cached clip per dataset of the range verified (any error in its
+#            checks.jsonl stops), so a wrong cache stops here and not after days of recomputation;
+#            before step 2 has begun, one timed `diagnose stages` calib clip not timed before (cost
+#            of steps 2, 4)
 #    0 migrate            migrate_velocity.sh with pair-collision (needs docker); skipped when its
 #                         manifest is complete and its audit.json exists, so a rerun never purges
 #    1 extract-synthetic  re-extracts kubric_synthetic/full (only the re-rendered clips are new)
@@ -61,15 +65,64 @@ source "$(dirname "${BASH_SOURCE[0]}")/_common.sh"
 cd "$REPO_ROOT"
 
 LAST_STEP=11
+[[ $# -le 2 ]] || die "usage: run_a8v2.sh [FROM [TO]]"
 FROM="${1:-0}"
-[[ "$FROM" =~ ^(0|[1-9][0-9]*)$ && "$FROM" -le "$LAST_STEP" ]] \
-    || die "FROM must be a step number 0-$LAST_STEP, got '$FROM'"
+TO="${2:-$LAST_STEP}"
+STEP_NUMBER='^(0|[1-9][0-9]*)$'
+[[ "$FROM" =~ $STEP_NUMBER && "$TO" =~ $STEP_NUMBER ]] \
+    && [[ "$FROM" -le "$TO" && "$TO" -le "$LAST_STEP" ]] \
+    || die "FROM and TO must be step numbers with FROM <= TO <= $LAST_STEP, got '$FROM' '$TO'"
+
+# The datasets whose extraction cache each step reads or writes: 3 extracts the real sets, 6 and 7
+# (abstain curve) read them, 9 reads the R2 clips; 10 (Objectron heads) and 11 (step 2's
+# stages.json) read none.
+SYNTH=kubric_synthetic
+ALL_SETS="$SYNTH physics_iq pisa_real"
+STEP_DATASETS=(
+    [0]=$SYNTH [1]=$SYNTH [2]=$SYNTH [3]=$ALL_SETS [4]=$SYNTH [5]=$SYNTH [6]=$ALL_SETS
+    [7]=$ALL_SETS [8]=$SYNTH [9]=$SYNTH [10]="" [11]=""
+)
+RANGE_DATASETS=""
+for ((n = FROM; n <= TO; n++)); do
+    for dataset in ${STEP_DATASETS[$n]}; do
+        [[ " $RANGE_DATASETS " == *" $dataset "* ]] \
+            || RANGE_DATASETS+="${RANGE_DATASETS:+ }$dataset"
+    done
+done
+
+in_range() {
+    [[ " $RANGE_DATASETS " == *" $1 "* ]]
+}
+
 BUSY_JOBS='physverify(\.cli\.main)?.*(extract run|dataset (build|migrate))'
+KUBRIC_JOBS='dataset (build|migrate)'
+DATASET_NAME='^[a-z][a-z0-9_]*$'
+
+# Whether a busy job's command line touches a dataset of the range; one with no readable
+# --dataset does (fail safe), and `dataset build|migrate` are kubric_synthetic's.
+blocks() {
+    local args="$1" value values
+    if [[ "$args" =~ $KUBRIC_JOBS ]]; then
+        in_range kubric_synthetic
+        return
+    fi
+    values="$(grep -oE -- '--dataset[= ][^ ]*' <<<"$args" | sed -E 's/^--dataset[= ]//' || true)"
+    [[ -n "$values" ]] || return 0
+    while IFS= read -r value; do
+        [[ "$value" =~ $DATASET_NAME ]] || return 0
+        ! in_range "$value" || return 0
+    done <<<"$values"
+    return 1
+}
 
 # The shards ran with --no-lock, so the heavy lock cannot tell whether they are done.
-procs="$(ps -eo pid=,args=)"
-busy="$(grep -E "$BUSY_JOBS" <<<"$procs" | grep -vE "^ *$$ " || true)"
-[[ -z "$busy" ]] || die "extraction or dataset jobs are still running:"$'\n'"$busy"
+busy=""
+while read -r pid args; do
+    [[ -n "$pid" && "$pid" != "$$" && "$args" =~ $BUSY_JOBS ]] || continue
+    ! blocks "$args" || busy+="$pid $args"$'\n'
+done <<<"$(ps -eo pid=,args=)"
+[[ -z "$busy" ]] \
+    || die "extract/dataset jobs on the datasets of steps $FROM-$TO are still running:"$'\n'"$busy"
 
 EXPECT="${PHYSVERIFY_A8V2_EXPECT_COMMIT:-}"
 [[ ${#EXPECT} -ge 7 ]] || die "set PHYSVERIFY_A8V2_EXPECT_COMMIT to the commit this run uses"
@@ -337,20 +390,32 @@ estimate() {
         "$calib calib clips (one-clip estimate, high by the load time)"
 }
 
-# A wrong cache would recompute every clip in extract run; one cached clip per dataset proves it.
 # The kubric clip is a calib clip outside the migration's re-renders (their cache is purged).
+preflight_clip_of() {
+    case "$1" in
+        kubric_synthetic) preflight_clip "${PHYSVERIFY_A8V2_PREFLIGHT_KUBRIC:-}" "$1" \
+            "$SHARDS/kubric_full.ids" calib ;;
+        physics_iq) preflight_clip "${PHYSVERIFY_A8V2_PREFLIGHT_PHYSICS_IQ:-}" "$1" \
+            "$SHARDS/$1_full.ids" ;;
+        pisa_real) preflight_clip "${PHYSVERIFY_A8V2_PREFLIGHT_PISA:-}" "$1" \
+            "$SHARDS/$1_full.ids" ;;
+        *) die "no preflight clip for $1" ;;
+    esac
+}
+
+# A wrong cache would recompute every clip in extract run; one cached clip per dataset proves it.
+# Only the range's datasets: the others may still be under their shards.
 preflight() {
     begin pre preflight
-    local kubric physics pisa
-    kubric="$(preflight_clip "${PHYSVERIFY_A8V2_PREFLIGHT_KUBRIC:-}" kubric_synthetic \
-        "$SHARDS/kubric_full.ids" calib)"
-    physics="$(preflight_clip "${PHYSVERIFY_A8V2_PREFLIGHT_PHYSICS_IQ:-}" physics_iq \
-        "$SHARDS/physics_iq_full.ids")"
-    pisa="$(preflight_clip "${PHYSVERIFY_A8V2_PREFLIGHT_PISA:-}" pisa_real \
-        "$SHARDS/pisa_real_full.ids")"
-    preflight_verify kubric_synthetic "$kubric"
-    preflight_verify physics_iq "$physics"
-    preflight_verify pisa_real "$pisa"
+    local dataset clip picked=()
+    for dataset in $RANGE_DATASETS; do
+        clip="$(preflight_clip_of "$dataset")"
+        picked+=("$dataset" "$clip")
+    done
+    local i
+    for ((i = 0; i < ${#picked[@]}; i += 2)); do
+        preflight_verify "${picked[$i]}" "${picked[$((i + 1))]}"
+    done
     estimate
     row 0
 }
@@ -505,9 +570,10 @@ step_11() {
 
 # --- main --------------------------------------------------------------------------------------
 
-[[ "$FROM" -gt 6 ]] || check_pisa
+# Steps 3 and 6 read the PISA selection; 7 reads what 3 extracted and 6 already checked.
+! in_range pisa_real || [[ "$FROM" -gt 6 ]] || check_pisa
 [[ "$FROM" -gt 8 ]] || preflight
-for ((n = FROM; n <= LAST_STEP; n++)); do
+for ((n = FROM; n <= TO; n++)); do
     case "$n" in
         0) begin 0 migrate ;;
         1) begin 1 extract-synthetic ;;
@@ -525,4 +591,8 @@ for ((n = FROM; n <= LAST_STEP; n++)); do
     "step_$n"
     row 0
 done
+if [[ "$TO" -lt "$LAST_STEP" ]]; then
+    note "stopped after step $TO as requested; resume with run_a8v2.sh $((TO + 1))"
+    echo "A8 v2: stopped after step $TO as requested (resume with run_a8v2.sh $((TO + 1)))"
+fi
 echo "A8 v2: $SUMMARY"

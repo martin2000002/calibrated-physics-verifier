@@ -225,9 +225,11 @@ def test_r2_arms_with_different_check_parameters_stop_before_decide(sandbox: San
     assert sandbox.steps()[-1][:3] == ["8", "r2-arms", "2"]
 
 
-@pytest.mark.parametrize("start", ["x", "12", "-1", "01"])
-def test_a_bad_start_step_is_a_usage_error(sandbox: Sandbox, start: str) -> None:
-    result = sandbox.run(start)
+@pytest.mark.parametrize(
+    "args", [("x",), ("12",), ("-1",), ("01",), ("3", "2"), ("0", "12"), ("0", "y"), ("0", "1", "2")]
+)
+def test_a_bad_step_range_is_a_usage_error(sandbox: Sandbox, args: tuple[str, ...]) -> None:
+    result = sandbox.run(*args)
     assert result.returncode == 2
     assert sandbox.lines() == []
 
@@ -469,4 +471,116 @@ def test_bad_diag_shard_settings_are_usage_errors(sandbox: Sandbox, env: dict[st
     result = sandbox.run("2", **env)
     assert result.returncode == 2
     assert "PHYSVERIFY_A8V2_DIAG_" in result.stderr
+    assert sandbox.lines() == []
+
+
+KS = "--dataset kubric_synthetic --subset full"
+SHARD = "python -c from physverify.cli.main import main; main() --profile precise --device cpu"
+
+
+def _extracting(dataset: str) -> str:
+    return f"4242 {SHARD} extract run --dataset {dataset} --subset full --clips x1"
+
+
+def _verified(sandbox: Sandbox) -> list[str]:
+    return [c.split()[2] for c in sandbox.commands() if c.startswith("verify --dataset")]
+
+
+def test_a_range_runs_only_its_steps_and_a_later_start_resumes_from_state(
+    sandbox: Sandbox,
+) -> None:
+    first = sandbox.run("0", "2")
+    assert first.returncode == 0, first.stderr
+    assert "stopped after step 2 as requested" in first.stdout
+    assert sandbox.commands() == [
+        "doctor",
+        "verify --dataset kubric_synthetic --level perceived --subset full --clips k2",
+        f"diagnose stages {KS} --clips k2",
+        "migrate pair-collision unset",
+        f"extract run {KS}",
+        f"diagnose stages {KS} --write-profile",
+    ]
+    assert [row[1] for row in sandbox.steps()] == ["preflight", *STEP_NAMES[:3]]
+    stages_run = sandbox.data / "runs" / "r4"
+    assert f"STAGES_RUN={stages_run}" in (sandbox.out / "state.env").read_text(encoding="utf-8")
+    sandbox.calls.unlink()
+    rest = sandbox.run("3")
+    assert rest.returncode == 0, rest.stderr
+    assert "stopped after step" not in rest.stdout
+    assert [row[1] for row in sandbox.steps()] == [
+        "preflight", *STEP_NAMES[:3], "preflight", *STEP_NAMES[3:]
+    ]  # fmt: skip
+    assert _verified(sandbox)[:3] == ["kubric_synthetic", "physics_iq", "pisa_real"]
+    assert not _timed(sandbox)
+    assert f"query gravity {stages_run}/diagnosis/stages.json" in sandbox.lines()
+
+
+@pytest.mark.parametrize(
+    ("args", "datasets"),
+    [
+        (("0", "2"), ["kubric_synthetic"]),
+        (("1", "1"), ["kubric_synthetic"]),
+        (("3", "5"), ["kubric_synthetic", "physics_iq", "pisa_real"]),
+        (("0",), ["kubric_synthetic", "physics_iq", "pisa_real"]),
+        (("10", "10"), []),
+    ],
+)
+def test_the_preflight_checks_only_the_datasets_of_the_range(
+    sandbox: Sandbox, args: tuple[str, ...], datasets: list[str]
+) -> None:
+    result = sandbox.run(*args)
+    assert result.returncode == 0, result.stderr
+    preflights = [c for c in sandbox.commands() if "--level perceived --subset full" in c]
+    assert [c.split()[2] for c in preflights] == datasets
+    queried = {line.split()[2] for line in sandbox.lines() if line.startswith("query clips ")}
+    assert queried <= {*datasets}
+
+
+def test_the_pisa_selection_is_checked_only_by_ranges_that_read_it(sandbox: Sandbox) -> None:
+    assert sandbox.run("0", "2", PISA_SELECTED="p1").returncode == 0
+    result = sandbox.run("3", PISA_SELECTED="p1")
+    assert result.returncode == 2
+    assert "set PHYSVERIFY_A8V2_PISA_MAX_CLIPS" in result.stderr
+
+
+def test_a_pisa_extraction_blocks_only_ranges_that_touch_pisa(sandbox: Sandbox) -> None:
+    busy = _extracting("pisa_real")
+    first = sandbox.run("0", "2", PS_OUT=busy)
+    assert first.returncode == 0, first.stderr
+    sandbox.calls.unlink()
+    later = sandbox.run("3", PS_OUT=busy)
+    assert later.returncode == 2
+    assert "still running" in later.stderr and "--dataset pisa_real" in later.stderr
+    assert sandbox.lines() == []
+
+
+@pytest.mark.parametrize(
+    "busy",
+    [
+        _extracting("local_video"),
+        f"4242 {SHARD} extract run --dataset=local_video --subset s",
+        f"4242 {SHARD} --set x=1 diagnose stages --dataset pisa_real",
+    ],
+)
+def test_jobs_outside_the_range_never_block(sandbox: Sandbox, busy: str) -> None:
+    result = sandbox.run(PS_OUT=f"  1 init\n{busy}")
+    assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.parametrize(
+    "busy",
+    [
+        f"4242 {SHARD} extract run --subset full",
+        f"4242 {SHARD} extract run --dataset",
+        f"4242 {SHARD} extract run --dataset $DS --subset full",
+        f"4242 {SHARD} extract run --dataset local_video --dataset kubric_synthetic",
+        f"4242 {SHARD} dataset build --version v2",
+        "4242 physverify dataset migrate pair-collision",
+        _extracting("kubric_synthetic"),
+    ],
+)
+def test_an_unreadable_or_kubric_job_blocks_the_kubric_range(sandbox: Sandbox, busy: str) -> None:
+    result = sandbox.run("0", "2", PS_OUT=f"  1 init\n{busy}")
+    assert result.returncode == 2
+    assert "still running" in result.stderr
     assert sandbox.lines() == []
