@@ -226,7 +226,8 @@ def test_r2_arms_with_different_check_parameters_stop_before_decide(sandbox: San
 
 
 @pytest.mark.parametrize(
-    "args", [("x",), ("12",), ("-1",), ("01",), ("3", "2"), ("0", "12"), ("0", "y"), ("0", "1", "2")]
+    "args",
+    [("x",), ("12",), ("-1",), ("01",), ("3", "2"), ("0", "12"), ("0", "y"), ("0", "1", "2")],
 )
 def test_a_bad_step_range_is_a_usage_error(sandbox: Sandbox, args: tuple[str, ...]) -> None:
     result = sandbox.run(*args)
