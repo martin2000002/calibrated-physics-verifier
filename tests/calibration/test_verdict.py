@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Sequence
+from dataclasses import replace
 from typing import Any, cast
 
 import numpy as np
@@ -20,7 +21,12 @@ from calibration_cases import (
     view,
 )
 
-from physverify.calibration.apply import check_outcome, policy_for, rule_for, score_clip
+from physverify.calibration.apply import (
+    check_outcome,
+    policy_for,
+    rule_for,
+    score_clip,
+)
 from physverify.calibration.collect import level_data
 from physverify.calibration.fit import FitInputs, fit_calibration, platt_data
 from physverify.calibration.loader import Stratum as StratumView
@@ -251,7 +257,11 @@ def test_a_pass_and_an_abstain_clip_abstains_with_the_pass_magnitude() -> None:
     ]
     outcome = clip_verdict(subjects, RULE, TAU)
     assert outcome.verdict is Verdict.ABSTAIN and outcome.magnitude == 0.01
-    assert outcome.abstain_reason is not None
+    assert outcome.abstain_reason is not None and not outcome.judged
+    stratum = view({"R1": check_calibration(tau=TAU)})
+    applied = check_outcome(subjects, stratum, policy_for(stratum))
+    assert applied is not None and applied.verdict is Verdict.ABSTAIN
+    assert applied.p_violation is None
 
 
 def test_a_fail_and_a_nan_clip_fails() -> None:
@@ -261,3 +271,15 @@ def test_a_fail_and_a_nan_clip_fails() -> None:
     ]
     outcome = clip_verdict(subjects, RULE, TAU)
     assert outcome.verdict is Verdict.FAIL and outcome.magnitude == 0.2
+
+
+def test_without_tau_an_unscored_and_a_larger_abstained_subject_give_unscored() -> None:
+    """Behaviour change: the clip follows the run table (UNSCORED if any is), not the verdict of
+    the largest undecided subject, and reports the unscored subject's magnitude."""
+    subjects = [
+        result("R1", "c", 0.02, 0.0, InputLevel.ORACLE, subject="a"),
+        replace(missing("R1", "c", InputLevel.ORACLE), magnitude=0.5),
+    ]
+    outcome = clip_verdict(subjects, RULE, None)
+    assert outcome.verdict is Verdict.UNSCORED and outcome.magnitude == 0.02
+    assert outcome.abstain_reason is None and not outcome.judged

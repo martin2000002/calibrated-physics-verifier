@@ -21,6 +21,7 @@ from typing import ClassVar
 from physverify.config.models import Settings
 from physverify.finetune.scorers._base import AggregateScore
 from physverify.schema.checks import CheckResult, Verdict
+from physverify.verification.decisive import decisive
 from physverify.verification.runner import (
     VERIFICATION_SECTION,
     VerificationSettings,
@@ -61,9 +62,9 @@ def _term(check_id: str, results: Sequence[CheckResult]) -> CheckTerm | None:
         for r in results
         if r.verdict in DECIDED_VERDICTS and r.magnitude is not None and r.threshold
     ]
-    if verdict is None or not scored:
+    worst = decisive(scored)
+    if verdict is None or worst is None:
         return None
-    worst = max(scored, key=lambda r: (r.magnitude or 0.0) / (r.threshold or 1.0))
     tau = float(worst.threshold or 1.0)
     raw = float(worst.magnitude or 0.0) / tau
     if raw < 0.0:

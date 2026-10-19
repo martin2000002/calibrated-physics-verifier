@@ -69,10 +69,11 @@ def _with(
 
 
 def clip_verdict(results: Sequence[CheckResult], rule: Rule, tau: float | None) -> Outcome:
-    """The verdict of the set (``row_verdict``) with the magnitude, sigma, ``judged`` and
-    ``result`` of the ``decisive`` subject: an abstained clip reports its largest non-abstained
-    subject when it has one. ``NO_EVENT`` for no result. ``tau`` is explicit because the
-    cross-validated FPR judges each fold with its own tau."""
+    """The verdict of the set (``row_verdict``) with the magnitude, sigma and ``result`` of the
+    ``decisive`` subject: an abstained clip reports its largest non-abstained subject when it has
+    one, and is ``judged`` only when decided. Its reason is that of the largest abstained subject,
+    where the run table keeps the most common one. ``NO_EVENT`` for no result. ``tau`` is explicit
+    because the cross-validated FPR judges each fold with its own tau."""
     outcomes = [subject_outcome(r, rule, tau) for r in results]
     chosen = decisive(outcomes)
     verdict = row_verdict(outcomes)
@@ -80,7 +81,8 @@ def clip_verdict(results: Sequence[CheckResult], rule: Rule, tau: float | None) 
         return NO_EVENT
     if verdict is chosen.verdict:
         return chosen
-    return _with(chosen, verdict, _abstain_reason(outcomes), judged=chosen.judged)
+    judged = chosen.judged and verdict in DECIDED
+    return _with(chosen, verdict, _abstain_reason(outcomes), judged=judged)
 
 
 def _abstain_reason(outcomes: Sequence[Outcome]) -> AbstainReason | None:

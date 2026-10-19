@@ -452,3 +452,11 @@ def test_all_zero_weights_map_to_an_abstention() -> None:
     assert score.score is None and score.abstained
     assert score.reason == "no_informative_check"
     assert score.n_decided == 0
+
+
+def test_a_nan_subject_listed_first_does_not_set_the_term(make_result: Result) -> None:
+    results = [
+        make_result("R1", Verdict.PASS, math.nan, 1.0),
+        make_result("R1", Verdict.PASS, 0.5, 1.0),
+    ]
+    assert dict(provisional_score(results).per_check) == pytest.approx({"R1": 1 / 1.5})

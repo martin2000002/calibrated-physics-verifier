@@ -46,6 +46,7 @@ from physverify.verification.runner import (
 from physverify.verification.sweep import (
     MatrixCell,
     Rule,
+    RuleOutcome,
     SpecificityReport,
     matrix,
     specificity,
@@ -180,13 +181,19 @@ def specificity_lines(spec: SpecificityReport) -> list[str]:
     for outcome in spec.outcomes:
         if outcome.passed and outcome.rule is not Rule.COUPLING:
             continue
-        label = "expected coupling" if outcome.rule is Rule.COUPLING else "FAILED"
+        label = _label(outcome)
         lines.append(
             f"{label} {outcome.rule.value} {outcome.perturbation} {outcome.check_id}: "
             f"expected {_number(outcome.expected)} observed {_number(outcome.observed)} "
             f"{outcome.detail}".rstrip()
         )
     return lines
+
+
+def _label(outcome: RuleOutcome) -> str:
+    if outcome.rule is Rule.COUPLING:
+        return "expected coupling"
+    return "UNDEFINED" if outcome.undefined else "FAILED"
 
 
 def _number(value: float | None) -> str:
