@@ -1,10 +1,13 @@
 """WP-G 1.C: migrating a stored dataset to the position velocity convention equals a fresh build,
-discards only the renders whose inputs changed and logs both config hashes."""
+discards only the renders whose inputs changed and logs both config hashes. WP-H: the
+floor-crossing migration re-solves a penetrated bounce row, raises the plan's ``gt_revision`` and
+re-renders only the clip whose flight moved."""
 
 from __future__ import annotations
 
 import dataclasses
 import datetime as dt
+import math
 import shutil
 from pathlib import Path
 from typing import Any
@@ -13,21 +16,27 @@ import numpy as np
 import pytest
 
 from physverify.config.models import Settings
-from physverify.core.errors import ConfigError, MissingInputError
+from physverify.core.errors import ConfigError, MissingInputError, UsageError
 from physverify.schema.scene import PerturbationRecord
 from physverify.schema.states import ObjectStateTable
+from physverify.synth import migration_audit
 from physverify.synth.generate import load_plan, plan_subset, save_plan
 from physverify.synth.gt_export import read_index
 from physverify.synth.migrate import (
     COMPLETED_KEY,
     CONVENTION_KEY,
+    FLOOR_CROSSING,
     RERENDER_KEY,
+    manifest_path,
     migrate_velocity,
+    reapply,
     rerender_clip_ids,
 )
 from physverify.synth.migration_audit import AuditInputs, audit
 from physverify.synth.perturb import apply_variants, instantiate
-from physverify.synth.plan import DatasetPlan
+from physverify.synth.perturbations import _measure, r3_restitution_gain
+from physverify.synth.perturbations._ballistics import time_to_height
+from physverify.synth.plan import GT_REVISION, DatasetPlan
 from physverify.synth.settings import DatasetSettings, load_dataset_settings
 from physverify.synth.store import (
     CLOSEST,
@@ -36,6 +45,7 @@ from physverify.synth.store import (
     KUBRIC_META,
     LAYERS,
     RECORD,
+    SIM_STATES,
     SKIPPED_FILE,
     VARIANT_STATES,
     DatasetStore,
@@ -55,7 +65,12 @@ def clock() -> dt.datetime:
 
 
 def build(
-    root: Path, ds: DatasetSettings, plan_hash: str, families: Any, perturbations: Any
+    root: Path,
+    ds: DatasetSettings,
+    plan_hash: str,
+    families: Any,
+    perturbations: Any,
+    simulation: Path = DATA / "f2_bounce",
 ) -> tuple[DatasetPlan, DatasetStore, dict[str, Any]]:
     """The smoke subset on the recorded f2 simulation, applied under ``ds``, plan hashed as told."""
     store = DatasetStore(root)
@@ -64,7 +79,7 @@ def build(
     )
     save_plan(store, plan)
     store.scene_dir(SIM_ID).mkdir(parents=True)
-    for path in (DATA / "f2_bounce").iterdir():
+    for path in simulation.iterdir():
         shutil.copy(path, store.scene_dir(SIM_ID) / path.name)
     plugins = instantiate(perturbations, ds)
     apply_variants(plan, store, plugins, ds)
@@ -78,10 +93,14 @@ def legacy(
     state = ds.model_copy(update={CONVENTION_KEY: "state"})
     old_hash = ds.content_hash(without=(CONVENTION_KEY,))
     plan, store, plugins = build(tmp_path / "old", state, old_hash, families, perturbations)
+    rendered(plan, store)
+    return plan, store, plugins
+
+
+def rendered(plan: DatasetPlan, store: DatasetStore) -> None:
     for variant in plan.variants:
         for name in FAKE_DOWNSTREAM:
             atomic_write_json(store.clip_dir(variant.clip_id) / name, {"fake": True})
-    return plan, store, plugins
 
 
 def clip_of(plan: DatasetPlan, perturbation: str) -> str:
@@ -199,7 +218,9 @@ def test_the_audit_compares_the_migration_with_the_copy_taken_before(
     before = DatasetStore(tmp_path / "before")
     shutil.copytree(store.root, before.root)
     report = migrate_velocity(store, plugins, position_ds, COMMIT, clock)
-    inputs = AuditInputs(plan, store, before, report.manifest, plugins, position_ds)
+    inputs = AuditInputs(
+        plan, store, before, report.manifest, plugins, position_ds, report.manifest.stem
+    )
     edited = clip_of(plan, "r3_restitution_gain")
     label = PerturbationRecord.load_json(store.clip_dir(edited) / RECORD)
     table = tmp_path / "table.csv"
@@ -208,8 +229,8 @@ def test_the_audit_compares_the_migration_with_the_copy_taken_before(
     found = audit(inputs, [tmp_path / "cache"], [table])
     assert found["rerender"] == {
         "observed": [edited],
-        "predicted_always": [edited],
-        "missing_from_always": [],
+        "predicted_certain": [edited],
+        "missing_from_certain": [],
         "conditional_rerendered": [],
         "unexpected": [],
     }
@@ -249,3 +270,164 @@ def test_a_clip_now_refused_loses_its_render_and_export(
     assert report.status_changes[refused]["after"]["state"] == "skipped"
     assert refused in rerender_clip_ids(report.manifest)
     assert read_index(store) == []
+
+
+def legacy_crossing(
+    states: ObjectStateTable, index: int, k: int, radius: float, gz: float
+) -> tuple[int, float] | None:
+    """``floor_crossing`` before WP-H: a row already under the floor fell back to t_c = t_k."""
+    t_k = float(states.t[k])
+    z, vz = float(states.position[k, index, 2]), float(states.velocity[k, index, 2])
+    tau = time_to_height(z, vz, gz, radius)
+    t_c = t_k + tau if math.isfinite(tau) else t_k
+    return None if t_c > float(states.t[k + 1]) else (k, t_c)
+
+
+def penetrated_simulation(root: Path) -> Path:
+    """The recorded f2 simulation with the first row after the ball's bounce replaced by its
+    incoming arc continued from the row before: under the floor and still falling."""
+    root.mkdir(parents=True)
+    for path in (DATA / "f2_bounce").iterdir():
+        shutil.copy(path, root / path.name)
+    states = ObjectStateTable.load_npz(root / SIM_STATES)
+    index = states.object_index("ball_0")
+    k = 6
+    assert states.velocity[k - 1, index, 2] < 0.0 < states.velocity[k, index, 2]
+    dt_s = float(states.t[k] - states.t[k - 1])
+    g = np.array([0.0, 0.0, -9.81])
+    position, velocity = states.position.copy(), states.velocity.copy()
+    p, v = position[k - 1, index], velocity[k - 1, index]
+    position[k, index] = p + v * dt_s + 0.5 * g * dt_s**2
+    velocity[k, index] = v + g * dt_s
+    dataclasses.replace(states, position=position, velocity=velocity).save_npz(root / SIM_STATES)
+    return root
+
+
+def before_floor_crossing(
+    tmp_path: Path,
+    ds: DatasetSettings,
+    families: Any,
+    perturbations: Any,
+    monkeypatch: pytest.MonkeyPatch,
+) -> tuple[DatasetPlan, DatasetStore, dict[str, Any]]:
+    """A store applied and rendered with the old bounce solver, its plan from before
+    ``gt_revision`` existed."""
+    simulation = penetrated_simulation(tmp_path / "sim")
+    with monkeypatch.context() as patch:
+        patch.setattr(_measure, "floor_crossing", legacy_crossing)
+        plan, store, plugins = build(
+            tmp_path / "old", ds, ds.content_hash(), families, perturbations, simulation
+        )
+    rendered(plan, store)
+    stored = read_json(store.plan_path)
+    del stored["gt_revision"]
+    atomic_write_json(store.plan_path, stored)
+    return plan, store, plugins
+
+
+def test_the_floor_crossing_migration_rerenders_only_the_moved_flight(
+    tmp_path: Path,
+    position_ds: DatasetSettings,
+    families: Any,
+    perturbations: Any,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    plan, store, plugins = before_floor_crossing(
+        tmp_path, position_ds, families, perturbations, monkeypatch
+    )
+    old_frame = PerturbationRecord.load_json(
+        store.clip_dir(clip_of(plan, "r3_restitution_gain")) / RECORD
+    )
+    before = DatasetStore(tmp_path / "before")
+    shutil.copytree(store.root, before.root)
+    report = reapply(store, plugins, position_ds, COMMIT, FLOOR_CROSSING, clock)
+    unedited, edited = clip_of(plan, "none"), clip_of(plan, "r3_restitution_gain")
+    assert report.rerender == (edited,)
+    assert report.manifest == manifest_path(store, FLOOR_CROSSING)
+    manifest = read_json(report.manifest)
+    assert manifest["name"] == FLOOR_CROSSING
+    assert manifest["gt_revision"] == {"old": 0, "new": GT_REVISION}
+    assert not manifest_path(store, "velocity-position").exists()
+    stored = load_plan(store)
+    assert stored is not None and stored.gt_revision == GT_REVISION
+    for name in FAKE_DOWNSTREAM:
+        assert (store.clip_dir(unedited) / name).is_file(), name
+        assert not (store.clip_dir(edited) / name).exists(), name
+    new_frame = PerturbationRecord.load_json(store.clip_dir(edited) / RECORD)
+    assert float(old_frame.params["impact_frame"]) == 6.0
+    assert 5.0 < float(new_frame.params["impact_frame"]) < 6.0
+
+    stamps = {p: p.stat().st_mtime_ns for p in store.root.rglob("*") if p.is_file()}
+    again = reapply(store, plugins, position_ds, COMMIT, FLOOR_CROSSING, clock)
+    assert (again.applied, again.rerender) == (0, report.rerender)
+    assert {p: p.stat().st_mtime_ns for p in store.root.rglob("*") if p.is_file()} == stamps
+
+    inputs = AuditInputs(plan, store, before, report.manifest, plugins, position_ds, FLOOR_CROSSING)
+    found = audit(inputs, [tmp_path / "cache"], [])
+    assert found["rerender"]["predicted_certain"] == [edited]
+    assert found["rerender"]["missing_from_certain"] == []
+    assert found["rerender"]["unexpected"] == []
+    assert found["impact_frames"] == {
+        "before": [edited],
+        "after": [],
+        "before_equals_certain": True,
+    }
+    assert found["floor"]["checked"] == 1
+    assert found["floor"]["rewritten_below_floor"] == {}
+    bounces = found["bounces"]
+    assert [(r["status"], r["k"], r["src"]) for r in bounces["penetrated"]] == [
+        ("previous_row", 6, 5)
+    ]
+    assert bounces["closed_form_mismatch"] == []
+    assert bounces["unresolved_now"] == [] and bounces["row_moved"] == []
+    assert found["gt_meta"]["unexplained"] == {}
+
+
+def test_the_floor_crossing_migration_needs_the_velocity_one_first(
+    tmp_path: Path, position_ds: DatasetSettings, families: Any, perturbations: Any
+) -> None:
+    _, store, plugins = legacy(tmp_path, position_ds, families, perturbations)
+    with pytest.raises(ConfigError, match="migrate --name velocity-position"):
+        reapply(store, plugins, position_ds, COMMIT, FLOOR_CROSSING, clock)
+    assert not (store.root / "migrations").exists()
+
+
+def test_a_plan_from_an_older_gt_revision_is_refused_until_migrated(
+    tmp_path: Path, position_ds: DatasetSettings, families: Any, perturbations: Any
+) -> None:
+    plan, store, plugins = build(
+        tmp_path / "store", position_ds, position_ds.content_hash(), families, perturbations
+    )
+    assert plan.gt_revision == GT_REVISION
+    assert read_json(store.plan_path)["gt_revision"] == GT_REVISION
+    stored = read_json(store.plan_path)
+    del stored["gt_revision"]
+    atomic_write_json(store.plan_path, stored)
+    with pytest.raises(ConfigError, match=f"migrate --name {FLOOR_CROSSING}"):
+        save_plan(store, plan)
+    reapply(store, plugins, position_ds, COMMIT, FLOOR_CROSSING, clock)
+    assert save_plan(store, plan).gt_revision == GT_REVISION
+
+
+def test_a_plan_from_a_newer_gt_revision_asks_for_a_newer_checkout(
+    position_ds: DatasetSettings, families: Any, perturbations: Any
+) -> None:
+    plan = plan_subset(position_ds, families, perturbations, "smoke")
+    newer = dataclasses.replace(plan, gt_revision=GT_REVISION + 1)
+    with pytest.raises(ConfigError, match="update the checkout"):
+        plan.merged(newer)
+    assert DatasetPlan.from_json(newer.to_json()) == newer
+
+
+def test_an_unknown_migration_name_is_a_usage_error(
+    tmp_path: Path, position_ds: DatasetSettings, families: Any, perturbations: Any
+) -> None:
+    _, store, plugins = build(
+        tmp_path / "store", position_ds, position_ds.content_hash(), families, perturbations
+    )
+    with pytest.raises(UsageError, match="unknown migration"):
+        reapply(store, plugins, position_ds, COMMIT, "velocity-state", clock)
+
+
+def test_the_audit_predicts_from_the_impact_the_consumer_reads() -> None:
+    assert migration_audit.first_floor_impact is r3_restitution_gain.first_floor_impact
