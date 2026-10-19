@@ -23,6 +23,7 @@ EXPECTED = {
     "depth/object_parts",
     "camera/fov",
     "lift/position",
+    "lift/gravity_angle",
     "scale/relative",
     "kinematics/derivatives",
     "contacts/events",
