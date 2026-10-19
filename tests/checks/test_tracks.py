@@ -7,14 +7,15 @@ import pytest
 
 from physverify.physics.geometry import signed_distance
 from physverify.physics.tracks import (
+    MotionFit,
     body_length,
     check_time_axis,
     contact_rows,
     flight_mask,
     impact_stencil_mask,
-    line_fit,
     native_span,
     place_body,
+    poly_fit,
     rest_mask,
     row_step,
     segments,
@@ -278,12 +279,12 @@ def test_support_plane_is_the_ground_in_camera_axes() -> None:
     assert support_plane("ball_a", spheres.contacts) is None
 
 
-def test_line_fit_recovers_slope_on_spaced_times() -> None:
+def test_poly_fit_recovers_slope_on_spaced_times() -> None:
     t = sc.times(30)[::3]
     y = np.asarray(np.array([1.0, -2.0, 0.5]) + np.outer(t - 0.3, [3.0, 0.25, -9.81]))
-    fit = line_fit(t, y, np.full(y.shape, 0.01))
-    np.testing.assert_allclose(fit.slope, [3.0, 0.25, -9.81], atol=1e-12)
-    value, sigma = fit.at(0.3)
+    fit = poly_fit(t, y, np.full(y.shape, 0.01), 1)
+    np.testing.assert_allclose(fit.coef[1], [3.0, 0.25, -9.81], atol=1e-12)
+    value, sigma = fit.value_at(0.3)
     np.testing.assert_allclose(value, [1.0, -2.0, 0.5], atol=1e-12)
     spread = float(np.sum((t - t.mean()) ** 2))
     assert fit.cov is not None
@@ -291,17 +292,42 @@ def test_line_fit_recovers_slope_on_spaced_times() -> None:
     assert np.all(sigma > 0)
 
 
-def test_line_fit_sigma_edge_cases() -> None:
+def test_poly_fit_sigma_edge_cases() -> None:
     t = sc.times(5)
     y = np.asarray(2.0 - 4.0 * t, dtype=np.float64)
-    exact = line_fit(t, y, np.zeros(5))
-    assert exact.at(1.0)[1] == 0.0
-    unknown = line_fit(t, y, np.full(5, np.nan))
+    exact = poly_fit(t, y, np.zeros(5), 1)
+    assert exact.value_at(1.0)[1] == 0.0
+    unknown = poly_fit(t, y, np.full(5, np.nan), 1)
     assert unknown.cov is None
-    assert float(unknown.slope) == pytest.approx(-4.0)
-    assert math.isnan(float(unknown.at(0.0)[1]))
+    assert float(unknown.coef[1]) == pytest.approx(-4.0)
+    assert math.isnan(float(unknown.value_at(0.0)[1]))
     with pytest.raises(ValueError):
-        line_fit(t[:1], y[:1], np.zeros(1))
+        poly_fit(t[:1], y[:1], np.zeros(1), 1)
+    with pytest.raises(ValueError):
+        poly_fit(t[:2], y[:2], np.zeros(2), 2)
+
+
+def test_parabola_fit_gives_velocity_and_acceleration() -> None:
+    t = sc.times(12)[::2]
+    a, v0, p0 = np.array([0.0, 0.0, -9.81]), np.array([1.0, 0.0, 3.0]), np.array([0.0, 0.0, 1.0])
+    y = p0 + np.outer(t, v0) + 0.5 * np.outer(t**2, a)
+    fit = MotionFit(poly_fit(t, y, np.zeros(y.shape), 2), "position")
+    np.testing.assert_allclose(fit.acceleration, a, atol=1e-9)
+    velocity, sigma = fit.velocity_at(0.7)
+    np.testing.assert_allclose(velocity, v0 + 0.7 * a, atol=1e-9)
+    assert np.all(sigma == 0.0)
+
+
+def test_parabola_velocity_sigma_matches_monte_carlo() -> None:
+    t, sigma, t_c = sc.times(6), 0.002, 0.3
+    rng = np.random.default_rng(0)
+    draws = [
+        poly_fit(t, 1.0 + 2.0 * t - 4.9 * t**2 + rng.normal(0, sigma, 6), np.zeros(6), 2)
+        for _ in range(4000)
+    ]
+    spread = float(np.std([float(d.value_at(t_c, 1)[0]) for d in draws], ddof=1))
+    reported = float(poly_fit(t, np.zeros(6), np.full(6, sigma), 2).value_at(t_c, 1)[1])
+    assert spread / reported == pytest.approx(1.0, abs=0.05)
 
 
 # --- scenarios -------------------------------------------------------------------------------
