@@ -20,6 +20,7 @@ from physverify.evaluation.margins import MarginDerivation
 from physverify.evaluation.records import Usability
 from physverify.evaluation.verdict import RuleStatus
 from physverify.finetune.records import read_record, write_record
+from physverify.finetune.stop_rule import StopRuleState
 
 EVAL_DATA_DEVIATION: Final = "ran after eval data existed"
 JUDGE_STAMPS: Final = "judge_stamps"
@@ -73,7 +74,10 @@ class H3Preregistration(_Model):
     usability: Usability | None
     scipy_version: str
     eval_candidates_at_freeze: CandidateSnapshot
+    stop_rule: StopRuleState
     created_utc: str
+    stop_rule_deviation: str | None = None
+    """The text that let a fired pilot stop rule through (ADR 0012): H3 then has no verdict."""
     replaces_sha256: str | None = None
     deviations: list[str] = Field(default_factory=list)
     post_hoc: bool = False
@@ -87,6 +91,7 @@ AUDIT_FIELDS: Final = frozenset(
         "deviations",
         "post_hoc",
         "eval_candidates_at_freeze",
+        "stop_rule_deviation",
     }
 )
 """Recorded and reported, never refused on: a code fix after the freeze is shown, not blocked."""
@@ -101,6 +106,7 @@ REFREEZE_MUTABLE: Final = frozenset(
         "calibration_dataset",
         "contaminated",
         "mde",
+        "stop_rule",
     }
 )
 

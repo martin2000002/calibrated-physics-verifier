@@ -470,7 +470,7 @@ def test_train_obeys_the_pilot_stop_rule(
     if fires:
         assert "pilot stop rule fired: pairs per scored prompt 0.25 < 0.3" in result.err
         assert not verdict["passed"] and verdict["deviation"] is None
-        declared = cli(*train, "--declare-deviation", "pilot too small", env=env)
+        declared = cli(*train, "--stop-rule-deviation", "pilot too small", env=env)
         assert declared.code == 2 and "--device cuda" in declared.err
         kept = json.loads((store.pairs_dir("provisional") / "stop_rule.json").read_text())
         assert kept["deviation"] == "pilot too small"

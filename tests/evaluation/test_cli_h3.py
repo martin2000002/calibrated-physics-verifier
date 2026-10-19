@@ -309,7 +309,13 @@ def test_a_fired_stop_rule_blocks_the_eval_arm(
     assert "pilot stop rule fired" in result.err and "not evaluable" in result.err
     assert not campaign.layout.prereg.exists()
     declared = cli(
-        *ENFORCE, *options, "h3", *command, "--declare-deviation", "pilot accepted", env=h3_environ
+        *ENFORCE,
+        *options,
+        "h3",
+        *command,
+        "--stop-rule-deviation",
+        "pilot accepted",
+        env=h3_environ,
     )
     verdict = json.loads(
         (campaign.store.pairs_dir(campaign.scorer.name) / "stop_rule.json").read_text("utf-8")
@@ -318,8 +324,21 @@ def test_a_fired_stop_rule_blocks_the_eval_arm(
     assert "pilot stop rule fired" not in declared.err
     if command == ("freeze",):
         assert declared.code == 0, declared.err
+        prereg = json.loads(campaign.layout.prereg.read_text("utf-8"))
+        assert prereg["stop_rule_deviation"] == "pilot accepted"
+        assert not prereg["stop_rule"]["passed"] and prereg["deviations"] == []
+        assert "NO VERDICT: pilot stop rule fired" in declared.out
     else:
         assert declared.code == 2 and "--device cuda" in declared.err
+
+
+def test_a_freeze_deviation_does_not_let_a_fired_stop_rule_through(
+    cli: CliRunner, campaign: Any, h3_environ: dict[str, str]
+) -> None:
+    campaign.build()
+    other = cli(*ENFORCE, "h3", "freeze", "--declare-deviation", "alpha fixed", env=h3_environ)
+    assert other.code == 2 and "--stop-rule-deviation" in other.err
+    assert not campaign.layout.prereg.exists()
 
 
 def test_a_stop_rule_file_of_other_pairs_is_not_enough(

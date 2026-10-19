@@ -25,6 +25,7 @@ from physverify.cli.commands._finetune_deps import (
     write_calibration_status,
 )
 from physverify.cli.commands._stop_rule import (
+    StopRuleDeviationOption,
     current_verdict,
     pairs_on_disk,
     require_stop_rule,
@@ -130,9 +131,6 @@ ScorerOption = Annotated[
 ]
 ShardOption = Annotated[str | None, typer.Option(help="Shard i/n of the candidates.")]
 RunIdOption = Annotated[str, typer.Option(help="Training run id.")]
-DeviationOption = Annotated[
-    str | None, typer.Option(help="Go on although the pilot stop rule fired (recorded).")
-]
 
 
 def _cfg(context: AppContext) -> FinetuneSettings:
@@ -584,7 +582,7 @@ def train(
     allow_provisional: Annotated[
         bool, typer.Option(help="Train on pairs of an uncalibrated scorer.")
     ] = False,
-    declare_deviation: DeviationOption = None,
+    stop_rule_deviation: StopRuleDeviationOption = None,
 ) -> None:
     context = app_context()
     cfg = _cfg(context)
@@ -592,7 +590,7 @@ def train(
     name = scorer or cfg.scorer
     pairs_ = load_pairs(store, name)
     require_calibrated(pairs_, allow_provisional)
-    _require_stop_rule(context, store, name, declare_deviation)
+    _require_stop_rule(context, store, name, stop_rule_deviation)
     plan = train_schedule(cfg, len(pairs_), max_steps)
     run_dir = store.train_dir(run_id)
     if not resume and not force and checkpoints(run_dir):
@@ -624,7 +622,7 @@ def beta_grid(
     allow_provisional: Annotated[
         bool, typer.Option(help="Train on pairs of an uncalibrated scorer.")
     ] = False,
-    declare_deviation: DeviationOption = None,
+    stop_rule_deviation: StopRuleDeviationOption = None,
 ) -> None:
     context = app_context()
     cfg = _cfg(context)
@@ -632,7 +630,7 @@ def beta_grid(
     name = scorer or cfg.scorer
     pairs_ = load_pairs(store, name)
     require_calibrated(pairs_, allow_provisional)
-    _require_stop_rule(context, store, name, declare_deviation)
+    _require_stop_rule(context, store, name, stop_rule_deviation)
     plan = grid_schedule(cfg, len(pairs_))
     require_cuda(context.settings)
     data, val, _ = _sources(context, store, name)

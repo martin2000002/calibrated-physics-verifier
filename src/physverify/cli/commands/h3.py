@@ -25,7 +25,11 @@ from physverify.cli.commands._finetune_deps import (
     scoring_deps,
     write_calibration_status,
 )
-from physverify.cli.commands._stop_rule import require_stop_rule
+from physverify.cli.commands._stop_rule import (
+    StopRuleDeviationOption,
+    current_verdict,
+    require_stop_rule,
+)
 from physverify.cli.context import AppContext, app_context, heavy_command
 from physverify.core.errors import EXIT_ERROR, ConfigError, MissingInputError, UsageError
 from physverify.datasets._videophy_tables import LABELS_DIR, read_table
@@ -74,6 +78,7 @@ from physverify.finetune.scoring import build_scorer, rescorer, score_candidates
 from physverify.finetune.seeds import parse_shard
 from physverify.finetune.selection import Selection
 from physverify.finetune.settings import FinetuneSettings, load_finetune
+from physverify.finetune.stop_rule import fired_reason, frozen_state
 from physverify.finetune.store import SELECTED_FILE, CampaignStore
 from physverify.runtime.runs import current_commit
 
@@ -202,6 +207,7 @@ def _current(h: H3Context) -> H3Preregistration:
         margin_rows=_reference_rows(source),
         margin_source=source,
         commit=current_commit(settings.repo_root),
+        stop_rule=frozen_state(current_verdict(settings, h.finetune, h.store, scorer)),
     )
     try:
         return current_record(inputs, dt.datetime.now(dt.UTC))
@@ -229,12 +235,10 @@ def generate(
     arm: ArmOption = "base",
     shard: ShardOption = None,
     limit: int | None = None,
-    declare_deviation: Annotated[
-        str | None, typer.Option(help="Go on although the pilot stop rule fired (recorded).")
-    ] = None,
+    stop_rule_deviation: StopRuleDeviationOption = None,
 ) -> None:
     h = _h3()
-    _require_stop_rule(h, declare_deviation)
+    _require_stop_rule(h, stop_rule_deviation)
     require_cuda(h.context.settings)
     tag, adapter = _arm(h, arm)
     candidates = h.finetune.candidates.model_copy(
@@ -256,9 +260,9 @@ def generate(
     typer.echo(f"{tag}: generated {len(report.generated)} eval candidates")
 
 
-def _require_stop_rule(h: H3Context, deviation: str | None) -> None:
+def _require_stop_rule(h: H3Context, deviation: str | None) -> bool:
     """The eval arm runs only when the pilot showed the verifier can rank candidates."""
-    require_stop_rule(h.context.settings, h.finetune, h.store, _scorer(h), deviation)
+    return require_stop_rule(h.context.settings, h.finetune, h.store, _scorer(h), deviation).passed
 
 
 def _eval_data(h: H3Context) -> bool:
@@ -275,14 +279,16 @@ def freeze(
         str | None,
         typer.Option(
             help="Why a non-recalibration field changed, or any field once eval data exist "
-            "(with --force; the latter makes the verdict post hoc); also lets a fired pilot "
-            "stop rule through, recorded."
+            "(with --force; the latter makes the verdict post hoc)."
         ),
     ] = None,
+    stop_rule_deviation: StopRuleDeviationOption = None,
 ) -> None:
     h = _h3()
-    _require_stop_rule(h, declare_deviation)
-    current = _current(h)
+    passed = _require_stop_rule(h, stop_rule_deviation)
+    current = _current(h).model_copy(
+        update={"stop_rule_deviation": None if passed else stop_rule_deviation}
+    )
     request = FreezeRequest(force, declare_deviation, _eval_data(h), h.layout.gate.is_file())
     old = optional_prereg(h.layout.prereg)
     record = plan_freeze(old, file_sha256(h.layout.prereg), current, request)
@@ -297,6 +303,7 @@ def freeze(
 
 def _freeze_lines(record: H3Preregistration) -> list[str]:
     usability = "not judged yet" if record.usability is None else str(record.usability.usable)
+    fired = fired_reason(record.stop_rule, record.stop_rule_deviation)
     return [
         f"rule {record.rule} ({record.rule_status}, label {record.rule_label}); "
         f"contaminated {record.contaminated}",
@@ -304,6 +311,7 @@ def _freeze_lines(record: H3Preregistration) -> list[str]:
         f"margins {json.dumps(record.margins)}; external judge usable on dev: {usability}",
         f"MDE (estimated on dev): verifier {record.mde.verifier_mde}, PC {record.mde.pc_mde}",
         *[f"deviation: {d}" for d in record.deviations],
+        *([] if fired is None else [f"NO VERDICT: {fired}"]),
         *(["POST HOC: refrozen after eval data existed"] if record.post_hoc else []),
     ]
 

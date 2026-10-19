@@ -48,6 +48,32 @@ class StopVerdict(_Record):
     deviation: str | None = None
 
 
+class StopRuleState(_Record):
+    """What H3 freezes of the verdict: recomputable from disk, so a later change is caught."""
+
+    passed: bool
+    enforced: bool
+    reasons: list[str]
+    pairs_sha256: str
+
+
+def frozen_state(verdict: StopVerdict) -> StopRuleState:
+    return StopRuleState(
+        passed=verdict.passed,
+        enforced=verdict.enforced,
+        reasons=verdict.reasons,
+        pairs_sha256=verdict.pairs_sha256,
+    )
+
+
+def fired_reason(state: StopRuleState, deviation: str | None) -> str | None:
+    """Why H3 is not evaluable with this verifier; None when the rule passed."""
+    if state.passed:
+        return None
+    declared = "none" if deviation is None else repr(deviation)
+    return f"pilot stop rule fired ({'; '.join(state.reasons)}); deviation declared: {declared}"
+
+
 def pairs_sha256(pairs: Sequence[PairRecord]) -> str:
     """The hash of the pairs as stored (one JSON line each)."""
     text = "".join(p.model_dump_json() + "\n" for p in pairs)

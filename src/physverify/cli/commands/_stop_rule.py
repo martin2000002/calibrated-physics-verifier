@@ -6,6 +6,8 @@ and pilot review; a ``stop_rule.json`` left from other pairs never counts.
 
 from __future__ import annotations
 
+from typing import Annotated
+
 import typer
 
 from physverify.config.models import Settings
@@ -36,6 +38,15 @@ from physverify.finetune.store import (
     STOP_RULE_FILE,
     CampaignStore,
 )
+
+STOP_RULE_DEVIATION = "--stop-rule-deviation"
+StopRuleDeviationOption = Annotated[
+    str | None,
+    typer.Option(
+        STOP_RULE_DEVIATION,
+        help="Go on although the pilot stop rule fired (recorded; H3 then has no verdict).",
+    ),
+]
 
 
 def pairs_on_disk(store: CampaignStore, scorer: str) -> list[PairRecord]:
@@ -114,7 +125,8 @@ def require_stop_rule(
             typer.echo(line, err=True)
     if not verdict.passed and verdict.enforced and deviation is None:
         raise UsageError(
-            f"pilot stop rule fired: {'; '.join(verdict.reasons)}; H3 is not evaluable with this "
-            "verifier (--declare-deviation TEXT, or finetune.stop_rule.enforce = false, to go on)"
+            f"pilot stop rule fired: {'; '.join(verdict.reasons)}; H3 is not evaluable with "
+            f"this verifier ({STOP_RULE_DEVIATION} TEXT, or finetune.stop_rule.enforce = false, "
+            "to go on)"
         )
     return verdict
