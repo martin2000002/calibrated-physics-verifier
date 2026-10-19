@@ -250,10 +250,14 @@ def floor_gap(states: ObjectStateTable, index: int, row: int) -> float:
     return float(signed_distance(solid_at(states, index, row), Plane.ground()).distance)
 
 
+def native_fps(states: ObjectStateTable) -> float:
+    """Frames per second of a table sampled at the native rate."""
+    return 1.0 / float(states.t[1] - states.t[0])
+
+
 def collision_row(states: ObjectStateTable, t_c: float) -> int:
     """Row k with t_k < t_c <= t_{k+1} (clamped so that k + 1 is a row)."""
-    fps = 1.0 / float(states.t[1] - states.t[0])
-    return min(max(0, math.floor(t_c * fps - FRAME_EPS)), states.n_frames - 2)
+    return min(max(0, math.floor(t_c * native_fps(states) - FRAME_EPS)), states.n_frames - 2)
 
 
 def floor_record_between(object_id: str, contacts: ContactTable, lo: float, hi: float) -> bool:
@@ -268,8 +272,7 @@ def row_overlaps_floor(
     states: ObjectStateTable, contacts: ContactTable, index: int, row: int, t_c: float
 ) -> bool:
     """A floor record of the object spans part of the interval between ``row`` and t_c."""
-    fps = 1.0 / float(states.t[1] - states.t[0])
-    lo, hi = sorted((float(row), t_c * fps))
+    lo, hi = sorted((float(row), t_c * native_fps(states)))
     return floor_record_between(str(states.object_ids[index]), contacts, lo, hi)
 
 
@@ -330,7 +333,7 @@ def max_energy_gain(
     tol: float,
 ) -> float:
     ids = states.object_ids.astype(str).tolist()
-    fps = 1.0 / float(states.t[1] - states.t[0])
+    fps = native_fps(states)
     values = [
         pair_energy_gain(
             states,
