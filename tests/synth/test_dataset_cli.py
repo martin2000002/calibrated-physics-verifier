@@ -74,5 +74,6 @@ def test_a_plan_from_an_older_gt_revision_is_migrated_before_building(
     assert unknown.code == 2 and "unknown migration" in unknown.err
     migrated = cli("dataset", "migrate", "--name", "floor-crossing", "--commit", "c0ffee", env=env)
     assert migrated.code == 0, migrated.err
-    assert "migrate floor-crossing: 0 applied, 0 renders discarded, 0 status changes;" in migrated.out
+    expected = "migrate floor-crossing: 0 applied, 0 renders discarded, 0 status changes;"
+    assert expected in migrated.out
     assert cli("dataset", "generate", "--subset", "smoke", env=env).code == 0
