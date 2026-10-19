@@ -130,6 +130,7 @@ def arm(
     run_id: str | None = None,
     commit: str = "c0",
     profile: str = PRECISE,
+    checks_hash: str = FIXTURE_CHECKS_HASH,
 ) -> ArmRun:
     return ArmRun(
         run_id=run_id or f"run-{detector}",
@@ -137,6 +138,7 @@ def arm(
         detectors=frozenset({detector}),
         profile=profile,
         commit=commit,
+        checks_hash=checks_hash,
         rows=tuple(rows),
     )
 

@@ -26,6 +26,7 @@ from exclusion_cases import (
 )
 from stratum_cases import FIXTURE_CHECKS_HASH, check_calibration, write_artifact
 
+from physverify.calibration import exclusions
 from physverify.calibration.exclusion_record import (
     ExclusionInputError,
     load_record,
@@ -44,7 +45,9 @@ from physverify.calibration.exclusions import (
     record_markdown,
 )
 from physverify.calibration.loader import load_calibration
+from physverify.calibration.schema import Ci, RealFpr
 from physverify.core.errors import ConfigError
+from physverify.verification.runner import RowStatus
 
 
 def _one(evidence: tuple) -> object:  # type: ignore[type-arg]
@@ -65,6 +68,14 @@ def test_every_threshold_comes_from_the_toml() -> None:
     loaded = rules()
     assert loaded.r2.max_fpr_increase == 0.10 and loaded.real.max_fpr_lower == 0.10
     assert set(loaded.rules) == set(RULES)
+
+
+@pytest.mark.parametrize(("key", "value"), [("bootstrap_n", 0), ("tpr_ci", 1.0), ("tpr_ci", 0.0)])
+def test_an_r2_bootstrap_that_cannot_give_an_interval_is_refused(key: str, value: float) -> None:
+    raw = rules_raw()
+    raw["r2"] = {**raw["r2"], key: value}  # type: ignore[dict-item]
+    with pytest.raises(ConfigError):
+        exclusion_rules(raw, ["R2", "R5a"])
 
 
 def test_unknown_rules_and_checks_are_configuration_errors() -> None:
@@ -198,6 +209,49 @@ def test_without_a_usable_tau_the_rule_does_not_decide() -> None:
     assert not unusable.decided and not unusable.excluded
 
 
+def test_without_positives_the_tpr_test_does_not_decide() -> None:
+    clean = r2_rows([0.1] * 20, [])
+    found = _one(r2_rule(inputs(base=clean, tiny=clean), rules()))
+    assert (found.decided, found.excluded, found.reason) == (False, False, "no_positive")
+    assert found.inputs["delta_tpr_high"] is None
+
+
+def test_an_fpr_increase_excludes_even_without_positives() -> None:
+    base, tiny = r2_rows([2.0] * 3 + [0.1] * 17, []), r2_rows([0.1] * 20, [])
+    found = _one(r2_rule(inputs(base=base, tiny=tiny), rules()))
+    assert (found.decided, found.excluded, found.reason) == (True, True, "fpr_increase")
+
+
+def test_a_non_finite_tpr_interval_does_not_decide(monkeypatch: pytest.MonkeyPatch) -> None:
+    nan = float("nan")
+    monkeypatch.setattr(
+        exclusions, "scene_bootstrap", lambda *a: {"delta_tpr": Ci(low=nan, high=nan)}
+    )
+    found = _one(r2_rule(inputs(), rules()))
+    assert (found.decided, found.excluded, found.reason) == (False, False, "tpr_ci_undefined")
+
+
+@pytest.mark.parametrize("status", [RowStatus.ERROR, RowStatus.ABSTAINED, RowStatus.NO_EVENT])
+def test_an_unscored_row_in_either_arm_is_refused(status: RowStatus) -> None:
+    """An arm that fails to extract the clips it would FAIL cannot lower its FPR."""
+    same = r2_rows([0.1] * 20, [2.0] * 20)
+    holed = (dataclasses.replace(same[0], status=status, magnitude=None), *same[1:])
+    for base, tiny in ((same, holed), (holed, same)):
+        with pytest.raises(ExclusionInputError, match="1 unscored"):
+            r2_rule(inputs(base=base, tiny=tiny), rules())
+
+
+@pytest.mark.parametrize(("base_fails", "tiny_fails"), [(8, 6), (16, 14)])
+def test_an_exact_gap_of_the_threshold_keeps_r2(base_fails: int, tiny_fails: int) -> None:
+    """2/20 gaps are 0.1 exactly: float rounding (0.4 - 0.3 > 0.1) must not exclude."""
+    positives = [2.0] * 20
+    base = r2_rows([2.0] * base_fails + [0.1] * (20 - base_fails), positives)
+    tiny = r2_rows([2.0] * tiny_fails + [0.1] * (20 - tiny_fails), positives)
+    found = _one(r2_rule(inputs(base=base, tiny=tiny), rules()))
+    assert found.inputs["delta_fpr"] == pytest.approx(0.10)
+    assert (found.decided, found.excluded, found.reason) == (True, False, "kept")
+
+
 def test_only_calib_family_clips_are_judged() -> None:
     same = r2_rows([0.1] * 20, [2.0] * 20)
     other = tuple(
@@ -226,6 +280,10 @@ def test_swapped_or_mismatched_arms_are_refused() -> None:
             "commits",
         ),
         (arms(same, r2_rows([0.1] * 19, [2.0] * 19)), "same clips"),
+        (
+            R2Arms(arm(same, cfg.base_detector, checks_hash="x"), arm(same, cfg.tiny_detector)),
+            "checks_hash",
+        ),
     ]
     for pair, match in cases:
         with pytest.raises(ExclusionInputError, match=match):
@@ -260,9 +318,13 @@ def test_the_exact_bound_ignores_the_clustered_interval() -> None:
     assert not found.excluded and found.inputs["physics_iq.clustered_low"] == 0.5
 
 
+def _empty(dataset: str) -> RealFpr:
+    found = real_fpr(dataset, "R1", 0, 54)
+    return found.model_copy(update={"fpr": found.fpr.model_copy(update={"n": 0})})
+
+
 def test_a_check_without_rows_is_not_decided_by_1_5() -> None:
-    empty = real_fpr("physics_iq", "R1", 0, 54)
-    real = [empty.model_copy(update={"fpr": empty.fpr.model_copy(update={"n": 0})})]
+    real = [_empty("physics_iq"), _empty("pisa_real")]
     found = _one(real_fpr_rule(inputs(real=real), rules()))
     assert (found.decided, found.excluded, found.reason) == (False, False, "no_rows")
 
@@ -285,12 +347,22 @@ def test_an_evaluation_of_another_artifact_or_set_is_refused() -> None:
         real_fpr_rule(dataclasses.replace(base, evaluation=fast), rules())
 
 
+def test_a_real_dataset_left_unscored_is_refused() -> None:
+    """The worst of both datasets cannot silently become the only one scored."""
+    with pytest.raises(ExclusionInputError, match=r"no real FPR on \['pisa_real'\]"):
+        real_fpr_rule(inputs(real=[real_fpr("physics_iq", "R1", 11, 54)]), rules())
+    with pytest.raises(ExclusionInputError, match="no real FPR"):
+        real_fpr_rule(inputs(), rules())
+
+
 def test_the_fallback_set_is_accepted() -> None:
-    base = inputs()
+    real = [real_fpr("physics_iq", "R1", 0, 54), real_fpr("pisa_real", "R1", 0, 40)]
+    base = inputs(real=real)
     small = evaluation(
-        base.calibration, sets=(real_set("physics_iq", 54), real_set("pisa_real", 40))
+        base.calibration, real, sets=(real_set("physics_iq", 54), real_set("pisa_real", 40))
     )
-    assert real_fpr_rule(dataclasses.replace(base, evaluation=small), rules()) == ()
+    found = _one(real_fpr_rule(dataclasses.replace(base, evaluation=small), rules()))
+    assert found.decided and not found.excluded and found.inputs["pisa_real.n_clips"] == 40
 
 
 # --- decision and record ------------------------------------------------------------------------

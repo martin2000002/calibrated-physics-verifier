@@ -47,7 +47,7 @@ from physverify.calibration.settings import (
     calibration_config,
     calibration_settings,
 )
-from physverify.calibration.table import CalibrationDataError, build_rows, scene_of
+from physverify.calibration.table import CalibrationDataError, build_rows, in_family, scene_of
 from physverify.cli.commands.extract import resolve_dataset
 from physverify.cli.context import AppContext, app_context
 from physverify.core.errors import UsageError
@@ -59,8 +59,12 @@ from physverify.schema.clip import ClipManifest
 from physverify.schema.io import stable_hash
 from physverify.schema.stages import Stage
 from physverify.synth.perturbations.none import NAME as NONE
-from physverify.synth.plan import family_of_scene
-from physverify.verification.runner import CHECKS_FILE, TABLE_FILE, VerificationReport
+from physverify.verification.runner import (
+    CHECKS_FILE,
+    CHECKS_HASH_FILE,
+    TABLE_FILE,
+    VerificationReport,
+)
 from physverify.verification.scope import SECTION as SCOPE_SECTION
 from physverify.verification.scope import CheckScope, record_path
 from physverify.verification.sweep import CheckUnit, perturbation_name
@@ -88,7 +92,7 @@ def r2_clip_ids(clips: Sequence[ClipManifest], cfg: R2Rule) -> list[str]:
         clip.clip_id
         for clip in clips
         if clip.split is cfg.split
-        and family_of_scene(scene_of(clip)) == cfg.family
+        and in_family(scene_of(clip), cfg.family)
         and perturbation_name(clip) in (NONE, cfg.perturbation)
     )
 
@@ -117,14 +121,20 @@ class RunMeta:
     run_id: str
     profile: str
     commit: str
+    checks_hash: str
 
 
 def run_meta(run_dir: Path) -> RunMeta:
+    """``run.json`` plus the ``checks_hash`` that ``verify`` writes (empty: an older run)."""
     path = run_dir / RUN_FILE
     if not path.is_file():
         raise UsageError(f"{run_dir} is not a run: no {RUN_FILE}")
     record = json.loads(path.read_text(encoding="utf-8"))
-    return RunMeta(run_dir.name, str(record.get("profile", "")), str(record.get("commit", "")))
+    hashed = run_dir / CHECKS_HASH_FILE
+    checks = hashed.read_text(encoding="utf-8").strip() if hashed.is_file() else ""
+    return RunMeta(
+        run_dir.name, str(record.get("profile", "")), str(record.get("commit", "")), checks
+    )
 
 
 def arm_run(
@@ -151,6 +161,7 @@ def arm_run(
         detectors=detectors_of(report),
         profile=meta.profile,
         commit=meta.commit,
+        checks_hash=meta.checks_hash,
         rows=build_rows(report, units, couplings, level),
     )
 

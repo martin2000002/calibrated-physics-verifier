@@ -472,7 +472,8 @@ def evaluate_command(
         profile=session.context.settings.profile,
         real_sets=tuple(
             _dataset_ref(src, real_subset, "all", real_clips)
-            for _, (src, real_clips) in sorted(sources.items())
+            for name, (src, real_clips) in sorted(sources.items())
+            if any(name in item.real for item in inputs)
         ),
     )
     report = evaluate(calibration, inputs, meta, session.config)

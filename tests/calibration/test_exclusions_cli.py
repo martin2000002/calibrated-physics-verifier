@@ -13,7 +13,7 @@ import pytest
 from calibration_cases import CHECKS, clip, result, synthetic_report
 from calibration_cases import record as perturbation
 from cli_runner import CliRunner
-from exclusion_cases import PRECISE, R2_PERT, evaluation, r5a_check, record, rules
+from exclusion_cases import PRECISE, R2_PERT, evaluation, r5a_check, real_fpr, record, rules
 from stratum_cases import artifact_of, check_calibration, stratum_model
 
 from physverify.calibration.exclusion_record import ExclusionInputError
@@ -36,6 +36,7 @@ from physverify.schema.checks import InputLevel, Verdict
 from physverify.schema.clip import ClipManifest
 from physverify.schema.scene import MagnitudeKind
 from physverify.verification.runner import (
+    CHECKS_HASH_FILE,
     RowStatus,
     TableRow,
     VerificationReport,
@@ -56,12 +57,16 @@ def _report(level: InputLevel = InputLevel.PERCEIVED, detector: str = "grounding
     return dataclasses.replace(report, results=results)
 
 
-def _run(root: Path, name: str, report, profile: str = "precise") -> Path:  # type: ignore[no-untyped-def]
+def _run(  # type: ignore[no-untyped-def]
+    root: Path, name: str, report, profile: str = "precise", checks_hash: str | None = None
+) -> Path:
     folder = root / name
     folder.mkdir(parents=True)
     write_report(folder, report)
     run = {"profile": profile, "commit": "c0"}
     (folder / "run.json").write_text(json.dumps(run), encoding="utf-8")
+    if checks_hash is not None:
+        (folder / CHECKS_HASH_FILE).write_text(checks_hash + "\n", encoding="utf-8")
     return folder
 
 
@@ -85,7 +90,7 @@ def test_an_arm_is_read_back_with_its_detector_profile_and_hash(tmp_path: Path) 
     folder = _run(tmp_path, "base", report)
     arm = arm_run(folder, report.clips, CHECKS, frozenset(), rules())
     assert arm.detectors == {"grounding_dino_base"}
-    assert (arm.run_id, arm.profile, arm.commit) == ("base", "precise", "c0")
+    assert (arm.run_id, arm.profile, arm.commit, arm.checks_hash) == ("base", "precise", "c0", "")
     assert len(arm.rows) == len(report.table)
     again = arm_run(_run(tmp_path, "copy", report), report.clips, CHECKS, frozenset(), rules())
     assert again.report_sha256 == arm.report_sha256
@@ -208,13 +213,15 @@ def world(config_dir: Path, environ: dict[str, str], monkeypatch: pytest.MonkeyP
     artifact = default_artifact_path(settings)
     artifact.parent.mkdir(parents=True, exist_ok=True)
     artifact.write_text(text, encoding="utf-8")
-    report = evaluation(parse_calibration(text, path=artifact))
+    real = [real_fpr("physics_iq", "R2", 0, 54), real_fpr("pisa_real", "R2", 0, 360)]
+    report = evaluation(parse_calibration(text, path=artifact), real)
     (settings.paths.runs_dir / "eval").mkdir(parents=True)
     (settings.paths.runs_dir / "eval" / "evaluation.json").write_text(
         report.to_json(), encoding="utf-8"
     )
+    checks_hash = active_checks_hash(settings)
     for name, detector in (("base", "grounding_dino_base"), ("tiny", "grounding_dino_tiny")):
-        _run(settings.paths.runs_dir, name, _r2_report(detector))
+        _run(settings.paths.runs_dir, name, _r2_report(detector), checks_hash=checks_hash)
     return settings
 
 
@@ -265,3 +272,9 @@ def test_swapped_arms_are_refused(cli: CliRunner, world: Settings) -> None:
         "base",
     )
     assert result.code == 2 and "detectors" in result.err
+
+
+def test_an_arm_without_its_checks_hash_is_refused(cli: CliRunner, world: Settings) -> None:
+    (world.paths.runs_dir / "tiny" / CHECKS_HASH_FILE).unlink()
+    result = _decide(cli, world, "--dry-run")
+    assert result.code == 2 and "checks_hash" in result.err

@@ -7,12 +7,14 @@ have no defaults, so no number of a rule lives in code. It imports no consumer (
 
 from __future__ import annotations
 
+import math
 from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass
+from fractions import Fraction
 from pathlib import Path
 from typing import Literal
 
-from pydantic import ValidationError, model_validator
+from pydantic import Field, ValidationError, model_validator
 
 from physverify.calibration.apply import policy_for, rule_for
 from physverify.calibration.exclusion_record import (
@@ -41,6 +43,7 @@ from physverify.calibration.table import (
     CalibrationDataError,
     CalibrationRow,
     Role,
+    in_family,
     require_one_clean_per_scene,
     unique_row_step,
 )
@@ -50,8 +53,7 @@ from physverify.core.errors import ConfigError
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import Split
 from physverify.schema.io import stable_hash
-from physverify.synth.plan import family_of_scene
-from physverify.verification.runner import UNKNOWN_ROW_STEP, RowStatus
+from physverify.verification.runner import UNKNOWN_ROW_STEP
 
 SECTION = "exclusion_rules"
 DELTA_TPR = "delta_tpr"
@@ -70,7 +72,8 @@ class R5aRule(FrozenModel):
 
 class R2Rule(FrozenModel):
     """1.2 (Enmienda 1): both detector arms judged at the artifact's tau of the consumed stratum
-    on the calib clips of ``family``. ``rates = "total"``: an abstention or no event is no FAIL."""
+    on the calib clips of ``family``, every one scored in both arms (the evaluation's
+    denominators). ``rates = "total"``: a sigma abstention is no FAIL."""
 
     check_ids: tuple[str, ...]
     dataset: str
@@ -82,8 +85,8 @@ class R2Rule(FrozenModel):
     tiny_detector: str
     rates: Literal["total"]
     max_fpr_increase: float
-    tpr_ci: float
-    bootstrap_n: int
+    tpr_ci: float = Field(gt=0, lt=1)
+    bootstrap_n: int = Field(ge=1)
     bootstrap_seed: int
 
 
@@ -179,13 +182,15 @@ def consumed_stratum(
 @dataclass(frozen=True)
 class ArmRun:
     """One ``verify --policy raw`` run of the R2 clips; ``detectors`` are the DETECT providers
-    its results name, ``report_sha256`` the hash of its checks.jsonl and table.csv."""
+    its results name, ``report_sha256`` the hash of its checks.jsonl and table.csv,
+    ``checks_hash`` that of the check parameters it ran with."""
 
     run_id: str
     report_sha256: str
     detectors: frozenset[str]
     profile: str
     commit: str
+    checks_hash: str
     rows: tuple[CalibrationRow, ...]
 
 
@@ -272,7 +277,7 @@ def arm_rows(arm: ArmRun, check_id: str, cfg: R2Rule) -> tuple[CalibrationRow, .
         for row in arm.rows
         if row.check_id == check_id
         and row.split is cfg.split
-        and family_of_scene(row.scene_id) == cfg.family
+        and in_family(row.scene_id, cfg.family)
         and (
             row.role is Role.CLEAN
             or (row.role is Role.POSITIVE and row.perturbation == cfg.perturbation)
@@ -281,13 +286,22 @@ def arm_rows(arm: ArmRun, check_id: str, cfg: R2Rule) -> tuple[CalibrationRow, .
 
 
 def require_matching_arms(
-    arms: R2Arms, rows: Mapping[str, Sequence[CalibrationRow]], rules: ExclusionRules
+    arms: R2Arms,
+    rows: Mapping[str, Sequence[CalibrationRow]],
+    rules: ExclusionRules,
+    checks_hash: str,
 ) -> None:
     """Refuses swapped or mismatched arms: each must use its configured detector on the consumed
-    profile, both from one commit and on the same clips, one clean clip per scene."""
+    profile and the decision's check parameters, both from one commit and on the same clips, one
+    clean clip per scene."""
     cfg = rules.r2
     detectors = {"base": cfg.base_detector, "tiny": cfg.tiny_detector}
     for label, arm in arms.by_label().items():
+        if arm.checks_hash != checks_hash:
+            raise ExclusionInputError(
+                f"the R2 {label} run {arm.run_id} ran checks_hash {arm.checks_hash[:12] or '?'}, "
+                f"not the decision's {checks_hash[:12]}: rerun it without check overrides"
+            )
         if arm.detectors != {detectors[label]}:
             raise ExclusionInputError(
                 f"the R2 {label} run {arm.run_id} used detectors {sorted(arm.detectors)}, "
@@ -328,7 +342,8 @@ def _r2(inputs: DecisionInputs, check_id: str, rules: ExclusionRules) -> RuleEvi
     rows = {
         label: arm_rows(arm, check_id, rules.r2) for label, arm in inputs.arms.by_label().items()
     }
-    require_matching_arms(inputs.arms, rows, rules)
+    require_matching_arms(inputs.arms, rows, rules, inputs.checks_hash)
+    require_scored(rows)
     stratum = inputs.consumed.stratum
     for arm_rows_ in rows.values():
         _require_time_base(stratum, rules.consumed_profile, arm_rows_)
@@ -351,14 +366,30 @@ def _counts(rows: Mapping[str, Sequence[CalibrationRow]]) -> dict[str, EvidenceV
     for label, arm in rows.items():
         found[f"{label}.n_clean"] = sum(r.role is Role.CLEAN for r in arm)
         found[f"{label}.n_positive"] = sum(r.role is Role.POSITIVE for r in arm)
-        found[f"{label}.n_scored"] = sum(r.status is RowStatus.SCORED for r in arm)
+        found[f"{label}.n_scored"] = sum(r.scored for r in arm)
     found["n_scenes"] = len({r.scene_id for r in rows["base"]})
     return found
 
 
-def _rate(flags: FailFlags, clips: Iterable[str]) -> float | None:
+def require_scored(rows: Mapping[str, Sequence[CalibrationRow]]) -> None:
+    """1.2 counts FAIL over scored clips, as the evaluation does: an unscored row in either arm
+    is refused rather than counted as no FAIL (an arm failing to extract would lower its FPR)."""
+    for label, arm in rows.items():
+        unscored = sorted(r.clip_id for r in arm if not r.scored)
+        if unscored:
+            raise ExclusionInputError(
+                f"the R2 {label} run has {len(unscored)} unscored clips ({unscored[:3]}): "
+                "rerun it once they extract"
+            )
+
+
+def _rate(flags: FailFlags, clips: Iterable[str]) -> Fraction | None:
     chosen = [flags[c] for c in clips]
-    return sum(chosen) / len(chosen) if chosen else None
+    return Fraction(sum(chosen), len(chosen)) if chosen else None
+
+
+def _float(value: Fraction | None) -> float | None:
+    return None if value is None else float(value)
 
 
 def _r2_decision(
@@ -368,6 +399,9 @@ def _r2_decision(
     cfg: R2Rule,
     evidence: dict[str, EvidenceValue],
 ) -> RuleEvidence:
+    """Either test may exclude alone; ``decided`` is False when neither fires and one of them
+    is undefined (no clean or positive clip, or a TPR interval that is not finite). Rates are
+    exact fractions so that a gap of exactly ``max_fpr_increase`` is not excluded by rounding."""
     clean = sorted(r.clip_id for r in rows if r.role is Role.CLEAN)
     positive = sorted(r.clip_id for r in rows if r.role is Role.POSITIVE)
     rates = {
@@ -377,21 +411,29 @@ def _r2_decision(
     }
     base_fpr, tiny_fpr = rates["base.fpr"], rates["tiny.fpr"]
     delta_fpr = None if base_fpr is None or tiny_fpr is None else base_fpr - tiny_fpr
-    ci = _delta_tpr_ci(flags, rows, cfg)
-    if delta_fpr is not None and delta_fpr > cfg.max_fpr_increase:
-        reason = "fpr_increase"
-    elif ci.high is not None and ci.high < 0.0:
-        reason = "tpr_decrease"
+    max_increase = Fraction(repr(cfg.max_fpr_increase))
+    ci = _delta_tpr_ci(flags, rows, cfg) if positive else Ci()
+    high = ci.high if ci.high is not None and math.isfinite(ci.high) else None
+    if delta_fpr is not None and delta_fpr > max_increase:
+        reason, decided = "fpr_increase", True
+    elif high is not None and high < 0.0:
+        reason, decided = "tpr_decrease", True
+    elif not positive:
+        reason, decided = "no_positive", False
+    elif high is None:
+        reason, decided = "tpr_ci_undefined", False
+    elif delta_fpr is None:
+        reason, decided = "no_clean", False
     else:
-        reason = KEPT
+        reason, decided = KEPT, True
     evidence |= {
-        **rates,
-        "delta_fpr": delta_fpr,
+        **{key: _float(value) for key, value in rates.items()},
+        "delta_fpr": _float(delta_fpr),
         "delta_tpr_low": ci.low,
         "delta_tpr_high": ci.high,
         "delta_tpr_non_finite": ci.non_finite,
     }
-    return _evidence("1.2", check_id, reason, evidence, decided=True)
+    return _evidence("1.2", check_id, reason, evidence, decided=decided)
 
 
 def _delta_tpr_ci(
@@ -444,10 +486,22 @@ def _evaluated_stratum(inputs: DecisionInputs, rules: ExclusionRules) -> Evaluat
         )
     for stratum in report.strata:
         if stratum.level is rules.consumed_level and stratum.profile == rules.consumed_profile:
-            return stratum
+            return _require_real_scored(stratum, rules.real)
     raise ExclusionInputError(
         f"the evaluation has no {rules.consumed_level.value}/{rules.consumed_profile} stratum"
     )
+
+
+def _require_real_scored(stratum: EvaluationStratum, cfg: RealRule) -> EvaluationStratum:
+    """1.5 takes the worst of every preregistered real dataset: one left unscored is refused, not
+    silently dropped from the worst case."""
+    scored = {entry.dataset for entry in stratum.real}
+    missing = sorted(set(cfg.datasets) - scored)
+    if missing:
+        raise ExclusionInputError(
+            f"the evaluation scored no real FPR on {missing}: rerun `calibrate evaluate` with them"
+        )
+    return stratum
 
 
 def _real(
