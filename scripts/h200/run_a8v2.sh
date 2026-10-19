@@ -10,11 +10,13 @@
 #   bash scripts/h200/run_a8v2.sh [FROM [TO]]   steps FROM..TO (default 0..11); a TO below 11
 #                                               stops there with exit 0, `FROM=TO+1` resumes
 #
-#   startup  no running extract/dataset job on a dataset steps FROM..TO touch (STEP_DATASETS; one
-#            whose --dataset cannot be read always blocks); HEAD is PHYSVERIFY_A8V2_EXPECT_COMMIT
-#            with no uncommitted change under src, configs or scripts; paths.cache_dir is
-#            PHYSVERIFY_A8V2_CACHE_DIR; when the range touches pisa_real and FROM <= 6, the PISA
-#            selection is within what the shards extracted
+#   startup  no other instance on $PHYSVERIFY_A8V2_DIR (run.lock); no running extract, dataset or
+#            diagnose job on a dataset steps FROM..TO touch (STEP_DATASETS; one whose --dataset
+#            cannot be read always blocks), checked again before every step; HEAD is
+#            PHYSVERIFY_A8V2_EXPECT_COMMIT with no uncommitted change under src, configs or
+#            scripts; paths.cache_dir is PHYSVERIFY_A8V2_CACHE_DIR; steps 0..FROM-1 last recorded
+#            with exit 0 in steps.tsv and their STEP_SAVES in state.env; when the range touches
+#            pisa_real and FROM <= 7, the PISA selection is within what the shards extracted
 #   pre      (FROM <= 8) one cached clip per dataset of the range verified (any error in its
 #            checks.jsonl stops), so a wrong cache stops here and not after days of recomputation;
 #            before step 2 has begun, one timed `diagnose stages` calib clip not timed before (cost
@@ -94,12 +96,20 @@ in_range() {
     [[ " $RANGE_DATASETS " == *" $1 "* ]]
 }
 
-BUSY_JOBS='physverify(\.cli\.main)?.*(extract run|dataset (build|migrate))'
+# The state.env keys a step leaves for later ones.
+STEP_SAVES=([2]="STAGES_RUN" [6]="EVAL_JSON" [8]="R2_BASE_RUN R2_TINY_RUN" [9]="RECORD_SHA")
+
+OUT="${PHYSVERIFY_A8V2_DIR:-$H200_ROOT/a8v2}"
+mkdir -p "$OUT"
+exec 9>"$OUT/run.lock"
+flock -n 9 || die "another run_a8v2.sh holds $OUT/run.lock"
+
+BUSY_JOBS='physverify(\.cli\.main)?.*(extract run|dataset (build|migrate)|diagnose [a-z_]+)'
 KUBRIC_JOBS='dataset (build|migrate)'
 DATASET_NAME='^[a-z][a-z0-9_]*$'
 
 # Whether a busy job's command line touches a dataset of the range; one with no readable
-# --dataset does (fail safe), and `dataset build|migrate` are kubric_synthetic's.
+# --dataset (or `all`) does (fail safe), and `dataset build|migrate` are kubric_synthetic's.
 blocks() {
     local args="$1" value values
     if [[ "$args" =~ $KUBRIC_JOBS ]]; then
@@ -109,20 +119,23 @@ blocks() {
     values="$(grep -oE -- '--dataset[= ][^ ]*' <<<"$args" | sed -E 's/^--dataset[= ]//' || true)"
     [[ -n "$values" ]] || return 0
     while IFS= read -r value; do
-        [[ "$value" =~ $DATASET_NAME ]] || return 0
+        [[ "$value" =~ $DATASET_NAME && "$value" != all ]] || return 0
         ! in_range "$value" || return 0
     done <<<"$values"
     return 1
 }
 
 # The shards ran with --no-lock, so the heavy lock cannot tell whether they are done.
-busy=""
-while read -r pid args; do
-    [[ -n "$pid" && "$pid" != "$$" && "$args" =~ $BUSY_JOBS ]] || continue
-    ! blocks "$args" || busy+="$pid $args"$'\n'
-done <<<"$(ps -eo pid=,args=)"
-[[ -z "$busy" ]] \
-    || die "extract/dataset jobs on the datasets of steps $FROM-$TO are still running:"$'\n'"$busy"
+busy_guard() {
+    local pid args busy=""
+    while read -r pid args; do
+        [[ -n "$pid" && "$pid" != "$$" && "$args" =~ $BUSY_JOBS ]] || continue
+        ! blocks "$args" || busy+="$pid $args"$'\n'
+    done <<<"$(ps -eo pid=,args=)"
+    [[ -z "$busy" ]] \
+        || die "jobs on the datasets of steps $FROM-$TO are still running:"$'\n'"$busy"
+}
+busy_guard
 
 EXPECT="${PHYSVERIFY_A8V2_EXPECT_COMMIT:-}"
 [[ ${#EXPECT} -ge 7 ]] || die "set PHYSVERIFY_A8V2_EXPECT_COMMIT to the commit this run uses"
@@ -197,7 +210,6 @@ MANIFEST="$SYNTH_DIR/$VERSION/migrations/$MIGRATION.json"
 AUDIT="$(doctor_value paths.data_dir)/runs/migrate-$MIGRATION-$VERSION/audit.json"
 SHARDS="${PHYSVERIFY_A8V2_SHARDS:-$H200_ROOT/logs/shards}"
 
-OUT="${PHYSVERIFY_A8V2_DIR:-$H200_ROOT/a8v2}"
 LOGS="$OUT/logs"
 STATE="$OUT/state.env"
 STEPS="$OUT/steps.tsv"
@@ -568,12 +580,27 @@ step_11() {
     note_block "LIFT gravity angle" <<<"$rows"
 }
 
+# A tolerated exit 1 is recorded as 0 (run_logged notes it), so any other code is a stop.
+require_earlier_steps() {
+    local k code key
+    for ((k = 0; k < FROM; k++)); do
+        code="$(awk -F '\t' -v k="$k" '$1 == k { c = $3 } END { print c }' "$STEPS")"
+        [[ "$code" == 0 ]] \
+            || die "step $k has not completed (last exit '${code:-none}'): rerun from $k"
+        for key in ${STEP_SAVES[$k]:-}; do
+            [[ -n "${!key:-}" ]] || die "step $k recorded no $key in $STATE: rerun from $k"
+        done
+    done
+}
+
 # --- main --------------------------------------------------------------------------------------
 
-# Steps 3 and 6 read the PISA selection; 7 reads what 3 extracted and 6 already checked.
-! in_range pisa_real || [[ "$FROM" -gt 6 ]] || check_pisa
+require_earlier_steps
+# Steps 3, 6 and 7 read the PISA selection.
+! in_range pisa_real || [[ "$FROM" -gt 7 ]] || check_pisa
 [[ "$FROM" -gt 8 ]] || preflight
 for ((n = FROM; n <= TO; n++)); do
+    busy_guard
     case "$n" in
         0) begin 0 migrate ;;
         1) begin 1 extract-synthetic ;;
