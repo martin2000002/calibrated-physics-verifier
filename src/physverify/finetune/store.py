@@ -16,7 +16,8 @@
 The videos live in a ``local_video`` subset, so extraction and verification read them as any
 other dataset. The mp4 is named by the candidate id, but the manifest gives each video the
 record's ``clip_id`` (candidate id plus a ``config_hash`` prefix), so the extraction cache of a
-candidate is never reused by another model tag, campaign, configuration or imported video. A
+candidate is never reused by another model tag, generation configuration or imported video. Two
+campaigns with identical settings share it, since ``config_hash`` does not include the campaign. A
 candidate is complete only once its meta exists: the mp4 and the latents are written first, the
 meta last, each atomically.
 """

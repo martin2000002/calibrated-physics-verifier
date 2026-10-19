@@ -45,8 +45,8 @@ class PromptRecord(_Record):
 
 class CandidateRecord(_Record):
     """``candidate_id`` names the candidate inside its model tag; ``clip_id`` names its video for
-    extraction and verification, so a candidate of another tag, campaign or configuration never
-    shares a cache entry with it."""
+    extraction and verification, so a candidate of another tag or generation configuration never
+    shares a cache entry with it (campaigns with identical settings do)."""
 
     candidate_id: str
     prompt_id: str
