@@ -69,7 +69,8 @@ class EnergyGain(PluginBase[Params]):
         t_c = impact.t_start / fps
         pair = (states.object_index(impact.object_a), states.object_index(impact.object_b))
         masses = [object_mass(scene, impact.object_a), object_mass(scene, impact.object_b)]
-        velocities = [collision_velocities(states, contacts, i, t_c, g) for i in pair]
+        tol = self.params.contact_tol_m
+        velocities = [collision_velocities(states, contacts, i, t_c, g, tol) for i in pair]
         v_minus, v_plus = [v[0] for v in velocities], [v[1] for v in velocities]
         scale = energy_scale(masses, v_minus, v_plus, magnitude)
         if not math.isfinite(scale):
@@ -116,7 +117,7 @@ class EnergyGain(PluginBase[Params]):
         )
         g = np.asarray(record.params["gravity"], dtype=np.float64)
         ratio, t_c = float(record.params["mass_ratio"]), float(record.params["t_c"])
-        return pair_energy_gain(states, contacts, pair, ratio, t_c, g)
+        return pair_energy_gain(states, contacts, pair, ratio, t_c, g, self.params.contact_tol_m)
 
     @staticmethod
     def _reflight(

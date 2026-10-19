@@ -50,6 +50,8 @@ R5B_MIN_FRAMES = 4
 # A flight cut at a known gravity switch keeps pieces of at least this many frames on each side.
 SIDE_FRAMES = 4
 SWITCH_FRAME = "switch_frame"
+# Slack on fractional native-frame comparisons (row indices against contact times).
+FRAME_EPS = 1e-9
 MEASURE_KEYS = ("R1", "R2", "R3a", "R3b", "R4_missing", "R4_size", "R4_jump", "R5a", "R5b")
 
 
@@ -68,7 +70,7 @@ def measure_all(
         "R1": max_penetration(states),
         "R2": max_overhang(states, contacts, tol),
         "R3a": max_restitution_excess(states, contacts, g),
-        "R3b": max_energy_gain(states, contacts, masses, g),
+        "R3b": max_energy_gain(states, contacts, masses, g, tol),
         "R4_missing": _nanmax([float(_missing(states, i)) for i in range(states.n_objects)]),
         "R4_size": _nanmax([size_change_ratio(states.size[:, i]) for i in range(states.n_objects)]),
         "R4_jump": _nanmax([object_jump(states, contacts, i) for i in range(states.n_objects)]),
@@ -239,25 +241,73 @@ def max_restitution_excess(states: ObjectStateTable, contacts: ContactTable, g: 
     return _nanmax(values)
 
 
-def grounded(object_id: str, contacts: ContactTable, frame: int) -> bool:
+def floor_gap(states: ObjectStateTable, index: int, row: int) -> float:
+    """Signed distance from object ``index`` at ``row`` to the floor (negative when penetrated;
+    NaN on a row without a full pose)."""
+    pose = (states.position[row, index], states.quaternion[row, index], states.size[row, index])
+    if not all(np.all(np.isfinite(column)) for column in pose):
+        return math.nan
+    return float(signed_distance(solid_at(states, index, row), Plane.ground()).distance)
+
+
+def native_fps(states: ObjectStateTable) -> float:
+    """Frames per second of a table sampled at the native rate."""
+    return 1.0 / float(states.t[1] - states.t[0])
+
+
+def collision_row(states: ObjectStateTable, t_c: float) -> int:
+    """Row k with t_k < t_c <= t_{k+1} (clamped so that k + 1 is a row)."""
+    return min(max(0, math.floor(t_c * native_fps(states) - FRAME_EPS)), states.n_frames - 2)
+
+
+def floor_record_between(object_id: str, contacts: ContactTable, lo: float, hi: float) -> bool:
+    """Whether a floor record of the object overlaps [lo, hi] (native frames)."""
     return any(
-        r.object_b == ENV_ID and math.floor(r.t_start) - 1 <= frame <= math.ceil(r.t_end) + 1
+        r.object_b == ENV_ID and r.t_start <= hi + FRAME_EPS and r.t_end >= lo - FRAME_EPS
         for r in records_of(object_id, contacts)
     )
 
 
+def row_overlaps_floor(
+    states: ObjectStateTable, contacts: ContactTable, index: int, row: int, t_c: float
+) -> bool:
+    """A floor record of the object spans part of the interval between ``row`` and t_c."""
+    lo, hi = sorted((float(row), t_c * native_fps(states)))
+    return floor_record_between(str(states.object_ids[index]), contacts, lo, hi)
+
+
+def row_on_floor(
+    states: ObjectStateTable,
+    contacts: ContactTable,
+    index: int,
+    row: int,
+    t_c: float,
+    tol: float,
+) -> bool:
+    """The row's velocity holds at t_c: a floor record overlaps [row, t_c], or the body is within
+    the contact tolerance of the floor at the row (a resting contact by the definition of the
+    contact table, whose RESTING records can leave a gap around an impact; ADR 0004, WP-I)."""
+    return row_overlaps_floor(states, contacts, index, row, t_c) or (
+        floor_gap(states, index, row) <= tol
+    )
+
+
 def collision_velocities(
-    states: ObjectStateTable, contacts: ContactTable, index: int, t_c: float, g: Vec
+    states: ObjectStateTable,
+    contacts: ContactTable,
+    index: int,
+    t_c: float,
+    g: Vec,
+    tol: float,
 ) -> tuple[Vec, Vec]:
-    """v- and v+ at t_c (s): ballistic extrapolation in flight, the frame value on the floor."""
-    fps = 1.0 / float(states.t[1] - states.t[0])
-    k = min(max(0, math.floor(t_c * fps - 1e-9)), states.n_frames - 2)
-    object_id = str(states.object_ids[index])
+    """v- and v+ at t_c (s): the row value on the floor (``row_on_floor``), the ballistic
+    extrapolation of rows k and k + 1 to t_c otherwise."""
+    k = collision_row(states, t_c)
     out: list[Vec] = []
-    for frame in (k, k + 1):
-        v = states.velocity[frame, index]
-        airborne = not grounded(object_id, contacts, frame)
-        out.append(impact_velocity(v, float(states.t[frame]), t_c, g) if airborne else v.copy())
+    for row in (k, k + 1):
+        v = states.velocity[row, index]
+        grounded = row_on_floor(states, contacts, index, row, t_c, tol)
+        out.append(v.copy() if grounded else impact_velocity(v, float(states.t[row]), t_c, g))
     return out[0], out[1]
 
 
@@ -268,17 +318,22 @@ def pair_energy_gain(
     mass_ratio: float,
     t_c: float,
     g: Vec,
+    tol: float,
 ) -> float:
-    va_minus, va_plus = collision_velocities(states, contacts, pair[0], t_c, g)
-    vb_minus, vb_plus = collision_velocities(states, contacts, pair[1], t_c, g)
+    va_minus, va_plus = collision_velocities(states, contacts, pair[0], t_c, g, tol)
+    vb_minus, vb_plus = collision_velocities(states, contacts, pair[1], t_c, g, tol)
     return kinetic_energy_gain(mass_ratio, va_minus, vb_minus, va_plus, vb_plus)
 
 
 def max_energy_gain(
-    states: ObjectStateTable, contacts: ContactTable, masses: dict[str, float], g: Vec
+    states: ObjectStateTable,
+    contacts: ContactTable,
+    masses: dict[str, float],
+    g: Vec,
+    tol: float,
 ) -> float:
     ids = states.object_ids.astype(str).tolist()
-    fps = 1.0 / float(states.t[1] - states.t[0])
+    fps = native_fps(states)
     values = [
         pair_energy_gain(
             states,
@@ -287,6 +342,7 @@ def max_energy_gain(
             masses[r.object_a] / masses[r.object_b],
             r.t_start / fps,
             g,
+            tol,
         )
         for r in contacts.records
         if r.kind is ContactKind.IMPACT and r.object_b != ENV_ID

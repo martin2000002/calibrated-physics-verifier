@@ -25,7 +25,9 @@ from physverify.synth.gt_export import read_index
 from physverify.synth.migrate import (
     COMPLETED_KEY,
     CONVENTION_KEY,
+    COVERS_KEY,
     FLOOR_CROSSING,
+    PAIR_COLLISION,
     RERENDER_KEY,
     manifest_path,
     migrate_velocity,
@@ -43,7 +45,7 @@ from physverify.synth.migration_audit import (
 from physverify.synth.perturb import apply_variants, instantiate
 from physverify.synth.perturbations import _measure, r3_restitution_gain
 from physverify.synth.perturbations._ballistics import time_to_height
-from physverify.synth.plan import GT_REVISION, DatasetPlan
+from physverify.synth.plan import GT_MIGRATIONS, GT_REVISION, DatasetPlan
 from physverify.synth.settings import DatasetSettings, load_dataset_settings
 from physverify.synth.store import (
     CLOSEST,
@@ -394,6 +396,12 @@ def test_the_floor_crossing_migration_rerenders_only_the_moved_flight(
     assert bounces["closed_form_max_error"] <= bounces["closed_form_tol"] == CLOSED_FORM_TOL
     assert bounces["unresolved_now"] == [] and bounces["row_moved"] == []
     assert found["gt_meta"]["unexplained"] == {}
+    assert found["r3b"]["unexpected"] == [] and found["r3b"]["missing"] == []
+    assert found["r3b"]["legacy_differs_from_stored"] == []
+    assert found["pair_rows"]["stops"] == []
+    labels = found["energy_labels"]
+    assert labels["off_nominal"] == {}
+    assert labels["checked_gt_meta"] + len(labels["without_gt_meta"]) == labels["checked"]
 
 
 def test_a_migration_cut_short_keeps_the_old_gt_revision(
@@ -424,6 +432,32 @@ def test_a_migration_cut_short_keeps_the_old_gt_revision(
     assert report.rerender == (clip_of(plan, "r3_restitution_gain"),)
     done = load_plan(store)
     assert done is not None and done.gt_revision == GT_REVISION
+
+
+def test_a_migration_cut_after_raising_the_revision_finishes_on_rerun(
+    tmp_path: Path,
+    position_ds: DatasetSettings,
+    families: Any,
+    perturbations: Any,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    plan, store, plugins = before_floor_crossing(
+        tmp_path, position_ds, families, perturbations, monkeypatch
+    )
+
+    def crash(*args: Any) -> None:
+        raise RuntimeError("killed")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(migrate, "status_changes", crash)
+        with pytest.raises(RuntimeError, match="killed"):
+            reapply(store, plugins, position_ds, COMMIT, FLOOR_CROSSING, clock)
+    cut = load_plan(store)
+    assert cut is not None and cut.gt_revision == GT_REVISION
+    assert COMPLETED_KEY not in read_json(manifest_path(store, FLOOR_CROSSING))
+    report = reapply(store, plugins, position_ds, COMMIT, FLOOR_CROSSING, clock)
+    assert report.rerender == (clip_of(plan, "r3_restitution_gain"),)
+    assert COMPLETED_KEY in read_json(manifest_path(store, FLOOR_CROSSING))
 
 
 def test_a_conditional_rerender_is_listed_with_its_penetrated_bounce(
@@ -495,3 +529,84 @@ def test_an_unknown_migration_name_is_a_usage_error(
 
 def test_the_audit_predicts_from_the_impact_the_consumer_reads() -> None:
     assert migration_audit.first_floor_impact is r3_restitution_gain.first_floor_impact
+
+
+def test_the_revision_is_the_length_of_the_migration_table(
+    position_ds: DatasetSettings, families: Any, perturbations: Any
+) -> None:
+    assert len(GT_MIGRATIONS) == GT_REVISION and GT_MIGRATIONS[0] == FLOOR_CROSSING
+    assert migrate.migration_names(position_ds) == ("velocity-position", *GT_MIGRATIONS)
+    plan = plan_subset(position_ds, families, perturbations, "smoke")
+    assert plan.gt_revision == GT_REVISION and plan.pending_migration() is None
+    for revision, name in enumerate(GT_MIGRATIONS):
+        old = dataclasses.replace(plan, gt_revision=revision)
+        assert old.pending_migration() == name
+        with pytest.raises(ConfigError, match=f"migrate --name {name}`"):
+            old.check_gt_revision()
+
+
+def test_a_migration_that_is_not_the_pending_one_is_refused(
+    tmp_path: Path, position_ds: DatasetSettings, families: Any, perturbations: Any
+) -> None:
+    _, store, plugins = build(
+        tmp_path / "store", position_ds, position_ds.content_hash(), families, perturbations
+    )
+    for name in GT_MIGRATIONS:
+        with pytest.raises(ConfigError, match="is up to date"):
+            reapply(store, plugins, position_ds, COMMIT, name, clock)
+    assert not (store.root / "migrations").exists()
+
+
+def test_the_first_fix_from_revision_zero_covers_every_fix(
+    tmp_path: Path,
+    position_ds: DatasetSettings,
+    families: Any,
+    perturbations: Any,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _, store, plugins = before_floor_crossing(
+        tmp_path, position_ds, families, perturbations, monkeypatch
+    )
+    report = reapply(store, plugins, position_ds, COMMIT, GT_MIGRATIONS[0], clock)
+    manifest = read_json(report.manifest)
+    assert manifest["gt_revision"] == {"old": 0, "new": GT_REVISION}
+    assert manifest[COVERS_KEY] == list(GT_MIGRATIONS)
+    stored = load_plan(store)
+    assert stored is not None and stored.gt_revision == GT_REVISION
+    for name in GT_MIGRATIONS[1:]:
+        with pytest.raises(ConfigError, match="is up to date"):
+            reapply(store, plugins, position_ds, COMMIT, name, clock)
+
+
+def test_the_velocity_migration_records_what_it_covers(
+    tmp_path: Path, position_ds: DatasetSettings, families: Any, perturbations: Any
+) -> None:
+    plan, store, plugins = legacy(tmp_path, position_ds, families, perturbations)
+    report = migrate_velocity(store, plugins, position_ds, COMMIT, clock)
+    assert read_json(report.manifest)[COVERS_KEY] == []
+    inputs = AuditInputs(
+        plan, store, store, report.manifest, plugins, position_ds, "velocity-position"
+    )
+    assert migration_audit.covered_migrations(inputs) == [migration_audit.VELOCITY]
+
+
+def test_a_later_fix_on_a_plan_that_lacks_an_earlier_one_is_refused(
+    tmp_path: Path,
+    position_ds: DatasetSettings,
+    families: Any,
+    perturbations: Any,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _, store, plugins = before_floor_crossing(
+        tmp_path, position_ds, families, perturbations, monkeypatch
+    )
+    with pytest.raises(ConfigError, match=f"needs `{FLOOR_CROSSING}` first"):
+        reapply(store, plugins, position_ds, COMMIT, PAIR_COLLISION, clock)
+    assert not (store.root / "migrations").exists()
+
+
+def test_every_migration_has_a_prediction_and_its_audits(position_ds: DatasetSettings) -> None:
+    names = {migration_audit.VELOCITY, *GT_MIGRATIONS}
+    assert set(migration_audit.PREDICTIONS) == names
+    assert set(migration_audit.EXTRA_AUDITS) == names
+    assert PAIR_COLLISION in migrate.migration_names(position_ds)
