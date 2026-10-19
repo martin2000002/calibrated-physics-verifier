@@ -201,7 +201,8 @@ def _audit(r: H3Report) -> list[str]:
         f"- pre-registration {a.prereg_sha256[:12]} created {a.created_utc}, replaces "
         f"{(a.replaces_sha256 or NONE)[:12]}; {a.versions} version(s), first frozen "
         f"{a.first_created_utc}; post hoc: {a.post_hoc}",
-        f"- earliest eval file {a.earliest_eval_utc or NONE}; frozen before it: {a.blind} "
+        f"- earliest eval file {a.earliest_eval_utc or NONE}; first freeze before it: "
+        f"{a.blind}; current freeze after it: {a.frozen_after_eval} "
         "(file times are informational; the binding is by content hash)",
         f"- code commit at the freeze {a.frozen_commit[:12]}, "
         f"at this report {a.report_commit[:12]}",

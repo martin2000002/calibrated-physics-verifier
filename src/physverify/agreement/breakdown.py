@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Collection, Mapping, Sequence
 
 import numpy as np
 
@@ -42,24 +42,28 @@ def _scored(items: Sequence[ComparisonItem], check_id: str) -> int:
 
 
 def per_check(
-    items: Sequence[ComparisonItem], redecide: Redecide, policy: str
+    items: Sequence[ComparisonItem],
+    redecide: Redecide,
+    check_ids: Collection[str],
+    policy: str,
 ) -> list[dict[str, object]]:
     """Per check: n scored, and the compared rule decided on that check alone (every other check
     excluded, so a calibrated rule uses its own tau and the frozen cut, never the verify run's
     provisional verdicts): its implausible rate by human label and its accuracy under
-    ``policy``; then the accuracy of the rule without the check."""
-    check_ids = sorted({r.check_id for it in items for r in it.check_rows})
+    ``policy``; then the accuracy of the rule without the check. ``check_ids`` is every check the
+    rule sees (table rows and results)."""
+    every = frozenset(check_ids)
     rows: list[dict[str, object]] = []
-    for check_id in check_ids:
-        alone = redecide(frozenset(check_ids) - {check_id})
+    for check_id in sorted(every):
+        alone = redecide(every - {check_id})
         view = policy_view(alone, policy)
         y = labels_of(alone, view.index, _human)
         rows.append(
             {
                 "check_id": check_id,
                 "n_scored": _scored(items, check_id),
-                "fail_rate_human_implausible": _implausible_rate(alone, True),
-                "fail_rate_human_plausible": _implausible_rate(alone, False),
+                "implausible_rate_alone_human_implausible": _implausible_rate(alone, True),
+                "implausible_rate_alone_human_plausible": _implausible_rate(alone, False),
                 "accuracy_alone": accuracy(y, view.verifier),
                 "balanced_accuracy_alone": balanced_accuracy(y, view.verifier),
                 "accuracy_without": policy_accuracy(redecide(frozenset({check_id})), policy),

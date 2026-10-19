@@ -62,7 +62,8 @@ class Preregistration(BaseModel):
 
 class FreezeAudit(BaseModel):
     """How a report is bound to its pre-registration (H2 and H3). ``blind`` compares the first
-    freeze with the earliest evaluated file time, which is informational only."""
+    freeze with the earliest evaluated file time and ``frozen_after_eval`` the current freeze with
+    it; both are informational only (file times can be touched)."""
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -73,6 +74,7 @@ class FreezeAudit(BaseModel):
     first_created_utc: str
     earliest_eval_utc: str | None
     blind: bool | None
+    frozen_after_eval: bool | None = None
     post_hoc: bool
     frozen_commit: str
     report_commit: str
@@ -132,6 +134,16 @@ def frozen_before(first_created: str, earliest: str | None) -> bool | None:
     if earliest is None:
         return None
     return dt.datetime.fromisoformat(first_created) <= dt.datetime.fromisoformat(earliest)
+
+
+def frozen_after(created: str, earliest: str | None) -> bool | None:
+    blind = frozen_before(created, earliest)
+    return None if blind is None else not blind
+
+
+def compared_under_other(logged: Sequence[LoggedComparison], sha256: str) -> bool:
+    """A test comparison was made under another pre-registration than ``sha256``."""
+    return any(entry.prereg_sha256 != sha256 for entry in logged)
 
 
 def replaced_path(path: Path, sha256: str) -> Path:

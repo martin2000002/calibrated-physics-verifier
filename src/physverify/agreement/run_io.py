@@ -35,6 +35,12 @@ class VerifyRun:
     results: Mapping[str, tuple[CheckResult, ...]]
 
     @property
+    def check_ids(self) -> frozenset[str]:
+        """Every check with a table row or a result: the set a clip rule decides over."""
+        rows = {r.check_id for clip in self.rows.values() for r in clip}
+        return frozenset(rows | {r.check_id for clip in self.results.values() for r in clip})
+
+    @property
     def profile(self) -> str:
         return str(self.run.get("profile", ""))
 

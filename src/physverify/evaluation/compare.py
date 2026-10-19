@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
 
-from physverify.agreement.prereg import FreezeAudit, earliest_mtime, frozen_before
+from physverify.agreement.prereg import FreezeAudit, earliest_mtime, frozen_after, frozen_before
 from physverify.core.errors import UsageError
 from physverify.evaluation.analysis import AnalysisInputs, analyse
 from physverify.evaluation.arms import EVAL_SPLIT, analysis_prompts, build_arms
@@ -146,6 +146,7 @@ def audit(inputs: CompareInputs, tags: Sequence[str]) -> FreezeAudit:
         first_created_utc=first,
         earliest_eval_utc=earliest,
         blind=frozen_before(first, earliest),
+        frozen_after_eval=frozen_after(inputs.prereg.created_utc, earliest),
         post_hoc=inputs.prereg.post_hoc,
         frozen_commit=inputs.prereg.commit,
         report_commit=inputs.commit,

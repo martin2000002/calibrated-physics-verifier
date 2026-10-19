@@ -131,7 +131,11 @@ def compare(inputs: ComparisonInputs) -> Comparison:
     groups = _groups(inputs, items, plan)
     primary = groups[AGGREGATE][agreement.primary_policy]
     policy = agreement.primary_policy
-    checks = per_check(items, lambda excluded: _items(inputs, excluded)[0], policy)
+
+    def redecide(excluded: frozenset[str]) -> list[ComparisonItem]:
+        return _items(inputs, excluded)[0]
+
+    checks = per_check(items, redecide, inputs.run.check_ids, policy)
     generators = per_group(items, lambda it: f"{it.row.version}:{it.row.generator}", policy)
     audit = inputs.audit
     metrics: dict[str, Any] = {

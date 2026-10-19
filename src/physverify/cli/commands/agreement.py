@@ -186,7 +186,13 @@ def compare_command(
     run_dir: RunOption,
     name: Annotated[str | None, typer.Option("--subset", help="Default: the test subset.")] = None,
     rule: Annotated[str | None, typer.Option(help="provisional_any_fail or calibrated.")] = None,
-    preregistration: Annotated[Path | None, typer.Option(help="Pre-registration file.")] = None,
+    preregistration: Annotated[
+        Path | None,
+        typer.Option(
+            help="Pre-registration file. The test-comparison log always goes next to the "
+            "default pre-registration path, which `agreement freeze` writes."
+        ),
+    ] = None,
 ) -> None:
     request = CompareRequest(run_dir, name, rule, preregistration)
     comparison = run_comparison(app_context().settings, _dataset(), request, import_calibration)

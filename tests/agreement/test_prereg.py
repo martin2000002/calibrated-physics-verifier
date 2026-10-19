@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import datetime as dt
+import os
 from pathlib import Path
 
 import pytest
@@ -13,6 +15,7 @@ from physverify.agreement.prereg import (
     Preregistration,
     changed_fields,
     file_sha256,
+    frozen_after,
     frozen_before,
     load_preregistration,
     log_comparison,
@@ -23,6 +26,8 @@ from physverify.agreement.prereg import (
     require_unchanged,
     write_preregistration,
 )
+from physverify.agreement.run_io import VerifyRun
+from physverify.agreement.workflow import freeze_audit
 from physverify.core.errors import ConfigError, MissingInputError, UsageError
 
 RECORD = Preregistration(
@@ -154,6 +159,37 @@ def test_the_comparison_log_round_trips(tmp_path: Path) -> None:
     for entry in entries:
         log_comparison(path, entry)
     assert logged_comparisons(path) == entries
+
+
+def _audit(tmp_path: Path, record: Preregistration, logged: list[LoggedComparison], mtime: float):
+    path = tmp_path / "preregistration.json"
+    write_preregistration(path, record)
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    (run_dir / "table.csv").write_text("", encoding="utf-8")
+    os.utime(run_dir / "table.csv", (mtime, mtime))
+    run = VerifyRun(path=run_dir, run={}, rows={}, results={})
+    return freeze_audit(path, record, run, "def", logged), file_sha256(path)
+
+
+def test_a_comparison_logged_under_another_preregistration_makes_the_audit_post_hoc(
+    tmp_path: Path,
+) -> None:
+    after = dt.datetime(2026, 10, 18, tzinfo=dt.UTC).timestamp()
+    clean, sha = _audit(tmp_path / "a", RECORD, [], after)
+    assert not clean.post_hoc and clean.frozen_after_eval is False and clean.blind is True
+    same = [LoggedComparison(prereg_sha256=sha or "", run="r", compared_utc="t")]
+    assert not _audit(tmp_path / "b", RECORD, same, after)[0].post_hoc
+    other = [LoggedComparison(prereg_sha256="e" * 64, run="r", compared_utc="t")]
+    edited, _ = _audit(tmp_path / "c", RECORD, other, after)
+    assert edited.post_hoc and not RECORD.post_hoc
+
+
+def test_a_freeze_newer_than_the_eval_files_is_flagged(tmp_path: Path) -> None:
+    before = dt.datetime(2026, 10, 16, tzinfo=dt.UTC).timestamp()
+    audit, _ = _audit(tmp_path, RECORD, [], before)
+    assert audit.frozen_after_eval is True and audit.blind is False
+    assert frozen_after("2026-10-17T00:00:00+00:00", None) is None
 
 
 def test_a_freeze_is_blind_only_before_the_earliest_eval_file() -> None:

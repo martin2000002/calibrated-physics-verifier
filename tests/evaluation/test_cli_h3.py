@@ -126,6 +126,7 @@ def test_compare_writes_the_provisional_report_end_to_end(
     report = json.loads(campaign.layout.report_json.read_text(encoding="utf-8"))
     assert report["verdict"]["verdict"] == NO_VERDICT
     assert report["audit"]["blind"] is True
+    assert report["audit"]["frozen_after_eval"] is False
     assert report["analysis"]["primary"]["n"] == 8
     text = campaign.layout.report_md.read_text(encoding="utf-8")
     for heading in (

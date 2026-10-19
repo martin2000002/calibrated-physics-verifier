@@ -22,11 +22,14 @@ from physverify.agreement.prereg import (
     FreezeAudit,
     LoggedComparison,
     Preregistration,
+    compared_under_other,
     earliest_mtime,
     file_sha256,
+    frozen_after,
     frozen_before,
     load_preregistration,
     log_comparison,
+    logged_comparisons,
     preregistration_chain,
     require_unchanged,
 )
@@ -178,20 +181,29 @@ def _frozen(
     return (load_preregistration(path) if path.is_file() else None), False
 
 
-def freeze_audit(path: Path, frozen: Preregistration, run: VerifyRun, commit: str) -> FreezeAudit:
-    """``earliest_eval_utc`` is the oldest file time of the compared verify run."""
+def freeze_audit(
+    path: Path,
+    frozen: Preregistration,
+    run: VerifyRun,
+    commit: str,
+    logged: Sequence[LoggedComparison],
+) -> FreezeAudit:
+    """``earliest_eval_utc`` is the oldest file time of the compared verify run. A logged test
+    comparison under another pre-registration makes it post hoc even if the flag was edited."""
     chain = preregistration_chain(path, frozen)
     first = chain[-1].created_utc
     earliest = earliest_mtime(run_files(run.path))
+    sha256 = file_sha256(path) or ""
     return FreezeAudit(
-        prereg_sha256=file_sha256(path) or "",
+        prereg_sha256=sha256,
         versions=len(chain),
         created_utc=frozen.created_utc,
         replaces_sha256=frozen.replaces_sha256,
         first_created_utc=first,
         earliest_eval_utc=earliest,
         blind=frozen_before(first, earliest),
-        post_hoc=frozen.post_hoc,
+        frozen_after_eval=frozen_after(frozen.created_utc, earliest),
+        post_hoc=frozen.post_hoc or compared_under_other(logged, sha256),
         frozen_commit=frozen.commit,
         report_commit=commit,
         deviations=list(frozen.deviations),
@@ -211,12 +223,13 @@ def run_comparison[S: CalibrationStratum](
     rows = dataset.rows(subset)
     setup = build_rule(settings, agreement, run.profile, api_loader)
     check_run(run, rows, setup, None)
-    path = request.preregistration or preregistration_path(settings, agreement)
+    default_path = preregistration_path(settings, agreement)
+    path = request.preregistration or default_path
     state = frozen_state(settings, dataset, setup, run.profile)
     on_test = any(row.split is Split.EVAL for row in rows)
     frozen, preregistered = _frozen(path, on_test, state)
     audit_ = (
-        freeze_audit(path, frozen, run, str(state["commit"]))
+        freeze_audit(path, frozen, run, str(state["commit"]), logged_comparisons(default_path))
         if preregistered and frozen is not None
         else None
     )

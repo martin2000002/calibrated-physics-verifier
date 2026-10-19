@@ -94,8 +94,8 @@ BOOTSTRAPPED = ("accuracy", "balanced_accuracy", "kappa")
 PER_CHECK_COLUMNS = (
     "check_id",
     "n_scored",
-    "fail_rate_human_implausible",
-    "fail_rate_human_plausible",
+    "implausible_rate_alone_human_implausible",
+    "implausible_rate_alone_human_plausible",
     "accuracy_alone",
     "balanced_accuracy_alone",
     "accuracy_without",
@@ -243,7 +243,8 @@ def _audit_lines(audit: Mapping[str, Any] | None) -> list[str]:
         f"Pre-registration {audit['prereg_sha256'][:12]} (created {audit['created_utc']}, "
         f"replaces {(audit['replaces_sha256'] or 'none')[:12]}, {audit['versions']} version(s), "
         f"first frozen {audit['first_created_utc']}); verify run files from "
-        f"{audit['earliest_eval_utc'] or 'n/a'}, frozen before them: {audit['blind']} "
+        f"{audit['earliest_eval_utc'] or 'n/a'}, first freeze before them: {audit['blind']}, "
+        f"current freeze after them: {audit.get('frozen_after_eval')} "
         "(file times are informational); post hoc: "
         f"{'YES' if audit['post_hoc'] else 'no'}; deviations: {deviations}.",
         "",

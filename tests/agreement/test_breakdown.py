@@ -11,19 +11,23 @@ from physverify.agreement.abstention import AS_IMPLAUSIBLE, AS_PLAUSIBLE
 from physverify.agreement.breakdown import per_check, policy_accuracy
 from physverify.agreement.decision import ClipDecision, ProvisionalAnyFail
 from physverify.agreement.items import ComparisonItem, build_items, decide_all
-from physverify.agreement.run_io import load_run
+from physverify.agreement.run_io import VerifyRun, load_run
 
 THRESHOLDS = {"status": "provisional", "checks": {"R1": {"tau": 0.05}, "R3a": {"tau": 0.05}}}
 
 
-def _items(world) -> list[ComparisonItem]:
+def _run(world) -> VerifyRun:
     clips = {
         "v1t/a1": [world.FAIL],
         "v1t/a2": [world.CROSSING],
         "v1t/b1": [world.PASS],
         "v1t/b2": [world.NO_EVENT],
     }
-    run = load_run(world.run("r", clips))
+    return load_run(world.run("r", clips))
+
+
+def _items(world, run: VerifyRun | None = None) -> list[ComparisonItem]:
+    run = run or _run(world)
     rows = world.dataset.candidates("v1_test")["v1_test"]
     return build_items(rows, decide_all(ProvisionalAnyFail(THRESHOLDS), run), run, None)[0]
 
@@ -44,14 +48,42 @@ def test_per_check_uses_the_redecided_outcomes_and_the_given_policy(world) -> No
         seen.append(excluded)
         return redecided
 
-    plausible = per_check(items, redecide, AS_PLAUSIBLE)
-    pessimistic = per_check(items, redecide, AS_IMPLAUSIBLE)
-    assert plausible and all(row["fail_rate_human_implausible"] == 0.5 for row in plausible)
-    assert all(row["fail_rate_human_plausible"] == 0.0 for row in plausible)
+    checks = {r.check_id for it in items for r in it.check_rows}
+    plausible = per_check(items, redecide, checks, AS_PLAUSIBLE)
+    pessimistic = per_check(items, redecide, checks, AS_IMPLAUSIBLE)
+    assert plausible
+    assert all(row["implausible_rate_alone_human_implausible"] == 0.5 for row in plausible)
+    assert all(row["implausible_rate_alone_human_plausible"] == 0.0 for row in plausible)
     assert [row["accuracy_alone"] for row in plausible] == [pytest.approx(0.75)] * len(plausible)
     assert [row["accuracy_alone"] for row in pessimistic] == [pytest.approx(0.5)] * len(pessimistic)
-    check_ids = {row["check_id"] for row in plausible}
-    assert all(excluded <= check_ids for excluded in seen)
+    assert all(excluded <= checks for excluded in seen)
+
+
+def test_per_check_covers_the_rule_check_set_including_result_only_checks(world) -> None:
+    run = _run(world)
+    items = _items(world, run)
+    extra = "R9"
+    every = run.check_ids | {extra}
+    assert extra not in {r.check_id for it in items for r in it.check_rows}
+    seen: list[frozenset[str]] = []
+
+    def redecide(excluded: frozenset[str]) -> list[ComparisonItem]:
+        seen.append(excluded)
+        return items
+
+    rows = per_check(items, redecide, every, AS_PLAUSIBLE)
+    assert [row["check_id"] for row in rows] == sorted(every)
+    assert next(row for row in rows if row["check_id"] == extra)["n_scored"] == 0
+    assert every - {extra} in seen and frozenset({extra}) in seen
+
+
+def test_the_run_check_set_is_the_union_of_rows_and_results(world) -> None:
+    run = _run(world)
+    clip, rows = next(iter(run.rows.items()))
+    result = dataclasses.replace(run.results[clip][0], check_id="R9")
+    widened = dataclasses.replace(run, results={clip: (*run.results[clip], result)})
+    assert {r.check_id for r in rows} <= run.check_ids
+    assert widened.check_ids == run.check_ids | {"R9"}
 
 
 def test_policy_accuracy_counts_undecided_clips_by_the_policy(world) -> None:
