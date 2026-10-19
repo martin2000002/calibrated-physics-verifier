@@ -98,7 +98,9 @@ STEP_NAMES = (
 )  # fmt: skip
 
 
-SAVES = {2: ("STAGES_RUN",), 6: ("EVAL_JSON",), 8: ("R2_BASE_RUN", "R2_TINY_RUN"), 9: ("RECORD_SHA",)}
+SAVES = {
+    2: ("STAGES_RUN",), 6: ("EVAL_JSON",), 8: ("R2_BASE_RUN", "R2_TINY_RUN"), 9: ("RECORD_SHA",)
+}  # fmt: skip
 
 
 def _executable(path: Path, text: str) -> None:
@@ -177,13 +179,14 @@ class Sandbox:
         return [line.split("\t") for line in text.splitlines()]
 
 
-def _done(sandbox: Sandbox, steps: int, *, saves: bool = True) -> None:
-    """Records steps 0..steps-1 as completed, with the state keys they leave when ``saves``."""
+def _done(sandbox: Sandbox, steps: int, *, saves: int | None = None) -> None:
+    """Records steps 0..steps-1 as completed, with the state keys of steps 0..saves-1."""
     sandbox.out.mkdir(exist_ok=True)
     rows = "".join(f"{k}\t{STEP_NAMES[k]}\t0\t1\t-\n" for k in range(steps))
     with (sandbox.out / "steps.tsv").open("a", encoding="utf-8") as tsv:
         tsv.write(rows)
-    lines = [f"{key}=x{k}\n" for k in range(steps) if saves for key in SAVES.get(k, ())]
+    last = steps if saves is None else saves
+    lines = [f"{key}=x{k}\n" for k in range(last) for key in SAVES.get(k, ())]
     with (sandbox.out / "state.env").open("a", encoding="utf-8") as state:
         state.write("".join(lines))
 
@@ -307,7 +310,7 @@ def test_a_resumed_decide_reads_the_saved_state_and_skips_the_preflight(sandbox:
 
 
 def test_decide_without_saved_runs_asks_to_rerun_them(sandbox: Sandbox) -> None:
-    _done(sandbox, 9, saves=False)
+    _done(sandbox, 9, saves=6)
     result = sandbox.run("9")
     assert result.returncode == 2
     assert "recorded no EVAL_JSON" in result.stderr and "rerun from 6" in result.stderr
@@ -659,7 +662,7 @@ def test_a_step_rerun_successfully_counts_as_completed(sandbox: Sandbox) -> None
 
 
 def test_a_start_without_the_state_of_step_2_is_refused(sandbox: Sandbox) -> None:
-    _done(sandbox, 3, saves=False)
+    _done(sandbox, 3, saves=0)
     result = sandbox.run("3")
     assert result.returncode == 2
     assert "step 2 recorded no STAGES_RUN" in result.stderr
