@@ -27,7 +27,9 @@ BoolArray = NDArray[np.bool_]
 IntArray = NDArray[np.int64]
 
 DEFAULT_MIN_IOU = 0.3
-DEFAULT_MATCH_FRAMES = 5
+DEFAULT_MATCH_FRAMES: int | None = None
+"""Sampled frames ``match_masks`` reads; None is every frame, so an object that enters late or
+starts occluded is matched on the frames where it is visible."""
 PROBE_FRAMES, PROBE_OBJECTS = 5, 7
 """Axis sizes of the layout probe: distinct from each other and from the trailing 3 and 4."""
 
@@ -47,12 +49,25 @@ def box_iou_matrix(a: FloatArray, b: FloatArray) -> FloatArray:
 
 
 def mask_iou_matrix(pred: BoolArray, gt: BoolArray, rows: Sequence[int]) -> FloatArray:
-    """(T, N, h, w) x (T, M, h, w) -> (N, M): intersections and unions summed over ``rows``."""
-    p = pred[list(rows)].astype(np.float64).reshape(len(rows), pred.shape[1], -1)
-    g = gt[list(rows)].astype(np.float64).reshape(len(rows), gt.shape[1], -1)
-    inter = np.einsum("tnp,tmp->nm", p, g)
-    union = p.sum(axis=(0, 2))[:, None] + g.sum(axis=(0, 2))[None, :] - inter
-    iou: FloatArray = np.divide(inter, union, out=np.zeros_like(inter), where=union > 0)
+    """(T, N, h, w) x (T, M, h, w) -> (N, M): per-frame IoU averaged, for each ground-truth
+    object, over the ``rows`` where it is visible (0 when it is visible in none).
+
+    A per-frame mean, not pooled pixel counts, so a large object on a few frames cannot outweigh
+    a small one on the rest; accumulated one frame at a time, so memory does not grow with T."""
+    n, m = pred.shape[1], gt.shape[1]
+    total = np.zeros((n, m), dtype=np.float64)
+    visible = np.zeros(m, dtype=np.float64)
+    for row in rows:
+        p = pred[row].reshape(n, -1).astype(np.float64)
+        g = gt[row].reshape(m, -1).astype(np.float64)
+        inter = p @ g.T
+        union = p.sum(axis=1)[:, None] + g.sum(axis=1)[None, :] - inter
+        shown = g.sum(axis=1) > 0
+        total += np.divide(inter, union, out=np.zeros_like(inter), where=union > 0) * shown
+        visible += shown
+    iou: FloatArray = np.divide(
+        total, visible[None, :], out=np.zeros_like(total), where=visible[None, :] > 0
+    )
     return iou
 
 
@@ -106,10 +121,12 @@ def gt_detections_at(gt: GroundTruthStore, sampling: FrameSampling, frame: int) 
 def match_masks(
     pred: MaskTrack,
     gt: MaskTrack,
-    frames: int = DEFAULT_MATCH_FRAMES,
+    frames: int | None = DEFAULT_MATCH_FRAMES,
     min_iou: float = DEFAULT_MIN_IOU,
 ) -> IdMap:
-    rows = list(range(min(frames, pred.masks.shape[0], gt.masks.shape[0])))
+    """One-to-one identities by mask IoU over the first ``frames`` sampled frames (all: None)."""
+    shared = min(pred.masks.shape[0], gt.masks.shape[0])
+    rows = list(range(shared if frames is None else min(frames, shared)))
     return _id_map(
         mask_iou_matrix(pred.masks, gt.masks, rows),
         pred.object_ids.tolist(),

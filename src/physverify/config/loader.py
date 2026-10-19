@@ -19,7 +19,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from physverify.config.models import PathsSettings, RuntimeSettings, Settings
+from physverify.config.models import PROFILE_CONTEXT, PathsSettings, RuntimeSettings, Settings
 from physverify.core.errors import ConfigError
 
 ENV_PREFIX = "PHYSVERIFY__"
@@ -200,7 +200,9 @@ def _build(
     repo_root = config_dir.parent
     home = Path(environ.get("HOME") or Path.home())
     try:
-        paths = PathsSettings.model_validate(_expanded(merged.get("paths", {}), environ))
+        paths = PathsSettings.model_validate(
+            _expanded(merged.get("paths", {}), environ), context={PROFILE_CONTEXT: profile}
+        )
         runtime = RuntimeSettings.model_validate(_expanded(merged.get("runtime", {}), environ))
     except ValidationError as exc:
         raise ConfigError(f"invalid configuration:\n{exc}") from exc

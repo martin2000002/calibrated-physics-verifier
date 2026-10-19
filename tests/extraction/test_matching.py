@@ -189,3 +189,32 @@ def test_take_frames_cuts_every_per_frame_field_and_nothing_else(
     np.testing.assert_array_equal(cut.position, states.position[rows])
     np.testing.assert_array_equal(cut.object_ids, states.object_ids)
     np.testing.assert_array_equal(cut.gravity_dir, states.gravity_dir)
+
+
+def test_identities_follow_the_whole_track_not_its_first_frames(
+    fixture_clip: SyntheticClip,
+) -> None:
+    truth = fixture_clip.ground_truth.masks(sampling_of(fixture_clip.manifest))
+    frames = truth.masks.shape[0]
+    assert frames >= 12, "the swap must cover a minority of the frames"
+    masks = truth.masks.copy()
+    masks[:5] = truth.masks[:5, ::-1]
+    swapped_early = replace(truth, object_ids=np.array(["p0", "p1"]), masks=masks)
+    whole = match_masks(swapped_early, truth)
+    first_five = match_masks(swapped_early, truth, frames=5)
+    gt_ids = truth.object_ids.tolist()
+    assert whole.pred_to_gt() == {"p0": gt_ids[0], "p1": gt_ids[1]}
+    assert first_five.pred_to_gt() == {"p0": gt_ids[1], "p1": gt_ids[0]}
+    assert len(whole.frames_used) == frames
+
+
+def test_an_object_hidden_in_the_first_frames_is_still_matched(
+    fixture_clip: SyntheticClip,
+) -> None:
+    truth = fixture_clip.ground_truth.masks(sampling_of(fixture_clip.manifest))
+    late = truth.masks.copy()
+    late[:5, 1] = False
+    entering = replace(truth, masks=late)
+    gt_ids = truth.object_ids.tolist()
+    assert match_masks(truth, entering).pred_to_gt() == {i: i for i in gt_ids}
+    assert match_masks(truth, entering, frames=5).unmatched_gt == (gt_ids[1],)

@@ -21,7 +21,7 @@ class Params(ProviderParams):
 class GroundTruthScale:
     stage: ClassVar[Stage] = Stage.SCALE
     name: ClassVar[str] = GROUND_TRUTH
-    version: ClassVar[str] = "1"
+    version: ClassVar[str] = "2"
     requires: ClassVar[tuple[Stage, ...]] = (Stage.TRACK, Stage.LIFT)
     heavy: ClassVar[bool] = False
     is_ground_truth: ClassVar[bool] = True
