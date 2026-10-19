@@ -170,19 +170,25 @@ def empty_report(ctx: DiagnosisContext) -> RealVideoReport:
 def test_stages_passes_its_options_and_writes_report_and_events(
     cli: CliRunner, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    calls: list[tuple[list[str], bool]] = []
+    calls: list[tuple[list[str], bool, bool]] = []
 
     def stub(
-        ctx: DiagnosisContext, clips: Sequence[ClipManifest], *, write_profile: bool
+        ctx: DiagnosisContext,
+        clips: Sequence[ClipManifest],
+        *,
+        write_profile: bool,
+        replace_mismatched: bool,
     ) -> RealVideoReport:
-        calls.append(([c.clip_id for c in clips], write_profile))
+        calls.append(([c.clip_id for c in clips], write_profile, replace_mismatched))
         return empty_report(ctx)
 
     monkeypatch.setattr(diagnose, "run_stage_errors", stub)
     argv = ("diagnose", "stages", "--dataset", DATASET, "--clips", CLIP_ID, "--write-profile")
     result = cli(*SET_FAKES, *argv)
     assert result.code == 0, result.err
-    assert calls == [([CLIP_ID], True)]
+    assert calls == [([CLIP_ID], True, False)]
+    assert cli(*SET_FAKES, *argv, "--replace-mismatched").code == 0
+    assert calls[-1] == ([CLIP_ID], True, True)
     run_dir = run_dir_of(result.out)
     assert (run_dir / diagnose.EVENTS_FILE).is_file()
     assert (run_dir / "diagnosis" / "stages.json").is_file()

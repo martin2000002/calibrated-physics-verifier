@@ -19,7 +19,7 @@ from physverify.extraction._base import (
     StageEvent,
     StageProvider,
 )
-from physverify.extraction.cache import StageCache, plan_params_hashes, stage_key
+from physverify.extraction.cache import StageCache, plan_entry_filter, stage_key
 from physverify.extraction.pipeline import (
     ExtractionPipeline,
     ExtractionReport,
@@ -36,7 +36,7 @@ from physverify.extraction.providers.gt_scale import GroundTruthScale
 from physverify.extraction.providers.gt_track import GroundTruthTrack
 from physverify.extraction.providers.kinematics_savgol import SavgolKinematics
 from physverify.schema.clip import ClipManifest, FrameSampling, SamplingSpec, resolve_sampling
-from physverify.schema.error_profile import ErrorEntry, ErrorProfile
+from physverify.schema.error_profile import EntryFilter, ErrorEntry, ErrorProfile
 from physverify.schema.outputs import StageOutput
 from physverify.schema.stages import STAGE_ORDER, Stage
 from physverify.schema.states import ObjectStateTable
@@ -70,7 +70,7 @@ def make_context(
         sampling=sampling_of(manifest),
         upstream=dict(upstream or {}),
         plan=names,
-        plan_params_hash=dict.fromkeys(names, TEST_PARAMS_HASH),
+        entry_filter=EntryFilter(params_hashes=dict.fromkeys(names, TEST_PARAMS_HASH)),
         gt=gt,
         error_profile=profile,
         device="cpu",
@@ -203,7 +203,7 @@ def chain_keys(
 ) -> dict[Stage, str]:
     """Stage keys in plan order, computed the way the pipeline computes them."""
     sampling = resolve_sampling(clip, plan.sampling)
-    params = plan_params_hashes(plan.stages)
+    accept = plan_entry_filter(plan)
     keys: dict[Stage, str] = {}
     for step in plan.stages:
         keys[step.stage] = stage_key(
@@ -213,7 +213,7 @@ def chain_keys(
             sampling=sampling,
             upstream=keys,
             plan=plan.names,
-            plan_params=params,
+            entry_filter=accept,
             gt_version=gt_version if step.provider.is_ground_truth else None,
             error_profile=profile,
             device=device,

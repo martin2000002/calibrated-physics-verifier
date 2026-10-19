@@ -25,6 +25,7 @@ from physverify.extraction.plan import StagePlan, resolve_plan
 from physverify.extraction.providers.gt_lift import GroundTruthLift
 from physverify.extraction.providers.lift_backproject import BackprojectLift
 from physverify.schema.clip import SamplingSpec
+from physverify.schema.error_profile import EntryFilter
 from physverify.schema.io import stable_hash
 from physverify.schema.stages import STAGE_ORDER, Stage, StageArtifactMeta
 
@@ -57,7 +58,7 @@ def key_of(
         "sampling": sampling_of(clip.manifest),
         "upstream": UPSTREAM,
         "plan": PLAN,
-        "plan_params": {},
+        "entry_filter": EntryFilter(),
         "gt_version": None,
         "error_profile": P0,
         "device": "cpu",

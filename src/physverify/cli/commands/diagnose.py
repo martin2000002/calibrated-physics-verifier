@@ -168,10 +168,19 @@ def stages(
     write_profile: Annotated[
         bool, typer.Option(help="Write the calib error profile to paths.error_profile.")
     ] = False,
+    replace_mismatched: Annotated[
+        bool,
+        typer.Option(
+            help="Replace entries measured under another profile or other params instead of "
+            "refusing the merge (a deliberate re-measurement)."
+        ),
+    ] = False,
 ) -> None:
     def runner(ctx: DiagnosisContext) -> Report:
         selected = dataset_clips(ctx, clips or ())
-        return run_stage_errors(ctx, selected, write_profile=write_profile)
+        return run_stage_errors(
+            ctx, selected, write_profile=write_profile, replace_mismatched=replace_mismatched
+        )
 
     _launch(STAGES, runner, suite=False, dataset=dataset, subset=subset)
 

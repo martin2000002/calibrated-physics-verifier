@@ -18,9 +18,9 @@ from pydantic import BaseModel
 
 from physverify.core.hashing import cache_key, params_hash
 from physverify.extraction._base import StageProvider, error_profile_keys
-from physverify.extraction.plan import StagePlan
+from physverify.extraction.plan import ResolvedPlan, StagePlan
 from physverify.schema.clip import FrameSampling, ObjectQuery
-from physverify.schema.error_profile import ErrorProfile
+from physverify.schema.error_profile import EntryFilter, ErrorProfile
 from physverify.schema.errors import SchemaError
 from physverify.schema.outputs import STAGE_OUTPUT_TYPES, StageOutput
 from physverify.schema.stages import Stage, StageArtifactMeta, stage_index
@@ -58,6 +58,11 @@ def plan_params_hashes(steps: Iterable[StagePlan]) -> dict[Stage, str]:
     return {step.stage: step_params_hash(step) for step in steps}
 
 
+def plan_entry_filter(plan: ResolvedPlan) -> EntryFilter:
+    """The profile entries ``plan`` may read: its own profile and stage params only."""
+    return EntryFilter(profile=plan.profile, params_hashes=plan_params_hashes(plan.stages))
+
+
 def stage_inputs(
     provider: type[StageProvider], object_queries: Sequence[ObjectQuery], sampling: FrameSampling
 ) -> dict[str, Any] | None:
@@ -81,12 +86,12 @@ def stage_key(
     sampling: FrameSampling,
     upstream: Mapping[Stage, str],
     plan: Mapping[Stage, str],
-    plan_params: Mapping[Stage, str],
+    entry_filter: EntryFilter,
     gt_version: str | None,
     error_profile: ErrorProfile | None,
     device: str,
 ) -> str:
-    """``plan_params`` (stage -> params hash) drops profile entries measured with other params."""
+    """``entry_filter`` drops profile entries measured under another profile or other params."""
     provider = step.provider
     return cache_key(
         clip_id=clip_id,
@@ -103,7 +108,7 @@ def stage_key(
         error_profile_keys=profile_keys(provider, plan),
         heavy=provider.heavy,
         device=device,
-        error_profile_params=plan_params,
+        error_profile_filter=entry_filter,
         inputs=stage_inputs(provider, object_queries, sampling),
     )
 

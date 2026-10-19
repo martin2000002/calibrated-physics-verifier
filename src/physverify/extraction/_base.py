@@ -17,7 +17,7 @@ from physverify.config.models import PathsSettings
 from physverify.core.errors import InvalidPluginError, MissingInputError
 from physverify.datasets._base import GroundTruthStore, VideoSource
 from physverify.schema.clip import ClipManifest, FrameSampling
-from physverify.schema.error_profile import ErrorEntry, ErrorProfile
+from physverify.schema.error_profile import EntryFilter, ErrorEntry, ErrorProfile
 from physverify.schema.errors import SchemaError
 from physverify.schema.outputs import StageOutput
 from physverify.schema.stages import Stage, check_upstream_order, stage_index
@@ -48,8 +48,8 @@ class WeightSpec:
 class StageContext:
     """Everything a provider may read; ``upstream`` holds only the stages it requires.
 
-    ``plan_params_hash`` maps each stage of the plan to the hash of its provider params; a
-    profile entry is read only when it was measured with those params."""
+    ``entry_filter`` holds the plan's profile and stage params hashes; a profile entry is read
+    only when it was measured under that profile with those params."""
 
     clip: ClipManifest
     video: VideoSource
@@ -61,7 +61,7 @@ class StageContext:
     device: str
     threads: int
     paths: PathsSettings
-    plan_params_hash: Mapping[Stage, str] = field(default_factory=dict)
+    entry_filter: EntryFilter = field(default_factory=EntryFilter)
 
     def require(self, stage: Stage, kind: type[O]) -> O:
         output = self.upstream.get(stage)
@@ -89,10 +89,9 @@ class StageContext:
             return None
         if provider == GROUND_TRUTH:
             return ErrorEntry.exact(stage, GROUND_TRUTH, quantity)
-        expected = self.plan_params_hash.get(stage)
-        if self.error_profile is None or expected is None:
+        if self.error_profile is None or stage not in self.entry_filter.params_hashes:
             return None
-        return self.error_profile.lookup(stage, provider, quantity, expected)
+        return self.error_profile.lookup(stage, provider, quantity, self.entry_filter)
 
 
 def error_profile_keys(

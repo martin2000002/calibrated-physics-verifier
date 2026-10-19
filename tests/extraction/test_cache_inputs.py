@@ -14,7 +14,7 @@ from physverify.extraction._base import GROUND_TRUTH, StageProvider
 from physverify.extraction.cache import stage_key
 from physverify.extraction.plan import StagePlan
 from physverify.schema.clip import FrameSampling, ObjectQuery
-from physverify.schema.error_profile import ErrorEntry, ErrorProfile
+from physverify.schema.error_profile import EntryFilter, ErrorEntry, ErrorProfile
 from physverify.schema.stages import Stage
 
 
@@ -33,7 +33,7 @@ NAMES = {
     Stage.KINEMATICS: "sg",
     Stage.CONTACTS: "px",
 }
-PLAN_PARAMS = dict.fromkeys(NAMES, PH)
+FILTER = EntryFilter(profile="fast", params_hashes=dict.fromkeys(NAMES, PH))
 SAMPLING = FrameSampling(
     frame_indices=np.arange(0, 24, 2, dtype=np.int64),
     width=64,
@@ -141,7 +141,7 @@ def key(case: str, **changes: Any) -> str:
         "sampling": SAMPLING,
         "upstream": UPSTREAM,
         "plan": {**NAMES, provider.stage: provider.name},
-        "plan_params": PLAN_PARAMS,
+        "entry_filter": FILTER,
         "gt_version": "gt-v1" if provider.is_ground_truth else None,
         "error_profile": PROFILE,
         "device": "cuda",
@@ -180,7 +180,7 @@ def test_the_time_base_changes_only_the_light_stages_from_lift() -> None:
 
 def test_matching_params_keep_the_786fcdd_profile_hash() -> None:
     assert error_profile_hash(PROFILE, PROFILE_KEYS) == GOLDEN_PROFILE_HASH
-    assert error_profile_hash(PROFILE, PROFILE_KEYS, PLAN_PARAMS) == GOLDEN_PROFILE_HASH
+    assert error_profile_hash(PROFILE, PROFILE_KEYS, FILTER) == GOLDEN_PROFILE_HASH
 
 
 def test_an_entry_measured_with_other_params_leaves_the_key_and_the_lookup() -> None:
@@ -189,7 +189,21 @@ def test_an_entry_measured_with_other_params_leaves_the_key_and_the_lookup() -> 
     without = replace(PROFILE, entries=(PROFILE.entries[0], PROFILE.entries[2]))
     assert key("lift", error_profile=mixed) != key("lift")
     assert key("lift", error_profile=mixed) == key("lift", error_profile=without)
-    assert mixed.lookup(Stage.DEPTH, "vda", "depth_rel", PH) is None
+    assert mixed.lookup(Stage.DEPTH, "vda", "depth_rel", FILTER) is None
     assert mixed.lookup(Stage.DEPTH, "vda", "depth_rel") is stale
-    assert mixed.rejected(PROFILE_KEYS, PLAN_PARAMS) == (stale,)
-    assert PROFILE.rejected(PROFILE_KEYS, PLAN_PARAMS) == ()
+    assert mixed.rejected(PROFILE_KEYS, FILTER) == (stale,)
+    assert PROFILE.rejected(PROFILE_KEYS, FILTER) == ()
+
+
+def test_an_entry_of_another_profile_is_refused_even_with_the_same_params() -> None:
+    precise = replace(FILTER, profile="precise")
+    assert key("lift", entry_filter=precise) != key("lift")
+    assert PROFILE.lookup(Stage.DEPTH, "vda", "depth_rel", precise) is None
+    assert PROFILE.rejected(PROFILE_KEYS, precise) == PROFILE.entries
+    assert PROFILE.selected(PROFILE_KEYS, precise) == ()
+
+
+def test_an_entry_that_declares_no_condition_is_admitted() -> None:
+    bare = replace(PROFILE.entries[1], conditions={})
+    assert EntryFilter(profile="precise", params_hashes={Stage.DEPTH: "other"}).admits(bare)
+    assert EntryFilter().admits(PROFILE.entries[1])

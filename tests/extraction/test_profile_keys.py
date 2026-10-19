@@ -173,6 +173,33 @@ def test_an_entry_with_other_params_is_ignored_loudly_and_only_lift_on_recompute
     assert all(event.cached for event in third.events)
 
 
+def test_an_entry_of_another_profile_with_the_same_params_is_ignored_loudly(
+    make_settings: SettingsFactory,
+    providers: Providers,
+    fixture_dataset: SyntheticFixtureDataset,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    settings = make_settings(*plan_overrides(detect=FAKE, track=FAKE, depth=FAKE))
+    plan = resolve_plan(settings, providers, dataset=fixture_dataset.name)
+    measured = plan_params_hashes(plan.stages)[Stage.LIFT]
+    other = "precise" if plan.profile != "precise" else "fast"
+    foreign = entry(
+        Stage.LIFT,
+        "backproject",
+        "centroid_rel",
+        0.1,
+        conditions={"params_hash": measured, "profile": other},
+    )
+    first = run_pipeline(settings, providers, fixture_dataset, profile=profile_of())
+    with caplog.at_level(logging.WARNING, logger="physverify.extraction.pipeline"):
+        second = run_pipeline(settings, providers, fixture_dataset, profile=profile_of(foreign))
+    assert first.failures == second.failures == ()
+    assert all(event.cached for event in second.events)
+    warnings = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
+    assert len(warnings) == 1 and f"profile {other}" in warnings[0]
+    assert f"plan is profile {plan.profile}" in warnings[0]
+
+
 @pytest.mark.parametrize("profile", ["fast", "precise"])
 def test_the_writer_and_the_pipeline_hash_the_same_params(
     make_settings: SettingsFactory, real_providers: Providers, profile: str

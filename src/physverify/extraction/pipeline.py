@@ -20,7 +20,7 @@ from physverify.datasets._base import DatasetSource
 from physverify.extraction._base import StageContext, StageEvent, StageObserver, StageProvider
 from physverify.extraction.cache import (
     StageCache,
-    plan_params_hashes,
+    plan_entry_filter,
     profile_keys,
     stage_key,
     step_params_hash,
@@ -28,7 +28,7 @@ from physverify.extraction.cache import (
 from physverify.extraction.plan import ResolvedPlan, StagePlan
 from physverify.extraction.weights import missing_weights
 from physverify.schema.clip import ClipManifest, FrameSampling, resolve_sampling
-from physverify.schema.error_profile import PARAMS_HASH_CONDITION, ErrorProfile
+from physverify.schema.error_profile import PARAMS_HASH_CONDITION, PROFILE_CONDITION, ErrorProfile
 from physverify.schema.errors import SchemaError
 from physverify.schema.outputs import StageOutput, check_stage_output
 from physverify.schema.scale import ScaleEstimate
@@ -169,7 +169,7 @@ class ExtractionPipeline:
         self._plan = plan
         self._deps = deps
         self._names = dict(plan.names)
-        self._params = plan_params_hashes(plan.stages)
+        self._filter = plan_entry_filter(plan)
 
     def run(self, dataset: DatasetSource, clips: Sequence[ClipManifest]) -> ExtractionReport:
         self._warn_rejected_entries()
@@ -188,23 +188,25 @@ class ExtractionPipeline:
         )
 
     def _warn_rejected_entries(self) -> None:
-        """Loud, once per entry: a params mismatch turns that sigma unknown (NaN)."""
+        """Loud, once per entry: a profile or params mismatch turns that sigma unknown (NaN)."""
         profile = self._deps.error_profile
         if profile is None:
             return
         keys = {
             key for step in self._plan.stages for key in profile_keys(step.provider, self._names)
         }
-        for entry in profile.rejected(keys, self._params):
+        for entry in profile.rejected(keys, self._filter):
             log.warning(
-                "error profile entry %s/%s %s was measured with params_hash %s but the plan uses "
-                "%s; it is ignored and its sigma is unknown (re-run `diagnose stages "
-                "--write-profile` for this profile)",
+                "error profile entry %s/%s %s was measured under profile %s with params_hash %s "
+                "but the plan is profile %s with params_hash %s; it is ignored and its sigma is "
+                "unknown (re-run `diagnose stages --write-profile` for this profile)",
                 entry.stage.value,
                 entry.provider,
                 entry.quantity,
+                entry.conditions.get(PROFILE_CONDITION),
                 entry.conditions.get(PARAMS_HASH_CONDITION),
-                self._params[entry.stage],
+                self._filter.profile,
+                self._filter.params_hashes[entry.stage],
             )
 
     def _prepare(
@@ -243,7 +245,7 @@ class ExtractionPipeline:
             sampling=cell.sampling,
             upstream=cell.keys,
             plan=self._names,
-            plan_params=self._params,
+            entry_filter=self._filter,
             gt_version=cell.gt_version if step.provider.is_ground_truth else None,
             error_profile=self._deps.error_profile,
             device=self._deps.device,
@@ -321,7 +323,7 @@ class ExtractionPipeline:
             sampling=cell.sampling,
             upstream=upstream,
             plan=self._names,
-            plan_params_hash=self._params,
+            entry_filter=self._filter,
             gt=dataset.ground_truth(cell.clip) if step.provider.is_ground_truth else None,
             error_profile=self._deps.error_profile,
             device=self._deps.device,
@@ -376,7 +378,7 @@ class ExtractionPipeline:
             sampling_hash=sampling_hash(cell.sampling),
             upstream=upstream_keys(provider.requires, cell.keys),
             error_profile_hash=error_profile_hash(
-                self._deps.error_profile, profile_keys(provider, self._names), self._params
+                self._deps.error_profile, profile_keys(provider, self._names), self._filter
             ),
             gt_version=cell.gt_version if provider.is_ground_truth else None,
             device=self._deps.device if provider.heavy else None,

@@ -27,7 +27,7 @@ from physverify.diagnosis.error_profile_writer import (
 )
 from physverify.extraction._base import GROUND_TRUTH, StageContext
 from physverify.schema.clip import FrameSampling
-from physverify.schema.error_profile import MAX_RESIDUALS, ErrorEntry, ErrorProfile
+from physverify.schema.error_profile import MAX_RESIDUALS, EntryFilter, ErrorEntry, ErrorProfile
 from physverify.schema.stages import Stage
 
 META = ProfileMeta(
@@ -208,6 +208,7 @@ def stage_context(
     plan: dict[Stage, str],
     loaded: ErrorProfile,
     params_hash: str = PARAMS_HASH,
+    profile_name: str = "fast",
 ) -> StageContext:
     clip = manifest()
     return StageContext(
@@ -225,7 +226,7 @@ def stage_context(
         ),
         upstream=MappingProxyType({}),
         plan=MappingProxyType(plan),
-        plan_params_hash=dict.fromkeys(plan, params_hash),
+        entry_filter=EntryFilter(profile_name, dict.fromkeys(plan, params_hash)),
         gt=None,
         error_profile=loaded,
         device="cpu",
@@ -288,9 +289,11 @@ def test_merge_then_lookup_returns_the_fresh_entry_for_its_params() -> None:
     )
     fresh = profile("run-fresh", conditioned(Stage.TRACK, "centroid_px_rel", 0.25))
     merged = merge_profiles(previous, fresh)
-    found = merged.lookup(Stage.TRACK, "diag_fake", "centroid_px_rel", PARAMS_HASH)
+    plan = EntryFilter("fast", {Stage.TRACK: PARAMS_HASH})
+    found = merged.lookup(Stage.TRACK, "diag_fake", "centroid_px_rel", plan)
     assert found is not None and found.bias == 0.25
-    assert merged.lookup(Stage.TRACK, "diag_fake", "centroid_px_rel", "other") is None
+    other = EntryFilter("fast", {Stage.TRACK: "other"})
+    assert merged.lookup(Stage.TRACK, "diag_fake", "centroid_px_rel", other) is None
 
 
 def test_a_reader_with_other_params_gets_no_entry(
@@ -303,5 +306,7 @@ def test_a_reader_with_other_params_gets_no_entry(
     plan = {Stage.TRACK: "diag_fake"}
     same = stage_context(make_settings(), plan, loaded)
     other = stage_context(make_settings(), plan, loaded, params_hash="other")
+    precise = stage_context(make_settings(), plan, loaded, profile_name="precise")
     assert same.error_entry(Stage.TRACK, "centroid_px_rel") is not None
     assert other.error_entry(Stage.TRACK, "centroid_px_rel") is None
+    assert precise.error_entry(Stage.TRACK, "centroid_px_rel") is None

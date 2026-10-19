@@ -49,13 +49,6 @@ class ErrorEntry(Record):
     def key(self) -> tuple[Stage, str]:
         return (self.stage, self.provider)
 
-    def measured_with(self, params_hash: str | None) -> bool:
-        """False only when the entry declares a ``params_hash`` other than ``params_hash``.
-
-        None means "do not filter"; an entry without the condition (hand-written) is unbound."""
-        declared = self.conditions.get(PARAMS_HASH_CONDITION)
-        return params_hash is None or declared is None or declared == params_hash
-
     @classmethod
     def exact(cls, stage: Stage, provider: str, quantity: str, unit: str = "") -> Self:
         """Zero error: what a ground-truth upstream provider contributes."""
@@ -100,6 +93,27 @@ class ErrorEntry(Record):
         )
 
 
+@dataclass(frozen=True)
+class EntryFilter:
+    """The entries a plan may read: those measured under its profile with its stage params.
+
+    An unset constraint (None, or a stage absent from ``params_hashes``) admits everything; an
+    entry that does not declare a condition (hand-written) is not bound by it."""
+
+    profile: str | None = None
+    params_hashes: Mapping[Stage, str] = field(default_factory=dict)
+
+    def admits(self, entry: ErrorEntry) -> bool:
+        return _unbound(entry, PROFILE_CONDITION, self.profile) and _unbound(
+            entry, PARAMS_HASH_CONDITION, self.params_hashes.get(entry.stage)
+        )
+
+
+def _unbound(entry: ErrorEntry, condition: str, expected: str | None) -> bool:
+    declared = entry.conditions.get(condition)
+    return expected is None or declared is None or declared == expected
+
+
 @dataclass(frozen=True, eq=False)
 class ErrorProfile(Record):
     """All measured entries of one diagnosis run."""
@@ -111,47 +125,37 @@ class ErrorProfile(Record):
     schema_version: str = SCHEMA_VERSION
 
     def lookup(
-        self, stage: Stage, provider: str, quantity: str, params_hash: str | None = None
+        self, stage: Stage, provider: str, quantity: str, accept: EntryFilter | None = None
     ) -> ErrorEntry | None:
-        """The entry, or None when absent or measured with other params (no fallback)."""
+        """The entry, or None when absent or not admitted by ``accept`` (no fallback)."""
         for entry in self.entries:
             if entry.key == (stage, provider) and entry.quantity == quantity:
-                return entry if entry.measured_with(params_hash) else None
+                return entry if accept is None or accept.admits(entry) else None
         return None
 
     def selected(
-        self,
-        keys: Iterable[tuple[Stage, str]],
-        params_hashes: Mapping[Stage, str] | None = None,
+        self, keys: Iterable[tuple[Stage, str]], accept: EntryFilter | None = None
     ) -> tuple[ErrorEntry, ...]:
         """Entries of the given (stage, provider) keys that ``lookup`` can return."""
         wanted = set(keys)
         return tuple(
-            e
-            for e in self.entries
-            if e.key in wanted and e.measured_with(_expected(params_hashes, e.stage))
+            e for e in self.entries if e.key in wanted and (accept is None or accept.admits(e))
         )
 
     def rejected(
-        self, keys: Iterable[tuple[Stage, str]], params_hashes: Mapping[Stage, str]
+        self, keys: Iterable[tuple[Stage, str]], accept: EntryFilter
     ) -> tuple[ErrorEntry, ...]:
-        """Entries of the given keys that ``lookup`` refuses because their params differ."""
+        """Entries of the given keys that ``lookup`` refuses under ``accept``."""
         wanted = set(keys)
-        return tuple(
-            e
-            for e in self.entries
-            if e.key in wanted and not e.measured_with(params_hashes.get(e.stage))
-        )
+        return tuple(e for e in self.entries if e.key in wanted and not accept.admits(e))
 
     def entries_hash(
-        self,
-        keys: Iterable[tuple[Stage, str]],
-        params_hashes: Mapping[Stage, str] | None = None,
+        self, keys: Iterable[tuple[Stage, str]], accept: EntryFilter | None = None
     ) -> str:
         """Hash of the entries ``lookup`` can return for the given (stage, provider) keys only.
 
-        When every entry passes the params filter the hash equals the unfiltered one."""
-        selected = [e.to_dict() for e in self.selected(keys, params_hashes)]
+        When ``accept`` admits every entry the hash equals the unfiltered one."""
+        selected = [e.to_dict() for e in self.selected(keys, accept)]
         return stable_hash(
             sorted(selected, key=lambda d: (d["stage"], d["provider"], d["quantity"]))
         )
@@ -177,10 +181,6 @@ class ErrorProfile(Record):
             entries=tuple(ErrorEntry.from_dict(e) for e in data["entries"]),
             schema_version=data["schema_version"],
         )
-
-
-def _expected(params_hashes: Mapping[Stage, str] | None, stage: Stage) -> str | None:
-    return None if params_hashes is None else params_hashes.get(stage)
 
 
 def no_profile_hash() -> str:
