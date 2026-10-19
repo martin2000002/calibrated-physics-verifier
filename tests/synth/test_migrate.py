@@ -13,11 +13,13 @@ import numpy as np
 import pytest
 
 from physverify.config.models import Settings
-from physverify.core.errors import ConfigError
+from physverify.core.errors import ConfigError, MissingInputError
 from physverify.schema.scene import PerturbationRecord
 from physverify.schema.states import ObjectStateTable
 from physverify.synth.generate import load_plan, plan_subset, save_plan
+from physverify.synth.gt_export import read_index
 from physverify.synth.migrate import (
+    COMPLETED_KEY,
     CONVENTION_KEY,
     RERENDER_KEY,
     migrate_velocity,
@@ -29,9 +31,12 @@ from physverify.synth.plan import DatasetPlan
 from physverify.synth.settings import DatasetSettings, load_dataset_settings
 from physverify.synth.store import (
     CLOSEST,
+    FRAMES_DIR,
+    GT_META,
     KUBRIC_META,
     LAYERS,
     RECORD,
+    SKIPPED_FILE,
     VARIANT_STATES,
     DatasetStore,
     Step,
@@ -155,8 +160,10 @@ def test_a_crashed_migration_still_lists_the_render_it_discarded(
     plan, store, plugins = legacy(tmp_path, position_ds, families, perturbations)
     report = migrate_velocity(store, plugins, position_ds, COMMIT, clock)
     manifest = read_json(report.manifest)
-    del manifest["completed_utc"]
+    del manifest[COMPLETED_KEY]
     atomic_write_json(report.manifest, manifest | {RERENDER_KEY: []})
+    with pytest.raises(MissingInputError, match=COMPLETED_KEY):
+        rerender_clip_ids(report.manifest)
     again = migrate_velocity(store, plugins, position_ds, COMMIT, clock)
     assert again.rerender == report.rerender
 
@@ -214,3 +221,31 @@ def test_the_audit_compares_the_migration_with_the_copy_taken_before(
     assert found["check_labels"][0]["within"] == len(label.target_checks) > 0
     assert found["check_labels"][0]["outside"] == {}
     assert found["cache"]["stale_meta"] == {}
+
+
+class Refusing:
+    """A perturbation the new settings no longer apply to this scene."""
+
+    name = "none"
+
+    def applicable(self, scene: Any) -> bool:
+        return False
+
+
+def test_a_clip_now_refused_loses_its_render_and_export(
+    tmp_path: Path, position_ds: DatasetSettings, families: Any, perturbations: Any
+) -> None:
+    plan, store, plugins = legacy(tmp_path, position_ds, families, perturbations)
+    refused = clip_of(plan, "none")
+    clip_dir = store.clip_dir(refused)
+    atomic_write_json(clip_dir / GT_META, {"fake": True})
+    (clip_dir / FRAMES_DIR).mkdir()
+    (clip_dir / FRAMES_DIR / "000000.png").write_bytes(b"old")
+    store.manifest_path.write_text("stale\n", encoding="utf-8")
+    report = migrate_velocity(store, plugins | {"none": Refusing()}, position_ds, COMMIT, clock)
+    assert sorted(p.name for p in clip_dir.iterdir()) == [SKIPPED_FILE]
+    assert refused in report.rerender
+    assert report.status_changes[refused]["before"]["state"] == "applied"
+    assert report.status_changes[refused]["after"]["state"] == "skipped"
+    assert refused in rerender_clip_ids(report.manifest)
+    assert read_index(store) == []

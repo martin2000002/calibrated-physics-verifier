@@ -2,7 +2,8 @@
 
 APPLY is reopened and run again on every clip it had already reached (applied or skipped; a clip
 never applied stays pending for its own build); ``discard_downstream``
-drops a render only where the poses, sizes or hidden frames changed. The manifest
+drops a render only where the poses, sizes or hidden frames changed, and a clip APPLY now refuses
+loses everything it had (render and export included). The manifest
 ``<dataset>/migrations/velocity-<convention>.json`` is written before anything changes and
 completed afterwards, so a crashed run resumes and still lists every discarded render; once
 completed, running it again changes nothing."""
@@ -18,7 +19,7 @@ from typing import Any
 
 from physverify.core.errors import ConfigError, MissingInputError
 from physverify.synth.generate import load_plan
-from physverify.synth.gt_export import DATASET_NAME
+from physverify.synth.gt_export import DATASET_NAME, write_index
 from physverify.synth.perturb import apply_variants
 from physverify.synth.plan import DatasetPlan
 from physverify.synth.settings import DatasetSettings
@@ -34,6 +35,7 @@ from physverify.synth.store import (
 MIGRATIONS_DIR = "migrations"
 CONVENTION_KEY = "velocity_convention"
 RERENDER_KEY = "rerender_clip_ids"
+COMPLETED_KEY = "completed_utc"
 
 type Clock = Callable[[], dt.datetime]
 
@@ -51,8 +53,14 @@ def manifest_path(store: DatasetStore, ds: DatasetSettings) -> Path:
 
 
 def rerender_clip_ids(manifest: Path) -> list[str]:
-    """The clips whose render a migration discarded (read by ``extract purge``)."""
-    return [str(c) for c in read_json(manifest)[RERENDER_KEY]]
+    """The clips whose render a completed migration discarded (read by ``extract purge``); an
+    interrupted one may still discard more, so its list is refused."""
+    data = read_json(manifest)
+    if COMPLETED_KEY not in data:
+        raise MissingInputError(
+            f"{manifest} has no {COMPLETED_KEY}: run `dataset migrate-velocity` to the end first"
+        )
+    return [str(c) for c in data[RERENDER_KEY]]
 
 
 def manifest_dataset(manifest: Path) -> str:
@@ -163,12 +171,14 @@ def migrate_velocity(
     check_plan_hash(plan, ds)
     path = manifest_path(store, ds)
     manifest = load_or_start(path, plan, store, ds, commit, now)
-    if "completed_utc" in manifest:
+    if COMPLETED_KEY in manifest:
         return _report(path, 0, manifest)
     plan = rewrite_plan_hash(store, plan, ds.content_hash())
     reached = reached_apply(plan, manifest["status_before"])
     reopen_apply(reached, store)
     report = apply_variants(reached, store, plugins, ds)
+    if store.manifest_path.is_file():
+        write_index(store)
     rerender = sorted(
         set(manifest[RERENDER_KEY])
         | {c for c in manifest["rendered_before"] if not store.is_done(Step.RENDER, c)}
@@ -178,7 +188,7 @@ def migrate_velocity(
         RERENDER_KEY: rerender,
         "status_after": after,
         "status_changes": status_changes(manifest["status_before"], after),
-        "completed_utc": _stamp(now),
+        COMPLETED_KEY: _stamp(now),
     }
     atomic_write_json(path, manifest)
     return _report(path, len(report.applied), manifest)

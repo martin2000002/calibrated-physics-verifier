@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import dataclasses
 import math
+import shutil
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -231,9 +232,19 @@ def apply_variants(
             if _apply_one(variant, store, plugins[variant.perturbation], ds):
                 discarded.append(clip_id)
         except REFUSALS as exc:
+            if discard_clip(store.clip_dir(clip_id)):
+                discarded.append(clip_id)
             store.mark_skipped(clip_id, str(exc))
         applied.append(clip_id)
     return ApplyReport(tuple(applied), tuple(discarded))
+
+
+def discard_clip(clip_dir: Path) -> bool:
+    """A refused clip keeps nothing an earlier APPLY, render or export wrote (it may have been
+    applied under other settings). True when a render went."""
+    rendered = (clip_dir / KUBRIC_META).is_file()
+    shutil.rmtree(clip_dir, ignore_errors=True)
+    return rendered
 
 
 def _apply_one(variant: VariantPlan, store: DatasetStore, plugin: Any, ds: DatasetSettings) -> bool:
