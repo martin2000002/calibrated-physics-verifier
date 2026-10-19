@@ -1,0 +1,40 @@
+# Preregistered exclusion rules of ADR 0015 (1.1, 1.2 as amended by Enmienda 1, 1.5), applied by
+# `physverify exclusions decide` (calibration/exclusions.py). Every threshold lives here: changing
+# one after A8 v2 is a declared deviation and changes the record's rules_sha256. The record is
+# written where [check_scope].decision_record points (its .md view next to it).
+[exclusion_rules]
+version = "1"
+consumed_level = "perceived"          # the stratum H2 and H3 consume (0b.2)
+consumed_profile = "precise"
+rules = ["1.1", "1.2", "1.5"]
+
+[exclusion_rules.r5a]                 # 1.1: usable stratum, weight > 0, tau_b CI low > 0
+check_ids = ["R5a"]
+min_weight = 0.0                      # strict: weight > 0 (status ok and Youden J low > 0)
+min_tau_b_low = 0.0                   # strict: tau_b CI low > 0
+
+[exclusion_rules.r2]                  # 1.2: both detector arms at the artifact's tau
+check_ids = ["R2"]
+dataset = "kubric_synthetic"
+subset = "full"
+family = "f4_stack"
+perturbation = "r2_unsupported_rest"
+split = "calib"
+base_detector = "grounding_dino_base" # the precise profile's per-query detector
+tiny_detector = "grounding_dino_tiny" # the joint-prompt detector of the fast plan
+rates = "total"                       # FPR = FAIL / clean clips, TPR = FAIL / positive clips
+max_fpr_increase = 0.10               # exclude when FPR(base) - FPR(tiny) > 0.10
+tpr_ci = 0.95                         # exclude when the high of the CI of TPR(base) - TPR(tiny) < 0
+bootstrap_n = 2000                    # paired scene bootstrap of the TPR difference
+bootstrap_seed = 20261019
+
+[exclusion_rules.real]                # 1.5: exclude when the worst CP low of the real FPR > 0.10
+datasets = ["physics_iq", "pisa_real"]
+max_fpr_lower = 0.10
+ci = 0.95
+sided = "two_sided"                   # exact Clopper-Pearson over (k, n) clips, like v1's intervals
+allowed_sets = [
+    { physics_iq = 54, pisa_real = 360 },   # the A8 v1 set
+    { physics_iq = 54, pisa_real = 40 },    # fallback when GPU time is short
+    { physics_iq = 54, pisa_real = 361 },   # only if PISA clip 0229 comes in
+]
