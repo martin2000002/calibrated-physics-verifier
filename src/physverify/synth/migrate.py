@@ -213,6 +213,16 @@ def reopen_apply(plan: DatasetPlan, store: DatasetStore) -> int:
     return reopened
 
 
+def resumable(path: Path, plan: DatasetPlan) -> bool:
+    """A manifest of this migration already exists and the plan is at its start or its target
+    revision: a finished run, or one cut short before or after the revision was raised."""
+    if not path.is_file():
+        return False
+    stored = read_json(path)
+    revision = stored.get("gt_revision", {})
+    return COMPLETED_KEY in stored or plan.gt_revision in (revision.get("old"), revision.get("new"))
+
+
 def reapply(
     store: DatasetStore,
     plugins: Mapping[str, Any],
@@ -229,7 +239,7 @@ def reapply(
         raise MissingInputError(f"nothing planned in {store.root}")
     check_plan_hash(plan, ds, name)
     path = manifest_path(store, name)
-    if not (path.is_file() and COMPLETED_KEY in read_json(path)):
+    if not resumable(path, plan):
         check_pending(plan, name)
     manifest = load_or_start(path, plan, store, ds, commit, name, now)
     if COMPLETED_KEY in manifest:

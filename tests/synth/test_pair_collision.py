@@ -15,7 +15,8 @@ from physverify.physics.measures.r3_collision import kinetic_energy_gain
 from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactKind, ContactRecord, ContactTable
 from physverify.schema.states import ObjectStateTable, PrimitiveKind
-from physverify.synth.migration_audit import legacy_collision_velocities
+from physverify.synth.migration_audit import floor_reach, legacy_collision_velocities
+from physverify.synth.perturb import instantiate
 from physverify.synth.perturbations._ballistics import impact_velocity
 from physverify.synth.perturbations._edit import edit_object, gravity_of, radius_of, spheres
 from physverify.synth.perturbations._measure import (
@@ -233,6 +234,24 @@ def test_a_ball_beyond_the_tolerance_without_a_record_is_extrapolated(pair: Pair
     assert np.allclose(v_plus, pair.v_plus[0], atol=TOL, rtol=0.0)
 
 
-def test_the_tolerance_comes_from_the_contact_settings(ds: Any, plugins: Any) -> None:
-    """R2: the plugin's tolerance is ``[dataset.contacts].tol_m``."""
-    assert plugins["r3_energy_gain"].params.contact_tol_m == ds.contacts.tol_m
+def test_the_tolerance_comes_from_the_contact_settings(ds: Any, perturbations: Any) -> None:
+    """R2: the plugin's tolerance is ``[dataset.contacts].tol_m``, not the parameter default."""
+    tol = 3.0 * CONTACT_TOL
+    contacts = ds.contacts.model_copy(update={"tol_m": tol})
+    plugins = instantiate(perturbations, ds.model_copy(update={"contacts": contacts}))
+    assert plugins["r3_energy_gain"].params.contact_tol_m == tol
+
+
+@pytest.mark.parametrize(
+    ("gap", "vz", "dt", "stops"),
+    [
+        (0.01, -1.0, -0.03, True),
+        (0.189, -2.29, -0.85 / 24.0, False),
+        (0.004, 0.0, 0.03, True),
+    ],
+)
+def test_a_flight_row_that_could_reach_the_floor_before_t_c_stops(
+    gap: float, vz: float, dt: float, stops: bool
+) -> None:
+    """I11: the stop fires on an extrapolated row whose gap is within free-fall reach of t_c."""
+    assert (floor_reach(vz, dt, 9.81) >= gap) is stops

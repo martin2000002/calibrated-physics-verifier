@@ -399,7 +399,9 @@ def test_the_floor_crossing_migration_rerenders_only_the_moved_flight(
     assert found["r3b"]["unexpected"] == [] and found["r3b"]["missing"] == []
     assert found["r3b"]["legacy_differs_from_stored"] == []
     assert found["pair_rows"]["stops"] == []
-    assert found["energy_labels"]["off_nominal"] == {}
+    labels = found["energy_labels"]
+    assert labels["off_nominal"] == {} and labels["checked"] > 0
+    assert labels["checked_gt_meta"] + len(labels["without_gt_meta"]) == labels["checked"]
 
 
 def test_a_migration_cut_short_keeps_the_old_gt_revision(
@@ -430,6 +432,32 @@ def test_a_migration_cut_short_keeps_the_old_gt_revision(
     assert report.rerender == (clip_of(plan, "r3_restitution_gain"),)
     done = load_plan(store)
     assert done is not None and done.gt_revision == GT_REVISION
+
+
+def test_a_migration_cut_after_raising_the_revision_finishes_on_rerun(
+    tmp_path: Path,
+    position_ds: DatasetSettings,
+    families: Any,
+    perturbations: Any,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    plan, store, plugins = before_floor_crossing(
+        tmp_path, position_ds, families, perturbations, monkeypatch
+    )
+
+    def crash(*args: Any) -> None:
+        raise RuntimeError("killed")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(migrate, "status_changes", crash)
+        with pytest.raises(RuntimeError, match="killed"):
+            reapply(store, plugins, position_ds, COMMIT, FLOOR_CROSSING, clock)
+    cut = load_plan(store)
+    assert cut is not None and cut.gt_revision == GT_REVISION
+    assert COMPLETED_KEY not in read_json(manifest_path(store, FLOOR_CROSSING))
+    report = reapply(store, plugins, position_ds, COMMIT, FLOOR_CROSSING, clock)
+    assert report.rerender == (clip_of(plan, "r3_restitution_gain"),)
+    assert COMPLETED_KEY in read_json(manifest_path(store, FLOOR_CROSSING))
 
 
 def test_a_conditional_rerender_is_listed_with_its_penetrated_bounce(

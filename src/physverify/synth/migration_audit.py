@@ -48,6 +48,7 @@ from physverify.synth.perturbations._measure import (
     floor_crossing,
     floor_gap,
     max_energy_gain,
+    native_fps,
     row_overlaps_floor,
 )
 from physverify.synth.perturbations._windows import UP, records_of, rest_mask
@@ -96,7 +97,8 @@ FLOOR_META_PATHS = (
     "gt_version",
 )
 # GT metadata a pair-collision migration may move on a kept clip whose R3b the rule moves.
-PAIR_META_PATHS = ("measures.R3b", "record.magnitude", "gt_version")
+R3B_META_PATH = "measures.R3b"
+PAIR_META_PATHS = (R3B_META_PATH, "record.magnitude", "gt_version")
 
 
 @dataclass(frozen=True)
@@ -607,7 +609,7 @@ def pair_collision_audits(inputs: AuditInputs, prediction: Prediction) -> Extra:
             "tol_m": tol,
             "touch_only": [r for r in rows if r["touch"] and not r["overlap"]],
             "legacy_only": [r for r in rows if r["legacy"] and not r["on_floor"]],
-            "stops": [r for r in rows if r["legacy"] and not r["on_floor"] and r["gap_m"] <= tol],
+            "stops": [r for r in rows if not r["on_floor"] and r["reach_m"] >= r["gap_m"]],
         },
         "r3b": r3b,
         "energy_labels": energy_label_audit(inputs),
@@ -615,7 +617,10 @@ def pair_collision_audits(inputs: AuditInputs, prediction: Prediction) -> Extra:
     moved = set(r3b["predicted"])
 
     def explains(variant: VariantPlan, path: str) -> bool:
-        return path in PAIR_META_PATHS and variant.clip_id in moved
+        edited = variant.perturbation == ENERGY_GAIN
+        return variant.clip_id in moved and (
+            path == R3B_META_PATH or (edited and path in PAIR_META_PATHS)
+        )
 
     return Extra(report, explains)
 
@@ -824,7 +829,7 @@ def legacy_collision_velocities(
 def legacy_energy_gain(
     states: ObjectStateTable, contacts: ContactTable, masses: Mapping[str, float], g: np.ndarray
 ) -> float:
-    fps = 1.0 / float(states.t[1] - states.t[0])
+    fps = native_fps(states)
     values = []
     for r in _pair_impacts(contacts):
         (am, ap), (bm, bp) = (
@@ -837,11 +842,18 @@ def legacy_energy_gain(
     return max((v for v in values if math.isfinite(v)), default=math.nan)
 
 
+def floor_reach(vz: float, dt: float, g: float) -> float:
+    """Upper bound of the vertical distance a body covers between a row and t_c (``dt`` apart)
+    in free fall: a flight row whose floor gap is within it may hide an unrecorded bounce."""
+    return abs(vz) * abs(dt) + 0.5 * g * dt * dt
+
+
 def collision_rows(store: DatasetStore, variant: VariantPlan, tol: float) -> list[dict[str, Any]]:
     """Rows k and k + 1 of both bodies of every ball-ball impact of an exported clip: the old
-    flag, the record overlap, the floor gap and whether the new rule holds the row value."""
-    _, states, contacts = _exported(store, variant)
-    fps = 1.0 / float(states.t[1] - states.t[0])
+    flag, the record overlap, the floor gap, whether the new rule holds the row value and how far
+    the body can fall before t_c (I11 stops on a flight row that could reach the floor)."""
+    scene, states, contacts = _exported(store, variant)
+    fps, g = native_fps(states), float(np.linalg.norm(gravity_of(scene)))
     rows = []
     for r in _pair_impacts(contacts):
         t_c = r.t_start / fps
@@ -851,6 +863,7 @@ def collision_rows(store: DatasetStore, variant: VariantPlan, tol: float) -> lis
             for row in (k, k + 1):
                 overlap = row_overlaps_floor(states, contacts, index, row, t_c)
                 gap = floor_gap(states, index, row)
+                vz = float(states.velocity[row, index, 2])
                 rows.append(
                     {
                         "clip": variant.clip_id,
@@ -862,7 +875,8 @@ def collision_rows(store: DatasetStore, variant: VariantPlan, tol: float) -> lis
                         "touch": gap <= tol,
                         "on_floor": overlap or gap <= tol,
                         "gap_m": gap,
-                        "vz": float(states.velocity[row, index, 2]),
+                        "vz": vz,
+                        "reach_m": floor_reach(vz, float(states.t[row]) - t_c, g),
                     }
                 )
     return rows
@@ -900,21 +914,30 @@ def r3b_audit(inputs: AuditInputs) -> dict[str, Any]:
 
 
 def energy_label_audit(inputs: AuditInputs) -> dict[str, Any]:
-    """I2: every exported R3b edit labelled at its nominal gain, in ``record.json`` and in
-    ``gt_meta.json``."""
-    checked, off = 0, {}
+    """I2: every R3b edit labelled at its nominal gain in ``record.json`` and, where exported, in
+    ``gt_meta.json``; the clips without ``gt_meta.json`` are listed, not skipped."""
+    checked, in_meta, without_meta, off = 0, 0, [], {}
     for variant in inputs.plan.variants:
         record, meta = _record(inputs.after, variant), _meta(inputs.after, variant)
         if variant.perturbation != ENERGY_GAIN or record is None:
             continue
         checked += 1
         labels = {"record": record.magnitude}
-        if meta is not None:
+        if meta is None:
+            without_meta.append(variant.clip_id)
+        else:
+            in_meta += 1
             labels["gt_meta"] = float(meta["record"]["magnitude"])
         gaps = {k: abs(v - variant.target_magnitude) for k, v in labels.items()}
         if not all(gap <= MAGNITUDE_TOL for gap in gaps.values()):
             off[variant.clip_id] = gaps
-    return {"checked": checked, "tol": MAGNITUDE_TOL, "off_nominal": off}
+    return {
+        "checked": checked,
+        "checked_gt_meta": in_meta,
+        "without_gt_meta": without_meta,
+        "tol": MAGNITUDE_TOL,
+        "off_nominal": off,
+    }
 
 
 def _pair_impacts(contacts: ContactTable) -> list[Any]:
