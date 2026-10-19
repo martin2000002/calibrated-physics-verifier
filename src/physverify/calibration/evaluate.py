@@ -9,10 +9,12 @@ from physverify.calibration.apply import policy_for, rule_for, score_clip
 from physverify.calibration.fit import LevelData
 from physverify.calibration.loader import Calibration, CalibrationError, Stratum
 from physverify.calibration.monotonicity import scene_kendall
+from physverify.calibration.scenes import SceneScope, in_scope
 from physverify.calibration.schema import (
     DatasetRef,
     EvaluationReport,
     EvaluationStratum,
+    H1PrimaryView,
     HeldoutCheck,
     Rate,
     RealFpr,
@@ -50,8 +52,17 @@ class EvaluationInputs:
 
 
 @dataclass(frozen=True)
+class PrimaryScope:
+    """The H1 primary scenes (ADR 0015 1.4) and the reference of the clips they select."""
+
+    scope: SceneScope
+    dataset: DatasetRef
+
+
+@dataclass(frozen=True)
 class EvaluationMeta:
-    """``profile`` is the sampling profile the evaluated clips were run with."""
+    """``profile`` is the sampling profile the evaluated clips were run with; ``primary`` adds
+    the H1 primary view next to the all-scenes strata."""
 
     created_utc: str
     run_id: str
@@ -59,6 +70,7 @@ class EvaluationMeta:
     dataset: DatasetRef
     profile: str
     real_sets: tuple[DatasetRef, ...] = ()
+    primary: PrimaryScope | None = None
 
 
 def evaluate(
@@ -69,13 +81,13 @@ def evaluate(
 ) -> EvaluationReport:
     """Applies the strata of the run's level and profile; raises CalibrationError when there is
     none or when the data's row_step differs from the stratum's."""
-    strata = tuple(
-        _stratum(_matching(calibration.stratum(level, profile), item, meta.profile), item, config)
+    matched = [
+        (_matching(calibration.stratum(level, profile), item, meta.profile), item)
         for item in inputs
         for level, profile in calibration.strata()
         if level is item.synthetic.level and profile == meta.profile
-    )
-    if not strata:
+    ]
+    if not matched:
         raise CalibrationError(
             f"the artifact has no stratum of profile {meta.profile!r} at the evaluated levels"
         )
@@ -88,7 +100,23 @@ def evaluate(
         dataset=meta.dataset,
         real_datasets=tuple(sorted({name for item in inputs for name in item.real})),
         real_sets=meta.real_sets,
-        strata=strata,
+        strata=tuple(_stratum(stratum, item, config) for stratum, item in matched),
+        h1_primary=_primary(matched, meta.primary, config),
+    )
+
+
+def _primary(
+    matched: Sequence[tuple[Stratum, EvaluationInputs]],
+    primary: PrimaryScope | None,
+    config: CalibrationConfig,
+) -> H1PrimaryView | None:
+    if primary is None or not primary.scope.primary_scenes:
+        return None
+    keep = primary.scope.indices
+    return H1PrimaryView(
+        scenes=primary.scope.primary_scenes,
+        dataset=primary.dataset,
+        strata=tuple(_stratum(stratum, item, config, keep=keep) for stratum, item in matched),
     )
 
 
@@ -106,9 +134,14 @@ def _rule(stratum: Stratum, check_id: str) -> Rule:
 
 
 def _stratum(
-    stratum: Stratum, item: EvaluationInputs, config: CalibrationConfig
+    stratum: Stratum,
+    item: EvaluationInputs,
+    config: CalibrationConfig,
+    keep: frozenset[int] | None = None,
 ) -> EvaluationStratum:
-    rows = item.synthetic.rows
+    """``keep``: only the scenes of these indices, and no real video (the primary view)."""
+    rows = [r for r in item.synthetic.rows if keep is None or in_scope(r.scene_id, keep)]
+    real: Mapping[str, LevelData] = item.real if keep is None else {}
     heldout = [r for r in rows if r.split is not Split.CALIB]
     check_ids = sorted(stratum.model.checks)
     return EvaluationStratum(
@@ -118,12 +151,12 @@ def _stratum(
         scene_kendall=_kendall(stratum, rows, check_ids),
         real=tuple(
             RealFpr(dataset=name, check_id=c, fpr=_real_fpr(stratum, c, data.rows, config))
-            for name, data in sorted(item.real.items())
+            for name, data in sorted(real.items())
             for c in check_ids
         ),
         real_clip_flags=tuple(
             RealFpr(dataset=name, check_id=SCORE_CHECK, fpr=clip_flags(stratum, data, config))
-            for name, data in sorted(item.real.items())
+            for name, data in sorted(real.items())
         ),
     )
 

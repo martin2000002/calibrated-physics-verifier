@@ -1,0 +1,5 @@
+# H1 primary scene scope (ADR 0015 1.4): the P1 probes used scenes s001-s010, so the primary H1
+# view excludes them; every scene stays as the secondary view. A report filter only: no refit,
+# the artifact and checks_hash do not change. Empty list: no primary view.
+[h1_scope]
+primary_scenes = ["s000", "s011-s039"]

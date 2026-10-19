@@ -10,9 +10,12 @@ from physverify.calibration.schema import (
     CalibrationArtifact,
     CheckCalibration,
     Ci,
+    DatasetRef,
     DetectionLimit,
     EvaluationReport,
     EvaluationStratum,
+    H1PrimaryView,
+    HeldoutCheck,
     Rate,
     Stratum,
 )
@@ -206,4 +209,66 @@ def evaluation_markdown(report: EvaluationReport) -> str:
     ]
     for stratum in report.strata:
         lines += _evaluation_stratum(stratum)
+    if report.h1_primary is not None:
+        lines += _h1_primary(report.h1_primary, report.strata, report.dataset)
     return "\n".join(lines)
+
+
+def _h1_primary(
+    view: H1PrimaryView, everything: Sequence[EvaluationStratum], dataset: DatasetRef
+) -> list[str]:
+    """Side by side: the primary scenes (ADR 0015 1.4) against every scene."""
+    lines = [
+        f"## H1 primary (scenes {', '.join(view.scenes)}) vs all scenes",
+        "",
+        f"Primary: {view.dataset.n_clips} clips, {view.dataset.n_scenes} scenes. "
+        f"All: {dataset.n_clips} clips, {dataset.n_scenes} scenes.",
+        "",
+    ]
+    for primary in view.strata:
+        whole = next(
+            (s for s in everything if (s.level, s.profile) == (primary.level, primary.profile)),
+            None,
+        )
+        if whole is not None:
+            lines += _side_by_side(primary, whole)
+    return lines
+
+
+def _side_by_side(primary: EvaluationStratum, whole: EvaluationStratum) -> list[str]:
+    by_id = {c.check_id: c for c in whole.checks}
+    lines = [f"### {primary.level.value} / {primary.profile}", ""]
+    lines += _table(
+        (
+            "check",
+            "tau",
+            "FPR clean all",
+            "FPR clean primary",
+            "FPR off-target all",
+            "FPR off-target primary",
+            "TPR top level all",
+            "TPR top level primary",
+        ),
+        (
+            [
+                c.check_id,
+                _num(c.tau),
+                _rate(by_id[c.check_id].fpr_clean),
+                _rate(c.fpr_clean),
+                _rate(by_id[c.check_id].fpr_off_target),
+                _rate(c.fpr_off_target),
+                _top_tpr(by_id[c.check_id]),
+                _top_tpr(c),
+            ]
+            for c in primary.checks
+            if c.check_id in by_id
+        ),
+    )
+    return [*lines, ""]
+
+
+def _top_tpr(check: HeldoutCheck) -> str:
+    if not check.tpr_by_level:
+        return "-"
+    top = max(check.tpr_by_level, key=lambda t: t.level)
+    return f"L{top.level}: {_rate(top.total)}"
