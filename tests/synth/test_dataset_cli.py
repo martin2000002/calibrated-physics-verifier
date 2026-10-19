@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -54,3 +55,25 @@ def test_missing_image_is_detected() -> None:
         return subprocess.CompletedProcess(args, 1)
 
     assert not image_present("kubricdockerhub/kubruntu:latest", run)
+
+
+def test_a_plan_from_an_older_gt_revision_is_migrated_before_building(
+    cli: Any, tmp_path: Path
+) -> None:
+    env = data_env(tmp_path)
+    assert cli("dataset", "generate", "--subset", "smoke", env=env).code == 0
+    (plan_path,) = (tmp_path / "data").rglob("plan.json")
+    stored = json.loads(plan_path.read_text(encoding="utf-8"))
+    del stored["gt_revision"]
+    plan_path.write_text(json.dumps(stored), encoding="utf-8")
+    refused = cli("dataset", "generate", "--subset", "smoke", env=env)
+    assert refused.code == 2
+    assert "dataset migrate --name floor-crossing" in refused.err
+    assert cli("dataset", "list", "--subset", "smoke", env=env).code == 0
+    unknown = cli("dataset", "migrate", "--name", "bogus", "--commit", "c0ffee", env=env)
+    assert unknown.code == 2 and "unknown migration" in unknown.err
+    migrated = cli("dataset", "migrate", "--name", "floor-crossing", "--commit", "c0ffee", env=env)
+    assert migrated.code == 0, migrated.err
+    expected = "migrate floor-crossing: 0 applied, 0 renders discarded, 0 status changes;"
+    assert expected in migrated.out
+    assert cli("dataset", "generate", "--subset", "smoke", env=env).code == 0

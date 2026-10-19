@@ -24,13 +24,14 @@ case "$*" in
     echo "paths.synthetic_dir: $DATA/synthetic"
     echo "paths.calibration_dir: $DATA/calibration"
     echo "heavy_lock: $PHYSVERIFY__RUNTIME__HEAVY_LOCK (free)" ;;
-  *" migrate-velocity "*)
-    echo "migrate-velocity: 3 applied, 1 renders discarded, ${CHANGES:-0} status changes; m" ;;
+  *" migrate "*)
+    echo "migrate x: 3 applied, 1 renders discarded, ${CHANGES:-0} status changes; m" ;;
   *" verify "*) mkdir -p "$DATA/runs/r$$"; echo "run: $DATA/runs/r$$" ;;
 esac
 """
 COMPLETE = ".migration-before-complete"
 STALE = "stale-velocity-position"
+MIGRATE = "dataset migrate --name velocity-position --commit"
 FAKE_OK = "#!/bin/bash\nexit 0\n"
 FAKE_GIT = "#!/bin/bash\necho c0ffee\n"
 
@@ -118,7 +119,7 @@ def test_the_steps_run_in_order_on_every_subset_and_cache_root(sandbox: Sandbox)
     commands = sandbox.commands()
     assert commands[:7] == [
         "doctor",
-        "dataset migrate-velocity --commit c0ffee",
+        f"{MIGRATE} c0ffee",
         "dataset build --subset local",
         "dataset list --subset local",
         "dataset build --subset levels",
@@ -130,11 +131,11 @@ def test_the_steps_run_in_order_on_every_subset_and_cache_root(sandbox: Sandbox)
         (True, False),
         (False, True),
     ]
+    before = sandbox.data / "migration-before" / "v1"
     assert commands[-1].startswith(
-        f"dataset audit-migration --before {sandbox.data / 'migration-before' / 'v1'} "
+        f"dataset audit-migration --name velocity-position --before {before} "
     )
     assert commands[-1].count("--table ") == 1
-    before = sandbox.data / "migration-before" / "v1"
     assert (before / "plan.json").is_file() and (before / COMPLETE).is_file()
     assert f"heavy_lock: {sandbox.root / 'kubric.lock'}" in result.stdout
 
@@ -155,14 +156,14 @@ def test_a_copy_before_without_its_marker_is_refused(sandbox: Sandbox) -> None:
     result = sandbox.run()
     assert result.returncode == 2
     assert COMPLETE in result.stdout  # the log tee carries stderr too
-    assert "dataset migrate-velocity --commit c0ffee" not in sandbox.commands()
+    assert f"{MIGRATE} c0ffee" not in sandbox.commands()
 
 
 def test_status_changes_stop_the_script_unless_allowed(sandbox: Sandbox) -> None:
     stopped = sandbox.run(CHANGES="2")
     assert stopped.returncode == 2
     assert "2 clips changed state" in stopped.stdout
-    assert sandbox.commands()[-1] == "dataset migrate-velocity --commit c0ffee"
+    assert sandbox.commands()[-1] == f"{MIGRATE} c0ffee"
     allowed = sandbox.run(CHANGES="2", PHYSVERIFY_MIGRATE_ALLOW_STATUS_CHANGES="1")
     assert allowed.returncode == 0, allowed.stderr
     assert sandbox.commands()[-1].startswith("dataset audit-migration ")
@@ -195,3 +196,26 @@ def test_a_frozen_baseline_is_never_a_calibration_dir(sandbox: Sandbox) -> None:
     result = sandbox.run(PHYSVERIFY_MIGRATE_CALIBRATION_DIRS=str(baseline))
     assert result.returncode == 2
     assert "frozen baseline" in result.stderr
+
+
+def test_a_named_migration_keeps_its_own_manifest_copy_and_output(sandbox: Sandbox) -> None:
+    result = sandbox.run(PHYSVERIFY_MIGRATE_NAME="floor-crossing")
+    assert result.returncode == 0, result.stderr
+    commands = sandbox.commands()
+    assert commands[1] == "dataset migrate --name floor-crossing --commit c0ffee"
+    manifest = sandbox.data / "synthetic" / "v1" / "migrations" / "floor-crossing.json"
+    assert any(c.startswith(f"extract purge --clips-from {manifest} ") for c in commands)
+    before = sandbox.data / "migration-before" / "floor-crossing" / "v1"
+    assert commands[-1].startswith(
+        f"dataset audit-migration --name floor-crossing --before {before} "
+    )
+    assert (before / COMPLETE).is_file()
+    assert (sandbox.data / "runs" / "migrate-floor-crossing-v1" / "audit.json").parent.is_dir()
+    assert not (sandbox.data / "migration-before" / "v1").exists()
+
+
+def test_a_migration_name_that_is_not_a_name_is_refused(sandbox: Sandbox) -> None:
+    result = sandbox.run(PHYSVERIFY_MIGRATE_NAME="../x")
+    assert result.returncode == 2
+    assert "PHYSVERIFY_MIGRATE_NAME" in result.stderr
+    assert sandbox.commands() == []

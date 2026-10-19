@@ -15,7 +15,7 @@ import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
 Vec = NDArray[np.float64]
-_EPS_T = 1e-12
+EPS_T = 1e-12
 _MAX_EVENTS = 256
 
 
@@ -48,11 +48,11 @@ class GravitySchedule:
         return cls((), (np.asarray(g, dtype=np.float64),))
 
     def at(self, t: float) -> Vec:
-        index = sum(1 for switch in self.times if t >= switch - _EPS_T)
+        index = sum(1 for switch in self.times if t >= switch - EPS_T)
         return self.values[index]
 
     def next_switch(self, t: float) -> float:
-        return next((s for s in self.times if s > t + _EPS_T), math.inf)
+        return next((s for s in self.times if s > t + EPS_T), math.inf)
 
 
 @dataclass(frozen=True)
@@ -82,14 +82,14 @@ def time_to_height(z0: float, vz: float, gz: float, height: float) -> float:
     """First tau > 0 at which a falling z(tau) = z0 + vz tau + gz tau^2 / 2 reaches ``height``."""
     a, b, c = 0.5 * gz, vz, z0 - height
     if abs(a) < 1e-15:
-        return -c / b if b < 0 and -c / b > _EPS_T else math.inf
+        return -c / b if b < 0 and -c / b > EPS_T else math.inf
     disc = b * b - 4 * a * c
     if disc < 0:
         return math.inf
     root = math.sqrt(disc)
     candidates = sorted(((-b - root) / (2 * a), (-b + root) / (2 * a)))
     for tau in candidates:
-        if tau > _EPS_T and vz + gz * tau < 0:
+        if tau > EPS_T and vz + gz * tau < 0:
             return tau
     return math.inf
 
@@ -153,7 +153,7 @@ def _fill(
     out_v: Vec,
 ) -> None:
     lo, hi = window
-    for k in np.flatnonzero((times >= lo - _EPS_T) & (times < hi)):
+    for k in np.flatnonzero((times >= lo - EPS_T) & (times < hi)):
         out_p[k] = position(float(times[k]))
         out_v[k] = velocity(float(times[k]))
 
@@ -168,7 +168,7 @@ def _roll(
     t_stop = speed / decel if decel > 0 else math.inf
     base = np.array([p0[0], p0[1], p0[2]])
     del radius
-    for k in np.flatnonzero(times >= t0 - _EPS_T):
+    for k in np.flatnonzero(times >= t0 - EPS_T):
         tau = min(float(times[k]) - t0, t_stop)
         out_p[k] = base + direction * (speed * tau - 0.5 * decel * tau * tau)
         out_v[k] = direction * max(0.0, speed - decel * (float(times[k]) - t0))

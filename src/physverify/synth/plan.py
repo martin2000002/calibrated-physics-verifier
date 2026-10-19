@@ -9,6 +9,10 @@ from physverify.core.errors import ConfigError, UsageError
 from physverify.schema.clip import Split
 
 NONE = "none"
+# Revision of the APPLY ground truth a stored plan was built with, outside ``content_hash``: a fix
+# with no alternative convention raises it and ships the migration that brings a store up to it.
+GT_REVISION = 1
+GT_MIGRATION = "floor-crossing"
 
 
 def scene_id_of(family: str, index: int) -> str:
@@ -54,6 +58,21 @@ class DatasetPlan:
     scenes: tuple[ScenePlan, ...]
     variants: tuple[VariantPlan, ...]
     subsets: dict[str, tuple[str, ...]]
+    gt_revision: int = GT_REVISION
+
+    def check_gt_revision(self) -> None:
+        """A plan built before the current ground-truth revision must be migrated first."""
+        if self.gt_revision < GT_REVISION:
+            raise ConfigError(
+                f"dataset {self.version} has ground-truth revision {self.gt_revision}, this "
+                f"checkout {GT_REVISION}: run `physverify dataset migrate --name {GT_MIGRATION}` "
+                "before building on it"
+            )
+        if self.gt_revision > GT_REVISION:
+            raise ConfigError(
+                f"dataset {self.version} has ground-truth revision {self.gt_revision}, newer than "
+                f"this checkout's {GT_REVISION}: update the checkout"
+            )
 
     def subset(self, name: str | None) -> DatasetPlan:
         """The part of the plan that ``name`` covers (``None`` = everything planned)."""
@@ -77,13 +96,17 @@ class DatasetPlan:
         return next(v for v in self.variants if v.clip_id == clip_id)
 
     def merged(self, other: DatasetPlan) -> DatasetPlan:
-        """Union of two plans of the same content; the same id must mean the same item."""
+        """Union of two plans of the same content and ground-truth revision; the same id must
+        mean the same item."""
         if (self.version, self.config_hash) != (other.version, other.config_hash):
             raise ConfigError(
                 f"dataset {self.version} was planned with other settings: bump [dataset] version "
                 "before changing anything that alters clip content (a plan made before "
-                "velocity_convention existed is migrated by `physverify dataset migrate-velocity`)"
+                "velocity_convention existed is migrated by "
+                "`physverify dataset migrate --name velocity-<convention>`)"
             )
+        self.check_gt_revision()
+        other.check_gt_revision()
         scenes = _union(self.scenes, other.scenes, "scene_id")
         variants = _union(self.variants, other.variants, "clip_id")
         return replace(
@@ -94,6 +117,7 @@ class DatasetPlan:
         return {
             "version": self.version,
             "config_hash": self.config_hash,
+            "gt_revision": self.gt_revision,
             "scenes": [asdict(s) | {"split": s.split.value} for s in self.scenes],
             "variants": [asdict(v) | {"split": v.split.value} for v in self.variants],
             "subsets": {k: list(v) for k, v in sorted(self.subsets.items())},
@@ -109,6 +133,7 @@ class DatasetPlan:
                 VariantPlan(**(v | {"split": Split(v["split"])})) for v in data["variants"]
             ),
             subsets={k: tuple(v) for k, v in data["subsets"].items()},
+            gt_revision=int(data.get("gt_revision", 0)),
         )
 
 

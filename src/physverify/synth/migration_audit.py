@@ -1,4 +1,5 @@
-"""Acceptance audit of a velocity migration (WP-G 1.C, A3-A10), against a copy taken before it.
+"""Acceptance audit of a migration against a copy taken before it: the velocity convention (WP-G
+1.C, A3-A10) and the floor crossing of a penetrated bounce row (WP-H, H3 and H8-H13).
 
 Every finding is a list of clip ids (or cells) with the numbers that put it there, so the report
 says what moved and why rather than only whether a threshold held."""
@@ -7,22 +8,36 @@ from __future__ import annotations
 
 import csv
 import hashlib
-from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass
+import math
+from collections.abc import Callable, Iterable, Mapping, Sequence
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 
 from physverify.extraction.cache import StageCache
+from physverify.physics.measures.r3_collision import restitution
 from physverify.schema.contacts import ContactTable
 from physverify.schema.scene import PerturbationRecord
-from physverify.schema.states import ObjectStateTable
+from physverify.schema.states import ObjectStateTable, PrimitiveKind
 from physverify.synth.gt_export import DATASET_NAME, final_record
 from physverify.synth.kinematics_gt import corrected_cells
-from physverify.synth.migrate import rerender_clip_ids
+from physverify.synth.migrate import FLOOR_CROSSING, rerender_clip_ids
 from physverify.synth.perturb import load_simulation
-from physverify.synth.perturbations._windows import rest_mask
+from physverify.synth.perturbations._ballistics import impact_velocity
+from physverify.synth.perturbations._edit import (
+    first_floor_impact,
+    floor_impacts,
+    gravity_of,
+    radius_of,
+)
+from physverify.synth.perturbations._measure import (
+    bounce_crossing,
+    bounce_rows,
+    floor_crossing,
+)
+from physverify.synth.perturbations._windows import UP, rest_mask
 from physverify.synth.plan import NONE, DatasetPlan, VariantPlan
 from physverify.synth.settings import DatasetSettings
 from physverify.synth.store import (
@@ -31,20 +46,37 @@ from physverify.synth.store import (
     GT_META,
     RECORD,
     STATES_WORLD,
+    VARIANT_STATES,
     VIDEO,
     DatasetStore,
     Step,
     read_json,
 )
 
-RERENDER_ALWAYS = frozenset(
+# Plugins that rewrite their target's rows with an analytic flight, which reads e_clean.
+ANALYTIC_FLIGHT = frozenset(
     {"r3_restitution_gain", "r3_energy_gain", "r5a_gravity_switch", "r5a_object_gravity"}
 )
+RESTITUTION_GAIN = "r3_restitution_gain"
 RERENDER_IF_CANDIDATES_MOVE = frozenset({"r4_resize", "r1_penetration", "r4_teleport"})
 CONTACTS_FIXED = frozenset({NONE, "r5b_gravity_scale"})
 LABEL_WATCH = ("r5a_", "r5b_")
 MAGNITUDE_TOL = 1e-9
 REST_TOL_M = 1e-9
+INTEGER_TOL = 1e-9
+# The closed form assumes a ballistic step from the source row to k; Bullet's float64 velocities
+# miss it by ~1e-8 m/s (|e_new - e_pred| <= 7.3e-9 on the dry run); WP-H itself moves e by ~1e-2.
+CLOSED_FORM_TOL = 1e-6
+FLOOR_TOL_M = 1e-9
+# GT metadata a floor-crossing migration may move on a kept clip whose simulation has a
+# penetrated bounce: R3a and e_clean are measured on it, and e_clean is a parameter of the edits.
+FLOOR_META_PATHS = (
+    "measures.R3a",
+    "e_clean",
+    "e_clean_above_one",
+    "record.params.e_clean",
+    "gt_version",
+)
 
 
 @dataclass(frozen=True)
@@ -55,6 +87,39 @@ class AuditInputs:
     manifest: Path
     plugins: Mapping[str, Any]
     ds: DatasetSettings
+    migration: str
+
+
+@dataclass(frozen=True)
+class Prediction:
+    """Clips whose render the migration must discard, those it may discard, and the penetrated
+    bounces behind each prediction."""
+
+    certain: frozenset[str]
+    possible: frozenset[str]
+    bounces: Mapping[str, list[dict[str, Any]]] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class BounceCase:
+    """A sphere floor bounce: the row k the pre-WP-H ``floor_bounce`` resolved (its t_c = t_k
+    fallback when z_k <= r), z_k - r there, and the (k, source row, t_c) it resolves to now."""
+
+    k: int | None
+    depth_m: float
+    now: tuple[int, int, float] | None
+
+    @property
+    def penetrated(self) -> bool:
+        return self.k is not None and self.depth_m <= 0.0
+
+    @property
+    def status(self) -> str:
+        if self.now is None:
+            return "none" if self.k is None else "unresolved"
+        if self.now[0] != self.k:
+            return "moved"
+        return "previous_row" if self.now[1] != self.now[0] else "same_row"
 
 
 def md5_of(paths: Iterable[Path]) -> str:
@@ -65,19 +130,255 @@ def md5_of(paths: Iterable[Path]) -> str:
     return digest.hexdigest()
 
 
-def rerender_audit(inputs: AuditInputs) -> dict[str, Any]:
-    """A4': observed discarded renders against the prediction, by perturbation."""
+def rendered_before(inputs: AuditInputs) -> list[VariantPlan]:
+    return [v for v in inputs.plan.variants if inputs.before.is_done(Step.RENDER, v.clip_id)]
+
+
+def velocity_prediction(inputs: AuditInputs) -> Prediction:
+    """WP-G: every analytic flight moves (its velocities feed the flight); a rigid edit moves only
+    when its candidate frames do."""
+    rendered = rendered_before(inputs)
+    return Prediction(
+        frozenset(v.clip_id for v in rendered if v.perturbation in ANALYTIC_FLIGHT),
+        frozenset(v.clip_id for v in rendered if v.perturbation in RERENDER_IF_CANDIDATES_MOVE),
+    )
+
+
+def floor_crossing_prediction(inputs: AuditInputs) -> Prediction:
+    """WP-H: an R3a edit whose target's first floor bounce (``first_floor_impact``, the one it
+    edits) was resolved on a penetrated row now starts its flight one row earlier; the other
+    analytic flights with such a target only move if their e_clean changes a later bounce."""
+    certain: set[str] = set()
+    possible: set[str] = set()
+    bounces: dict[str, list[dict[str, Any]]] = {}
+    for variant in rendered_before(inputs):
+        record = _record(inputs.before, variant)
+        if variant.perturbation not in ANALYTIC_FLIGHT or record is None:
+            continue
+        scene, states, contacts = load_simulation(
+            inputs.after, variant.sim_id, variant.sim_id, inputs.ds
+        )
+        cases = {
+            o: first_bounce_case(states, contacts, states.object_index(o), gravity_of(scene))
+            for o in record.target_objects
+        }
+        penetrated = {o: c for o, c in cases.items() if c is not None and c.penetrated}
+        if not penetrated:
+            continue
+        first = next(iter(penetrated.values()))
+        sure = variant.perturbation == RESTITUTION_GAIN and first.status == "previous_row"
+        (certain if sure else possible).add(variant.clip_id)
+        bounces[variant.clip_id] = [_bounce_row(o, c) for o, c in penetrated.items()]
+    return Prediction(frozenset(certain), frozenset(possible), bounces)
+
+
+def _bounce_row(object_id: str, case: BounceCase) -> dict[str, Any]:
+    src, t_c = (None, math.nan) if case.now is None else case.now[1:]
+    return {
+        "object": object_id,
+        "k": case.k,
+        "src": src,
+        "t_c": t_c,
+        "depth_m": case.depth_m,
+        "status": case.status,
+    }
+
+
+PREDICTIONS: Mapping[str, Callable[[AuditInputs], Prediction]] = {
+    FLOOR_CROSSING: floor_crossing_prediction
+}
+
+
+def prediction_for(inputs: AuditInputs) -> Prediction:
+    return PREDICTIONS.get(inputs.migration, velocity_prediction)(inputs)
+
+
+def rerender_audit(inputs: AuditInputs, prediction: Prediction) -> dict[str, Any]:
+    """A4' / H3: observed discarded renders against the prediction."""
     observed = set(rerender_clip_ids(inputs.manifest))
-    rendered = [v for v in inputs.plan.variants if inputs.before.is_done(Step.RENDER, v.clip_id)]
-    always = [v.clip_id for v in rendered if v.perturbation in RERENDER_ALWAYS]
-    maybe = {v.clip_id for v in rendered if v.perturbation in RERENDER_IF_CANDIDATES_MOVE}
     return {
         "observed": sorted(observed),
-        "predicted_always": sorted(always),
-        "missing_from_always": sorted(set(always) - observed),
-        "conditional_rerendered": sorted(observed & maybe),
-        "unexpected": sorted(observed - set(always) - maybe),
+        "predicted_certain": sorted(prediction.certain),
+        "missing_from_certain": sorted(prediction.certain - observed),
+        "predicted_possible": sorted(prediction.possible),
+        "conditional_rerendered": {
+            c: prediction.bounces.get(c, []) for c in sorted(observed & prediction.possible)
+        },
+        "unexpected": sorted(observed - prediction.certain - prediction.possible),
     }
+
+
+def bounce_case(states: ObjectStateTable, index: int, t_guess: float, g: np.ndarray) -> BounceCase:
+    radius = radius_of(states, index)
+    gz = float(g[2])
+    legacy = next(
+        (
+            k
+            for k in bounce_rows(states, index, t_guess)
+            if states.position[k, index, 2] <= radius
+            or floor_crossing(states, index, k, radius, gz) is not None
+        ),
+        None,
+    )
+    depth = math.nan if legacy is None else float(states.position[legacy, index, 2]) - radius
+    return BounceCase(legacy, depth, bounce_crossing(states, index, t_guess, g))
+
+
+def first_bounce_case(
+    states: ObjectStateTable, contacts: ContactTable, index: int, g: np.ndarray
+) -> BounceCase | None:
+    """The case of the bounce ``restitution_for_edit`` measures (None for a body that never
+    bounces or is not a sphere)."""
+    impact = first_floor_impact(str(states.object_ids[index]), contacts)
+    if impact is None or not _sphere(states, index):
+        return None
+    return bounce_case(states, index, impact.t_start, g)
+
+
+def integer_impact_check(inputs: AuditInputs, prediction: Prediction) -> dict[str, Any]:
+    """H3 / C6: R3a edits whose impact frame is an integer (|f - round(f)| <= 1e-9, the mark of
+    the old t_c = t_k fallback), before and after, against the certain re-renders."""
+
+    def integral(store: DatasetStore) -> list[str]:
+        out = []
+        for variant in inputs.plan.variants:
+            record = _record(store, variant)
+            if variant.perturbation != RESTITUTION_GAIN or record is None:
+                continue
+            frame = float(record.params["impact_frame"])
+            if abs(frame - round(frame)) <= INTEGER_TOL:
+                out.append(variant.clip_id)
+        return out
+
+    before = integral(inputs.before)
+    return {
+        "before": before,
+        "after": integral(inputs.after),
+        "before_equals_certain": before == sorted(prediction.certain),
+    }
+
+
+def floor_audit(inputs: AuditInputs) -> dict[str, Any]:
+    """H8' / C1: rows an analytic flight rewrote (from the first row that differs from the clean
+    simulation), in the APPLY states and in the exported world states when present, must keep
+    z - r >= -1e-9; clean simulations under the floor are only counted (Bullet's own impact
+    penetration)."""
+    checked, below = 0, {}
+    for variant in inputs.plan.variants:
+        record = _record(inputs.after, variant)
+        clip_dir = inputs.after.clip_dir(variant.clip_id)
+        paths = [p for p in (clip_dir / VARIANT_STATES, clip_dir / STATES_WORLD) if p.is_file()]
+        if variant.perturbation not in ANALYTIC_FLIGHT or record is None or not paths:
+            continue
+        _, clean, _ = load_simulation(inputs.after, variant.sim_id, variant.clip_id, inputs.ds)
+        checked += 1
+        for path in paths:
+            states = ObjectStateTable.load_npz(path)
+            for object_id in record.target_objects:
+                depth = _rewritten_depth(states, clean, states.object_index(object_id))
+                if depth < -FLOOR_TOL_M:
+                    below[f"{variant.clip_id}:{object_id}:{path.name}"] = depth
+    clean_below = {}
+    for sim_id in _simulated(inputs):
+        _, states, _ = load_simulation(inputs.after, sim_id, sim_id, inputs.ds)
+        depth = min((_min_depth(states, i, 0) for i in range(states.n_objects)), default=math.inf)
+        if depth < -FLOOR_TOL_M:
+            clean_below[sim_id] = depth
+    return {
+        "checked": checked,
+        "rewritten_below_floor": below,
+        "clean_sims_below_floor": len(clean_below),
+        "deepest_clean_m": min(clean_below.values(), default=math.nan),
+    }
+
+
+def bounce_cases(inputs: AuditInputs) -> list[dict[str, Any]]:
+    """C4 / C5: every sphere floor bounce of every simulation whose result moved or that sits on
+    a non-ballistic neighbour, with old and new restitution and the closed form of the move."""
+    rows: list[dict[str, Any]] = []
+    for sim_id in _simulated(inputs):
+        scene, states, contacts = load_simulation(inputs.after, sim_id, sim_id, inputs.ds)
+        corrected = corrected_cells(states, contacts, scene)
+        g = gravity_of(scene)
+        for index in (i for i in range(states.n_objects) if _sphere(states, i)):
+            object_id = str(states.object_ids[index])
+            for impact in sorted(floor_impacts(object_id, contacts), key=lambda r: r.t_start):
+                case = bounce_case(states, index, impact.t_start, g)
+                row = _case_row(states, index, case, g, corrected)
+                rows.append({"id": f"{sim_id}:{object_id}:{impact.t_start:.3f}", **row})
+    return rows
+
+
+def bounce_summary(rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """H12 / H13: penetrated bounces, closed-form mismatches and the C5 edge cases."""
+
+    def ids(keep: Callable[[Mapping[str, Any]], bool]) -> list[str]:
+        return [str(r["id"]) for r in rows if keep(r)]
+
+    solved = [r for r in rows if r["status"] == "previous_row"]
+    return {
+        "bounces": len(rows),
+        "penetrated": [r for r in rows if r["penetrated"]],
+        "closed_form_tol": CLOSED_FORM_TOL,
+        "closed_form_max_error": max(
+            (abs(r["e_new"] - r["e_pred"]) for r in solved), default=math.nan
+        ),
+        "closed_form_mismatch": [
+            str(r["id"]) for r in solved if not abs(r["e_new"] - r["e_pred"]) <= CLOSED_FORM_TOL
+        ],
+        "unresolved_now": ids(lambda r: r["status"] == "unresolved"),
+        "row_moved": ids(lambda r: r["status"] == "moved"),
+        "resting_previous_row": ids(lambda r: r["penetrated"] and r["resting_previous_row"]),
+        "next_row_below_floor": ids(lambda r: r["next_row_below_floor"]),
+    }
+
+
+def gt_meta_audit(inputs: AuditInputs, rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """H9: on kept clips only R3a and e_clean (and what records them) may move, and only where the
+    simulation has a penetrated bounce; plus ``e_clean_above_one`` before and after (C4 b)."""
+    penetrated = {str(r["id"]).split(":")[0] for r in rows if r["penetrated"]}
+    observed = set(rerender_clip_ids(inputs.manifest))
+    compared, changed, unexplained = 0, {}, {}
+    above: dict[str, dict[str, list[str]]] = {"before": {}, "after": {}}
+    for variant in inputs.plan.variants:
+        old, new = (_meta(s, variant) for s in (inputs.before, inputs.after))
+        for side, meta in (("before", old), ("after", new)):
+            if meta is not None:
+                above[side].setdefault(variant.scene_id, list(meta.get("e_clean_above_one", [])))
+        if old is None or new is None or variant.clip_id in observed:
+            continue
+        compared += 1
+        paths = changed_paths(old, new)
+        if not paths:
+            continue
+        changed[variant.clip_id] = paths
+        allowed = all(_under(p, FLOOR_META_PATHS) for p in paths)
+        if not (allowed and {variant.scene_id, variant.sim_id} & penetrated):
+            unexplained[variant.clip_id] = paths
+    before, after = (_scene_objects(above[side]) for side in ("before", "after"))
+    depth = {
+        f"{str(r['id']).split(':')[0]}:{str(r['id']).split(':')[1]}": r["depth_m"]
+        for r in reversed(rows)
+    }
+    return {
+        "compared": compared,
+        "changed": changed,
+        "unexplained": unexplained,
+        "e_clean_above_one": {
+            "before": before,
+            "after": after,
+            "new": {k: depth.get(k) for k in sorted(set(after) - set(before))},
+            "removed": sorted(set(before) - set(after)),
+        },
+    }
+
+
+def changed_paths(old: Mapping[str, Any], new: Mapping[str, Any]) -> list[str]:
+    """Dotted paths of the leaves that differ (NaN equals NaN; a missing leaf differs)."""
+    a, b = _flat(old), _flat(new)
+    return sorted(
+        k for k in a.keys() | b.keys() if k not in a or k not in b or not _same(a[k], b[k])
+    )
 
 
 def media_audit(inputs: AuditInputs) -> dict[str, Any]:
@@ -216,8 +517,10 @@ def cache_audit(inputs: AuditInputs, cache_roots: Sequence[Path]) -> dict[str, A
 def audit(
     inputs: AuditInputs, cache_roots: Sequence[Path], tables: Sequence[Path]
 ) -> dict[str, Any]:
-    return {
-        "rerender": rerender_audit(inputs),
+    prediction = prediction_for(inputs)
+    report = {
+        "migration": inputs.migration,
+        "rerender": rerender_audit(inputs, prediction),
         "media": media_audit(inputs),
         "contacts": contacts_audit(inputs),
         "records": record_audit(inputs),
@@ -226,6 +529,112 @@ def audit(
         "rest": rest_audit(inputs),
         "cache": cache_audit(inputs, cache_roots),
     }
+    if inputs.migration == FLOOR_CROSSING:
+        rows = bounce_cases(inputs)
+        report |= {
+            "impact_frames": integer_impact_check(inputs, prediction),
+            "floor": floor_audit(inputs),
+            "gt_meta": gt_meta_audit(inputs, rows),
+            "bounces": bounce_summary(rows),
+        }
+    return report
+
+
+def _case_row(
+    states: ObjectStateTable,
+    index: int,
+    case: BounceCase,
+    g: np.ndarray,
+    corrected: np.ndarray,
+) -> dict[str, Any]:
+    radius = radius_of(states, index)
+    k = case.k if case.now is None else case.now[0]
+    out: dict[str, Any] = {
+        "status": case.status,
+        "penetrated": case.penetrated,
+        "k": case.k,
+        "depth_m": case.depth_m,
+        "resting_previous_row": False,
+        "next_row_below_floor": k is not None and states.position[k + 1, index, 2] < radius,
+    }
+    if case.k is None or not case.penetrated:
+        return out
+    t, v = states.t, states.velocity[:, index]
+    k = case.k
+    v_plus_old = impact_velocity(v[k + 1], float(t[k + 1]), float(t[k]), g)
+    out |= {
+        "resting_previous_row": k >= 1 and not bool(corrected[k - 1, index]),
+        "e_old": restitution(v[k], v_plus_old, UP),
+        "e_new": math.nan,
+        "e_pred": math.nan,
+    }
+    if case.now is None:
+        return out
+    _, src, t_c = case.now
+    v_minus = impact_velocity(v[src], float(t[src]), t_c, g)
+    v_plus = impact_velocity(v[k + 1], float(t[k + 1]), t_c, g)
+    # Closed form of the move: both sides shifted by g (t_c - t_k) from the old t_c = t_k.
+    shift = g * (t_c - float(t[k]))
+    return out | {
+        "src": src,
+        "t_c": t_c,
+        "e_new": restitution(v_minus, v_plus, UP),
+        "e_pred": restitution(v[k] + shift, v_plus_old + shift, UP),
+    }
+
+
+def _rewritten_depth(exported: ObjectStateTable, clean: ObjectStateTable, index: int) -> float:
+    """Least z - r over the rows from the first one that differs from the clean simulation (a
+    row the export hid, NaN, differs from nothing)."""
+    if not _sphere(exported, index):
+        return math.inf
+    mine = exported.position[:, index]
+    differs = np.all(np.isfinite(mine), axis=1) & np.any(mine != clean.position[:, index], axis=1)
+    rows = np.nonzero(differs)[0]
+    return _min_depth(exported, index, int(rows[0])) if rows.size else math.inf
+
+
+def _min_depth(states: ObjectStateTable, index: int, start: int) -> float:
+    if not _sphere(states, index):
+        return math.inf
+    z = states.position[start:, index, 2]
+    finite = z[np.isfinite(z)]
+    return float(finite.min()) - radius_of(states, index) if finite.size else math.inf
+
+
+def _sphere(states: ObjectStateTable, index: int) -> bool:
+    return str(states.primitive[index]) == PrimitiveKind.SPHERE.value
+
+
+def _simulated(inputs: AuditInputs) -> list[str]:
+    return [s for s in inputs.plan.sim_ids() if inputs.after.is_done(Step.SIMULATE, s)]
+
+
+def _meta(store: DatasetStore, variant: VariantPlan) -> dict[str, Any] | None:
+    path = store.clip_dir(variant.clip_id) / GT_META
+    return read_json(path) if path.is_file() else None
+
+
+def _scene_objects(by_scene: Mapping[str, Sequence[str]]) -> list[str]:
+    return sorted(f"{scene}:{o}" for scene, objects in by_scene.items() for o in objects)
+
+
+def _flat(data: Mapping[str, Any], prefix: str = "") -> dict[str, Any]:
+    out: dict[str, Any] = {}
+    for key, value in data.items():
+        path = f"{prefix}{key}"
+        out |= _flat(value, f"{path}.") if isinstance(value, Mapping) else {path: value}
+    return out
+
+
+def _same(a: Any, b: Any) -> bool:
+    if isinstance(a, float) and isinstance(b, float) and math.isnan(a) and math.isnan(b):
+        return True
+    return bool(a == b)
+
+
+def _under(path: str, prefixes: Sequence[str]) -> bool:
+    return any(path == p or path.startswith(f"{p}.") for p in prefixes)
 
 
 def _record(store: DatasetStore, variant: VariantPlan) -> PerturbationRecord | None:

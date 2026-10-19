@@ -32,7 +32,7 @@ from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactKind, ContactTable
 from physverify.schema.scene import PerturbationRecord, SceneSpec
 from physverify.schema.states import ObjectStateTable, PrimitiveKind
-from physverify.synth.perturbations._ballistics import impact_velocity, time_to_height
+from physverify.synth.perturbations._ballistics import EPS_T, impact_velocity, time_to_height
 from physverify.synth.perturbations._windows import (
     UP,
     flight_mask,
@@ -163,29 +163,63 @@ def max_overhang(states: ObjectStateTable, contacts: ContactTable, tol: float) -
     return _nanmax(values)
 
 
+def bounce_rows(states: ObjectStateTable, index: int, t_guess: float) -> list[int]:
+    """Rows k near native frame ``t_guess`` where the sphere turns from falling (k) to rising
+    (k + 1), in the order ``floor_bounce`` tries them."""
+    vz = states.velocity[:, index, 2]
+    base = math.floor(t_guess)
+    return [
+        k
+        for k in (base, base - 1, base + 1)
+        if 0 <= k < states.n_frames - 1 and vz[k] < 0.0 < vz[k + 1]
+    ]
+
+
+def floor_crossing(
+    states: ObjectStateTable, index: int, k: int, radius: float, gz: float
+) -> tuple[int, float] | None:
+    """(source row, t_c in seconds) where the incoming arc reaches z = radius inside
+    [t_src, t_{src+1}]: from row k, or from k - 1 when row k is already at or below the floor
+    (its arc has no forward root). None when that arc does not cross there."""
+    src = k - 1 if float(states.position[k, index, 2]) <= radius else k
+    if src < 0:
+        return None
+    t_src = float(states.t[src])
+    z, vz = float(states.position[src, index, 2]), float(states.velocity[src, index, 2])
+    tau = time_to_height(z, vz, gz, radius)
+    if not math.isfinite(tau) or t_src + tau > float(states.t[src + 1]) + EPS_T:
+        return None
+    return src, t_src + tau
+
+
+def bounce_crossing(
+    states: ObjectStateTable, index: int, t_guess: float, g: Vec
+) -> tuple[int, int, float] | None:
+    """(k, source row, t_c) of the first row of ``bounce_rows`` whose incoming arc crosses the
+    floor (``floor_crossing``)."""
+    radius = float(nominal_extents(states, index)[0]) / 2.0
+    for k in bounce_rows(states, index, t_guess):
+        crossing = floor_crossing(states, index, k, radius, float(g[2]))
+        if crossing is not None:
+            return k, crossing[0], crossing[1]
+    return None
+
+
 def floor_bounce(
     states: ObjectStateTable, index: int, t_guess: float, g: Vec
 ) -> tuple[float, Vec, Vec] | None:
     """(t_c in seconds, v-, v+) of a sphere's floor bounce near native frame ``t_guess``.
 
-    t_c is re-solved from the ballistic arc of the last falling frame, so it does not depend on
-    the event timing; v+- are extrapolated ballistically to t_c from the neighbouring frames."""
-    vz = states.velocity[:, index, 2]
-    radius = float(nominal_extents(states, index)[0]) / 2.0
-    base = math.floor(t_guess)
-    for k in (base, base - 1, base + 1):
-        if 0 <= k < states.n_frames - 1 and vz[k] < 0.0 < vz[k + 1]:
-            t_k = float(states.t[k])
-            p, v = states.position[k, index], states.velocity[k, index]
-            tau = time_to_height(float(p[2]), float(v[2]), float(g[2]), radius)
-            t_c = t_k + tau if math.isfinite(tau) else t_k
-            t_next = float(states.t[k + 1])
-            if not t_k <= t_c <= t_next:
-                continue
-            v_minus = impact_velocity(v, t_k, t_c, g)
-            v_plus = impact_velocity(states.velocity[k + 1, index], t_next, t_c, g)
-            return t_c, v_minus, v_plus
-    return None
+    t_c is where the incoming ballistic arc crosses z = radius (the convention of check R3a), so
+    it does not depend on the event timing; v- is extrapolated to t_c from the arc's source row
+    and v+ from row k + 1 (ADR 0004, WP-H amendment)."""
+    found = bounce_crossing(states, index, t_guess, g)
+    if found is None:
+        return None
+    k, src, t_c = found
+    v_minus = impact_velocity(states.velocity[src, index], float(states.t[src]), t_c, g)
+    v_plus = impact_velocity(states.velocity[k + 1, index], float(states.t[k + 1]), t_c, g)
+    return t_c, v_minus, v_plus
 
 
 def bounce_restitution(states: ObjectStateTable, index: int, t_guess: float, g: Vec) -> float:
