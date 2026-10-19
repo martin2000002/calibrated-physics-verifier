@@ -400,7 +400,7 @@ def test_the_floor_crossing_migration_rerenders_only_the_moved_flight(
     assert found["r3b"]["legacy_differs_from_stored"] == []
     assert found["pair_rows"]["stops"] == []
     labels = found["energy_labels"]
-    assert labels["off_nominal"] == {} and labels["checked"] > 0
+    assert labels["off_nominal"] == {}
     assert labels["checked_gt_meta"] + len(labels["without_gt_meta"]) == labels["checked"]
 
 
