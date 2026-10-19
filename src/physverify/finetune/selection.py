@@ -40,6 +40,9 @@ class CheckpointResult(BaseModel):
 
 
 class Selection(BaseModel):
+    """``beats_base`` records whether the chosen checkpoint beats the base on ``dev``; a
+    selection written before the field existed reads as False."""
+
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     run_id: str
@@ -47,6 +50,7 @@ class Selection(BaseModel):
     thresholds: str
     selected: CheckpointResult | None
     checkpoints: list[CheckpointResult]
+    beats_base: bool = False
 
 
 def spaced(steps: Sequence[int], count: int) -> list[int]:
@@ -128,3 +132,10 @@ def choose(results: Sequence[CheckpointResult]) -> CheckpointResult | None:
     """Largest paired difference among the checkpoints not suspected of hacking."""
     usable = [r for r in results if not r.suspected_hacking and r.paired_diff is not None]
     return max(usable, key=lambda r: (r.paired_diff or 0.0, r.step), default=None)
+
+
+def beats_base(chosen: CheckpointResult | None) -> bool:
+    """The chosen checkpoint's paired difference with the base is positive and its CI excludes 0."""
+    if chosen is None or chosen.paired_diff is None or chosen.paired_diff <= 0:
+        return False
+    return chosen.ci is not None and chosen.ci[0] > 0

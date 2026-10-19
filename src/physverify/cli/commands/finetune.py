@@ -49,8 +49,8 @@ from physverify.finetune.scorers._base import AggregateScorer
 from physverify.finetune.scoring import build_scorer, rescorer, score_candidates, stale_scores
 from physverify.finetune.seeds import parse_shard
 from physverify.finetune.selection import (
-    CheckpointResult,
     Selection,
+    beats_base,
     choose,
     evaluate_checkpoint,
     spaced,
@@ -289,11 +289,21 @@ def _pairs_of(
     return build_pairs(prompts, selected, _cfg(context).pairs, rescorer(scorer))
 
 
+def _yields(report: PairsReport) -> str:
+    """Both yields; a report older than the scored-prompt count has only the per-prompt one."""
+    per_prompt = f"{report.yield_per_prompt:.3f} per prompt ({report.prompts})"
+    if report.yield_per_scored_prompt is None:
+        return f"{per_prompt}, no per-scored-prompt yield (older report)"
+    return (
+        f"{report.yield_per_scored_prompt:.3f} per scored prompt ({report.scored_prompts} "
+        f"scored), {per_prompt}"
+    )
+
+
 def _report_lines(label: str, report: PairsReport) -> list[str]:
     return [
-        f"{label}: {report.pairs} pairs; {report.yield_per_scored_prompt:.3f} per scored prompt "
-        f"({report.scored_prompts} scored), {report.yield_per_prompt:.3f} per prompt "
-        f"({report.prompts}); {report.eligible}/{report.candidates} candidates eligible",
+        f"{label}: {report.pairs} pairs; {_yields(report)}; "
+        f"{report.eligible}/{report.candidates} candidates eligible",
         f"  dropped: {json.dumps(report.dropped, sort_keys=True)}",
         f"  rejected: {json.dumps(report.rejected, sort_keys=True)}",
     ]
@@ -436,10 +446,17 @@ def run_record(
 
 def _check_resume(path: Path, record: dict[str, Any]) -> None:
     """Every field of run.json but the commit and the beta's source must be unchanged: the pairs,
-    the base model, the whole TrainSettings and LoRA dumps and the resolved schedule."""
+    the base model, the whole TrainSettings and LoRA dumps and the resolved schedule. A run.json
+    without ``base_model`` predates its tracking and is invalidated: it can never be resumed."""
     if not path.is_file():
         return
     previous = json.loads(path.read_text(encoding="utf-8"))
+    if "base_model" not in previous:
+        raise UsageError(
+            f"{path} predates base-model tracking, so it cannot be checked against the current "
+            "base model and must be restarted: train with a new --run-id or with --no-resume "
+            f"--force; for a beta-grid run, delete {path.parent}"
+        )
     keys = (previous.keys() | record.keys()) - RESUME_IGNORED
     changed = sorted(k for k in keys if previous.get(k) != record.get(k))
     if changed:
@@ -618,32 +635,26 @@ def select(scorer: ScorerOption = None, run_id: RunIdOption = DEFAULT_RUN) -> No
         )
         del generator
         gc.collect()
+    chosen = choose(results)
     selection = Selection(
         run_id=run_id,
         scorer=active.name,
         thresholds=active.thresholds(),
-        selected=choose(results),
+        selected=chosen,
         checkpoints=results,
+        beats_base=beats_base(chosen),
     )
     path = store.select_dir(run_id) / SELECTED_FILE
     write_record(path, selection)
     for result in results:
         flag = " suspected_hacking" if result.suspected_hacking else ""
         typer.echo(f"step {result.step}: paired diff {result.paired_diff} ci {result.ci}{flag}")
-    chosen = selection.selected
     typer.echo(f"selected: {chosen.adapter if chosen else 'none'} ({path})")
-    if not beats_base(chosen):
+    if not selection.beats_base:
         typer.echo(
             "warning: no checkpoint beats the base on dev (paired diff <= 0 or its CI holds 0)",
             err=True,
         )
-
-
-def beats_base(chosen: CheckpointResult | None) -> bool:
-    """The chosen checkpoint's paired difference with the base is positive and its CI excludes 0."""
-    if chosen is None or chosen.paired_diff is None or chosen.paired_diff <= 0:
-        return False
-    return chosen.ci is not None and chosen.ci[0] > 0
 
 
 def _yield(store: CampaignStore, scorer: str, given: float | None) -> tuple[float, bool]:
@@ -651,7 +662,7 @@ def _yield(store: CampaignStore, scorer: str, given: float | None) -> tuple[floa
     if given is not None:
         return given, False
     if path.is_file():
-        return read_record(path, PairsReport).yield_per_scored_prompt, True
+        return read_record(path, PairsReport).measured_yield, True
     raise UsageError(f"no measured pair yield ({path} missing): pass --pair-yield")
 
 
@@ -724,11 +735,7 @@ def status_lines(store: CampaignStore) -> list[str]:
         report = directory / REPORT_FILE
         if report.is_file():
             parsed = read_record(report, PairsReport)
-            lines.append(
-                f"  pairs/{directory.name}: {parsed.pairs} "
-                f"({parsed.yield_per_scored_prompt:.3f}/scored prompt, "
-                f"{parsed.yield_per_prompt:.3f}/prompt)"
-            )
+            lines.append(f"  pairs/{directory.name}: {parsed.pairs} ({_yields(parsed)})")
     for run in store.train_runs():
         found = checkpoints(store.train_dir(run))
         last = found[-1][0] if found else 0

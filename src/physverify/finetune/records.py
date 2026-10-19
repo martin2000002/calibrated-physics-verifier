@@ -21,6 +21,7 @@ DEMO_TAG = "demo"
 VAL_TAG = "val"
 UNSEEN_TAG = "unseen_template"
 TEMPLATE_TAG_PREFIX = "template:"
+CLIP_HASH_CHARS = 12
 
 
 class _Record(BaseModel):
@@ -43,6 +44,10 @@ class PromptRecord(_Record):
 
 
 class CandidateRecord(_Record):
+    """``candidate_id`` names the candidate inside its model tag; ``clip_id`` names its video for
+    extraction and verification, so a candidate of another tag, campaign or configuration never
+    shares a cache entry with it."""
+
     candidate_id: str
     prompt_id: str
     split: PromptSplit
@@ -55,6 +60,10 @@ class CandidateRecord(_Record):
     gen_s: float | None = None
     commit: str = ""
     config_hash: str
+
+    @property
+    def clip_id(self) -> str:
+        return f"{self.candidate_id}__{self.config_hash[:CLIP_HASH_CHARS]}"
 
 
 class CheckSummary(_Record):
@@ -125,14 +134,22 @@ class PairsReport(ScorerStamp):
     pilot scores only some prompts, so its measured yield is ``yield_per_scored_prompt``."""
 
     prompts: int
-    scored_prompts: int
+    scored_prompts: int | None = None
     candidates: int
     eligible: int
     pairs: int
     dropped: dict[str, int]
     rejected: dict[str, int]
     yield_per_prompt: float
-    yield_per_scored_prompt: float
+    yield_per_scored_prompt: float | None = None
+
+    @property
+    def measured_yield(self) -> float:
+        """Per scored prompt; a report written before that field existed falls back to per
+        prompt."""
+        if self.yield_per_scored_prompt is None:
+            return self.yield_per_prompt
+        return self.yield_per_scored_prompt
 
 
 def write_records(path: Path, records: Iterable[BaseModel]) -> None:

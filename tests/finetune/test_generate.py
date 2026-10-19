@@ -159,7 +159,7 @@ def test_another_generator_config_is_refused_over_stored_candidates(
     videos = {p: p.read_bytes() for p in sorted(store.video_dir(BASE_TAG).glob("*.mp4"))}
     changed = gen.model_copy(update={"guidance_scale": gen.guidance_scale + 1})
     pipe = FakePipe()
-    with pytest.raises(UsageError, match="new finetune.campaign"):
+    with pytest.raises(UsageError, match=f"another campaign than {store.campaign} "):
         _run(_generator(store, changed, cfg, pipe), prompts)
     assert pipe.calls == []
     assert {p: p.read_bytes() for p in sorted(store.root.rglob("*")) if p.is_file()} == stored

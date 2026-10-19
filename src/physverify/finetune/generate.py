@@ -177,7 +177,8 @@ class CandidateGenerator:
             raise UsageError(
                 f"{len(conflicts)} stored candidates of {self.model_tag} were generated with "
                 f"another configuration (e.g. {conflicts[:SHOWN_CONFLICTS]}); regenerating them "
-                "would leave their scores and extraction stale: use a new finetune.campaign"
+                "would overwrite their videos and scores: use another campaign than "
+                f"{self._store.campaign} ({self._store.root})"
             )
         return records
 

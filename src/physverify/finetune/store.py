@@ -14,8 +14,11 @@
 ```
 
 The videos live in a ``local_video`` subset, so extraction and verification read them as any
-other dataset (clip id = candidate id). A candidate is complete only once its meta exists: the mp4
-and the latents are written first, the meta last, each atomically.
+other dataset. The mp4 is named by the candidate id, but the manifest gives each video the
+record's ``clip_id`` (candidate id plus a ``config_hash`` prefix), so the extraction cache of a
+candidate is never reused by another model tag, campaign, configuration or imported video. A
+candidate is complete only once its meta exists: the mp4 and the latents are written first, the
+meta last, each atomically.
 """
 
 from __future__ import annotations
@@ -124,6 +127,7 @@ class CampaignStore:
         entries = [
             ClipEntry(
                 video=Path(record.video_path).name,
+                clip_id=record.clip_id,
                 queries=prompts[record.prompt_id].queries if record.prompt_id in prompts else None,
             )
             for record in records

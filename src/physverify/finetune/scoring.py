@@ -1,7 +1,8 @@
 """Score the candidates of one model tag: extraction + checks + clip score (ADR 0012, 3.6).
 
 The perceived inputs come from the normal extraction pipeline over the campaign's ``local_video``
-subset; the checks and their verdicts from ``VerificationRunner``. Each candidate writes its
+subset, whose manifest is rewritten first so every candidate is read under its record's
+``clip_id``; the checks and their verdicts from ``VerificationRunner``. Each candidate writes its
 check results and then its ``CandidateScore`` (the completion mark), so a rerun skips it unless
 the score is stale: another scorer stamp, or another candidate ``config_hash`` (or none recorded).
 """
@@ -206,13 +207,14 @@ def score_candidates(
     by_id = {prompt.prompt_id: prompt for prompt in prompts}
     todo = pending(store, model_tag, scorer, by_id, shard)
     if todo:
+        store.write_manifest(model_tag)
         clips = {clip.clip_id: clip for clip in deps.clips(store.subset(model_tag))}
-        missing = sorted(r.candidate_id for r in todo if r.candidate_id not in clips)
+        missing = sorted(r.candidate_id for r in todo if r.clip_id not in clips)
         if missing:
             raise UsageError(f"candidates missing from the local_video manifest: {missing[:5]}")
         for start in range(0, len(todo), CHUNK):
             chunk = todo[start : start + CHUNK]
-            _score_chunk(store, chunk, [clips[r.candidate_id] for r in chunk], by_id, scorer, deps)
+            _score_chunk(store, chunk, [clips[r.clip_id] for r in chunk], by_id, scorer, deps)
     scores = store.scores(model_tag, scorer.name)
     write_records(store.scores_path(model_tag, scorer.name), scores)
     return scores
@@ -230,8 +232,8 @@ def _score_chunk(
     report = deps.runner.run(source, clips)
     for record in records:
         cid = record.candidate_id
-        results = [r for r in report.results if r.clip_id == cid]
-        rows = [row for row in report.table if row.clip_id == cid]
+        results = [r for r in report.results if r.clip_id == record.clip_id]
+        rows = [row for row in report.table if row.clip_id == record.clip_id]
         checks = store.checks_path(record.model_tag, scorer.name, cid)
         checks.parent.mkdir(parents=True, exist_ok=True)
         write_jsonl(checks, results)
@@ -241,7 +243,7 @@ def _score_chunk(
             scorer,
             scorer.score(results),
             rows,
-            source.states.get(cid),
+            source.states.get(record.clip_id),
             str(checks),
         )
         write_record(store.score_path(record.model_tag, scorer.name, cid), score)

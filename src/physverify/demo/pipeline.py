@@ -97,12 +97,15 @@ def video_tag(video: Path) -> tuple[str, str]:
 def import_video(
     store: CampaignStore, prompt: PromptRecord, video: Path, commit: str
 ) -> CandidateRecord:
-    """Copies ``video`` into the campaign's ``local_video`` subset as candidate k = 0."""
+    """Copies ``video`` into the campaign's ``local_video`` subset as candidate k = 0; a stored
+    copy with other content (a model-tag prefix collision) is refused, never overwritten."""
     if not video.is_file():
         raise UsageError(f"video {video} does not exist")
     tag, digest = video_tag(video)
     target = store.video_path(tag, prompt.prompt_id, DEMO_K)
-    if not target.is_file():
+    if target.is_file():
+        _require_same(target, digest)
+    else:
         write_atomic(target, lambda temp: shutil.copyfile(video, temp))
     record = CandidateRecord(
         candidate_id=candidate_id(prompt.prompt_id, DEMO_K),
@@ -120,6 +123,13 @@ def import_video(
     write_record(store.meta_path(tag, prompt.prompt_id, DEMO_K), record)
     store.write_manifest(tag)
     return record
+
+
+def _require_same(target: Path, digest: str) -> None:
+    if sha256_of(target) != digest:
+        raise UsageError(
+            f"{target} holds another video under the same model tag; refusing to overwrite it"
+        )
 
 
 def stored_candidate(store: CampaignStore, model_tag: str, prompt_id: str) -> CandidateRecord:

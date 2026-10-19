@@ -93,8 +93,40 @@ def test_rerunning_reuses_the_stored_scores(
     deps = _deps(settings, store, scoring)
     first = run_demo(_prompt(), deps, out=tmp_path / "out", video=video)
     second = run_demo(_prompt(), deps, out=tmp_path / "out", video=video)
-    assert scoring.runner.clips == [candidate_id("adhoc-0001", 0)]  # type: ignore[attr-defined]
+    (record,) = store.candidates(first.model_tag)
+    assert scoring.runner.clips == [record.clip_id]  # type: ignore[attr-defined]
     assert first.clip == second.clip
+
+
+def test_two_given_videos_of_one_prompt_never_share_a_clip_id(
+    tmp_path: Path, settings: Settings, write_video: Videos, fake_scoring: FakeScoring
+) -> None:
+    store, scoring = _store(settings), fake_scoring(settings)
+    deps = _deps(settings, store, scoring)
+    reports = [
+        run_demo(
+            _prompt(), deps, out=tmp_path / "out", video=write_video(f"{shade}.mp4", shade=shade)
+        )
+        for shade in (60, 120)
+    ]
+    records = [store.candidates(r.model_tag)[0] for r in reports]
+    assert records[0].candidate_id == records[1].candidate_id
+    assert records[0].clip_id != records[1].clip_id
+    assert scoring.runner.clips == [r.clip_id for r in records]  # type: ignore[attr-defined]
+
+
+def test_a_given_video_never_overwrites_another_under_its_tag(
+    tmp_path: Path, settings: Settings, write_video: Videos, fake_scoring: FakeScoring
+) -> None:
+    store, video = _store(settings), write_video()
+    tag, _ = pipeline.video_tag(video)
+    target = store.video_path(tag, "adhoc-0001", 0)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(b"another video")
+    deps = _deps(settings, store, fake_scoring(settings))
+    with pytest.raises(UsageError, match="refusing to overwrite"):
+        run_demo(_prompt(), deps, out=tmp_path / "out", video=video)
+    assert target.read_bytes() == b"another video"
 
 
 def test_missing_stored_video_is_a_usage_error(

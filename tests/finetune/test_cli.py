@@ -12,7 +12,7 @@ from physverify.cli.commands.finetune import (
     _beta,
     _check_current,
     _check_resume,
-    beats_base,
+    status_lines,
 )
 from physverify.config.models import Settings
 from physverify.core.errors import UsageError
@@ -20,12 +20,12 @@ from physverify.finetune.records import (
     CandidateRecord,
     CandidateScore,
     PairRecord,
+    PairsReport,
     read_records,
     write_record,
     write_records,
 )
 from physverify.finetune.scorers.provisional import ProvisionalScorer
-from physverify.finetune.selection import CheckpointResult
 from physverify.finetune.settings import load_finetune
 from physverify.finetune.store import PAIRS_FILE, REPORT_FILE, RUN_FILE, CampaignStore
 from physverify.finetune.trainer import STATE_FILE, checkpoint_name
@@ -330,32 +330,6 @@ def test_select_refuses_stale_checkpoint_scores(
         _check_current(store, tag, [old], scorer, "dev")
 
 
-def _checkpoint(diff: float | None, ci: tuple[float, float] | None) -> CheckpointResult:
-    return CheckpointResult(
-        step=1,
-        adapter="a",
-        model_tag="lora-a",
-        n=4,
-        n_paired=4,
-        mean_score=0.5,
-        paired_diff=diff,
-        ci=ci,
-        abstention=0.0,
-        base_abstention=0.0,
-        motion=1.0,
-        base_motion=1.0,
-        suspected_hacking=False,
-    )
-
-
-def test_beats_base_needs_a_positive_diff_with_a_ci_above_zero() -> None:
-    assert beats_base(_checkpoint(0.1, (0.02, 0.18)))
-    assert not beats_base(_checkpoint(0.1, (-0.02, 0.22)))
-    assert not beats_base(_checkpoint(-0.1, (-0.2, -0.01)))
-    assert not beats_base(_checkpoint(0.1, None))
-    assert not beats_base(None)
-
-
 def test_resume_compares_every_run_field_but_commit_and_beta_source(tmp_path: Path) -> None:
     path = tmp_path / RUN_FILE
     record = {
@@ -379,6 +353,41 @@ def test_resume_compares_every_run_field_but_commit_and_beta_source(tmp_path: Pa
             _check_resume(path, {**record, key: value})
     with pytest.raises(UsageError, match="new_key"):
         _check_resume(path, {**record, "new_key": 1})
+
+
+def test_a_run_from_before_base_model_tracking_must_be_restarted(tmp_path: Path) -> None:
+    path = tmp_path / RUN_FILE
+    record = {"pairs_sha256": "p", "train": {"lr": 1e-4}, "commit": "c1"}
+    path.write_text(json.dumps(record), encoding="utf-8")
+    with pytest.raises(UsageError, match="predates base-model tracking.*must be restarted"):
+        _check_resume(path, {**record, "base_model": {"revision": "r"}})
+
+
+def test_status_reads_a_pairs_report_without_the_scored_prompt_yield(
+    store: CampaignStore, cli: CliRunner, env: dict[str, str]
+) -> None:
+    assert cli("finetune", "prompts", "build", env=env).code == 0
+    report = PairsReport(
+        scorer="provisional",
+        scorer_version="1",
+        calibrated=False,
+        thresholds="t",
+        prompts=4,
+        candidates=16,
+        eligible=12,
+        pairs=2,
+        dropped={},
+        rejected={},
+        yield_per_prompt=0.5,
+    )
+    path = store.pairs_dir("provisional") / REPORT_FILE
+    path.parent.mkdir(parents=True)
+    path.write_text(report.model_dump_json(exclude={"scored_prompts", "yield_per_scored_prompt"}))
+    loaded = PairsReport.model_validate_json(path.read_text())
+    assert loaded.measured_yield == 0.5
+    lines = status_lines(store)
+    assert any("pairs/provisional: 2 (0.500 per prompt (4)" in line for line in lines), lines
+    assert any("older report" in line for line in lines)
 
 
 def test_the_beta_grid_choice_is_tied_to_its_pairs(

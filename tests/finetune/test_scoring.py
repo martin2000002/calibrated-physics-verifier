@@ -158,7 +158,7 @@ def test_scoring_writes_stamped_scores_and_resumes(
     _write_candidates(store, 3)
     runner = FakeRunner(make_result)
     deps = ScoringDeps(
-        clips=lambda subset: [_clip(f"{PROMPT}__k{k:02d}") for k in range(3)],
+        clips=lambda subset: [_clip(r.clip_id) for r in store.candidates("base")],
         source=FakeSource(states),
         runner=runner,
     )
@@ -186,7 +186,7 @@ def _scored_store(
     store = CampaignStore(tmp_path / "ft", tmp_path / "raw", "c")
     _write_candidates(store, 3)
     deps = ScoringDeps(
-        clips=lambda subset: [_clip(f"{PROMPT}__k{k:02d}") for k in range(3)],
+        clips=lambda subset: [_clip(r.clip_id) for r in store.candidates("base")],
         source=FakeSource(states),
         runner=runner,
     )
