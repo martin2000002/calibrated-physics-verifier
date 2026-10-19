@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -81,7 +80,8 @@ def _evaluate(artifact: CalibrationArtifact, primary: PrimaryScope | None) -> Ev
 
 
 def _scope() -> PrimaryScope:
-    return PrimaryScope(SceneScope(primary_scenes=PRIMARY), replace(dataset_ref(), n_scenes=20))
+    dataset = dataset_ref().model_copy(update={"n_scenes": 20})
+    return PrimaryScope(SceneScope(primary_scenes=PRIMARY), dataset)
 
 
 def test_the_all_scenes_strata_do_not_change(artifact: CalibrationArtifact) -> None:
