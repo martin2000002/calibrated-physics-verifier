@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import dataclasses
 import math
+import shutil
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -16,6 +17,7 @@ from physverify.schema.contacts import ContactTable, RawCollisions
 from physverify.schema.scene import PerturbationRecord, SceneSpec
 from physverify.schema.states import ObjectStateTable, ground_truth_source_key
 from physverify.synth.contacts_gt import ClosestSamples, from_closest, from_raw_events
+from physverify.synth.kinematics_gt import position_consistent
 from physverify.synth.layout import UnreachableTargetError
 from physverify.synth.perturbations._base import ScenePerturbation, TrajectoryPerturbation
 from physverify.synth.plan import DatasetPlan, VariantPlan
@@ -172,35 +174,54 @@ def same_render_inputs(a: ObjectStateTable, b: ObjectStateTable) -> bool:
     return same and bool(np.array_equal(a.visible, b.visible))
 
 
-def discard_downstream(clip_dir: Path, states: ObjectStateTable) -> None:
+def discard_downstream(clip_dir: Path, states: ObjectStateTable) -> bool:
     """Before APPLY writes ``states``: the export and the contact tables of a previous APPLY are
-    stale, and so is the render when the states it keyframed changed (or cannot be compared)."""
+    stale, and so are the render and the closest-point samples when the poses, sizes or hidden
+    frames they were computed from changed (or cannot be compared). True when a render went."""
     previous = clip_dir / VARIANT_STATES
-    stale = [GT_META, CLOSEST, PROVISIONAL_CONTACTS, CONTACTS_WORLD]
-    if not previous.is_file() or not same_render_inputs(
+    keeps_render = previous.is_file() and same_render_inputs(
         ObjectStateTable.load_npz(previous), states
-    ):
-        stale += [KUBRIC_META, LAYERS]
+    )
+    stale = [GT_META, PROVISIONAL_CONTACTS, CONTACTS_WORLD]
+    if not keeps_render:
+        stale += [CLOSEST, KUBRIC_META, LAYERS]
+    rendered = (clip_dir / KUBRIC_META).is_file()
     for name in stale:
         (clip_dir / name).unlink(missing_ok=True)
+    return rendered and not keeps_render
 
 
 def load_simulation(
     store: DatasetStore, sim_id: str, clip_id: str, ds: DatasetSettings
 ) -> tuple[SceneSpec, ObjectStateTable, ContactTable]:
-    """The simulated scene, its states and its event contacts, labelled as clip ``clip_id``."""
+    """The simulated scene, its states and its event contacts, labelled as clip ``clip_id``.
+
+    The contacts are computed on the simulator's own velocities on purpose (the approach speed
+    that opens an impact must not move); the states follow ``ds.velocity_convention``."""
     sim_dir = store.scene_dir(sim_id)
     scene = SceneSpec.load_json(sim_dir / SPEC)
-    states = relabel(ObjectStateTable.load_npz(sim_dir / SIM_STATES), clip_id)
+    simulated = relabel(ObjectStateTable.load_npz(sim_dir / SIM_STATES), clip_id)
     raw = RawCollisions.load_npz(sim_dir / RAW_COLLISIONS)
-    return scene, states, from_raw_events(raw, scene, states, ds.contacts)
+    clean = from_raw_events(raw, scene, simulated, ds.contacts)
+    if ds.velocity_convention == "state":
+        return scene, simulated, clean
+    return scene, position_consistent(simulated, clean, scene), clean
+
+
+@dataclass(frozen=True)
+class ApplyReport:
+    """Clips APPLY wrote or skipped, and those whose existing render it discarded."""
+
+    applied: tuple[str, ...]
+    discarded_renders: tuple[str, ...]
 
 
 def apply_variants(
     plan: DatasetPlan, store: DatasetStore, plugins: Mapping[str, Any], ds: DatasetSettings
-) -> list[str]:
+) -> ApplyReport:
     """Writes each pending variant's states, contacts and record; refusals become ``skipped``."""
     applied: list[str] = []
+    discarded: list[str] = []
     for variant in plan.variants:
         clip_id = variant.clip_id
         if store.is_skipped(clip_id) or not _apply_pending(store, clip_id):
@@ -208,14 +229,25 @@ def apply_variants(
         if not store.is_done(Step.SIMULATE, variant.sim_id):
             continue
         try:
-            _apply_one(variant, store, plugins[variant.perturbation], ds)
+            if _apply_one(variant, store, plugins[variant.perturbation], ds):
+                discarded.append(clip_id)
         except REFUSALS as exc:
+            if discard_clip(store.clip_dir(clip_id)):
+                discarded.append(clip_id)
             store.mark_skipped(clip_id, str(exc))
         applied.append(clip_id)
-    return applied
+    return ApplyReport(tuple(applied), tuple(discarded))
 
 
-def _apply_one(variant: VariantPlan, store: DatasetStore, plugin: Any, ds: DatasetSettings) -> None:
+def discard_clip(clip_dir: Path) -> bool:
+    """A refused clip keeps nothing an earlier APPLY, render or export wrote (it may have been
+    applied under other settings). True when a render went."""
+    rendered = (clip_dir / KUBRIC_META).is_file()
+    shutil.rmtree(clip_dir, ignore_errors=True)
+    return rendered
+
+
+def _apply_one(variant: VariantPlan, store: DatasetStore, plugin: Any, ds: DatasetSettings) -> bool:
     scene, states, clean = load_simulation(store, variant.sim_id, variant.clip_id, ds)
     if variant.scene_perturbation:
         provisional = PerturbationRecord.load_json(store.scene_dir(variant.sim_id) / SCENE_RECORD)
@@ -230,13 +262,14 @@ def _apply_one(variant: VariantPlan, store: DatasetStore, plugin: Any, ds: Datas
             plugin, scene, states, clean, variant.target_magnitude, key
         )
     clip_dir = store.clip_dir(variant.clip_id)
-    discard_downstream(clip_dir, new_states)
+    discarded = discard_downstream(clip_dir, new_states)
     atomic_save(new_states, clip_dir / VARIANT_STATES)
     if variant.scene_perturbation or same_poses(states, new_states):
         atomic_save(clean, clip_dir / CONTACTS_WORLD)
     else:
         atomic_save(contacts, clip_dir / PROVISIONAL_CONTACTS)
     atomic_save(record, clip_dir / RECORD)
+    return discarded
 
 
 def _apply_pending(store: DatasetStore, clip_id: str) -> bool:

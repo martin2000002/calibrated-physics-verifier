@@ -250,3 +250,18 @@ gate report and the judge stamp. The relative paths sit under `PHYSVERIFY__H3__A
 peft, numpy and Python versions are our choice, and the freeze file records the rest.
 `PHYSVERIFY_AUTOEVAL_UPSTREAM` overrides the clone URL. The GPU steps exit 2 without a CUDA GPU
 before any `uv` call.
+
+## GT velocity migration (ADR 0004, WP-G 1.C)
+
+`migrate_velocity.sh` moves a stored dataset to `velocity_convention = "position"` in place (CPU
+only, no version bump): `dataset migrate-velocity`, a rebuild of every listed subset (only the
+renders whose poses changed are redone), `extract purge` of the re-rendered clips on every cache
+root, oracle sweeps with `fit_source` position and velocity, and `dataset audit-migration` against
+a copy taken before. Every written path must lie under `PHYSVERIFY_MIGRATE_ROOT`; the header lists
+the variables and the commands for a dev copy and for the full v1-precise dataset.
+
+It holds the Kubric lock (`PHYSVERIFY_MIGRATE_LOCK`, default `${PHYSVERIFY_KUBRIC_LOCK:-$ROOT/kubric.lock}`),
+so it never renders beside a `run_kubric.sh` build. It stops after `migrate-velocity` when any clip
+changed state (applied or skipped) until `PHYSVERIFY_MIGRATE_ALLOW_STATUS_CHANGES=1`, and moves the
+calibration artifacts fitted on the old GT into `<calibration dir>/stale-velocity-position/` once,
+printing a notice; recalibrate afterwards. `calibration-baseline-*` directories are refused.

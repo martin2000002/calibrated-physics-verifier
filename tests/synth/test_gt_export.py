@@ -13,7 +13,6 @@ from typing import Any
 import numpy as np
 import pytest
 
-from physverify.config.loader import load_settings
 from physverify.config.models import Settings
 from physverify.core.video import Mp4VideoSource
 from physverify.datasets.kubric_synthetic import KubricSynthetic, load_native
@@ -176,12 +175,6 @@ def test_occluder_in_front_hides_and_behind_does_not() -> None:
         world_from_camera,
     )
     assert behind.occlusion == pytest.approx(np.zeros_like(behind.occlusion))
-
-
-@pytest.fixture
-def data_settings(config_dir: Path, environ: dict[str, str], tmp_path: Path) -> Settings:
-    env = environ | {"PHYSVERIFY__PATHS__DATA_DIR": str(tmp_path / "data")}
-    return load_settings(config_dir, environ=env)
 
 
 class CountingRunner:
@@ -355,9 +348,11 @@ def test_apply_reruns_when_its_contact_table_is_gone(
     atomic_save(dataclasses.replace(old, position=old.position + 0.01), rendered)
     (store.clip_dir(edited) / RECORD).unlink()
 
-    assert apply_variants(plan, store, smoke.plugins, ds) == [
+    report = apply_variants(plan, store, smoke.plugins, ds)
+    assert report.applied == tuple(
         v.clip_id for v in plan.variants if v.clip_id in (unedited, edited)
-    ]
+    )
+    assert report.discarded_renders == (edited,)
     assert table.read_bytes() == before
     assert store.is_done(Step.RENDER, unedited) and not store.is_done(Step.EXPORT, unedited)
     assert not store.is_done(Step.RENDER, edited) and not (store.clip_dir(edited) / LAYERS).exists()

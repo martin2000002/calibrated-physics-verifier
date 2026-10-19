@@ -122,6 +122,27 @@ class StageCache:
     def directory(self, dataset: str, clip_id: str, stage: Stage, provider: str, key: str) -> Path:
         return self.root / dataset / clip_id / stage.value / f"{provider}-{key[:12]}"
 
+    def entries(self, dataset: str, clip_id: str) -> list[Path]:
+        """Every cached stage entry of the clip (all stages, providers and keys)."""
+        clip_dir = self.root / dataset / clip_id
+        if not clip_dir.is_dir():
+            return []
+        stages = (stage for stage in clip_dir.iterdir() if stage.is_dir())
+        return sorted(entry for stage in stages for entry in stage.iterdir() if entry.is_dir())
+
+    def metas(self, dataset: str, clip_id: str) -> list[Path]:
+        """The ``meta.json`` of every cached stage entry of the clip."""
+        paths = (entry / META_FILE for entry in self.entries(dataset, clip_id))
+        return [path for path in paths if path.is_file()]
+
+    def purge_clip(self, dataset: str, clip_id: str) -> int:
+        """Remove every cached stage of the clip (all providers and keys); returns the entries.
+
+        Keys do not hash the frames, so a re-rendered clip must be purged by hand."""
+        entries = len(self.entries(dataset, clip_id))
+        shutil.rmtree(self.root / dataset / clip_id, ignore_errors=True)
+        return entries
+
     def _meta(self, directory: Path, key: str) -> StageArtifactMeta | None:
         path = directory / META_FILE
         if not path.is_file():

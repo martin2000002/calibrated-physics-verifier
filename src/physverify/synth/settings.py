@@ -19,6 +19,7 @@ PRIORS_SECTION = "size_priors"
 MAX_LEVEL = 4
 NON_CONTENT_KEYS = ("render", "subsets", "version")
 
+type VelocityConvention = Literal["position", "state"]
 type FamilyClass = type[SceneFamily]
 type PerturbationClass = type[ScenePerturbation] | type[TrajectoryPerturbation]
 
@@ -70,6 +71,7 @@ class DatasetSettings(FrozenModel):
     background: Literal["plain", "hdri"] = "plain"
     assets: Literal["kubasic"] = "kubasic"
     calib_fraction: float = Field(default=0.5, ge=0.0, le=1.0)
+    velocity_convention: VelocityConvention = "position"
     floor: FloorSettings = FloorSettings()
     contacts: ContactSettings = ContactSettings()
     render: RenderSettings = RenderSettings()
@@ -85,10 +87,13 @@ class DatasetSettings(FrozenModel):
             )
         return self
 
-    def content_hash(self) -> str:
-        """Hash of everything that changes a clip's content (not paths, workers or subsets)."""
+    def content_hash(self, without: tuple[str, ...] = ()) -> str:
+        """Hash of everything that changes a clip's content (not paths, workers or subsets).
+
+        ``without`` drops further keys, to recognise a plan made before a key existed."""
         dumped = self.model_dump(mode="json")
-        return params_hash({k: v for k, v in dumped.items() if k not in NON_CONTENT_KEYS})
+        skipped = NON_CONTENT_KEYS + without
+        return params_hash({k: v for k, v in dumped.items() if k not in skipped})
 
 
 class SceneCommon(FrozenModel):

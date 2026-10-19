@@ -81,7 +81,8 @@ class DatasetPlan:
         if (self.version, self.config_hash) != (other.version, other.config_hash):
             raise ConfigError(
                 f"dataset {self.version} was planned with other settings: bump [dataset] version "
-                "before changing anything that alters clip content"
+                "before changing anything that alters clip content (a plan made before "
+                "velocity_convention existed is migrated by `physverify dataset migrate-velocity`)"
             )
         scenes = _union(self.scenes, other.scenes, "scene_id")
         variants = _union(self.variants, other.variants, "clip_id")

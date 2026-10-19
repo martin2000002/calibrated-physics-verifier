@@ -109,7 +109,7 @@ def test_a_second_pass_of_every_step_launches_no_job(
     mark(store, Step.APPLY, clips)
     for clip_id in clips:
         atomic_write_json(store.clip_dir(clip_id) / PROVISIONAL_CONTACTS, {"fake": True})
-    assert apply_variants(plan, store, plugins, ds) == []
+    assert apply_variants(plan, store, plugins, ds).applied == ()
     assert closest_points(plan, store, runner, ds) == len(clips)
     assert closest_points(plan, store, runner, ds) == 0
     mark(store, Step.PERTURB, clips)

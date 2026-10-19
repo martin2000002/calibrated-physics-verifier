@@ -32,6 +32,7 @@ from physverify.runtime.runs import RunContext, current_commit
 from physverify.schema.clip import ClipManifest
 from physverify.schema.error_profile import ErrorProfile
 from physverify.schema.stages import STAGE_ORDER, parse_stages
+from physverify.synth.migrate import manifest_dataset, rerender_clip_ids
 
 NAME = "extract"
 OWNER = "A5"
@@ -147,6 +148,30 @@ def fetch_weights() -> None:
                 f"{provider.stage.value}/{provider.name} {spec.kind.value}:{spec.ref}@"
                 f"{spec.revision[:12]} verified {size:.1f} MB {path}"
             )
+
+
+@app.command(
+    "purge",
+    help="Remove every cached stage of the clips a dataset migration re-rendered (all providers).",
+)
+def purge(
+    clips_from: Annotated[
+        Path, typer.Option(help="Migration manifest (<dataset>/migrations/<name>.json).")
+    ],
+    cache_root: Annotated[
+        list[Path] | None,
+        typer.Option(help="Cache root (repeatable; default: paths.cache_dir)."),
+    ] = None,
+) -> None:
+    if not clips_from.is_file():
+        raise UsageError(f"no migration manifest at {clips_from}")
+    dataset = manifest_dataset(clips_from)
+    clip_ids = rerender_clip_ids(clips_from)
+    roots = cache_root or [app_context().settings.paths.cache_dir]
+    for root in roots:
+        cache = StageCache(root)
+        entries = sum(cache.purge_clip(dataset, clip_id) for clip_id in clip_ids)
+        typer.echo(f"purge {root}: {entries} stage entries of {len(clip_ids)} clips removed")
 
 
 def resolve_dataset(context: AppContext, name: str) -> DatasetSource:
