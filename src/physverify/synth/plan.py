@@ -9,10 +9,11 @@ from physverify.core.errors import ConfigError, UsageError
 from physverify.schema.clip import Split
 
 NONE = "none"
-# Revision of the APPLY ground truth a stored plan was built with, outside ``content_hash``: a fix
-# with no alternative convention raises it and ships the migration that brings a store up to it.
-GT_REVISION = 1
-GT_MIGRATION = "floor-crossing"
+# Fixes of the APPLY ground truth with no alternative convention, in order: the migration at index
+# i brings a stored plan from revision i up to this checkout's. ``gt_revision`` lives outside
+# ``content_hash``; adding a fix is adding its migration name here.
+GT_MIGRATIONS = ("floor-crossing",)
+GT_REVISION = len(GT_MIGRATIONS)
 
 
 def scene_id_of(family: str, index: int) -> str:
@@ -60,12 +61,17 @@ class DatasetPlan:
     subsets: dict[str, tuple[str, ...]]
     gt_revision: int = GT_REVISION
 
+    def pending_migration(self) -> str | None:
+        """The first ground-truth migration this plan has not had (None when up to date)."""
+        return GT_MIGRATIONS[self.gt_revision] if self.gt_revision < GT_REVISION else None
+
     def check_gt_revision(self) -> None:
         """A plan built before the current ground-truth revision must be migrated first."""
-        if self.gt_revision < GT_REVISION:
+        pending = self.pending_migration()
+        if pending is not None:
             raise ConfigError(
                 f"dataset {self.version} has ground-truth revision {self.gt_revision}, this "
-                f"checkout {GT_REVISION}: run `physverify dataset migrate --name {GT_MIGRATION}` "
+                f"checkout {GT_REVISION}: run `physverify dataset migrate --name {pending}` "
                 "before building on it"
             )
         if self.gt_revision > GT_REVISION:

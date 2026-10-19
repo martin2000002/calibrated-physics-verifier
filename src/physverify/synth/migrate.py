@@ -1,6 +1,8 @@
 """Migrating a stored dataset without bumping its version: to ``velocity_convention`` (WP-G 1.C,
-``velocity-<convention>``) or to the floor crossing of a penetrated bounce row (WP-H,
-``floor-crossing``, which raises the plan's ``gt_revision``).
+``velocity-<convention>``) or through the ground-truth fixes of ``plan.GT_MIGRATIONS`` (WP-H
+``floor-crossing``, ...), each run only as the first one the plan still lacks. Every migration
+re-runs APPLY with this checkout, so it leaves the plan at ``GT_REVISION`` and its manifest lists
+the fixes it ``covers``.
 
 APPLY is reopened and run again on every clip it had already reached (applied or skipped; a clip
 never applied stays pending for its own build); ``discard_downstream``
@@ -23,7 +25,7 @@ from physverify.core.errors import ConfigError, MissingInputError, UsageError
 from physverify.synth.generate import load_plan
 from physverify.synth.gt_export import DATASET_NAME, write_index
 from physverify.synth.perturb import apply_variants
-from physverify.synth.plan import GT_MIGRATION, GT_REVISION, DatasetPlan
+from physverify.synth.plan import GT_MIGRATIONS, GT_REVISION, DatasetPlan
 from physverify.synth.settings import DatasetSettings
 from physverify.synth.store import (
     RECORD,
@@ -38,7 +40,8 @@ MIGRATIONS_DIR = "migrations"
 CONVENTION_KEY = "velocity_convention"
 RERENDER_KEY = "rerender_clip_ids"
 COMPLETED_KEY = "completed_utc"
-FLOOR_CROSSING = GT_MIGRATION
+COVERS_KEY = "covers"
+FLOOR_CROSSING = GT_MIGRATIONS[0]
 
 type Clock = Callable[[], dt.datetime]
 
@@ -56,12 +59,28 @@ def velocity_migration(ds: DatasetSettings) -> str:
 
 
 def migration_names(ds: DatasetSettings) -> tuple[str, ...]:
-    return (velocity_migration(ds), FLOOR_CROSSING)
+    return (velocity_migration(ds), *GT_MIGRATIONS)
 
 
 def check_name(name: str, ds: DatasetSettings) -> None:
     if name not in migration_names(ds):
         raise UsageError(f"unknown migration {name!r}; known: {list(migration_names(ds))}")
+
+
+def check_pending(plan: DatasetPlan, name: str) -> None:
+    """A ground-truth migration runs only as the first one the plan has not had."""
+    pending = plan.pending_migration()
+    if name in GT_MIGRATIONS and name != pending:
+        state = "is up to date" if pending is None else f"needs `{pending}` first"
+        raise ConfigError(
+            f"dataset {plan.version} has ground-truth revision {plan.gt_revision} and {state}: "
+            f"migration {name!r} refused"
+        )
+
+
+def covered(old_revision: int) -> list[str]:
+    """The ground-truth fixes a run from ``old_revision`` brings in (APPLY uses this checkout)."""
+    return list(GT_MIGRATIONS[old_revision:GT_REVISION])
 
 
 def manifest_path(store: DatasetStore, name: str) -> Path:
@@ -139,6 +158,7 @@ def baseline(
         "created_utc": _stamp(now),
         "config_hash": {"old": plan.config_hash, "new": ds.content_hash()},
         "gt_revision": {"old": plan.gt_revision, "new": GT_REVISION},
+        COVERS_KEY: covered(plan.gt_revision),
         "rendered_before": [c for c in clip_ids if store.is_done(Step.RENDER, c)],
         "status_before": statuses(plan, store),
         RERENDER_KEY: [],
@@ -209,6 +229,8 @@ def reapply(
         raise MissingInputError(f"nothing planned in {store.root}")
     check_plan_hash(plan, ds, name)
     path = manifest_path(store, name)
+    if not (path.is_file() and COMPLETED_KEY in read_json(path)):
+        check_pending(plan, name)
     manifest = load_or_start(path, plan, store, ds, commit, name, now)
     if COMPLETED_KEY in manifest:
         return _report(path, 0, manifest)

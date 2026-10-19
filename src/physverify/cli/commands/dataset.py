@@ -32,7 +32,7 @@ from physverify.synth.perturb import (
     ground_truth_contacts,
     instantiate,
 )
-from physverify.synth.plan import DatasetPlan
+from physverify.synth.plan import GT_MIGRATIONS, DatasetPlan
 from physverify.synth.render import render as render_clips
 from physverify.synth.render import seconds_per_frame
 from physverify.synth.settings import (
@@ -283,7 +283,8 @@ NameOption = Annotated[
     str | None,
     typer.Option(
         "--name",
-        help="velocity-<convention> (WP-G 1.C, the default) or floor-crossing (WP-H).",
+        help="velocity-<convention> (WP-G 1.C, the default) or the ground-truth fix the plan "
+        f"needs next, in order: {', '.join(GT_MIGRATIONS)}.",
     ),
 ]
 
@@ -303,8 +304,8 @@ def run_migrate(job: DatasetJob, name: str, commit: str | None) -> None:
 @app.command(
     "migrate",
     help="Re-run APPLY on every simulated clip with this checkout (a named migration: "
-    "velocity-<convention> or floor-crossing), keeping the version and every render whose inputs "
-    "did not change; writes migrations/<name>.json.",
+    "velocity-<convention> or the next ground-truth fix), keeping the version and every render "
+    "whose inputs did not change; writes migrations/<name>.json.",
 )
 @heavy_command
 def migrate_command(name: NameOption = None, commit: CommitOption = None) -> None:
@@ -325,9 +326,8 @@ def migrate_velocity_command(commit: CommitOption = None) -> None:
 @app.command(
     "audit-migration",
     help="Acceptance audit of a migration against a copy of the dataset taken before it "
-    "(re-renders, frames, contacts, records, labels, rest cells, stale cache; for floor-crossing "
-    "also impact frames, analytic rows under the floor, GT metadata and penetrated bounces); "
-    "JSON to --out.",
+    "(re-renders, frames, contacts, records, labels, rest cells, stale cache, plus the checks of "
+    "every ground-truth fix the run covers); JSON to --out.",
 )
 def audit_migration(
     before: Annotated[Path, typer.Option(help="The dataset directory copied before migrating.")],

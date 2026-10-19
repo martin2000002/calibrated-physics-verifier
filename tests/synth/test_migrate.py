@@ -25,6 +25,7 @@ from physverify.synth.gt_export import read_index
 from physverify.synth.migrate import (
     COMPLETED_KEY,
     CONVENTION_KEY,
+    COVERS_KEY,
     FLOOR_CROSSING,
     RERENDER_KEY,
     manifest_path,
@@ -43,7 +44,7 @@ from physverify.synth.migration_audit import (
 from physverify.synth.perturb import apply_variants, instantiate
 from physverify.synth.perturbations import _measure, r3_restitution_gain
 from physverify.synth.perturbations._ballistics import time_to_height
-from physverify.synth.plan import GT_REVISION, DatasetPlan
+from physverify.synth.plan import GT_MIGRATIONS, GT_REVISION, DatasetPlan
 from physverify.synth.settings import DatasetSettings, load_dataset_settings
 from physverify.synth.store import (
     CLOSEST,
@@ -495,3 +496,62 @@ def test_an_unknown_migration_name_is_a_usage_error(
 
 def test_the_audit_predicts_from_the_impact_the_consumer_reads() -> None:
     assert migration_audit.first_floor_impact is r3_restitution_gain.first_floor_impact
+
+
+def test_the_revision_is_the_length_of_the_migration_table(
+    position_ds: DatasetSettings, families: Any, perturbations: Any
+) -> None:
+    assert len(GT_MIGRATIONS) == GT_REVISION and GT_MIGRATIONS[0] == FLOOR_CROSSING
+    assert migrate.migration_names(position_ds) == ("velocity-position", *GT_MIGRATIONS)
+    plan = plan_subset(position_ds, families, perturbations, "smoke")
+    assert plan.gt_revision == GT_REVISION and plan.pending_migration() is None
+    for revision, name in enumerate(GT_MIGRATIONS):
+        old = dataclasses.replace(plan, gt_revision=revision)
+        assert old.pending_migration() == name
+        with pytest.raises(ConfigError, match=f"migrate --name {name}`"):
+            old.check_gt_revision()
+
+
+def test_a_migration_that_is_not_the_pending_one_is_refused(
+    tmp_path: Path, position_ds: DatasetSettings, families: Any, perturbations: Any
+) -> None:
+    _, store, plugins = build(
+        tmp_path / "store", position_ds, position_ds.content_hash(), families, perturbations
+    )
+    for name in GT_MIGRATIONS:
+        with pytest.raises(ConfigError, match="is up to date"):
+            reapply(store, plugins, position_ds, COMMIT, name, clock)
+    assert not (store.root / "migrations").exists()
+
+
+def test_the_first_fix_from_revision_zero_covers_every_fix(
+    tmp_path: Path,
+    position_ds: DatasetSettings,
+    families: Any,
+    perturbations: Any,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _, store, plugins = before_floor_crossing(
+        tmp_path, position_ds, families, perturbations, monkeypatch
+    )
+    report = reapply(store, plugins, position_ds, COMMIT, GT_MIGRATIONS[0], clock)
+    manifest = read_json(report.manifest)
+    assert manifest["gt_revision"] == {"old": 0, "new": GT_REVISION}
+    assert manifest[COVERS_KEY] == list(GT_MIGRATIONS)
+    stored = load_plan(store)
+    assert stored is not None and stored.gt_revision == GT_REVISION
+    for name in GT_MIGRATIONS[1:]:
+        with pytest.raises(ConfigError, match="is up to date"):
+            reapply(store, plugins, position_ds, COMMIT, name, clock)
+
+
+def test_the_velocity_migration_records_what_it_covers(
+    tmp_path: Path, position_ds: DatasetSettings, families: Any, perturbations: Any
+) -> None:
+    plan, store, plugins = legacy(tmp_path, position_ds, families, perturbations)
+    report = migrate_velocity(store, plugins, position_ds, COMMIT, clock)
+    assert read_json(report.manifest)[COVERS_KEY] == []
+    inputs = AuditInputs(
+        plan, store, store, report.manifest, plugins, position_ds, "velocity-position"
+    )
+    assert migration_audit.covered_migrations(inputs) == [migration_audit.VELOCITY]
