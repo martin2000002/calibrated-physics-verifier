@@ -31,7 +31,7 @@ from physverify.calibration.schema import (
 )
 from physverify.calibration.settings import CalibrationConfig, CalibrationSettings
 from physverify.calibration.table import CalibrationRow, Role
-from physverify.schema.checks import CheckResult, InputLevel, Verdict
+from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
 from physverify.schema.clip import ClipManifest, Split, TimeSource
 from physverify.schema.scene import MagnitudeKind, PerturbationRecord
 from physverify.verification.policies.threshold import ThresholdParams
@@ -114,16 +114,38 @@ def result(
     magnitude: float | None = 0.1,
     sigma: float = 0.0,
     level: InputLevel = InputLevel.PERCEIVED,
+    subject: str = "a",
 ) -> CheckResult:
     return CheckResult(
         check_id=check_id,
         clip_id=clip_id,
-        subject=("a",),
+        subject=(subject,),
         frame_span=(0, 3),
         magnitude=magnitude,
         sigma=sigma,
         unit=UNITS.get(check_id, "u"),
         verdict=Verdict.UNSCORED,
+        input_level=level,
+    )
+
+
+def missing(
+    check_id: str,
+    clip_id: str = "clip",
+    level: InputLevel = InputLevel.PERCEIVED,
+    subject: str = "b",
+) -> CheckResult:
+    """A subject the runner abstained on for a missing input (no magnitude)."""
+    return CheckResult(
+        check_id=check_id,
+        clip_id=clip_id,
+        subject=(subject,),
+        frame_span=None,
+        magnitude=None,
+        sigma=float("nan"),
+        unit=UNITS.get(check_id, "u"),
+        verdict=Verdict.ABSTAIN,
+        abstain_reason=AbstainReason.MISSING_INPUT,
         input_level=level,
     )
 
@@ -139,9 +161,14 @@ def row(
     sigma: float = 0.0,
     check_id: str = "R1",
     status: RowStatus = RowStatus.SCORED,
+    subjects: Sequence[CheckResult] | None = None,
 ) -> CalibrationRow:
+    """A row; without ``subjects`` it has the one subject its magnitude and status imply."""
+    clip_id = clip_id or f"{scene}-{role.value}-{level}"
+    if subjects is None:
+        subjects = _one_subject(clip_id, check_id, magnitude, sigma, status)
     return CalibrationRow(
-        clip_id=clip_id or f"{scene}-{role.value}-{level}",
+        clip_id=clip_id,
         scene_id=scene,
         split=Split.CALIB,
         check_id=check_id,
@@ -156,7 +183,18 @@ def row(
         mu=mu,
         mu_unit=UNITS.get(check_id, "u"),
         row_step=1,
+        subjects=tuple(subjects),
     )
+
+
+def _one_subject(
+    clip_id: str, check_id: str, magnitude: float | None, sigma: float, status: RowStatus
+) -> tuple[CheckResult, ...]:
+    if status is RowStatus.NO_EVENT:
+        return ()
+    if status is RowStatus.ABSTAINED or magnitude is None:
+        return (missing(check_id, clip_id, InputLevel.ORACLE),)
+    return (result(check_id, clip_id, magnitude, sigma, InputLevel.ORACLE),)
 
 
 # --- a synthetic raw-policy report ----------------------------------------------------------------

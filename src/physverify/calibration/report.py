@@ -55,7 +55,8 @@ def _rate(r: Rate) -> str:
 
 def _ld(ld: DetectionLimit) -> str:
     opened = f" open {','.join(ld.ci_open)}" if ld.ci_open else ""
-    return f"{_num(ld.value)} {_ci(ld.ci)} {ld.censored}{opened} (estimate)"
+    reason = f" {ld.reason}" if ld.reason else ""
+    return f"{_num(ld.value)} {_ci(ld.ci)} {ld.censored}{opened}{reason} (estimate)"
 
 
 def _table(headers: Sequence[str], rows: Iterable[Sequence[str]]) -> list[str]:
@@ -70,7 +71,7 @@ def _check_row(check_id: str, c: CheckCalibration) -> list[str]:
         c.status,
         _num(c.tau),
         c.unit,
-        str(c.n_clean_scenes),
+        str(c.n_clean_scenes) + (f" ({c.n_clean_dropped} NaN)" if c.n_clean_dropped else ""),
         f"{_num(c.tau_conformal)} / {_num(c.tau_tolerance)}",
         _rate(c.fpr.cv),
         _rate(c.fpr.cv_decided),
@@ -107,7 +108,9 @@ def _stratum_lines(s: Stratum) -> list[str]:
     lines += _table(CHECK_HEADERS, (_check_row(c, s.checks[c]) for c in sorted(s.checks)))
     lines += [
         "",
-        f"Score threshold s* = {_num(agg.score_threshold)} (sufficient: {agg.sufficient}, "
+        f"Score threshold s* = {_num(agg.score_threshold)}"
+        f"{' (in-sample, optimistic)' if agg.score_threshold_in_sample else ''} "
+        f"(sufficient: {agg.sufficient}, "
         f"{agg.n_clean_scenes} clean / {agg.n_perturbed_clips} perturbed clips); "
         f"AUROC {_num(agg.auroc.value)} {_ci(agg.auroc.ci)}.",
         "",

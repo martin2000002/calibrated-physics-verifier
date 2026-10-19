@@ -6,21 +6,24 @@ import math
 
 import numpy as np
 import pytest
-from calibration_cases import row, settings
+from calibration_cases import result, row, settings
 
 from physverify.calibration.fit import check_status
-from physverify.calibration.table import CalibrationDataError, Role
+from physverify.calibration.schema import UNRANKED_NEGATIVES
+from physverify.calibration.table import CalibrationDataError, Role, require_subjects
 from physverify.calibration.thresholds import (
+    NOT_DETERMINED,
     Detection,
-    Rule,
     cv_verdicts,
     detection_limit,
+    fails,
     false_positive_rates,
     fit_tau,
     fpr_summary,
     tpr_by_level,
 )
-from physverify.schema.checks import Verdict
+from physverify.calibration.verdict import Rule
+from physverify.schema.checks import InputLevel, Verdict
 from physverify.verification.policies.threshold import ThresholdPolicy
 
 ALPHA = 0.05
@@ -53,6 +56,30 @@ def test_too_few_clean_scenes_is_insufficient() -> None:
     assert check_status(full, [row(0.5, role=Role.POSITIVE)]) == "ok"
 
 
+def test_a_nan_subject_does_not_hide_a_larger_one_from_tau() -> None:
+    """Subjects [NaN, 100]: the table row may show NaN, but tau ranks 100, the clip FAILs on."""
+    subjects = [
+        result("R1", "hidden", math.nan, 0.0, InputLevel.ORACLE),
+        result("R1", "hidden", 100.0, 0.0, InputLevel.ORACLE, subject="b"),
+    ]
+    hidden = row(math.nan, scene="s19", clip_id="hidden", subjects=subjects)
+    tau = fit_tau([*clean_rows(np.linspace(0.0, 1.0, 19)), hidden], 0.0, ALPHA, 0.0)
+    assert (tau.n, tau.n_dropped, tau.value) == (20, 0, 100.0)
+    assert fails(hidden, RULE, 1.0)
+
+
+def test_only_nan_clean_magnitudes_are_unranked_not_absent() -> None:
+    nan_rows = [row(math.nan, scene=f"s{i}") for i in range(3)]
+    tau = fit_tau(nan_rows, 0.0, ALPHA, 0.0)
+    assert (tau.n, tau.n_dropped, tau.value) == (0, 3, None)
+    assert check_status(tau, []) == UNRANKED_NEGATIVES
+
+
+def test_a_scored_row_without_subjects_is_rejected() -> None:
+    with pytest.raises(CalibrationDataError, match="no per-subject results"):
+        require_subjects([row(0.5, subjects=())])
+
+
 def test_tau_is_the_conformal_quantile_when_it_exceeds_the_tolerance() -> None:
     values = np.linspace(0.0, 1.8, 19)
     tau = fit_tau(clean_rows(values), 0.5, ALPHA, 1e-5)
@@ -69,9 +96,9 @@ def test_floating_point_noise_falls_back_to_the_tolerance() -> None:
     cv = cv_verdicts(noise, RULE, settings(), 1e-5)
     assert all(v is Verdict.PASS for v in cv.values())
     fresh = clean_rows(np.abs(rng.normal(0.0, 1e-14, 200)))
-    assert not any(RULE.fails(r, tau.value) for r in fresh)
+    assert not any(fails(r, RULE, tau.value) for r in fresh)
     without = fit_tau(noise, 0.0, ALPHA, 0.0).value
-    assert without is not None and any(RULE.fails(r, without) for r in fresh)
+    assert without is not None and any(fails(r, RULE, without) for r in fresh)
 
 
 def test_two_clean_clips_of_one_scene_are_rejected() -> None:
@@ -195,25 +222,43 @@ def test_the_detection_limit_point_is_recovered() -> None:
     assert float(np.median(errors)) <= 0.15
 
 
-def test_perfect_detection_from_the_lowest_level_is_censored_below() -> None:
-    found = [Detection(f"s{i}", mu, True, lv) for i in range(5) for lv, mu in ((1, 0.05), (2, 0.1))]
-    ld = detection_limit(found, "u", settings())
+def perfect(n: int) -> list[Detection]:
+    return [Detection(f"s{i}", mu, True, lv) for i in range(n) for lv, mu in ((1, 0.05), (2, 0.1))]
+
+
+@pytest.mark.parametrize("n", [5, 20])
+def test_few_perfect_detections_do_not_censor_below(n: int) -> None:
+    """5/5 and 20/20 bound the rate at about 0.55 and 0.86 (< 0.95): L_D is not determined."""
+    ld = detection_limit(perfect(n), "u", settings())
+    assert (ld.censored, ld.value, ld.bound, ld.reason) == ("none", None, None, NOT_DETERMINED)
+
+
+def test_perfect_detection_with_enough_clips_is_censored_below() -> None:
+    """60/60 bounds the one-sided 95 % Clopper-Pearson rate at 0.951 >= 0.95."""
+    ld = detection_limit(perfect(60), "u", settings())
     assert (ld.censored, ld.bound, ld.value) == ("below", 0.05, None)
 
 
-@pytest.mark.parametrize(
-    "detected", [lambda lv: False, lambda lv: lv == 1], ids=["never", "decreasing"]
-)
-def test_no_increasing_slope_is_censored_above(detected) -> None:  # type: ignore[no-untyped-def]
-    found = [
-        Detection(f"s{i}", mu, detected(lv), lv)
+def three_levels(detected_at: frozenset[int]) -> list[Detection]:
+    return [
+        Detection(f"s{i}", mu, lv in detected_at, lv)
         for i in range(10)
         for lv, mu in ((1, 0.05), (2, 0.1), (3, 0.2))
     ]
-    if detected(1):
-        found[0] = Detection("s0", 0.05, False, 1)
-    ld = detection_limit(found, "u", settings())
+
+
+def test_nothing_detected_is_censored_above() -> None:
+    ld = detection_limit(three_levels(frozenset()), "u", settings())
     assert (ld.censored, ld.bound, ld.value) == ("above", 0.2, None)
+
+
+def test_a_failed_fit_with_detections_at_the_lowest_level_is_not_determined() -> None:
+    """Detected at the lowest level only (decreasing): the fit has no increasing slope, but the
+    data do not show L_D above the tested range either."""
+    found = three_levels(frozenset({1}))
+    found[0] = Detection("s0", 0.05, False, 1)
+    ld = detection_limit(found, "u", settings())
+    assert (ld.censored, ld.bound, ld.value, ld.reason) == ("none", None, None, NOT_DETERMINED)
 
 
 def test_no_positive_clip_has_no_detection_limit() -> None:

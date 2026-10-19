@@ -29,6 +29,16 @@ def clopper_pearson(k: int, n: int, ci: float) -> Ci:
     return Ci(low=float(interval.low), high=float(interval.high))
 
 
+def clopper_pearson_lower(k: int, n: int, confidence: float) -> float:
+    """One-sided exact lower bound of a binomial rate at ``confidence`` (0 when n = 0)."""
+    if n <= 0:
+        return 0.0
+    interval = binomtest(k, n, alternative="greater").proportion_ci(
+        confidence_level=confidence, method="exact"
+    )
+    return float(interval.low)
+
+
 def rate(k: int, n: int, ci: float) -> Rate:
     return Rate(value=k / n if n > 0 else None, ci=clopper_pearson(k, n, ci), k=k, n=n)
 
@@ -40,19 +50,29 @@ def conformal_index(n: int, alpha: float) -> int:
 
 @dataclass(frozen=True)
 class Conformal:
+    """``n`` ranked samples; ``n_dropped`` NaN samples that could not be ranked."""
+
     value: float | None
     sufficient: bool
+    n: int = 0
+    n_dropped: int = 0
 
 
 def conformal_quantile(values: ArrayLike, alpha: float) -> Conformal:
-    """m_(k) of the exchangeable samples; the maximum (and insufficient) when k > n."""
-    ordered = np.sort(_finite(values))
-    if not ordered.size:
-        return Conformal(None, False)
-    k = conformal_index(int(ordered.size), alpha)
-    if k > ordered.size:
-        return Conformal(float(ordered[-1]), False)
-    return Conformal(float(ordered[k - 1]), True)
+    """m_(k) of the exchangeable samples; the maximum (and insufficient) when k > n. A +inf ranks
+    as the largest sample instead of vanishing; when it is the chosen rank the quantile is
+    undefined (None, insufficient). NaN cannot be ranked: it is dropped and counted."""
+    raw = np.asarray(values, dtype=np.float64).ravel()
+    ordered = np.sort(raw[~np.isnan(raw)])
+    n, dropped = int(ordered.size), int(raw.size - ordered.size)
+    if not n:
+        return Conformal(None, False, n, dropped)
+    k = conformal_index(n, alpha)
+    sufficient = k <= n
+    value = float(ordered[min(k, n) - 1])
+    if not math.isfinite(value):
+        return Conformal(None, False, n, dropped)
+    return Conformal(value, sufficient, n, dropped)
 
 
 def grouped_folds(groups: Sequence[str], k: int, seed: int) -> tuple[frozenset[str], ...]:

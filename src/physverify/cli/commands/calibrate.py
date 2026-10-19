@@ -466,6 +466,7 @@ def evaluate_command(
         run_id=session.run.run_id,
         artifact_path=str(calibration.path),
         dataset=_dataset_ref(source, name, "all", chosen),
+        profile=session.context.settings.profile,
     )
     report = evaluate(calibration, inputs, meta, session.config)
     _write(session.run.run_dir / EVALUATION_FILE, report.to_json())

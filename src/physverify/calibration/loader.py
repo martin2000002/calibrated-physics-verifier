@@ -25,7 +25,13 @@ from physverify.calibration.settings import calibration_settings
 from physverify.config.models import Settings
 from physverify.core.errors import PhysverifyError
 from physverify.schema.checks import InputLevel
-from physverify.verification.runner import CALIBRATED, ArtifactRef, ThresholdEntry, ThresholdTable
+from physverify.verification.runner import (
+    CALIBRATED,
+    UNKNOWN_ROW_STEP,
+    ArtifactRef,
+    ThresholdEntry,
+    ThresholdTable,
+)
 
 
 class CalibrationError(PhysverifyError):
@@ -107,6 +113,26 @@ class Stratum:
             return None
         return ThresholdEntry(tau=check.tau, bias=check.sigma.bias, sigma_factor=check.sigma.factor)
 
+    def time_base_problem(self, profile: str, row_step: int) -> str | None:
+        """Why this stratum does not apply to a run of ``profile`` and ``row_step`` (tau and the
+        magnitudes depend on the time base, ADR 0006 R9); None when it does. A row_step of
+        ``UNKNOWN_ROW_STEP`` on either side (no time axis) is not compared."""
+        if self.profile != profile:
+            return f"{self.source} was fitted on profile {self.profile!r}, the run uses {profile!r}"
+        fitted = self.model.row_step
+        if UNKNOWN_ROW_STEP not in (fitted, row_step) and fitted != row_step:
+            return f"{self.source} was fitted with row_step {fitted}, the run has {row_step}"
+        return None
+
+    def readiness_problem(self) -> str | None:
+        """Why this stratum cannot score a clip; None when it can. Checks that are not ``ok``
+        have no tau and do not contribute, so one usable check suffices."""
+        if not self.model.aggregate.sufficient:
+            return f"{self.source}: the aggregate threshold s* is insufficient"
+        if self.max_weight() <= 0.0:
+            return f"{self.source}: no check is ok with a weight > 0"
+        return None
+
     def score_threshold(self) -> float | None:
         """Flag a clip when 1 - S exceeds it."""
         return self.model.aggregate.score_threshold
@@ -183,6 +209,22 @@ def load_calibration(path: Path, *, checks_hash: str | None = None) -> Calibrati
             f"({calibration.artifact.checks_hash[:12]} != {checks_hash[:12]}): refit"
         )
     return calibration
+
+
+def usable_stratum(
+    path: Path, level: InputLevel, profile: str, *, checks_hash: str, row_step: int
+) -> str | None:
+    """The one gate a consumer (H2, A11/H3) applies before scoring with a stratum: the problem
+    as a message, None when the stratum is usable. Usable = the artifact loads and was fitted
+    with ``checks_hash``, it has the (``level``, ``profile``) stratum, the stratum's time base
+    matches the run's ``row_step``, its aggregate is sufficient and at least one check is ok
+    with a weight > 0. Only this stratum is required, not the artifact status (the artifact is
+    ``calibrated`` only when every check of every stratum is ok)."""
+    try:
+        stratum = load_calibration(path, checks_hash=checks_hash).stratum(level, profile)
+    except CalibrationError as exc:
+        return str(exc)
+    return stratum.time_base_problem(profile, row_step) or stratum.readiness_problem()
 
 
 def parse_calibration(text: str, *, path: Path | None = None) -> Calibration:

@@ -15,7 +15,7 @@ from scipy.special import expit
 
 from physverify.calibration.loader import KSigmaMismatchError, Stratum
 from physverify.calibration.schema import CheckCalibration
-from physverify.calibration.thresholds import DECIDED
+from physverify.calibration.verdict import DECIDED, Outcome, Rule, clip_verdict
 from physverify.schema.checks import AbstainReason, CheckResult, Verdict
 from physverify.verification.policies.threshold import ThresholdParams, ThresholdPolicy
 
@@ -64,33 +64,41 @@ def violation_probability(check: CheckCalibration, magnitude: float) -> float | 
     return float(expit(prob.a + prob.b * u))
 
 
+def rule_for(stratum: Stratum, check_id: str, policy: ThresholdPolicy) -> Rule:
+    """The stratum's bias and sigma factor of ``check_id`` (0 and unmeasured when unknown)."""
+    check = stratum.check(check_id)
+    if check is None:
+        return Rule(policy, 0.0, None)
+    return Rule(policy, check.sigma.bias, check.sigma.factor)
+
+
 def calibrated_result(
     result: CheckResult, stratum: Stratum, k_sigma: float | None = None
 ) -> CalibratedResult:
-    return _calibrated(result, stratum, policy_for(stratum, k_sigma))
+    return _calibrated(result.check_id, [result], stratum, policy_for(stratum, k_sigma))
 
 
-def _calibrated(result: CheckResult, stratum: Stratum, policy: ThresholdPolicy) -> CalibratedResult:
-    bias, factor = stratum.sigma_correction(result.check_id)
-    entry = stratum.entry(result.check_id)
-    magnitude = None if result.magnitude is None else result.magnitude - bias
-    base = CalibratedResult(
-        check_id=result.check_id,
-        magnitude=magnitude,
-        sigma=factor * result.sigma,
-        tau=None if entry is None else entry.tau,
-        p_violation=None,
-        verdict=Verdict.UNSCORED,
-        abstain_reason=None,
+def _calibrated(
+    check_id: str, results: Sequence[CheckResult], stratum: Stratum, policy: ThresholdPolicy
+) -> CalibratedResult:
+    tau = stratum.tau(check_id)
+    outcome = clip_verdict(results, rule_for(stratum, check_id, policy), tau)
+    return CalibratedResult(
+        check_id=check_id,
+        magnitude=outcome.magnitude,
+        sigma=outcome.sigma,
+        tau=tau,
+        p_violation=_probability(stratum.check(check_id), outcome),
+        verdict=outcome.verdict,
+        abstain_reason=outcome.abstain_reason,
     )
-    if result.verdict is Verdict.ABSTAIN or result.magnitude is None:
-        return replace(base, verdict=Verdict.ABSTAIN, abstain_reason=result.abstain_reason)
-    if entry is None:
-        return base
-    verdict, reason = policy.judge(result.magnitude, result.sigma, entry)
-    check = stratum.check(result.check_id)
-    p = None if check is None else violation_probability(check, result.magnitude)
-    return replace(base, verdict=verdict, abstain_reason=reason, p_violation=p)
+
+
+def _probability(check: CheckCalibration | None, outcome: Outcome) -> float | None:
+    raw = None if outcome.result is None else outcome.result.magnitude
+    if check is None or not outcome.judged or raw is None:
+        return None
+    return violation_probability(check, raw)
 
 
 @dataclass(frozen=True)
@@ -123,17 +131,11 @@ class _Decided:
 def check_outcome(
     results: Sequence[CheckResult], stratum: Stratum, policy: ThresholdPolicy
 ) -> CalibratedResult | None:
-    """The check's clip outcome: its worst FAIL, else its largest PASS when every scored subject
-    passes, else an abstention (None when it has no event)."""
-    calibrated = [_calibrated(r, stratum, policy) for r in results]
-    if not calibrated:
+    """The check's clip outcome (``clip_verdict``, the rule ``fit`` measured); None when it has
+    no event."""
+    if not results:
         return None
-    failed = [c for c in calibrated if c.verdict is Verdict.FAIL]
-    if failed:
-        return max(failed, key=lambda c: c.magnitude or 0.0)
-    if all(c.verdict is Verdict.PASS for c in calibrated):
-        return max(calibrated, key=lambda c: c.magnitude or 0.0)
-    return next(c for c in calibrated if c.verdict not in DECIDED)
+    return _calibrated(results[0].check_id, results, stratum, policy)
 
 
 def _derivative(check: CheckCalibration, p: float) -> float:

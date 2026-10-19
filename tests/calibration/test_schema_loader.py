@@ -14,8 +14,9 @@ from physverify.calibration.loader import (
     load_calibration,
     parse_calibration,
     projection_name,
+    usable_stratum,
 )
-from physverify.calibration.schema import CALIBRATION_VERSION
+from physverify.calibration.schema import CALIBRATION_VERSION, CheckCalibration
 from physverify.schema.checks import InputLevel
 from physverify.verification.runner import (
     CALIBRATED,
@@ -132,3 +133,56 @@ def test_the_stratum_carries_the_checks_hash(text: str) -> None:
     parsed = parse_calibration(text)
     stratum = parsed.stratum(InputLevel.ORACLE, "fast")
     assert stratum.checks_hash == parsed.artifact.checks_hash is not None
+
+
+def usable(
+    path: Path, *, checks_hash: str = "checks", row_step: int = 1, profile: str = "fast"
+) -> str | None:
+    return usable_stratum(
+        path, InputLevel.ORACLE, profile, checks_hash=checks_hash, row_step=row_step
+    )
+
+
+def test_a_stratum_with_one_ok_check_is_usable(tmp_path: Path, text: str) -> None:
+    """R3a and R5b are not ok, R1 is: only the stratum used is required (0b.2)."""
+    path = write(tmp_path, text)
+    assert parse_calibration(text).status == "insufficient"
+    assert usable(path) is None
+
+
+def test_a_stale_or_absent_artifact_is_not_usable(tmp_path: Path, text: str) -> None:
+    path = write(tmp_path, text)
+    stale = usable(path, checks_hash="other")
+    assert stale is not None and "refit" in stale
+    absent = usable(tmp_path / "x.json")
+    assert absent is not None and "calibrate fit" in absent
+
+
+def test_another_profile_or_row_step_is_not_usable(tmp_path: Path, text: str) -> None:
+    path = write(tmp_path, text)
+    other = usable(path, profile="precise")
+    assert other is not None and "no stratum" in other
+    step = usable(path, row_step=2)
+    assert step is not None and "row_step 1" in step
+
+
+def _artifact_path(
+    tmp_path: Path, checks: dict[str, CheckCalibration], threshold: float | None
+) -> Path:
+    model = stratum_model(checks, InputLevel.ORACLE, score_threshold=threshold)
+    return write(tmp_path, artifact_of((model,)).to_json())
+
+
+def test_no_ok_check_with_weight_is_not_usable(tmp_path: Path) -> None:
+    checks = {
+        "short": check_calibration(tau=0.5, status="insufficient"),
+        "zero": check_calibration(tau=0.5, weight=0.0),
+    }
+    found = usable(_artifact_path(tmp_path, checks, 0.3))
+    assert found is not None and "no check is ok" in found
+
+
+def test_an_insufficient_aggregate_is_not_usable(tmp_path: Path) -> None:
+    checks = {"ok": check_calibration(tau=0.5)}
+    found = usable(_artifact_path(tmp_path, checks, None))
+    assert found is not None and "insufficient" in found
