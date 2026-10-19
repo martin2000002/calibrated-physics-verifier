@@ -24,7 +24,7 @@ from physverify.synth.generate import (
     write_specs,
 )
 from physverify.synth.gt_export import export_all
-from physverify.synth.migrate import manifest_path, migrate_velocity
+from physverify.synth.migrate import check_name, manifest_path, reapply, velocity_migration
 from physverify.synth.migration_audit import AuditInputs, audit
 from physverify.synth.perturb import (
     apply_variants,
@@ -87,13 +87,17 @@ class DatasetJob:
     def plugins(self) -> dict[str, Any]:
         return instantiate(self.context.registry("perturbations"), self.ds)
 
-    def plan(self) -> DatasetPlan:
+    def plan(self, current: bool = True) -> DatasetPlan:
+        """The stored plan of the subset; ``current`` refuses one built before this checkout's
+        ground-truth revision (it must be migrated first)."""
         plan = load_plan(self.store)
         if plan is None:
             raise MissingInputError(
                 f"nothing planned in {self.store.root}: run `physverify dataset generate "
                 f"--subset {self.subset or 'local'}`"
             )
+        if current:
+            plan.check_gt_revision()
         return plan.subset(self.subset)
 
     def subset_name(self) -> str:
@@ -268,37 +272,62 @@ def export_gt(subset: SubsetOption = "local") -> None:
 @app.command("list", help="Progress of every step for the subset, skipped clips and s/frame.")
 def list_command(subset: SubsetOption = "local") -> None:
     job = _job(subset)
-    for line in status_lines(job.plan(), job.store):
+    for line in status_lines(job.plan(current=False), job.store):
         typer.echo(line)
 
 
-@app.command(
-    "migrate-velocity",
-    help="Re-run APPLY on every simulated clip under the configured velocity_convention, keeping "
-    "the version and every render whose inputs did not change; writes migrations/<name>.json.",
-)
-@heavy_command
-def migrate_velocity_command(
-    commit: Annotated[
-        str | None, typer.Option(help="Commit to log (default: HEAD of the repository).")
-    ] = None,
-) -> None:
-    job = _job(None)
+CommitOption = Annotated[
+    str | None, typer.Option(help="Commit to log (default: HEAD of the repository).")
+]
+NameOption = Annotated[
+    str | None,
+    typer.Option(
+        "--name",
+        help="velocity-<convention> (WP-G 1.C, the default) or floor-crossing (WP-H).",
+    ),
+]
+
+
+def run_migrate(job: DatasetJob, name: str, commit: str | None) -> None:
     settings = job.context.settings
-    report = migrate_velocity(
-        job.store, job.plugins, job.ds, commit or current_commit(settings.repo_root)
+    report = reapply(
+        job.store, job.plugins, job.ds, commit or current_commit(settings.repo_root), name
     )
     typer.echo(
-        f"migrate-velocity: {report.applied} applied, {len(report.rerender)} renders discarded, "
+        f"migrate {name}: {report.applied} applied, {len(report.rerender)} renders discarded, "
         f"{len(report.status_changes)} status changes; manifest {report.manifest}"
     )
     typer.echo("next: `physverify dataset build --subset <name>` for every built subset")
 
 
 @app.command(
+    "migrate",
+    help="Re-run APPLY on every simulated clip with this checkout (a named migration: "
+    "velocity-<convention> or floor-crossing), keeping the version and every render whose inputs "
+    "did not change; writes migrations/<name>.json.",
+)
+@heavy_command
+def migrate_command(name: NameOption = None, commit: CommitOption = None) -> None:
+    job = _job(None)
+    run_migrate(job, name or velocity_migration(job.ds), commit)
+
+
+@app.command(
+    "migrate-velocity",
+    help="Alias of `migrate --name velocity-<convention>` (WP-G 1.C).",
+)
+@heavy_command
+def migrate_velocity_command(commit: CommitOption = None) -> None:
+    job = _job(None)
+    run_migrate(job, velocity_migration(job.ds), commit)
+
+
+@app.command(
     "audit-migration",
-    help="Acceptance audit of migrate-velocity against a copy of the dataset taken before it "
-    "(re-renders, frames, contacts, records, labels, rest cells, stale cache); JSON to --out.",
+    help="Acceptance audit of a migration against a copy of the dataset taken before it "
+    "(re-renders, frames, contacts, records, labels, rest cells, stale cache; for floor-crossing "
+    "also impact frames, analytic rows under the floor, GT metadata and penetrated bounces); "
+    "JSON to --out.",
 )
 def audit_migration(
     before: Annotated[Path, typer.Option(help="The dataset directory copied before migrating.")],
@@ -309,11 +338,19 @@ def audit_migration(
     table: Annotated[
         list[Path] | None, typer.Option(help="table.csv of an oracle verify run (repeatable).")
     ] = None,
+    name: NameOption = None,
 ) -> None:
     job = _job(None)
-    plan = job.plan()
+    migration = name or velocity_migration(job.ds)
+    check_name(migration, job.ds)
     inputs = AuditInputs(
-        plan, job.store, DatasetStore(before), manifest_path(job.store, job.ds), job.plugins, job.ds
+        job.plan(),
+        job.store,
+        DatasetStore(before),
+        manifest_path(job.store, migration),
+        job.plugins,
+        job.ds,
+        migration,
     )
     roots = cache_root or [job.context.settings.paths.cache_dir]
     report = audit(inputs, roots, table or [])

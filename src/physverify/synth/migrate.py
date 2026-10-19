@@ -1,10 +1,12 @@
-"""Migrating a stored dataset to ``velocity_convention`` without bumping its version (WP-G 1.C).
+"""Migrating a stored dataset without bumping its version: to ``velocity_convention`` (WP-G 1.C,
+``velocity-<convention>``) or to the floor crossing of a penetrated bounce row (WP-H,
+``floor-crossing``, which raises the plan's ``gt_revision``).
 
 APPLY is reopened and run again on every clip it had already reached (applied or skipped; a clip
 never applied stays pending for its own build); ``discard_downstream``
 drops a render only where the poses, sizes or hidden frames changed, and a clip APPLY now refuses
 loses everything it had (render and export included). The manifest
-``<dataset>/migrations/velocity-<convention>.json`` is written before anything changes and
+``<dataset>/migrations/<name>.json`` is written before anything changes and
 completed afterwards, so a crashed run resumes and still lists every discarded render; once
 completed, running it again changes nothing."""
 
@@ -17,11 +19,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from physverify.core.errors import ConfigError, MissingInputError
+from physverify.core.errors import ConfigError, MissingInputError, UsageError
 from physverify.synth.generate import load_plan
 from physverify.synth.gt_export import DATASET_NAME, write_index
 from physverify.synth.perturb import apply_variants
-from physverify.synth.plan import DatasetPlan
+from physverify.synth.plan import GT_MIGRATION, GT_REVISION, DatasetPlan
 from physverify.synth.settings import DatasetSettings
 from physverify.synth.store import (
     RECORD,
@@ -36,6 +38,7 @@ MIGRATIONS_DIR = "migrations"
 CONVENTION_KEY = "velocity_convention"
 RERENDER_KEY = "rerender_clip_ids"
 COMPLETED_KEY = "completed_utc"
+FLOOR_CROSSING = GT_MIGRATION
 
 type Clock = Callable[[], dt.datetime]
 
@@ -48,8 +51,21 @@ class MigrationReport:
     status_changes: Mapping[str, Any]
 
 
-def manifest_path(store: DatasetStore, ds: DatasetSettings) -> Path:
-    return store.root / MIGRATIONS_DIR / f"velocity-{ds.velocity_convention}.json"
+def velocity_migration(ds: DatasetSettings) -> str:
+    return f"velocity-{ds.velocity_convention}"
+
+
+def migration_names(ds: DatasetSettings) -> tuple[str, ...]:
+    return (velocity_migration(ds), FLOOR_CROSSING)
+
+
+def check_name(name: str, ds: DatasetSettings) -> None:
+    if name not in migration_names(ds):
+        raise UsageError(f"unknown migration {name!r}; known: {list(migration_names(ds))}")
+
+
+def manifest_path(store: DatasetStore, name: str) -> Path:
+    return store.root / MIGRATIONS_DIR / f"{name}.json"
 
 
 def rerender_clip_ids(manifest: Path) -> list[str]:
@@ -58,7 +74,7 @@ def rerender_clip_ids(manifest: Path) -> list[str]:
     data = read_json(manifest)
     if COMPLETED_KEY not in data:
         raise MissingInputError(
-            f"{manifest} has no {COMPLETED_KEY}: run `dataset migrate-velocity` to the end first"
+            f"{manifest} has no {COMPLETED_KEY}: run `dataset migrate` to the end first"
         )
     return [str(c) for c in data[RERENDER_KEY]]
 
@@ -89,27 +105,40 @@ def status_changes(
     }
 
 
-def check_plan_hash(plan: DatasetPlan, ds: DatasetSettings) -> None:
-    """The stored plan must be this content, either already migrated or from before the key."""
-    known = {ds.content_hash(), ds.content_hash(without=(CONVENTION_KEY,))}
-    if plan.config_hash not in known:
-        raise ConfigError(
-            f"dataset {plan.version} was planned with other settings than the current ones "
-            "(beyond velocity_convention): migration refused"
-        )
+def check_plan_hash(plan: DatasetPlan, ds: DatasetSettings, name: str) -> None:
+    """The stored plan must be this content: already migrated, or (for the velocity migration
+    only) from before the key existed."""
+    known = {ds.content_hash()}
+    if name == velocity_migration(ds):
+        known.add(ds.content_hash(without=(CONVENTION_KEY,)))
+    if plan.config_hash in known:
+        return
+    velocity = velocity_migration(ds)
+    hint = "" if name == velocity else f"; run `physverify dataset migrate --name {velocity}` first"
+    raise ConfigError(
+        f"dataset {plan.version} was planned with other settings than the current ones "
+        f"(beyond velocity_convention): migration refused{hint}"
+    )
 
 
 def baseline(
-    plan: DatasetPlan, store: DatasetStore, ds: DatasetSettings, commit: str, now: Clock
+    plan: DatasetPlan,
+    store: DatasetStore,
+    ds: DatasetSettings,
+    commit: str,
+    name: str,
+    now: Clock,
 ) -> dict[str, Any]:
     clip_ids = [v.clip_id for v in plan.variants]
     return {
+        "name": name,
         "dataset": DATASET_NAME,
         "version": plan.version,
         "convention": ds.velocity_convention,
         "commit": commit,
         "created_utc": _stamp(now),
         "config_hash": {"old": plan.config_hash, "new": ds.content_hash()},
+        "gt_revision": {"old": plan.gt_revision, "new": GT_REVISION},
         "rendered_before": [c for c in clip_ids if store.is_done(Step.RENDER, c)],
         "status_before": statuses(plan, store),
         RERENDER_KEY: [],
@@ -117,10 +146,16 @@ def baseline(
 
 
 def load_or_start(
-    path: Path, plan: DatasetPlan, store: DatasetStore, ds: DatasetSettings, commit: str, now: Clock
+    path: Path,
+    plan: DatasetPlan,
+    store: DatasetStore,
+    ds: DatasetSettings,
+    commit: str,
+    name: str,
+    now: Clock,
 ) -> dict[str, Any]:
     if not path.is_file():
-        started = baseline(plan, store, ds, commit, now)
+        started = baseline(plan, store, ds, commit, name, now)
         atomic_write_json(path, started)
         return started
     stored: dict[str, Any] = read_json(path)
@@ -132,8 +167,10 @@ def load_or_start(
     return stored
 
 
-def rewrite_plan_hash(store: DatasetStore, plan: DatasetPlan, new_hash: str) -> DatasetPlan:
-    data = plan.to_json() | {"config_hash": new_hash}
+def rewrite_plan(store: DatasetStore, plan: DatasetPlan, new_hash: str) -> DatasetPlan:
+    """The stored plan under the current content hash and ground-truth revision (APPLY is about
+    to run again on every clip it reached, with this checkout's code)."""
+    data = plan.to_json() | {"config_hash": new_hash, "gt_revision": GT_REVISION}
     atomic_write_json(store.plan_path, data)
     return DatasetPlan.from_json(data)
 
@@ -157,23 +194,26 @@ def reopen_apply(plan: DatasetPlan, store: DatasetStore) -> int:
     return reopened
 
 
-def migrate_velocity(
+def reapply(
     store: DatasetStore,
     plugins: Mapping[str, Any],
     ds: DatasetSettings,
     commit: str,
+    name: str,
     now: Clock = lambda: dt.datetime.now(dt.UTC),
 ) -> MigrationReport:
-    """Re-run APPLY under ``ds.velocity_convention`` on every clip of the stored plan it reached."""
+    """Re-run APPLY with this checkout on every clip of the stored plan it reached, logged in the
+    manifest of migration ``name``."""
+    check_name(name, ds)
     plan = load_plan(store)
     if plan is None:
         raise MissingInputError(f"nothing planned in {store.root}")
-    check_plan_hash(plan, ds)
-    path = manifest_path(store, ds)
-    manifest = load_or_start(path, plan, store, ds, commit, now)
+    check_plan_hash(plan, ds, name)
+    path = manifest_path(store, name)
+    manifest = load_or_start(path, plan, store, ds, commit, name, now)
     if COMPLETED_KEY in manifest:
         return _report(path, 0, manifest)
-    plan = rewrite_plan_hash(store, plan, ds.content_hash())
+    plan = rewrite_plan(store, plan, ds.content_hash())
     reached = reached_apply(plan, manifest["status_before"])
     reopen_apply(reached, store)
     report = apply_variants(reached, store, plugins, ds)
@@ -192,6 +232,17 @@ def migrate_velocity(
     }
     atomic_write_json(path, manifest)
     return _report(path, len(report.applied), manifest)
+
+
+def migrate_velocity(
+    store: DatasetStore,
+    plugins: Mapping[str, Any],
+    ds: DatasetSettings,
+    commit: str,
+    now: Clock = lambda: dt.datetime.now(dt.UTC),
+) -> MigrationReport:
+    """``reapply`` under ``ds.velocity_convention`` (WP-G 1.C)."""
+    return reapply(store, plugins, ds, commit, velocity_migration(ds), now)
 
 
 def _report(path: Path, applied: int, manifest: Mapping[str, Any]) -> MigrationReport:
