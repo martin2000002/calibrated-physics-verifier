@@ -11,7 +11,8 @@ import pytest
 
 SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "h200" / "migrate_velocity.sh"
 TOOLS = (
-    "bash", "cat", "date", "dirname", "env", "grep", "mkdir", "realpath", "rsync", "sed", "tee",
+    "basename", "bash", "cat", "date", "dirname", "env", "grep", "mkdir", "mv", "realpath",
+    "rsync", "sed", "tee",
 )  # fmt: skip
 FAKE_UV = """#!/bin/bash
 printf 'uv %s\\n' "$*" >> "$CALLS"
@@ -21,10 +22,15 @@ case "$*" in
     echo "paths.cache_dir: ${CACHE:-$DATA/cache}"
     echo "paths.runs_dir: $DATA/runs"
     echo "paths.synthetic_dir: $DATA/synthetic"
+    echo "paths.calibration_dir: $DATA/calibration"
     echo "heavy_lock: $PHYSVERIFY__RUNTIME__HEAVY_LOCK (free)" ;;
+  *" migrate-velocity "*)
+    echo "migrate-velocity: 3 applied, 1 renders discarded, ${CHANGES:-0} status changes; m" ;;
   *" verify "*) mkdir -p "$DATA/runs/r$$"; echo "run: $DATA/runs/r$$" ;;
 esac
 """
+COMPLETE = ".migration-before-complete"
+STALE = "stale-velocity-position"
 FAKE_OK = "#!/bin/bash\nexit 0\n"
 FAKE_GIT = "#!/bin/bash\necho c0ffee\n"
 
@@ -128,4 +134,64 @@ def test_the_steps_run_in_order_on_every_subset_and_cache_root(sandbox: Sandbox)
         f"dataset audit-migration --before {sandbox.data / 'migration-before' / 'v1'} "
     )
     assert commands[-1].count("--table ") == 1
-    assert (sandbox.data / "migration-before" / "v1" / "plan.json").is_file()
+    before = sandbox.data / "migration-before" / "v1"
+    assert (before / "plan.json").is_file() and (before / COMPLETE).is_file()
+    assert f"heavy_lock: {sandbox.root / 'kubric.lock'}" in result.stdout
+
+
+def test_an_interrupted_copy_before_is_redone_not_used(sandbox: Sandbox) -> None:
+    partial = sandbox.data / "migration-before" / "v1.partial"
+    partial.mkdir(parents=True)
+    (partial / "leftover").write_text("half a copy")
+    result = sandbox.run()
+    assert result.returncode == 0, result.stderr
+    before = sandbox.data / "migration-before" / "v1"
+    assert sorted(p.name for p in before.iterdir()) == [COMPLETE, "plan.json"]
+    assert not partial.exists()
+
+
+def test_a_copy_before_without_its_marker_is_refused(sandbox: Sandbox) -> None:
+    (sandbox.data / "migration-before" / "v1").mkdir(parents=True)
+    result = sandbox.run()
+    assert result.returncode == 2
+    assert COMPLETE in result.stdout  # the log tee carries stderr too
+    assert "dataset migrate-velocity --commit c0ffee" not in sandbox.commands()
+
+
+def test_status_changes_stop_the_script_unless_allowed(sandbox: Sandbox) -> None:
+    stopped = sandbox.run(CHANGES="2")
+    assert stopped.returncode == 2
+    assert "2 clips changed state" in stopped.stdout
+    assert sandbox.commands()[-1] == "dataset migrate-velocity --commit c0ffee"
+    allowed = sandbox.run(CHANGES="2", PHYSVERIFY_MIGRATE_ALLOW_STATUS_CHANGES="1")
+    assert allowed.returncode == 0, allowed.stderr
+    assert sandbox.commands()[-1].startswith("dataset audit-migration ")
+
+
+def test_calibration_fitted_on_the_old_gt_is_moved_aside_once(sandbox: Sandbox) -> None:
+    calibration, p1 = sandbox.data / "calibration", sandbox.root / "p1" / "calibration"
+    baseline = sandbox.data / "calibration-baseline-a8v1"
+    stale = ("thresholds.oracle.precise.json", "stage_errors.precise.json", "stage_sigma.json",
+             "calibration.json", "abstention.json")  # fmt: skip
+    for directory, names in ((calibration, stale), (p1, ("thresholds.json",)),
+                             (baseline, ("calibration.json",))):  # fmt: skip
+        directory.mkdir(parents=True)
+        for name in (*names, "notes.txt"):
+            (directory / name).write_text(name)
+    result = sandbox.run(PHYSVERIFY_MIGRATE_CALIBRATION_DIRS=str(p1))
+    assert result.returncode == 0, result.stderr
+    assert sorted(p.name for p in calibration.iterdir()) == ["notes.txt", STALE]
+    assert sorted(p.name for p in (calibration / STALE).iterdir()) == sorted(stale)
+    assert sorted(p.name for p in (p1 / STALE).iterdir()) == ["thresholds.json"]
+    assert sorted(p.name for p in baseline.iterdir()) == ["calibration.json", "notes.txt"]
+    assert result.stdout.count("NOTICE: ") == len(stale) + 2
+    (calibration / "calibration.json").write_text("recalibrated")
+    assert sandbox.run().returncode == 0
+    assert (calibration / "calibration.json").read_text() == "recalibrated"
+
+
+def test_a_frozen_baseline_is_never_a_calibration_dir(sandbox: Sandbox) -> None:
+    baseline = sandbox.data / "calibration-baseline-a8v1"
+    result = sandbox.run(PHYSVERIFY_MIGRATE_CALIBRATION_DIRS=str(baseline))
+    assert result.returncode == 2
+    assert "frozen baseline" in result.stderr

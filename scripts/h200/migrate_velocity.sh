@@ -3,9 +3,12 @@
 # in place, CPU only, and audits the result. Resumes when run again.
 #
 #   1. Optionally copies a source dataset and cache in (read only on the source).
-#   2. Keeps a copy of the dataset as it was (the audit's "before"), unless one exists.
+#   2. Keeps a copy of the dataset as it was (the audit's "before"): copied into <before>.partial,
+#      marked complete there and only then moved into place, so an interrupted copy is redone.
 #   3. `dataset migrate-velocity`: APPLY again on every clip; renders whose poses, sizes or hidden
 #      frames changed are discarded and listed in <dataset>/migrations/velocity-position.json.
+#      A clip whose state changed (applied <-> skipped) stops the script here unless allowed.
+#      Calibration artifacts fitted on the old GT are then moved aside (below).
 #   4. `dataset build --subset S` for every subset: renders the discarded clips and exports all.
 #   5. `extract purge --clips-from <manifest>` on every cache root (perception caches of the
 #      re-rendered clips; the cache key has no frame hash).
@@ -22,7 +25,18 @@
 #   PHYSVERIFY_MIGRATE_SOURCE_DATA   dataset directory copied into synthetic/<version> first
 #   PHYSVERIFY_MIGRATE_SOURCE_CACHE  cache directory copied into paths.cache_dir first
 #   PHYSVERIFY_MIGRATE_BEFORE        the copy taken before migrating (default: the source dataset
-#                                    when given, else $DATA_DIR/migration-before/<version>)
+#                                    when given, used as is and never written; else
+#                                    $DATA_DIR/migration-before/<version>)
+#   PHYSVERIFY_MIGRATE_LOCK          heavy lock held by every pv step (default: the Kubric lock of
+#                                    run_kubric.sh, ${PHYSVERIFY_KUBRIC_LOCK:-$ROOT/kubric.lock}, so
+#                                    a migration and a Kubric build never render at once)
+#   PHYSVERIFY_MIGRATE_ALLOW_STATUS_CHANGES  1 to go on when clips changed state (default: stop)
+#   PHYSVERIFY_MIGRATE_CALIBRATION_DIRS  calibration dirs besides paths.calibration_dir, space
+#                                    separated. Their artifacts fitted on the old GT (thresholds.*,
+#                                    stage_errors*, stage_sigma.json, calibration.json,
+#                                    abstention.json) are moved into <dir>/stale-velocity-position/
+#                                    once, so nothing loads them as current; a calibration-baseline-*
+#                                    directory (the frozen A8 v1 baseline) is refused.
 #   PHYSVERIFY_MIGRATE_SUBSETS       subsets to build (default: full)
 #   PHYSVERIFY_MIGRATE_VERIFY        subsets to sweep (default: the built ones)
 #   PHYSVERIFY_MIGRATE_CACHE_ROOTS   extra cache roots to purge, space separated
@@ -42,6 +56,7 @@
 #   PHYSVERIFY_MIGRATE_ROOT=/home/mmonterot/work PHYSVERIFY_MIGRATE_VERSION=v1-precise \
 #   PHYSVERIFY__PATHS__DATA_DIR=/home/mmonterot/work/kubric-data \
 #   PHYSVERIFY_MIGRATE_CACHE_ROOTS="/home/mmonterot/work/p1/data/cache" \
+#   PHYSVERIFY_MIGRATE_CALIBRATION_DIRS="/home/mmonterot/work/p1/data/calibration" \
 #   PHYSVERIFY_MIGRATE_SUBSETS=full \
 #   bash scripts/h200/migrate_velocity.sh
 set -euo pipefail
@@ -70,7 +85,7 @@ done
 # Nothing is sourced from an env.sh: every location is set here and checked against $ROOT.
 export HOME="$ROOT" XDG_CACHE_HOME="$ROOT/.cache" PHYSVERIFY_H200_ROOT="$ROOT"
 export PHYSVERIFY__PATHS__DATA_DIR="${PHYSVERIFY__PATHS__DATA_DIR:-$ROOT/data}"
-export PHYSVERIFY__RUNTIME__HEAVY_LOCK="${PHYSVERIFY_MIGRATE_LOCK:-$ROOT/migrate-velocity.lock}"
+export PHYSVERIFY__RUNTIME__HEAVY_LOCK="${PHYSVERIFY_MIGRATE_LOCK:-${PHYSVERIFY_KUBRIC_LOCK:-$ROOT/kubric.lock}}"
 export PHYSVERIFY__RUNTIME__LOCK_TIMEOUT_S=0 PHYSVERIFY__CONTAINER__ENGINE=docker
 export CUDA_VISIBLE_DEVICES=""
 
@@ -102,14 +117,23 @@ DATA_DIR="$(doctor_value paths.data_dir)"
 CACHE_DIR="$(doctor_value paths.cache_dir)"
 RUNS_DIR="$(doctor_value paths.runs_dir)"
 SYNTH_DIR="$(doctor_value paths.synthetic_dir)"
+CALIBRATION_DIR="$(doctor_value paths.calibration_dir)"
 LOCK="$(doctor_value heavy_lock)"
-for path in "$DATA_DIR" "$CACHE_DIR" "$RUNS_DIR" "$SYNTH_DIR" "$LOCK"; do
+for path in "$DATA_DIR" "$CACHE_DIR" "$RUNS_DIR" "$SYNTH_DIR" "$CALIBRATION_DIR" "$LOCK"; do
     [[ -n "$path" ]] && under_root "$path" || die "doctor reports '$path' outside $ROOT"
 done
 CACHE_ROOTS=("$CACHE_DIR")
 for path in ${PHYSVERIFY_MIGRATE_CACHE_ROOTS:-}; do
     under_root "$path" || die "cache root $path is outside $ROOT"
     CACHE_ROOTS+=("$path")
+done
+CALIBRATION_DIRS=("$CALIBRATION_DIR")
+for path in ${PHYSVERIFY_MIGRATE_CALIBRATION_DIRS:-}; do
+    CALIBRATION_DIRS+=("$path")
+done
+for path in "${CALIBRATION_DIRS[@]}"; do
+    under_root "$path" || die "calibration dir $path is outside $ROOT"
+    [[ "$(basename "$path")" != calibration-baseline* ]] || die "$path is a frozen baseline"
 done
 docker info >/dev/null 2>&1 || die "docker does not respond"
 
@@ -132,15 +156,45 @@ fi
 [[ -f "$DATASET/plan.json" ]] || die "no dataset at $DATASET"
 
 BEFORE="${PHYSVERIFY_MIGRATE_BEFORE:-${SOURCE_DATA:-$DATA_DIR/migration-before/$VERSION}}"
-if [[ ! -d "$BEFORE" ]]; then
+COMPLETE=.migration-before-complete
+if [[ -n "$SOURCE_DATA" && "$(realpath -m "$BEFORE")" == "$(realpath -m "$SOURCE_DATA")" ]]; then
+    printf 'before: the source dataset %s (read only)\n' "$BEFORE"
+elif [[ ! -f "$BEFORE/$COMPLETE" ]]; then
     [[ ! -f "$MANIFEST" ]] || die "$MANIFEST exists but the copy taken before ($BEFORE) does not"
+    [[ ! -e "$BEFORE" ]] || die "$BEFORE exists without $COMPLETE: not a copy this script finished"
     under_root "$BEFORE" || die "$BEFORE is outside $ROOT"
-    mkdir -p "$BEFORE"
-    rsync -a "$DATASET/" "$BEFORE/"
+    mkdir -p "$BEFORE.partial"
+    rsync -a --delete "$DATASET/" "$BEFORE.partial/"
+    date -u +%Y-%m-%dT%H:%M:%SZ >"$BEFORE.partial/$COMPLETE"
+    mv "$BEFORE.partial" "$BEFORE"
 fi
 
 COMMIT="$(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null || echo "${PHYSVERIFY_MIGRATE_COMMIT:?no git checkout: set PHYSVERIFY_MIGRATE_COMMIT}")"
-pv dataset migrate-velocity --commit "$COMMIT"
+MIGRATED="$(pv dataset migrate-velocity --commit "$COMMIT")"
+printf '%s\n' "$MIGRATED"
+CHANGES="$(sed -n 's/.* \([0-9][0-9]*\) status changes;.*/\1/p' <<<"$MIGRATED")"
+[[ -n "$CHANGES" ]] || die "no status change count in the migrate-velocity output"
+if [[ "$CHANGES" != 0 && "${PHYSVERIFY_MIGRATE_ALLOW_STATUS_CHANGES:-0}" != 1 ]]; then
+    die "$CHANGES clips changed state (status_changes in $MANIFEST); review them, then rerun" \
+        "with PHYSVERIFY_MIGRATE_ALLOW_STATUS_CHANGES=1"
+fi
+
+STALE=stale-velocity-position
+if [[ ! -f "$OUT/calibration-moved" ]]; then
+    for dir in "${CALIBRATION_DIRS[@]}"; do
+        [[ -d "$dir" ]] || continue
+        mkdir -p "$dir/$STALE"
+        for file in "$dir"/thresholds.* "$dir"/stage_errors* "$dir"/stage_sigma.json \
+            "$dir"/calibration.json "$dir"/abstention.json; do
+            [[ -f "$file" ]] || continue
+            printf 'NOTICE: %s was fitted on the old GT velocities; moved to %s/\n' \
+                "$file" "$dir/$STALE"
+            mv "$file" "$dir/$STALE/"
+        done
+    done
+    date -u +%Y-%m-%dT%H:%M:%SZ >"$OUT/calibration-moved"
+    echo "NOTICE: recalibrate (thresholds, stage errors, sigma, abstention) after this migration"
+fi
 for subset in $SUBSETS; do
     pv dataset build --subset "$subset"
     pv dataset list --subset "$subset"

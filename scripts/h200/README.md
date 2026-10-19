@@ -259,3 +259,9 @@ renders whose poses changed are redone), `extract purge` of the re-rendered clip
 root, oracle sweeps with `fit_source` position and velocity, and `dataset audit-migration` against
 a copy taken before. Every written path must lie under `PHYSVERIFY_MIGRATE_ROOT`; the header lists
 the variables and the commands for a dev copy and for the full v1-precise dataset.
+
+It holds the Kubric lock (`PHYSVERIFY_MIGRATE_LOCK`, default `${PHYSVERIFY_KUBRIC_LOCK:-$ROOT/kubric.lock}`),
+so it never renders beside a `run_kubric.sh` build. It stops after `migrate-velocity` when any clip
+changed state (applied or skipped) until `PHYSVERIFY_MIGRATE_ALLOW_STATUS_CHANGES=1`, and moves the
+calibration artifacts fitted on the old GT into `<calibration dir>/stale-velocity-position/` once,
+printing a notice; recalibrate afterwards. `calibration-baseline-*` directories are refused.
