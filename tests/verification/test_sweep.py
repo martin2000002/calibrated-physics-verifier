@@ -242,3 +242,12 @@ def test_the_matrix_and_the_files(tmp_path: Path) -> None:
     written = json.loads((tmp_path / SPECIFICITY_FILE).read_text(encoding="utf-8"))
     assert written["passed"] is spec.passed
     assert len(written["outcomes"]) == len(spec.outcomes)
+
+
+def test_the_null_band_ignores_nan_magnitudes() -> None:
+    values: Values = {
+        "none": {"R1": [(PAIR, math.nan), (("a",), 0.002)], "R2": [(("a",), math.nan)]}
+    }
+    spec = specificity(sweep([clip("none", None)], values), SpecificitySettings())
+    assert spec.null_band["R1"] == pytest.approx(0.003)
+    assert spec.null_band["R2"] == pytest.approx(1e-3)

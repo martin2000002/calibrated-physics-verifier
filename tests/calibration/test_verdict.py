@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Sequence
 from typing import Any, cast
 
@@ -188,3 +189,75 @@ def _by_clip(results: Sequence[CheckResult]) -> dict[str, list[CheckResult]]:
     for r in results:
         found.setdefault(r.clip_id, []).append(r)
     return found
+
+
+# --- parity with the run table: the same verdict and the same decisive magnitude ---
+
+BIASED = Rule(ThresholdPolicy(), bias=0.02, factor=1.5)
+BIASED_THRESHOLDS = {"checks": {"R1": {"tau": TAU, "bias": 0.02, "sigma_factor": 1.5}}}
+NAN = float("nan")
+
+
+def _random_subjects(rng: np.random.Generator) -> list[CheckResult]:
+    found: list[CheckResult] = []
+    for index in range(int(rng.integers(1, 5))):
+        draw = rng.random()
+        if draw < 0.15:
+            found.append(missing("R1", subject=f"s{index}"))
+            continue
+        magnitude = NAN if draw < 0.3 else float(rng.uniform(0.0, 0.25))
+        sigma = float(rng.choice([0.0, 0.005, 0.05, NAN]))
+        found.append(result("R1", "c", magnitude, sigma, InputLevel.ORACLE, subject=f"s{index}"))
+    return found
+
+
+def _same(a: float | None, b: float | None) -> bool:
+    if a is None or b is None:
+        return a is b
+    return (math.isnan(a) and math.isnan(b)) or a == pytest.approx(b)
+
+
+@pytest.mark.parametrize(
+    ("thresholds", "tau", "expected"),
+    [
+        (BIASED_THRESHOLDS, TAU, {Verdict.PASS, Verdict.FAIL, Verdict.ABSTAIN}),
+        ({}, None, {Verdict.UNSCORED, Verdict.ABSTAIN}),
+    ],
+)
+def test_clip_verdict_matches_the_run_table_row(
+    thresholds: dict[str, Any], tau: float | None, expected: set[Verdict]
+) -> None:
+    """``clip_verdict`` and ``aggregate`` agree on the verdict and on magnitude (m - bias + bias)
+    for random sets with NaN magnitudes, unknown sigmas and missing inputs."""
+    rng = np.random.default_rng(11)
+    policy = ThresholdPolicy()
+    unit = cast(Any, next(c for c in CHECKS if c.check_id == "R1"))
+    seen: set[Verdict] = set()
+    for _ in range(400):
+        subjects = _random_subjects(rng)
+        table_row = aggregate("c", unit, [policy.decide(s, thresholds) for s in subjects])
+        outcome = clip_verdict(subjects, BIASED, tau)
+        magnitude = None if outcome.magnitude is None else outcome.magnitude + BIASED.bias
+        assert outcome.verdict is table_row.verdict, (subjects, outcome, table_row)
+        assert _same(magnitude, table_row.magnitude), (subjects, outcome, table_row)
+        seen.add(outcome.verdict)
+    assert expected <= seen
+
+
+def test_a_pass_and_an_abstain_clip_abstains_with_the_pass_magnitude() -> None:
+    subjects = [
+        result("R1", "c", 0.10, 0.5, InputLevel.ORACLE, subject="a"),
+        result("R1", "c", 0.01, 0.0, InputLevel.ORACLE, subject="b"),
+    ]
+    outcome = clip_verdict(subjects, RULE, TAU)
+    assert outcome.verdict is Verdict.ABSTAIN and outcome.magnitude == 0.01
+    assert outcome.abstain_reason is not None
+
+
+def test_a_fail_and_a_nan_clip_fails() -> None:
+    subjects = [
+        result("R1", "c", NAN, 0.0, InputLevel.ORACLE, subject="a"),
+        result("R1", "c", 0.2, 0.0, InputLevel.ORACLE, subject="b"),
+    ]
+    outcome = clip_verdict(subjects, RULE, TAU)
+    assert outcome.verdict is Verdict.FAIL and outcome.magnitude == 0.2

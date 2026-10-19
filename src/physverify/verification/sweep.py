@@ -22,6 +22,7 @@ from physverify.schema.clip import ClipManifest
 from physverify.schema.io import encode
 from physverify.schema.scene import MagnitudeKind, PerturbationRecord
 from physverify.synth.perturbations.none import NAME as NONE
+from physverify.verification.decisive import size
 
 if TYPE_CHECKING:
     from physverify.verification.runner import TableRow, VerificationReport
@@ -198,11 +199,11 @@ def specificity(report: VerificationReport, settings: SpecificitySettings) -> Sp
 def null_band(
     clips: Sequence[_Clip], check_ids: Sequence[str], null_tol: float
 ) -> dict[str, float]:
-    """Per check: max magnitude over the unperturbed variants plus ``null_tol``."""
+    """Per check: max finite magnitude over the unperturbed variants plus ``null_tol``."""
     clean = [clip for clip in clips if clip.name == NONE]
     band: dict[str, float] = {}
     for check_id in check_ids:
-        values = [m for clip in clean if (m := clip.magnitude(check_id)) is not None]
+        values = [m for clip in clean if math.isfinite(m := size(clip.magnitude(check_id)))]
         band[check_id] = max(values, default=0.0) + null_tol
     return band
 
