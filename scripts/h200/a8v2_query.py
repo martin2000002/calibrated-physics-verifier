@@ -1,5 +1,6 @@
-"""Read-only queries run_a8v2.sh asks of the checkout: clip selections, the re-rendered clips of a
-migration, the checks on an evaluation and the gravity rows of a stage report.
+"""Read-only queries the H200 scripts ask of the checkout: clip selections, the re-rendered clips
+of a migration, the checks on an evaluation, the gravity rows of a stage report and the input
+errors of a verify run (run_a8v2.sh and run_h2.sh).
 
 Exit codes: 0 ok, 2 a check failed or an input is unusable (message on stderr).
 
@@ -7,6 +8,7 @@ Exit codes: 0 ok, 2 a check failed or an input is unusable (message on stderr).
     python a8v2_query.py rerendered MANIFEST [--missing-ok]
     python a8v2_query.py [--set K=V]... evaluation EVALUATION_JSON
     python a8v2_query.py gravity STAGES_JSON
+    python a8v2_query.py run-errors RUN_DIR
 """
 
 from __future__ import annotations
@@ -24,6 +26,8 @@ PROFILE = "precise"
 DEVICE = "cpu"
 H1_HEADING = "## H1 primary"
 GRAVITY = ("lift", "gravity_angle")
+ERROR_KEY = "error"
+SHOWN_ERRORS = 10
 
 
 class QueryError(Exception):
@@ -98,9 +102,38 @@ def gravity_lines(path: Path) -> list[str]:
     lines = [f"LIFT gravity angle ({split}, {path}):", "", "| provider | n_clips | value |"]
     lines.append("|---|---|---|")
     for row in rows:
-        values = ", ".join(f"{k} {v:.4g}" for k, v in sorted(row.get("values", {}).items()))
+        values = ", ".join(f"{k} {_number(v)}" for k, v in sorted(row.get("values", {}).items()))
         lines.append(f"| {row.get('provider')} | {row.get('n_clips')} | {values} |")
     return lines
+
+
+def _number(value: float | None) -> str:
+    """NaN is written to JSON as null."""
+    return "nan" if value is None else f"{value:.4g}"
+
+
+def run_errors(run_dir: Path) -> list[str]:
+    """Refused when a check row of the run carries an input or check error: verify exits 0 on an
+    uncached clip and only marks its rows abstained, with the error in ``details``."""
+    from physverify.schema.checks import CheckResult
+    from physverify.schema.io import read_jsonl
+    from physverify.verification.runner import CHECKS_FILE
+
+    path = run_dir / CHECKS_FILE
+    try:
+        rows = read_jsonl(CheckResult, path)
+    except (OSError, ValueError) as exc:
+        raise QueryError(f"cannot read {path}: {exc}") from exc
+    errors = [
+        f"{r.clip_id} {r.check_id}: {r.details[ERROR_KEY] or '(no message)'}"
+        for r in rows
+        if ERROR_KEY in r.details
+    ]
+    if errors:
+        more = len(errors) - SHOWN_ERRORS
+        shown = errors[:SHOWN_ERRORS] + ([f"... and {more} more"] if more > 0 else [])
+        raise QueryError(f"{len(errors)} check rows of {path} failed:\n" + "\n".join(shown))
+    return [f"{path}: {len(rows)} check rows, none with an error"]
 
 
 def _json(path: Path) -> dict[str, Any]:
@@ -156,6 +189,7 @@ def _parser() -> argparse.ArgumentParser:
     migrated.add_argument("--missing-ok", action="store_true")
     sub.add_parser("evaluation").add_argument("path", type=Path)
     sub.add_parser("gravity").add_argument("path", type=Path)
+    sub.add_parser("run-errors").add_argument("run_dir", type=Path)
     return parser
 
 
@@ -167,6 +201,7 @@ def _lines(args: argparse.Namespace) -> list[str]:
         "rerendered": lambda: rerendered(args.manifest, missing_ok=args.missing_ok),
         "evaluation": lambda: evaluation_lines(args.path, _allowed_sets(_settings(args.overrides))),
         "gravity": lambda: gravity_lines(args.path),
+        "run-errors": lambda: run_errors(args.run_dir),
     }
     return commands[args.command]()
 

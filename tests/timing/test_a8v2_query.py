@@ -1,4 +1,4 @@
-"""scripts/h200/a8v2_query.py: the read-only checks run_a8v2.sh asks of the checkout."""
+"""scripts/h200/a8v2_query.py: the read-only checks the H200 scripts ask of the checkout."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ from types import ModuleType
 from typing import Any
 
 import pytest
+from check_rows import UNCACHED, write_check_rows
 
 from physverify.schema.clip import ClipManifest
 from physverify.synth.migrate import COMPLETED_KEY, RERENDER_KEY
@@ -110,3 +111,33 @@ def test_main_exits_2_with_the_reason(
 ) -> None:
     assert query.main(["gravity", str(tmp_path / "absent.json")]) == 2
     assert "cannot read" in capsys.readouterr().err
+
+
+def test_null_gravity_values_print_as_nan(query: ModuleType, tmp_path: Path) -> None:
+    row = {"stage": "lift", "metric": "gravity_angle", "provider": "p", "n_clips": 0,
+           "split": "calib", "values": {"gravity_angle_deg": None}}  # fmt: skip
+    path = _write(tmp_path / "stages.json", {"rows": [row]})
+    assert query.gravity_lines(path)[-1] == "| p | 0 | gravity_angle_deg nan |"
+
+
+def test_run_errors_passes_a_run_without_errors(query: ModuleType, tmp_path: Path) -> None:
+    write_check_rows(tmp_path / "checks.jsonl")
+    assert query.run_errors(tmp_path)[0].endswith("1 check rows, none with an error")
+
+
+@pytest.mark.parametrize("error", [UNCACHED, ""])
+def test_run_errors_refuses_any_row_with_an_error(
+    query: ModuleType, tmp_path: Path, error: str
+) -> None:
+    write_check_rows(tmp_path / "checks.jsonl", error=error)
+    with pytest.raises(query.QueryError, match="1 check rows .* failed") as raised:
+        query.run_errors(tmp_path)
+    assert f"clip R1: {error or '(no message)'}" in str(raised.value)
+
+
+def test_run_errors_refuses_a_run_without_checks(query: ModuleType, tmp_path: Path) -> None:
+    with pytest.raises(query.QueryError, match="cannot read"):
+        query.run_errors(tmp_path)
+    (tmp_path / "checks.jsonl").write_text("{}\n", encoding="utf-8")
+    with pytest.raises(query.QueryError, match="cannot read"):
+        query.run_errors(tmp_path)
