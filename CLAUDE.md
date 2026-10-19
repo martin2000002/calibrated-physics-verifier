@@ -122,6 +122,7 @@ SCHEMA CHANGE REQUEST: <what and why>
 | A6 diagnosis | `diagnosis/` except `_base.py`, `datasets/{_download,physics_iq,pisa_real}.py`, `annotations/*.json`, `cli/commands/{diagnose,data}.py`, `configs/diagnosis.toml`, `tests/diagnosis/**` |
 | A3 timing | `timing/` except `_base.py`, `cli/commands/timing.py`, `scripts/h200/**` (must not assume Docker), `configs/timing.toml`, `tests/timing/**` |
 | A8 exclusion rules (WP-J) | `calibration/{exclusions,exclusion_record}.py`, `cli/commands/exclusions.py`, `configs/exclusion_rules.toml`, `tests/calibration/{exclusion_cases,test_exclusions,test_exclusions_cli}.py`, `tests/verification/test_scope_record.py` |
+| A8 H1 scope / H3 S5 (WP-J2) | `calibration/scenes.py`, `configs/h1_scenes.toml`, the H1 primary view in `calibration/{evaluate,schema,report}.py` and `cli/commands/calibrate.py`, `SECONDARY_TESTS` in `evaluation/{analysis,prereg,state}.py`, `tests/calibration/test_h1_primary.py` |
 | A11 preference / H3 | `finetune/{scope,stop_rule}.py`, `finetune/scorers/_status.py`, `cli/commands/{_stop_rule,_finetune_deps}.py`, `tests/finetune/test_{check_scope,stop_rule}.py` |
 
 `configs/check_scope.toml` is shared by A7 (H2 rule scope) and A11 (H3 scorer scope): both read it only through `verification/scope.py`.
