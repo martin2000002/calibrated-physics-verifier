@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Runs a GT migration of a stored Kubric dataset in place (ADR 0004), CPU only, and audits the
 # result. Resumes when run again. PHYSVERIFY_MIGRATE_NAME picks it: velocity-position (default,
-# the position-consistent GT velocity of WP-G 1.C) or floor-crossing (the floor bounce solved from
-# the row before a penetrated one, WP-H).
+# the position-consistent GT velocity of WP-G 1.C) or a ground-truth fix of plan.GT_MIGRATIONS:
+# floor-crossing (the floor bounce solved from the row before a penetrated one, WP-H) and
+# pair-collision (the floor rule of a ball-ball collision, WP-I). Only the first fix the plan lacks
+# runs, and it covers every later one (APPLY runs with this checkout).
 #
 #   1. Optionally copies a source dataset and cache in (read only on the source).
 #   2. Keeps a copy of the dataset as it was (the audit's "before"): copied into <before>.partial,
@@ -16,8 +18,9 @@
 #      re-rendered clips; the cache key has no frame hash).
 #   6. Oracle sweeps of every verify subset with fit_source=position (default) and =velocity.
 #   7. `dataset audit-migration --name <name>`: re-renders, frames/mp4, contacts, records, labels,
-#      rest cells, stale cache (plus impact frames, floor, GT metadata and every floor bounce for
-#      floor-crossing), written to $OUT/audit.json. $OUT is $DATA_DIR/runs/migrate-velocity-<version>
+#      rest cells, stale cache, plus what each covered fix adds (impact frames, floor, e_clean and
+#      every floor bounce for floor-crossing; collision rows, measures.R3b and R3b labels for
+#      pair-collision; kept-clip GT metadata for both), written to $OUT/audit.json. $OUT is $DATA_DIR/runs/migrate-velocity-<version>
 #      for velocity-position and $DATA_DIR/runs/migrate-<name>-<version> otherwise.
 #
 # Required:
@@ -65,8 +68,8 @@
 #   PHYSVERIFY_MIGRATE_CALIBRATION_DIRS="/home/mmonterot/work/p1/data/calibration" \
 #   PHYSVERIFY_MIGRATE_SUBSETS=full \
 #   bash scripts/h200/migrate_velocity.sh
-# The floor crossing (WP-H) runs the same way with PHYSVERIFY_MIGRATE_NAME=floor-crossing, on a
-# dataset already on velocity-position (its plan hash is refused otherwise).
+# A ground-truth fix runs the same way with PHYSVERIFY_MIGRATE_NAME=<the plan's pending fix> (the
+# refusal names it), on a dataset already on velocity-position (its plan hash is refused otherwise).
 set -euo pipefail
 
 die() {
