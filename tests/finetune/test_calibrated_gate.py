@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+import json
 import sys
 from collections.abc import Callable
 from pathlib import Path
@@ -26,10 +27,13 @@ from physverify.calibration.loader import (  # noqa: E402
     load_calibration,
 )
 from physverify.calibration.settings import active_checks_hash  # noqa: E402
+from physverify.cli.commands._finetune_deps import write_calibration_status  # noqa: E402
 from physverify.config.models import Settings  # noqa: E402
 from physverify.core.errors import ConfigError, UsageError  # noqa: E402
+from physverify.finetune.records import BASE_TAG  # noqa: E402
 from physverify.finetune.scorers.calibrated import CalibratedScorer  # noqa: E402
 from physverify.finetune.scoring import build_scorer  # noqa: E402
+from physverify.finetune.store import CampaignStore  # noqa: E402
 from physverify.schema.checks import CheckResult, Verdict  # noqa: E402
 from physverify.verification.runner import UNKNOWN_ROW_STEP  # noqa: E402
 
@@ -105,3 +109,15 @@ def test_h2_and_h3_give_the_same_stale_message(settings: Settings) -> None:
         calibrated_rule(import_calibration(), request, ())
     assert message in str(h2.value)
     assert build_scorer("calibrated", settings).unavailable() == message
+
+
+def test_scoring_records_the_state_of_each_check(settings: Settings) -> None:
+    _artifact(settings)
+    store = CampaignStore.from_settings(settings)
+    scorer = build_scorer("calibrated", settings)
+    write_calibration_status(store, BASE_TAG, scorer)
+    path = store.calibration_status_path(BASE_TAG, "calibrated")
+    status = json.loads(path.read_text(encoding="utf-8"))
+    assert status["checks"]["R1"] == {"status": "ok", "weight": 1.0}
+    assert status["checks"]["R5b"]["status"] == "no_negatives"
+    assert store.scores(BASE_TAG, "calibrated") == []

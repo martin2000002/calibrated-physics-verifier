@@ -18,7 +18,12 @@ from typing import Annotated, Any, Final
 
 import typer
 
-from physverify.cli.commands._finetune_deps import candidate_generator, require_cuda, scoring_deps
+from physverify.cli.commands._finetune_deps import (
+    candidate_generator,
+    require_cuda,
+    scoring_deps,
+    write_calibration_status,
+)
 from physverify.cli.commands._stop_rule import (
     current_verdict,
     pairs_on_disk,
@@ -54,7 +59,6 @@ from physverify.finetune.records import (
     write_records,
 )
 from physverify.finetune.scorers._base import AggregateScorer
-from physverify.finetune.scorers._status import CalibrationStatusSource
 from physverify.finetune.scoring import build_scorer, rescorer, score_candidates, stale_scores
 from physverify.finetune.seeds import parse_shard
 from physverify.finetune.selection import (
@@ -100,7 +104,6 @@ from physverify.finetune.trainer import (
 )
 from physverify.finetune.wan_lora import load_wan_adapter_model
 from physverify.runtime.runs import current_commit
-from physverify.schema.io import json_ready
 from physverify.timing.budget import BudgetError, cost_from_results
 from physverify.timing.generation import snapshot_dir, snapshot_problem
 from physverify.timing.report import load_results, load_samples
@@ -251,24 +254,12 @@ def _score(
     scores = score_candidates(
         store, model_tag, prompts, scorer, scoring_deps(context), parse_shard(shard)
     )
-    _write_calibration_status(store, model_tag, scorer)
+    write_calibration_status(store, model_tag, scorer)
     wanted = {p.prompt_id for p in prompts}
     selected = [s for s in scores if s.prompt_id in wanted]
     abstained = sum(s.score is None for s in selected)
     typer.echo(f"{model_tag}/{scorer.name}: {len(selected)} scored, {abstained} abstained")
     return selected
-
-
-def _write_calibration_status(
-    store: CampaignStore, model_tag: str, scorer: AggregateScorer
-) -> None:
-    """Per check, the calibration state the scores were made under (calibrated scorer only)."""
-    if not isinstance(scorer, CalibrationStatusSource):
-        return
-    status = scorer.calibration_status()
-    if status is not None:
-        text = json.dumps(json_ready(dict(status)), indent=2, sort_keys=True)
-        write_text_atomic(store.calibration_status_path(model_tag, scorer.name), text)
 
 
 @app.command("score", help="Extract, verify and score the candidates of a model tag (resumes).")

@@ -19,7 +19,12 @@ import typer
 from physverify.agreement.prereg import file_sha256
 from physverify.calibration.loader import default_artifact_path
 from physverify.calibration.settings import active_checks_hash
-from physverify.cli.commands._finetune_deps import candidate_generator, require_cuda, scoring_deps
+from physverify.cli.commands._finetune_deps import (
+    candidate_generator,
+    require_cuda,
+    scoring_deps,
+    write_calibration_status,
+)
 from physverify.cli.commands._stop_rule import require_stop_rule
 from physverify.cli.context import AppContext, app_context, heavy_command
 from physverify.core.errors import EXIT_ERROR, ConfigError, MissingInputError, UsageError
@@ -319,6 +324,7 @@ def score(arm: ArmOption = "base", shard: ShardOption = None) -> None:
     prompts = eval_prompts(_prompts(h))
     deps = scoring_deps(h.context)
     score_candidates(h.store, tag, prompts, scorer, deps, parse_shard(shard))
+    write_calibration_status(h.store, tag, scorer)
     record = manifest(h.store, tag, scorer, _checks_hash(h), sha256)
     write_record(h.layout.scoring(tag, scorer.name), record)
     typer.echo(f"{tag}/{scorer.name}: {record.n} eval scores under {record.stamp}")

@@ -85,7 +85,7 @@ class CalibratedScorer:
         return self._label
 
     def calibration_status(self) -> Mapping[str, Any] | None:
-        """The stratum's state per check (``scores/<tag>/calibrated/calibration.json``)."""
+        """The stratum's state per check (``scores/<tag>/calibrated/calibration/status.json``)."""
         self._load()
         if self._stratum is None:
             return {"problem": self._status_problem}
