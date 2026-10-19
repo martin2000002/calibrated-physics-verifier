@@ -8,7 +8,7 @@ frames; every window below widens them by the quantization margin ``q = s - 1``.
 from __future__ import annotations
 
 import math
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Literal
 
@@ -81,7 +81,7 @@ def _derivative_basis(degree: int, tau: float, derivative: int) -> FloatArray:
 FitSource = Literal["position", "velocity"]
 # Polynomial degree of the per-side fit: between impacts the only force is gravity, so the
 # position is a parabola and the velocity a line.
-MOTION_DEGREE: dict[str, int] = {"position": 2, "velocity": 1}
+MOTION_DEGREE: Mapping[FitSource, int] = {"position": 2, "velocity": 1}
 
 
 @dataclass(frozen=True, eq=False)

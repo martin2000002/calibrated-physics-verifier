@@ -52,8 +52,9 @@ class CollisionParams(CommonParams):
     # the same oracle sweep); 6 keeps each side's arc short against drag and depth drift.
     fit_frames: int = Field(default=6, ge=2)
     min_side_frames: int = Field(default=3, ge=2)
-    # "velocity" is the legacy line fit on the kinematics velocities, kept for the comparison
-    # sweep; those velocities are smoothed across the impact.
+    # "velocity" is the line fit on the kinematics velocities, smoothed across the impact on
+    # perceived clips. The oracle sweep uses it because the A4 labels are defined on simulator
+    # velocities, which lead PyBullet positions by g*h/2.
     fit_source: FitSource = "position"
 
     @model_validator(mode="after")
