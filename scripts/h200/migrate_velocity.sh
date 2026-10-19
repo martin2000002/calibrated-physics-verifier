@@ -42,7 +42,7 @@
 #   PHYSVERIFY_MIGRATE_ROOT=/home/mmonterot/work PHYSVERIFY_MIGRATE_VERSION=v1-precise \
 #   PHYSVERIFY__PATHS__DATA_DIR=/home/mmonterot/work/kubric-data \
 #   PHYSVERIFY_MIGRATE_CACHE_ROOTS="/home/mmonterot/work/p1/data/cache" \
-#   PHYSVERIFY_MIGRATE_SUBSETS="smoke local levels full" PHYSVERIFY_MIGRATE_VERIFY="local levels" \
+#   PHYSVERIFY_MIGRATE_SUBSETS=full \
 #   bash scripts/h200/migrate_velocity.sh
 set -euo pipefail
 
