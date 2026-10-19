@@ -14,6 +14,7 @@ from typing import Annotated
 
 import typer
 
+from physverify.calibration.settings import active_checks_hash
 from physverify.cli.commands.extract import pipeline_deps, resolve_dataset, select_clips
 from physverify.cli.context import AppContext, app_context
 from physverify.core.errors import EXIT_ERROR, UsageError
@@ -30,6 +31,7 @@ from physverify.verification.inputs import (
     refuse_heavy,
 )
 from physverify.verification.runner import (
+    CHECKS_HASH_FILE,
     CHECKS_SECTION,
     VERIFICATION_SECTION,
     ChecksSettings,
@@ -96,6 +98,8 @@ def verify(
     typer.echo(f"thresholds: {thresholds_label(thresholds)}")
     report = runner.run(inputs, selected)
     write_report(run_dir, report)
+    checks = active_checks_hash(settings, context.registry("checks"))
+    (run_dir / CHECKS_HASH_FILE).write_text(checks + "\n", encoding="utf-8")
     for line in summary_lines(report):
         typer.echo(line)
     failed = any(row.status is RowStatus.ERROR for row in report.table)
