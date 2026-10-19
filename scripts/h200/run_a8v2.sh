@@ -221,7 +221,7 @@ run_of() {
 }
 
 ids_words() {
-    tr -s ' \t' '\n\n' <"$1" | sed '/^$/d'
+    tr -s '[:blank:]' '\n' <"$1" | sed '/^$/d'
 }
 
 # first_extracted IDS ALLOWED EXCLUDED: the first shard id in ALLOWED and not in EXCLUDED.
