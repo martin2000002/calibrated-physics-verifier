@@ -14,6 +14,7 @@ import pytest
 
 from physverify.config.models import Settings
 from physverify.core.errors import ConfigError
+from physverify.schema.scene import PerturbationRecord
 from physverify.schema.states import ObjectStateTable
 from physverify.synth.generate import load_plan, plan_subset, save_plan
 from physverify.synth.migrate import (
@@ -192,8 +193,12 @@ def test_the_audit_compares_the_migration_with_the_copy_taken_before(
     shutil.copytree(store.root, before.root)
     report = migrate_velocity(store, plugins, position_ds, COMMIT, clock)
     inputs = AuditInputs(plan, store, before, report.manifest, plugins, position_ds)
-    found = audit(inputs, [tmp_path / "cache"], [])
     edited = clip_of(plan, "r3_restitution_gain")
+    label = PerturbationRecord.load_json(store.clip_dir(edited) / RECORD)
+    table = tmp_path / "table.csv"
+    rows = [f"{edited},{check},{label.magnitude * 1.01}" for check in label.target_checks]
+    table.write_text("\n".join(["clip_id,check_id,magnitude", *rows, "other,R3a,"]) + "\n")
+    found = audit(inputs, [tmp_path / "cache"], [table])
     assert found["rerender"] == {
         "observed": [edited],
         "predicted_always": [edited],
@@ -205,4 +210,7 @@ def test_the_audit_compares_the_migration_with_the_copy_taken_before(
     assert found["contacts"]["fixed_changed"] == []
     assert found["labels"]["r3_off_nominal"] == {}
     assert found["rest"]["other_cells"] == []
+    assert found["records"]["differ"] == []
+    assert found["check_labels"][0]["within"] == len(label.target_checks) > 0
+    assert found["check_labels"][0]["outside"] == {}
     assert found["cache"]["stale_meta"] == {}

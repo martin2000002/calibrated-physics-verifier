@@ -156,12 +156,16 @@ def label_audit(inputs: AuditInputs) -> dict[str, Any]:
 
 
 def check_label_audit(inputs: AuditInputs, table: Path) -> dict[str, Any]:
-    """A3: |R3 measured on the oracle - label| <= max(1e-3, 0.02 |label|) on applied R3 clips."""
+    """A3: |R3 measured on the oracle - label| <= max(1e-3, 0.02 |label|) on the applied R3 clips
+    the table covers."""
     rows = _table(table)
+    covered = {clip_id for clip_id, _ in rows}
     within, outside = 0, {}
     for variant in inputs.plan.variants:
         record = _record(inputs.after, variant)
         if record is None or not variant.perturbation.startswith("r3_"):
+            continue
+        if variant.clip_id not in covered:
             continue
         for check_id in record.target_checks:
             value = rows.get((variant.clip_id, check_id))
@@ -175,9 +179,10 @@ def check_label_audit(inputs: AuditInputs, table: Path) -> dict[str, Any]:
 
 def rest_audit(inputs: AuditInputs) -> dict[str, Any]:
     """A9: corrected cells at rest without a RESTING record (simulator velocity under v_tol, or
-    the position still to both neighbours); a flight apex (v_z from + to -) is expected."""
+    the position still to both neighbours). Expected: a flight apex (v_z from + to -) and the
+    release of a body dropped from rest (first frame, falling at the next)."""
     state = inputs.ds.model_copy(update={"velocity_convention": "state"})
-    apex, other = 0, []
+    apex, release, other = 0, 0, []
     for sim_id in inputs.plan.sim_ids():
         if not inputs.after.is_done(Step.SIMULATE, sim_id):
             continue
@@ -186,9 +191,11 @@ def rest_audit(inputs: AuditInputs) -> dict[str, Any]:
         for k, i in zip(*np.nonzero(cells & _at_rest(states)), strict=True):
             if _apex(states, int(k), int(i)):
                 apex += 1
+            elif _release(states, int(k), int(i)):
+                release += 1
             else:
                 other.append(f"{sim_id}:{states.object_ids[i]}:{int(k)}")
-    return {"apex_cells": apex, "other_cells": other}
+    return {"apex_cells": apex, "release_cells": release, "other_cells": other}
 
 
 def cache_audit(inputs: AuditInputs, cache_roots: Sequence[Path]) -> dict[str, Any]:
@@ -227,13 +234,16 @@ def _record(store: DatasetStore, variant: VariantPlan) -> PerturbationRecord | N
     return PerturbationRecord.load_json(path)
 
 
-def _table(path: Path) -> dict[tuple[str, str], float]:
+def _table(path: Path) -> dict[tuple[str, str], float | None]:
     with path.open(encoding="utf-8", newline="") as handle:
         return {
-            (row["clip_id"], row["check_id"]): float(row["magnitude"])
+            (row["clip_id"], row["check_id"]): _number(row["magnitude"])
             for row in csv.DictReader(handle)
-            if row["magnitude"] not in ("", "nan")
         }
+
+
+def _number(cell: str) -> float | None:
+    return None if cell in ("", "nan") else float(cell)
 
 
 def _at_rest(states: ObjectStateTable) -> np.ndarray:
@@ -250,3 +260,8 @@ def _apex(states: ObjectStateTable, k: int, i: int) -> bool:
     vz = states.velocity[:, i, 2]
     moving = np.linalg.norm(states.position[k + 1, i] - states.position[k - 1, i]) > REST_TOL_M
     return bool(moving and vz[k - 1] > 0.0 > vz[k + 1])
+
+
+def _release(states: ObjectStateTable, k: int, i: int) -> bool:
+    moving = np.linalg.norm(states.position[1, i] - states.position[0, i]) > REST_TOL_M
+    return bool(k == 0 and moving and states.velocity[1, i, 2] < 0.0)
