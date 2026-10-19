@@ -12,7 +12,7 @@ NONE = "none"
 # Fixes of the APPLY ground truth with no alternative convention, in order: the migration at index
 # i brings a stored plan from revision i up to this checkout's. ``gt_revision`` lives outside
 # ``content_hash``; adding a fix is adding its migration name here.
-GT_MIGRATIONS = ("floor-crossing",)
+GT_MIGRATIONS = ("floor-crossing", "pair-collision")
 GT_REVISION = len(GT_MIGRATIONS)
 
 

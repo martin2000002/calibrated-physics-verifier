@@ -27,6 +27,7 @@ from physverify.synth.migrate import (
     CONVENTION_KEY,
     COVERS_KEY,
     FLOOR_CROSSING,
+    PAIR_COLLISION,
     RERENDER_KEY,
     manifest_path,
     migrate_velocity,
@@ -395,6 +396,10 @@ def test_the_floor_crossing_migration_rerenders_only_the_moved_flight(
     assert bounces["closed_form_max_error"] <= bounces["closed_form_tol"] == CLOSED_FORM_TOL
     assert bounces["unresolved_now"] == [] and bounces["row_moved"] == []
     assert found["gt_meta"]["unexplained"] == {}
+    assert found["r3b"]["unexpected"] == [] and found["r3b"]["missing"] == []
+    assert found["r3b"]["legacy_differs_from_stored"] == []
+    assert found["pair_rows"]["stops"] == []
+    assert found["energy_labels"]["off_nominal"] == {}
 
 
 def test_a_migration_cut_short_keeps_the_old_gt_revision(
@@ -555,3 +560,25 @@ def test_the_velocity_migration_records_what_it_covers(
         plan, store, store, report.manifest, plugins, position_ds, "velocity-position"
     )
     assert migration_audit.covered_migrations(inputs) == [migration_audit.VELOCITY]
+
+
+def test_a_later_fix_on_a_plan_that_lacks_an_earlier_one_is_refused(
+    tmp_path: Path,
+    position_ds: DatasetSettings,
+    families: Any,
+    perturbations: Any,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _, store, plugins = before_floor_crossing(
+        tmp_path, position_ds, families, perturbations, monkeypatch
+    )
+    with pytest.raises(ConfigError, match=f"needs `{FLOOR_CROSSING}` first"):
+        reapply(store, plugins, position_ds, COMMIT, PAIR_COLLISION, clock)
+    assert not (store.root / "migrations").exists()
+
+
+def test_every_migration_has_a_prediction_and_its_audits(position_ds: DatasetSettings) -> None:
+    names = {migration_audit.VELOCITY, *GT_MIGRATIONS}
+    assert set(migration_audit.PREDICTIONS) == names
+    assert set(migration_audit.EXTRA_AUDITS) == names
+    assert PAIR_COLLISION in migrate.migration_names(position_ds)

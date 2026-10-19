@@ -1,8 +1,8 @@
 """Migrating a stored dataset without bumping its version: to ``velocity_convention`` (WP-G 1.C,
 ``velocity-<convention>``) or through the ground-truth fixes of ``plan.GT_MIGRATIONS`` (WP-H
-``floor-crossing``, ...), each run only as the first one the plan still lacks. Every migration
-re-runs APPLY with this checkout, so it leaves the plan at ``GT_REVISION`` and its manifest lists
-the fixes it ``covers``.
+``floor-crossing``, WP-I ``pair-collision``), each run only as the first one the plan still
+lacks. Every migration re-runs APPLY with this checkout, so it leaves the plan at ``GT_REVISION``
+and its manifest lists the fixes it ``covers``.
 
 APPLY is reopened and run again on every clip it had already reached (applied or skipped; a clip
 never applied stays pending for its own build); ``discard_downstream``
@@ -41,7 +41,7 @@ CONVENTION_KEY = "velocity_convention"
 RERENDER_KEY = "rerender_clip_ids"
 COMPLETED_KEY = "completed_utc"
 COVERS_KEY = "covers"
-FLOOR_CROSSING = GT_MIGRATIONS[0]
+FLOOR_CROSSING, PAIR_COLLISION = GT_MIGRATIONS[:2]
 
 type Clock = Callable[[], dt.datetime]
 

@@ -1,5 +1,6 @@
 """Acceptance audit of a migration against a copy taken before it: the velocity convention (WP-G
-1.C, A3-A10) and the floor crossing of a penetrated bounce row (WP-H, H3 and H8-H13).
+1.C, A3-A10), the floor crossing of a penetrated bounce row (WP-H, H3 and H8-H13) and the floor
+rule of a ball-ball collision (WP-I, I2-I6 and I11).
 
 Every finding is a list of clip ids (or cells) with the numbers that put it there, so the report
 says what moved and why rather than only whether a threshold held."""
@@ -17,15 +18,17 @@ from typing import Any
 import numpy as np
 
 from physverify.extraction.cache import StageCache
-from physverify.physics.measures.r3_collision import restitution
-from physverify.schema.contacts import ContactTable
-from physverify.schema.scene import PerturbationRecord
+from physverify.physics.measures.r3_collision import kinetic_energy_gain, restitution
+from physverify.schema.constants import ENV_ID
+from physverify.schema.contacts import ContactKind, ContactTable
+from physverify.schema.scene import PerturbationRecord, SceneSpec
 from physverify.schema.states import ObjectStateTable, PrimitiveKind
 from physverify.synth.gt_export import DATASET_NAME, final_record
 from physverify.synth.kinematics_gt import corrected_cells
 from physverify.synth.migrate import (
     COVERS_KEY,
     FLOOR_CROSSING,
+    PAIR_COLLISION,
     rerender_clip_ids,
     velocity_migration,
 )
@@ -40,9 +43,16 @@ from physverify.synth.perturbations._edit import (
 from physverify.synth.perturbations._measure import (
     bounce_crossing,
     bounce_rows,
+    collision_row,
+    collision_velocities,
     floor_crossing,
+    floor_gap,
+    max_energy_gain,
+    row_overlaps_floor,
 )
-from physverify.synth.perturbations._windows import UP, rest_mask
+from physverify.synth.perturbations._windows import UP, records_of, rest_mask
+from physverify.synth.perturbations.r3_energy_gain import NAME as ENERGY_GAIN
+from physverify.synth.perturbations.r3_energy_gain import first_ball_collision
 from physverify.synth.plan import NONE, DatasetPlan, VariantPlan
 from physverify.synth.settings import DatasetSettings
 from physverify.synth.store import (
@@ -50,6 +60,7 @@ from physverify.synth.store import (
     FRAMES_DIR,
     GT_META,
     RECORD,
+    SPEC,
     STATES_WORLD,
     VARIANT_STATES,
     VIDEO,
@@ -84,6 +95,8 @@ FLOOR_META_PATHS = (
     "record.params.e_clean",
     "gt_version",
 )
+# GT metadata a pair-collision migration may move on a kept clip whose R3b the rule moves.
+PAIR_META_PATHS = ("measures.R3b", "record.magnitude", "gt_version")
 
 
 @dataclass(frozen=True)
@@ -349,18 +362,13 @@ def bounce_summary(rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     }
 
 
-def gt_meta_audit(inputs: AuditInputs, rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
-    """H9: on kept clips only R3a and e_clean (and what records them) may move, and only where the
-    simulation has a penetrated bounce; plus ``e_clean_above_one`` before and after (C4 b)."""
-    penetrated = {str(r["id"]).split(":")[0] for r in rows if r["penetrated"]}
+def gt_meta_audit(inputs: AuditInputs, explainers: Sequence[MetaExplainer]) -> dict[str, Any]:
+    """H9 / I6: on kept clips every changed leaf of ``gt_meta.json`` must be explained by one of
+    the migrations the run covers."""
     observed = set(rerender_clip_ids(inputs.manifest))
     compared, changed, unexplained = 0, {}, {}
-    above: dict[str, dict[str, list[str]]] = {"before": {}, "after": {}}
     for variant in inputs.plan.variants:
         old, new = (_meta(s, variant) for s in (inputs.before, inputs.after))
-        for side, meta in (("before", old), ("after", new)):
-            if meta is not None:
-                above[side].setdefault(variant.scene_id, list(meta.get("e_clean_above_one", [])))
         if old is None or new is None or variant.clip_id in observed:
             continue
         compared += 1
@@ -368,24 +376,45 @@ def gt_meta_audit(inputs: AuditInputs, rows: Sequence[Mapping[str, Any]]) -> dic
         if not paths:
             continue
         changed[variant.clip_id] = paths
-        allowed = all(_under(p, FLOOR_META_PATHS) for p in paths)
-        if not (allowed and {variant.scene_id, variant.sim_id} & penetrated):
-            unexplained[variant.clip_id] = paths
+        loose = [p for p in paths if not any(explain(variant, p) for explain in explainers)]
+        if loose:
+            unexplained[variant.clip_id] = loose
+    return {"compared": compared, "changed": changed, "unexplained": unexplained}
+
+
+def floor_meta_explainer(rows: Sequence[Mapping[str, Any]]) -> MetaExplainer:
+    """WP-H moves R3a and e_clean only where the simulation has a penetrated bounce."""
+    penetrated = {str(r["id"]).split(":")[0] for r in rows if r["penetrated"]}
+
+    def explains(variant: VariantPlan, path: str) -> bool:
+        return _under(path, FLOOR_META_PATHS) and bool(
+            {variant.scene_id, variant.sim_id} & penetrated
+        )
+
+    return explains
+
+
+def e_clean_above_one_audit(
+    inputs: AuditInputs, rows: Sequence[Mapping[str, Any]]
+) -> dict[str, Any]:
+    """C4 b (WP-H): scene objects with e_clean above one before and after, the new ones with the
+    depth of their penetrated row."""
+    above: dict[str, dict[str, list[str]]] = {"before": {}, "after": {}}
+    for variant in inputs.plan.variants:
+        for side, store in (("before", inputs.before), ("after", inputs.after)):
+            meta = _meta(store, variant)
+            if meta is not None:
+                above[side].setdefault(variant.scene_id, list(meta.get("e_clean_above_one", [])))
     before, after = (_scene_objects(above[side]) for side in ("before", "after"))
     depth = {
         f"{str(r['id']).split(':')[0]}:{str(r['id']).split(':')[1]}": r["depth_m"]
         for r in reversed(rows)
     }
     return {
-        "compared": compared,
-        "changed": changed,
-        "unexplained": unexplained,
-        "e_clean_above_one": {
-            "before": before,
-            "after": after,
-            "new": {k: depth.get(k) for k in sorted(set(after) - set(before))},
-            "removed": sorted(set(before) - set(after)),
-        },
+        "before": before,
+        "after": after,
+        "new": {k: depth.get(k) for k in sorted(set(after) - set(before))},
+        "removed": sorted(set(before) - set(after)),
     }
 
 
@@ -545,26 +574,69 @@ def audit(
         "rest": rest_audit(inputs),
         "cache": cache_audit(inputs, cache_roots),
     }
-    for name in covered_migrations(inputs):
-        report |= EXTRA_AUDITS.get(name, _no_extra)(inputs, prediction)
+    extras = [EXTRA_AUDITS[name](inputs, prediction) for name in covered_migrations(inputs)]
+    for extra in extras:
+        report |= extra.report
+    explainers = [e.explains for e in extras if e.explains is not None]
+    if explainers:
+        report["gt_meta"] = gt_meta_audit(inputs, explainers)
     return report
 
 
-def floor_crossing_audits(inputs: AuditInputs, prediction: Prediction) -> dict[str, Any]:
+def floor_crossing_audits(inputs: AuditInputs, prediction: Prediction) -> Extra:
     rows = bounce_cases(inputs)
-    return {
+    report = {
         "impact_frames": integer_impact_check(inputs, prediction),
         "floor": floor_audit(inputs),
-        "gt_meta": gt_meta_audit(inputs, rows),
+        "e_clean_above_one": e_clean_above_one_audit(inputs, rows),
         "bounces": bounce_summary(rows),
     }
+    return Extra(report, floor_meta_explainer(rows))
 
 
-def _no_extra(inputs: AuditInputs, prediction: Prediction) -> dict[str, Any]:
-    return {}
+def pair_collision_audits(inputs: AuditInputs, prediction: Prediction) -> Extra:
+    tol = inputs.ds.contacts.tol_m
+    rows = [
+        r
+        for v in _exported_variants(inputs.plan, inputs.after)
+        for r in collision_rows(inputs.after, v, tol)
+    ]
+    r3b = r3b_audit(inputs)
+    report = {
+        "pair_rows": {
+            "tol_m": tol,
+            "touch_only": [r for r in rows if r["touch"] and not r["overlap"]],
+            "legacy_only": [r for r in rows if r["legacy"] and not r["on_floor"]],
+            "stops": [r for r in rows if r["legacy"] and not r["on_floor"] and r["gap_m"] <= tol],
+        },
+        "r3b": r3b,
+        "energy_labels": energy_label_audit(inputs),
+    }
+    moved = set(r3b["predicted"])
+
+    def explains(variant: VariantPlan, path: str) -> bool:
+        return path in PAIR_META_PATHS and variant.clip_id in moved
+
+    return Extra(report, explains)
 
 
-type ExtraAudit = Callable[[AuditInputs, Prediction], dict[str, Any]]
+def velocity_audits(inputs: AuditInputs, prediction: Prediction) -> Extra:
+    return Extra({}, None)
+
+
+type MetaExplainer = Callable[[VariantPlan, str], bool]
+
+
+@dataclass(frozen=True)
+class Extra:
+    """The findings a migration adds to the report, and which kept-clip ``gt_meta.json`` changes
+    it accounts for (None: the migration does not audit them)."""
+
+    report: dict[str, Any]
+    explains: MetaExplainer | None
+
+
+type ExtraAudit = Callable[[AuditInputs, Prediction], Extra]
 
 
 def _case_row(
@@ -704,8 +776,177 @@ def _release(states: ObjectStateTable, k: int, i: int) -> bool:
     return bool(k == 0 and moving and states.velocity[1, i, 2] < 0.0)
 
 
+def pair_collision_prediction(inputs: AuditInputs) -> Prediction:
+    """WP-I: an R3b edit moves only when the floor rule changes one of the four clean velocities
+    its rescaling starts from; no other plugin reads them."""
+    tol = inputs.ds.contacts.tol_m
+    certain = set()
+    for variant in rendered_before(inputs):
+        if variant.perturbation != ENERGY_GAIN or _record(inputs.before, variant) is None:
+            continue
+        scene, states, contacts = load_simulation(
+            inputs.after, variant.sim_id, variant.sim_id, inputs.ds
+        )
+        impact = first_ball_collision(states, contacts)
+        if impact is None:
+            continue
+        t_c, g = impact.t_start / float(scene.frame_rate), gravity_of(scene)
+        for object_id in (impact.object_a, impact.object_b):
+            index = states.object_index(object_id)
+            now = collision_velocities(states, contacts, index, t_c, g, tol)
+            old = legacy_collision_velocities(states, contacts, index, t_c, g)
+            if not all(np.array_equal(a, b) for a, b in zip(now, old, strict=True)):
+                certain.add(variant.clip_id)
+    return Prediction(frozenset(certain), frozenset())
+
+
+def legacy_grounded(object_id: str, contacts: ContactTable, frame: int) -> bool:
+    """The floor rule before WP-I: any floor record within one frame of the row."""
+    return any(
+        r.object_b == ENV_ID and math.floor(r.t_start) - 1 <= frame <= math.ceil(r.t_end) + 1
+        for r in records_of(object_id, contacts)
+    )
+
+
+def legacy_collision_velocities(
+    states: ObjectStateTable, contacts: ContactTable, index: int, t_c: float, g: np.ndarray
+) -> tuple[np.ndarray, np.ndarray]:
+    k = collision_row(states, t_c)
+    object_id = str(states.object_ids[index])
+    out = []
+    for row in (k, k + 1):
+        v = states.velocity[row, index]
+        grounded = legacy_grounded(object_id, contacts, row)
+        out.append(v.copy() if grounded else impact_velocity(v, float(states.t[row]), t_c, g))
+    return out[0], out[1]
+
+
+def legacy_energy_gain(
+    states: ObjectStateTable, contacts: ContactTable, masses: Mapping[str, float], g: np.ndarray
+) -> float:
+    fps = 1.0 / float(states.t[1] - states.t[0])
+    values = []
+    for r in _pair_impacts(contacts):
+        (am, ap), (bm, bp) = (
+            legacy_collision_velocities(
+                states, contacts, states.object_index(o), r.t_start / fps, g
+            )
+            for o in (r.object_a, r.object_b)
+        )
+        values.append(kinetic_energy_gain(masses[r.object_a] / masses[r.object_b], am, bm, ap, bp))
+    return max((v for v in values if math.isfinite(v)), default=math.nan)
+
+
+def collision_rows(store: DatasetStore, variant: VariantPlan, tol: float) -> list[dict[str, Any]]:
+    """Rows k and k + 1 of both bodies of every ball-ball impact of an exported clip: the old
+    flag, the record overlap, the floor gap and whether the new rule holds the row value."""
+    _, states, contacts = _exported(store, variant)
+    fps = 1.0 / float(states.t[1] - states.t[0])
+    rows = []
+    for r in _pair_impacts(contacts):
+        t_c = r.t_start / fps
+        k = collision_row(states, t_c)
+        for object_id in (r.object_a, r.object_b):
+            index = states.object_index(object_id)
+            for row in (k, k + 1):
+                overlap = row_overlaps_floor(states, contacts, index, row, t_c)
+                gap = floor_gap(states, index, row)
+                rows.append(
+                    {
+                        "clip": variant.clip_id,
+                        "object": object_id,
+                        "impact": r.t_start,
+                        "row": row,
+                        "legacy": legacy_grounded(object_id, contacts, row),
+                        "overlap": overlap,
+                        "touch": gap <= tol,
+                        "on_floor": overlap or gap <= tol,
+                        "gap_m": gap,
+                        "vz": float(states.velocity[row, index, 2]),
+                    }
+                )
+    return rows
+
+
+def r3b_audit(inputs: AuditInputs) -> dict[str, Any]:
+    """I6: ``measures.R3b`` before and after against the clips where the old and new rules differ
+    on the truth exported before the migration (the old rule must reproduce the stored value)."""
+    tol = inputs.ds.contacts.tol_m
+    predicted, observed, legacy_differs = {}, {}, []
+    for variant in _exported_variants(inputs.plan, inputs.before):
+        scene, states, contacts = _exported(inputs.before, variant)
+        masses = {o.object_id: o.mass for o in scene.objects}
+        g = gravity_of(scene)
+        old, new = (
+            legacy_energy_gain(states, contacts, masses, g),
+            max_energy_gain(states, contacts, masses, g, tol),
+        )
+        before = _meta(inputs.before, variant)
+        after = _meta(inputs.after, variant)
+        stored = math.nan if before is None else float(before["measures"]["R3b"])
+        if not _close(old, stored):
+            legacy_differs.append(variant.clip_id)
+        if not _close(old, new):
+            predicted[variant.clip_id] = {"before": old, "after": new}
+        if after is not None and not _close(stored, float(after["measures"]["R3b"])):
+            observed[variant.clip_id] = {"before": stored, "after": after["measures"]["R3b"]}
+    return {
+        "predicted": predicted,
+        "observed": observed,
+        "missing": sorted(set(predicted) - set(observed)),
+        "unexpected": sorted(set(observed) - set(predicted)),
+        "legacy_differs_from_stored": legacy_differs,
+    }
+
+
+def energy_label_audit(inputs: AuditInputs) -> dict[str, Any]:
+    """I2: every exported R3b edit labelled at its nominal gain, in ``record.json`` and in
+    ``gt_meta.json``."""
+    checked, off = 0, {}
+    for variant in inputs.plan.variants:
+        record, meta = _record(inputs.after, variant), _meta(inputs.after, variant)
+        if variant.perturbation != ENERGY_GAIN or record is None:
+            continue
+        checked += 1
+        labels = {"record": record.magnitude}
+        if meta is not None:
+            labels["gt_meta"] = float(meta["record"]["magnitude"])
+        gaps = {k: abs(v - variant.target_magnitude) for k, v in labels.items()}
+        if not all(gap <= MAGNITUDE_TOL for gap in gaps.values()):
+            off[variant.clip_id] = gaps
+    return {"checked": checked, "tol": MAGNITUDE_TOL, "off_nominal": off}
+
+
+def _pair_impacts(contacts: ContactTable) -> list[Any]:
+    return [r for r in contacts.records if r.kind is ContactKind.IMPACT and r.object_b != ENV_ID]
+
+
+def _exported_variants(plan: DatasetPlan, store: DatasetStore) -> list[VariantPlan]:
+    return [v for v in plan.variants if (store.clip_dir(v.clip_id) / GT_META).is_file()]
+
+
+def _exported(
+    store: DatasetStore, variant: VariantPlan
+) -> tuple[SceneSpec, ObjectStateTable, ContactTable]:
+    clip_dir = store.clip_dir(variant.clip_id)
+    return (
+        SceneSpec.load_json(store.scene_dir(variant.sim_id) / SPEC),
+        ObjectStateTable.load_npz(clip_dir / STATES_WORLD),
+        ContactTable.load_json(clip_dir / CONTACTS_WORLD),
+    )
+
+
+def _close(a: float, b: float) -> bool:
+    return (math.isnan(a) and math.isnan(b)) or abs(a - b) <= MAGNITUDE_TOL
+
+
 PREDICTIONS: Mapping[str, Callable[[AuditInputs], Prediction]] = {
     VELOCITY: velocity_prediction,
     FLOOR_CROSSING: floor_crossing_prediction,
+    PAIR_COLLISION: pair_collision_prediction,
 }
-EXTRA_AUDITS: Mapping[str, ExtraAudit] = {FLOOR_CROSSING: floor_crossing_audits}
+EXTRA_AUDITS: Mapping[str, ExtraAudit] = {
+    VELOCITY: velocity_audits,
+    FLOOR_CROSSING: floor_crossing_audits,
+    PAIR_COLLISION: pair_collision_audits,
+}
