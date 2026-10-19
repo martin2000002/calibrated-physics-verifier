@@ -4,7 +4,8 @@
 # Extract and verify exit 1 when some clips fail; those clips are counted by compare, not fatal.
 # They run on PHYSVERIFY_H2_DEVICE (default cpu): the VideoPhy stage cache was computed on the CPU
 # and the device is part of its key, so cuda would recompute every heavy stage. A one-clip verify
-# preflight stops early when that cache is not the one this device reads.
+# preflight stops early when that cache is not the one this device reads: verify exits 0 on an
+# uncached clip, so any error in the checks.jsonl of its run stops (a8v2_query.py run-errors).
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/_common.sh"
 cd "$REPO_ROOT"
@@ -14,7 +15,6 @@ DEV_SUBSET="${PHYSVERIFY_H2_DEV:-h2_dev}"
 TEST_SUBSET="${PHYSVERIFY_H2_TEST:-h2_test}"
 H2_DEVICE="${PHYSVERIFY_H2_DEVICE:-cpu}"
 PREFLIGHT_CLIP="${PHYSVERIFY_H2_PREFLIGHT_CLIP:-v1-a8208f4dd41e}"
-NOT_CACHED="heavy stage is not cached"
 # ADR 0015 runbook step 10: no H2 step runs without the sealed exclusion record.
 export PHYSVERIFY__CHECK_SCOPE__REQUIRE_DECISION_RECORD=true
 
@@ -44,15 +44,16 @@ run_of() {
     printf '%s\n' "$run_dir"
 }
 
-# One cached clip verified on H2_DEVICE; exit 1 (a failed clip) is inspected, not fatal.
+# One cached clip verified on H2_DEVICE; exit 1 is inspected through the run's checks, not fatal.
 preflight() {
     local PV_DEVICE="$H2_DEVICE"
     step 1 -- verify --dataset videophy --level perceived --subset "$DEV_SUBSET" \
         --clips "$PREFLIGHT_CLIP"
-    if grep -q "$NOT_CACHED" "$STEP_LOG"; then
-        die "preflight: $PREFLIGHT_CLIP is not cached for --device $H2_DEVICE (see $STEP_LOG)"
-    fi
-    run_of >/dev/null
+    local run_dir
+    run_dir="$(run_of)"
+    uv run --no-sync python "$REPO_ROOT/scripts/h200/a8v2_query.py" run-errors "$run_dir" \
+        || die "preflight: $PREFLIGHT_CLIP failed or is not cached for --device $H2_DEVICE" \
+            "(see $run_dir.log)"
 }
 
 pass() {
