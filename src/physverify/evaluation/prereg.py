@@ -1,6 +1,7 @@
 """Pre-registration of H3 (ADR 0013 D9): written by ``h3 freeze`` before any eval score or judge
 row exists; ``score``, ``judge`` and ``compare`` recompute every identity field and refuse when one
 changed. A refreeze archives the replaced file, so the chain back to the first freeze is kept.
+Once eval data exist, any refreeze needs a declared deviation and makes the verdict post hoc.
 """
 
 from __future__ import annotations
@@ -12,7 +13,7 @@ from typing import Any, Final
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from physverify.agreement.prereg import changed_fields, file_sha256
+from physverify.agreement.prereg import archive_replaced, changed_fields, walk_chain
 from physverify.core.errors import ConfigError, PhysverifyError, UsageError
 from physverify.evaluation.layout import H3Layout
 from physverify.evaluation.margins import MarginDerivation
@@ -61,7 +62,7 @@ class H3Preregistration(_Model):
     rule_label: str | None
     rule_status: RuleStatus
     calibration_dataset: dict[str, Any] | None
-    contaminated: bool
+    contaminated: bool | None
     judge_stamps: dict[str, str]
     gate_sha256: str | None
     margins: dict[str, float]
@@ -75,10 +76,18 @@ class H3Preregistration(_Model):
     created_utc: str
     replaces_sha256: str | None = None
     deviations: list[str] = Field(default_factory=list)
+    post_hoc: bool = False
 
 
 AUDIT_FIELDS: Final = frozenset(
-    {"commit", "created_utc", "replaces_sha256", "deviations", "eval_candidates_at_freeze"}
+    {
+        "commit",
+        "created_utc",
+        "replaces_sha256",
+        "deviations",
+        "post_hoc",
+        "eval_candidates_at_freeze",
+    }
 )
 """Recorded and reported, never refused on: a code fix after the freeze is shown, not blocked."""
 H3_FIELDS: Final = tuple(f for f in H3Preregistration.model_fields if f not in AUDIT_FIELDS)
@@ -155,6 +164,7 @@ def plan_freeze(
     """The record to write, or None when the frozen state still holds."""
     state = identity(current)
     assert_complete(state)
+    _require_known_provenance(current)
     if old is None:
         if request.eval_data:
             raise UsageError("eval scores or judge rows already exist; the freeze is not blind")
@@ -167,11 +177,29 @@ def plan_freeze(
     outside = [name for name in changed if name not in mutable(request.gate_exists)]
     if outside and request.eval_data:
         raise UsageError(f"{outside} cannot change once eval data exist")
+    if request.eval_data and request.deviation is None:
+        raise UsageError(
+            f"{changed} changed after eval data exist: the verdict becomes post hoc; "
+            "refreeze with --declare-deviation TEXT"
+        )
     if outside and request.deviation is None:
         raise UsageError(f"{outside} changed: refreeze with --declare-deviation TEXT")
     return current.model_copy(
-        update={"replaces_sha256": old_sha256, "deviations": _deviations(old, changed, request)}
+        update={
+            "replaces_sha256": old_sha256,
+            "deviations": _deviations(old, changed, request),
+            "post_hoc": old.post_hoc or request.eval_data,
+        }
     )
+
+
+def _require_known_provenance(current: H3Preregistration) -> None:
+    """Unknown provenance is never taken as clean (ADR 0013 D9)."""
+    if current.rule_status == "calibrated" and current.contaminated is None:
+        raise UsageError(
+            "the calibration dataset of the calibrated rule is unknown (artefact missing or "
+            "unreadable), so contamination cannot be ruled out; the freeze is refused"
+        )
 
 
 def load_prereg(path: Path) -> H3Preregistration:
@@ -189,26 +217,13 @@ def optional_prereg(path: Path) -> H3Preregistration | None:
 
 def write_prereg(layout: H3Layout, record: H3Preregistration) -> None:
     """Archives the file it replaces under its sha256, then writes the new one."""
-    old_sha = file_sha256(layout.prereg)
-    if old_sha is not None:
-        archive = layout.replaced(old_sha)
-        archive.parent.mkdir(parents=True, exist_ok=True)
-        archive.write_bytes(layout.prereg.read_bytes())
+    archive_replaced(layout.prereg, layout.replaced)
     write_record(layout.prereg, record)
 
 
 def chain(layout: H3Layout, record: H3Preregistration) -> list[H3Preregistration]:
     """The record and every archived one it replaces, newest first (stops at a missing link)."""
-    found = [record]
-    seen: set[str] = set()
-    while found[-1].replaces_sha256 is not None and found[-1].replaces_sha256 not in seen:
-        sha = found[-1].replaces_sha256
-        seen.add(sha)
-        path = layout.replaced(sha)
-        if not path.is_file():
-            break
-        found.append(load_prereg(path))
-    return found
+    return walk_chain(record, lambda sha: optional_prereg(layout.replaced(sha)))
 
 
 def chain_shas(layout: H3Layout, record: H3Preregistration, sha256: str) -> set[str]:

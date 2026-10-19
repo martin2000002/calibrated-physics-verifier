@@ -28,6 +28,7 @@ CONTRADICTED: Final = "contradicted_external"
 CONFIRMED: Final = "supported_external_confirmed"
 NONINFERIOR: Final = "supported_external_noninferior"
 VERIFIER_ONLY: Final = "supported_verifier_only"
+POST_HOC_REASON: Final = "post hoc: the pre-registration changed after eval data existed"
 TIERS: Final = (
     NO_VERDICT,
     NO_FT_MODEL,
@@ -43,7 +44,7 @@ TIERS: Final = (
 @dataclass(frozen=True)
 class VerdictInputs:
     rule_status: RuleStatus
-    contaminated: bool
+    contaminated: bool | None
     label_matches: bool
     has_ft_model: bool
     primary: TestResult | None
@@ -52,15 +53,19 @@ class VerdictInputs:
     margin_pc: float
     alpha: float
     guards: Mapping[str, GuardState] = field(default_factory=dict)
+    post_hoc: bool = False
 
 
 class H3Verdict(BaseModel):
+    """``post_hoc``: an outcome-defining field was refrozen after eval data existed."""
+
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     verdict: str
     external_status: ExternalStatus
     external_outcome: ExternalOutcome
     reasons: list[str]
+    post_hoc: bool
 
 
 def external_outcome(
@@ -87,7 +92,9 @@ def _provisional_reasons(v: VerdictInputs) -> list[str]:
     reasons = []
     if v.rule_status != "calibrated":
         reasons.append(f"rule status {v.rule_status}")
-    if v.contaminated:
+    if v.contaminated is None:
+        reasons.append("calibration dataset provenance is unknown")
+    elif v.contaminated:
         reasons.append("calibration dataset is contaminated")
     if not v.label_matches:
         reasons.append("score stamp differs from the frozen rule label")
@@ -120,9 +127,11 @@ def _tier(v: VerdictInputs, outcome: ExternalOutcome) -> tuple[str, list[str]]:
 def h3_verdict(v: VerdictInputs) -> H3Verdict:
     outcome = external_outcome(v.primary, v.external_status, v.external, v.margin_pc, v.alpha)
     verdict, reasons = _tier(v, outcome)
+    late = [POST_HOC_REASON] if v.post_hoc else []
     return H3Verdict(
         verdict=verdict,
         external_status=v.external_status,
         external_outcome=outcome,
-        reasons=reasons,
+        reasons=[*reasons, *late],
+        post_hoc=v.post_hoc,
     )

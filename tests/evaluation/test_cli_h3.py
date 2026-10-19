@@ -19,7 +19,13 @@ from physverify.evaluation.compare import (
     task_values,
 )
 from physverify.evaluation.prereg import H3Preregistration, chain_shas, load_prereg
-from physverify.evaluation.records import GateReport, JudgeOutput, JudgeRow
+from physverify.evaluation.records import (
+    GateReport,
+    GateTask,
+    JudgeOutput,
+    JudgeRow,
+    Usability,
+)
 from physverify.evaluation.scoring import manifest
 from physverify.evaluation.verdict import NO_VERDICT
 from physverify.finetune.records import BASE_TAG, write_record
@@ -254,3 +260,35 @@ def test_external_status_follows_the_gate_and_the_dev_usability(
     write_record(layout.gate, gate.model_copy(update={"passed": True}))
     assert frozen.usability is None
     assert external_status(layout, frozen, {}) == "not_run"
+
+
+def test_external_status_needs_the_gate_of_the_frozen_judge_stamps(
+    campaign: Any, frozen: H3Preregistration
+) -> None:
+    layout = campaign.layout
+    usable = frozen.model_copy(update={"usability": Usability(usable=True)})
+    outputs = {"base__pc": _output(BASE_TAG, frozen.judge_stamps["pc"], "s", 3.0)}
+
+    def gate(stamps: dict[str, str]) -> GateReport:
+        tasks = {
+            task: GateTask(
+                task=task,
+                stamp=stamp,
+                n=10,
+                exact=5,
+                exact_share=0.5,
+                mae=0.5,
+                parse_failures=0,
+                passed=True,
+            )
+            for task, stamp in stamps.items()
+        }
+        return GateReport(
+            tasks=tasks, clip_ids=[], reference_sha256=None, freeze_sha256=None, passed=True
+        )
+
+    layout.gate.parent.mkdir(parents=True, exist_ok=True)
+    write_record(layout.gate, gate(dict(frozen.judge_stamps)))
+    assert external_status(layout, usable, outputs) == "ok"
+    write_record(layout.gate, gate({task: "another-stamp" for task in frozen.judge_stamps}))
+    assert external_status(layout, usable, outputs) == "not_run"

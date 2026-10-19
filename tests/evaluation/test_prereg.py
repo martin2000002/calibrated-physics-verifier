@@ -135,8 +135,47 @@ def test_stamp_problem_compares_version_and_label(version: str, label: str, ok: 
 
 def test_a_new_scorer_version_refreezes_like_a_recalibration() -> None:
     assert "scorer_version" in H3_FIELDS
-    new = plan_freeze(record(), "sha0", record(scorer_version="3"), request(eval_data=True))
-    assert new is not None and new.scorer_version == "3"
+    new = plan_freeze(record(), "sha0", record(scorer_version="3"), request())
+    assert new is not None and new.scorer_version == "3" and not new.post_hoc
+
+
+@pytest.mark.parametrize(
+    "update",
+    [
+        {"rule": "calibrated"},
+        {"rule_status": "unavailable"},
+        {"rule_label": "calibrated:x"},
+        {"scorer_version": "3"},
+        {"calibration_artifact_sha256": "new"},
+    ],
+)
+def test_after_eval_data_a_rule_refreeze_without_a_declaration_fails(
+    update: dict[str, Any],
+) -> None:
+    with pytest.raises(UsageError, match="--declare-deviation"):
+        plan_freeze(record(), "sha0", record(**update), request(eval_data=True))
+
+
+def test_a_declared_rule_refreeze_after_eval_data_is_post_hoc() -> None:
+    changed = record(rule_label="calibrated:x")
+    new = plan_freeze(record(), "sha0", changed, request(deviation="recalibrated", eval_data=True))
+    assert new is not None and new.post_hoc
+    assert new.deviations == [
+        "recalibrated (changed: ['rule_label'])",
+        f"{EVAL_DATA_DEVIATION} (changed: ['rule_label'])",
+    ]
+    later = plan_freeze(new, "sha1", record(rule_label="calibrated:y"), request())
+    assert later is not None and later.post_hoc
+
+
+def test_an_unknown_calibration_dataset_blocks_a_calibrated_freeze() -> None:
+    unknown = record(rule_status="calibrated", contaminated=None)
+    with pytest.raises(UsageError, match="unknown"):
+        plan_freeze(None, None, unknown, request(force=False))
+    with pytest.raises(UsageError, match="unknown"):
+        plan_freeze(record(), "sha0", unknown, request())
+    provisional = record(contaminated=None)
+    assert plan_freeze(None, None, provisional, request(force=False)) == provisional
 
 
 def test_other_fields_need_a_declared_deviation() -> None:
@@ -149,9 +188,10 @@ def test_other_fields_need_a_declared_deviation() -> None:
 
 
 def test_after_eval_data_only_mutable_fields_change_and_it_is_recorded() -> None:
-    new = plan_freeze(record(), "sha0", record(rule_label="c"), request(eval_data=True))
+    late = request(deviation="x", eval_data=True)
+    new = plan_freeze(record(), "sha0", record(rule_label="c"), late)
     assert new is not None
-    assert new.deviations == [f"{EVAL_DATA_DEVIATION} (changed: ['rule_label'])"]
+    assert new.deviations[-1] == f"{EVAL_DATA_DEVIATION} (changed: ['rule_label'])"
     changed = record(margins={"pc": 0.2, "sa": 0.05})
     with pytest.raises(UsageError, match="eval data"):
         plan_freeze(record(), "sha0", changed, request(deviation="x", eval_data=True))
