@@ -13,6 +13,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
+from physverify.calibration.schema import Rate
 from physverify.reporting.chain import Missing
 from physverify.reporting.sources import (
     CONSUMED_LEVEL,
@@ -33,6 +34,7 @@ NO_AUC_CI = "no interval: the AUROC bootstrap is not implemented (ADR 0011 D6)"
 NOT_PREREGISTERED = "NOT PREREGISTERED: not the preregistered calibrated rule, no H2 claim"
 REHEARSAL_NOTE = "REHEARSAL (device {device}): not reportable"
 CI_LOW, CI_HIGH = "low", "high"
+EXACT_CI = Rate.model_fields["ci_method"].default
 
 
 @dataclass(frozen=True)
@@ -95,8 +97,8 @@ def with_ci(key: str, doc: Doc, where: str, ci: str, **extra: Any) -> Value:
 
 def rate(key: str, doc: Doc, where: str, **extra: Any) -> Value:
     found = doc.at(where)
-    method = found.get("ci_method", "clopper_pearson")
-    note = None if method == "clopper_pearson" else f"{found.get('n_scenes')} scenes, {method}"
+    method = found.get("ci_method", EXACT_CI)
+    note = None if method == EXACT_CI else f"{found.get('n_scenes')} scenes, {method}"
     return with_ci(
         key, doc, f"{where}/value", f"{where}/ci", k=found["k"], n=found["n"], note=note, **extra
     )
@@ -411,7 +413,7 @@ def h2_verdict(inputs: Inputs) -> Section:
     doc = _agreement_doc(inputs, "h2_verdict")
     if isinstance(doc, Section):
         return doc
-    names = ("applicable", "supported", "status", "reason", "post_hoc", "mcnemar_p")
+    names = ("applicable", "supported", "status", "reason", "gate", "post_hoc", "mcnemar_p")
     values = [leaf(n, doc, f"/h2_verdict/{n}") for n in names]
     values += [
         leaf("accuracy_difference", doc, "/h2_verdict/accuracy_difference"),

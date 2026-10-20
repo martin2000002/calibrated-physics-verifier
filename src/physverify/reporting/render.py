@@ -18,7 +18,7 @@ RESULTS_VERSION = "1.0.0"
 RESULTS_JSON = "results.json"
 RESULTS_MD = "results.md"
 CENSORED = {"below": "<=", "above": ">"}
-COLUMNS = ("key", "value", "CI", "k/n", "unit", "estimated", "note", "source")
+COLUMNS = ("key", "value", "CI", "k/n", "unit", "estimated", "reportable", "note", "source")
 
 
 def results_payload(results: Results) -> dict[str, Any]:
@@ -65,6 +65,7 @@ def _cells(v: Value) -> list[str]:
         _count(v),
         v.unit or "",
         "estimate" if v.estimated else "",
+        "" if v.reportable else "no (rehearsal)",
         v.note or "",
         f"`{v.source}`",
     ]
