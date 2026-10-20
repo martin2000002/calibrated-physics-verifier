@@ -43,11 +43,16 @@ if [[ "$1" != -c ]]; then
 fi
 shift 2
 printf 'pv %s\n' "$*" >> "$CALLS"
+printf 'env %s|%s|%s|%s\n' "${CUDA_VISIBLE_DEVICES-unset}" \
+    "${PHYSVERIFY__PATHS__CALIBRATION_DIR-unset}" "${PHYSVERIFY__PATHS__RUNS_DIR-unset}" \
+    "$PHYSVERIFY__RUNTIME__HEAVY_LOCK" >> "$CALLS"
+CAL="${CAL_DIR:-${PHYSVERIFY__PATHS__CALIBRATION_DIR:-$DATA/calibration}}"
+RUNS="${PHYSVERIFY__PATHS__RUNS_DIR:-$DATA/runs}"
 new_run() {
     local n
     n=$(( $(cat "$DATA/counter" 2>/dev/null || echo 0) + 1 ))
     echo "$n" > "$DATA/counter"
-    RUN="$DATA/runs/r$n"
+    RUN="$RUNS/r$n"
     mkdir -p "$RUN/diagnosis"
     if [[ -n "${HASH:-}" ]]; then echo "h$n"; else echo same; fi > "$RUN/checks_hash.txt"
     echo "run: $RUN"
@@ -55,7 +60,11 @@ new_run() {
 case "$*" in
   *" doctor")
     echo "paths.cache_dir: ${CACHE:-$DATA/cache} (env)"
-    echo "paths.error_profile: ${PROFILE_FILE:-$DATA/calibration/stage_errors.precise.json}"
+    echo "device: ${DOCTOR_DEVICE:-$4} (--device)"
+    echo "paths.calibration_dir: $CAL"
+    echo "paths.runs_dir: $RUNS"
+    echo "paths.error_profile: ${PROFILE_FILE:-$CAL/stage_errors.precise.json}"
+    echo "paths.thresholds: $CAL/thresholds.json"
     echo "paths.synthetic_dir: $DATA/synthetic"
     echo "paths.data_dir: $DATA"
     echo "heavy_lock: $PHYSVERIFY__RUNTIME__HEAVY_LOCK (free)" ;;
@@ -709,3 +718,140 @@ def test_a_start_at_7_checks_the_pisa_selection(sandbox: Sandbox) -> None:
     result = sandbox.run("7", PISA_SELECTED="p1")
     assert result.returncode == 2
     assert "set PHYSVERIFY_A8V2_PISA_MAX_CLIPS" in result.stderr
+
+
+CUDA = {"PHYSVERIFY_A8V2_DEVICE": "cuda", "CUDA_VISIBLE_DEVICES": "3"}
+CUDA_PREFIX = re.compile(r"^--profile precise --device cuda --set runtime\.threads=\d+ ")
+
+
+def _envs(sandbox: Sandbox) -> set[str]:
+    return {line.removeprefix("env ") for line in sandbox.lines() if line.startswith("env ")}
+
+
+def test_the_cpu_chain_hides_the_gpus_and_keeps_the_shared_paths(sandbox: Sandbox) -> None:
+    assert sandbox.run("0", "2", CUDA_VISIBLE_DEVICES="0").returncode == 0
+    assert _envs(sandbox) == {f"|unset|unset|{sandbox.root / 'kubric.lock'}"}
+    assert not (sandbox.root / "a8v2-cuda").exists()
+
+
+def test_the_cuda_chain_writes_only_its_own_artifacts(sandbox: Sandbox) -> None:
+    _audit(sandbox)
+    result = sandbox.run(REAL_QUERY="1", **CUDA)
+    assert result.returncode == 0, result.stderr
+    out = sandbox.root / "a8v2-cuda"
+    pv_lines = [line[3:] for line in sandbox.lines() if line.startswith("pv ")]
+    assert pv_lines and all(CUDA_PREFIX.match(line) for line in pv_lines)
+    calibration, runs = sandbox.data / "calibration-cuda", sandbox.data / "runs-cuda"
+    assert _envs(sandbox) == {f"3|{calibration}|{runs}|{out / 'heavy.lock'}"}
+    assert not sandbox.out.exists()
+    assert [row[1] for row in (line.split("\t") for line in _rows(out))][-1] == "gravity"
+    assert not (sandbox.data / "runs" / "r1").exists() and (runs / "r1").is_dir()
+    decide = next(line for line in pv_lines if " exclusions decide " in line)
+    assert f"--evaluation {runs / 'r10' / 'evaluation.json'} " in decide
+    summary = (out / "summary.md").read_text(encoding="utf-8")
+    assert summary.startswith("# A8 v2 (CUDA)") and "already complete" in summary
+
+
+def _rows(out: Path) -> list[str]:
+    return (out / "steps.tsv").read_text(encoding="utf-8").splitlines()
+
+
+def test_the_cuda_chain_never_runs_the_shared_migration(sandbox: Sandbox) -> None:
+    result = sandbox.run("0", "0", **CUDA)
+    assert result.returncode == 2
+    assert "run step 0 of the cpu chain" in result.stderr
+    assert not any(c.startswith("migrate") for c in sandbox.commands())
+    assert _rows(sandbox.root / "a8v2-cuda")[-1].split("\t")[:3] == ["0", "migrate", "2"]
+
+
+@pytest.mark.parametrize(
+    ("env", "message"),
+    [
+        ({"PHYSVERIFY_A8V2_DEVICE": "gpu"}, "must be cpu or cuda"),
+        ({**CUDA, "CUDA_VISIBLE_DEVICES": ""}, "must name the one GPU"),
+        ({**CUDA, "CUDA_VISIBLE_DEVICES": "1,3"}, "must name the one GPU"),
+    ],
+)
+def test_a_bad_device_setting_stops_before_any_call(
+    sandbox: Sandbox, env: dict[str, str], message: str
+) -> None:
+    result = sandbox.run(**env)
+    assert result.returncode == 2
+    assert message in result.stderr
+    assert sandbox.lines() == []
+
+
+@pytest.mark.parametrize(
+    ("env", "message"),
+    [
+        ({"DOCTOR_DEVICE": "cpu"}, "not cuda"),
+        ({"CAL_DIR": "/elsewhere/calibration"}, "paths.calibration_dir"),
+        ({"PROFILE_FILE": "/c/stage_errors.precise.json"}, "outside"),
+    ],
+)
+def test_cuda_paths_shared_with_the_cpu_chain_stop_after_doctor(
+    sandbox: Sandbox, env: dict[str, str], message: str
+) -> None:
+    result = sandbox.run(**CUDA, **env)
+    assert result.returncode == 2
+    assert message in result.stderr
+    assert sandbox.commands() == ["--profile precise --device cuda --set runtime.threads=32 doctor"]
+
+
+CUDA_SHARD = SHARD.replace("--device cpu", "--device cuda")
+KUBRIC_JOB = "extract run --dataset kubric_synthetic --subset full"
+
+
+@pytest.mark.parametrize(
+    ("device", "busy"),
+    [
+        ("cpu", f"4242 {CUDA_SHARD} {KUBRIC_JOB}"),
+        ("cpu", f"4242 {SHARD.replace('--device cpu', '--device=cuda:1')} {KUBRIC_JOB}"),
+        ("cpu", f"4242 {SHARD} --set runtime.device=cuda {KUBRIC_JOB}"),
+        ("cuda", f"4242 {SHARD} {KUBRIC_JOB}"),
+        ("cuda", f"4242 {SHARD} --no-lock diagnose stages --dataset kubric_synthetic --clips k1"),
+    ],
+)
+def test_jobs_of_the_other_device_never_block(sandbox: Sandbox, device: str, busy: str) -> None:
+    env = CUDA if device == "cuda" else {}
+    _audit(sandbox)
+    if device == "cuda":
+        sandbox.out = sandbox.root / "a8v2-cuda"
+    _done(sandbox, 1)
+    result = sandbox.run("1", "2", PS_OUT=f"  1 init\n{busy}", **env)
+    assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.parametrize(
+    "busy",
+    [
+        f"4242 {CUDA_SHARD} {KUBRIC_JOB}",
+        f"4242 {SHARD.replace('--device cpu', '--device cuda:0')} {KUBRIC_JOB}",
+        f"4242 {SHARD} --set runtime.device=cuda {KUBRIC_JOB}",
+        f"4242 python -c from physverify.cli.main import main; main() {KUBRIC_JOB}",
+        f"4242 {SHARD} --device {KUBRIC_JOB}",
+        f"4242 {SHARD} dataset build --version v2",
+    ],
+)
+def test_same_device_unreadable_and_dataset_jobs_block_the_cuda_chain(
+    sandbox: Sandbox, busy: str
+) -> None:
+    result = sandbox.run("0", "2", PS_OUT=f"  1 init\n{busy}", **CUDA)
+    assert result.returncode == 2
+    assert "still running" in result.stderr
+    assert sandbox.lines() == []
+
+
+def test_a_run_from_step_0_blocks_on_jobs_of_either_device(sandbox: Sandbox) -> None:
+    busy = f"4242 {SHARD} --device cuda extract run --dataset kubric_synthetic --clips k1"
+    result = sandbox.run("0", "2", PS_OUT=busy)
+    assert result.returncode == 2
+    assert "still running" in result.stderr
+
+
+def test_an_output_dir_of_the_other_chain_is_refused(sandbox: Sandbox) -> None:
+    sandbox.out.mkdir()
+    (sandbox.out / "state.env").write_text("CHAIN_DEVICE=cuda\n", encoding="utf-8")
+    result = sandbox.run("0", "2")
+    assert result.returncode == 2
+    assert "belongs to the cuda chain" in result.stderr
