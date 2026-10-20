@@ -126,7 +126,7 @@ DATASET_NAME='^[a-z][a-z0-9_]*$'
 
 # last_option OPTION ARGS: the value of the last `OPTION VALUE` or `OPTION=VALUE` in ARGS.
 last_option() {
-    grep -oE -- "$1[= ][^ ]*" <<<"$2" | tail -n 1 | sed -E "s/^$1[= ]//" || true
+    grep -oE -- "$1[= ][^ ]*" <<<"$2" | sed -nE "$ s/^$1[= ]//p" || true
 }
 
 # The device of a job's command line: the last `--set runtime.device=`, else the last --device;
