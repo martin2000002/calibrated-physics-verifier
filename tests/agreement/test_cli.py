@@ -7,6 +7,8 @@ import sys
 import tomllib
 from pathlib import Path
 
+import pytest
+
 CALIBRATION_TESTS = str(Path(__file__).resolve().parent.parent / "calibration")
 if CALIBRATION_TESTS not in sys.path:
     sys.path.insert(0, CALIBRATION_TESTS)
@@ -14,10 +16,15 @@ if CALIBRATION_TESTS not in sys.path:
 from exclusion_cases import write_record  # noqa: E402
 from stratum_cases import write_artifact  # noqa: E402
 
-from physverify.agreement.prereg import file_sha256, load_preregistration  # noqa: E402
+from physverify.agreement.prereg import (  # noqa: E402
+    file_sha256,
+    load_preregistration,
+    logged_comparisons,
+)
 from physverify.agreement.report import REPORT_DIR, _sign_flip_lines  # noqa: E402
 from physverify.calibration.loader import default_artifact_path  # noqa: E402
 from physverify.calibration.settings import active_checks_hash  # noqa: E402
+from physverify.core.errors import PhysverifyError  # noqa: E402
 from physverify.datasets._videophy_review import PENDING, load_review  # noqa: E402
 from physverify.schema.checks import InputLevel  # noqa: E402
 
@@ -89,6 +96,23 @@ def test_the_committed_rule_is_calibrated_with_the_descriptive_fallback(repo_roo
         agreement = tomllib.load(handle)["agreement"]
     assert agreement["rule"] == "calibrated"
     assert agreement["on_unusable_stratum"] == "descriptive"
+
+
+def test_a_test_comparison_is_logged_before_its_report_is_written(
+    cli, world, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run = _frozen(cli, world)
+
+    def broken(*args: object) -> None:
+        raise PhysverifyError("disk full")
+
+    monkeypatch.setattr("physverify.cli.commands.agreement.write_comparison", broken)
+    result = cli(*FAST, "agreement", "compare", "--verify-run", str(run))
+    assert result.code == 1 and "disk full" in result.err
+    prereg = world.settings.paths.data_dir / "agreement" / "preregistration.json"
+    (entry,) = logged_comparisons(prereg)
+    assert entry.run == str(run) and entry.prereg_sha256 == file_sha256(prereg)
+    assert not (run / REPORT_DIR / "metrics.json").exists()
 
 
 def test_the_calibrated_rule_without_its_artefact_is_a_config_error(cli, world) -> None:

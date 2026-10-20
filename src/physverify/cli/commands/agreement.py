@@ -196,9 +196,10 @@ def compare_command(
 ) -> None:
     request = CompareRequest(run_dir, name, rule, preregistration)
     comparison = run_comparison(app_context().settings, _dataset(), request, import_calibration)
+    # Logged before anything is written or shown: no test report may exist without its entry.
+    log_test_comparison(app_context().settings, comparison, run_dir, dt.datetime.now(dt.UTC))
     out_dir = run_dir / REPORT_DIR
     write_comparison(out_dir, comparison)
-    log_test_comparison(app_context().settings, comparison, run_dir, dt.datetime.now(dt.UTC))
     verdict = comparison.metrics["h2_verdict"]
     typer.echo(f"agreement: {out_dir}")
     typer.echo(f"rule: {comparison.metrics['rule']}; compared {comparison.counts.compared}")
