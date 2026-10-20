@@ -47,8 +47,11 @@ from physverify.verification.runner import (
 )
 from physverify.verification.selective_risk import (
     ABSTAINED,
+    ABSTENTION_FILE,
+    CURVE_FILE,
     FAILED,
     PASSED,
+    REPORT_FILE,
     SECTION,
     AbstentionSettings,
     Case,
@@ -75,9 +78,6 @@ from physverify.verification.sweep import CheckUnit
 NAME = "abstain"
 OWNER = "A9"
 IMPLEMENTED = True
-ABSTENTION_FILE = "abstention.json"
-REPORT_FILE = "abstention_report.json"
-CURVE_FILE = "curve.csv"
 DEFAULT_K = 2.0
 _NAMES = {ABSTAINED: "abstain", PASSED: "PASS", FAILED: "FAIL"}
 
@@ -309,18 +309,7 @@ def fit(
     collected = collect_synthetic(session, settings.calib_split)
     _require(collected, settings.calib_split)
     result = sweep(collected, session.thresholds, settings)
-    record = {
-        "estimated": True,
-        "dataset": settings.dataset,
-        "split": settings.calib_split,
-        "risk_target": settings.risk_target,
-        "ci": settings.ci,
-        "alpha_star": result["alpha_star"],
-        "k_star": result["k_star"],
-        "n": _counts(collected),
-        "thresholds": tables_of(session),
-        "curve": result["curve"],
-    }
+    record = fit_record(collected, result, settings, tables_of(session))
     target = session.context.settings.paths.calibration_dir / ABSTENTION_FILE
     target.parent.mkdir(parents=True, exist_ok=True)
     write_json(target, record)
@@ -330,6 +319,60 @@ def fit(
     else:
         typer.echo(f"k*: {result['k_star']:.4f} (alpha* {result['alpha_star']:.3g})")
     typer.echo(f"written: {target}")
+
+
+def fit_record(
+    collected: Collected,
+    result: Mapping[str, Any],
+    settings: AbstentionSettings,
+    tables: Mapping[str, Any],
+) -> dict[str, Any]:
+    """The content of ``abstention.json``; ``result`` is ``sweep`` on the calib cases."""
+    return {
+        "estimated": True,
+        "dataset": settings.dataset,
+        "split": settings.calib_split,
+        "risk_target": settings.risk_target,
+        "ci": settings.ci,
+        "alpha_star": result["alpha_star"],
+        "k_star": result["k_star"],
+        "n": _counts(collected),
+        "thresholds": tables,
+        "curve": result["curve"],
+    }
+
+
+@dataclass(frozen=True)
+class CurveParts:
+    """What ``abstain curve`` computes beyond the two swept tables."""
+
+    per_check: dict[str, Any]
+    injected_label: dict[str, Any]
+    z: dict[str, Any]
+    real_video: dict[str, Any]
+
+
+def curve_record(
+    evaluated: Collected,
+    tables: Mapping[str, Any],
+    fitted: float | None,
+    settings: AbstentionSettings,
+    thresholds: Mapping[str, Any],
+    parts: CurveParts,
+) -> dict[str, Any]:
+    """The content of ``abstention_report.json``; ``tables`` is ``compare_tables``."""
+    return {
+        "estimated": True,
+        "split": settings.eval_split,
+        "k_star_from_calib": fitted,
+        "n": _counts(evaluated),
+        "thresholds": thresholds,
+        "tables": tables,
+        "per_check": parts.per_check,
+        "injected_label": parts.injected_label,
+        "z": parts.z,
+        "real_video": parts.real_video,
+    }
 
 
 @app.command("curve", help="Held-out curve, raw vs calibrated table, per check, real video.")
@@ -345,19 +388,14 @@ def curve(
     _require(evaluated, settings.eval_split)
     calibrated, raw = session.thresholds, raw_table(session.thresholds)
     run_dir = new_run_dir(session.context)
-    tables = _tables(evaluated, calibrated, raw, settings)
-    report = {
-        "estimated": True,
-        "split": settings.eval_split,
-        "k_star_from_calib": fitted,
-        "n": _counts(evaluated),
-        "thresholds": tables_of(session),
-        "tables": tables,
-        "per_check": per_check_rows(evaluated.cases, calibrated, _named_ks(fitted), settings.ci),
-        "injected_label": _injected(session, evaluated, fitted),
-        "z": _z_summary(evaluated.cases, calibrated),
-        "real_video": _real(session, fitted),
-    }
+    tables = compare_tables(evaluated, calibrated, raw, settings)
+    parts = CurveParts(
+        per_check=per_check_rows(evaluated.cases, calibrated, named_ks(fitted), settings.ci),
+        injected_label=_injected(session, evaluated, fitted),
+        z=_z_summary(evaluated.cases, calibrated),
+        real_video=_real(session, fitted),
+    )
+    report = curve_record(evaluated, tables, fitted, settings, tables_of(session), parts)
     write_text_atomic(run_dir / CURVE_FILE, _curve_csv(tables))
     write_json(run_dir / REPORT_FILE, report)
     for line in summary_lines(report):
@@ -373,11 +411,11 @@ def _fitted_k(session: Session) -> float | None:
     return None if k is None else float(k)
 
 
-def _named_ks(fitted: float | None) -> dict[str, float]:
+def named_ks(fitted: float | None) -> dict[str, float]:
     return {"k_2": DEFAULT_K} if fitted is None else {"k_star": fitted, "k_2": DEFAULT_K}
 
 
-def _tables(
+def compare_tables(
     collected: Collected, calibrated: dict[str, Any], raw: dict[str, Any], s: AbstentionSettings
 ) -> dict[str, Any]:
     """Both tables swept on the same cases; AURC difference with a bootstrap paired by clip."""
@@ -461,15 +499,20 @@ def _real(session: Session, k: float | None) -> dict[str, Any]:
         except PhysverifyError as error:
             out[dataset] = {"error": str(error)}
             continue
-        reference = reference_codes(collected.cases)
-        rows = {}
-        for name, value in _named_ks(k).items():
-            codes = decision_codes(collected.cases, [value], session.thresholds)[0]
-            rows[name] = point_row(
-                curve_point(codes, reference), value, float(norm.sf(value)), s.ci
-            )
-        out[dataset] = {"n": _counts(collected), **rows}
+        out[dataset] = real_rows(collected, session.thresholds, k, s.ci)
     return out
+
+
+def real_rows(
+    collected: Collected, thresholds: Mapping[str, Any], k: float | None, ci: float
+) -> dict[str, Any]:
+    """One real dataset: counts and the point rows at k* and k = 2."""
+    reference = reference_codes(collected.cases)
+    rows = {}
+    for name, value in named_ks(k).items():
+        codes = decision_codes(collected.cases, [value], thresholds)[0]
+        rows[name] = point_row(curve_point(codes, reference), value, float(norm.sf(value)), ci)
+    return {"n": _counts(collected), **rows}
 
 
 def _curve_csv(tables: dict[str, Any]) -> str:
