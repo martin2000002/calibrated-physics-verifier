@@ -73,6 +73,8 @@ def test_tested_counts_the_log_of_the_configured_preregistration(query, settings
     path = settings.paths.data_dir / "agreement" / "preregistration.json"
     log_comparison(path, LoggedComparison(prereg_sha256="p", run="r", compared_utc="t"))
     assert query.tested(settings) == ["1"]
+    (log,) = query.log_path(settings)
+    assert Path(log).read_text(encoding="utf-8").count("\n") == 1
 
 
 def test_gaps_and_the_first_clip_ready_to_preflight(query, world) -> None:

@@ -42,6 +42,7 @@ if [[ "$1" != -c ]]; then
       "h2_query.py prereg "*) sed -n "s/^$4=//p" "$3" ;;
       "h2_query.py gaps "*) echo "- no object query: 32 rows (32 with video) of $3" ;;
       "h2_query.py ready "*) echo v2-ready000001 ;;
+      "h2_query.py log-path") echo "$LOG" ;;
     esac
     exit 0
 fi
@@ -62,6 +63,7 @@ new_run() {
 }
 case "$*" in
   *" doctor")
+    echo "config_dir: ${DOCTOR_CONFIG_DIR:-$REPO_CONFIGS}"
     echo "device: ${DOCTOR_DEVICE:-cpu} (--device)"
     echo "config_hash: ${CONFIG_HASH:-cafe12345678}"
     echo "paths.data_dir: ${DOCTOR_DATA_DIR:-$DATA}"
@@ -158,6 +160,7 @@ class Sandbox:
             "PHYSVERIFY_H2_PYTHON": str(fakes / "python"),
             "PHYSVERIFY_H2_EXPECT_COMMIT": "c0ffee1",
             "PHYSVERIFY_LOCK_HELD": "1",
+            "REPO_CONFIGS": str(self.root / "repo" / "configs"),
         }
         self.uncached = write_check_rows(self.root / "uncached.jsonl", error=UNCACHED)
 
@@ -237,6 +240,7 @@ def test_a_missing_or_unknown_phase_stops_before_any_call(sandbox: Sandbox, args
         ({"PHYSVERIFY__VERIFICATION__X": "1"}, "PHYSVERIFY__VERIFICATION__X"),
         ({"PHYSVERIFY__PATHS__THRESHOLDS": "/t.json"}, "PHYSVERIFY__PATHS__THRESHOLDS"),
         ({"PHYSVERIFY_H2_THREADS": "0"}, "PHYSVERIFY_H2_THREADS"),
+        ({"PHYSVERIFY_CONFIG_DIR": "/other/configs"}, "PHYSVERIFY_CONFIG_DIR"),
     ],
 )
 def test_a_startup_guard_stops_before_any_call(
@@ -287,6 +291,7 @@ def test_an_unfinished_a8v2_cpu_chain_stops_before_any_call(
 @pytest.mark.parametrize(
     ("env", "message"),
     [
+        ({"DOCTOR_CONFIG_DIR": "/other/configs"}, "config_dir"),
         ({"DOCTOR_DEVICE": "cuda"}, "device 'cuda'"),
         ({"DOCTOR_DATA_DIR": "/other/data"}, "paths.data_dir"),
         ({"DOCTOR_CACHE_DIR": "/other/cache"}, "paths.cache_dir"),
@@ -327,6 +332,7 @@ def test_dev_freezes_without_touching_test(sandbox: Sandbox) -> None:
     result = sandbox.run("dev", CLIP_EXIT="1", REAL_QUERY="1")
     assert result.returncode == 0, result.stderr
     assert "run_h2.sh test" in result.stdout
+    assert "WARNING" not in result.stderr
     runs = sandbox.data / "runs"
     assert sandbox.commands() == [
         "doctor",
@@ -509,3 +515,38 @@ def test_another_config_hash_stops_the_test_after_doctor(sandbox: Sandbox) -> No
     result = sandbox.run("test", CONFIG_HASH="beef00000000")
     assert result.returncode == 2 and "config_hash" in result.stderr
     assert sandbox.commands() == ["doctor", "agreement subset --check"]
+
+
+def test_an_uncommitted_local_config_stops_before_any_call(sandbox: Sandbox) -> None:
+    configs = sandbox.root / "repo" / "configs"
+    configs.mkdir()
+    (configs / "local.toml").write_text("[verification]\n")
+    for phase in ("dev", "test"):
+        result = sandbox.run(phase)
+        assert result.returncode == 2 and "local.toml" in result.stderr
+    assert sandbox.lines() == []
+
+
+def test_moving_the_output_and_data_directories_does_not_unspend_test(sandbox: Sandbox) -> None:
+    _dev_done(sandbox)
+    assert sandbox.run("test").returncode == 0
+    ledger = sandbox.root / "h2-test-ledger.txt"
+    assert ledger.read_text().splitlines() == [str(sandbox.comparison_log())]
+    sandbox.calls.unlink()
+    moved = {
+        "PHYSVERIFY_H2_DIR": str(sandbox.root / "h2b"),
+        "PHYSVERIFY_H2_DATA": str(sandbox.root / "d2"),
+    }
+    dev = sandbox.run("dev", **moved)
+    assert dev.returncode == 2 and "post hoc" in dev.stderr and str(ledger) in dev.stderr
+    test = sandbox.run("test", **moved)
+    assert (
+        test.returncode == 2 and "spent" in test.stderr and "if the write completed" in test.stderr
+    )
+    assert sandbox.commands() == []
+
+
+def test_dev_warns_when_the_calibration_gate_is_not_null(sandbox: Sandbox) -> None:
+    result = sandbox.run("dev", PREREG_RULE="provisional_any_fail", PREREG_GATE="weights 0")
+    assert result.returncode == 0, result.stderr
+    assert "WARNING: calibration_gate not null (weights 0)" in result.stderr

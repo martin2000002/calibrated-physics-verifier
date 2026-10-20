@@ -15,11 +15,12 @@
 #
 # Startup (exit 2, before any physverify call): the phase argument; no PHYSVERIFY__* variable but
 # the ones this script exports (a foreign one would change verify or the rule without moving the
-# frozen hashes); PHYSVERIFY_H2_DEVICE cpu; HEAD is PHYSVERIFY_H2_EXPECT_COMMIT with nothing
+# frozen hashes), no PHYSVERIFY_CONFIG_DIR and no configs/local.toml (git status cannot see it);
+# PHYSVERIFY_H2_DEVICE cpu; HEAD is PHYSVERIFY_H2_EXPECT_COMMIT with nothing
 # uncommitted or untracked under src, configs, scripts or annotations; no other instance on
 # $OUT/run.lock; the A8 v2 CPU chain in PHYSVERIFY_H2_A8V2_DIR completed steps 0..9 and published
 # calibration.json, exclusions.json and stage_errors.precise.json in the calibration directory.
-# Then doctor must report device cpu, the four exported paths, the precise error profile and the
+# Then doctor must report config_dir $REPO_ROOT/configs, device cpu, the four exported paths, the precise error profile and the
 # thresholds of that calibration directory, and the caption review must be recorded.
 #
 # dev refuses once a test comparison is logged (a freeze after looking at test is post hoc). After
@@ -28,8 +29,10 @@
 # the pre-registration and its sha256, the frozen commit, the sha256 of the A8 v2 files, of the
 # exported PHYSVERIFY__* environment and doctor's config_hash.
 #
-# test runs once: it refuses, with no physverify call, when state.env records TEST_COMPARED or
-# the comparison log has an entry (no variable skips this). It requires the freeze step's last
+# test runs once: it refuses, with no physverify call, when state.env records TEST_COMPARED, the
+# comparison log has an entry, or so does any log listed in $H200_ROOT/h2-test-ledger.txt (each
+# test phase lists its log there before compare, so moving PHYSVERIFY_H2_DIR and PHYSVERIFY_H2_DATA
+# does not hide a spent test). No variable skips this; dev refuses on the same evidence. It requires the freeze step's last
 # exit 0 and every value dev recorded unchanged. A pre-registration with a calibration gate (the
 # stratum was not usable) makes H2 "not evaluable with the calibrated rule" whether or not test
 # runs; test then needs PHYSVERIFY_H2_ACCEPT_NOT_EVALUABLE=1 to spend it on that result.
@@ -72,6 +75,12 @@ done
 [[ -z "$foreign" ]] || die "the environment sets configuration run_h2.sh does not own:$foreign" \
     "(it would change H2 without moving its frozen hashes); unset it"
 
+[[ -z "${PHYSVERIFY_CONFIG_DIR+set}" ]] \
+    || die "PHYSVERIFY_CONFIG_DIR is set: H2 reads only the committed $REPO_ROOT/configs; unset it"
+[[ ! -e "$REPO_ROOT/configs/local.toml" ]] \
+    || die "$REPO_ROOT/configs/local.toml exists: it is not committed, so H2 would not run the" \
+        "frozen configuration; remove it (run_h2.sh sets every path and the lock itself)"
+
 DEVICE="${PHYSVERIFY_H2_DEVICE:-cpu}"
 [[ "$DEVICE" == cpu ]] \
     || die "PHYSVERIFY_H2_DEVICE must be cpu (ADR 0015 Enmienda 1; the VideoPhy cache is the CPU one), got '$DEVICE'"
@@ -109,6 +118,7 @@ unset PHYSVERIFY_LOCK_HELD
 PV_DEVICE=cpu
 CAL="$PHYSVERIFY__PATHS__CALIBRATION_DIR"
 A8V2="${PHYSVERIFY_H2_A8V2_DIR:-$H200_ROOT/a8v2}"
+LEDGER="$H200_ROOT/h2-test-ledger.txt"
 ENV_SHA="$(env | grep '^PHYSVERIFY__' | LC_ALL=C sort | sha256sum | cut -d ' ' -f 1)"
 
 LOGS="$OUT/logs"
@@ -171,16 +181,30 @@ artifacts_unchanged() {
         || die "the A8 v2 files in $CAL changed since the dev phase: H2 must be frozen again"
 }
 
-# The comparison log of the configured pre-registration path holds no entry.
+# Neither the comparison log of the configured pre-registration nor any log in the ledger holds
+# an entry.
 untested() {
-    local n
+    local n log
     n="$(query h2_query.py tested)" || die "cannot read the test-comparison log"
-    [[ "$n" == 0 ]]
+    [[ "$n" == 0 ]] || return 1
+    [[ -f "$LEDGER" ]] || return 0
+    while IFS= read -r log; do
+        [[ -z "$log" || ! -s "$log" ]] || ! grep -q . "$log" || return 1
+    done <"$LEDGER"
+}
+
+# Lists this phase's comparison log in the ledger before compare can write to it.
+enter_ledger() {
+    local log
+    log="$(query h2_query.py log-path)" || die "cannot locate the test-comparison log"
+    grep -qxF -- "$log" "$LEDGER" 2>/dev/null || printf '%s\n' "$log" >>"$LEDGER"
 }
 
 check_doctor() {
     local name var
     DOCTOR="$(pv doctor)" || die "physverify doctor failed"
+    same_path "$(doctor_value config_dir)" "$REPO_ROOT/configs" \
+        || die "doctor reports config_dir '$(doctor_value config_dir)', not $REPO_ROOT/configs"
     [[ "$(doctor_value device)" == cpu ]] || die "doctor reports device '$(doctor_value device)', not cpu"
     for name in DATA_DIR CACHE_DIR RAW_DIR CALIBRATION_DIR; do
         var="PHYSVERIFY__PATHS__$name"
@@ -256,8 +280,8 @@ note_gaps() {
 }
 
 phase_dev() {
-    untested || die "a test comparison is already logged: a freeze now is post hoc" \
-        "(agreement freeze --force --declare-deviation, by hand)"
+    untested || die "a test comparison is already logged (see also $LEDGER): a freeze now is" \
+        "post hoc (agreement freeze --force --declare-deviation, by hand)"
     check_doctor
     save DEV_ENV_SHA "$ENV_SHA"
     save DEV_CONFIG_HASH "$CONFIG_HASH"
@@ -283,12 +307,20 @@ phase_dev() {
     note_gaps "$DEV_SUBSET"
     artifacts_unchanged
     row 0
+    local gate
+    gate="$(prereg_field calibration_gate)"
+    if [[ -n "$gate" ]]; then
+        echo "WARNING: calibration_gate not null ($gate): H2 is not evaluable with the calibrated" \
+            "rule, whether or not test runs (ADR 0015 1.3); test needs" \
+            "PHYSVERIFY_H2_ACCEPT_NOT_EVALUABLE=1" >&2
+    fi
     echo "dev frozen ($PREREG); review $SUMMARY, then run_h2.sh test"
 }
 
 phase_test() {
-    local spent="H2 test is spent: a test comparison is already logged; its report is in"
-    spent+=" <test verify run>/agreement/ and compare never runs twice"
+    local spent="H2 test is spent: a test comparison is already logged (configured log or $LEDGER)"
+    spent+=" and compare never runs twice. Its report is in <test verify run>/agreement/ if the"
+    spent+=" write completed; if not, the compare step's log in $LOGS (or the ledger's run) says why"
     [[ -z "${TEST_COMPARED:-}" ]] || die "$spent (TEST_COMPARED in $STATE)"
     untested || die "$spent"
     [[ "$(last_exit freeze)" == 0 ]] || die "the dev phase has not completed: run run_h2.sh dev"
@@ -319,6 +351,7 @@ phase_test() {
     pass test "$TEST_SUBSET"
     save TEST_VERIFY_RUN "$VERIFY_RUN"
     begin compare "$PHASE"
+    enter_ledger
     call 0 -- agreement compare --verify-run "$TEST_VERIFY_RUN" --subset "$TEST_SUBSET" \
         --rule "$CALIBRATED"
     save TEST_COMPARED 1

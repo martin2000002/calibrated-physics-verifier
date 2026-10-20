@@ -6,6 +6,7 @@ Exit codes: 0 ok, 2 an input is unusable (message on stderr).
 
     python h2_query.py prereg PATH FIELD   the field's value (empty for null)
     python h2_query.py tested              logged test comparisons of the configured freeze
+    python h2_query.py log-path            the comparison log of the configured freeze
     python h2_query.py gaps SUBSET         rows without an object query or a video
     python h2_query.py ready SUBSET        the first clip with a video and an object query
 """
@@ -36,12 +37,23 @@ def prereg_field(path: Path, field: str) -> list[str]:
     return ["" if value is None else str(value)]
 
 
-def tested(settings: Any) -> list[str]:
-    from physverify.agreement.prereg import logged_comparisons
+def _preregistration(settings: Any) -> Path:
     from physverify.agreement.settings import agreement_settings, preregistration_path
 
-    path = preregistration_path(settings, agreement_settings(settings))
-    return [str(len(logged_comparisons(path)))]
+    path: Path = preregistration_path(settings, agreement_settings(settings))
+    return path
+
+
+def tested(settings: Any) -> list[str]:
+    from physverify.agreement.prereg import logged_comparisons
+
+    return [str(len(logged_comparisons(_preregistration(settings))))]
+
+
+def log_path(settings: Any) -> list[str]:
+    from physverify.agreement.prereg import comparison_log_path
+
+    return [str(comparison_log_path(_preregistration(settings)))]
 
 
 def gap_lines(gaps: Any) -> list[str]:
@@ -100,6 +112,7 @@ def _parser() -> argparse.ArgumentParser:
     prereg.add_argument("path", type=Path)
     prereg.add_argument("field")
     sub.add_parser("tested")
+    sub.add_parser("log-path")
     sub.add_parser("gaps").add_argument("subset")
     sub.add_parser("ready").add_argument("subset")
     return parser
@@ -109,6 +122,7 @@ def _lines(args: argparse.Namespace) -> list[str]:
     commands: dict[str, Callable[[], list[str]]] = {
         "prereg": lambda: prereg_field(args.path, args.field),
         "tested": lambda: tested(_settings(())),
+        "log-path": lambda: log_path(_settings(())),
         "gaps": lambda: gaps(_settings(()), args.subset),
         "ready": lambda: ready(_settings(()), args.subset),
     }
