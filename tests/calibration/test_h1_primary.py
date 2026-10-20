@@ -2,10 +2,20 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
-from calibration_cases import CHECKS, config, dataset_ref, fitted_artifact, synthetic_report
+from calibration_cases import (
+    CHECKS,
+    config,
+    dataset_ref,
+    fit_meta,
+    fitted_artifact,
+    settings,
+    synthetic_level,
+    synthetic_report,
+)
 from records import error_profile
 
 from physverify.calibration.collect import level_data
@@ -15,10 +25,17 @@ from physverify.calibration.evaluate import (
     PrimaryScope,
     evaluate,
 )
-from physverify.calibration.loader import parse_calibration
+from physverify.calibration.fit import FitInputs, fit_calibration
+from physverify.calibration.loader import parse_calibration, sha256_of
+from physverify.calibration.monotonicity import LevelDelta, monotonicity
 from physverify.calibration.report import evaluation_markdown
 from physverify.calibration.scenes import SceneScope, expand, h1_scope, in_scope, scene_index
-from physverify.calibration.schema import CalibrationArtifact, EvaluationReport
+from physverify.calibration.schema import (
+    CALIBRATION_VERSION,
+    CalibrationArtifact,
+    EvaluationReport,
+    Monotonicity,
+)
 from physverify.calibration.settings import active_checks_hash
 from physverify.cli.context import PLUGIN_KINDS
 from physverify.config.loader import load_settings
@@ -30,6 +47,7 @@ from physverify.extraction.plan import resolve_plan
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import Split
 from physverify.schema.stages import Stage
+from physverify.verification.runner import VerificationReport
 
 PRIMARY = ("s000", "s011-s039")
 
@@ -151,3 +169,101 @@ def test_the_report_round_trips_and_renders(artifact: CalibrationArtifact) -> No
     assert "## H1 primary (scenes s000, s011-s039) vs all scenes" in markdown
     assert "FPR clean primary" in markdown and "Primary: " in markdown
     assert "H1 primary" not in evaluation_markdown(_evaluate(artifact, None))
+
+
+# --- the pooled tau_b of D8 in both views (ADR 0015 1.4, rule of ADR 0009 change 4) -----------
+
+
+def _fit_on(report: VerificationReport) -> CalibrationArtifact:
+    level = synthetic_level(report, InputLevel.ORACLE)
+    return fit_calibration(FitInputs((level,), CHECKS, fit_meta()), config())
+
+
+@pytest.fixture(scope="module")
+def family() -> tuple[CalibrationArtifact, EvaluationInputs]:
+    """Calib scenes named like Kubric's (``-sNNN``) so that the primary scope selects them."""
+    calib = synthetic_report(40, prefix="fam-s")
+    heldout = synthetic_report(40, seed=7, split=Split.EVAL, prefix="held-s")
+    both = type(calib)(
+        calib.results + heldout.results, calib.table + heldout.table, calib.clips + heldout.clips
+    )
+    synthetic = level_data(InputLevel.ORACLE, both, CHECKS, config(), split=None)
+    return _fit_on(calib), EvaluationInputs(synthetic, {})
+
+
+def _json(model: Monotonicity) -> object:
+    return json.loads(model.to_json())
+
+
+def _family_report(family: tuple[CalibrationArtifact, EvaluationInputs]) -> EvaluationReport:
+    artifact, inputs = family
+    calibration = parse_calibration(artifact.to_json())
+    return evaluate(calibration, (inputs,), _meta(_scope()), config(bootstrap=50, seed=3))
+
+
+def test_the_all_scenes_tau_is_the_artifacts_own(
+    family: tuple[CalibrationArtifact, EvaluationInputs],
+) -> None:
+    """Same value, interval and seed as the fit, even with other evaluation settings."""
+    artifact, _ = family
+    report = _family_report(family)
+    (whole,) = report.strata
+    fitted = artifact.strata[0].checks
+    by_id = {m.check_id: m.monotonicity for m in whole.monotonicity}
+    assert set(by_id) == {c for c, f in fitted.items() if f.monotonicity.n_pairs > 0} == {"R1"}
+    for check_id, pooled in by_id.items():
+        assert _json(pooled) == _json(fitted[check_id].monotonicity)
+    assert {m.split for m in whole.monotonicity} == {"calib"}
+
+
+def test_the_primary_tau_uses_only_the_primary_scenes(
+    family: tuple[CalibrationArtifact, EvaluationInputs],
+) -> None:
+    report = _family_report(family)
+    assert report.h1_primary is not None
+    (primary,) = report.h1_primary.strata
+    (whole,) = report.strata
+    (r1_primary,) = primary.monotonicity
+    (r1_all,) = whole.monotonicity
+    assert r1_all.monotonicity.n_scenes == 40
+    assert r1_primary.monotonicity.n_scenes == len(expand(PRIMARY)) == 30
+    assert r1_primary.monotonicity.n_pairs * 40 == r1_all.monotonicity.n_pairs * 30
+    markdown = evaluation_markdown(report)
+    assert "Pooled Kendall tau_b of the calib clips (D8), primary vs all scenes:" in markdown
+    assert "median delta by level, primary (descriptive)" in markdown
+
+
+def test_h1_pass_is_the_lower_bound_only() -> None:
+    """Medians that dip at one level do not condition h1_pass (ADR 0009 change 4)."""
+    steps = {0: 0.0, 1: 0.2, 2: 0.1, 3: 0.5}
+    pairs = [LevelDelta(f"s{i:03d}", lv, d) for i in range(20) for lv, d in steps.items()]
+    result = monotonicity(pairs, settings())
+    assert result.monotone_medians is False
+    assert result.ci.low is not None and result.ci.low > 0.0
+    assert result.h1_pass is True
+
+
+def test_a_1_3_0_evaluation_still_reads(
+    family: tuple[CalibrationArtifact, EvaluationInputs],
+) -> None:
+    data = json.loads(_family_report(family).to_json())
+    data["version"] = "1.3.0"
+    for stratum in (*data["strata"], *data["h1_primary"]["strata"]):
+        del stratum["monotonicity"]
+    old = EvaluationReport.model_validate_json(json.dumps(data))
+    assert old.strata[0].monotonicity == ()
+    assert old.h1_primary is not None and old.h1_primary.strata[0].monotonicity == ()
+
+
+def test_a_1_3_0_artifact_loads_strictly_and_is_not_rewritten(
+    family: tuple[CalibrationArtifact, EvaluationInputs],
+) -> None:
+    artifact, inputs = family
+    text = artifact.to_json().replace(f'"version": "{CALIBRATION_VERSION}"', '"version": "1.3.0"')
+    assert '"version": "1.3.0"' in text
+    calibration = parse_calibration(text)
+    assert calibration.version == "1.3.0"
+    assert calibration.artifact.to_json() == text
+    report = evaluate(calibration, (inputs,), _meta(_scope()), config())
+    assert report.artifact_sha256 == sha256_of(text)
+    assert report.strata[0].monotonicity

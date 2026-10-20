@@ -27,6 +27,11 @@ from physverify.verification.policies.threshold import ThresholdParams, Threshol
 from physverify.verification.runner import entry_of
 
 SECTION = "abstention"
+ABSTENTION_FILE = "abstention.json"
+"""k* fitted on calib (``abstain fit``), under ``paths.calibration_dir``."""
+REPORT_FILE = "abstention_report.json"
+CURVE_FILE = "curve.csv"
+"""``abstain curve`` writes both into its run directory."""
 ABSTAINED, PASSED, FAILED = 0, 1, 2
 _CODES = {Verdict.PASS: PASSED, Verdict.FAIL: FAILED}
 REFERENCE_K = 0.0

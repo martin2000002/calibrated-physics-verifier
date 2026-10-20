@@ -8,9 +8,10 @@ from dataclasses import dataclass
 from physverify.calibration.apply import policy_for, rule_for, score_clip
 from physverify.calibration.fit import LevelData
 from physverify.calibration.loader import Calibration, CalibrationError, Stratum
-from physverify.calibration.monotonicity import scene_kendall
+from physverify.calibration.monotonicity import deltas, monotonicity, scene_kendall
 from physverify.calibration.scenes import SceneScope, in_scope
 from physverify.calibration.schema import (
+    CheckMonotonicity,
     DatasetRef,
     EvaluationReport,
     EvaluationStratum,
@@ -20,7 +21,7 @@ from physverify.calibration.schema import (
     RealFpr,
     SceneKendall,
 )
-from physverify.calibration.settings import CalibrationConfig
+from physverify.calibration.settings import CalibrationConfig, CalibrationSettings
 from physverify.calibration.stats import clustered_rate
 from physverify.calibration.table import (
     CalibrationRow,
@@ -91,6 +92,7 @@ def evaluate(
         raise CalibrationError(
             f"the artifact has no stratum of profile {meta.profile!r} at the evaluated levels"
         )
+    pooled = fit_settings(calibration, config)
     return EvaluationReport(
         created_utc=meta.created_utc,
         run_id=meta.run_id,
@@ -100,8 +102,8 @@ def evaluate(
         dataset=meta.dataset,
         real_datasets=tuple(sorted({name for item in inputs for name in item.real})),
         real_sets=meta.real_sets,
-        strata=tuple(_stratum(stratum, item, config) for stratum, item in matched),
-        h1_primary=_primary(matched, meta.primary, config),
+        strata=tuple(_stratum(stratum, item, config, pooled) for stratum, item in matched),
+        h1_primary=_primary(matched, meta.primary, config, pooled),
     )
 
 
@@ -109,6 +111,7 @@ def _primary(
     matched: Sequence[tuple[Stratum, EvaluationInputs]],
     primary: PrimaryScope | None,
     config: CalibrationConfig,
+    pooled: CalibrationSettings,
 ) -> H1PrimaryView | None:
     if primary is None or not primary.scope.primary_scenes:
         return None
@@ -116,7 +119,9 @@ def _primary(
     return H1PrimaryView(
         scenes=primary.scope.primary_scenes,
         dataset=primary.dataset,
-        strata=tuple(_stratum(stratum, item, config, keep=keep) for stratum, item in matched),
+        strata=tuple(
+            _stratum(stratum, item, config, pooled, keep=keep) for stratum, item in matched
+        ),
     )
 
 
@@ -137,6 +142,7 @@ def _stratum(
     stratum: Stratum,
     item: EvaluationInputs,
     config: CalibrationConfig,
+    pooled: CalibrationSettings,
     keep: frozenset[int] | None = None,
 ) -> EvaluationStratum:
     """``keep``: only the scenes of these indices, and no real video (the primary view)."""
@@ -158,7 +164,36 @@ def _stratum(
             RealFpr(dataset=name, check_id=SCORE_CHECK, fpr=clip_flags(stratum, data, config))
             for name, data in sorted(real.items())
         ),
+        monotonicity=pooled_monotonicity(stratum, rows, check_ids, pooled),
     )
+
+
+def fit_settings(calibration: Calibration, config: CalibrationConfig) -> CalibrationSettings:
+    """The bootstrap, seed and level the artifact was fitted with, so that the pooled tau_b of
+    the evaluated calib clips can be compared with the artifact's own."""
+    snapshot = calibration.artifact.settings
+    return config.calibration.model_copy(
+        update={"bootstrap": snapshot.bootstrap, "seed": snapshot.seed, "ci": snapshot.ci}
+    )
+
+
+def pooled_monotonicity(
+    stratum: Stratum,
+    rows: Sequence[CalibrationRow],
+    check_ids: Sequence[str],
+    settings: CalibrationSettings,
+) -> tuple[CheckMonotonicity, ...]:
+    """D8's pooled tau_b over the calib rows (ADR 0015 1.4 when ``rows`` are the primary
+    scenes); checks without a (level, delta) pair are left out rather than reported as NaN."""
+    found: list[CheckMonotonicity] = []
+    for check_id in check_ids:
+        calib = [r for r in rows if r.check_id == check_id and r.split is Split.CALIB]
+        pairs = deltas(calib, stratum.sigma_correction(check_id)[0])
+        if pairs:
+            found.append(
+                CheckMonotonicity(check_id=check_id, monotonicity=monotonicity(pairs, settings))
+            )
+    return tuple(found)
 
 
 def heldout_check(

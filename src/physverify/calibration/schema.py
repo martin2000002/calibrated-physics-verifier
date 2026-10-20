@@ -15,7 +15,7 @@ from physverify.diagnosis.report import ReportModel
 from physverify.schema.checks import InputLevel
 
 CALIBRATION_SCHEMA = "physverify.calibration"
-CALIBRATION_VERSION = "1.3.0"
+CALIBRATION_VERSION = "1.4.0"
 EVALUATION_SCHEMA = "physverify.calibration.evaluation"
 LENIENT = "lenient"
 """Validation-context flag: drop keys this version does not know (newer minor version)."""
@@ -298,6 +298,15 @@ class HeldoutCheck(ArtifactModel):
     tpr_by_level: tuple[LevelTpr, ...]
 
 
+class CheckMonotonicity(ArtifactModel):
+    """The pooled tau_b of D8 recomputed on the evaluated calib clips (the fit's statistic and
+    its ``h1_pass`` rule, ADR 0009 change 4); held-out clips never enter it."""
+
+    check_id: str
+    split: Literal["calib"] = "calib"
+    monotonicity: Monotonicity
+
+
 class RealFpr(ArtifactModel):
     dataset: str
     check_id: str
@@ -312,6 +321,8 @@ class EvaluationStratum(ArtifactModel):
     real: tuple[RealFpr, ...]
     real_clip_flags: tuple[RealFpr, ...]
     """Share of real clips whose aggregate score is flagged (check_id ``score``)."""
+    monotonicity: tuple[CheckMonotonicity, ...] = ()
+    """From 1.4.0; checks with at least one calib (level, delta) pair."""
 
 
 class H1PrimaryView(ArtifactModel):
