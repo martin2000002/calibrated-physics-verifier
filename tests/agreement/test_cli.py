@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sys
+import tomllib
 from pathlib import Path
 
 CALIBRATION_TESTS = str(Path(__file__).resolve().parent.parent / "calibration")
@@ -81,6 +82,13 @@ def test_a_changed_config_breaks_the_preregistration(cli, world) -> None:
         *FAST, "--set", "agreement.alpha=0.1", "agreement", "compare", "--verify-run", str(run)
     )
     assert result.code == 2 and "agreement_config_sha256" in result.err
+
+
+def test_the_committed_rule_is_calibrated_with_the_descriptive_fallback(repo_root: Path) -> None:
+    with (repo_root / "configs" / "agreement.toml").open("rb") as handle:
+        agreement = tomllib.load(handle)["agreement"]
+    assert agreement["rule"] == "calibrated"
+    assert agreement["on_unusable_stratum"] == "descriptive"
 
 
 def test_the_calibrated_rule_without_its_artefact_is_a_config_error(cli, world) -> None:

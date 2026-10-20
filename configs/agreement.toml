@@ -119,7 +119,7 @@ scope_value = "Object Interactions"
 rules_column = "human_violated_rules"
 
 [agreement]
-rule = "provisional_any_fail"          # "calibrated" once A8 publishes data/calibration/calibration.json
+rule = "calibrated"                    # A8 v2 published (ADR 0011 §6); provisional only as fallback
 primary_policy = "as_plausible"
 alpha = 0.05
 power = 0.8
