@@ -52,7 +52,7 @@ def results(
         h1_evaluation=h1_evaluation,
         h2_run=h2_run,
         abstention_run=abstention_run,
-        decision_record=scope.decision_record,
+        check_scope=scope,
     )
     found = collect_results(collect_inputs(request))
     if found.banner:

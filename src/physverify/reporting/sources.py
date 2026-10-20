@@ -25,7 +25,6 @@ from physverify.calibration.loader import (
     sha256_of,
 )
 from physverify.calibration.schema import EvaluationReport
-from physverify.cli.commands.abstain import ABSTENTION_FILE, REPORT_FILE
 from physverify.reporting.chain import (
     EVALUATION_KEY,
     RECORD_KEY,
@@ -35,6 +34,8 @@ from physverify.reporting.chain import (
     abstain_curve_run,
 )
 from physverify.schema.checks import InputLevel
+from physverify.verification.scope import CheckScope, record_path
+from physverify.verification.selective_risk import ABSTENTION_FILE, REPORT_FILE
 
 FIT_STEPS = (5, 6, 7)
 DECIDE_STEP = 9
@@ -87,14 +88,14 @@ def read_doc(path: Path) -> Doc:
 
 @dataclass(frozen=True)
 class Request:
-    """``decision_record``: ``[check_scope].decision_record`` (relative to the artifact's
-    directory, as ``verification.scope.record_path`` resolves it)."""
+    """``check_scope``: ``[check_scope]``, whose record is resolved against the artifact's
+    directory by ``verification.scope.record_path``."""
 
     a8v2_dir: Path
     h1_evaluation: Path | None = None
     h2_run: Path | None = None
     abstention_run: Path | None = None
-    decision_record: str | None = None
+    check_scope: CheckScope = CheckScope()
 
 
 @dataclass(frozen=True)
@@ -129,9 +130,11 @@ def collect_inputs(request: Request) -> Inputs:
     require_artifact_tau(h1_report, calibration, h1.path)
     calibration_dir = artifact.path.parent
     curve = request.abstention_run or abstain_curve_run(chain)
+    profile = evaluation_profile(report)
+    record = record_path(request.check_scope, calibration_dir)
     return Inputs(
         chain=chain,
-        profile=evaluation_profile(report),
+        profile=profile,
         artifact=artifact,
         calibration=calibration,
         evaluation=evaluation,
@@ -140,8 +143,8 @@ def collect_inputs(request: Request) -> Inputs:
         abstention_report=(
             curve if isinstance(curve, Missing) else _abstention(curve / REPORT_FILE, calibration)
         ),
-        record=_record(chain, request.decision_record, calibration_dir, calibration, evaluation),
-        metrics=None if request.h2_run is None else _metrics(request.h2_run, calibration),
+        record=_record(chain, record, calibration, evaluation),
+        metrics=None if request.h2_run is None else _metrics(request.h2_run, calibration, profile),
     )
 
 
@@ -218,16 +221,14 @@ def _abstention(path: Path, calibration: Calibration) -> Doc | Missing:
 
 def _record(
     chain: ChainState,
-    name: str | None,
-    calibration_dir: Path,
+    path: Path | None,
     calibration: Calibration,
     evaluation: Doc,
 ) -> Doc | Missing:
     if not chain.completed(DECIDE_STEP):
         return Missing(f"step {DECIDE_STEP} (exclusions decide) has not completed")
-    if name is None:
+    if path is None:
         return Missing("[check_scope].decision_record is unset")
-    path = calibration_dir / name
     if not path.is_file():
         return Missing(f"no decision record at {path}")
     doc = read_doc(path)
@@ -246,13 +247,16 @@ def _record(
     return doc
 
 
-def _metrics(run: Path, calibration: Calibration) -> Doc:
-    """A calibrated rule must be this artifact's stratum (``CalibratedRule.label``)."""
+def _metrics(run: Path, calibration: Calibration, profile: str) -> Doc:
+    """A calibrated rule must be the stratum this report covers: ``CalibratedRule.label`` ends
+    with the stratum source ``#<level>/<profile>@<run_id>`` (``loader.Calibration._wrap``)."""
     doc = read_doc(run / REPORT_DIR / METRICS_FILE)
     rule = str(doc.data.get("rule", ""))
-    if is_calibrated(rule) and not rule.endswith(f"@{calibration.run_id}"):
+    expected = f"#{CONSUMED_LEVEL.value}/{profile}@{calibration.run_id}"
+    if is_calibrated(rule) and not rule.endswith(expected):
         raise ResultsInputError(
-            f"{doc.path}: rule {rule!r} is not the artifact {calibration.run_id}"
+            f"{doc.path}: rule {rule!r} is not the {CONSUMED_LEVEL.value}/{profile} stratum of "
+            f"the artifact {calibration.run_id}"
         )
     return doc
 
