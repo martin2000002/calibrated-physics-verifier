@@ -19,7 +19,8 @@
 #   startup  no other instance on $PHYSVERIFY_A8V2_DIR (run.lock); no running extract, dataset or
 #            diagnose job on a dataset steps FROM..TO touch (STEP_DATASETS; one whose --dataset
 #            cannot be read always blocks), checked again before every step; extract and diagnose
-#            jobs of the other device are ignored (the cache keys hold the device), a job whose
+#            jobs of the other device are ignored (the cache keys hold the device) except in a
+#            cpu run from step 0 (its migration purges every device's cache), a job whose
 #            device cannot be read blocks, dataset jobs block on either device; HEAD is
 #            PHYSVERIFY_A8V2_EXPECT_COMMIT with no uncommitted change under src, configs or
 #            scripts; paths.cache_dir is PHYSVERIFY_A8V2_CACHE_DIR; steps 0..FROM-1 last recorded
