@@ -849,6 +849,18 @@ def test_a_run_from_step_0_blocks_on_jobs_of_either_device(sandbox: Sandbox) -> 
     assert "still running" in result.stderr
 
 
+def test_a_cuda_run_from_step_0_ignores_cpu_extract_and_diagnose_jobs(sandbox: Sandbox) -> None:
+    _audit(sandbox)
+    busy = (
+        f"4242 {SHARD} {KUBRIC_JOB}\n"
+        f"4243 {SHARD} --no-lock diagnose stages --dataset kubric_synthetic --clips k1"
+    )
+    sandbox.out = sandbox.root / "a8v2-cuda"
+    result = sandbox.run("0", "0", PS_OUT=f"  1 init\n{busy}", **CUDA)
+    assert result.returncode == 0, result.stderr
+    assert "already complete" in (sandbox.out / "summary.md").read_text(encoding="utf-8")
+
+
 def test_an_output_dir_of_the_other_chain_is_refused(sandbox: Sandbox) -> None:
     sandbox.out.mkdir()
     (sandbox.out / "state.env").write_text("CHAIN_DEVICE=cuda\n", encoding="utf-8")

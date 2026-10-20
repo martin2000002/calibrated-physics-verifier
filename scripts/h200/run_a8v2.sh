@@ -19,7 +19,8 @@
 #   startup  no other instance on $PHYSVERIFY_A8V2_DIR (run.lock); no running extract, dataset or
 #            diagnose job on a dataset steps FROM..TO touch (STEP_DATASETS; one whose --dataset
 #            cannot be read always blocks), checked again before every step; extract and diagnose
-#            jobs of the other device are ignored (the cache keys hold the device), a job whose
+#            jobs of the other device are ignored (the cache keys hold the device) except in a
+#            cpu run from step 0 (its migration purges every device's cache), a job whose
 #            device cannot be read blocks, dataset jobs block on either device; HEAD is
 #            PHYSVERIFY_A8V2_EXPECT_COMMIT with no uncommitted change under src, configs or
 #            scripts; paths.cache_dir is PHYSVERIFY_A8V2_CACHE_DIR; steps 0..FROM-1 last recorded
@@ -151,8 +152,10 @@ blocks() {
         return
     fi
     device="$(job_device "$args")"
-    # The migration (step 0) purges the cache of every device, so then any device blocks.
-    ((FROM == 0)) || [[ -z "$device" || "$device" == "$DEVICE" ]] || return 1
+    # Only the cpu chain's step 0 migrates, which purges the cache of every device, so then any
+    # device blocks; the cuda step 0 only checks that the migration is complete.
+    { ((FROM == 0)) && [[ "$DEVICE" == cpu ]]; } || [[ -z "$device" || "$device" == "$DEVICE" ]] \
+        || return 1
     values="$(grep -oE -- '--dataset[= ][^ ]*' <<<"$args" | sed -E 's/^--dataset[= ]//' || true)"
     [[ -n "$values" ]] || return 0
     while IFS= read -r value; do
