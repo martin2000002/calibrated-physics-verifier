@@ -9,6 +9,7 @@ from collections.abc import Iterable, Sequence
 from physverify.calibration.schema import (
     CalibrationArtifact,
     CheckCalibration,
+    CheckMonotonicity,
     Ci,
     DatasetRef,
     DetectionLimit,
@@ -16,6 +17,7 @@ from physverify.calibration.schema import (
     EvaluationStratum,
     H1PrimaryView,
     HeldoutCheck,
+    Monotonicity,
     Rate,
     Stratum,
 )
@@ -41,25 +43,25 @@ ESTIMATE_NOTE = (
 )
 
 
-def _num(value: float | None, digits: int = 3) -> str:
+def number_text(value: float | None, digits: int = 3) -> str:
     return "-" if value is None else f"{value:.{digits}g}"
 
 
-def _ci(ci: Ci) -> str:
-    return f"[{_num(ci.low)}, {_num(ci.high)}]"
+def ci_text(ci: Ci) -> str:
+    return f"[{number_text(ci.low)}, {number_text(ci.high)}]"
 
 
-def _rate(r: Rate) -> str:
-    text = f"{_num(r.value)} {_ci(r.ci)} ({r.k}/{r.n})"
+def rate_text(r: Rate) -> str:
+    text = f"{number_text(r.value)} {ci_text(r.ci)} ({r.k}/{r.n})"
     if r.ci_method != "clopper_pearson":
         text += f" {r.n_scenes} scenes, {r.ci_method}"
     return text
 
 
-def _ld(ld: DetectionLimit) -> str:
+def detection_limit_text(ld: DetectionLimit) -> str:
     opened = f" open {','.join(ld.ci_open)}" if ld.ci_open else ""
     reason = f" {ld.reason}" if ld.reason else ""
-    return f"{_num(ld.value)} {_ci(ld.ci)} {ld.censored}{opened}{reason} (estimate)"
+    return f"{number_text(ld.value)} {ci_text(ld.ci)} {ld.censored}{opened}{reason} (estimate)"
 
 
 def _table(headers: Sequence[str], rows: Iterable[Sequence[str]]) -> list[str]:
@@ -72,18 +74,18 @@ def _check_row(check_id: str, c: CheckCalibration) -> list[str]:
     return [
         check_id,
         c.status,
-        _num(c.tau),
+        number_text(c.tau),
         c.unit,
         str(c.n_clean_scenes) + (f" ({c.n_clean_dropped} NaN)" if c.n_clean_dropped else ""),
-        f"{_num(c.tau_conformal)} / {_num(c.tau_tolerance)}",
-        _rate(c.fpr.cv),
-        _rate(c.fpr.cv_decided),
-        _rate(c.fpr.off_target) + (" coupling?" if c.fpr.undeclared_coupling else ""),
-        f"{_num(c.auroc.value)} {_ci(c.auroc.ci)}",
-        _ld(ld),
-        f"{_num(c.monotonicity.kendall_tau_b)} {_ci(c.monotonicity.ci)}",
-        _num(c.weight.value),
-        _num(c.sigma.factor),
+        f"{number_text(c.tau_conformal)} / {number_text(c.tau_tolerance)}",
+        rate_text(c.fpr.cv),
+        rate_text(c.fpr.cv_decided),
+        rate_text(c.fpr.off_target) + (" coupling?" if c.fpr.undeclared_coupling else ""),
+        f"{number_text(c.auroc.value)} {ci_text(c.auroc.ci)}",
+        detection_limit_text(ld),
+        f"{number_text(c.monotonicity.kendall_tau_b)} {ci_text(c.monotonicity.ci)}",
+        number_text(c.weight.value),
+        number_text(c.sigma.factor),
     ]
 
 
@@ -111,11 +113,11 @@ def _stratum_lines(s: Stratum) -> list[str]:
     lines += _table(CHECK_HEADERS, (_check_row(c, s.checks[c]) for c in sorted(s.checks)))
     lines += [
         "",
-        f"Score threshold s* = {_num(agg.score_threshold)}"
+        f"Score threshold s* = {number_text(agg.score_threshold)}"
         f"{' (in-sample, optimistic)' if agg.score_threshold_in_sample else ''} "
         f"(sufficient: {agg.sufficient}, "
         f"{agg.n_clean_scenes} clean / {agg.n_perturbed_clips} perturbed clips); "
-        f"AUROC {_num(agg.auroc.value)} {_ci(agg.auroc.ci)}.",
+        f"AUROC {number_text(agg.auroc.value)} {ci_text(agg.auroc.ci)}.",
         "",
     ]
     return lines
@@ -151,11 +153,11 @@ def curves_csv(artifact: CalibrationArtifact) -> str:
                         s.profile,
                         check_id,
                         t.level,
-                        _num(t.mu_median, 6),
-                        _num(t.total.value, 6),
-                        _num(t.total.ci.low, 6),
-                        _num(t.total.ci.high, 6),
-                        _num(t.decided.value, 6),
+                        number_text(t.mu_median, 6),
+                        number_text(t.total.value, 6),
+                        number_text(t.total.ci.low, 6),
+                        number_text(t.total.ci.high, 6),
+                        number_text(t.decided.value, 6),
                         t.total.n,
                     ]
                 )
@@ -170,10 +172,10 @@ def _evaluation_stratum(s: EvaluationStratum) -> list[str]:
             [
                 c.check_id,
                 c.status,
-                _num(c.tau),
-                _rate(c.fpr_clean),
-                _rate(c.fpr_clean_decided),
-                _rate(c.fpr_off_target),
+                number_text(c.tau),
+                rate_text(c.fpr_clean),
+                rate_text(c.fpr_clean_decided),
+                rate_text(c.fpr_off_target),
             ]
             for c in s.checks
         ),
@@ -183,15 +185,21 @@ def _evaluation_stratum(s: EvaluationStratum) -> list[str]:
         lines += _table(
             ("scene", "check", "tau_b", "levels", "split"),
             (
-                [k.scene_id, k.check_id, _num(k.kendall_tau_b), str(k.n_levels), k.split]
+                [k.scene_id, k.check_id, number_text(k.kendall_tau_b), str(k.n_levels), k.split]
                 for k in s.scene_kendall
             ),
+        )
+    if s.monotonicity:
+        lines += ["", "Pooled Kendall tau_b of the calib clips (D8):", ""]
+        lines += _table(
+            ("check", "tau_b", "h1_pass", "pairs", "scenes"),
+            ([m.check_id, *_tau_cells(m.monotonicity)] for m in s.monotonicity),
         )
     if s.real or s.real_clip_flags:
         lines += ["", "Real video (false-positive control):", ""]
         lines += _table(
             ("dataset", "check", "FPR"),
-            ([r.dataset, r.check_id, _rate(r.fpr)] for r in (*s.real, *s.real_clip_flags)),
+            ([r.dataset, r.check_id, rate_text(r.fpr)] for r in (*s.real, *s.real_clip_flags)),
         )
     return [*lines, ""]
 
@@ -232,7 +240,55 @@ def _h1_primary(
         )
         if whole is not None:
             lines += _side_by_side(primary, whole)
+            lines += _pooled_side_by_side(primary.monotonicity, whole.monotonicity)
     return lines
+
+
+def _tau_cells(m: Monotonicity) -> list[str]:
+    return [
+        f"{number_text(m.kendall_tau_b)} {ci_text(m.ci)}",
+        str(m.h1_pass),
+        str(m.n_pairs),
+        str(m.n_scenes),
+    ]
+
+
+def _medians(m: Monotonicity) -> str:
+    levels = ", ".join(f"L{k}: {number_text(v)}" for k, v in m.median_delta_by_level.items())
+    return f"{levels} (monotone: {m.monotone_medians})"
+
+
+def _pooled_side_by_side(
+    primary: Sequence[CheckMonotonicity], whole: Sequence[CheckMonotonicity]
+) -> list[str]:
+    """h1_pass is the lower CI bound of tau_b above 0 (ADR 0009 change 4); the medians are
+    descriptive and do not condition it."""
+    if not primary:
+        return []
+    by_id = {m.check_id: m.monotonicity for m in whole}
+    lines = ["Pooled Kendall tau_b of the calib clips (D8), primary vs all scenes:", ""]
+    lines += _table(
+        (
+            "check",
+            "tau_b primary",
+            "h1_pass primary",
+            "pairs primary",
+            "scenes primary",
+            "tau_b all",
+            "h1_pass all",
+            "median delta by level, primary (descriptive)",
+        ),
+        (
+            [
+                m.check_id,
+                *_tau_cells(m.monotonicity),
+                *(_tau_cells(by_id[m.check_id])[:2] if m.check_id in by_id else ["-", "-"]),
+                _medians(m.monotonicity),
+            ]
+            for m in primary
+        ),
+    )
+    return [*lines, ""]
 
 
 def _side_by_side(primary: EvaluationStratum, whole: EvaluationStratum) -> list[str]:
@@ -252,11 +308,11 @@ def _side_by_side(primary: EvaluationStratum, whole: EvaluationStratum) -> list[
         (
             [
                 c.check_id,
-                _num(c.tau),
-                _rate(by_id[c.check_id].fpr_clean),
-                _rate(c.fpr_clean),
-                _rate(by_id[c.check_id].fpr_off_target),
-                _rate(c.fpr_off_target),
+                number_text(c.tau),
+                rate_text(by_id[c.check_id].fpr_clean),
+                rate_text(c.fpr_clean),
+                rate_text(by_id[c.check_id].fpr_off_target),
+                rate_text(c.fpr_off_target),
                 _top_tpr(by_id[c.check_id]),
                 _top_tpr(c),
             ]
@@ -271,4 +327,4 @@ def _top_tpr(check: HeldoutCheck) -> str:
     if not check.tpr_by_level:
         return "-"
     top = max(check.tpr_by_level, key=lambda t: t.level)
-    return f"L{top.level}: {_rate(top.total)}"
+    return f"L{top.level}: {rate_text(top.total)}"
