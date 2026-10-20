@@ -151,8 +151,10 @@ blocks() {
         return
     fi
     device="$(job_device "$args")"
-    # The migration (step 0) purges the cache of every device, so then any device blocks.
-    ((FROM == 0)) || [[ -z "$device" || "$device" == "$DEVICE" ]] || return 1
+    # Only the cpu chain's step 0 migrates, which purges the cache of every device, so then any
+    # device blocks; the cuda step 0 only checks that the migration is complete.
+    { ((FROM == 0)) && [[ "$DEVICE" == cpu ]]; } || [[ -z "$device" || "$device" == "$DEVICE" ]] \
+        || return 1
     values="$(grep -oE -- '--dataset[= ][^ ]*' <<<"$args" | sed -E 's/^--dataset[= ]//' || true)"
     [[ -n "$values" ]] || return 0
     while IFS= read -r value; do
