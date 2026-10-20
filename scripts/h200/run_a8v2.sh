@@ -5,14 +5,22 @@
 # size evaluation and the LIFT gravity rows (neither feeds the record, so they come after it).
 # It consumes the perception cache the CPU shards left (run_real_cpu_shards.sh,
 # run_kubric_cpu_shards.sh) and never uses a GPU: every call is --profile precise --device cpu,
-# the device the cache keys were computed with.
+# the device the cache keys were computed with. With PHYSVERIFY_A8V2_DEVICE=cuda the same chain
+# runs on the GPU the launcher left in CUDA_VISIBLE_DEVICES (--device cuda, the cache the GPU
+# extraction left) as a device sensitivity: CPU and CUDA magnitudes differ, so it never shares a
+# calibration with the CPU chain. Its error profile, calibration artifacts, abstention, exclusion
+# record, runs and heavy lock are its own (paths.calibration_dir = $DATA/calibration-cuda,
+# paths.runs_dir = $DATA/runs-cuda, runtime.heavy_lock in its output directory); the
+# pair-collision migration is shared, so it only checks that the CPU chain completed it.
 #
 #   bash scripts/h200/run_a8v2.sh [FROM [TO]]   steps FROM..TO (default 0..11); a TO below 11
 #                                               stops there with exit 0, `FROM=TO+1` resumes
 #
 #   startup  no other instance on $PHYSVERIFY_A8V2_DIR (run.lock); no running extract, dataset or
 #            diagnose job on a dataset steps FROM..TO touch (STEP_DATASETS; one whose --dataset
-#            cannot be read always blocks), checked again before every step; HEAD is
+#            cannot be read always blocks), checked again before every step; extract and diagnose
+#            jobs of the other device are ignored (the cache keys hold the device), a job whose
+#            device cannot be read blocks, dataset jobs block on either device; HEAD is
 #            PHYSVERIFY_A8V2_EXPECT_COMMIT with no uncommitted change under src, configs or
 #            scripts; paths.cache_dir is PHYSVERIFY_A8V2_CACHE_DIR; steps 0..FROM-1 last recorded
 #            with exit 0 in steps.tsv and their STEP_SAVES in state.env; when the range touches
@@ -43,14 +51,16 @@
 # Steps 2 and 4 compute the diagnosis ladder variants (V1: TRACK on the true DETECT, a heavy
 # stage the shards never ran) on the CPU under the lazy heavy lock; the preflight does not cover
 # them, it only times one clip of them and writes the estimate to the summary.
-# Everything lands in $PHYSVERIFY_A8V2_DIR (default $H200_ROOT/a8v2): logs/, steps.tsv,
-# summary.md and state.env (run ids later steps need, so FROM resumes). Exit codes: 0 ok, 2 a
-# check failed, otherwise the failing command's own (1 failed clips where not tolerated, 75 lock).
+# Everything lands in $PHYSVERIFY_A8V2_DIR (default $H200_ROOT/a8v2, cuda: a8v2-cuda): logs/,
+# steps.tsv, summary.md and state.env (run ids later steps need, so FROM resumes). Exit codes:
+# 0 ok, 2 a check failed, otherwise the failing command's own (1 failed clips where not tolerated,
+# 75 lock).
 #
 # Required:
 #   PHYSVERIFY_A8V2_EXPECT_COMMIT   prefix (>= 7 chars) of the HEAD this checkout must be at
 #   PHYSVERIFY_A8V2_CACHE_DIR       the cache root the shards filled; doctor must report it
 # Optional:
+#   PHYSVERIFY_A8V2_DEVICE          cpu (default) or cuda
 #   PHYSVERIFY_A8V2_PYTHON          interpreter (default /home/mmonterot/dev/venv/bin/python)
 #   PHYSVERIFY_A8V2_DATA            paths.data_dir (default $H200_ROOT/kubric-data)
 #   PHYSVERIFY_A8V2_DIR             output directory (default $H200_ROOT/a8v2)
@@ -74,6 +84,12 @@ STEP_NUMBER='^(0|[1-9][0-9]*)$'
 [[ "$FROM" =~ $STEP_NUMBER && "$TO" =~ $STEP_NUMBER ]] \
     && [[ "$FROM" -le "$TO" && "$TO" -le "$LAST_STEP" ]] \
     || die "FROM and TO must be step numbers with FROM <= TO <= $LAST_STEP, got '$FROM' '$TO'"
+DEVICE="${PHYSVERIFY_A8V2_DEVICE:-cpu}"
+case "$DEVICE" in
+    cpu) OUT_NAME=a8v2 ;;
+    cuda) OUT_NAME=a8v2-cuda ;;
+    *) die "PHYSVERIFY_A8V2_DEVICE must be cpu or cuda, got '$DEVICE'" ;;
+esac
 
 # The datasets whose extraction cache each step reads or writes: 3 extracts the real sets, 6 and 7
 # (abstain curve) read them, 9 reads the R2 clips; 10 (Objectron heads) and 11 (step 2's
@@ -99,7 +115,7 @@ in_range() {
 # The state.env keys a step leaves for later ones.
 STEP_SAVES=([2]="STAGES_RUN" [6]="EVAL_JSON" [8]="R2_BASE_RUN R2_TINY_RUN" [9]="RECORD_SHA")
 
-OUT="${PHYSVERIFY_A8V2_DIR:-$H200_ROOT/a8v2}"
+OUT="${PHYSVERIFY_A8V2_DIR:-$H200_ROOT/$OUT_NAME}"
 mkdir -p "$OUT"
 exec 9>"$OUT/run.lock"
 flock -n 9 || die "another run_a8v2.sh holds $OUT/run.lock"
@@ -108,14 +124,34 @@ BUSY_JOBS='physverify(\.cli\.main)?.*(extract run|dataset (build|migrate)|diagno
 KUBRIC_JOBS='dataset (build|migrate)'
 DATASET_NAME='^[a-z][a-z0-9_]*$'
 
+# last_option OPTION ARGS: the value of the last `OPTION VALUE` or `OPTION=VALUE` in ARGS.
+last_option() {
+    grep -oE -- "$1[= ][^ ]*" <<<"$2" | tail -n 1 | sed -E "s/^$1[= ]//" || true
+}
+
+# The device of a job's command line: the last `--set runtime.device=`, else the last --device;
+# empty when neither is readable, since its default comes from configuration the guard cannot see.
+job_device() {
+    local value
+    value="$(last_option '--set[= ]runtime\.device' "$1")"
+    [[ -n "$value" ]] || value="$(last_option --device "$1")"
+    case "$value" in
+        cpu) echo cpu ;;
+        cuda | cuda:[0-9]*) echo cuda ;;
+    esac
+}
+
 # Whether a busy job's command line touches a dataset of the range; one with no readable
-# --dataset (or `all`) does (fail safe), and `dataset build|migrate` are kubric_synthetic's.
+# --dataset (or `all`) does (fail safe), and `dataset build|migrate` are kubric_synthetic's on
+# either device. An extract or diagnose job of the other device fills other cache keys.
 blocks() {
-    local args="$1" value values
+    local args="$1" value values device
     if [[ "$args" =~ $KUBRIC_JOBS ]]; then
         in_range kubric_synthetic
         return
     fi
+    device="$(job_device "$args")"
+    [[ -z "$device" || "$device" == "$DEVICE" ]] || return 1
     values="$(grep -oE -- '--dataset[= ][^ ]*' <<<"$args" | sed -E 's/^--dataset[= ]//' || true)"
     [[ -n "$values" ]] || return 0
     while IFS= read -r value; do
@@ -155,9 +191,19 @@ export PHYSVERIFY__PATHS__WEIGHTS_DIR="$H200_ROOT/Repo/data/weights"
 export PHYSVERIFY__PATHS__VENDOR_DIR="$H200_ROOT/Repo/data/vendor"
 export PHYSVERIFY__PATHS__HF_HOME="$H200_ROOT/.cache/huggingface"
 export PHYSVERIFY__RUNTIME__HEAVY_LOCK="$H200_ROOT/kubric.lock"
-export CUDA_VISIBLE_DEVICES=""
+if [[ "$DEVICE" == cpu ]]; then
+    export CUDA_VISIBLE_DEVICES=""
+else
+    [[ "${CUDA_VISIBLE_DEVICES-unset}" != "" ]] \
+        || die "CUDA_VISIBLE_DEVICES is empty: the cuda chain needs the GPU the launcher chose"
+    # Every artifact outside $OUT derives from these two (doctor confirms it below).
+    export PHYSVERIFY__PATHS__CALIBRATION_DIR="$PHYSVERIFY__PATHS__DATA_DIR/calibration-cuda"
+    export PHYSVERIFY__PATHS__RUNS_DIR="$PHYSVERIFY__PATHS__DATA_DIR/runs-cuda"
+    unset PHYSVERIFY__PATHS__ERROR_PROFILE PHYSVERIFY__PATHS__THRESHOLDS
+    export PHYSVERIFY__RUNTIME__HEAVY_LOCK="$OUT/heavy.lock"
+fi
 unset PHYSVERIFY_LOCK_HELD
-PV_DEVICE=cpu
+PV_DEVICE="$DEVICE"
 THREADS="${PHYSVERIFY_A8V2_THREADS:-32}"
 [[ "$THREADS" =~ ^[1-9][0-9]*$ ]] || die "PHYSVERIFY_A8V2_THREADS must be a positive integer"
 PISA_SET=()
@@ -195,6 +241,27 @@ doctor_value() {
     sed -n "s/^$1: //p" <<<"$DOCTOR" | sed 's/ (.*)$//'
 }
 
+same_path() {
+    [[ -n "$1" && "$(realpath -m "$1")" == "$(realpath -m "$2")" ]]
+}
+
+# The cuda chain writes nothing where the CPU chain does: its device, calibration directory (error
+# profile, artifact, stage sigma, abstention, exclusion record) and runs directory are its own.
+cuda_paths() {
+    local name dir calib="$PHYSVERIFY__PATHS__CALIBRATION_DIR"
+    [[ "$(doctor_value device)" == cuda* ]] \
+        || die "doctor reports device '$(doctor_value device)', not cuda"
+    for name in CALIBRATION_DIR RUNS_DIR; do
+        dir="PHYSVERIFY__PATHS__$name"
+        same_path "$(doctor_value "paths.${name,,}")" "${!dir}" \
+            || die "doctor reports paths.${name,,} '$(doctor_value "paths.${name,,}")', not ${!dir}"
+    done
+    for name in error_profile thresholds; do
+        same_path "$(dirname "$(doctor_value "paths.$name")")" "$calib" \
+            || die "doctor reports paths.$name '$(doctor_value "paths.$name")', outside $calib"
+    done
+}
+
 DOCTOR="$(pv doctor)" || die "physverify doctor failed"
 CACHE_DIR="$(doctor_value paths.cache_dir)"
 [[ -n "$CACHE_DIR" && "$(realpath -m "$CACHE_DIR")" == "$(realpath -m "$EXPECT_CACHE")" ]] \
@@ -203,6 +270,7 @@ CACHE_DIR="$(doctor_value paths.cache_dir)"
 ERROR_PROFILE="$(doctor_value paths.error_profile)"
 [[ "$(basename "$ERROR_PROFILE")" == stage_errors.precise.json ]] \
     || die "doctor reports paths.error_profile '$ERROR_PROFILE', not stage_errors.precise.json"
+[[ "$DEVICE" == cpu ]] || cuda_paths
 SYNTH_DIR="$(doctor_value paths.synthetic_dir)"
 VERSION="${PHYSVERIFY_A8V2_VERSION:-v1-precise}"
 MIGRATION=pair-collision
@@ -231,8 +299,8 @@ save() {
 
 render_summary() {
     {
-        printf '# A8 v2 (CPU)\n\ncommit %s, cache %s, threads %s\n\n## Notes\n\n' \
-            "$HEAD_COMMIT" "$CACHE_DIR" "$THREADS"
+        printf '# A8 v2 (%s)\n\ncommit %s, cache %s, threads %s\n\n## Notes\n\n' \
+            "${DEVICE^^}" "$HEAD_COMMIT" "$CACHE_DIR" "$THREADS"
         cat "$NOTES"
         printf '\n## Steps\n\n| n | name | exit | wall_s | log |\n|---|---|---|---|---|\n'
         sed 's/\t/ | /g; s/^/| /; s/$/ |/' "$STEPS"
@@ -371,7 +439,7 @@ preflight_verify() {
     run="$(run_of)"
     # verify exits 0 on an uncached clip: its rows abstain with the error in checks.jsonl.
     errors="$(query run-errors "$run" 2>&1)" \
-        || stop "$dataset clip $clip failed or is not cached for --device cpu:"$'\n'"$errors"
+        || stop "$dataset clip $clip failed or is not cached for --device $PV_DEVICE:"$'\n'"$errors"
     note "preflight: $dataset $clip cached, run $run"
 }
 
@@ -441,6 +509,9 @@ step_0() {
         note "migration $MIGRATION: already complete ($MANIFEST, $AUDIT), not rerun"
         return
     fi
+    # The migration rewrites the shared dataset and purges its cache under the CPU chain.
+    [[ "$DEVICE" == cpu ]] \
+        || stop "migration $MIGRATION is incomplete: it is shared, run step 0 of the cpu chain"
     run_logged 0 -- env -u PHYSVERIFY_LOCK_HELD \
         PHYSVERIFY_MIGRATE_ROOT="$H200_ROOT" PHYSVERIFY_MIGRATE_VERSION="$VERSION" \
         PHYSVERIFY_MIGRATE_NAME="$MIGRATION" PHYSVERIFY_MIGRATE_SUBSETS=full \
