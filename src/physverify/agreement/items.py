@@ -42,7 +42,8 @@ class ComparisonItem:
 @dataclass(frozen=True)
 class JoinCounts:
     """Rows of the subset and why some are not compared (D3: NaN labels are excluded, counted).
-    ``not_verified`` clips (extract or verify failed) are compared as abstentions (D7)."""
+    ``not_verified`` rows have no clip in the run (video missing from the source or unreadable);
+    they are compared as ``check_error`` abstentions (D7)."""
 
     rows: int
     human_missing: int

@@ -238,6 +238,13 @@ def test_the_summary_renders_every_c5_block(cli, world) -> None:
     ):
         assert needle in text, needle
     assert {"per_check", "per_generator", "coverage"} <= set(metrics)
+    gaps = metrics["input_gaps"]
+    assert gaps["no_query"] == 0 and gaps["no_video"] == metrics["counts"]["rows"]
+    line = (
+        "No object query: 0 rows (0 with video, compared as abstentions); videos missing from "
+        f"the source: {gaps['no_video']} (by generator: v1:gen1 "
+    )
+    assert line in text
     coverage = metrics["coverage"]["all"]
     assert coverage["coverage"] == coverage["decided"] / coverage["n"]
 

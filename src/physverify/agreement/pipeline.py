@@ -26,6 +26,7 @@ from physverify.agreement.analysis import (
     view_design_effect,
 )
 from physverify.agreement.breakdown import AGGREGATE, by_version, per_check, per_group
+from physverify.agreement.coverage import InputGaps, generator_key
 from physverify.agreement.decision import CALIBRATED_NAME, ClipDecisionRule
 from physverify.agreement.error_sample import sample_errors
 from physverify.agreement.items import (
@@ -67,6 +68,8 @@ class ComparisonInputs:
     """Why the calibrated stratum was not usable (the provisional rule ran instead)."""
     calibration: dict[str, Any] | None = None
     dev_design_effect: float | None = None
+    gaps: InputGaps | None = None
+    """Rows without an object query or a video, reported apart from the abstentions."""
 
 
 @dataclass(frozen=True)
@@ -180,7 +183,7 @@ def compare(inputs: ComparisonInputs) -> Comparison:
         return _items(inputs, primary_excluded | excluded)[0]
 
     checks = per_check(items, redecide, inputs.run.check_ids, policy)
-    generators = per_group(items, lambda it: f"{it.row.version}:{it.row.generator}", policy)
+    generators = per_group(items, lambda it: generator_key(it.row), policy)
     audit = inputs.audit
     metrics: dict[str, Any] = {
         "rule": rule.label,
@@ -196,6 +199,7 @@ def compare(inputs: ComparisonInputs) -> Comparison:
         "primary_policy": agreement.primary_policy,
         "counts": asdict(counts),
         "abstention": abstention_counts(items),
+        "input_gaps": None if inputs.gaps is None else asdict(inputs.gaps),
         "coverage": {g: _coverage(m) for g, m in by_version(items).items()},
         "h2_group": AGGREGATE,
         "descriptive_groups": [g for g in groups if g != AGGREGATE],

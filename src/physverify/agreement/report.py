@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from physverify.agreement.breakdown import AGGREGATE
+from physverify.agreement.coverage import NO_VIDEO
 from physverify.agreement.error_sample import CATEGORIES
 from physverify.agreement.items import ComparisonItem
 from physverify.agreement.pipeline import Comparison
@@ -279,6 +280,18 @@ def _audit_lines(audit: Mapping[str, Any] | None) -> list[str]:
     ]
 
 
+def _gap_lines(gaps: Mapping[str, Any] | None) -> list[str]:
+    if gaps is None:
+        return []
+    missing = [(g, c[NO_VIDEO]) for g, c in sorted(gaps["by_generator"].items()) if c[NO_VIDEO]]
+    generators = ", ".join(f"{g} {n}" for g, n in missing) or "none"
+    return [
+        f"No object query: {gaps['no_query']} rows ({gaps['no_query_with_video']} with video, "
+        f"compared as abstentions); videos missing from the source: {gaps['no_video']} "
+        f"(by generator: {generators})."
+    ]
+
+
 def _header_lines(metrics: Mapping[str, Any]) -> list[str]:
     counts, run = metrics["counts"], metrics["run"]
     primary = metrics["groups"][AGGREGATE][metrics["primary_policy"]]
@@ -295,6 +308,7 @@ def _header_lines(metrics: Mapping[str, Any]) -> list[str]:
         f"Rows {counts['rows']}, compared {counts['compared']}; left out: no human label "
         f"{counts['human_missing']}, no VLM prediction {counts['vlm_missing']}. Clips missing "
         f"from the run: {counts['not_verified']} (compared as check_error abstentions).",
+        *_gap_lines(metrics.get("input_gaps")),
         *_abstention_lines(metrics["abstention"], metrics["coverage"]),
         *_sign_flip_lines(metrics["groups"], metrics["primary_policy"]),
         "",
