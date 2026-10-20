@@ -264,3 +264,32 @@ def test_evaluate_without_primary_scenes_has_no_h1_view(
 ) -> None:
     data = _evaluate_cli(cli, family_run, tmp_path, "--set", "h1_scope.primary_scenes=[]")
     assert data["h1_primary"] is None
+
+
+def _snapshot(*folders: Path) -> dict[Path, tuple[str, int]]:
+    return {
+        path: (sha256(path), path.stat().st_mtime_ns)
+        for folder in folders
+        if folder.is_dir()
+        for path in sorted(folder.rglob("*"))
+        if path.is_file()
+    }
+
+
+def test_evaluate_writes_only_its_run_and_repeats_the_artifacts_tau(
+    cli: CliRunner, family_run: str, tmp_path: Path, settings: Settings
+) -> None:
+    """The extra H1 evaluation (WP-M) adds a run; the artifact and calibration_dir keep."""
+    out = tmp_path / "cal" / "calibration.json"
+    fit(cli, family_run, out)
+    before = _snapshot(out.parent, settings.paths.calibration_dir)
+    result = cli(*FAST, "calibrate", "evaluate", "--dataset", DATASET, "--no-real",
+                 "--artifact", str(out))  # fmt: skip
+    assert result.code == 0, result.err
+    assert _snapshot(out.parent, settings.paths.calibration_dir) == before
+    path = Path(result.out.split("evaluation: ")[1].split()[0])
+    assert path.parent.parent == settings.paths.runs_dir
+    data = json.loads(path.read_text(encoding="utf-8"))
+    fitted = json.loads(out.read_text(encoding="utf-8"))["strata"][0]["checks"]
+    pooled = {m["check_id"]: m["monotonicity"] for m in data["strata"][0]["monotonicity"]}
+    assert pooled and all(pooled[c] == fitted[c]["monotonicity"] for c in pooled)
