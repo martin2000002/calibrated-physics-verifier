@@ -121,7 +121,7 @@ class VideophyDataset:
         return [m for m in manifests if m is not None]
 
     def queries(self) -> dict[str, tuple[ObjectQuery, ...]]:
-        """The hand-written ``{caption: queries}`` of the queries file (D11)."""
+        """``{caption: queries}`` of the queries file (D11: the unreviewed heuristic draft)."""
         return load_annotations(self._queries_path)
 
     def object_queries(
