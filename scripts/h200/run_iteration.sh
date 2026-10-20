@@ -19,9 +19,10 @@
 # or annotations; no configs/local.toml and no PHYSVERIFY_CONFIG_DIR; no PHYSVERIFY__* variable
 # but the ones exported here (PHYSVERIFY__SEALED__* included); no PHYSVERIFY_UNSEAL or
 # PHYSVERIFY_UNSEAL_REPEAT; the output directory (and its calibration/ and runs/) is not inside
-# $H200_ROOT/a8v2*, $DATA/calibration* or $DATA/runs*; no other instance on $OUT/run.lock;
+# $H200_ROOT/a8v2*, $DATA/calibration*, $DATA/runs* or the baseline $H200_ROOT/kubric-data/
+# {calibration,runs}* (whatever DATA is); no other instance on $OUT/run.lock;
 # state.env of another device, profile or iteration id; steps 1..FROM-1 completed. Then doctor
-# must report config_dir $REPO_ROOT/configs, the device, profile precise, the cache, and the
+# must report config_dir $REPO_ROOT/configs, the device, the profile, the cache, and the
 # calibration directory, runs directory, error profile and thresholds inside $OUT.
 #
 # Required:
@@ -30,6 +31,8 @@
 #   PHYSVERIFY_ITER_CACHE_DIR       paths.cache_dir (normally the shared cache: its keys hold the
 #                                   device and provider versions, so an iteration only adds)
 # Optional (defaults in brackets):
+#   PHYSVERIFY_ITER_PROFILE         sampling profile [precise]; it also fixes the synthetic
+#                                   dataset version the calib clips are listed from
 #   PHYSVERIFY_ITER_DEVICE          cpu or cuda [cpu]; cuda needs CUDA_VISIBLE_DEVICES in 0-3
 #                                   (launch through gpu_queue.sh)
 #   PHYSVERIFY_ITER_PYTHON          interpreter [/home/mmonterot/dev/venv/bin/python]
@@ -49,7 +52,9 @@ FROM="${1:-$FIRST_STEP}"
 TO="${2:-$LAST_STEP}"
 [[ "$FROM" =~ ^[1-5]$ && "$TO" =~ ^[1-5]$ && "$FROM" -le "$TO" ]] \
     || die "FROM and TO must be steps with $FIRST_STEP <= FROM <= TO <= $LAST_STEP, got '$FROM' '$TO'"
-PV_PROFILE=precise
+PV_PROFILE="${PHYSVERIFY_ITER_PROFILE:-precise}"
+[[ "$PV_PROFILE" =~ ^[a-z][a-z0-9_]*$ ]] \
+    || die "PHYSVERIFY_ITER_PROFILE must be a profile name, got '$PV_PROFILE'"
 KS=(--dataset kubric_synthetic --subset full)
 STEP_SAVES=([1]="CALIB_SHA" [2]="STAGES_RUN PROFILE_SHA" [4]="STAGE_SIGMA_SHA"
     [5]="DEVSCORE_SHA CALIBRATION_SHA")
@@ -113,7 +118,8 @@ under() {
     [[ "$(realpath -m "$1")" == "$(realpath -m "$2")"/* ]]
 }
 for dir in "$OUT" "$OUT/calibration" "$OUT/runs"; do
-    for base in "$H200_ROOT/a8v2" "$DATA/calibration" "$DATA/runs"; do
+    for base in "$H200_ROOT/a8v2" "$DATA/calibration" "$DATA/runs" \
+        "$H200_ROOT/kubric-data/calibration" "$H200_ROOT/kubric-data/runs"; do
         ! near "$dir" "$base" || die "$dir is inside $base*: an iteration never writes there"
     done
 done
@@ -185,7 +191,7 @@ check_doctor() {
 calib_clips() {
     local file="$OUT/calib_clips.txt"
     if [[ ! -f "$file" ]]; then
-        query clips kubric_synthetic full --split calib >"$file.tmp" \
+        query --profile "$PV_PROFILE" clips kubric_synthetic full --split calib >"$file.tmp" \
             || die "cannot list the kubric_synthetic calib clips"
         mv "$file.tmp" "$file"
     fi

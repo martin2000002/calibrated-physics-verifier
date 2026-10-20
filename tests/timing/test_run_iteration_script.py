@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import fcntl
+import importlib.util
 import os
 import re
 import shutil
@@ -18,7 +19,7 @@ TOOLS = (
     "awk", "basename", "bash", "cat", "cp", "cut", "dirname", "env", "flock", "grep", "mkdir",
     "mv", "nproc", "realpath", "sed", "sha256sum", "tee", "touch",
 )  # fmt: skip
-PREFIX = re.compile(r"^--profile precise --device (cpu|cuda) --set runtime\.threads=16 ")
+PREFIX = re.compile(r"^--profile [a-z_]+ --device (cpu|cuda) --set runtime\.threads=16 ")
 CALIB = ("k-calib-1", "k-calib-2")
 CLIPS = " ".join(f"--clips {c}" for c in CALIB)
 KS = "--dataset kubric_synthetic --subset full"
@@ -45,7 +46,7 @@ new_run() {
 }
 case "$*" in
   *" doctor")
-    echo "profile: ${DOCTOR_PROFILE:-precise}"
+    echo "profile: ${DOCTOR_PROFILE:-$2}"
     echo "device: ${DOCTOR_DEVICE:-${4}}"
     echo "config_dir: ${DOCTOR_CONFIG_DIR:-$REPO_CONFIGS}"
     echo "paths.cache_dir: ${DOCTOR_CACHE_DIR:-$PHYSVERIFY__PATHS__CACHE_DIR} (env)"
@@ -306,3 +307,54 @@ def test_failed_clips_are_noted_and_a_failed_devscore_stops(sandbox: Sandbox) ->
     other = Sandbox(sandbox.root / "second")
     result = other.run(DEVSCORE_EXIT="1")
     assert result.returncode == 1 and "DEVSCORE_SHA" not in other.state()
+
+
+def test_the_baseline_is_protected_whatever_data_is(sandbox: Sandbox) -> None:
+    """Audit m5: with another PHYSVERIFY_ITER_DATA, kubric-data/calibration is still refused."""
+    result = sandbox.run(
+        PHYSVERIFY_ITER_DATA=str(sandbox.root / "other-data"),
+        PHYSVERIFY_ITER_DIR=str(sandbox.root / "kubric-data"),
+    )
+    assert result.returncode == 2 and "never writes there" in result.stderr, result.stderr
+    assert sandbox.pv() == []
+
+
+def test_another_profile_reaches_every_call_and_the_clip_list(sandbox: Sandbox) -> None:
+    """PHYSVERIFY_ITER_PROFILE: every pv call, the calib query and state.env use it."""
+    result = sandbox.run(PHYSVERIFY_ITER_PROFILE="gpu_strong")
+    assert result.returncode == 0, result.stderr
+    assert all(line.startswith("--profile gpu_strong ") for line in sandbox.pv())
+    queries = [line for line in sandbox.lines() if line.startswith("query ")]
+    assert queries == ["query --profile gpu_strong clips kubric_synthetic full --split calib"]
+    assert sandbox.state()["CHAIN_PROFILE"] == "gpu_strong"
+    resumed = sandbox.run("5")
+    assert resumed.returncode == 2 and "belongs to CHAIN_PROFILE=gpu_strong" in resumed.stderr
+
+
+def test_a_bad_profile_name_and_an_exported_pv_profile(sandbox: Sandbox) -> None:
+    """Audit m4: an exported PV_PROFILE never reaches pv; the profile is explicit."""
+    bad = sandbox.run(PHYSVERIFY_ITER_PROFILE="Gpu;x")
+    assert bad.returncode == 2 and "PHYSVERIFY_ITER_PROFILE" in bad.stderr
+    assert sandbox.run(PV_PROFILE="fast").returncode == 0
+    assert all(line.startswith("--profile precise ") for line in sandbox.pv())
+
+
+def test_steps_sh_ignores_an_exported_pv_profile() -> None:
+    """Audit m4: run_h2.sh sources _steps.sh and must keep --profile precise."""
+    script = f'set -u; die() {{ exit 2; }}; source "{H200 / "_steps.sh"}"; echo "$PV_PROFILE"'
+    found = subprocess.run(
+        ["bash", "-c", script], env={"PV_PROFILE": "fast", "PATH": os.environ["PATH"]},
+        capture_output=True, text=True, check=True,
+    )  # fmt: skip
+    assert found.stdout.strip() == "precise"
+
+
+def test_the_query_helper_takes_the_profile() -> None:
+    spec = importlib.util.spec_from_file_location("a8v2_query_profile", H200 / "a8v2_query.py")
+    assert spec is not None and spec.loader is not None
+    query = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(query)
+    parser = query._parser()
+    assert parser.parse_args(["clips", "ds", "full"]).profile == "precise"
+    assert parser.parse_args(["--profile", "fast", "clips", "ds", "full"]).profile == "fast"
+    assert query._settings([], "fast").profile == "fast"

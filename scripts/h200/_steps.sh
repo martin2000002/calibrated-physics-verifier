@@ -3,14 +3,15 @@
 # and behaviour, so that script can move here unchanged.
 #
 # The caller sets LOGS, STATE, STEPS, NOTES and SUMMARY, the summary's SUMMARY_TITLE
-# and SUMMARY_INFO line, and PY, PV_DEVICE and THREADS for pv (DOCTOR before doctor_value);
-# PV_PROFILE defaults to precise. require_completed reads STEP_SAVES (step -> state.env keys).
+# and SUMMARY_INFO line, and PY, PV_DEVICE and THREADS for pv (DOCTOR before doctor_value).
+# PV_PROFILE is precise unless the caller sets it after sourcing this file (an exported one is
+# ignored: run_h2.sh always runs precise). require_completed reads STEP_SAVES (step -> keys).
 # PV_NICE prefixes and PV_EXTRA extends every pv call. This pv replaces the uv one of _common.sh:
 # the runners call the checkout through the interpreter $PY, never through uv.
 
 PV_NICE=()
 PV_EXTRA=()
-PV_PROFILE="${PV_PROFILE:-precise}"
+PV_PROFILE=precise
 
 pv() {
     "${PV_NICE[@]}" env PYTHONPATH="$REPO_ROOT/src" "$PY" -c "from physverify.cli.main import main; main()" \
