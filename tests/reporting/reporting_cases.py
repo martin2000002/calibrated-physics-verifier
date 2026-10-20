@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 from calibration_cases import (
     CHECKS,
     PROFILE,
@@ -20,7 +21,13 @@ from calibration_cases import (
     synthetic_report,
 )
 
-from physverify.agreement.analysis import h2_verdict
+from physverify.agreement.abstention import AS_PLAUSIBLE
+from physverify.agreement.decision import CalibratedRule, ClipDecisionRule, ProvisionalAnyFail
+from physverify.agreement.pipeline import Comparison, ComparisonInputs, compare
+from physverify.agreement.report import REPORT_DIR, write_comparison
+from physverify.agreement.run_io import VerifyRun
+from physverify.agreement.settings import AgreementSettings
+from physverify.calibration.apply import score_clip
 from physverify.calibration.collect import level_data
 from physverify.calibration.evaluate import (
     EvaluationInputs,
@@ -30,30 +37,80 @@ from physverify.calibration.evaluate import (
 )
 from physverify.calibration.exclusion_record import ExclusionRecord, InputHashes, RuleEvidence
 from physverify.calibration.fit import FitInputs, fit_calibration
-from physverify.calibration.loader import load_calibration, parse_calibration, sha256_of
+from physverify.calibration.loader import Calibration, parse_calibration, sha256_of
 from physverify.calibration.scenes import SceneScope
 from physverify.calibration.schema import EvaluationReport
+from physverify.calibration.sigma import SigmaPair
+from physverify.cli.commands._runs import write_json as write_abstain_json
+from physverify.cli.commands.abstain import (
+    Collected,
+    CurveParts,
+    compare_tables,
+    curve_record,
+    fit_record,
+    named_ks,
+    real_rows,
+    sweep,
+)
 from physverify.cli.commands.abstain import artifact_of as abstain_table
-from physverify.schema.checks import InputLevel
+from physverify.datasets._videophy_tables import VideophyRow
+from physverify.schema.checks import CheckResult, InputLevel, Verdict
 from physverify.schema.clip import Split
 from physverify.schema.io import json_ready
-from physverify.verification.runner import VerificationReport
+from physverify.verification.runner import TableRow, VerificationReport
+from physverify.verification.selective_risk import (
+    ABSTENTION_FILE,
+    REPORT_FILE,
+    AbstentionSettings,
+    Case,
+    CaseCounts,
+    per_check_rows,
+    raw_table,
+)
 
 PRIMARY = ("s000", "s011-s039")
-POLICY = "abstain_as_plausible"
-K_STAR = 2.0
 LAST_STEP = 11
+FIXTURE_ROOT = Path("/fixture")
+ARTIFACT_NAME = "calibration.json"
+SIGMA = 0.005
+ABSTENTION = AbstentionSettings(risk_target=0.2, bootstrap=50, grid_points=10)
+AGREEMENT = AgreementSettings(
+    rule="calibrated",
+    primary_policy=AS_PLAUSIBLE,
+    alpha=0.05,
+    power=0.8,
+    bootstrap_n=50,
+    bootstrap_seed=1,
+    ci=0.95,
+    permutation_exact_max=20,
+    error_sample_per_class=2,
+    error_seed=1,
+    dev_subset="h2_dev",
+    test_subset="h2_test",
+    preregistration="agreement/preregistration.json",
+)
 
 
 @functools.cache
 def artifact_text() -> str:
     oracle = synthetic_report(40, prefix="fam-s")
-    perceived = synthetic_report(40, prefix="fam-s", level=InputLevel.PERCEIVED)
+    perceived = synthetic_report(40, prefix="fam-s", level=InputLevel.PERCEIVED, sigma=SIGMA)
     levels = (
         synthetic_level(oracle, InputLevel.ORACLE),
-        synthetic_level(perceived, InputLevel.PERCEIVED),
+        level_data(
+            InputLevel.PERCEIVED, perceived, CHECKS, config(), split=Split.CALIB, pairs=_pairs()
+        ),
     )
     return fit_calibration(FitInputs(levels, CHECKS, fit_meta()), config()).to_json()
+
+
+def _pairs() -> tuple[SigmaPair, ...]:
+    """Measured R1 errors, so that the perceived stratum has a sigma factor and decides."""
+    rng = np.random.default_rng(5)
+    return tuple(
+        SigmaPair(f"fam-s{i:03d}", "R1", 0.1, 0.1 + float(rng.normal(0, SIGMA)), SIGMA)
+        for i in range(40)
+    )
 
 
 def _joined(*reports: VerificationReport) -> VerificationReport:
@@ -65,8 +122,11 @@ def _joined(*reports: VerificationReport) -> VerificationReport:
 
 
 def _inputs(level: InputLevel) -> EvaluationInputs:
-    calib = synthetic_report(40, prefix="fam-s", level=level)
-    heldout = synthetic_report(40, seed=7, split=Split.EVAL, prefix="held-s", level=level)
+    sigma = SIGMA if level is InputLevel.PERCEIVED else 0.0
+    calib = synthetic_report(40, prefix="fam-s", level=level, sigma=sigma)
+    heldout = synthetic_report(
+        40, seed=7, split=Split.EVAL, prefix="held-s", level=level, sigma=sigma
+    )
     synthetic = level_data(level, _joined(calib, heldout), CHECKS, config(), split=None)
     if level is InputLevel.ORACLE:
         return EvaluationInputs(synthetic, {})
@@ -113,13 +173,11 @@ def write_json(path: Path, payload: Any) -> Path:
 
 def build_chain(root: Path, *, device: str = "cpu", codes: Mapping[int, str] = {}) -> Chain:
     calibration_dir, runs = root / "data" / "calibration", root / "data" / "runs"
-    artifact = write(calibration_dir / "calibration.json", artifact_text())
+    artifact = write(calibration_dir / ARTIFACT_NAME, artifact_text())
     report = evaluation().model_copy(update={"artifact_path": str(artifact)})
     evaluation_path = write(runs / "eval-a" / "evaluation.json", report.to_json())
     curve_run = runs / "abstain-a"
-    tables = _tables(artifact)
-    abstention = write_json(calibration_dir / "abstention.json", _fit(tables))
-    write_json(curve_run / "abstention_report.json", _curve(tables))
+    abstention = _write_abstention(artifact, curve_run)
     record = _record(calibration_dir, artifact, evaluation_path)
     chain = Chain(
         dir=root / "a8v2",
@@ -130,7 +188,7 @@ def build_chain(root: Path, *, device: str = "cpu", codes: Mapping[int, str] = {
         record=record,
         h2_run=runs / "h2",
     )
-    write_json(chain.h2_run / "agreement" / "metrics.json", metrics(artifact))
+    write_metrics(chain)
     _chain_files(chain, device, codes)
     return chain
 
@@ -146,63 +204,62 @@ def _chain_files(chain: Chain, device: str, codes: Mapping[int, str]) -> None:
     write(logs / "7-abstain-2.log", f"$ pv abstain curve\neval cases: 3\nrun: {chain.curve_run}\n")
 
 
-def _tables(artifact: Path) -> dict[str, Any]:
-    calibration = load_calibration(artifact)
+def _calibration() -> Calibration:
+    """The artifact as the consumers load it; only its file name and sha reach their output."""
+    return parse_calibration(artifact_text(), path=FIXTURE_ROOT / ARTIFACT_NAME)
+
+
+def _projection(level: InputLevel) -> dict[str, Any]:
+    return _calibration().stratum(level, PROFILE).thresholds_projection(FIXTURE_ROOT)
+
+
+def _tables() -> dict[str, Any]:
+    """``tables_of`` of an abstain session on this artifact."""
     return {
-        level.value: abstain_table(
-            calibration.stratum(level, PROFILE).thresholds_projection(artifact.parent)
-        )
+        level.value: abstain_table(_projection(level))
         for level in (InputLevel.ORACLE, InputLevel.PERCEIVED)
     }
 
 
-def curve_row(k: float, risk: float) -> dict[str, Any]:
-    return {
-        "k_sigma": k,
-        "alpha": 0.02,
-        "n": 50,
-        "decided": 40,
-        "coverage": 0.8,
-        "risk": risk,
-        "risk_ci": [risk / 2, risk * 2],
-        "false_fail_rate": 0.05,
-        "missed_fail_rate": float("nan"),
-    }
+def _collected(n_scenes: int, seed: int, prefix: str) -> Collected:
+    """Perceived R1 events with the injected label as reference (as on real video: PASS)."""
+    report = synthetic_report(
+        n_scenes, seed, split=Split.EVAL, prefix=prefix, level=InputLevel.PERCEIVED, sigma=SIGMA
+    )
+    target = {c.clip_id: c.perturbation is not None and "R1" in c.perturbation.target_checks
+              for c in report.clips}  # fmt: skip
+    cases = [
+        Case(r.clip_id, r.check_id, Verdict.FAIL if target[r.clip_id] else Verdict.PASS, r)
+        for r in report.results
+        if r.check_id == "R1"
+    ]
+    return Collected(cases, CaseCounts(), {c.clip_id: c for c in report.clips}, [])
 
 
-def _curve_rows() -> list[dict[str, Any]]:
-    return [curve_row(k, 0.05 * k) for k in (1.0, K_STAR, 3.0)]
+@functools.cache
+def _abstention_records() -> tuple[dict[str, Any], dict[str, Any]]:
+    """``abstain fit`` and ``abstain curve`` content through their own builders."""
+    tables, calibrated = _tables(), _projection(InputLevel.PERCEIVED)
+    calib = _collected(30, 11, "ab-s")
+    fitted = fit_record(calib, sweep(calib, calibrated, ABSTENTION), ABSTENTION, tables)
+    k = fitted["k_star"]
+    held = _collected(30, 12, "ah-s")
+    parts = CurveParts(
+        per_check=per_check_rows(held.cases, calibrated, named_ks(k), ABSTENTION.ci),
+        injected_label={"rows": 0},
+        z={"n": 0},
+        real_video={"physics_iq": real_rows(_collected(10, 13, "pi-s"), calibrated, k, 0.95)},
+    )
+    compared = compare_tables(held, calibrated, raw_table(calibrated), ABSTENTION)
+    return fitted, curve_record(held, compared, k, ABSTENTION, tables, parts)
 
 
-def _fit(tables: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "estimated": True,
-        "risk_target": 0.2,
-        "alpha_star": 0.0228,
-        "k_star": K_STAR,
-        "thresholds": tables,
-        "curve": _curve_rows(),
-    }
-
-
-def _curve(tables: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "estimated": True,
-        "k_star_from_calib": K_STAR,
-        "thresholds": tables,
-        "tables": {
-            "raw": {"k_star": 1.0, "curve": _curve_rows()},
-            "calibrated": {"k_star": K_STAR, "curve": _curve_rows()},
-            "aurc_calibrated_minus_raw": {"value": -0.01, "ci": [-0.03, 0.005]},
-        },
-        "real_video": {
-            "physics_iq": {
-                "n": {"cases": 4},
-                "k_star": curve_row(K_STAR, 0.1),
-                "k_2": curve_row(2.0, 0.1),
-            }
-        },
-    }
+def _write_abstention(artifact: Path, curve_run: Path) -> Path:
+    fitted, report = _abstention_records()
+    write_abstain_json(curve_run / REPORT_FILE, report)
+    path = artifact.parent / ABSTENTION_FILE
+    write_abstain_json(path, fitted)
+    return path
 
 
 def _record(calibration_dir: Path, artifact: Path, evaluation_path: Path) -> Path:
@@ -235,33 +292,73 @@ def _record(calibration_dir: Path, artifact: Path, evaluation_path: Path) -> Pat
     return write(calibration_dir / "exclusions.json", record.to_json())
 
 
-def metrics(
-    artifact: Path, *, rule: str | None = None, preregistered: bool = True
-) -> dict[str, Any]:
-    source = load_calibration(artifact).stratum(InputLevel.PERCEIVED, PROFILE).source
-    primary = {
-        "policy": POLICY,
-        "paired": True,
-        "verifier": {"n": 100, "accuracy": 0.62, "kappa": 0.21, "auc": 0.66},
-        "vlm": {"n": 100, "accuracy": 0.55, "kappa": 0.1, "auc": float("nan")},
-        "constants": {},
-        "mcnemar": {"b_verifier_only": 20, "c_vlm_only": 13, "p_value": 0.3},
-        "bootstrap": {
-            "intervals": {
-                "verifier.accuracy": [0.52, 0.71],
-                "verifier.kappa": [0.05, 0.36],
-                "vlm.accuracy": [0.45, 0.64],
-                "vlm.kappa": [-0.02, 0.22],
-                "difference.accuracy": [-0.03, 0.17],
-                "difference.kappa": [-0.1, 0.3],
-            }
-        },
-    }
-    return {
-        "rule": rule or f"calibrated:{source}",
-        "preregistered": preregistered,
-        "h2_group": "all",
-        "primary_policy": POLICY,
-        "groups": {"all": {POLICY: primary}},
-        "h2_verdict": h2_verdict(primary, preregistered, 0.05),
-    }
+def _videophy_rows(report: VerificationReport) -> list[VideophyRow]:
+    """Human: perturbed clips implausible; the VLM gets every third clip wrong."""
+    rows = []
+    for i, clip in enumerate(report.clips):
+        perturbed = clip.perturbation is not None
+        vlm_right = i % 3 != 0
+        rows.append(
+            VideophyRow(
+                part="test",
+                version="v1",
+                split=Split.EVAL,
+                clip_id=clip.clip_id,
+                video_url=f"https://example.invalid/{clip.clip_id}.mp4",
+                caption=f"caption {i % 6}",
+                generator="g",
+                human_raw=1.0 if perturbed else 5.0,
+                human_cut=3.0,
+                reference_raw=(1.0 if perturbed == vlm_right else 5.0),
+                reference_cut=3.0,
+                reference_name="autoeval",
+                violated_rules="",
+            )
+        )
+    return rows
+
+
+def _verify_run(path: Path, report: VerificationReport) -> VerifyRun:
+    rows: dict[str, list[TableRow]] = {}
+    results: dict[str, list[CheckResult]] = {}
+    for row in report.table:
+        rows.setdefault(row.clip_id, []).append(row)
+    for result in report.results:
+        results.setdefault(result.clip_id, []).append(result)
+    return VerifyRun(
+        path=path,
+        run={"profile": PROFILE, "device": "cpu"},
+        rows={k: tuple(v) for k, v in rows.items()},
+        results={k: tuple(v) for k, v in results.items()},
+    )
+
+
+def write_metrics(
+    chain: Chain, *, level: InputLevel = InputLevel.PERCEIVED, provisional: bool = False
+) -> Path:
+    """``agreement compare``'s files through ``write_comparison``."""
+    write_comparison(chain.h2_run / REPORT_DIR, _comparison(level, provisional))
+    return chain.h2_run / REPORT_DIR / "metrics.json"
+
+
+@functools.cache
+def _comparison(level: InputLevel, provisional: bool) -> Comparison:
+    """``compare`` with A8's calibrated rule on the stratum ``level`` (or the provisional rule)."""
+    report = synthetic_report(8, 21, split=Split.EVAL, prefix="vp-s", level=InputLevel.PERCEIVED)
+    rule: ClipDecisionRule = (
+        ProvisionalAnyFail(_projection(InputLevel.PERCEIVED))
+        if provisional
+        else CalibratedRule(_calibration().stratum(level, PROFILE), score_clip)
+    )
+    return compare(
+        ComparisonInputs(
+            rows=_videophy_rows(report),
+            run=_verify_run(FIXTURE_ROOT / "h2", report),
+            rule=rule,
+            agreement=AGREEMENT,
+            cut=0.5,
+            dev_tuned_cut=None,
+            dev_majority=0,
+            preregistered=not provisional,
+        )
+    )

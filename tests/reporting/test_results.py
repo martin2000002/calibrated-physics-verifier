@@ -11,7 +11,7 @@ from typing import Any
 import pytest
 from calibration_cases import PROFILE
 from cli_runner import CliRunner
-from reporting_cases import Chain, build_chain, evaluation, metrics, write, write_json
+from reporting_cases import Chain, build_chain, evaluation, write, write_json, write_metrics
 
 from physverify.calibration.loader import load_calibration
 from physverify.calibration.schema import EvaluationReport
@@ -20,6 +20,7 @@ from physverify.reporting.numbers import DESCRIPTIVE, NOT_PREREGISTERED
 from physverify.reporting.render import value_text
 from physverify.reporting.sources import Doc, Request, collect_inputs, resolve
 from physverify.schema.checks import InputLevel
+from physverify.verification.scope import CheckScope
 
 EXIT_USAGE = 2
 SECTIONS = {
@@ -95,15 +96,25 @@ def test_the_values_are_the_typed_fields(cli: CliRunner, chain: Chain) -> None:
     assert values["per_check.R1.fpr_heldout"]["value"] == heldout.fpr_clean.value
     assert values["real_fpr.real_fixture.R1"]["n"] == perceived.real[0].fpr.n
     assert values["real_fpr.real_fixture.score"]["k"] == perceived.real_clip_flags[0].fpr.k
-    assert values["abstention.k_star_calib"]["value"] == 2.0
-    assert values["abstention.eval_at_k_star.risk"]["ci_high"] == 0.2
-    assert values["agreement.verifier.accuracy"]["ci_low"] == 0.52
-    assert values["agreement.vlm.auc"]["value"] is None
-    assert values["h2_verdict.supported"]["value"] is False
+    fit = json.loads(chain.abstention.read_text())
+    assert fit["k_star"] is not None
+    assert values["abstention.k_star_calib"]["value"] == fit["k_star"]
+    curve = json.loads((chain.curve_run / "abstention_report.json").read_text())
+    row = next(r for r in curve["tables"]["calibrated"]["curve"] if r["k_sigma"] == fit["k_star"])
+    assert values["abstention.eval_at_k_star.risk"]["ci_high"] == row["risk_ci"][1]
+    found = json.loads((chain.h2_run / "agreement" / "metrics.json").read_text())
+    primary = found["groups"][found["h2_group"]][found["primary_policy"]]
+    intervals = primary["bootstrap"]["intervals"]
+    assert values["agreement.verifier.accuracy"]["value"] == primary["verifier"]["accuracy"]
+    assert values["agreement.verifier.accuracy"]["ci_low"] == intervals["verifier.accuracy"][0]
+    assert values["agreement.difference.kappa"]["ci_high"] == intervals["difference.kappa"][1]
+    assert values["agreement.mcnemar.p_value"]["value"] == primary["mcnemar"]["p_value"]
+    assert values["h2_verdict.supported"]["value"] == found["h2_verdict"]["supported"]
+    assert values["h2_verdict.gate"]["value"] is None
     assert values["exclusions.1.5.R5b.excluded"]["note"] == "undecided: no events"
     assert values["per_check.R5b.tau"]["value"] is None
     markdown = (chain.dir / "results" / "results.md").read_text()
-    assert "| vlm.auc | - |" in markdown
+    assert "| R5b.tau | - |" in markdown
 
 
 def test_the_estimates_are_labelled(cli: CliRunner, chain: Chain) -> None:
@@ -141,7 +152,9 @@ def test_h1_pass_is_reported_as_fitted_and_the_medians_are_descriptive(
     cli: CliRunner, chain: Chain
 ) -> None:
     """Criterion 7: medians that are not monotone leave the reported h1_pass as it is."""
-    inputs = collect_inputs(Request(chain.dir, decision_record="exclusions.json"))
+    inputs = collect_inputs(
+        Request(chain.dir, check_scope=CheckScope(decision_record="exclusions.json"))
+    )
     data = json.loads(json.dumps(inputs.artifact.data))
     index = next(i for i, s in enumerate(data["strata"]) if s["level"] == "perceived")
     tau = data["strata"][index]["checks"]["R1"]["monotonicity"]
@@ -192,8 +205,7 @@ def test_a_cuda_chain_is_a_rehearsal(cli: CliRunner, tmp_path: Path) -> None:
 
 
 def test_a_provisional_h2_rule_is_marked_not_preregistered(cli: CliRunner, chain: Chain) -> None:
-    payload = metrics(chain.artifact, rule="provisional_any_fail/provisional", preregistered=False)
-    write_json(chain.h2_run / "agreement" / "metrics.json", payload)
+    write_metrics(chain, provisional=True)
     data = _results(cli, chain)
     assert data["sections"]["agreement"]["caveat"] == NOT_PREREGISTERED
     assert data["sections"]["h2_verdict"]["caveat"] == NOT_PREREGISTERED
@@ -253,9 +265,19 @@ def test_an_unfinished_fit_step_is_refused(cli: CliRunner, tmp_path: Path, step:
 
 
 def test_an_h2_run_of_another_artifact_is_refused(cli: CliRunner, chain: Chain) -> None:
-    payload = metrics(chain.artifact, rule="calibrated:calibration.json#perceived/fast@run-b")
-    write_json(chain.h2_run / "agreement" / "metrics.json", payload)
-    _refused(cli, chain, "is not the artifact run-a")
+    path = write_metrics(chain)
+    data = json.loads(path.read_text())
+    data["rule"] = data["rule"].replace("@run-a", "@run-b")
+    write_json(path, data)
+    _refused(cli, chain, "stratum of the artifact run-a")
+
+
+def test_an_h2_run_of_another_stratum_is_refused(cli: CliRunner, chain: Chain) -> None:
+    """The oracle stratum of the same artifact is not the one this report covers."""
+    write_metrics(chain, level=InputLevel.ORACLE)
+    rule = json.loads((chain.h2_run / "agreement" / "metrics.json").read_text())["rule"]
+    assert rule.endswith("#oracle/fast@run-a")
+    _refused(cli, chain, "is not the perceived/fast stratum")
 
 
 def test_an_h2_run_with_a_cuda_chain_is_refused(cli: CliRunner, tmp_path: Path) -> None:
