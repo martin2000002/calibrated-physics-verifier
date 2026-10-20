@@ -8,6 +8,7 @@ from typing import Annotated
 
 import typer
 
+from physverify.cli.commands._sealed import Selection, guard_sealed
 from physverify.cli.commands.diagnose import (
     ClipsOption,
     DatasetOption,
@@ -48,6 +49,9 @@ def per_clip(
     )
     source = resolve_dataset(app_ctx, diag.dataset)
     selected = select_clips(source.clips(diag.subset), clips or ())
+    guard_sealed(
+        app_ctx, f"{NAME} per-clip", [Selection(source.name, diag.subset, tuple(selected))]
+    )
     metrics = sampled_metrics(app_ctx.registry("metrics"), diag.metrics)
     runner = ChainRunner(
         settings, app_ctx.registry("providers"), pipeline_deps(app_ctx, None), source

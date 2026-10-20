@@ -14,6 +14,7 @@ from typing import Annotated, Any
 
 import typer
 
+from physverify.cli.commands._sealed import Selection, guard_sealed
 from physverify.cli.commands.extract import (
     ConsoleObserver,
     EventRecorder,
@@ -29,6 +30,7 @@ from physverify.diagnosis.checks_port import A7CheckSuite, CheckSuite
 from physverify.diagnosis.context import DiagnosisContext
 from physverify.diagnosis.end_to_end import run_end_to_end
 from physverify.diagnosis.real_video import run_real
+from physverify.diagnosis.real_video import select_clips as real_clips
 from physverify.diagnosis.report import (
     AttributionReport,
     EndToEndReport,
@@ -120,6 +122,14 @@ def dataset_clips(ctx: DiagnosisContext, wanted: Sequence[str]) -> list[ClipMani
     return select_clips(ctx.dataset().clips(ctx.diag.subset), wanted)
 
 
+def guarded_clips(ctx: DiagnosisContext, leaf: str, wanted: Sequence[str]) -> list[ClipManifest]:
+    """``dataset_clips`` after the sealed-ledger guard of ``diagnose <leaf>``."""
+    selected = dataset_clips(ctx, wanted)
+    selection = Selection(ctx.dataset().name, ctx.diag.subset, tuple(selected))
+    guard_sealed(app_context(), f"{NAME} {leaf}", [selection], run_dir=ctx.run.run_dir)
+    return selected
+
+
 def real_datasets(ctx: DiagnosisContext, dataset: str | None) -> tuple[str, ...]:
     return ctx.diag.real.datasets if dataset in (None, ALL_DATASETS) else (str(dataset),)
 
@@ -177,7 +187,7 @@ def stages(
     ] = False,
 ) -> None:
     def runner(ctx: DiagnosisContext) -> Report:
-        selected = dataset_clips(ctx, clips or ())
+        selected = guarded_clips(ctx, "stages", clips or ())
         return run_stage_errors(
             ctx, selected, write_profile=write_profile, replace_mismatched=replace_mismatched
         )
@@ -190,7 +200,7 @@ def end_to_end(
     dataset: DatasetOption = None, subset: SubsetOption = None, clips: ClipsOption = None
 ) -> None:
     def runner(ctx: DiagnosisContext) -> Report:
-        return run_end_to_end(ctx, dataset_clips(ctx, clips or ()))
+        return run_end_to_end(ctx, guarded_clips(ctx, "end-to-end", clips or ()))
 
     _launch(END_TO_END, runner, suite=True, dataset=dataset, subset=subset)
 
@@ -200,7 +210,7 @@ def attribution(
     dataset: DatasetOption = None, subset: SubsetOption = None, clips: ClipsOption = None
 ) -> None:
     def runner(ctx: DiagnosisContext) -> Report:
-        return run_attribution(ctx, dataset_clips(ctx, clips or ()))
+        return run_attribution(ctx, guarded_clips(ctx, "attribution", clips or ()))
 
     _launch(ATTRIBUTION, runner, suite=True, dataset=dataset, subset=subset)
 
@@ -214,7 +224,11 @@ def real(
     clips: ClipsOption = None,
 ) -> None:
     def runner(ctx: DiagnosisContext) -> Report:
-        return run_real(ctx, real_datasets(ctx, dataset), ctx.diag.subset, clips or ())
+        names, subset = real_datasets(ctx, dataset), ctx.diag.subset
+        chosen = real_clips(ctx, names, subset, clips or ())
+        selections = [Selection(source.name, subset, found) for source, found in chosen]
+        guard_sealed(app_context(), f"{NAME} real", selections, run_dir=ctx.run.run_dir)
+        return run_real(ctx, names, subset, clips or ())
 
     _launch(REAL, runner, suite=True, subset=subset)
 

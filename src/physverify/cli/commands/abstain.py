@@ -20,9 +20,11 @@ import typer
 from scipy.stats import norm
 
 from physverify.calibration.loader import default_artifact_path, load_calibration
+from physverify.calibration.sealed import file_sha
 from physverify.calibration.settings import checks_hash
 from physverify.calibration.table import Role, role_of
 from physverify.cli.commands._runs import new_run_dir, write_json
+from physverify.cli.commands._sealed import Selection, guard_sealed
 from physverify.cli.commands.extract import pipeline_deps, resolve_dataset
 from physverify.cli.context import AppContext, app_context
 from physverify.core.errors import MissingInputError, PhysverifyError, UsageError
@@ -304,6 +306,7 @@ def fit(
     perceived_table: PerceivedTableOption = None,
     provisional: ProvisionalOption = False,
 ) -> None:
+    _guard(app_context(), "fit", real=False)
     session = _session(oracle_table, perceived_table, provisional)
     settings = session.settings
     collected = collect_synthetic(session, settings.calib_split)
@@ -381,6 +384,7 @@ def curve(
     perceived_table: PerceivedTableOption = None,
     provisional: ProvisionalOption = False,
 ) -> None:
+    _guard(app_context(), "curve", real=True)
     session = _session(oracle_table, perceived_table, provisional)
     settings = session.settings
     fitted = _fitted_k(session)
@@ -401,6 +405,31 @@ def curve(
     for line in summary_lines(report):
         typer.echo(line)
     typer.echo(f"run: {run_dir}")
+
+
+def _guard(context: AppContext, leaf: str, *, real: bool) -> None:
+    """The sealed-ledger guard over the clips ``collect_synthetic`` (the eval split with
+    ``real``, else calib) and ``collect_real`` read; a dataset that does not resolve is reported
+    where it is read."""
+    settings = context.settings
+    own = settings.section(SECTION, AbstentionSettings)
+    wanted: list[tuple[str, str | None]] = [
+        (own.dataset, own.eval_split if real else own.calib_split)
+    ]
+    wanted += [(name, None) for name in own.real_datasets] if real else []
+    selections = []
+    for name, subset in wanted:
+        try:
+            source = resolve_dataset(context, name)
+        except PhysverifyError:
+            continue
+        selections.append(Selection(source.name, subset, tuple(source.clips(subset))))
+    files = {
+        "abstention": settings.paths.calibration_dir / ABSTENTION_FILE,
+        "calibration": default_artifact_path(settings),
+    }
+    shas = {label: sha for label, path in files.items() if (sha := file_sha(path)) is not None}
+    guard_sealed(context, f"{NAME} {leaf}", selections, artifacts=shas)
 
 
 def _fitted_k(session: Session) -> float | None:
