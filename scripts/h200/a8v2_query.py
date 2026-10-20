@@ -4,7 +4,7 @@ errors of a verify run (run_a8v2.sh and run_h2.sh).
 
 Exit codes: 0 ok, 2 a check failed or an input is unusable (message on stderr).
 
-    python a8v2_query.py [--set K=V]... clips DATASET SUBSET [--split calib|eval]
+    python a8v2_query.py [--profile P] [--set K=V]... clips DATASET SUBSET [--split calib|eval]
     python a8v2_query.py rerendered MANIFEST [--missing-ok]
     python a8v2_query.py [--set K=V]... evaluation EVALUATION_JSON
     python a8v2_query.py gravity STAGES_JSON
@@ -146,13 +146,14 @@ def _json(path: Path) -> dict[str, Any]:
     return data
 
 
-def _settings(overrides: Sequence[str]) -> Any:
+def _settings(overrides: Sequence[str], profile: str = PROFILE) -> Any:
+    """The checkout's settings; the profile also fixes the synthetic dataset version."""
     from physverify.config.loader import load_settings
 
     return load_settings(
         REPO_ROOT / "configs",
         environ=os.environ,
-        profile=PROFILE,
+        profile=profile,
         device=DEVICE,
         overrides=overrides,
     )
@@ -179,6 +180,7 @@ def _allowed_sets(settings: Any) -> Sequence[Mapping[str, int]]:
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--set", dest="overrides", action="append", default=[])
+    parser.add_argument("--profile", default=PROFILE)
     sub = parser.add_subparsers(dest="command", required=True)
     clips = sub.add_parser("clips")
     clips.add_argument("dataset")
@@ -196,7 +198,7 @@ def _parser() -> argparse.ArgumentParser:
 def _lines(args: argparse.Namespace) -> list[str]:
     commands: dict[str, Callable[[], list[str]]] = {
         "clips": lambda: clip_ids(
-            _source(_settings(args.overrides), args.dataset), args.subset, args.split
+            _source(_settings(args.overrides, args.profile), args.dataset), args.subset, args.split
         ),
         "rerendered": lambda: rerendered(args.manifest, missing_ok=args.missing_ok),
         "evaluation": lambda: evaluation_lines(args.path, _allowed_sets(_settings(args.overrides))),

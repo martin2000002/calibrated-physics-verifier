@@ -24,6 +24,13 @@ from physverify.calibration.collect import (
     run_level_of,
     sigma_pairs,
 )
+from physverify.calibration.devscore import (
+    DEVSCORE_FILE,
+    DevScoreReport,
+    LevelDevScore,
+    dev_score,
+    require_bootstrap,
+)
 from physverify.calibration.evaluate import (
     EvaluationInputs,
     EvaluationMeta,
@@ -58,6 +65,7 @@ from physverify.calibration.settings import (
 )
 from physverify.calibration.sigma import factor_map, recalibrate_profile, stage_factors
 from physverify.calibration.table import scene_of
+from physverify.cli.commands._sealed import Selection, guard_sealed
 from physverify.cli.commands.extract import (
     ConsoleObserver,
     EventRecorder,
@@ -228,6 +236,21 @@ def _artifact(session: Session, artifact: Path | None, *, stale_check: bool = Tr
     return load_calibration(path, checks_hash=_checks_hash(session) if stale_check else None)
 
 
+def _guard(
+    session: Session,
+    leaf: str,
+    selections: Sequence[Selection],
+    artifacts: dict[str, str] | None = None,
+) -> None:
+    guard_sealed(
+        session.context,
+        f"{NAME} {leaf}",
+        selections,
+        artifacts=artifacts,
+        run_dir=session.run.run_dir,
+    )
+
+
 def _write(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     write_text_atomic(path, text)
@@ -255,6 +278,7 @@ def _live_reports(
 
 
 def _run_reports(session: Session, dataset: DatasetSource, run_ids: Sequence[str]) -> Reports:
+    """The runs read back; a perceived-only set gets its oracle run after the sealed guard."""
     runs_dir = session.context.settings.paths.runs_dir
     every = dataset.clips(None)
     reports = {}
@@ -270,6 +294,7 @@ def _run_reports(session: Session, dataset: DatasetSource, run_ids: Sequence[str
         seen[level] = run_id
         reports[level] = report
     clips = next(iter(reports.values())).clips
+    _guard(session, "fit", [Selection(dataset.name, None, clips)])
     if InputLevel.PERCEIVED in reports and InputLevel.ORACLE not in reports:
         reports[InputLevel.ORACLE] = _raw_runner(session).run(OracleSource(dataset), clips)
     return Reports(reports, clips)
@@ -353,6 +378,7 @@ def fit(
     else:
         levels = _levels(level, session)
         chosen = _fit_clips(source, name, clips or ())
+        _guard(session, "fit", [Selection(source.name, name, tuple(chosen))])
         reports = _live_reports(session, source, chosen, levels)
     data = _level_data(session, source, reports, levels, no_sigma)
     meta = _fit_meta(session, source, name, reports.clips)
@@ -388,6 +414,81 @@ def _publish_fit(session: Session, path: Path, text: str) -> None:
         typer.echo(line)
 
 
+# --- devscore -----------------------------------------------------------------------------------
+
+
+@app.command("devscore", help="Development metric on calib: H1 and out-of-fold J (WP-O).")
+def devscore(
+    dataset: DatasetOption = None,
+    subset: SubsetOption = None,
+    level: Annotated[str | None, typer.Option(help="oracle, perceived or both.")] = None,
+    clips: ClipsOption = None,
+    out: Annotated[Path | None, typer.Option(help="Also write devscore.json here.")] = None,
+    no_sigma: Annotated[bool, typer.Option(help="Do not recalibrate the perceived sigma.")] = False,
+) -> None:
+    """Writes only its run directory (and ``--out``): never calibration_dir or the thresholds."""
+    session = _session()
+    cal = session.config.calibration
+    require_bootstrap(cal)
+    source = resolve_dataset(session.context, dataset or cal.dataset)
+    name = subset or cal.subset
+    levels = _levels(level, session)
+    chosen = _fit_clips(source, name, clips or ())
+    _require_calib(chosen)
+    _guard(session, "devscore", [Selection(source.name, name, tuple(chosen))])
+    reports = _live_reports(session, source, chosen, levels)
+    data = _level_data(session, source, reports, levels, no_sigma)
+    meta = _fit_meta(session, source, name, reports.clips)
+    result = dev_score(data, _check_units(session), meta, session.config)
+    run_dir = session.run.run_dir
+    text = result.report.to_json()
+    for path in (run_dir / DEVSCORE_FILE, *(() if out is None else (out,))):
+        _write(path, text)
+        typer.echo(f"devscore: {path}")
+    _write(run_dir / cal.artifact, result.artifact.to_json())
+    typer.echo(f"calibration: {run_dir / cal.artifact} (full calib fit)")
+    for line in devscore_lines(result.report):
+        typer.echo(line)
+
+
+def _require_calib(clips: Sequence[ClipManifest]) -> None:
+    """Checked before any check runs: devscore is a calib-only metric."""
+    wrong = sorted(c.clip_id for c in clips if c.split is not Split.CALIB)
+    if wrong:
+        raise UsageError(f"devscore runs on split=calib only; not calib: {wrong[:5]}")
+
+
+def devscore_lines(report: DevScoreReport) -> list[str]:
+    lines = [f"note: {report.scope_note}"]
+    for level in report.levels:
+        lines += _level_lines(level)
+    chosen = report.selection
+    if chosen is not None:
+        evaluable = "-" if chosen.oracle_evaluable is None else ",".join(chosen.oracle_evaluable)
+        lines.append(
+            f"selection ({chosen.level.value}): n_met {chosen.n_met}; oracle evaluable "
+            f"[{evaluable}]; all met {chosen.all_oracle_evaluable_met}; "
+            f"tie-break AUROC_cv {_num(chosen.tiebreak_auroc_cv)}"
+        )
+    return lines
+
+
+def _level_lines(level: LevelDevScore) -> list[str]:
+    auroc = level.auroc_cv
+    lines = [
+        f"{level.level.value}/{level.profile}: {level.n_met}/{len(level.checks)} meet H1 and "
+        f"J_cv^lo > 0 ({','.join(level.met) or 'none'}); AUROC_cv {_num(auroc.value)} "
+        f"[{_num(auroc.ci.low)}, {_num(auroc.ci.high)}]"
+    ]
+    for check_id, c in sorted(level.checks.items()):
+        lines.append(
+            f"  {check_id}: tau_b {_num(c.h1.kendall_tau_b)} [{_num(c.h1.ci.low)}, "
+            f"{_num(c.h1.ci.high)}] H1 {c.meets_h1}; J_cv {_num(c.j_cv.informedness)} "
+            f"[{_num(c.j_cv.informedness_ci.low)}, {_num(c.j_cv.informedness_ci.high)}]"
+        )
+    return lines
+
+
 # --- stage-sigma --------------------------------------------------------------------------------
 
 
@@ -413,6 +514,7 @@ def stage_sigma(
         raise UsageError(
             f"no split=calib clip in subset {ctx.diag.subset!r}: stage-sigma fits on calib only"
         )
+    _guard(session, "stage-sigma", [Selection(source.name, ctx.diag.subset, tuple(calib))])
     profile = load_error_profile(ctx.settings.paths.error_profile)
     if profile is None:
         raise UsageError(
@@ -465,11 +567,16 @@ def evaluate_command(
     chosen = select_clips(source.clips(name), clips or ())
     levels = sorted({lv for lv, _ in calibration.strata()})
     sources = _real_sources(session) if real else {}
+    real_subset = diagnosis_settings(session.context.settings).subset
+    selections = [
+        Selection(source.name, name, tuple(chosen)),
+        *(Selection(n, real_subset, found) for n, (_, found) in sorted(sources.items())),
+    ]
+    _guard(session, "evaluate", selections, {"calibration": calibration.sha256})
     inputs = tuple(
         EvaluationInputs(_eval_data(session, source, chosen, lv), _real_data(session, lv, sources))
         for lv in levels
     )
-    real_subset = diagnosis_settings(session.context.settings).subset
     meta = EvaluationMeta(
         created_utc=session.run.created_utc,
         run_id=session.run.run_id,

@@ -4,15 +4,18 @@
 #
 # The caller sets LOGS, STATE, STEPS, NOTES and SUMMARY, the summary's SUMMARY_TITLE
 # and SUMMARY_INFO line, and PY, PV_DEVICE and THREADS for pv (DOCTOR before doctor_value).
+# PV_PROFILE is precise unless the caller sets it after sourcing this file (an exported one is
+# ignored: run_h2.sh always runs precise). require_completed reads STEP_SAVES (step -> keys).
 # PV_NICE prefixes and PV_EXTRA extends every pv call. This pv replaces the uv one of _common.sh:
 # the runners call the checkout through the interpreter $PY, never through uv.
 
 PV_NICE=()
 PV_EXTRA=()
+PV_PROFILE=precise
 
 pv() {
     "${PV_NICE[@]}" env PYTHONPATH="$REPO_ROOT/src" "$PY" -c "from physverify.cli.main import main; main()" \
-        --profile precise --device "$PV_DEVICE" --set "runtime.threads=$THREADS" \
+        --profile "$PV_PROFILE" --device "$PV_DEVICE" --set "runtime.threads=$THREADS" \
         "${PV_EXTRA[@]}" "$@"
 }
 
@@ -104,6 +107,20 @@ run_logged() {
     if [[ "$code" -ne 0 ]]; then
         note "step $CUR_N ($CUR_NAME): some clips failed (exit $code), see $LAST_LOG"
     fi
+}
+
+# require_completed FIRST FROM: steps FIRST..FROM-1 last recorded with exit 0 and with their
+# STEP_SAVES keys set (a tolerated exit 1 is recorded as 0). The same check as run_a8v2.sh's
+# require_earlier_steps, kept there until that script moves here (README, debt).
+require_completed() {
+    local k code key
+    for ((k = $1; k < $2; k++)); do
+        code="$(last_exit "$k")"
+        [[ "$code" == 0 ]] || die "step $k has not completed (last exit '${code:-none}'): rerun from $k"
+        for key in ${STEP_SAVES[$k]:-}; do
+            [[ -n "${!key:-}" ]] || die "step $k recorded no $key in $STATE: rerun from $k"
+        done
+    done
 }
 
 call() {

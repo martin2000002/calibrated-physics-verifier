@@ -1,0 +1,11 @@
+# One-look sets (ADR 0015 amendment 2 section 5). A command that computes numbers on one of them
+# needs PHYSVERIFY_UNSEAL naming it and appends a ledger line before computing anything; a second
+# look under another frozen state also needs PHYSVERIFY_UNSEAL_REPEAT=1. `dataset:split` seals one
+# split, a bare name the whole dataset. kubric_synthetic:eval is the A8 eval split (and a fresh
+# Kubric rendered as another kubric_synthetic version, all of whose scenes are eval); the fresh
+# controls are their own dataset plugins, named here before they exist. h2_test keeps its own
+# ledger (run_h2.sh). `~` is the invoking HOME: the H200 scripts source env.sh, so the ledger is
+# $PHYSVERIFY_H200_ROOT/sealed-ledger.txt.
+[sealed]
+ledger = "~/sealed-ledger.txt"
+sets = ["kubric_synthetic:eval", "kubric_fresh", "physics_iq_views", "objectron_static"]

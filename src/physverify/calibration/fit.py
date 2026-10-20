@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 from physverify.calibration.loader import Stratum as StratumView
@@ -93,30 +93,42 @@ class FitInputs:
 
 
 def fit_calibration(inputs: FitInputs, config: CalibrationConfig) -> CalibrationArtifact:
-    strata = tuple(_stratum(level, inputs, config) for level in inputs.levels)
-    settings = config.calibration
+    strata = tuple(
+        fit_stratum(level, inputs.checks, inputs.meta.profile, config) for level in inputs.levels
+    )
+    return build_artifact(strata, inputs.meta, config)
+
+
+def build_artifact(
+    strata: tuple[Stratum, ...], meta: FitMeta, config: CalibrationConfig
+) -> CalibrationArtifact:
     return CalibrationArtifact(
         status=_status(strata),
-        created_utc=inputs.meta.created_utc,
-        run_id=inputs.meta.run_id,
-        commit=inputs.meta.commit,
-        config_hash=inputs.meta.config_hash,
-        checks_hash=inputs.meta.checks_hash,
-        error_profile_hash=inputs.meta.error_profile_hash,
-        dataset=inputs.meta.dataset,
-        settings=SettingsSnapshot(
-            alpha=settings.alpha,
-            beta=settings.beta,
-            k_sigma=config.policy.k_sigma,
-            folds=settings.folds,
-            bootstrap=settings.bootstrap,
-            seed=settings.seed,
-            ci=settings.ci,
-            min_sigma_pairs=settings.min_sigma_pairs,
-            platt_l2=settings.platt_l2,
-        ),
+        created_utc=meta.created_utc,
+        run_id=meta.run_id,
+        commit=meta.commit,
+        config_hash=meta.config_hash,
+        checks_hash=meta.checks_hash,
+        error_profile_hash=meta.error_profile_hash,
+        dataset=meta.dataset,
+        settings=settings_snapshot(config),
         strata=strata,
-        stage_sigma=inputs.meta.stage_sigma,
+        stage_sigma=meta.stage_sigma,
+    )
+
+
+def settings_snapshot(config: CalibrationConfig) -> SettingsSnapshot:
+    settings = config.calibration
+    return SettingsSnapshot(
+        alpha=settings.alpha,
+        beta=settings.beta,
+        k_sigma=config.policy.k_sigma,
+        folds=settings.folds,
+        bootstrap=settings.bootstrap,
+        seed=settings.seed,
+        ci=settings.ci,
+        min_sigma_pairs=settings.min_sigma_pairs,
+        platt_l2=settings.platt_l2,
     )
 
 
@@ -126,9 +138,18 @@ def _status(strata: Sequence[Stratum]) -> ArtifactStatus:
     return "calibrated" if strata and checks_ok and aggregate_ok else "insufficient"
 
 
-def _stratum(data: LevelData, inputs: FitInputs, config: CalibrationConfig) -> Stratum:
+def fit_stratum(
+    data: LevelData, checks: Sequence[CheckUnit], profile: str, config: CalibrationConfig
+) -> Stratum:
+    return assemble_stratum(fit_checks(data, checks, config), data, profile, config)
+
+
+def fit_checks(
+    data: LevelData, checks: Sequence[CheckUnit], config: CalibrationConfig
+) -> dict[str, CheckCalibration]:
+    """Every check of one level with its raw weight (before ``normalised``)."""
     policy = ThresholdPolicy(config.policy)
-    fitted = {
+    return {
         check.check_id: fit_check(
             [r for r in data.rows if r.check_id == check.check_id],
             check,
@@ -136,8 +157,17 @@ def _stratum(data: LevelData, inputs: FitInputs, config: CalibrationConfig) -> S
             policy,
             config.calibration,
         )
-        for check in inputs.checks
+        for check in checks
     }
+
+
+def assemble_stratum(
+    fitted: Mapping[str, CheckCalibration],
+    data: LevelData,
+    profile: str,
+    config: CalibrationConfig,
+) -> Stratum:
+    """The stratum of ``fit_checks``: normalised weights, then the aggregate score."""
     weights = normalised({c: f.weight for c, f in fitted.items() if f.status == OK})
     checks = {
         c: f.model_copy(update={"weight": weights.get(c, _zero(f.weight))})
@@ -145,7 +175,7 @@ def _stratum(data: LevelData, inputs: FitInputs, config: CalibrationConfig) -> S
     }
     model = Stratum(
         level=data.level,
-        profile=inputs.meta.profile,
+        profile=profile,
         row_step=unique_row_step(data.rows),
         k_sigma=config.policy.k_sigma,
         on_unknown_sigma=config.policy.on_unknown_sigma,
@@ -293,21 +323,7 @@ def fit_aggregate(model: Stratum, data: LevelData, settings: CalibrationSettings
     """s* = conformal quantile of 1 - S over the clean clips (one per scene). In-sample: tau, p_c
     and the weights behind S were fitted on the same clips, so its coverage is optimistic (the
     held-out flag rate is measured by ``evaluate``)."""
-    from physverify.calibration.apply import score_clip
-
-    view = StratumView(model=model, source="fit", artifact=None)
-    by_clip: dict[str, list[CheckResult]] = {}
-    for result in data.results:
-        by_clip.setdefault(result.clip_id, []).append(result)
-    info = _clip_info(data.rows)
-    scored: list[tuple[str, float, bool]] = []
-    for clip_id in sorted(by_clip):
-        if clip_id not in info:
-            continue
-        score = score_clip(by_clip[clip_id], view).score
-        scene, perturbed = info[clip_id]
-        if score is not None and perturbed is not None:
-            scored.append((scene, 1.0 - score, perturbed))
+    scored = clip_scores(model, data)
     threshold = conformal_quantile([v for _, v, p in scored if not p], settings.alpha)
     return Aggregate(
         score_threshold=threshold.value,
@@ -319,7 +335,27 @@ def fit_aggregate(model: Stratum, data: LevelData, settings: CalibrationSettings
     )
 
 
-def _clip_info(rows: Sequence[CalibrationRow]) -> dict[str, tuple[str, bool | None]]:
+def clip_scores(model: Stratum, data: LevelData) -> list[tuple[str, float, bool]]:
+    """(scene, 1 - S, perturbed?) of every clip of ``data`` with a row, a score and a label."""
+    from physverify.calibration.apply import score_clip
+
+    view = StratumView(model=model, source="fit", artifact=None)
+    by_clip: dict[str, list[CheckResult]] = {}
+    for result in data.results:
+        by_clip.setdefault(result.clip_id, []).append(result)
+    info = clip_info(data.rows)
+    scored: list[tuple[str, float, bool]] = []
+    for clip_id in sorted(by_clip):
+        if clip_id not in info:
+            continue
+        score = score_clip(by_clip[clip_id], view).score
+        scene, perturbed = info[clip_id]
+        if score is not None and perturbed is not None:
+            scored.append((scene, 1.0 - score, perturbed))
+    return scored
+
+
+def clip_info(rows: Sequence[CalibrationRow]) -> dict[str, tuple[str, bool | None]]:
     """clip -> (scene, perturbed?); None for a clip whose perturbation targets no check."""
     info: dict[str, tuple[str, bool | None]] = {}
     for row in rows:

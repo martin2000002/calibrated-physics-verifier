@@ -274,3 +274,41 @@ so it never renders beside a `run_kubric.sh` build. It stops after `dataset migr
 changed state (applied or skipped) until `PHYSVERIFY_MIGRATE_ALLOW_STATUS_CHANGES=1`, and moves the
 calibration artifacts fitted on the old GT into `<calibration dir>/stale-<name>/` once,
 printing a notice; recalibrate afterwards. `calibration-baseline-*` directories are refused.
+
+## Perception campaign iterations (ADR 0015 amendment 2, WP-O)
+
+```sh
+source "$PHYSVERIFY_H200_ROOT/env.sh"
+PHYSVERIFY_ITER_ID=it0-baseline PHYSVERIFY_ITER_EXPECT_COMMIT=<head> \
+    PHYSVERIFY_ITER_CACHE_DIR=<shared cache root> \
+    nohup bash scripts/h200/run_iteration.sh > "$PHYSVERIFY_H200_ROOT/iterations/it0.log" 2>&1 &
+```
+
+`run_iteration.sh [FROM [TO]]` runs, on the `kubric_synthetic` calib clips only: `extract run`,
+`diagnose stages --write-profile` (its own error profile), `extract run` again, `calibrate
+stage-sigma` and `calibrate devscore --level both`, the development metric (H1 of the full calib
+fit and J of out-of-fold decisions per check, AUROC of the clip score out of fold). Everything
+lands in `$PHYSVERIFY_H200_ROOT/iterations/<id>-<device>/` (calibration directory, runs, heavy
+lock, `devscore.json`, the full calib fit `calibration.json`, `summary.md`); the header lists the
+startup checks and variables. `PHYSVERIFY_ITER_PROFILE` (default `precise`) picks the sampling
+profile, which also fixes the dataset version the calib clips are listed from. With
+`PHYSVERIFY_ITER_DEVICE=cuda` launch it through `gpu_queue.sh` (GPUs 0-3).
+
+The sealed ledger (`configs/sealed.toml`): `calibrate fit|stage-sigma|evaluate|devscore`, `abstain
+fit|curve`, `verify`, `diagnose *` and `scene-stats per-clip` exit 2 before computing on a sealed
+set (`kubric_synthetic:eval`, the fresh controls) unless `PHYSVERIFY_UNSEAL` names it, and then
+append a line to the ledger first. A look never creates the ledger: create it once, by hand,
+with `env.sh` sourced (`touch "$PHYSVERIFY_H200_ROOT/sealed-ledger.txt"`); a missing file (a
+wrong `HOME`, another path) stops the look, and stderr prints the path it resolved. A look needs
+a clean git checkout (nothing uncommitted under `src` or `configs`). Its frozen state is the
+commit, the configuration sections with profile and device (not paths, threads or the lock) and
+the sha256 of `calibration.json` (or the `--artifact` used), `thresholds.json`,
+`exclusions.json` and the error profile; a look under another frozen state, a refit at the same
+commit included, also needs `PHYSVERIFY_UNSEAL_REPEAT=1`. A missing `[sealed]` section fails
+closed. A baseline rerun of `run_a8v2.sh` on main therefore stops at its
+first look at eval (an eval preflight clip, or step 2: `diagnose stages --subset full` reports on
+eval) unless `PHYSVERIFY_UNSEAL=kubric_synthetic:eval` is exported by hand, which records each of
+its looks; the checkout of the running chain is not updated until it finishes.
+
+Debt: `_steps.sh` `require_completed` repeats `run_a8v2.sh`'s `require_earlier_steps`; it goes
+away when `run_a8v2.sh` moves to `_steps.sh` after the A8 v2 chain completes.

@@ -15,6 +15,7 @@ from typing import Annotated
 import typer
 
 from physverify.calibration.settings import active_checks_hash
+from physverify.cli.commands._sealed import Selection, guard_sealed
 from physverify.cli.commands.extract import pipeline_deps, resolve_dataset, select_clips
 from physverify.cli.context import AppContext, app_context
 from physverify.core.errors import EXIT_ERROR, UsageError
@@ -95,6 +96,7 @@ def verify(
     inputs = _inputs(context, source, input_level, parse_stages(gt or ()))
     run_dir = _run_dir(context)
     typer.echo(f"run: {run_dir}")
+    guard_sealed(context, NAME, [Selection(source.name, subset, tuple(selected))], run_dir=run_dir)
     typer.echo(f"thresholds: {thresholds_label(thresholds)}")
     report = runner.run(inputs, selected)
     write_report(run_dir, report)
