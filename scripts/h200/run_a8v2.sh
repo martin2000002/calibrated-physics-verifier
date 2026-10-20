@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# A8 v2 on the H200 CPU (ADR 0015, "Corrida CPU"): the pair-collision migration, the stage
+# A8 v2 on the H200 (ADR 0015, "Corrida CPU"; CUDA as a device sensitivity, see below): the pair-collision migration, the stage
 # errors and sigma, the threshold fit and evaluation (with the H1 primary scene view, 1.4), the
 # abstention, both R2 detector arms, the exclusion record of 1.1, 1.2 and 1.5, then the Objectron
 # size evaluation and the LIFT gravity rows (neither feeds the record, so they come after it).
 # It consumes the perception cache the CPU shards left (run_real_cpu_shards.sh,
-# run_kubric_cpu_shards.sh) and never uses a GPU: every call is --profile precise --device cpu,
+# run_kubric_cpu_shards.sh) and, by default, never uses a GPU: every call is --profile precise --device cpu,
 # the device the cache keys were computed with. With PHYSVERIFY_A8V2_DEVICE=cuda the same chain
 # runs on the GPU the launcher left in CUDA_VISIBLE_DEVICES (--device cuda, the cache the GPU
 # extraction left) as a device sensitivity: CPU and CUDA magnitudes differ, so it never shares a
@@ -49,7 +49,7 @@
 #   11 gravity            the calib LIFT gravity-angle rows of step 2, copied to the summary
 #
 # Steps 2 and 4 compute the diagnosis ladder variants (V1: TRACK on the true DETECT, a heavy
-# stage the shards never ran) on the CPU under the lazy heavy lock; the preflight does not cover
+# stage the shards never ran) on the chain's device under the lazy heavy lock; the preflight does not cover
 # them, it only times one clip of them and writes the estimate to the summary.
 # Everything lands in $PHYSVERIFY_A8V2_DIR (default $H200_ROOT/a8v2, cuda: a8v2-cuda): logs/,
 # steps.tsv, summary.md and state.env (run ids later steps need, so FROM resumes). Exit codes:
@@ -151,7 +151,8 @@ blocks() {
         return
     fi
     device="$(job_device "$args")"
-    [[ -z "$device" || "$device" == "$DEVICE" ]] || return 1
+    # The migration (step 0) purges the cache of every device, so then any device blocks.
+    ((FROM == 0)) || [[ -z "$device" || "$device" == "$DEVICE" ]] || return 1
     values="$(grep -oE -- '--dataset[= ][^ ]*' <<<"$args" | sed -E 's/^--dataset[= ]//' || true)"
     [[ -n "$values" ]] || return 0
     while IFS= read -r value; do
@@ -194,8 +195,8 @@ export PHYSVERIFY__RUNTIME__HEAVY_LOCK="$H200_ROOT/kubric.lock"
 if [[ "$DEVICE" == cpu ]]; then
     export CUDA_VISIBLE_DEVICES=""
 else
-    [[ "${CUDA_VISIBLE_DEVICES-unset}" != "" ]] \
-        || die "CUDA_VISIBLE_DEVICES is empty: the cuda chain needs the GPU the launcher chose"
+    [[ "${CUDA_VISIBLE_DEVICES:-}" =~ ^[0-9]+$ ]] \
+        || die "CUDA_VISIBLE_DEVICES must name the one GPU the launcher chose (got '${CUDA_VISIBLE_DEVICES-unset}')"
     # Every artifact outside $OUT derives from these two (doctor confirms it below).
     export PHYSVERIFY__PATHS__CALIBRATION_DIR="$PHYSVERIFY__PATHS__DATA_DIR/calibration-cuda"
     export PHYSVERIFY__PATHS__RUNS_DIR="$PHYSVERIFY__PATHS__DATA_DIR/runs-cuda"
@@ -296,6 +297,12 @@ save() {
     printf -v "$1" '%s' "$2"
     printf '%s=%q\n' "$1" "$2" >>"$STATE"
 }
+
+if [[ -z "${CHAIN_DEVICE:-}" ]]; then
+    save CHAIN_DEVICE "$DEVICE"
+elif [[ "$CHAIN_DEVICE" != "$DEVICE" ]]; then
+    die "$OUT belongs to the $CHAIN_DEVICE chain, not $DEVICE"
+fi
 
 render_summary() {
     {

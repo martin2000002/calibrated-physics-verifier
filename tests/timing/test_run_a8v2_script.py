@@ -768,7 +768,8 @@ def test_the_cuda_chain_never_runs_the_shared_migration(sandbox: Sandbox) -> Non
     ("env", "message"),
     [
         ({"PHYSVERIFY_A8V2_DEVICE": "gpu"}, "must be cpu or cuda"),
-        ({**CUDA, "CUDA_VISIBLE_DEVICES": ""}, "CUDA_VISIBLE_DEVICES is empty"),
+        ({**CUDA, "CUDA_VISIBLE_DEVICES": ""}, "must name the one GPU"),
+        ({**CUDA, "CUDA_VISIBLE_DEVICES": "1,3"}, "must name the one GPU"),
     ],
 )
 def test_a_bad_device_setting_stops_before_any_call(
@@ -814,7 +815,10 @@ KUBRIC_JOB = "extract run --dataset kubric_synthetic --subset full"
 def test_jobs_of_the_other_device_never_block(sandbox: Sandbox, device: str, busy: str) -> None:
     env = CUDA if device == "cuda" else {}
     _audit(sandbox)
-    result = sandbox.run("0", "2", PS_OUT=f"  1 init\n{busy}", **env)
+    if device == "cuda":
+        sandbox.out = sandbox.root / "a8v2-cuda"
+    _done(sandbox, 1)
+    result = sandbox.run("1", "2", PS_OUT=f"  1 init\n{busy}", **env)
     assert result.returncode == 0, result.stderr
 
 
@@ -836,3 +840,18 @@ def test_same_device_unreadable_and_dataset_jobs_block_the_cuda_chain(
     assert result.returncode == 2
     assert "still running" in result.stderr
     assert sandbox.lines() == []
+
+
+def test_a_run_from_step_0_blocks_on_jobs_of_either_device(sandbox: Sandbox) -> None:
+    busy = f"4242 {SHARD} --device cuda extract run --dataset kubric_synthetic --clips k1"
+    result = sandbox.run("0", "2", PS_OUT=busy)
+    assert result.returncode == 2
+    assert "still running" in result.stderr
+
+
+def test_an_output_dir_of_the_other_chain_is_refused(sandbox: Sandbox) -> None:
+    sandbox.out.mkdir()
+    (sandbox.out / "state.env").write_text("CHAIN_DEVICE=cuda\n", encoding="utf-8")
+    result = sandbox.run("0", "2")
+    assert result.returncode == 2
+    assert "belongs to the cuda chain" in result.stderr
