@@ -298,10 +298,10 @@ fit|curve`, `verify`, `diagnose *` and `scene-stats per-clip` exit 2 before comp
 set (`kubric_synthetic:eval`, the fresh controls) unless `PHYSVERIFY_UNSEAL` names it, and then
 append a line to `$PHYSVERIFY_H200_ROOT/sealed-ledger.txt` (with `env.sh` sourced) first. A look
 under another frozen state (commit, config, thresholds, error profile) also needs
-`PHYSVERIFY_UNSEAL_REPEAT=1`. A baseline rerun of `run_a8v2.sh` on main therefore stops at step 2
-(`diagnose stages --subset full` reports on eval) unless `PHYSVERIFY_UNSEAL=kubric_synthetic:eval`
-is exported by hand, which records each of its looks; the checkout of the running chain is not
-updated until it finishes.
+`PHYSVERIFY_UNSEAL_REPEAT=1`. A baseline rerun of `run_a8v2.sh` on main therefore stops at its
+first look at eval (an eval preflight clip, or step 2: `diagnose stages --subset full` reports on
+eval) unless `PHYSVERIFY_UNSEAL=kubric_synthetic:eval` is exported by hand, which records each of
+its looks; the checkout of the running chain is not updated until it finishes.
 
 Debt: `_steps.sh` `require_completed` repeats `run_a8v2.sh`'s `require_earlier_steps`; it goes
 away when `run_a8v2.sh` moves to `_steps.sh` after the A8 v2 chain completes.
