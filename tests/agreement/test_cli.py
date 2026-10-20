@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import json
 import sys
+import tomllib
 from pathlib import Path
+
+import pytest
 
 CALIBRATION_TESTS = str(Path(__file__).resolve().parent.parent / "calibration")
 if CALIBRATION_TESTS not in sys.path:
@@ -13,10 +16,15 @@ if CALIBRATION_TESTS not in sys.path:
 from exclusion_cases import write_record  # noqa: E402
 from stratum_cases import write_artifact  # noqa: E402
 
-from physverify.agreement.prereg import file_sha256, load_preregistration  # noqa: E402
+from physverify.agreement.prereg import (  # noqa: E402
+    file_sha256,
+    load_preregistration,
+    logged_comparisons,
+)
 from physverify.agreement.report import REPORT_DIR, _sign_flip_lines  # noqa: E402
 from physverify.calibration.loader import default_artifact_path  # noqa: E402
 from physverify.calibration.settings import active_checks_hash  # noqa: E402
+from physverify.core.errors import PhysverifyError  # noqa: E402
 from physverify.datasets._videophy_review import PENDING, load_review  # noqa: E402
 from physverify.schema.checks import InputLevel  # noqa: E402
 
@@ -81,6 +89,30 @@ def test_a_changed_config_breaks_the_preregistration(cli, world) -> None:
         *FAST, "--set", "agreement.alpha=0.1", "agreement", "compare", "--verify-run", str(run)
     )
     assert result.code == 2 and "agreement_config_sha256" in result.err
+
+
+def test_the_committed_rule_is_calibrated_with_the_descriptive_fallback(repo_root: Path) -> None:
+    with (repo_root / "configs" / "agreement.toml").open("rb") as handle:
+        agreement = tomllib.load(handle)["agreement"]
+    assert agreement["rule"] == "calibrated"
+    assert agreement["on_unusable_stratum"] == "descriptive"
+
+
+def test_a_test_comparison_is_logged_before_its_report_is_written(
+    cli, world, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run = _frozen(cli, world)
+
+    def broken(*args: object) -> None:
+        raise PhysverifyError("disk full")
+
+    monkeypatch.setattr("physverify.cli.commands.agreement.write_comparison", broken)
+    result = cli(*FAST, "agreement", "compare", "--verify-run", str(run))
+    assert result.code == 1 and "disk full" in result.err
+    prereg = world.settings.paths.data_dir / "agreement" / "preregistration.json"
+    (entry,) = logged_comparisons(prereg)
+    assert entry.run == str(run) and entry.prereg_sha256 == file_sha256(prereg)
+    assert not (run / REPORT_DIR / "metrics.json").exists()
 
 
 def test_the_calibrated_rule_without_its_artefact_is_a_config_error(cli, world) -> None:
@@ -206,6 +238,13 @@ def test_the_summary_renders_every_c5_block(cli, world) -> None:
     ):
         assert needle in text, needle
     assert {"per_check", "per_generator", "coverage"} <= set(metrics)
+    gaps = metrics["input_gaps"]
+    assert gaps["no_query"] == 0 and gaps["no_video"] == metrics["counts"]["rows"]
+    line = (
+        "No object query: 0 rows (0 with video, compared as abstentions); videos missing from "
+        f"the source: {gaps['no_video']} (by generator: v1:gen1 "
+    )
+    assert line in text
     coverage = metrics["coverage"]["all"]
     assert coverage["coverage"] == coverage["decided"] / coverage["n"]
 

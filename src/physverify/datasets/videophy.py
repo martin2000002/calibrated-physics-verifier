@@ -115,10 +115,21 @@ class VideophyDataset:
 
     def clips(self, subset: str | None = None) -> Sequence[ClipManifest]:
         """Manifests of the subset's videos that are on disk (the comparison counts the rest)."""
-        queries = load_annotations(self._queries_path)
+        queries = self.queries()
         present = [r for r in self.rows(subset) if self.video_file(r).is_file()]
         manifests = [self._manifest(row, queries) for row in present]
         return [m for m in manifests if m is not None]
+
+    def queries(self) -> dict[str, tuple[ObjectQuery, ...]]:
+        """``{caption: queries}`` of the queries file (D11: the unreviewed heuristic draft)."""
+        return load_annotations(self._queries_path)
+
+    def object_queries(
+        self, row: VideophyRow, queries: Mapping[str, tuple[ObjectQuery, ...]]
+    ) -> tuple[ObjectQuery, ...]:
+        """The queries a clip is extracted with: the file's entry, else the caption heuristic;
+        empty means the clip has no object to detect."""
+        return queries.get(row.caption) or derive_queries(row.caption, self._s.filter.rigid_event)
 
     def video(self, clip: ClipManifest) -> VideoSource:
         path = resolve_data_path(clip.video_path, self._data_dir)
@@ -299,8 +310,7 @@ class VideophyDataset:
             container_fps=source.real_fps,
             seconds_per_frame=1.0 / source.real_fps,
             time_source=TimeSource.CONTAINER_FPS,
-            object_queries=queries.get(row.caption)
-            or derive_queries(row.caption, self._s.filter.rigid_event),
+            object_queries=self.object_queries(row, queries),
             prompt=row.caption,
             license=self._s.license,
         )

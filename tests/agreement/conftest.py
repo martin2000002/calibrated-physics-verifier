@@ -98,6 +98,16 @@ def no_network(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(socket.socket, "connect_ex", _refuse)
 
 
+PROVISIONAL_ENV = {"PHYSVERIFY__AGREEMENT__RULE": "provisional_any_fail"}
+
+
+@pytest.fixture(autouse=True)
+def provisional_by_default(environ: dict[str, str]) -> None:
+    """The committed rule is ``calibrated``; these tests start from the provisional one, and a
+    test that wants the calibrated rule passes ``--set agreement.rule=...`` (higher precedence)."""
+    environ.update(PROVISIONAL_ENV)
+
+
 SettingsFactory = Callable[..., Settings]
 
 

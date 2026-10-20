@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from physverify.agreement.analysis import SECONDARY_TESTS
+from physverify.agreement.coverage import dataset_gaps
 from physverify.agreement.decision import (
     CALIBRATED_NAME,
     CalibrationApi,
@@ -325,6 +326,7 @@ def run_comparison[S: CalibrationStratum](
             gate=setup.gate,
             calibration=setup.calibration,
             dev_design_effect=None if frozen is None else frozen.dev_design_effect,
+            gaps=dataset_gaps(dataset, rows),
         )
     )
 
