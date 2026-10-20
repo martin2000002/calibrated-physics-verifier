@@ -59,10 +59,15 @@ def input_gaps(rows: Sequence[VideophyRow], has_query: RowTest, has_video: RowTe
     return InputGaps(no_query, with_video, no_video, by_part, by_generator, tuple(sorted(captions)))
 
 
-def dataset_gaps(dataset: VideophyDataset, rows: Sequence[VideophyRow]) -> InputGaps:
+def dataset_tests(dataset: VideophyDataset) -> tuple[RowTest, RowTest]:
+    """``(has_query, has_video)`` as extraction sees them: the queries the clip would be
+    extracted with, and its video file on disk."""
     queries = dataset.queries()
-    return input_gaps(
-        rows,
+    return (
         lambda row: bool(dataset.object_queries(row, queries)),
         lambda row: dataset.video_file(row).is_file(),
     )
+
+
+def dataset_gaps(dataset: VideophyDataset, rows: Sequence[VideophyRow]) -> InputGaps:
+    return input_gaps(rows, *dataset_tests(dataset))
