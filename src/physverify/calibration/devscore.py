@@ -57,7 +57,8 @@ SCOPE_NOTE = (
     "without each scene fold: tau, the per-check sigma correction (bias, factor), p_c, the "
     "weights and the clip score. Fitted on all of calib (in-sample): the per-stage error profile "
     "(diagnose stages), the per-stage sigma factors (calibrate stage-sigma, D10) and H1 (Kendall "
-    "tau_b, rule 1.1). These folds are not those of fpr.cv: the artifact's FPR and J_cv differ."
+    "tau_b, rule 1.1). These folds are not those of fpr.cv: the artifact's FPR and J_cv differ. "
+    "AUROC_cv pools the held-out scores of the fold models."
 )
 
 

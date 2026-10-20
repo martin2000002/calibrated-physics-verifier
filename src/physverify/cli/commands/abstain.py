@@ -424,11 +424,8 @@ def _guard(context: AppContext, leaf: str, *, real: bool) -> None:
         except PhysverifyError:
             continue
         selections.append(Selection(source.name, subset, tuple(source.clips(subset))))
-    files = {
-        "abstention": settings.paths.calibration_dir / ABSTENTION_FILE,
-        "calibration": default_artifact_path(settings),
-    }
-    shas = {label: sha for label, path in files.items() if (sha := file_sha(path)) is not None}
+    abstention = file_sha(settings.paths.calibration_dir / ABSTENTION_FILE)
+    shas = {} if abstention is None else {"abstention": abstention}
     guard_sealed(context, f"{NAME} {leaf}", selections, artifacts=shas)
 
 

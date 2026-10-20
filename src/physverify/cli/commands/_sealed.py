@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import datetime as dt
 import socket
+import subprocess
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -14,6 +15,7 @@ from typing import Final
 
 import typer
 
+from physverify.calibration.loader import default_artifact_path
 from physverify.calibration.sealed import (
     REPEAT_ENV,
     UNSEAL_ENV,
@@ -25,15 +27,20 @@ from physverify.calibration.sealed import (
     file_sha,
     freeze_of,
     ledger_path,
+    look_config_hash,
     read_entries,
+    require_clean,
     require_unsealed,
     sealed_settings,
     touched,
     unsealed,
 )
 from physverify.cli.context import AppContext
+from physverify.config.models import Settings
 from physverify.runtime.runs import current_commit
 from physverify.schema.clip import ClipManifest
+from physverify.verification.scope import SECTION as SCOPE_SECTION
+from physverify.verification.scope import CheckScope, record_path
 
 GUARDED: Final = frozenset(
     {
@@ -78,7 +85,7 @@ EXEMPT: Final[Mapping[str, str]] = MappingProxyType(
         "dataset render": _DATA,
         "dataset simulate": _DATA,
         "demo report": _GENERATED,
-        "demo run": _GENERATED,
+        "demo run": _GENERATED + "; a --video path is a file, not a dataset selection",
         "demo scenes": _GENERATED,
         "doctor": _DATA,
         "exclusions decide": _READS,
@@ -140,7 +147,8 @@ def guard_sealed(
     run_dir: Path | None = None,
 ) -> None:
     """Nothing when no selection touches a sealed set; otherwise refuse without the unseal
-    variable, or append the ledger line (``artifacts``: label -> sha256) before returning."""
+    variable, or append the ledger line before returning. ``artifacts`` (label -> sha256) are
+    the files the command judges with beyond the default ones; they enter the freeze."""
     if command not in GUARDED:
         raise ValueError(f"{command!r} is not a guarded subcommand")
     sealed = sealed_settings(context.settings)
@@ -154,7 +162,7 @@ def guard_sealed(
     home = Path(environ.get("HOME") or Path.home())
     path = ledger_path(sealed, home, context.settings.repo_root)
     typer.echo(f"ledger: {path}", err=True)
-    look = _look(context, found)
+    look = _look(context, found, artifacts or {})
     previous = read_entries(path)
     repeat = check_repeat(previous, found, look.freeze, environ.get(REPEAT_ENV) == "1")
     for entry in earlier(previous, found):
@@ -167,7 +175,6 @@ def guard_sealed(
         update={
             "command": command,
             "datasets": tuple(dataset_entry(s.dataset, s.subset, s.clips) for s in selections),
-            "artifacts": look.artifacts | dict(artifacts or {}),
             "repeat": repeat,
             "run_dir": None if run_dir is None else str(run_dir),
         }
@@ -176,14 +183,41 @@ def guard_sealed(
     typer.echo(f"sealed look: {','.join(found)} freeze {look.freeze[:12]}", err=True)
 
 
-def _look(context: AppContext, found: tuple[str, ...]) -> LedgerEntry:
+def frozen_files(settings: Settings) -> dict[str, Path]:
+    """What every verdict of a look reads: the artifact, its projection, the decision record
+    and the error profile (a refit at the same commit is another freeze)."""
+    scope = settings.section(SCOPE_SECTION, CheckScope)
+    record = record_path(scope, settings.paths.calibration_dir)
+    files = {
+        "calibration": default_artifact_path(settings),
+        "thresholds": settings.paths.thresholds,
+        "error_profile": settings.paths.error_profile,
+    }
+    return files if record is None else {**files, "exclusions": record}
+
+
+def _tree_state(root: Path) -> str | None:
+    """``git status --porcelain -- src configs`` (None outside a checkout)."""
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(root), "status", "--porcelain", "-uall", "--", "src", "configs"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return None
+    return result.stdout if result.returncode == 0 else None
+
+
+def _look(context: AppContext, found: tuple[str, ...], artifacts: Mapping[str, str]) -> LedgerEntry:
     """The invocation's part of the line: who, where, and the frozen state it looks with."""
     settings = context.settings
-    commit, config_hash = current_commit(settings.repo_root), settings.config_hash()
-    frozen = {
-        "thresholds": file_sha(settings.paths.thresholds),
-        "error_profile": file_sha(settings.paths.error_profile),
-    }
+    commit = current_commit(settings.repo_root)
+    require_clean(commit, _tree_state(settings.repo_root))
+    config_hash = look_config_hash(settings)
+    frozen = {label: file_sha(path) for label, path in frozen_files(settings).items()}
+    frozen |= dict(artifacts)
     return LedgerEntry(
         utc=dt.datetime.now(dt.UTC).isoformat(timespec="seconds"),
         commit=commit,

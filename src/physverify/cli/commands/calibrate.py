@@ -278,6 +278,7 @@ def _live_reports(
 
 
 def _run_reports(session: Session, dataset: DatasetSource, run_ids: Sequence[str]) -> Reports:
+    """The runs read back; a perceived-only set gets its oracle run after the sealed guard."""
     runs_dir = session.context.settings.paths.runs_dir
     every = dataset.clips(None)
     reports = {}
@@ -293,6 +294,7 @@ def _run_reports(session: Session, dataset: DatasetSource, run_ids: Sequence[str
         seen[level] = run_id
         reports[level] = report
     clips = next(iter(reports.values())).clips
+    _guard(session, "fit", [Selection(dataset.name, None, clips)])
     if InputLevel.PERCEIVED in reports and InputLevel.ORACLE not in reports:
         reports[InputLevel.ORACLE] = _raw_runner(session).run(OracleSource(dataset), clips)
     return Reports(reports, clips)
@@ -373,7 +375,6 @@ def fit(
         levels = tuple(
             lv for lv in (InputLevel.ORACLE, InputLevel.PERCEIVED) if lv in reports.by_level
         )
-        _guard(session, "fit", [Selection(source.name, name, reports.clips)])
     else:
         levels = _levels(level, session)
         chosen = _fit_clips(source, name, clips or ())

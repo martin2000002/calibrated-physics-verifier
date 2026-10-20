@@ -1,9 +1,11 @@
 """The sealed ledger (ADR 0015 amendment 2 section 5): the one-look sets of ``[sealed]`` and the
 line a look leaves before any number is computed. Pure except ``read_entries``/``append_entry``.
 
-A look is a frozen state, not a command: every line carries ``freeze`` (commit, config hash and
-the sha256 of the thresholds and error profile), so the final evaluation may run several
-commands on one set, while a look under another frozen state needs an explicit repeat."""
+A look is a frozen state, not a command: every line carries ``freeze`` (commit of a clean tree,
+the hash of the effective sections, profile and device, and the sha256 of every artifact a
+verdict reads), so the final evaluation may run several commands on one set, while a look under
+another frozen state needs an explicit repeat. The ledger is created once by hand and never by
+``physverify``, so a wrong HOME or path fails closed instead of starting an empty ledger."""
 
 from __future__ import annotations
 
@@ -17,7 +19,7 @@ from pathlib import Path
 from pydantic import ValidationError, field_validator
 
 from physverify.config.models import FrozenModel, Settings, _anchor
-from physverify.core.errors import PhysverifyError, UsageError
+from physverify.core.errors import ConfigError, PhysverifyError, UsageError
 from physverify.extraction.weights import sha256_of
 from physverify.schema.clip import ClipManifest, Split
 from physverify.schema.io import stable_hash
@@ -38,8 +40,8 @@ class LedgerError(PhysverifyError):
 
 
 class SealedSettings(FrozenModel):
-    ledger: Path = Path("~/sealed-ledger.txt")
-    sets: tuple[str, ...] = ()
+    ledger: Path
+    sets: tuple[str, ...]
 
     @field_validator("sets")
     @classmethod
@@ -51,6 +53,11 @@ class SealedSettings(FrozenModel):
 
 
 def sealed_settings(settings: Settings) -> SealedSettings:
+    """Fails closed: without ``[sealed]`` nothing would be guarded."""
+    if SECTION not in settings.sections:
+        raise ConfigError(
+            f"no [{SECTION}] section (configs/sealed.toml): the sealed sets are unknown"
+        )
     return settings.section(SECTION, SealedSettings)
 
 
@@ -93,9 +100,33 @@ def require_unsealed(found: Sequence[str], allowed: Collection[str]) -> None:
         )
 
 
+def look_config_hash(settings: Settings) -> str:
+    """The configuration a verdict depends on: sections, profile and device. Paths, threads and
+    the lock are left out so the commands of one look may differ in them; what the paths point
+    to enters the freeze as file sha256."""
+    return stable_hash(
+        {
+            "profile": settings.profile,
+            "device": settings.runtime.device,
+            "sections": dict(settings.sections),
+        }
+    )
+
+
 def freeze_of(commit: str, config_hash: str, artifacts: Mapping[str, str | None]) -> str:
     """The frozen state of a look: the same in every command run on it."""
     return stable_hash({"commit": commit, "config_hash": config_hash, "artifacts": artifacts})
+
+
+def require_clean(commit: str, dirty: str | None) -> None:
+    """``dirty``: ``git status --porcelain`` of the tree the commit names (None: no checkout)."""
+    if dirty is None or not commit:
+        raise SealedSetError("a sealed look needs a git checkout: the commit names the freeze")
+    if dirty.strip():
+        raise SealedSetError(
+            "uncommitted or untracked files under src or configs: commit them before a sealed "
+            f"look, or its freeze would not be the commit's:\n{dirty.rstrip()}"
+        )
 
 
 def file_sha(path: Path) -> str | None:
@@ -121,6 +152,7 @@ class LedgerEntry(FrozenModel):
     datasets: tuple[LedgerDataset, ...]
     artifacts: dict[str, str]
     config_hash: str
+    """``look_config_hash``: sections, profile and device (not paths, threads or the lock)."""
     freeze: str
     repeat: bool
     run_dir: str | None
@@ -155,10 +187,17 @@ def earlier(entries: Sequence[LedgerEntry], found: Collection[str]) -> list[Ledg
     return [e for e in entries if any(s in found for s in e.sets)]
 
 
+def require_ledger(path: Path) -> None:
+    if not path.is_file():
+        raise LedgerError(
+            f"no sealed ledger at {path}: it is created once by hand (touch {path}), never by a "
+            "look; check HOME (the H200 scripts source env.sh) and [sealed] ledger"
+        )
+
+
 def read_entries(path: Path) -> tuple[LedgerEntry, ...]:
-    """Every line of the ledger; an unreadable or malformed one fails closed."""
-    if not path.exists():
-        return ()
+    """Every line of the ledger; a missing, unreadable or malformed one fails closed."""
+    require_ledger(path)
     try:
         lines = path.read_text(encoding="utf-8").splitlines()
         return tuple(LedgerEntry.model_validate_json(line) for line in lines if line.strip())
@@ -169,8 +208,8 @@ def read_entries(path: Path) -> tuple[LedgerEntry, ...]:
 def append_entry(path: Path, entry: LedgerEntry) -> None:
     """One JSON line with sorted keys, flushed to disk before the command computes anything."""
     line = json.dumps(entry.model_dump(mode="json"), sort_keys=True)
+    require_ledger(path)
     try:
-        path.parent.mkdir(parents=True, exist_ok=True)
         with path.open("a", encoding="utf-8") as handle:
             handle.write(line + "\n")
             handle.flush()

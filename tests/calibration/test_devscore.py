@@ -174,11 +174,13 @@ def test_nothing_of_the_held_out_fold_reaches_its_stratum() -> None:
     """C4 (AC4): the fold's stratum and tau are unchanged by anything inside the fold."""
     base = levels()[1]
     data = LevelData(base.level, base.rows, base.results, _pairs(base))
-    fold = scene_folds([data], CONFIG.calibration)[0]
-    (before,) = fold_parts(data, CHECKS, "fast", CONFIG, [fold])
-    (after,) = fold_parts(_corrupt(data, fold), CHECKS, "fast", CONFIG, [fold])
+    fold, other = scene_folds([data], CONFIG.calibration)[:2]
+    corrupt = _corrupt(data, fold)
+    before, control = fold_parts(data, CHECKS, "fast", CONFIG, [fold, other])
+    after, leaked = fold_parts(corrupt, CHECKS, "fast", CONFIG, [fold, other])
     assert before.stratum.checks["R1"].sigma.n_pairs > 0
     assert after.stratum.to_json() == before.stratum.to_json()
+    assert leaked.stratum.to_json() != control.stratum.to_json()  # the corruption is visible
 
 
 def test_split_keeps_no_sigma_and_drops_results_without_a_row() -> None:

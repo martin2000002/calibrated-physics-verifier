@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import inspect
 import json
+import os
+import subprocess
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from types import MappingProxyType, ModuleType
@@ -19,13 +21,15 @@ from physverify.cli import context
 from physverify.cli.commands import _sealed, abstain, calibrate, diagnose, verify
 from physverify.cli.context import COMMANDS_PACKAGE, check_command, command_name
 from physverify.cli.main import build_app
+from physverify.config.loader import load_settings
 from physverify.config.models import Settings
 from physverify.core.errors import PhysverifyError
 from physverify.core.registry import discover_modules
 from physverify.datasets._base import GroundTruthStore, VideoSource
 from physverify.diagnosis import scene_stats
+from physverify.schema.checks import InputLevel
 from physverify.schema.clip import ClipManifest, Split
-from physverify.verification.runner import VerificationReport
+from physverify.verification.runner import VerificationReport, write_report
 
 EXIT_USAGE = 2
 REACHED = 9
@@ -38,7 +42,9 @@ SEAL = ("--set", f'sealed.sets=["{DATASET}:eval"]', "--set", "calibration.bootst
 UNSEAL = {"PHYSVERIFY_UNSEAL": f"{DATASET}:eval"}
 CALIB_CLIP = CALIB.clips[0].clip_id
 THREE = ("--set", "runtime.threads=3")
-"""Moves config_hash, hence the frozen state of a look."""
+"""Moves the full config_hash but not the look's (paths and threads are left out)."""
+SECTIONS = ("--set", "calibration.bootstrap=40")
+"""Moves the look's config hash, hence its frozen state."""
 
 
 class ReachedError(PhysverifyError):
@@ -75,8 +81,28 @@ def fixture_dataset(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture
-def ledger(environ: dict[str, str]) -> Path:
-    return Path(environ["HOME"]) / "sealed-ledger.txt"
+def checkout(config_dir: Path) -> Path:
+    """The copied repository committed: a sealed look needs a clean git checkout."""
+    root = config_dir.parent
+    git = ("git", "-C", str(root), "-c", "user.name=t", "-c", "user.email=t@t",
+           "-c", "commit.gpgsign=false")  # fmt: skip
+    for args in (("init", "-q"), ("add", "-A"), ("commit", "-qm", "fixture")):
+        subprocess.run([*git, *args], check=True, capture_output=True)
+    return root
+
+
+@pytest.fixture
+def ledger(environ: dict[str, str], checkout: Path) -> Path:
+    """Created once by hand, as on the H200."""
+    path = Path(environ["HOME"]) / "sealed-ledger.txt"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.touch()
+    return path
+
+
+@pytest.fixture
+def settings(config_dir: Path, environ: dict[str, str]) -> Settings:
+    return load_settings(config_dir, environ=environ)
 
 
 @pytest.fixture
@@ -140,10 +166,13 @@ def evaluate_cli(
     path.write_text(artifact_text, encoding="utf-8")
 
     def invoke(
-        *extra: str, options: Sequence[str] = (), env: Mapping[str, str] | None = None
+        *extra: str,
+        options: Sequence[str] = (),
+        env: Mapping[str, str] | None = None,
+        artifact: Path = path,
     ) -> CliResult:
         command = ("calibrate", "evaluate", "--dataset", DATASET, "--no-real", "--artifact")
-        return cli(*SEAL, *options, *command, str(path), *extra, env=env)
+        return cli(*SEAL, *options, *command, str(artifact), *extra, env=env)
 
     return invoke
 
@@ -151,10 +180,10 @@ def evaluate_cli(
 def test_evaluate_on_the_sealed_split_needs_the_variable(
     evaluate_cli: Callable[..., CliResult], ledger: Path, reached: list[int]
 ) -> None:
-    """AC12: exit 2, no ledger, nothing computed."""
+    """AC12: exit 2, no line, nothing computed."""
     result = evaluate_cli()
     assert result.code == EXIT_USAGE and "PHYSVERIFY_UNSEAL" in result.err
-    assert not ledger.exists() and reached == []
+    assert read_entries(ledger) == () and reached == []
 
 
 def test_evaluate_leaves_one_line_before_computing(
@@ -169,7 +198,7 @@ def test_evaluate_leaves_one_line_before_computing(
     sha = json.loads(evaluation.read_text(encoding="utf-8"))["artifact_sha256"]
     assert line.artifacts["calibration"] == sha
     assert line.sets == (f"{DATASET}:eval",) and line.command == "calibrate evaluate"
-    assert line.commit == "" or len(line.commit) >= 7
+    assert len(line.commit) == 40
     assert line.datasets[0].n_clips == len(REPORT.clips) and not line.repeat
     assert f"ledger: {ledger}" in result.err
 
@@ -180,18 +209,46 @@ def test_evaluate_on_calib_clips_leaves_no_line(
     """AC15: a calib-only selection does not touch the sealed split."""
     result = evaluate_cli("--clips", CALIB_CLIP)
     assert result.code == 0, result.err
-    assert not ledger.exists() and reached
+    assert read_entries(ledger) == () and reached
 
 
+@pytest.mark.skipif(os.geteuid() == 0, reason="root writes a read-only file")
 def test_an_unwritable_ledger_stops_before_computing(
-    evaluate_cli: Callable[..., CliResult], tmp_path: Path, reached: list[int]
+    evaluate_cli: Callable[..., CliResult], ledger: Path, reached: list[int]
 ) -> None:
     """AC14."""
-    (tmp_path / "blocker").write_text("x")
-    target = tmp_path / "blocker" / "ledger.txt"
-    result = evaluate_cli(options=("--set", f"sealed.ledger={target}"), env=UNSEAL)
+    ledger.chmod(0o444)
+    result = evaluate_cli(env=UNSEAL)
     assert result.code == 1 and "cannot write the sealed ledger" in result.err
     assert reached == []
+
+
+def test_a_missing_ledger_fails_closed_and_is_not_created(
+    evaluate_cli: Callable[..., CliResult], tmp_path: Path, reached: list[int]
+) -> None:
+    """Audit M2: a wrong path (or HOME) never starts an empty ledger."""
+    absent = tmp_path / "elsewhere" / "sealed-ledger.txt"
+    result = evaluate_cli(options=("--set", f"sealed.ledger={absent}"), env=UNSEAL)
+    assert result.code == 1 and f"touch {absent}" in result.err
+    assert f"ledger: {absent}" in result.err
+    assert not absent.parent.exists() and reached == []
+
+
+def test_another_artifact_at_the_same_commit_is_another_freeze(
+    evaluate_cli: Callable[..., CliResult], ledger: Path, tmp_path: Path, reached: list[int]
+) -> None:
+    """Audit M1: a refit (another --artifact) needs the repeat variable."""
+    assert evaluate_cli(env=UNSEAL).code == 0
+    refit = tmp_path / "refit" / "calibration.json"
+    refit.parent.mkdir()
+    refit.write_text(fitted_artifact(30, bootstrap=40).to_json(), encoding="utf-8")
+    again = evaluate_cli(env=UNSEAL, artifact=refit)
+    assert again.code == EXIT_USAGE and "PHYSVERIFY_UNSEAL_REPEAT" in again.err
+    assert len(read_entries(ledger)) == 1
+    repeat = evaluate_cli(env={**UNSEAL, "PHYSVERIFY_UNSEAL_REPEAT": "1"}, artifact=refit)
+    assert repeat.code == 0, repeat.err
+    first, second = read_entries(ledger)
+    assert second.repeat and second.artifacts["calibration"] != first.artifacts["calibration"]
 
 
 def _guarded_verify(
@@ -252,7 +309,7 @@ def test_each_guarded_command_refuses_without_the_variable(
     """AC12."""
     result = guarded(name)()
     assert result.code == EXIT_USAGE and "PHYSVERIFY_UNSEAL" in result.err
-    assert not ledger.exists() and reached == []
+    assert read_entries(ledger) == () and reached == []
 
 
 @pytest.mark.parametrize("name", COMMANDS)
@@ -275,7 +332,52 @@ def test_verify_on_calib_clips_leaves_no_line(
     """AC15."""
     run = _guarded_verify(cli, monkeypatch, ledger, reached)
     assert run("--clips", CALIB_CLIP).code == REACHED
-    assert reached == [0] and not ledger.exists()
+    assert reached == [0] and read_entries(ledger) == ()
+
+
+def test_without_the_sealed_section_every_guarded_command_fails_closed(
+    cli: CliRunner, monkeypatch: pytest.MonkeyPatch, ledger: Path, reached: list[int],
+    config_dir: Path,
+) -> None:  # fmt: skip
+    """Audit M3: even a calib-only selection stops when the sealed sets are unknown."""
+    (config_dir / "sealed.toml").unlink()
+    stop = sentinel(ledger, reached)
+    monkeypatch.setattr(verify, "VerificationRunner", lambda *a: _SentinelRunner(stop))
+    result = cli("verify", "--dataset", DATASET, "--level", "oracle", "--clips", CALIB_CLIP)
+    assert result.code == EXIT_USAGE and "no [sealed] section" in result.err
+    assert reached == []
+
+
+def test_a_dirty_tree_cannot_look(
+    cli: CliRunner, monkeypatch: pytest.MonkeyPatch, ledger: Path, reached: list[int],
+    checkout: Path,
+) -> None:  # fmt: skip
+    """Audit m2: the commit of the freeze must be the tree that runs."""
+    (checkout / "src").mkdir()
+    (checkout / "src" / "patch.py").write_text("x = 1\n", encoding="utf-8")
+    result = _guarded_verify(cli, monkeypatch, ledger, reached)(env=UNSEAL)
+    assert result.code == EXIT_USAGE and "src/patch.py" in result.err
+    assert read_entries(ledger) == () and reached == []
+
+
+def test_a_refit_of_the_default_artifact_is_another_freeze(
+    cli: CliRunner, monkeypatch: pytest.MonkeyPatch, ledger: Path, reached: list[int],
+    settings: Settings,
+) -> None:  # fmt: skip
+    """Audit M1: calibration.json and exclusions.json enter the freeze."""
+    run = _guarded_verify(cli, monkeypatch, ledger, reached)
+    calibration_dir = settings.paths.calibration_dir
+    calibration_dir.mkdir(parents=True)
+    for name in ("calibration.json", "exclusions.json"):
+        (calibration_dir / name).write_text("{}\n", encoding="utf-8")
+    assert run(env=UNSEAL).code == REACHED
+    for name in ("calibration.json", "exclusions.json"):
+        (calibration_dir / name).write_text('{"refit": 1}\n', encoding="utf-8")
+        moved = run(env=UNSEAL)
+        assert moved.code == EXIT_USAGE and "PHYSVERIFY_UNSEAL_REPEAT" in moved.err
+        assert run(env={**UNSEAL, "PHYSVERIFY_UNSEAL_REPEAT": "1"}).code == REACHED
+    lines = read_entries(ledger)
+    assert "exclusions" in lines[-1].artifacts and "calibration" in lines[-1].artifacts
 
 
 def test_another_frozen_state_needs_the_repeat_variable(
@@ -285,12 +387,13 @@ def test_another_frozen_state_needs_the_repeat_variable(
     run = _guarded_verify(cli, monkeypatch, ledger, reached)
     assert run(env=UNSEAL).code == REACHED
     assert run(env=UNSEAL).code == REACHED
-    first, second = read_entries(ledger)
-    assert first.freeze == second.freeze and not second.repeat
-    moved = run(options=THREE, env=UNSEAL)
+    assert run(options=THREE, env=UNSEAL).code == REACHED
+    first, second, third = read_entries(ledger)
+    assert first.freeze == second.freeze == third.freeze and not third.repeat
+    moved = run(options=SECTIONS, env=UNSEAL)
     assert moved.code == EXIT_USAGE and "PHYSVERIFY_UNSEAL_REPEAT" in moved.err
-    assert len(read_entries(ledger)) == 2
-    repeat = run(options=THREE, env={**UNSEAL, "PHYSVERIFY_UNSEAL_REPEAT": "1"})
+    assert len(read_entries(ledger)) == 3
+    repeat = run(options=SECTIONS, env={**UNSEAL, "PHYSVERIFY_UNSEAL_REPEAT": "1"})
     assert repeat.code == REACHED and "earlier look" in repeat.err
     last: LedgerEntry = read_entries(ledger)[-1]
     assert last.repeat and last.freeze != first.freeze
@@ -322,3 +425,24 @@ def test_a_guard_for_an_unclassified_command_is_a_bug() -> None:
     """The classification is checked before the context is read."""
     with pytest.raises(ValueError, match="not a guarded"):
         _sealed.guard_sealed(None, "calibrate show", [])  # type: ignore[arg-type]
+
+
+def test_fit_from_a_perceived_run_guards_before_the_oracle_runs(
+    cli: CliRunner, monkeypatch: pytest.MonkeyPatch, ledger: Path, reached: list[int],
+    settings: Settings,
+) -> None:  # fmt: skip
+    """Audit m3: the oracle a --from-run fit completes is computed after the guard."""
+    perceived = synthetic_report(
+        20, seed=7, split=Split.EVAL, prefix="e", level=InputLevel.PERCEIVED
+    )
+    folder = settings.paths.runs_dir / "perceived"
+    folder.mkdir(parents=True)
+    write_report(folder, perceived)
+    stop = sentinel(ledger, reached)
+    monkeypatch.setattr(calibrate, "_raw_runner", lambda session: _SentinelRunner(stop))
+    refused = cli(*SEAL, "calibrate", "fit", "--dataset", DATASET, "--from-run", "perceived")
+    assert refused.code == EXIT_USAGE and "PHYSVERIFY_UNSEAL" in refused.err
+    assert reached == []
+    looked = cli(*SEAL, "calibrate", "fit", "--dataset", DATASET, "--from-run", "perceived",
+                 env=UNSEAL)  # fmt: skip
+    assert looked.code == REACHED and reached == [1]
