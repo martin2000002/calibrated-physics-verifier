@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from physverify.schema.checks import CheckResult, InputLevel
 from physverify.schema.clip import ClipManifest
 from physverify.schema.contacts import ContactTable
+from physverify.schema.perception import CameraModel
 from physverify.schema.scale import EffectiveScale
 from physverify.schema.scene import SceneSpec
 from physverify.schema.states import ObjectStateTable
@@ -19,7 +20,8 @@ from physverify.schema.states import ObjectStateTable
 
 @dataclass(frozen=True)
 class CheckInputs:
-    """States and contacts in one unit and frame; ``scale`` converts that unit to meters."""
+    """States and contacts in one unit and frame; ``scale`` converts that unit to meters;
+    ``camera`` is the CAMERA output the states were lifted with (ground truth for the oracle)."""
 
     clip: ClipManifest
     states: ObjectStateTable
@@ -28,6 +30,7 @@ class CheckInputs:
     input_level: InputLevel
     provenance: Mapping[str, str]
     scene: SceneSpec | None = None
+    camera: CameraModel | None = None
 
 
 @runtime_checkable

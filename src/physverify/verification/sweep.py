@@ -59,10 +59,41 @@ class CheckIdentity(Protocol):
     def magnitude_unit(self) -> str: ...
 
 
+PERTURBATION_UNIT = "perturbation_unit"
+"""Optional class attribute of a check: the unit of the perturbations it is the target of, when it
+is not its own (its magnitude is a test statistic of a parameter injected in that unit)."""
+
+
+PERTURBATION_ESTIMATE = "perturbation_estimate"
+"""Optional class attribute of such a check: the ``details`` key where each result carries its
+estimate of the injected value, in the perturbation unit (labelled as an estimate)."""
+
+
+def target_unit(check: CheckIdentity) -> str:
+    """The perturbation unit ``check`` answers to: its ``PERTURBATION_UNIT`` or its own unit."""
+    declared = getattr(check, PERTURBATION_UNIT, None)
+    return str(declared) if declared else check.magnitude_unit
+
+
 @dataclass(frozen=True)
 class CheckUnit:
     check_id: str
     magnitude_unit: str
+    perturbation_unit: str | None = None
+    perturbation_estimate: str | None = None
+
+    @classmethod
+    def of(cls, check: CheckIdentity) -> CheckUnit:
+        """Identity of a check class (or instance), its declared perturbation unit and estimate
+        key included."""
+        unit = getattr(check, PERTURBATION_UNIT, None)
+        estimate = getattr(check, PERTURBATION_ESTIMATE, None)
+        return cls(
+            check.check_id,
+            check.magnitude_unit,
+            None if unit is None else str(unit),
+            None if estimate is None else str(estimate),
+        )
 
 
 @dataclass(frozen=True)
@@ -134,14 +165,15 @@ def perturbation_name(clip: ClipManifest) -> str:
 def target_check_ids(
     record: PerturbationRecord, checks: Sequence[CheckIdentity]
 ) -> tuple[str, ...]:
-    """A4 labels name a check exactly (R1) or a family resolved by unit (R4 -> R4_jump)."""
+    """A4 labels name a check exactly (R1) or a family resolved by ``target_unit`` (R4 ->
+    R4_jump)."""
     found: list[str] = []
     for label in record.target_checks:
         exact = [c.check_id for c in checks if c.check_id == label]
         family = [
             c.check_id
             for c in checks
-            if c.check_id.startswith(f"{label}_") and c.magnitude_unit == record.magnitude_unit
+            if c.check_id.startswith(f"{label}_") and target_unit(c) == record.magnitude_unit
         ]
         found.extend(exact or family)
     return tuple(dict.fromkeys(found))
@@ -190,8 +222,14 @@ def _cell(key: tuple[str, str], values: Sequence[float], n_clips: int) -> Matrix
     )
 
 
-def specificity(report: VerificationReport, settings: SpecificitySettings) -> SpecificityReport:
-    checks = _check_units(report.table)
+def specificity(
+    report: VerificationReport,
+    settings: SpecificitySettings,
+    identities: Sequence[CheckIdentity] = (),
+) -> SpecificityReport:
+    """``identities``: the run's checks (``CheckUnit.of``), which carry their perturbation units;
+    without them the units come from the table."""
+    checks = _check_units(report.table, identities)
     clips = _clips(report)
     band = null_band(clips, [c.check_id for c in checks], settings.null_tol)
     outcomes = [
@@ -224,9 +262,69 @@ def _check_unit_outcomes(
         targets = target_check_ids(record, checks)
         if not targets:
             outcomes.append(_unmatched(clip, record))
+        ranked = set(_ranked_targets(record, checks))
         units = {c.check_id: c.magnitude_unit for c in checks}
-        outcomes += [_agreement(clip, record, c, units[c], settings) for c in targets]
+        outcomes += [
+            _agreement(clip, record, c, units[c], settings) for c in targets if c not in ranked
+        ]
+        by_id = {c.check_id: c for c in checks}
+        outcomes += [
+            _estimate_agreement(clip, record, by_id[c], settings)
+            for c in sorted(ranked)
+            if by_id[c].perturbation_estimate
+        ]
     return outcomes
+
+
+def _estimate_agreement(
+    clip: _Clip, record: PerturbationRecord, check: CheckUnit, settings: SpecificitySettings
+) -> RuleOutcome:
+    """|estimate - mu| within the tolerance, the estimate read from the decisive covering
+    subject's ``details[perturbation_estimate]``: the check-unit rule for a check whose magnitude
+    is a test statistic of the injected value."""
+    key = check.perturbation_estimate
+    assert key is not None
+    value = target_estimate(record, check.check_id, key, clip.results)
+    tolerance = max(settings.abs_tol, settings.rel_tol * abs(record.magnitude))
+    passed = value is not None and abs(value - record.magnitude) <= tolerance
+    detail = f"estimate {key}, tolerance {tolerance:.3g}"
+    if value is None:
+        detail = f"the target check gave no {key}"
+    return RuleOutcome(
+        Rule.CHECK_UNIT,
+        clip.name,
+        check.check_id,
+        (clip.clip.clip_id,),
+        passed,
+        record.magnitude,
+        value,
+        detail,
+    )
+
+
+def target_estimate(
+    record: PerturbationRecord, check_id: str, key: str, results: Sequence[CheckResult]
+) -> float | None:
+    """``details[key]`` of the subject ``target_value`` reads; None when it is not finite."""
+    targets = set(record.target_objects)
+    covering = [r for r in results if r.check_id == check_id and _covers(r.subject, targets)]
+    chosen = decisive(covering)
+    found = None if chosen is None else chosen.details.get(key)
+    if not isinstance(found, (int, float)) or not math.isfinite(found):
+        return None
+    return float(found)
+
+
+def _ranked_targets(record: PerturbationRecord, checks: Sequence[CheckIdentity]) -> list[str]:
+    """Targets judged by the order of the injected level: every target of an injected
+    parameter, and the targets that declare the perturbation's unit as their
+    ``PERTURBATION_UNIT`` (their magnitude is a test statistic of the injected value)."""
+    targets = target_check_ids(record, checks)
+    if record.magnitude_kind is MagnitudeKind.INJECTED_PARAMETER:
+        return list(targets)
+    by_id = {c.check_id: c for c in checks}
+    unit = record.magnitude_unit
+    return [c for c in targets if by_id[c].magnitude_unit != unit and target_unit(by_id[c]) == unit]
 
 
 def _unmatched(clip: _Clip, record: PerturbationRecord) -> RuleOutcome:
@@ -268,7 +366,11 @@ def _agreement(
 
 
 def _injected_outcomes(clips: Sequence[_Clip], checks: Sequence[CheckUnit]) -> list[RuleOutcome]:
-    """Per scene, the check ranks the positive levels exactly like the injected parameter."""
+    """Per scene, the check ranks the positive levels exactly like the injected parameter.
+
+    A check whose own unit is not the perturbation's ranks only the levels that edited the same
+    objects: its magnitude scales with each object's own noise or size, so levels applied to
+    different objects of a scene have no order to keep."""
     injected = [c for c in _perturbed(clips, MagnitudeKind.INJECTED_PARAMETER) if _injected(c) > 0]
     injected.sort(key=_scene_key)
     outcomes: list[RuleOutcome] = []
@@ -279,7 +381,19 @@ def _injected_outcomes(clips: Sequence[_Clip], checks: Sequence[CheckUnit]) -> l
         outcomes += [
             _ranking(name, check_id, members) for check_id in target_check_ids(record, checks)
         ]
+    statistic = [c for c in _perturbed(clips, MagnitudeKind.CHECK_UNIT) if _ranks_any(c, checks)]
+    statistic.sort(key=_object_key)
+    for (name, _scene, _objects), group in groupby(statistic, key=_object_key):
+        members = list(group)
+        outcomes += [
+            _ranking(name, check_id, members)
+            for check_id in _ranked_targets(_record(members[0]), checks)
+        ]
     return outcomes
+
+
+def _ranks_any(clip: _Clip, checks: Sequence[CheckUnit]) -> bool:
+    return bool(_ranked_targets(_record(clip), checks))
 
 
 def _ranking(name: str, check_id: str, members: Sequence[_Clip]) -> RuleOutcome:
@@ -367,6 +481,10 @@ def _scene_key(clip: _Clip) -> tuple[str, str]:
     return clip.name, clip.clip.scene_id or ""
 
 
+def _object_key(clip: _Clip) -> tuple[str, str, tuple[str, ...]]:
+    return clip.name, clip.clip.scene_id or "", tuple(sorted(_record(clip).target_objects))
+
+
 def _n_levels(clips: Sequence[_Clip]) -> dict[str, int]:
     levels: dict[str, set[int]] = defaultdict(set)
     for clip in clips:
@@ -378,9 +496,19 @@ def _check_ids(table: Sequence[TableRow]) -> list[str]:
     return list(dict.fromkeys(row.check_id for row in table))
 
 
-def _check_units(table: Sequence[TableRow]) -> list[CheckUnit]:
+def _check_units(table: Sequence[TableRow], identities: Sequence[CheckIdentity]) -> list[CheckUnit]:
     units = {row.check_id: row.unit for row in table}
-    return [CheckUnit(check_id, units[check_id]) for check_id in _check_ids(table)]
+    declared = {c.check_id: CheckUnit.of(c) for c in identities}
+
+    def unit(check_id: str) -> CheckUnit:
+        found = declared.get(check_id)
+        if found is None:
+            return CheckUnit(check_id, units[check_id])
+        return CheckUnit(
+            check_id, units[check_id], found.perturbation_unit, found.perturbation_estimate
+        )
+
+    return [unit(check_id) for check_id in _check_ids(table)]
 
 
 def _clips(report: VerificationReport) -> list[_Clip]:

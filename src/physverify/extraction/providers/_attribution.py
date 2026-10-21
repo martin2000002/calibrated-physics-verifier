@@ -19,17 +19,18 @@ from dataclasses import dataclass
 import numpy as np
 from numpy.typing import NDArray
 
-from physverify.extraction.providers._impacts import (
-    Bases,
-    Impact,
-    NoiseScale,
-    noise_scale,
-    pixel_floor,
-    track_impacts,
-)
+from physverify.extraction.providers._impacts import Bases, Impact, track_impacts
 from physverify.extraction.providers._proximity import ContactScene, nan_median
 from physverify.physics.geometry import Plane, Pose, Solid, characteristic_lengths, signed_distance
-from physverify.physics.tracks import MIN_NOISE_STENCILS, contact_window, row_step, track_noise
+from physverify.physics.tracks import (
+    MIN_NOISE_STENCILS,
+    NoiseScale,
+    contact_window,
+    noise_scale,
+    pixel_floor,
+    row_step,
+    track_noise,
+)
 from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactKind, ContactRecord, ContactTable, ManifoldKind
 from physverify.schema.perception import CameraModel

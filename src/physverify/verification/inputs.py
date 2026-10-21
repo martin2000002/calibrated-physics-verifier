@@ -14,10 +14,11 @@ from physverify.extraction.pipeline import DOMAIN_ERRORS, ExtractionPipeline, Pi
 from physverify.extraction.plan import ResolvedPlan
 from physverify.physics import tracks
 from physverify.schema.checks import InputLevel
-from physverify.schema.clip import ClipManifest
+from physverify.schema.clip import ClipManifest, FrameSampling, SamplingSpec, resolve_sampling
 from physverify.schema.contacts import ContactTable
 from physverify.schema.errors import ScaleBindingError
 from physverify.schema.outputs import StageOutput
+from physverify.schema.perception import CameraModel
 from physverify.schema.scale import ScaleEstimate, ScaleSource, effective_scale
 from physverify.schema.scene import SceneSpec
 from physverify.schema.stages import STAGE_ORDER, Stage
@@ -25,7 +26,7 @@ from physverify.schema.states import CoordFrame, ObjectStateTable, ground_truth_
 
 SCALE_SOURCE_KEY = "scale_source"
 CHECK_FRAME = CoordFrame.CAMERA_OPENCV
-INPUT_STAGES = (Stage.KINEMATICS, Stage.CONTACTS, Stage.SCALE)
+INPUT_STAGES = (Stage.CAMERA, Stage.KINEMATICS, Stage.CONTACTS, Stage.SCALE)
 
 
 @dataclass(frozen=True)
@@ -37,6 +38,7 @@ class RawInputs:
     scene: SceneSpec | None
     level: InputLevel
     provenance: Mapping[str, str]
+    camera: CameraModel | None = None
 
 
 @dataclass(frozen=True)
@@ -104,6 +106,7 @@ def build_inputs(raw: RawInputs) -> CheckInputs:
         input_level=raw.level,
         provenance=dict(raw.provenance),
         scene=raw.scene,
+        camera=raw.camera,
     )
 
 
@@ -122,8 +125,9 @@ def perceived_inputs(
     names: Mapping[Stage, str],
     level: InputLevel,
 ) -> CheckInputs:
-    """States from KINEMATICS, contacts from CONTACTS, scale from SCALE; raises
-    ``MissingInputError`` without states and ``InputsError`` on an invalid table."""
+    """States from KINEMATICS, contacts from CONTACTS, scale from SCALE, camera from CAMERA
+    (``lift_camera``); raises ``MissingInputError`` without states and ``InputsError`` on an
+    invalid table."""
     states = _output(outputs, Stage.KINEMATICS, ObjectStateTable)
     if states is None:
         raise MissingInputError(f"no {Stage.KINEMATICS.value} output")
@@ -136,8 +140,25 @@ def perceived_inputs(
         scene=None,
         level=level,
         provenance=provenance(names, scale),
+        camera=lift_camera(outputs, names),
     )
     return build_inputs(raw)
+
+
+def lift_camera(
+    outputs: Mapping[Stage, StageOutput], names: Mapping[Stage, str]
+) -> CameraModel | None:
+    """The CAMERA output of the plan, which LIFT back-projected the states with; None when LIFT
+    is ground truth but CAMERA is not (the states were not lifted with that camera)."""
+    lift_truth = names.get(Stage.LIFT) == GROUND_TRUTH
+    if lift_truth and names.get(Stage.CAMERA) != GROUND_TRUTH:
+        return None
+    return _output(outputs, Stage.CAMERA, CameraModel)
+
+
+def native_sampling(clip: ClipManifest) -> FrameSampling:
+    """Every native frame at the native size: the resolution of the oracle's camera."""
+    return resolve_sampling(clip, SamplingSpec())
 
 
 def refuse_heavy(dataset: str) -> NoReturn:
@@ -185,6 +206,7 @@ class OracleSource:
                 scene=store.scene(),
                 level=InputLevel.ORACLE,
                 provenance=provenance(names, scale),
+                camera=store.camera(native_sampling(clip)),
             )
         except DOMAIN_ERRORS as exc:
             return ClipInputs(clip, None, error_message(exc), InputLevel.ORACLE)

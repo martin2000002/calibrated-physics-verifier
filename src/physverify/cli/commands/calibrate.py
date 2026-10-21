@@ -168,7 +168,7 @@ def _raw_runner(session: Session) -> VerificationRunner:
 
 def _check_units(session: Session) -> tuple[CheckUnit, ...]:
     registry = session.context.registry("checks")
-    return tuple(CheckUnit(c, registry[c].magnitude_unit) for c in sorted(registry))
+    return tuple(CheckUnit.of(registry[c]) for c in sorted(registry))
 
 
 def _checks_hash(session: Session) -> str:

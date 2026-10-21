@@ -91,12 +91,12 @@ def test_the_precise_profile_is_the_it2_gate_commit(
 
 
 @pytest.mark.parametrize("dataset", ["kubric_synthetic", "physics_iq", "pisa_real"])
-def test_the_precise_profile_is_the_it3_gate_commit(
+def test_the_precise_profile_is_the_it4_base(
     make_settings: SettingsFactory,
     real_providers: Mapping[str, type[StageProvider]],
     dataset: str,
 ) -> None:
-    """p0-it3.md: G-depth passes, G-contacts fails on (c): depth vda_large, contacts proximity."""
+    """p0-it3.md: contacts proximity; plan-it4 J13: the it4 base is it2-CPU, depth vda_small."""
     plan = resolve_plan(make_settings(profile="precise"), real_providers, dataset=dataset)
-    assert plan.step(Stage.DEPTH).provider.name == "vda_large"
+    assert plan.step(Stage.DEPTH).provider.name == "vda_small"
     assert plan.step(Stage.CONTACTS).provider.name == "proximity"

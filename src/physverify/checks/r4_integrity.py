@@ -1,5 +1,6 @@
-"""R4 object integrity per object: permanence (R4_missing), constant size (R4_size) and
-spatio-temporal continuity (R4_jump). ADR 0006 section 3.4."""
+"""R4 object integrity per object: permanence (R4_missing), constant size (R4_size) and the v1
+spatio-temporal continuity (``ContinuityCheck``, out of the registry since it4: R4_jump is
+``r4_jump_noise.NoiseContinuityCheck``). ADR 0006 section 3.4 and its it4 amendment."""
 
 from __future__ import annotations
 
@@ -15,6 +16,7 @@ from physverify.checks._common import CommonParams, OcclusionParams, abstain, fi
 from physverify.physics.finite_diff import third_difference, third_difference_sigma
 from physverify.physics.geometry import characteristic_length, characteristic_lengths
 from physverify.physics.measures.r4_integrity import jump_ratio, missing_frames, size_change_ratio
+from physverify.physics.measures.r4_size_relative import relative_lengths, relative_size_change
 from physverify.physics.tracks import (
     impact_stencil_mask,
     median_extents,
@@ -33,8 +35,15 @@ class PermanenceParams(OcclusionParams):
     sigma_model: Literal["unknown", "edges"] = "edges"
 
 
+SizeReference = Literal["self", "others"]
+
+
 class SizeParams(OcclusionParams):
+    """``reference``: "others" (v2, plan-it4 change B) measures the size relative to the other
+    bodies of each frame; "self" (v1) the size alone."""
+
     min_size_frames: int = Field(default=3, ge=2)
+    reference: SizeReference = "others"
 
 
 class PermanenceCheck:
@@ -95,13 +104,22 @@ def count_sigma(rows: list[int], step: int) -> float:
 
 
 class SizeConstancyCheck:
-    """R4_size [rel_size_change]: max_t |L_t / median(L) - 1| of the object's extents.
+    """R4_size [rel_size_change]: max_t |r_t / median(r) - 1| with r_t = L_t / ref_t.
 
-    Rows out of frame or with a known occlusion >= ``occluded_at`` are left out: their extents
-    describe the visible part, not the object. Unknown (NaN) occlusion keeps the row, since
-    perceived tables never carry occlusion; a truncated perceived mask (at the image border or
-    behind another object) therefore still enters the measure. ABSTAIN only when fewer than
-    ``min_size_frames`` rows with known extents remain.
+    ``reference`` "others" (v2): ref_t is the geometric mean of the lengths of the other objects
+    whole in the same row, each relative to its own median (``relative_lengths``), so a
+    depth-scale error common to the row cancels and a reference leaving the image does not make
+    a step; rows without any such object do not count, and a clip with one object abstains
+    (``details.reference`` "none").
+    With two objects a change of either shows in both, so the subject is ambiguous. "self" (v1):
+    ref_t = 1.
+
+    Rows out of frame or with a known occlusion >= ``occluded_at`` are left out (for the object
+    and for its references): their extents describe the visible part, not the object. Unknown
+    (NaN) occlusion keeps the row, since perceived tables never carry occlusion; a truncated
+    perceived mask (at the image border or behind another object) therefore still enters the
+    measure. ABSTAIN when fewer than ``min_size_frames`` rows with known extents (and a
+    reference) remain.
     """
 
     check_id: ClassVar[str] = "R4_size"
@@ -116,6 +134,8 @@ class SizeConstancyCheck:
         return [self._object(inputs, i) for i in range(inputs.states.n_objects)]
 
     def _object(self, inputs: CheckInputs, index: int) -> CheckResult:
+        if self.params.reference == "others":
+            return self._relative(inputs, index)
         states = inputs.states
         subject = (str(states.object_ids[index]),)
         size = states.size[:, index]
@@ -143,9 +163,45 @@ class SizeConstancyCheck:
         """In frame and not known to be occluded (NaN >= x is False, so NaN keeps the row)."""
         return in_frame & ~(occlusion >= self.params.occluded_at)
 
+    def _whole_lengths(self, inputs: CheckInputs) -> FloatArray:
+        """(T, N) lengths of every object, NaN on rows where it is not whole."""
+        states = inputs.states
+        lengths = characteristic_lengths(states.size)
+        whole = self._whole_rows(states.in_frame, states.occlusion)
+        return np.where(whole, lengths, math.nan)
+
+    def _relative(self, inputs: CheckInputs, index: int) -> CheckResult:
+        states = inputs.states
+        subject = (str(states.object_ids[index]),)
+        lengths = self._whole_lengths(inputs)
+        own, others = lengths[:, index], np.delete(lengths, index, axis=1)
+        referenced = np.any(np.isfinite(others), axis=1)
+        ratios = relative_lengths(own, others)
+        known = np.flatnonzero(np.isfinite(ratios))
+        details: dict[str, object] = {
+            "reference": "others" if bool(referenced.any()) else "none",
+            "size_rows": int(known.size),
+            "excluded_rows": int(np.count_nonzero(~np.isfinite(own))),
+            "unreferenced_rows": int(np.count_nonzero(np.isfinite(own) & ~referenced)),
+        }
+        if known.size < self.params.min_size_frames:
+            details["min_size_frames"] = self.params.min_size_frames
+            return abstain(type(self), inputs, subject, AbstainReason.TOO_FEW_FRAMES, None, details)
+        scaled = ratios[known] / np.median(ratios[known])
+        pick = first_max(np.abs(scaled - 1.0))
+        row = int(known[pick])
+        sigma = _relative_sigma(inputs, lengths, index, row, float(scaled[pick]))
+        span = native_span(states.frame_index, row, row)
+        magnitude = relative_size_change(own, others)
+        details["row"] = row
+        return unscored(type(self), inputs, subject, magnitude, sigma, span, details)
+
 
 class ContinuityCheck:
-    """R4_jump [jump_over_size]: max ||p[k+2] - 3 p[k+1] + 3 p[k] - p[k-1]|| / (2 L) over
+    """R4_jump v1 (ADR 0006 section 3.4 as preregistered; out of the registry since it4, kept for
+    the v1 arm of the final evaluation, judgement J4 of plan-it4).
+
+    R4_jump [jump_over_size]: max ||p[k+2] - 3 p[k+1] + 3 p[k] - p[k-1]|| / (2 L) over
     consecutive rows, skipping the rows whose stencil spans an impact (D13, D14.6: the smooth
     part grows with (row_step * dt)^3 and vanishes under constant acceleration, a teleport does
     not).
@@ -199,10 +255,31 @@ class ContinuityCheck:
 
 
 def _size_sigma(ratio: float, extents: FloatArray, extents_sigma: FloatArray) -> float:
-    """First order: sigma_L / L = sqrt(sum (sigma_e / e)^2) / 3 for L = (e1 e2 e3)^(1/3); the
-    ratio L_t / median(L) carries it twice (independent errors of both lengths)."""
-    rel_length = math.sqrt(float(np.sum((extents_sigma / extents) ** 2))) / 3.0
-    return ratio * math.sqrt(2.0) * rel_length
+    """First order: the ratio L_t / median(L) carries ``_length_rel_sigma`` twice (independent
+    errors of both lengths)."""
+    return ratio * math.sqrt(2.0) * _length_rel_sigma(extents, extents_sigma)
+
+
+def _length_rel_sigma(extents: FloatArray, extents_sigma: FloatArray) -> float:
+    """sigma_L / L = sqrt(sum (sigma_e / e)^2) / 3 for L = (e1 e2 e3)^(1/3)."""
+    return math.sqrt(float(np.sum((extents_sigma / extents) ** 2))) / 3.0
+
+
+def _relative_sigma(
+    inputs: CheckInputs, whole: FloatArray, index: int, row: int, ratio: float
+) -> float:
+    """First order, as ``_size_sigma``, for r = L_i / ref: the relative sigma of the geometric
+    mean of n references is sqrt(mean_j (sigma_Lj / L_j)^2 / n), over the references the
+    magnitude used at that row (``whole``: the lengths of ``_whole_lengths``)."""
+    states = inputs.states
+    own = _length_rel_sigma(states.size[row, index], states.size_sigma[row, index])
+    refs = [
+        _length_rel_sigma(states.size[row, j], states.size_sigma[row, j])
+        for j in range(states.n_objects)
+        if j != index and math.isfinite(float(whole[row, j])) and whole[row, j] > 0.0
+    ]
+    reference = math.sqrt(float(np.mean(np.square(refs))) / len(refs))
+    return ratio * math.sqrt(2.0) * math.hypot(own, reference)
 
 
 def _jump_sigma(window: FloatArray, position_sigma: FloatArray, length: float) -> float:
@@ -217,4 +294,4 @@ def _jump_sigma(window: FloatArray, position_sigma: FloatArray, length: float) -
     return third_difference_sigma(along, 1.0) / (2.0 * length)
 
 
-PLUGINS = (PermanenceCheck, SizeConstancyCheck, ContinuityCheck)
+PLUGINS = (PermanenceCheck, SizeConstancyCheck)

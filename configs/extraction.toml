@@ -31,8 +31,9 @@ track = "sam2_1_hiera_tiny"
 # the assumed focal (OOD p90 no-harm fails), so GeoCalib gives gravity only.
 camera = "geocalib"
 # it3 gate commit (Knowledge/handoffs/mejora-percepcion/p0-it3.md): G-depth passes and G-contacts fails
-# on (c), so only the depth is adopted; contacts stay proximity.
-depth = "vda_large"
+# on (c), so only the depth is adopted; contacts stay proximity. it4 (judgement J13 of plan-it4): the
+# base chain chosen by amendment 2 section 4 is it2-CPU, so precise keeps vda_small.
+depth = "vda_small"
 
 [extraction.profiles.precise.providers.camera.geocalib]
 focal = "assumed"

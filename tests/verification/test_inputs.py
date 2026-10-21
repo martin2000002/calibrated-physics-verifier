@@ -142,6 +142,9 @@ class CaseStore:
     def scene(self) -> Any:
         return self._case.scene
 
+    def camera(self, sampling: Any) -> Any:
+        return None
+
 
 class ScenarioDataset:
     name = "scenario"

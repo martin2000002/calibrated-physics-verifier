@@ -31,7 +31,7 @@ from physverify.physics.measures.r5_gravity import FallFit, fall_fit
 from physverify.physics.uncertainty import robust_scale
 from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactKind, ContactRecord, ContactTable
-from physverify.schema.states import ObjectStateTable, PrimitiveKind
+from physverify.schema.states import CoordFrame, ObjectStateTable, PrimitiveKind
 
 FloatArray = NDArray[np.float64]
 IntArray = NDArray[np.int64]
@@ -41,8 +41,10 @@ MIN_FIT_ROWS = 3  # fall_fit needs three rows with a known position
 # and the perceived gap estimate of LIFT (extraction/providers/_visibility.py) use the same value.
 OCCLUDED_AT = 0.9
 # Fewest usable third-difference stencils from which a track measures its own noise: the fall
-# filter of R5 and the kinematic impacts of CONTACTS use the same value.
+# filter of R5, the kinematic impacts of CONTACTS and R4_jump v2 use the same value.
 MIN_NOISE_STENCILS = 8
+QUANTIZATION = math.sqrt(12.0)
+"""A uniform error over one pixel has a standard deviation of 1 / sqrt(12) pixels."""
 
 
 @dataclass(frozen=True, eq=False)
@@ -221,6 +223,42 @@ def track_noise(
     return np.array([robust_scale(d3[usable, axis]) for axis in range(d3.shape[1])]) / math.sqrt(
         20.0
     )
+
+
+def pixel_floor(depth: float, focal: float) -> float:
+    """Position noise of a centroid quantized to one pixel at ``depth``: depth / (f sqrt(12));
+    NaN when the depth or the focal length is not finite and positive."""
+    if not (math.isfinite(depth) and depth > 0.0 and math.isfinite(focal) and focal > 0.0):
+        return math.nan
+    return depth / (focal * QUANTIZATION)
+
+
+@dataclass(frozen=True)
+class NoiseScale:
+    """Per-axis sigma-hat = max(sigma_w, q). ``known`` when the pixel floor q sets it on every
+    axis: then nothing in it was estimated from the track and the gain is tested as chi-square;
+    otherwise as an F ratio over the window's own residual."""
+
+    sigma: FloatArray
+    known: bool
+
+
+def noise_scale(track_sigma: FloatArray | None, floor: float) -> NoiseScale | None:
+    """sigma-hat of a track; None without a measured track noise or a finite floor."""
+    if track_sigma is None or not math.isfinite(floor):
+        return None
+    measured = np.asarray(track_sigma, dtype=np.float64)
+    return NoiseScale(np.maximum(measured, floor), bool(np.all(measured <= floor)))
+
+
+def camera_depth(states: ObjectStateTable, index: int) -> float:
+    """Median depth z of object ``index`` in CAMERA_OPENCV over rows with a known position; NaN
+    in another frame or without any such row."""
+    if states.frame is not CoordFrame.CAMERA_OPENCV:
+        return math.nan
+    z = states.position[:, index, 2]
+    known = z[np.isfinite(z)]
+    return float(np.median(known)) if known.size else math.nan
 
 
 def segments(mask: BoolArray, min_len: int) -> list[tuple[int, int]]:

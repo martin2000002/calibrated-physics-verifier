@@ -224,7 +224,7 @@ def _evaluation(path: Path) -> tuple[EvaluationReport, str]:
 
 def _units(context: AppContext) -> tuple[CheckUnit, ...]:
     registry = context.registry("checks")
-    return tuple(CheckUnit(c, registry[c].magnitude_unit) for c in sorted(registry))
+    return tuple(CheckUnit.of(registry[c]) for c in sorted(registry))
 
 
 def _arms(context: AppContext, rules: ExclusionRules, base: str, tiny: str) -> R2Arms:

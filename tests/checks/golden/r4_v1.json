@@ -1,0 +1,984 @@
+{
+ "bounce": [
+  {
+   "abstain_reason": null,
+   "check_id": "R4_jump",
+   "clip_id": "bounce",
+   "details": {
+    "excluded_rows": 3,
+    "row": 29,
+    "row_step": 1
+   },
+   "frame_span": [
+    28,
+    31
+   ],
+   "input_level": "oracle",
+   "magnitude": 5.5580496856335544e-15,
+   "provenance": {
+    "scale.source": "ground_truth"
+   },
+   "sigma": 0.0,
+   "subject": [
+    "ball"
+   ],
+   "threshold": null,
+   "unit": "jump_over_size",
+   "verdict": "UNSCORED"
+  },
+  {
+   "abstain_reason": null,
+   "check_id": "R4_size",
+   "clip_id": "bounce",
+   "details": {
+    "excluded_rows": 0,
+    "row": 0,
+    "row_step": 1,
+    "size_rows": 32
+   },
+   "frame_span": [
+    0,
+    0
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.0,
+   "provenance": {
+    "scale.source": "ground_truth"
+   },
+   "sigma": 0.0,
+   "subject": [
+    "ball"
+   ],
+   "threshold": null,
+   "unit": "rel_size_change",
+   "verdict": "UNSCORED"
+  }
+ ],
+ "box_sphere": [
+  {
+   "abstain_reason": null,
+   "check_id": "R4_jump",
+   "clip_id": "box_sphere",
+   "details": {
+    "excluded_rows": 0,
+    "row": 1,
+    "row_step": 1
+   },
+   "frame_span": [
+    0,
+    3
+   ],
+   "input_level": "oracle",
+   "magnitude": 2.775557561562891e-16,
+   "provenance": {
+    "scale.source": "ground_truth"
+   },
+   "sigma": 0.0,
+   "subject": [
+    "box"
+   ],
+   "threshold": null,
+   "unit": "jump_over_size",
+   "verdict": "UNSCORED"
+  },
+  {
+   "abstain_reason": null,
+   "check_id": "R4_jump",
+   "clip_id": "box_sphere",
+   "details": {
+    "excluded_rows": 0,
+    "row": 1,
+    "row_step": 1
+   },
+   "frame_span": [
+    0,
+    3
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.0,
+   "provenance": {
+    "scale.source": "ground_truth"
+   },
+   "sigma": 0.0,
+   "subject": [
+    "ball"
+   ],
+   "threshold": null,
+   "unit": "jump_over_size",
+   "verdict": "UNSCORED"
+  },
+  {
+   "abstain_reason": null,
+   "check_id": "R4_size",
+   "clip_id": "box_sphere",
+   "details": {
+    "excluded_rows": 0,
+    "row": 0,
+    "row_step": 1,
+    "size_rows": 32
+   },
+   "frame_span": [
+    0,
+    0
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.0,
+   "provenance": {
+    "scale.source": "ground_truth"
+   },
+   "sigma": 0.0,
+   "subject": [
+    "box"
+   ],
+   "threshold": null,
+   "unit": "rel_size_change",
+   "verdict": "UNSCORED"
+  },
+  {
+   "abstain_reason": null,
+   "check_id": "R4_size",
+   "clip_id": "box_sphere",
+   "details": {
+    "excluded_rows": 0,
+    "row": 0,
+    "row_step": 1,
+    "size_rows": 32
+   },
+   "frame_span": [
+    0,
+    0
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.0,
+   "provenance": {
+    "scale.source": "ground_truth"
+   },
+   "sigma": 0.0,
+   "subject": [
+    "ball"
+   ],
+   "threshold": null,
+   "unit": "rel_size_change",
+   "verdict": "UNSCORED"
+  }
+ ],
+ "collision": [
+  {
+   "abstain_reason": null,
+   "check_id": "R4_jump",
+   "clip_id": "collision",
+   "details": {
+    "excluded_rows": 3,
+    "row": 5,
+    "row_step": 1
+   },
+   "frame_span": [
+    4,
+    7
+   ],
+   "input_level": "oracle",
+   "magnitude": 1.1102230246251563e-15,
+   "provenance": {
+    "scale.source": "ground_truth"
+   },
+   "sigma": 0.0,
+   "subject": [
+    "ball_i"
+   ],
+   "threshold": null,
+   "unit": "jump_over_size",
+   "verdict": "UNSCORED"
+  },
+  {
+   "abstain_reason": null,
+   "check_id": "R4_jump",
+   "clip_id": "collision",
+   "details": {
+    "excluded_rows": 3,
+    "row": 24,
+    "row_step": 1
+   },
+   "frame_span": [
+    23,
+    26
+   ],
+   "input_level": "oracle",
+   "magnitude": 2.498001805406602e-15,
+   "provenance": {
+    "scale.source": "ground_truth"
+   },
+   "sigma": 0.0,
+   "subject": [
+    "ball_j"
+   ],
+   "threshold": null,
+   "unit": "jump_over_size",
+   "verdict": "UNSCORED"
+  },
+  {
+   "abstain_reason": null,
+   "check_id": "R4_size",
+   "clip_id": "collision",
+   "details": {
+    "excluded_rows": 0,
+    "row": 0,
+    "row_step": 1,
+    "size_rows": 32
+   },
+   "frame_span": [
+    0,
+    0
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.0,
+   "provenance": {
+    "scale.source": "ground_truth"
+   },
+   "sigma": 0.0,
+   "subject": [
+    "ball_i"
+   ],
+   "threshold": null,
+   "unit": "rel_size_change",
+   "verdict": "UNSCORED"
+  },
+  {
+   "abstain_reason": null,
+   "check_id": "R4_size",
+   "clip_id": "collision",
+   "details": {
+    "excluded_rows": 0,
+    "row": 0,
+    "row_step": 1,
+    "size_rows": 32
+   },
+   "frame_span": [
+    0,
+    0
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.0,
+   "provenance": {
+    "scale.source": "ground_truth"
+   },
+   "sigma": 0.0,
+   "subject": [
+    "ball_j"
+   ],
+   "threshold": null,
+   "unit": "rel_size_change",
+   "verdict": "UNSCORED"
+  }
+ ],
+ "disappearance": [
+  {
+   "abstain_reason": null,
+   "check_id": "R4_jump",
+   "clip_id": "disappearance",
+   "details": {
+    "excluded_rows": 0,
+    "row": 24,
+    "row_step": 1
+   },
+   "frame_span": [
+    23,
+    26
+   ],
+   "input_level": "oracle",
+   "magnitude": 8.777083671441751e-16,
+   "provenance": {
+    "scale.source": "ground_truth"
+   },
+   "sigma": 0.0,
+   "subject": [
+    "ball"
+   ],
+   "threshold": null,
+   "unit": "jump_over_size",
+   "verdict": "UNSCORED"
+  },
+  {
+   "abstain_reason": null,
+   "check_id": "R4_size",
+   "clip_id": "disappearance",
+   "details": {
+    "excluded_rows": 0,
+    "row": 0,
+    "row_step": 1,
+    "size_rows": 32
+   },
+   "frame_span": [
+    0,
+    0
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.0,
+   "provenance": {
+    "scale.source": "ground_truth"
+   },
+   "sigma": 0.0,
+   "subject": [
+    "ball"
+   ],
+   "threshold": null,
+   "unit": "rel_size_change",
+   "verdict": "UNSCORED"
+  }
+ ],
+ "gravity_switch": [
+  {
+   "abstain_reason": null,
+   "check_id": "R4_jump",
+   "clip_id": "parabola",
+   "details": {
+    "excluded_rows": 0,
+    "row": 15,
+    "row_step": 1
+   },
+   "frame_span": [
+    14,
+    17
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.01260850694444343,
+   "provenance": {
+    "scale.source": "ground_truth"
+   },
+   "sigma": 0.0,
+   "subject": [
+    "ball"
+   ],
+   "threshold": null,
+   "unit": "jump_over_size",
+   "verdict": "UNSCORED"
+  },
+  {
+   "abstain_reason": null,
+   "check_id": "R4_size",
+   "clip_id": "parabola",
+   "details": {
+    "excluded_rows": 0,
+    "row": 0,
+    "row_step": 1,
+    "size_rows": 32
+   },
+   "frame_span": [
+    0,
+    0
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.0,
+   "provenance": {
+    "scale.source": "ground_truth"
+   },
+   "sigma": 0.0,
+   "subject": [
+    "ball"
+   ],
+   "threshold": null,
+   "unit": "rel_size_change",
+   "verdict": "UNSCORED"
+  }
+ ],
+ "overlapping_spheres": [
+  {
+   "abstain_reason": null,
+   "check_id": "R4_jump",
+   "clip_id": "overlapping_spheres",
+   "details": {
+    "excluded_rows": 0,
+    "row": 1,
+    "row_step": 1
+   },
+   "frame_span": [
+    0,
+    3
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.0,
+   "provenance": {
+    "scale.source": "ground_truth"
+   },
+   "sigma": 0.0,
+   "subject": [
+    "ball_a"
+   ],
+   "threshold": null,
+   "unit": "jump_over_size",
+   "verdict": "UNSCORED"
+  },
+  {
+   "abstain_reason": null,
+   "check_id": "R4_jump",
+   "clip_id": "overlapping_spheres",
+   "details": {
+    "excluded_rows": 0,
+    "row": 1,
+    "row_step": 1
+   },
+   "frame_span": [
+    0,
+    3
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.0,
+   "provenance": {
+    "scale.source": "ground_truth"
+   },
+   "sigma": 0.0,
+   "subject": [
+    "ball_b"
+   ],
+   "threshold": null,
+   "unit": "jump_over_size",
+   "verdict": "UNSCORED"
+  },
+  {
+   "abstain_reason": null,
+   "check_id": "R4_size",
+   "clip_id": "overlapping_spheres",
+   "details": {
+    "excluded_rows": 0,
+    "row": 0,
+    "row_step": 1,
+    "size_rows": 32
+   },
+   "frame_span": [
+    0,
+    0
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.0,
+   "provenance": {
+    "scale.source": "ground_truth"
+   },
+   "sigma": 0.0,
+   "subject": [
+    "ball_a"
+   ],
+   "threshold": null,
+   "unit": "rel_size_change",
+   "verdict": "UNSCORED"
+  },
+  {
+   "abstain_reason": null,
+   "check_id": "R4_size",
+   "clip_id": "overlapping_spheres",
+   "details": {
+    "excluded_rows": 0,
+    "row": 0,
+    "row_step": 1,
+    "size_rows": 32
+   },
+   "frame_span": [
+    0,
+    0
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.0,
+   "provenance": {
+    "scale.source": "ground_truth"
+   },
+   "sigma": 0.0,
+   "subject": [
+    "ball_b"
+   ],
+   "threshold": null,
+   "unit": "rel_size_change",
+   "verdict": "UNSCORED"
+  }
+ ],
+ "parabola": [
+  {
+   "abstain_reason": null,
+   "check_id": "R4_jump",
+   "clip_id": "parabola",
+   "details": {
+    "excluded_rows": 0,
+    "row": 24,
+    "row_step": 1
+   },
+   "frame_span": [
+    23,
+    26
+   ],
+   "input_level": "oracle",
+   "magnitude": 8.920730087951353e-15,
+   "provenance": {
+    "scale.source": "ground_truth"
+   },
+   "sigma": 0.0,
+   "subject": [
+    "ball"
+   ],
+   "threshold": null,
+   "unit": "jump_over_size",
+   "verdict": "UNSCORED"
+  },
+  {
+   "abstain_reason": null,
+   "check_id": "R4_size",
+   "clip_id": "parabola",
+   "details": {
+    "excluded_rows": 0,
+    "row": 0,
+    "row_step": 1,
+    "size_rows": 32
+   },
+   "frame_span": [
+    0,
+    0
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.0,
+   "provenance": {
+    "scale.source": "ground_truth"
+   },
+   "sigma": 0.0,
+   "subject": [
+    "ball"
+   ],
+   "threshold": null,
+   "unit": "rel_size_change",
+   "verdict": "UNSCORED"
+  }
+ ],
+ "size_change": [
+  {
+   "abstain_reason": null,
+   "check_id": "R4_jump",
+   "clip_id": "size_change",
+   "details": {
+    "excluded_rows": 0,
+    "row": 24,
+    "row_step": 1
+   },
+   "frame_span": [
+    23,
+    26
+   ],
+   "input_level": "oracle",
+   "magnitude": 7.632246670818914e-16,
+   "provenance": {
+    "scale.source": "ground_truth"
+   },
+   "sigma": 0.0,
+   "subject": [
+    "ball"
+   ],
+   "threshold": null,
+   "unit": "jump_over_size",
+   "verdict": "UNSCORED"
+  },
+  {
+   "abstain_reason": null,
+   "check_id": "R4_size",
+   "clip_id": "size_change",
+   "details": {
+    "excluded_rows": 0,
+    "row": 0,
+    "row_step": 1,
+    "size_rows": 32
+   },
+   "frame_span": [
+    0,
+    0
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.13043478260869557,
+   "provenance": {
+    "scale.source": "ground_truth"
+   },
+   "sigma": 0.0,
+   "subject": [
+    "ball"
+   ],
+   "threshold": null,
+   "unit": "rel_size_change",
+   "verdict": "UNSCORED"
+  }
+ ],
+ "size_change_sigma": [
+  {
+   "abstain_reason": null,
+   "check_id": "R4_jump",
+   "clip_id": "size_change",
+   "details": {
+    "excluded_rows": 0,
+    "row": 24,
+    "row_step": 1
+   },
+   "frame_span": [
+    23,
+    26
+   ],
+   "input_level": "oracle",
+   "magnitude": 7.979166974037958e-16,
+   "provenance": {
+    "scale.source": "ground_truth"
+   },
+   "sigma": 0.0,
+   "subject": [
+    "ball"
+   ],
+   "threshold": null,
+   "unit": "jump_over_size",
+   "verdict": "UNSCORED"
+  },
+  {
+   "abstain_reason": null,
+   "check_id": "R4_size",
+   "clip_id": "size_change",
+   "details": {
+    "excluded_rows": 0,
+    "row": 0,
+    "row_step": 1,
+    "size_rows": 32
+   },
+   "frame_span": [
+    0,
+    0
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.09090909090909083,
+   "provenance": {
+    "scale.source": "ground_truth"
+   },
+   "sigma": 0.018556740475630138,
+   "subject": [
+    "ball"
+   ],
+   "threshold": null,
+   "unit": "rel_size_change",
+   "verdict": "UNSCORED"
+  }
+ ],
+ "stack": [
+  {
+   "abstain_reason": null,
+   "check_id": "R4_jump",
+   "clip_id": "stack",
+   "details": {
+    "excluded_rows": 0,
+    "row": 1,
+    "row_step": 1
+   },
+   "frame_span": [
+    0,
+    3
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.0,
+   "provenance": {
+    "scale.source": "ground_truth"
+   },
+   "sigma": 0.0,
+   "subject": [
+    "base"
+   ],
+   "threshold": null,
+   "unit": "jump_over_size",
+   "verdict": "UNSCORED"
+  },
+  {
+   "abstain_reason": null,
+   "check_id": "R4_jump",
+   "clip_id": "stack",
+   "details": {
+    "excluded_rows": 0,
+    "row": 1,
+    "row_step": 1
+   },
+   "frame_span": [
+    0,
+    3
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.0,
+   "provenance": {
+    "scale.source": "ground_truth"
+   },
+   "sigma": 0.0,
+   "subject": [
+    "top"
+   ],
+   "threshold": null,
+   "unit": "jump_over_size",
+   "verdict": "UNSCORED"
+  },
+  {
+   "abstain_reason": null,
+   "check_id": "R4_size",
+   "clip_id": "stack",
+   "details": {
+    "excluded_rows": 0,
+    "row": 0,
+    "row_step": 1,
+    "size_rows": 32
+   },
+   "frame_span": [
+    0,
+    0
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.0,
+   "provenance": {
+    "scale.source": "ground_truth"
+   },
+   "sigma": 0.0,
+   "subject": [
+    "base"
+   ],
+   "threshold": null,
+   "unit": "rel_size_change",
+   "verdict": "UNSCORED"
+  },
+  {
+   "abstain_reason": null,
+   "check_id": "R4_size",
+   "clip_id": "stack",
+   "details": {
+    "excluded_rows": 0,
+    "row": 0,
+    "row_step": 1,
+    "size_rows": 32
+   },
+   "frame_span": [
+    0,
+    0
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.0,
+   "provenance": {
+    "scale.source": "ground_truth"
+   },
+   "sigma": 0.0,
+   "subject": [
+    "top"
+   ],
+   "threshold": null,
+   "unit": "rel_size_change",
+   "verdict": "UNSCORED"
+  }
+ ],
+ "teleport_flight": [
+  {
+   "abstain_reason": null,
+   "check_id": "R4_jump",
+   "clip_id": "teleport",
+   "details": {
+    "excluded_rows": 0,
+    "row": 15,
+    "row_step": 1
+   },
+   "frame_span": [
+    14,
+    17
+   ],
+   "input_level": "oracle",
+   "magnitude": 1.499999999999999,
+   "provenance": {
+    "scale.source": "ground_truth"
+   },
+   "sigma": 0.0,
+   "subject": [
+    "ball"
+   ],
+   "threshold": null,
+   "unit": "jump_over_size",
+   "verdict": "UNSCORED"
+  },
+  {
+   "abstain_reason": null,
+   "check_id": "R4_size",
+   "clip_id": "teleport",
+   "details": {
+    "excluded_rows": 0,
+    "row": 0,
+    "row_step": 1,
+    "size_rows": 32
+   },
+   "frame_span": [
+    0,
+    0
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.0,
+   "provenance": {
+    "scale.source": "ground_truth"
+   },
+   "sigma": 0.0,
+   "subject": [
+    "ball"
+   ],
+   "threshold": null,
+   "unit": "rel_size_change",
+   "verdict": "UNSCORED"
+  }
+ ],
+ "teleport_noisy": [
+  {
+   "abstain_reason": null,
+   "check_id": "R4_jump",
+   "clip_id": "teleport",
+   "details": {
+    "excluded_rows": 0,
+    "row": 15,
+    "row_step": 1
+   },
+   "frame_span": [
+    14,
+    17
+   ],
+   "input_level": "oracle",
+   "magnitude": 1.4999999999999944,
+   "provenance": {
+    "scale.source": "ground_truth"
+   },
+   "sigma": 0.11180339887498947,
+   "subject": [
+    "ball"
+   ],
+   "threshold": null,
+   "unit": "jump_over_size",
+   "verdict": "UNSCORED"
+  },
+  {
+   "abstain_reason": null,
+   "check_id": "R4_size",
+   "clip_id": "teleport",
+   "details": {
+    "excluded_rows": 0,
+    "row": 0,
+    "row_step": 1,
+    "size_rows": 32
+   },
+   "frame_span": [
+    0,
+    0
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.0,
+   "provenance": {
+    "scale.source": "ground_truth"
+   },
+   "sigma": 0.0,
+   "subject": [
+    "ball"
+   ],
+   "threshold": null,
+   "unit": "rel_size_change",
+   "verdict": "UNSCORED"
+  }
+ ],
+ "teleport_rest": [
+  {
+   "abstain_reason": null,
+   "check_id": "R4_jump",
+   "clip_id": "teleport",
+   "details": {
+    "excluded_rows": 0,
+    "row": 15,
+    "row_step": 1
+   },
+   "frame_span": [
+    14,
+    17
+   ],
+   "input_level": "oracle",
+   "magnitude": 1.4999999999999944,
+   "provenance": {
+    "scale.source": "ground_truth"
+   },
+   "sigma": 0.0,
+   "subject": [
+    "ball"
+   ],
+   "threshold": null,
+   "unit": "jump_over_size",
+   "verdict": "UNSCORED"
+  },
+  {
+   "abstain_reason": null,
+   "check_id": "R4_size",
+   "clip_id": "teleport",
+   "details": {
+    "excluded_rows": 0,
+    "row": 0,
+    "row_step": 1,
+    "size_rows": 32
+   },
+   "frame_span": [
+    0,
+    0
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.0,
+   "provenance": {
+    "scale.source": "ground_truth"
+   },
+   "sigma": 0.0,
+   "subject": [
+    "ball"
+   ],
+   "threshold": null,
+   "unit": "rel_size_change",
+   "verdict": "UNSCORED"
+  }
+ ],
+ "teleport_strided": [
+  {
+   "abstain_reason": null,
+   "check_id": "R4_jump",
+   "clip_id": "teleport",
+   "details": {
+    "excluded_rows": 0,
+    "row": 7,
+    "row_step": 2
+   },
+   "frame_span": [
+    12,
+    18
+   ],
+   "input_level": "oracle",
+   "magnitude": 1.000000000000005,
+   "provenance": {
+    "scale.source": "ground_truth"
+   },
+   "sigma": 0.0,
+   "subject": [
+    "ball"
+   ],
+   "threshold": null,
+   "unit": "jump_over_size",
+   "verdict": "UNSCORED"
+  },
+  {
+   "abstain_reason": null,
+   "check_id": "R4_size",
+   "clip_id": "teleport",
+   "details": {
+    "excluded_rows": 0,
+    "row": 0,
+    "row_step": 2,
+    "size_rows": 16
+   },
+   "frame_span": [
+    0,
+    0
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.0,
+   "provenance": {
+    "scale.source": "ground_truth"
+   },
+   "sigma": 0.0,
+   "subject": [
+    "ball"
+   ],
+   "threshold": null,
+   "unit": "rel_size_change",
+   "verdict": "UNSCORED"
+  }
+ ]
+}

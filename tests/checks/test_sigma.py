@@ -11,6 +11,7 @@ import numpy as np
 import pytest
 
 from physverify.checks._base import Check, CheckInputs
+from physverify.checks.r4_integrity import ContinuityCheck
 from physverify.cli.context import PLUGIN_KINDS
 from physverify.schema.checks import CheckResult
 from physverify.schema.constants import STANDARD_GRAVITY
@@ -26,8 +27,12 @@ REFERENCE_PARAMS: dict[str, dict[str, int]] = {"R3a": {"mc_draws": DRAWS}}
 DRAW_PARAMS: dict[str, dict[str, int]] = {"R3a": {"mc_draws": 2}}
 
 
+V1_CHECKS: Mapping[str, type[Check]] = {"R4_jump_v1": ContinuityCheck}
+"""Checks out of the registry, kept for the v1 arm (plan-it4 J4): their closed forms stay tested."""
+
+
 def make(check_id: str, **overrides: int) -> Check:
-    cls = PLUGIN_KINDS["checks"]()[check_id]
+    cls = V1_CHECKS.get(check_id) or PLUGIN_KINDS["checks"]()[check_id]
     check: Check = cls(cls.Params(**overrides))
     return check
 
@@ -82,7 +87,7 @@ def short_bounce() -> sc.Case:
             False,
         ),
         ("R3a", short_bounce, {"position": POSITION_SIGMA}, True),
-        ("R4_jump", lambda: sc.teleport(frames=12, frame=6), {"position": POSITION_SIGMA}, True),
+        ("R4_jump_v1", lambda: sc.teleport(frames=12, frame=6), {"position": POSITION_SIGMA}, True),
         ("R5b", stronger_gravity, {"position": POSITION_SIGMA}, True),
         (
             "R5b",
@@ -91,7 +96,7 @@ def short_bounce() -> sc.Case:
             True,
         ),
     ],
-    ids=["R1", "R3a", "R4_jump", "R5b", "R5b_stride2"],
+    ids=["R1", "R3a", "R4_jump_v1", "R5b", "R5b_stride2"],
 )
 def test_closed_form_sigma_matches_monte_carlo(
     check_id: str, case: Callable[[], sc.Case], noise: Mapping[str, float], weighted: bool
@@ -105,7 +110,7 @@ def test_closed_form_sigma_matches_monte_carlo(
     [
         ("R1", sc.overlapping_spheres, ("position",)),
         ("R3a", sc.bounce, ("position",)),
-        ("R4_jump", sc.teleport, ("position",)),
+        ("R4_jump_v1", sc.teleport, ("position",)),
         ("R5b", stronger_gravity, ("position",)),
     ],
 )
@@ -122,7 +127,7 @@ ORACLE_CASES: Mapping[str, Callable[[], sc.Case]] = {
     "R3a": sc.bounce,
     "R3b": sc.collision,
     "R4_missing": sc.disappearance,
-    "R4_size": sc.size_change,
+    "R4_size": sc.resized_pair,
     "R4_jump": sc.teleport,
     "R5a": sc.parabola,
     "R5b": stronger_gravity,

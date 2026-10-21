@@ -21,7 +21,6 @@ r_k the parabola residual of axis k and c~ the part of c orthogonal to P; for th
 
 from __future__ import annotations
 
-import math
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 
@@ -32,6 +31,7 @@ from scipy.stats import chi2
 from scipy.stats import f as f_dist
 
 from physverify.physics.kinematics import visible_runs
+from physverify.physics.tracks import NoiseScale
 
 FloatArray = NDArray[np.float64]
 EDGE_SIDE_ROWS = 3
@@ -42,8 +42,6 @@ DEGREES_OF_FREEDOM = 3
 """One extra coefficient per axis."""
 KINK_COEFFICIENTS = 4
 """Parabola plus kink, per axis."""
-QUANTIZATION = math.sqrt(12.0)
-"""A uniform error over one pixel has a standard deviation of 1 / sqrt(12) pixels."""
 TIE_RTOL = 1e-9
 """Relative slack under which two kink gains on the same row count as equal."""
 GRID = 9
@@ -73,32 +71,6 @@ class Window:
     y: FloatArray
     step: float
     origin: float
-
-
-def pixel_floor(depth: float, focal: float) -> float:
-    """Position noise of a centroid quantized to one pixel at ``depth``: depth / (f sqrt(12));
-    NaN when the depth or the focal length is not finite and positive."""
-    if not (math.isfinite(depth) and depth > 0.0 and math.isfinite(focal) and focal > 0.0):
-        return math.nan
-    return depth / (focal * QUANTIZATION)
-
-
-@dataclass(frozen=True)
-class NoiseScale:
-    """Per-axis sigma-hat = max(sigma_w, q). ``known`` when the pixel floor q sets it on every
-    axis: then nothing in it was estimated from the track and the gain is tested as chi-square;
-    otherwise as an F ratio over the window's own residual."""
-
-    sigma: FloatArray
-    known: bool
-
-
-def noise_scale(track_sigma: FloatArray | None, floor: float) -> NoiseScale | None:
-    """sigma-hat of a track; None without a measured track noise or a finite floor."""
-    if track_sigma is None or not math.isfinite(floor):
-        return None
-    measured = np.asarray(track_sigma, dtype=np.float64)
-    return NoiseScale(np.maximum(measured, floor), bool(np.all(measured <= floor)))
 
 
 def parabola(u: FloatArray) -> FloatArray:
