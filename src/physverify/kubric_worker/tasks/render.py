@@ -1,9 +1,10 @@
 """Render one clip per job with Blender (through Kubric) from keyframes of its variant states.
 
 Job keys: clip_id, spec_path, states_path, layers_path, meta_path, failed_path, floor, threads
-(Blender's fixed thread count). Each object gets position, quaternion and scale keyframes per
-native frame; where it is not visible it sits under the opaque floor. ``kubric_meta.json`` is
-written last and marks the job done.
+(Blender's fixed thread count) and hdri_ids (backgrounds of an "hdri" scene, picked by seed).
+Each object gets position, quaternion and scale keyframes per native frame; where it is not
+visible it sits under the opaque floor. ``kubric_meta.json`` is written last and marks the job
+done.
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ import numpy as np
 from physverify.kubric_worker.build_scene import (
     clip_inputs,
     guarded,
+    hdri_for,
     hidden_position,
     kubric_frame,
     kubric_scale,
@@ -44,7 +46,8 @@ def run(job: dict[str, Any]) -> None:
 
 def render_clip(job: dict[str, Any]) -> None:
     spec, states = clip_inputs(job)
-    with open_scene(spec, job["floor"], render=True) as built:
+    hdri_ids = tuple(job.get("hdri_ids") or ())
+    with open_scene(spec, job["floor"], render=True, hdri_ids=hdri_ids) as built:
         for k, (asset, bounds) in enumerate(zip(built.objects, built.bounds)):
             extents = spec.objects[k].extents
             for i, (position, quaternion, scale) in enumerate(
@@ -72,6 +75,7 @@ def render_clip(job: dict[str, Any]) -> None:
             "resolution": list(spec.resolution),
             "spp": spec.spp,
             "background": spec.background,
+            "hdri_id": hdri_for(spec.seed, hdri_ids) if spec.background == "hdri" else None,
         }
     layers = RenderLayers(
         clip_id=job["clip_id"],

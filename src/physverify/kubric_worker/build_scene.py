@@ -33,7 +33,6 @@ if TYPE_CHECKING:
 
 KUBASIC_MANIFEST = "gs://kubric-public/assets/KuBasic/KuBasic.json"
 HDRI_MANIFEST = "gs://kubric-public/assets/HDRI_haven/HDRI_haven.json"
-HDRI_IDS = ("abandoned_parking",)
 PRIMITIVE_BOUNDS = ((-1.0, -1.0, -1.0), (1.0, 1.0, 1.0))
 HIDDEN_Z = -50.0
 FLOOR_HALF_EXTENTS = (100.0, 100.0, 0.5)
@@ -100,6 +99,7 @@ def build(
     scratch_dir: str,
     simulate: bool = False,
     render: bool = False,
+    hdri_ids: Sequence[str] = (),
 ) -> BuiltScene:
     """Kubric scene with the requested views; both views observe every asset added afterwards."""
     import kubric as kb
@@ -136,7 +136,7 @@ def build(
     built.floor = _floor(kb, floor)
     scene += built.objects
     if render and spec.background == "hdri":
-        _hdri_dome(kb, built, spec.seed)
+        _hdri_dome(kb, built, hdri_for(spec.seed, hdri_ids))
     else:
         scene += built.floor
     _lights_and_camera(kb, scene, spec)
@@ -152,10 +152,13 @@ def open_scene(
     *,
     simulate: bool = False,
     render: bool = False,
+    hdri_ids: Sequence[str] = (),
 ) -> Iterator[BuiltScene]:
     """``build`` in a scratch directory; the PyBullet client is closed when the block ends."""
     with tempfile.TemporaryDirectory() as scratch:
-        built = build(spec, floor, scratch_dir=scratch, simulate=simulate, render=render)
+        built = build(
+            spec, floor, scratch_dir=scratch, simulate=simulate, render=render, hdri_ids=hdri_ids
+        )
         try:
             yield built
         finally:
@@ -234,13 +237,18 @@ def _floor(kb: Any, floor: Mapping[str, float]) -> Any:
     )
 
 
-def _hdri_dome(kb: Any, built: BuiltScene, seed: int) -> None:
+def hdri_for(seed: int, hdri_ids: Sequence[str]) -> str:
+    """The scene's background: ``hdri_ids`` (the host's ``[dataset]`` list) indexed by seed."""
+    if not hdri_ids:
+        raise ValueError("background 'hdri' needs the job's hdri_ids")
+    return str(hdri_ids[seed % len(hdri_ids)])
+
+
+def _hdri_dome(kb: Any, built: BuiltScene, hdri_id: str) -> None:
     """HDRI lighting on the KuBasic dome (movi_def_worker recipe); the dome replaces the floor."""
     import bpy
 
-    background = kb.AssetSource.from_manifest(HDRI_MANIFEST).create(
-        asset_id=HDRI_IDS[seed % len(HDRI_IDS)]
-    )
+    background = kb.AssetSource.from_manifest(HDRI_MANIFEST).create(asset_id=hdri_id)
     built.renderer._set_ambient_light_hdri(background.filename)  # noqa: SLF001 - Kubric has no public API
     dome = kubasic_source().create(
         asset_id="dome",
