@@ -1,9 +1,12 @@
 """R4_jump and R4_size results of the v1 code (commit 10e37ff, before it4) on analytic scenes,
 written once into ``golden/r4_v1.json``. After it4 the v1 jump (``ContinuityCheck``, out of the
-registry) and R4_size with ``reference = "self"`` must reproduce them (T8, T14). The same module
-runs in both trees (the old tree has no ``reference`` parameter, so it is passed only when given):
+registry) and R4_size with ``reference = "self"`` must reproduce them (T8, T14). To regenerate
+the golden, run this module with the old ``src`` and the ``tests/checks`` of commit 3775138 (the
+old tree has no ``reference`` parameter, so it is passed only when given); today's
+``check_scenarios.py`` gives ``CheckInputs`` a camera, which the old ``src`` does not know:
 
-    PYTHONPATH=<old>/src:tests/checks python tests/checks/r4_v1_golden_case.py
+    git archive 10e37ff src | tar -x -C OLD; git archive 3775138 tests/checks | tar -x -C OLD
+    PYTHONPATH=OLD/src:OLD/tests/checks python OLD/tests/checks/r4_v1_golden_case.py
 """
 
 from __future__ import annotations

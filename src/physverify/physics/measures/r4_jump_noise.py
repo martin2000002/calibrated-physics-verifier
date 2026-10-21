@@ -9,11 +9,9 @@ import math
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
-from physverify.physics.finite_diff import third_difference
+from physverify.physics.finite_diff import third_difference, third_difference_sigma
 
 FloatArray = NDArray[np.float64]
-D3_VARIANCE = 20.0
-"""Var(D3) = (1 + 9 + 9 + 1) sigma^2 for independent position noise of sigma per row."""
 
 
 def noise_jumps(
@@ -30,7 +28,8 @@ def noise_jumps(
     out = np.full(p.shape[0], math.nan)
     if p.shape[0] < 4:
         return out
-    scale = math.sqrt(D3_VARIANCE) * np.asarray(sigma_hat, dtype=np.float64).reshape(3)
+    per_unit = third_difference_sigma(1.0, 1.0)  # sqrt(20): sigma of D3 per unit position sigma
+    scale = per_unit * np.asarray(sigma_hat, dtype=np.float64).reshape(3)
     values = np.linalg.norm(third_difference(p) / scale, axis=1)
     if exclude is not None:
         values[np.asarray(exclude, dtype=bool).reshape(-1)[1:-2]] = math.nan
