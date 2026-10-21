@@ -6,6 +6,7 @@ background (Blender's miss value) and becomes 0, the "no surface" value of ``Nat
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
@@ -74,16 +75,17 @@ def load_native(store: DatasetStore, clip_id: str, far_z_m: float) -> NativeGrou
 class KubricSynthetic:
     name: ClassVar[str] = DATASET_NAME
 
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self, settings: Settings, root: Path | None = None) -> None:
+        """``root`` defaults to the configured dataset version (``dataset_root``)."""
         ds = load_dataset_settings(settings)
-        self._store = DatasetStore(dataset_root(settings, ds))
+        self._store = DatasetStore(root or dataset_root(settings, ds))
         self._far_z_m = ds.render.far_z_m
         self._data_dir = settings.paths.data_dir
         self._max_frame_bytes = settings.runtime.max_frame_bytes
 
     def clips(self, subset: str | None = None) -> Sequence[ClipManifest]:
         """Exported clips: all (None), one split ("calib"/"eval") or one planned subset."""
-        exported = read_index(self._store)
+        exported = [self._own(c) for c in read_index(self._store)]
         if subset is None:
             return exported
         if subset in SPLITS:
@@ -95,6 +97,10 @@ class KubricSynthetic:
             )
         wanted = {v.clip_id for v in plan.subset(subset).variants}
         return [c for c in exported if c.clip_id in wanted]
+
+    def _own(self, clip: ClipManifest) -> ClipManifest:
+        """Labelled with this plugin's name, which keys the stage cache and the sealed sets."""
+        return clip if clip.dataset == self.name else replace(clip, dataset=self.name)
 
     def video(self, clip: ClipManifest) -> FrameDirVideoSource:
         path = Path(clip.video_path)

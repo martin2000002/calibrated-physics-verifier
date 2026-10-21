@@ -1,0 +1,7 @@
+# Sealed Kubric renders of the freeze: each version is a directory under paths.synthetic_dir,
+# rendered by run_final.sh with its own seed. The blind set reuses version's clips on
+# blind_scenes with the expected object counts withheld.
+[kubric_fresh]
+version = "v2-fresh"
+ood_version = "v2-fresh-ood"
+blind_scenes = ["s001-s010"]

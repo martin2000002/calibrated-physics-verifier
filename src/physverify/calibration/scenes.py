@@ -33,16 +33,16 @@ class SceneScope(FrozenModel):
         return expand(self.primary_scenes)
 
 
-def expand(specs: Iterable[str]) -> frozenset[int]:
+def expand(specs: Iterable[str], section: str = SECTION) -> frozenset[int]:
     indices: set[int] = set()
     for spec in specs:
         match = _SPEC.match(spec)
         if match is None:
-            raise ConfigError(f"[{SECTION}] scene spec {spec!r} is not sNNN or sNNN-sMMM")
+            raise ConfigError(f"[{section}] scene spec {spec!r} is not sNNN or sNNN-sMMM")
         low = int(match.group(1))
         high = int(match.group(2) or low)
         if high < low:
-            raise ConfigError(f"[{SECTION}] scene range {spec!r} ends before it starts")
+            raise ConfigError(f"[{section}] scene range {spec!r} ends before it starts")
         indices.update(range(low, high + 1))
     return frozenset(indices)
 
