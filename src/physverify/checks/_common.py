@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 import zlib
 from collections.abc import Callable, Mapping
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 from numpy.typing import NDArray
@@ -13,7 +13,14 @@ from pydantic import Field
 
 from physverify.checks._base import Check, CheckInputs
 from physverify.config.models import FrozenModel
-from physverify.physics.tracks import OCCLUDED_AT, Flight, body_length, find_flights, row_step
+from physverify.physics.tracks import (
+    OCCLUDED_AT,
+    Flight,
+    body_length,
+    find_flights,
+    row_step,
+    track_noise,
+)
 from physverify.physics.uncertainty import monte_carlo
 from physverify.schema.checks import AbstainReason, CheckResult, Verdict
 from physverify.schema.contacts import ContactTable
@@ -43,14 +50,22 @@ class FallParams(CommonParams):
 
     A flight is a fall when the observed travel max_k |p_k - p_first| exceeds both
     ``min_travel_lengths`` body lengths and ``travel_sigmas`` times the noise of a position
-    difference (sqrt(2) |median position sigma|). The fitted acceleration is deliberately not
-    used: R5b tests that acceleration, and filtering on it would drop weak-gravity flights.
+    difference. The fitted acceleration is deliberately not used: R5b tests that acceleration,
+    and filtering on it would drop weak-gravity flights.
+
+    ``travel_noise`` = "declared": the noise is sqrt(2) |median declared position sigma| (an
+    absolute sigma, before 2026-10-20). "track": sqrt(2) |sigma_w| measured on the object's own
+    third differences (``physics.tracks.track_noise``), in this order: exact positions (every
+    known sigma 0) keep the length floor only; with ``min_noise_stencils`` usable stencils the
+    track noise; otherwise the declared rule.
     """
 
     rest_speed: float = Field(default=0.1, ge=0.0)
     jump_gate: float = Field(default=3.0, gt=1.0)
     min_travel_lengths: float = Field(default=0.5, ge=0.0)
     travel_sigmas: float = Field(default=3.0, ge=0.0)
+    travel_noise: Literal["declared", "track"] = "track"
+    min_noise_stencils: int = Field(default=8, ge=4)
 
 
 def find_falls(
@@ -58,7 +73,12 @@ def find_falls(
 ) -> list[Flight]:
     """Flights of object ``index`` that pass the fall filter of ``params``, in time order."""
     flights = find_flights(states, contacts, index, params.rest_speed, params.jump_gate)
-    return [f for f in flights if _travel(states, f) > _travel_floor(states, f, params)]
+    noise = (
+        track_noise(states, contacts, index, params.min_noise_stencils)
+        if params.travel_noise == "track"
+        else None
+    )
+    return [f for f in flights if _travel(states, f) > _travel_floor(states, f, params, noise)]
 
 
 def _travel(states: ObjectStateTable, flight: Flight) -> float:
@@ -66,14 +86,20 @@ def _travel(states: ObjectStateTable, flight: Flight) -> float:
     return float(np.max(np.linalg.norm(positions - positions[0], axis=-1)))
 
 
-def _travel_floor(states: ObjectStateTable, flight: Flight, params: FallParams) -> float:
+def _travel_floor(
+    states: ObjectStateTable, flight: Flight, params: FallParams, track: FloatArray | None
+) -> float:
+    """``track``: the object's per-axis noise (None outside "track" mode or without stencils)."""
     length = body_length(states, flight.index)
     by_length = params.min_travel_lengths * length if math.isfinite(length) else 0.0
     sigma = states.position_sigma[flight.rows, flight.index]
-    known = np.all(np.isfinite(sigma), axis=-1)
-    if not bool(known.any()):
+    known = sigma[np.all(np.isfinite(sigma), axis=-1)]
+    if not known.shape[0]:
         return by_length
-    noise = math.sqrt(2.0) * float(np.linalg.norm(np.median(sigma[known], axis=0)))
+    if params.travel_noise == "track" and bool(np.all(known == 0.0)):
+        return by_length
+    per_axis = track if track is not None else np.median(known, axis=0)
+    noise = math.sqrt(2.0) * float(np.linalg.norm(per_axis))
     return max(by_length, params.travel_sigmas * noise)
 
 
