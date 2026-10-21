@@ -21,8 +21,8 @@
 #                          --real-dataset objectron_static (each extracted as its own set first)
 #
 # Every command, before any physverify call (exit 2): HEAD is PHYSVERIFY_FINAL_EXPECT_COMMIT and the
-# freeze's commit, with nothing uncommitted or untracked under src, configs, scripts or annotations;
-# no configs/local.toml, no PHYSVERIFY_CONFIG_DIR, no PHYSVERIFY__* variable but the paths exported
+# freeze's commit, with nothing uncommitted or untracked under src, configs, scripts, annotations,
+# pyproject.toml or uv.lock; no configs/local.toml, no PHYSVERIFY_CONFIG_DIR, no PHYSVERIFY__* variable but the paths exported
 # here; no PHYSVERIFY_UNSEAL or PHYSVERIFY_UNSEAL_REPEAT from the caller (this script sets them for
 # a look and a v1 arm only); freeze.json of device cpu and profile precise with its calibration
 # directory $F/calibration and its frozen files unchanged (freeze_query artifacts);
@@ -59,7 +59,12 @@
 #                                   (PHYSVERIFY__SEALED__LEDGER, then required) under
 #                                   $H200_ROOT/scratch; PHYSVERIFY__KUBRIC_FRESH__*,
 #                                   PHYSVERIFY__PHYSICS_IQ_VIEWS__* and PHYSVERIFY__OBJECTRON_STATIC__*
-#                                   allowed; the seed is not checked against the freeze [0]
+#                                   allowed; the seed must differ from the freeze's (and from that
+#                                   of $H200_ROOT/final/freeze.json, when it exists); never
+#                                   kubric_synthetic_eval; physics_iq_views and real_new need
+#                                   PHYSVERIFY__PHYSICS_IQ_VIEWS__VIEWS='["center"]', objectron_static
+#                                   and real_new PHYSVERIFY__OBJECTRON_STATIC__SPLIT=train, so that a
+#                                   rehearsal never reads a sealed population [0]
 # v1arm (J11, impl-it4.md section 6.7):
 #   PHYSVERIFY_FINAL_V1_CHECKOUT    clean checkout at the freeze's v1.commit (C_V1)
 #   PHYSVERIFY_FINAL_V1_BASE        the base iteration directory (its calibration.json is the
@@ -195,18 +200,45 @@ frozen() {
 same_path "$(frozen calibration_dir)" "$CAL" \
     || die "freeze.json froze $(frozen calibration_dir), not $CAL"
 fq artifacts "$FREEZE" >/dev/null || die "the frozen files changed (freeze_query artifacts)"
-if [[ "$DRYRUN" == 0 && "$SEED" != "$(frozen seed)" ]]; then
-    die "PHYSVERIFY_FINAL_SEED=$SEED is not the freeze's seed $(frozen seed)"
+# dry_run_guards: a rehearsal never draws a sealed population (the sealed Kubric scenes of the
+# frozen seed, kubric_synthetic eval, the left/right Physics-IQ views, the Objectron test videos).
+dry_run_guards() {
+    local real="$H200_ROOT/final/freeze.json" pair key name want
+    [[ "$SEED" != "$(frozen seed)" ]] \
+        || die "a dry run with the freeze's seed $SEED would render its sealed scenes; use another"
+    if [[ -f "$real" ]] && ! same_path "$real" "$FREEZE"; then
+        [[ "$SEED" != "$(fq field "$real" seed)" ]] \
+            || die "a dry run with the seed of $real would render its sealed scenes; use another"
+    fi
+    [[ "$SET" != kubric_synthetic_eval ]] || die "a dry run never touches kubric_synthetic_eval"
+    for pair in 'physics_iq_views PHYSICS_IQ_VIEWS__VIEWS ["center"]' \
+        'objectron_static OBJECTRON_STATIC__SPLIT train'; do
+        read -r key name want <<<"$pair"
+        [[ " ${NEEDS:-} " == *" $key "* ]] || continue
+        name="PHYSVERIFY__$name"
+        [[ "${!name:-}" == "$want" ]] \
+            || die "a dry run of $SET needs $name='$want' (the sealed $key stays sealed)"
+    done
+}
+
+if [[ "$DRYRUN" == 0 ]]; then
+    [[ "$SEED" == "$(frozen seed)" ]] \
+        || die "PHYSVERIFY_FINAL_SEED=$SEED is not the freeze's seed $(frozen seed)"
+else
+    dry_run_guards
 fi
 
+# A limited extraction (the pace measurement) is its own step: a look needs a full extract.
+STEP="$CMD"
+[[ "$CMD" != extract || -z "${PHYSVERIFY_FINAL_EXTRACT_LIMIT:-}" ]] || STEP=extract-limited
 RUN="$F/run-final"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
-LOGS="$RUN/logs/$CMD${SET:+-$SET}-$STAMP-$$"
+LOGS="$RUN/logs/$STEP${SET:+-$SET}-$STAMP-$$"
 STATE="$RUN/state.env"
 STEPS="$RUN/steps.tsv"
-NOTES="$RUN/notes-$CMD${SET:+-$SET}.md"
-SUMMARY="$RUN/summary-$CMD${SET:+-$SET}.md"
-SUMMARY_TITLE="Final: $CMD ${SET:-} ${RETRY:-}"
+NOTES="$RUN/notes-$STEP${SET:+-$SET}.md"
+SUMMARY="$RUN/summary-$STEP${SET:+-$SET}.md"
+SUMMARY_TITLE="Final: $STEP ${SET:-} ${RETRY:-}"
 SUMMARY_INFO="commit $HEAD_COMMIT, seed $SEED, dry run $DRYRUN, profile precise, device cpu, cache $CACHE, data $DATA"
 mkdir -p "$LOGS"
 touch "$STEPS" "$NOTES"
@@ -305,6 +337,7 @@ cmd_render() {
     line="$(fq plan "$SET" "$SEED")" || stop "the render left no plan of seed $SEED"
     note "$line"
     planned="$(sed -n 's/.* scenes, \([0-9]*\) clips, .*/\1/p' <<<"$line")"
+    [[ "$planned" =~ ^[1-9][0-9]*$ ]] || stop "no planned clip count in: $line"
     clips="$(query clips "$SET" eval)" || stop "cannot list the $SET clips"
     exported="$(grep -c . <<<"$clips" || true)"
     share="$(awk -v e="$exported" -v p="$planned" 'BEGIN { printf "%.1f", 100 * e / p }')"
@@ -424,7 +457,7 @@ v1_configs() {
         rmdir "$arm/configs.tmp"
     fi
     now="$(diff -r "$REPO_ROOT/configs" "$arm/configs" || true)"
-    if grep -v '^[-<>0-9]' <<<"$now" | grep -qv "checks.toml"; then
+    if [[ -n "$now" ]] && grep -v '^[-<>0-9]' <<<"$now" | grep -qv "checks.toml"; then
         stop "the v1 arm's configs differ from the freeze's beyond checks.toml: $now"
     fi
     if [[ -f "$diff" ]]; then
@@ -472,7 +505,7 @@ cmd_v1arm() {
 }
 
 check_frozen_doctor "$F" "$CAL" "$CACHE"
-begin "$CMD" "${SET:-all}"
+begin "$STEP" "${SET:-all}"
 "cmd_$CMD"
 row 0
 echo "final: $SUMMARY"

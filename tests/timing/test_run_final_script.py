@@ -79,7 +79,8 @@ if [[ "$1" != -c ]]; then
       "freeze_query.py plan")
         version="v-$3"; [[ "$3" != kubric_fresh_blind ]] || version=v-kubric_fresh
         [[ -f "$PLANS/$version" ]] || { echo "freeze_query: no plan: render first" >&2; exit 2; }
-        echo "plan $PLANS/$version: version $version, seed $4, 10 scenes, 4 clips, 0 calib" ;;
+        clips="${PLAN_CLIPS:-4}"
+        echo "plan $PLANS/$version: version $version, seed $4, 10 scenes, $clips clips, 0 calib" ;;
       "freeze_query.py look-state")
         shift 2; retry=""
         if [[ "$1" == --retry ]]; then retry=1; shift; fi
@@ -636,11 +637,18 @@ def test_the_v1_arm_is_refused_unless_it_repeats_the_look_with_the_base_state(
         assert not any(q.startswith("overlay_cli.py") for q in sandbox.queries())
 
 
-def test_a_dry_run_writes_only_under_scratch(sandbox: Sandbox) -> None:
-    """P3: its own freeze, data, cache and ledger; the seed is not the freeze's."""
+DRY_SEED = 999
+UNSEALED = {
+    "PHYSVERIFY__PHYSICS_IQ_VIEWS__VIEWS": '["center"]',
+    "PHYSVERIFY__OBJECTRON_STATIC__SPLIT": "train",
+}
+
+
+def _dry_run(sandbox: Sandbox) -> tuple[Path, Path, dict[str, str]]:
+    """A rehearsal freeze of seed ``DRY_SEED`` under scratch; the real freeze stays in place."""
     scratch = sandbox.root / "scratch"
     final = scratch / "final"
-    sandbox.freeze(final)
+    sandbox.freeze(final, seed=DRY_SEED)
     ledger = scratch / "ledger.jsonl"
     ledger.touch()
     env = {
@@ -651,6 +659,13 @@ def test_a_dry_run_writes_only_under_scratch(sandbox: Sandbox) -> None:
         "PHYSVERIFY__SEALED__LEDGER": str(ledger),
         "PHYSVERIFY__KUBRIC_FRESH__SCENES_PER_FAMILY": "1",
     }
+    return final, ledger, env
+
+
+def test_a_dry_run_writes_only_under_scratch(sandbox: Sandbox) -> None:
+    """P3: its own freeze, data, cache and ledger; the seed is not the freeze's."""
+    final, ledger, env = _dry_run(sandbox)
+    scratch = final.parent
     for args in (("seed",), ("render", "kubric_fresh"), ("extract", "kubric_fresh")):
         sandbox.ok(*args, **env)
     sandbox.ok("look", "kubric_fresh", **env)
@@ -662,3 +677,89 @@ def test_a_dry_run_writes_only_under_scratch(sandbox: Sandbox) -> None:
     real = {k: v for k, v in env.items() if not k.startswith("PHYSVERIFY__")}
     refused = sandbox.run("seed", **{**real, "PHYSVERIFY_FINAL_DRYRUN": "0"})
     assert refused.returncode == 2 and "only a dry run writes there" in refused.stderr
+
+
+@pytest.mark.parametrize(
+    ("args", "env", "message"),
+    [
+        (("seed",), {"PHYSVERIFY_FINAL_SEED": str(DRY_SEED)}, "with the freeze's seed"),
+        (("seed",), {"PHYSVERIFY_FINAL_SEED": "real"}, "with the seed of"),
+        (("extract", "kubric_synthetic_eval"), {}, "never touches kubric_synthetic_eval"),
+        (("fetch", "objectron_static"), {}, "PHYSVERIFY__OBJECTRON_STATIC__SPLIT='train'"),
+        (
+            ("fetch", "objectron_static"),
+            {"PHYSVERIFY__OBJECTRON_STATIC__SPLIT": "test"},
+            "PHYSVERIFY__OBJECTRON_STATIC__SPLIT='train'",
+        ),
+        (("fetch", "physics_iq_views"), {}, """PHYSVERIFY__PHYSICS_IQ_VIEWS__VIEWS='["center"]'"""),
+        (
+            ("extract", "physics_iq_views"),
+            {"PHYSVERIFY__PHYSICS_IQ_VIEWS__VIEWS": '["left", "right"]'},
+            "PHYSVERIFY__PHYSICS_IQ_VIEWS__VIEWS",
+        ),
+        (
+            ("look", "real_new"),
+            {"PHYSVERIFY__PHYSICS_IQ_VIEWS__VIEWS": '["center"]'},
+            "PHYSVERIFY__OBJECTRON_STATIC__SPLIT",
+        ),
+        (
+            ("look", "real_new"),
+            {"PHYSVERIFY__OBJECTRON_STATIC__SPLIT": "train"},
+            "PHYSVERIFY__PHYSICS_IQ_VIEWS__VIEWS",
+        ),
+    ],
+)
+def test_a_dry_run_never_reads_a_sealed_population(
+    sandbox: Sandbox, args: tuple[str, ...], env: dict[str, str], message: str
+) -> None:
+    """Audit B1, M1: no frozen seed, no kubric_synthetic eval, no left/right view, no test split."""
+    _, ledger, dry = _dry_run(sandbox)
+    if env.get("PHYSVERIFY_FINAL_SEED") == "real":
+        env = {"PHYSVERIFY_FINAL_SEED": str(sandbox.seed)}
+    result = sandbox.run(*args, **{**dry, **env})
+    assert result.returncode == 2 and message in result.stderr, result.stderr
+    assert sandbox.commands() == []
+    assert sandbox.ledger_lines(ledger) == []
+
+
+def test_a_dry_run_of_the_new_real_control_reads_center_and_train(sandbox: Sandbox) -> None:
+    _, ledger, dry = _dry_run(sandbox)
+    env = {**dry, **UNSEALED}
+    sandbox.ok("seed", **env)
+    for name in ("physics_iq_views", "objectron_static"):
+        sandbox.ok("fetch", name, **env)
+        sandbox.ok("extract", name, **env)
+    sandbox.ok("look", "real_new", **env)
+    assert len(sandbox.ledger_lines(ledger)) == 1 and sandbox.ledger_lines() == []
+
+
+def test_a_limited_extraction_is_not_the_extraction_a_look_needs(sandbox: Sandbox) -> None:
+    """Audit M2: the pace measurement is recorded as extract-limited."""
+    sandbox.ok("seed")
+    sandbox.ok("render", "kubric_fresh")
+    sandbox.ok("extract", "kubric_fresh", PHYSVERIFY_FINAL_EXTRACT_LIMIT="2")
+    steps = (sandbox.final / "run-final" / "steps.tsv").read_text("utf-8").splitlines()
+    assert [line.split("\t")[:3] for line in steps][-1] == ["extract-limited", "kubric_fresh", "0"]
+    assert (sandbox.final / "run-final" / "summary-extract-limited-kubric_fresh.md").is_file()
+    result = sandbox.run("look", "kubric_fresh")
+    assert result.returncode == 2 and "extract kubric_fresh has not completed" in result.stderr
+    assert sandbox.looks() == []
+    sandbox.ok("extract", "kubric_fresh")
+    sandbox.ok("look", "kubric_fresh")
+    assert len(sandbox.looks()) == 1
+
+
+def test_a_render_without_a_planned_clip_count_stops(sandbox: Sandbox) -> None:
+    """Audit m3: the AC-9 share is never divided by an empty or zero plan."""
+    sandbox.ok("seed")
+    result = sandbox.run("render", "kubric_fresh", PLAN_CLIPS="0")
+    assert result.returncode == 2 and "no planned clip count" in result.stderr
+
+
+def test_an_unchanged_checks_toml_is_not_a_foreign_config_difference(sandbox: Sandbox) -> None:
+    """Audit m1: an empty configs diff (C_V1's checks.toml is the freeze's) passes."""
+    (sandbox.ckv / "configs" / "checks.toml").write_text("frozen checks\n", encoding="utf-8")
+    _ready(sandbox)
+    sandbox.ok("look", "kubric_fresh")
+    sandbox.ok("v1arm", "kubric_fresh")
+    assert (sandbox.final / "v1arm" / "configs.diff").read_text("utf-8") == "\n"
