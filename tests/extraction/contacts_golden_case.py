@@ -14,7 +14,6 @@ from collections.abc import Callable
 from dataclasses import dataclass, replace
 from pathlib import Path
 
-import check_scenarios as sc
 import contact_scenes as cs
 import numpy as np
 from synthetic_clip import build_clip
@@ -26,6 +25,7 @@ from physverify.schema.contacts import ContactTable
 from physverify.schema.stages import Stage
 from physverify.schema.states import ObjectStateTable
 
+sc = cs.sc
 GOLDEN = Path(__file__).resolve().parent / "golden" / "contacts_proximity"
 
 
