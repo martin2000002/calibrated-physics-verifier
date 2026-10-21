@@ -93,6 +93,7 @@ def test_extract_help_goes_through_the_real_registry(cli: CliRunner, command: st
 def test_building_the_registry_imports_no_heavy_library() -> None:
     script = (
         "import sys\n"
+        f"sys.path.insert(0, {str(REPO / 'src')!r})\n"
         "from physverify.cli.context import PLUGIN_KINDS\n"
         "import physverify.extraction.weights, physverify.extraction.pipeline\n"
         "assert len(PLUGIN_KINDS['providers']()) == 23\n"

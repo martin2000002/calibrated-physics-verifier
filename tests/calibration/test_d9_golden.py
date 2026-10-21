@@ -1,15 +1,13 @@
 """T14 (it1 audit d1): with sigma_pair_filter = "all" the fit and the devscore report are
-the ones written before it1, except ``version`` and the fields it1 added. Floats match to a
-relative 1e-9: the golden was written on another CPU, where BLAS-backed fits differ in the last
-bits."""
+the ones written before it1, except ``version`` and the fields it1 added (``golden.same``)."""
 
 from __future__ import annotations
 
 import json
-import math
 from typing import Any
 
 from d9_golden_case import GOLDEN, fitted
+from golden import same
 
 # Fields added by it1, with the value they take under "all"; any other difference fails.
 ADDED_AT_ALL: dict[str, Any] = {
@@ -33,19 +31,6 @@ def without_it1(value: Any) -> Any:
     if isinstance(value, list):
         return [without_it1(item) for item in value]
     return value
-
-
-REL_TOL = 1e-9
-
-
-def same(now: Any, before: Any) -> bool:
-    if isinstance(now, float) and isinstance(before, float):
-        return math.isclose(now, before, rel_tol=REL_TOL, abs_tol=0.0) or now == before
-    if isinstance(now, dict) and isinstance(before, dict):
-        return now.keys() == before.keys() and all(same(now[k], before[k]) for k in now)
-    if isinstance(now, list) and isinstance(before, list):
-        return len(now) == len(before) and all(same(a, b) for a, b in zip(now, before, strict=True))
-    return bool(now == before)
 
 
 def golden() -> dict[str, Any]:
