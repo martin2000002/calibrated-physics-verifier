@@ -558,7 +558,16 @@ def evaluate_command(
     subset: SubsetOption = None,
     clips: ClipsOption = None,
     real: Annotated[bool, typer.Option(help="Also score the real datasets.")] = True,
+    real_dataset: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--real-dataset",
+            help="Real dataset to score instead of calibration.real_datasets (repeatable).",
+        ),
+    ] = None,
 ) -> None:
+    if real_dataset and not real:
+        raise UsageError("--real-dataset and --no-real exclude each other")
     session = _session()
     calibration = _artifact(session, artifact)
     cal = session.config.calibration
@@ -566,7 +575,7 @@ def evaluate_command(
     name = subset or cal.subset
     chosen = select_clips(source.clips(name), clips or ())
     levels = sorted({lv for lv, _ in calibration.strata()})
-    sources = _real_sources(session) if real else {}
+    sources = _real_sources(session, real_dataset) if real else {}
     real_subset = diagnosis_settings(session.context.settings).subset
     selections = [
         Selection(source.name, name, tuple(chosen)),
@@ -616,15 +625,18 @@ def _eval_data(
 RealSources = dict[str, tuple[DatasetSource, tuple[ClipManifest, ...]]]
 
 
-def _real_sources(session: Session) -> RealSources:
-    """The real datasets that resolve, with their clips of the ``diagnosis.subset``."""
+def _real_sources(session: Session, named: Sequence[str] | None = None) -> RealSources:
+    """The real datasets with their clips of the ``diagnosis.subset``: the ``named`` ones, which
+    must all resolve, or else those of ``calibration.real_datasets`` that resolve."""
     subset = diagnosis_settings(session.context.settings).subset
     found: RealSources = {}
-    for name in session.config.calibration.real_datasets:
+    for name in dict.fromkeys(named or session.config.calibration.real_datasets):
         try:
             source = resolve_dataset(session.context, name)
             found[name] = (source, tuple(source.clips(subset)))
         except PhysverifyError as exc:
+            if named:
+                raise
             typer.echo(f"real dataset {name} skipped: {exc}")
     return found
 

@@ -7,6 +7,7 @@ import json
 import os
 import subprocess
 from collections.abc import Callable, Mapping, Sequence
+from dataclasses import replace
 from pathlib import Path
 from types import MappingProxyType, ModuleType
 from typing import Any, ClassVar
@@ -72,11 +73,31 @@ class SealFixtureDataset:
         return None
 
 
+def _real_fixture(dataset: str) -> type[SealFixtureDataset]:
+    """A real control standing in under ``dataset``: two fixture clips relabelled."""
+    clips = tuple(replace(c, dataset=dataset) for c in CALIB.clips[:2])
+
+    class RealFixture(SealFixtureDataset):
+        name: ClassVar[str] = dataset
+
+        def clips(self, subset: str | None = None) -> Sequence[ClipManifest]:
+            return clips
+
+    return RealFixture
+
+
+NEW_REAL = ("physics_iq_views", "objectron_static")
+DEV_REAL = ("physics_iq", "pisa_real")
+"""``calibration.real_datasets`` as shipped."""
+
+
 @pytest.fixture(autouse=True)
 def fixture_dataset(monkeypatch: pytest.MonkeyPatch) -> None:
     kinds: Mapping[str, Any] = context.PLUGIN_KINDS
     datasets = kinds["datasets"]
-    patched = {**kinds, "datasets": lambda: {**datasets(), DATASET: SealFixtureDataset}}
+    reals = {name: _real_fixture(name) for name in (*NEW_REAL, *DEV_REAL)}
+    fixtures = {DATASET: SealFixtureDataset, **reals}
+    patched = {**kinds, "datasets": lambda: {**datasets(), **fixtures}}
     monkeypatch.setattr(context, "PLUGIN_KINDS", MappingProxyType(patched))
 
 
@@ -170,9 +191,11 @@ def evaluate_cli(
         options: Sequence[str] = (),
         env: Mapping[str, str] | None = None,
         artifact: Path = path,
+        seal: Sequence[str] = SEAL,
+        real: Sequence[str] = ("--no-real",),
     ) -> CliResult:
-        command = ("calibrate", "evaluate", "--dataset", DATASET, "--no-real", "--artifact")
-        return cli(*SEAL, *options, *command, str(artifact), *extra, env=env)
+        command = ("calibrate", "evaluate", "--dataset", DATASET, *real, "--artifact")
+        return cli(*seal, *options, *command, str(artifact), *extra, env=env)
 
     return invoke
 
@@ -210,6 +233,45 @@ def test_evaluate_on_calib_clips_leaves_no_line(
     result = evaluate_cli("--clips", CALIB_CLIP)
     assert result.code == 0, result.err
     assert read_entries(ledger) == () and reached
+
+
+REAL_SEAL = (
+    "--set", f'sealed.sets=["{DATASET}:eval", "{NEW_REAL[0]}", "{NEW_REAL[1]}"]',
+    "--set", "calibration.bootstrap=50",
+)  # fmt: skip
+REAL_UNSEAL = {"PHYSVERIFY_UNSEAL": ",".join((f"{DATASET}:eval", *NEW_REAL))}
+NAMED = tuple(arg for name in NEW_REAL for arg in ("--real-dataset", name))
+
+
+def test_the_named_real_datasets_enter_the_ledger_line(
+    evaluate_cli: Callable[..., CliResult], ledger: Path, settings: Settings
+) -> None:
+    """J10 of plan-congelado: ``--real-dataset`` replaces ``calibration.real_datasets`` in the
+    selections, so the line names the new controls only and its config hash stays the same."""
+    named = evaluate_cli(seal=REAL_SEAL, real=NAMED, env=REAL_UNSEAL)
+    assert named.code == 0, named.err
+    unnamed = evaluate_cli(seal=REAL_SEAL, real=(), env=REAL_UNSEAL)
+    assert unnamed.code == 0, unnamed.err
+    first, second = read_entries(ledger)
+    assert [d.name for d in first.datasets] == [DATASET, *sorted(NEW_REAL)]
+    assert set(first.sets) == {f"{DATASET}:eval", *NEW_REAL}
+    assert tuple(settings.sections["calibration"]["real_datasets"]) == DEV_REAL
+    assert [first.argv.count(n) for n in NEW_REAL] == [1, 1]
+    assert first.config_hash == second.config_hash and first.freeze == second.freeze
+    assert [d.name for d in second.datasets] == [DATASET, *sorted(DEV_REAL)]
+
+
+def test_a_named_real_dataset_must_resolve(evaluate_cli: Callable[..., CliResult]) -> None:
+    result = evaluate_cli(real=("--real-dataset", "no_such_real"), env=UNSEAL)
+    assert result.code != 0 and "no_such_real" in result.err
+
+
+def test_named_real_datasets_and_no_real_exclude_each_other(
+    evaluate_cli: Callable[..., CliResult], ledger: Path
+) -> None:
+    result = evaluate_cli(real=("--no-real", *NAMED), env=REAL_UNSEAL)
+    assert result.code == EXIT_USAGE and "--no-real" in result.err
+    assert read_entries(ledger) == ()
 
 
 @pytest.mark.skipif(os.geteuid() == 0, reason="root writes a read-only file")
