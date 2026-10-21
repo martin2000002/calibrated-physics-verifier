@@ -12,6 +12,10 @@
 friction = 0.6
 mass_floor = 0.2
 
+# it4 (plan-it4 change B): the size relative to the other bodies of each frame; "self" is v1.
+[checks.R4_size]
+reference = "others"
+
 [verification]
 policy = "threshold"
 
@@ -26,7 +30,9 @@ R3a = 0.05
 R3b = 0.05
 R4_missing = 2
 R4_size = 0.10
-R4_jump = 0.50
+# it4 R4_jump v2 is in units of the track's own noise: sqrt of the chi-square(3) quantile at
+# 1 - 0.05 / 20 (Bonferroni over about 20 stencils), a priori (plan-it4 judgement J9).
+R4_jump = 3.78
 R5a = 0.15
 R5b = 0.15
 
@@ -38,6 +44,7 @@ null_tol = 1e-3
 # r5a_gravity_switch -> R5b: one parabola over a flight whose g rotates by theta mid-flight fits
 #   |a| ~ g cos(theta / 2) (0.4 % on the local f1 clip, far below the R5b threshold).
 # r5a_gravity_switch -> R4_jump: the switch is a jump of the acceleration; the third difference
-#   peaks at most |delta g| dt^2 / (2 L), spread over the stencils around the switch (0.0135 on
-#   the local f1 clip; threshold 0.50).
+#   peaks at most |delta g| dt^2, spread over the stencils around the switch; R4_jump v2 divides it
+#   by sqrt(20) times the track's noise (one pixel on the oracle), so it is a coupling in units
+#   of the noise, not of the body (v1: 0.0135 body lengths on the local f1 clip).
 couplings = [["r5a_gravity_switch", "R5b"], ["r5a_gravity_switch", "R4_jump"]]
