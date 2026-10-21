@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import dataclasses
 import json
+import subprocess
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from types import MappingProxyType
@@ -292,6 +293,26 @@ def test_show_prints_the_record_and_its_sha(cli: CliRunner, world: Settings) -> 
     assert shown.code == 0, shown.err
     assert f"record: {target} sha256 {sha}" in shown.out
     assert "note:" not in shown.out
+
+
+def test_the_runners_read_the_hash_check_scope_carries(
+    cli: CliRunner, world: Settings, tmp_path: Path
+) -> None:
+    """Juicio J12: record_sha_of (run_freeze.sh's RECORD_SHA, freeze.json's record_sha) on the
+    printed line is the stable hash the H2 pre-registration and run_h2.sh compare."""
+    _written(cli, world)
+    log = tmp_path / "show.log"
+    log.write_text(cli("exclusions", "show").out, encoding="utf-8")
+    steps = Path(__file__).resolve().parents[2] / "scripts" / "h200" / "_steps.sh"
+    read = subprocess.run(
+        ["bash", "-c", 'source "$1" && record_sha_of "$2"', "_", str(steps), str(log)],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    scope = check_scope(world, check_registry())
+    assert scope.record_sha256 is not None
+    assert read.stdout.strip() == scope.record_sha256
 
 
 def test_show_without_a_record_is_a_usage_error(cli: CliRunner, world: Settings) -> None:
