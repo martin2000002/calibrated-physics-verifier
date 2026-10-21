@@ -16,6 +16,7 @@ import numpy as np
 from physverify.diagnosis.cases import BoolArray, FloatArray
 from physverify.diagnosis.masks import mask_iou
 from physverify.diagnosis.settings import RealSettings
+from physverify.extraction.providers._gravity_pose import LEVEL_CAMERA_GRAVITY
 from physverify.physics.measures.r5_gravity import (
     fall_fit,
     fall_residual_ratio,
@@ -29,9 +30,6 @@ from physverify.schema.scale import EffectiveScale, ScaleSource
 from physverify.schema.states import ObjectStateTable
 
 TimeBase = Literal["declared", "container"]
-
-CAMERA_DOWN = np.array([0.0, 1.0, 0.0])
-"""OpenCV camera +y (image down): the gravity direction assumed when the states carry none."""
 
 SCALE_ABSTAIN = {
     ScaleSource.FREE_FALL: AbstainReason.SCALE_FROM_GRAVITY,
@@ -136,11 +134,11 @@ class FallDiagnosis:
 
 
 def gravity_direction(states: ObjectStateTable) -> tuple[FloatArray, bool]:
-    """``states.gravity_dir``, else camera +y flagged as estimated."""
+    """``states.gravity_dir``, else the level-camera +y flagged as estimated."""
     g_dir = np.asarray(states.gravity_dir, dtype=np.float64)
     if bool(np.all(np.isfinite(g_dir))):
         return g_dir, False
-    return CAMERA_DOWN.copy(), True
+    return LEVEL_CAMERA_GRAVITY.copy(), True
 
 
 def _descent(heights: FloatArray, visible: BoolArray) -> FloatArray:

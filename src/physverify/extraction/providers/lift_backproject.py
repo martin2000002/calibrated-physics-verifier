@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 from physverify.extraction._base import StageContext, WeightSpec
 from physverify.extraction.pipeline import PENDING_SOURCE_KEY
 from physverify.extraction.providers._common import ProviderParams, expect_params, lookup_label
+from physverify.extraction.providers._gravity_pose import LEVEL_CAMERA_GRAVITY, gravity_from_pose
 from physverify.extraction.providers._lifting import (
     LiftErrors,
     ObjectSummary,
@@ -33,8 +34,6 @@ from physverify.schema.stages import Stage
 from physverify.schema.states import CoordFrame, ObjectStateTable, PrimitiveKind
 
 FloatArray = NDArray[np.float64]
-WORLD_DOWN = np.array([0.0, 0.0, -1.0])
-LEVEL_CAMERA_GRAVITY = np.array([0.0, 1.0, 0.0])
 SEED_HEX_DIGITS = 16
 
 GravityMode = Literal["auto", "camera_pose", "level_camera", "none"]
@@ -174,12 +173,9 @@ class BackprojectLift:
             return LEVEL_CAMERA_GRAVITY.copy(), math.radians(self.params.level_sigma_deg)
         if mode == "none" or camera.world_from_camera is None:
             return np.full(3, np.nan), math.nan
-        pose = np.asarray(camera.world_from_camera, dtype=np.float64)
-        rotation = pose[0, :3, :3] if pose.ndim == 3 else pose[:3, :3]
         exact = camera.source is IntrinsicsSource.GROUND_TRUTH
         sigma = 0.0 if exact else math.radians(self.params.pose_sigma_deg)
-        gravity: FloatArray = rotation.T @ WORLD_DOWN
-        return gravity, sigma
+        return gravity_from_pose(camera.world_from_camera), sigma
 
 
 def _mutable_fields(table: ObjectStateTable) -> dict[str, Any]:

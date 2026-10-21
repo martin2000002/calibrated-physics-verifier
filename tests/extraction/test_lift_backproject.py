@@ -13,6 +13,7 @@ from synthetic_clip import SyntheticClip
 
 from physverify.extraction._base import GROUND_TRUTH
 from physverify.extraction.matching import align_ground_truth
+from physverify.extraction.providers._gravity_pose import LEVEL_CAMERA_GRAVITY
 from physverify.extraction.providers._lifting import (
     LiftErrors,
     ObjectSummary,
@@ -24,7 +25,7 @@ from physverify.extraction.providers._lifting import (
     resolve_disparity_shift,
 )
 from physverify.extraction.providers.camera_assumed_fov import AssumedFovCamera
-from physverify.extraction.providers.lift_backproject import LEVEL_CAMERA_GRAVITY, BackprojectLift
+from physverify.extraction.providers.lift_backproject import BackprojectLift
 from physverify.physics.geometry import characteristic_lengths
 from physverify.schema.clip import FrameSampling
 from physverify.schema.error_profile import ErrorEntry, ErrorProfile
