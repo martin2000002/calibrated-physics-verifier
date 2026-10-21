@@ -3,7 +3,8 @@ written once by the code before it3 (commit 2a762ad) into
 ``golden/truth_contacts_before_it3.json`` and compared with the current code (it3 T11). The same
 module runs in both trees:
 
-    PYTHONPATH=<old>/src:tests/fixtures:tests/extraction python tests/extraction/truth_contacts_golden_case.py
+    PYTHONPATH=<old>/src:tests/fixtures:tests/extraction \
+        python tests/extraction/truth_contacts_golden_case.py
 """
 
 from __future__ import annotations

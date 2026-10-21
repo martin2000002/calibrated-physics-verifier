@@ -3,7 +3,8 @@ before it3 (commit 2a762ad) into ``golden/contacts_proximity/<case>.json`` and c
 the move of the proximity helpers into ``_proximity.py`` (it3 T1). The same module runs in both
 trees:
 
-    PYTHONPATH=<old>/src:tests/fixtures:tests/extraction python tests/extraction/contacts_golden_case.py
+    PYTHONPATH=<old>/src:tests/fixtures:tests/extraction \
+        python tests/extraction/contacts_golden_case.py
 """
 
 from __future__ import annotations
@@ -13,18 +14,17 @@ from collections.abc import Callable
 from dataclasses import dataclass, replace
 from pathlib import Path
 
+import check_scenarios as sc
+import contact_scenes as cs
 import numpy as np
+from synthetic_clip import build_clip
 
-import contact_scenes as cs  # noqa: E402
-import check_scenarios as sc  # noqa: E402
-from synthetic_clip import build_clip  # noqa: E402
-
-from physverify.config.models import RuntimeSettings  # noqa: E402
-from physverify.extraction.matching import align_ground_truth  # noqa: E402
-from physverify.extraction.providers.contacts_proximity import ProximityContacts  # noqa: E402
-from physverify.schema.contacts import ContactTable  # noqa: E402
-from physverify.schema.stages import Stage  # noqa: E402
-from physverify.schema.states import ObjectStateTable  # noqa: E402
+from physverify.config.models import RuntimeSettings
+from physverify.extraction.matching import align_ground_truth
+from physverify.extraction.providers.contacts_proximity import ProximityContacts
+from physverify.schema.contacts import ContactTable
+from physverify.schema.stages import Stage
+from physverify.schema.states import ObjectStateTable
 
 GOLDEN = Path(__file__).resolve().parent / "golden" / "contacts_proximity"
 
