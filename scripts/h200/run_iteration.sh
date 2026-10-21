@@ -173,10 +173,6 @@ query() {
     env PYTHONPATH="$REPO_ROOT/src" "$PY" "$REPO_ROOT/scripts/h200/a8v2_query.py" "$@"
 }
 
-sha_of() {
-    sha256sum "$1" | cut -d ' ' -f 1
-}
-
 check_doctor() {
     local name
     DOCTOR="$(pv doctor)" || die "physverify doctor failed"

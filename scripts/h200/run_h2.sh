@@ -139,10 +139,6 @@ query() {
     env PYTHONPATH="$REPO_ROOT/src" "$PY" "$REPO_ROOT/scripts/h200/$1" "${@:2}"
 }
 
-sha_of() {
-    sha256sum "$1" | cut -d ' ' -f 1
-}
-
 # a8v2_state KEY: KEY of the A8 v2 state.env, read in a subshell so nothing here is overwritten.
 a8v2_state() {
     (

@@ -4,6 +4,7 @@ run_h2.sh PHYSVERIFY_H2_FREEZE): plan-congelado F7 with Juicio J1, J3-J6, J12 an
 Exit codes: 0 ok, 2 a check failed or an input is unusable (message on stderr).
 
     python freeze_query.py select ITERATION_DIR...       J4 over the iterations' devscore.json
+    python freeze_query.py chosen SELECTION_JSON KEY      one value of the chosen iteration
     python freeze_query.py seed COMMIT CALIBRATION_SHA EXCLUSIONS_SHA
     python freeze_query.py diff j3|j13 FROM               files changed from FROM to HEAD
     python freeze_query.py manifest --selection FILE --record-sha SHA --p2-commit C
@@ -14,6 +15,7 @@ Exit codes: 0 ok, 2 a check failed or an input is unusable (message on stderr).
     python freeze_query.py plan SET SEED                  the render's plan.json is that render's
     python freeze_query.py look-state [--retry] SPEC...   J6: first look, or the one retry
     python freeze_query.py v1-state FREEZE_JSON SPEC...   the v1 arm follows the look, once
+    python freeze_query.py ledger                         the sealed ledger and its line count
 
 The checkout's settings (configs/, the environment, profile precise, device cpu) give the paths,
 so every query sees what the physverify calls of the same script see.
@@ -298,7 +300,7 @@ def field(data: Mapping[str, Any], key: str) -> str:
     value: Any = data
     for part in key.split("."):
         if not isinstance(value, Mapping) or part not in value:
-            raise QueryError(f"no {key} in the freeze manifest")
+            raise QueryError(f"no {key} in the JSON")
         value = value[part]
     if isinstance(value, (dict, list)) or value is None:
         raise QueryError(f"{key} is not a single value")
@@ -410,17 +412,28 @@ def _lines(entries: Sequence[Any]) -> str:
     return "; ".join(f"{e.utc} {e.commit[:12]} {e.command} run {e.run_dir}" for e in entries)
 
 
-def ledger_entries(settings: Any) -> tuple[Any, ...]:
-    """The ledger the guard of every look appends to (fails closed when it is missing)."""
-    from physverify.calibration.sealed import ledger_path, read_entries, sealed_settings
-    from physverify.core.errors import PhysverifyError
+def ledger_file(settings: Any) -> Path:
+    """The ledger the guard of every look appends to."""
+    from physverify.calibration.sealed import ledger_path, sealed_settings
 
     home = Path(os.environ.get("HOME") or Path.home())
+    return ledger_path(sealed_settings(settings), home, settings.repo_root)
+
+
+def ledger_entries(settings: Any) -> tuple[Any, ...]:
+    """Fails closed when the ledger is missing, as the guard does."""
+    from physverify.calibration.sealed import read_entries
+    from physverify.core.errors import PhysverifyError
+
     try:
-        sealed = sealed_settings(settings)
-        return read_entries(ledger_path(sealed, home, settings.repo_root))
+        return read_entries(ledger_file(settings))
     except PhysverifyError as exc:
         raise QueryError(str(exc)) from exc
+
+
+def ledger_line(settings: Any) -> str:
+    entries = ledger_entries(settings)
+    return f"ledger {ledger_file(settings)}: {len(entries)} lines"
 
 
 def _json(path: Path) -> dict[str, Any]:
@@ -450,6 +463,9 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("select").add_argument("dirs", type=Path, nargs="+")
+    chosen = sub.add_parser("chosen")
+    chosen.add_argument("selection", type=Path)
+    chosen.add_argument("key")
     seed = sub.add_parser("seed")
     for name in ("commit", "calibration_sha", "exclusions_sha"):
         seed.add_argument(name)
@@ -476,6 +492,7 @@ def _parser() -> argparse.ArgumentParser:
     arm = sub.add_parser("v1-state")
     arm.add_argument("freeze", type=Path)
     arm.add_argument("specs", nargs="+")
+    sub.add_parser("ledger")
     return parser
 
 
@@ -520,6 +537,7 @@ def _output(args: argparse.Namespace) -> list[str]:
         "select": lambda: [
             json.dumps(select([candidate(d) for d in args.dirs]), indent=2, sort_keys=True)
         ],
+        "chosen": lambda: [field(_chosen(_json(args.selection)), args.key)],
         "seed": lambda: [str(seed_of(args.commit, args.calibration_sha, args.exclusions_sha))],
         "diff": lambda: changed(run_git, args.name, args.start),
         "manifest": lambda: _write_manifest(args),
@@ -531,6 +549,7 @@ def _output(args: argparse.Namespace) -> list[str]:
             look_state(ledger_entries(_settings()), args.specs, retry=args.retry)
         ],
         "v1-state": lambda: [v1_state(ledger_entries(_settings()), _json(args.freeze), args.specs)],
+        "ledger": lambda: [ledger_line(_settings())],
     }
     return commands[args.command]()
 

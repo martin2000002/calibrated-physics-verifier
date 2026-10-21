@@ -86,7 +86,7 @@ def iteration(
 
 
 def test_the_most_n_met_wins_then_auroc_cv_at_full_precision(
-    query: ModuleType, tmp_path: Path
+    query: ModuleType, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """J4."""
     dirs = [
@@ -100,6 +100,11 @@ def test_the_most_n_met_wins_then_auroc_cv_at_full_precision(
     assert found["rule"] == query.J4_RULE
     assert [c["auroc_cv"] for c in found["candidates"]] == [0.99, 0.5861, 0.5862, 0.9]
     assert found["candidates"][2]["commit"] == HEAD
+    selection = tmp_path / "selection.json"
+    selection.write_text(json.dumps(found))
+    for key, value in (("id", "it2-state"), ("dir", str(dirs[2])), ("commit", HEAD)):
+        assert query.main(["chosen", str(selection), key]) == 0
+        assert capsys.readouterr().out == f"{value}\n"
 
 
 def test_a_full_tie_goes_to_the_later_iteration_and_a_null_auroc_ranks_last(
@@ -456,3 +461,4 @@ def test_a_missing_ledger_is_refused(
     assert query.ledger_entries(settings) == ()
     append_entry(ledger, ledger_line(["kubric_fresh"], HEAD, None))
     assert len(query.ledger_entries(settings)) == 1
+    assert query.ledger_line(settings) == f"ledger {ledger}: 1 lines"

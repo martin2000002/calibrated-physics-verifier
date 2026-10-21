@@ -19,6 +19,21 @@ pv() {
         "${PV_EXTRA[@]}" "$@"
 }
 
+sha_of() {
+    sha256sum "$1" | cut -d ' ' -f 1
+}
+
+# record_sha_of LOG: the decision record's sha256 that `exclusions show` printed in LOG (J12: the
+# hash check_scope and the H2 pre-registration carry).
+record_sha_of() {
+    sed -n 's/^record: .* sha256 \([0-9a-f]*\)$/\1/p' "$1"
+}
+
+# fq ARGS: scripts/h200/freeze_query.py of this checkout (the freeze and the final looks).
+fq() {
+    env PYTHONPATH="$REPO_ROOT/src" "$PY" "$REPO_ROOT/scripts/h200/freeze_query.py" "$@"
+}
+
 doctor_value() {
     sed -n "s/^$1: //p" <<<"$DOCTOR" | sed 's/ (.*)$//'
 }
