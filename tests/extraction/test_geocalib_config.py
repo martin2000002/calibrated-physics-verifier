@@ -88,3 +88,15 @@ def test_the_precise_profile_is_the_it2_gate_commit(
     assert camera.provider.name == "geocalib"
     assert (camera.params.focal, camera.params.n_frames) == ("assumed", 8)  # type: ignore[attr-defined]
     assert lift.temporal_filter == "none"  # type: ignore[attr-defined]
+
+
+@pytest.mark.parametrize("dataset", ["kubric_synthetic", "physics_iq", "pisa_real"])
+def test_the_precise_profile_is_the_it3_gate_commit(
+    make_settings: SettingsFactory,
+    real_providers: Mapping[str, type[StageProvider]],
+    dataset: str,
+) -> None:
+    """p0-it3.md: G-depth passes, G-contacts fails on (c): depth vda_large, contacts proximity."""
+    plan = resolve_plan(make_settings(profile="precise"), real_providers, dataset=dataset)
+    assert plan.step(Stage.DEPTH).provider.name == "vda_large"
+    assert plan.step(Stage.CONTACTS).provider.name == "proximity"
