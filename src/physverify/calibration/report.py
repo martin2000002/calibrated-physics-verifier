@@ -6,6 +6,7 @@ import csv
 import io
 from collections.abc import Iterable, Sequence
 
+from physverify.calibration.heldout_h1 import n_met
 from physverify.calibration.schema import (
     CalibrationArtifact,
     CheckCalibration,
@@ -17,6 +18,7 @@ from physverify.calibration.schema import (
     EvaluationStratum,
     H1PrimaryView,
     HeldoutCheck,
+    HeldoutH1Check,
     Monotonicity,
     Rate,
     Stratum,
@@ -195,6 +197,7 @@ def _evaluation_stratum(s: EvaluationStratum) -> list[str]:
             ("check", "tau_b", "h1_pass", "pairs", "scenes"),
             ([m.check_id, *_tau_cells(m.monotonicity)] for m in s.monotonicity),
         )
+    lines += _heldout_h1(s.heldout_h1, "every scene (secondary when a primary view follows)")
     if s.real or s.real_clip_flags:
         lines += ["", "Real video (false-positive control):", ""]
         lines += _table(
@@ -241,7 +244,36 @@ def _h1_primary(
         if whole is not None:
             lines += _side_by_side(primary, whole)
             lines += _pooled_side_by_side(primary.monotonicity, whole.monotonicity)
+        lines += _heldout_h1(primary.heldout_h1, f"the primary scenes ({primary.level.value})")
     return lines
+
+
+def _heldout_h1(checks: Sequence[HeldoutH1Check], scope: str) -> list[str]:
+    """J7: frozen tau and sigma correction, the artifact's bootstrap; met = both lower bounds
+    above 0. Every check is listed, without a multiplicity correction."""
+    if not checks:
+        return []
+    lines = [
+        "",
+        f"Held-out H1 over {scope}: {n_met(checks)} of {len(checks)} checks meet "
+        "tau_b^lo > 0 and J^lo > 0 (no multiplicity correction):",
+        "",
+    ]
+    lines += _table(
+        ("check", "tau_b", "h1_pass", "pairs", "scenes", "J", "positives", "negatives", "met"),
+        (
+            [
+                c.check_id,
+                *_tau_cells(c.monotonicity),
+                f"{number_text(c.j.informedness)} {ci_text(c.j.informedness_ci)}",
+                str(c.j.n_positive),
+                str(c.j.n_negative),
+                str(c.meets_both),
+            ]
+            for c in checks
+        ),
+    )
+    return [*lines, ""]
 
 
 def _tau_cells(m: Monotonicity) -> list[str]:

@@ -15,7 +15,7 @@ from physverify.diagnosis.report import ReportModel
 from physverify.schema.checks import InputLevel
 
 CALIBRATION_SCHEMA = "physverify.calibration"
-CALIBRATION_VERSION = "1.5.0"
+CALIBRATION_VERSION = "1.6.0"
 EVALUATION_SCHEMA = "physverify.calibration.evaluation"
 LENIENT = "lenient"
 """Validation-context flag: drop keys this version does not know (newer minor version)."""
@@ -315,6 +315,20 @@ class CheckMonotonicity(ArtifactModel):
     monotonicity: Monotonicity
 
 
+class HeldoutH1Check(ArtifactModel):
+    """H1 of one check on the held-out rows (plan-congelado J7): the pooled tau_b and the J of
+    the frozen tau and sigma correction, bootstrapped as the artifact was. No refit, no folds."""
+
+    check_id: str
+    split: Literal["heldout"] = "heldout"
+    monotonicity: Monotonicity
+    j: Weight
+    """``value`` is max(0, J^lo), not normalised."""
+    meets_h1: bool
+    meets_j: bool
+    meets_both: bool
+
+
 class RealFpr(ArtifactModel):
     dataset: str
     check_id: str
@@ -331,6 +345,8 @@ class EvaluationStratum(ArtifactModel):
     """Share of real clips whose aggregate score is flagged (check_id ``score``)."""
     monotonicity: tuple[CheckMonotonicity, ...] = ()
     """From 1.4.0; checks with at least one calib (level, delta) pair."""
+    heldout_h1: tuple[HeldoutH1Check, ...] = ()
+    """From 1.6.0; checks with at least one held-out row (none when every row is calib)."""
 
 
 class H1PrimaryView(ArtifactModel):

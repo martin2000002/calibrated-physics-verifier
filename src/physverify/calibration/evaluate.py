@@ -7,6 +7,7 @@ from dataclasses import dataclass
 
 from physverify.calibration.apply import policy_for, rule_for, score_clip
 from physverify.calibration.fit import LevelData
+from physverify.calibration.heldout_h1 import heldout_h1
 from physverify.calibration.loader import Calibration, CalibrationError, Stratum
 from physverify.calibration.monotonicity import deltas, monotonicity, scene_kendall
 from physverify.calibration.scenes import SceneScope, in_scope
@@ -165,6 +166,7 @@ def _stratum(
             for name, data in sorted(real.items())
         ),
         monotonicity=pooled_monotonicity(stratum, rows, check_ids, pooled),
+        heldout_h1=heldout_h1(stratum, rows, check_ids, pooled),
     )
 
 
