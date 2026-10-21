@@ -17,7 +17,7 @@ import pytest
 from physverify.cli.context import PLUGIN_KINDS
 from physverify.config.loader import load_settings
 from physverify.config.models import Settings
-from physverify.core.errors import MissingInputError, UsageError
+from physverify.core.errors import ConfigError, MissingInputError, UsageError
 from physverify.datasets._download import MANIFEST_FILE, intact, read_manifest
 from physverify.datasets.objectron_static import (
     FAILED,
@@ -273,6 +273,41 @@ def test_a_large_failed_or_undecodable_video_gives_way_to_the_next(
     assert mov_name(first) not in bucket.gets
     assert not (dest / mov_name(second)).exists() and not (dest / mov_name(third)).exists()
     assert not (dest / FRAMES_DIR / third.replace("/", "_")).exists()
+
+
+def test_the_configured_split_is_the_one_drawn_and_recorded(
+    make: Callable[..., Settings], decoder: FakeDecoder
+) -> None:
+    """A dry run passes ``split = train`` and never touches the sealed test videos (B1)."""
+    settings = make(env={"PHYSVERIFY__OBJECTRON_STATIC__SPLIT": "train"})
+    train = FakeBucket(
+        {mov_name(v): v.encode().ljust(SMALL, b"-") for c in CLASSES for v in ids_of(c, "train")}
+    )
+    dest = fetch(settings, train, decoder)
+    chosen = read_selection(dest / SELECTION_FILE)
+    assert chosen is not None and chosen.split == "train"
+    assert len(chosen.clips) == PER_CLASS * len(CLASSES)
+    assert all("/batch-2/" in c.video_id for c in chosen.clips)
+    assert all("/batch-2/" in name for name in train.gets)
+    sizing = sizing_settings(settings)
+    refs = {c: [objectron.VideoRef(v) for v in ids_of(c, "train")] for c in CLASSES}
+    a9_train = {r.video_id for c in CLASSES for r in objectron.select(refs[c], c, 2, sizing.seed)}
+    assert a9_train <= set(chosen.excluded)
+    assert not {c.video_id for c in chosen.clips} & set(chosen.excluded)
+    manifest = read_manifest(dest / MANIFEST_FILE)
+    assert manifest is not None and "official train index" in manifest.revision
+    with pytest.raises(UsageError, match="fixed once made"):
+        fetch(make(), train, decoder)
+
+
+def test_the_configured_split_is_test_and_anything_else_is_rejected(
+    make: Callable[..., Settings],
+) -> None:
+    assert make().section("objectron_static", ObjectronStaticSettings).split == "test"
+    with pytest.raises(ConfigError, match="split"):
+        make(env={"PHYSVERIFY__OBJECTRON_STATIC__SPLIT": "validation"}).section(
+            "objectron_static", ObjectronStaticSettings
+        )
 
 
 def test_a_second_fetch_transfers_nothing(

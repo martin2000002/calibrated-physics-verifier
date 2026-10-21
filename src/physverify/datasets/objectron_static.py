@@ -18,7 +18,7 @@ import shutil
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -59,7 +59,7 @@ LOCAL, FULL = "local", "full"
 SUBSETS = (LOCAL, FULL)
 TAKEN, TOO_LARGE, FAILED = "taken", "too_large", "failed"
 BYTES_PER_MB = 1_000_000
-REVISION = "unversioned bucket, md5 per object; official test index"
+REVISION = "unversioned bucket, md5 per object; official {split} index"
 
 log = get_logger("datasets.objectron_static")
 
@@ -71,6 +71,7 @@ class ObjectronStaticSettings(FrozenModel):
     max_video_mb: float = Field(gt=0)
     max_side: int = Field(ge=64)
     retries: int = Field(ge=0)
+    split: Literal["train", "test"]
 
 
 class _Record(BaseModel):
@@ -234,7 +235,7 @@ class ObjectronStaticDataset:
             return
         reader = self._reader or objectron.UrllibPrefixReader()
         excluded = self._excluded(client, reader)
-        index = draws.official_split(self._settings, self._sizing, draws.TEST, reader)
+        index = draws.official_split(self._settings, self._sizing, self._s.split, reader)
         outcomes = [
             outcome
             for label in self._sizing.classes
@@ -266,11 +267,11 @@ class ObjectronStaticDataset:
 
     def _rule(self) -> tuple[Any, ...]:
         s = self._s
-        return (s.seed, draws.TEST, s.per_class, s.max_video_mb, s.seconds)
+        return (s.seed, s.split, s.per_class, s.max_video_mb, s.seconds)
 
     def _excluded(self, client: HttpClient, reader: objectron.PrefixReader) -> frozenset[str]:
-        """The A9 test draw and every end-to-end candidate A9 examined."""
-        tested = draws.selection(self._settings, self._sizing, draws.TEST, reader)
+        """The A9 draw of the split and every end-to-end candidate A9 examined."""
+        tested = draws.selection(self._settings, self._sizing, self._s.split, reader)
         limit = self._sizing.e2e.max_video_mb * BYTES_PER_MB
 
         def fits(ref: objectron.VideoRef) -> bool:
@@ -370,7 +371,7 @@ class ObjectronStaticDataset:
         s = self._s
         chosen = StaticSelection(
             seed=s.seed,
-            split=draws.TEST,
+            split=s.split,
             per_class=s.per_class,
             max_video_mb=s.max_video_mb,
             seconds=s.seconds,
@@ -388,7 +389,7 @@ class ObjectronStaticDataset:
             FetchManifest(
                 dataset=self.name,
                 source=self._sizing.bucket_url,
-                revision=REVISION,
+                revision=REVISION.format(split=self._s.split),
                 license=self._sizing.license,
                 subset=subset,
                 fetched_utc=dt.datetime.now(dt.UTC).isoformat(timespec="seconds"),
