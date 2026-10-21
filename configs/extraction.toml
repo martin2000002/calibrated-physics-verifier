@@ -27,6 +27,14 @@ input_size = 280
 [extraction.profiles.precise.plan]
 detect = "grounding_dino_base"
 track = "sam2_1_hiera_tiny"
+# GeoCalib focal and gravity (it2 change A). Pending the gates of plan-it2 (G-conv, G-ood, G-focal,
+# P0 on calib and v1-precise-hdri-dev): if A is not adopted this line goes back to assumed_fov.
+camera = "geocalib"
+
+# G-focal: "geocalib" (estimated focal with its sigma) or "assumed" (camera/assumed_fov's K and
+# FOV sigma, GeoCalib's gravity only), set by P0 before the run.
+[extraction.profiles.precise.providers.camera.geocalib]
+focal = "geocalib"
 
 [extraction.profiles.precise.sampling]
 max_side = 960
