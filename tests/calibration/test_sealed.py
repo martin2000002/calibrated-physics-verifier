@@ -145,6 +145,15 @@ def test_a_repeat_under_another_freeze_needs_the_repeat_variable() -> None:
     assert check_repeat(earlier, found, "f2", allow=True) is True
 
 
+def test_an_allowed_look_at_a_covered_set_is_a_repeat_under_the_same_freeze() -> None:
+    """plan-congelado J6: run_final.sh's retry sets the repeat variable and is marked a repeat."""
+    earlier = [entry("f1"), entry("f9", sets=("kubric_fresh",))]
+    found = ("kubric_synthetic:eval",)
+    assert check_repeat(earlier, found, "f1", allow=True) is True
+    assert check_repeat(earlier, ("kubric_fresh_ood",), "f1", allow=True) is False
+    assert check_repeat([], found, "f1", allow=True) is False
+
+
 def test_the_freeze_moves_with_each_part() -> None:
     base = freeze_of("c", "h", {"thresholds": "t", "error_profile": None})
     assert base == freeze_of("c", "h", {"thresholds": "t", "error_profile": None})

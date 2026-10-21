@@ -173,14 +173,15 @@ def other_freezes(entries: Sequence[LedgerEntry], found: Collection[str], freeze
 def check_repeat(
     entries: Sequence[LedgerEntry], found: Collection[str], freeze: str, allow: bool
 ) -> bool:
-    """Whether this look repeats a set under another frozen state (only with ``allow``)."""
+    """Whether the line is a repeat: a look under another frozen state (only with ``allow``), or
+    any look with ``allow`` at a set some line already covers (run_final.sh's declared retry)."""
     repeated = other_freezes(entries, found, freeze)
     if repeated and not allow:
         raise SealedSetError(
             f"sealed sets {repeated} were already looked at under another frozen state "
             f"(commit, config or artifacts changed): set {REPEAT_ENV}=1 to record a repeat look"
         )
-    return bool(repeated)
+    return bool(repeated) or (allow and bool(earlier(entries, found)))
 
 
 def earlier(entries: Sequence[LedgerEntry], found: Collection[str]) -> list[LedgerEntry]:
