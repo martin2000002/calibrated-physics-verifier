@@ -96,10 +96,15 @@ def bounce_on_floor(e: float = 0.8, pitch_deg: float = 25.0, **ball: Any) -> sc.
 
 
 def collision_over_floor(
-    mass_ratio: float = 1.0, gain: float = 0.0, pitch_deg: float = 25.0
+    mass_ratio: float = 1.0,
+    gain: float = 0.0,
+    pitch_deg: float = 25.0,
+    impact_frame: float = sc.EVENT_FRAME,
 ) -> sc.Case:
     """``check_scenarios.collision`` (balls in the air, no gravity on them) beside a floor box."""
-    case = sc.collision(mass_ratio=mass_ratio, gain=gain, pitch_deg=pitch_deg)
+    case = sc.collision(
+        mass_ratio=mass_ratio, gain=gain, impact_frame=impact_frame, pitch_deg=pitch_deg
+    )
     box = floor_box(x=1.5)
     extra = sc.build("box_only", [box], [], pitch_deg).states
     return replace(case, states=joined(case.states, extra))
@@ -181,15 +186,19 @@ def kinematic_table(
     case: sc.Case,
     states: ObjectStateTable | None = None,
     camera: CameraModel | None = None,
+    seconds_per_frame: float | None = None,
     **params: Any,
 ) -> ContactTable:
     """``contacts/kinematic`` on the case's states (or ``states``) with the test camera."""
+    sampling = resolve_sampling(case.clip, SamplingSpec())
+    if seconds_per_frame is not None:
+        sampling = replace(sampling, seconds_per_frame=seconds_per_frame)
     ctx = StubContext(
         upstream={
             Stage.KINEMATICS: case.states if states is None else states,
             Stage.CAMERA: scene_camera(case) if camera is None else camera,
         },
-        sampling=resolve_sampling(case.clip, SamplingSpec()),
+        sampling=sampling,
     )
     provider = KinematicContacts(KinematicContacts.Params(**params))
     table = provider.run(ctx)  # type: ignore[arg-type]
