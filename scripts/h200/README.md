@@ -363,7 +363,17 @@ different sets may run at the same time (each holds its own locks; the heavy loc
 `$F/heavy.lock`). The v1 arm runs at `C_V1` through `overlay_cli.py` with the freeze's configs and
 the base `checks.toml`, the base calibration and `PHYSVERIFY_UNSEAL_REPEAT=1`, and must leave no
 `meta.json` in its overlay. `PHYSVERIFY_FINAL_DRYRUN=1` is the rehearsal: `$F`, the data, the
-cache and its own ledger (`PHYSVERIFY__SEALED__LEDGER`) under `$PHYSVERIFY_H200_ROOT/scratch`.
+cache and its own ledger (`PHYSVERIFY__SEALED__LEDGER`) under `$PHYSVERIFY_H200_ROOT/scratch`,
+a seed other than the freeze's, never `kubric_synthetic_eval`, and, for the new real control,
+`PHYSVERIFY__PHYSICS_IQ_VIEWS__VIEWS='["center"]'` and `PHYSVERIFY__OBJECTRON_STATIC__SPLIT=train`.
+A run with `PHYSVERIFY_FINAL_EXTRACT_LIMIT` (the pace measurement) is recorded as
+`extract-limited`: a look still needs a full `extract`.
+
+Look order (plan-congelado, "Recortes"; the script enforces only that a v1 arm follows its look
+and that no render follows a look, so this order is kept by hand): (1) `look
+kubric_synthetic_eval` (the set already seen), (2) `look kubric_fresh`, (3) `run_h2.sh dev`, then
+`test`, (4) `look real_new`; afterwards, with the same freeze and seed, the `kubric_fresh_ood`
+render and look, `look kubric_fresh_blind` and the v1 arms.
 
 H2 then runs from the freeze manifest instead of the A8 v2 run:
 `PHYSVERIFY_H2_FREEZE=$F/freeze.json PHYSVERIFY_H2_CALIBRATION_DIR=$F/calibration bash
