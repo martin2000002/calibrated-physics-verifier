@@ -29,7 +29,6 @@ class VideoDepthAnythingLarge(VideoDepthAnythingSmall):
     version: ClassVar[str] = "1"
     weights: ClassVar[tuple[WeightSpec, ...]] = (CODE, LARGE_CHECKPOINT)
     encoder: ClassVar[Encoder] = LARGE_ENCODER
-    checkpoint: ClassVar[WeightSpec] = LARGE_CHECKPOINT
 
 
 PLUGINS = (VideoDepthAnythingLarge,)

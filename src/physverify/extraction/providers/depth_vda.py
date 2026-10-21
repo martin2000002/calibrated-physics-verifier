@@ -86,16 +86,21 @@ class VideoDepthAnythingSmall:
     weights: ClassVar[tuple[WeightSpec, ...]] = (CODE, CHECKPOINT)
     Params: ClassVar[type[BaseModel]] = Params
     encoder: ClassVar[Encoder] = SMALL_ENCODER
-    checkpoint: ClassVar[WeightSpec] = CHECKPOINT
 
     def __init__(self, params: BaseModel) -> None:
         self.params = expect_params(params, Params)
         self._model: LazyModel[Any] = LazyModel(self.loader())
 
+    @classmethod
+    def checkpoint(cls) -> WeightSpec:
+        """The model checkpoint: the entry of ``weights`` after the code (one place, audit L3)."""
+        (checkpoint,) = (w for w in cls.weights if w != CODE)
+        return checkpoint
+
     def loader(self) -> Callable[[StageContext], Any]:
         return functools.partial(
             load_model,
-            checkpoint=self.checkpoint,
+            checkpoint=self.checkpoint(),
             provider=f"{self.stage.value}/{self.name}",
             encoder=self.encoder,
         )

@@ -45,6 +45,8 @@ def test_the_large_model_requests_its_encoder_and_checkpoint(
     ]
     assert isinstance(out, DepthMap) and out.kind is DepthKind.AFFINE_DISPARITY
     assert VideoDepthAnythingLarge.weights == (CODE, LARGE_CHECKPOINT)
+    assert VideoDepthAnythingLarge.checkpoint() == LARGE_CHECKPOINT
+    assert VideoDepthAnythingSmall.checkpoint() == CHECKPOINT
     assert (VideoDepthAnythingLarge.version, VideoDepthAnythingLarge.heavy) == ("1", True)
 
 
