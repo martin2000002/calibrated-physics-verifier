@@ -436,12 +436,34 @@ def test_a_malformed_swap_and_a_doctor_without_the_swaps_stop(sandbox: Sandbox) 
     assert bad.returncode == 2 and "extraction.plan.<stage>=<provider>" in bad.stderr
     assert sandbox.pv() == []
     table.write_text("it3-ok\textraction.plan.contacts=kinematic\n", encoding="utf-8")
-    dropped = sandbox.run(PHYSVERIFY_ITER_ARM="it3-ok", DOCTOR_DROP_SETS="1")
+    dropped = sandbox.run(
+        PHYSVERIFY_ITER_ID="it3-ok", PHYSVERIFY_ITER_ARM="it3-ok", DOCTOR_DROP_SETS="1"
+    )
     assert dropped.returncode == 2 and "does not list the arm's override" in dropped.stderr
     assert sandbox.commands() == ["doctor"]
 
 
 def test_resume_with_another_arm_is_refused(sandbox: Sandbox) -> None:
-    assert sandbox.run("1", "1", PHYSVERIFY_ITER_ARM="it3-r").returncode == 0
-    result = sandbox.run("2", PHYSVERIFY_ITER_ARM="it3-ak")
+    out = sandbox.root / "iterations" / "it3-arms-cpu"
+    first = sandbox.run(
+        "1",
+        "1",
+        PHYSVERIFY_ITER_ID="it3-r-it3-ak",
+        PHYSVERIFY_ITER_ARM="it3-r",
+        PHYSVERIFY_ITER_DIR=str(out),
+    )
+    assert first.returncode == 0, first.stderr
+    result = sandbox.run(
+        "2",
+        PHYSVERIFY_ITER_ID="it3-r-it3-ak",
+        PHYSVERIFY_ITER_ARM="it3-ak",
+        PHYSVERIFY_ITER_DIR=str(out),
+    )
     assert result.returncode == 2 and "belongs to CHAIN_ARM=it3-r" in result.stderr
+
+
+def test_an_arm_needs_an_iteration_id_that_names_it(sandbox: Sandbox) -> None:
+    """Audit L5: the output directory follows PHYSVERIFY_ITER_ID, so it must name the arm."""
+    result = sandbox.run(PHYSVERIFY_ITER_ID="it3-x", PHYSVERIFY_ITER_ARM="it3-c")
+    assert result.returncode == 2 and "must contain the arm name" in result.stderr
+    assert sandbox.pv() == []

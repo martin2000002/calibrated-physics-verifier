@@ -35,7 +35,9 @@
 #                                   dataset version the calib clips are listed from
 #   PHYSVERIFY_ITER_ARM             a declared arm of scripts/h200/iteration_arms.tsv [none]:
 #                                   its provider swaps (extraction.plan.<stage>=<provider>) go as
-#                                   --set to every physverify call; doctor must list each one
+#                                   --set to every physverify call; doctor must list each one;
+#                                   PHYSVERIFY_ITER_ID must contain the arm name. The heavy lock is
+#                                   per output directory: run arms one at a time (it3_arms.sh)
 #   PHYSVERIFY_ITER_DEVICE          cpu or cuda [cpu]; cuda needs CUDA_VISIBLE_DEVICES in 0-3
 #                                   (launch through gpu_queue.sh)
 #   PHYSVERIFY_ITER_PYTHON          interpreter [/home/mmonterot/dev/venv/bin/python]
@@ -122,6 +124,8 @@ ARM="${PHYSVERIFY_ITER_ARM:-}"
 SWAPS=()
 if [[ -n "$ARM" ]]; then
     SWAP_LINES="$(arm_swaps "$ARM")" || exit 2
+    [[ "$ITER_ID" == *"$ARM"* ]] \
+        || die "PHYSVERIFY_ITER_ID '$ITER_ID' must contain the arm name '$ARM' (one directory per arm)"
     mapfile -t SWAPS <<<"$SWAP_LINES"
     for swap in "${SWAPS[@]}"; do
         PV_EXTRA+=(--set "$swap")
