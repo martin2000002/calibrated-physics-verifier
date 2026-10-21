@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 import math
 
 import numpy as np
@@ -207,3 +208,16 @@ def test_cross_fitting_skips_a_fold_whose_training_lacks_informative_pairs() -> 
     assert z.shape[0] < len(found)
     assert z.shape[0] <= len(found) - len(held_with_s0)
     assert not bool(z[:, 1].any())
+
+
+def test_the_pair_filter_has_no_silent_default() -> None:
+    """Audit m2: neither the settings nor ``bias_factor`` pick an estimator on their own."""
+    from physverify.calibration.settings import CalibrationSettings
+
+    with pytest.raises(ValueError, match="sigma_pair_filter"):
+        CalibrationSettings.model_validate({})
+    assert "pair_filter" not in {
+        name
+        for name, p in inspect.signature(bias_factor).parameters.items()
+        if p.default is not p.empty
+    }

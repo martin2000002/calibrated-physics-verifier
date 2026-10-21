@@ -103,7 +103,7 @@ def factor_pairs(pairs: Sequence[SigmaPair], pair_filter: PairFilter) -> tuple[S
     return informative(pairs) if pair_filter == "nonzero" else tuple(pairs)
 
 
-def bias_factor(pairs: Sequence[SigmaPair], pair_filter: PairFilter = "all") -> tuple[float, float]:
+def bias_factor(pairs: Sequence[SigmaPair], pair_filter: PairFilter) -> tuple[float, float]:
     """b = median(m_P - m_O) over every pair, k = median(|z|) / 0.6745 with
     z = (Delta - b) / sigma_P over the ``pair_filter`` pairs; k is NaN with fewer than two."""
     bias = float(np.median([p.delta for p in pairs]))

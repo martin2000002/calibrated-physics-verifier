@@ -248,8 +248,9 @@ class SettingsSnapshot(ArtifactModel):
     ci: float
     min_sigma_pairs: int
     platt_l2: float
-    sigma_pair_filter: str = "all"
-    """D9 factor pairs (``CalibrationSettings.sigma_pair_filter``); "all" before 1.5.0."""
+    sigma_pair_filter: str | None = None
+    """D9 factor pairs (``CalibrationSettings.sigma_pair_filter``); None in an artifact older
+    than 1.5.0, which did not record it (those fits used every pair)."""
 
 
 class StageFactor(ArtifactModel):
