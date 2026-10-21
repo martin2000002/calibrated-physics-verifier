@@ -9,7 +9,8 @@ from dataclasses import replace
 
 import contact_scenes as cs
 import pytest
-from contacts_golden_case import CASES, GOLDEN, proximity_table
+from contacts_golden_case import CASES, GOLDEN, plain, proximity_table
+from golden import same
 
 from physverify.extraction.providers.contacts_kinematic import KinematicContacts
 from physverify.extraction.providers.contacts_proximity import ProximityContacts
@@ -19,7 +20,7 @@ from physverify.schema.contacts import ContactTable
 @pytest.mark.parametrize("case", sorted(CASES))
 def test_t1_proximity_tables_equal_the_golden(case: str) -> None:
     golden = ContactTable.load_json(GOLDEN / f"{case}.json")
-    assert proximity_table(CASES[case]()) == golden
+    assert same(plain(proximity_table(CASES[case]())), plain(golden))
 
 
 def test_t1_the_proximity_provider_keeps_version_one() -> None:
@@ -35,4 +36,4 @@ def test_t1_kinematic_without_impacts_and_with_the_count_split_is_proximity(case
     states = CASES[case]()
     unused = cs.scene_camera(cs.sc.stack())
     records = provider.records(states, unused, cs.sc.DT)
-    assert replace(golden, records=records) == golden
+    assert same(plain(replace(golden, records=records)), plain(golden))

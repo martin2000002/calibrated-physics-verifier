@@ -23,7 +23,6 @@ if CHECKS not in sys.path:
 import check_scenarios as sc  # noqa: E402
 
 from physverify.extraction.providers._common import centred_intrinsics  # noqa: E402
-from physverify.extraction.providers.contacts_kinematic import KinematicContacts  # noqa: E402
 from physverify.schema.clip import FrameSampling, SamplingSpec, resolve_sampling  # noqa: E402
 from physverify.schema.constants import STANDARD_GRAVITY  # noqa: E402
 from physverify.schema.contacts import ContactTable  # noqa: E402
@@ -189,7 +188,10 @@ def kinematic_table(
     seconds_per_frame: float | None = None,
     **params: Any,
 ) -> ContactTable:
-    """``contacts/kinematic`` on the case's states (or ``states``) with the test camera."""
+    """``contacts/kinematic`` on the case's states (or ``states``) with the test camera. Imported
+    here so that the golden modules can import this file with the code before it3 (audit L2)."""
+    from physverify.extraction.providers.contacts_kinematic import KinematicContacts
+
     sampling = resolve_sampling(case.clip, SamplingSpec())
     if seconds_per_frame is not None:
         sampling = replace(sampling, seconds_per_frame=seconds_per_frame)

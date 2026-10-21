@@ -2,7 +2,8 @@
 
 The fixture's oracle results equal the golden of it2 (``oracle_before_it2.json``, byte-identical
 to what 2a762ad writes), and its V8 contacts (every stage ground truth) equal those written by
-2a762ad, also when the plan asks for ``contacts/kinematic``.
+2a762ad, also when the plan asks for ``contacts/kinematic``. Both compare with ``golden.same``
+(relative 1e-9): the goldens were written on another CPU (audit M1, L1).
 """
 
 from __future__ import annotations
@@ -12,6 +13,8 @@ import sys
 from collections.abc import Mapping
 from pathlib import Path
 
+from contacts_golden_case import plain
+from golden import same
 from support import SettingsFactory
 from truth_contacts_golden_case import GOLDEN, truth_contacts
 
@@ -31,11 +34,11 @@ def test_t11_the_oracle_results_do_not_move() -> None:
     golden = json.loads(oracle_golden_case.GOLDEN.read_text(encoding="utf-8"))
     current = json.loads(json.dumps(oracle_golden_case.oracle_results(), sort_keys=True))
     assert len(golden) == len(current) > 0
-    assert current == golden
+    assert same(current, golden)
 
 
 def test_t11_the_v8_contacts_do_not_move() -> None:
-    assert truth_contacts() == ContactTable.load_json(GOLDEN)
+    assert same(plain(truth_contacts()), plain(ContactTable.load_json(GOLDEN)))
 
 
 def test_t11_v8_uses_ground_truth_contacts_whatever_the_plan(

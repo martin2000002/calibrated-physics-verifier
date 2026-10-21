@@ -9,10 +9,12 @@ trees:
 
 from __future__ import annotations
 
+import json
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 from pathlib import Path
+from typing import Any
 
 import contact_scenes as cs
 import numpy as np
@@ -22,6 +24,7 @@ from physverify.config.models import RuntimeSettings
 from physverify.extraction.matching import align_ground_truth
 from physverify.extraction.providers.contacts_proximity import ProximityContacts
 from physverify.schema.contacts import ContactTable
+from physverify.schema.io import json_ready
 from physverify.schema.stages import Stage
 from physverify.schema.states import ObjectStateTable
 
@@ -68,6 +71,12 @@ CASES: dict[str, Callable[[], ObjectStateTable]] = {
     "rolling_ball": lambda: sc.rolling_ball(pitch_deg=25.0, speed=0.01).states,
     "teleport": lambda: sc.teleport().states,
 }
+
+
+def plain(table: ContactTable) -> Any:
+    """The table as plain JSON values (arrays as lists, NaN as None) for ``golden.same``: a
+    golden written on another CPU matches to a relative 1e-9 (L1 of the it3 audit)."""
+    return json.loads(json.dumps(json_ready(table.to_dict())))
 
 
 def proximity_table(states: ObjectStateTable) -> ContactTable:
