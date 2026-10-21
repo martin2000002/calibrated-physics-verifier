@@ -178,6 +178,86 @@ def test_noisy_hovering_is_not_a_fall(check: type, params: type) -> None:
     assert run(check(unfiltered), case) != []
 
 
+def drifting_ball(amplitude: float, sigma: float = 0.01) -> sc.Case:
+    """``hovering_ball`` plus a slow quadratic drift along x of ``amplitude`` over the clip."""
+    case = hovering_ball(sigma)
+    t = case.states.t
+    drift = amplitude * ((t - t[0]) / (t[-1] - t[0])) ** 2
+    position = case.states.position.copy()
+    position[:, 0, 0] += drift
+    return replace(case, states=replace(case.states, position=position))
+
+
+def declared_far_too_large(length_sigmas: float = 6.0, noise_lengths: float = 0.01) -> sc.Case:
+    """A real fall whose declared position sigma is ``length_sigmas`` body lengths while its
+    actual white noise is ``noise_lengths`` body lengths (the it1 defect, diagnosis section 2)."""
+    case = sc.parabola()
+    length = 2 * sc.BALL_RADIUS
+    noise = np.random.default_rng(3).normal(0.0, noise_lengths * length, case.states.position.shape)
+    states = replace(
+        case.states,
+        position=case.states.position + noise,
+        position_sigma=np.full(case.states.position.shape, length_sigmas * length),
+    )
+    return replace(case, states=states)
+
+
+CHECKS = [(FallShapeCheck, FallShapeParams), (GravityValueCheck, GravityValueParams)]
+
+
+@pytest.mark.parametrize(("check", "params"), CHECKS)
+def test_t8_a_fall_hidden_by_a_declared_absolute_sigma_is_found_on_the_track(
+    check: type, params: type
+) -> None:
+    case = declared_far_too_large()
+    assert run(check(params(travel_noise="declared")), case) == []
+    assert run(check(params(travel_noise="track")), case) != []
+
+
+@pytest.mark.parametrize(("check", "params"), CHECKS)
+def test_t9b_slow_drift_below_half_a_length_is_not_a_fall(check: type, params: type) -> None:
+    """D3 does not see a drift that is quadratic over the stencil: only the length floor stops it
+    (J4 iii), as the run without that floor shows."""
+    case = drifting_ball(0.45 * 2 * sc.BALL_RADIUS, sigma=0.002)
+    assert run(check(params(travel_noise="track")), case) == []
+    no_length = params(travel_noise="track", min_travel_lengths=0.0)
+    assert run(check(no_length), case) != []
+
+
+@pytest.mark.parametrize(("check", "params"), CHECKS)
+@pytest.mark.parametrize("case", [sc.parabola(), sc.bounce(), sc.parabola(g_after=1.3 * G)])
+def test_t10_exact_positions_keep_the_length_floor(
+    check: type, params: type, case: sc.Case
+) -> None:
+    assert bool(np.all(case.states.position_sigma == 0.0))
+    track = run(check(params(travel_noise="track")), case)
+    declared = run(check(params(travel_noise="declared")), case)
+    assert track
+    assert track == declared
+
+
+@pytest.mark.parametrize(("check", "params"), CHECKS)
+def test_without_a_known_sigma_the_track_noise_comes_before_the_length_floor(
+    check: type, params: type
+) -> None:
+    """J4 (i), audit m1: no finite sigma, enough stencils -> the track noise sets the floor."""
+    case = hovering_ball()
+    unknown = replace(
+        case,
+        states=replace(case.states, position_sigma=np.full(case.states.position.shape, math.nan)),
+    )
+    assert run(check(params(min_travel_lengths=0.0, travel_noise="track")), unknown) == []
+    assert run(check(params(min_travel_lengths=0.0, travel_noise="declared")), unknown) != []
+
+
+@pytest.mark.parametrize(("check", "params"), CHECKS)
+def test_t11_too_few_stencils_fall_back_to_the_declared_sigma(check: type, params: type) -> None:
+    case = declared_far_too_large()
+    rows = case.states.n_frames - 3
+    assert run(check(params(travel_noise="track", min_noise_stencils=rows + 1)), case) == []
+    assert run(check(params(travel_noise="track", min_noise_stencils=rows)), case) != []
+
+
 def test_shape_sigma_follows_position_noise() -> None:
     case = sc.with_sigma(sc.parabola(g_after=1.3 * G, change_frame=18), position=0.002)
     result = shape(case)

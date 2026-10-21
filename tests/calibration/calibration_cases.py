@@ -46,7 +46,9 @@ CLEAN_NOISE = {"R1": 0.01, "R3a": 0.02}
 
 
 def settings(**update: object) -> CalibrationSettings:
-    return CalibrationSettings.model_validate({"bootstrap": 200, **update})
+    return CalibrationSettings.model_validate(
+        {"bootstrap": 200, "sigma_pair_filter": "nonzero", **update}
+    )
 
 
 def config(**update: object) -> CalibrationConfig:

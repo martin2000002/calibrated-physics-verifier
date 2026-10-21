@@ -15,7 +15,7 @@ from typing import Any, Literal
 import numpy as np
 from numpy.typing import NDArray
 
-from physverify.physics.finite_diff import second_difference
+from physverify.physics.finite_diff import second_difference, third_difference
 from physverify.physics.geometry import (
     Plane,
     Pose,
@@ -28,6 +28,7 @@ from physverify.physics.geometry import (
 )
 from physverify.physics.kinematics import UNIFORM_STEP_RTOL, visible_runs
 from physverify.physics.measures.r5_gravity import FallFit, fall_fit
+from physverify.physics.uncertainty import robust_scale
 from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactKind, ContactRecord, ContactTable
 from physverify.schema.states import ObjectStateTable, PrimitiveKind
@@ -36,6 +37,9 @@ FloatArray = NDArray[np.float64]
 IntArray = NDArray[np.int64]
 BoolArray = NDArray[np.bool_]
 MIN_FIT_ROWS = 3  # fall_fit needs three rows with a known position
+# Occlusion share from which an unseen object counts as hidden: the checks that read occlusion
+# and the perceived gap estimate of LIFT (extraction/providers/_visibility.py) use the same value.
+OCCLUDED_AT = 0.9
 
 
 @dataclass(frozen=True, eq=False)
@@ -178,6 +182,38 @@ def impact_stencil_mask(object_id: str, contacts: ContactTable, frame_index: Int
             q = step - 1
             excluded |= (before <= record.t_end + q) & (after >= record.t_start - q)
     return excluded
+
+
+def noise_stencils(
+    states: ObjectStateTable, contacts: ContactTable, index: int
+) -> tuple[FloatArray, BoolArray]:
+    """Third differences D3[j] of the object's positions (stencil rows j..j+3) and the stencils
+    usable as noise: finite and not spanning an impact. D3[j] is row k = j + 1 of
+    ``impact_stencil_mask``, whose stencil is rows k-1..k+2."""
+    d3 = third_difference(states.position[:, index])
+    if not d3.shape[0]:
+        return d3, np.zeros(0, dtype=np.bool_)
+    object_id = str(states.object_ids[index])
+    impacts = impact_stencil_mask(object_id, contacts, states.frame_index)[1:-2]
+    usable = np.all(np.isfinite(d3), axis=-1) & ~impacts
+    return d3, np.asarray(usable, dtype=np.bool_)
+
+
+def track_noise(
+    states: ObjectStateTable, contacts: ContactTable, index: int, min_stencils: int
+) -> FloatArray | None:
+    """Per-axis white-noise sigma of the positions, robust_scale(D3) / sqrt(20); None with fewer
+    than ``min_stencils`` usable stencils.
+
+    Var(D3) = (1 + 9 + 9 + 1) sigma^2 for independent noise, and D3 vanishes under any constant
+    acceleration, so the estimate does not depend on g. A drift slow enough to be quadratic over
+    the stencil is invisible to it."""
+    d3, usable = noise_stencils(states, contacts, index)
+    if int(usable.sum()) < min_stencils:
+        return None
+    return np.array([robust_scale(d3[usable, axis]) for axis in range(d3.shape[1])]) / math.sqrt(
+        20.0
+    )
 
 
 def segments(mask: BoolArray, min_len: int) -> list[tuple[int, int]]:

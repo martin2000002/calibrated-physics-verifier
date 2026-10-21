@@ -14,6 +14,7 @@ from physverify.physics.tracks import (
     flight_mask,
     impact_stencil_mask,
     native_span,
+    noise_stencils,
     place_body,
     poly_fit,
     rest_mask,
@@ -21,6 +22,7 @@ from physverify.physics.tracks import (
     segments,
     split_at_jumps,
     support_plane,
+    track_noise,
 )
 from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactKind, ContactRecord, ContactTable, ManifoldKind
@@ -386,3 +388,39 @@ def test_integrity_scenes() -> None:
     jump = sc.teleport(delta=0.3, frame=16)
     step = np.linalg.norm(np.diff(jump.states.position[:, 0], axis=0), axis=-1)
     assert int(np.argmax(step)) == 15
+
+
+# --- track noise (it1 change B: T7 and the D3 / impact alignment of J4) -----------------------
+
+
+def noisy(case: sc.Case, sigma: float, seed: int = 0) -> sc.Case:
+    noise = np.random.default_rng(seed).normal(0.0, sigma, case.states.position.shape)
+    return replace(case, states=replace(case.states, position=case.states.position + noise))
+
+
+def test_t7_track_noise_recovers_white_noise_whatever_the_gravity() -> None:
+    sigma = 0.01
+    full = noisy(sc.parabola(frames=60), sigma)
+    weak = noisy(sc.parabola(g=0.25 * sc.STANDARD_GRAVITY, frames=60), sigma)
+    found = track_noise(full.states, full.contacts, 0, 8)
+    other = track_noise(weak.states, weak.contacts, 0, 8)
+    assert found is not None and other is not None
+    assert float(np.linalg.norm(found)) == pytest.approx(math.sqrt(3.0) * sigma, rel=0.25)
+    np.testing.assert_allclose(other, found, rtol=1e-9)
+
+
+def test_track_noise_needs_enough_stencils() -> None:
+    case = noisy(sc.parabola(frames=10), 0.01)
+    assert track_noise(case.states, case.contacts, 0, 7) is not None
+    assert track_noise(case.states, case.contacts, 0, 8) is None
+
+
+def test_noise_stencils_align_the_third_difference_with_the_impact_rows() -> None:
+    """D3[j] spans rows j..j+3, row j + 1 of impact_stencil_mask: with the impact between two
+    rows (off the middle, where one stencil cancels), the stencils left out are exactly those
+    the kink makes nonzero."""
+    case = sc.bounce(impact_frame=15.3)
+    d3, usable = noise_stencils(case.states, case.contacts, 0)
+    kinked = np.linalg.norm(d3, axis=1) > 1e-9
+    assert int(kinked.sum()) == 3
+    np.testing.assert_array_equal(~usable, kinked)

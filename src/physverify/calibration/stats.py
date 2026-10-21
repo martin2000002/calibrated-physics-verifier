@@ -14,10 +14,9 @@ from scipy.stats import binomtest, chi2, mannwhitneyu
 
 from physverify.calibration.schema import Ci, Rate
 from physverify.diagnosis.factorial import bootstrap
+from physverify.physics.uncertainty import robust_scale
 
 FloatArray = NDArray[np.float64]
-MAD_TO_SIGMA = 0.6745
-"""median(|z|) of a standard normal: median(|z|) / 0.6745 is a robust scale."""
 NEWTON_STEPS = 100
 NEWTON_TOL = 1e-10
 
@@ -287,10 +286,7 @@ def balanced_weights(y: ArrayLike) -> FloatArray:
 
 def mad(values: ArrayLike) -> float:
     """Median absolute deviation scaled to sigma; 1 when it is 0 or undefined."""
-    finite = _finite(values)
-    if not finite.size:
-        return 1.0
-    spread = float(np.median(np.abs(finite - np.median(finite)))) / MAD_TO_SIGMA
+    spread = robust_scale(values)
     return spread if spread > 0.0 else 1.0
 
 

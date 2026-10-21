@@ -129,6 +129,7 @@ def settings_snapshot(config: CalibrationConfig) -> SettingsSnapshot:
         ci=settings.ci,
         min_sigma_pairs=settings.min_sigma_pairs,
         platt_l2=settings.platt_l2,
+        sigma_pair_filter=settings.sigma_pair_filter,
     )
 
 

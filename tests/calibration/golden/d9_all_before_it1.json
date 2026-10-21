@@ -1,0 +1,1952 @@
+{
+ "devscore": {
+  "checks_hash": "checks",
+  "commit": "abc",
+  "config_hash": "cfg",
+  "created_utc": "2026-10-17T00:00:00Z",
+  "dataset": {
+   "clip_ids_hash": "hash",
+   "n_clips": 0,
+   "n_scenes": 0,
+   "name": "calib_fixture",
+   "split": "calib",
+   "subset": "test",
+   "version": "v1"
+  },
+  "error_profile_hash": "profile",
+  "folds": [
+   {
+    "index": 0,
+    "n_scenes": 6,
+    "scenes_hash": "5079c93b8d36aece5e0082eff0ae6da3bd9c46e8364d8676c741cfe7d19f0513"
+   },
+   {
+    "index": 1,
+    "n_scenes": 6,
+    "scenes_hash": "2a6e43a22142be531a59063f9a061ee7ef073df7bdeb8254b274b5e70a9540e5"
+   },
+   {
+    "index": 2,
+    "n_scenes": 6,
+    "scenes_hash": "4c07248f0491094a3fc1f4a35e5ebc0846fed4901ce69102ac1f32c9df84bb6f"
+   }
+  ],
+  "levels": [
+   {
+    "auroc_cv": {
+     "ci": {
+      "high": 0.768505658436214,
+      "low": 0.6837448559670782,
+      "non_finite": 0
+     },
+     "in_sample": false,
+     "n_negative": 18,
+     "n_positive": 108,
+     "value": 0.727880658436214
+    },
+    "checks": {
+     "R1": {
+      "h1": {
+       "ci": {
+        "high": 0.9074028453565255,
+        "low": 0.9015368454955105,
+        "non_finite": 0
+       },
+       "h1_pass": true,
+       "kendall_tau_b": 0.8994380267950339,
+       "median_delta_by_level": {
+        "0": 0.0,
+        "1": 0.043380005386511614,
+        "2": 0.091375388278609,
+        "3": 0.1916554125495814
+       },
+       "monotone_medians": true,
+       "n_pairs": 72,
+       "n_scenes": 18
+      },
+      "j_cv": {
+       "informedness": 0.9444444444444444,
+       "informedness_ci": {
+        "high": 1.0,
+        "low": 0.7777777777777778,
+        "non_finite": 0
+       },
+       "n_negative": 18,
+       "n_positive": 54,
+       "value": 0.7777777777777778
+      },
+      "j_in_sample": {
+       "informedness": 0.9444444444444444,
+       "informedness_ci": {
+        "high": 1.0,
+        "low": 0.7777777777777778,
+        "non_finite": 0
+       },
+       "n_negative": 18,
+       "n_positive": 54,
+       "value": 0.7777777777777778
+      },
+      "meets_both": true,
+      "meets_h1": true,
+      "meets_j": true,
+      "tau": 0.031063368012832916,
+      "tau_by_fold": [
+       0.031063368012832916,
+       0.020166606902332452,
+       0.031063368012832916
+      ]
+     },
+     "R3a": {
+      "h1": {
+       "ci": {
+        "high": 0.25981915861523514,
+        "low": -0.048296603034710686,
+        "non_finite": 0
+       },
+       "h1_pass": false,
+       "kendall_tau_b": 0.10548964511793607,
+       "median_delta_by_level": {
+        "0": 0.0,
+        "1": -0.0018707240119355253,
+        "2": 0.0073581275846908364,
+        "3": 0.0038346658581862748
+       },
+       "monotone_medians": false,
+       "n_pairs": 72,
+       "n_scenes": 18
+      },
+      "j_cv": {
+       "informedness": -0.07407407407407407,
+       "informedness_ci": {
+        "high": 0.005092592592592566,
+        "low": -0.24583333333333335,
+        "non_finite": 0
+       },
+       "n_negative": 18,
+       "n_positive": 54,
+       "value": 0.0
+      },
+      "j_in_sample": {
+       "informedness": -0.1111111111111111,
+       "informedness_ci": {
+        "high": -0.013425925925925952,
+        "low": -0.3148148148148148,
+        "non_finite": 0
+       },
+       "n_negative": 18,
+       "n_positive": 54,
+       "value": 0.0
+      },
+      "meets_both": false,
+      "meets_h1": false,
+      "meets_j": false,
+      "tau": 0.044070197612933015,
+      "tau_by_fold": [
+       0.044070197612933015,
+       0.044070197612933015,
+       0.023003312722993843
+      ]
+     },
+     "R5b": {
+      "h1": {
+       "ci": {
+        "high": null,
+        "low": null,
+        "non_finite": null
+       },
+       "h1_pass": false,
+       "kendall_tau_b": null,
+       "median_delta_by_level": {},
+       "monotone_medians": true,
+       "n_pairs": 0,
+       "n_scenes": 0
+      },
+      "j_cv": {
+       "informedness": null,
+       "informedness_ci": {
+        "high": null,
+        "low": null,
+        "non_finite": null
+       },
+       "n_negative": 0,
+       "n_positive": 0,
+       "value": 0.0
+      },
+      "j_in_sample": {
+       "informedness": null,
+       "informedness_ci": {
+        "high": null,
+        "low": null,
+        "non_finite": null
+       },
+       "n_negative": 0,
+       "n_positive": 0,
+       "value": 0.0
+      },
+      "meets_both": false,
+      "meets_h1": false,
+      "meets_j": false,
+      "tau": null,
+      "tau_by_fold": [
+       null,
+       null,
+       null
+      ]
+     }
+    },
+    "level": "oracle",
+    "met": [
+     "R1"
+    ],
+    "n_met": 1,
+    "profile": "fast"
+   },
+   {
+    "auroc_cv": {
+     "ci": {
+      "high": 0.768505658436214,
+      "low": 0.6837448559670782,
+      "non_finite": 0
+     },
+     "in_sample": false,
+     "n_negative": 18,
+     "n_positive": 108,
+     "value": 0.727880658436214
+    },
+    "checks": {
+     "R1": {
+      "h1": {
+       "ci": {
+        "high": 0.9074028453565255,
+        "low": 0.9015368454955105,
+        "non_finite": 0
+       },
+       "h1_pass": true,
+       "kendall_tau_b": 0.8994380267950339,
+       "median_delta_by_level": {
+        "0": 0.0,
+        "1": 0.043380005386511614,
+        "2": 0.091375388278609,
+        "3": 0.1916554125495814
+       },
+       "monotone_medians": true,
+       "n_pairs": 72,
+       "n_scenes": 18
+      },
+      "j_cv": {
+       "informedness": 0.9444444444444444,
+       "informedness_ci": {
+        "high": 1.0,
+        "low": 0.7777777777777778,
+        "non_finite": 0
+       },
+       "n_negative": 18,
+       "n_positive": 54,
+       "value": 0.7777777777777778
+      },
+      "j_in_sample": {
+       "informedness": 0.9444444444444444,
+       "informedness_ci": {
+        "high": 1.0,
+        "low": 0.7777777777777778,
+        "non_finite": 0
+       },
+       "n_negative": 18,
+       "n_positive": 54,
+       "value": 0.7777777777777778
+      },
+      "meets_both": true,
+      "meets_h1": true,
+      "meets_j": true,
+      "tau": 0.031063368012832916,
+      "tau_by_fold": [
+       0.031063368012832916,
+       0.020166606902332452,
+       0.031063368012832916
+      ]
+     },
+     "R3a": {
+      "h1": {
+       "ci": {
+        "high": 0.25981915861523514,
+        "low": -0.048296603034710686,
+        "non_finite": 0
+       },
+       "h1_pass": false,
+       "kendall_tau_b": 0.10548964511793607,
+       "median_delta_by_level": {
+        "0": 0.0,
+        "1": -0.0018707240119355253,
+        "2": 0.0073581275846908364,
+        "3": 0.0038346658581862748
+       },
+       "monotone_medians": false,
+       "n_pairs": 72,
+       "n_scenes": 18
+      },
+      "j_cv": {
+       "informedness": 0.0,
+       "informedness_ci": {
+        "high": 0.0,
+        "low": 0.0,
+        "non_finite": 0
+       },
+       "n_negative": 18,
+       "n_positive": 54,
+       "value": 0.0
+      },
+      "j_in_sample": {
+       "informedness": 0.0,
+       "informedness_ci": {
+        "high": 0.0,
+        "low": 0.0,
+        "non_finite": 0
+       },
+       "n_negative": 18,
+       "n_positive": 54,
+       "value": 0.0
+      },
+      "meets_both": false,
+      "meets_h1": false,
+      "meets_j": false,
+      "tau": 0.044070197612933015,
+      "tau_by_fold": [
+       0.044070197612933015,
+       0.044070197612933015,
+       0.023003312722993843
+      ]
+     },
+     "R5b": {
+      "h1": {
+       "ci": {
+        "high": null,
+        "low": null,
+        "non_finite": null
+       },
+       "h1_pass": false,
+       "kendall_tau_b": null,
+       "median_delta_by_level": {},
+       "monotone_medians": true,
+       "n_pairs": 0,
+       "n_scenes": 0
+      },
+      "j_cv": {
+       "informedness": null,
+       "informedness_ci": {
+        "high": null,
+        "low": null,
+        "non_finite": null
+       },
+       "n_negative": 0,
+       "n_positive": 0,
+       "value": 0.0
+      },
+      "j_in_sample": {
+       "informedness": null,
+       "informedness_ci": {
+        "high": null,
+        "low": null,
+        "non_finite": null
+       },
+       "n_negative": 0,
+       "n_positive": 0,
+       "value": 0.0
+      },
+      "meets_both": false,
+      "meets_h1": false,
+      "meets_j": false,
+      "tau": null,
+      "tau_by_fold": [
+       null,
+       null,
+       null
+      ]
+     }
+    },
+    "level": "perceived",
+    "met": [
+     "R1"
+    ],
+    "n_met": 1,
+    "profile": "fast"
+   }
+  ],
+  "run_id": "run-a",
+  "schema": "physverify.devscore",
+  "scope_note": "Development metric on calib (seen data, unlimited looks), not a held-out result. Refitted without each scene fold: tau, the per-check sigma correction (bias, factor), p_c, the weights and the clip score. Fitted on all of calib (in-sample): the per-stage error profile (diagnose stages), the per-stage sigma factors (calibrate stage-sigma, D10) and H1 (Kendall tau_b, rule 1.1). These folds are not those of fpr.cv: the artifact's FPR and J_cv differ. AUROC_cv pools the held-out scores of the fold models.",
+  "selection": {
+   "all_oracle_evaluable_met": true,
+   "level": "perceived",
+   "met": [
+    "R1"
+   ],
+   "n_met": 1,
+   "oracle_evaluable": [
+    "R1"
+   ],
+   "tiebreak_auroc_cv": 0.727880658436214
+  },
+  "settings": {
+   "alpha": 0.1,
+   "beta": 0.05,
+   "bootstrap": 30,
+   "ci": 0.95,
+   "folds": 3,
+   "k_sigma": 2.0,
+   "min_sigma_pairs": 10,
+   "platt_l2": 0.01,
+   "seed": 0
+  },
+  "version": "1.0.0"
+ },
+ "two_level": {
+  "checks_hash": "checks",
+  "commit": "abc",
+  "config_hash": "cfg",
+  "created_utc": "2026-10-17T00:00:00Z",
+  "dataset": {
+   "clip_ids_hash": "hash",
+   "n_clips": 0,
+   "n_scenes": 0,
+   "name": "calib_fixture",
+   "split": "calib",
+   "subset": "test",
+   "version": "v1"
+  },
+  "error_profile_hash": "profile",
+  "run_id": "run-a",
+  "schema": "physverify.calibration",
+  "settings": {
+   "alpha": 0.1,
+   "beta": 0.05,
+   "bootstrap": 30,
+   "ci": 0.95,
+   "folds": 3,
+   "k_sigma": 2.0,
+   "min_sigma_pairs": 10,
+   "platt_l2": 0.01,
+   "seed": 0
+  },
+  "stage_sigma": {
+   "entries": [],
+   "hash": null,
+   "path": null
+  },
+  "status": "insufficient",
+  "strata": [
+   {
+    "aggregate": {
+     "auroc": {
+      "ci": {
+       "high": 0.7665766460905349,
+       "low": 0.6838477366255145,
+       "non_finite": 0
+      },
+      "in_sample": true,
+      "n_negative": 18,
+      "n_positive": 108,
+      "value": 0.7258230452674898
+     },
+     "n_clean_scenes": 18,
+     "n_perturbed_clips": 108,
+     "score_threshold": 0.07745213534775819,
+     "score_threshold_in_sample": true,
+     "sufficient": true
+    },
+    "checks": {
+     "R1": {
+      "abstention_rate": {
+       "ci": {
+        "high": 0.028852406856721007,
+        "low": 0.0,
+        "non_finite": null
+       },
+       "ci_method": "clopper_pearson",
+       "k": 0,
+       "n": 126,
+       "n_scenes": null,
+       "value": 0.0
+      },
+      "auroc": {
+       "ci": {
+        "high": 1.0,
+        "low": 1.0,
+        "non_finite": 0
+       },
+       "in_sample": true,
+       "n_negative": 72,
+       "n_positive": 54,
+       "value": 1.0
+      },
+      "detection_limit": {
+       "beta": 0.05,
+       "bound": null,
+       "censored": "none",
+       "ci": {
+        "high": null,
+        "low": null,
+        "non_finite": null
+       },
+       "ci_method": "profile_likelihood",
+       "ci_open": [],
+       "estimated": true,
+       "n": 54,
+       "reason": "not_determined",
+       "unit": "pen_over_size",
+       "value": null
+      },
+      "fpr": {
+       "cv": {
+        "ci": {
+         "high": 0.27294359967336845,
+         "low": 0.0014055561673694235,
+         "non_finite": null
+        },
+        "ci_method": "clopper_pearson",
+        "k": 1,
+        "n": 18,
+        "n_scenes": null,
+        "value": 0.05555555555555555
+       },
+       "cv_decided": {
+        "ci": {
+         "high": 0.27294359967336845,
+         "low": 0.0014055561673694235,
+         "non_finite": null
+        },
+        "ci_method": "clopper_pearson",
+        "k": 1,
+        "n": 18,
+        "n_scenes": null,
+        "value": 0.05555555555555555
+       },
+       "in_sample": {
+        "ci": {
+         "high": 0.1853019681378522,
+         "low": 0.0,
+         "non_finite": null
+        },
+        "ci_method": "clopper_pearson",
+        "k": 0,
+        "n": 18,
+        "n_scenes": null,
+        "value": 0.0
+       },
+       "in_sample_decided": {
+        "ci": {
+         "high": 0.1853019681378522,
+         "low": 0.0,
+         "non_finite": null
+        },
+        "ci_method": "clopper_pearson",
+        "k": 0,
+        "n": 18,
+        "n_scenes": null,
+        "value": 0.0
+       },
+       "in_sample_optimistic": true,
+       "off_target": {
+        "ci": {
+         "high": 0.1853019681378522,
+         "low": 0.0,
+         "non_finite": null
+        },
+        "ci_method": "clopper_pearson_scenes",
+        "k": 0,
+        "n": 54,
+        "n_scenes": 18,
+        "value": 0.0
+       },
+       "off_target_failures": [],
+       "undeclared_coupling": false
+      },
+      "monotonicity": {
+       "ci": {
+        "high": 0.9074028453565255,
+        "low": 0.9015368454955105,
+        "non_finite": 0
+       },
+       "h1_pass": true,
+       "kendall_tau_b": 0.8994380267950339,
+       "median_delta_by_level": {
+        "0": 0.0,
+        "1": 0.043380005386511614,
+        "2": 0.091375388278609,
+        "3": 0.1916554125495814
+       },
+       "monotone_medians": true,
+       "n_pairs": 72,
+       "n_scenes": 18
+      },
+      "n_clean_dropped": 0,
+      "n_clean_scenes": 18,
+      "n_off_target_clips": 54,
+      "n_positive_clips": 54,
+      "probability": {
+       "a": -2.477479123225912,
+       "b": 2.888200295482743,
+       "ece_ci": {
+        "high": 0.007915746507100918,
+        "low": 0.001788191188748122,
+        "non_finite": 0
+       },
+       "ece_cv": 0.004602162464410045,
+       "estimated": true,
+       "n": 126,
+       "scale": 0.006996045533477721
+      },
+      "sigma": {
+       "bias": 0.0,
+       "bias_ci": {
+        "high": null,
+        "low": null,
+        "non_finite": null
+       },
+       "coverage_after": [],
+       "coverage_before": [],
+       "estimated": false,
+       "factor": 1.0,
+       "factor_ci": {
+        "high": null,
+        "low": null,
+        "non_finite": null
+       },
+       "n_pairs": 0,
+       "reason": "oracle: exact inputs, sigma 0, not recalibrated"
+      },
+      "status": "ok",
+      "tau": 0.031063368012832916,
+      "tau_conformal": 0.031063368012832916,
+      "tau_rule": "max(conformal_clean_scene, tolerance)",
+      "tau_tolerance": 0.0,
+      "tpr_by_level": [
+       {
+        "decided": {
+         "ci": {
+          "high": 1.0,
+          "low": 0.8146980318621478,
+          "non_finite": null
+         },
+         "ci_method": "clopper_pearson",
+         "k": 18,
+         "n": 18,
+         "n_scenes": null,
+         "value": 1.0
+        },
+        "level": 1,
+        "mu_median": 0.05,
+        "total": {
+         "ci": {
+          "high": 1.0,
+          "low": 0.8146980318621478,
+          "non_finite": null
+         },
+         "ci_method": "clopper_pearson",
+         "k": 18,
+         "n": 18,
+         "n_scenes": null,
+         "value": 1.0
+        }
+       },
+       {
+        "decided": {
+         "ci": {
+          "high": 1.0,
+          "low": 0.8146980318621478,
+          "non_finite": null
+         },
+         "ci_method": "clopper_pearson",
+         "k": 18,
+         "n": 18,
+         "n_scenes": null,
+         "value": 1.0
+        },
+        "level": 2,
+        "mu_median": 0.1,
+        "total": {
+         "ci": {
+          "high": 1.0,
+          "low": 0.8146980318621478,
+          "non_finite": null
+         },
+         "ci_method": "clopper_pearson",
+         "k": 18,
+         "n": 18,
+         "n_scenes": null,
+         "value": 1.0
+        }
+       },
+       {
+        "decided": {
+         "ci": {
+          "high": 1.0,
+          "low": 0.8146980318621478,
+          "non_finite": null
+         },
+         "ci_method": "clopper_pearson",
+         "k": 18,
+         "n": 18,
+         "n_scenes": null,
+         "value": 1.0
+        },
+        "level": 3,
+        "mu_median": 0.2,
+        "total": {
+         "ci": {
+          "high": 1.0,
+          "low": 0.8146980318621478,
+          "non_finite": null
+         },
+         "ci_method": "clopper_pearson",
+         "k": 18,
+         "n": 18,
+         "n_scenes": null,
+         "value": 1.0
+        }
+       }
+      ],
+      "unit": "pen_over_size",
+      "weight": {
+       "informedness": 0.9444444444444444,
+       "informedness_ci": {
+        "high": 1.0,
+        "low": 0.7777777777777778,
+        "non_finite": 0
+       },
+       "n_negative": 18,
+       "n_positive": 54,
+       "value": 1.0
+      }
+     },
+     "R3a": {
+      "abstention_rate": {
+       "ci": {
+        "high": 0.028852406856721007,
+        "low": 0.0,
+        "non_finite": null
+       },
+       "ci_method": "clopper_pearson",
+       "k": 0,
+       "n": 126,
+       "n_scenes": null,
+       "value": 0.0
+      },
+      "auroc": {
+       "ci": {
+        "high": 0.6188657407407407,
+        "low": 0.44459876543209875,
+        "non_finite": 0
+       },
+       "in_sample": true,
+       "n_negative": 72,
+       "n_positive": 54,
+       "value": 0.5444958847736625
+      },
+      "detection_limit": {
+       "beta": 0.05,
+       "bound": null,
+       "censored": "none",
+       "ci": {
+        "high": null,
+        "low": null,
+        "non_finite": null
+       },
+       "ci_method": "profile_likelihood",
+       "ci_open": [],
+       "estimated": true,
+       "n": 54,
+       "reason": "not_determined",
+       "unit": "e_minus_1",
+       "value": null
+      },
+      "fpr": {
+       "cv": {
+        "ci": {
+         "high": 0.414177491394774,
+         "low": 0.035785083121574676,
+         "non_finite": null
+        },
+        "ci_method": "clopper_pearson",
+        "k": 3,
+        "n": 18,
+        "n_scenes": null,
+        "value": 0.16666666666666666
+       },
+       "cv_decided": {
+        "ci": {
+         "high": 0.414177491394774,
+         "low": 0.035785083121574676,
+         "non_finite": null
+        },
+        "ci_method": "clopper_pearson",
+        "k": 3,
+        "n": 18,
+        "n_scenes": null,
+        "value": 0.16666666666666666
+       },
+       "in_sample": {
+        "ci": {
+         "high": 0.1853019681378522,
+         "low": 0.0,
+         "non_finite": null
+        },
+        "ci_method": "clopper_pearson",
+        "k": 0,
+        "n": 18,
+        "n_scenes": null,
+        "value": 0.0
+       },
+       "in_sample_decided": {
+        "ci": {
+         "high": 0.1853019681378522,
+         "low": 0.0,
+         "non_finite": null
+        },
+        "ci_method": "clopper_pearson",
+        "k": 0,
+        "n": 18,
+        "n_scenes": null,
+        "value": 0.0
+       },
+       "in_sample_optimistic": true,
+       "off_target": {
+        "ci": {
+         "high": 0.09259259259259259,
+         "low": 0.013425925925925938,
+         "non_finite": 0
+        },
+        "ci_method": "scene_bootstrap",
+        "k": 3,
+        "n": 54,
+        "n_scenes": 18,
+        "value": 0.05555555555555555
+       },
+       "off_target_failures": [
+        "r1_penetration"
+       ],
+       "undeclared_coupling": false
+      },
+      "monotonicity": {
+       "ci": {
+        "high": 0.25981915861523514,
+        "low": -0.048296603034710686,
+        "non_finite": 0
+       },
+       "h1_pass": false,
+       "kendall_tau_b": 0.10548964511793607,
+       "median_delta_by_level": {
+        "0": 0.0,
+        "1": -0.0018707240119355253,
+        "2": 0.0073581275846908364,
+        "3": 0.0038346658581862748
+       },
+       "monotone_medians": false,
+       "n_pairs": 72,
+       "n_scenes": 18
+      },
+      "n_clean_dropped": 0,
+      "n_clean_scenes": 18,
+      "n_off_target_clips": 54,
+      "n_positive_clips": 54,
+      "probability": {
+       "a": 0.2860585314817609,
+       "b": 0.15204295530469566,
+       "ece_ci": {
+        "high": 0.12130281792356398,
+        "low": 0.006349511014816841,
+        "non_finite": 0
+       },
+       "ece_cv": 0.022572998496640802,
+       "estimated": true,
+       "n": 126,
+       "scale": 0.014676654126133193
+      },
+      "sigma": {
+       "bias": 0.0,
+       "bias_ci": {
+        "high": null,
+        "low": null,
+        "non_finite": null
+       },
+       "coverage_after": [],
+       "coverage_before": [],
+       "estimated": false,
+       "factor": 1.0,
+       "factor_ci": {
+        "high": null,
+        "low": null,
+        "non_finite": null
+       },
+       "n_pairs": 0,
+       "reason": "oracle: exact inputs, sigma 0, not recalibrated"
+      },
+      "status": "ok",
+      "tau": 0.044070197612933015,
+      "tau_conformal": 0.044070197612933015,
+      "tau_rule": "max(conformal_clean_scene, tolerance)",
+      "tau_tolerance": 0.0,
+      "tpr_by_level": [
+       {
+        "decided": {
+         "ci": {
+          "high": 0.3471204386086719,
+          "low": 0.013751215664364496,
+          "non_finite": null
+         },
+         "ci_method": "clopper_pearson",
+         "k": 2,
+         "n": 18,
+         "n_scenes": null,
+         "value": 0.1111111111111111
+        },
+        "level": 1,
+        "mu_median": 0.05,
+        "total": {
+         "ci": {
+          "high": 0.3471204386086719,
+          "low": 0.013751215664364496,
+          "non_finite": null
+         },
+         "ci_method": "clopper_pearson",
+         "k": 2,
+         "n": 18,
+         "n_scenes": null,
+         "value": 0.1111111111111111
+        }
+       },
+       {
+        "decided": {
+         "ci": {
+          "high": 0.27294359967336845,
+          "low": 0.0014055561673694235,
+          "non_finite": null
+         },
+         "ci_method": "clopper_pearson",
+         "k": 1,
+         "n": 18,
+         "n_scenes": null,
+         "value": 0.05555555555555555
+        },
+        "level": 2,
+        "mu_median": 0.1,
+        "total": {
+         "ci": {
+          "high": 0.27294359967336845,
+          "low": 0.0014055561673694235,
+          "non_finite": null
+         },
+         "ci_method": "clopper_pearson",
+         "k": 1,
+         "n": 18,
+         "n_scenes": null,
+         "value": 0.05555555555555555
+        }
+       },
+       {
+        "decided": {
+         "ci": {
+          "high": 0.1853019681378522,
+          "low": 0.0,
+          "non_finite": null
+         },
+         "ci_method": "clopper_pearson",
+         "k": 0,
+         "n": 18,
+         "n_scenes": null,
+         "value": 0.0
+        },
+        "level": 3,
+        "mu_median": 0.2,
+        "total": {
+         "ci": {
+          "high": 0.1853019681378522,
+          "low": 0.0,
+          "non_finite": null
+         },
+         "ci_method": "clopper_pearson",
+         "k": 0,
+         "n": 18,
+         "n_scenes": null,
+         "value": 0.0
+        }
+       }
+      ],
+      "unit": "e_minus_1",
+      "weight": {
+       "informedness": -0.1111111111111111,
+       "informedness_ci": {
+        "high": -0.013425925925925952,
+        "low": -0.3148148148148148,
+        "non_finite": 0
+       },
+       "n_negative": 18,
+       "n_positive": 54,
+       "value": 0.0
+      }
+     },
+     "R5b": {
+      "abstention_rate": {
+       "ci": {
+        "high": null,
+        "low": null,
+        "non_finite": null
+       },
+       "ci_method": "clopper_pearson",
+       "k": 0,
+       "n": 0,
+       "n_scenes": null,
+       "value": null
+      },
+      "auroc": {
+       "ci": {
+        "high": null,
+        "low": null,
+        "non_finite": null
+       },
+       "in_sample": true,
+       "n_negative": 0,
+       "n_positive": 0,
+       "value": null
+      },
+      "detection_limit": {
+       "beta": 0.05,
+       "bound": null,
+       "censored": "none",
+       "ci": {
+        "high": null,
+        "low": null,
+        "non_finite": null
+       },
+       "ci_method": "profile_likelihood",
+       "ci_open": [],
+       "estimated": true,
+       "n": 0,
+       "reason": "no_positives",
+       "unit": "g_rel_error",
+       "value": null
+      },
+      "fpr": {
+       "cv": {
+        "ci": {
+         "high": null,
+         "low": null,
+         "non_finite": null
+        },
+        "ci_method": "clopper_pearson",
+        "k": 0,
+        "n": 0,
+        "n_scenes": null,
+        "value": null
+       },
+       "cv_decided": {
+        "ci": {
+         "high": null,
+         "low": null,
+         "non_finite": null
+        },
+        "ci_method": "clopper_pearson",
+        "k": 0,
+        "n": 0,
+        "n_scenes": null,
+        "value": null
+       },
+       "in_sample": {
+        "ci": {
+         "high": null,
+         "low": null,
+         "non_finite": null
+        },
+        "ci_method": "clopper_pearson",
+        "k": 0,
+        "n": 0,
+        "n_scenes": null,
+        "value": null
+       },
+       "in_sample_decided": {
+        "ci": {
+         "high": null,
+         "low": null,
+         "non_finite": null
+        },
+        "ci_method": "clopper_pearson",
+        "k": 0,
+        "n": 0,
+        "n_scenes": null,
+        "value": null
+       },
+       "in_sample_optimistic": true,
+       "off_target": {
+        "ci": {
+         "high": null,
+         "low": null,
+         "non_finite": null
+        },
+        "ci_method": "clopper_pearson",
+        "k": 0,
+        "n": 0,
+        "n_scenes": 0,
+        "value": null
+       },
+       "off_target_failures": [],
+       "undeclared_coupling": false
+      },
+      "monotonicity": {
+       "ci": {
+        "high": null,
+        "low": null,
+        "non_finite": null
+       },
+       "h1_pass": false,
+       "kendall_tau_b": null,
+       "median_delta_by_level": {},
+       "monotone_medians": true,
+       "n_pairs": 0,
+       "n_scenes": 0
+      },
+      "n_clean_dropped": 0,
+      "n_clean_scenes": 0,
+      "n_off_target_clips": 0,
+      "n_positive_clips": 0,
+      "probability": {
+       "a": null,
+       "b": null,
+       "ece_ci": {
+        "high": null,
+        "low": null,
+        "non_finite": null
+       },
+       "ece_cv": null,
+       "estimated": true,
+       "n": 0,
+       "scale": 1.0
+      },
+      "sigma": {
+       "bias": 0.0,
+       "bias_ci": {
+        "high": null,
+        "low": null,
+        "non_finite": null
+       },
+       "coverage_after": [],
+       "coverage_before": [],
+       "estimated": false,
+       "factor": 1.0,
+       "factor_ci": {
+        "high": null,
+        "low": null,
+        "non_finite": null
+       },
+       "n_pairs": 0,
+       "reason": "oracle: exact inputs, sigma 0, not recalibrated"
+      },
+      "status": "no_negatives",
+      "tau": null,
+      "tau_conformal": null,
+      "tau_rule": "max(conformal_clean_scene, tolerance)",
+      "tau_tolerance": 0.0,
+      "tpr_by_level": [],
+      "unit": "g_rel_error",
+      "weight": {
+       "informedness": null,
+       "informedness_ci": {
+        "high": null,
+        "low": null,
+        "non_finite": null
+       },
+       "n_negative": 0,
+       "n_positive": 0,
+       "value": 0.0
+      }
+     }
+    },
+    "k_sigma": 2.0,
+    "level": "oracle",
+    "on_unknown_sigma": "abstain",
+    "profile": "fast",
+    "row_step": 1
+   },
+   {
+    "aggregate": {
+     "auroc": {
+      "ci": {
+       "high": 0.7665766460905349,
+       "low": 0.6838477366255145,
+       "non_finite": 0
+      },
+      "in_sample": true,
+      "n_negative": 18,
+      "n_positive": 108,
+      "value": 0.7258230452674898
+     },
+     "n_clean_scenes": 18,
+     "n_perturbed_clips": 108,
+     "score_threshold": 0.07745213534775819,
+     "score_threshold_in_sample": true,
+     "sufficient": true
+    },
+    "checks": {
+     "R1": {
+      "abstention_rate": {
+       "ci": {
+        "high": 0.028852406856721007,
+        "low": 0.0,
+        "non_finite": null
+       },
+       "ci_method": "clopper_pearson",
+       "k": 0,
+       "n": 126,
+       "n_scenes": null,
+       "value": 0.0
+      },
+      "auroc": {
+       "ci": {
+        "high": 1.0,
+        "low": 1.0,
+        "non_finite": 0
+       },
+       "in_sample": true,
+       "n_negative": 72,
+       "n_positive": 54,
+       "value": 1.0
+      },
+      "detection_limit": {
+       "beta": 0.05,
+       "bound": null,
+       "censored": "none",
+       "ci": {
+        "high": null,
+        "low": null,
+        "non_finite": null
+       },
+       "ci_method": "profile_likelihood",
+       "ci_open": [],
+       "estimated": true,
+       "n": 54,
+       "reason": "not_determined",
+       "unit": "pen_over_size",
+       "value": null
+      },
+      "fpr": {
+       "cv": {
+        "ci": {
+         "high": 0.27294359967336845,
+         "low": 0.0014055561673694235,
+         "non_finite": null
+        },
+        "ci_method": "clopper_pearson",
+        "k": 1,
+        "n": 18,
+        "n_scenes": null,
+        "value": 0.05555555555555555
+       },
+       "cv_decided": {
+        "ci": {
+         "high": 0.27294359967336845,
+         "low": 0.0014055561673694235,
+         "non_finite": null
+        },
+        "ci_method": "clopper_pearson",
+        "k": 1,
+        "n": 18,
+        "n_scenes": null,
+        "value": 0.05555555555555555
+       },
+       "in_sample": {
+        "ci": {
+         "high": 0.1853019681378522,
+         "low": 0.0,
+         "non_finite": null
+        },
+        "ci_method": "clopper_pearson",
+        "k": 0,
+        "n": 18,
+        "n_scenes": null,
+        "value": 0.0
+       },
+       "in_sample_decided": {
+        "ci": {
+         "high": 0.1853019681378522,
+         "low": 0.0,
+         "non_finite": null
+        },
+        "ci_method": "clopper_pearson",
+        "k": 0,
+        "n": 18,
+        "n_scenes": null,
+        "value": 0.0
+       },
+       "in_sample_optimistic": true,
+       "off_target": {
+        "ci": {
+         "high": 0.1853019681378522,
+         "low": 0.0,
+         "non_finite": null
+        },
+        "ci_method": "clopper_pearson_scenes",
+        "k": 0,
+        "n": 54,
+        "n_scenes": 18,
+        "value": 0.0
+       },
+       "off_target_failures": [],
+       "undeclared_coupling": false
+      },
+      "monotonicity": {
+       "ci": {
+        "high": 0.9074028453565255,
+        "low": 0.9015368454955105,
+        "non_finite": 0
+       },
+       "h1_pass": true,
+       "kendall_tau_b": 0.8994380267950339,
+       "median_delta_by_level": {
+        "0": 0.0,
+        "1": 0.043380005386511614,
+        "2": 0.091375388278609,
+        "3": 0.1916554125495814
+       },
+       "monotone_medians": true,
+       "n_pairs": 72,
+       "n_scenes": 18
+      },
+      "n_clean_dropped": 0,
+      "n_clean_scenes": 18,
+      "n_off_target_clips": 54,
+      "n_positive_clips": 54,
+      "probability": {
+       "a": -2.477479123225912,
+       "b": 2.888200295482743,
+       "ece_ci": {
+        "high": 0.007915746507100918,
+        "low": 0.001788191188748122,
+        "non_finite": 0
+       },
+       "ece_cv": 0.004602162464410045,
+       "estimated": true,
+       "n": 126,
+       "scale": 0.006996045533477721
+      },
+      "sigma": {
+       "bias": 0.0,
+       "bias_ci": {
+        "high": 0.0,
+        "low": 0.0,
+        "non_finite": 0
+       },
+       "coverage_after": [
+        {
+         "k": 1.0,
+         "n": 72,
+         "nominal": 0.6826894921370859,
+         "observed": 0.5277777777777778
+        },
+        {
+         "k": 2.0,
+         "n": 72,
+         "nominal": 0.9544997361036416,
+         "observed": 0.5416666666666666
+        }
+       ],
+       "coverage_before": [
+        {
+         "k": 1.0,
+         "n": 72,
+         "nominal": 0.6826894921370859,
+         "observed": 0.6527777777777778
+        },
+        {
+         "k": 2.0,
+         "n": 72,
+         "nominal": 0.9544997361036416,
+         "observed": 0.8055555555555556
+        }
+       ],
+       "estimated": true,
+       "factor": 0.11820195377142645,
+       "factor_ci": {
+        "high": 0.20998700148870947,
+        "low": 0.11820195377142645,
+        "non_finite": 0
+       },
+       "n_pairs": 72,
+       "reason": null
+      },
+      "status": "ok",
+      "tau": 0.031063368012832916,
+      "tau_conformal": 0.031063368012832916,
+      "tau_rule": "max(conformal_clean_scene, tolerance)",
+      "tau_tolerance": 0.0,
+      "tpr_by_level": [
+       {
+        "decided": {
+         "ci": {
+          "high": 1.0,
+          "low": 0.8146980318621478,
+          "non_finite": null
+         },
+         "ci_method": "clopper_pearson",
+         "k": 18,
+         "n": 18,
+         "n_scenes": null,
+         "value": 1.0
+        },
+        "level": 1,
+        "mu_median": 0.05,
+        "total": {
+         "ci": {
+          "high": 1.0,
+          "low": 0.8146980318621478,
+          "non_finite": null
+         },
+         "ci_method": "clopper_pearson",
+         "k": 18,
+         "n": 18,
+         "n_scenes": null,
+         "value": 1.0
+        }
+       },
+       {
+        "decided": {
+         "ci": {
+          "high": 1.0,
+          "low": 0.8146980318621478,
+          "non_finite": null
+         },
+         "ci_method": "clopper_pearson",
+         "k": 18,
+         "n": 18,
+         "n_scenes": null,
+         "value": 1.0
+        },
+        "level": 2,
+        "mu_median": 0.1,
+        "total": {
+         "ci": {
+          "high": 1.0,
+          "low": 0.8146980318621478,
+          "non_finite": null
+         },
+         "ci_method": "clopper_pearson",
+         "k": 18,
+         "n": 18,
+         "n_scenes": null,
+         "value": 1.0
+        }
+       },
+       {
+        "decided": {
+         "ci": {
+          "high": 1.0,
+          "low": 0.8146980318621478,
+          "non_finite": null
+         },
+         "ci_method": "clopper_pearson",
+         "k": 18,
+         "n": 18,
+         "n_scenes": null,
+         "value": 1.0
+        },
+        "level": 3,
+        "mu_median": 0.2,
+        "total": {
+         "ci": {
+          "high": 1.0,
+          "low": 0.8146980318621478,
+          "non_finite": null
+         },
+         "ci_method": "clopper_pearson",
+         "k": 18,
+         "n": 18,
+         "n_scenes": null,
+         "value": 1.0
+        }
+       }
+      ],
+      "unit": "pen_over_size",
+      "weight": {
+       "informedness": 0.9444444444444444,
+       "informedness_ci": {
+        "high": 1.0,
+        "low": 0.7777777777777778,
+        "non_finite": 0
+       },
+       "n_negative": 18,
+       "n_positive": 54,
+       "value": 1.0
+      }
+     },
+     "R3a": {
+      "abstention_rate": {
+       "ci": {
+        "high": 1.0,
+        "low": 0.971147593143279,
+        "non_finite": null
+       },
+       "ci_method": "clopper_pearson",
+       "k": 126,
+       "n": 126,
+       "n_scenes": null,
+       "value": 1.0
+      },
+      "auroc": {
+       "ci": {
+        "high": 0.6188657407407407,
+        "low": 0.44459876543209875,
+        "non_finite": 0
+       },
+       "in_sample": true,
+       "n_negative": 72,
+       "n_positive": 54,
+       "value": 0.5444958847736625
+      },
+      "detection_limit": {
+       "beta": 0.05,
+       "bound": 0.2,
+       "censored": "above",
+       "ci": {
+        "high": null,
+        "low": null,
+        "non_finite": null
+       },
+       "ci_method": "profile_likelihood",
+       "ci_open": [],
+       "estimated": true,
+       "n": 54,
+       "reason": null,
+       "unit": "e_minus_1",
+       "value": null
+      },
+      "fpr": {
+       "cv": {
+        "ci": {
+         "high": 0.1853019681378522,
+         "low": 0.0,
+         "non_finite": null
+        },
+        "ci_method": "clopper_pearson",
+        "k": 0,
+        "n": 18,
+        "n_scenes": null,
+        "value": 0.0
+       },
+       "cv_decided": {
+        "ci": {
+         "high": null,
+         "low": null,
+         "non_finite": null
+        },
+        "ci_method": "clopper_pearson",
+        "k": 0,
+        "n": 0,
+        "n_scenes": null,
+        "value": null
+       },
+       "in_sample": {
+        "ci": {
+         "high": 0.1853019681378522,
+         "low": 0.0,
+         "non_finite": null
+        },
+        "ci_method": "clopper_pearson",
+        "k": 0,
+        "n": 18,
+        "n_scenes": null,
+        "value": 0.0
+       },
+       "in_sample_decided": {
+        "ci": {
+         "high": null,
+         "low": null,
+         "non_finite": null
+        },
+        "ci_method": "clopper_pearson",
+        "k": 0,
+        "n": 0,
+        "n_scenes": null,
+        "value": null
+       },
+       "in_sample_optimistic": true,
+       "off_target": {
+        "ci": {
+         "high": 0.1853019681378522,
+         "low": 0.0,
+         "non_finite": null
+        },
+        "ci_method": "clopper_pearson_scenes",
+        "k": 0,
+        "n": 54,
+        "n_scenes": 18,
+        "value": 0.0
+       },
+       "off_target_failures": [],
+       "undeclared_coupling": false
+      },
+      "monotonicity": {
+       "ci": {
+        "high": 0.25981915861523514,
+        "low": -0.048296603034710686,
+        "non_finite": 0
+       },
+       "h1_pass": false,
+       "kendall_tau_b": 0.10548964511793607,
+       "median_delta_by_level": {
+        "0": 0.0,
+        "1": -0.0018707240119355253,
+        "2": 0.0073581275846908364,
+        "3": 0.0038346658581862748
+       },
+       "monotone_medians": false,
+       "n_pairs": 72,
+       "n_scenes": 18
+      },
+      "n_clean_dropped": 0,
+      "n_clean_scenes": 18,
+      "n_off_target_clips": 54,
+      "n_positive_clips": 54,
+      "probability": {
+       "a": null,
+       "b": null,
+       "ece_ci": {
+        "high": null,
+        "low": null,
+        "non_finite": null
+       },
+       "ece_cv": null,
+       "estimated": true,
+       "n": 0,
+       "scale": 1.0
+      },
+      "sigma": {
+       "bias": 0.0,
+       "bias_ci": {
+        "high": null,
+        "low": null,
+        "non_finite": null
+       },
+       "coverage_after": [],
+       "coverage_before": [
+        {
+         "k": 1.0,
+         "n": 0,
+         "nominal": 0.6826894921370859,
+         "observed": null
+        },
+        {
+         "k": 2.0,
+         "n": 0,
+         "nominal": 0.9544997361036416,
+         "observed": null
+        }
+       ],
+       "estimated": true,
+       "factor": null,
+       "factor_ci": {
+        "high": null,
+        "low": null,
+        "non_finite": null
+       },
+       "n_pairs": 0,
+       "reason": "fewer than min_sigma_pairs (oracle, perceived) pairs: error not measured"
+      },
+      "status": "ok",
+      "tau": 0.044070197612933015,
+      "tau_conformal": 0.044070197612933015,
+      "tau_rule": "max(conformal_clean_scene, tolerance)",
+      "tau_tolerance": 0.0,
+      "tpr_by_level": [
+       {
+        "decided": {
+         "ci": {
+          "high": null,
+          "low": null,
+          "non_finite": null
+         },
+         "ci_method": "clopper_pearson",
+         "k": 0,
+         "n": 0,
+         "n_scenes": null,
+         "value": null
+        },
+        "level": 1,
+        "mu_median": 0.05,
+        "total": {
+         "ci": {
+          "high": 0.1853019681378522,
+          "low": 0.0,
+          "non_finite": null
+         },
+         "ci_method": "clopper_pearson",
+         "k": 0,
+         "n": 18,
+         "n_scenes": null,
+         "value": 0.0
+        }
+       },
+       {
+        "decided": {
+         "ci": {
+          "high": null,
+          "low": null,
+          "non_finite": null
+         },
+         "ci_method": "clopper_pearson",
+         "k": 0,
+         "n": 0,
+         "n_scenes": null,
+         "value": null
+        },
+        "level": 2,
+        "mu_median": 0.1,
+        "total": {
+         "ci": {
+          "high": 0.1853019681378522,
+          "low": 0.0,
+          "non_finite": null
+         },
+         "ci_method": "clopper_pearson",
+         "k": 0,
+         "n": 18,
+         "n_scenes": null,
+         "value": 0.0
+        }
+       },
+       {
+        "decided": {
+         "ci": {
+          "high": null,
+          "low": null,
+          "non_finite": null
+         },
+         "ci_method": "clopper_pearson",
+         "k": 0,
+         "n": 0,
+         "n_scenes": null,
+         "value": null
+        },
+        "level": 3,
+        "mu_median": 0.2,
+        "total": {
+         "ci": {
+          "high": 0.1853019681378522,
+          "low": 0.0,
+          "non_finite": null
+         },
+         "ci_method": "clopper_pearson",
+         "k": 0,
+         "n": 18,
+         "n_scenes": null,
+         "value": 0.0
+        }
+       }
+      ],
+      "unit": "e_minus_1",
+      "weight": {
+       "informedness": 0.0,
+       "informedness_ci": {
+        "high": 0.0,
+        "low": 0.0,
+        "non_finite": 0
+       },
+       "n_negative": 18,
+       "n_positive": 54,
+       "value": 0.0
+      }
+     },
+     "R5b": {
+      "abstention_rate": {
+       "ci": {
+        "high": null,
+        "low": null,
+        "non_finite": null
+       },
+       "ci_method": "clopper_pearson",
+       "k": 0,
+       "n": 0,
+       "n_scenes": null,
+       "value": null
+      },
+      "auroc": {
+       "ci": {
+        "high": null,
+        "low": null,
+        "non_finite": null
+       },
+       "in_sample": true,
+       "n_negative": 0,
+       "n_positive": 0,
+       "value": null
+      },
+      "detection_limit": {
+       "beta": 0.05,
+       "bound": null,
+       "censored": "none",
+       "ci": {
+        "high": null,
+        "low": null,
+        "non_finite": null
+       },
+       "ci_method": "profile_likelihood",
+       "ci_open": [],
+       "estimated": true,
+       "n": 0,
+       "reason": "no_positives",
+       "unit": "g_rel_error",
+       "value": null
+      },
+      "fpr": {
+       "cv": {
+        "ci": {
+         "high": null,
+         "low": null,
+         "non_finite": null
+        },
+        "ci_method": "clopper_pearson",
+        "k": 0,
+        "n": 0,
+        "n_scenes": null,
+        "value": null
+       },
+       "cv_decided": {
+        "ci": {
+         "high": null,
+         "low": null,
+         "non_finite": null
+        },
+        "ci_method": "clopper_pearson",
+        "k": 0,
+        "n": 0,
+        "n_scenes": null,
+        "value": null
+       },
+       "in_sample": {
+        "ci": {
+         "high": null,
+         "low": null,
+         "non_finite": null
+        },
+        "ci_method": "clopper_pearson",
+        "k": 0,
+        "n": 0,
+        "n_scenes": null,
+        "value": null
+       },
+       "in_sample_decided": {
+        "ci": {
+         "high": null,
+         "low": null,
+         "non_finite": null
+        },
+        "ci_method": "clopper_pearson",
+        "k": 0,
+        "n": 0,
+        "n_scenes": null,
+        "value": null
+       },
+       "in_sample_optimistic": true,
+       "off_target": {
+        "ci": {
+         "high": null,
+         "low": null,
+         "non_finite": null
+        },
+        "ci_method": "clopper_pearson",
+        "k": 0,
+        "n": 0,
+        "n_scenes": 0,
+        "value": null
+       },
+       "off_target_failures": [],
+       "undeclared_coupling": false
+      },
+      "monotonicity": {
+       "ci": {
+        "high": null,
+        "low": null,
+        "non_finite": null
+       },
+       "h1_pass": false,
+       "kendall_tau_b": null,
+       "median_delta_by_level": {},
+       "monotone_medians": true,
+       "n_pairs": 0,
+       "n_scenes": 0
+      },
+      "n_clean_dropped": 0,
+      "n_clean_scenes": 0,
+      "n_off_target_clips": 0,
+      "n_positive_clips": 0,
+      "probability": {
+       "a": null,
+       "b": null,
+       "ece_ci": {
+        "high": null,
+        "low": null,
+        "non_finite": null
+       },
+       "ece_cv": null,
+       "estimated": true,
+       "n": 0,
+       "scale": 1.0
+      },
+      "sigma": {
+       "bias": 0.0,
+       "bias_ci": {
+        "high": null,
+        "low": null,
+        "non_finite": null
+       },
+       "coverage_after": [],
+       "coverage_before": [
+        {
+         "k": 1.0,
+         "n": 0,
+         "nominal": 0.6826894921370859,
+         "observed": null
+        },
+        {
+         "k": 2.0,
+         "n": 0,
+         "nominal": 0.9544997361036416,
+         "observed": null
+        }
+       ],
+       "estimated": true,
+       "factor": null,
+       "factor_ci": {
+        "high": null,
+        "low": null,
+        "non_finite": null
+       },
+       "n_pairs": 0,
+       "reason": "fewer than min_sigma_pairs (oracle, perceived) pairs: error not measured"
+      },
+      "status": "no_negatives",
+      "tau": null,
+      "tau_conformal": null,
+      "tau_rule": "max(conformal_clean_scene, tolerance)",
+      "tau_tolerance": 0.0,
+      "tpr_by_level": [],
+      "unit": "g_rel_error",
+      "weight": {
+       "informedness": null,
+       "informedness_ci": {
+        "high": null,
+        "low": null,
+        "non_finite": null
+       },
+       "n_negative": 0,
+       "n_positive": 0,
+       "value": 0.0
+      }
+     }
+    },
+    "k_sigma": 2.0,
+    "level": "perceived",
+    "on_unknown_sigma": "abstain",
+    "profile": "fast",
+    "row_step": 1
+   }
+  ],
+  "version": "1.4.0"
+ }
+}
