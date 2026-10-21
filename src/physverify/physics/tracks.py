@@ -43,6 +43,8 @@ OCCLUDED_AT = 0.9
 # Fewest usable third-difference stencils from which a track measures its own noise: the fall
 # filter of R5 and the kinematic impacts of CONTACTS use the same value.
 MIN_NOISE_STENCILS = 8
+QUANTIZATION = math.sqrt(12.0)
+"""A uniform error over one pixel has a standard deviation of 1 / sqrt(12) pixels."""
 
 
 @dataclass(frozen=True, eq=False)
@@ -221,6 +223,32 @@ def track_noise(
     return np.array([robust_scale(d3[usable, axis]) for axis in range(d3.shape[1])]) / math.sqrt(
         20.0
     )
+
+
+def pixel_floor(depth: float, focal: float) -> float:
+    """Position noise of a centroid quantized to one pixel at ``depth``: depth / (f sqrt(12));
+    NaN when the depth or the focal length is not finite and positive."""
+    if not (math.isfinite(depth) and depth > 0.0 and math.isfinite(focal) and focal > 0.0):
+        return math.nan
+    return depth / (focal * QUANTIZATION)
+
+
+@dataclass(frozen=True)
+class NoiseScale:
+    """Per-axis sigma-hat = max(sigma_w, q). ``known`` when the pixel floor q sets it on every
+    axis: then nothing in it was estimated from the track and the gain is tested as chi-square;
+    otherwise as an F ratio over the window's own residual."""
+
+    sigma: FloatArray
+    known: bool
+
+
+def noise_scale(track_sigma: FloatArray | None, floor: float) -> NoiseScale | None:
+    """sigma-hat of a track; None without a measured track noise or a finite floor."""
+    if track_sigma is None or not math.isfinite(floor):
+        return None
+    measured = np.asarray(track_sigma, dtype=np.float64)
+    return NoiseScale(np.maximum(measured, floor), bool(np.all(measured <= floor)))
 
 
 def segments(mask: BoolArray, min_len: int) -> list[tuple[int, int]]:
