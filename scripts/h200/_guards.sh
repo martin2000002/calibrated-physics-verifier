@@ -46,3 +46,25 @@ require_checkout() {
     [[ -z "$dirty" ]] || die "uncommitted or untracked files under src, configs, scripts or" \
         "annotations:"$'\n'"$dirty"
 }
+
+# check_frozen_doctor DIR CAL CACHE: doctor (through pv) reports the committed configs, device cpu,
+# profile precise, paths.cache_dir CACHE, the error profile in CAL, and the calibration directory,
+# runs directory and thresholds inside DIR. Sets DOCTOR.
+check_frozen_doctor() {
+    local name
+    DOCTOR="$(pv doctor)" || die "physverify doctor failed"
+    same_path "$(doctor_value config_dir)" "$REPO_ROOT/configs" \
+        || die "doctor reports config_dir '$(doctor_value config_dir)', not $REPO_ROOT/configs"
+    [[ "$(doctor_value device)" == cpu* ]] || die "doctor reports device '$(doctor_value device)', not cpu"
+    [[ "$(doctor_value profile)" == precise ]] \
+        || die "doctor reports profile '$(doctor_value profile)', not precise"
+    same_path "$(doctor_value paths.cache_dir)" "$3" \
+        || die "doctor reports paths.cache_dir '$(doctor_value paths.cache_dir)', not $3"
+    for name in calibration_dir runs_dir error_profile thresholds; do
+        under "$(doctor_value "paths.$name")" "$1" \
+            || die "doctor reports paths.$name '$(doctor_value "paths.$name")', outside $1"
+    done
+    same_path "$(doctor_value paths.error_profile)" "$2/stage_errors.precise.json" \
+        || die "doctor reports paths.error_profile '$(doctor_value paths.error_profile)', not" \
+            "$2/stage_errors.precise.json"
+}

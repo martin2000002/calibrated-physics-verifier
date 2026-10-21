@@ -34,6 +34,17 @@ fq() {
     env PYTHONPATH="$REPO_ROOT/src" "$PY" "$REPO_ROOT/scripts/h200/freeze_query.py" "$@"
 }
 
+# copy_once FILE TARGET: FILE copied to TARGET unless TARGET already holds it; a different TARGET
+# stops the step (a frozen directory adopts its artifacts once and never mixes them).
+copy_once() {
+    if [[ -f "$2" ]]; then
+        cmp -s "$1" "$2" || stop "$2 differs from $1: a frozen artifact is never replaced"
+        return
+    fi
+    cp "$1" "$2.tmp"
+    mv "$2.tmp" "$2"
+}
+
 doctor_value() {
     sed -n "s/^$1: //p" <<<"$DOCTOR" | sed 's/ (.*)$//'
 }

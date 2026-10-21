@@ -136,34 +136,6 @@ query() {
     env PYTHONPATH="$REPO_ROOT/src" "$PY" "$REPO_ROOT/scripts/h200/a8v2_query.py" "$@"
 }
 
-check_doctor() {
-    local name
-    DOCTOR="$(pv doctor)" || die "physverify doctor failed"
-    same_path "$(doctor_value config_dir)" "$REPO_ROOT/configs" \
-        || die "doctor reports config_dir '$(doctor_value config_dir)', not $REPO_ROOT/configs"
-    [[ "$(doctor_value device)" == cpu* ]] || die "doctor reports device '$(doctor_value device)', not cpu"
-    [[ "$(doctor_value profile)" == precise ]] \
-        || die "doctor reports profile '$(doctor_value profile)', not precise"
-    same_path "$(doctor_value paths.cache_dir)" "$CACHE" \
-        || die "doctor reports paths.cache_dir '$(doctor_value paths.cache_dir)', not $CACHE"
-    for name in calibration_dir runs_dir error_profile thresholds; do
-        under "$(doctor_value "paths.$name")" "$F" \
-            || die "doctor reports paths.$name '$(doctor_value "paths.$name")', outside $F"
-    done
-    same_path "$(doctor_value paths.error_profile)" "$CAL/stage_errors.precise.json" \
-        || die "doctor reports paths.error_profile '$(doctor_value paths.error_profile)', not $CAL/stage_errors.precise.json"
-}
-
-# adopt FILE TARGET: FILE copied to TARGET unless TARGET already holds it; a different one stops.
-adopt() {
-    if [[ -f "$2" ]]; then
-        cmp -s "$1" "$2" || stop "$2 differs from $1: the freeze adopts, it never mixes artifacts"
-        return
-    fi
-    cp "$1" "$2.tmp"
-    mv "$2.tmp" "$2"
-}
-
 step_1() {
     local selection="$F/selection.json" chosen dir commit changed file
     fq select "${ITERATIONS[@]}" >"$selection.tmp" || stop "J4 selection failed (see above)"
@@ -178,7 +150,7 @@ step_1() {
         "verification ($changed): the artifacts cannot be adopted"
     mkdir -p "$CAL"
     for file in "${ADOPTED_FILES[@]}"; do
-        adopt "$dir/$file" "$CAL/$(basename "$file")"
+        copy_once "$dir/$file" "$CAL/$(basename "$file")"
     done
     fq select "${ITERATIONS[@]}" | cmp -s - "$selection" \
         || stop "the iterations changed while they were adopted"
@@ -257,7 +229,7 @@ step_7() {
         | note_block "Freeze manifest ($F/freeze.json, sha256 $FREEZE_SHA)"
 }
 
-check_doctor
+check_frozen_doctor "$F" "$CAL" "$CACHE"
 for ((n = FROM; n <= TO; n++)); do
     case "$n" in
         1) begin 1 adopt ;;
