@@ -40,3 +40,7 @@ pisa_real = 120
 
 [extraction.profiles.precise.providers.depth.vda_small]
 input_size = 518
+
+# The same input size for depth/vda_large (it3 G-depth compares the two at 518).
+[extraction.profiles.precise.providers.depth.vda_large]
+input_size = 518

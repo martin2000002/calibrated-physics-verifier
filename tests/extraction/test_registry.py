@@ -26,6 +26,7 @@ EXPECTED = {
     "track/sam2_1_hiera_tiny",
     "depth/vda_small",
     "depth/vda_metric_small",
+    "depth/vda_large",
     "camera/assumed_fov",
     "camera/geocalib",
     "lift/backproject",
@@ -45,6 +46,7 @@ HEAVY = {
     "track/sam2_1_hiera_tiny",
     "depth/vda_small",
     "depth/vda_metric_small",
+    "depth/vda_large",
     "camera/geocalib",
 }
 
@@ -57,10 +59,10 @@ def registry() -> dict[str, type[StageProvider]]:
     return dict(context.registry("providers"))
 
 
-def test_registry_has_exactly_the_twenty_four_providers(
+def test_registry_has_exactly_the_twenty_five_providers(
     registry: dict[str, type[StageProvider]],
 ) -> None:
-    assert len(EXPECTED) == 24
+    assert len(EXPECTED) == 25
     assert set(registry) == EXPECTED
 
 
@@ -96,7 +98,7 @@ def test_building_the_registry_imports_no_heavy_library() -> None:
         "import sys\n"
         "from physverify.cli.context import PLUGIN_KINDS\n"
         "import physverify.extraction.weights, physverify.extraction.pipeline\n"
-        "assert len(PLUGIN_KINDS['providers']()) == 24\n"
+        "assert len(PLUGIN_KINDS['providers']()) == 25\n"
         f"print(sorted(m for m in {LAZY_MODULES!r} if m in sys.modules))\n"
     )
     done = subprocess.run(

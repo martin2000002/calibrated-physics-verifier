@@ -113,7 +113,7 @@ def fake_heavy_models(monkeypatch: pytest.MonkeyPatch, sampling: FrameSampling) 
     truth_masks = fixture_truth().masks(sampling)
 
     def loader(stage: Stage, model: Any) -> Any:
-        def load(*_: Any) -> Any:
+        def load(*_: Any, **__: Any) -> Any:
             loads[stage] += 1
             return model
 
