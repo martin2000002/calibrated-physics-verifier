@@ -13,7 +13,7 @@ from pydantic import Field
 
 from physverify.checks._base import Check, CheckInputs
 from physverify.config.models import FrozenModel
-from physverify.physics.tracks import Flight, body_length, find_flights, row_step
+from physverify.physics.tracks import OCCLUDED_AT, Flight, body_length, find_flights, row_step
 from physverify.physics.uncertainty import monte_carlo
 from physverify.schema.checks import AbstainReason, CheckResult, Verdict
 from physverify.schema.contacts import ContactTable
@@ -35,7 +35,7 @@ class CommonParams(FrozenModel):
 class OcclusionParams(CommonParams):
     """Occlusion fraction from which an object counts as hidden (checks that read occlusion)."""
 
-    occluded_at: float = Field(default=0.9, gt=0.0, le=1.0)
+    occluded_at: float = Field(default=OCCLUDED_AT, gt=0.0, le=1.0)
 
 
 class FallParams(CommonParams):

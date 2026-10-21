@@ -76,7 +76,9 @@ def test_the_key_changes_with_every_ingredient(fixture_clip: SyntheticClip) -> N
     coarse = sampling_of(fixture_clip.manifest, SamplingSpec(max_side=48))
     changed = {
         "params": key_of(fixture_clip, BackprojectLift, params={"erode_px": 2}),
-        "version": key_of(fixture_clip, versioned(BackprojectLift, "2")),
+        "version": key_of(
+            fixture_clip, versioned(BackprojectLift, BackprojectLift.version + "-next")
+        ),
         "sampling": key_of(fixture_clip, BackprojectLift, sampling=coarse),
         "upstream": key_of(fixture_clip, BackprojectLift, upstream={**UPSTREAM, Stage.DEPTH: "x"}),
         "read entry": key_of(

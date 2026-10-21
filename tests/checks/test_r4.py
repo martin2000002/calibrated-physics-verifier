@@ -92,9 +92,40 @@ def test_unknown_occlusion_abstains() -> None:
     assert result.frame_span == (4, 7)
 
 
-def test_missing_sigma_is_unknown_for_perceived_positions() -> None:
-    result = missing(sc.with_sigma(sc.disappearance(4, 7), position=0.01))
+def test_missing_sigma_is_unknown_for_perceived_positions_in_the_old_model() -> None:
+    old = PermanenceCheck(PermanenceParams(sigma_model="unknown"))
+    result = run_one(old, sc.with_sigma(sc.disappearance(4, 7), position=0.01))
     assert math.isnan(result.sigma)
+
+
+def perceived_gaps(*gaps: tuple[int, int]) -> sc.Case:
+    case = sc.with_sigma(sc.rolling_ball(clip_id="gaps"), position=0.01)
+    for first, last in gaps:
+        case = sc.with_values(case, "visible", "ball", range(first, last + 1), False)
+    return case
+
+
+@pytest.mark.parametrize(
+    ("gaps", "runs"), [((), 1), (((4, 7),), 1), (((2, 3), (8, 8), (12, 15)), 3)]
+)
+def test_t6_perceived_sigma_has_two_uncertain_edges_per_run(
+    gaps: tuple[tuple[int, int], ...], runs: int
+) -> None:
+    result = missing(perceived_gaps(*gaps))
+    assert result.magnitude == sum(last - first + 1 for first, last in gaps)
+    assert result.sigma == pytest.approx(math.sqrt(2.0 * runs))
+    assert result.details["sigma_estimated"] is True
+
+
+def test_t6_perceived_sigma_scales_with_the_row_step() -> None:
+    case = sc.strided(sc.with_sigma(sc.disappearance(4, 7), position=0.01), 2, quantize=True)
+    assert missing(case).sigma == pytest.approx(2.0 * math.sqrt(2.0))
+
+
+def test_t6_exact_positions_keep_sigma_zero() -> None:
+    result = missing(sc.disappearance(4, 7))
+    assert result.sigma == 0.0
+    assert "sigma_estimated" not in result.details
 
 
 def test_strided_disappearance_counts_native_frames() -> None:

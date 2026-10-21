@@ -25,6 +25,8 @@ from physverify.extraction.providers._lifting import (
     object_position,
     object_summary,
 )
+from physverify.extraction.providers._visibility import gap_visibility
+from physverify.physics.tracks import OCCLUDED_AT
 from physverify.schema.io import stable_hash
 from physverify.schema.perception import CameraModel, DepthMap, IntrinsicsSource, MaskTrack
 from physverify.schema.stages import Stage
@@ -36,6 +38,9 @@ LEVEL_CAMERA_GRAVITY = np.array([0.0, 1.0, 0.0])
 SEED_HEX_DIGITS = 16
 
 GravityMode = Literal["auto", "camera_pose", "level_camera", "none"]
+# "none" is version 1 (in_frame = visible, occlusion unknown); "interpolate" infers both inside
+# interior mask gaps (ADR 0005 4.2 as amended 2026-10-20, ``_visibility.py``).
+GapMode = Literal["none", "interpolate"]
 
 
 class Params(ProviderParams):
@@ -62,12 +67,15 @@ class Params(ProviderParams):
     }
     sigma_mode: Literal["closed_form", "monte_carlo"] = "closed_form"
     mc_draws: int = Field(default=500, ge=2)
+    gap_visibility: GapMode = "interpolate"
+    # Must equal the checks' ``occluded_at``: a gap estimate below it and above 0 is unknown.
+    gap_occluded_at: float = Field(default=OCCLUDED_AT, gt=0.0, le=1.0)
 
 
 class BackprojectLift:
     stage: ClassVar[Stage] = Stage.LIFT
     name: ClassVar[str] = "backproject"
-    version: ClassVar[str] = "1"
+    version: ClassVar[str] = "2"
     requires: ClassVar[tuple[Stage, ...]] = (Stage.TRACK, Stage.DEPTH, Stage.CAMERA)
     heavy: ClassVar[bool] = False
     is_ground_truth: ClassVar[bool] = False
@@ -110,6 +118,9 @@ class BackprojectLift:
                 )
                 self._fill(fields, (t_index, n_index), summary, primitive, camera, errors, rng)
         fields["confidence"] = np.clip(track.scores.astype(np.float64), 0.0, 1.0)
+        if self.params.gap_visibility == "interpolate":
+            gaps = gap_visibility(track.masks, fields["visible"], self.params.gap_occluded_at)
+            fields["in_frame"], fields["occlusion"] = gaps.in_frame, gaps.occlusion
         mode = self.params.gravity_by_dataset.get(ctx.clip.dataset, self.params.gravity)
         gravity, gravity_sigma = self._gravity(camera, mode)
         return replace(table, **fields, gravity_dir=gravity, gravity_dir_sigma=gravity_sigma)
@@ -171,7 +182,15 @@ class BackprojectLift:
 
 
 def _mutable_fields(table: ObjectStateTable) -> dict[str, Any]:
-    names = ("position", "position_sigma", "size", "size_sigma", "visible", "in_frame")
+    names = (
+        "position",
+        "position_sigma",
+        "size",
+        "size_sigma",
+        "visible",
+        "in_frame",
+        "occlusion",
+    )
     return {name: np.array(getattr(table, name), copy=True) for name in names}
 
 

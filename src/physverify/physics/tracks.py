@@ -36,6 +36,9 @@ FloatArray = NDArray[np.float64]
 IntArray = NDArray[np.int64]
 BoolArray = NDArray[np.bool_]
 MIN_FIT_ROWS = 3  # fall_fit needs three rows with a known position
+# Occlusion share from which an unseen object counts as hidden: the checks that read occlusion
+# and the perceived gap estimate of LIFT (extraction/providers/_visibility.py) use the same value.
+OCCLUDED_AT = 0.9
 
 
 @dataclass(frozen=True, eq=False)
