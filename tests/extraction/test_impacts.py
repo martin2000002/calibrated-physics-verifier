@@ -18,7 +18,12 @@ from test_cache import UPSTREAM as CACHE_UPSTREAM
 from test_cache import key_of, versioned
 
 from physverify.extraction.providers._attribution import SOURCE
-from physverify.extraction.providers._impacts import noise_scale, pixel_floor, track_impacts
+from physverify.extraction.providers._impacts import (
+    NoiseScale,
+    noise_scale,
+    pixel_floor,
+    track_impacts,
+)
 from physverify.extraction.providers.contacts_kinematic import KinematicContacts
 from physverify.physics.tracks import MIN_NOISE_STENCILS
 from physverify.schema.constants import ENV_ID
@@ -39,8 +44,8 @@ def kinematic(table: ContactTable) -> list[ContactRecord]:
 def impacts_of(case: sc.Case, index: int = 0) -> list[Any]:
     """Detector alone on one track with the test pixel floor as its noise."""
     states = case.states
-    sigma = np.full(3, TEST_SIGMA)
-    return track_impacts(states.t, states.position[:, index], sigma, SIDE_ROWS, ALPHA)
+    noise = NoiseScale(np.full(3, TEST_SIGMA), known=True)
+    return track_impacts(states.t, states.position[:, index], noise, SIDE_ROWS, ALPHA)
 
 
 def angle_deg(u: np.ndarray, v: np.ndarray) -> float:
@@ -159,7 +164,8 @@ def micro_kink(px: float = 1e-3) -> sc.Case:
 
 def test_t6_a_kink_of_a_thousandth_of_a_pixel_is_below_the_floor() -> None:
     case = micro_kink()
-    unfloored = track_impacts(case.states.t, case.states.position[:, 0], np.full(3, 1e-12), 4, 0.05)
+    tiny = NoiseScale(np.full(3, 1e-12), known=True)
+    unfloored = track_impacts(case.states.t, case.states.position[:, 0], tiny, 4, 0.05)
     assert unfloored, "without a floor the exact micro kink would be an impact"
     assert no_kinematic_records(case)
 
@@ -170,7 +176,11 @@ def test_t6_the_floor_is_nan_without_a_focal_or_a_depth() -> None:
         assert math.isnan(pixel_floor(depth, focal))
     assert noise_scale(np.zeros(3), math.nan) is None
     assert noise_scale(None, 1.0) is None
-    np.testing.assert_array_equal(noise_scale(np.array([0.0, 2.0, 0.5]), 1.0), [1.0, 2.0, 1.0])
+    floored = noise_scale(np.zeros(3), 1.0)
+    assert floored is not None and floored.known
+    measured = noise_scale(np.array([0.0, 2.0, 0.5]), 1.0)
+    assert measured is not None and not measured.known
+    np.testing.assert_array_equal(measured.sigma, [1.0, 2.0, 1.0])
 
 
 def in_world(case: sc.Case) -> tuple[sc.Case, np.ndarray]:

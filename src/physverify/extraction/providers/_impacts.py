@@ -6,10 +6,12 @@ slope breaks. Around every boundary between two consecutive rows a parabola is c
 parabola plus one column: a velocity kink inside that boundary (an impact), or, as alternatives,
 a position step, an isolated outlier or an acceleration change anywhere in the window. The
 boundary holds an impact when the kink explains the window best (a kink in another interval of
-the window is one more alternative: it localizes the impulse) and its F ratio over the parabola
-exceeds the F(3, residual dof) quantile at 1 - alpha / n_boundaries. That bound is nominal: the
-kink time is optimized and the best model selected, so under the null the ratio is not F
-(Davies); the real false-alarm rate is measured by the tests, never asserted from alpha.
+the window is one more alternative: it localizes the impulse) and its gain over the parabola
+exceeds the Bonferroni quantile at 1 - alpha / n_boundaries: chi-square(3) when the noise scale is
+the pixel floor (known), an F(3, residual dof) ratio over the window's residual when it was
+measured on the track (``NoiseScale``). The bound is nominal: the kink time is optimized and the
+best model selected, so under the null the statistic does not follow that law (Davies); the real
+false-alarm rate is measured by the tests, never asserted from alpha.
 
 Every model is fitted on positions whitened per axis by the track's noise. Adding a column c to
 the parabola P lowers the residual sum of squares by gain(c) = sum_k (r_k . c~)^2 / |c~|^2, with
@@ -26,6 +28,7 @@ from dataclasses import dataclass
 import numpy as np
 from numpy.typing import NDArray
 from scipy.optimize import minimize_scalar
+from scipy.stats import chi2
 from scipy.stats import f as f_dist
 
 from physverify.physics.kinematics import visible_runs
@@ -80,11 +83,22 @@ def pixel_floor(depth: float, focal: float) -> float:
     return depth / (focal * QUANTIZATION)
 
 
-def noise_scale(track_sigma: FloatArray | None, floor: float) -> FloatArray | None:
-    """Per-axis sigma = max(sigma_w, q); None without a measured track noise or a finite floor."""
+@dataclass(frozen=True)
+class NoiseScale:
+    """Per-axis sigma-hat = max(sigma_w, q). ``known`` when the pixel floor q sets it on every
+    axis: then nothing in it was estimated from the track and the gain is tested as chi-square;
+    otherwise as an F ratio over the window's own residual."""
+
+    sigma: FloatArray
+    known: bool
+
+
+def noise_scale(track_sigma: FloatArray | None, floor: float) -> NoiseScale | None:
+    """sigma-hat of a track; None without a measured track noise or a finite floor."""
     if track_sigma is None or not math.isfinite(floor):
         return None
-    return np.maximum(np.asarray(track_sigma, dtype=np.float64), floor)
+    measured = np.asarray(track_sigma, dtype=np.float64)
+    return NoiseScale(np.maximum(measured, floor), bool(np.all(measured <= floor)))
 
 
 def parabola(u: FloatArray) -> FloatArray:
@@ -228,17 +242,22 @@ def residual_dof(rows: int) -> int:
     return DEGREES_OF_FREEDOM * (rows - KINK_COEFFICIENTS)
 
 
-def critical_ratio(alpha: float, boundaries: int, rows: int) -> float:
-    """F(3, residual dof) quantile at 1 - alpha / boundaries (Bonferroni over the track)."""
+def critical_ratio(alpha: float, boundaries: int, rows: int, known: bool) -> float:
+    """Quantile at 1 - alpha / boundaries (Bonferroni over the track) of chi2_3 / 3 for a known
+    scale, of F(3, residual dof) otherwise."""
     tail = alpha / max(boundaries, 1)
+    if known:
+        return float(chi2.isf(tail, DEGREES_OF_FREEDOM)) / DEGREES_OF_FREEDOM
     return float(f_dist.isf(tail, DEGREES_OF_FREEDOM, residual_dof(rows)))
 
 
-def kink_ratio(gain: float, residual: FloatArray, rows: int) -> float:
-    """F ratio of the kink: its gain per coefficient over the residual variance of the kink fit
-    in the window, never below 1 (the whitening noise sigma-hat, i.e. the track's own noise or
-    the pixel floor). The window's residual keeps the size of the test when sigma-hat, measured
-    on a few stencils, comes out low; the floor keeps exact tracks from dividing by zero."""
+def kink_ratio(gain: float, residual: FloatArray, rows: int, known: bool) -> float:
+    """The kink's gain per coefficient over the noise variance: 1 (whitened) for a known scale;
+    otherwise the residual variance of the kink fit in the window, never below 1. The window's
+    residual keeps the size of the test when sigma-hat, measured on a few stencils, comes out
+    low (with the plan's chi-square about 23 % of clean tracks had a false impact, T5)."""
+    if known:
+        return gain / DEGREES_OF_FREEDOM
     rss = float(np.sum(residual**2)) - gain
     variance = max(rss / residual_dof(rows), 1.0)
     return gain / (DEGREES_OF_FREEDOM * variance)
@@ -267,13 +286,15 @@ def make_window(
     return Window(row, lo, u, position[lo:hi] / sigma, step, float(t[row]))
 
 
-def judge_boundary(window: Window, basis: Basis, critical: float) -> tuple[float, float] | None:
-    """(s, F ratio) when the kink inside the boundary beats the parabola beyond the Bonferroni
-    F quantile ``critical`` and explains the window better than every alternative."""
+def judge_boundary(
+    window: Window, basis: Basis, critical: float, known: bool
+) -> tuple[float, float] | None:
+    """(s, ratio) when the kink inside the boundary beats the parabola beyond the Bonferroni
+    quantile ``critical`` and explains the window better than every alternative."""
     residual = basis.maker @ window.y
     interval = window.row - window.lo
     s, gain = kink_time(basis, residual, interval)
-    ratio = kink_ratio(gain, residual, window.u.size)
+    ratio = kink_ratio(gain, residual, window.u.size, known)
     if not ratio > critical:
         return None
     if not explains_best(basis, residual, interval, gain):
@@ -292,16 +313,17 @@ def kink_fit(window: Window, s: float, sigma: FloatArray) -> tuple[FloatArray, F
 def track_impacts(
     t: FloatArray,
     position: FloatArray,
-    sigma: FloatArray,
+    noise: NoiseScale,
     side_rows: int,
     alpha: float,
     bases: Bases | None = None,
 ) -> list[Impact]:
     """Impacts of one track (rows with a non-finite position split it into runs). ``bases``
     caches the window bases by row times; tracks of one clip can share it."""
+    sigma = noise.sigma
     candidates = list(boundaries(position, side_rows))
     sizes = {hi - lo for _, lo, hi in candidates}
-    critical = {rows: critical_ratio(alpha, len(candidates), rows) for rows in sizes}
+    critical = {rows: critical_ratio(alpha, len(candidates), rows, noise.known) for rows in sizes}
     cache: Bases = {} if bases is None else bases
     accepted: list[Impact] = []
     for row, lo, hi in candidates:
@@ -310,7 +332,7 @@ def track_impacts(
         basis = cache.get(key)
         if basis is None:
             basis = cache[key] = Basis.of(window.u)
-        found = judge_boundary(window, basis, critical[hi - lo])
+        found = judge_boundary(window, basis, critical[hi - lo], noise.known)
         if found is not None:
             delta_v, at_kink = kink_fit(window, found[0], sigma)
             time = window.origin + found[0] * window.step

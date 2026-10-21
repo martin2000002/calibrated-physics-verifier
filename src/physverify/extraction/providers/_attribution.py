@@ -22,6 +22,7 @@ from numpy.typing import NDArray
 from physverify.extraction.providers._impacts import (
     Bases,
     Impact,
+    NoiseScale,
     noise_scale,
     pixel_floor,
     track_impacts,
@@ -108,7 +109,7 @@ def camera_positions(states: ObjectStateTable, camera: CameraModel) -> FloatArra
 
 def object_sigma(
     states: ObjectStateTable, index: int, depths: FloatArray | None, focal: float
-) -> FloatArray | None:
+) -> NoiseScale | None:
     """sigma-hat per axis of one object: its track noise floored by one pixel at its median
     camera depth; None without either (no impacts are then sought for it)."""
     depth = nan_median(depths.tolist()) if depths is not None else math.nan
@@ -128,10 +129,10 @@ def detect(scene: KinematicScene, focal: float, side_rows: int, alpha: float) ->
     bases: Bases = {}
     events: list[Event] = []
     for n in range(states.n_objects):
-        sigma = object_sigma(states, n, None if cam is None else cam[:, n, 2], focal)
-        if sigma is None:
+        noise = object_sigma(states, n, None if cam is None else cam[:, n, 2], focal)
+        if noise is None:
             continue
-        found = track_impacts(states.t, states.position[:, n], sigma, side_rows, alpha, bases)
+        found = track_impacts(states.t, states.position[:, n], noise, side_rows, alpha, bases)
         events.extend(Event(n, impact) for impact in found)
     return events
 
