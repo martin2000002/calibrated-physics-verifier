@@ -40,6 +40,9 @@ MIN_FIT_ROWS = 3  # fall_fit needs three rows with a known position
 # Occlusion share from which an unseen object counts as hidden: the checks that read occlusion
 # and the perceived gap estimate of LIFT (extraction/providers/_visibility.py) use the same value.
 OCCLUDED_AT = 0.9
+# Fewest usable third-difference stencils from which a track measures its own noise: the fall
+# filter of R5 and the kinematic impacts of CONTACTS use the same value.
+MIN_NOISE_STENCILS = 8
 
 
 @dataclass(frozen=True, eq=False)
