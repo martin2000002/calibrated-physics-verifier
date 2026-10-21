@@ -64,6 +64,11 @@ PERTURBATION_UNIT = "perturbation_unit"
 is not its own (its magnitude is a test statistic of a parameter injected in that unit)."""
 
 
+PERTURBATION_ESTIMATE = "perturbation_estimate"
+"""Optional class attribute of such a check: the ``details`` key where each result carries its
+estimate of the injected value, in the perturbation unit (labelled as an estimate)."""
+
+
 def target_unit(check: CheckIdentity) -> str:
     """The perturbation unit ``check`` answers to: its ``PERTURBATION_UNIT`` or its own unit."""
     declared = getattr(check, PERTURBATION_UNIT, None)
@@ -75,13 +80,20 @@ class CheckUnit:
     check_id: str
     magnitude_unit: str
     perturbation_unit: str | None = None
+    perturbation_estimate: str | None = None
 
     @classmethod
     def of(cls, check: CheckIdentity) -> CheckUnit:
-        """Identity of a check class (or instance), its declared perturbation unit included."""
-        declared = getattr(check, PERTURBATION_UNIT, None)
-        unit = None if declared is None else str(declared)
-        return cls(check.check_id, check.magnitude_unit, unit)
+        """Identity of a check class (or instance), its declared perturbation unit and estimate
+        key included."""
+        unit = getattr(check, PERTURBATION_UNIT, None)
+        estimate = getattr(check, PERTURBATION_ESTIMATE, None)
+        return cls(
+            check.check_id,
+            check.magnitude_unit,
+            None if unit is None else str(unit),
+            None if estimate is None else str(estimate),
+        )
 
 
 @dataclass(frozen=True)
@@ -255,7 +267,52 @@ def _check_unit_outcomes(
         outcomes += [
             _agreement(clip, record, c, units[c], settings) for c in targets if c not in ranked
         ]
+        by_id = {c.check_id: c for c in checks}
+        outcomes += [
+            _estimate_agreement(clip, record, by_id[c], settings)
+            for c in sorted(ranked)
+            if by_id[c].perturbation_estimate
+        ]
     return outcomes
+
+
+def _estimate_agreement(
+    clip: _Clip, record: PerturbationRecord, check: CheckUnit, settings: SpecificitySettings
+) -> RuleOutcome:
+    """|estimate - mu| within the tolerance, the estimate read from the decisive covering
+    subject's ``details[perturbation_estimate]``: the check-unit rule for a check whose magnitude
+    is a test statistic of the injected value."""
+    key = check.perturbation_estimate
+    assert key is not None
+    value = target_estimate(record, check.check_id, key, clip.results)
+    tolerance = max(settings.abs_tol, settings.rel_tol * abs(record.magnitude))
+    passed = value is not None and abs(value - record.magnitude) <= tolerance
+    detail = f"estimate {key}, tolerance {tolerance:.3g}"
+    if value is None:
+        detail = f"the target check gave no {key}"
+    return RuleOutcome(
+        Rule.CHECK_UNIT,
+        clip.name,
+        check.check_id,
+        (clip.clip.clip_id,),
+        passed,
+        record.magnitude,
+        value,
+        detail,
+    )
+
+
+def target_estimate(
+    record: PerturbationRecord, check_id: str, key: str, results: Sequence[CheckResult]
+) -> float | None:
+    """``details[key]`` of the subject ``target_value`` reads; None when it is not finite."""
+    targets = set(record.target_objects)
+    covering = [r for r in results if r.check_id == check_id and _covers(r.subject, targets)]
+    chosen = decisive(covering)
+    found = None if chosen is None else chosen.details.get(key)
+    if not isinstance(found, (int, float)) or not math.isfinite(found):
+        return None
+    return float(found)
 
 
 def _ranked_targets(record: PerturbationRecord, checks: Sequence[CheckIdentity]) -> list[str]:
@@ -441,11 +498,17 @@ def _check_ids(table: Sequence[TableRow]) -> list[str]:
 
 def _check_units(table: Sequence[TableRow], identities: Sequence[CheckIdentity]) -> list[CheckUnit]:
     units = {row.check_id: row.unit for row in table}
-    declared = {c.check_id: CheckUnit.of(c).perturbation_unit for c in identities}
-    return [
-        CheckUnit(check_id, units[check_id], declared.get(check_id))
-        for check_id in _check_ids(table)
-    ]
+    declared = {c.check_id: CheckUnit.of(c) for c in identities}
+
+    def unit(check_id: str) -> CheckUnit:
+        found = declared.get(check_id)
+        if found is None:
+            return CheckUnit(check_id, units[check_id])
+        return CheckUnit(
+            check_id, units[check_id], found.perturbation_unit, found.perturbation_estimate
+        )
+
+    return [unit(check_id) for check_id in _check_ids(table)]
 
 
 def _clips(report: VerificationReport) -> list[_Clip]:

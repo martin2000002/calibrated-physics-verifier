@@ -86,12 +86,14 @@ class NoiseContinuityCheck:
     (``jump_over_size_estimated``, an estimate at the peak row). ``sigma`` is 1 in its own unit
     (the per-row sigma at the peak, as in v1) and 0 for exact positions; the error of sigma-hat
     itself (about 30 % relative with 8 to 20 stencils) is not propagated (judgement J8). The
-    perturbations it answers to are injected in ``jump_over_size`` (``perturbation_unit``)."""
+    perturbations it answers to are injected in ``jump_over_size`` (``perturbation_unit``); the
+    sweep compares that estimate with the injected jump (``perturbation_estimate``)."""
 
     check_id: ClassVar[str] = "R4_jump"
     requires: ClassVar[frozenset[str]] = frozenset({"contacts", "camera"})
     magnitude_unit: ClassVar[str] = "jump_over_noise"
     perturbation_unit: ClassVar[str] = "jump_over_size"
+    perturbation_estimate: ClassVar[str] = "jump_over_size_estimated"
     Params: ClassVar[type[BaseModel]] = NoiseJumpParams
 
     def __init__(self, params: BaseModel) -> None:

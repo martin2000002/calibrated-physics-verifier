@@ -17,6 +17,7 @@ from physverify.calibration.table import role_of
 from physverify.checks._base import Check, CheckInputs
 from physverify.checks._common import unscored
 from physverify.checks.r4_integrity import ContinuityCheck
+from physverify.checks.r4_jump_noise import NoiseContinuityCheck
 from physverify.cli.context import PLUGIN_KINDS
 from physverify.schema.checks import CheckResult
 from physverify.schema.clip import ClipManifest
@@ -142,3 +143,41 @@ def test_j1_a_wrong_order_within_an_object_fails() -> None:
 def test_j1_one_level_per_object_has_no_order_to_keep() -> None:
     (outcome,) = sweep([teleport(2, "a")], {"s0_a_L2": 5.0})
     assert outcome.undefined  # type: ignore[attr-defined]
+
+
+def real_teleport(mu: float) -> tuple[list[object], list[object]]:
+    """R4_jump v2 on the oracle teleport scene (0.3 m = 1.5 body lengths at rest), labelled as
+    one r4_teleport level of magnitude ``mu``: (check-unit outcomes, ranking outcomes)."""
+    case = sc.teleport(delta=0.3)
+    record = replace(label("r4_teleport", 3, ("ball",)), magnitude=mu)
+    clip = replace(case.clip, perturbation=record, scene_id="s0")
+    item = ClipInputs(clip, replace(case.inputs(), clip=clip), None)
+    check: Check = NoiseContinuityCheck(NoiseContinuityCheck.Params())
+    report = VerificationRunner([check], RawPolicy(), {}).run(Items([item]), [clip])
+    spec = specificity(report, SpecificitySettings(), [CheckUnit.of(check)])
+    found = [o for o in spec.outcomes if o.check_id == "R4_jump"]
+    return (
+        [o for o in found if o.rule is Rule.CHECK_UNIT],
+        [o for o in found if o.rule is Rule.INJECTED_PARAMETER],
+    )
+
+
+def test_m1_the_estimated_jump_agrees_with_the_injected_one() -> None:
+    """Audit M1: with one r4_teleport level per calib scene the order is undefined, so the sweep
+    also checks, clip by clip, the estimated jump at the peak against mu (as v1 did)."""
+    (agreement,), (ranking,) = real_teleport(1.5)
+    assert agreement.passed  # type: ignore[attr-defined]
+    assert agreement.observed == pytest.approx(1.5, rel=1e-9)  # type: ignore[attr-defined]
+    assert ranking.undefined  # type: ignore[attr-defined]
+
+
+def test_m1_a_wrong_estimate_fails() -> None:
+    (agreement,), _ = real_teleport(1.0)
+    assert not agreement.passed  # type: ignore[attr-defined]
+    assert "jump_over_size_estimated" in agreement.detail  # type: ignore[attr-defined]
+
+
+def test_m1_the_identity_carries_the_estimate_key() -> None:
+    unit = CheckUnit.of(NoiseContinuityCheck)
+    assert unit.perturbation_estimate == "jump_over_size_estimated"
+    assert CheckUnit.of(ContinuityCheck).perturbation_estimate is None
