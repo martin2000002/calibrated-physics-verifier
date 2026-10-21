@@ -107,6 +107,8 @@ def test_repository_configs(config_dir: Path) -> None:
     assert precise.sections["extraction"]["sampling"]["max_side"] == 960
     assert precise.sections["extraction"]["sampling"]["target_fps"] == {
         "kubric_synthetic": 24, "physics_iq": 30, "pisa_real": 120,
+        "kubric_fresh": 24, "kubric_fresh_ood": 24, "kubric_fresh_blind": 24,
+        "physics_iq_views": 30, "objectron_static": 30,
     }  # fmt: skip
     assert fast.runtime.docker_image.startswith("kubricdockerhub/kubruntu@sha256:")
     priors = fast.section("size_priors", SizePriorTable)
