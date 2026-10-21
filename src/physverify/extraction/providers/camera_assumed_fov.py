@@ -5,11 +5,14 @@ from __future__ import annotations
 import math
 from typing import ClassVar
 
-import numpy as np
 from pydantic import BaseModel, Field
 
 from physverify.extraction._base import StageContext, WeightSpec
-from physverify.extraction.providers._common import ProviderParams, expect_params
+from physverify.extraction.providers._common import (
+    ProviderParams,
+    centred_intrinsics,
+    expect_params,
+)
 from physverify.schema.perception import CameraModel, IntrinsicsSource
 from physverify.schema.stages import Stage
 
@@ -36,16 +39,9 @@ class AssumedFovCamera:
     def run(self, ctx: StageContext) -> CameraModel:
         sampling = ctx.sampling
         focal = (sampling.width / 2.0) / math.tan(math.radians(self.params.fov_deg) / 2.0)
-        K = np.array(  # noqa: N806
-            [
-                [focal, 0.0, sampling.width / 2.0],
-                [0.0, focal, sampling.height / 2.0],
-                [0.0, 0.0, 1.0],
-            ]
-        )
         return CameraModel(
             sampling=sampling,
-            K=K,
+            K=centred_intrinsics(focal, sampling),
             source=IntrinsicsSource.ASSUMED_FOV,
             fov_deg=self.params.fov_deg,
             fov_sigma_deg=self.params.fov_sigma_deg,

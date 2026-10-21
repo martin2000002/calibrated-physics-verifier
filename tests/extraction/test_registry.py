@@ -17,7 +17,7 @@ from physverify.schema.stages import Stage, check_upstream_order
 
 REPO = Path(__file__).resolve().parents[2]
 PROVIDERS_DIR = REPO / "src" / "physverify" / "extraction" / "providers"
-LAZY_MODULES = ("torch", "transformers", "huggingface_hub", "timm")
+LAZY_MODULES = ("torch", "transformers", "huggingface_hub", "timm", "geocalib", "kornia")
 EXPECTED = {
     "detect/grounding_dino_tiny",
     "detect/grounding_dino_tiny_per_query",
@@ -27,6 +27,7 @@ EXPECTED = {
     "depth/vda_small",
     "depth/vda_metric_small",
     "camera/assumed_fov",
+    "camera/geocalib",
     "lift/backproject",
     "scale/size_prior",
     "scale/size_model",
@@ -43,6 +44,7 @@ HEAVY = {
     "track/sam2_1_hiera_tiny",
     "depth/vda_small",
     "depth/vda_metric_small",
+    "camera/geocalib",
 }
 
 
@@ -54,10 +56,10 @@ def registry() -> dict[str, type[StageProvider]]:
     return dict(context.registry("providers"))
 
 
-def test_registry_has_exactly_the_twenty_two_providers(
+def test_registry_has_exactly_the_twenty_three_providers(
     registry: dict[str, type[StageProvider]],
 ) -> None:
-    assert len(EXPECTED) == 22
+    assert len(EXPECTED) == 23
     assert set(registry) == EXPECTED
 
 
@@ -93,7 +95,7 @@ def test_building_the_registry_imports_no_heavy_library() -> None:
         "import sys\n"
         "from physverify.cli.context import PLUGIN_KINDS\n"
         "import physverify.extraction.weights, physverify.extraction.pipeline\n"
-        "assert len(PLUGIN_KINDS['providers']()) == 22\n"
+        "assert len(PLUGIN_KINDS['providers']()) == 23\n"
         f"print(sorted(m for m in {LAZY_MODULES!r} if m in sys.modules))\n"
     )
     done = subprocess.run(
@@ -165,4 +167,4 @@ def test_frames_are_requested_with_the_context_sampling() -> None:
             assert _is_attr(max_side, "s", "max_side"), path.name
             dino = path.name == "detect_grounding_dino.py"
             assert _is_attr(stop, "s", "stop") or (dino and isinstance(stop, ast.Name)), path.name
-    assert calls == 3
+    assert calls == 4

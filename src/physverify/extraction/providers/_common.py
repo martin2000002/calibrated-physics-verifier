@@ -4,9 +4,12 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 
+import numpy as np
+from numpy.typing import NDArray
 from pydantic import BaseModel, ConfigDict
 
 from physverify.extraction._base import StageContext
+from physverify.schema.clip import FrameSampling
 
 
 class ProviderParams(BaseModel):
@@ -31,6 +34,17 @@ def lookup_label[V](label: str, table: Mapping[str, V]) -> V | None:
         if candidate in table:
             return table[candidate]
     return None
+
+
+def centred_intrinsics(focal: float, sampling: FrameSampling) -> NDArray[np.float64]:
+    """Pinhole K in processing pixels with square pixels and the principal point at the centre."""
+    return np.array(
+        [
+            [focal, 0.0, sampling.width / 2.0],
+            [0.0, focal, sampling.height / 2.0],
+            [0.0, 0.0, 1.0],
+        ]
+    )
 
 
 def set_torch_threads(threads: int) -> None:
