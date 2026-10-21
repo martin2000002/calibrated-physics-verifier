@@ -42,7 +42,8 @@ require_checkout() {
     [[ ${#expect} -ge 7 ]] || die "set $1 to the commit this run uses"
     HEAD_COMMIT="$(git -C "$REPO_ROOT" rev-parse HEAD)" || die "$REPO_ROOT is not a git checkout"
     [[ "$HEAD_COMMIT" == "$expect"* ]] || die "HEAD is $HEAD_COMMIT, expected $expect"
-    dirty="$(git -C "$REPO_ROOT" status --porcelain -- src configs scripts annotations pyproject.toml uv.lock)" \
+    dirty="$(git -C "$REPO_ROOT" status --porcelain -- \
+        src configs scripts annotations pyproject.toml uv.lock)" \
         || die "git status failed in $REPO_ROOT"
     [[ -z "$dirty" ]] || die "uncommitted or untracked files under src, configs, scripts," \
         "annotations, pyproject.toml or uv.lock:"$'\n'"$dirty"

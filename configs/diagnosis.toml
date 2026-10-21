@@ -106,7 +106,8 @@ seconds = 4.0
 max_video_mb = 40.0
 max_side = 1920            # the native long side: frames are kept at full resolution
 retries = 3
-split = "test"             # the sealed population; a dry run passes PHYSVERIFY__OBJECTRON_STATIC__SPLIT=train
+# The sealed population; a dry run passes PHYSVERIFY__OBJECTRON_STATIC__SPLIT=train.
+split = "test"
 
 [pisa_real]
 repo_url = "https://huggingface.co/datasets/nyu-visionx/pisa-experiments"
