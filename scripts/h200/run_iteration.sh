@@ -15,8 +15,8 @@
 #                   <run>/calibration.json (never in a calibration directory); copied to $OUT
 #
 # Startup (exit 2 before any physverify call): PHYSVERIFY_ITER_ID; HEAD is
-# PHYSVERIFY_ITER_EXPECT_COMMIT with nothing uncommitted or untracked under src, configs, scripts
-# or annotations; no configs/local.toml and no PHYSVERIFY_CONFIG_DIR; no PHYSVERIFY__* variable
+# PHYSVERIFY_ITER_EXPECT_COMMIT with nothing uncommitted or untracked under src, configs, scripts,
+# annotations, pyproject.toml or uv.lock; no configs/local.toml and no PHYSVERIFY_CONFIG_DIR; no PHYSVERIFY__* variable
 # but the ones exported here (PHYSVERIFY__SEALED__* included); no PHYSVERIFY_UNSEAL or
 # PHYSVERIFY_UNSEAL_REPEAT; the output directory (and its calibration/ and runs/) is not inside
 # $H200_ROOT/a8v2*, $DATA/calibration*, $DATA/runs* or the baseline $H200_ROOT/kubric-data/

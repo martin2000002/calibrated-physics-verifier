@@ -22,7 +22,8 @@
 #    7 manifest        freeze_query manifest: $F/freeze.json (AC-8, AC-18)
 #
 # Startup (exit 2 before any physverify call): HEAD is PHYSVERIFY_FREEZE_EXPECT_COMMIT with nothing
-# uncommitted or untracked under src, configs, scripts or annotations; no configs/local.toml and no
+# uncommitted or untracked under src, configs, scripts, annotations, pyproject.toml or uv.lock; no
+# configs/local.toml and no
 # PHYSVERIFY_CONFIG_DIR; no PHYSVERIFY__* variable but the ones exported here; no PHYSVERIFY_UNSEAL
 # or PHYSVERIFY_UNSEAL_REPEAT; $F (and its calibration/ and runs/) not inside $H200_ROOT/a8v2*,
 # $H200_ROOT/iterations, $DATA/calibration* or $DATA/runs*; no other instance on its run.lock;
