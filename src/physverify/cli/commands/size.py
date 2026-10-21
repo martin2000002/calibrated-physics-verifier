@@ -34,6 +34,7 @@ from physverify.schema.scale import ScaleEstimate
 from physverify.schema.stages import Stage
 from physverify.schema.states import ObjectStateTable
 from physverify.sizing import e2e, objectron
+from physverify.sizing.draws import TEST, TRAIN, e2e_draw, objectron_dir, selection
 from physverify.sizing.evaluate import MODEL, evaluate
 from physverify.sizing.fit import conformal_factor, fit_model, render_toml
 from physverify.sizing.model import SECTION as MODEL_SECTION
@@ -45,47 +46,12 @@ from physverify.verification.inputs import refuse_heavy
 NAME = "size"
 OWNER = "A9"
 IMPLEMENTED = True
-DATASET_DIR = "objectron"
 MODEL_FILE = "size_model.toml"
-TRAIN, TEST = objectron.SPLITS
 LOCAL_VIDEO = "local_video"
 SCALE_METHODS = ("size_prior", "size_model")
 VIDEO_FILE = "video.MOV"
 
 app = typer.Typer(help="Object size model learned on Objectron (fetch, fit, eval).")
-
-
-def objectron_dir(settings: Settings) -> Path:
-    return settings.paths.raw_dir / DATASET_DIR
-
-
-def official_split(
-    settings: Settings, sizing: SizingSettings, split: str, reader: objectron.PrefixReader
-) -> dict[str, list[objectron.VideoRef]]:
-    """The whole official index of ``split`` per class (cached on disk)."""
-    index_dir = objectron_dir(settings) / "index"
-    return {
-        label: objectron.read_index(reader, sizing.bucket_url, label, split, index_dir)
-        for label in sizing.classes
-    }
-
-
-def selection(
-    settings: Settings, sizing: SizingSettings, split: str, reader: objectron.PrefixReader
-) -> list[objectron.VideoRef]:
-    """The seeded per-class draw of the official ``split``, refused if the official train and
-    test indices share a video."""
-    indices = {name: official_split(settings, sizing, name, reader) for name in (TRAIN, TEST)}
-    objectron.require_disjoint(
-        (r for refs in indices[TRAIN].values() for r in refs),
-        (r for refs in indices[TEST].values() for r in refs),
-    )
-    count = sizing.per_class_train if split == TRAIN else sizing.per_class_test
-    return [
-        ref
-        for label, refs in indices[split].items()
-        for ref in objectron.select(refs, label, count, sizing.seed)
-    ]
 
 
 def load_samples(
@@ -219,25 +185,13 @@ def e2e_prepare(
     sizing = sizing_settings(settings)
     plan = sizing.e2e if videos is None else sizing.e2e.model_copy(update={"videos": videos})
     reader = objectron.UrllibPrefixReader()
-    prepared: list[objectron.VideoRef] = []
-    skipped = 0
-    quota = math.ceil(plan.videos / max(1, len(plan.classes)))
-    for label in plan.classes:
-        index = objectron.read_index(
-            reader, sizing.bucket_url, label, TEST, objectron_dir(settings) / "index"
-        )
-        taken = 0
-        for ref in objectron.select(index, label, len(index), sizing.seed):
-            if taken == quota or len(prepared) == plan.videos:
-                break
-            if _prepare_clip(settings, sizing, plan, ref):
-                prepared.append(ref)
-                taken += 1
-            else:
-                skipped += 1
+    prepare = partial(_prepare_clip, settings, sizing, plan)
+    draw = e2e_draw(settings, sizing, plan, reader, prepare)
     manifest = _e2e_frames_root(settings, plan) / "manifest.json"
-    write_text_atomic(manifest, json.dumps(_manifest(prepared, plan), indent=1))
-    typer.echo(f"{len(prepared)} clips prepared, {skipped} videos skipped (> max_video_mb)")
+    write_text_atomic(manifest, json.dumps(_manifest(draw.taken, plan), indent=1))
+    typer.echo(
+        f"{len(draw.taken)} clips prepared, {len(draw.skipped)} videos skipped (> max_video_mb)"
+    )
     typer.echo(f"manifest: {manifest}")
 
 
