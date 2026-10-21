@@ -34,6 +34,7 @@ EXPECTED = {
     "scale/free_fall",
     "kinematics/savgol",
     "contacts/proximity",
+    "contacts/kinematic",
     *(f"{stage.value}/ground_truth" for stage in Stage),
 }
 HEAVY = {
@@ -56,10 +57,10 @@ def registry() -> dict[str, type[StageProvider]]:
     return dict(context.registry("providers"))
 
 
-def test_registry_has_exactly_the_twenty_three_providers(
+def test_registry_has_exactly_the_twenty_four_providers(
     registry: dict[str, type[StageProvider]],
 ) -> None:
-    assert len(EXPECTED) == 23
+    assert len(EXPECTED) == 24
     assert set(registry) == EXPECTED
 
 
@@ -95,7 +96,7 @@ def test_building_the_registry_imports_no_heavy_library() -> None:
         "import sys\n"
         "from physverify.cli.context import PLUGIN_KINDS\n"
         "import physverify.extraction.weights, physverify.extraction.pipeline\n"
-        "assert len(PLUGIN_KINDS['providers']()) == 23\n"
+        "assert len(PLUGIN_KINDS['providers']()) == 24\n"
         f"print(sorted(m for m in {LAZY_MODULES!r} if m in sys.modules))\n"
     )
     done = subprocess.run(

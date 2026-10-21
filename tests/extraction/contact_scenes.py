@@ -8,7 +8,8 @@ from __future__ import annotations
 
 import math
 import sys
-from dataclasses import replace
+from collections.abc import Mapping
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -21,7 +22,14 @@ if CHECKS not in sys.path:
 
 import check_scenarios as sc  # noqa: E402
 
+from physverify.extraction.providers._common import centred_intrinsics  # noqa: E402
+from physverify.extraction.providers.contacts_kinematic import KinematicContacts  # noqa: E402
+from physverify.schema.clip import FrameSampling, SamplingSpec, resolve_sampling  # noqa: E402
 from physverify.schema.constants import STANDARD_GRAVITY  # noqa: E402
+from physverify.schema.contacts import ContactTable  # noqa: E402
+from physverify.schema.outputs import StageOutput  # noqa: E402
+from physverify.schema.perception import CameraModel, IntrinsicsSource  # noqa: E402
+from physverify.schema.stages import Stage  # noqa: E402
 from physverify.schema.states import ObjectStateTable, PrimitiveKind  # noqa: E402
 
 FloatArray = NDArray[np.float64]
@@ -136,3 +144,54 @@ def jittered(states: ObjectStateTable, sigma: float, seed: int = 0) -> ObjectSta
         position=states.position + noise,
         position_sigma=np.full(states.position_sigma.shape, sigma),
     )
+
+
+FOCAL_PX = 500.0
+"""Focal length of the test camera, in processing pixels."""
+
+
+@dataclass(frozen=True)
+class StubContext:
+    """The part of a StageContext the CONTACTS providers read."""
+
+    upstream: Mapping[Stage, StageOutput]
+    sampling: FrameSampling
+
+    def require(self, stage: Stage, kind: type[Any]) -> Any:
+        output = self.upstream[stage]
+        assert isinstance(output, kind)
+        return output
+
+
+def scene_camera(
+    case: sc.Case, focal: float = FOCAL_PX, pose: FloatArray | None = None
+) -> CameraModel:
+    sampling = resolve_sampling(case.clip, SamplingSpec())
+    return CameraModel(
+        sampling=sampling,
+        K=centred_intrinsics(focal, sampling),
+        source=IntrinsicsSource.ASSUMED_FOV,
+        fov_deg=60.0,
+        fov_sigma_deg=0.0,
+        world_from_camera=pose,
+    )
+
+
+def kinematic_table(
+    case: sc.Case,
+    states: ObjectStateTable | None = None,
+    camera: CameraModel | None = None,
+    **params: Any,
+) -> ContactTable:
+    """``contacts/kinematic`` on the case's states (or ``states``) with the test camera."""
+    ctx = StubContext(
+        upstream={
+            Stage.KINEMATICS: case.states if states is None else states,
+            Stage.CAMERA: scene_camera(case) if camera is None else camera,
+        },
+        sampling=resolve_sampling(case.clip, SamplingSpec()),
+    )
+    provider = KinematicContacts(KinematicContacts.Params(**params))
+    table = provider.run(ctx)  # type: ignore[arg-type]
+    assert isinstance(table, ContactTable)
+    return table
