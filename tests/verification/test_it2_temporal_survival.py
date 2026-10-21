@@ -147,7 +147,8 @@ def resized(level: float, width: int, where: str) -> sc.Case:
 @pytest.mark.parametrize("level", ResizeLevels().levels)
 @pytest.mark.parametrize("edges", EDGES)
 def test_t15_r4_resize_is_unchanged(edges: EdgeMode, level: float, width: int, where: str) -> None:
-    plain, filtered = both(SizeConstancyCheck(SizeParams()), resized(level, width, where), edges)
+    check = SizeConstancyCheck(SizeParams(reference="self"))  # the v1 measure it2 tested
+    plain, filtered = both(check, resized(level, width, where), edges)
     print(f"R4_size {edges} m={level} w={width} {where}: {plain} -> {filtered}")
     assert plain[0] == pytest.approx(level, rel=1e-6)
     if edges == "shifted" and width == 3 and where != "middle":

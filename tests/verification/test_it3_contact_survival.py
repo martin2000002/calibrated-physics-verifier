@@ -193,6 +193,6 @@ def test_t9_v_penetration_of_a_bounce_against_the_truth() -> None:
 def test_t9_vi_missing_and_size_are_unchanged() -> None:
     for case, check in (
         (sc.disappearance(pitch_deg=PITCH_DEG), PermanenceCheck(PermanenceParams())),
-        (sc.size_change(pitch_deg=PITCH_DEG), SizeConstancyCheck(SizeParams())),
+        (sc.size_change(pitch_deg=PITCH_DEG), SizeConstancyCheck(SizeParams(reference="self"))),
     ):
         assert magnitudes(check, kinematic(case)) == magnitudes(check, proximity(case))
