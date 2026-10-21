@@ -68,7 +68,8 @@ class Params(ProviderParams):
     sigma_mode: Literal["closed_form", "monte_carlo"] = "closed_form"
     mc_draws: int = Field(default=500, ge=2)
     gap_visibility: GapMode = "interpolate"
-    # Must equal the checks' ``occluded_at``: a gap estimate below it and above 0 is unknown.
+    # Must equal the checks' ``occluded_at`` (resolve_plan refuses otherwise); a gap estimate
+    # below it and above 0 is unknown.
     gap_occluded_at: float = Field(default=OCCLUDED_AT, gt=0.0, le=1.0)
 
 

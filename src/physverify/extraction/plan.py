@@ -75,7 +75,52 @@ def resolve_plan(
         start=config.sampling.start,
         stop=config.sampling.stop,
     )
+    check_gap_threshold(settings, steps)
     return ResolvedPlan(profile=settings.profile, stages=steps, sampling=sampling)
+
+
+GAP_THRESHOLD_FIELD = "gap_occluded_at"
+CHECK_THRESHOLD_FIELD = "occluded_at"
+
+
+def check_gap_threshold(settings: Settings, steps: tuple[StagePlan, ...]) -> None:
+    """LIFT's gap occlusion estimate and every check that reads occlusion must split "hidden"
+    from "missing" at the same share in the effective configuration (``--set`` included);
+    otherwise a perceived gap could count as missing for one and as explained for the other."""
+    gap = next(
+        (getattr(s.params, GAP_THRESHOLD_FIELD, None) for s in steps if s.stage is Stage.LIFT),
+        None,
+    )
+    if gap is None:
+        return
+    disagree = {
+        check_id: value
+        for check_id, value in occlusion_thresholds(settings).items()
+        if value != gap
+    }
+    if disagree:
+        raise ConfigError(
+            f"LIFT {GAP_THRESHOLD_FIELD} = {gap} but the checks use {CHECK_THRESHOLD_FIELD} "
+            f"{disagree}; set both to the same value"
+        )
+
+
+def occlusion_thresholds(settings: Settings) -> dict[str, float]:
+    """Effective ``occluded_at`` of every registered check that has one."""
+    from physverify.calibration.settings import check_registry
+    from physverify.verification.runner import CHECKS_SECTION
+
+    overrides = settings.sections.get(CHECKS_SECTION, {}) or {}
+    found: dict[str, float] = {}
+    for check_id, check in check_registry().items():
+        if CHECK_THRESHOLD_FIELD not in check.Params.model_fields:
+            continue
+        try:
+            params = check.Params.model_validate(overrides.get(check_id, {}))
+        except ValidationError:
+            continue  # reported where the checks are built
+        found[check_id] = float(getattr(params, CHECK_THRESHOLD_FIELD))
+    return found
 
 
 def _stage_plan(

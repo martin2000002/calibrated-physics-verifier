@@ -14,8 +14,9 @@ from synthetic_clip import SyntheticClip
 from physverify.checks._base import CheckInputs
 from physverify.checks.r4_integrity import PermanenceCheck, PermanenceParams
 from physverify.cli.context import PLUGIN_KINDS
+from physverify.core.errors import ConfigError
 from physverify.extraction._base import GROUND_TRUTH, StageProvider
-from physverify.extraction.plan import resolve_plan
+from physverify.extraction.plan import occlusion_thresholds, resolve_plan
 from physverify.extraction.providers._visibility import (
     Box,
     covered_fraction,
@@ -242,3 +243,36 @@ def test_the_gap_threshold_is_the_checks_occlusion_threshold(
     }
     assert thresholds
     assert set(thresholds.values()) == {step.params.gap_occluded_at}  # type: ignore[attr-defined]
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        ("checks.R4_missing.occluded_at=0.8",),
+        ("extraction.providers.lift.backproject.gap_occluded_at=0.8",),
+    ],
+)
+def test_a_split_occlusion_threshold_fails_at_plan_resolution(
+    make_settings: SettingsFactory,
+    real_providers: Mapping[str, type[StageProvider]],
+    overrides: tuple[str, ...],
+) -> None:
+    """Audit m3: the effective configuration, --set included, must agree."""
+    with pytest.raises(ConfigError, match="gap_occluded_at"):
+        resolve_plan(make_settings(*overrides), real_providers, dataset="kubric_synthetic")
+
+
+def test_one_moved_threshold_everywhere_is_accepted(
+    make_settings: SettingsFactory, real_providers: Mapping[str, type[StageProvider]]
+) -> None:
+    moved = [f"checks.{c}.occluded_at=0.8" for c in occlusion_thresholds(make_settings())]
+    settings = make_settings(*moved, "extraction.providers.lift.backproject.gap_occluded_at=0.8")
+    plan = resolve_plan(settings, real_providers, dataset="kubric_synthetic")
+    assert plan.step(Stage.LIFT).params.gap_occluded_at == 0.8  # type: ignore[attr-defined]
+    truth = resolve_plan(
+        make_settings("checks.R4_missing.occluded_at=0.8"),
+        real_providers,
+        dataset="kubric_synthetic",
+        gt_stages=(Stage.LIFT,),
+    )
+    assert truth.step(Stage.LIFT).provider.is_ground_truth
