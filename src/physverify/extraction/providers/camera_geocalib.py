@@ -21,7 +21,7 @@ from typing import Any, ClassVar, Literal, Protocol
 
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from physverify.extraction._base import StageContext, WeightKind, WeightSpec
 from physverify.extraction.providers._common import (
@@ -63,6 +63,16 @@ class Params(ProviderParams):
     # "assumed": K, FOV and FOV sigma of camera/assumed_fov's defaults, and GeoCalib's gravity
     # with that focal as a prior, so gravity and focal agree.
     focal: FocalMode = "geocalib"
+    # phi_0, the measured floor of the relative focal sigma (plan-it2 judgement 2 b): the 0.68
+    # quantile of |focal_rel| on v1-precise-hdri-dev. NaN = no floor (GeoCalib's own sigma alone).
+    focal_sigma_floor_rel: float = math.nan
+
+    @field_validator("focal_sigma_floor_rel")
+    @classmethod
+    def _floor_nan_or_non_negative(cls, value: float) -> float:
+        if not (math.isnan(value) or (math.isfinite(value) and value >= 0)):
+            raise ValueError("focal_sigma_floor_rel must be NaN or finite >= 0")
+        return value
 
 
 @dataclass(frozen=True)
@@ -107,10 +117,16 @@ class GeoCalibCamera:
         prior = None if assumed is None else float(assumed.K[0, 0])
         set_torch_threads(ctx.threads)
         result = self._model.get(ctx).calibrate(picked, prior)
-        pose = pose_from_gravity(combine_gravity(to_opencv_gravity(result.up), result.up_sigma_rad))
+        pose = pose_from_gravity(clip_gravity(result))
         if assumed is not None:
             return replace(assumed, world_from_camera=pose)
-        return camera_model(s, result.focal_px, result.focal_sigma_px, pose)
+        floor = self.params.focal_sigma_floor_rel
+        return camera_model(s, result.focal_px, result.focal_sigma_px, pose, floor)
+
+
+def clip_gravity(result: Calibration) -> FloatArray:
+    """The clip's gravity in OpenCV camera axes: what the pose carries and what P0 gates."""
+    return combine_gravity(to_opencv_gravity(result.up), result.up_sigma_rad)
 
 
 def frame_indices(n_total: int, n_frames: int) -> NDArray[np.int64]:
@@ -142,24 +158,36 @@ def horizontal_fov_deg(focal_px: float, width: int) -> float:
     return math.degrees(2.0 * math.atan(width / (2.0 * focal_px)))
 
 
-def fov_sigma_deg(focal_px: float, focal_sigma_px: float, width: int) -> float:
-    """sigma_fov = sin(fov) sigma_f / f, the inverse of LIFT's phi = sigma_fov / sin(fov); NaN
-    (unknown, never 0) when GeoCalib gives no finite sigma > 0."""
-    if not (math.isfinite(focal_sigma_px) and focal_sigma_px > 0):
-        return math.nan
+def focal_rel(focal_px: float, focal_sigma_px: float, floor_rel: float = math.nan) -> float:
+    """phi = max(sigma_f / f, floor). Without a floor (NaN) an invalid model sigma (not finite or
+    not > 0) is unknown, NaN, never 0; with a floor it counts as 0, so phi is the floor."""
+    valid = math.isfinite(focal_sigma_px) and focal_sigma_px > 0
+    model = focal_sigma_px / focal_px if valid else (0.0 if math.isfinite(floor_rel) else math.nan)
+    return model if math.isnan(floor_rel) else max(model, floor_rel)
+
+
+def fov_sigma_deg(
+    focal_px: float, focal_sigma_px: float, width: int, floor_rel: float = math.nan
+) -> float:
+    """sigma_fov = sin(fov) phi, the inverse of LIFT's phi = sigma_fov / sin(fov)."""
+    phi = focal_rel(focal_px, focal_sigma_px, floor_rel)
     fov = math.radians(horizontal_fov_deg(focal_px, width))
-    return math.degrees(math.sin(fov) * focal_sigma_px / focal_px)
+    return math.degrees(math.sin(fov) * phi)
 
 
 def camera_model(
-    sampling: FrameSampling, focal_px: float, focal_sigma_px: float, pose: FloatArray
+    sampling: FrameSampling,
+    focal_px: float,
+    focal_sigma_px: float,
+    pose: FloatArray,
+    floor_rel: float = math.nan,
 ) -> CameraModel:
     return CameraModel(
         sampling=sampling,
         K=centred_intrinsics(focal_px, sampling),
         source=IntrinsicsSource.ESTIMATED,
         fov_deg=horizontal_fov_deg(focal_px, sampling.width),
-        fov_sigma_deg=fov_sigma_deg(focal_px, focal_sigma_px, sampling.width),
+        fov_sigma_deg=fov_sigma_deg(focal_px, focal_sigma_px, sampling.width, floor_rel),
         world_from_camera=pose,
     )
 

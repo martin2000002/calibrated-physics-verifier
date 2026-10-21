@@ -26,6 +26,7 @@ from physverify.extraction.providers.camera_geocalib import (
     GeoCalibCamera,
     TorchCalibrator,
     camera_model,
+    clip_gravity,
     combine_gravity,
     fov_sigma_deg,
     frame_indices,
@@ -199,9 +200,9 @@ def test_t7_a_valid_camera_with_one_pose_and_a_key_per_parameter(
     )
     hashes = {
         params_hash(GeoCalibCamera.Params(**p).model_dump(mode="json"))
-        for p in ({}, {"n_frames": 4}, {"focal": "assumed"})
+        for p in ({}, {"n_frames": 4}, {"focal": "assumed"}, {"focal_sigma_floor_rel": 0.1})
     }
-    assert len(hashes) == 3
+    assert len(hashes) == 4
     assert (GeoCalibCamera.version, GeoCalibCamera.requires, GeoCalibCamera.heavy) == (
         "1",
         (),
@@ -261,3 +262,77 @@ def test_per_frame_broadcasts_one_value_and_refuses_a_mismatch() -> None:
     np.testing.assert_array_equal(per_frame(np.array([0.1]), 3), [0.1, 0.1, 0.1])
     np.testing.assert_array_equal(per_frame(np.array([0.1, 0.2]), 2), [0.1, 0.2])
     assert bool(np.isnan(per_frame(np.array([0.1, 0.2]), 3)).all())
+
+
+PHI0 = 0.12
+
+
+@pytest.mark.parametrize(
+    ("sigma_f", "floor", "expected"),
+    [
+        (FOCAL_SIGMA_PX, PHI0, PHI0),  # floor above the model's sigma
+        (FOCAL_SIGMA_PX, 0.01, FOCAL_SIGMA_PX / FOCAL_PX),  # model above the floor
+        (0.0, PHI0, PHI0),  # invalid model sigma with a floor: the floor
+        (math.nan, PHI0, PHI0),
+        (0.0, math.nan, math.nan),  # no floor: unknown as before (J8 i)
+        (FOCAL_SIGMA_PX, math.nan, FOCAL_SIGMA_PX / FOCAL_PX),
+    ],
+)
+def test_t4b_the_focal_sigma_floor(sigma_f: float, floor: float, expected: float) -> None:
+    sigma_deg = fov_sigma_deg(FOCAL_PX, sigma_f, 256, floor)
+    fov = math.degrees(2 * math.atan(256 / (2 * FOCAL_PX)))
+    phi = focal_rel_sigma(fov, sigma_deg)
+    if math.isnan(expected):
+        assert math.isnan(phi)
+    else:
+        assert phi == pytest.approx(expected, rel=TOL)
+
+
+def test_the_floor_is_nan_or_non_negative() -> None:
+    assert math.isnan(GeoCalibCamera.Params().focal_sigma_floor_rel)  # type: ignore[attr-defined]
+    for bad in (-0.1, math.inf):
+        with pytest.raises(ValueError, match="floor"):
+            GeoCalibCamera.Params(focal_sigma_floor_rel=bad)
+
+
+def test_the_floor_reaches_the_camera_only_with_the_estimated_focal(
+    fixture_clip: SyntheticClip,
+) -> None:
+    fake = FakeCalibrator(geocalib_up(0.0, -0.3), np.array(0.01))
+    floored = run(fixture_clip, fake, focal_sigma_floor_rel=PHI0)
+    assert focal_rel_sigma(floored.fov_deg, floored.fov_sigma_deg) == pytest.approx(PHI0, rel=TOL)
+    assumed = run(fixture_clip, fake, focal="assumed", focal_sigma_floor_rel=PHI0)
+    assert assumed.fov_sigma_deg == AssumedParams().fov_sigma_deg
+
+
+class VaryingCalibrator(FakeCalibrator):
+    """Different up vectors and sigma per frame, and other ones when a focal prior is given."""
+
+    def __init__(self) -> None:
+        super().__init__(np.zeros(3), np.array(0.0))
+        self.results: list[Calibration] = []
+
+    def calibrate(self, frames: NDArray[np.uint8], focal_prior_px: float | None) -> Calibration:
+        self.priors.append(focal_prior_px)
+        n = frames.shape[0]
+        tilt = np.linspace(0.2, 0.5, n) + (0.1 if focal_prior_px is not None else 0.0)
+        up = np.stack([geocalib_up(0.02 * k, -t) for k, t in enumerate(tilt)])
+        result = Calibration(FOCAL_PX, FOCAL_SIGMA_PX, up, np.linspace(0.01, 0.05, n))
+        self.results.append(result)
+        return result
+
+
+@pytest.mark.parametrize("focal", ["geocalib", "assumed"])
+def test_h3_the_pose_carries_the_gravity_the_gates_evaluate(
+    fixture_clip: SyntheticClip, focal: str
+) -> None:
+    """P0's gates read clip_gravity of the call made in the adopted focal mode (the free one, or
+    the one with the assumed focal as prior); the provider's pose carries exactly that."""
+    fake = VaryingCalibrator()
+    camera = run(fixture_clip, fake, focal=focal)
+    (result,) = fake.results
+    assert camera.world_from_camera is not None
+    np.testing.assert_allclose(
+        gravity_from_pose(camera.world_from_camera), clip_gravity(result), atol=TOL
+    )
+    assert (fake.priors[0] is None) == (focal == "geocalib")
