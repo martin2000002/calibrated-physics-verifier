@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import shutil
@@ -14,7 +15,9 @@ from check_rows import UNCACHED, write_check_rows
 
 REPO = Path(__file__).resolve().parents[2]
 H200 = REPO / "scripts" / "h200"
-SCRIPT_NAMES = ("_common.sh", "_steps.sh", "run_h2.sh", "a8v2_query.py", "h2_query.py")
+SCRIPT_NAMES = (
+    "_common.sh", "_steps.sh", "run_h2.sh", "a8v2_query.py", "h2_query.py", "freeze_query.py",
+)  # fmt: skip
 TOOLS = (
     "awk", "basename", "bash", "cat", "cmp", "cp", "cut", "dirname", "env", "flock", "grep",
     "head", "ln", "mkdir", "mv", "nproc", "realpath", "sed", "sha256sum", "sort", "tee", "touch",
@@ -43,6 +46,8 @@ if [[ "$1" != -c ]]; then
       "h2_query.py gaps "*) echo "- no object query: 32 rows (32 with video) of $3" ;;
       "h2_query.py ready "*) echo v2-ready000001 ;;
       "h2_query.py log-path") echo "$LOG" ;;
+      "freeze_query.py field "*) exec "$REAL_PYTHON" "$@" ;;
+      "freeze_query.py artifacts "*) exit "${ARTIFACTS_EXIT:-0}" ;;
     esac
     exit 0
 fi
@@ -359,6 +364,57 @@ def test_dev_freezes_without_touching_test(sandbox: Sandbox) -> None:
     ):
         assert needle in summary, needle
     assert sandbox.last_rows()["freeze"] == "0"
+
+
+def _freeze(sandbox: Sandbox, **change: str) -> dict[str, str]:
+    """run_freeze.sh's manifest in place of the A8 v2 run, which is removed."""
+    shutil.rmtree(sandbox.a8v2)
+    manifest = sandbox.root / "final" / "freeze.json"
+    manifest.parent.mkdir()
+    data = {
+        "commit": "c0ffee1234567",
+        "device": "cpu",
+        "calibration_dir": str(sandbox.calibration),
+        "record_sha": RECORD_SHA,
+        **change,
+    }
+    manifest.write_text(json.dumps(data), encoding="utf-8")
+    return {"PHYSVERIFY_H2_FREEZE": str(manifest)}
+
+
+def test_the_freeze_manifest_stands_for_the_a8v2_chain(sandbox: Sandbox) -> None:
+    """Plan section 5 and J12: the manifest's record_sha is the one the pre-registration holds."""
+    env = _freeze(sandbox)
+    _dev_done(sandbox, **env)
+    result = sandbox.run("test", **env)
+    assert result.returncode == 0, result.stderr
+    queries = [line for line in sandbox.lines() if line.startswith("query freeze_query.py")]
+    assert f"query freeze_query.py artifacts {env['PHYSVERIFY_H2_FREEZE']}" in queries
+    assert sandbox.state()["TEST_COMPARED"] == "1"
+
+
+@pytest.mark.parametrize(
+    ("change", "env", "message"),
+    [
+        ({"device": "cuda"}, {}, "not a cpu freeze"),
+        ({"commit": "b" * 40}, {}, "froze commit"),
+        ({"calibration_dir": "/elsewhere"}, {}, "froze /elsewhere"),
+        ({}, {"ARTIFACTS_EXIT": "2"}, "frozen files"),
+        ({}, {"PHYSVERIFY_H2_FREEZE": "/no/freeze.json"}, "no freeze manifest"),
+    ],
+)
+def test_a_freeze_of_another_state_stops_before_any_call(
+    sandbox: Sandbox, change: dict[str, str], env: dict[str, str], message: str
+) -> None:
+    result = sandbox.run("dev", **{**_freeze(sandbox, **change), **env})
+    assert result.returncode == 2 and message in result.stderr, result.stderr
+    assert sandbox.commands() == []
+
+
+def test_a_pre_registration_off_the_frozen_record_fails_the_freeze(sandbox: Sandbox) -> None:
+    result = sandbox.run("dev", **_freeze(sandbox, record_sha="other"))
+    assert result.returncode == 2 and "not the freeze's other" in result.stderr, result.stderr
+    assert sandbox.last_rows()["freeze"] == "2"
 
 
 def test_dev_refuses_once_a_test_comparison_is_logged(sandbox: Sandbox) -> None:

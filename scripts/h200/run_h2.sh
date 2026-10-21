@@ -19,7 +19,10 @@
 # PHYSVERIFY_H2_DEVICE cpu; HEAD is PHYSVERIFY_H2_EXPECT_COMMIT with nothing
 # uncommitted or untracked under src, configs, scripts or annotations; no other instance on
 # $OUT/run.lock; the A8 v2 CPU chain in PHYSVERIFY_H2_A8V2_DIR completed steps 0..9 and published
-# calibration.json, exclusions.json and stage_errors.precise.json in the calibration directory.
+# calibration.json, exclusions.json and stage_errors.precise.json in the calibration directory, or,
+# with PHYSVERIFY_H2_FREEZE, the freeze manifest (run_freeze.sh) stands for that chain: device cpu,
+# HEAD its commit, the calibration directory its own and its frozen files unchanged; its record_sha
+# is what A8 v2's RECORD_SHA is (plan-congelado section 5, Juicio J12).
 # Then doctor must report config_dir $REPO_ROOT/configs, device cpu, the four exported paths, the precise error profile and the
 # thresholds of that calibration directory, and the caption review must be recorded.
 #
@@ -47,6 +50,8 @@
 #   PHYSVERIFY_H2_RAW_DIR           paths.raw_dir, the VideoPhy videos [$H200_ROOT/Repo/data/raw]
 #   PHYSVERIFY_H2_CALIBRATION_DIR   A8 v2 CPU artifacts, read only [$H200_ROOT/kubric-data/calibration]
 #   PHYSVERIFY_H2_A8V2_DIR          the A8 v2 CPU run, read only [$H200_ROOT/a8v2]
+#   PHYSVERIFY_H2_FREEZE            the freeze's freeze.json in place of the A8 v2 run [none]; set
+#                                   PHYSVERIFY_H2_CALIBRATION_DIR to its calibration directory
 #   PHYSVERIFY_H2_PREFLIGHT_CLIP    dev preflight clip [v1-a8208f4dd41e]
 #   PHYSVERIFY_H2_PREFLIGHT_TEST_CLIP  test preflight clip [the first h2_test clip with a video
 #                                   and an object query]
@@ -118,6 +123,9 @@ unset PHYSVERIFY_LOCK_HELD
 PV_DEVICE=cpu
 CAL="$PHYSVERIFY__PATHS__CALIBRATION_DIR"
 A8V2="${PHYSVERIFY_H2_A8V2_DIR:-$H200_ROOT/a8v2}"
+FREEZE="${PHYSVERIFY_H2_FREEZE:-}"
+FROZEN_BY="A8 v2"
+[[ -z "$FREEZE" ]] || FROZEN_BY="the freeze"
 LEDGER="$H200_ROOT/h2-test-ledger.txt"
 ENV_SHA="$(env | grep '^PHYSVERIFY__' | LC_ALL=C sort | sha256sum | cut -d ' ' -f 1)"
 
@@ -164,6 +172,24 @@ require_a8v2() {
     done
 }
 
+# freeze_field KEY: one value of the freeze manifest.
+freeze_field() {
+    query freeze_query.py field "$FREEZE" "$1" || die "$FREEZE gives no $1"
+}
+
+require_freeze() {
+    [[ -f "$FREEZE" ]] || die "no freeze manifest at $FREEZE (PHYSVERIFY_H2_FREEZE)"
+    [[ "$(freeze_field device)" == cpu ]] || die "$FREEZE is not a cpu freeze"
+    [[ "$(freeze_field commit)" == "$HEAD_COMMIT" ]] \
+        || die "$FREEZE froze commit $(freeze_field commit), HEAD is $HEAD_COMMIT"
+    same_path "$(freeze_field calibration_dir)" "$CAL" \
+        || die "$FREEZE froze $(freeze_field calibration_dir), not $CAL" \
+            "(set PHYSVERIFY_H2_CALIBRATION_DIR to it)"
+    A8V2_RECORD_SHA="$(freeze_field record_sha)"
+    query freeze_query.py artifacts "$FREEZE" >/dev/null \
+        || die "the frozen files of $FREEZE changed (freeze_query artifacts)"
+}
+
 save_artifacts() {
     save CALIB_SHA "$(sha_of "$CAL/calibration.json")"
     save RECORD_FILE_SHA "$(sha_of "$CAL/exclusions.json")"
@@ -174,7 +200,7 @@ artifacts_unchanged() {
     [[ "$(sha_of "$CAL/calibration.json")" == "${CALIB_SHA:-}" \
         && "$(sha_of "$CAL/exclusions.json")" == "${RECORD_FILE_SHA:-}" \
         && "$(sha_of "$CAL/stage_errors.precise.json")" == "${PROFILE_SHA:-}" ]] \
-        || die "the A8 v2 files in $CAL changed since the dev phase: H2 must be frozen again"
+        || die "the $FROZEN_BY files in $CAL changed since the dev phase: H2 must be frozen again"
 }
 
 # Neither the comparison log of the configured pre-registration nor any log in the ledger holds
@@ -235,10 +261,10 @@ prereg_problem() {
     [[ "$value" == precise ]] || { echo "profile '$value', not precise"; return; }
     value="$(prereg_field calibration_artifact_sha256)"
     [[ "$value" == "$CALIB_SHA" ]] \
-        || { echo "calibration artifact $value, not A8 v2's $CAL/calibration.json ($CALIB_SHA)"; return; }
+        || { echo "calibration artifact $value, not $FROZEN_BY's $CAL/calibration.json ($CALIB_SHA)"; return; }
     value="$(prereg_field exclusion_record_sha256)"
     [[ "$value" == "$A8V2_RECORD_SHA" ]] \
-        || { echo "decision record $value, not A8 v2's $A8V2_RECORD_SHA"; return; }
+        || { echo "decision record $value, not $FROZEN_BY's $A8V2_RECORD_SHA"; return; }
 }
 
 # preflight STEP SUBSET CLIP: one cached clip verified; any error in its checks stops.
@@ -362,5 +388,9 @@ phase_test() {
     echo "H2 run: $(dirname "$TEST_VERIFY_RUN")/$H2_LINK (summary: agreement/summary.md)"
 }
 
-require_a8v2
+if [[ -n "$FREEZE" ]]; then
+    require_freeze
+else
+    require_a8v2
+fi
 "phase_$PHASE"
