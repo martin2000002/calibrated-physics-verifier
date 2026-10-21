@@ -14,12 +14,21 @@ import pytest
 
 REPO = Path(__file__).resolve().parents[2]
 H200 = REPO / "scripts" / "h200"
-SCRIPT_NAMES = ("_common.sh", "_steps.sh", "run_iteration.sh", "a8v2_query.py")
+SCRIPT_NAMES = (
+    "_common.sh",
+    "_steps.sh",
+    "run_iteration.sh",
+    "a8v2_query.py",
+    "iteration_arms.tsv",
+)
 TOOLS = (
     "awk", "basename", "bash", "cat", "cp", "cut", "dirname", "env", "flock", "grep", "mkdir",
     "mv", "nproc", "realpath", "sed", "sha256sum", "tee", "touch",
 )  # fmt: skip
-PREFIX = re.compile(r"^--profile [a-z_]+ --device (cpu|cuda) --set runtime\.threads=16 ")
+PREFIX = re.compile(
+    r"^--profile [a-z_]+ --device (cpu|cuda) --set runtime\.threads=16 "
+    r"(--set extraction\.plan\.[a-z]+=[a-z0-9_]+ )*"
+)
 CALIB = ("k-calib-1", "k-calib-2")
 CLIPS = " ".join(f"--clips {c}" for c in CALIB)
 KS = "--dataset kubric_synthetic --subset full"
@@ -46,6 +55,9 @@ new_run() {
 }
 case "$*" in
   *" doctor")
+    for arg in "$@"; do
+        [[ "$arg" == extraction.plan.* && -z "${DOCTOR_DROP_SETS:-}" ]] && echo "source: --set $arg"
+    done
     echo "profile: ${DOCTOR_PROFILE:-$2}"
     echo "device: ${DOCTOR_DEVICE:-${4}}"
     echo "config_dir: ${DOCTOR_CONFIG_DIR:-$REPO_CONFIGS}"
@@ -358,3 +370,78 @@ def test_the_query_helper_takes_the_profile() -> None:
     assert parser.parse_args(["clips", "ds", "full"]).profile == "precise"
     assert parser.parse_args(["--profile", "fast", "clips", "ds", "full"]).profile == "fast"
     assert query._settings([], "fast").profile == "fast"
+
+
+ARM_C = ["--set extraction.plan.depth=vda_large", "--set extraction.plan.contacts=kinematic"]
+
+
+def test_an_arm_swaps_providers_on_every_call_on_one_gpu(sandbox: Sandbox) -> None:
+    """it3: PHYSVERIFY_ITER_ARM passes its declared swaps to every physverify call, the run is
+    CUDA on GPU 0 only, and state.env and the summary name the arm."""
+    result = sandbox.run(
+        PHYSVERIFY_ITER_ID="it3-c",
+        PHYSVERIFY_ITER_ARM="it3-c",
+        PHYSVERIFY_ITER_DEVICE="cuda",
+        CUDA_VISIBLE_DEVICES="0",
+    )
+    assert result.returncode == 0, result.stderr
+    out = sandbox.root / "iterations" / "it3-c-cuda"
+    swaps = " ".join(ARM_C)
+    assert all(f"--device cuda --set runtime.threads=16 {swaps} " in line for line in sandbox.pv())
+    assert all(line.startswith("env 0|") for line in sandbox.lines() if line.startswith("env "))
+    state = dict(
+        line.split("=", 1) for line in (out / "state.env").read_text(encoding="utf-8").splitlines()
+    )
+    assert state["CHAIN_ARM"] == "it3-c"
+    summary = (out / "summary.md").read_text(encoding="utf-8")
+    assert (
+        "arm it3-c (extraction.plan.depth=vda_large extraction.plan.contacts=kinematic)" in summary
+    )
+    assert "CUDA_VISIBLE_DEVICES=0" in summary
+
+
+def test_the_four_it3_arms_are_declared() -> None:
+    table = (H200 / "iteration_arms.tsv").read_text(encoding="utf-8").splitlines()
+    arms = dict(line.split("\t") for line in table if line and not line.startswith("#"))
+    assert arms == {
+        "it3-r": "extraction.plan.depth=vda_small extraction.plan.contacts=proximity",
+        "it3-ak": "extraction.plan.depth=vda_small extraction.plan.contacts=kinematic",
+        "it3-ap": "extraction.plan.depth=vda_large extraction.plan.contacts=proximity",
+        "it3-c": "extraction.plan.depth=vda_large extraction.plan.contacts=kinematic",
+    }
+
+
+@pytest.mark.parametrize(
+    ("env", "message"),
+    [
+        ({"PHYSVERIFY_ITER_ARM": "it3-x"}, "not declared exactly once"),
+        ({"PHYSVERIFY_ITER_ARM": "It3;c"}, "must be an arm name"),
+        ({"PHYSVERIFY_ITER_DEVICE": "cuda", "CUDA_VISIBLE_DEVICES": "4"}, "0-3"),
+        ({"PHYSVERIFY_ITER_DEVICE": "cuda", "CUDA_VISIBLE_DEVICES": "0,1"}, "0-3"),
+        ({"PHYSVERIFY_ITER_DEVICE": "cuda"}, "unset"),
+    ],
+)
+def test_an_undeclared_arm_or_a_gpu_outside_0_to_3_stops_before_any_call(
+    sandbox: Sandbox, env: dict[str, str], message: str
+) -> None:
+    result = sandbox.run(**env)
+    assert result.returncode == 2 and message in result.stderr, result.stderr
+    assert sandbox.pv() == []
+
+
+def test_a_malformed_swap_and_a_doctor_without_the_swaps_stop(sandbox: Sandbox) -> None:
+    table = sandbox.script.parent / "iteration_arms.tsv"
+    table.write_text("it3-bad\tchecks.R1.tau=0\n", encoding="utf-8")
+    bad = sandbox.run(PHYSVERIFY_ITER_ARM="it3-bad")
+    assert bad.returncode == 2 and "extraction.plan.<stage>=<provider>" in bad.stderr
+    assert sandbox.pv() == []
+    table.write_text("it3-ok\textraction.plan.contacts=kinematic\n", encoding="utf-8")
+    dropped = sandbox.run(PHYSVERIFY_ITER_ARM="it3-ok", DOCTOR_DROP_SETS="1")
+    assert dropped.returncode == 2 and "does not list the arm's override" in dropped.stderr
+    assert sandbox.commands() == ["doctor"]
+
+
+def test_resume_with_another_arm_is_refused(sandbox: Sandbox) -> None:
+    assert sandbox.run("1", "1", PHYSVERIFY_ITER_ARM="it3-r").returncode == 0
+    result = sandbox.run("2", PHYSVERIFY_ITER_ARM="it3-ak")
+    assert result.returncode == 2 and "belongs to CHAIN_ARM=it3-r" in result.stderr
