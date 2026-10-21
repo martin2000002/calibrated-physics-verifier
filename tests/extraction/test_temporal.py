@@ -41,6 +41,7 @@ from physverify.schema.stages import STAGE_ORDER, Stage
 from physverify.schema.states import ObjectStateTable
 
 WINDOW = 5
+SHIFTED = "shifted"
 ROWS = 12
 TOL = 1e-12
 
@@ -53,21 +54,21 @@ def series(base: float = 2.0, rows: int = ROWS) -> np.ndarray:
 def test_t9_impulses_of_one_and_two_rows_are_removed(rows: tuple[int, ...]) -> None:
     z = series()
     z[list(rows)] = 3.0
-    np.testing.assert_array_equal(running_median(z, WINDOW), series())
+    np.testing.assert_array_equal(running_median(z, WINDOW, SHIFTED), series())
 
 
 @pytest.mark.parametrize("start", [0, 4, ROWS - 3])
 def test_t9_a_plateau_of_three_rows_is_kept(start: int) -> None:
     z = series()
     z[start : start + 3] = 3.0
-    np.testing.assert_array_equal(running_median(z, WINDOW), z)
+    np.testing.assert_array_equal(running_median(z, WINDOW, SHIFTED), z)
 
 
 @pytest.mark.parametrize("step_at", [3, 6, ROWS - 3])
 def test_t9_steps_with_three_rows_on_each_side_are_unchanged(step_at: int) -> None:
     step = series()
     step[step_at:] = 3.0
-    np.testing.assert_array_equal(running_median(step, WINDOW), step)
+    np.testing.assert_array_equal(running_median(step, WINDOW, SHIFTED), step)
 
 
 @pytest.mark.parametrize("ramp", [np.linspace(1.0, 4.0, ROWS) ** 1.5, np.linspace(4.0, 1.0, ROWS)])
@@ -76,7 +77,7 @@ def test_t9_monotone_series_keep_their_interior_and_flatten_two_rows_at_each_end
 ) -> None:
     """A border impulse of up to two rows is itself a monotone series, so the shifted window
     cannot keep both: the first and last two rows take the value of the third from that end."""
-    out = running_median(ramp, WINDOW)
+    out = running_median(ramp, WINDOW, SHIFTED)
     np.testing.assert_array_equal(out[2:-2], ramp[2:-2])
     np.testing.assert_array_equal(out[:2], [ramp[2], ramp[2]])
     np.testing.assert_array_equal(out[-2:], [ramp[-3], ramp[-3]])
@@ -98,10 +99,10 @@ def test_t9_keep_edges_remove_interior_impulses_only() -> None:
 
 def test_t10_short_series_and_non_finite_rows_are_untouched() -> None:
     short = np.array([1.0, 5.0, 1.0, 1.0])
-    np.testing.assert_array_equal(running_median(short, WINDOW), short)
+    np.testing.assert_array_equal(running_median(short, WINDOW, SHIFTED), short)
     z = series()
     z[3], z[7] = math.nan, 9.0
-    out = running_median(z, WINDOW)
+    out = running_median(z, WINDOW, SHIFTED)
     assert math.isnan(out[3])
     np.testing.assert_array_equal(np.delete(out, 3), np.delete(series(), 3))
 
@@ -117,7 +118,7 @@ def test_t10_runs_shorter_than_the_window_and_hidden_rows_are_untouched() -> Non
     column: list[ObjectSummary | None] = [summary(z) for z in depths]
     column[2] = None  # runs of 2 and 5 rows; only the second one is stabilised
     column[0] = summary(4.0)
-    out = stabilize_summaries(column, WINDOW)
+    out = stabilize_summaries(column, WINDOW, SHIFTED)
     assert out[2] is None
     assert out[0] is column[0] and out[1] is column[1]
     assert out[4] is not None
@@ -129,7 +130,7 @@ def test_t10_runs_shorter_than_the_window_and_hidden_rows_are_untouched() -> Non
 def test_t10_an_image_extent_impulse_is_removed_and_e_z_follows_the_rule() -> None:
     column: list[ObjectSummary | None] = [summary(2.0 + 0.1 * t) for t in range(8)]
     column[3] = summary(2.3, image_extent=0.08)
-    out = stabilize_summaries(column, WINDOW)
+    out = stabilize_summaries(column, WINDOW, SHIFTED)
     clean = summary(2.3)
     assert out[3] is not None
     np.testing.assert_allclose(out[3].extents, clean.extents, rtol=TOL)
@@ -154,6 +155,7 @@ def test_t11_a_constant_ratio_rescales_position_extents_and_sigma() -> None:
         np.stack([base.centre] * 6) * np.array([1, 1, 1, c, 1, 1])[:, None],
         np.stack([base.extents] * 6) * np.array([1, 1, 1, c, 1, 1])[:, None],
         WINDOW,
+        "keep",
     )
     np.testing.assert_allclose(centres[3], base.centre, rtol=TOL)
     np.testing.assert_allclose(extents[3], base.extents, rtol=TOL)
@@ -234,13 +236,14 @@ def test_t11_a_smooth_monotone_clip_is_unchanged_inside_the_run(
     upstream = receding_disk()
     median = lift_on(fixture_clip, upstream, temporal_filter="median")
     none = lift_on(fixture_clip, upstream, temporal_filter="none")
-    inner = slice(2, -2)
+    shifted = lift_on(fixture_clip, upstream, temporal_filter="median", temporal_edges=SHIFTED)
     for name in ("position", "position_sigma", "size", "size_sigma"):
+        np.testing.assert_allclose(getattr(median, name), getattr(none, name), rtol=TOL)
         np.testing.assert_allclose(
-            getattr(median, name)[inner], getattr(none, name)[inner], rtol=TOL
+            getattr(shifted, name)[2:-2], getattr(none, name)[2:-2], rtol=TOL
         )
-    np.testing.assert_allclose(median.position[:2, 0, 2], none.position[2, 0, 2], rtol=TOL)
-    np.testing.assert_allclose(median.position[-2:, 0, 2], none.position[-3, 0, 2], rtol=TOL)
+    np.testing.assert_allclose(shifted.position[:2, 0, 2], none.position[2, 0, 2], rtol=TOL)
+    np.testing.assert_allclose(shifted.position[-2:, 0, 2], none.position[-3, 0, 2], rtol=TOL)
     for name in ("visible", "in_frame", "occlusion", "confidence"):
         np.testing.assert_array_equal(getattr(median, name), getattr(none, name))
 
@@ -277,10 +280,11 @@ def test_t12_the_version_and_both_parameters_enter_the_key() -> None:
             default,
             BackprojectLift.Params(temporal_filter="median"),
             BackprojectLift.Params(temporal_window=7),
-            BackprojectLift.Params(temporal_edges="keep"),
+            BackprojectLift.Params(temporal_edges="shifted"),
         )
     }
     assert len(hashes) == 4
     assert default.temporal_filter == "none"  # type: ignore[attr-defined]
+    assert default.temporal_edges == "keep"  # type: ignore[attr-defined]
     with pytest.raises(ValueError, match="odd"):
         BackprojectLift.Params(temporal_window=6)

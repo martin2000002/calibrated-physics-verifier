@@ -42,8 +42,9 @@ GravityMode = Literal["auto", "camera_pose", "level_camera", "none"]
 # interior mask gaps (ADR 0005 4.2 as amended 2026-10-20, ``_visibility.py``).
 GapMode = Literal["none", "interpolate"]
 # "none" is version 2; "median" stabilises depth and image extent along each visible run
-# (ADR 0005 4.2 as amended for it2, ``_temporal.py``). "none" by default: with the plan's
-# shifted ends the median fails the survival test J5 (tests/verification/test_it2_temporal_*).
+# (ADR 0005 4.2 as amended for it2, ``_temporal.py``), off until the J6 gate activates it. Run
+# ends: "keep" (the first and last two rows stay unfiltered) is the only eligible form; "shifted"
+# fails the survival test J5 and exists only for J6's descriptive run (plan-it2, judgement 2 a).
 TemporalFilter = Literal["none", "median"]
 
 
@@ -77,7 +78,7 @@ class Params(ProviderParams):
     gap_occluded_at: float = Field(default=OCCLUDED_AT, gt=0.0, le=1.0)
     temporal_filter: TemporalFilter = "none"
     temporal_window: int = Field(default=5, ge=3)
-    temporal_edges: EdgeMode = "shifted"
+    temporal_edges: EdgeMode = "keep"
 
     @field_validator("temporal_window")
     @classmethod

@@ -6,10 +6,11 @@ viewing ray by z_new / z, so its pixel stays put; e_x, e_y = q_new z_new and e_z
 them by the LIFT rule. A median of w = 2h + 1 rows removes impulses of up to h rows and keeps
 steps, monotone runs and plateaus of h + 1 or more rows; a real change shorter than that is lost.
 
-Ends of a run: ``"shifted"`` moves the window inside the run (row 0 uses rows 0..w - 1), so an
-impulse on the first or last h rows is removed too, but a monotone run also loses its slope there
-(those rows take the value of row h), since such an impulse is itself monotone. ``"keep"`` leaves
-the first and last h rows as measured.
+Ends of a run: ``"keep"`` (LIFT's rule) leaves the first and last h rows as measured.
+``"shifted"`` moves the window inside the run (row 0 uses rows 0..w - 1): an impulse on those rows
+is removed too, but a monotone run also loses its slope there, since such an impulse is itself
+monotone. It fails the survival test J5 (tests/verification/test_it2_temporal_survival.py) and
+exists only for the descriptive run of the J6 gate (plan-it2, judgement 2 a).
 """
 
 from __future__ import annotations
@@ -29,7 +30,7 @@ FloatArray = NDArray[np.float64]
 EdgeMode = Literal["shifted", "keep"]
 
 
-def running_median(x: FloatArray, window: int, edges: EdgeMode = "shifted") -> FloatArray:
+def running_median(x: FloatArray, window: int, edges: EdgeMode) -> FloatArray:
     """Median over ``window`` rows around each row; the first and last ``window // 2`` rows use a
     window shifted inside the series or keep their value (``edges``). Non-finite rows are skipped
     as samples and left as they are; a series shorter than the window comes back unchanged."""
@@ -50,7 +51,7 @@ def running_median(x: FloatArray, window: int, edges: EdgeMode = "shifted") -> F
 
 
 def stabilize_run(
-    centres: FloatArray, extents: FloatArray, window: int, edges: EdgeMode = "shifted"
+    centres: FloatArray, extents: FloatArray, window: int, edges: EdgeMode
 ) -> tuple[FloatArray, FloatArray]:
     """(n, 3) centres and extents of one visible run with the median depth and image extent."""
     z = centres[:, 2]
@@ -65,7 +66,7 @@ def stabilize_run(
 
 
 def stabilize_summaries(
-    column: Sequence[ObjectSummary | None], window: int, edges: EdgeMode = "shifted"
+    column: Sequence[ObjectSummary | None], window: int, edges: EdgeMode
 ) -> list[ObjectSummary | None]:
     """One object's summaries over time, each visible run stabilised (``None`` = not visible)."""
     out = list(column)
