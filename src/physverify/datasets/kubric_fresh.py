@@ -10,6 +10,8 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import TYPE_CHECKING, ClassVar
 
+from pydantic import Field
+
 from physverify.calibration.scenes import expand, in_scope
 from physverify.config.models import FrozenModel
 from physverify.datasets.kubric_synthetic import KubricSynthetic
@@ -27,6 +29,9 @@ class KubricFreshSettings(FrozenModel):
     version: str
     ood_version: str
     blind_scenes: tuple[str, ...]
+    scenes_per_family: int = Field(ge=1)
+    ood_scenes_per_family: int = Field(ge=1)
+    ood_hdri_pool: str
 
 
 def fresh_settings(settings: Settings) -> KubricFreshSettings:
