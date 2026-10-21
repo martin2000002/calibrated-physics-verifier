@@ -14,7 +14,7 @@ from physverify.cli.context import PLUGIN_KINDS
 from physverify.core.errors import ConfigError
 from physverify.schema.scene import MagnitudeKind, PerturbationRecord
 from physverify.verification.runner import ChecksSettings, build_checks
-from physverify.verification.sweep import CheckUnit, target_check_ids
+from physverify.verification.sweep import CheckUnit, target_check_ids, target_unit
 
 CHECK_IDS = {"R1", "R2", "R3a", "R3b", "R4_missing", "R4_size", "R4_jump", "R5a", "R5b"}
 MEASURES = "physverify.physics.measures"
@@ -52,8 +52,10 @@ def label(name: str, targets: tuple[str, ...], unit: str) -> PerturbationRecord:
 
 
 def test_the_units_are_the_a4_perturbation_units() -> None:
-    units = {check_id: cls.magnitude_unit for check_id, cls in registry().items()}
-    checks = [CheckUnit(check_id, unit) for check_id, unit in units.items()]
+    """Through ``target_unit``: R4_jump v2 measures jump_over_noise, a test statistic of the
+    jump_over_size that r4_teleport injects (plan-it4 J1)."""
+    checks = [CheckUnit.of(cls) for cls in registry().values()]
+    units = {c.check_id: target_unit(c) for c in checks}
     covered: set[str] = set()
     for perturbation in PLUGIN_KINDS["perturbations"]().values():
         if perturbation.magnitude_kind is not MagnitudeKind.CHECK_UNIT:

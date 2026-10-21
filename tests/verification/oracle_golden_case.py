@@ -3,17 +3,23 @@
 The same module runs in both trees:
 
     PYTHONPATH=<old>/src:tests/fixtures python tests/verification/oracle_golden_case.py
+
+Since it4 the registry holds R4_jump v2 and R4_size v2, so the comparisons with the golden pass
+``v1_checks()`` (the preregistered R4_jump and R4_size "self"); the other seven checks run as
+registered.
 """
 
 from __future__ import annotations
 
 import json
 import sys
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
 from synthetic_clip import SyntheticFixtureDataset
 
+from physverify.checks._base import Check
 from physverify.cli.context import PLUGIN_KINDS
 from physverify.schema.io import json_ready
 from physverify.verification.inputs import OracleSource
@@ -23,9 +29,23 @@ from physverify.verification.runner import ChecksSettings, VerificationRunner, b
 GOLDEN = Path(__file__).resolve().parent / "golden" / "oracle_before_it2.json"
 
 
-def oracle_results() -> list[Any]:
+V1_OVERRIDES: dict[str, dict[str, Any]] = {"R4_size": {"reference": "self"}}
+
+
+def v1_checks() -> tuple[dict[str, type[Check]], dict[str, dict[str, Any]]]:
+    """The registry with the v1 R4_jump, and the overrides that make R4_size v1 (it4 J4, J5)."""
+    from physverify.checks.r4_integrity import ContinuityCheck
+
+    return {**PLUGIN_KINDS["checks"](), "R4_jump": ContinuityCheck}, V1_OVERRIDES
+
+
+def oracle_results(
+    registry: Mapping[str, type[Check]] | None = None,
+    overrides: dict[str, dict[str, Any]] | None = None,
+) -> list[Any]:
     dataset = SyntheticFixtureDataset()
-    checks = build_checks(PLUGIN_KINDS["checks"](), ChecksSettings({}))
+    found = PLUGIN_KINDS["checks"]() if registry is None else registry
+    checks = build_checks(found, ChecksSettings(overrides or {}))
     report = VerificationRunner(checks, RawPolicy(), {}).run(OracleSource(dataset), dataset.clips())
     return [json_ready(r.to_dict()) for r in report.results]
 

@@ -18,6 +18,7 @@ from numpy.typing import NDArray
 
 from physverify.checks._base import CheckInputs
 from physverify.extraction.matching import take_frames
+from physverify.extraction.providers._common import centred_intrinsics
 from physverify.physics.geometry import (
     Body,
     Plane,
@@ -28,9 +29,10 @@ from physverify.physics.geometry import (
     quaternion_from_matrix,
 )
 from physverify.schema.checks import InputLevel
-from physverify.schema.clip import ClipManifest, Split, TimeSource
+from physverify.schema.clip import ClipManifest, SamplingSpec, Split, TimeSource, resolve_sampling
 from physverify.schema.constants import ENV_ID, STANDARD_GRAVITY
 from physverify.schema.contacts import ContactKind, ContactRecord, ContactTable, ManifoldKind
+from physverify.schema.perception import CameraModel, IntrinsicsSource
 from physverify.schema.scale import EffectiveScale, ScaleSource
 from physverify.schema.scene import SceneSpec
 from physverify.schema.stages import STAGE_ORDER
@@ -54,6 +56,8 @@ DOWN = -UP
 GROUND = Plane.ground()
 CAMERA_ORIGIN = np.array([0.0, -4.0, 1.0])
 BALL_RADIUS = 0.1
+FOCAL_PX = 500.0
+"""Focal length of the scenario camera, in processing pixels (R4_jump v2 reads its pixel floor)."""
 DATASET = "scenario"
 
 
@@ -127,7 +131,21 @@ class Case:
             input_level=level,
             provenance=dict(provenance or {"scale.source": source}),
             scene=self.scene,
+            camera=pinhole(self.clip),
         )
+
+
+def pinhole(clip: ClipManifest, focal: float = FOCAL_PX, pose: Any = None) -> CameraModel:
+    """Centred pinhole camera of ``focal`` pixels at the clip's native size."""
+    sampling = resolve_sampling(clip, SamplingSpec())
+    return CameraModel(
+        sampling=sampling,
+        K=centred_intrinsics(focal, sampling),
+        source=IntrinsicsSource.ASSUMED_FOV,
+        fov_deg=60.0,
+        fov_sigma_deg=0.0,
+        world_from_camera=pose,
+    )
 
 
 # --- building blocks -------------------------------------------------------------------------
@@ -544,6 +562,26 @@ def size_change(
     case = rolling_ball(pitch_deg=pitch_deg, frames=frames, clip_id="size_change")
     grown = case.states.size[case.states.frame_index >= frame, 0] * factor
     return with_values(case, "size", "ball", range(frame, frames), grown)
+
+
+def resized_pair(
+    factor: float = 1.3,
+    first: int = 12,
+    last: int = 17,
+    pitch_deg: float = 0.0,
+    frames: int = FRAMES,
+    balls: int = 2,
+) -> Case:
+    """``balls`` still balls (radius 0.1) in a row; ball_0's extents are multiplied by ``factor``
+    on native frames first..last, a window shorter than half the clip (its median is kept)."""
+    objects = [
+        still(f"ball_{i}", PrimitiveKind.SPHERE, cube(2 * BALL_RADIUS), (0.4 * i, 0.0, 1.0), frames)
+        for i in range(balls)
+    ]
+    case = build("resized_pair", objects, [], pitch_deg)
+    rows = range(first, last + 1)
+    grown = case.states.size[first : last + 1, 0] * factor
+    return with_values(case, "size", "ball_0", rows, grown)
 
 
 def teleport(

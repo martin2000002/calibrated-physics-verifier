@@ -3,7 +3,8 @@
 The fixture's oracle results equal the golden of it2 (``oracle_before_it2.json``, byte-identical
 to what 2a762ad writes), and its V8 contacts (every stage ground truth) equal those written by
 2a762ad, also when the plan asks for ``contacts/kinematic``. Both compare with ``golden.same``
-(relative 1e-9): the goldens were written on another CPU (audit M1, L1).
+(relative 1e-9): the goldens were written on another CPU (audit M1, L1). R4_jump and R4_size
+run as v1 (``v1_checks``, it4).
 """
 
 from __future__ import annotations
@@ -32,7 +33,8 @@ import oracle_golden_case  # noqa: E402
 
 def test_t11_the_oracle_results_do_not_move() -> None:
     golden = json.loads(oracle_golden_case.GOLDEN.read_text(encoding="utf-8"))
-    current = json.loads(json.dumps(oracle_golden_case.oracle_results(), sort_keys=True))
+    v1 = oracle_golden_case.v1_checks()
+    current = json.loads(json.dumps(oracle_golden_case.oracle_results(*v1), sort_keys=True))
     assert len(golden) == len(current) > 0
     assert same(current, golden)
 

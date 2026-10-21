@@ -50,7 +50,7 @@ def missing(case: sc.Case) -> CheckResult:
 
 
 def size(case: sc.Case) -> CheckResult:
-    return run_one(SizeConstancyCheck(SizeParams()), case)
+    return run_one(SizeConstancyCheck(SizeParams(reference="self")), case)
 
 
 def jump(case: sc.Case) -> CheckResult:
@@ -59,8 +59,8 @@ def jump(case: sc.Case) -> CheckResult:
 
 def test_plugins_satisfy_the_check_protocol() -> None:
     ids = {cls.check_id for cls in PLUGINS}
-    assert ids == {"R4_missing", "R4_size", "R4_jump"}
-    for cls in PLUGINS:
+    assert ids == {"R4_missing", "R4_size"}
+    for cls in (*PLUGINS, ContinuityCheck):
         assert isinstance(cls(cls.Params()), Check)
 
 
@@ -136,7 +136,7 @@ def test_strided_disappearance_counts_native_frames() -> None:
     assert result.frame_span == (4, 6)
 
 
-# --- R4_size ----------------------------------------------------------------------------------
+# --- R4_size v1 (reference "self"; v2 in test_r4_size_relative.py) -------------------------
 
 
 @pytest.mark.parametrize("step", [1, 2, 3])
@@ -223,7 +223,7 @@ def test_size_abstains_only_below_min_size_frames(whole: int) -> None:
         assert result.details["size_rows"] == whole
 
 
-# --- R4_jump ----------------------------------------------------------------------------------
+# --- R4_jump v1 (ContinuityCheck, out of the registry; v2 in test_r4_jump_noise.py) ----------
 
 
 @pytest.mark.parametrize("pitch", [0.0, 25.0])

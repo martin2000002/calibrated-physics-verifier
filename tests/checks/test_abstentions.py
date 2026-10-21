@@ -36,7 +36,7 @@ ALLOWED: dict[str, frozenset[AbstainReason]] = {
     "R3b": frozenset({R.ILL_CONDITIONED, R.OUT_OF_SCOPE, R.TOO_FEW_FRAMES}),
     "R4_missing": frozenset({R.OCCLUDED}),
     "R4_size": frozenset({R.TOO_FEW_FRAMES}),
-    "R4_jump": frozenset({R.TOO_FEW_FRAMES}),
+    "R4_jump": frozenset({R.TOO_FEW_FRAMES, R.UNKNOWN_UNCERTAINTY}),
     "R5a": frozenset({R.TOO_FEW_FRAMES}),
     "R5b": frozenset({R.SCALE_UNAVAILABLE, R.SCALE_FROM_GRAVITY, R.TOO_FEW_FRAMES}),
 }
@@ -51,6 +51,11 @@ def make(check_id: str) -> Check:
 
 def with_states(case: sc.Case, **changes: Any) -> sc.Case:
     return replace(case, states=replace(case.states, **changes))
+
+
+def behind_the_camera(case: sc.Case) -> sc.Case:
+    """Depth z < 0: no pixel floor, so R4_jump v2 has no noise unit (UNKNOWN_UNCERTAINTY)."""
+    return with_states(case, position=case.states.position * np.array([1.0, 1.0, -1.0]))
 
 
 def point_contact(case: sc.Case) -> sc.Case:
@@ -128,6 +133,7 @@ REACHABLE: list[tuple[str, AbstainReason, Builder]] = [
             sc.rolling_ball(), "position", "ball", range(1, sc.FRAMES, 2), np.nan
         ),
     ),
+    ("R4_jump", R.UNKNOWN_UNCERTAINTY, lambda: behind_the_camera(sc.rolling_ball())),
     ("R5a", R.TOO_FEW_FRAMES, lambda: sc.parabola(frames=5)),
     ("R5b", R.SCALE_UNAVAILABLE, lambda: replace(sc.parabola(), scale=None)),
     (
