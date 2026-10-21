@@ -96,11 +96,32 @@ def test_the_sigma_adds_the_reference_in_quadrature() -> None:
     assert result.sigma == pytest.approx(1.3 * math.sqrt(2) * math.hypot(own, reference), rel=1e-9)
 
 
-def test_relative_lengths_use_the_geometric_mean_of_the_known_references() -> None:
+def test_relative_lengths_use_each_reference_relative_to_its_median() -> None:
+    """Column 0 has median 1 and column 1 median 2: row 0 divides by sqrt(1 * 4 / 2) = sqrt(2),
+    row 1 by 2 / 2 = 1."""
     own = np.array([1.0, 2.0, math.nan, 4.0])
     reference = np.array([[1.0, 4.0], [math.nan, 2.0], [1.0, 1.0], [math.nan, math.nan]])
     ratios = relative_lengths(own, reference)
-    assert ratios[:2] == pytest.approx([0.5, 1.0])
+    assert ratios[:2] == pytest.approx([1 / math.sqrt(2), 2.0])
     assert np.isnan(ratios[2:]).all()
-    assert relative_size_change(own, reference) == pytest.approx(1 / 3)
+    scaled = ratios[:2] / np.median(ratios[:2])
+    assert relative_size_change(own, reference) == pytest.approx(np.max(np.abs(scaled - 1)))
     assert math.isnan(relative_size_change(own[2:], reference[2:]))
+
+
+@pytest.mark.parametrize("leave", [12, 16, 20])
+def test_a1_a_reference_leaving_the_image_makes_no_step(leave: int) -> None:
+    """Audit A1: three rigid bodies of lengths 0.2, 0.2 and 0.1; the small one leaves the image
+    from row ``leave`` on. With the plain geometric mean the denominator stepped (0.29 at row 16);
+    with each reference relative to its median every body stays at 0."""
+    case = sc.resized_pair(factor=1.0, balls=3)
+    sizes = case.states.size.copy()
+    sizes[:, 2] *= 0.5
+    case = replace(case, states=replace(case.states, size=sizes))
+    gone = sc.with_values(case, "in_frame", "ball_2", range(leave, sc.FRAMES), False)
+    occluded = sc.with_values(case, "occlusion", "ball_2", range(leave, leave + 6), 0.95)
+    for scene in (gone, occluded):
+        results = size(scene)
+        for name in ("ball_0", "ball_1"):
+            assert results[name].magnitude == pytest.approx(0.0, abs=1e-12)
+        assert results["ball_2"].magnitude == pytest.approx(0.0, abs=1e-12)

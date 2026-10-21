@@ -107,8 +107,10 @@ class SizeConstancyCheck:
     """R4_size [rel_size_change]: max_t |r_t / median(r) - 1| with r_t = L_t / ref_t.
 
     ``reference`` "others" (v2): ref_t is the geometric mean of the lengths of the other objects
-    whole in the same row, so a depth-scale error common to the row cancels; rows without any
-    such object do not count, and a clip with one object abstains (``details.reference`` "none").
+    whole in the same row, each relative to its own median (``relative_lengths``), so a
+    depth-scale error common to the row cancels and a reference leaving the image does not make
+    a step; rows without any such object do not count, and a clip with one object abstains
+    (``details.reference`` "none").
     With two objects a change of either shows in both, so the subject is ambiguous. "self" (v1):
     ref_t = 1.
 
@@ -188,7 +190,7 @@ class SizeConstancyCheck:
         scaled = ratios[known] / np.median(ratios[known])
         pick = first_max(np.abs(scaled - 1.0))
         row = int(known[pick])
-        sigma = _relative_sigma(inputs, index, row, float(scaled[pick]))
+        sigma = _relative_sigma(inputs, lengths, index, row, float(scaled[pick]))
         span = native_span(states.frame_index, row, row)
         magnitude = relative_size_change(own, others)
         details["row"] = row
@@ -263,16 +265,18 @@ def _length_rel_sigma(extents: FloatArray, extents_sigma: FloatArray) -> float:
     return math.sqrt(float(np.sum((extents_sigma / extents) ** 2))) / 3.0
 
 
-def _relative_sigma(inputs: CheckInputs, index: int, row: int, ratio: float) -> float:
+def _relative_sigma(
+    inputs: CheckInputs, whole: FloatArray, index: int, row: int, ratio: float
+) -> float:
     """First order, as ``_size_sigma``, for r = L_i / ref: the relative sigma of the geometric
-    mean of n references is sqrt(mean_j (sigma_Lj / L_j)^2 / n)."""
+    mean of n references is sqrt(mean_j (sigma_Lj / L_j)^2 / n), over the references the
+    magnitude used at that row (``whole``: the lengths of ``_whole_lengths``)."""
     states = inputs.states
     own = _length_rel_sigma(states.size[row, index], states.size_sigma[row, index])
-    lengths = characteristic_lengths(states.size[row])
     refs = [
         _length_rel_sigma(states.size[row, j], states.size_sigma[row, j])
         for j in range(states.n_objects)
-        if j != index and math.isfinite(float(lengths[j]))
+        if j != index and math.isfinite(float(whole[row, j])) and whole[row, j] > 0.0
     ]
     reference = math.sqrt(float(np.mean(np.square(refs))) / len(refs))
     return ratio * math.sqrt(2.0) * math.hypot(own, reference)
