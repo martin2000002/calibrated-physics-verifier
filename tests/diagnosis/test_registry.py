@@ -28,6 +28,7 @@ EXPECTED = {
     "scale/relative",
     "kinematics/derivatives",
     "contacts/events",
+    "contacts/impacts",
 }
 
 
