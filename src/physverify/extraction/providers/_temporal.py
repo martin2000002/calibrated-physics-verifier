@@ -5,6 +5,11 @@ extent q = (e_x, e_y) / z (pixels / f, independent of depth). The centre is resc
 viewing ray by z_new / z, so its pixel stays put; e_x, e_y = q_new z_new and e_z follows from
 them by the LIFT rule. A median of w = 2h + 1 rows removes impulses of up to h rows and keeps
 steps, monotone runs and plateaus of h + 1 or more rows; a real change shorter than that is lost.
+
+Ends of a run: ``"shifted"`` moves the window inside the run (row 0 uses rows 0..w - 1), so an
+impulse on the first or last h rows is removed too, but a monotone run also loses its slope there
+(those rows take the value of row h), since such an impulse is itself monotone. ``"keep"`` leaves
+the first and last h rows as measured.
 """
 
 from __future__ import annotations
@@ -12,6 +17,7 @@ from __future__ import annotations
 import math
 from collections.abc import Sequence
 from dataclasses import replace
+from typing import Literal
 
 import numpy as np
 from numpy.typing import NDArray
@@ -20,12 +26,13 @@ from physverify.extraction.providers._lifting import ObjectSummary, full_extents
 from physverify.physics.kinematics import visible_runs
 
 FloatArray = NDArray[np.float64]
+EdgeMode = Literal["shifted", "keep"]
 
 
-def running_median(x: FloatArray, window: int) -> FloatArray:
-    """Median over ``window`` rows around each row; at the ends the window is shifted inside the
-    series (row 0 uses rows 0..window - 1). Non-finite rows are skipped as samples and left as
-    they are; a series shorter than the window comes back unchanged."""
+def running_median(x: FloatArray, window: int, edges: EdgeMode = "shifted") -> FloatArray:
+    """Median over ``window`` rows around each row; the first and last ``window // 2`` rows use a
+    window shifted inside the series or keep their value (``edges``). Non-finite rows are skipped
+    as samples and left as they are; a series shorter than the window comes back unchanged."""
     values = np.asarray(x, dtype=np.float64)
     out = values.copy()
     n = values.size
@@ -33,7 +40,8 @@ def running_median(x: FloatArray, window: int) -> FloatArray:
         return out
     half = window // 2
     for row in range(n):
-        if not math.isfinite(values[row]):
+        inside = half <= row < n - half
+        if not math.isfinite(values[row]) or (edges == "keep" and not inside):
             continue
         first = min(max(row - half, 0), n - window)
         span = values[first : first + window]
@@ -42,13 +50,13 @@ def running_median(x: FloatArray, window: int) -> FloatArray:
 
 
 def stabilize_run(
-    centres: FloatArray, extents: FloatArray, window: int
+    centres: FloatArray, extents: FloatArray, window: int, edges: EdgeMode = "shifted"
 ) -> tuple[FloatArray, FloatArray]:
     """(n, 3) centres and extents of one visible run with the median depth and image extent."""
     z = centres[:, 2]
     image_extent = extents[:, :2] / z[:, None]
-    z_new = running_median(z, window)
-    q_new = np.column_stack([running_median(image_extent[:, k], window) for k in range(2)])
+    z_new = running_median(z, window, edges)
+    q_new = np.column_stack([running_median(image_extent[:, k], window, edges) for k in range(2)])
     ratio = z_new / z
     usable = np.isfinite(ratio) & np.isfinite(q_new).all(axis=1)
     new_centres = np.where(usable[:, None], centres * ratio[:, None], centres)
@@ -57,7 +65,7 @@ def stabilize_run(
 
 
 def stabilize_summaries(
-    column: Sequence[ObjectSummary | None], window: int
+    column: Sequence[ObjectSummary | None], window: int, edges: EdgeMode = "shifted"
 ) -> list[ObjectSummary | None]:
     """One object's summaries over time, each visible run stabilised (``None`` = not visible)."""
     out = list(column)
@@ -68,7 +76,7 @@ def stabilize_summaries(
         summaries = [s for s in out[run] if s is not None]
         centres = np.stack([s.centre for s in summaries])
         extents = np.stack([s.extents for s in summaries])
-        new_centres, new_extents = stabilize_run(centres, extents, window)
+        new_centres, new_extents = stabilize_run(centres, extents, window, edges)
         out[run] = [
             replace(s, centre=c, extents=e)
             for s, c, e in zip(summaries, new_centres, new_extents, strict=True)

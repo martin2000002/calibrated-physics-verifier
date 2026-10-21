@@ -1,0 +1,432 @@
+[
+ {
+  "abstain_reason": null,
+  "check_id": "R1",
+  "clip_id": "fixture_fall",
+  "details": {
+   "distance": 0.4,
+   "frame": 11,
+   "ground": "none",
+   "orientation_assumed": false,
+   "row": 11,
+   "row_step": 1
+  },
+  "frame_span": [
+   11,
+   11
+  ],
+  "input_level": "oracle",
+  "magnitude": 0.0,
+  "provenance": {
+   "camera": "ground_truth",
+   "contacts": "ground_truth",
+   "depth": "ground_truth",
+   "detect": "ground_truth",
+   "kinematics": "ground_truth",
+   "lift": "ground_truth",
+   "scale": "ground_truth",
+   "scale_source": "ground_truth",
+   "thresholds": "provisional",
+   "track": "ground_truth"
+  },
+  "sigma": 0.0,
+  "subject": [
+   "ball",
+   "box"
+  ],
+  "threshold": null,
+  "unit": "pen_over_size",
+  "verdict": "UNSCORED"
+ },
+ {
+  "abstain_reason": null,
+  "check_id": "R1",
+  "clip_id": "fixture_fall",
+  "details": {
+   "distance": 0.0,
+   "frame": 0,
+   "ground": "records",
+   "orientation_assumed": false,
+   "row": 0,
+   "row_step": 1
+  },
+  "frame_span": [
+   0,
+   0
+  ],
+  "input_level": "oracle",
+  "magnitude": 0.0,
+  "provenance": {
+   "camera": "ground_truth",
+   "contacts": "ground_truth",
+   "depth": "ground_truth",
+   "detect": "ground_truth",
+   "kinematics": "ground_truth",
+   "lift": "ground_truth",
+   "scale": "ground_truth",
+   "scale_source": "ground_truth",
+   "thresholds": "provisional",
+   "track": "ground_truth"
+  },
+  "sigma": 0.0,
+  "subject": [
+   "box",
+   "__env__"
+  ],
+  "threshold": null,
+  "unit": "pen_over_size",
+  "verdict": "UNSCORED"
+ },
+ {
+  "abstain_reason": null,
+  "check_id": "R2",
+  "clip_id": "fixture_fall",
+  "details": {
+   "body_residuals": {
+    "box": 0.0
+   },
+   "excluded_contacts": [],
+   "frame": 5,
+   "horizontal_norm_bias": 0.08239220029239402,
+   "masses": {
+    "box": 1.0
+   },
+   "norm_edges": 8,
+   "overhang": {
+    "box": -0.510872954929036
+   },
+   "rest_rows": [
+    0,
+    11
+   ],
+   "row": 5,
+   "row_step": 1
+  },
+  "frame_span": [
+   0,
+   11
+  ],
+  "input_level": "oracle",
+  "magnitude": 0.0,
+  "provenance": {
+   "camera": "ground_truth",
+   "contacts": "ground_truth",
+   "depth": "ground_truth",
+   "detect": "ground_truth",
+   "kinematics": "ground_truth",
+   "lift": "ground_truth",
+   "scale": "ground_truth",
+   "scale_source": "ground_truth",
+   "thresholds": "provisional",
+   "track": "ground_truth"
+  },
+  "sigma": 0.0,
+  "subject": [
+   "box"
+  ],
+  "threshold": null,
+  "unit": "residual_over_weight",
+  "verdict": "UNSCORED"
+ },
+ {
+  "abstain_reason": null,
+  "check_id": "R4_missing",
+  "clip_id": "fixture_fall",
+  "details": {
+   "missing_rows": 0,
+   "row_step": 1
+  },
+  "frame_span": null,
+  "input_level": "oracle",
+  "magnitude": 0.0,
+  "provenance": {
+   "camera": "ground_truth",
+   "contacts": "ground_truth",
+   "depth": "ground_truth",
+   "detect": "ground_truth",
+   "kinematics": "ground_truth",
+   "lift": "ground_truth",
+   "scale": "ground_truth",
+   "scale_source": "ground_truth",
+   "thresholds": "provisional",
+   "track": "ground_truth"
+  },
+  "sigma": 0.0,
+  "subject": [
+   "ball"
+  ],
+  "threshold": null,
+  "unit": "frames",
+  "verdict": "UNSCORED"
+ },
+ {
+  "abstain_reason": null,
+  "check_id": "R4_missing",
+  "clip_id": "fixture_fall",
+  "details": {
+   "missing_rows": 0,
+   "row_step": 1
+  },
+  "frame_span": null,
+  "input_level": "oracle",
+  "magnitude": 0.0,
+  "provenance": {
+   "camera": "ground_truth",
+   "contacts": "ground_truth",
+   "depth": "ground_truth",
+   "detect": "ground_truth",
+   "kinematics": "ground_truth",
+   "lift": "ground_truth",
+   "scale": "ground_truth",
+   "scale_source": "ground_truth",
+   "thresholds": "provisional",
+   "track": "ground_truth"
+  },
+  "sigma": 0.0,
+  "subject": [
+   "box"
+  ],
+  "threshold": null,
+  "unit": "frames",
+  "verdict": "UNSCORED"
+ },
+ {
+  "abstain_reason": null,
+  "check_id": "R4_size",
+  "clip_id": "fixture_fall",
+  "details": {
+   "excluded_rows": 0,
+   "row": 0,
+   "row_step": 1,
+   "size_rows": 12
+  },
+  "frame_span": [
+   0,
+   0
+  ],
+  "input_level": "oracle",
+  "magnitude": 0.0,
+  "provenance": {
+   "camera": "ground_truth",
+   "contacts": "ground_truth",
+   "depth": "ground_truth",
+   "detect": "ground_truth",
+   "kinematics": "ground_truth",
+   "lift": "ground_truth",
+   "scale": "ground_truth",
+   "scale_source": "ground_truth",
+   "thresholds": "provisional",
+   "track": "ground_truth"
+  },
+  "sigma": 0.0,
+  "subject": [
+   "ball"
+  ],
+  "threshold": null,
+  "unit": "rel_size_change",
+  "verdict": "UNSCORED"
+ },
+ {
+  "abstain_reason": null,
+  "check_id": "R4_size",
+  "clip_id": "fixture_fall",
+  "details": {
+   "excluded_rows": 0,
+   "row": 0,
+   "row_step": 1,
+   "size_rows": 12
+  },
+  "frame_span": [
+   0,
+   0
+  ],
+  "input_level": "oracle",
+  "magnitude": 0.0,
+  "provenance": {
+   "camera": "ground_truth",
+   "contacts": "ground_truth",
+   "depth": "ground_truth",
+   "detect": "ground_truth",
+   "kinematics": "ground_truth",
+   "lift": "ground_truth",
+   "scale": "ground_truth",
+   "scale_source": "ground_truth",
+   "thresholds": "provisional",
+   "track": "ground_truth"
+  },
+  "sigma": 0.0,
+  "subject": [
+   "box"
+  ],
+  "threshold": null,
+  "unit": "rel_size_change",
+  "verdict": "UNSCORED"
+ },
+ {
+  "abstain_reason": null,
+  "check_id": "R4_jump",
+  "clip_id": "fixture_fall",
+  "details": {
+   "excluded_rows": 0,
+   "row": 9,
+   "row_step": 1
+  },
+  "frame_span": [
+   8,
+   11
+  ],
+  "input_level": "oracle",
+  "magnitude": 5.551115123125784e-16,
+  "provenance": {
+   "camera": "ground_truth",
+   "contacts": "ground_truth",
+   "depth": "ground_truth",
+   "detect": "ground_truth",
+   "kinematics": "ground_truth",
+   "lift": "ground_truth",
+   "scale": "ground_truth",
+   "scale_source": "ground_truth",
+   "thresholds": "provisional",
+   "track": "ground_truth"
+  },
+  "sigma": 0.0,
+  "subject": [
+   "ball"
+  ],
+  "threshold": null,
+  "unit": "jump_over_size",
+  "verdict": "UNSCORED"
+ },
+ {
+  "abstain_reason": null,
+  "check_id": "R4_jump",
+  "clip_id": "fixture_fall",
+  "details": {
+   "excluded_rows": 0,
+   "row": 1,
+   "row_step": 1
+  },
+  "frame_span": [
+   0,
+   3
+  ],
+  "input_level": "oracle",
+  "magnitude": 0.0,
+  "provenance": {
+   "camera": "ground_truth",
+   "contacts": "ground_truth",
+   "depth": "ground_truth",
+   "detect": "ground_truth",
+   "kinematics": "ground_truth",
+   "lift": "ground_truth",
+   "scale": "ground_truth",
+   "scale_source": "ground_truth",
+   "thresholds": "provisional",
+   "track": "ground_truth"
+  },
+  "sigma": 0.0,
+  "subject": [
+   "box"
+  ],
+  "threshold": null,
+  "unit": "jump_over_size",
+  "verdict": "UNSCORED"
+ },
+ {
+  "abstain_reason": null,
+  "check_id": "R5a",
+  "clip_id": "fixture_fall",
+  "details": {
+   "accelerations": [
+    [
+     2.042815224012213e-14,
+     9.810000000000025,
+     -1.6342200570309934e-13
+    ],
+    [
+     -2.796941228264182e-14,
+     9.809999999999963,
+     2.2375686318736962e-13
+    ]
+   ],
+   "fall_residual_ratio": 2.5776953418390424e-16,
+   "lateral_accel_ratio": 3.1533984511673915e-18,
+   "mode": "split",
+   "row_step": 1,
+   "split_frame": 6,
+   "windows": [
+    [
+     1,
+     5
+    ],
+    [
+     6,
+     11
+    ]
+   ]
+  },
+  "frame_span": [
+   1,
+   11
+  ],
+  "input_level": "oracle",
+  "magnitude": 4.027667533315305e-14,
+  "provenance": {
+   "camera": "ground_truth",
+   "contacts": "ground_truth",
+   "depth": "ground_truth",
+   "detect": "ground_truth",
+   "kinematics": "ground_truth",
+   "lift": "ground_truth",
+   "scale": "ground_truth",
+   "scale_source": "ground_truth",
+   "thresholds": "provisional",
+   "track": "ground_truth"
+  },
+  "sigma": 0.0,
+  "subject": [
+   "ball"
+  ],
+  "threshold": null,
+  "unit": "accel_rel_diff",
+  "verdict": "UNSCORED"
+ },
+ {
+  "abstain_reason": null,
+  "check_id": "R5b",
+  "clip_id": "fixture_fall",
+  "details": {
+   "flight_errors": [
+    1.810761304179664e-16
+   ],
+   "flights": 1,
+   "row_step": 1,
+   "scale_source": "ground_truth",
+   "time_source": "ground_truth",
+   "used_flights": 1
+  },
+  "frame_span": [
+   1,
+   11
+  ],
+  "input_level": "oracle",
+  "magnitude": 1.810761304179664e-16,
+  "provenance": {
+   "camera": "ground_truth",
+   "contacts": "ground_truth",
+   "depth": "ground_truth",
+   "detect": "ground_truth",
+   "kinematics": "ground_truth",
+   "lift": "ground_truth",
+   "scale": "ground_truth",
+   "scale_source": "ground_truth",
+   "thresholds": "provisional",
+   "track": "ground_truth"
+  },
+  "sigma": 0.0,
+  "subject": [],
+  "threshold": null,
+  "unit": "g_rel_error",
+  "verdict": "UNSCORED"
+ }
+]

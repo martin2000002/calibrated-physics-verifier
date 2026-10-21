@@ -82,6 +82,20 @@ def test_t9_monotone_series_keep_their_interior_and_flatten_two_rows_at_each_end
     np.testing.assert_array_equal(out[-2:], [ramp[-3], ramp[-3]])
 
 
+@pytest.mark.parametrize(
+    "ramp", [np.linspace(1.0, 4.0, ROWS) ** 1.5, np.linspace(4.0, 1.0, ROWS), np.full(ROWS, 2.0)]
+)
+def test_t9_keep_edges_leave_monotone_series_identical(ramp: np.ndarray) -> None:
+    np.testing.assert_array_equal(running_median(ramp, WINDOW, "keep"), ramp)
+
+
+def test_t9_keep_edges_remove_interior_impulses_only() -> None:
+    z = series()
+    z[[0, 6]] = 3.0
+    out = running_median(z, WINDOW, "keep")
+    assert out[0] == 3.0 and out[6] == 2.0
+
+
 def test_t10_short_series_and_non_finite_rows_are_untouched() -> None:
     short = np.array([1.0, 5.0, 1.0, 1.0])
     np.testing.assert_array_equal(running_median(short, WINDOW), short)
@@ -218,7 +232,7 @@ def test_t11_a_smooth_monotone_clip_is_unchanged_inside_the_run(
     fixture_clip: SyntheticClip,
 ) -> None:
     upstream = receding_disk()
-    median = lift_on(fixture_clip, upstream)
+    median = lift_on(fixture_clip, upstream, temporal_filter="median")
     none = lift_on(fixture_clip, upstream, temporal_filter="none")
     inner = slice(2, -2)
     for name in ("position", "position_sigma", "size", "size_sigma"):
@@ -233,7 +247,8 @@ def test_t11_a_smooth_monotone_clip_is_unchanged_inside_the_run(
 
 def test_t10_the_it1_gap_columns_do_not_depend_on_the_filter(fixture_clip: SyntheticClip) -> None:
     case = "noisy_monte_carlo"
-    new, old = table(fixture_clip, case), table(fixture_clip, case, temporal_filter="none")
+    new = table(fixture_clip, case, temporal_filter="median")
+    old = table(fixture_clip, case, temporal_filter="none")
     for name in ("visible", "in_frame", "occlusion", "confidence", "gravity_dir"):
         np.testing.assert_array_equal(getattr(new, name), getattr(old, name))
     assert not bool(np.array_equal(new.position, old.position, equal_nan=True))
@@ -260,10 +275,12 @@ def test_t12_the_version_and_both_parameters_enter_the_key() -> None:
         params_hash(p.model_dump(mode="json"))
         for p in (
             default,
-            BackprojectLift.Params(temporal_filter="none"),
+            BackprojectLift.Params(temporal_filter="median"),
             BackprojectLift.Params(temporal_window=7),
+            BackprojectLift.Params(temporal_edges="keep"),
         )
     }
-    assert len(hashes) == 3
+    assert len(hashes) == 4
+    assert default.temporal_filter == "none"  # type: ignore[attr-defined]
     with pytest.raises(ValueError, match="odd"):
         BackprojectLift.Params(temporal_window=6)

@@ -26,7 +26,7 @@ from physverify.extraction.providers._lifting import (
     object_position,
     object_summary,
 )
-from physverify.extraction.providers._temporal import stabilize_summaries
+from physverify.extraction.providers._temporal import EdgeMode, stabilize_summaries
 from physverify.extraction.providers._visibility import gap_visibility
 from physverify.physics.tracks import OCCLUDED_AT
 from physverify.schema.io import stable_hash
@@ -42,7 +42,8 @@ GravityMode = Literal["auto", "camera_pose", "level_camera", "none"]
 # interior mask gaps (ADR 0005 4.2 as amended 2026-10-20, ``_visibility.py``).
 GapMode = Literal["none", "interpolate"]
 # "none" is version 2; "median" stabilises depth and image extent along each visible run
-# (ADR 0005 4.2 as amended for it2, ``_temporal.py``).
+# (ADR 0005 4.2 as amended for it2, ``_temporal.py``). "none" by default: with the plan's
+# shifted ends the median fails the survival test J5 (tests/verification/test_it2_temporal_*).
 TemporalFilter = Literal["none", "median"]
 
 
@@ -74,8 +75,9 @@ class Params(ProviderParams):
     # Must equal the checks' ``occluded_at`` (resolve_plan refuses otherwise); a gap estimate
     # below it and above 0 is unknown.
     gap_occluded_at: float = Field(default=OCCLUDED_AT, gt=0.0, le=1.0)
-    temporal_filter: TemporalFilter = "median"
+    temporal_filter: TemporalFilter = "none"
     temporal_window: int = Field(default=5, ge=3)
+    temporal_edges: EdgeMode = "shifted"
 
     @field_validator("temporal_window")
     @classmethod
@@ -147,8 +149,10 @@ class BackprojectLift:
         ]
         if self.params.temporal_filter == "none":
             return rows
-        window = self.params.temporal_window
-        columns = [stabilize_summaries([row[n] for row in rows], window) for n in range(n_obj)]
+        window, edges = self.params.temporal_window, self.params.temporal_edges
+        columns = [
+            stabilize_summaries([row[n] for row in rows], window, edges) for n in range(n_obj)
+        ]
         return [[columns[n][t] for n in range(n_obj)] for t in range(n_t)]
 
     @property
