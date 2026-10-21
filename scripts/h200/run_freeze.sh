@@ -168,12 +168,8 @@ step_2() {
 
 step_3() {
     call 0 -- calibrate evaluate --dataset kubric_synthetic --subset calib --real
-    if grep -q '^real dataset .* skipped' "$LAST_LOG"; then
-        stop "a real dataset was skipped (see $LAST_LOG)"
-    fi
     local evaluation checked
-    evaluation="$(sed -n '/^evaluation: /{s///p;q}' "$LAST_LOG")"
-    [[ -n "$evaluation" && -f "$evaluation" ]] || stop "no evaluation in $LAST_LOG"
+    evaluation="$(evaluation_of "$LAST_LOG")"
     save EVAL_JSON "$evaluation"
     checked="$(query evaluation "$EVAL_JSON")" || stop "the evaluation failed its checks"
     note_block "Rule 1.5 evaluation on calib ($EVAL_JSON)" <<<"$checked"

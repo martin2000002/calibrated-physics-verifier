@@ -155,6 +155,18 @@ call() {
     run_logged "$tolerated" -- pv "$@"
 }
 
+# evaluation_of LOG: the evaluation.json calibrate evaluate printed in LOG; a skipped real dataset
+# stops the step (a look judges every set it names).
+evaluation_of() {
+    local evaluation
+    if grep -q '^real dataset .* skipped' "$1"; then
+        stop "a real dataset was skipped (see $1)"
+    fi
+    evaluation="$(sed -n '/^evaluation: /{s///p;q}' "$1")"
+    [[ -n "$evaluation" && -f "$evaluation" ]] || stop "no evaluation in $1"
+    printf '%s\n' "$evaluation"
+}
+
 # The run directory the last call printed.
 run_of() {
     local run_dir
