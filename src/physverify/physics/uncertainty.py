@@ -7,11 +7,24 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 
 import numpy as np
-from numpy.typing import NDArray
+from numpy.typing import ArrayLike, NDArray
 
 from physverify.schema.error_profile import ErrorEntry
 
 FloatArray = NDArray[np.float64]
+MAD_TO_SIGMA = 0.6745
+"""median(|z|) of a standard normal: median(|z|) / 0.6745 is a robust scale."""
+
+
+def robust_scale(values: ArrayLike) -> float:
+    """MAD / 0.6745 of the finite values: the sigma of a normal sample, robust to outliers.
+
+    NaN without any finite value."""
+    array = np.asarray(values, dtype=np.float64).ravel()
+    finite = array[np.isfinite(array)]
+    if not finite.size:
+        return math.nan
+    return float(np.median(np.abs(finite - np.median(finite)))) / MAD_TO_SIGMA
 
 
 def entry_rms(entry: ErrorEntry | None) -> float:

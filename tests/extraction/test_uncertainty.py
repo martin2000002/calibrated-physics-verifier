@@ -9,7 +9,13 @@ import numpy as np
 import pytest
 from support import entry
 
-from physverify.physics.uncertainty import entry_draws, entry_rms, monte_carlo
+from physverify.physics.uncertainty import (
+    MAD_TO_SIGMA,
+    entry_draws,
+    entry_rms,
+    monte_carlo,
+    robust_scale,
+)
 from physverify.schema.error_profile import ErrorEntry
 from physverify.schema.stages import Stage
 
@@ -67,3 +73,14 @@ def test_an_unknown_draw_makes_the_monte_carlo_sigma_unknown() -> None:
     draws = {"a": np.zeros(10), "b": None}
     result = monte_carlo(lambda d: np.column_stack([d["a"] + d["b"]]), draws)
     assert bool(np.isnan(result.std).all())
+
+
+def test_robust_scale_is_the_normal_sigma_and_ignores_outliers() -> None:
+    rng = np.random.default_rng(0)
+    sample = rng.normal(3.0, 2.0, 20000)
+    assert robust_scale(sample) == pytest.approx(2.0, rel=0.03)
+    spiked = np.concatenate([sample, np.full(500, 1e6), [np.nan, np.inf]])
+    assert robust_scale(spiked) == pytest.approx(2.0, rel=0.05)
+    assert math.isnan(robust_scale([np.nan])) and math.isnan(robust_scale([]))
+    assert robust_scale([1.0, 1.0, 1.0]) == 0.0
+    assert MAD_TO_SIGMA == 0.6745

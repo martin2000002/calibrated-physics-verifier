@@ -24,6 +24,7 @@ from physverify.calibration.stats import (
     profile_interval,
     scene_bootstrap,
 )
+from physverify.physics.uncertainty import robust_scale
 
 
 @pytest.mark.parametrize(("k", "n"), [(0, 20), (3, 20), (20, 20), (1, 100), (7, 13)])
@@ -148,3 +149,9 @@ def test_the_profile_interval_contains_the_maximum_and_can_stay_open() -> None:
     assert bounds[0] < found.low < math.log(0.1) < found.high < bounds[1]
     flat = profile_interval(x, np.zeros_like(x), 2.94, 1e-3, 0.95, bounds)
     assert flat.high is None
+
+
+def test_the_calibration_mad_calls_the_robust_scale() -> None:
+    values = [0.0, 1.0, 2.0, 10.0]
+    assert mad(values) == robust_scale(values)
+    assert mad([]) == 1.0 and mad([5.0, 5.0]) == 1.0

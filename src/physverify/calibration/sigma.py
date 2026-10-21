@@ -12,7 +12,6 @@ import numpy as np
 from physverify.calibration.schema import Ci, CoverageAt, SigmaCorrection, StageFactor
 from physverify.calibration.settings import CalibrationSettings
 from physverify.calibration.stats import (
-    MAD_TO_SIGMA,
     FloatArray,
     SceneBlock,
     grouped_folds,
@@ -27,6 +26,7 @@ from physverify.diagnosis.error_profile_writer import (
     finite_samples,
 )
 from physverify.diagnosis.report import nominal_coverage, z_coverage
+from physverify.physics.uncertainty import MAD_TO_SIGMA
 from physverify.schema.error_profile import ErrorEntry, ErrorProfile
 
 COVERAGE_LEVELS = (1.0, 2.0)
