@@ -49,7 +49,7 @@ from physverify.verification.policies.threshold import ThresholdPolicy
 from physverify.verification.sweep import CheckUnit
 
 DEVSCORE_SCHEMA = "physverify.devscore"
-DEVSCORE_VERSION = "1.0.0"
+DEVSCORE_VERSION = "1.1.0"
 DEVSCORE_FILE = "devscore.json"
 SELECTION_LEVEL = InputLevel.PERCEIVED
 SCOPE_NOTE = (
@@ -77,6 +77,9 @@ class CheckDevScore(ArtifactModel):
     """J of out-of-fold decisions; ``value`` is max(0, J^lo), not normalised."""
     j_in_sample: Weight
     """The artifact's J before normalisation (TPR in-sample, FPR fpr.cv)."""
+    folds_without_sigma_factor: int = 0
+    """Folds whose sigma factor is unknown (too few pairs): every held-out subject of the check
+    abstains there (``on_unknown_sigma = "abstain"``)."""
     meets_h1: bool
     meets_j: bool
     meets_both: bool
@@ -229,6 +232,9 @@ def check_score(
         tau_by_fold=tuple(part.stratum.checks[check_id].tau for part in parts),
         j_cv=j_cv,
         j_in_sample=full.weight,
+        folds_without_sigma_factor=sum(
+            part.stratum.checks[check_id].sigma.factor is None for part in parts
+        ),
         meets_h1=meets_h1,
         meets_j=meets_j,
         meets_both=meets_h1 and meets_j,

@@ -11,6 +11,7 @@ bootstrap = 2000
 seed = 0
 ci = 0.95
 min_sigma_pairs = 10
+sigma_pair_filter = "nonzero"  # D9 factor over pairs with a nonzero side (ADR 0009 D9, 2026-10-20)
 platt_l2 = 0.01
 ld_max_extrapolation = 1.0   # L_D beyond 2x the largest tested magnitude is censored
 real_datasets = ["physics_iq", "pisa_real"]

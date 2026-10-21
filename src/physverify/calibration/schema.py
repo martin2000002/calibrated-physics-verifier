@@ -15,7 +15,7 @@ from physverify.diagnosis.report import ReportModel
 from physverify.schema.checks import InputLevel
 
 CALIBRATION_SCHEMA = "physverify.calibration"
-CALIBRATION_VERSION = "1.4.0"
+CALIBRATION_VERSION = "1.5.0"
 EVALUATION_SCHEMA = "physverify.calibration.evaluation"
 LENIENT = "lenient"
 """Validation-context flag: drop keys this version does not know (newer minor version)."""
@@ -174,6 +174,11 @@ class SigmaCorrection(ArtifactModel):
     """Cross-fitted by scene."""
     reason: str | None = None
     estimated: bool = True
+    n_informative: int | None = None
+    """Pairs with a nonzero magnitude on some side; None when the factor uses every pair."""
+    coverage_after_informative: tuple[CoverageAt, ...] = ()
+    coverage_after_degenerate: tuple[CoverageAt, ...] = ()
+    """``coverage_after`` split into the informative pairs and the 0-against-0 ones."""
 
 
 class CheckCalibration(ArtifactModel):
@@ -243,6 +248,8 @@ class SettingsSnapshot(ArtifactModel):
     ci: float
     min_sigma_pairs: int
     platt_l2: float
+    sigma_pair_filter: str = "all"
+    """D9 factor pairs (``CalibrationSettings.sigma_pair_filter``); "all" before 1.5.0."""
 
 
 class StageFactor(ArtifactModel):

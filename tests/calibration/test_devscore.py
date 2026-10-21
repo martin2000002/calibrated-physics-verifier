@@ -260,3 +260,21 @@ def test_bootstrap_zero_is_refused() -> None:
         require_bootstrap(config(bootstrap=0).calibration)
     with pytest.raises(UsageError, match="bootstrap"):
         compute(levels()[:1], CHECKS, fit_meta(), config(bootstrap=0))
+
+
+def test_folds_without_a_sigma_factor_are_counted() -> None:
+    """J3 of it1: a fold whose training lacks min_sigma_pairs informative pairs has no factor
+    (its subjects abstain); the count is reported per check."""
+    oracle, base = levels()
+    data = LevelData(base.level, base.rows, base.results, _pairs(base))
+    found = compute((oracle, data), CHECKS, fit_meta(), CONFIG).report
+    perceived = next(level for level in found.levels if level.level is InputLevel.PERCEIVED)
+    assert perceived.checks["R1"].folds_without_sigma_factor == 0
+    assert perceived.checks["R3a"].folds_without_sigma_factor == CONFIG.calibration.folds
+    zeros = tuple(replace(p, oracle=0.0, perceived=0.0) for p in data.sigma_pairs or ())
+    censored = LevelData(base.level, base.rows, base.results, zeros)
+    blind = compute((oracle, censored), CHECKS, fit_meta(), CONFIG).report
+    level = next(item for item in blind.levels if item.level is InputLevel.PERCEIVED)
+    assert level.checks["R1"].folds_without_sigma_factor == CONFIG.calibration.folds
+    oracle_level = next(item for item in blind.levels if item.level is InputLevel.ORACLE)
+    assert all(c.folds_without_sigma_factor == 0 for c in oracle_level.checks.values())

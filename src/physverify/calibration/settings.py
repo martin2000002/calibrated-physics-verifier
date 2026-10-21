@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+from typing import Literal
 
 from pydantic import Field, NonNegativeFloat
 
@@ -24,6 +25,7 @@ from physverify.verification.runner import (
 SECTION = "calibration"
 CHECKS_PACKAGE = "physverify.checks"
 THRESHOLD_POLICY = "threshold"
+PairFilter = Literal["all", "nonzero"]
 
 
 class CalibrationSettings(FrozenModel):
@@ -37,6 +39,9 @@ class CalibrationSettings(FrozenModel):
     seed: int = 0
     ci: float = Field(default=0.95, gt=0, lt=1)
     min_sigma_pairs: int = Field(default=10, ge=2)
+    sigma_pair_filter: PairFilter = "nonzero"
+    """D9 factor k_c over every usable pair ("all", before 2026-10-20) or only over the pairs with
+    a nonzero magnitude on some side ("nonzero"); the bias b_c always uses every usable pair."""
     platt_l2: float = Field(default=0.01, ge=0)
     ld_max_extrapolation: float = Field(default=1.0, ge=0)
     real_datasets: tuple[str, ...] = ("physics_iq", "pisa_real")
