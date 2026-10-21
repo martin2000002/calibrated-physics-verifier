@@ -255,7 +255,9 @@ def test_the_torch_adapter_reads_geocalibs_outputs() -> None:
     assert result.focal_sigma_px == pytest.approx(FOCAL_SIGMA_PX)
     assert result.up.shape == (3, 3) and result.up_sigma_rad.shape == (3,)
     TorchCalibrator(model, "cpu").calibrate(frames, 150.0)
-    assert float(model.calls[-1]["priors"]["focal"]) == pytest.approx(150.0)
+    prior = model.calls[-1]["priors"]["focal"]
+    assert tuple(prior.shape) == (3,) and float(prior.min()) == pytest.approx(150.0)
+    assert model.calls[-1]["shared_intrinsics"] is False
 
 
 def test_per_frame_broadcasts_one_value_and_refuses_a_mismatch() -> None:

@@ -218,13 +218,15 @@ class TorchCalibrator:
 
         images = torch.from_numpy(np.ascontiguousarray(frames)).permute(0, 3, 1, 2)
         images = images.to(self.device, dtype=torch.float32) / 255.0
+        n = frames.shape[0]
         priors = None
         if focal_prior_px is not None:
-            priors = {"focal": torch.tensor(focal_prior_px, device=self.device)}
+            priors = {"focal": torch.full((n,), focal_prior_px, device=self.device)}
+        # With the focal fixed there is nothing to share, and GeoCalib's shared system indexes a
+        # focal gradient that a prior removes (lm_optimizer.py setup_system_shared_intrinsics).
         out = self.model.calibrate(
-            images, camera_model=CAMERA_MODEL, priors=priors, shared_intrinsics=True
+            images, camera_model=CAMERA_MODEL, priors=priors, shared_intrinsics=priors is None
         )
-        n = frames.shape[0]
         return Calibration(
             focal_px=float(np.median(_numpy(out["camera"].f)[..., 0])),
             focal_sigma_px=float(np.median(_numpy(out["focal_uncertainty"]))),
