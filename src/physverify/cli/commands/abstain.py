@@ -183,7 +183,7 @@ def _session(oracle: Path | None, perceived: Path | None, provisional: bool) -> 
         reference_table=tables[InputLevel.ORACLE],
         thresholds=tables[InputLevel.PERCEIVED],
         min_span_iou=diagnosis_settings(settings).end_to_end.min_span_iou,
-        checks=tuple(CheckUnit(c, cls.magnitude_unit) for c, cls in sorted(registry.items())),
+        checks=tuple(CheckUnit.of(cls) for _, cls in sorted(registry.items())),
         couplings=frozenset((p, c) for p, c in verification.specificity.couplings),
     )
 

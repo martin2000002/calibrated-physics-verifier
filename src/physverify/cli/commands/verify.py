@@ -47,6 +47,7 @@ from physverify.verification.runner import (
     write_report,
 )
 from physverify.verification.sweep import (
+    CheckUnit,
     MatrixCell,
     Rule,
     RuleOutcome,
@@ -88,10 +89,11 @@ def verify(
     source = resolve_dataset(context, dataset)
     selected = select_clips(source.clips(subset), clips or ())
     thresholds = load_thresholds(settings.paths.thresholds, verification.thresholds)
+    checks = build_checks(
+        context.registry("checks"), settings.section(CHECKS_SECTION, ChecksSettings)
+    )
     runner = VerificationRunner(
-        build_checks(context.registry("checks"), settings.section(CHECKS_SECTION, ChecksSettings)),
-        build_policy(context.registry("policies"), verification),
-        thresholds,
+        checks, build_policy(context.registry("policies"), verification), thresholds
     )
     inputs = _inputs(context, source, input_level, parse_stages(gt or ()))
     run_dir = _run_dir(context)
@@ -100,13 +102,15 @@ def verify(
     typer.echo(f"thresholds: {thresholds_label(thresholds)}")
     report = runner.run(inputs, selected)
     write_report(run_dir, report)
-    checks = active_checks_hash(settings, context.registry("checks"))
-    (run_dir / CHECKS_HASH_FILE).write_text(checks + "\n", encoding="utf-8")
+    checks_hash = active_checks_hash(settings, context.registry("checks"))
+    (run_dir / CHECKS_HASH_FILE).write_text(checks_hash + "\n", encoding="utf-8")
     for line in summary_lines(report):
         typer.echo(line)
     failed = any(row.status is RowStatus.ERROR for row in report.table)
     if sweep:
-        cells, spec = matrix(report), specificity(report, verification.specificity)
+        identities = [CheckUnit.of(check) for check in checks]
+        cells = matrix(report)
+        spec = specificity(report, verification.specificity, identities)
         write_sweep(run_dir, cells, spec)
         for line in [*matrix_lines(cells), *specificity_lines(spec)]:
             typer.echo(line)
