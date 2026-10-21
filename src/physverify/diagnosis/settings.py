@@ -47,6 +47,8 @@ class ScaleDiagnosisSettings(FrozenModel):
 
 class RealSettings(FrozenModel):
     datasets: tuple[str, ...]
+    # Downloadable by name only: never part of the default real set, which they would seal.
+    sealed_controls: tuple[str, ...] = ()
     motion_threshold: int = Field(ge=0, le=255)
     motion_min_frac: float = Field(ge=0, le=1)
     moving_iou: float = Field(ge=0, le=1)

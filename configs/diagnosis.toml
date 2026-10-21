@@ -31,6 +31,7 @@ providers = ["size_prior", "free_fall"]
 
 [diagnosis.real]
 datasets = ["physics_iq", "pisa_real"]
+sealed_controls = ["physics_iq_views", "objectron_static"]
 motion_threshold = 127
 motion_min_frac = 1e-4
 moving_iou = 0.95
@@ -90,6 +91,10 @@ fps_file = 30
 takes = [1, 2]
 max_clips = 0
 max_frames = 0
+
+# Sealed real control of the freeze: the other views of the [physics_iq] scenarios and takes.
+[physics_iq_views]
+views = ["left", "right"]
 
 [pisa_real]
 repo_url = "https://huggingface.co/datasets/nyu-visionx/pisa-experiments"

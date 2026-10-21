@@ -1,5 +1,7 @@
 """Physics-IQ real videos (ADR 0007 §4.2, §5.6): the ``testing`` part of each scenario and its
 pixel-change mask, downloaded from the public GCS bucket. There is no per-stage ground truth.
+The plugin reads the configured ``view``; a subclass reads other views (``views_of``) of the same
+scenarios, takes and annotations under its own name and raw directory.
 """
 
 from __future__ import annotations
@@ -47,7 +49,6 @@ MASKS = "video-masks"
 LOCAL = "local"
 FULL = "full"
 REVISION = "unversioned bucket, md5 per object"
-FETCH_HINT = "physverify data fetch physics_iq"
 NAME_PATTERN = re.compile(
     r"^(\d{4})_(testing-videos|video-masks)_(\d+)FPS_perspective-(\w+)_take-(\d)_trimmed-(.+)\.mp4$"
 )
@@ -122,23 +123,37 @@ def expected_clips(s: PhysicsIQSettings, subset: str) -> tuple[tuple[str, int], 
     return pairs[: s.max_clips or None]
 
 
-def select_files(names: Iterable[str], s: PhysicsIQSettings, subset: str) -> tuple[ClipFiles, ...]:
-    """Pair testing video and mask per expected clip; the lowest index wins a duplicate."""
-    found: dict[tuple[str, str, int], str] = {}
+def expected_ids(s: PhysicsIQSettings, subset: str, views: Sequence[str]) -> tuple[str, ...]:
+    return tuple(
+        clip_id_of(scenario, view, take)
+        for scenario, take in expected_clips(s, subset)
+        for view in views
+    )
+
+
+def select_files(
+    names: Iterable[str], s: PhysicsIQSettings, subset: str, views: Sequence[str] | None = None
+) -> tuple[ClipFiles, ...]:
+    """Pair testing video and mask per expected clip and view (default: the configured view);
+    the lowest index wins a duplicate."""
+    views = (s.view,) if views is None else tuple(views)
+    found: dict[tuple[str, str, str, int], str] = {}
     for name in sorted(names):
         parsed = parse_name(name)
-        if parsed is None or parsed.fps != s.fps_file or parsed.view != s.view:
+        if parsed is None or parsed.fps != s.fps_file or parsed.view not in views:
             continue
-        found.setdefault((parsed.kind, parsed.scenario, parsed.take), name)
+        found.setdefault((parsed.kind, parsed.view, parsed.scenario, parsed.take), name)
     selected: list[ClipFiles] = []
     missing: list[str] = []
     for scenario, take in expected_clips(s, subset):
-        clip_id = clip_id_of(scenario, s.view, take)
-        testing, mask = (found.get((kind, scenario, take)) for kind in (TESTING, MASKS))
-        if testing is None or mask is None:
-            missing.append(clip_id)
-            continue
-        selected.append(ClipFiles(clip_id, scenario, testing, mask))
+        for view in views:
+            clip_id = clip_id_of(scenario, view, take)
+            key = (view, scenario, take)
+            testing, mask = (found.get((kind, *key)) for kind in (TESTING, MASKS))
+            if testing is None or mask is None:
+                missing.append(clip_id)
+                continue
+            selected.append(ClipFiles(clip_id, scenario, testing, mask))
     if missing:
         raise MissingInputError(f"physics_iq: no testing video and mask for {missing}")
     return tuple(selected)
@@ -149,19 +164,24 @@ class PhysicsIQDataset:
 
     def __init__(self, settings: Settings, client: HttpClient | None = None) -> None:
         self._s = settings.section(SECTION, PhysicsIQSettings)
+        self._views = self.views_of(settings)
         paths = settings.paths
         self._root = paths.raw_dir / self.name
         self._data_dir = paths.data_dir
-        self._annotations = paths.annotations_dir / f"{self.name}.json"
+        self._annotations = paths.annotations_dir / f"{SECTION}.json"
         self._max_frame_bytes = settings.runtime.max_frame_bytes
         self._client = client
+        self._fetch_hint = f"physverify data fetch {self.name}"
+
+    def views_of(self, settings: Settings) -> tuple[str, ...]:
+        return (self._s.view,)
 
     def clips(self, subset: str | None = None) -> Sequence[ClipManifest]:
         names = [str(p.relative_to(self._root)) for p in self._local_files()]
         try:
-            files = select_files(names, self._s, subset or LOCAL)
+            files = select_files(names, self._s, subset or LOCAL, self._views)
         except MissingInputError as exc:
-            raise MissingInputError(f"{exc} under {self._root}; run `{FETCH_HINT}`") from exc
+            raise MissingInputError(f"{exc} under {self._root}; run `{self._fetch_hint}`") from exc
         queries = load_annotations(self._annotations)
         return [self._manifest(f, queries) for f in files]
 
@@ -191,9 +211,9 @@ class PhysicsIQDataset:
         s = self._s
         subset = subset or LOCAL
         manifest_path = dest / MANIFEST_FILE
-        wanted = tuple(clip_id_of(sc, s.view, take) for sc, take in expected_clips(s, subset))
+        wanted = expected_ids(s, subset, self._views)
         if _up_to_date(read_manifest(manifest_path), wanted, dest):
-            log.info("physics_iq: %d clips already fetched", len(wanted))
+            log.info("%s: %d clips already fetched", self.name, len(wanted))
             return
         client = self._client or UrllibClient()
         listing = {
@@ -201,7 +221,7 @@ class PhysicsIQDataset:
             for prefix in prefixes(s.fps_file).values()
             for item in list_objects(client, s.listing_url, prefix, s.retries)
         }
-        files = select_files(listing, s, subset)
+        files = select_files(listing, s, subset, self._views)
         remotes = [self._remote(listing[n]) for f in files for n in (f.testing, f.mask)]
         for remote in remotes:
             fetch_file(client, remote, dest, s.retries)
@@ -238,7 +258,7 @@ class PhysicsIQDataset:
     def _path(self, relative: str) -> Path:
         path = resolve_data_path(relative, self._data_dir)
         if not path.is_file():
-            raise MissingInputError(f"{path} is missing; run `{FETCH_HINT}`")
+            raise MissingInputError(f"{path} is missing; run `{self._fetch_hint}`")
         return path
 
     def _mask_path(self, clip: ClipManifest) -> Path:

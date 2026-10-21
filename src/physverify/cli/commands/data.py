@@ -29,11 +29,16 @@ app = typer.Typer(help="Download the real datasets (Physics-IQ, PISA).", no_args
 
 
 def fetch_targets(
-    registry: Mapping[str, type[Any]], downloadable: Sequence[str], dataset: str | None
+    registry: Mapping[str, type[Any]],
+    downloadable: Sequence[str],
+    dataset: str | None,
+    by_name: Sequence[str] = (),
 ) -> list[type[Any]]:
-    """The dataset classes to fetch: ``dataset``, or every downloadable one when it is None."""
-    if dataset is not None and dataset not in downloadable:
-        raise UsageError(f"{dataset!r} cannot be downloaded; downloadable: {list(downloadable)}")
+    """The dataset classes to fetch: ``dataset``, or every downloadable one when it is None.
+    ``by_name`` datasets are fetched only when named."""
+    allowed = [*downloadable, *by_name]
+    if dataset is not None and dataset not in allowed:
+        raise UsageError(f"{dataset!r} cannot be downloaded; downloadable: {allowed}")
     names = downloadable if dataset is None else (dataset,)
     unregistered = [name for name in names if name not in registry]
     if unregistered:
@@ -66,16 +71,22 @@ def fetch_all(
         echo(fetch_summary(dest, clock() - started))
 
 
-@app.command("fetch", help="Fetch physics_iq and/or pisa_real (default: diagnosis.real.datasets).")
+@app.command(
+    "fetch",
+    help="Fetch the real datasets (default: diagnosis.real.datasets; the sealed controls "
+    "diagnosis.real.sealed_controls only by name).",
+)
 @heavy_command
 def fetch(
     dataset: Annotated[
-        str | None, typer.Argument(help="physics_iq or pisa_real (default: both).")
+        str | None,
+        typer.Argument(help="A real dataset or sealed control (default: diagnosis.real.datasets)."),
     ] = None,
     subset: Annotated[str | None, typer.Option(help="local or full (default: local).")] = None,
 ) -> None:
     context = app_context()
     settings = context.settings
-    downloadable = diagnosis_settings(settings).real.datasets
-    classes = fetch_targets(context.registry("datasets"), downloadable, dataset)
+    real = diagnosis_settings(settings).real
+    registry = context.registry("datasets")
+    classes = fetch_targets(registry, real.datasets, dataset, real.sealed_controls)
     fetch_all(classes, settings, subset, typer.echo)
