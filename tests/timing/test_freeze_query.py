@@ -7,9 +7,8 @@ import dataclasses
 import hashlib
 import importlib.util
 import json
-import shlex
 import sys
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -29,12 +28,10 @@ from physverify.synth.store import DatasetStore
 HELPER = Path(__file__).resolve().parents[2] / "scripts" / "h200" / "freeze_query.py"
 HEAD = "c" * 40
 V1 = "a" * 40
-FILES = {
-    "DEVSCORE_SHA": "devscore.json",
-    "CALIBRATION_SHA": "calibration.json",
-    "PROFILE_SHA": "calibration/stage_errors.precise.json",
-    "STAGE_SIGMA_SHA": "calibration/stage_sigma.json",
-}
+
+
+def _sha(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
 
 
 @pytest.fixture(scope="module")
@@ -51,49 +48,18 @@ def query() -> Iterator[ModuleType]:
         del sys.modules[spec.name]
 
 
-def _sha(data: bytes) -> str:
-    return hashlib.sha256(data).hexdigest()
-
-
-def iteration(
-    root: Path,
-    name: str,
-    n_met: int,
-    auroc: float | None,
-    *,
-    device: str = "cpu",
-    steps: Sequence[int] = (1, 2, 3, 4, 5),
-    commit: str = HEAD,
-) -> Path:
-    """A run_iteration.sh directory: state.env written with printf %q, steps.tsv, the files."""
-    directory = root / f"{name} {device}"
-    (directory / "calibration").mkdir(parents=True)
-    devscore = {"commit": commit, "selection": {"n_met": n_met, "tiebreak_auroc_cv": auroc}}
-    contents = {
-        "devscore.json": json.dumps(devscore).encode(),
-        "calibration.json": f"calibration of {name}".encode(),
-        "calibration/stage_errors.precise.json": b"profile",
-        "calibration/stage_sigma.json": b"sigma",
-    }
-    for relative, data in contents.items():
-        (directory / relative).write_bytes(data)
-    state = [("CHAIN_DEVICE", device), ("CHAIN_ITER_ID", name), ("CHAIN_DEVICE", device)]
-    state += [(key, _sha(contents[relative])) for key, relative in FILES.items()]
-    (directory / "state.env").write_text("".join(f"{k}={shlex.quote(v)}\n" for k, v in state))
-    rows = [f"{n}\tstep\trunning\t0\t-" for n in steps] + [f"{n}\tstep\t0\t9\t-" for n in steps]
-    (directory / "steps.tsv").write_text("\n".join(rows) + "\n")
-    return directory
-
-
 def test_the_most_n_met_wins_then_auroc_cv_at_full_precision(
-    query: ModuleType, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    query: ModuleType,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    iteration_factory: Callable[..., Path],
 ) -> None:
     """J4."""
     dirs = [
-        iteration(tmp_path, "it0-baseline", 1, 0.99),
-        iteration(tmp_path, "it1-fixes", 3, 0.5861),
-        iteration(tmp_path, "it2-state", 3, 0.5862),
-        iteration(tmp_path, "it4-selfrel", 2, 0.9),
+        iteration_factory(tmp_path, "it0-baseline", 1, 0.99),
+        iteration_factory(tmp_path, "it1-fixes", 3, 0.5861),
+        iteration_factory(tmp_path, "it2-state", 3, 0.5862),
+        iteration_factory(tmp_path, "it4-selfrel", 2, 0.9),
     ]
     found = query.select([query.candidate(d) for d in dirs])
     assert found["chosen"] == "it2-state"
@@ -108,12 +74,12 @@ def test_the_most_n_met_wins_then_auroc_cv_at_full_precision(
 
 
 def test_a_full_tie_goes_to_the_later_iteration_and_a_null_auroc_ranks_last(
-    query: ModuleType, tmp_path: Path
+    query: ModuleType, tmp_path: Path, iteration_factory: Callable[..., Path]
 ) -> None:
     tied = [
-        iteration(tmp_path, "it4-selfrel", 2, 0.586),
-        iteration(tmp_path, "it1-fixes", 2, 0.586),
-        iteration(tmp_path, "it2-state", 2, None),
+        iteration_factory(tmp_path, "it4-selfrel", 2, 0.586),
+        iteration_factory(tmp_path, "it1-fixes", 2, 0.586),
+        iteration_factory(tmp_path, "it2-state", 2, None),
     ]
     assert query.select([query.candidate(d) for d in tied])["chosen"] == "it4-selfrel"
 
@@ -126,26 +92,32 @@ def test_a_full_tie_goes_to_the_later_iteration_and_a_null_auroc_ranks_last(
     ],
 )
 def test_a_cuda_or_incomplete_iteration_is_refused(
-    query: ModuleType, tmp_path: Path, change: Mapping[str, Any], message: str
+    query: ModuleType,
+    tmp_path: Path,
+    change: Mapping[str, Any],
+    message: str,
+    iteration_factory: Callable[..., Path],
 ) -> None:
-    directory = iteration(tmp_path, "it3-arms", 9, 0.99, **change)
+    directory = iteration_factory(tmp_path, "it3-arms", 9, 0.99, **change)
     with pytest.raises(query.QueryError, match=message):
         query.candidate(directory)
 
 
 def test_a_file_that_moved_after_the_iteration_is_refused(
-    query: ModuleType, tmp_path: Path
+    query: ModuleType, tmp_path: Path, iteration_factory: Callable[..., Path]
 ) -> None:
-    directory = iteration(tmp_path, "it2-state", 3, 0.6)
+    directory = iteration_factory(tmp_path, "it2-state", 3, 0.6)
     (directory / "calibration" / "stage_sigma.json").write_bytes(b"refit")
     with pytest.raises(query.QueryError, match="STAGE_SIGMA_SHA"):
         query.candidate(directory)
 
 
-def test_two_directories_of_one_iteration_are_refused(query: ModuleType, tmp_path: Path) -> None:
+def test_two_directories_of_one_iteration_are_refused(
+    query: ModuleType, tmp_path: Path, iteration_factory: Callable[..., Path]
+) -> None:
     dirs = [
-        iteration(tmp_path / "a", "it2-state", 3, 0.6),
-        iteration(tmp_path / "b", "it2-x", 1, 0.6),
+        iteration_factory(tmp_path / "a", "it2-state", 3, 0.6),
+        iteration_factory(tmp_path / "b", "it2-x", 1, 0.6),
     ]
     with pytest.raises(query.QueryError, match="two directories"):
         query.select([query.candidate(d) for d in dirs])
@@ -206,8 +178,10 @@ class FakeGit:
         return "".join(f"{p}\n" for p in self.changed.get(args[2], ()))
 
 
-def _inputs(query: ModuleType, tmp_path: Path, **change: Any) -> Any:
-    directory = iteration(tmp_path / "iterations", "it2-state", 3, 0.6, commit="b" * 40)
+def _inputs(
+    query: ModuleType, tmp_path: Path, iteration_factory: Callable[..., Path], **change: Any
+) -> Any:
+    directory = iteration_factory(tmp_path / "iterations", "it2-state", 3, 0.6, commit="b" * 40)
     selection = query.select([query.candidate(directory)])
     v1 = tmp_path / "v1-calibration.json"
     v1.write_bytes(b"v1")
@@ -227,13 +201,14 @@ def test_the_manifest_records_the_freeze(
     config_dir: Path,
     environ: dict[str, str],
     monkeypatch: pytest.MonkeyPatch,
+    iteration_factory: Callable[..., Path],
 ) -> None:
     """AC-8, AC-18: commit, configs tree, artifacts, record, seed, selection, J3/J13 diffs, v1."""
     settings = _settings(config_dir, environ, tmp_path)
     files = _frozen_files(settings)
     monkeypatch.setattr(query, "record_sha", lambda _: "r" * 64)
     git = FakeGit({"d" * 40: ["configs/extraction.toml"]})
-    data = query.manifest(_inputs(query, tmp_path), settings, git)
+    data = query.manifest(_inputs(query, tmp_path, iteration_factory), settings, git)
     assert (data["commit"], data["configs_tree"]) == (HEAD, "t" * 40)
     assert (data["profile"], data["device"]) == ("precise", "cpu")
     artifacts = data["artifacts"]
@@ -266,13 +241,14 @@ def test_a_j3_change_record_mismatch_or_other_calibration_refuses_the_manifest(
     config_dir: Path,
     environ: dict[str, str],
     monkeypatch: pytest.MonkeyPatch,
+    iteration_factory: Callable[..., Path],
 ) -> None:
     """J3: a change under checks, physics, extraction or verification means refit, not adopt;
     J12: the record sha the script parsed must be the record's."""
     settings = _settings(config_dir, environ, tmp_path)
     _frozen_files(settings)
     monkeypatch.setattr(query, "record_sha", lambda _: "r" * 64)
-    inputs = _inputs(query, tmp_path)
+    inputs = _inputs(query, tmp_path, iteration_factory)
     moved = FakeGit({"b" * 40: ["src/physverify/checks/r1.py"]})
     with pytest.raises(query.QueryError, match="J3"):
         query.manifest(inputs, settings, moved)
@@ -289,11 +265,13 @@ def test_the_frozen_files_must_stay_as_frozen(
     config_dir: Path,
     environ: dict[str, str],
     monkeypatch: pytest.MonkeyPatch,
+    iteration_factory: Callable[..., Path],
 ) -> None:
     settings = _settings(config_dir, environ, tmp_path)
     _frozen_files(settings)
     monkeypatch.setattr(query, "record_sha", lambda _: "r" * 64)
-    data = json.loads(json.dumps(query.manifest(_inputs(query, tmp_path), settings, FakeGit({}))))
+    inputs = _inputs(query, tmp_path, iteration_factory)
+    data = json.loads(json.dumps(query.manifest(inputs, settings, FakeGit({}))))
     assert query.artifact_problems(data, settings) == []
     settings.paths.thresholds.write_text("{}")
     (settings.paths.calibration_dir / "abstention.json").write_bytes(b"refit")
