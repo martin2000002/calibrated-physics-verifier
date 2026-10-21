@@ -8,11 +8,12 @@ from typing import Any, ClassVar, Literal
 
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from physverify.extraction._base import StageContext, WeightSpec
 from physverify.extraction.pipeline import PENDING_SOURCE_KEY
 from physverify.extraction.providers._common import ProviderParams, expect_params, lookup_label
+from physverify.extraction.providers._gravity_pose import LEVEL_CAMERA_GRAVITY, gravity_from_pose
 from physverify.extraction.providers._lifting import (
     LiftErrors,
     ObjectSummary,
@@ -25,6 +26,7 @@ from physverify.extraction.providers._lifting import (
     object_position,
     object_summary,
 )
+from physverify.extraction.providers._temporal import EdgeMode, stabilize_summaries
 from physverify.extraction.providers._visibility import gap_visibility
 from physverify.physics.tracks import OCCLUDED_AT
 from physverify.schema.io import stable_hash
@@ -33,14 +35,17 @@ from physverify.schema.stages import Stage
 from physverify.schema.states import CoordFrame, ObjectStateTable, PrimitiveKind
 
 FloatArray = NDArray[np.float64]
-WORLD_DOWN = np.array([0.0, 0.0, -1.0])
-LEVEL_CAMERA_GRAVITY = np.array([0.0, 1.0, 0.0])
 SEED_HEX_DIGITS = 16
 
 GravityMode = Literal["auto", "camera_pose", "level_camera", "none"]
 # "none" is version 1 (in_frame = visible, occlusion unknown); "interpolate" infers both inside
 # interior mask gaps (ADR 0005 4.2 as amended 2026-10-20, ``_visibility.py``).
 GapMode = Literal["none", "interpolate"]
+# "none" is version 2; "median" stabilises depth and image extent along each visible run
+# (ADR 0005 4.2 as amended for it2, ``_temporal.py``), off until the J6 gate activates it. Run
+# ends: "keep" (the first and last two rows stay unfiltered) is the only eligible form; "shifted"
+# fails the survival test J5 and exists only for J6's descriptive run (plan-it2, judgement 2 a).
+TemporalFilter = Literal["none", "median"]
 
 
 class Params(ProviderParams):
@@ -71,12 +76,22 @@ class Params(ProviderParams):
     # Must equal the checks' ``occluded_at`` (resolve_plan refuses otherwise); a gap estimate
     # below it and above 0 is unknown.
     gap_occluded_at: float = Field(default=OCCLUDED_AT, gt=0.0, le=1.0)
+    temporal_filter: TemporalFilter = "none"
+    temporal_window: int = Field(default=5, ge=3)
+    temporal_edges: EdgeMode = "keep"
+
+    @field_validator("temporal_window")
+    @classmethod
+    def _odd_window(cls, value: int) -> int:
+        if value % 2 == 0:
+            raise ValueError("temporal_window must be odd")
+        return value
 
 
 class BackprojectLift:
     stage: ClassVar[Stage] = Stage.LIFT
     name: ClassVar[str] = "backproject"
-    version: ClassVar[str] = "2"
+    version: ClassVar[str] = "3"
     requires: ClassVar[tuple[Stage, ...]] = (Stage.TRACK, Stage.DEPTH, Stage.CAMERA)
     heavy: ClassVar[bool] = False
     is_ground_truth: ClassVar[bool] = False
@@ -108,15 +123,9 @@ class BackprojectLift:
         fields = _mutable_fields(table)
         errors = _lift_errors(ctx, camera)
         rng = np.random.default_rng(int(stable_hash(ctx.clip.clip_id)[:SEED_HEX_DIGITS], 16))
-        for t_index in range(track.masks.shape[0]):
-            for n_index, primitive in enumerate(primitives):
-                summary = object_summary(
-                    track.masks[t_index, n_index],
-                    z[t_index],
-                    valid[t_index],
-                    camera.K,
-                    self._options,
-                )
+        summaries = self._summaries(track, z, valid, camera.K)
+        for t_index, row in enumerate(summaries):
+            for n_index, (summary, primitive) in enumerate(zip(row, primitives, strict=True)):
                 self._fill(fields, (t_index, n_index), summary, primitive, camera, errors, rng)
         fields["confidence"] = np.clip(track.scores.astype(np.float64), 0.0, 1.0)
         if self.params.gap_visibility == "interpolate":
@@ -125,6 +134,27 @@ class BackprojectLift:
         mode = self.params.gravity_by_dataset.get(ctx.clip.dataset, self.params.gravity)
         gravity, gravity_sigma = self._gravity(camera, mode)
         return replace(table, **fields, gravity_dir=gravity, gravity_dir_sigma=gravity_sigma)
+
+    def _summaries(
+        self, track: MaskTrack, z: FloatArray, valid: NDArray[np.bool_], intrinsics: FloatArray
+    ) -> list[list[ObjectSummary | None]]:
+        """Rows (T) of per-object summaries; with ``"median"`` every object's visible runs are
+        stabilised before positions and sigma are computed from them."""
+        n_t, n_obj = track.masks.shape[:2]
+        rows = [
+            [
+                object_summary(track.masks[t, n], z[t], valid[t], intrinsics, self._options)
+                for n in range(n_obj)
+            ]
+            for t in range(n_t)
+        ]
+        if self.params.temporal_filter == "none":
+            return rows
+        window, edges = self.params.temporal_window, self.params.temporal_edges
+        columns = [
+            stabilize_summaries([row[n] for row in rows], window, edges) for n in range(n_obj)
+        ]
+        return [[columns[n][t] for n in range(n_obj)] for t in range(n_t)]
 
     @property
     def _options(self) -> SummaryOptions:
@@ -174,12 +204,9 @@ class BackprojectLift:
             return LEVEL_CAMERA_GRAVITY.copy(), math.radians(self.params.level_sigma_deg)
         if mode == "none" or camera.world_from_camera is None:
             return np.full(3, np.nan), math.nan
-        pose = np.asarray(camera.world_from_camera, dtype=np.float64)
-        rotation = pose[0, :3, :3] if pose.ndim == 3 else pose[:3, :3]
         exact = camera.source is IntrinsicsSource.GROUND_TRUTH
         sigma = 0.0 if exact else math.radians(self.params.pose_sigma_deg)
-        gravity: FloatArray = rotation.T @ WORLD_DOWN
-        return gravity, sigma
+        return gravity_from_pose(camera.world_from_camera), sigma
 
 
 def _mutable_fields(table: ObjectStateTable) -> dict[str, Any]:

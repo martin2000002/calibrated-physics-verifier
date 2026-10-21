@@ -118,6 +118,8 @@ def plan_subset(
         for family in sorted(sub.perturbations)
         for index in range(sub.scenes_per_family)
     ]
+    if sub.split is not None:
+        scenes = [scene for scene in scenes if scene.split.value == sub.split]
     variants = [v for scene in scenes for v in scene_variants(scene, sub, perturbations, ds)]
     return DatasetPlan(
         version=ds.version,

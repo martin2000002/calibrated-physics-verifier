@@ -39,6 +39,7 @@ perception = [
     "imageio",
     "matplotlib",
     "tqdm",
+    "kornia==0.8.3",
 ]
 analysis = ["pandas>=2.2", "matplotlib", "scikit-learn>=1.5"]
 data = ["remotezip", "huggingface-hub"]

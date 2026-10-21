@@ -222,9 +222,10 @@ def test_t5_visible_cells_match_and_none_is_version_one(fixture_clip: SyntheticC
 
 
 def test_the_lift_version_and_params_separate_the_cache() -> None:
-    assert BackprojectLift.version == "2"
+    assert BackprojectLift.version == "3"
     params = BackprojectLift.Params()
     assert params.gap_visibility == "interpolate"  # type: ignore[attr-defined]
+    assert params.temporal_filter == "none"  # type: ignore[attr-defined]
 
 
 def test_the_gap_threshold_is_the_checks_occlusion_threshold(

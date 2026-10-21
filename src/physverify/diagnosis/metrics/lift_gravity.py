@@ -14,7 +14,7 @@ from physverify.diagnosis.cases import FloatArray, MetricCase, MetricOutcome, ba
 from physverify.diagnosis.metrics.contacts_events import angle_deg
 from physverify.diagnosis.metrics.depth_object import lift_params
 from physverify.diagnosis.settings import MetricSettings
-from physverify.extraction.providers.lift_backproject import LEVEL_CAMERA_GRAVITY
+from physverify.extraction.providers._gravity_pose import LEVEL_CAMERA_GRAVITY
 from physverify.schema.clip import ClipManifest
 from physverify.schema.outputs import StageOutput
 from physverify.schema.stages import Stage

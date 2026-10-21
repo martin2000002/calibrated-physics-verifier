@@ -67,6 +67,7 @@ def render_job(
         "meta_path": runner.container_path(clip_dir / KUBRIC_META),
         "failed_path": runner.container_path(clip_dir / FAILURE_FILE),
         "floor": ds.floor.model_dump(),
+        "hdri_ids": list(ds.effective_hdri_ids()),
     }
 
 

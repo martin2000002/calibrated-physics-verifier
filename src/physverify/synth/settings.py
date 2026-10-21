@@ -17,7 +17,9 @@ from physverify.synth.perturbations._base import ScenePerturbation, TrajectoryPe
 SECTION = "dataset"
 PRIORS_SECTION = "size_priors"
 MAX_LEVEL = 4
-NON_CONTENT_KEYS = ("render", "subsets", "version")
+NON_CONTENT_KEYS = ("render", "subsets", "version", "hdri_pools", "hdri_pool")
+LEGACY_HDRI_IDS = ("abandoned_parking",)
+"""The single HDRI of every dataset planned before ``hdri_ids`` existed (v1, v1-precise)."""
 
 type VelocityConvention = Literal["position", "state"]
 type FamilyClass = type[SceneFamily]
@@ -52,6 +54,8 @@ class SubsetSettings(FrozenModel):
     levels: tuple[int, ...]
     perturbations: dict[str, tuple[str, ...]]
     level_mode: Literal["all", "cycle"] = "all"
+    # Only the scenes of this split (same scene ids, seeds and splits as without it).
+    split: Literal["calib", "eval"] | None = None
 
     @model_validator(mode="after")
     def _levels_in_range(self) -> SubsetSettings:
@@ -69,6 +73,11 @@ class DatasetSettings(FrozenModel):
     resolution: int = Field(ge=16)
     samples_per_pixel: int = Field(ge=1)
     background: Literal["plain", "hdri"] = "plain"
+    # Backgrounds of ``background = "hdri"``, picked by scene seed. ``hdri_pool`` names a
+    # preregistered list of ``hdri_pools`` instead (plan-it2 J1: HDRIs outside OpenPano).
+    hdri_ids: tuple[str, ...] = Field(default=LEGACY_HDRI_IDS, min_length=1)
+    hdri_pool: str = ""
+    hdri_pools: dict[str, tuple[str, ...]] = {}
     assets: Literal["kubasic"] = "kubasic"
     calib_fraction: float = Field(default=0.5, ge=0.0, le=1.0)
     velocity_convention: VelocityConvention = "position"
@@ -87,13 +96,32 @@ class DatasetSettings(FrozenModel):
             )
         return self
 
+    @model_validator(mode="after")
+    def _known_pool(self) -> DatasetSettings:
+        if self.hdri_pool and self.hdri_pool not in self.hdri_pools:
+            raise ValueError(f"hdri_pool {self.hdri_pool!r} is not in hdri_pools")
+        if self.hdri_pool and self.hdri_ids != LEGACY_HDRI_IDS:
+            raise ValueError("set either hdri_ids or hdri_pool, not both")
+        return self
+
+    def effective_hdri_ids(self) -> tuple[str, ...]:
+        return self.hdri_pools[self.hdri_pool] if self.hdri_pool else self.hdri_ids
+
     def content_hash(self, without: tuple[str, ...] = ()) -> str:
         """Hash of everything that changes a clip's content (not paths, workers or subsets).
 
-        ``without`` drops further keys, to recognise a plan made before a key existed."""
+        The backgrounds enter as the effective HDRI list, and not at all when it is the legacy
+        one, so datasets planned before ``hdri_ids`` keep their hash. ``without`` drops further
+        keys, to recognise a plan made before a key existed."""
         dumped = self.model_dump(mode="json")
         skipped = NON_CONTENT_KEYS + without
-        return params_hash({k: v for k, v in dumped.items() if k not in skipped})
+        content = {k: v for k, v in dumped.items() if k not in skipped}
+        hdri = self.effective_hdri_ids()
+        if hdri == LEGACY_HDRI_IDS:
+            content.pop("hdri_ids", None)
+        elif "hdri_ids" in content:
+            content["hdri_ids"] = list(hdri)
+        return params_hash(content)
 
 
 class SceneCommon(FrozenModel):

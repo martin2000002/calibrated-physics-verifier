@@ -11,6 +11,10 @@ step_rate = 240
 resolution = 128
 samples_per_pixel = 64
 background = "plain"
+# Backgrounds of `background = "hdri"`, picked by scene seed. `hdri_pool` (default "") names a
+# list of [dataset.hdri_pools] instead. Neither enters the content hash while the backgrounds are
+# this legacy one, so v1 and v1-precise keep their hash.
+hdri_ids = ["abandoned_parking"]
 assets = "kubasic"
 calib_fraction = 0.5
 # Ground-truth velocities: "position" adds g h / 2 to the simulator's semi-implicit Euler
@@ -19,6 +23,15 @@ calib_fraction = 0.5
 # is moved over with `physverify dataset migrate --name velocity-<convention>`, never by bumping
 # `version`.
 velocity_convention = "position"
+
+# HDRI Haven ids outside GeoCalib's OpenPano training panoramas (plan-it2 J1), preregistered:
+# `python -m physverify.synth.hdri HDRI_haven.json openpano-listing.txt` over Kubric's public
+# manifest (sha256 6407c265...79c1, 509 ids) and the listing of the public openpano.zip (749
+# panoramas, sha256 96a68ba8...8217); 12 ids remain. `openpano_ood_dev` renders the development
+# set v1-precise-hdri-dev; `openpano_ood_reserved` is never rendered before the freeze.
+[dataset.hdri_pools]
+openpano_ood_dev = ["shudu_lake", "sunset_forest", "orbita", "bergen", "art_studio", "vintage_measuring_lab"]
+openpano_ood_reserved = ["boiler_room", "bethnal_green_entrance", "lot_01", "lot_02", "artist_workshop", "aircraft_workshop_01"]
 
 [dataset.floor]
 friction = 0.6
@@ -83,6 +96,20 @@ f2_bounce = ["r3_restitution_gain", "r4_resize", "r4_teleport", "r4_vanish", "r5
 f3_collision = ["r3_energy_gain", "r4_vanish"]
 f4_stack = ["r2_unsupported_rest", "r4_teleport", "r4_vanish"]
 f5_contact = ["r1_penetration", "r4_teleport", "r4_vanish"]
+
+# The clean clips of the 100 calib scenes of `full` (same scene ids, seeds, physics and camera),
+# for a version rendered with other backgrounds (plan-it2 J1 b: v1-precise-hdri-dev).
+[dataset.subsets.calib_clean]
+scenes_per_family = 40
+levels = [1]
+split = "calib"
+
+[dataset.subsets.calib_clean.perturbations]
+f1_projectile = []
+f2_bounce = []
+f3_collision = []
+f4_stack = []
+f5_contact = []
 
 [dataset.profiles.precise]
 version = "v1-precise"

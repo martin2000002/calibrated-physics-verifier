@@ -160,13 +160,20 @@ def object_summary(
     centre = np.median(np.column_stack([x, y, depth]), axis=0)
     e_xy = silhouette_spread_px(mask, options.extent_percentiles) * centre[2]
     e_xy = e_xy / np.array([intrinsics[0, 0], intrinsics[1, 1]])
-    extents = np.array([e_xy[0], e_xy[1], e_xy.mean()])
     return ObjectSummary(
         centre=centre,
-        extents=extents,
+        extents=full_extents(e_xy),
         r_eq_px=math.sqrt(float(mask.sum()) / math.pi),
         n_pixels=n_pixels,
     )
+
+
+def full_extents(lateral: FloatArray) -> FloatArray:
+    """(e_x, e_y, e_z) from the lateral extents (..., 2): e_z = (e_x + e_y) / 2 is not observable
+    from one view, so it is assumed (ADR 0005, 4.2)."""
+    lateral = np.asarray(lateral, dtype=np.float64)
+    extents: FloatArray = np.concatenate([lateral, lateral.mean(axis=-1, keepdims=True)], axis=-1)
+    return extents
 
 
 def silhouette_spread_px(mask: BoolArray, percentiles: tuple[float, float]) -> FloatArray:

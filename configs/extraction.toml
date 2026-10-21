@@ -27,6 +27,13 @@ input_size = 280
 [extraction.profiles.precise.plan]
 detect = "grounding_dino_base"
 track = "sam2_1_hiera_tiny"
+# it2 gate commit (Knowledge/handoffs/mejora-percepcion/p0-it2.md): G-conv and G-ood pass, G-focal keeps
+# the assumed focal (OOD p90 no-harm fails), so GeoCalib gives gravity only.
+camera = "geocalib"
+
+[extraction.profiles.precise.providers.camera.geocalib]
+focal = "assumed"
+n_frames = 8
 
 [extraction.profiles.precise.sampling]
 max_side = 960
