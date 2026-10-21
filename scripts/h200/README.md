@@ -321,3 +321,53 @@ its looks; the checkout of the running chain is not updated until it finishes.
 
 Debt: `_steps.sh` `require_completed` repeats `run_a8v2.sh`'s `require_earlier_steps`; it goes
 away when `run_a8v2.sh` moves to `_steps.sh` after the A8 v2 chain completes.
+
+## Freeze and final looks (amendment 7)
+
+Both run in a clean checkout at the freeze commit `C_F`, on the CPU, profile `precise`, with the
+committed configs only; each header lists its startup checks and variables (every refusal exits 2
+before any physverify call).
+
+```sh
+source "$PHYSVERIFY_H200_ROOT/env.sh"
+PHYSVERIFY_FREEZE_EXPECT_COMMIT=$C PHYSVERIFY_FREEZE_ITERATION=<J4 choice> \
+    PHYSVERIFY_FREEZE_ITERATIONS="<iteration dirs>" PHYSVERIFY_FREEZE_P2_COMMIT=<P2 commit> \
+    PHYSVERIFY_FREEZE_V1_COMMIT=<C_V1> PHYSVERIFY_FREEZE_V1_CALIBRATION=<base calibration.json> \
+    PHYSVERIFY_FREEZE_CACHE_DIR=<cache> \
+    nohup bash scripts/h200/run_freeze.sh > "$PHYSVERIFY_H200_ROOT/final/freeze.log" 2>&1 &
+```
+
+`run_freeze.sh [FROM [TO]]` adopts the iteration J4 chooses (`freeze_query.py select`; never
+refitted), extracts the development real video, runs the rule 1.5 evaluation on calib, the two R2
+arms, `exclusions decide`, `abstain fit`, and writes `$F/freeze.json` (`freeze_query.py
+manifest`: commit, configs tree, artifact sha256, `record_sha`, the seed of amendment 2 section 2,
+the J3 and J13 diffs and the v1 arm's commit and calibration). `$F` defaults to
+`$PHYSVERIFY_H200_ROOT/final`.
+
+```sh
+export PHYSVERIFY_FINAL_EXPECT_COMMIT=$C PHYSVERIFY_FINAL_SEED=<amendment seed>
+bash scripts/h200/run_final.sh seed
+bash scripts/h200/run_final.sh render kubric_fresh          # then kubric_fresh_ood
+bash scripts/h200/run_final.sh fetch physics_iq_views       # and objectron_static
+bash scripts/h200/run_final.sh extract kubric_fresh         # each set, real_new as its two sets
+bash scripts/h200/run_final.sh look kubric_fresh            # once per set; real_new together
+bash scripts/h200/run_final.sh v1arm kubric_fresh           # kubric_synthetic_eval, real_new
+```
+
+`run_final.sh` checks the freeze (commit, device, profile, calibration directory, frozen files,
+seed) on every command, refuses a set whose cache existed before its first extraction (J1), a
+Kubric set without the render of the seed, a render after a look (J2), a second look at any set
+the ledger covers (J6; `look SET --retry` once, when that look wrote no evaluation), and changed
+downloads (J14). Bookkeeping, logs and per-command summaries land in `$F/run-final/`; commands on
+different sets may run at the same time (each holds its own locks; the heavy lock is
+`$F/heavy.lock`). The v1 arm runs at `C_V1` through `overlay_cli.py` with the freeze's configs and
+the base `checks.toml`, the base calibration and `PHYSVERIFY_UNSEAL_REPEAT=1`, and must leave no
+`meta.json` in its overlay. `PHYSVERIFY_FINAL_DRYRUN=1` is the rehearsal: `$F`, the data, the
+cache and its own ledger (`PHYSVERIFY__SEALED__LEDGER`) under `$PHYSVERIFY_H200_ROOT/scratch`.
+
+H2 then runs from the freeze manifest instead of the A8 v2 run:
+`PHYSVERIFY_H2_FREEZE=$F/freeze.json PHYSVERIFY_H2_CALIBRATION_DIR=$F/calibration bash
+scripts/h200/run_h2.sh dev` (and `test` once).
+
+Debt: `run_h2.sh` keeps its own startup guards (not `_guards.sh`) and `run_a8v2.sh` reads the
+record hash with its own `sed` (`_steps.sh` `record_sha_of` is the same expression).
