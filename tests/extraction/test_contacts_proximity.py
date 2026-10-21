@@ -11,12 +11,12 @@ from support import make_context, run_provider, sampling_of
 from synthetic_clip import SyntheticClip
 
 from physverify.extraction.matching import align_ground_truth
-from physverify.extraction.providers.contacts_proximity import (
-    Params,
-    ProximityContacts,
+from physverify.extraction.providers._proximity import (
+    ProximityParams,
     contact_probability,
     nan_median,
 )
+from physverify.extraction.providers.contacts_proximity import ProximityContacts
 from physverify.physics.geometry import characteristic_lengths
 from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactKind, ContactTable, ManifoldKind
@@ -65,7 +65,7 @@ def test_the_falling_ball_stops_just_outside_the_tolerance(fixture_clip: Synthet
     world = fixture_clip.ground_truth.states(CoordFrame.WORLD_ZUP)
     ball = world.object_index("ball")
     gap = float(world.position[-1, ball, 2]) - BALL_RADIUS
-    tol = Params().tol_rel * float(characteristic_lengths(world.size[-1, ball]))
+    tol = ProximityParams().tol_rel * float(characteristic_lengths(world.size[-1, ball]))
     assert gap == pytest.approx(0.0196, abs=5e-4)
     assert tol == pytest.approx(0.015)
     assert gap > tol

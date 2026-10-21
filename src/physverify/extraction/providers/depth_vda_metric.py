@@ -31,7 +31,7 @@ class VideoDepthAnythingMetricSmall(VideoDepthAnythingSmall):
 
     def loader(self) -> Callable[[StageContext], Any]:
         return functools.partial(
-            load_model, checkpoint=METRIC_CHECKPOINT, metric=True, provider="depth/vda_metric_small"
+            load_model, checkpoint=self.checkpoint(), metric=True, provider="depth/vda_metric_small"
         )
 
     def depth_kind(self) -> DepthKind:

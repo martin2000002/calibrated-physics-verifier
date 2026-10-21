@@ -11,7 +11,12 @@ from support import make_context, run_provider
 from synthetic_clip import SyntheticClip
 
 from physverify.extraction.providers import depth_vda, depth_vda_metric
-from physverify.extraction.providers.depth_vda import CHECKPOINT, CODE, VideoDepthAnythingSmall
+from physverify.extraction.providers.depth_vda import (
+    CHECKPOINT,
+    CODE,
+    SMALL_ENCODER,
+    VideoDepthAnythingSmall,
+)
 from physverify.extraction.providers.depth_vda_metric import (
     METRIC_CHECKPOINT,
     VideoDepthAnythingMetricSmall,
@@ -57,7 +62,9 @@ def test_the_relative_model_keeps_its_defaults(
 ) -> None:
     calls = fake_loads(monkeypatch)
     out = run_provider(VideoDepthAnythingSmall, make_context(fixture_clip))
-    assert calls == [{}]
+    assert calls == [
+        {"checkpoint": CHECKPOINT, "provider": "depth/vda_small", "encoder": SMALL_ENCODER}
+    ]
     assert isinstance(out, DepthMap)
     assert out.kind is DepthKind.AFFINE_DISPARITY
     assert VideoDepthAnythingSmall.weights == (CODE, CHECKPOINT)

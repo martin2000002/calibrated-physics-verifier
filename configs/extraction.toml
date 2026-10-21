@@ -30,6 +30,9 @@ track = "sam2_1_hiera_tiny"
 # it2 gate commit (Knowledge/handoffs/mejora-percepcion/p0-it2.md): G-conv and G-ood pass, G-focal keeps
 # the assumed focal (OOD p90 no-harm fails), so GeoCalib gives gravity only.
 camera = "geocalib"
+# it3 gate commit (Knowledge/handoffs/mejora-percepcion/p0-it3.md): G-depth passes and G-contacts fails
+# on (c), so only the depth is adopted; contacts stay proximity.
+depth = "vda_large"
 
 [extraction.profiles.precise.providers.camera.geocalib]
 focal = "assumed"
@@ -43,4 +46,8 @@ physics_iq = 30
 pisa_real = 120
 
 [extraction.profiles.precise.providers.depth.vda_small]
+input_size = 518
+
+# The same input size for depth/vda_large (it3 G-depth compares the two at 518).
+[extraction.profiles.precise.providers.depth.vda_large]
 input_size = 518

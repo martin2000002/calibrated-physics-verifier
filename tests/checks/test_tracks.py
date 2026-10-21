@@ -424,3 +424,10 @@ def test_noise_stencils_align_the_third_difference_with_the_impact_rows() -> Non
     kinked = np.linalg.norm(d3, axis=1) > 1e-9
     assert int(kinked.sum()) == 3
     np.testing.assert_array_equal(~usable, kinked)
+
+
+def test_j1_the_fall_filter_reads_the_single_stencil_minimum() -> None:
+    from physverify.checks._common import FallParams
+    from physverify.physics.tracks import MIN_NOISE_STENCILS
+
+    assert FallParams().min_noise_stencils == MIN_NOISE_STENCILS == 8

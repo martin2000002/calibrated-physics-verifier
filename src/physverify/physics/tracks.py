@@ -40,6 +40,9 @@ MIN_FIT_ROWS = 3  # fall_fit needs three rows with a known position
 # Occlusion share from which an unseen object counts as hidden: the checks that read occlusion
 # and the perceived gap estimate of LIFT (extraction/providers/_visibility.py) use the same value.
 OCCLUDED_AT = 0.9
+# Fewest usable third-difference stencils from which a track measures its own noise: the fall
+# filter of R5 and the kinematic impacts of CONTACTS use the same value.
+MIN_NOISE_STENCILS = 8
 
 
 @dataclass(frozen=True, eq=False)
@@ -141,12 +144,16 @@ def records_of(object_id: str, contacts: ContactTable) -> list[ContactRecord]:
     return [r for r in contacts.records if object_id in (r.object_a, r.object_b)]
 
 
+def contact_window(record: ContactRecord, step: int, margin: int = 0) -> tuple[int, int]:
+    """Native frames floor(t_start) - m - q .. ceil(t_end) + m + q, q = step - 1."""
+    widen = margin + step - 1
+    return math.floor(record.t_start) - widen, math.ceil(record.t_end) + widen
+
+
 def contact_rows(record: ContactRecord, frame_index: IntArray, margin: int = 0) -> BoolArray:
-    """Rows with floor(t_start) - m - q <= frame_index <= ceil(t_end) + m + q."""
+    """Rows whose native frame lies in ``contact_window``."""
     fi = np.asarray(frame_index, dtype=np.int64)
-    widen = margin + row_step(fi) - 1
-    first = math.floor(record.t_start) - widen
-    last = math.ceil(record.t_end) + widen
+    first, last = contact_window(record, row_step(fi), margin)
     return np.asarray((fi >= first) & (fi <= last), dtype=np.bool_)
 
 

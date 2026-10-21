@@ -14,6 +14,7 @@ from pydantic import Field
 from physverify.checks._base import Check, CheckInputs
 from physverify.config.models import FrozenModel
 from physverify.physics.tracks import (
+    MIN_NOISE_STENCILS,
     OCCLUDED_AT,
     Flight,
     body_length,
@@ -66,7 +67,7 @@ class FallParams(CommonParams):
     min_travel_lengths: float = Field(default=0.5, ge=0.0)
     travel_sigmas: float = Field(default=3.0, ge=0.0)
     travel_noise: Literal["declared", "track"] = "track"
-    min_noise_stencils: int = Field(default=8, ge=4)
+    min_noise_stencils: int = Field(default=MIN_NOISE_STENCILS, ge=4)
 
 
 def find_falls(

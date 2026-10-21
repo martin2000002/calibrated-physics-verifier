@@ -33,6 +33,11 @@
 # Optional (defaults in brackets):
 #   PHYSVERIFY_ITER_PROFILE         sampling profile [precise]; it also fixes the synthetic
 #                                   dataset version the calib clips are listed from
+#   PHYSVERIFY_ITER_ARM             a declared arm of scripts/h200/iteration_arms.tsv [none]:
+#                                   its provider swaps (extraction.plan.<stage>=<provider>) go as
+#                                   --set to every physverify call; doctor must list each one;
+#                                   PHYSVERIFY_ITER_ID must contain the arm name. The heavy lock is
+#                                   per output directory: run arms one at a time (it3_arms.sh)
 #   PHYSVERIFY_ITER_DEVICE          cpu or cuda [cpu]; cuda needs CUDA_VISIBLE_DEVICES in 0-3
 #                                   (launch through gpu_queue.sh)
 #   PHYSVERIFY_ITER_PYTHON          interpreter [/home/mmonterot/dev/venv/bin/python]
@@ -58,6 +63,22 @@ PV_PROFILE="${PHYSVERIFY_ITER_PROFILE:-precise}"
 KS=(--dataset kubric_synthetic --subset full)
 STEP_SAVES=([1]="CALIB_SHA" [2]="STAGES_RUN PROFILE_SHA" [4]="STAGE_SIGMA_SHA"
     [5]="DEVSCORE_SHA CALIBRATION_SHA")
+ARMS_FILE="$(dirname "${BASH_SOURCE[0]}")/iteration_arms.tsv"
+SWAP_PATTERN='^extraction\.plan\.[a-z]+=[a-z0-9_]+$'
+
+# arm_swaps NAME: the provider swaps of a declared arm, one per line (exit 2 if undeclared).
+arm_swaps() {
+    local lines swap
+    [[ "$1" =~ ^[a-z0-9][a-z0-9-]*$ ]] || die "PHYSVERIFY_ITER_ARM must be an arm name, got '$1'"
+    [[ -f "$ARMS_FILE" ]] || die "no arm table at $ARMS_FILE"
+    lines="$(awk -F '\t' -v arm="$1" '$1 == arm { print $2 }' "$ARMS_FILE")"
+    [[ -n "$lines" && "$lines" != *$'\n'* ]] \
+        || die "PHYSVERIFY_ITER_ARM=$1 is not declared exactly once in $ARMS_FILE"
+    for swap in $lines; do
+        [[ "$swap" =~ $SWAP_PATTERN ]] || die "arm $1: '$swap' is not extraction.plan.<stage>=<provider>"
+        printf '%s\n' "$swap"
+    done
+}
 
 ITER_ID="${PHYSVERIFY_ITER_ID:-}"
 [[ "$ITER_ID" =~ ^it[0-9]+[a-z0-9-]*$ ]] \
@@ -99,6 +120,17 @@ case "$DEVICE" in
     *) die "PHYSVERIFY_ITER_DEVICE must be cpu or cuda, got '$DEVICE'" ;;
 esac
 PV_DEVICE="$DEVICE"
+ARM="${PHYSVERIFY_ITER_ARM:-}"
+SWAPS=()
+if [[ -n "$ARM" ]]; then
+    SWAP_LINES="$(arm_swaps "$ARM")" || exit 2
+    [[ "$ITER_ID" == *"$ARM"* ]] \
+        || die "PHYSVERIFY_ITER_ID '$ITER_ID' must contain the arm name '$ARM' (one directory per arm)"
+    mapfile -t SWAPS <<<"$SWAP_LINES"
+    for swap in "${SWAPS[@]}"; do
+        PV_EXTRA+=(--set "$swap")
+    done
+fi
 CACHE="${PHYSVERIFY_ITER_CACHE_DIR:-}"
 [[ -n "$CACHE" ]] || die "set PHYSVERIFY_ITER_CACHE_DIR to the cache root (normally the shared one)"
 PY="${PHYSVERIFY_ITER_PYTHON:-/home/mmonterot/dev/venv/bin/python}"
@@ -144,14 +176,15 @@ STEPS="$OUT/steps.tsv"
 NOTES="$OUT/notes.md"
 SUMMARY="$OUT/summary.md"
 SUMMARY_TITLE="Iteration $ITER_ID ($DEVICE)"
-SUMMARY_INFO="commit $HEAD_COMMIT, profile $PV_PROFILE, device $DEVICE, cache $CACHE, data $DATA, threads $THREADS"
+SUMMARY_INFO="commit $HEAD_COMMIT, profile $PV_PROFILE, arm ${ARM:-none} (${SWAPS[*]:-no swap}), device $DEVICE${CUDA_VISIBLE_DEVICES:+ (CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES)}, cache $CACHE, data $DATA, threads $THREADS"
 mkdir -p "$LOGS"
 touch "$STEPS" "$NOTES"
 if [[ -f "$STATE" ]]; then
     # shellcheck disable=SC1090
     source "$STATE"
 fi
-for pair in "CHAIN_DEVICE $DEVICE" "CHAIN_PROFILE $PV_PROFILE" "CHAIN_ITER_ID $ITER_ID"; do
+for pair in "CHAIN_DEVICE $DEVICE" "CHAIN_PROFILE $PV_PROFILE" "CHAIN_ITER_ID $ITER_ID" \
+    "CHAIN_ARM ${ARM:-none}"; do
     read -r key value <<<"$pair"
     if [[ -z "${!key:-}" ]]; then
         save "$key" "$value"
@@ -185,6 +218,10 @@ check_doctor() {
             || die "doctor reports paths.$name '$(doctor_value "paths.$name")', outside $OUT"
     done
     ERROR_PROFILE="$(doctor_value paths.error_profile)"
+    for name in "${SWAPS[@]}"; do
+        grep -qxF "source: --set $name" <<<"$DOCTOR" \
+            || die "doctor does not list the arm's override --set $name"
+    done
 }
 
 # The calib clips of the synthetic dataset, listed once; a resumed run must see the same list.

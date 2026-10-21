@@ -2,13 +2,17 @@
 
 The model code is a pinned checkout (Apache-2.0) imported from ``paths.vendor_dir``; it imports a
 top-level ``utils`` namespace package, so a foreign ``utils`` already loaded is a clear error.
+The encoder and the checkpoint are class attributes, so a larger model is a subclass with the
+same inference path (``depth_vda_large.py``).
 """
 
 from __future__ import annotations
 
+import functools
 import importlib
 import sys
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
 from typing import Any, ClassVar
@@ -43,9 +47,28 @@ CHECKPOINT = WeightSpec(
     "256875362cff76724b920335dfb4b29dd611f66e",
     "13379300b739e659f076a59d52e9801bd8d38c541a7e71f73bbca4dcfb013609",
 )
-ENCODER = {"encoder": "vits", "features": 64, "out_channels": [48, 96, 192, 384]}
 VENDORED_TOP_LEVEL = "utils"
 VENDORED_MODULE = "video_depth_anything.video_depth"
+
+
+@dataclass(frozen=True)
+class Encoder:
+    """Constructor arguments of the vendored ``VideoDepthAnything`` for one ViT size (the
+    ``model_configs`` of the checkout's run.py)."""
+
+    name: str
+    features: int
+    out_channels: tuple[int, int, int, int]
+
+    def kwargs(self) -> dict[str, Any]:
+        return {
+            "encoder": self.name,
+            "features": self.features,
+            "out_channels": list(self.out_channels),
+        }
+
+
+SMALL_ENCODER = Encoder("vits", 64, (48, 96, 192, 384))
 
 
 class Params(ProviderParams):
@@ -62,13 +85,25 @@ class VideoDepthAnythingSmall:
     error_profile_reads: ClassVar[tuple[Stage, ...]] = ()
     weights: ClassVar[tuple[WeightSpec, ...]] = (CODE, CHECKPOINT)
     Params: ClassVar[type[BaseModel]] = Params
+    encoder: ClassVar[Encoder] = SMALL_ENCODER
 
     def __init__(self, params: BaseModel) -> None:
         self.params = expect_params(params, Params)
         self._model: LazyModel[Any] = LazyModel(self.loader())
 
+    @classmethod
+    def checkpoint(cls) -> WeightSpec:
+        """The model checkpoint: the entry of ``weights`` after the code (one place, audit L3)."""
+        (checkpoint,) = (w for w in cls.weights if w != CODE)
+        return checkpoint
+
     def loader(self) -> Callable[[StageContext], Any]:
-        return load_model
+        return functools.partial(
+            load_model,
+            checkpoint=self.checkpoint(),
+            provider=f"{self.stage.value}/{self.name}",
+            encoder=self.encoder,
+        )
 
     def depth_kind(self) -> DepthKind:
         return DepthKind.AFFINE_DISPARITY
@@ -136,6 +171,7 @@ def load_model(
     checkpoint: WeightSpec = CHECKPOINT,
     metric: bool = False,
     provider: str = "depth/vda_small",
+    encoder: Encoder = SMALL_ENCODER,
 ) -> Any:
     """The vendored model; ``metric`` selects the metric head, which skips the per-window
     scale-and-shift alignment of the relative one (video_depth.py:135)."""
@@ -145,7 +181,7 @@ def load_model(
     check_vendored_namespace(root, provider)
     with vendored_import_path(root):
         module = importlib.import_module(VENDORED_MODULE)
-    model = module.VideoDepthAnything(**ENCODER, metric=metric)
+    model = module.VideoDepthAnything(**encoder.kwargs(), metric=metric)
     state = torch.load(
         weight_file(checkpoint, ctx.paths), map_location=ctx.device, weights_only=True
     )

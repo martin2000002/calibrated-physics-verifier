@@ -292,7 +292,16 @@ lands in `$PHYSVERIFY_H200_ROOT/iterations/<id>-<device>/` (calibration director
 lock, `devscore.json`, the full calib fit `calibration.json`, `summary.md`); the header lists the
 startup checks and variables. `PHYSVERIFY_ITER_PROFILE` (default `precise`) picks the sampling
 profile, which also fixes the dataset version the calib clips are listed from. With
-`PHYSVERIFY_ITER_DEVICE=cuda` launch it through `gpu_queue.sh` (GPUs 0-3).
+`PHYSVERIFY_ITER_DEVICE=cuda` launch it through `gpu_queue.sh` with one GPU,
+`CUDA_VISIBLE_DEVICES` in 0-3 (anything else, a list included, exits 2).
+
+Declared arms (it3): `PHYSVERIFY_ITER_ARM=<arm>` names a line of `iteration_arms.tsv`, whose
+provider swaps (`extraction.plan.<stage>=<provider>` only) go as `--set` to every physverify
+call. The profile stays the committed one, so arms that share a provider prefix share its cache
+keys and its error-profile entries (a separate profile name would not: the name is part of every
+entry). `doctor` must list each swap among its sources, `state.env` records `CHAIN_ARM` (a
+resume with another arm exits 2) and the summary names the arm and the GPU. Give each arm its
+own `PHYSVERIFY_ITER_ID` (e.g. `it3-c`), so it lands in `iterations/it3-c-cuda/`.
 
 The sealed ledger (`configs/sealed.toml`): `calibrate fit|stage-sigma|evaluate|devscore`, `abstain
 fit|curve`, `verify`, `diagnose *` and `scene-stats per-clip` exit 2 before computing on a sealed
