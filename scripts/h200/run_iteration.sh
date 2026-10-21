@@ -48,6 +48,7 @@
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/_common.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/_steps.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/_guards.sh"
 cd "$REPO_ROOT"
 
 FIRST_STEP=1
@@ -85,30 +86,13 @@ ITER_ID="${PHYSVERIFY_ITER_ID:-}"
     || die "PHYSVERIFY_ITER_ID must match ^it[0-9]+[a-z0-9-]*\$ (e.g. it0-baseline), got '$ITER_ID'"
 
 source_h200_env
-OWN_VARS=" PATHS__DATA_DIR PATHS__CACHE_DIR PATHS__WEIGHTS_DIR PATHS__VENDOR_DIR PATHS__HF_HOME
-    PATHS__CALIBRATION_DIR PATHS__RUNS_DIR RUNTIME__HEAVY_LOCK "
-foreign=""
-for name in $(compgen -e -X '!PHYSVERIFY__*'); do
-    [[ "$OWN_VARS" == *[[:space:]]"${name#PHYSVERIFY__}"[[:space:]]* ]] || foreign+=" $name"
-done
-[[ -z "$foreign" ]] || die "the environment sets configuration run_iteration.sh does not own:" \
-    "$foreign (the iteration would not be the committed one); unset it"
+refuse_foreign_config run_iteration.sh " PATHS__DATA_DIR PATHS__CACHE_DIR PATHS__WEIGHTS_DIR
+    PATHS__VENDOR_DIR PATHS__HF_HOME PATHS__CALIBRATION_DIR PATHS__RUNS_DIR RUNTIME__HEAVY_LOCK "
 for name in PHYSVERIFY_UNSEAL PHYSVERIFY_UNSEAL_REPEAT; do
     [[ -z "${!name+set}" ]] || die "$name is set: an iteration never looks at a sealed set; unset it"
 done
-[[ -z "${PHYSVERIFY_CONFIG_DIR+set}" ]] \
-    || die "PHYSVERIFY_CONFIG_DIR is set: an iteration reads only $REPO_ROOT/configs; unset it"
-[[ ! -e "$REPO_ROOT/configs/local.toml" ]] \
-    || die "$REPO_ROOT/configs/local.toml exists: it is not committed; remove it"
-
-EXPECT="${PHYSVERIFY_ITER_EXPECT_COMMIT:-}"
-[[ ${#EXPECT} -ge 7 ]] || die "set PHYSVERIFY_ITER_EXPECT_COMMIT to the commit this iteration uses"
-HEAD_COMMIT="$(git -C "$REPO_ROOT" rev-parse HEAD)" || die "$REPO_ROOT is not a git checkout"
-[[ "$HEAD_COMMIT" == "$EXPECT"* ]] || die "HEAD is $HEAD_COMMIT, expected $EXPECT"
-DIRTY="$(git -C "$REPO_ROOT" status --porcelain -- src configs scripts annotations)" \
-    || die "git status failed in $REPO_ROOT"
-[[ -z "$DIRTY" ]] || die "uncommitted or untracked files under src, configs, scripts or" \
-    "annotations:"$'\n'"$DIRTY"
+refuse_local_config run_iteration.sh
+require_checkout PHYSVERIFY_ITER_EXPECT_COMMIT
 
 DEVICE="${PHYSVERIFY_ITER_DEVICE:-cpu}"
 case "$DEVICE" in
@@ -140,15 +124,6 @@ THREADS="${PHYSVERIFY_ITER_THREADS:-16}"
 DATA="${PHYSVERIFY_ITER_DATA:-$H200_ROOT/kubric-data}"
 OUT="${PHYSVERIFY_ITER_DIR:-$H200_ROOT/iterations/$ITER_ID-$DEVICE}"
 
-# near PATH BASE: PATH is a directory named BASE* (BASE, BASE-cuda, ...) or below one.
-near() {
-    [[ "$(realpath -m "$1")" == "$(realpath -m "$2")"* ]]
-}
-
-# under PATH DIR: PATH is strictly below DIR.
-under() {
-    [[ "$(realpath -m "$1")" == "$(realpath -m "$2")"/* ]]
-}
 for dir in "$OUT" "$OUT/calibration" "$OUT/runs"; do
     for base in "$H200_ROOT/a8v2" "$DATA/calibration" "$DATA/runs" \
         "$H200_ROOT/kubric-data/calibration" "$H200_ROOT/kubric-data/runs"; do

@@ -1,0 +1,48 @@
+# Startup guards of the H200 runners that must run the committed configuration of a clean
+# checkout (run_iteration.sh, run_freeze.sh, run_final.sh); sourced after _common.sh, never
+# executed. Each guard exits 2 (die) before any physverify call.
+
+# near PATH BASE: PATH is a directory named BASE* (BASE, BASE-cuda, ...) or below one.
+near() {
+    [[ "$(realpath -m "$1")" == "$(realpath -m "$2")"* ]]
+}
+
+# under PATH DIR: PATH is strictly below DIR.
+under() {
+    [[ "$(realpath -m "$1")" == "$(realpath -m "$2")"/* ]]
+}
+
+# refuse_foreign_config SCRIPT OWN [ALLOWED]: no PHYSVERIFY__* variable but the names of OWN
+# (without the prefix, space separated, with a leading and a trailing space) or those matching
+# the regular expression ALLOWED.
+refuse_foreign_config() {
+    local script="$1" own="$2" allowed="${3:-}" foreign="" name
+    for name in $(compgen -e -X '!PHYSVERIFY__*'); do
+        [[ "$own" == *[[:space:]]"${name#PHYSVERIFY__}"[[:space:]]* ]] && continue
+        [[ -n "$allowed" && "$name" =~ $allowed ]] && continue
+        foreign+=" $name"
+    done
+    [[ -z "$foreign" ]] || die "the environment sets configuration $script does not own:" \
+        "$foreign (the run would not be the committed one); unset it"
+}
+
+# refuse_local_config SCRIPT: only $REPO_ROOT/configs, and no local.toml in it.
+refuse_local_config() {
+    [[ -z "${PHYSVERIFY_CONFIG_DIR+set}" ]] \
+        || die "PHYSVERIFY_CONFIG_DIR is set: $1 reads only $REPO_ROOT/configs; unset it"
+    [[ ! -e "$REPO_ROOT/configs/local.toml" ]] \
+        || die "$REPO_ROOT/configs/local.toml exists: it is not committed; remove it"
+}
+
+# require_checkout VAR: HEAD starts with the value of VAR (>= 7 characters) and nothing is
+# uncommitted or untracked under src, configs, scripts or annotations. Sets HEAD_COMMIT.
+require_checkout() {
+    local expect="${!1:-}" dirty
+    [[ ${#expect} -ge 7 ]] || die "set $1 to the commit this run uses"
+    HEAD_COMMIT="$(git -C "$REPO_ROOT" rev-parse HEAD)" || die "$REPO_ROOT is not a git checkout"
+    [[ "$HEAD_COMMIT" == "$expect"* ]] || die "HEAD is $HEAD_COMMIT, expected $expect"
+    dirty="$(git -C "$REPO_ROOT" status --porcelain -- src configs scripts annotations)" \
+        || die "git status failed in $REPO_ROOT"
+    [[ -z "$dirty" ]] || die "uncommitted or untracked files under src, configs, scripts or" \
+        "annotations:"$'\n'"$dirty"
+}

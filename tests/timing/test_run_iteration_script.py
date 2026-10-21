@@ -17,6 +17,7 @@ H200 = REPO / "scripts" / "h200"
 SCRIPT_NAMES = (
     "_common.sh",
     "_steps.sh",
+    "_guards.sh",
     "run_iteration.sh",
     "a8v2_query.py",
     "iteration_arms.tsv",
@@ -172,7 +173,7 @@ def _devscore(out: Path) -> str:
 
 def test_the_script_parses_and_is_executable() -> None:
     """AC17."""
-    for name in ("run_iteration.sh", "_steps.sh"):
+    for name in ("run_iteration.sh", "_steps.sh", "_guards.sh"):
         subprocess.run(["bash", "-n", str(H200 / name)], check=True)
     assert os.access(H200 / "run_iteration.sh", os.X_OK)
 
