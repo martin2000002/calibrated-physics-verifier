@@ -21,6 +21,9 @@ _INDEX = re.compile(r"-s(\d+)$")
 class SceneScope(FrozenModel):
     primary_scenes: tuple[str, ...] = ()
     """Empty: no primary view, every scene is the only view."""
+    by_dataset: dict[str, tuple[str, ...]] = {}
+    """The primary scenes of a dataset whose scenes were not seen as these were (a fresh
+    render); a dataset not named here uses ``primary_scenes``."""
 
     @field_validator("primary_scenes")
     @classmethod
@@ -28,9 +31,22 @@ class SceneScope(FrozenModel):
         expand(specs)
         return specs
 
+    @field_validator("by_dataset")
+    @classmethod
+    def _parsable_by_dataset(cls, specs: dict[str, tuple[str, ...]]) -> dict[str, tuple[str, ...]]:
+        for dataset_specs in specs.values():
+            expand(dataset_specs)
+        return specs
+
     @property
     def indices(self) -> frozenset[int]:
         return expand(self.primary_scenes)
+
+    def scenes_for(self, dataset: str) -> tuple[str, ...]:
+        return self.by_dataset.get(dataset, self.primary_scenes)
+
+    def indices_for(self, dataset: str) -> frozenset[int]:
+        return expand(self.scenes_for(dataset))
 
 
 def expand(specs: Iterable[str], section: str = SECTION) -> frozenset[int]:

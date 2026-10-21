@@ -50,6 +50,8 @@ from physverify.schema.stages import Stage
 from physverify.verification.runner import VerificationReport
 
 PRIMARY = ("s000", "s011-s039")
+SHIPPED = ("s011-s039",)
+"""Amendment 2 section 6 (plan-congelado Q2): s000 was looked at during the campaign."""
 
 
 def test_specs_expand_to_inclusive_indices() -> None:
@@ -74,7 +76,7 @@ def test_scene_ids_match_by_trailing_index() -> None:
 
 def test_the_shipped_scope_is_the_adr_one(repo_root: Path) -> None:
     settings = load_settings(repo_root / "configs", environ={})
-    assert h1_scope(settings).primary_scenes == PRIMARY
+    assert h1_scope(settings).primary_scenes == SHIPPED
 
 
 def _hashes(settings: Settings) -> tuple[str, tuple[str, ...], dict[Stage, str]]:

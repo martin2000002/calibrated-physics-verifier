@@ -250,13 +250,14 @@ def family_run(monkeypatch: pytest.MonkeyPatch, settings: Settings) -> str:
 def test_evaluate_adds_the_h1_primary_view_of_the_configured_scenes(
     cli: CliRunner, family_run: str, tmp_path: Path
 ) -> None:
-    """ADR 0015 1.4 through the command: s000 and s011-s039 of the 40 scenes."""
+    """ADR 0015 1.4 through the command: s011-s039 of the 40 scenes (s000 left out by
+    plan-congelado amendment 2 section 6)."""
     data = _evaluate_cli(cli, family_run, tmp_path)
     primary = data["h1_primary"]
-    assert primary["scenes"] == ["s000", "s011-s039"]
-    assert primary["dataset"]["n_scenes"] == 30
+    assert primary["scenes"] == ["s011-s039"]
+    assert primary["dataset"]["n_scenes"] == 29
     assert data["dataset"]["n_scenes"] == 40
-    assert primary["dataset"]["n_clips"] * 40 == data["dataset"]["n_clips"] * 30
+    assert primary["dataset"]["n_clips"] * 40 == data["dataset"]["n_clips"] * 29
 
 
 def test_evaluate_without_primary_scenes_has_no_h1_view(

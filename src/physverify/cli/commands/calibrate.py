@@ -56,7 +56,7 @@ from physverify.calibration.report import (
     curves_csv,
     evaluation_markdown,
 )
-from physverify.calibration.scenes import h1_scope, in_scope
+from physverify.calibration.scenes import SceneScope, h1_scope, in_scope
 from physverify.calibration.schema import DatasetRef, StageFactor, StageSigma
 from physverify.calibration.settings import (
     CalibrationConfig,
@@ -599,7 +599,7 @@ def evaluate_command(
 def _primary_scope(
     session: Session, source: DatasetSource, subset: str, clips: Sequence[ClipManifest]
 ) -> PrimaryScope | None:
-    scope = h1_scope(session.context.settings)
+    scope = SceneScope(primary_scenes=h1_scope(session.context.settings).scenes_for(source.name))
     if not scope.primary_scenes:
         return None
     kept = [c for c in clips if in_scope(scene_of(c), scope.indices)]

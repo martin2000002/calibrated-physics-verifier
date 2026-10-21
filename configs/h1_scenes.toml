@@ -1,5 +1,12 @@
-# H1 primary scene scope (ADR 0015 1.4): the P1 probes used scenes s001-s010, so the primary H1
-# view excludes them; every scene stays as the secondary view. A report filter only: no refit,
-# the artifact and checks_hash do not change. Empty list: no primary view.
+# H1 primary scene scope (ADR 0015 1.4, amendment 2 section 6): the P1 probes used scenes
+# s001-s010 and the campaign looked at s000, so the primary H1 view of the seen Kubric data is
+# s011-s039; every scene stays as the secondary view. A fresh render was never looked at, so its
+# primary view is every scene but s000 (by_dataset). A report filter only: no refit, the artifact
+# and checks_hash do not change. Empty list: no primary view.
 [h1_scope]
-primary_scenes = ["s000", "s011-s039"]
+primary_scenes = ["s011-s039"]
+
+[h1_scope.by_dataset]
+kubric_fresh = ["s001-s020"]
+kubric_fresh_ood = ["s001-s010"]
+kubric_fresh_blind = ["s001-s010"]

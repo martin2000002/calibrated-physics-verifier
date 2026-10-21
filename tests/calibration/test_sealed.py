@@ -76,6 +76,23 @@ def test_a_split_spec_touches_only_its_split() -> None:
     assert touched("kubric_fresh", [], SPECS) == ()
 
 
+def test_the_freeze_sets_are_sealed_by_their_own_names(
+    config_dir: Path, environ: dict[str, str]
+) -> None:
+    """plan-congelado AC-2: each fresh set seals only itself; the development real sets stay
+    open and the new real controls are sealed."""
+    specs = sealed_settings(load_settings(config_dir, environ=environ)).sets
+    held, calib = clip("e", "s1", Split.EVAL), clip("c", "s0")
+    for name in ("kubric_fresh", "kubric_fresh_ood", "kubric_fresh_blind"):
+        assert touched(name, [held, calib], specs) == (name,)
+    assert touched("kubric_synthetic", [held], specs) == ("kubric_synthetic:eval",)
+    assert touched("kubric_synthetic", [calib], specs) == ()
+    for name in ("physics_iq", "pisa_real"):
+        assert touched(name, [held], specs) == ()
+    for name in ("physics_iq_views", "objectron_static"):
+        assert touched(name, [held], specs) == (name,)
+
+
 def test_every_touched_spec_must_be_unsealed() -> None:
     found = ("kubric_synthetic:eval", "kubric_fresh")
     require_unsealed(found, unsealed(" kubric_fresh, kubric_synthetic:eval "))
