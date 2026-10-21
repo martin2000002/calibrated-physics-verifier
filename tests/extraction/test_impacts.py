@@ -343,3 +343,27 @@ def test_t13_the_provider_declares_camera_and_kinematics_and_no_profile() -> Non
     assert KinematicContacts.requires == (Stage.CAMERA, Stage.KINEMATICS)
     assert KinematicContacts.error_profile_reads == () and not KinematicContacts.heavy
     assert KinematicContacts.version == "1"
+
+
+def test_l4_an_event_whose_partner_is_consumed_chooses_again() -> None:
+    """ball_i and ball_j collide (the strongest pair); ball_k, kicked at the same instant, would
+    pair with ball_j (opposite impulse, touching image box, 0.6 m behind it), but ball_j is
+    consumed, so ball_k falls back to the environment instead of being dropped."""
+    zero, t, t_c = np.zeros(3), sc.times(), 15.3 * sc.DT
+    kicks = {
+        "ball_i": ((-0.1, 0.0, 1.0), (1.0, 0.0, 0.0), (-2.0, 0.0, 0.1)),
+        "ball_j": ((0.1, 0.0, 1.0), (-1.0, 0.0, 0.0), (2.0, 0.0, 0.1)),
+        "ball_k": ((0.2, 0.6, 1.0), (0.0, 0.0, 0.0), (-1.0, 0.0, 1.5)),
+    }
+    objects = []
+    for name, (x, v, dv) in kicks.items():
+        before, after = np.array(v), np.array(v) + np.array(dv)
+        p, vel, a = sc.piecewise_ballistic(t, t_c, x, (before, zero), (after, zero))
+        kind = PrimitiveKind.SPHERE
+        objects.append(sc.SceneObject(name, kind, sc.cube(0.2), p, vel, a, label="sphere"))
+    case = sc.build("three_balls", objects, [], 25.0)
+    records = kinematic(cs.kinematic_table(case))
+    assert sorted((r.object_a, r.object_b) for r in records) == [
+        ("ball_i", "ball_j"),
+        ("ball_k", ENV_ID),
+    ]

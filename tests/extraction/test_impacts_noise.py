@@ -1,10 +1,11 @@
 """it3 T5 and judgement J4: the detector on tracks with white noise (seed fixed, 400 replicates).
 
-The plan's rule (chi-square with the track noise as a known sigma) gives about 23 % of clean
-parabolas a false impact, because the MAD of 29 third differences often comes out low; the F
-ratio over the window's own residual (floored at that noise) brings it to about 2 % and costs
-power: a bounce with dv dt = 20 sigma is found in about 83 % of the replicates, 30 sigma in about
-99 % (impl-it3.md, deviation D1). Both numbers are asserted as measured.
+The plan's rule (chi-square with the track noise as a known sigma) gives 23 % of clean parabolas
+a false impact, because the MAD of 29 third differences often comes out low; the F ratio over the
+window's own residual (floored at that noise) brings it to 1.25 % and costs power: a bounce with
+dv dt = 20 sigma is found in 85.5 % of the replicates, 30 sigma in 99.5 % (impl-it3.md, deviation
+D1; the figures the tests print). The bars are those of judgement 2, K1: clean false impacts
+<= 8 %, 20 sigma >= 80 %, 30 sigma >= 95 %, teleport 0.25 L <= 8 %, J4 <= 8 % per level.
 """
 
 from __future__ import annotations

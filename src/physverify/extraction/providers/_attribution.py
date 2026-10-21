@@ -229,19 +229,21 @@ def choose(scene: KinematicScene, event: Event, events: Sequence[Event]) -> Choi
 
 
 def resolve(scene: KinematicScene, events: Sequence[Event]) -> list[Choice]:
-    """Final choices: pairs through (a) first (largest cosine first, each event used once; a
-    pair consumes both objects' impacts within one row step), then the remaining events."""
-    choices = [c for e in events if (c := choose(scene, e, events)) is not None]
+    """Final choices. The pair through (a) with the largest cosine is accepted and consumes both
+    objects' impacts within one row step; the events left choose again among themselves, so an
+    event whose best partner was consumed falls back to its next surface (three bodies meeting
+    at once, audit L4). Without pairs left, the remaining events keep their choices."""
     consumed: set[EventKey] = set()
     final: list[Choice] = []
-    for choice in sorted((c for c in choices if c.partner), key=lambda c: -c.cosine):
-        assert choice.partner is not None
-        if choice.event.key in consumed or choice.partner.key in consumed:
-            continue
-        final.append(choice)
-        consumed |= around(scene, events, choice)
-    final.extend(c for c in choices if c.partner is None and c.event.key not in consumed)
-    return final
+    while True:
+        left = [e for e in events if e.key not in consumed]
+        choices = [c for e in left if (c := choose(scene, e, left)) is not None]
+        pairs = [c for c in choices if c.partner is not None]
+        if not pairs:
+            return final + choices
+        best = max(pairs, key=lambda c: c.cosine)
+        final.append(best)
+        consumed |= around(scene, events, best)
 
 
 def around(scene: KinematicScene, events: Sequence[Event], pair: Choice) -> set[EventKey]:

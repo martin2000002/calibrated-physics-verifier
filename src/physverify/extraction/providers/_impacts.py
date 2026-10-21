@@ -22,7 +22,7 @@ r_k the parabola residual of axis k and c~ the part of c orthogonal to P; for th
 from __future__ import annotations
 
 import math
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 
 import numpy as np
@@ -188,40 +188,51 @@ def kink_columns(u: FloatArray, maker: FloatArray, interval: int) -> tuple[Float
     return maker @ (u * right), maker @ right
 
 
-def kink_time(basis: Basis, residual: FloatArray, interval: int) -> tuple[float, float]:
-    """(s, gain) of the best kink with s in [u_i, u_i+1], i = ``interval``.
+def kink_times(basis: Basis, residuals: FloatArray, interval: int) -> tuple[FloatArray, FloatArray]:
+    """(s, gain) of the best kink with s in [u_i, u_i+1], i = ``interval``, for a stack of
+    window residuals (k, m, 3) that share ``basis``.
 
     gain(s) = N(s) / D(s) with N = sum_k (alpha_k - s beta_k)^2 and D = |a - s b|^2, two
     quadratics, whose stationary points solve
     (A F - B E) + (C E - A G) s + (B G - C F) s^2 = 0."""
     a, b = basis.kinks[interval]
-    alpha, beta = residual.T @ a, residual.T @ b
-    big_a, big_b, big_c = float(alpha @ alpha), float(alpha @ beta), float(beta @ beta)
+    alpha = np.einsum("kma,m->ka", residuals, a)
+    beta = np.einsum("kma,m->ka", residuals, b)
+    big_a, big_b, big_c = (alpha**2).sum(1), (alpha * beta).sum(1), (beta**2).sum(1)
     big_e, big_f, big_g = float(a @ a), float(a @ b), float(b @ b)
     lo, hi = float(basis.u[interval]), float(basis.u[interval + 1])
     roots = real_roots(
         big_b * big_g - big_c * big_f, big_c * big_e - big_a * big_g, big_a * big_f - big_b * big_e
     )
-    s = np.array([lo, hi, *(r for r in roots if lo < r < hi)])
-    numerator = np.sum((alpha[None, :] - s[:, None] * beta[None, :]) ** 2, axis=1)
+    inside = np.where((roots > lo) & (roots < hi), roots, lo)
+    s = np.column_stack([np.full(len(residuals), lo), np.full(len(residuals), hi), inside])
+    numerator = ((alpha[:, None, :] - s[:, :, None] * beta[:, None, :]) ** 2).sum(2)
     denominator = big_e - 2.0 * s * big_f + s**2 * big_g
     values = np.where(denominator > 1e-12, numerator / np.maximum(denominator, 1e-300), 0.0)
-    best = int(np.argmax(values))
-    return float(s[best]), float(values[best])
+    best = np.argmax(values, axis=1)
+    rows = np.arange(len(residuals))
+    return s[rows, best], values[rows, best]
 
 
-def real_roots(c2: float, c1: float, c0: float) -> tuple[float, ...]:
-    """Real roots of c2 s^2 + c1 s + c0 (a vanishing c2 leaves the linear root, if any)."""
-    scale = max(abs(c2), abs(c1), abs(c0))
-    if scale == 0.0:
-        return ()
-    if abs(c2) <= 1e-12 * scale:
-        return (-c0 / c1,) if abs(c1) > 1e-12 * scale else ()
+def kink_time(basis: Basis, residual: FloatArray, interval: int) -> tuple[float, float]:
+    """``kink_times`` of one window."""
+    s, gain = kink_times(basis, residual[None], interval)
+    return float(s[0]), float(gain[0])
+
+
+def real_roots(c2: FloatArray, c1: FloatArray, c0: FloatArray) -> FloatArray:
+    """(k, 2) real roots of c2 s^2 + c1 s + c0, NaN where there is none (a vanishing c2 leaves
+    the linear root, if any)."""
+    scale = np.maximum(np.maximum(np.abs(c2), np.abs(c1)), np.abs(c0))
+    tiny = 1e-12 * scale
     disc = c1 * c1 - 4.0 * c2 * c0
-    if disc < 0.0:
-        return ()
-    root = math.sqrt(disc)
-    return ((-c1 - root) / (2.0 * c2), (-c1 + root) / (2.0 * c2))
+    quadratic = (np.abs(c2) > tiny) & (disc >= 0.0)
+    linear = (np.abs(c2) <= tiny) & (np.abs(c1) > tiny)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        root = np.sqrt(np.where(quadratic, disc, 0.0))
+        first = np.where(quadratic, (-c1 - root) / (2.0 * c2), np.where(linear, -c0 / c1, np.nan))
+        second = np.where(quadratic, (-c1 + root) / (2.0 * c2), np.nan)
+    return np.column_stack([first, second])
 
 
 def explains_best(basis: Basis, residual: FloatArray, interval: int, gain: float) -> bool:
@@ -251,16 +262,17 @@ def critical_ratio(alpha: float, boundaries: int, rows: int, known: bool) -> flo
     return float(f_dist.isf(tail, DEGREES_OF_FREEDOM, residual_dof(rows)))
 
 
-def kink_ratio(gain: float, residual: FloatArray, rows: int, known: bool) -> float:
-    """The kink's gain per coefficient over the noise variance: 1 (whitened) for a known scale;
-    otherwise the residual variance of the kink fit in the window, never below 1. The window's
-    residual keeps the size of the test when sigma-hat, measured on a few stencils, comes out
-    low (with the plan's chi-square about 23 % of clean tracks had a false impact, T5)."""
+def kink_ratios(gains: FloatArray, residuals: FloatArray, known: bool) -> FloatArray:
+    """The kinks' gain per coefficient over the noise variance, for a stack of windows (k, m, 3):
+    1 (whitened) for a known scale; otherwise the residual variance of each kink fit in its
+    window, never below 1. The window's residual keeps the size of the test when sigma-hat,
+    measured on a few stencils, comes out low (with the plan's chi-square 23 % of clean tracks
+    had a false impact, T5)."""
     if known:
-        return gain / DEGREES_OF_FREEDOM
-    rss = float(np.sum(residual**2)) - gain
-    variance = max(rss / residual_dof(rows), 1.0)
-    return gain / (DEGREES_OF_FREEDOM * variance)
+        return gains / DEGREES_OF_FREEDOM
+    rss = (residuals**2).sum(axis=(1, 2)) - gains
+    variance = np.maximum(rss / residual_dof(residuals.shape[1]), 1.0)
+    return gains / (DEGREES_OF_FREEDOM * variance)
 
 
 def finite_runs(position: FloatArray) -> tuple[slice, ...]:
@@ -286,20 +298,21 @@ def make_window(
     return Window(row, lo, u, position[lo:hi] / sigma, step, float(t[row]))
 
 
-def judge_boundary(
-    window: Window, basis: Basis, critical: float, known: bool
-) -> tuple[float, float] | None:
-    """(s, ratio) when the kink inside the boundary beats the parabola beyond the Bonferroni
-    quantile ``critical`` and explains the window better than every alternative."""
-    residual = basis.maker @ window.y
-    interval = window.row - window.lo
-    s, gain = kink_time(basis, residual, interval)
-    ratio = kink_ratio(gain, residual, window.u.size, known)
-    if not ratio > critical:
-        return None
-    if not explains_best(basis, residual, interval, gain):
-        return None
-    return s, ratio
+def judge_windows(
+    windows: Sequence[Window], basis: Basis, critical: float, known: bool
+) -> list[tuple[Window, float, float]]:
+    """(window, s, ratio) of the windows sharing ``basis`` whose kink inside the boundary beats
+    the parabola beyond the Bonferroni quantile ``critical`` and explains the window better than
+    every alternative (the alternatives only for the few that pass the quantile)."""
+    residuals = np.einsum("ij,kja->kia", basis.maker, np.stack([w.y for w in windows]))
+    interval = windows[0].row - windows[0].lo
+    s, gains = kink_times(basis, residuals, interval)
+    ratios = kink_ratios(gains, residuals, known)
+    return [
+        (windows[i], float(s[i]), float(ratios[i]))
+        for i in np.flatnonzero(ratios > critical).tolist()
+        if explains_best(basis, residuals[i], interval, float(gains[i]))
+    ]
 
 
 def kink_fit(window: Window, s: float, sigma: FloatArray) -> tuple[FloatArray, FloatArray]:
@@ -322,22 +335,23 @@ def track_impacts(
     caches the window bases by row times; tracks of one clip can share it."""
     sigma = noise.sigma
     candidates = list(boundaries(position, side_rows))
-    sizes = {hi - lo for _, lo, hi in candidates}
-    critical = {rows: critical_ratio(alpha, len(candidates), rows, noise.known) for rows in sizes}
     cache: Bases = {} if bases is None else bases
-    accepted: list[Impact] = []
+    groups: dict[tuple[float, ...], list[Window]] = {}
     for row, lo, hi in candidates:
         window = make_window(t, position, sigma, row, lo, hi)
-        key = tuple(window.u.tolist())
+        groups.setdefault(tuple(window.u.tolist()), []).append(window)
+    accepted: list[Impact] = []
+    for key, windows in groups.items():
         basis = cache.get(key)
         if basis is None:
-            basis = cache[key] = Basis.of(window.u)
-        found = judge_boundary(window, basis, critical[hi - lo], noise.known)
-        if found is not None:
-            delta_v, at_kink = kink_fit(window, found[0], sigma)
-            time = window.origin + found[0] * window.step
-            accepted.append(Impact(row, time, delta_v, at_kink, found[1]))
-    return local_maxima(accepted)
+            basis = cache[key] = Basis.of(windows[0].u)
+        critical = critical_ratio(alpha, len(candidates), len(key), noise.known)
+        for window, s, ratio in judge_windows(windows, basis, critical, noise.known):
+            delta_v, at_kink = kink_fit(window, s, sigma)
+            accepted.append(
+                Impact(window.row, window.origin + s * window.step, delta_v, at_kink, ratio)
+            )
+    return local_maxima(sorted(accepted, key=lambda impact: impact.row))
 
 
 def local_maxima(impacts: list[Impact]) -> list[Impact]:
