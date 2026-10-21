@@ -55,9 +55,10 @@ class FallParams(CommonParams):
 
     ``travel_noise`` = "declared": the noise is sqrt(2) |median declared position sigma| (an
     absolute sigma, before 2026-10-20). "track": sqrt(2) |sigma_w| measured on the object's own
-    third differences (``physics.tracks.track_noise``), in this order: exact positions (every
-    known sigma 0) keep the length floor only; with ``min_noise_stencils`` usable stencils the
-    track noise; otherwise the declared rule.
+    third differences (``physics.tracks.track_noise``), in this order: exact positions (at least
+    one known sigma and every known one 0) keep the length floor only; otherwise, with
+    ``min_noise_stencils`` usable stencils, the track noise, also when no sigma is known; otherwise
+    the declared rule (the length floor alone when no sigma is known).
     """
 
     rest_speed: float = Field(default=0.1, ge=0.0)
@@ -94,12 +95,12 @@ def _travel_floor(
     by_length = params.min_travel_lengths * length if math.isfinite(length) else 0.0
     sigma = states.position_sigma[flight.rows, flight.index]
     known = sigma[np.all(np.isfinite(sigma), axis=-1)]
+    exact = known.shape[0] > 0 and bool(np.all(known == 0.0))
+    if params.travel_noise == "track" and track is not None and not exact:
+        return max(by_length, params.travel_sigmas * math.sqrt(2.0) * float(np.linalg.norm(track)))
     if not known.shape[0]:
         return by_length
-    if params.travel_noise == "track" and bool(np.all(known == 0.0)):
-        return by_length
-    per_axis = track if track is not None else np.median(known, axis=0)
-    noise = math.sqrt(2.0) * float(np.linalg.norm(per_axis))
+    noise = math.sqrt(2.0) * float(np.linalg.norm(np.median(known, axis=0)))
     return max(by_length, params.travel_sigmas * noise)
 
 

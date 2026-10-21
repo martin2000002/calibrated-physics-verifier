@@ -237,6 +237,20 @@ def test_t10_exact_positions_keep_the_length_floor(
 
 
 @pytest.mark.parametrize(("check", "params"), CHECKS)
+def test_without_a_known_sigma_the_track_noise_comes_before_the_length_floor(
+    check: type, params: type
+) -> None:
+    """J4 (i), audit m1: no finite sigma, enough stencils -> the track noise sets the floor."""
+    case = hovering_ball()
+    unknown = replace(
+        case,
+        states=replace(case.states, position_sigma=np.full(case.states.position.shape, math.nan)),
+    )
+    assert run(check(params(min_travel_lengths=0.0, travel_noise="track")), unknown) == []
+    assert run(check(params(min_travel_lengths=0.0, travel_noise="declared")), unknown) != []
+
+
+@pytest.mark.parametrize(("check", "params"), CHECKS)
 def test_t11_too_few_stencils_fall_back_to_the_declared_sigma(check: type, params: type) -> None:
     case = declared_far_too_large()
     rows = case.states.n_frames - 3
