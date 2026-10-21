@@ -103,7 +103,7 @@ def test_repository_configs(config_dir: Path) -> None:
     precise = load_settings(config_dir, environ={}, profile="precise")
     assert fast.profile == "fast" and fast.sections["extraction"]["plan"]["track"] == "edgetam"
     assert precise.sections["extraction"]["plan"]["track"] == "sam2_1_hiera_tiny"
-    assert precise.sections["extraction"]["plan"]["depth"] == "vda_small"
+    assert precise.sections["extraction"]["plan"]["depth"] == "vda_large"  # it3 gate commit
     assert precise.sections["extraction"]["sampling"]["max_side"] == 960
     assert precise.sections["extraction"]["sampling"]["target_fps"] == {
         "kubric_synthetic": 24, "physics_iq": 30, "pisa_real": 120,
