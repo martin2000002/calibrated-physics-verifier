@@ -68,7 +68,23 @@ def test_b4_the_rule_flags_an_estimated_focal_without_a_floor(
     overrides: tuple[str, ...],
     missing: bool,
 ) -> None:
-    settings = make_settings(*overrides, profile="precise")
+    # fast: precise pins its own geocalib table (it2 gate commit), which overrides these keys
+    settings = make_settings(*overrides, profile="fast")
     assert (
         floor_missing(resolve_plan(settings, real_providers, dataset="kubric_synthetic")) is missing
     )
+
+
+@pytest.mark.parametrize("dataset", ["kubric_synthetic", "physics_iq", "pisa_real"])
+def test_the_precise_profile_is_the_it2_gate_commit(
+    make_settings: SettingsFactory,
+    real_providers: Mapping[str, type[StageProvider]],
+    dataset: str,
+) -> None:
+    """p0-it2.md gate_commit: camera geocalib with the assumed focal and 8 frames; B (J6) off."""
+    plan = resolve_plan(make_settings(profile="precise"), real_providers, dataset=dataset)
+    camera = plan.step(Stage.CAMERA)
+    lift = plan.step(Stage.LIFT).params
+    assert camera.provider.name == "geocalib"
+    assert (camera.params.focal, camera.params.n_frames) == ("assumed", 8)  # type: ignore[attr-defined]
+    assert lift.temporal_filter == "none"  # type: ignore[attr-defined]

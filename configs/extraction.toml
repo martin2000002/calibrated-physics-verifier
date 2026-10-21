@@ -27,9 +27,13 @@ input_size = 280
 [extraction.profiles.precise.plan]
 detect = "grounding_dino_base"
 track = "sam2_1_hiera_tiny"
-# camera stays assumed_fov until the single gate commit of it2 (plan-it2, judgement 2 c) sets
-# camera = "geocalib" with [extraction.profiles.precise.providers.camera.geocalib] focal,
-# n_frames and focal_sigma_floor_rel explicit.
+# it2 gate commit (Knowledge/handoffs/mejora-percepcion/p0-it2.md): G-conv and G-ood pass, G-focal keeps
+# the assumed focal (OOD p90 no-harm fails), so GeoCalib gives gravity only.
+camera = "geocalib"
+
+[extraction.profiles.precise.providers.camera.geocalib]
+focal = "assumed"
+n_frames = 8
 
 [extraction.profiles.precise.sampling]
 max_side = 960
