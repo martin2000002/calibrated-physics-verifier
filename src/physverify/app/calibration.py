@@ -52,6 +52,7 @@ from physverify.calibration.sigma_recalibration import (
 )
 from physverify.calibration.summary import devscore_lines, show_lines
 from physverify.core.errors import MissingInputError, UsageError
+from physverify.core.output import Echo
 from physverify.datasets._base import DatasetSource, select_clips
 from physverify.diagnosis.chain_runner import warm_variants
 from physverify.diagnosis.chain_variants import oracle_variant, perceived_variant
@@ -77,7 +78,6 @@ from physverify.verification.policies.raw import RawPolicy
 from physverify.verification.runner import VerificationRunner
 from physverify.verification.sweep import CheckUnit
 
-Echo = Callable[[str], None]
 Guard = Callable[[Sequence[Selection], Mapping[str, str] | None], None]
 
 

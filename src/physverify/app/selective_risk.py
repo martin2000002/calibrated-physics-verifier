@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from functools import partial
 from pathlib import Path
 
@@ -13,6 +12,7 @@ from physverify.calibration.artifact_io import default_artifact_path
 from physverify.core.atomic import write_text_atomic
 from physverify.core.digests import sha256_if_file
 from physverify.core.errors import PhysverifyError
+from physverify.core.output import Echo
 from physverify.datasets._base import DatasetSource
 from physverify.diagnosis.chain_runner import ChainRunner
 from physverify.diagnosis.settings import diagnosis_settings
@@ -52,8 +52,6 @@ from physverify.verification.runner import (
     load_thresholds,
 )
 from physverify.verification.sweep import CheckUnit
-
-Echo = Callable[[str], None]
 
 
 def fit_abstention(

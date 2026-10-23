@@ -30,6 +30,7 @@ from physverify.calibration.settings import (
 from physverify.core.atomic import write_text_atomic
 from physverify.core.digests import text_sha256
 from physverify.core.errors import UsageError
+from physverify.core.output import Echo
 from physverify.finetune.scorer_scope import family_targets
 from physverify.finetune.settings import FinetuneSettings, load_finetune
 from physverify.runtime.runs import new_run
@@ -42,7 +43,6 @@ from physverify.verification.scope import SECTION as SCOPE_SECTION
 from physverify.verification.scope import CheckScope, record_path
 from physverify.verification.sweep import CheckUnit
 
-Out = Callable[[str], None]
 FamilyGap = Callable[[frozenset[str]], list[str]]
 RunPair = tuple[str, str]
 
@@ -68,7 +68,7 @@ def decide_exclusions(
     *,
     dry_run: bool,
     replace: bool,
-    out: Out,
+    out: Echo,
 ) -> None:
     """``exclusions decide``: the record is printed before it is written, so ``out`` streams."""
     settings = context.settings
@@ -94,7 +94,7 @@ def decide_exclusions(
     out(f"record: {target} sha256 {record.sha256}\n")
 
 
-def show_exclusions(context: AppContext, *, checks_hash: bool, out: Out) -> None:
+def show_exclusions(context: AppContext, *, checks_hash: bool, out: Echo) -> None:
     """``exclusions show``: the record, a note on an unvalidated or stale input, its sha256."""
     settings = context.settings
     target = record_path(_scope(context), settings.paths.calibration_dir)
@@ -178,7 +178,7 @@ def _write(paths: Sequence[Path], text: str) -> None:
         write_text_atomic(path, text)
 
 
-def _artifact_note(artifact: Path, record: ExclusionRecord, out: Out) -> None:
+def _artifact_note(artifact: Path, record: ExclusionRecord, out: Echo) -> None:
     if not artifact.is_file():
         return
     current = text_sha256(artifact.read_text(encoding="utf-8"))

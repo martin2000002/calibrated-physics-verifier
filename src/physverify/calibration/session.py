@@ -38,6 +38,7 @@ from physverify.calibration.summary import factor_lines, show_lines
 from physverify.config.models import Settings
 from physverify.core.atomic import write_text_atomic
 from physverify.core.errors import PhysverifyError, UsageError
+from physverify.core.output import Echo
 from physverify.datasets._base import DatasetSource, select_clips
 from physverify.diagnosis.error_profile_writer import write_profile
 from physverify.diagnosis.report import dataset_versions, profile_hash
@@ -59,7 +60,6 @@ from physverify.verification.sweep import CheckUnit
 
 BOTH = "both"
 
-Echo = Callable[[str], None]
 RealSources = dict[str, tuple[DatasetSource, tuple[ClipManifest, ...]]]
 
 
