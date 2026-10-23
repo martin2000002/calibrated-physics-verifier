@@ -1,0 +1,19 @@
+diff -r left/repo/configs/checks.toml right/repo/configs/checks.toml
+11c11
+< [checks.R2]            # plugin defaults live in checks/r2_equilibrium.py; override here
+---
+> [checks.R2]            # plugin defaults live in checks/r2_static_equilibrium.py; override here
+diff -r left/repo/configs/dataset.toml right/repo/configs/dataset.toml
+22c22
+< # (synth/kinematics_gt.py); "state" keeps PyBullet's. A dataset planned before this key existed
+---
+> # (synth/gt_velocity.py); "state" keeps PyBullet's. A dataset planned before this key existed
+28c28
+< # `python -m physverify.synth.hdri HDRI_haven.json openpano-listing.txt` over Kubric's public
+---
+> # `python -m physverify.synth.hdri_pools HDRI_haven.json openpano-listing.txt` over Kubric's public
+diff -r left/repo/configs/exclusion_rules.toml right/repo/configs/exclusion_rules.toml
+2c2
+< # `physverify exclusions decide` (calibration/exclusions.py). Every threshold lives here: changing
+---
+> # `physverify exclusions decide` (calibration/exclusion_rules.py). Every threshold lives here: changing

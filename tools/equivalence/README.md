@@ -40,6 +40,9 @@ lines of `diff.txt`) as a new file.
 
 - `wp1-audit-migration.diff`: WP1 (`2b34c0e`) removed `dataset audit-migration`, so its `--help`
   page and its row in `dataset --help` are gone.
+- `wp4a-config-comments.diff`: WP4a renamed modules that comments in `configs/checks.toml`,
+  `configs/dataset.toml` and `configs/exclusion_rules.toml` name, so those comment lines (and only
+  they) differ in each side's copy of `configs/`.
 
 ## Scenarios (J10 a: each asserts its exit code and that it wrote files or printed output)
 

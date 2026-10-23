@@ -52,7 +52,7 @@ ssh h200 'nohup bash /home/mmonterot/dev/wt/refactor_check.sh refactor/architect
 | 1 | dead code and one-off scripts | done, audited, H200 green (`0d4b15b`: 3415 passed, 9 skipped) |
 | 2 | shared foundations, dedupe | done, audited |
 | 3 | composition root `app/`, plugin kinds | done, audit pending |
-| 4a | pure package/module renames | todo |
+| 4a | pure package/module renames | done, audit pending |
 | 4b | thin CLI (<=150 lines per command) | todo |
 | 5 | split modules >400 lines, layer fixes, `tests/test_architecture.py` | todo |
 | 6 | tests mirror src | todo |
@@ -123,3 +123,36 @@ plan:
 
 WP3 checks: the harness from `9eb5888` to `4952261` exits 0 (only the expected
 `wp1-audit-migration.diff`; 59 golden blobs identical); targeted tests, ruff and mypy are clean.
+
+WP4a (`c475333`..HEAD) is the renames of the plan's table, as amended by the judge (JW1, JW6, JW8):
+`core.cache_keys`; `calibration.{artifact,artifact_io,dev_score,heldout_monotonicity,exclusion_rules,
+sealed_ledger,sigma_recalibration,check_weights}`; `synth.scene_scope` and
+`verification.exclusion_record`; `checks.{r2_static_equilibrium,r4_track_jump}`; the seven
+`physics.measures` modules; five private provider helpers; seven `diagnosis` modules; the packages
+`human_agreement` and `generator_comparison` and their modules; six `finetune` modules;
+`timing.target_services`; `sizing.{end_to_end,protobuf_wire,objectron_draws}`; seven `synth` modules.
+`LEGACY_PACKAGES` and `_canonical` are gone from `tests/test_architecture.py`. Registry orders are
+unchanged (contract tests). Departures:
+
+- Three tool commits (`c475333`, `352ecdd`, `c2c4751`) go before the renames that need them:
+  `ast_equal.py --sort-imports` sorts each run of imports (ruff reorders them after a rename), and
+  the allowed kinds `alias` and `variable` cover `from physverify.calibration import exclusion_rules
+  as exclusion_rules_module` in `test_exclusions.py` (the module now shares its name with the
+  `exclusion_rules` function) and the sizing module aliases that share their name with the
+  `sizing.e2e` settings attribute.
+- Each rename commit `C` passes
+  `ast_equal.py . C~1 C --paths src scripts tests tools --sort-imports [--allow docs/refactor/wp4a/<area>.tsv]`
+  with exit 0 (allowed lists for calibration, checks, extraction, finetune, timing and sizing), except
+  the three commits that edit `tests/test_architecture.py` beyond a rename (`694e17b` drops two
+  `KNOWN_VIOLATIONS` entries, `b697070` and `08847b6` empty and delete `LEGACY_PACKAGES`); those
+  differ only in that file.
+- Comments in `configs/{checks,dataset,exclusion_rules}.toml` that name a renamed module were
+  updated; the harness expects them in `expected/wp4a-config-comments.diff`.
+- `cli/_sealed` -> `app/sealing`, the check splits, `truth_measures`, the budget merge,
+  `timing/generation`, `timing/envinfo`, `timing/mp4`, public provider renames, `selective_risk` and
+  `DIFF_PATHS` stay deferred as the plan lists them. Test folders keep their names until WP6
+  (`tests/agreement`, `tests/evaluation`, `tests/unit/test_hashing.py`, ...).
+
+WP4a checks: the harness from `9eb5888` to HEAD exits 0 (`wp1-audit-migration.diff` and
+`wp4a-config-comments.diff`; 59 golden blobs identical); the full suite passes on the laptop (3620
+passed, 2 skipped, 2 deselected); ruff and mypy are clean.

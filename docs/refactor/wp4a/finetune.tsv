@@ -1,0 +1,4 @@
+tests/test_architecture.py	literal	physverify.finetune.generate -> physverify.timing.generation	physverify.finetune.candidates -> physverify.timing.generation
+tests/test_architecture.py	literal	physverify.finetune.generate -> physverify.timing.mp4	physverify.finetune.candidates -> physverify.timing.mp4
+tests/test_architecture.py	literal	physverify.finetune.generate -> physverify.timing.settings	physverify.finetune.candidates -> physverify.timing.settings
+tests/test_architecture.py	literal	physverify.finetune.generate -> physverify.timing.targets.wan21_generate	physverify.finetune.candidates -> physverify.timing.targets.wan21_generate
