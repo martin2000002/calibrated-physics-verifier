@@ -49,7 +49,9 @@ class ChainState:
         state, steps = root / STATE_FILE, root / STEPS_FILE
         for path in (state, steps):
             if not path.is_file():
-                raise ResultsInputError(f"{root} is not an A8 v2 chain directory: no {path.name}")
+                raise ResultsInputError(
+                    f"{root} is not a calibration chain directory: no {path.name}"
+                )
         return cls(
             root=root,
             env=parse_state(state.read_text(encoding="utf-8")),

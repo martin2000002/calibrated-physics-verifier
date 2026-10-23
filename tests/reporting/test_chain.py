@@ -69,5 +69,5 @@ def test_no_or_several_candidates_are_missing(tmp_path: Path, text: str, reason:
 
 
 def test_a_directory_without_state_is_refused(tmp_path: Path) -> None:
-    with pytest.raises(ResultsInputError, match="not an A8 v2 chain directory"):
+    with pytest.raises(ResultsInputError, match="not a calibration chain directory"):
         ChainState.load(tmp_path)

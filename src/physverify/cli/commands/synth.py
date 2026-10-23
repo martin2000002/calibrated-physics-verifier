@@ -112,7 +112,7 @@ NameOption = Annotated[
     str | None,
     typer.Option(
         "--name",
-        help="velocity-<convention> (WP-G 1.C, the default) or the ground-truth fix the plan "
+        help="velocity-<convention> (the default) or the ground-truth fix the plan "
         f"needs next, in order: {', '.join(GT_MIGRATIONS)}.",
     ),
 ]
@@ -130,7 +130,7 @@ def migrate_command(name: NameOption = None, commit: CommitOption = None) -> Non
     run_migrate(job, name or velocity_migration(job.ds), commit)
 
 
-@app.command("migrate-velocity", help="Alias of `migrate --name velocity-<convention>` (WP-G 1.C).")
+@app.command("migrate-velocity", help="Alias of `migrate --name velocity-<convention>`.")
 @heavy_command
 def velocity_alias(commit: CommitOption = None) -> None:
     job = _job(None)

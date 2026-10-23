@@ -44,7 +44,9 @@ def evaluation_lines(path: Path, allowed: Sequence[Mapping[str, int]]) -> list[s
     if sizes not in [dict(a) for a in allowed]:
         raise QueryError(f"{path}: real_sets {sizes} not in the allowed sets {list(allowed)}")
     if data.get("h1_primary") is None:
-        raise QueryError(f"{path} has no h1_primary: the evaluation predates WP-J2, rerun from 6")
+        raise QueryError(
+            f"{path} has no h1_primary: the evaluation predates that section, rerun from 6"
+        )
     lines = ["Real sets: " + ", ".join(f"{k} {v}" for k, v in sorted(sizes.items())), ""]
     return lines + h1_section(path.with_suffix(".md"))
 

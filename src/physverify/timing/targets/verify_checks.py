@@ -118,7 +118,7 @@ def check_measure(check_id: str) -> str:
 
 def suite_missing(find_spec: Callable[[str], object | None]) -> str | None:
     missing = [name for name in (RUNNER_MODULE, INPUTS_MODULE) if find_spec(name) is None]
-    return f"A7 verification runner not installed ({', '.join(missing)})" if missing else None
+    return f"check suite runner not installed ({', '.join(missing)})" if missing else None
 
 
 @dataclass(frozen=True)

@@ -185,7 +185,7 @@ def test_skipped_while_a7_is_missing(setup: Setup) -> None:
     assert RUNNER_MODULE in missing and INPUTS_MODULE in missing
     only_inputs = setup.target(find_spec=lambda name: None if name == INPUTS_MODULE else object())
     assert only_inputs.unavailable(setup.ctx) == (
-        f"A7 verification runner not installed ({INPUTS_MODULE})"
+        f"check suite runner not installed ({INPUTS_MODULE})"
     )
     assert setup.target().unavailable(setup.ctx) is None
 

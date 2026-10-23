@@ -25,7 +25,7 @@ DEFAULT_OUT = "results"
 
 app = typer.Typer(
     invoke_without_command=True,
-    help="Collect the reported numbers of an A8 v2 chain into results.md and results.json.",
+    help="Collect the reported numbers of a calibration chain into results.md and results.json.",
 )
 
 

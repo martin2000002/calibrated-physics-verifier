@@ -284,7 +284,7 @@ def test_an_h2_run_of_another_stratum_is_refused(cli: CliRunner, chain: Chain) -
 
 def test_an_h2_run_with_a_cuda_chain_is_refused(cli: CliRunner, tmp_path: Path) -> None:
     chain = build_chain(tmp_path, device="cuda")
-    _refused(cli, chain, "H2 runs only on the CPU calibration")
+    _refused(cli, chain, "the agreement study runs only on the CPU calibration")
 
 
 def test_an_h1_evaluation_of_another_artifact_is_refused(

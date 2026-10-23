@@ -32,8 +32,10 @@ from physverify.reporting.values import Section, Value, interval, leaf, rate, wi
 from physverify.schema.checks import InputLevel
 
 INTERVAL_ONLY = "interval only: the point difference is not stored"
-NO_AUC_CI = "no interval: the AUROC bootstrap is not implemented (ADR 0011 D6)"
-NOT_PREREGISTERED = "NOT PREREGISTERED: not the preregistered calibrated rule, no H2 claim"
+NO_AUC_CI = "no interval: the AUROC bootstrap is not implemented"
+NOT_PREREGISTERED = (
+    "NOT PREREGISTERED: not the preregistered calibrated rule, no human-agreement claim"
+)
 REHEARSAL_NOTE = "REHEARSAL (device {device}): not reportable"
 
 

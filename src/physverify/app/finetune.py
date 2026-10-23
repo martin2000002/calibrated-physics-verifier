@@ -182,9 +182,9 @@ def require_stop_rule(
             err(line)
     if not verdict.passed and verdict.enforced and deviation is None:
         raise UsageError(
-            f"pilot stop rule fired: {'; '.join(verdict.reasons)}; H3 is not evaluable with "
-            f"this verifier ({STOP_RULE_DEVIATION} TEXT, or finetune.stop_rule.enforce = false, "
-            "to go on)"
+            f"pilot stop rule fired: {'; '.join(verdict.reasons)}; the generator comparison is not "
+            f"evaluable with this verifier ({STOP_RULE_DEVIATION} TEXT, or "
+            "finetune.stop_rule.enforce = false, to go on)"
         )
     return verdict
 

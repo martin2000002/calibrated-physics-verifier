@@ -114,7 +114,7 @@ def _write_manifest(args: argparse.Namespace) -> list[str]:
     return [
         f"freeze: {args.out} sha256 {readable_sha256(args.out)}",
         f"commit {data['commit']}, configs tree {data['configs_tree']}, seed {data['seed']}",
-        f"J13 diff from P2 {args.p2_commit}: {j13}",
+        f"j13 diff from the early-extraction commit {args.p2_commit}: {j13}",
     ]
 
 

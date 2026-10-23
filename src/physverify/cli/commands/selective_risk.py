@@ -18,16 +18,21 @@ app = typer.Typer(help="Risk-coverage of the verdict policy and the abstention l
 
 OracleTableOption = Annotated[
     Path | None,
-    typer.Option(help="Oracle-level table for the reference (default: A8's oracle stratum)."),
+    typer.Option(
+        help="Oracle-level table for the reference (default: the calibration's oracle stratum)."
+    ),
 ]
 PerceivedTableOption = Annotated[
     Path | None,
-    typer.Option(help="Perceived-level table for the decisions (default: A8's perceived stratum)."),
+    typer.Option(
+        help="Perceived-level table for the decisions (default: the calibration's perceived "
+        "stratum)."
+    ),
 ]
 ProvisionalOption = Annotated[
     bool,
     typer.Option(
-        help="Ignore A8's artifact: both levels use verify's fallback table "
+        help="Ignore the calibration artifact: both levels use verify's fallback table "
         "(paths.thresholds, else the provisional taus)."
     ),
 ]
