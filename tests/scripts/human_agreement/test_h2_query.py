@@ -16,7 +16,7 @@ from physverify.human_agreement.prereg import (
     write_preregistration,
 )
 
-SCRIPTS = Path(__file__).resolve().parents[2] / "scripts" / "h200"
+SCRIPTS = Path(__file__).resolve().parents[3] / "scripts" / "h200"
 RECORD = Preregistration(
     created_utc="2026-10-20T00:00:00Z",
     commit="abc",

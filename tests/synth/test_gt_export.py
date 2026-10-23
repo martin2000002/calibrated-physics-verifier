@@ -78,7 +78,7 @@ def kubric_project(k_norm: np.ndarray, matrix_world: np.ndarray, point: np.ndarr
 
 
 def scene_camera() -> tuple[SceneSpec, np.ndarray, np.ndarray]:
-    scene = SceneSpec.load_json(DATA / "f2_bounce" / "spec.json")
+    scene = SceneSpec.load_json(DATA / "clean" / "f2_bounce" / "spec.json")
     width, height = scene.resolution
     matrix_world = spec_world_from_camera(scene.camera) @ OPENGL_TO_OPENCV
     return scene, kubric_k_norm(scene.camera, width, height), matrix_world
@@ -145,7 +145,7 @@ def fake_render(store: DatasetStore, clip_id: str, scene: SceneSpec) -> None:
 
 def test_occluder_in_front_hides_and_behind_does_not() -> None:
     scene, k_norm, matrix_world = scene_camera()
-    states = ObjectStateTable.load_npz(DATA / "f2_bounce" / "states.npz")
+    states = ObjectStateTable.load_npz(DATA / "clean" / "f2_bounce" / "states.npz")
     width, height = scene.resolution
     K = opencv_intrinsics(k_norm, width, height)  # noqa: N806
     world_from_camera = opencv_world_from_camera(matrix_world)
@@ -211,7 +211,7 @@ def applied_smoke(data_settings: Settings, families: Any, perturbations: Any) ->
     plan = plan_subset(ds, families, perturbations, "smoke")
     save_plan(store, plan)
     store.scene_dir(SIM_ID).mkdir(parents=True)
-    for path in (DATA / "f2_bounce").iterdir():
+    for path in (DATA / "clean" / "f2_bounce").iterdir():
         shutil.copy(path, store.scene_dir(SIM_ID) / path.name)
     plugins = instantiate(perturbations, ds)
     apply_variants(plan, store, plugins, ds)

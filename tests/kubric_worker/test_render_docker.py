@@ -29,7 +29,7 @@ from physverify.synth.store import DatasetStore, read_json
 
 pytestmark = pytest.mark.docker
 
-SPEC = Path(__file__).parents[1] / "synth" / "data" / "f2_bounce" / "spec.json"
+SPEC = Path(__file__).parents[1] / "synth" / "data" / "clean" / "f2_bounce" / "spec.json"
 WIDTH, HEIGHT = 96, 64
 HIDDEN = (3, 4, 5)
 SCALED = (6, 7, 8)

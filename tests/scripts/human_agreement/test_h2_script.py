@@ -14,7 +14,7 @@ import pytest
 from check_rows import UNCACHED, write_check_rows
 from shell_sandbox import Sandbox, executable
 
-REPO = Path(__file__).resolve().parents[2]
+REPO = Path(__file__).resolve().parents[3]
 H200 = REPO / "scripts" / "h200"
 SCRIPT_NAMES = (
     "_common.sh", "_steps.sh", "run_h2.sh", "a8v2_query.py", "h2_query.py", "freeze_query.py",
