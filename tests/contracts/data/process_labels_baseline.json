@@ -178,6 +178,9 @@
  "src/physverify/calibration/verdict.py": {
   "comment_or_docstring": 3
  },
+ "src/physverify/checks/_collision_windows.py": {
+  "comment_or_docstring": 1
+ },
  "src/physverify/checks/_params.py": {
   "comment_or_docstring": 1
  },
@@ -190,11 +193,14 @@
  "src/physverify/checks/r2_static_equilibrium.py": {
   "comment_or_docstring": 1
  },
- "src/physverify/checks/r3_collision_energy.py": {
-  "comment_or_docstring": 2
+ "src/physverify/checks/r3a_bounce_restitution.py": {
+  "comment_or_docstring": 1
  },
- "src/physverify/checks/r4_integrity.py": {
-  "comment_or_docstring": 5
+ "src/physverify/checks/r4_missing_permanence.py": {
+  "comment_or_docstring": 4
+ },
+ "src/physverify/checks/r4_size_constancy.py": {
+  "comment_or_docstring": 1
  },
  "src/physverify/checks/r4_track_jump.py": {
   "comment_or_docstring": 9

@@ -32,18 +32,16 @@ from physverify.checks.r2_static_equilibrium import (  # noqa: E402
     EquilibriumCheck,
     EquilibriumParams,
 )
-from physverify.checks.r3_collision_energy import (  # noqa: E402
-    EnergyGainCheck,
-    EnergyGainParams,
+from physverify.checks.r3a_bounce_restitution import (  # noqa: E402
     RestitutionCheck,
     RestitutionParams,
 )
-from physverify.checks.r4_integrity import (  # noqa: E402
-    PermanenceCheck,
-    PermanenceParams,
-    SizeConstancyCheck,
-    SizeParams,
+from physverify.checks.r3b_collision_energy_gain import (  # noqa: E402
+    EnergyGainCheck,
+    EnergyGainParams,
 )
+from physverify.checks.r4_missing_permanence import PermanenceCheck, PermanenceParams  # noqa: E402
+from physverify.checks.r4_size_constancy import SizeConstancyCheck, SizeParams  # noqa: E402
 from physverify.checks.r5a_fall_shape import FallShapeCheck, FallShapeParams  # noqa: E402
 from physverify.checks.r5b_gravity_value import (  # noqa: E402
     GravityValueCheck,
