@@ -102,7 +102,10 @@ Results recorded with the current scenario list and per-side inputs:
 For pure-move and comment/docstring commits: pairs modules by git rename detection (`-M30%`) plus
 `--renames` (`<old path>\t<new path>`), strips docstrings, rewrites the old side's imports and
 `physverify...` string constants through the module-rename map, applies `--allow` substitutions
-(`<new path or *>\t<name|literal>\t<old>\t<new>`) and compares `ast.dump`. Reports added, deleted
+(`<new path or *>\t<name|literal>\t<old>\t<new>`) and compares `ast.dump`. With `--sort-imports`
+(used for the renames of WP4a) each run of consecutive import statements and each import's names
+are sorted on both sides first, so the import reordering `ruff` makes after a rename is not a
+difference. Reports added, deleted
 and differing modules; exit 0 only when there are none. Comments are not in the AST, so
 comment-only changes are equal by construction.
 

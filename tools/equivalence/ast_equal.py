@@ -2,7 +2,7 @@
 commits.
 
     ast_equal.py <repo> <old-rev> <new-rev> [--allow allowed.tsv] [--renames renames.tsv]
-                 [--paths src scripts tests]
+                 [--paths src scripts tests] [--sort-imports]
 
 Modules are paired by git rename detection, plus the explicit `<old path>\t<new path>` lines of
 renames.tsv (needed for small files whose similarity git cannot see). Before comparing, docstrings
@@ -10,6 +10,9 @@ are stripped, the old side's imports are rewritten through the module-rename map
 the paired files, and the allowed substitutions are applied to the old side. allowed.tsv lines:
 
     <new path or *>\t<kind>\t<old>\t<new>        kind: name (identifiers) | literal (str constants)
+
+With --sort-imports, each run of consecutive import statements and each import's names are
+sorted on both sides, so the reordering a linter makes after a rename does not count.
 
 Exit 0 when every paired module is equal and no module was added or deleted.
 """
@@ -151,11 +154,37 @@ def _strip_docstrings(tree: ast.AST) -> None:
             node.body = body[1:] or [ast.Pass()]
 
 
-def _dump(source: str, rewrite: _Rewrite | None) -> str:
+def _sorted_run(run: list[ast.stmt]) -> list[ast.stmt]:
+    for node in run:
+        node.names.sort(key=ast.dump)  # type: ignore[attr-defined]
+    return sorted(run, key=ast.dump)
+
+
+def _sort_imports(tree: ast.AST) -> None:
+    for node in ast.walk(tree):
+        body = getattr(node, "body", None)
+        if not isinstance(body, list):
+            continue
+        ordered: list[ast.stmt] = []
+        run: list[ast.stmt] = []
+        for statement in [*body, None]:
+            if isinstance(statement, (ast.Import, ast.ImportFrom)):
+                run.append(statement)
+                continue
+            ordered.extend(_sorted_run(run))
+            run = []
+            if statement is not None:
+                ordered.append(statement)
+        node.body = ordered  # type: ignore[attr-defined]
+
+
+def _dump(source: str, rewrite: _Rewrite | None, sort_imports: bool = False) -> str:
     tree = ast.parse(source)
     _strip_docstrings(tree)
     if rewrite is not None:
         tree = rewrite.visit(tree)
+    if sort_imports:
+        _sort_imports(tree)
     return ast.dump(tree, indent=1)
 
 
@@ -179,6 +208,7 @@ def compare(
     roots: Sequence[str],
     allowed: Allowed,
     explicit: Mapping[str, str],
+    sort_imports: bool = False,
 ) -> int:
     before, after = _python_files(repo, old, roots), _python_files(repo, new, roots)
     pairs = {path: path for path in before & after}
@@ -198,8 +228,8 @@ def compare(
             allowed.for_path(allowed.names, new_path),
             allowed.for_path(allowed.literals, new_path),
         )
-        left = _dump(_git(repo, "show", f"{old}:{old_path}"), rewrite)
-        right = _dump(_git(repo, "show", f"{new}:{new_path}"), None)
+        left = _dump(_git(repo, "show", f"{old}:{old_path}"), rewrite, sort_imports)
+        right = _dump(_git(repo, "show", f"{new}:{new_path}"), None, sort_imports)
         if left != right:
             problems += 1
             label = old_path if old_path == new_path else f"{old_path} -> {new_path}"
@@ -218,6 +248,7 @@ def main(argv: Sequence[str]) -> int:
     parser.add_argument("--allow", type=Path)
     parser.add_argument("--renames", type=Path)
     parser.add_argument("--paths", nargs="+", default=["src", "scripts", "tests"])
+    parser.add_argument("--sort-imports", action="store_true")
     args = parser.parse_args(argv)
     explicit = {}
     if args.renames is not None:
@@ -226,7 +257,7 @@ def main(argv: Sequence[str]) -> int:
                 source, target = line.split("\t")
                 explicit[source] = target
     allowed = _load_allowed(args.allow)
-    return compare(args.repo, args.old, args.new, args.paths, allowed, explicit)
+    return compare(args.repo, args.old, args.new, args.paths, allowed, explicit, args.sort_imports)
 
 
 if __name__ == "__main__":
