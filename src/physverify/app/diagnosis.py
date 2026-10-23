@@ -7,6 +7,7 @@ import functools
 from collections.abc import Callable
 
 from physverify.app.context import AppContext
+from physverify.app.extraction import recorded_run
 from physverify.app.services import check_suite, dataset_for, pipeline_deps
 from physverify.diagnosis.context import DiagnosisContext, sampled_metrics
 from physverify.diagnosis.report import Report
@@ -15,7 +16,7 @@ from physverify.diagnosis.settings import diagnosis_settings
 from physverify.diagnosis.summary import MAX_SUMMARY_LINES, summary_lines
 from physverify.diagnosis.verification_adapter import CheckSuite
 from physverify.extraction._base import StageObserver
-from physverify.extraction.events import ConsoleObserver, EventRecorder, write_events
+from physverify.extraction.events import ConsoleObserver, EventRecorder
 from physverify.extraction.pipeline import ExtractionReport
 from physverify.runtime.runs import new_run
 
@@ -61,16 +62,15 @@ def execute(
     echo: Callable[[str], None],
 ) -> Report:
     """Run ``runner``, then write ``diagnosis/<name>.{json,md}`` and ``events.jsonl``."""
-    run_dir = ctx.run.run_dir
-    events = run_dir / EVENTS_FILE
-    echo(f"run: {run_dir}")
-    try:
-        report = runner(ctx)
-    except Exception as exc:
-        write_events(events, recorder.aborted_report(exc))
-        raise
-    write_events(events, ExtractionReport(tuple(recorder.finished), (), {}))
-    _, markdown = write_report(run_dir, name, report)
+    report = recorded_run(
+        ctx.run.run_dir,
+        EVENTS_FILE,
+        recorder,
+        functools.partial(runner, ctx),
+        lambda _: ExtractionReport(tuple(recorder.finished), (), {}),
+        echo,
+    )
+    _, markdown = write_report(ctx.run.run_dir, name, report)
     echo(f"report: {markdown}")
     for line in summary_lines(report)[:MAX_SUMMARY_LINES]:
         echo(line)

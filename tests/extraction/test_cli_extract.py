@@ -15,7 +15,7 @@ from support import plan_overrides
 from synthetic_clip import CLIP_ID, SyntheticFixtureDataset
 
 from physverify.app import plugins
-from physverify.cli.commands import extract
+from physverify.app.extraction import EVENTS_FILE
 from physverify.core.errors import PluginError
 from physverify.extraction._base import StageContext, provider_key
 from physverify.runtime.heavy import holder_path
@@ -43,7 +43,7 @@ def fixture_registries(monkeypatch: pytest.MonkeyPatch) -> None:
 def events_of(output: str) -> list[dict[str, Any]]:
     (line,) = [line for line in output.splitlines() if line.startswith("run: ")]
     run_dir = Path(line.removeprefix("run: "))
-    lines = (run_dir / extract.EVENTS_FILE).read_text().splitlines()
+    lines = (run_dir / EVENTS_FILE).read_text().splitlines()
     return [json.loads(line) for line in lines]
 
 

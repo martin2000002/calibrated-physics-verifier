@@ -7,27 +7,17 @@ from typing import Annotated
 
 import typer
 
-from physverify.app.services import dataset_for, pipeline_deps, plan_for
+from physverify.app.extraction import run_extraction
+from physverify.app.services import plan_for
 from physverify.cli.context import app_context, heavy_command
 from physverify.core.download import BYTES_PER_MB
 from physverify.core.errors import EXIT_ERROR, UsageError
-from physverify.datasets._base import select_clips
 from physverify.extraction.cache import StageCache
-from physverify.extraction.events import (
-    ConsoleObserver,
-    EventRecorder,
-    plan_providers,
-    summary_lines,
-    write_events,
-)
-from physverify.extraction.pipeline import ExtractionPipeline
+from physverify.extraction.events import plan_providers
 from physverify.extraction.weights import NetworkDownloader, fetch, hub_cache
-from physverify.runtime.runs import new_run
-from physverify.schema.stages import parse_stages
 from physverify.synth.migrate import manifest_dataset, rerender_clip_ids
 
 NAME = "extract"
-EVENTS_FILE = "extraction.jsonl"
 
 app = typer.Typer(
     help="Perception pipeline: from video to states and contacts.",
@@ -44,29 +34,16 @@ def run(
     max_side: Annotated[int | None, typer.Option(help="Longest frame side in pixels.")] = None,
     subset: Annotated[str | None, typer.Option(help="Dataset subset.")] = None,
 ) -> None:
-    context = app_context()
-    settings = context.settings
-    source = dataset_for(context, dataset)
-    selected = select_clips(source.clips(subset), clips or ())
-    plan = plan_for(
-        context,
-        dataset=dataset,
-        gt_stages=parse_stages(gt or ()),
+    report = run_extraction(
+        app_context(),
+        dataset,
+        clips or (),
+        gt or (),
         fps=fps,
         max_side=max_side,
+        subset=subset,
+        echo=typer.echo,
     )
-    run_context = new_run(settings, context.invocation.argv)
-    events_path = run_context.run_dir / EVENTS_FILE
-    typer.echo(f"run: {run_context.run_dir}")
-    recorder = EventRecorder(ConsoleObserver(typer.echo))
-    try:
-        report = ExtractionPipeline(plan, pipeline_deps(context, recorder)).run(source, selected)
-    except Exception as exc:
-        write_events(events_path, recorder.aborted_report(exc))
-        raise
-    write_events(events_path, report)
-    for line in summary_lines(report):
-        typer.echo(line)
     if report.failures:
         raise typer.Exit(code=EXIT_ERROR)
 
