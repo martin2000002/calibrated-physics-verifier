@@ -446,26 +446,52 @@ cmd_look() {
     note "evaluation $evaluation sha256 $(sha_of "$evaluation") (report $(dirname "$evaluation")/evaluation.md)"
 }
 
-# The v1 arm's configs: the freeze's with C_V1's checks.toml (J11); a rerun must find the same.
+# flat_files DIR: FLAT is every file under DIR, sorted. The v1 arm's configs are one flat
+# directory (the v1 checkout reads only configs/*.toml), so two files sharing a basename stop.
+flat_files() {
+    local file seen=" "
+    mapfile -d '' FLAT < <(find "$1" -type f -print0 | sort -z)
+    for file in "${FLAT[@]}"; do
+        [[ "$seen" != *" ${file##*/} "* ]] || stop "$1 holds two files named ${file##*/}"
+        seen+="${file##*/} "
+    done
+}
+
+# The v1 arm's configs: the freeze's, flattened, with C_V1's checks.toml (J11); a rerun must find
+# the same. Only checks.toml may differ; a file missing on either side stops.
 v1_configs() {
-    local arm="$1" ckv="$2" diff="$1/configs.diff" now
+    local arm="$1" ckv="$2" diff="$1/configs.diff" now="" file name entries
     if [[ ! -d "$arm/configs" ]]; then
-        mkdir -p "$arm/configs.tmp"
+        mkdir -p "$arm/configs.tmp/flat"
         git -C "$REPO_ROOT" archive HEAD configs | tar -x -C "$arm/configs.tmp"
-        cp "$ckv/configs/checks.toml" "$arm/configs.tmp/configs/checks.toml"
-        mv "$arm/configs.tmp/configs" "$arm/configs"
-        rmdir "$arm/configs.tmp"
+        flat_files "$arm/configs.tmp/configs"
+        cp "${FLAT[@]}" "$arm/configs.tmp/flat/"
+        cp "$ckv/configs/checks.toml" "$arm/configs.tmp/flat/checks.toml"
+        mv "$arm/configs.tmp/flat" "$arm/configs"
+        rm -rf "$arm/configs.tmp"
     fi
-    now="$(diff -r "$REPO_ROOT/configs" "$arm/configs" || true)"
-    if [[ -n "$now" ]] && grep -v '^[-<>0-9]' <<<"$now" | grep -qv "checks.toml"; then
-        stop "the v1 arm's configs differ from the freeze's beyond checks.toml: $now"
-    fi
+    flat_files "$REPO_ROOT/configs"
+    for file in "${FLAT[@]}"; do
+        name="${file##*/}"
+        [[ -f "$arm/configs/$name" ]] \
+            || stop "the v1 arm's configs differ from the freeze's beyond checks.toml: no $name"
+        if [[ "$name" == checks.toml ]]; then
+            now="$(diff "$file" "$arm/configs/$name" || true)"
+            [[ -z "$now" ]] || now="diff -r $file $arm/configs/$name"$'\n'"$now"
+        elif ! cmp -s "$file" "$arm/configs/$name"; then
+            stop "the v1 arm's configs differ from the freeze's beyond checks.toml: $name"
+        fi
+    done
+    mapfile -d '' entries < <(find "$arm/configs" -mindepth 1 -print0)
+    [[ "${#entries[@]}" == "${#FLAT[@]}" ]] \
+        || stop "the v1 arm's configs differ from the freeze's beyond checks.toml: extra files"
     if [[ -f "$diff" ]]; then
         [[ "$now" == "$(cat "$diff")" ]] || stop "$arm/configs changed since $diff"
     else
         printf '%s\n' "$now" >"$diff"
     fi
-    note "v1 configs: the freeze's with $ckv/configs/checks.toml; configs.diff sha256 $(sha_of "$diff")"
+    note "v1 configs: the freeze's, flat, with $ckv/configs/checks.toml; configs.diff sha256" \
+        "$(sha_of "$diff")"
 }
 
 cmd_v1arm() {
