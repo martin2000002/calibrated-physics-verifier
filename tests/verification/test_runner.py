@@ -12,10 +12,13 @@ from typing import Any
 
 import check_scenarios as sc
 import pytest
+from settings_factory import SettingsFactory
 
+from physverify.app.plugins import PLUGIN_KINDS
 from physverify.checks._base import Check, CheckInputs
 from physverify.checks._params import CommonParams
 from physverify.checks._results import abstain, unscored
+from physverify.core.errors import ConfigError
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
 from physverify.schema.clip import ClipManifest
 from physverify.schema.io import read_jsonl
@@ -30,6 +33,7 @@ from physverify.verification.runner import (
     VerificationReport,
     VerificationRunner,
     aggregate,
+    configured_suite,
     write_report,
 )
 from physverify.verification.thresholding import ThresholdTable
@@ -215,3 +219,17 @@ def test_outputs_round_trip(tmp_path: Path) -> None:
 @pytest.mark.parametrize("status", list(RowStatus))
 def test_row_status_values_are_the_declared_ones(status: RowStatus) -> None:
     assert status.value in {"scored", "abstained", "no_event", "error"}
+
+
+def test_configured_suite_builds_the_registered_checks_and_the_chosen_policy(
+    make_settings: SettingsFactory,
+) -> None:
+    checks, policies = PLUGIN_KINDS["checks"](), PLUGIN_KINDS["policies"]()
+    suite = configured_suite(make_settings(), checks, policies, policy=RawPolicy.name)
+    assert [type(check).check_id for check in suite.checks] == list(checks)
+    assert isinstance(suite.policy, RawPolicy)
+    assert suite.verification.policy == RawPolicy.name
+    assert not suite.thresholds.calibrated
+    assert isinstance(suite.runner(), VerificationRunner)
+    with pytest.raises(ConfigError, match="unknown verdict policy 'nope'"):
+        configured_suite(make_settings(), checks, policies, policy="nope")

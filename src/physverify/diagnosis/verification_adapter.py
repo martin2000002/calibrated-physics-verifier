@@ -17,15 +17,9 @@ from physverify.schema.clip import ClipManifest
 from physverify.schema.outputs import StageOutput
 from physverify.schema.stages import Stage
 from physverify.verification._base import VerdictPolicy
-from physverify.verification.check_set import CHECKS_SECTION, ChecksSettings, build_checks
 from physverify.verification.inputs import ClipInputs, OracleSource, perceived_inputs
-from physverify.verification.runner import (
-    VERIFICATION_SECTION,
-    VerificationRunner,
-    VerificationSettings,
-    build_policy,
-)
-from physverify.verification.thresholding import ThresholdTable, load_thresholds
+from physverify.verification.runner import VerificationRunner, configured_suite
+from physverify.verification.thresholding import ThresholdTable
 
 
 class CheckSuite(Protocol):
@@ -90,11 +84,8 @@ class VerificationCheckSuite:
         checks: Mapping[str, type[Check]],
         policies: Mapping[str, type[VerdictPolicy]],
     ) -> VerificationCheckSuite:
-        verification = settings.section(VERIFICATION_SECTION, VerificationSettings)
-        built = build_checks(checks, settings.section(CHECKS_SECTION, ChecksSettings))
-        policy = build_policy(policies, verification)
-        thresholds = load_thresholds(settings.paths.thresholds, verification.thresholds)
-        return cls(built, policy, thresholds)
+        suite = configured_suite(settings, checks, policies)
+        return cls(suite.checks, suite.policy, suite.thresholds)
 
     @property
     def provisional(self) -> bool:

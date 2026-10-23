@@ -15,17 +15,18 @@ from pydantic import Field
 
 from physverify.checks._base import Check, CheckInputs, missing_inputs
 from physverify.checks._results import abstain, row_step_or_none
-from physverify.config.models import validated
+from physverify.config.models import Settings, validated
 from physverify.core.errors import ConfigError
 from physverify.core.models import FrozenModel
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
 from physverify.schema.clip import ClipManifest
 from physverify.schema.io import write_jsonl
 from physverify.verification._base import VerdictPolicy
+from physverify.verification.check_set import CHECKS_SECTION, ChecksSettings, build_checks
 from physverify.verification.decisive import Judged, decisive
 from physverify.verification.inputs import ClipInputs, InputSource
 from physverify.verification.sweep import SpecificitySettings
-from physverify.verification.thresholding import ThresholdTable
+from physverify.verification.thresholding import ThresholdTable, load_thresholds
 
 VERIFICATION_SECTION = "verification"
 CHECKS_FILE = "checks.jsonl"
@@ -133,6 +134,37 @@ class VerificationRunner:
         else:
             result = _abstain_without_inputs(check, item.clip, item.input_level, details)
         return replace(result, provenance={**result.provenance, THRESHOLDS_KEY: self._label})
+
+
+@dataclass(frozen=True)
+class ConfiguredSuite:
+    """The configured checks, verdict policy and thresholds of a run."""
+
+    verification: VerificationSettings
+    checks: tuple[Check, ...]
+    policy: VerdictPolicy
+    thresholds: ThresholdTable
+
+    def runner(self) -> VerificationRunner:
+        return VerificationRunner(self.checks, self.policy, self.thresholds)
+
+
+def configured_suite(
+    settings: Settings,
+    checks: Mapping[str, type[Check]],
+    policies: Mapping[str, type[VerdictPolicy]],
+    *,
+    policy: str | None = None,
+) -> ConfiguredSuite:
+    """The ``[checks]`` and ``[verification]`` sections built over the registries (``policy``
+    overrides the configured one)."""
+    verification = settings.section(VERIFICATION_SECTION, VerificationSettings)
+    if policy is not None:
+        verification = verification.model_copy(update={"policy": policy})
+    built = build_checks(checks, settings.section(CHECKS_SECTION, ChecksSettings))
+    decider = build_policy(policies, verification)
+    thresholds = load_thresholds(settings.paths.thresholds, verification.thresholds)
+    return ConfiguredSuite(verification, built, decider, thresholds)
 
 
 def aggregate(

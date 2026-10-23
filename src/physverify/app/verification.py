@@ -16,7 +16,6 @@ from physverify.datasets._base import DatasetSource, select_clips
 from physverify.runtime.runs import new_run
 from physverify.schema.checks import InputLevel
 from physverify.schema.stages import Stage, parse_stages
-from physverify.verification.check_set import CHECKS_SECTION, ChecksSettings, build_checks
 from physverify.verification.inputs import (
     InputSource,
     OracleSource,
@@ -26,12 +25,11 @@ from physverify.verification.inputs import (
 )
 from physverify.verification.runner import (
     CHECKS_HASH_FILE,
-    VERIFICATION_SECTION,
     RowStatus,
     VerificationReport,
     VerificationRunner,
     VerificationSettings,
-    build_policy,
+    configured_suite,
     write_report,
 )
 from physverify.verification.summary import (
@@ -45,7 +43,7 @@ from physverify.verification.summary import (
 )
 from physverify.verification.sweep import CheckUnit, matrix, write_sweep
 from physverify.verification.target_ranking import specificity
-from physverify.verification.thresholding import ThresholdTable, load_thresholds
+from physverify.verification.thresholding import ThresholdTable
 
 
 def policy_names(context: AppContext) -> list[str]:
@@ -62,18 +60,10 @@ class _Verifier:
 
 def _verifier(context: AppContext, policy: str | None) -> _Verifier:
     """The configured checks, thresholds and verdict policy (``policy`` overrides the latter)."""
-    settings = context.settings
-    verification = settings.section(VERIFICATION_SECTION, VerificationSettings)
-    if policy is not None:
-        verification = verification.model_copy(update={"policy": policy})
-    thresholds = load_thresholds(settings.paths.thresholds, verification.thresholds)
-    checks = build_checks(
-        context.registry("checks"), settings.section(CHECKS_SECTION, ChecksSettings)
+    suite = configured_suite(
+        context.settings, context.registry("checks"), context.registry("policies"), policy=policy
     )
-    runner = VerificationRunner(
-        checks, build_policy(context.registry("policies"), verification), thresholds
-    )
-    return _Verifier(verification, checks, thresholds, runner)
+    return _Verifier(suite.verification, suite.checks, suite.thresholds, suite.runner())
 
 
 def _write_run(

@@ -74,15 +74,8 @@ from physverify.timing.environment import TorchCudaProbe
 from physverify.timing.finetune_budget import BudgetRequest as BudgetRequest
 from physverify.timing.finetune_budget import budget_report
 from physverify.timing.settings import load_timing
-from physverify.verification.check_set import CHECKS_SECTION, ChecksSettings, build_checks
 from physverify.verification.inputs import PerceivedSource, PipelineOutputLoader
-from physverify.verification.runner import (
-    VERIFICATION_SECTION,
-    VerificationRunner,
-    VerificationSettings,
-    build_policy,
-)
-from physverify.verification.thresholding import load_thresholds
+from physverify.verification.runner import configured_suite
 
 NESTED_LOCK: Final = "held by finetune"
 
@@ -124,12 +117,8 @@ def candidate_generator(
 
 def scoring_deps(context: AppContext) -> ScoringDeps:
     """Perceived inputs from the extraction pipeline over ``local_video``; checks from the suite."""
-    settings = context.settings
-    verification = settings.section(VERIFICATION_SECTION, VerificationSettings)
-    runner = VerificationRunner(
-        build_checks(context.registry("checks"), settings.section(CHECKS_SECTION, ChecksSettings)),
-        build_policy(context.registry("policies"), verification),
-        load_thresholds(settings.paths.thresholds, verification.thresholds),
+    suite = configured_suite(
+        context.settings, context.registry("checks"), context.registry("policies")
     )
     dataset = dataset_for(context, LOCAL_VIDEO)
     plan = plan_for(context, dataset=LOCAL_VIDEO)
@@ -137,7 +126,7 @@ def scoring_deps(context: AppContext) -> ScoringDeps:
     return ScoringDeps(
         clips=dataset.clips,
         source=PerceivedSource(dataset, loader, InputLevel.PERCEIVED),
-        runner=runner,
+        runner=suite.runner(),
     )
 
 

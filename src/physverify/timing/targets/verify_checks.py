@@ -78,25 +78,15 @@ def load_suite(
     checks: Mapping[str, type[Check]],
     policies: Mapping[str, type[VerdictPolicy]],
 ) -> Verifier:
-    from physverify.verification.check_set import CHECKS_SECTION, ChecksSettings, build_checks
-    from physverify.verification.runner import (
-        VERIFICATION_SECTION,
-        VerificationRunner,
-        VerificationSettings,
-        build_policy,
-    )
-    from physverify.verification.thresholding import load_thresholds
+    from physverify.verification.runner import configured_suite
 
-    config = settings.section(VERIFICATION_SECTION, VerificationSettings)
-    built = tuple(build_checks(checks, settings.section(CHECKS_SECTION, ChecksSettings)))
-    policy = build_policy(policies, config)
-    thresholds = load_thresholds(settings.paths.thresholds, config.thresholds)
+    suite = configured_suite(settings, checks, policies)
 
     def perceived(dataset: DatasetSource, plan: ResolvedPlan, deps: PipelineDeps) -> InputSource:
         loader = PipelineOutputLoader(plan, deps)
         return PerceivedSource(dataset, loader, InputLevel.PERCEIVED)
 
-    return Verifier(built, VerificationRunner(built, policy, thresholds), perceived)
+    return Verifier(suite.checks, suite.runner(), perceived)
 
 
 def check_measure(check_id: str) -> str:
