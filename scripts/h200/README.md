@@ -28,7 +28,7 @@ use and what each script leaves behind.
 | `setup_autoeval.sh`, `smoke_autoeval.sh`, `autoeval_requirements.txt` | VideoPhy-2 AutoEval judge and its gate |
 | `run_generator_comparison.sh` | Fine-tuned vs base vs best-of-8 |
 | `run_demo.sh` | End-to-end demo |
-| `run_query.py` | Read-only queries the scripts ask of the checkout |
+| `run_query.py` | Read-only queries the scripts ask of the checkout (`physverify.app.queries`) |
 | `_common.sh`, `_steps.sh`, `_guards.sh`, `env.example.sh` | Shared helpers (sourced) and the environment template |
 
 ## Machine-local root and environment
@@ -236,7 +236,8 @@ The sealed ledger (`configs/verifier/sealed.toml`): `calibrate fit|stage-sigma|e
 `selective-risk fit|curve`, `verify`, `diagnose *` and `scene-stats per-clip` exit 2 before
 computing on a sealed set (`kubric_synthetic:eval`, `kubric_fresh`, `kubric_fresh_ood`,
 `kubric_fresh_blind`, `physics_iq_views`, `objectron_static`) unless `PHYSVERIFY_UNSEAL`
-names it, and then append a line to the ledger first. A look never creates the ledger: create it
+names it, and then append a line to the ledger first; the read and the append hold one flock on
+the sibling `<ledger>.lock`. A look never creates the ledger: create it
 once, by hand, with `env.sh` sourced (`touch "$PHYSVERIFY_H200_ROOT/sealed-ledger.txt"`); a missing
 file (a wrong `HOME`, another path) stops the look, and stderr prints the path it resolved. A look
 needs a clean git checkout (nothing uncommitted under `src` or `configs`). Its frozen state is the
