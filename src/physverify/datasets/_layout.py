@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
-from pydantic import RootModel, ValidationError
+from pydantic import RootModel
 
-from physverify.core.errors import ConfigError
+from physverify.core.jsonio import read_model
 from physverify.core.local_manifest import QueryList, to_queries
 from physverify.schema.clip import ObjectQuery
 
@@ -30,8 +29,5 @@ def load_annotations(path: Path) -> dict[str, tuple[ObjectQuery, ...]]:
     """``{clip_id or scenario: queries}`` from a hand-written annotation file (empty if absent)."""
     if not path.is_file():
         return {}
-    try:
-        table = _Annotations.model_validate(json.loads(path.read_text(encoding="utf-8")))
-    except (json.JSONDecodeError, ValidationError) as exc:
-        raise ConfigError(f"{path} is invalid:\n{exc}") from exc
+    table = read_model(_Annotations, path)
     return {key: to_queries(entries) for key, entries in table.root.items()}

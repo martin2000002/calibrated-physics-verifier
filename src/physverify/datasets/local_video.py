@@ -8,14 +8,12 @@ There is no ground truth.
 
 from __future__ import annotations
 
-import json
 from collections.abc import Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
-from pydantic import BaseModel, ValidationError
-
 from physverify.core.errors import ConfigError, MissingInputError, UsageError
+from physverify.core.jsonio import read_model
 from physverify.core.local_manifest import (
     MANIFEST_FILE,
     ClipEntry,
@@ -37,13 +35,6 @@ DEFAULT_SUBSET = "default"
 NAME = "local_video"
 
 
-def _read_model[M: BaseModel](path: Path, model: type[M]) -> M:
-    try:
-        return model.model_validate(json.loads(path.read_text(encoding="utf-8")))
-    except (json.JSONDecodeError, ValidationError) as exc:
-        raise ConfigError(f"{path} is invalid:\n{exc}") from exc
-
-
 class _QueryFile(FrozenModel):
     queries: QueryList
 
@@ -61,7 +52,7 @@ class LocalVideoDataset:
         if not path.is_file():
             raise MissingInputError(f"no {MANIFEST_FILE} in {directory} (it lists the clips)")
         clips = [
-            self._manifest(directory, entry) for entry in _read_model(path, LocalManifest).clips
+            self._manifest(directory, entry) for entry in read_model(LocalManifest, path).clips
         ]
         ids = [clip.clip_id for clip in clips]
         duplicated = sorted({i for i in ids if ids.count(i) > 1})
@@ -120,7 +111,7 @@ class LocalVideoDataset:
             return to_queries(entry.queries)
         sidecar = directory / f"{clip_id}{QUERIES_SUFFIX}"
         if sidecar.is_file():
-            return to_queries(_read_model(sidecar, _QueryFile).queries)
+            return to_queries(read_model(_QueryFile, sidecar).queries)
         return ()
 
 

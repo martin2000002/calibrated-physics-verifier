@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from physverify.core.errors import PhysverifyError, UsageError
+from physverify.core.errors import ConfigError, PhysverifyError, UsageError
 from physverify.core.jsonio import loads, read_json, read_model
 from physverify.core.models import FrozenModel
 
@@ -36,5 +36,17 @@ def test_read_model_validates(tmp_path: Path) -> None:
     path.write_text('{"x": 3}', encoding="utf-8")
     assert read_model(Point, path) == Point(x=3)
     path.write_text('{"x": "three"}', encoding="utf-8")
-    with pytest.raises(PhysverifyError, match="is not a valid Point"):
+    with pytest.raises(ConfigError, match=r"p\.json is invalid:\n"):
         read_model(Point, path)
+
+
+def test_read_model_rejects_invalid_json(tmp_path: Path) -> None:
+    path = tmp_path / "p.json"
+    path.write_text("{", encoding="utf-8")
+    with pytest.raises(ConfigError, match=r"p\.json is invalid:\n"):
+        read_model(Point, path)
+
+
+def test_read_model_leaves_read_errors_unwrapped(tmp_path: Path) -> None:
+    with pytest.raises(FileNotFoundError):
+        read_model(Point, tmp_path / "absent.json")

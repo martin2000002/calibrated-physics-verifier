@@ -7,15 +7,13 @@ the dataset refuses a reviewed subset whose recomputed hash differs.
 
 from __future__ import annotations
 
-import json
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Literal
 
-from pydantic import ValidationError
-
 from physverify.core.atomic import write_text_atomic
 from physverify.core.errors import ConfigError, MissingInputError
+from physverify.core.jsonio import read_model
 from physverify.core.models import FrozenModel
 from physverify.datasets._videophy_tables import VideophyRow
 from physverify.schema.io import stable_hash
@@ -69,10 +67,7 @@ def subset_hash(clip_ids: Sequence[str]) -> str:
 def load_review(path: Path) -> SubsetReview | None:
     if not path.is_file():
         return None
-    try:
-        return SubsetReview.model_validate(json.loads(path.read_text(encoding="utf-8")))
-    except (json.JSONDecodeError, ValidationError) as exc:
-        raise ConfigError(f"{path} is invalid:\n{exc}") from exc
+    return read_model(SubsetReview, path)
 
 
 def write_review(path: Path, review: SubsetReview) -> None:

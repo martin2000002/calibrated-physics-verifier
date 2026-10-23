@@ -8,7 +8,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, ValidationError
 
-from physverify.core.errors import PhysverifyError
+from physverify.core.errors import ConfigError, PhysverifyError
 
 ErrorFactory = Callable[[str], Exception]
 
@@ -31,12 +31,12 @@ def read_json(path: Path, error: ErrorFactory = PhysverifyError) -> object:
     return loads(text, path, error)
 
 
-def read_model[M: BaseModel](
-    model: type[M], path: Path, error: ErrorFactory = PhysverifyError
-) -> M:
-    """``model`` validated from the JSON in ``path``; a failure raises ``error``."""
-    data = read_json(path, error)
+def read_model[M: BaseModel](model: type[M], path: Path) -> M:
+    """``model`` validated from the JSON in ``path``; invalid JSON or data raises ``ConfigError``.
+
+    A file that cannot be read raises its own ``OSError``, unwrapped.
+    """
     try:
-        return model.model_validate(data)
-    except ValidationError as exc:
-        raise error(f"{path} is not a valid {model.__name__}: {exc}") from exc
+        return model.model_validate(json.loads(path.read_text(encoding="utf-8")))
+    except (json.JSONDecodeError, ValidationError) as exc:
+        raise ConfigError(f"{path} is invalid:\n{exc}") from exc

@@ -9,16 +9,16 @@ comparison."""
 from __future__ import annotations
 
 import datetime as dt
-import json
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Final, Protocol
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field
 
 from physverify.core.atomic import write_text_atomic
 from physverify.core.digests import sha256_if_file
 from physverify.core.errors import ConfigError, MissingInputError, UsageError
+from physverify.core.jsonio import read_model
 from physverify.core.models import FrozenModel
 
 FROZEN_FIELDS = (
@@ -166,10 +166,7 @@ def load_preregistration(path: Path) -> Preregistration:
         raise MissingInputError(
             f"{path} is missing; run `physverify agreement freeze` on the dev run"
         )
-    try:
-        return Preregistration.model_validate(json.loads(path.read_text(encoding="utf-8")))
-    except (json.JSONDecodeError, ValidationError) as exc:
-        raise ConfigError(f"{path} is invalid:\n{exc}") from exc
+    return read_model(Preregistration, path)
 
 
 def preregistration_chain(path: Path, record: Preregistration) -> list[Preregistration]:
