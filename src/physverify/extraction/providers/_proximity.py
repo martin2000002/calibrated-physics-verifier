@@ -15,6 +15,7 @@ from numpy.typing import NDArray
 from pydantic import Field
 
 from physverify.extraction.providers._common import ProviderParams
+from physverify.physics.contact_manifold import contact_manifold
 from physverify.physics.geometry import (
     Body,
     Manifold,
@@ -24,11 +25,10 @@ from physverify.physics.geometry import (
     Solid,
     assumed_upright_pose,
     characteristic_lengths,
-    contact_manifold,
     pose_from_quaternion,
-    signed_distance,
 )
 from physverify.physics.kinematics import visible_runs
+from physverify.physics.signed_distance import signed_distance
 from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactKind, ContactRecord, ManifoldKind
 from physverify.schema.states import ObjectStateTable, PrimitiveKind

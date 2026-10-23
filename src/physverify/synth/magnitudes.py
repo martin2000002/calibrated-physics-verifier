@@ -9,15 +9,8 @@ from collections.abc import Sequence
 import numpy as np
 from numpy.typing import NDArray
 
-from physverify.physics.geometry import (
-    Manifold,
-    Plane,
-    Solid,
-    characteristic_length,
-    contact_manifold,
-    signed_distance,
-    support_polygon,
-)
+from physverify.physics.contact_manifold import contact_manifold, support_polygon
+from physverify.physics.geometry import Manifold, Plane, Solid, characteristic_length
 from physverify.physics.measures.collision_energy import kinetic_energy_gain, restitution
 from physverify.physics.measures.gravity_fit import (
     FallFit,
@@ -28,6 +21,7 @@ from physverify.physics.measures.gravity_fit import (
 from physverify.physics.measures.object_integrity import jump_ratio, missing_frames
 from physverify.physics.measures.penetration import penetration_ratio
 from physverify.physics.measures.support_overhang import overhang_fraction
+from physverify.physics.signed_distance import signed_distance
 from physverify.physics.tracks import records_of
 from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactTable

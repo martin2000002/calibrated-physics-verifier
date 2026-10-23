@@ -21,7 +21,8 @@ from numpy.typing import NDArray
 
 from physverify.extraction.providers._impacts import Bases, Impact, track_impacts
 from physverify.extraction.providers._proximity import ContactScene, nan_median
-from physverify.physics.geometry import Plane, Pose, Solid, characteristic_lengths, signed_distance
+from physverify.physics.geometry import Plane, Pose, Solid, characteristic_lengths
+from physverify.physics.signed_distance import signed_distance
 from physverify.physics.tracks import (
     MIN_NOISE_STENCILS,
     NoiseScale,

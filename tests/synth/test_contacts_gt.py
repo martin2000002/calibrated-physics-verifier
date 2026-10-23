@@ -11,12 +11,8 @@ from typing import Any
 import numpy as np
 import pytest
 
-from physverify.physics.geometry import (
-    Plane,
-    contact_manifold,
-    convex_hull_indices,
-    project_to_plane,
-)
+from physverify.physics.contact_manifold import contact_manifold, convex_hull_indices
+from physverify.physics.geometry import Plane, project_to_plane
 from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactKind, ContactRecord, ManifoldKind, RawCollisions
 from physverify.schema.scene import SceneSpec

@@ -13,7 +13,8 @@ import numpy as np
 import pytest
 
 from physverify.config.loader import load_settings
-from physverify.physics.geometry import Plane, signed_distance
+from physverify.physics.geometry import Plane
+from physverify.physics.signed_distance import signed_distance
 from physverify.schema.scene import ObjectSpec, PerturbationRecord, SceneSpec
 from physverify.schema.states import ObjectStateTable, PrimitiveKind
 from physverify.synth.magnitudes import record_cuts

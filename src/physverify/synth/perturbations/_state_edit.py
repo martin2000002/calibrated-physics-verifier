@@ -12,7 +12,8 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import BaseModel
 
-from physverify.physics.geometry import Plane, Solid, matrix_from_quaternion, signed_distance
+from physverify.physics.geometry import Plane, Solid, matrix_from_quaternion
+from physverify.physics.signed_distance import signed_distance
 from physverify.physics.tracks import records_of
 from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactKind, ContactRecord, ContactTable, ManifoldKind

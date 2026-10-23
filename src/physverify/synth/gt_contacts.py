@@ -15,18 +15,14 @@ from pathlib import Path
 import numpy as np
 from numpy.typing import NDArray
 
-from physverify.physics.geometry import (
-    Body,
-    Manifold,
-    Plane,
-    Solid,
+from physverify.physics.contact_manifold import (
     contact_manifold,
     convex_hull_indices,
     polygon_area,
-    project_to_plane,
     reduce_manifold_indices,
-    signed_distance,
 )
+from physverify.physics.geometry import Body, Manifold, Plane, Solid, project_to_plane
+from physverify.physics.signed_distance import signed_distance
 from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import (
     ContactKind,

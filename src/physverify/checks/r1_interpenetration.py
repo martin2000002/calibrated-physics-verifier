@@ -14,8 +14,9 @@ from pydantic import BaseModel
 from physverify.checks._base import CheckInputs
 from physverify.checks._params import OcclusionParams
 from physverify.checks._results import abstain, unscored
-from physverify.physics.geometry import Body, Plane, characteristic_length, signed_distance
+from physverify.physics.geometry import Body, Plane, characteristic_length
 from physverify.physics.measures.penetration import penetration_ratio
+from physverify.physics.signed_distance import signed_distance
 from physverify.physics.tracks import native_span, place_body, support_plane
 from physverify.schema.checks import AbstainReason, CheckResult
 from physverify.schema.constants import ENV_ID

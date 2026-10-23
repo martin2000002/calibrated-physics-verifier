@@ -11,15 +11,8 @@ import math
 import numpy as np
 from numpy.typing import NDArray
 
-from physverify.physics.geometry import (
-    CYLINDER_SIDES,
-    Primitive,
-    Solid,
-    convex_hull_indices,
-    cross_2d,
-    polygon_area,
-    pose_from_quaternion,
-)
+from physverify.physics.contact_manifold import convex_hull_indices, cross_2d, polygon_area
+from physverify.physics.geometry import CYLINDER_SIDES, Primitive, Solid, pose_from_quaternion
 from physverify.physics.tracks import records_of
 from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactKind, ContactRecord, ContactTable

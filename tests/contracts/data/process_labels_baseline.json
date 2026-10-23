@@ -670,9 +670,6 @@
  "src/physverify/physics/equilibrium.py": {
   "comment_or_docstring": 1
  },
- "src/physverify/physics/geometry.py": {
-  "banner": 3
- },
  "src/physverify/physics/kinematics.py": {
   "comment_or_docstring": 1
  },
@@ -684,6 +681,9 @@
  },
  "src/physverify/physics/measures/track_jump.py": {
   "comment_or_docstring": 2
+ },
+ "src/physverify/physics/signed_distance.py": {
+  "banner": 2
  },
  "src/physverify/physics/tracks.py": {
   "comment_or_docstring": 10

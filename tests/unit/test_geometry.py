@@ -5,21 +5,23 @@ import math
 import numpy as np
 import pytest
 
+from physverify.physics.contact_manifold import (
+    contact_manifold,
+    polygon_area,
+    reduce_manifold,
+    reduce_manifold_indices,
+    support_polygon,
+)
 from physverify.physics.geometry import (
     CYLINDER_PRISM_REL_ERROR,
     Plane,
     Pose,
     Primitive,
     Solid,
-    contact_manifold,
     matrix_from_quaternion,
-    polygon_area,
     quaternion_from_matrix,
-    reduce_manifold,
-    reduce_manifold_indices,
-    signed_distance,
-    support_polygon,
 )
+from physverify.physics.signed_distance import signed_distance
 from physverify.schema.states import PrimitiveKind
 
 UP = np.array([0.0, 0.0, 1.0])

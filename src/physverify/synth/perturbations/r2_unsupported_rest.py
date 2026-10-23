@@ -8,7 +8,8 @@ from typing import ClassVar
 
 import numpy as np
 
-from physverify.physics.geometry import Solid, characteristic_length, contact_manifold
+from physverify.physics.contact_manifold import contact_manifold
+from physverify.physics.geometry import Solid, characteristic_length
 from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactTable
 from physverify.schema.scene import MagnitudeKind, PerturbationRecord, SceneSpec

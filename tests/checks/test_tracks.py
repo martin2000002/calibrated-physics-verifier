@@ -5,7 +5,7 @@ import check_scenarios as sc
 import numpy as np
 import pytest
 
-from physverify.physics.geometry import signed_distance
+from physverify.physics.signed_distance import signed_distance
 from physverify.physics.tracks import (
     MotionFit,
     body_length,

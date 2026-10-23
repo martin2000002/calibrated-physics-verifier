@@ -7,7 +7,7 @@ from typing import ClassVar
 
 import numpy as np
 
-from physverify.physics.geometry import signed_distance
+from physverify.physics.signed_distance import signed_distance
 from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactTable
 from physverify.schema.scene import MagnitudeKind, PerturbationRecord, SceneSpec

@@ -18,7 +18,8 @@ from physverify.config.loader import load_settings
 from physverify.config.models import Settings
 from physverify.kubric_worker.build_scene import native_entries
 from physverify.kubric_worker.tasks.simulate import state_table
-from physverify.physics.geometry import Plane, contact_manifold
+from physverify.physics.contact_manifold import contact_manifold
+from physverify.physics.geometry import Plane
 from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import (
     ContactKind,
