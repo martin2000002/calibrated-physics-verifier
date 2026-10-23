@@ -95,7 +95,7 @@ Only the main thread changes these, between phases:
 - every `__init__.py`, `src/physverify/py.typed`, every `_base.py`
 - `src/physverify/schema/**`, `core/**`, `config/**`, `runtime/**`
 - `src/physverify/physics/{geometry,finite_diff}.py` and the scaffold's measure modules
-  `src/physverify/physics/measures/{r1_penetration,r2_support,r3_collision,r4_integrity,r5_gravity}.py`
+  `src/physverify/physics/measures/{penetration,support_overhang,collision_energy,object_integrity,gravity_fit}.py`
   (a check with a new magnitude adds its own module there, owned by its cycle)
 - `src/physverify/kubric_worker/__main__.py`, `src/physverify/kubric_worker/tasks/ping.py`
 - `src/physverify/cli/main.py`, `cli/context.py`, `cli/commands/doctor.py`

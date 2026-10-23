@@ -57,7 +57,7 @@ def log_path(settings: Any) -> list[str]:
 
 
 def gap_lines(gaps: Any) -> list[str]:
-    """``gaps`` is an ``agreement.coverage.InputGaps``."""
+    """``gaps`` is an ``human_agreement.coverage.InputGaps``."""
     lines = [
         f"- no object query: {gaps.no_query} rows ({gaps.no_query_with_video} with video)",
         f"- no video in the source: {gaps.no_video} rows",
