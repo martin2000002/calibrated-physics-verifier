@@ -5,7 +5,6 @@ measured factor before the comparison."""
 
 from __future__ import annotations
 
-import json
 import math
 from collections.abc import Mapping
 from dataclasses import replace
@@ -16,6 +15,7 @@ from pydantic import Field
 
 from physverify.config.models import validated
 from physverify.core.errors import ConfigError
+from physverify.core.jsonio import loads
 from physverify.core.models import FrozenModel
 from physverify.schema.checks import AbstainReason, CheckResult, Verdict
 
@@ -56,7 +56,7 @@ class ThresholdTable(FrozenModel):
         return cls(status=PROVISIONAL, source=PROVISIONAL_SOURCE, checks=checks)
 
     @classmethod
-    def complete(cls, data: Mapping[str, Any], where: str) -> Self:
+    def complete(cls, data: object, where: str) -> Self:
         """A validated table with every field set, defaults included."""
         return cls.model_validate(validated(cls, data, where).model_dump())
 
@@ -89,10 +89,7 @@ def load_thresholds(path: Path, provisional: Mapping[str, float]) -> ThresholdTa
     """The calibrated table at ``path`` when it exists, else the provisional thresholds."""
     if not path.is_file():
         return ThresholdTable.provisional(provisional)
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
-        raise ConfigError(f"{path} is not valid JSON: {exc}") from exc
+    data = loads(path.read_text(encoding="utf-8"), path, ConfigError)
     return ThresholdTable.complete(data, str(path))
 
 

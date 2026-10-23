@@ -164,3 +164,13 @@ def test_a_calibrated_table_may_name_its_artifact(tmp_path: Path) -> None:
     path.write_text(json.dumps({**table, "artifact": {"path": "x"}}), encoding="utf-8")
     with pytest.raises(ConfigError):
         load_thresholds(path, {})
+
+
+def test_an_invalid_calibration_file_names_its_path(tmp_path: Path) -> None:
+    path = tmp_path / "thresholds.json"
+    path.write_text("not json", encoding="utf-8")
+    with pytest.raises(ConfigError) as raised:
+        load_thresholds(path, {})
+    reason = "Expecting value: line 1 column 1 (char 0)"
+    assert str(raised.value) == f"{path} is not valid JSON: {reason}"
+    assert isinstance(raised.value.__cause__, json.JSONDecodeError)
