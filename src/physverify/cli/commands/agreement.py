@@ -4,52 +4,27 @@
 from __future__ import annotations
 
 import datetime as dt
-import json
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated
 
 import typer
 
-from physverify.cli.context import app_context, heavy_command
-from physverify.core.atomic import write_text_atomic
-from physverify.core.digests import sha256_if_file
-from physverify.core.errors import ConfigError
-from physverify.core.log import get_logger
+from physverify.cli.context import app_context, echo_err, heavy_command
 from physverify.datasets._base import fetch_all
-from physverify.datasets._videophy_review import (
-    REVIEWED,
-    load_review,
-    record,
-    require_recorded,
-    write_review,
-)
 from physverify.datasets.videophy import VideophyDataset
 from physverify.human_agreement.clip_decision import import_calibration
-from physverify.human_agreement.prereg import (
-    load_preregistration,
-    logged_comparisons,
-    plan_refreeze,
-    write_preregistration,
-)
 from physverify.human_agreement.report import REPORT_DIR, write_comparison
 from physverify.human_agreement.settings import agreement_settings
-from physverify.human_agreement.subset_review import (
-    audit,
-    draft_queries,
-    reviewed_candidates,
-    sized_labels_or_none,
-    uncovered,
-)
+from physverify.human_agreement.subset_review import check_recorded, record_subsets, review_subset
 from physverify.human_agreement.workflow import (
     CompareRequest,
+    apply_freeze,
     freeze,
     log_test_comparison,
     run_comparison,
 )
 
 NAME = "agreement"
-
-log = get_logger("cli.agreement")
 
 app = typer.Typer(
     help="Verifier vs reference VLM on VideoPhy human labels (H2).", no_args_is_help=True
@@ -67,22 +42,6 @@ def fetch(subset: Annotated[str | None, typer.Option(help="VideoPhy subset.")] =
     fetch_all([VideophyDataset], app_context().settings, subset, typer.echo)
 
 
-def _read_json(path: Path) -> dict[str, Any]:
-    if not path.is_file():
-        return {}
-    try:
-        loaded = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
-        raise ConfigError(f"{path} is invalid: {exc}") from exc
-    if not isinstance(loaded, dict):
-        raise ConfigError(f"{path} must be a JSON object")
-    return loaded
-
-
-def _write_json(path: Path, payload: object) -> None:
-    write_text_atomic(path, json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
-
-
 @app.command("subset", help="Write the pending caption review (--audit) or record it (--record).")
 def subset(
     name: Annotated[str | None, typer.Option("--subset", help="Default: the test subset.")] = None,
@@ -95,48 +54,15 @@ def subset(
     ] = False,
 ) -> None:
     dataset = _dataset()
-    chosen = name or agreement_settings(app_context().settings).test_subset
+    settings = app_context().settings
+    chosen = name or agreement_settings(settings).test_subset
     if check:
-        require_recorded(load_review(dataset.subset_path), dataset.settings.filter_version)
-        typer.echo(f"review: {dataset.subset_path} ({REVIEWED})")
+        check_recorded(dataset, typer.echo)
         return
     if freeze_review:
-        _record(dataset, chosen)
+        record_subsets(dataset, chosen, typer.echo)
         return
-    review = audit(dataset, chosen)
-    write_review(dataset.subset_path, review)
-    captions = [c for table in review.decisions.values() for c in table]
-    _queries(dataset, captions)
-    typer.echo(f"review: {dataset.subset_path} ({review.status})")
-    for part, table in review.decisions.items():
-        typer.echo(f"{part}: {len(table)} captions")
-        if show:
-            for caption, decision in table.items():
-                typer.echo(f"  [{decision or '?'}] {caption}")
-
-
-def _queries(dataset: VideophyDataset, captions: list[str]) -> None:
-    path = dataset.queries_path
-    drafts = draft_queries(_read_json(path), captions, dataset.settings.filter.rigid_event)
-    _write_json(path, drafts)
-    labels = sized_labels_or_none(app_context().settings)
-    if labels is None:
-        typer.echo("queries: sizing model not available, size coverage not checked")
-        return
-    missing = uncovered(drafts, labels)
-    typer.echo(f"queries: {path} ({len(drafts)} captions, {len(missing)} phrases without size)")
-    for phrase in missing:
-        typer.echo(f"  no size: {phrase}")
-
-
-def _record(dataset: VideophyDataset, chosen: str) -> None:
-    review = load_review(dataset.subset_path)
-    if review is None:
-        raise ConfigError(f"{dataset.subset_path} is missing; run `agreement subset --audit`")
-    recorded = record(review, reviewed_candidates(dataset, chosen))
-    write_review(dataset.subset_path, recorded)
-    for part, stored in recorded.subsets.items():
-        typer.echo(f"{part}: n={stored.n} sha256={stored.sha256}")
+    review_subset(dataset, settings, chosen, show=show, echo=typer.echo)
 
 
 @app.command("freeze", help="Pre-register the test comparison from a dev verify run.")
@@ -159,30 +85,8 @@ def freeze_command(
         import_calibration,
         dt.datetime.now(dt.UTC),
     )
-    previous = sha256_if_file(path)
-    old = None if previous is None else load_preregistration(path)
-    record_ = plan_refreeze(
-        old,
-        previous,
-        current,
-        force=force,
-        deviation=declare_deviation,
-        tested=bool(logged_comparisons(path)),
-    )
-    if record_ is None:
-        typer.echo(f"preregistration: {path}")
-        typer.echo("unchanged frozen state; the existing pre-registration is kept")
-        return
-    if previous is not None:
-        log.warning("replacing pre-registration %s (sha256 %s)", path, previous)
-        typer.echo(f"replacing pre-registration {path} (sha256 {previous})", err=True)
-    if record_.post_hoc:
-        typer.echo("WARNING: a test comparison already exists; H2 is now post hoc", err=True)
-    write_preregistration(path, record_)
-    typer.echo(f"preregistration: {path}")
-    typer.echo(
-        f"rule {record_.rule_label}; n_dev {record_.n_dev}; majority {record_.dev_majority}; "
-        f"cut {record_.dev_cut}; tuned cut {record_.dev_tuned_cut}"
+    apply_freeze(
+        path, current, force=force, deviation=declare_deviation, echo=typer.echo, err=echo_err
     )
 
 

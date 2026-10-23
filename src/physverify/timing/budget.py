@@ -158,3 +158,33 @@ def answer(cost: CostPerVideo, query: BudgetQuery) -> BudgetAnswer:
         extract_load_included=query.extract_batch is not None,
         generator_load_s=cost.generator_load_s,
     )
+
+
+def _bound_line(label: str, result: Bound) -> str:
+    return (
+        f"{label}: {result.cost_s:.4g} s per video; available {result.available_s:.6g} s; "
+        f"training prompts {result.prompts}; preference pairs {result.pairs_min}-"
+        f"{result.pairs_max} (before abstentions)"
+    )
+
+
+def budget_lines(result: BudgetAnswer, query: BudgetQuery) -> list[str]:
+    extract_load = (
+        f"included with B_x = {query.extract_batch}"
+        if result.extract_load_included
+        else "omitted (pass --extract-batch to include it)"
+    )
+    generator_load = (
+        "not measured"
+        if result.generator_load_s is None
+        else f"{result.generator_load_s:.4g} s once per job, not in the cost per video"
+    )
+    return [
+        f"budget: H = {query.gpu_hours:g} GPU hours, fine-tuning {query.finetune_hours:g} h, "
+        f"K = {query.candidates}, Q = {query.eval_prompts}, K' = {query.eval_samples}, "
+        f"B = {query.batch_size}",
+        _bound_line("sequential c_seq = g_B + e + v + L_x/B_x", result.sequential),
+        _bound_line("generator only c_gen = g_B", result.generator_only),
+        f"extraction load L_x/B_x: {extract_load}",
+        f"generator load L_g: {generator_load}",
+    ]

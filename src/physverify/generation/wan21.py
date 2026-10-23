@@ -22,7 +22,16 @@ from physverify.config.models import PathsSettings
 from physverify.core.digests import file_sha256
 from physverify.core.errors import TimingError
 from physverify.extraction._base import WeightKind, WeightSpec
-from physverify.extraction.weights import hub_offline, local_path, weight_file
+from physverify.extraction.weights import (
+    ALLOW_PATTERNS,
+    Downloader,
+    fetch,
+    hf_repo_and_file,
+    hub_cache,
+    hub_offline,
+    local_path,
+    weight_file,
+)
 from physverify.generation.mp4_writer import RGB_CHANNELS
 from physverify.generation.settings import GenerationSettings
 
@@ -189,3 +198,13 @@ def batch_frames(output: Any, batch_size: int) -> NDArray[Any]:
             f"got {frames.shape}"
         )
     return frames
+
+
+def fetch_generator(gen: GenerationSettings, paths: PathsSettings, downloader: Downloader) -> Path:
+    """Download the pinned generator and verify it; a cut download resumes on the next call."""
+    spec = wan_weight_spec(gen)
+    repo, file = hf_repo_and_file(spec.ref)
+    # weights.fetch skips the snapshot once model_index.json exists, which would leave missing
+    # shards missing; the snapshot itself skips the files already complete.
+    downloader.hf_snapshot(repo, spec.revision, hub_cache(paths), (*ALLOW_PATTERNS, file))
+    return fetch(spec, paths, downloader)

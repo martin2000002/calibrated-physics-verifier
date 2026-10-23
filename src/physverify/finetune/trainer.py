@@ -22,8 +22,8 @@ import numpy as np
 from physverify.finetune.dpo import (
     DpoStats,
     ShiftedFlowNoise,
-    _torch,
     flow_dpo_loss,
+    import_torch,
     noised,
     per_sample_error,
 )
@@ -76,7 +76,7 @@ def pair_loss(
     model: AdapterModel, batch: PairBatch, noise: ShiftedFlowNoise, key: int, beta: float
 ) -> tuple[Any, DpoStats]:
     """Learner with gradient and reference (adapter off) without, on one shared ``sigma, eps``."""
-    torch = _torch()
+    torch = import_torch()
     draw = noise.draw(key)
     eps = noise.epsilon(draw, batch.x0_w)
     x_w, v_w, t = noised(batch.x0_w, eps, draw.sigma)
@@ -184,7 +184,7 @@ class DpoTrainer:
         self, resume: bool = True, max_steps: int | None = None, force: bool = False
     ) -> TrainReport:
         """``resume=False`` refuses a directory holding checkpoints unless ``force`` clears it."""
-        torch = _torch()
+        torch = import_torch()
         plan = schedule(self._cfg, len(self._data), max_steps)
         params = self._model.trainable_parameters()
         optimizer = torch.optim.AdamW(params, lr=self._cfg.lr, weight_decay=self._cfg.weight_decay)
@@ -210,7 +210,7 @@ class DpoTrainer:
         """Validation pairs on fixed ``(sigma, eps)`` per pair, never trained on."""
         if self._val is None or len(self._val) == 0:
             return None
-        torch = _torch()
+        torch = import_torch()
         stats = []
         with torch.no_grad():
             for index in range(len(self._val)):
@@ -229,7 +229,7 @@ class DpoTrainer:
         return metrics
 
     def _step(self, step: int, params: list[Any], optimizer: Any, scheduler: Any) -> StepMetrics:
-        torch = _torch()
+        torch = import_torch()
         optimizer.zero_grad(set_to_none=True)
         accum = self._cfg.grad_accum
         stats: list[DpoStats] = []
@@ -260,7 +260,7 @@ class DpoTrainer:
         return self._data.get(int(data_order(self._cfg.seed, epoch, n)[position]))
 
     def _checkpoint(self, step: int, optimizer: Any, scheduler: Any) -> Path:
-        torch = _torch()
+        torch = import_torch()
         final = self._dir / checkpoint_name(step)
         partial = self._dir / f".{final.name}.partial"
         shutil.rmtree(partial, ignore_errors=True)
@@ -302,7 +302,7 @@ class DpoTrainer:
         if not found:
             return self._fresh()
         step, path = found[-1]
-        torch = _torch()
+        torch = import_torch()
         self._model.load(path / ADAPTER_DIR)
         state = torch.load(path / STATE_FILE, weights_only=False)
         optimizer.load_state_dict(state["optimizer"])

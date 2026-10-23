@@ -113,6 +113,9 @@
  "scripts/h200/smoke_autoeval.sh": {
   "config_or_script_text": 2
  },
+ "src/physverify/app/demo.py": {
+  "comment_or_docstring": 1
+ },
  "src/physverify/app/finetune.py": {
   "comment_or_docstring": 1,
   "literal": 1
@@ -215,7 +218,7 @@
  },
  "src/physverify/cli/commands/agreement.py": {
   "comment_or_docstring": 1,
-  "literal": 5
+  "literal": 4
  },
  "src/physverify/cli/commands/calibrate.py": {
   "banner": 5,
@@ -231,7 +234,7 @@
   "literal": 2
  },
  "src/physverify/cli/commands/demo.py": {
-  "comment_or_docstring": 4
+  "comment_or_docstring": 3
  },
  "src/physverify/cli/commands/diagnose.py": {
   "banner": 3,
@@ -264,7 +267,7 @@
   "comment_or_docstring": 1
  },
  "src/physverify/cli/commands/timing.py": {
-  "comment_or_docstring": 2
+  "comment_or_docstring": 1
  },
  "src/physverify/cli/commands/verify.py": {
   "comment_or_docstring": 2,
@@ -662,7 +665,8 @@
   "comment_or_docstring": 2
  },
  "src/physverify/human_agreement/workflow.py": {
-  "comment_or_docstring": 2
+  "comment_or_docstring": 2,
+  "literal": 1
  },
  "src/physverify/kubric_worker/tasks/render.py": {
   "comment_or_docstring": 1
@@ -806,6 +810,9 @@
  },
  "src/physverify/timing/recorder.py": {
   "comment_or_docstring": 2
+ },
+ "src/physverify/timing/session.py": {
+  "comment_or_docstring": 1
  },
  "src/physverify/timing/targets/dpo_step.py": {
   "comment_or_docstring": 2

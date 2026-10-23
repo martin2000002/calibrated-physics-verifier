@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import datetime as dt
 import math
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 from physverify.checks._base import Check
 from physverify.core.digests import sha256_if_file
 from physverify.core.errors import UsageError
+from physverify.core.log import get_logger
 from physverify.datasets._videophy_review import load_review
 from physverify.datasets._videophy_tables import SECTION as VIDEOPHY_SECTION
 from physverify.human_agreement.clip_decision import (
@@ -38,8 +39,10 @@ from physverify.human_agreement.prereg import (
     load_preregistration,
     log_comparison,
     logged_comparisons,
+    plan_refreeze,
     preregistration_chain,
     require_unchanged,
+    write_preregistration,
 )
 from physverify.human_agreement.rule_setup import ApiLoader, RuleSetup, build_rule, check_run
 from physverify.human_agreement.settings import (
@@ -62,6 +65,9 @@ from physverify.verification.scope import require_record_for
 if TYPE_CHECKING:
     from physverify.config.models import Settings
     from physverify.datasets.videophy import VideophyDataset
+
+# The command's logger name, kept so the log lines of ``agreement freeze`` do not change.
+log = get_logger("cli.agreement")
 
 
 def frozen_state(
@@ -246,3 +252,40 @@ def log_test_comparison(
     )
     log_comparison(path, entry)
     return path
+
+
+def apply_freeze(
+    path: Path,
+    current: Preregistration,
+    *,
+    force: bool,
+    deviation: str | None,
+    echo: Callable[[str], None],
+    err: Callable[[str], None],
+) -> None:
+    """Write the frozen state at ``path`` unless it is unchanged; a replacement is announced."""
+    previous = sha256_if_file(path)
+    old = None if previous is None else load_preregistration(path)
+    record_ = plan_refreeze(
+        old,
+        previous,
+        current,
+        force=force,
+        deviation=deviation,
+        tested=bool(logged_comparisons(path)),
+    )
+    if record_ is None:
+        echo(f"preregistration: {path}")
+        echo("unchanged frozen state; the existing pre-registration is kept")
+        return
+    if previous is not None:
+        log.warning("replacing pre-registration %s (sha256 %s)", path, previous)
+        err(f"replacing pre-registration {path} (sha256 {previous})")
+    if record_.post_hoc:
+        err("WARNING: a test comparison already exists; H2 is now post hoc")
+    write_preregistration(path, record_)
+    echo(f"preregistration: {path}")
+    echo(
+        f"rule {record_.rule_label}; n_dev {record_.n_dev}; majority {record_.dev_majority}; "
+        f"cut {record_.dev_cut}; tuned cut {record_.dev_tuned_cut}"
+    )
