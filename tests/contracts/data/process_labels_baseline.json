@@ -148,7 +148,6 @@
  },
  "src/physverify/calibration/dev_score.py": {
   "comment_or_docstring": 4,
-  "identifier": 2,
   "literal": 2
  },
  "src/physverify/calibration/evaluate.py": {
@@ -198,7 +197,6 @@
   "comment_or_docstring": 3
  },
  "src/physverify/calibration/summary.py": {
-  "identifier": 3,
   "literal": 2
  },
  "src/physverify/calibration/table.py": {
@@ -917,11 +915,13 @@
  },
  "tests/calibration/test_apply.py": {
   "comment_or_docstring": 1,
-  "identifier": 1
+  "identifier": 1,
+  "test_name": 1
  },
  "tests/calibration/test_cli_calibrate.py": {
   "comment_or_docstring": 6,
-  "identifier": 2
+  "identifier": 2,
+  "test_name": 2
  },
  "tests/calibration/test_cli_devscore.py": {
   "comment_or_docstring": 1,
@@ -929,11 +929,13 @@
  },
  "tests/calibration/test_dev_score_golden.py": {
   "comment_or_docstring": 5,
-  "identifier": 8
+  "identifier": 8,
+  "test_name": 1
  },
  "tests/calibration/test_devscore.py": {
   "comment_or_docstring": 5,
-  "identifier": 3
+  "identifier": 1,
+  "test_name": 1
  },
  "tests/calibration/test_exclusions.py": {
   "banner": 5,
@@ -945,11 +947,13 @@
  "tests/calibration/test_heldout_monotonicity.py": {
   "comment_or_docstring": 9,
   "identifier": 4,
-  "literal": 3
+  "literal": 3,
+  "test_name": 4
  },
  "tests/calibration/test_monotonicity.py": {
   "comment_or_docstring": 4,
-  "identifier": 2
+  "identifier": 2,
+  "test_name": 2
  },
  "tests/calibration/test_monotonicity_by_dataset.py": {
   "comment_or_docstring": 3
@@ -958,7 +962,8 @@
   "banner": 1,
   "comment_or_docstring": 7,
   "identifier": 1,
-  "literal": 4
+  "literal": 4,
+  "test_name": 2
  },
  "tests/calibration/test_sealed.py": {
   "comment_or_docstring": 6
@@ -968,7 +973,8 @@
  },
  "tests/calibration/test_sigma.py": {
   "banner": 1,
-  "comment_or_docstring": 10
+  "comment_or_docstring": 10,
+  "test_name": 4
  },
  "tests/calibration/test_table.py": {
   "comment_or_docstring": 2
@@ -993,25 +999,31 @@
   "comment_or_docstring": 1
  },
  "tests/checks/test_r4.py": {
-  "banner": 3
+  "banner": 3,
+  "test_name": 3
  },
  "tests/checks/test_r4_jump_noise.py": {
   "banner": 7,
-  "comment_or_docstring": 20
+  "comment_or_docstring": 20,
+  "test_name": 13
  },
  "tests/checks/test_r4_jump_v1_reference.py": {
-  "comment_or_docstring": 4
+  "comment_or_docstring": 4,
+  "test_name": 1
  },
  "tests/checks/test_r4_size_relative.py": {
-  "comment_or_docstring": 8
+  "comment_or_docstring": 8,
+  "test_name": 6
  },
  "tests/checks/test_r5.py": {
   "banner": 2,
-  "comment_or_docstring": 4
+  "comment_or_docstring": 4,
+  "test_name": 3
  },
  "tests/checks/test_registry.py": {
   "comment_or_docstring": 5,
-  "identifier": 1
+  "identifier": 1,
+  "test_name": 1
  },
  "tests/checks/test_sigma.py": {
   "literal": 2
@@ -1019,7 +1031,8 @@
  "tests/checks/test_tracks.py": {
   "banner": 5,
   "comment_or_docstring": 6,
-  "identifier": 8
+  "identifier": 8,
+  "test_name": 4
  },
  "tests/config/test_config.py": {
   "comment_or_docstring": 2
@@ -1030,7 +1043,8 @@
  "tests/contracts/test_parsed_output.py": {
   "comment_or_docstring": 1,
   "identifier": 1,
-  "literal": 2
+  "literal": 2,
+  "test_name": 1
  },
  "tests/diagnosis/conftest.py": {
   "banner": 4,
@@ -1042,15 +1056,18 @@
   "comment_or_docstring": 2
  },
  "tests/diagnosis/test_camera_gravity.py": {
-  "comment_or_docstring": 2
+  "comment_or_docstring": 2,
+  "test_name": 3
  },
  "tests/diagnosis/test_cli.py": {
   "banner": 2,
   "comment_or_docstring": 3,
-  "identifier": 1
+  "identifier": 1,
+  "test_name": 1
  },
  "tests/diagnosis/test_contacts_impacts.py": {
-  "comment_or_docstring": 4
+  "comment_or_docstring": 4,
+  "test_name": 5
  },
  "tests/diagnosis/test_end_to_end.py": {
   "banner": 3,
@@ -1143,7 +1160,8 @@
  },
  "tests/extraction/test_camera_geocalib.py": {
   "comment_or_docstring": 5,
-  "identifier": 1
+  "identifier": 1,
+  "test_name": 10
  },
  "tests/extraction/test_depth_vda_large.py": {
   "comment_or_docstring": 1,
@@ -1153,14 +1171,17 @@
   "comment_or_docstring": 2
  },
  "tests/extraction/test_floor_contacts.py": {
-  "comment_or_docstring": 3
+  "comment_or_docstring": 3,
+  "test_name": 2
  },
  "tests/extraction/test_geocalib_config.py": {
   "comment_or_docstring": 9,
-  "identifier": 2
+  "identifier": 2,
+  "test_name": 2
  },
  "tests/extraction/test_gravity_pose.py": {
-  "comment_or_docstring": 3
+  "comment_or_docstring": 3,
+  "test_name": 2
  },
  "tests/extraction/test_grounding_assignment.py": {
   "comment_or_docstring": 2
@@ -1170,16 +1191,20 @@
  },
  "tests/extraction/test_impacts.py": {
   "banner": 8,
-  "comment_or_docstring": 21
+  "comment_or_docstring": 21,
+  "test_name": 21
  },
  "tests/extraction/test_impacts_noise.py": {
-  "comment_or_docstring": 7
+  "comment_or_docstring": 7,
+  "test_name": 5
  },
  "tests/extraction/test_oracle_contacts_golden.py": {
-  "comment_or_docstring": 3
+  "comment_or_docstring": 3,
+  "test_name": 3
  },
  "tests/extraction/test_proximity_equivalence.py": {
-  "comment_or_docstring": 2
+  "comment_or_docstring": 2,
+  "test_name": 3
  },
  "tests/extraction/test_scale_size_model.py": {
   "comment_or_docstring": 1
@@ -1189,11 +1214,13 @@
  },
  "tests/extraction/test_temporal.py": {
   "comment_or_docstring": 3,
-  "identifier": 1
+  "identifier": 1,
+  "test_name": 14
  },
  "tests/extraction/test_visibility.py": {
   "banner": 1,
-  "comment_or_docstring": 5
+  "comment_or_docstring": 5,
+  "test_name": 5
  },
  "tests/extraction/test_weights.py": {
   "comment_or_docstring": 1
@@ -1203,13 +1230,15 @@
  },
  "tests/finetune/test_calibrated_gate.py": {
   "comment_or_docstring": 2,
-  "identifier": 3
+  "identifier": 3,
+  "test_name": 1
  },
  "tests/finetune/test_check_scope.py": {
   "comment_or_docstring": 1
  },
  "tests/finetune/test_cli.py": {
-  "identifier": 1
+  "identifier": 1,
+  "test_name": 1
  },
  "tests/finetune/test_stop_rule.py": {
   "comment_or_docstring": 1
@@ -1229,7 +1258,8 @@
   "comment_or_docstring": 1
  },
  "tests/generator_comparison/test_compare_generators_cli.py": {
-  "identifier": 31
+  "identifier": 31,
+  "test_name": 3
  },
  "tests/generator_comparison/test_state.py": {
   "identifier": 4
@@ -1239,7 +1269,8 @@
  },
  "tests/generator_comparison/test_verdict.py": {
   "comment_or_docstring": 2,
-  "identifier": 1
+  "identifier": 1,
+  "test_name": 1
  },
  "tests/human_agreement/test_breakdown.py": {
   "comment_or_docstring": 2
@@ -1247,7 +1278,8 @@
  "tests/human_agreement/test_cli.py": {
   "comment_or_docstring": 1,
   "identifier": 5,
-  "literal": 7
+  "literal": 7,
+  "test_name": 2
  },
  "tests/human_agreement/test_decision.py": {
   "comment_or_docstring": 3
@@ -1260,7 +1292,8 @@
  },
  "tests/human_agreement/test_stats.py": {
   "identifier": 2,
-  "literal": 1
+  "literal": 1,
+  "test_name": 2
  },
  "tests/kubric_worker/test_py39.py": {
   "comment_or_docstring": 1
@@ -1280,16 +1313,19 @@
   "banner": 1,
   "comment_or_docstring": 2,
   "identifier": 19,
-  "literal": 1
+  "literal": 1,
+  "test_name": 7
  },
  "tests/scripts/human_agreement/test_human_agreement_script.py": {
   "comment_or_docstring": 3,
   "identifier": 12,
-  "literal": 5
+  "literal": 5,
+  "test_name": 3
  },
  "tests/scripts/test_freeze_query.py": {
   "comment_or_docstring": 18,
-  "literal": 17
+  "literal": 17,
+  "test_name": 1
  },
  "tests/scripts/test_generator_comparison_scripts.py": {
   "comment_or_docstring": 1
@@ -1297,7 +1333,8 @@
  "tests/scripts/test_perception_iteration_script.py": {
   "comment_or_docstring": 3,
   "identifier": 1,
-  "literal": 29
+  "literal": 29,
+  "test_name": 1
  },
  "tests/scripts/test_run_final_script.py": {
   "comment_or_docstring": 27,
@@ -1305,11 +1342,13 @@
  },
  "tests/scripts/test_run_freeze_script.py": {
   "comment_or_docstring": 14,
-  "literal": 10
+  "literal": 10,
+  "test_name": 1
  },
  "tests/scripts/test_run_query.py": {
   "identifier": 1,
-  "literal": 2
+  "literal": 2,
+  "test_name": 1
  },
  "tests/selective_risk/test_abstain_tables.py": {
   "comment_or_docstring": 6
@@ -1335,7 +1374,8 @@
  "tests/sizing/test_objectron_static.py": {
   "banner": 3,
   "comment_or_docstring": 3,
-  "identifier": 6
+  "identifier": 6,
+  "test_name": 1
  },
  "tests/synth/test_floor_bounce.py": {
   "comment_or_docstring": 2
@@ -1361,15 +1401,18 @@
  },
  "tests/timing/test_extract_target.py": {
   "comment_or_docstring": 1,
-  "identifier": 1
+  "identifier": 1,
+  "test_name": 1
  },
  "tests/timing/test_recorder.py": {
   "comment_or_docstring": 1
  },
  "tests/timing/test_verify_target.py": {
+  "camel_identifier": 4,
   "comment_or_docstring": 1,
   "identifier": 20,
-  "literal": 1
+  "literal": 1,
+  "test_name": 5
  },
  "tests/verification/oracle_golden_case.py": {
   "comment_or_docstring": 7
@@ -1379,16 +1422,22 @@
  },
  "tests/verification/test_contact_filter_keeps_detections.py": {
   "banner": 6,
-  "comment_or_docstring": 6
+  "comment_or_docstring": 6,
+  "test_name": 10
  },
  "tests/verification/test_inputs.py": {
   "comment_or_docstring": 1
  },
  "tests/verification/test_oracle_golden.py": {
-  "comment_or_docstring": 5
+  "comment_or_docstring": 5,
+  "test_name": 1
  },
  "tests/verification/test_r4_targets.py": {
-  "comment_or_docstring": 2
+  "comment_or_docstring": 2,
+  "test_name": 5
+ },
+ "tests/verification/test_runner.py": {
+  "test_name": 1
  },
  "tests/verification/test_scope_record.py": {
   "comment_or_docstring": 2
@@ -1396,9 +1445,11 @@
  "tests/verification/test_temporal_filter_keeps_detections.py": {
   "banner": 2,
   "comment_or_docstring": 9,
-  "literal": 1
+  "literal": 1,
+  "test_name": 11
  },
  "tests/verification/test_v2_checks_oracle.py": {
-  "comment_or_docstring": 6
+  "comment_or_docstring": 6,
+  "test_name": 1
  }
 }

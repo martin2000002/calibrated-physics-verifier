@@ -30,6 +30,11 @@ JARGON = re.compile(
     r"|\bWP-[A-Z0-9]+\b|\bP[1-5]\b|§|\b20[0-9]{2}-[01][0-9]-[0-3][0-9]\b"
 )
 IDENT = re.compile(r"(^|_)(h[123]|a8v2|a([3-9]|1[0-3])|it[1-5]|d9)(_|$)")
+CAMEL = re.compile(r"(?<![A-Z])(H[123]|A(?:[3-9]|1[0-3])|A8V2|It[1-5])(?=[A-Z][a-z]|$)")
+TEST_NAME = re.compile(
+    r"^test_(.*_)?(h[123]|a8v2|a[0-9]{1,2}|it[1-5]|d[0-9]{1,2}|j[0-9]{1,2}|p[1-5]|t[0-9]{1,2}"
+    r"|ac[0-9]+|adr[0-9]*)(_|$)"
+)
 BANNER = re.compile(r"^\s*#\s*(-{3,}|={3,})|^\s*#.*(-{5,}|={5,})\s*$")
 PROCESS_ATTRS = re.compile(r"\b(OWNER|IMPLEMENTED|not_implemented|NotImplementedCommandError)\b")
 ALLOWED_IDENTIFIERS = frozenset(
@@ -51,10 +56,18 @@ ALLOWED_IDENTIFIERS = frozenset(
     }
 )
 ALLOWED_IDENTIFIER_PREFIX = "PHYSVERIFY__H3__"
+DEV_SCORE_FIELD = frozenset({"h1"})
+ALLOWED_IDENTIFIERS_BY_PATH = {
+    "src/physverify/calibration/dev_score.py": DEV_SCORE_FIELD,
+    "src/physverify/calibration/summary.py": DEV_SCORE_FIELD,
+    "tests/calibration/test_devscore.py": DEV_SCORE_FIELD,
+}
 
 COMMENT = "comment_or_docstring"
 LITERAL = "literal"
 IDENTIFIER = "identifier"
+CAMEL_HITS = "camel_identifier"
+TEST_NAME_HITS = "test_name"
 BANNER_HITS = "banner"
 PROCESS = "process_attr"
 TEXT = "config_or_script_text"
@@ -97,11 +110,22 @@ def _docstring_starts(tree: ast.AST) -> set[tuple[int, int]]:
     return {start for start in starts if start is not None}
 
 
-def _is_allowed_identifier(name: str) -> bool:
-    return name in ALLOWED_IDENTIFIERS or name.startswith(ALLOWED_IDENTIFIER_PREFIX)
+def _test_name_hits(tree: ast.AST) -> int:
+    functions = (ast.FunctionDef, ast.AsyncFunctionDef)
+    return sum(
+        isinstance(node, functions) and bool(TEST_NAME.search(node.name)) for node in ast.walk(tree)
+    )
 
 
-def _token_hits(token: tokenize.TokenInfo, docstrings: set[tuple[int, int]]) -> Counter[str]:
+def _is_allowed_identifier(name: str, allowed: frozenset[str]) -> bool:
+    return (
+        name in ALLOWED_IDENTIFIERS or name in allowed or name.startswith(ALLOWED_IDENTIFIER_PREFIX)
+    )
+
+
+def _token_hits(
+    token: tokenize.TokenInfo, docstrings: set[tuple[int, int]], allowed: frozenset[str]
+) -> Counter[str]:
     text = token.string
     hits = Counter({PROCESS: len(PROCESS_ATTRS.findall(text))})
     if token.type == tokenize.COMMENT:
@@ -111,16 +135,19 @@ def _token_hits(token: tokenize.TokenInfo, docstrings: set[tuple[int, int]]) -> 
         hits[COMMENT] += len(JARGON.findall(text))
     elif token.type in (tokenize.STRING, tokenize.FSTRING_MIDDLE):
         hits[LITERAL] += len(JARGON.findall(text))
-    elif token.type == tokenize.NAME and not _is_allowed_identifier(text):
+    elif token.type == tokenize.NAME and not _is_allowed_identifier(text, allowed):
         hits[IDENTIFIER] += bool(IDENT.search(text))
+        hits[CAMEL_HITS] += len(CAMEL.findall(text))
     return hits
 
 
-def _python_hits(source: str) -> Counter[str]:
-    docstrings = _docstring_starts(ast.parse(source))
-    hits: Counter[str] = Counter()
+def _python_hits(source: str, relative: str) -> Counter[str]:
+    tree = ast.parse(source)
+    docstrings = _docstring_starts(tree)
+    allowed = ALLOWED_IDENTIFIERS_BY_PATH.get(relative, frozenset())
+    hits: Counter[str] = Counter({TEST_NAME_HITS: _test_name_hits(tree)})
     for token in tokenize.generate_tokens(io.StringIO(source).readline):
-        hits.update(_token_hits(token, docstrings))
+        hits.update(_token_hits(token, docstrings, allowed))
     return hits
 
 
@@ -138,7 +165,8 @@ def _file_hits(path: Path) -> Counter[str]:
         source = path.read_text(encoding="utf-8")
     except UnicodeDecodeError:
         return Counter()
-    hits = _python_hits(source) if path.suffix == ".py" else _text_hits(source)
+    relative = path.relative_to(REPO).as_posix()
+    hits = _python_hits(source, relative) if path.suffix == ".py" else _text_hits(source)
     return +hits
 
 
