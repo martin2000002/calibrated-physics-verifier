@@ -85,7 +85,7 @@ class LocalVideoDataset:
         directory = self._root / (subset or DEFAULT_SUBSET)
         path = directory / MANIFEST_FILE
         if not path.is_file():
-            raise MissingInputError(f"no {MANIFEST_FILE} in {directory} (see ADR 0005, 3.11)")
+            raise MissingInputError(f"no {MANIFEST_FILE} in {directory} (it lists the clips)")
         clips = [
             self._manifest(directory, entry) for entry in _read_model(path, LocalManifest).clips
         ]

@@ -145,7 +145,7 @@ def test_t15_r4_resize_is_unchanged(edges: EdgeMode, level: float, width: int, w
     assert plain[0] == pytest.approx(level, rel=1e-6)
     if edges == "shifted" and width == 3 and where != "middle":
         # The shifted window mixes the plateau with rows whose depth differs by a few percent.
-        print(f"  J5 (i) fails: {filtered[0] / plain[0] - 1:+.1%}")
+        print(f"  criterion (i) fails: {filtered[0] / plain[0] - 1:+.1%}")
         assert filtered[0] != pytest.approx(plain[0], rel=1e-3)
         return
     assert filtered == pytest.approx(plain, rel=REL)

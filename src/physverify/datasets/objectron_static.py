@@ -208,7 +208,7 @@ class ObjectronStaticDataset:
         if lost:
             raise MissingInputError(
                 f"{self.name}: selected videos {lost} cannot be restored; the selection is "
-                "fixed once made (J14)"
+                "fixed once made"
             )
         self._write_manifest(dest, subset, outcomes)
 
@@ -217,7 +217,7 @@ class ObjectronStaticDataset:
             raise UsageError(
                 f"{self.name}: a selection with seed/split/per_class/max_video_mb/seconds "
                 f"{previous.rule()} exists, this configuration asks for {self._rule()}; "
-                "the selection is fixed once made (J14)"
+                "the selection is fixed once made"
             )
 
     def _rule(self) -> tuple[Any, ...]:
