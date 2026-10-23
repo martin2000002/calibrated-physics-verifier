@@ -16,10 +16,10 @@ import numpy as np
 from physverify.schema.contacts import ContactTable, RawCollisions
 from physverify.schema.scene import PerturbationRecord, SceneSpec
 from physverify.schema.states import ObjectStateTable, ground_truth_source_key
-from physverify.synth.contacts_gt import ClosestSamples, from_closest, from_raw_events
-from physverify.synth.kinematics_gt import position_consistent
-from physverify.synth.layout import UnreachableTargetError
+from physverify.synth.gt_contacts import ClosestSamples, from_closest, from_raw_events
+from physverify.synth.gt_velocity import position_consistent
 from physverify.synth.perturbations._base import ScenePerturbation, TrajectoryPerturbation
+from physverify.synth.placement import UnreachableTargetError
 from physverify.synth.plan import DatasetPlan, VariantPlan
 from physverify.synth.seeds import perturbation_seed
 from physverify.synth.settings import DatasetSettings, PerturbationClass, perturbation_params

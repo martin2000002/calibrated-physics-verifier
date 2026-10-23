@@ -10,7 +10,7 @@ from physverify.schema.contacts import ContactTable
 from physverify.schema.scene import MagnitudeKind, PerturbationRecord, SceneSpec
 from physverify.schema.states import ObjectStateTable
 from physverify.synth.perturbations._base import PerturbationTarget
-from physverify.synth.perturbations._edit import PluginBase, provisional_record
+from physverify.synth.perturbations._state_edit import PluginBase, provisional_record
 from physverify.synth.settings import PerturbationCommon
 
 NAME = "none"

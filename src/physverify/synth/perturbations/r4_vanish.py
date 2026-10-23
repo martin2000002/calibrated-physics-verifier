@@ -12,15 +12,7 @@ from physverify.schema.scene import MagnitudeKind, PerturbationRecord, SceneSpec
 from physverify.schema.states import ObjectStateTable
 from physverify.synth.perturb import PerturbationNotApplicableError
 from physverify.synth.perturbations._base import PerturbationTarget
-from physverify.synth.perturbations._edit import (
-    PluginBase,
-    camera_of,
-    edit_object,
-    pick,
-    provisional_record,
-)
-from physverify.synth.perturbations._measure import object_missing
-from physverify.synth.perturbations._windows import (
+from physverify.synth.perturbations._frame_windows import (
     Mask,
     in_image_fraction,
     polygons_overlap,
@@ -28,6 +20,14 @@ from physverify.synth.perturbations._windows import (
     segments,
     solid_at,
     supports_nothing,
+)
+from physverify.synth.perturbations._measure import object_missing
+from physverify.synth.perturbations._state_edit import (
+    PluginBase,
+    camera_of,
+    edit_object,
+    pick,
+    provisional_record,
 )
 from physverify.synth.settings import PerturbationCommon
 

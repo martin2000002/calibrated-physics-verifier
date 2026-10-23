@@ -15,7 +15,7 @@ from physverify.physics.geometry import Primitive, Solid, pose_from_quaternion
 from physverify.schema.constants import STANDARD_GRAVITY
 from physverify.schema.scene import ObjectSpec, SceneSpec
 from physverify.schema.states import PrimitiveKind
-from physverify.synth.layout import (
+from physverify.synth.placement import (
     KUBASIC_ASSET,
     CameraFraming,
     UnreachableTargetError,

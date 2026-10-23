@@ -13,7 +13,8 @@ from physverify.schema.scene import MagnitudeKind, PerturbationRecord, SceneSpec
 from physverify.schema.states import ObjectStateTable
 from physverify.synth.perturb import PerturbationNotApplicableError
 from physverify.synth.perturbations._base import PerturbationTarget
-from physverify.synth.perturbations._edit import (
+from physverify.synth.perturbations._frame_windows import flight_mask, rest_mask, segments
+from physverify.synth.perturbations._state_edit import (
     PluginBase,
     edit_object,
     pick,
@@ -21,7 +22,6 @@ from physverify.synth.perturbations._edit import (
     require_clearance,
     spheres,
 )
-from physverify.synth.perturbations._windows import flight_mask, rest_mask, segments
 from physverify.synth.settings import PerturbationCommon
 
 NAME = "r4_resize"

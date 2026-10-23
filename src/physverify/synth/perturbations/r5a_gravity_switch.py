@@ -19,7 +19,14 @@ from physverify.synth.perturbations._ballistics import (
     time_to_height,
 )
 from physverify.synth.perturbations._base import PerturbationTarget
-from physverify.synth.perturbations._edit import (
+from physverify.synth.perturbations._frame_windows import flight_mask, rest_mask, segments
+from physverify.synth.perturbations._measure import (
+    SIDE_FRAMES,
+    SWITCH_FRAME,
+    fit_frames,
+    inconsistency,
+)
+from physverify.synth.perturbations._state_edit import (
     PluginBase,
     Vec,
     ballistic_state,
@@ -36,13 +43,6 @@ from physverify.synth.perturbations._edit import (
     spheres,
     with_flight,
 )
-from physverify.synth.perturbations._measure import (
-    SIDE_FRAMES,
-    SWITCH_FRAME,
-    fit_frames,
-    inconsistency,
-)
-from physverify.synth.perturbations._windows import flight_mask, rest_mask, segments
 from physverify.synth.settings import PerturbationCommon
 
 NAME = "r5a_gravity_switch"

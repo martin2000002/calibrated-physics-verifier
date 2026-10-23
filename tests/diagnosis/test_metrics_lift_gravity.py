@@ -17,7 +17,7 @@ from physverify.diagnosis.measurement_cases import MetricCase, MetricOutcome
 from physverify.diagnosis.metrics.lift_gravity import LiftGravityAngleMetric
 from physverify.diagnosis.settings import MetricSettings
 from physverify.schema.states import CoordFrame, LengthUnit, ObjectStateTable
-from physverify.synth.layout import camera_axes
+from physverify.synth.placement import camera_axes
 
 OPTIONS = MetricSettings(
     boundary_tol_frac=0.008,

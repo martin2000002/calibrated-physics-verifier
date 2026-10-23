@@ -10,17 +10,17 @@ import numpy as np
 from physverify.schema.contacts import ContactTable
 from physverify.schema.scene import MagnitudeKind, PerturbationRecord, SceneSpec
 from physverify.schema.states import ObjectStateTable, PrimitiveKind
+from physverify.synth.family_toolkit import sphere_path
 from physverify.synth.perturb import PerturbationNotApplicableError
 from physverify.synth.perturbations._base import PerturbationTarget
-from physverify.synth.perturbations._edit import (
+from physverify.synth.perturbations._measure import gravity_scale_error
+from physverify.synth.perturbations._state_edit import (
     PluginBase,
     gravity_of,
     pick,
     provisional_record,
     require_in_image,
 )
-from physverify.synth.perturbations._measure import gravity_scale_error
-from physverify.synth.scene_kit import sphere_path
 from physverify.synth.settings import PerturbationCommon
 
 NAME = "r5b_gravity_scale"

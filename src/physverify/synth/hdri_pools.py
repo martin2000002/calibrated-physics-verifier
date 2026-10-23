@@ -3,7 +3,7 @@
 GeoCalib was trained on OpenPano, whose PolyHaven panoramas include Kubric's single background.
 The out-of-distribution pool is every id of Kubric's public ``HDRI_haven.json`` whose name is in
 no OpenPano split, ordered by the sha256 of the id and cut into two fixed halves: the first for
-development, the second reserved for the freeze. ``python -m physverify.synth.hdri MANIFEST
+development, the second reserved for the freeze. ``python -m physverify.synth.hdri_pools MANIFEST
 LISTING`` prints both as the ``[dataset.hdri_pools]`` TOML table.
 """
 

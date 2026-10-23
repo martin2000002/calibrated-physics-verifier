@@ -13,10 +13,16 @@ from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactTable
 from physverify.schema.scene import MagnitudeKind, PerturbationRecord, SceneSpec
 from physverify.schema.states import ObjectStateTable
-from physverify.synth.layout import UP, solve_offset
 from physverify.synth.perturb import PerturbationNotApplicableError
 from physverify.synth.perturbations._base import PerturbationTarget
-from physverify.synth.perturbations._edit import (
+from physverify.synth.perturbations._frame_windows import (
+    on_top_pairs,
+    solid_at,
+    supports_nothing,
+    touching,
+)
+from physverify.synth.perturbations._measure import overhang_on
+from physverify.synth.perturbations._state_edit import (
     PluginBase,
     Vec,
     half_width,
@@ -28,13 +34,7 @@ from physverify.synth.perturbations._edit import (
     shift_records,
     translated,
 )
-from physverify.synth.perturbations._measure import overhang_on
-from physverify.synth.perturbations._windows import (
-    on_top_pairs,
-    solid_at,
-    supports_nothing,
-    touching,
-)
+from physverify.synth.placement import UP, solve_offset
 from physverify.synth.settings import PerturbationCommon
 
 NAME = "r2_unsupported_rest"

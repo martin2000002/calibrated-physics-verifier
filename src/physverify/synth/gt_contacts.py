@@ -43,7 +43,7 @@ from physverify.schema.states import (
     PrimitiveKind,
     ground_truth_source_key,
 )
-from physverify.synth.perturbations._windows import UP, solid_at
+from physverify.synth.perturbations._frame_windows import UP, solid_at
 from physverify.synth.settings import ContactSettings
 
 Vec = NDArray[np.float64]

@@ -9,7 +9,7 @@ import pytest
 
 from physverify.config.models import SizePrior
 from physverify.schema.states import PrimitiveKind
-from physverify.synth.layout import (
+from physverify.synth.placement import (
     CameraFraming,
     UnreachableTargetError,
     camera_axes,

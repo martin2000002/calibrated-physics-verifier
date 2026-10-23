@@ -14,7 +14,7 @@ from physverify.config.loader import load_settings
 from physverify.core.cache_keys import params_hash
 from physverify.kubric_worker.build_scene import hdri_for
 from physverify.synth.generate import plan_subset
-from physverify.synth.hdri import halves, outside_ids, panorama_name, training_names
+from physverify.synth.hdri_pools import halves, outside_ids, panorama_name, training_names
 from physverify.synth.plan import NONE
 from physverify.synth.render import render_job
 from physverify.synth.settings import (

@@ -37,16 +37,16 @@ from physverify.schema.scene import PerturbationRecord, SceneSpec
 from physverify.schema.stages import STAGE_ORDER
 from physverify.schema.states import CoordFrame, ObjectStateTable, PrimitiveKind
 from physverify.synth.perturb import load_simulation, measured
-from physverify.synth.perturbations._measure import (
-    bounce_restitution,
-    measure_all,
-    record_cuts,
-)
-from physverify.synth.perturbations._windows import (
+from physverify.synth.perturbations._frame_windows import (
     in_image_fraction,
     projected_silhouette,
     silhouette_mask,
     solid_at,
+)
+from physverify.synth.perturbations._measure import (
+    bounce_restitution,
+    measure_all,
+    record_cuts,
 )
 from physverify.synth.store import (
     CAMERA,

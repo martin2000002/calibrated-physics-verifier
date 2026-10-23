@@ -26,8 +26,8 @@ from physverify.synth.perturb import (
     perturb_trajectory,
 )
 from physverify.synth.perturbations._base import PerturbationTarget
+from physverify.synth.perturbations._frame_windows import solid_at
 from physverify.synth.perturbations._measure import MEASURE_KEYS, measure_all, record_cuts
-from physverify.synth.perturbations._windows import solid_at
 from physverify.synth.settings import DatasetSettings, load_dataset_settings, perturbation_params
 
 OWN_KEY = {

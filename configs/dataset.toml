@@ -19,13 +19,13 @@ assets = "kubasic"
 calib_fraction = 0.5
 # Ground-truth velocities: "position" adds g h / 2 to the simulator's semi-implicit Euler
 # velocity outside resting contact, the velocity the rendered positions imply
-# (synth/kinematics_gt.py); "state" keeps PyBullet's. A dataset planned before this key existed
+# (synth/gt_velocity.py); "state" keeps PyBullet's. A dataset planned before this key existed
 # is moved over with `physverify dataset migrate --name velocity-<convention>`, never by bumping
 # `version`.
 velocity_convention = "position"
 
 # HDRI Haven ids outside GeoCalib's OpenPano training panoramas (plan-it2 J1), preregistered:
-# `python -m physverify.synth.hdri HDRI_haven.json openpano-listing.txt` over Kubric's public
+# `python -m physverify.synth.hdri_pools HDRI_haven.json openpano-listing.txt` over Kubric's public
 # manifest (sha256 6407c265...79c1, 509 ids) and the listing of the public openpano.zip (749
 # panoramas, sha256 96a68ba8...8217); 12 ids remain. `openpano_ood_dev` renders the development
 # set v1-precise-hdri-dev; `openpano_ood_reserved` is never rendered before the freeze.

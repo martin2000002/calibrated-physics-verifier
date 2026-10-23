@@ -27,7 +27,7 @@ from physverify.physics.tracks import (
 from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactKind, ContactRecord, ContactTable, ManifoldKind
 from physverify.schema.states import CoordFrame, LengthUnit
-from physverify.synth.perturbations._windows import impact_frames
+from physverify.synth.perturbations._frame_windows import impact_frames
 
 NATIVE = np.arange(12, dtype=np.int64)
 EVEN = np.arange(0, 24, 2, dtype=np.int64)

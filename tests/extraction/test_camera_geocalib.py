@@ -34,7 +34,7 @@ from physverify.extraction.providers.camera_geocalib import (
     to_opencv_gravity,
 )
 from physverify.schema.perception import CameraModel, IntrinsicsSource
-from physverify.synth.layout import camera_axes
+from physverify.synth.placement import camera_axes
 
 TOL = 1e-12
 FOCAL_PX = 180.0

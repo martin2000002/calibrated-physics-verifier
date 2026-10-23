@@ -24,7 +24,7 @@ from physverify.physics.tracks import records_of
 from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactKind, ContactRecord, ContactTable
 from physverify.schema.states import ObjectStateTable, PrimitiveKind
-from physverify.synth.layout import project
+from physverify.synth.placement import project
 
 Vec = NDArray[np.float64]
 Mask = NDArray[np.bool_]

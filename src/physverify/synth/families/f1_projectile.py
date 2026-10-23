@@ -9,8 +9,7 @@ import numpy as np
 from pydantic import BaseModel
 
 from physverify.schema.scene import ObjectSpec, SceneSpec
-from physverify.synth.layout import palette
-from physverify.synth.scene_kit import (
+from physverify.synth.family_toolkit import (
     FamilyCommon,
     RejectedSampleError,
     checked,
@@ -26,6 +25,7 @@ from physverify.synth.scene_kit import (
     sphere_path,
     with_retries,
 )
+from physverify.synth.placement import palette
 
 NAME = "f1_projectile"
 LABEL = "ball"

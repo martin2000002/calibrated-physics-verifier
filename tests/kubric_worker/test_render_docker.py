@@ -21,9 +21,9 @@ from physverify.schema.contacts import ContactKind, ContactTable, ManifoldKind, 
 from physverify.schema.render import RenderLayers
 from physverify.schema.scene import SceneSpec
 from physverify.schema.states import ObjectStateTable
-from physverify.synth.contacts_gt import ClosestSamples, from_raw_events
+from physverify.synth.gt_contacts import ClosestSamples, from_raw_events
 from physverify.synth.gt_export import opencv_intrinsics, opencv_world_from_camera
-from physverify.synth.layout import project
+from physverify.synth.placement import project
 from physverify.synth.settings import DatasetSettings, load_dataset_settings
 from physverify.synth.store import DatasetStore, read_json
 

@@ -14,7 +14,14 @@ from physverify.physics.measures.collision_energy import restitution
 from physverify.schema.contacts import ContactTable
 from physverify.schema.states import ObjectStateTable
 from physverify.synth.perturbations._ballistics import impact_velocity, time_to_height
-from physverify.synth.perturbations._edit import (
+from physverify.synth.perturbations._frame_windows import UP
+from physverify.synth.perturbations._measure import (
+    bounce_crossing,
+    bounce_restitution,
+    floor_bounce,
+    floor_crossing,
+)
+from physverify.synth.perturbations._state_edit import (
     edit_object,
     first_floor_impact,
     gravity_of,
@@ -22,13 +29,6 @@ from physverify.synth.perturbations._edit import (
     restitution_for_edit,
     spheres,
 )
-from physverify.synth.perturbations._measure import (
-    bounce_crossing,
-    bounce_restitution,
-    floor_bounce,
-    floor_crossing,
-)
-from physverify.synth.perturbations._windows import UP
 
 TOL = 1e-12
 Vec = np.ndarray

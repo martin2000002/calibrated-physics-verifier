@@ -12,7 +12,8 @@ from physverify.schema.states import ObjectStateTable
 from physverify.synth.perturb import PerturbationNotApplicableError
 from physverify.synth.perturbations._ballistics import Bounce, GravitySchedule, integrate_sphere
 from physverify.synth.perturbations._base import PerturbationTarget
-from physverify.synth.perturbations._edit import (
+from physverify.synth.perturbations._measure import bounce_restitution, floor_bounce
+from physverify.synth.perturbations._state_edit import (
     PluginBase,
     ballistic_state,
     before,
@@ -28,7 +29,6 @@ from physverify.synth.perturbations._edit import (
     spheres,
     with_flight,
 )
-from physverify.synth.perturbations._measure import bounce_restitution, floor_bounce
 from physverify.synth.settings import PerturbationCommon
 
 NAME = "r3_restitution_gain"

@@ -11,9 +11,7 @@ from numpy.typing import NDArray
 from pydantic import BaseModel
 
 from physverify.schema.scene import SceneSpec
-from physverify.synth.layout import palette, primitive_volume
-from physverify.synth.perturbations._ballistics import energy_scale
-from physverify.synth.scene_kit import (
+from physverify.synth.family_toolkit import (
     FamilyCommon,
     RejectedSampleError,
     checked,
@@ -29,6 +27,8 @@ from physverify.synth.scene_kit import (
     sphere_path,
     with_retries,
 )
+from physverify.synth.perturbations._ballistics import energy_scale
+from physverify.synth.placement import palette, primitive_volume
 
 Vec = NDArray[np.float64]
 NAME = "f3_collision"

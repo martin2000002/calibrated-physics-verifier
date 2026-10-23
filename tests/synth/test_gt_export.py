@@ -30,14 +30,18 @@ from physverify.synth.gt_export import (
     opencv_world_from_camera,
     visibility,
 )
-from physverify.synth.layout import project, spec_intrinsics, spec_world_from_camera
 from physverify.synth.perturb import (
     apply_variants,
     closest_points,
     ground_truth_contacts,
     instantiate,
 )
-from physverify.synth.perturbations._windows import projected_silhouette, silhouette_mask, solid_at
+from physverify.synth.perturbations._frame_windows import (
+    projected_silhouette,
+    silhouette_mask,
+    solid_at,
+)
+from physverify.synth.placement import project, spec_intrinsics, spec_world_from_camera
 from physverify.synth.plan import DatasetPlan
 from physverify.synth.settings import DatasetSettings, dataset_root, load_dataset_settings
 from physverify.synth.store import (

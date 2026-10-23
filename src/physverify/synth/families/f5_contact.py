@@ -11,9 +11,7 @@ from numpy.typing import NDArray
 from pydantic import BaseModel
 
 from physverify.schema.scene import ObjectSpec, SceneSpec
-from physverify.synth.layout import palette, rest_height
-from physverify.synth.perturbations._ballistics import rolling_angular_velocity
-from physverify.synth.scene_kit import (
+from physverify.synth.family_toolkit import (
     FamilyCommon,
     box_envelope,
     checked,
@@ -26,6 +24,8 @@ from physverify.synth.scene_kit import (
     sphere_envelope,
     with_retries,
 )
+from physverify.synth.perturbations._ballistics import rolling_angular_velocity
+from physverify.synth.placement import palette, rest_height
 
 NAME = "f5_contact"
 Vec = NDArray[np.float64]

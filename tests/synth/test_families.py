@@ -8,17 +8,17 @@ import numpy as np
 import pytest
 
 from physverify.schema.scene import SceneSpec
+from physverify.synth.family_toolkit import solid_of
 from physverify.synth.generate import base_scene, split_of
-from physverify.synth.layout import (
+from physverify.synth.perturbations._measure import overhang_on, penetration_between
+from physverify.synth.placement import (
     primitive_volume,
     project,
     rest_height,
     spec_intrinsics,
     spec_world_from_camera,
 )
-from physverify.synth.perturbations._measure import overhang_on, penetration_between
 from physverify.synth.plan import ScenePlan, scene_id_of
-from physverify.synth.scene_kit import solid_of
 from physverify.synth.seeds import scene_rng
 from physverify.synth.settings import DatasetSettings, family_params
 

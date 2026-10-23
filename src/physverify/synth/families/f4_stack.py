@@ -13,9 +13,7 @@ from pydantic import BaseModel
 from physverify.physics.geometry import characteristic_length, support_polygon
 from physverify.physics.measures.support_overhang import overhang_fraction
 from physverify.schema.scene import ObjectSpec, SceneSpec
-from physverify.synth.layout import UP, footprint_radius, palette, rest_height, solve_offset
-from physverify.synth.perturbations._measure import overhang_on, support_manifolds
-from physverify.synth.scene_kit import (
+from physverify.synth.family_toolkit import (
     FamilyCommon,
     RejectedSampleError,
     box_envelope,
@@ -29,6 +27,8 @@ from physverify.synth.scene_kit import (
     solid_of,
     with_retries,
 )
+from physverify.synth.perturbations._measure import overhang_on, support_manifolds
+from physverify.synth.placement import UP, footprint_radius, palette, rest_height, solve_offset
 
 NAME = "f4_stack"
 Vec = NDArray[np.float64]

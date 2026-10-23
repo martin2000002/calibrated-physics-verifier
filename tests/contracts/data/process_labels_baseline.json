@@ -727,9 +727,6 @@
  "src/physverify/sizing/settings.py": {
   "comment_or_docstring": 1
  },
- "src/physverify/synth/contacts_gt.py": {
-  "comment_or_docstring": 3
- },
  "src/physverify/synth/families/f1_projectile.py": {
   "comment_or_docstring": 2
  },
@@ -745,13 +742,19 @@
  "src/physverify/synth/families/f5_contact.py": {
   "comment_or_docstring": 2
  },
+ "src/physverify/synth/family_toolkit.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/synth/gt_contacts.py": {
+  "comment_or_docstring": 3
+ },
  "src/physverify/synth/gt_export.py": {
   "comment_or_docstring": 3
  },
- "src/physverify/synth/hdri.py": {
+ "src/physverify/synth/gt_velocity.py": {
   "comment_or_docstring": 2
  },
- "src/physverify/synth/kinematics_gt.py": {
+ "src/physverify/synth/hdri_pools.py": {
   "comment_or_docstring": 2
  },
  "src/physverify/synth/migrate.py": {
@@ -763,20 +766,17 @@
  "src/physverify/synth/perturbations/_ballistics.py": {
   "comment_or_docstring": 2
  },
- "src/physverify/synth/perturbations/_edit.py": {
-  "comment_or_docstring": 2
- },
  "src/physverify/synth/perturbations/_measure.py": {
   "comment_or_docstring": 4
+ },
+ "src/physverify/synth/perturbations/_state_edit.py": {
+  "comment_or_docstring": 2
  },
  "src/physverify/synth/perturbations/r2_unsupported_rest.py": {
   "comment_or_docstring": 2
  },
  "src/physverify/synth/perturbations/r3_energy_gain.py": {
   "comment_or_docstring": 2
- },
- "src/physverify/synth/scene_kit.py": {
-  "comment_or_docstring": 1
  },
  "src/physverify/synth/scene_scope.py": {
   "comment_or_docstring": 2

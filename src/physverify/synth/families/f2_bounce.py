@@ -10,8 +10,7 @@ from pydantic import BaseModel
 
 from physverify.schema.scene import SceneSpec
 from physverify.schema.states import PrimitiveKind
-from physverify.synth.layout import footprint_radius, palette, rest_height
-from physverify.synth.scene_kit import (
+from physverify.synth.family_toolkit import (
     FamilyCommon,
     box_envelope,
     checked,
@@ -23,6 +22,7 @@ from physverify.synth.scene_kit import (
     sphere_envelope,
     with_retries,
 )
+from physverify.synth.placement import footprint_radius, palette, rest_height
 
 NAME = "f2_bounce"
 

@@ -18,7 +18,7 @@ from physverify.diagnosis.settings import MetricSettings
 from physverify.extraction.providers._gravity_pose import pose_from_gravity
 from physverify.schema.clip import FrameSampling
 from physverify.schema.perception import CameraModel, IntrinsicsSource
-from physverify.synth.layout import camera_axes
+from physverify.synth.placement import camera_axes
 
 OPTIONS = MetricSettings(
     boundary_tol_frac=0.008,
