@@ -6,7 +6,8 @@ run it; this file says how the code is organised and what must not change.
 ## Rules
 
 - **English only** in this repository: code, identifiers, file names, docstrings, commits, docs.
-- **Typed code** (mypy strict on `src/physverify`, `scripts/h200` and `tools/equivalence`), small
+- **Typed code** (mypy strict on `src/physverify`, `scripts/h200`, `tools/equivalence` and
+  `tools/hdri_pools.py`), small
   functions, dependencies injected, no global mutable state, configuration only through
   `configs/**/*.toml` and `physverify.config`.
 - **No duplication**: a constant, schema or helper lives in exactly one module. A physical quantity
@@ -21,29 +22,36 @@ run it; this file says how the code is organised and what must not change.
 - **Heavy libraries** (torch, transformers, kubric, bpy) are imported inside functions, never at
   module level; `tests/core/test_registry.py` checks that building every registry imports none.
 - **Size limits**: no module in `src/physverify` over 400 lines, no CLI command module over 150
-  (`tests/test_module_sizes.py`). Commands only parse arguments and call `physverify.app`.
+  (`tests/test_module_sizes.py`). Commands only parse arguments and call `physverify.app`
+  (an import contract, see the layer rule).
 
 ## Package tree
 
 ```
 src/physverify/
   schema/          wire records shared with the Python 3.9 container; JSON and NPZ codecs
-  core/            plugin discovery, errors and exit codes, hashing and cache keys, atomic writes,
-                   downloads, markdown tables, video decoding, resampling
+  core/            plugin discovery, errors and exit codes, digests and cache keys, atomic writes,
+                   JSON file reading, downloads, local-video manifests, markdown tables and number
+                   cells, lenient cell parsing, video decoding and the one MP4 writer, resampling
   stats/           bootstrap, scene bootstrap, folds, intervals, rank statistics
-  config/          settings models, layered TOML loader, plugin context protocol
+  config/          settings models and the device check, layered TOML loader and the default
+                   config directory, per-field config errors, plugin kinds (PluginKind, registry_of)
   runtime/         heavy-job lock, Docker and udocker runners, run directories, environment info
-  physics/         geometry, finite differences, kinematics, equilibrium, measures/
-  synth/           Kubric scene families/, perturbations/, truth_measures/, ground-truth export
+  physics/         geometry, signed distance, contact manifolds, finite differences, kinematics,
+                   flights, equilibrium, uncertainty propagation, tie tolerance, measures/
+  synth/           Kubric scene families/, perturbations/, truth_measures/, gt/ (ground-truth
+                   export), plan, migrations, HDRI pools
   sizing/          object size model learned on Objectron
-  datasets/        dataset, video and ground-truth protocols and one module per dataset
+  datasets/        dataset, video, ground-truth and human-label protocols; one module per dataset
   checks/          physics checks R1-R5b, one module per check
-  extraction/      stage providers (providers/), stage cache, extraction pipeline
-  verification/    check set, runner, verdict policies/, specificity sweep, check scope
+  extraction/      stage providers (providers/), stage cache, extraction pipeline, error profile,
+                   weights, lifting geometry shared with diagnosis
+  verification/    check set, runner (configured_suite), verdict policies/, thresholding (threshold
+                   table and k-sigma rule), specificity sweep, check scope
   generation/      Wan2.1 text-to-video generator
-  diagnosis/       per-stage metrics/, end-to-end error, attribution, real video
-  calibration/     thresholds, rates, detection limits, sigma recalibration, clip score,
-                   held-out evaluation, exclusion rules, sealed-set ledger
+  diagnosis/       per-stage metrics/, end-to-end error, attribution, real_video/
+  calibration/     thresholds, rates, detection limits, sigma recalibration, clip score, held-out
+                   evaluation, exclusions/ (exclusion rules), sealed-set ledger, api.py (typed facade)
   human_agreement/ verifier vs reference VLM on human labels
   selective_risk/  risk-coverage curve and abstention level
   finetune/        preference pairs, scorers/, Flow-DPO trainer, checkpoint selection
@@ -53,20 +61,24 @@ src/physverify/
   timing/          per-clip cost harness, targets/, GPU budget
   demo/            one prompt or video through the whole verifier
   reporting/       results report: every number with its source
-  app/             composition root: plugins.py (PLUGIN_KINDS), context.py, services
-  cli/             typer entry point; commands/ holds one module per subcommand
+  app/             composition root: plugins.py (PLUGIN_KINDS), context.py, services.py, the
+                   commands' wiring modules, queries.py (behind the H200 query scripts)
+  cli/             typer entry point (main.py), shared options (options.py); commands/ holds one
+                   module per subcommand
   kubric_worker/   container entry point and tasks/ (Python 3.9)
-tests/             mirrors src/ (tests/<package>/), plus scripts/, contracts/, docker/ (`-m docker`),
-                   equivalence/, fixtures/
+tests/             mirrors src/ (tests/<package>/) except app/, freeze/ and generation/ (tested
+                   through cli/, scripts/ and timing/); plus scripts/, contracts/, docker/
+                   (`-m docker`), equivalence/, fixtures/; one `make_settings` fixture in conftest.py
 scripts/h200/      shell runners and small query scripts for the university H200 server
-tools/equivalence/ behaviour-equivalence harness (see its README)
+tools/             equivalence/ (behaviour-equivalence harness, see its README) and hdri_pools.py
+                   (prints the `[dataset.hdri_pools]` table)
 configs/           default.toml, local.example.toml, verifier/, datasets/, studies/
 ```
 
 ## Layer rule
 
-`[tool.importlinter]` in `pyproject.toml` lists the layers; `tests/test_architecture.py` enforces
-them with `ast`, lazy imports inside functions included. A package imports only from the layers
+`[tool.importlinter]` in `pyproject.toml` lists the layers and the forbidden imports;
+`tests/test_architecture.py` enforces every contract with `ast`, lazy imports inside functions included. A package imports only from the layers
 below it, never from a sibling (`a | b` on one line) or from above. Top to bottom:
 
 ```
@@ -77,34 +89,44 @@ cli > app > reporting > generator_comparison | timing | demo > finetune | freeze
 ```
 
 `schema` imports nothing else from `physverify`; `kubric_worker` imports only `schema`; neither
-imports pydantic, typer or torch. `scripts/` may import `physverify.app` and below, never
-`physverify.cli`; ruff (TID251) also bans `physverify.cli` and `physverify.app` outside `cli`,
-`app`, `scripts`, `tools` and `tests`.
+imports pydantic, typer or torch. `cli` imports only `app` and `core`. `scripts/` may import
+`physverify.app` and below, never `physverify.cli`; the query scripts `run_query.py` and
+`agreement_query.py` import only `app` (they delegate to `app/queries.py`), `schema` and `core`.
+Ruff (TID251) also bans `physverify.cli` and `physverify.app` outside `cli`, `app`, `scripts`,
+`tools` and `tests`.
 
 ## How to add a plugin
 
 `app/plugins.py` (`PLUGIN_KINDS`) discovers every class-based kind through
 `core.registry.discover`: each public module (name not starting with `_`) of the package is
-imported and must define `PLUGINS`, a tuple of classes that satisfy the kind's protocol. Container
-tasks are modules, discovered with `core.registry.discover_modules` (also in `app/plugins.py`), and
-CLI subcommands are discovered the same way by `cli/main.py`. Duplicate keys, a missing `PLUGINS`
-and protocol mismatches fail loudly. Modules load in file-name order and the registry keeps that
+imported and must define `PLUGINS`, a tuple of classes that satisfy the kind's protocol. Each
+kind's `PluginKind` constant (`CHECKS`, `PROVIDERS`, ...) sits in its `_base.py` beside the
+protocol; services read a registry with `config.plugin_context.registry_of(context, KIND)`.
+Container tasks are modules, discovered with `core.registry.discover_modules` (their kind,
+`CONTAINER_TASKS`, is in `app/plugins.py`, since `kubric_worker` cannot import `config`); CLI
+subcommands are discovered the same way by `cli/main.py`. Duplicate keys, a missing `PLUGINS` and
+protocol mismatches fail loudly. Modules load in file-name order and the registry keeps that
 order, which is the output order of reports and tables.
+
+Code shared between plugin modules goes in a private sibling (`_name.py`); a public module that
+registers a shared class re-exports it in `PLUGINS` (with `__all__` when other code imports it). A
+public plugin module never imports a public sibling (`tests/core/test_plugin_imports.py`).
 
 | Kind | Add one file | Interface it implements | Registry key |
 |---|---|---|---|
-| Physics check | `checks/r<id>_<what>.py` (file order = check order) | `checks._base.Check` | `check_id` |
+| Physics check | `checks/r<id>_<what>.py` (file order = check order) | `checks._base.Check`: `requires` names `CheckInputs` fields, `time_dependent`; results from `unscored` and `abstain` | `check_id` |
 | Truth measure of a check | `synth/truth_measures/r<id>_<what>.py` | `synth.truth_measures._base.TruthMeasure` | `check_id` |
-| Perturbation | `synth/perturbations/<name>.py` | `ScenePerturbation` or `TrajectoryPerturbation` (`synth.perturbations._base`) | `name` |
+| Perturbation | `synth/perturbations/<name>.py` | `ScenePerturbation` or `TrajectoryPerturbation` (`synth.perturbations._base`); `families` (empty = every family) | `name` |
 | Scene family | `synth/families/<name>.py` | `synth.families._base.SceneFamily` | `name` |
 | Perception model | `extraction/providers/<stage>_<name>.py` | `extraction._base.StageProvider`, `is_ground_truth = False` | `<stage>/<name>` |
 | Ground-truth stage | `extraction/providers/gt_<stage>.py` | `StageProvider`, `name = "ground_truth"`, `is_ground_truth = True` | `<stage>/ground_truth` |
 | Dataset | `datasets/<name>.py` (and `configs/datasets/<name>.toml` if it has settings) | `datasets._base.DatasetSource` (with `VideoSource`, `GroundTruthStore`) | `name` |
+| Human-label source | `datasets/<name>.py` | `datasets._base.HumanLabelSource`, chosen by `[agreement] label_source` and `[h3.gate] label_source` (default `"videophy"`) | `name` |
 | Diagnosis metric | `diagnosis/metrics/<stage>_<metric>.py` | `diagnosis._base.StageMetric` | `<stage>/<name>` |
-| Verdict policy | `verification/policies/<name>.py` | `verification._base.VerdictPolicy` | `name` |
-| Timing target | `timing/targets/<name>.py` | `timing._base.TimingTarget` | `name` |
+| Verdict policy | `verification/policies/<name>.py` | `verification._base.VerdictPolicy`, built as `cls(params)` | `name` |
+| Timing target | `timing/targets/<name>.py` | `timing._base.TimingTarget`, built as `cls(services)`; hook defaults in `timing.hooks.TargetHooks` | `name` |
 | Comparison judge | `generator_comparison/judges/<name>.py` | `generator_comparison.judges._base.Judge` (or `ExternalJudge`) | `name` |
-| Preference scorer | `finetune/scorers/<name>.py` | `finetune.scorers._base.AggregateScorer` | `name` |
+| Preference scorer | `finetune/scorers/<name>.py` | `finetune.scorers._base.AggregateScorer` (optionally `CalibrationStatusSource`) | `name` |
 | Container task | `kubric_worker/tasks/<task>.py` (Python 3.9 syntax) | a module with `run(job: dict[str, Any]) -> None` | module name |
 | CLI subcommand | `cli/commands/<name>.py` | a module with `NAME` and a typer `app` (discovered by `cli/main.py`) | `NAME` |
 
@@ -177,5 +199,5 @@ The machine runs one heavy job at a time. Commands marked heavy take the flock a
 ### Behaviour equivalence
 
 `tools/equivalence/run_equivalence.sh <base> <head>` runs the same CPU scenarios on two revisions
-and diffs their outputs; intended differences are declared in `tools/equivalence/expected/`. Use
-it for any change meant to keep behaviour.
+and diffs their outputs; intended differences are declared in `tools/equivalence/expected/`, one
+`.diff` per change, named by its content. Use it for any change meant to keep behaviour.
