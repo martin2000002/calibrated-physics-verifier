@@ -8,8 +8,9 @@
 #   bash scripts/h200/run_freeze.sh [FROM [TO]]   steps FROM..TO (default 1..7); FROM resumes
 #
 #    1 adopt           the selection rule over PHYSVERIFY_FREEZE_ITERATIONS (freeze_query select):
-#                      the choice must be PHYSVERIFY_FREEZE_ITERATION and the j3 diff (checks,
-#                      physics, extraction, verification) from its commit empty; its
+#                      the choice must be PHYSVERIFY_FREEZE_ITERATION and the diff of the refit
+#                      paths (checks, physics, extraction, verification, selective_risk/curve.py)
+#                      from its commit to HEAD empty; its
 #                      calibration.json, stage_errors.precise.json and stage_sigma.json are copied
 #                      to $F/calibration (a different file already there stops)
 #    2 real-dev        extract run on physics_iq and pisa_real (full) and the kubric_synthetic calib
@@ -40,7 +41,8 @@
 #   PHYSVERIFY_FREEZE_ITERATIONS     the eligible iteration directories
 #                                    (run_perception_iteration.sh), spaces
 #   PHYSVERIFY_FREEZE_EARLY_EXTRACTION_COMMIT
-#                                    the early-extraction commit (the j13 diff starts there)
+#                                    the early-extraction commit (the recorded diff of the
+#                                    extraction package and its config starts there)
 #   PHYSVERIFY_FREEZE_V1_COMMIT      the v1 commit, the v1 arm's (40 hex)
 #   PHYSVERIFY_FREEZE_V1_CALIBRATION the base iteration's calibration.json (the v1 arm's)
 #   PHYSVERIFY_FREEZE_CACHE_DIR      paths.cache_dir (the shared cache)

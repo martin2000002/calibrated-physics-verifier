@@ -10,7 +10,8 @@ scorer = "calibrated"
 exclude_time_dependent = true      # every scorer leaves [check_scope].time_dependent_checks out
 on_family_without_targets = "error"  # "keep": a family left without target checks is scored anyway
 
-[finetune.stop_rule]    # train, beta-grid, h3 generate and h3 freeze refuse when it fires
+# train, beta-grid, compare-generators generate and compare-generators freeze refuse when it fires
+[finetune.stop_rule]
 enforce = true          # false: only report it
 min_pairs_per_prompt = 0.3
 max_candidate_abstention = 0.5
