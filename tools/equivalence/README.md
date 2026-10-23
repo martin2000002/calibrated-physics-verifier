@@ -56,10 +56,10 @@ lines of `diff.txt`) as a new file.
   changes `config_hash`, which `doctor` prints on both sides, and
   `tests/contracts/test_config_splits.py` pins the split files against the originals.
 
-## Scenarios (J10 a: each asserts its exit code and that it wrote files or printed output)
+## Scenarios (each asserts its exit code and that it wrote files or printed output)
 
 The commands and options below are the left side's (`9eb5888`) on purpose: `driver.py` writes each
-scenario with those literals and `_map_argv` maps them onto the WP8 names (`COMMAND_RENAMES`,
+scenario with those literals and `_map_argv` maps them onto the renamed ones (`COMMAND_RENAMES`,
 `OPTION_RENAMES`) only on a checkout that lacks the old ones.
 
 | Scenario | Command | Exit |
@@ -71,7 +71,7 @@ scenario with those literals and `_map_argv` maps them onto the WP8 names (`COMM
 | verify_usage_error, verify_unknown_dataset | no `--level`; `--dataset nope` | 2 |
 | dataset_generate_smoke, dataset_generate_again | `dataset generate --subset smoke` twice | 0 |
 | dataset_list_smoke, dataset_list_local | `dataset list --subset smoke`; unplanned `local` | 0; 2 |
-| results_chain, results_chain_without_agreement | `results --a8v2-dir <chain> [--h2-run <h2>]` | 0 |
+| results_chain, results_chain_without_agreement | `results` on the chain directory [and the agreement run], under the left side's option names | 0 |
 | calibrate_fit, calibrate_show | `calibrate fit --from-run raw-oracle --out ...` (bootstrap 100), `show` | 0 |
 | calibrate_publish_refused | `publish` of a non-calibrated artifact with `require_calibrated_artifact` | 2 |
 | root_usage_error | unknown subcommand | 2 |
@@ -95,7 +95,7 @@ clip alone gave magnitudes of 0 or about 1e-14 and R3a/R3b only abstained.
 ## Normalization (only these)
 
 Run ids `[0-9]{8}-[0-9]{6}-[0-9a-f]+` become `RUNID<k>` in order of first appearance (dir names
-too); ISO timestamps (also `2026-10-22 10:00:00,123` log stamps) become `TS`; both revisions' commit
+too); ISO timestamps (also `YYYY-MM-DD HH:MM:SS,mmm` log stamps) become `TS`; both revisions' commit
 hashes (full and 12-char) become `COMMIT`; the run directory becomes `RUN` and the worktree
 `WORKTREE`; a sha256 (full or 12-char prefix) of a file the run wrote becomes `SHA(<file>)`, because
 artifacts that embed `created_utc` hash differently on every run; `.npz` files are compared by entry
@@ -119,7 +119,7 @@ Results recorded with the current scenario list and per-side inputs:
   `dataset audit-migration` page and its row in `dataset --help` (expected); every other scenario,
   the scenes ones included, identical; 59 golden blobs identical.
 
-## ast_equal.py (J10 c)
+## ast_equal.py
 
 For pure-move and comment/docstring commits: pairs modules by git rename detection (`-M30%`) plus
 `--renames` (`<old path>\t<new path>`), strips docstrings, rewrites the old side's imports and
