@@ -100,16 +100,56 @@ def test_usage_errors_exit_2(cli: CliRunner) -> None:
     assert cli("--no-such-option").code == 2
     assert cli("no-such-command").code == 2
     bad = cli("--set", "runtime.threads=0", "doctor")
-    assert bad.code == 2 and "invalid configuration" in bad.err
+    assert bad.code == 2 and "[runtime] is invalid" in bad.err
+
+
+@pytest.mark.parametrize(
+    ("override", "line"),
+    [
+        (
+            "runtime.threads='abc'",
+            (
+                "[runtime] threads: Input should be a valid integer, unable to parse string as"
+                " an integer (got 'abc')"
+            ),
+        ),
+        ("runtime.device='gpu'", "[runtime] device must be cpu, cuda or cuda:N, got 'gpu'"),
+        ("runtime.nope=1", "[runtime] nope: Extra inputs are not permitted (got 1)"),
+    ],
+)
+def test_a_config_error_is_one_line_per_field_without_urls(
+    cli: CliRunner, override: str, line: str
+) -> None:
+    result = cli("--set", override, "doctor")
+    assert result.code == 2
+    assert result.err.splitlines() == ["error: [runtime] is invalid:", line]
 
 
 def test_missing_config_dir_exits_2(cli: CliRunner) -> None:
     result = cli("--config-dir", "/nonexistent/physverify", "doctor")
     assert result.code == 2 and "config directory not found" in result.err
+    assert "pass --config-dir or set PHYSVERIFY_CONFIG_DIR" in result.err
 
 
 def test_log_level_is_validated_by_logging_setup(cli: CliRunner) -> None:
     assert cli("--log-level", "DEBUG", "doctor").code == 0
+
+
+@pytest.mark.parametrize(
+    ("argv", "message"),
+    [
+        (("--log-level", "loud"), "Invalid value for '--log-level': must be one of DEBUG"),
+        (("--device", "gpu"), "Invalid value for '--device': must be cpu, cuda or cuda:N"),
+        (("--lock-timeout", "-1"), "Invalid value for '--lock-timeout': must be 0 or more"),
+        (("--profile", "bogus"), "unknown profile 'bogus'; known: ['fast', 'precise']"),
+    ],
+)
+def test_bad_global_option_values_are_usage_errors(
+    cli: CliRunner, argv: tuple[str, ...], message: str
+) -> None:
+    result = cli(*argv, "doctor")
+    assert result.code == 2
+    assert message in result.err
 
 
 def test_app_is_a_typer_instance() -> None:

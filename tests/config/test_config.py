@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
 
-from physverify.config.loader import load_settings
+from physverify.config.loader import MODEL_ONLY_SECTIONS, load_settings
 from physverify.config.models import PathsSettings, SizePriorTable
 from physverify.core.errors import ConfigError
+from physverify.runtime.container import SECTION as CONTAINER_SECTION
 
 BASE = """
 [runtime]
@@ -116,6 +118,32 @@ def test_relative_lock_is_anchored_at_repo_root(tmp_path: Path) -> None:
     _write(tmp_path / "configs", "default.toml", '[runtime]\nheavy_lock = "run/heavy.lock"\n')
     settings = load_settings(tmp_path / "configs", environ={})
     assert settings.runtime.heavy_lock == str(tmp_path.resolve() / "run" / "heavy.lock")
+
+
+@pytest.mark.parametrize(
+    ("environ", "overrides", "origin"),
+    [
+        ({"PHYSVERIFY__NOSUCH__KEY": "1"}, (), "PHYSVERIFY__<SECTION>__<KEY>"),
+        ({}, ("nosuch.key=1",), "--set"),
+    ],
+)
+def test_overrides_of_an_unknown_section_raise(
+    tmp_path: Path, environ: dict[str, str], overrides: tuple[str, ...], origin: str
+) -> None:
+    _write(tmp_path, "default.toml", BASE)
+    with pytest.raises(ConfigError, match=re.escape(f"{origin} sets unknown section [nosuch]")):
+        load_settings(tmp_path, environ=environ, overrides=overrides)
+
+
+def test_overrides_of_model_only_and_nested_sections_load(config_dir: Path) -> None:
+    environ = {
+        "PHYSVERIFY__H3__AUTOEVAL__ROOT": "/elsewhere",
+        "PHYSVERIFY__CONTAINER__ENGINE": "udocker",
+    }
+    settings = load_settings(config_dir, environ=environ, overrides=("paths.data_dir=/d",))
+    assert settings.sections["h3"]["autoeval"]["root"] == "/elsewhere"
+    assert settings.sections["container"] == {"engine": "udocker"}
+    assert CONTAINER_SECTION in MODEL_ONLY_SECTIONS
 
 
 def test_repository_configs(config_dir: Path) -> None:

@@ -18,15 +18,22 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Any
 
-from pydantic import ValidationError
-
-from physverify.config.models import PROFILE_CONTEXT, PathsSettings, RuntimeSettings, Settings
+from physverify.config.models import (
+    PROFILE_CONTEXT,
+    PathsSettings,
+    RuntimeSettings,
+    Settings,
+    validated,
+)
 from physverify.core.errors import ConfigError
 
 ENV_PREFIX = "PHYSVERIFY__"
+CONFIG_DIR_ENV = "PHYSVERIFY_CONFIG_DIR"
 DEFAULT_PROFILE = "fast"
 PROFILES_KEY = "profiles"
 LOCAL_FILE = "local.toml"
+MODEL_ONLY_SECTIONS = frozenset({"paths", "runtime", "container"})
+"""Sections that may lack a configs/**/*.toml table: their defaults live in their model."""
 
 Table = dict[str, Any]
 
@@ -41,13 +48,18 @@ def load_settings(
 ) -> Settings:
     config_dir = config_dir.resolve()
     if not config_dir.is_dir():
-        raise ConfigError(f"config directory not found: {config_dir}")
+        raise ConfigError(
+            f"config directory not found: {config_dir}; pass --config-dir or set {CONFIG_DIR_ENV}"
+        )
     base, sources = read_config_files(config_dir)
     local_path = config_dir / LOCAL_FILE
     local = _read_toml(local_path) if local_path.is_file() else {}
     if local:
         sources.append(str(local_path))
-    upper = [local, env_layer(environ), device_layer(device), set_layer(overrides)]
+    env, sets = env_layer(environ), set_layer(overrides)
+    _require_known_sections(base, env, f"{ENV_PREFIX}<SECTION>__<KEY>")
+    _require_known_sections(base, sets, "--set")
+    upper = [local, env, device_layer(device), sets]
     name = resolve_profile(profile, base, upper)
     merged = merge(apply_profile(base, name), *(strip_profiles(layer) for layer in upper))
     sources.extend(_describe_overrides(environ, device, overrides))
@@ -68,6 +80,15 @@ def read_config_files(config_dir: Path) -> tuple[Table, list[str]]:
             owner[key] = name
             merged[key] = value
     return merged, [str(p) for p in files]
+
+
+def _require_known_sections(base: Mapping[str, Any], layer: Mapping[str, Any], origin: str) -> None:
+    known = set(base) | MODEL_ONLY_SECTIONS
+    unknown = sorted(set(layer) - known)
+    if unknown:
+        raise ConfigError(
+            f"{origin} sets unknown section [{unknown[0]}]; known: {', '.join(sorted(known))}"
+        )
 
 
 def config_files(config_dir: Path) -> list[Path]:
@@ -211,13 +232,13 @@ def _build(
 ) -> Settings:
     repo_root = config_dir.parent
     home = Path(environ.get("HOME") or Path.home())
-    try:
-        paths = PathsSettings.model_validate(
-            _expanded(merged.get("paths", {}), environ), context={PROFILE_CONTEXT: profile}
-        )
-        runtime = RuntimeSettings.model_validate(_expanded(merged.get("runtime", {}), environ))
-    except ValidationError as exc:
-        raise ConfigError(f"invalid configuration:\n{exc}") from exc
+    paths = validated(
+        PathsSettings,
+        _expanded(merged.get("paths", {}), environ),
+        "paths",
+        {PROFILE_CONTEXT: profile},
+    )
+    runtime = validated(RuntimeSettings, _expanded(merged.get("runtime", {}), environ), "runtime")
     lock = runtime.heavy_lock
     if lock and not Path(lock).is_absolute():
         runtime = runtime.model_copy(update={"heavy_lock": str(repo_root / lock)})
