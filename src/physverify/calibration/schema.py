@@ -6,19 +6,16 @@ fields, which a lenient load drops. Every non-finite number is written as null.
 
 from __future__ import annotations
 
-import json
-from typing import Any, Literal
+from typing import Literal
 
-from pydantic import Field, ValidationInfo, model_validator
+from pydantic import Field
 
-from physverify.core.models import ReportModel
+from physverify.core.models import SCHEMA_KEY, ArtifactModel
 from physverify.schema.checks import InputLevel
 
 CALIBRATION_SCHEMA = "physverify.calibration"
 CALIBRATION_VERSION = "1.6.0"
 EVALUATION_SCHEMA = "physverify.calibration.evaluation"
-LENIENT = "lenient"
-"""Validation-context flag: drop keys this version does not know (newer minor version)."""
 
 CheckStatus = Literal["ok", "insufficient", "no_positives", "no_negatives", "unranked_negatives"]
 RateCi = Literal["clopper_pearson", "scene_bootstrap", "clopper_pearson_scenes"]
@@ -28,26 +25,6 @@ Censoring = Literal["none", "below", "above"]
 OK: CheckStatus = "ok"
 UNRANKED_NEGATIVES: CheckStatus = "unranked_negatives"
 """Clean clips have an event but every magnitude is NaN: the measurement is missing, not data."""
-
-
-SCHEMA_KEY = "schema"
-SCHEMA_FIELD = "schema_"
-
-
-class ArtifactModel(ReportModel):
-    @model_validator(mode="before")
-    @classmethod
-    def _drop_unknown(cls, data: Any, info: ValidationInfo) -> Any:
-        if isinstance(data, dict) and info.context and info.context.get(LENIENT):
-            known = {*cls.model_fields, *(f.alias for f in cls.model_fields.values() if f.alias)}
-            return {key: value for key, value in data.items() if key in known}
-        return data
-
-    def to_json(self) -> str:
-        payload = json.loads(super().to_json())
-        if SCHEMA_FIELD in payload:
-            payload[SCHEMA_KEY] = payload.pop(SCHEMA_FIELD)
-        return json.dumps(payload, sort_keys=True, indent=2, allow_nan=False) + "\n"
 
 
 class Ci(ArtifactModel):

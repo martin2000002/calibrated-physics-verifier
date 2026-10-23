@@ -14,9 +14,7 @@ from pydantic import ValidationError
 from physverify.calibration.schema import (
     CALIBRATION_SCHEMA,
     CALIBRATION_VERSION,
-    LENIENT,
     OK,
-    SCHEMA_KEY,
     CalibrationArtifact,
     CheckCalibration,
 )
@@ -25,6 +23,7 @@ from physverify.calibration.settings import calibration_settings
 from physverify.config.models import Settings
 from physverify.core.digests import text_sha256
 from physverify.core.errors import PhysverifyError
+from physverify.core.models import LENIENT, SCHEMA_KEY
 from physverify.schema.checks import InputLevel
 from physverify.verification.runner import (
     CALIBRATED,

@@ -13,8 +13,8 @@ from typing import Any, Final, Literal
 
 from pydantic import Field, ValidationError
 
-from physverify.calibration.schema import SCHEMA_KEY, ArtifactModel
 from physverify.core.errors import UsageError
+from physverify.core.models import SCHEMA_KEY, ArtifactModel
 from physverify.schema.io import stable_hash
 
 RECORD_SCHEMA: Final = "physverify.exclusions"

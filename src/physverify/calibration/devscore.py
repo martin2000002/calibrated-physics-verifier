@@ -25,8 +25,6 @@ from physverify.calibration.fit import (
     settings_snapshot,
 )
 from physverify.calibration.schema import (
-    SCHEMA_KEY,
-    ArtifactModel,
     Auroc,
     CalibrationArtifact,
     CheckCalibration,
@@ -43,6 +41,7 @@ from physverify.calibration.thresholds import fails
 from physverify.calibration.verdict import Rule
 from physverify.calibration.weights import Flag, raw_weight
 from physverify.core.errors import UsageError
+from physverify.core.models import SCHEMA_KEY, ArtifactModel
 from physverify.schema.checks import InputLevel
 from physverify.schema.io import stable_hash
 from physverify.verification.policies.threshold import ThresholdPolicy
