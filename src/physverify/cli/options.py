@@ -8,7 +8,7 @@ from typing import Annotated
 import typer
 
 from physverify.app.finetune import STOP_RULE_DEVIATION
-from physverify.core.errors import UsageError
+from physverify.core.errors import UsageError, choice
 from physverify.finetune.settings import SPLITS, PromptSplit
 from physverify.generator_comparison.arms import EVAL_SPLIT
 
@@ -49,13 +49,6 @@ ExtractBatchOption = Annotated[int | None, typer.Option(help="Clips per extracti
 GeneratorOnlyOption = Annotated[
     bool, typer.Option(help="Cost = generation only (extraction runs elsewhere).")
 ]
-
-
-def choice[T: str](value: str, known: tuple[T, ...], option: str) -> T:
-    for candidate in known:
-        if value == candidate:
-            return candidate
-    raise UsageError(f"{option} must be one of {list(known)}, got {value!r}")
 
 
 def campaign_split(split: str, h3_step: str) -> PromptSplit:

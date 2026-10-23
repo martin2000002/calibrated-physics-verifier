@@ -250,7 +250,6 @@
  },
  "src/physverify/cli/commands/h3.py": {
   "comment_or_docstring": 1,
-  "identifier": 11,
   "literal": 4
  },
  "src/physverify/cli/commands/results.py": {
@@ -557,6 +556,9 @@
   "comment_or_docstring": 1
  },
  "src/physverify/generator_comparison/compare.py": {
+  "identifier": 2
+ },
+ "src/physverify/generator_comparison/context.py": {
   "identifier": 2
  },
  "src/physverify/generator_comparison/judge_gate.py": {
