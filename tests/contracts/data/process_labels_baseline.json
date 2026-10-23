@@ -212,7 +212,7 @@
   "literal": 2
  },
  "src/physverify/cli/commands/abstain.py": {
-  "comment_or_docstring": 6,
+  "comment_or_docstring": 2,
   "literal": 3
  },
  "src/physverify/cli/commands/agreement.py": {
@@ -711,6 +711,12 @@
  },
  "src/physverify/selective_risk/fit.py": {
   "banner": 2
+ },
+ "src/physverify/selective_risk/report.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/selective_risk/tables.py": {
+  "comment_or_docstring": 3
  },
  "src/physverify/sizing/end_to_end.py": {
   "comment_or_docstring": 1

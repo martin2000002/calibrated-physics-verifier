@@ -19,8 +19,9 @@ from cli_runner import CliResult, CliRunner
 from cli_tree import cli_leaves, command_modules
 
 from physverify.app import plugins, sealing
+from physverify.app import selective_risk as app_selective_risk
 from physverify.calibration.sealed_ledger import LedgerEntry, read_entries
-from physverify.cli.commands import abstain, calibrate, diagnose, verify
+from physverify.cli.commands import calibrate, diagnose, verify
 from physverify.config.loader import load_settings
 from physverify.config.models import Settings
 from physverify.core.errors import PhysverifyError
@@ -334,7 +335,7 @@ def guarded(
     stop = sentinel(ledger, reached)
 
     def abstain_curve(*extra: str, env: Mapping[str, str] | None = None) -> CliResult:
-        monkeypatch.setattr(abstain, "_session", stop)
+        monkeypatch.setattr(app_selective_risk, "_session", stop)
         sets = ("--set", f"abstention.dataset={DATASET}", "--set", "abstention.real_datasets=[]")
         return cli(*SEAL, *sets, *extra, "abstain", "curve", env=env)
 
@@ -478,7 +479,56 @@ def _guard_labels(module: ModuleType) -> set[str]:
             leaf = call.args[index]
             assert isinstance(leaf, ast.Constant) and isinstance(leaf.value, str), ast.dump(leaf)
             labels.add(f"{module.NAME} {leaf.value}")
+    return labels | _service_labels(module, tree)
+
+
+def _service_labels(module: ModuleType, tree: ast.Module) -> set[str]:
+    """Labels ``f"{NAME} {leaf}"`` a command passes to a service of another module that hands
+    that argument on to ``guard_sealed``."""
+    labels: set[str] = set()
+    for call in (n for n in ast.walk(tree) if isinstance(n, ast.Call)):
+        if not isinstance(call.func, ast.Name) or call.func.id == "guard_sealed":
+            continue
+        service = getattr(module, call.func.id, None)
+        if not inspect.isfunction(service) or service.__module__ == module.__name__:
+            continue
+        for index, arg in enumerate(call.args):
+            if not isinstance(arg, ast.JoinedStr):
+                continue
+            label = _label(arg, module.NAME)
+            if label is not None and _reaches_guard(service, index):
+                labels.add(label)
     return labels
+
+
+def _reaches_guard(function: Callable[..., Any], index: int) -> bool:
+    home = inspect.getmodule(function)
+    assert home is not None
+    tree = ast.parse(inspect.getsource(home))
+    defs = {n.name: n for n in tree.body if isinstance(n, ast.FunctionDef)}
+    return _forwards(defs, defs[function.__name__], index, set())
+
+
+def _forwards(
+    defs: Mapping[str, ast.FunctionDef], function: ast.FunctionDef, index: int, seen: set[str]
+) -> bool:
+    """Whether positional parameter ``index`` of ``function`` reaches ``guard_sealed``'s label."""
+    if function.name in seen:
+        return False
+    seen.add(function.name)
+    param = function.args.args[index].arg
+    for call in (n for n in ast.walk(function) if isinstance(n, ast.Call)):
+        if not isinstance(call.func, ast.Name):
+            continue
+        for position, arg in enumerate(call.args):
+            if not (isinstance(arg, ast.Name) and arg.id == param):
+                continue
+            if call.func.id == "guard_sealed" and position == 1:
+                return True
+            callee = defs.get(call.func.id)
+            if callee is not None and _forwards(defs, callee, position, seen):
+                return True
+    return False
 
 
 def _calls(tree: ast.AST, name: str) -> list[ast.Call]:

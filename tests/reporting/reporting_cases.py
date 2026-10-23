@@ -33,17 +33,6 @@ from physverify.calibration.evaluate import (
 )
 from physverify.calibration.fit import FitInputs, fit_calibration
 from physverify.calibration.sigma_recalibration import SigmaPair
-from physverify.cli.commands.abstain import (
-    Collected,
-    CurveParts,
-    compare_tables,
-    curve_record,
-    fit_record,
-    named_ks,
-    real_rows,
-    sweep,
-)
-from physverify.cli.commands.abstain import artifact_of as abstain_table
 from physverify.core.digests import text_sha256
 from physverify.datasets._videophy_tables import VideophyRow
 from physverify.human_agreement.clip_decision import (
@@ -62,7 +51,10 @@ from physverify.schema.clip import Split
 from physverify.schema.io import json_ready
 from physverify.selective_risk.curve import Case, CaseCounts, raw_table
 from physverify.selective_risk.fit import per_check_rows
+from physverify.selective_risk.report import CurveParts, curve_record, fit_record, real_rows
+from physverify.selective_risk.report import artifact_of as abstain_table
 from physverify.selective_risk.settings import ABSTENTION_FILE, REPORT_FILE, AbstentionSettings
+from physverify.selective_risk.tables import Collected, compare_tables, named_ks, sweep
 from physverify.synth.scene_scope import SceneScope
 from physverify.verification.exclusion_record import ExclusionRecord, InputHashes, RuleEvidence
 from physverify.verification.runner import TableRow, VerificationReport

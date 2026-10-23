@@ -13,10 +13,10 @@ if CALIBRATION_TESTS not in sys.path:
 
 from calibration_cases import PROFILE, artifact_of, check_calibration, stratum_model  # noqa: E402
 
-from physverify.cli.commands.abstain import level_tables  # noqa: E402
 from physverify.core.errors import MissingInputError, UsageError  # noqa: E402
 from physverify.schema.checks import InputLevel  # noqa: E402
 from physverify.selective_risk.curve import require_taus  # noqa: E402
+from physverify.selective_risk.tables import level_tables  # noqa: E402
 
 FALLBACK = {"status": "provisional", "source": "configs", "checks": {"R1": {"tau": 0.5}}}
 
