@@ -28,15 +28,13 @@ from physverify.datasets._download import (
     UrllibClient,
     extract_member,
     intact,
-    load_annotations,
     read_manifest,
-    relative_to_data,
     remote_zip,
-    resolve_data_path,
     retrying,
     save_atomic,
     write_manifest,
 )
+from physverify.datasets._layout import load_annotations, relative_to_data, resolve_data_path
 from physverify.datasets._queries import derive_queries
 from physverify.datasets._videophy_review import load_review, reviewed_rows
 from physverify.datasets._videophy_tables import (

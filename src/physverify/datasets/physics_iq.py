@@ -32,12 +32,10 @@ from physverify.datasets._download import (
     fetch_file,
     intact,
     list_objects,
-    load_annotations,
     read_manifest,
-    relative_to_data,
-    resolve_data_path,
     write_manifest,
 )
+from physverify.datasets._layout import load_annotations, relative_to_data, resolve_data_path
 from physverify.schema.clip import ClipManifest, FrameSampling, ObjectQuery, Split, TimeSource
 
 if TYPE_CHECKING:

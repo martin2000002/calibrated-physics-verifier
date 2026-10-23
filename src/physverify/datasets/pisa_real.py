@@ -30,14 +30,12 @@ from physverify.datasets._download import (
     FetchManifest,
     extract_member,
     intact,
-    load_annotations,
     read_manifest,
-    relative_to_data,
     remote_zip,
-    resolve_data_path,
     retrying,
     write_manifest,
 )
+from physverify.datasets._layout import load_annotations, relative_to_data, resolve_data_path
 from physverify.datasets._queries import derive_queries
 from physverify.extraction.providers._common import lookup_label
 from physverify.extraction.providers.scale_size_prior import SIZE_PRIORS_SECTION

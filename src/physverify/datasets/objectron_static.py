@@ -39,10 +39,9 @@ from physverify.datasets._download import (
     intact,
     list_objects,
     read_manifest,
-    relative_to_data,
-    resolve_data_path,
     write_manifest,
 )
+from physverify.datasets._layout import relative_to_data, resolve_data_path
 from physverify.schema.clip import ClipManifest, ObjectQuery, Split, TimeSource
 from physverify.sizing import draws, e2e, objectron
 from physverify.sizing.settings import SizingSettings, sizing_settings

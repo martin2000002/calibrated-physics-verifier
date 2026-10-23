@@ -21,10 +21,10 @@ from physverify.datasets._download import (
     ChecksumError,
     RemoteFile,
     fetch_file,
-    load_annotations,
     part_path,
     read_manifest,
 )
+from physverify.datasets._layout import load_annotations
 from physverify.datasets.physics_iq import (
     MASKS,
     TESTING,
