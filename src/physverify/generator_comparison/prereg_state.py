@@ -1,6 +1,6 @@
-"""The current values of every pre-registered generator-comparison field (``prereg.PREREGISTERED_FIELDS``),
-from the configuration, the campaign store and the files they name. Nothing here decides; ``prereg``
-does."""
+"""The current values of every pre-registered generator-comparison field
+(``prereg.PREREGISTERED_FIELDS``), from the configuration, the campaign store and the files they
+name. Nothing here decides; ``prereg`` does."""
 
 from __future__ import annotations
 
