@@ -1,6 +1,7 @@
-"""Scale from the longest window of an object falling with constant acceleration (ADR 0005, 4.7).
+"""Scale from the longest window of an object falling with constant acceleration.
 
-s = g0 / |a| assumes the clip obeys standard gravity, so R5b abstains on this scale (ADR 0001).
+s = g0 / |a| assumes the clip obeys standard gravity, so R5b abstains on this scale: it
+would otherwise test the gravity it assumed.
 """
 
 from __future__ import annotations

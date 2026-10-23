@@ -1,4 +1,4 @@
-"""Stage execution contract: providers, their context, weights and observers (ADR 0003, 3.2).
+"""Stage execution contract: providers, their context, weights and observers.
 
 Heavy libraries (torch, transformers) are imported inside ``run()``, never at module level.
 """

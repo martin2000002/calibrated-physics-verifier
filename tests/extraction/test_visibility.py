@@ -1,4 +1,4 @@
-"""In-frame state and occlusion inside interior mask gaps (it1 change A, J1: T1-T5, T2b)."""
+"""In-frame state and occlusion inside interior mask gaps."""
 
 from __future__ import annotations
 
@@ -179,9 +179,6 @@ def test_visible_cells_keep_in_frame_and_an_unknown_occlusion() -> None:
     visible, in_frame, occlusion = visibility(moving_object())
     assert bool(in_frame[visible].all())
     assert bool(np.isnan(occlusion[visible]).all())
-
-
-# --- T5: LIFT version 2 ------------------------------------------------------------------------
 
 
 def gapped_track(fixture_clip: SyntheticClip) -> Mapping[Stage, object]:

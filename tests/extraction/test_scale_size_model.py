@@ -1,4 +1,4 @@
-"""ADR 0010 I2-I3: the learned size scale, its equivalence with the frozen prior and its key."""
+"""The learned size scale, its equivalence with the frozen prior and its key."""
 
 from __future__ import annotations
 

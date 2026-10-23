@@ -1,4 +1,4 @@
-"""Grounding DINO base, joint or per-query prompt (ADR 0014 §2.2)."""
+"""Grounding DINO base, joint or per-query prompt."""
 
 from __future__ import annotations
 

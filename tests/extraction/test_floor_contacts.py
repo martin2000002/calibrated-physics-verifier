@@ -1,4 +1,4 @@
-"""it4 T15 (judgement J7): moving ``pixel_floor``, ``noise_scale``, ``NoiseScale`` and
+"""Moving ``pixel_floor``, ``noise_scale``, ``NoiseScale`` and
 ``QUANTIZATION`` into ``physics/tracks.py`` does not move any contacts/kinematic table; the
 goldens were written by 10e37ff with ``kinematic_golden_case.py``."""
 

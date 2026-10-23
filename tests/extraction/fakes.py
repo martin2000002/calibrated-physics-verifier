@@ -1,4 +1,4 @@
-"""Heavy DETECT/TRACK/DEPTH stand-ins built from the synthetic fixture's truth (ADR 0005, 6).
+"""Heavy DETECT/TRACK/DEPTH stand-ins built from the synthetic fixture's truth.
 
 Ids are renamed and emitted in reverse truth order, masks are dilated by one pixel and depth is
 an affine disparity ``a / z + b``. Every instance and call is written to ``JOURNAL``.

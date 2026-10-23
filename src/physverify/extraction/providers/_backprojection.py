@@ -1,4 +1,4 @@
-"""Depth to camera-frame geometry: shared by LIFT, depth ground truth and A6 (ADR 0005, 4.1-4.4).
+"""Depth to camera-frame geometry: shared by LIFT, depth ground truth and the extractor diagnosis.
 
 Pixel centres are (col + 0.5, row + 0.5), the convention of the synthetic fixture and of K.
 """
@@ -148,7 +148,7 @@ def object_summary(
 
     Extents come from the whole silhouette: (P_hi - P_lo of the pixel coordinates + 1 px) z_s / f.
     The eroded set is only for a depth median free of edge bleeding; on objects of a few dozen
-    pixels it would shrink the extents by a third (ADR 0005, 11)."""
+    pixels it would shrink the extents by a third."""
     pixels = _surface_pixels(mask, valid, options.erode_px)
     n_pixels = int(pixels.sum())
     if n_pixels < options.min_area_px:
@@ -170,7 +170,7 @@ def object_summary(
 
 def full_extents(lateral: FloatArray) -> FloatArray:
     """(e_x, e_y, e_z) from the lateral extents (..., 2): e_z = (e_x + e_y) / 2 is not observable
-    from one view, so it is assumed (ADR 0005, 4.2)."""
+    from one view, so it is assumed, not measured."""
     lateral = np.asarray(lateral, dtype=np.float64)
     extents: FloatArray = np.concatenate([lateral, lateral.mean(axis=-1, keepdims=True)], axis=-1)
     return extents
@@ -215,7 +215,7 @@ def closed_form_sigma(
     intrinsics: FloatArray,
     errors: LiftErrors,
 ) -> tuple[FloatArray, FloatArray]:
-    """Position and extent sigma per camera axis (ADR 0005, 4.4); NaN when an entry is unknown."""
+    """Position and extent sigma per camera axis; NaN when an entry is unknown."""
     r_d = entry_rms(errors.depth_rel)
     c = entry_rms(errors.centroid_px_rel)
     ell = entry_rms(errors.centroid_rel)

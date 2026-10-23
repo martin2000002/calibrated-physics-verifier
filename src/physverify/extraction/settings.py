@@ -1,4 +1,4 @@
-"""The ``[extraction]`` configuration section (ADR 0005, 3.1)."""
+"""The ``[extraction]`` configuration section."""
 
 from __future__ import annotations
 

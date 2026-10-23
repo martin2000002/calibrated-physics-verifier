@@ -1,4 +1,4 @@
-"""Stage-by-stage extraction over many clips with a lazy heavy lock (ADR 0005, 3.4)."""
+"""Stage-by-stage extraction over many clips with a lazy heavy lock."""
 
 from __future__ import annotations
 
@@ -212,7 +212,7 @@ class ExtractionPipeline:
         )
 
     def _check_weights(self, cells: Sequence[_Cell]) -> None:
-        """D9: fail before taking the lock when a heavy provider that must run lacks weights."""
+        """Fail before taking the lock when a heavy provider that must run lacks weights."""
         needed = [
             step.provider
             for step in self._plan.stages
@@ -315,7 +315,7 @@ class ExtractionPipeline:
     def _bind(
         stage: Stage, output: StageOutput, upstream: Mapping[Stage, StageOutput], cell: _Cell
     ) -> StageOutput:
-        """D7: LIFT carries its own key; SCALE, KINEMATICS and CONTACTS must point back to it."""
+        """LIFT carries its own key; SCALE, KINEMATICS and CONTACTS must point back to it."""
         check_stage_output(stage, output)
         lift_key = cell.keys[Stage.LIFT]
         if stage is Stage.LIFT and isinstance(output, ObjectStateTable):

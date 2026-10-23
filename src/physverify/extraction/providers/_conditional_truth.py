@@ -1,4 +1,4 @@
-"""Conditional ground truth expressed in the perceived ids and LIFT units (ADR 0005, 3.8)."""
+"""Conditional ground truth expressed in the perceived ids and LIFT units."""
 
 from __future__ import annotations
 

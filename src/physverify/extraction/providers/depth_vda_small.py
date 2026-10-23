@@ -1,4 +1,4 @@
-"""Video Depth Anything Small: temporally consistent affine-invariant disparity (ADR 0005, 3.7).
+"""Video Depth Anything Small: temporally consistent affine-invariant disparity.
 
 The model code is a pinned checkout (Apache-2.0) imported from ``paths.vendor_dir``; it imports a
 top-level ``utils`` namespace package, so a foreign ``utils`` already loaded is a clear error.

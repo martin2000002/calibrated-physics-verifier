@@ -1,5 +1,5 @@
-"""it3: depth/vda_large is vda_small with the ViT-L encoder and checkpoint; vda_small keeps its
-version, its model and its cache keys (judgement, G-depth requirements)."""
+"""depth/vda_large is vda_small with the ViT-L encoder and checkpoint; vda_small keeps its
+version, its model and its cache keys, so the two depth providers can be compared side by side."""
 
 from __future__ import annotations
 

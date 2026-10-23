@@ -1,6 +1,6 @@
 """LIFT tables of the analytic fixture, written once by LIFT version 2 (commit 34e4e6e) into
-``golden/lift_v2/<case>.npz`` and compared with version 3 under ``temporal_filter = "none"``
-(it2 T12). The same module runs in both trees:
+``golden/lift_v2/<case>.npz`` and compared with version 3 under ``temporal_filter = "none"``.
+The same module runs in both trees:
 
     PYTHONPATH=<old>/src:tests/fixtures:tests/extraction python tests/extraction/lift_golden_case.py
 """

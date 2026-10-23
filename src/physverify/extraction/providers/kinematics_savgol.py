@@ -1,4 +1,4 @@
-"""Velocity and acceleration by Savitzky-Golay differentiation with linear sigma (ADR 0005, 4.8)."""
+"""Velocity and acceleration by Savitzky-Golay differentiation with linear sigma."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""EdgeTAM box-prompted video masks, the fast-profile tracker (ADR 0005, 3.7).
+"""EdgeTAM box-prompted video masks, the fast-profile tracker.
 
 EdgeTAM's config builds its RepViT backbone config from ``timm/repvit_m1.dist_in1k`` through the
 hub cache, so that config is pinned here too and loaded offline via its ``refs/main``.

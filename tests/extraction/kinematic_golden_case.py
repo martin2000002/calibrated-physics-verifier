@@ -1,7 +1,6 @@
-"""contacts/kinematic tables of analytic scenes, written once by the code before it4 (commit
-10e37ff) into ``golden/contacts_kinematic/<case>.json`` and compared after the move of the pixel
-floor and the noise scale into ``physics/tracks.py`` (it4 T15, judgement J7). The same module
-runs in both trees:
+"""contacts/kinematic tables of analytic scenes, written once by the code of commit 10e37ff
+into ``golden/contacts_kinematic/<case>.json`` and compared after the move of the pixel floor
+and the noise scale into ``physics/tracks.py``. The same module runs in both trees:
 
     PYTHONPATH=<old>/src:tests/fixtures:tests/extraction:tests/checks \
         python tests/extraction/kinematic_golden_case.py

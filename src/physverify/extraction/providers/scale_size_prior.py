@@ -1,4 +1,4 @@
-"""Scale from the known typical size of labelled objects (ADR 0005, 4.6)."""
+"""Scale from the known typical size of labelled objects."""
 
 from __future__ import annotations
 

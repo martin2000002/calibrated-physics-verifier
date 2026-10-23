@@ -1,5 +1,5 @@
-"""Pinned checkpoints: where they live, whether they are present, and verified downloads
-(ADR 0005, 3.5). huggingface_hub is imported only inside the network downloader."""
+"""Pinned checkpoints: where they live, whether they are present, and verified downloads.
+huggingface_hub is imported only inside the network downloader."""
 
 from __future__ import annotations
 

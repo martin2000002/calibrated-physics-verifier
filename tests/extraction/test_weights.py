@@ -1,4 +1,5 @@
-"""AC14: pinned weights, verified downloads through an injected downloader, and D9."""
+"""Pinned weights, verified downloads through an injected downloader, and missing weights
+failing before the lock."""
 
 from __future__ import annotations
 

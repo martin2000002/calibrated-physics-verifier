@@ -1,4 +1,4 @@
-"""Proximity contacts of primitives fitted to the kinematic states (ADR 0005, 4.9): the scene,
+"""Proximity contacts of primitives fitted to the kinematic states: the scene,
 its ground plane and the per-pair intervals, shared by the CONTACTS providers (not a plugin)."""
 
 from __future__ import annotations

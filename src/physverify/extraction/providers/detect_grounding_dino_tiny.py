@@ -1,4 +1,4 @@
-"""Open-vocabulary boxes from the clip's object queries with Grounding DINO tiny (ADR 0005, 3.7).
+"""Open-vocabulary boxes from the clip's object queries with Grounding DINO tiny.
 
 The model runs on the first ``search_frames`` sampled frames; the frame whose detections cover
 the most queries seeds the tracker. torch and transformers are imported inside the functions.

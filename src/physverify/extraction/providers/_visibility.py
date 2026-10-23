@@ -1,16 +1,15 @@
 """In-frame state and occlusion of a tracked object inside an interior gap of its masks.
 
-ADR 0005 4.2 as amended on 2026-10-20 (ADR 0015, amendment 3). A gap is a maximal run of rows
-without a usable mask that has a visible row before and after it. The object stays in frame
-through the gap unless a mask enclosing it touches the image border. Inside the gap its box is
-interpolated linearly between the two enclosing masks, and the occlusion estimate is the share
-of that box covered by the other tracked masks of the row. Declared approximations: a box
-instead of the silhouette, linear motion inside the gap, no depth ordering, and an untracked
-occluder is not seen.
+A gap is a maximal run of rows without a usable mask that has a visible row before and after it.
+The object stays in frame through the gap unless a mask enclosing it touches the image border.
+Inside the gap its box is interpolated linearly between the two enclosing masks, and the
+occlusion estimate is the share of that box covered by the other tracked masks of the row.
+Declared approximations: a box instead of the silhouette, linear motion inside the gap, no depth
+ordering, and an untracked occluder is not seen.
 
-The estimate is decisive only at its ends (J1 of the it1 judgement): a covered share >= the
-occlusion threshold explains the gap, a share of exactly 0 does not, and anything in between is
-unknown (NaN), so the check abstains instead of counting a disappearance perception cannot tell.
+The estimate is decisive only at its ends: a covered share >= the occlusion threshold explains
+the gap, a share of exactly 0 does not, and anything in between is unknown (NaN), so the check
+abstains instead of counting a disappearance perception cannot tell.
 """
 
 from __future__ import annotations

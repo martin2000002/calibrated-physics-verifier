@@ -1,4 +1,4 @@
-"""Pinhole camera from an assumed horizontal field of view (ADR 0005, 3.7)."""
+"""Pinhole camera from an assumed horizontal field of view."""
 
 from __future__ import annotations
 

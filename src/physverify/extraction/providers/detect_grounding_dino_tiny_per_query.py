@@ -1,4 +1,4 @@
-"""Grounding DINO tiny prompted once per query, boxes assigned to query slots (ADR 0014 §2.2)."""
+"""Grounding DINO tiny prompted once per query, boxes assigned to query slots."""
 
 from __future__ import annotations
 

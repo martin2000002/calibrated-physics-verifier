@@ -1,4 +1,4 @@
-"""Back-projection of tracked masks through depth and intrinsics (ADR 0005, 4.1-4.4)."""
+"""Back-projection of tracked masks through depth and intrinsics."""
 
 from __future__ import annotations
 
@@ -40,12 +40,12 @@ SEED_HEX_DIGITS = 16
 
 GravityMode = Literal["auto", "camera_pose", "level_camera", "none"]
 # "none" is version 1 (in_frame = visible, occlusion unknown); "interpolate" infers both inside
-# interior mask gaps (ADR 0005 4.2 as amended 2026-10-20, ``_visibility.py``).
+# interior mask gaps (``_visibility.py``).
 GapMode = Literal["none", "interpolate"]
 # "none" is version 2; "median" stabilises depth and image extent along each visible run
-# (ADR 0005 4.2 as amended for it2, ``_temporal.py``), off until the J6 gate activates it. Run
-# ends: "keep" (the first and last two rows stay unfiltered) is the only eligible form; "shifted"
-# fails the survival test J5 and exists only for J6's descriptive run (plan-it2, judgement 2 a).
+# (``_temporal_smoothing.py``), off until a gate run adopts it. Run ends: "keep" (the first and
+# last two rows stay unfiltered) is the only eligible form; "shifted" fails the survival test of
+# the detections and exists only for a descriptive comparison run.
 TemporalFilter = Literal["none", "median"]
 
 

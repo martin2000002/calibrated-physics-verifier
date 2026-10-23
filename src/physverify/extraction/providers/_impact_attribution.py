@@ -1,4 +1,4 @@
-"""Attribution of kinematic impacts and their contact records (ADR 0005 4.9, it3); not a plugin.
+"""Attribution of kinematic impacts and their contact records; not a plugin.
 
 Each impact of an object goes to the candidate surface whose normal best aligns with its
 velocity change, with a positive cosine (the impulse pushes the object off the surface):
@@ -7,7 +7,7 @@ along the difference of the two velocity changes (momentum conservation; the ima
 depth, which is what is least known between objects); (b) another object with a proximity record
 around the impact, its normal; (c) the environment when gravity is known, normal up. Walls and
 ceilings are not modelled. A pair accepted through (a) consumes the impacts of both objects within
-one row step, so neither adds an environment record there (J7).
+one row step, so neither adds an environment record there, so one collision is not counted twice.
 """
 
 from __future__ import annotations
@@ -310,7 +310,7 @@ def make_record(
     row: int,
 ) -> ContactRecord:
     """One-point IMPACT at the fractional native frame of ``time``; no probability is known,
-    so the confidence is NaN, and the point lies on the surfaces (distance 0, J6)."""
+    so the confidence is NaN, and the point lies on the surfaces (distance 0)."""
     a, b = pair
     ids = scene.states.object_ids
     frame = time / scene.seconds_per_frame

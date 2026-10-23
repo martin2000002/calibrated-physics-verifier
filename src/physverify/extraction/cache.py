@@ -1,4 +1,4 @@
-"""Stage cache keys and the on-disk stage cache (ADR 0005, 3.3).
+"""Stage cache keys and the on-disk stage cache.
 
 Every stage key is computed here, so the provider's own profile entry (``reads_own_error``)
 can never be left out of a key by one caller and included by another.

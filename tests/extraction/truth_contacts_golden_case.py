@@ -1,7 +1,7 @@
 """V8 contacts of the fixture: the whole ground-truth chain down to ``contacts/ground_truth``,
-written once by the code before it3 (commit 2a762ad) into
-``golden/truth_contacts.json`` and compared with the current code (it3 T11). The same
-module runs in both trees:
+written once by the code of commit 2a762ad into
+``golden/truth_contacts.json`` and compared with the current code. The same module runs in
+both trees:
 
     PYTHONPATH=<old>/src:tests/fixtures:tests/extraction \
         python tests/extraction/truth_contacts_golden_case.py

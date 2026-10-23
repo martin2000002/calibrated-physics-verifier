@@ -1,4 +1,4 @@
-"""it3 T1: moving the proximity helpers into ``_proximity.py`` changes no table of
+"""Moving the proximity helpers into ``_proximity.py`` changes no table of
 ``contacts/proximity`` (golden written by 2a762ad, ``contacts_golden_case.py``), and
 ``contacts/kinematic`` with ``impacts = "none"`` and ``resting_split = "normal_and_count"`` gives
 the same records."""

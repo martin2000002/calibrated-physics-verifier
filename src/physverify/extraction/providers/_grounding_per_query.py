@@ -1,7 +1,7 @@
 """Grounding DINO with one prompt per query and a slot assignment under the expected counts.
 
 A joint prompt lets one returned span ("cube cylinder") claim several objects for the first
-query and ``expected_count`` then drops the rest (ADR 0014 §1). Here each query is prompted on
+query and ``expected_count`` then drops the rest. Here each query is prompted on
 its own, boxes found by several prompts are merged, and boxes are assigned to query slots by a
 maximum-score matching. ``prompt_mode = "joint"`` keeps the original selection exactly.
 """

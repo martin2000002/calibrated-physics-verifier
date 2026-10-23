@@ -1,4 +1,4 @@
-"""it2 judgement 2 b4: an estimated GeoCalib focal is only configured with its measured floor."""
+"""An estimated GeoCalib focal is only configured with its measured floor."""
 
 from __future__ import annotations
 
@@ -69,7 +69,7 @@ def test_b4_the_rule_flags_an_estimated_focal_without_a_floor(
     overrides: tuple[str, ...],
     missing: bool,
 ) -> None:
-    # fast: precise pins its own geocalib table (it2 gate commit), which overrides these keys
+    # fast: precise pins its own geocalib table, which overrides these keys
     settings = make_settings(*overrides, profile="fast")
     assert (
         floor_missing(resolve_plan(settings, real_providers, dataset="kubric_synthetic")) is missing
@@ -82,7 +82,7 @@ def test_the_precise_profile_is_the_it2_gate_commit(
     real_providers: Mapping[str, type[StageProvider]],
     dataset: str,
 ) -> None:
-    """p0-it2.md gate_commit: camera geocalib with the assumed focal and 8 frames; B (J6) off."""
+    """Camera geocalib with the assumed focal and 8 frames; the LIFT temporal filter off."""
     plan = resolve_plan(make_settings(profile="precise"), real_providers, dataset=dataset)
     camera = plan.step(Stage.CAMERA)
     lift = plan.step(Stage.LIFT).params
@@ -97,7 +97,7 @@ def test_the_precise_profile_is_the_it4_base(
     real_providers: Mapping[str, type[StageProvider]],
     dataset: str,
 ) -> None:
-    """p0-it3.md: contacts proximity; plan-it4 J13: the it4 base is it2-CPU, depth vda_small."""
+    """Contacts stay proximity and depth stays vda_small in the precise base chain."""
     plan = resolve_plan(make_settings(profile="precise"), real_providers, dataset=dataset)
     assert plan.step(Stage.DEPTH).provider.name == "vda_small"
     assert plan.step(Stage.CONTACTS).provider.name == "proximity"

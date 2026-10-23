@@ -1,4 +1,4 @@
-"""plan-congelado J9: the sealed sets of the freeze sample exactly like their source dataset."""
+"""The sealed sets of the freeze sample exactly like their source dataset."""
 
 from __future__ import annotations
 

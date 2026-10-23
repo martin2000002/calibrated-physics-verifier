@@ -1,4 +1,4 @@
-"""Temporal stabilisation of LIFT's per-object summaries (LIFT version 3; ADR 0005 4.2, it2).
+"""Temporal stabilisation of LIFT's per-object summaries (LIFT version 3).
 
 Along each visible run of an object, a running median replaces the surface depth z and the image
 extent q = (e_x, e_y) / z (pixels / f, independent of depth). The centre is rescaled along its
@@ -9,9 +9,9 @@ steps, monotone runs and plateaus of h + 1 or more rows; a real change shorter t
 Ends of a run: ``"keep"`` (LIFT's rule) leaves the first and last h rows as measured.
 ``"shifted"`` moves the window inside the run (row 0 uses rows 0..w - 1): an impulse on those rows
 is removed too, but a monotone run also loses its slope there, since such an impulse is itself
-monotone. It fails the survival test J5
-(tests/verification/test_temporal_filter_keeps_detections.py) and exists only for the descriptive
-run of the J6 gate (plan-it2, judgement 2 a).
+monotone. It fails the survival test of the detections
+(tests/verification/test_temporal_filter_keeps_detections.py) and exists only for a descriptive
+comparison run.
 """
 
 from __future__ import annotations

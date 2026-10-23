@@ -1,4 +1,4 @@
-"""WP-G 1.C: a re-rendered clip loses every cached stage, in every cache root, and nothing else."""
+"""A re-rendered clip loses every cached stage, in every cache root, and nothing else."""
 
 from __future__ import annotations
 

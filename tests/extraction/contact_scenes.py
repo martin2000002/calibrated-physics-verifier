@@ -179,7 +179,7 @@ def kinematic_table(
     **params: Any,
 ) -> ContactTable:
     """``contacts/kinematic`` on the case's states (or ``states``) with the test camera. Imported
-    here so that the golden modules can import this file with the code before it3 (audit L2)."""
+    here so that the golden modules can import this file with the code before kinematic impacts."""
     from physverify.extraction.providers.contacts_kinematic import KinematicContacts
 
     sampling = resolve_sampling(case.clip, SamplingSpec())

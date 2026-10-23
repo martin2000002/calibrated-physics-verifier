@@ -1,4 +1,4 @@
-"""D2 on the real heavy providers: one model load per stage over many clips, and the vendored
+"""The real heavy providers: one model load per stage over many clips, and the vendored
 ``utils`` namespace check that must pass on every load. Loaders and inference are faked."""
 
 from __future__ import annotations

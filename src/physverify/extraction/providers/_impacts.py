@@ -1,4 +1,4 @@
-"""Kinematic impacts of one track (ADR 0005 4.9, it3 amendment); not a plugin.
+"""Kinematic impacts of one track; not a plugin.
 
 A contact impulse changes a body's velocity at one instant and never its position, and between
 impacts the only force is constant (gravity, a constant friction), so a track is a parabola with
@@ -238,8 +238,8 @@ def kink_ratios(gains: FloatArray, residuals: FloatArray, known: bool) -> FloatA
     """The kinks' gain per coefficient over the noise variance, for a stack of windows (k, m, 3):
     1 (whitened) for a known scale; otherwise the residual variance of each kink fit in its
     window, never below 1. The window's residual keeps the size of the test when sigma-hat,
-    measured on a few stencils, comes out low (with the plan's chi-square 23 % of clean tracks
-    had a false impact, T5)."""
+    measured on a few stencils, comes out low (with a plain chi-square bound 23 % of clean
+    tracks had a false impact in the tests)."""
     if known:
         return gains / DEGREES_OF_FREEDOM
     rss = (residuals**2).sum(axis=(1, 2)) - gains

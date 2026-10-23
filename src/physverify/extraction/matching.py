@@ -1,5 +1,5 @@
 """Identity matching between perceived and ground-truth objects, and truth re-expressed in the
-perceived ids, frames and length unit (ADR 0005, 3.6 and 4.5)."""
+perceived ids, frames and length unit."""
 
 from __future__ import annotations
 
@@ -310,7 +310,7 @@ def _ratio(p_l: FloatArray, p_g: FloatArray) -> float:
 
 
 def conditional_scale_fit(lift: ObjectStateTable, gt: ObjectStateTable) -> ScaleFit | None:
-    """Least-squares s with p_gt ~ s p_lift over every matched visible sample (ADR 0005, 4.5).
+    """Least-squares s with p_gt ~ s p_lift over every matched visible sample.
 
     sigma is the standard error of the per-object ratios (per-sample with one object) and NaN
     when a single ratio exists: one sample cannot show its own spread."""

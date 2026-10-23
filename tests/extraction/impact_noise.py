@@ -1,9 +1,9 @@
-"""Monte Carlo rates of the kinematic impact detector on noisy tracks (it3 T5, judgement J4).
+"""Monte Carlo rates of the kinematic impact detector on noisy tracks.
 
 Each replicate adds noise to the camera-frame track of one analytic scene, measures the track
 noise as ``contacts/kinematic`` does (``physics.tracks.track_noise``, floored by one pixel of the
 test camera) and runs the detector. White noise is asserted by test_impacts_noise.py; the
-correlated cases (AR(1) noise, two-row depth impulses) are a description (J4), printed by
+correlated cases (AR(1) noise, two-row depth impulses) are only described, not asserted, printed by
 
     PYTHONPATH=src:tests/fixtures:tests/extraction python tests/extraction/impact_noise.py
 """
@@ -88,7 +88,7 @@ def clean_parabola() -> sc.Case:
 
 
 def description(replicates: int = REPLICATES) -> dict[str, float]:
-    """J4 description: false impacts on a clean parabola under correlated noise."""
+    """Described, not asserted: false impacts on a clean parabola under correlated noise."""
     sigma = 0.01
     out = {
         f"ar1 rho={rho}": rate(clean_parabola(), ar1(sigma, rho), replicates) for rho in (0.5, 0.8)

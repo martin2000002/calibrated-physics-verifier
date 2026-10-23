@@ -1,4 +1,4 @@
-"""it2 T9-T12: LIFT version 3, the running median of depth and image extent per visible run."""
+"""LIFT version 3, the running median of depth and image extent per visible run."""
 
 from __future__ import annotations
 

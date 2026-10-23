@@ -1,4 +1,4 @@
-"""it3 change A: kinematic impacts (T2-T4, T6-T8, T10, T13; judgement J3, J6, J7).
+"""Kinematic impacts of ``contacts/kinematic``.
 
 Analytic scenes (tests/checks/check_scenarios.py) through ``contacts/kinematic`` with a pinhole
 camera of FOCAL_PX pixels, so the pixel floor of every object is about 2 mm at 4 m.
@@ -47,9 +47,6 @@ def angle_deg(u: np.ndarray, v: np.ndarray) -> float:
     return math.degrees(math.acos(float(np.clip(u @ v, -1.0, 1.0))))
 
 
-# --- T2: a bounce between rows ---------------------------------------------------------------
-
-
 @pytest.mark.parametrize("pitch", [0.0, 25.0])
 @pytest.mark.parametrize("beta", [0.1, 0.3, 0.5, 0.7, 0.9])
 @pytest.mark.parametrize("e", [0.5, 0.8, 1.2, 1.5])
@@ -66,7 +63,7 @@ def test_t2_one_environment_impact_at_the_right_time(e: float, beta: float, pitc
 
 
 def test_t2_the_record_is_one_point_on_the_surfaces_with_unknown_confidence() -> None:
-    """J6: point_distances is an explicit zero, never None; the point is the ball's lowest
+    """point_distances is an explicit zero, never None; the point is the ball's lowest
     point at the impact, i.e. the true contact point."""
     case = sc.bounce(impact_frame=15.3, pitch_deg=25.0)
     (record,) = kinematic(cs.kinematic_table(case))
@@ -77,9 +74,6 @@ def test_t2_the_record_is_one_point_on_the_surfaces_with_unknown_confidence() ->
     assert record.max_penetration is None
     (truth,) = case.contacts.records if case.contacts else ()
     np.testing.assert_allclose(record.points, truth.points, atol=1e-9)
-
-
-# --- T3: a collision in the air --------------------------------------------------------------
 
 
 @pytest.mark.parametrize("gain", [0.0, 0.1, 0.25, 0.5, 1.0])
@@ -93,9 +87,6 @@ def test_t3_a_collision_gives_one_pair_record_and_no_environment(
     (truth,) = case.contacts.records if case.contacts else ()
     assert angle_deg(records[0].normal, truth.normal) <= 5.0
     assert abs(records[0].t_start - 15.3) <= 1e-3
-
-
-# --- T4: no impact without a velocity kink ---------------------------------------------------
 
 
 def no_kinematic_records(case: sc.Case) -> bool:
@@ -142,9 +133,6 @@ def test_t4_an_isolated_error_on_one_row_has_no_impact(lengths: int) -> None:
     for frame in range(sc.FRAMES):
         moved = clean.states.position[frame, 0] + shift
         assert not impacts_of(sc.with_values(clean, "position", "ball", [frame], moved)), frame
-
-
-# --- T6 and J3: the pixel floor ----------------------------------------------------------------
 
 
 def micro_kink(px: float = 1e-3) -> sc.Case:
@@ -204,9 +192,6 @@ def test_j3_world_states_use_the_camera_pose_or_get_no_floor() -> None:
     assert not kinematic(cs.kinematic_table(case))
 
 
-# --- T7: rows, frames and stencils ------------------------------------------------------------
-
-
 @pytest.mark.parametrize("step", [2, 3])
 def test_t7_a_strided_table_keeps_the_native_frame(step: int) -> None:
     case = sc.strided(sc.bounce(impact_frame=15.4, pitch_deg=25.0), step, quantize=False)
@@ -229,9 +214,6 @@ def test_t7_fewer_than_eight_stencils_give_no_impact() -> None:
     assert no_kinematic_records(case)
     longer = sc.bounce(impact_frame=5.4, frames=rows + 1, pitch_deg=25.0)
     assert not no_kinematic_records(longer)
-
-
-# --- T8 and J7: attribution -------------------------------------------------------------------
 
 
 def two_balls(
@@ -305,18 +287,12 @@ def test_j7_a_pair_consumes_both_impacts_so_no_environment_record() -> None:
     assert [(r.object_a, r.object_b) for r in records] == [("ball_i", "ball_j")]
 
 
-# --- T10 (finding 10) and B --------------------------------------------------------------------
-
-
 def test_t10_a_rocking_box_rests_once_unless_the_point_count_splits() -> None:
     case = cs.rocking_case()
     by_normal = cs.kinematic_table(case).records
     by_count = cs.kinematic_table(case, impacts="none", resting_split="normal_and_count").records
     assert [(r.kind, r.t_start, r.t_end) for r in by_normal] == [(ContactKind.RESTING, 0.0, 31.0)]
     assert len(by_count) == 16 and all(r.kind is ContactKind.IMPACT for r in by_count)
-
-
-# --- T13: the cache key ------------------------------------------------------------------------
 
 
 def test_t13_every_parameter_and_the_version_enter_the_key(fixture_clip: SyntheticClip) -> None:

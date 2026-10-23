@@ -1,11 +1,11 @@
-"""it3 T5 and judgement J4: the detector on tracks with white noise (seed fixed, 400 replicates).
+"""The impact detector on tracks with white noise (seed fixed, 400 replicates).
 
-The plan's rule (chi-square with the track noise as a known sigma) gives 23 % of clean parabolas
+A chi-square rule (the track noise as a known sigma) gives 23 % of clean parabolas
 a false impact, because the MAD of 29 third differences often comes out low; the F ratio over the
 window's own residual (floored at that noise) brings it to 1.25 % and costs power: a bounce with
-dv dt = 20 sigma is found in 85.5 % of the replicates, 30 sigma in 99.5 % (impl-it3.md, deviation
-D1; the figures the tests print). The bars are those of judgement 2, K1: clean false impacts
-<= 8 %, 20 sigma >= 80 %, 30 sigma >= 95 %, teleport 0.25 L <= 8 %, J4 <= 8 % per level.
+dv dt = 20 sigma is found in 85.5 % of the replicates, 30 sigma in 99.5 % (the measured figures the
+tests print). The bars: clean false impacts <= 8 %, 20 sigma >= 80 %, 30 sigma >= 95 %,
+teleport 0.25 L <= 8 %, correlated noise <= 8 % per level.
 """
 
 from __future__ import annotations
@@ -71,6 +71,6 @@ def test_j4_gravity_perturbations_are_not_impacts(kind: str) -> None:
 
 def test_j4_the_correlated_noise_description_runs() -> None:
     """The description itself (AR(1), two-row depth impulses) is printed by impact_noise.py
-    with 400 replicates and copied to impl-it3.md; here only that it runs."""
+    with 400 replicates; here only that it runs."""
     values = mc.description(replicates=5)
     assert len(values) == 7 and all(0.0 <= v <= 1.0 for v in values.values())

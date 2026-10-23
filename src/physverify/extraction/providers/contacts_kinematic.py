@@ -1,8 +1,8 @@
-"""Contacts with kinematic impacts (ADR 0005 4.9, it3 amendment).
+"""Contacts with kinematic impacts.
 
 Proximity contacts (``_proximity.py``) plus impacts found as velocity kinks of each track
-(``_impacts.py``) and attributed to a surface (``_attribution.py``), so that an impact between
-two sampled rows is not lost. Resting intervals are split only when the normal turns
+(``_impacts.py``) and attributed to a surface (``_impact_attribution.py``), so that an impact
+between two sampled rows is not lost. Resting intervals are split only when the normal turns
 (``resting_split = "normal"``); with ``impacts = "none"`` and ``resting_split =
 "normal_and_count"`` the tables are those of ``contacts/proximity``.
 """

@@ -1,4 +1,4 @@
-"""Scale from object sizes learned on Objectron, falling back to the frozen priors (ADR 0010).
+"""Scale from object sizes learned on Objectron, falling back to the frozen priors.
 
 Objects that resolve to the same class share the prior error with correlation ``same_class_rho``
 (compound symmetry): within a class group only the measurement term averages down, and the
@@ -32,7 +32,7 @@ from physverify.sizing.settings import SizeLookup
 DETAIL_PREFIX = "size_model"
 SIGMA_SCOPE = "sigma=size_term_only"
 """The sigma carries the object-size error alone: the camera intrinsics (an assumed FOV on real
-video) are not propagated, so on real video it undercovers (ADR 0010, as built)."""
+video) are not propagated, so on real video it undercovers."""
 FALLBACK_GROUP = "prior:"
 
 

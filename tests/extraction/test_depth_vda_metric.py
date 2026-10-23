@@ -1,4 +1,4 @@
-"""depth/vda_metric_small: metric head, own checkpoint, stored as relative depth (ADR 0014 §2.2)."""
+"""depth/vda_metric_small: metric head, own checkpoint, stored as relative depth."""
 
 from __future__ import annotations
 

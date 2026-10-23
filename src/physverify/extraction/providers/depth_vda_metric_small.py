@@ -1,4 +1,4 @@
-"""Metric Video Depth Anything Small (ADR 0014 §2.2).
+"""Metric Video Depth Anything Small.
 
 Its output is depth in the units of its training scenes (VKITTI, IRS); on other footage that
 scale is an estimate with no measured error, so the map is stored as relative depth, never

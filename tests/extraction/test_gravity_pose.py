@@ -1,4 +1,4 @@
-"""it2 T1-T2: gravity <-> pose in one place, and LIFT's gravity unchanged by the refactor."""
+"""Gravity <-> pose in one place, and LIFT's gravity unchanged by the refactor."""
 
 from __future__ import annotations
 

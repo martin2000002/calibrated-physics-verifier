@@ -1,7 +1,6 @@
 """contacts/proximity tables of the fixture and of analytic scenes, written once by the code
-before it3 (commit 2a762ad) into ``golden/contacts_proximity/<case>.json`` and compared after
-the move of the proximity helpers into ``_proximity.py`` (it3 T1). The same module runs in both
-trees:
+of commit 2a762ad into ``golden/contacts_proximity/<case>.json`` and compared after the move of
+the proximity helpers into ``_proximity.py``. The same module runs in both trees:
 
     PYTHONPATH=<old>/src:tests/fixtures:tests/extraction \
         python tests/extraction/contacts_golden_case.py
@@ -75,7 +74,7 @@ CASES: dict[str, Callable[[], ObjectStateTable]] = {
 
 def plain(table: ContactTable) -> Any:
     """The table as plain JSON values (arrays as lists, NaN as None) for ``golden.same``: a
-    golden written on another CPU matches to a relative 1e-9 (L1 of the it3 audit)."""
+    golden written on another CPU matches to a relative 1e-9."""
     return json.loads(json.dumps(json_ready(table.to_dict())))
 
 

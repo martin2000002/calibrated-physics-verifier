@@ -1,4 +1,4 @@
-"""Box-prompted video segmentation shared by the SAM 2.1 and EdgeTAM trackers (ADR 0005, 3.7).
+"""Box-prompted video segmentation shared by the SAM 2.1 and EdgeTAM trackers.
 
 torch and transformers are imported inside the functions (registry discovery stays light).
 """
@@ -35,7 +35,7 @@ class VideoModel:
 
 
 def video_model_loader(video_model: VideoModel) -> LazyModel[tuple[Any, Any]]:
-    """The tracker's (model, processor), loaded once per provider instance (D2)."""
+    """The tracker's (model, processor), loaded once per provider instance."""
     return LazyModel(lambda ctx: load_video_model(video_model, ctx))
 
 

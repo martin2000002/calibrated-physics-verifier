@@ -1,4 +1,4 @@
-"""SAM 2.1 hiera-tiny box-prompted video masks, the precise-profile tracker (ADR 0005, 3.7)."""
+"""SAM 2.1 hiera-tiny box-prompted video masks, the precise-profile tracker."""
 
 from __future__ import annotations
 

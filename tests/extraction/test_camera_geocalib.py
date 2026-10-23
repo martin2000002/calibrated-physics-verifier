@@ -1,5 +1,5 @@
-"""it2 T3-T7: camera/geocalib with a fake GeoCalib injected through ``loader()`` (no torch model,
-no weights, no network). T8 (no heavy import at registry build) is in test_registry.py."""
+"""camera/geocalib with a fake GeoCalib injected through ``loader()`` (no torch model, no
+weights, no network). That the registry build imports nothing heavy is in test_registry.py."""
 
 from __future__ import annotations
 
@@ -276,7 +276,7 @@ PHI0 = 0.12
         (FOCAL_SIGMA_PX, 0.01, FOCAL_SIGMA_PX / FOCAL_PX),  # model above the floor
         (0.0, PHI0, PHI0),  # invalid model sigma with a floor: the floor
         (math.nan, PHI0, PHI0),
-        (0.0, math.nan, math.nan),  # no floor: unknown as before (J8 i)
+        (0.0, math.nan, math.nan),  # no floor: the sigma stays unknown, as before
         (FOCAL_SIGMA_PX, math.nan, FOCAL_SIGMA_PX / FOCAL_PX),
     ],
 )

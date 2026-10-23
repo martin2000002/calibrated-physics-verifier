@@ -44,7 +44,7 @@ def set_torch_threads(threads: int) -> None:
 class LazyModel[M]:
     """A heavy provider's model, loaded by the first ``get`` and kept by the provider instance.
 
-    D2: the pipeline keeps one instance per stage for every clip and drops it when the stage
+    The pipeline keeps one instance per stage for every clip and drops it when the stage
     ends, so the weights load once per stage with the first context's device and paths."""
 
     def __init__(self, loader: Callable[[StageContext], M]) -> None:

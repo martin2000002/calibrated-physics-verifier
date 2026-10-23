@@ -1,4 +1,4 @@
-"""Per-query Grounding DINO: candidate merge and slot assignment (ADR 0014 §2.2).
+"""Per-query Grounding DINO: candidate merge and slot assignment.
 
 The f4/f5/f2 cases mirror what the GDINO-tiny probe saw on local ``eval`` frames; they are
 development fixtures, not held-out evidence.

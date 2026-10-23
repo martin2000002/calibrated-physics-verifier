@@ -1,5 +1,5 @@
 """GeoCalib (Veicht et al., ECCV 2024): focal length and gravity direction estimated from the
-clip's frames, without priors (ADR 0005, 3.7 as amended for it2).
+clip's frames, without priors.
 
 Code Apache-2.0 at commit 1dedb29 (after the v1.0 tag: it carries the camera.py interpolation
 fix, so it is not exactly the paper's code); weights ``geocalib-pinhole`` of the v1.0 release,
@@ -63,7 +63,7 @@ class Params(ProviderParams):
     # "assumed": K, FOV and FOV sigma of camera/assumed_fov's defaults, and GeoCalib's gravity
     # with that focal as a prior, so gravity and focal agree.
     focal: FocalMode = "geocalib"
-    # phi_0, the measured floor of the relative focal sigma (plan-it2 judgement 2 b): the 0.68
+    # phi_0, the measured floor of the relative focal sigma: the 0.68
     # quantile of |focal_rel| on v1-precise-hdri-dev. NaN = no floor (GeoCalib's own sigma alone).
     focal_sigma_floor_rel: float = math.nan
 

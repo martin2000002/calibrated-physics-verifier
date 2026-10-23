@@ -1,4 +1,4 @@
-"""Contacts from the proximity of primitives fitted to the kinematic states (ADR 0005, 4.9)."""
+"""Contacts from the proximity of primitives fitted to the kinematic states."""
 
 from __future__ import annotations
 
