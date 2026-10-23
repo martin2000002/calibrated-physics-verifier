@@ -88,7 +88,7 @@ class PathsSettings(FrozenModel):
 
     def anchored(self, root: Path, home: Path) -> PathsSettings:
         """Copy with ``~`` expanded to ``home`` and relative paths made absolute under ``root``."""
-        values = {name: _anchor(value, root, home) for name, value in self}
+        values = {name: anchor(value, root, home) for name, value in self}
         return PathsSettings(**values)
 
 
@@ -99,7 +99,7 @@ def error_profile_file(profile: str | None) -> str:
     return ERROR_PROFILE_FILE.format(profile=profile)
 
 
-def _anchor(path: Path, root: Path, home: Path) -> Path:
+def anchor(path: Path, root: Path, home: Path) -> Path:
     parts = path.parts
     if parts and parts[0] == "~":
         return home.joinpath(*parts[1:])

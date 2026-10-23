@@ -19,7 +19,7 @@ from pathlib import Path
 from pydantic import ValidationError, field_validator
 
 from physverify.calibration.artifact_io import default_artifact_path
-from physverify.config.models import Settings, _anchor
+from physverify.config.models import Settings, anchor
 from physverify.core.errors import ConfigError, PhysverifyError, UsageError
 from physverify.core.models import FrozenModel
 from physverify.schema.clip import ClipManifest, Split
@@ -66,7 +66,7 @@ def sealed_settings(settings: Settings) -> SealedSettings:
 
 def ledger_path(sealed: SealedSettings, home: Path, root: Path) -> Path:
     """``~`` is ``home`` (the invoking HOME), a relative path is under ``root``."""
-    return _anchor(sealed.ledger, root, home)
+    return anchor(sealed.ledger, root, home)
 
 
 @dataclass(frozen=True)
