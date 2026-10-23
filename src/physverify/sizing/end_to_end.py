@@ -237,7 +237,7 @@ def prepare_clip(
     sizing: SizingSettings,
     plan: EndToEndSettings,
     frames_root: Path,
-    ref: objectron.VideoRef,
+    ref: VideoRef,
 ) -> bool:
     """Frames and truth of one video; the MOV is deleted once decoded. False if too large."""
     clip_id = clip_id_of(ref)
@@ -271,7 +271,7 @@ def prepare_clip(
     return True
 
 
-def manifest_of(refs: Sequence[objectron.VideoRef], plan: EndToEndSettings) -> dict[str, Any]:
+def manifest_of(refs: Sequence[VideoRef], plan: EndToEndSettings) -> dict[str, Any]:
     return {
         "clips": [
             {

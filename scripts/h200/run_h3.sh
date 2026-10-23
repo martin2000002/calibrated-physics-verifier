@@ -12,7 +12,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/_common.sh"
 cd "$REPO_ROOT"
 source_h200_env
 
-# The `h3 status` line of a passed gate (physverify.cli.commands.h3 GATE_LINE + GATE_PASSED).
+# The `h3 status` line of a passed gate (physverify.generator_comparison.status GATE_LINE + GATE_PASSED).
 GATE_PASSED_LINE="  gate: passed"
 USAGE="usage: run_h3.sh base-eval | dev | freeze | eval | compare | status [ARGS...]"
 export PHYSVERIFY__H3__AUTOEVAL__ROOT="${PHYSVERIFY__H3__AUTOEVAL__ROOT:-$H200_ROOT}"
