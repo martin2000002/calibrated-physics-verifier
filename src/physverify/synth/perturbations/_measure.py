@@ -28,6 +28,7 @@ from physverify.physics.measures.r5_gravity import (
     fall_fit,
     gravity_rel_error,
 )
+from physverify.physics.tracks import records_of
 from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactKind, ContactTable
 from physverify.schema.scene import PerturbationRecord, SceneSpec
@@ -38,7 +39,6 @@ from physverify.synth.perturbations._windows import (
     flight_mask,
     impact_frames,
     on_top_pairs,
-    records_of,
     rest_mask,
     segments,
     solid_at,

@@ -7,6 +7,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from physverify.physics.tracks import records_of
 from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactTable
 from physverify.schema.states import ObjectStateTable
@@ -18,7 +19,6 @@ from physverify.synth.perturbations._measure import (
     collision_row,
     floor_crossing,
 )
-from physverify.synth.perturbations._windows import records_of
 
 
 @dataclass(frozen=True)

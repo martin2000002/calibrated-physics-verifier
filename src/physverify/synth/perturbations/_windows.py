@@ -20,6 +20,7 @@ from physverify.physics.geometry import (
     polygon_area,
     pose_from_quaternion,
 )
+from physverify.physics.tracks import records_of
 from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactKind, ContactRecord, ContactTable
 from physverify.schema.states import ObjectStateTable, PrimitiveKind
@@ -37,10 +38,6 @@ def solid_at(states: ObjectStateTable, index: int, frame: int, offset: Vec | Non
     position = states.position[frame, index] + (0.0 if offset is None else offset)
     primitive = Primitive(PrimitiveKind(str(states.primitive[index])), states.size[frame, index])
     return Solid(primitive, pose_from_quaternion(position, states.quaternion[frame, index]))
-
-
-def records_of(object_id: str, contacts: ContactTable) -> list[ContactRecord]:
-    return [r for r in contacts.records if object_id in (r.object_a, r.object_b)]
 
 
 def other_of(record: ContactRecord, object_id: str) -> str:

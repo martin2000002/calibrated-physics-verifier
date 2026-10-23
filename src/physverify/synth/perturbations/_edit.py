@@ -13,6 +13,7 @@ from numpy.typing import NDArray
 from pydantic import BaseModel
 
 from physverify.physics.geometry import Plane, Solid, matrix_from_quaternion, signed_distance
+from physverify.physics.tracks import records_of
 from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactKind, ContactRecord, ContactTable, ManifoldKind
 from physverify.schema.scene import MagnitudeKind, PerturbationRecord, SceneSpec
@@ -20,7 +21,7 @@ from physverify.schema.states import ObjectStateTable, PrimitiveKind
 from physverify.synth.layout import project, spec_intrinsics, spec_world_from_camera
 from physverify.synth.perturbations._ballistics import Bounce, Flight
 from physverify.synth.perturbations._measure import bounce_restitution, nominal_extents
-from physverify.synth.perturbations._windows import UP, records_of, solid_at
+from physverify.synth.perturbations._windows import UP, solid_at
 from physverify.synth.settings import PerturbationCommon
 
 Vec = NDArray[np.float64]
