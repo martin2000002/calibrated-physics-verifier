@@ -175,8 +175,9 @@ def eval_lines(report: dict[str, Any]) -> list[str]:
             f"rms log {interval_text(m['rms_log'])}  "
             f"cover 1s {interval_text(m['cover_1s'])}  2s {interval_text(m['cover_2s'])}"
         )
-    for key in (k for k in total if k.startswith("rms_log_")):
-        lines.append(f"  {key}: {interval_text(total[key])}")
+    lines.extend(
+        f"  {key}: {interval_text(total[key])}" for key in total if key.startswith("rms_log_")
+    )
     return lines
 
 

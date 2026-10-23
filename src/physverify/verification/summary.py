@@ -41,11 +41,11 @@ def summary_lines(report: VerificationReport) -> list[str]:
 
 def matrix_lines(cells: Sequence[MatrixCell]) -> list[str]:
     lines = ["sweep: perturbation check median max n/clips"]
-    for cell in cells:
-        lines.append(
-            f"{cell.perturbation} {cell.check_id} {_number(cell.median)} {_number(cell.max)} "
-            f"{cell.n}/{cell.n_clips}"
-        )
+    lines.extend(
+        f"{cell.perturbation} {cell.check_id} {_number(cell.median)} {_number(cell.max)} "
+        f"{cell.n}/{cell.n_clips}"
+        for cell in cells
+    )
     return lines
 
 

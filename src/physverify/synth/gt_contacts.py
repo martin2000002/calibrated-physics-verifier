@@ -10,6 +10,7 @@ from __future__ import annotations
 import math
 from collections.abc import Sequence
 from dataclasses import dataclass, fields
+from itertools import pairwise
 from pathlib import Path
 
 import numpy as np
@@ -89,7 +90,7 @@ def split_intervals(frames: Vec, gap_frames: float) -> list[slice]:
         return []
     cuts = np.flatnonzero(np.diff(frames) > gap_frames) + 1
     bounds = [0, *cuts.tolist(), int(frames.size)]
-    return [slice(lo, hi) for lo, hi in zip(bounds[:-1], bounds[1:], strict=True)]
+    return [slice(lo, hi) for lo, hi in pairwise(bounds)]
 
 
 def classify_interval(duration_frames: float, cfg: ContactSettings) -> ContactKind:
@@ -155,7 +156,7 @@ def _frame_groups(frames: Vec) -> list[slice]:
     keys = np.floor(frames + 1e-9)
     cuts = np.flatnonzero(np.diff(keys) != 0) + 1
     bounds = [0, *cuts.tolist(), int(frames.size)] if frames.size else []
-    return [slice(lo, hi) for lo, hi in zip(bounds[:-1], bounds[1:], strict=True)]
+    return [slice(lo, hi) for lo, hi in pairwise(bounds)]
 
 
 def _patch(points: Vec, normals: Vec) -> Patch:
@@ -249,9 +250,8 @@ def from_closest(
     records: list[ContactRecord] = list(impacts)
     for pair in pairs:
         for interval in split_intervals(pair.frame, 1.0 + 1e-9):
-            for record in _resting(_rows(pair, interval), states, cfg, CLOSEST_SOURCE):
-                if not _touches_impact(record, impacts):
-                    records.append(record)
+            resting = _resting(_rows(pair, interval), states, cfg, CLOSEST_SOURCE)
+            records.extend(r for r in resting if not _touches_impact(r, impacts))
     return contact_table(states.clip_id, records)
 
 

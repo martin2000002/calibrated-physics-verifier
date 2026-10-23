@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Sequence
+from itertools import pairwise
 
 import numpy as np
 from numpy.typing import NDArray
@@ -298,7 +299,7 @@ def cut_segment(
     if not inner:
         return [segment] if hi - lo >= min_len else []
     bounds = [lo, *inner, hi]
-    return [(a, b) for a, b in zip(bounds[:-1], bounds[1:], strict=True) if b - a >= SIDE_FRAMES]
+    return [(a, b) for a, b in pairwise(bounds) if b - a >= SIDE_FRAMES]
 
 
 def inconsistency(fits: Sequence[FallFit]) -> float:

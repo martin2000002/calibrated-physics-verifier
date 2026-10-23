@@ -13,7 +13,7 @@ import json
 import re
 import sys
 from collections.abc import Iterable
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 
 from physverify.core.digests import text_sha256
 
@@ -45,9 +45,9 @@ def halves(ids: list[str]) -> tuple[list[str], list[str]]:
 
 
 def main(manifest_path: str, listing_path: str) -> None:
-    with open(manifest_path, encoding="utf-8") as handle:
+    with Path(manifest_path).open(encoding="utf-8") as handle:
         manifest = json.load(handle)["assets"]
-    with open(listing_path, encoding="utf-8") as handle:
+    with Path(listing_path).open(encoding="utf-8") as handle:
         seen = training_names(handle)
     dev, reserved = halves(outside_ids(manifest, seen))
     print("[dataset.hdri_pools]")

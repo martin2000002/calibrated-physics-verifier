@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from itertools import pairwise
 from typing import Any
 
 import numpy as np
@@ -41,7 +42,7 @@ def split_at_jumps(
     flagged = finite & (norms > gate * float(np.median(norms[finite])))
     cuts = [lo + run.start + (run.stop - run.start + 1) // 2 for run in visible_runs(flagged)]
     bounds = [lo, *cuts, hi]
-    return [(a, b) for a, b in zip(bounds[:-1], bounds[1:], strict=True) if b > a]
+    return [(a, b) for a, b in pairwise(bounds) if b > a]
 
 
 @dataclass(frozen=True, eq=False)

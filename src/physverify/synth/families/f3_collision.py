@@ -177,13 +177,12 @@ def _envelope(
     v_minus = collision_velocities(pair)
     v_plus = [pair.v_cm + math.sqrt(e_pair) * (pair.v_cm - v) for v in v_minus]
     centres = (pair.contact - pair.radii[0] * pair.axis, pair.contact + pair.radii[1] * pair.axis)
-    points = []
-    for k in range(2):
-        points.append(
-            sphere_envelope(
-                sphere_path(starts[k], launches[k], g, pair.radii[k], before), pair.radii[k]
-            )
+    points = [
+        sphere_envelope(
+            sphere_path(starts[k], launches[k], g, pair.radii[k], before), pair.radii[k]
         )
+        for k in range(2)
+    ]
     for scale in (1.0, energy_scale(pair.masses, v_minus, v_plus, params.envelope_energy_gain)):
         for k in range(2):
             velocity = pair.v_cm + scale * (v_plus[k] - pair.v_cm)
