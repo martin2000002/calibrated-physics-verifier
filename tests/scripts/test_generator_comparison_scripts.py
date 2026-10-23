@@ -188,3 +188,19 @@ def test_setup_autoeval_reads_every_pin_from_the_committed_config() -> None:
     )
     assert result.returncode == 0, result.stderr
     assert result.stdout.splitlines() == [expected[key] for key in keys]
+
+
+def test_setup_autoeval_stops_on_a_missing_pin(tmp_path: Path) -> None:
+    sandbox = Sandbox(tmp_path, SCRIPT_NAMES, (*TOOLS, "sed"))
+    executable(sandbox.fakes / "uv", FAKE_UV)
+    executable(sandbox.fakes / "git", '#!/bin/bash\necho "git $*" >> "$CALLS"\nexit 1\n')
+    pins = sandbox.repo / "configs" / "studies" / "generator_comparison.toml"
+    pins.parent.mkdir(parents=True)
+    with (SCRIPTS.parents[1] / "configs" / "studies" / "generator_comparison.toml").open("rb") as f:
+        committed = tomllib.load(f)["h3"]["autoeval"]
+    values = "".join(f'{k} = "{v}"\n' for k, v in committed.items() if k != "venv")
+    pins.write_text(f"[h3.autoeval]\n{values}", encoding="utf-8")
+    result = sandbox.call("setup_autoeval.sh", PHYSVERIFY_H200_ROOT=str(tmp_path))
+    assert result.returncode == 2
+    assert "[h3.autoeval] venv is not set" in result.stderr
+    assert sandbox.lines() == []
