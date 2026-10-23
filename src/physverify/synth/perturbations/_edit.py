@@ -19,6 +19,7 @@ from physverify.schema.contacts import ContactKind, ContactRecord, ContactTable,
 from physverify.schema.scene import MagnitudeKind, PerturbationRecord, SceneSpec
 from physverify.schema.states import ObjectStateTable, PrimitiveKind
 from physverify.synth.layout import project, spec_intrinsics, spec_world_from_camera
+from physverify.synth.perturb import PerturbationNotApplicableError
 from physverify.synth.perturbations._ballistics import Bounce, Flight
 from physverify.synth.perturbations._measure import bounce_restitution, nominal_extents
 from physverify.synth.perturbations._windows import UP, solid_at
@@ -178,6 +179,55 @@ def clearance(
         if with_floor:
             best = min(best, signed_distance(solid, Plane.ground()).distance)
     return best
+
+
+def require_in_image(scene: SceneSpec, positions: Vec, reason: str) -> None:
+    if not centres_in_image(scene, positions):
+        raise PerturbationNotApplicableError(reason)
+
+
+def require_clear_flight(
+    scene: SceneSpec,
+    moved: ObjectStateTable,
+    index: int,
+    frames: range,
+    positions: Vec,
+    *,
+    leaves: str,
+    hits: str,
+) -> None:
+    """Refuse a new flight of ``index`` whose centres leave the image or that touches a body."""
+
+    def body(t: int) -> Solid:
+        return solid_at(moved, index, t)
+
+    require_in_image(scene, positions, leaves)
+    if clearance(moved, body, index, frames) <= 0.0:
+        raise PerturbationNotApplicableError(hits)
+
+
+def require_clear_shift(
+    scene: SceneSpec,
+    moved: ObjectStateTable,
+    index: int,
+    partner: int,
+    min_clearance: float,
+    *,
+    with_floor: bool = False,
+    too_close: str,
+    leaves: str,
+) -> None:
+    """Refuse a shifted ``index`` that comes within ``min_clearance`` of a body other than
+    ``partner`` or whose centre leaves the image."""
+
+    def body(t: int) -> Solid:
+        return solid_at(moved, index, t)
+
+    frames = range(moved.n_frames)
+    gap = clearance(moved, body, index, frames, skip=(partner,), with_floor=with_floor)
+    if gap < min_clearance:
+        raise PerturbationNotApplicableError(too_close)
+    require_in_image(scene, moved.position[:, index], leaves)
 
 
 def rotation_about(axis: Vec, angle: float) -> Vec:

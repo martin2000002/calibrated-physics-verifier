@@ -19,13 +19,12 @@ from physverify.synth.perturbations._base import PerturbationTarget
 from physverify.synth.perturbations._edit import (
     PluginBase,
     Vec,
-    centres_in_image,
-    clearance,
     half_width,
     horizontal_face_normals,
     object_friction,
     pick,
     provisional_record,
+    require_clear_shift,
     shift_records,
     translated,
 )
@@ -117,18 +116,16 @@ class UnsupportedRest(PluginBase[Params]):
     def _check(
         self, scene: SceneSpec, moved: ObjectStateTable, top: int, support: int, magnitude: float
     ) -> None:
-        def body(t: int) -> Solid:
-            return solid_at(moved, top, t)
-
-        if (
-            clearance(moved, body, top, range(moved.n_frames), skip=(support,), with_floor=True)
-            < self.params.min_clearance_m
-        ):
-            raise PerturbationNotApplicableError(
-                f"{NAME}: the shifted body comes too close to another body"
-            )
-        if not centres_in_image(scene, moved.position[:, top]):
-            raise PerturbationNotApplicableError(f"{NAME}: the shifted body leaves the image")
+        require_clear_shift(
+            scene,
+            moved,
+            top,
+            support,
+            self.params.min_clearance_m,
+            with_floor=True,
+            too_close=f"{NAME}: the shifted body comes too close to another body",
+            leaves=f"{NAME}: the shifted body leaves the image",
+        )
         mid = moved.n_frames // 2
         ids = moved.object_ids.astype(str)
         friction = object_friction(scene, str(ids[top])) * object_friction(scene, str(ids[support]))

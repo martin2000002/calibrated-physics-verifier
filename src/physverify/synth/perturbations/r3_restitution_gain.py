@@ -6,7 +6,6 @@ from typing import ClassVar
 
 import numpy as np
 
-from physverify.physics.geometry import Solid
 from physverify.schema.contacts import ContactTable
 from physverify.schema.scene import MagnitudeKind, PerturbationRecord, SceneSpec
 from physverify.schema.states import ObjectStateTable
@@ -18,20 +17,18 @@ from physverify.synth.perturbations._edit import (
     ballistic_state,
     before,
     bounce_record,
-    centres_in_image,
-    clearance,
     first_floor_impact,
     gravity_of,
     keep_records,
     pick,
     provisional_record,
     radius_of,
+    require_clear_flight,
     restitution_for_edit,
     spheres,
     with_flight,
 )
 from physverify.synth.perturbations._measure import bounce_restitution, floor_bounce
-from physverify.synth.perturbations._windows import solid_at
 from physverify.synth.settings import PerturbationCommon
 
 NAME = "r3_restitution_gain"
@@ -83,7 +80,15 @@ class RestitutionGain(PluginBase[Params]):
         )
         moved = with_flight(states, index, start, flight)
         apex = p_c + v_plus * (v_plus[2] / -g[2]) + 0.5 * g * (v_plus[2] / -g[2]) ** 2
-        self._check(scene, moved, index, start, apex)
+        require_clear_flight(
+            scene,
+            moved,
+            index,
+            range(start, moved.n_frames),
+            np.vstack([moved.position[start:, index], apex]),
+            leaves=f"{NAME}: the new rebound leaves the image",
+            hits=f"{NAME}: the new rebound hits another body",
+        )
         fps = float(scene.frame_rate)
         first = Bounce(t_c, p_c, v_minus, v_plus)
         records = [bounce_record(object_id, b, radius, fps) for b in (first, *flight.bounces)]
@@ -108,18 +113,6 @@ class RestitutionGain(PluginBase[Params]):
         index = states.object_index(record.target_objects[0])
         g = np.asarray(record.params["gravity"], dtype=np.float64)
         return bounce_restitution(states, index, float(record.params["impact_frame"]), g) - 1.0
-
-    @staticmethod
-    def _check(
-        scene: SceneSpec, moved: ObjectStateTable, index: int, start: int, apex: np.ndarray
-    ) -> None:
-        def body(t: int) -> Solid:
-            return solid_at(moved, index, t)
-
-        if not centres_in_image(scene, np.vstack([moved.position[start:, index], apex])):
-            raise PerturbationNotApplicableError(f"{NAME}: the new rebound leaves the image")
-        if clearance(moved, body, index, range(start, moved.n_frames)) <= 0.0:
-            raise PerturbationNotApplicableError(f"{NAME}: the new rebound hits another body")
 
 
 PLUGINS = (RestitutionGain,)

@@ -8,7 +8,6 @@ from typing import ClassVar
 
 import numpy as np
 
-from physverify.physics.geometry import Solid
 from physverify.schema.contacts import ContactTable
 from physverify.schema.scene import MagnitudeKind, PerturbationRecord, SceneSpec
 from physverify.schema.states import ObjectStateTable
@@ -26,14 +25,13 @@ from physverify.synth.perturbations._edit import (
     ballistic_state,
     before,
     bounce_record,
-    centres_in_image,
-    clearance,
     gravity_of,
     image_plane_tilt,
     keep_records,
     pick,
     provisional_record,
     radius_of,
+    require_clear_flight,
     restitution_for_edit,
     spheres,
     with_flight,
@@ -44,7 +42,7 @@ from physverify.synth.perturbations._measure import (
     fit_frames,
     inconsistency,
 )
-from physverify.synth.perturbations._windows import flight_mask, rest_mask, segments, solid_at
+from physverify.synth.perturbations._windows import flight_mask, rest_mask, segments
 from physverify.synth.settings import PerturbationCommon
 
 NAME = "r5a_gravity_switch"
@@ -116,7 +114,16 @@ class GravitySwitch(PluginBase[Params]):
             )
             records.extend(bounces)
         ids = [str(states.object_ids[i]) for i in (main, *others)]
-        self._check(scene, moved, (main, *others), frame)
+        for index in (main, *others):
+            require_clear_flight(
+                scene,
+                moved,
+                index,
+                range(frame, moved.n_frames),
+                moved.position[frame:, index],
+                leaves=f"{NAME}: a switched flight leaves the image",
+                hits=f"{NAME}: a switched flight hits another ball",
+            )
         new_contacts = keep_records(contacts, before(ids, t_switch * scene.frame_rate), records)
         record = provisional_record(
             self,
@@ -170,21 +177,6 @@ class GravitySwitch(PluginBase[Params]):
             with_flight(states, index, frame, flight),
             [bounce_record(object_id, b, radius, fps) for b in flight.bounces],
         )
-
-    @staticmethod
-    def _check(
-        scene: SceneSpec, moved: ObjectStateTable, indices: tuple[int, ...], frame: int
-    ) -> None:
-        frames = range(frame, moved.n_frames)
-        for index in indices:
-
-            def body(t: int, index: int = index) -> Solid:
-                return solid_at(moved, index, t)
-
-            if not centres_in_image(scene, moved.position[frame:, index]):
-                raise PerturbationNotApplicableError(f"{NAME}: a switched flight leaves the image")
-            if clearance(moved, body, index, frames) <= 0.0:
-                raise PerturbationNotApplicableError(f"{NAME}: a switched flight hits another ball")
 
 
 PLUGINS = (GravitySwitch,)

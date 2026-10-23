@@ -7,7 +7,7 @@ from typing import ClassVar
 
 import numpy as np
 
-from physverify.physics.geometry import Solid, signed_distance
+from physverify.physics.geometry import signed_distance
 from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactTable
 from physverify.schema.scene import MagnitudeKind, PerturbationRecord, SceneSpec
@@ -18,10 +18,9 @@ from physverify.synth.perturbations._base import PerturbationTarget
 from physverify.synth.perturbations._edit import (
     PluginBase,
     Vec,
-    centres_in_image,
-    clearance,
     pick,
     provisional_record,
+    require_clear_shift,
     shift_records,
     translated,
 )
@@ -73,7 +72,15 @@ class Penetration(PluginBase[Params]):
         a, b = pick(rng, pairs)
         offset = self._offset(states, a, b, magnitude)
         moved = translated(states, b, 0, offset)
-        self._check(scene, moved, a, b)
+        require_clear_shift(
+            scene,
+            moved,
+            b,
+            a,
+            self.params.min_clearance_m,
+            too_close=f"{NAME}: the shifted body comes too close to a third body",
+            leaves=f"{NAME}: the shifted body leaves the image",
+        )
         ids = states.object_ids.astype(str)
         record = provisional_record(
             self,
@@ -119,20 +126,6 @@ class Penetration(PluginBase[Params]):
             active.append(worst)
         out: Vec = shift * direction
         return out
-
-    def _check(self, scene: SceneSpec, moved: ObjectStateTable, a: int, b: int) -> None:
-        def body(t: int) -> Solid:
-            return solid_at(moved, b, t)
-
-        if (
-            clearance(moved, body, b, range(moved.n_frames), skip=(a,))
-            < self.params.min_clearance_m
-        ):
-            raise PerturbationNotApplicableError(
-                f"{NAME}: the shifted body comes too close to a third body"
-            )
-        if not centres_in_image(scene, moved.position[:, b]):
-            raise PerturbationNotApplicableError(f"{NAME}: the shifted body leaves the image")
 
 
 def resting_pairs(

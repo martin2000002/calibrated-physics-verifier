@@ -6,7 +6,6 @@ from typing import ClassVar
 
 import numpy as np
 
-from physverify.physics.geometry import Solid
 from physverify.schema.contacts import ContactTable
 from physverify.schema.scene import MagnitudeKind, PerturbationRecord, SceneSpec
 from physverify.schema.states import ObjectStateTable
@@ -22,20 +21,18 @@ from physverify.synth.perturbations._edit import (
     PluginBase,
     before,
     bounce_record,
-    centres_in_image,
-    clearance,
     gravity_of,
     image_plane_tilt,
     keep_records,
     pick,
     provisional_record,
     radius_of,
+    require_clear_flight,
     restitution_for_edit,
     spheres,
     with_flight,
 )
 from physverify.synth.perturbations._measure import R5A_MIN_FRAMES, flight_fits, inconsistency
-from physverify.synth.perturbations._windows import solid_at
 from physverify.synth.settings import PerturbationCommon
 
 NAME = "r5a_object_gravity"
@@ -80,7 +77,15 @@ class ObjectGravity(PluginBase[Params]):
         e_clean = restitution_for_edit(scene, states, contacts, index)
         flight = integrate_sphere(p0, v0, t0, radius, schedule, e_clean, states.t)
         moved = with_flight(states, index, 0, flight)
-        self._check(scene, moved, index)
+        require_clear_flight(
+            scene,
+            moved,
+            index,
+            range(moved.n_frames),
+            moved.position[:, index],
+            leaves=f"{NAME}: the tilted flight leaves the image",
+            hits=f"{NAME}: the tilted flight hits the other ball",
+        )
         object_id = str(states.object_ids[index])
         fps = float(scene.frame_rate)
         records = [bounce_record(object_id, b, radius, fps) for b in flight.bounces]
@@ -110,16 +115,6 @@ class ObjectGravity(PluginBase[Params]):
                 return float("nan")
             fits.append(flights[0])
         return inconsistency(fits)
-
-    @staticmethod
-    def _check(scene: SceneSpec, moved: ObjectStateTable, index: int) -> None:
-        def body(t: int) -> Solid:
-            return solid_at(moved, index, t)
-
-        if not centres_in_image(scene, moved.position[:, index]):
-            raise PerturbationNotApplicableError(f"{NAME}: the tilted flight leaves the image")
-        if clearance(moved, body, index, range(moved.n_frames)) <= 0.0:
-            raise PerturbationNotApplicableError(f"{NAME}: the tilted flight hits the other ball")
 
 
 PLUGINS = (ObjectGravity,)

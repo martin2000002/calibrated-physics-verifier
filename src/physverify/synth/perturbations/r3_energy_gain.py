@@ -25,12 +25,12 @@ from physverify.synth.perturbations._edit import (
     ballistic_state,
     before,
     bounce_record,
-    centres_in_image,
     gravity_of,
     keep_records,
     object_mass,
     provisional_record,
     radius_of,
+    require_in_image,
     restitution_for_edit,
     with_flight,
 )
@@ -151,8 +151,7 @@ class EnergyGain(PluginBase[Params]):
         gaps = np.linalg.norm(moved.position[start:, a] - moved.position[start:, b], axis=1)
         if np.any(gaps <= radius_of(moved, a) + radius_of(moved, b)):
             raise PerturbationNotApplicableError(f"{NAME}: the balls would touch again")
-        if not centres_in_image(scene, moved.position[start:, [a, b]]):
-            raise PerturbationNotApplicableError(f"{NAME}: a ball leaves the image")
+        require_in_image(scene, moved.position[start:, [a, b]], f"{NAME}: a ball leaves the image")
 
 
 def first_ball_collision(states: ObjectStateTable, contacts: ContactTable) -> ContactRecord | None:
