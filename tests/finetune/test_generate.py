@@ -13,7 +13,7 @@ from safetensors.torch import load_file
 
 from physverify.config.models import Settings
 from physverify.core.errors import UsageError
-from physverify.datasets.local_video import QueryEntry
+from physverify.core.local_manifest import QueryEntry
 from physverify.finetune.candidates import (
     CandidateGenerator,
     LatentCapture,

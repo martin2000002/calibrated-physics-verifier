@@ -16,8 +16,9 @@ from numpy.typing import NDArray
 from physverify.config.models import Settings
 from physverify.core.digests import file_sha256
 from physverify.core.errors import TimingError
+from physverify.core.local_manifest import MANIFEST_FILE, to_queries
 from physverify.core.video import Mp4VideoSource
-from physverify.datasets.local_video import MANIFEST_FILE, LocalVideoDataset, to_queries
+from physverify.datasets.local_video import LocalVideoDataset
 from physverify.extraction._base import WeightKind
 from physverify.generation.mp4_writer import to_uint8, write_mp4
 from physverify.generation.settings import GenerationSettings

@@ -14,7 +14,7 @@ from typing import Final
 
 import numpy as np
 
-from physverify.datasets.local_video import QueryEntry
+from physverify.core.local_manifest import QueryEntry
 from physverify.schema.states import ObjectStateTable
 
 MIN_FRACTION: Final = 0.8

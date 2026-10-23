@@ -6,8 +6,8 @@ from typing import Annotated, Literal
 
 from pydantic import Field, model_validator
 
+from physverify.core.local_manifest import QueryList
 from physverify.core.models import FrozenModel
-from physverify.datasets.local_video import QueryList
 
 SLUG_PATTERN = r"^[a-z0-9_]+$"
 # WanPipeline: height and width divisible by 16, num_frames - 1 divisible by 4 (the VAE packs

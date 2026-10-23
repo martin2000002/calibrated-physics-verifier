@@ -7,7 +7,7 @@ import pytest
 from cli_runner import CliRunner
 
 from physverify.config.models import Settings
-from physverify.datasets.local_video import QueryEntry
+from physverify.core.local_manifest import QueryEntry
 from physverify.demo.overlay import OVERLAY_FILE
 from physverify.demo.report import PROVISIONAL_BANNER, REPORT_JSON, REPORT_MD, read_report
 from physverify.finetune.candidate_scoring import ScoringDeps

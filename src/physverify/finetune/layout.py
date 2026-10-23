@@ -33,7 +33,7 @@ from typing import Final
 
 from physverify.config.models import Settings
 from physverify.core.atomic import write_bytes_atomic
-from physverify.datasets.local_video import MANIFEST_FILE, ClipEntry, LocalManifest
+from physverify.core.local_manifest import MANIFEST_FILE, ClipEntry, LocalManifest
 from physverify.datasets.local_video import NAME as LOCAL_VIDEO
 from physverify.finetune.records import (
     CandidateRecord,

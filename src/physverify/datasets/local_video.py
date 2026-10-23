@@ -13,9 +13,17 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, ValidationError
 
 from physverify.core.errors import ConfigError, MissingInputError, UsageError
+from physverify.core.local_manifest import (
+    MANIFEST_FILE,
+    ClipEntry,
+    LocalManifest,
+    QueryList,
+    clip_id_of,
+    to_queries,
+)
 from physverify.core.models import FrozenModel
 from physverify.core.video import FrameDirVideoSource, Mp4VideoSource
 from physverify.datasets._base import GroundTruthStore, VideoSource
@@ -24,43 +32,9 @@ from physverify.schema.clip import ClipManifest, ObjectQuery, Split, TimeSource
 if TYPE_CHECKING:
     from physverify.config.models import Settings
 
-MANIFEST_FILE = "manifest.json"
 QUERIES_SUFFIX = ".queries.json"
 DEFAULT_SUBSET = "default"
 NAME = "local_video"
-
-
-class QueryEntry(FrozenModel):
-    phrase: str = Field(min_length=1)
-    expected_count: int | None = Field(default=None, ge=1)
-
-
-QueryList = list[str | QueryEntry]
-
-
-class ClipEntry(FrozenModel):
-    video: str = Field(min_length=1)
-    clip_id: str | None = Field(default=None, min_length=1)
-    real_fps: float | None = Field(default=None, gt=0)
-    queries: QueryList | None = None
-
-
-class LocalManifest(FrozenModel):
-    clips: list[ClipEntry]
-
-
-def to_queries(entries: QueryList) -> tuple[ObjectQuery, ...]:
-    return tuple(
-        ObjectQuery(phrase=e) if isinstance(e, str) else ObjectQuery(e.phrase, e.expected_count)
-        for e in entries
-    )
-
-
-def clip_id_of(entry: ClipEntry) -> str:
-    if entry.clip_id is not None:
-        return entry.clip_id
-    path = Path(entry.video)
-    return path.name if entry.video.endswith("/") else path.stem
 
 
 def _read_model[M: BaseModel](path: Path, model: type[M]) -> M:

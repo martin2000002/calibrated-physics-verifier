@@ -11,8 +11,9 @@ import numpy as np
 import pytest
 
 from physverify.config.models import Settings
+from physverify.core.local_manifest import MANIFEST_FILE, QueryEntry
 from physverify.core.video import write_mp4
-from physverify.datasets.local_video import MANIFEST_FILE, LocalVideoDataset, QueryEntry
+from physverify.datasets.local_video import LocalVideoDataset
 from physverify.extraction.cache import StageCache
 from physverify.finetune.candidate_scoring import ScoringDeps, score_candidates
 from physverify.finetune.layout import CampaignStore

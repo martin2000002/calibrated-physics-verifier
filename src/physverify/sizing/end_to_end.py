@@ -11,7 +11,6 @@ from __future__ import annotations
 import json
 import math
 import shutil
-import urllib.request
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass
 from functools import partial
@@ -23,6 +22,8 @@ from numpy.typing import NDArray
 
 from physverify.config.models import Settings
 from physverify.core.atomic import write_text_atomic
+from physverify.core.download import fetch_url, remote_size
+from physverify.core.local_manifest import MANIFEST_FILE, ClipEntry, LocalManifest, QueryEntry
 from physverify.schema.clip import ClipManifest
 from physverify.schema.perception import MaskTrack
 from physverify.schema.scale import ScaleEstimate
@@ -41,7 +42,6 @@ from physverify.sizing.objectron_draws import EndToEndDraw, e2e_draw, objectron_
 from physverify.sizing.settings import EndToEndSettings, SizingSettings
 
 NATIVE_FPS = 30.0
-TIMEOUT_S = 60.0
 Box = tuple[float, float, float, float]
 """Normalized (x0, y0, x1, y1), x right and y down in the upright (portrait) frame."""
 ScaleOutputs = Callable[
@@ -189,19 +189,6 @@ def _metrics_of(errors: Errors, index: NDArray[np.intp]) -> dict[str, float]:
     return metrics(subset(errors, index))
 
 
-def download(url: str, target: Path, timeout_s: float = TIMEOUT_S) -> None:
-    pending = target.with_suffix(target.suffix + ".part")
-    with urllib.request.urlopen(url, timeout=timeout_s) as response, pending.open("wb") as out:
-        shutil.copyfileobj(response, out)
-    pending.replace(target)
-
-
-def remote_size(url: str, timeout_s: float = TIMEOUT_S) -> int:
-    request = urllib.request.Request(url, method="HEAD")
-    with urllib.request.urlopen(request, timeout=timeout_s) as response:
-        return int(response.headers.get("Content-Length", "0"))
-
-
 def decode_frames(video: Path, target: Path, *, step: int, n_frames: int, max_side: int) -> int:
     """Upright frames ``0, step, 2 step, ...`` as JPEG files; returns how many were written."""
     import cv2
@@ -238,6 +225,9 @@ def prepare_clip(
     plan: EndToEndSettings,
     frames_root: Path,
     ref: VideoRef,
+    *,
+    fetch: Callable[[str, Path], object] = fetch_url,
+    size_of: Callable[[str], int] = remote_size,
 ) -> bool:
     """Frames and truth of one video; the MOV is deleted once decoded. False if too large."""
     clip_id = clip_id_of(ref)
@@ -245,13 +235,13 @@ def prepare_clip(
     if truth_path.is_file():
         return True
     video_url = f"{sizing.bucket_url}/{objectron.video_prefix(ref)}{VIDEO_FILE}"
-    if remote_size(video_url) > plan.max_video_mb * 1e6:
+    if size_of(video_url) > plan.max_video_mb * 1e6:
         return False
     work = objectron_dir(settings) / "e2e_download" / clip_id
     work.mkdir(parents=True, exist_ok=True)
     annotation = work / "annotation.pbdata"
-    download(objectron.annotation_url(sizing.bucket_url, ref), annotation)
-    download(video_url, work / VIDEO_FILE)
+    fetch(objectron.annotation_url(sizing.bucket_url, ref), annotation)
+    fetch(video_url, work / VIDEO_FILE)
     step = step_of(plan.fps)
     written = decode_frames(
         work / VIDEO_FILE,
@@ -271,17 +261,17 @@ def prepare_clip(
     return True
 
 
-def manifest_of(refs: Sequence[VideoRef], plan: EndToEndSettings) -> dict[str, Any]:
-    return {
-        "clips": [
-            {
-                "video": f"{clip_id_of(ref)}/",
-                "real_fps": plan.fps,
-                "queries": [{"phrase": ref.label.replace("_", " "), "expected_count": 1}],
-            }
+def manifest_of(refs: Sequence[VideoRef], plan: EndToEndSettings) -> LocalManifest:
+    return LocalManifest(
+        clips=[
+            ClipEntry(
+                video=f"{clip_id_of(ref)}/",
+                real_fps=plan.fps,
+                queries=[QueryEntry(phrase=ref.label.replace("_", " "), expected_count=1)],
+            )
             for ref in refs
         ]
-    }
+    )
 
 
 def clip_record(
@@ -324,8 +314,9 @@ def prepare(
     draw = e2e_draw(
         settings, sizing, plan, reader, partial(prepare_clip, settings, sizing, plan, frames_root)
     )
-    manifest = frames_root / "manifest.json"
-    write_text_atomic(manifest, json.dumps(manifest_of(draw.taken, plan), indent=1))
+    manifest = frames_root / MANIFEST_FILE
+    listed = manifest_of(draw.taken, plan).model_dump(mode="json", exclude_unset=True)
+    write_text_atomic(manifest, json.dumps(listed, indent=1))
     return draw, manifest
 
 
