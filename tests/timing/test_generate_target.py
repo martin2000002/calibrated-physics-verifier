@@ -19,7 +19,7 @@ from physverify.core.errors import TimingError
 from physverify.core.local_manifest import MANIFEST_FILE, to_queries
 from physverify.datasets.local_video import LocalVideoDataset
 from physverify.extraction._base import WeightKind
-from physverify.generation.mp4_writer import to_uint8
+from physverify.generation.frames import to_uint8
 from physverify.generation.settings import GenerationSettings
 from physverify.generation.wan21 import (
     FETCH_HINT,

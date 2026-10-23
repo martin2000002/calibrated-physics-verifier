@@ -30,7 +30,7 @@ from physverify.finetune.records import (
 from physverify.finetune.seeds import WHOLE, Shard, candidate_id, candidate_seed, parse_shard
 from physverify.finetune.settings import CandidateSettings, PromptSplit
 from physverify.finetune.wan_lora import load_adapter
-from physverify.generation.mp4_writer import to_uint8
+from physverify.generation.frames import to_uint8
 from physverify.generation.settings import GenerationSettings
 from physverify.generation.wan21 import batch_frames, call_kwargs, is_out_of_memory, torch_generator
 from physverify.schema.io import stable_hash

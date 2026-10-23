@@ -32,7 +32,7 @@ from physverify.extraction.weights import (
     local_path,
     weight_file,
 )
-from physverify.generation.mp4_writer import RGB_CHANNELS
+from physverify.generation.frames import RGB_CHANNELS
 from physverify.generation.settings import GenerationSettings
 
 SHARD_INDEX_SUFFIX: Final = ".safetensors.index.json"
