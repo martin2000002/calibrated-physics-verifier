@@ -350,7 +350,8 @@ consumers had to move with the files in K2 to keep the suite green).
   `agreement.toml` into `studies/human_agreement.toml` and `datasets/videophy.toml`; the blocks
   moved verbatim, comments included (the concatenation of the pieces equals the old file modulo
   blank separator lines; the agreement header now precedes [agreement]; pinned by
-  `tests/contracts/test_config_splits.py` against copies of the old files). Section
+  `tests/contracts/test_config_splits.py` against copies of the old files in
+  `tests/contracts/data/pre_split_configs.json`). Section
   and key names are unchanged, so `config_hash` is too (`test_config_hashes.py` unchanged and
   green; `doctor` prints the same `config_hash:` for both profiles).
 - Loader (`config/loader.py`, frozen-file departure): `configs/**/*.toml`, sorted by path, with
