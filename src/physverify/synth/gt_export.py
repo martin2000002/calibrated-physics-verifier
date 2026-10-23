@@ -1,4 +1,4 @@
-"""Canonical ground truth of every rendered clip (ADR 0004, section 3.7): PNG frames, WORLD and
+"""Canonical ground truth of every rendered clip: PNG frames, WORLD and
 CAMERA state and contact tables, OpenCV camera, final perturbation record, ``gt_meta.json`` (the
 step marker, written last) and the clip manifest; ``manifest.jsonl`` indexes the exported clips.
 ``video.mp4`` is a lossy copy of the frames for viewing; extraction reads the PNG frames.
@@ -103,7 +103,7 @@ def clean_restitution(
 
 def restitution_meta(e_clean: dict[str, float]) -> dict[str, Any]:
     """Unclamped ``e_clean`` plus the spheres whose clean bounce gained energy (e > 1): a
-    simulator artifact measured on the clean clip, cause not verified (ADR 0004 §9.1)."""
+    simulator artifact measured on the clean clip, cause not verified."""
     gains = sorted(k for k, e in e_clean.items() if math.isfinite(e) and e > 1.0)
     return {"e_clean": e_clean, "e_clean_above_one": gains}
 

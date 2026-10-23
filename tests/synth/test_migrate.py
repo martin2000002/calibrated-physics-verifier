@@ -1,5 +1,5 @@
-"""WP-G 1.C: migrating a stored dataset to the position velocity convention equals a fresh build,
-discards only the renders whose inputs changed and logs both config hashes. WP-H: the
+"""Migrating a stored dataset to the position velocity convention equals a fresh build,
+discards only the renders whose inputs changed and logs both config hashes. The
 floor-crossing migration re-solves a penetrated bounce row, raises the plan's ``gt_revision`` and
 re-renders only the clip whose flight moved."""
 
@@ -254,7 +254,7 @@ def test_a_clip_now_refused_loses_its_render_and_export(
 def legacy_crossing(
     states: ObjectStateTable, index: int, k: int, radius: float, gz: float
 ) -> tuple[int, float] | None:
-    """``floor_crossing`` before WP-H: a row already under the floor fell back to t_c = t_k."""
+    """``floor_crossing`` before the fix: a row already under the floor fell back to t_c = t_k."""
     t_k = float(states.t[k])
     z, vz = float(states.position[k, index, 2]), float(states.velocity[k, index, 2])
     tau = time_to_height(z, vz, gz, radius)

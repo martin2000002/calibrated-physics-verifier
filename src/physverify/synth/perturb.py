@@ -51,7 +51,8 @@ class PerturbationNotApplicableError(Exception):
 
 @runtime_checkable
 class MeasuredPerturbation(Protocol):
-    """A4 extension of the frozen protocols: the magnitude measured on the perturbed truth."""
+    """Synthetic Kubric dataset extension of the frozen protocols: the magnitude measured on the
+    perturbed truth."""
 
     def measure(
         self, states: ObjectStateTable, contacts: ContactTable, record: PerturbationRecord

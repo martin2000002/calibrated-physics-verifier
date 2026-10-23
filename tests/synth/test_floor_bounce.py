@@ -1,4 +1,4 @@
-"""WP-H: a floor bounce whose row after the crossing is already under the floor is solved from
+"""A floor bounce whose row after the crossing is already under the floor is solved from
 the row before it; every other bounce resolves exactly as before."""
 
 from __future__ import annotations
@@ -37,7 +37,7 @@ Vec = np.ndarray
 def legacy_floor_bounce(
     states: ObjectStateTable, index: int, t_guess: float, g: Vec
 ) -> tuple[float, Vec, Vec] | None:
-    """``floor_bounce`` before WP-H: a row k already under the floor fell back to t_c = t_k."""
+    """``floor_bounce`` before the fix: a row k already under the floor fell back to t_c = t_k."""
     vz = states.velocity[:, index, 2]
     radius = radius_of(states, index)
     base = math.floor(t_guess)

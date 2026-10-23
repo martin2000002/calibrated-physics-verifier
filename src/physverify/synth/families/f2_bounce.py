@@ -1,4 +1,4 @@
-"""f2: one ball dropped onto the floor and bouncing, plus one cube at rest (ADR 0004 §3.4)."""
+"""f2: one ball dropped onto the floor and bouncing, plus one cube at rest."""
 
 from __future__ import annotations
 

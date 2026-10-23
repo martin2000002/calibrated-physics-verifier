@@ -1,5 +1,5 @@
-"""f4: a base cube with one or two bodies stacked on it and a loose body on the floor, all at rest
-(ADR 0004 §3.4). The top body is the only candidate of ``r2_unsupported_rest``."""
+"""f4: a base cube with one or two bodies stacked on it and a loose body on the floor, all at rest.
+The top body is the only candidate of ``r2_unsupported_rest``."""
 
 from __future__ import annotations
 

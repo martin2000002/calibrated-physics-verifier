@@ -1,5 +1,5 @@
 """R2: the top body of a stack shifted along a face normal of its support until its centre of mass
-lies outside the support polygon (ADR 0004 §3.5)."""
+lies outside the support polygon."""
 
 from __future__ import annotations
 

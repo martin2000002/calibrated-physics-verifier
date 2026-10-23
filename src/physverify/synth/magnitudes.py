@@ -154,7 +154,7 @@ def floor_bounce(
 
     t_c is where the incoming ballistic arc crosses z = radius (the convention of check R3a), so
     it does not depend on the event timing; v- is extrapolated to t_c from the arc's source row
-    and v+ from row k + 1 (ADR 0004, WP-H amendment)."""
+    and v+ from row k + 1."""
     found = bounce_crossing(states, index, t_guess, g)
     if found is None:
         return None
@@ -214,7 +214,7 @@ def row_on_floor(
 ) -> bool:
     """The row's velocity holds at t_c: a floor record overlaps [row, t_c], or the body is within
     the contact tolerance of the floor at the row (a resting contact by the definition of the
-    contact table, whose RESTING records can leave a gap around an impact; ADR 0004, WP-I)."""
+    contact table, whose RESTING records can leave a gap around an impact)."""
     return row_overlaps_floor(states, contacts, index, row, t_c) or (
         floor_gap(states, index, row) <= tol
     )

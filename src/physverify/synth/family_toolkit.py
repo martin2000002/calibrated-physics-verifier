@@ -38,7 +38,7 @@ class RejectedSampleError(Exception):
 
 class FamilyCommon(SceneCommon):
     """Fields every family adds to ``SceneCommon``. Cylinders keep aspect 1 because PyBullet's URDF
-    loader only scales uniformly (ADR 0004, Implementation)."""
+    loader only scales uniformly."""
 
     density: float = 1000.0
     aspect_range: tuple[float, float] = (1.0, 1.0)

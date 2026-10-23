@@ -126,7 +126,7 @@ def max_penetration(pair: PairSamples, states: ObjectStateTable) -> float:
 
 def primitive_penetration(pair: PairSamples, states: ObjectStateTable) -> float:
     """Deepest overlap of the two primitives over the rows' frames, for event rows that carry no
-    distance (Kubric's collision events have none, ADR 0004 §9.1)."""
+    distance (Kubric's collision events have none)."""
     depths = [0.0]
     for frame in sorted({frame_of(states, f) for f in pair.frame}):
         body_a, body_b = body(states, pair.a, frame), body(states, pair.b, frame)

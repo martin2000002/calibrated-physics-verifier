@@ -76,7 +76,7 @@ def event_frames_to_native(
     """Kubric reads contacts before each step, so ``frame = k / spf`` reports the state of step
     k - 1 and the touch happened during step k - 2 -> k - 1: the native (post-settle) frame is
     ``frame - settle + EVENT_STEP_OFFSET / spf`` with the offset at the middle of that step
-    (measured +1.2 and +1.5 steps late on two floor impacts, ADR 0004 Implementation)."""
+    (measured +1.2 and +1.5 steps late on two floor impacts)."""
     out: Vec = (
         np.asarray(frames, dtype=np.float64) - settle_frames + EVENT_STEP_OFFSET / steps_per_frame
     )

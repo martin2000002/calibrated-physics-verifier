@@ -1,4 +1,4 @@
-"""The ground-truth velocity convention of simulated clips (ADR 0004 amendment, WP-G item 1).
+"""The ground-truth velocity convention of simulated clips.
 
 PyBullet integrates semi-implicit Euler with step h: v_{n+1} = v_n + h g, x_{n+1} = x_n + h v_{n+1}.
 In free flight the positions on the step grid then lie exactly on the parabola

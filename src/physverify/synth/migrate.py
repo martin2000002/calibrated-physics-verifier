@@ -1,6 +1,6 @@
-"""Migrating a stored dataset without bumping its version: to ``velocity_convention`` (WP-G 1.C,
-``velocity-<convention>``) or through the ground-truth fixes of ``plan.GT_MIGRATIONS`` (WP-H
-``floor-crossing``, WP-I ``pair-collision``), each run only as the first one the plan still
+"""Migrating a stored dataset without bumping its version: to ``velocity_convention``
+(``velocity-<convention>``) or through the ground-truth fixes of ``plan.GT_MIGRATIONS``
+(``floor-crossing``, ``pair-collision``), each run only as the first one the plan still
 lacks. Every migration re-runs APPLY with this checkout, so it leaves the plan at ``GT_REVISION``
 and its manifest lists the fixes it ``covers``.
 

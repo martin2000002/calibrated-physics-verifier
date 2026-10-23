@@ -1,4 +1,4 @@
-"""J9 of plan-congelado: ``kubric_fresh`` over a store is ``kubric_synthetic`` over it, except the
+"""``kubric_fresh`` over a store is ``kubric_synthetic`` over it, except the
 dataset name and the cache root; the blind and OOD variants only change what they declare."""
 
 from __future__ import annotations

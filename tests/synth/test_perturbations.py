@@ -1,6 +1,6 @@
 """Every perturbation plugin on clean clips of every family, recorded (Bullet) and analytic: the
 recorded magnitude is the one measured on the edited truth, it reaches each level target and the
-edit moves only its own truth measure (ADR 0004 §4 and §9.2)."""
+edit moves only its own truth measure."""
 
 from __future__ import annotations
 
@@ -52,7 +52,7 @@ APPLICABLE = {
     "f5_contact": {"r1_penetration", "r4_teleport", "r4_vanish"},
 }
 GRAVITY_FAMILIES = ("f1_projectile", "f2_bounce")
-# Entries a Bullet clip moves besides the plugin's own, with the cause measured in ADR 0004 §9.2:
+# Entries a Bullet clip moves besides the plugin's own, each with its measured cause:
 # the analytic edit replaces the clean bounce and with it Bullet's impact penetration (R1).
 RECORDED_LEAKS = {
     ("f1_projectile", "r5a_gravity_switch"): {"R1"},
@@ -66,7 +66,7 @@ RESIMULATION_LEAKS = {"R1", "R3a"}
 # one-row peak |delta g| dt^2 / (2 L) in R4_jump at the switch.
 COUPLINGS = {("f1_projectile", "r5a_gravity_switch"): {"R4_jump"}}
 # R5a needs two flights of R5A_MIN_FRAMES; a longer or shorter bounce flight of the f2 clip leaves
-# one and R5a becomes undefined (NaN), which is not a value leak (ADR 0004 §9.2).
+# one and R5a becomes undefined (NaN), which is not a value leak.
 UNDEFINED = {
     ("f2_bounce", "r3_restitution_gain"): {"R5a"},
     ("f2_bounce", "r5b_gravity_scale"): {"R5a"},
@@ -304,7 +304,7 @@ def test_a_toml_override_changes_the_plugin_params(
     assert tuple(perturbation_params(perturbations["r4_resize"], ds).levels) != override
 
 
-# --- r2_unsupported_rest target selection (ADR 0004 §4, test g) ---------------------------------
+# r2_unsupported_rest target selection.
 
 
 def box(template: ObjectSpec, object_id: str, size: float, xyz: tuple[float, float, float]) -> Any:

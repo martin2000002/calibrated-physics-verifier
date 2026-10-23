@@ -1,4 +1,5 @@
-"""The H1 primary scene scope (ADR 0015 1.4): a report filter over scene indices, no refit.
+"""The primary scene scope of the held-out monotonicity: a report filter over scene indices,
+no refit.
 
 Specs are ``sNNN`` or ``sNNN-sMMM`` (inclusive); a Kubric scene id ends in ``-sNNN``
 (``synth.plan.scene_id_of``), so one index selects that scene in every family."""

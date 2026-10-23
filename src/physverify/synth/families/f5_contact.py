@@ -1,5 +1,5 @@
 """f5: a row of floor bodies touching or nearly touching, and a ball rolling without slipping into
-a separate cube (ADR 0004 §3.4)."""
+a separate cube."""
 
 from __future__ import annotations
 

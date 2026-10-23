@@ -1,4 +1,4 @@
-"""f3: two balls launched so that they collide in the air at t_c (ADR 0004 §3.4)."""
+"""f3: two balls launched so that they collide in the air at t_c."""
 
 from __future__ import annotations
 

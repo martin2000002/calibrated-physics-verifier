@@ -1,5 +1,5 @@
 """R3b: the post-collision velocities of a ball pair rescaled about the centre of mass so the
-kinetic energy grows by the fraction m while momentum is conserved (ADR 0004 §3.5)."""
+kinetic energy grows by the fraction m while momentum is conserved."""
 
 from __future__ import annotations
 

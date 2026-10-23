@@ -1,4 +1,4 @@
-"""WP-G 1.C: the position-consistent GT velocity on the recorded Bullet clips."""
+"""The position-consistent GT velocity on the recorded Bullet clips."""
 
 from __future__ import annotations
 

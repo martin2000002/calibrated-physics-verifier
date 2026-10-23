@@ -1,4 +1,4 @@
-"""WP-I: a ball-ball collision keeps a row's velocity only when a floor record overlaps the
+"""A ball-ball collision keeps a row's velocity only when a floor record overlaps the
 interval between the row and t_c or the body is within the contact tolerance of the floor there;
 every other row is extrapolated ballistically to t_c."""
 

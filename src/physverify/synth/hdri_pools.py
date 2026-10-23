@@ -1,4 +1,4 @@
-"""HDRI backgrounds outside a model's training panoramas (plan-it2 J1).
+"""HDRI backgrounds outside a model's training panoramas.
 
 GeoCalib was trained on OpenPano, whose PolyHaven panoramas include Kubric's single background.
 The out-of-distribution pool is every id of Kubric's public ``HDRI_haven.json`` whose name is in

@@ -314,7 +314,7 @@ def restitution_for_edit(
     scene: SceneSpec, states: ObjectStateTable, contacts: ContactTable, index: int
 ) -> float:
     """Restitution measured on the first clean floor bounce (not clamped to 1: Bullet can return
-    e > 1, ADR 0004 §9.1), else the object's own coefficient."""
+    e > 1), else the object's own coefficient."""
     object_id = str(states.object_ids[index])
     impact = first_floor_impact(object_id, contacts)
     if impact is not None:

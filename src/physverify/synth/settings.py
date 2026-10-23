@@ -75,7 +75,8 @@ class DatasetSettings(FrozenModel):
     samples_per_pixel: int = Field(ge=1)
     background: Literal["plain", "hdri"] = "plain"
     # Backgrounds of ``background = "hdri"``, picked by scene seed. ``hdri_pool`` names a
-    # preregistered list of ``hdri_pools`` instead (plan-it2 J1: HDRIs outside OpenPano).
+    # preregistered list of ``hdri_pools`` instead (HDRIs outside
+    # OpenPano, GeoCalib's training panoramas).
     hdri_ids: tuple[str, ...] = Field(default=LEGACY_HDRI_IDS, min_length=1)
     hdri_pool: str = ""
     hdri_pools: dict[str, tuple[str, ...]] = {}

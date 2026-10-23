@@ -1,4 +1,4 @@
-"""it2 J1: HDRI backgrounds as dataset settings, the preregistered pools outside OpenPano and the
+"""HDRI backgrounds as dataset settings, the preregistered pools outside OpenPano and the
 clean calib subset rendered with them."""
 
 from __future__ import annotations

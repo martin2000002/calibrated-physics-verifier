@@ -185,7 +185,7 @@ def energy_scale(
     masses: Sequence[float], v_minus: Sequence[Vec], v_plus: Sequence[Vec], gain: float
 ) -> float:
     """lambda with v_i+' = v_cm- + lambda (v_i+ - v_cm+) and E+' = (1 + gain) E-:
-    lambda^2 = ((1 + gain) E- - E_cm) / E_rel+ (ADR 0004 §3.5). NaN if unreachable."""
+    lambda^2 = ((1 + gain) E- - E_cm) / E_rel+. NaN if unreachable."""
     m = np.asarray(masses, dtype=np.float64)
     before = np.asarray(v_minus, dtype=np.float64)
     after = np.asarray(v_plus, dtype=np.float64)

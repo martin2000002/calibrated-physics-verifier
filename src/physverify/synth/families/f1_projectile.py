@@ -1,4 +1,4 @@
-"""f1: two balls launched at frame 0, moving nearly in the image plane (ADR 0004 §3.4)."""
+"""f1: two balls launched at frame 0, moving nearly in the image plane."""
 
 from __future__ import annotations
 
