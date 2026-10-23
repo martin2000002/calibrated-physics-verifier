@@ -9,7 +9,11 @@ from physverify.finetune.records import CandidateScore, write_record, write_reco
 from physverify.finetune.scorers._base import AggregateScorer
 from physverify.finetune.scoring import restamp, same_stamp
 from physverify.finetune.store import CampaignStore
-from physverify.generator_comparison.campaign import candidate_snapshot, eval_records, eval_scores
+from physverify.generator_comparison.candidate_queries import (
+    candidate_snapshot,
+    eval_records,
+    eval_scores,
+)
 from physverify.generator_comparison.prereg import H3Preregistration, stamp_problem
 from physverify.generator_comparison.records import ScoringManifest
 from physverify.schema.checks import CheckResult

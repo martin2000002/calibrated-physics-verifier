@@ -9,7 +9,9 @@ from physverify.config.models import Settings
 from physverify.finetune.records import UNSEEN_TAG, CandidateScore, PromptRecord
 from physverify.finetune.scorers._base import AggregateScore
 from physverify.finetune.settings import load_finetune
-from physverify.generator_comparison.analysis import (
+from physverify.generator_comparison.arms import PromptArms, analysis_prompts, build_arms
+from physverify.generator_comparison.best_of_n import pick_best
+from physverify.generator_comparison.preregistered_numbers import (
     SECONDARY_TESTS,
     AnalysisInputs,
     analyse,
@@ -19,8 +21,6 @@ from physverify.generator_comparison.analysis import (
     template_means,
     worst_case,
 )
-from physverify.generator_comparison.arms import PromptArms, analysis_prompts, build_arms
-from physverify.generator_comparison.bestofn import pick_best
 from physverify.generator_comparison.settings import H3Settings
 from physverify.generator_comparison.stats import TestResult
 

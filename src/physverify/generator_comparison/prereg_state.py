@@ -27,25 +27,25 @@ from physverify.finetune.settings import SECTION as FINETUNE_SECTION
 from physverify.finetune.settings import FinetuneSettings
 from physverify.finetune.stop_rule import StopRuleState
 from physverify.finetune.store import CampaignStore
-from physverify.generator_comparison.analysis import (
-    SECONDARY_TESTS,
-    JudgeValues,
-    crn_ft_vs_base,
-    judged,
-    judged_against_base,
-)
 from physverify.generator_comparison.arms import (
     EVAL_SPLIT,
     PromptArms,
     analysis_prompts,
     build_arms,
 )
-from physverify.generator_comparison.campaign import all_eval_records, candidate_snapshot
-from physverify.generator_comparison.gate import usability
+from physverify.generator_comparison.candidate_queries import all_eval_records, candidate_snapshot
+from physverify.generator_comparison.judge_gate import usability
 from physverify.generator_comparison.judges._base import Judge
 from physverify.generator_comparison.layout import H3Layout
 from physverify.generator_comparison.margins import MarginDerivation, margin
 from physverify.generator_comparison.prereg import H3Preregistration, Mde
+from physverify.generator_comparison.preregistered_numbers import (
+    SECONDARY_TESTS,
+    JudgeValues,
+    crn_ft_vs_base,
+    judged,
+    judged_against_base,
+)
 from physverify.generator_comparison.records import (
     TASKS,
     JudgeKey,

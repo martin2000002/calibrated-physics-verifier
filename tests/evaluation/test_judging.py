@@ -12,7 +12,12 @@ from physverify.app.services import external_judge
 from physverify.core.errors import ConfigError, UsageError
 from physverify.datasets._videophy_tables import VideophyRow
 from physverify.finetune.records import CandidateRecord, CandidateScore
-from physverify.generator_comparison.gate import gate_rows, gate_task, task_usability, usability
+from physverify.generator_comparison.judge_gate import (
+    gate_rows,
+    gate_task,
+    task_usability,
+    usability,
+)
 from physverify.generator_comparison.judges._base import JudgeInput, JudgeScore
 from physverify.generator_comparison.judges.verifier import VerifierJudge
 from physverify.generator_comparison.judges.videophy2_autoeval import Videophy2AutoevalJudge

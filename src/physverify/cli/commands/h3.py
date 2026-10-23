@@ -45,9 +45,13 @@ from physverify.finetune.settings import FinetuneSettings, load_finetune
 from physverify.finetune.stop_rule import fired_reason, frozen_state
 from physverify.finetune.store import SELECTED_FILE, CampaignStore
 from physverify.generator_comparison.arms import EVAL_SPLIT, analysis_prompts, eval_prompts
-from physverify.generator_comparison.campaign import eval_records, eval_scores, has_eval_scores
+from physverify.generator_comparison.candidate_queries import (
+    eval_records,
+    eval_scores,
+    has_eval_scores,
+)
 from physverify.generator_comparison.compare import CompareInputs, build_compare
-from physverify.generator_comparison.gate import gate_rows
+from physverify.generator_comparison.judge_gate import gate_rows
 from physverify.generator_comparison.judges._base import Judge, JudgeInput
 from physverify.generator_comparison.judging import (
     candidate_items,
@@ -69,6 +73,12 @@ from physverify.generator_comparison.prereg import (
     require_unchanged,
     write_prereg,
 )
+from physverify.generator_comparison.prereg_state import (
+    DEV_SPLIT,
+    FreezeInputs,
+    current_record,
+    require_exclusion_record,
+)
 from physverify.generator_comparison.records import (
     JUDGE_SPLITS,
     TASKS,
@@ -80,12 +90,6 @@ from physverify.generator_comparison.records import (
 from physverify.generator_comparison.report import write_report
 from physverify.generator_comparison.scoring import frozen_stamp_problem, manifest, rescore, stale
 from physverify.generator_comparison.settings import H3Settings, load_h3
-from physverify.generator_comparison.state import (
-    DEV_SPLIT,
-    FreezeInputs,
-    current_record,
-    require_exclusion_record,
-)
 from physverify.runtime.runs import current_commit
 
 NAME = "h3"

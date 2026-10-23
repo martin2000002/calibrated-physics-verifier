@@ -4,7 +4,7 @@ from collections.abc import Callable
 
 from physverify.finetune.records import CandidateScore
 from physverify.finetune.settings import PairSettings
-from physverify.generator_comparison.bestofn import pick_best
+from physverify.generator_comparison.best_of_n import pick_best
 
 Score = Callable[..., CandidateScore]
 RULES = PairSettings(min_margin=0.1, min_motion=0.5)

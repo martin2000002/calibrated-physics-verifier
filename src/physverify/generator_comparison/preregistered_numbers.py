@@ -19,7 +19,7 @@ from physverify.finetune.records import CandidateScore
 from physverify.finetune.scorers._base import AggregateScore
 from physverify.finetune.settings import PairSettings, SelectSettings
 from physverify.generator_comparison.arms import PromptArms
-from physverify.generator_comparison.bestofn import Key, Pick, pick_best
+from physverify.generator_comparison.best_of_n import Key, Pick, pick_best
 from physverify.generator_comparison.records import JudgeKey
 from physverify.generator_comparison.settings import H3Settings
 from physverify.generator_comparison.stats import (

@@ -13,7 +13,7 @@ from pathlib import Path
 from physverify.core.errors import UsageError
 from physverify.datasets._videophy_tables import VideophyRow, to_float
 from physverify.finetune.records import CandidateRecord, PromptRecord
-from physverify.generator_comparison.gate import gate_task
+from physverify.generator_comparison.judge_gate import gate_task
 from physverify.generator_comparison.judges._base import Judge, JudgeInput, JudgeScore
 from physverify.generator_comparison.records import GateReport, JudgeOutput, JudgeRow, JudgeSplit
 from physverify.generator_comparison.settings import GateSettings

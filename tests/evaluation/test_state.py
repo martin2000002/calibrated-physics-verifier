@@ -4,9 +4,14 @@ from pathlib import Path
 
 from physverify.finetune.records import BASE_TAG, write_record
 from physverify.generator_comparison.layout import H3Layout
+from physverify.generator_comparison.prereg_state import (
+    DEV_SPLIT,
+    contaminated,
+    dev_pc,
+    dev_usability,
+)
 from physverify.generator_comparison.records import TASKS, JudgeOutput, JudgeRow
 from physverify.generator_comparison.settings import H3Settings
-from physverify.generator_comparison.state import DEV_SPLIT, contaminated, dev_pc, dev_usability
 
 STAMPS = {task: f"stamp-{task}" for task in TASKS}
 

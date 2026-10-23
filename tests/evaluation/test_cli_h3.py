@@ -19,7 +19,6 @@ from physverify.cli.commands.h3 import GATE_LINE, GATE_PASSED  # noqa: E402
 from physverify.core.digests import sha256_if_file  # noqa: E402
 from physverify.core.errors import UsageError  # noqa: E402
 from physverify.finetune.records import BASE_TAG, write_record  # noqa: E402
-from physverify.generator_comparison.analysis import SECONDARY_TESTS  # noqa: E402
 from physverify.generator_comparison.compare import (  # noqa: E402
     eval_judges,
     external_status,
@@ -32,6 +31,8 @@ from physverify.generator_comparison.prereg import (  # noqa: E402
     chain_shas,
     load_prereg,
 )
+from physverify.generator_comparison.prereg_state import require_exclusion_record  # noqa: E402
+from physverify.generator_comparison.preregistered_numbers import SECONDARY_TESTS  # noqa: E402
 from physverify.generator_comparison.records import (  # noqa: E402
     GateReport,
     GateTask,
@@ -40,7 +41,6 @@ from physverify.generator_comparison.records import (  # noqa: E402
     Usability,
 )
 from physverify.generator_comparison.scoring import manifest  # noqa: E402
-from physverify.generator_comparison.state import require_exclusion_record  # noqa: E402
 from physverify.generator_comparison.verdict import NO_VERDICT  # noqa: E402
 
 SUBCOMMANDS = (
