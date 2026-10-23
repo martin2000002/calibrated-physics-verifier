@@ -93,6 +93,8 @@ allowed-confusables = ["’"]
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["ARG", "T20", "TID251"]
 "tools/**" = ["T20", "TID251"]
+# The physverify.cli ban for scripts is the contract "Scripts call the application layer" below,
+# enforced by tests/test_architecture.py.
 "scripts/**" = ["T20", "TID251"]
 "src/physverify/cli/main.py" = ["T20"]
 "src/physverify/kubric_worker/__main__.py" = ["T20"]
