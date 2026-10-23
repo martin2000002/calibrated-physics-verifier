@@ -16,9 +16,9 @@ from cli_runner import CliRunner
 from cli_tree import command_modules
 from steps_sh import steps_read
 
+from physverify.app import calibration as app_calibration
 from physverify.app import plugins
 from physverify.calibration.artifact_io import load_calibration, projection_name
-from physverify.cli.commands import calibrate
 from physverify.config.loader import load_settings
 from physverify.config.models import Settings
 from physverify.datasets._base import GroundTruthStore, VideoSource
@@ -240,8 +240,8 @@ def family_run(monkeypatch: pytest.MonkeyPatch, settings: Settings) -> str:
     """A raw run whose scene ids end in ``-sNNN`` like Kubric's; ``calibrate evaluate`` scores
     that report instead of running the checks."""
     monkeypatch.setattr(sys.modules[__name__], "REPORT", FAMILY_REPORT)
-    monkeypatch.setattr(calibrate, "_raw_runner", lambda session: _ReportRunner())
-    monkeypatch.setattr(calibrate, "_input_source", lambda session, dataset, level: None)
+    monkeypatch.setattr(app_calibration, "_raw_runner", lambda session: _ReportRunner())
+    monkeypatch.setattr(app_calibration, "_input_source", lambda session, dataset, level: None)
     folder = settings.paths.runs_dir / "family"
     folder.mkdir(parents=True)
     write_report(folder, FAMILY_REPORT)

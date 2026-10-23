@@ -18,9 +18,13 @@ from calibration_cases import DATASET, fitted_artifact, synthetic_report
 from cli_runner import CliResult, CliRunner
 from cli_tree import cli_leaves, command_modules
 
+from physverify.app import calibration as app_calibration
 from physverify.app import plugins, sealing
+from physverify.app import selective_risk as app_selective_risk
+from physverify.app import verification as app_verification
+from physverify.calibration import session as calibration_session
 from physverify.calibration.sealed_ledger import LedgerEntry, read_entries
-from physverify.cli.commands import abstain, calibrate, diagnose, verify
+from physverify.cli.commands import diagnose
 from physverify.config.loader import load_settings
 from physverify.config.models import Settings
 from physverify.core.errors import PhysverifyError
@@ -170,16 +174,16 @@ def evaluate_cli(
     artifact_text: str,
 ) -> Callable[..., CliResult]:
     """``calibrate evaluate`` on the fixture; the first check run records the ledger size."""
-    monkeypatch.setattr(calibrate, "checks_hash_for", lambda context: "checks")
-    monkeypatch.setattr(calibrate, "_raw_runner", lambda session: _ReportRunner())
-    monkeypatch.setattr(calibrate, "_input_source", lambda session, dataset, level: None)
-    real = calibrate._eval_data
+    monkeypatch.setattr(app_calibration, "checks_hash_for", lambda context: "checks")
+    monkeypatch.setattr(app_calibration, "_raw_runner", lambda session: _ReportRunner())
+    monkeypatch.setattr(app_calibration, "_input_source", lambda session, dataset, level: None)
+    real = calibration_session._eval_data
 
     def counted(*args: Any) -> Any:
         reached.append(len(read_entries(ledger)))
         return real(*args)
 
-    monkeypatch.setattr(calibrate, "_eval_data", counted)
+    monkeypatch.setattr(calibration_session, "_eval_data", counted)
     path = tmp_path / "artifact" / "calibration.json"
     path.parent.mkdir(parents=True)
     path.write_text(artifact_text, encoding="utf-8")
@@ -315,7 +319,7 @@ def _guarded_verify(
     cli: CliRunner, monkeypatch: pytest.MonkeyPatch, ledger: Path, reached: list[int]
 ) -> Callable[..., CliResult]:
     stop = sentinel(ledger, reached)
-    monkeypatch.setattr(verify, "VerificationRunner", lambda *a: _SentinelRunner(stop))
+    monkeypatch.setattr(app_verification, "VerificationRunner", lambda *a: _SentinelRunner(stop))
 
     def invoke(
         *extra: str, options: Sequence[str] = (), env: Mapping[str, str] | None = None
@@ -334,7 +338,7 @@ def guarded(
     stop = sentinel(ledger, reached)
 
     def abstain_curve(*extra: str, env: Mapping[str, str] | None = None) -> CliResult:
-        monkeypatch.setattr(abstain, "_session", stop)
+        monkeypatch.setattr(app_selective_risk, "_session", stop)
         sets = ("--set", f"abstention.dataset={DATASET}", "--set", "abstention.real_datasets=[]")
         return cli(*SEAL, *sets, *extra, "abstain", "curve", env=env)
 
@@ -402,7 +406,7 @@ def test_without_the_sealed_section_every_guarded_command_fails_closed(
     """Audit M3: even a calib-only selection stops when the sealed sets are unknown."""
     (config_dir / "sealed.toml").unlink()
     stop = sentinel(ledger, reached)
-    monkeypatch.setattr(verify, "VerificationRunner", lambda *a: _SentinelRunner(stop))
+    monkeypatch.setattr(app_verification, "VerificationRunner", lambda *a: _SentinelRunner(stop))
     result = cli("verify", "--dataset", DATASET, "--level", "oracle", "--clips", CALIB_CLIP)
     assert result.code == EXIT_USAGE and "no [sealed] section" in result.err
     assert reached == []
@@ -478,7 +482,60 @@ def _guard_labels(module: ModuleType) -> set[str]:
             leaf = call.args[index]
             assert isinstance(leaf, ast.Constant) and isinstance(leaf.value, str), ast.dump(leaf)
             labels.add(f"{module.NAME} {leaf.value}")
+    return labels | _service_labels(module, tree)
+
+
+def _service_labels(module: ModuleType, tree: ast.Module) -> set[str]:
+    """Labels ``NAME`` or ``f"{NAME} {leaf}"`` a command passes to a service of another module
+    that hands that argument on to ``guard_sealed``."""
+    labels: set[str] = set()
+    for call in (n for n in ast.walk(tree) if isinstance(n, ast.Call)):
+        if not isinstance(call.func, ast.Name) or call.func.id == "guard_sealed":
+            continue
+        service = getattr(module, call.func.id, None)
+        if not inspect.isfunction(service) or service.__module__ == module.__name__:
+            continue
+        for index, arg in enumerate(call.args):
+            if not (isinstance(arg, ast.JoinedStr) or _is_name(arg)):
+                continue
+            label = _label(arg, module.NAME)
+            if label is not None and _reaches_guard(service, index):
+                labels.add(label)
     return labels
+
+
+def _is_name(node: ast.expr) -> bool:
+    return isinstance(node, ast.Name) and node.id == "NAME"
+
+
+def _reaches_guard(function: Callable[..., Any], index: int) -> bool:
+    home = inspect.getmodule(function)
+    assert home is not None
+    tree = ast.parse(inspect.getsource(home))
+    defs = {n.name: n for n in tree.body if isinstance(n, ast.FunctionDef)}
+    return _forwards(defs, defs[function.__name__], index, set())
+
+
+def _forwards(
+    defs: Mapping[str, ast.FunctionDef], function: ast.FunctionDef, index: int, seen: set[str]
+) -> bool:
+    """Whether positional parameter ``index`` of ``function`` reaches ``guard_sealed``'s label."""
+    if function.name in seen:
+        return False
+    seen.add(function.name)
+    param = function.args.args[index].arg
+    for call in (n for n in ast.walk(function) if isinstance(n, ast.Call)):
+        if not isinstance(call.func, ast.Name):
+            continue
+        for position, arg in enumerate(call.args):
+            if not (isinstance(arg, ast.Name) and arg.id == param):
+                continue
+            if call.func.id == "guard_sealed" and position == 1:
+                return True
+            callee = defs.get(call.func.id)
+            if callee is not None and _forwards(defs, callee, position, seen):
+                return True
+    return False
 
 
 def _calls(tree: ast.AST, name: str) -> list[ast.Call]:
@@ -491,7 +548,7 @@ def _calls(tree: ast.AST, name: str) -> list[ast.Call]:
 
 def _label(node: ast.expr, command: str) -> str | None:
     """The literal label, NAME resolved; None when a parameter supplies the leaf."""
-    if isinstance(node, ast.Name) and node.id == "NAME":
+    if _is_name(node):
         return command
     assert isinstance(node, ast.JoinedStr), ast.dump(node)
     parts: list[str] = []
@@ -549,7 +606,7 @@ def test_fit_from_a_perceived_run_guards_before_the_oracle_runs(
     folder.mkdir(parents=True)
     write_report(folder, perceived)
     stop = sentinel(ledger, reached)
-    monkeypatch.setattr(calibrate, "_raw_runner", lambda session: _SentinelRunner(stop))
+    monkeypatch.setattr(app_calibration, "_raw_runner", lambda session: _SentinelRunner(stop))
     refused = cli(*SEAL, "calibrate", "fit", "--dataset", DATASET, "--from-run", "perceived")
     assert refused.code == EXIT_USAGE and "PHYSVERIFY_UNSEAL" in refused.err
     assert reached == []

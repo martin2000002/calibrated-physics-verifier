@@ -27,8 +27,6 @@ KNOWN_VIOLATIONS: frozenset[str] = frozenset(
         "physverify.finetune.candidates -> physverify.timing.targets.wan21_generate",
         "physverify.finetune.settings -> physverify.timing.settings",
         "physverify.finetune.wan_lora -> physverify.timing.settings",
-        "physverify.verification.selective_risk -> physverify.calibration.table",
-        "physverify.verification.selective_risk -> physverify.diagnosis.pairing",
     }
 )
 

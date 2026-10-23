@@ -205,7 +205,7 @@ def frozen_paths(settings: Any) -> dict[str, Path | None]:
     """What a look judges with (the ledger's freeze) plus the stage sigma and the abstention."""
     from physverify.calibration.sealed_ledger import frozen_files
     from physverify.calibration.sigma_recalibration import STAGE_SIGMA_FILE
-    from physverify.verification.selective_risk import ABSTENTION_FILE
+    from physverify.selective_risk.settings import ABSTENTION_FILE
 
     calibration_dir = settings.paths.calibration_dir
     found: dict[str, Path | None] = {"exclusions": None, **frozen_files(settings)}

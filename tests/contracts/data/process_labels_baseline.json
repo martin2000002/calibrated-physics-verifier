@@ -113,6 +113,9 @@
  "scripts/h200/smoke_autoeval.sh": {
   "config_or_script_text": 2
  },
+ "src/physverify/app/exclusions.py": {
+  "comment_or_docstring": 1
+ },
  "src/physverify/app/sealing.py": {
   "literal": 8
  },
@@ -141,10 +144,20 @@
  "src/physverify/calibration/evaluate.py": {
   "comment_or_docstring": 6
  },
- "src/physverify/calibration/exclusion_rules.py": {
-  "banner": 5,
-  "comment_or_docstring": 8,
+ "src/physverify/calibration/exclusion_decision.py": {
+  "banner": 3,
+  "comment_or_docstring": 1,
   "literal": 2
+ },
+ "src/physverify/calibration/exclusion_detector_arms.py": {
+  "banner": 1
+ },
+ "src/physverify/calibration/exclusion_inputs.py": {
+  "banner": 1,
+  "comment_or_docstring": 2
+ },
+ "src/physverify/calibration/exclusion_rules.py": {
+  "comment_or_docstring": 5
  },
  "src/physverify/calibration/heldout_monotonicity.py": {
   "comment_or_docstring": 5
@@ -161,6 +174,9 @@
   "comment_or_docstring": 1,
   "literal": 1
  },
+ "src/physverify/calibration/session.py": {
+  "banner": 3
+ },
  "src/physverify/calibration/settings.py": {
   "comment_or_docstring": 2,
   "literal": 2
@@ -171,6 +187,10 @@
  },
  "src/physverify/calibration/stats.py": {
   "comment_or_docstring": 3
+ },
+ "src/physverify/calibration/summary.py": {
+  "identifier": 3,
+  "literal": 2
  },
  "src/physverify/calibration/table.py": {
   "comment_or_docstring": 9
@@ -221,7 +241,7 @@
   "literal": 2
  },
  "src/physverify/cli/commands/abstain.py": {
-  "comment_or_docstring": 6,
+  "comment_or_docstring": 2,
   "literal": 3
  },
  "src/physverify/cli/commands/agreement.py": {
@@ -229,10 +249,8 @@
   "literal": 5
  },
  "src/physverify/cli/commands/calibrate.py": {
-  "banner": 5,
   "comment_or_docstring": 3,
-  "identifier": 3,
-  "literal": 9
+  "literal": 7
  },
  "src/physverify/cli/commands/data.py": {
   "comment_or_docstring": 2
@@ -249,8 +267,7 @@
   "comment_or_docstring": 1
  },
  "src/physverify/cli/commands/exclusions.py": {
-  "banner": 3,
-  "comment_or_docstring": 2,
+  "comment_or_docstring": 1,
   "literal": 5
  },
  "src/physverify/cli/commands/extract.py": {
@@ -281,8 +298,7 @@
   "comment_or_docstring": 2
  },
  "src/physverify/cli/commands/verify.py": {
-  "comment_or_docstring": 2,
-  "literal": 1
+  "comment_or_docstring": 2
  },
  "src/physverify/core/cache_keys.py": {
   "comment_or_docstring": 1
@@ -717,6 +733,19 @@
  "src/physverify/runtime/udocker.py": {
   "comment_or_docstring": 1
  },
+ "src/physverify/selective_risk/curve.py": {
+  "banner": 2,
+  "comment_or_docstring": 3
+ },
+ "src/physverify/selective_risk/fit.py": {
+  "banner": 2
+ },
+ "src/physverify/selective_risk/report.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/selective_risk/tables.py": {
+  "comment_or_docstring": 3
+ },
  "src/physverify/sizing/end_to_end.py": {
   "comment_or_docstring": 1
  },
@@ -847,9 +876,8 @@
   "comment_or_docstring": 3,
   "literal": 1
  },
- "src/physverify/verification/selective_risk.py": {
-  "banner": 4,
-  "comment_or_docstring": 3
+ "src/physverify/verification/summary.py": {
+  "literal": 1
  },
  "src/physverify/verification/sweep.py": {
   "comment_or_docstring": 3

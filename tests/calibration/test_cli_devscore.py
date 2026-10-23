@@ -16,9 +16,9 @@ from cli_runner import CliRunner
 from steps_sh import steps_read
 from wiring import checks
 
+from physverify.app import calibration as app_calibration
 from physverify.app import plugins
 from physverify.calibration.artifact_io import load_calibration
-from physverify.cli.commands import calibrate
 from physverify.config.loader import load_settings
 from physverify.config.models import Settings
 from physverify.datasets._base import GroundTruthStore, VideoSource
@@ -69,8 +69,8 @@ def calls(monkeypatch: pytest.MonkeyPatch) -> list[int]:
     patched = {**kinds, "datasets": lambda: {**datasets(), DATASET: DevFixtureDataset}}
     monkeypatch.setattr(plugins, "PLUGIN_KINDS", MappingProxyType(patched))
     found: list[int] = []
-    monkeypatch.setattr(calibrate, "_raw_runner", lambda session: _CalibRunner(found))
-    monkeypatch.setattr(calibrate, "_input_source", lambda session, dataset, level: None)
+    monkeypatch.setattr(app_calibration, "_raw_runner", lambda session: _CalibRunner(found))
+    monkeypatch.setattr(app_calibration, "_input_source", lambda session, dataset, level: None)
     return found
 
 
