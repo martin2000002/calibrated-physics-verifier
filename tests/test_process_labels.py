@@ -16,11 +16,11 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 BASELINE = REPO / "tests" / "contracts" / "data" / "process_labels_baseline.json"
-SCANNED_DIRS = ("src", "scripts", "tests", "configs")
+SCANNED_DIRS = ("src", "scripts", "tests", "configs", "tools")
 EXCLUDED_SUFFIXES = frozenset({".json", ".jsonl", ".npz", ".pyc"})
 EXCLUDED_NAMES = frozenset({"uv.lock", "local.toml", "py.typed"})
 EXCLUDED_PARTS = frozenset({"golden", "__pycache__", ".pytest_cache"})
-EXCLUDED_PREFIXES = ("tests/synth/data/",)
+EXCLUDED_PREFIXES = ("tests/synth/data/", "tools/equivalence/expected/")
 SELF = Path(__file__).resolve()
 
 JARGON = re.compile(
@@ -92,22 +92,15 @@ def _scanned_files() -> list[Path]:
     return sorted(path for path in paths if _is_scanned(path))
 
 
-def _docstring_start(node: ast.AST) -> tuple[int, int] | None:
-    owners = (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)
-    if not isinstance(node, owners) or not node.body:
-        return None
-    first = node.body[0]
-    is_docstring = (
-        isinstance(first, ast.Expr)
-        and isinstance(first.value, ast.Constant)
-        and isinstance(first.value.value, str)
-    )
-    return (first.lineno, first.col_offset) if is_docstring else None
-
-
 def _docstring_starts(tree: ast.AST) -> set[tuple[int, int]]:
-    starts = (_docstring_start(node) for node in ast.walk(tree))
-    return {start for start in starts if start is not None}
+    """Start of every bare string statement, attribute docstrings included."""
+    return {
+        (node.lineno, node.col_offset)
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Expr)
+        and isinstance(node.value, ast.Constant)
+        and isinstance(node.value.value, str)
+    }
 
 
 def _test_name_hits(tree: ast.AST) -> int:

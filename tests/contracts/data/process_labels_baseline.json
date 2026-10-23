@@ -133,8 +133,7 @@
   "comment_or_docstring": 7
  },
  "src/physverify/calibration/artifact.py": {
-  "comment_or_docstring": 8,
-  "literal": 2
+  "comment_or_docstring": 10
  },
  "src/physverify/calibration/artifact_io.py": {
   "comment_or_docstring": 6
@@ -186,8 +185,7 @@
   "banner": 3
  },
  "src/physverify/calibration/settings.py": {
-  "comment_or_docstring": 2,
-  "literal": 2
+  "comment_or_docstring": 4
  },
  "src/physverify/calibration/sigma_recalibration.py": {
   "banner": 1,
@@ -370,8 +368,7 @@
   "comment_or_docstring": 3
  },
  "src/physverify/diagnosis/metrics/contacts_impacts.py": {
-  "comment_or_docstring": 1,
-  "literal": 2
+  "comment_or_docstring": 3
  },
  "src/physverify/diagnosis/metrics/depth_object_parts.py": {
   "comment_or_docstring": 4
@@ -489,8 +486,7 @@
   "comment_or_docstring": 2
  },
  "src/physverify/extraction/providers/scale_size_model.py": {
-  "comment_or_docstring": 1,
-  "literal": 1
+  "comment_or_docstring": 2
  },
  "src/physverify/extraction/providers/scale_size_prior.py": {
   "comment_or_docstring": 1
@@ -615,15 +611,14 @@
   "comment_or_docstring": 2
  },
  "src/physverify/generator_comparison/prereg.py": {
-  "comment_or_docstring": 5,
-  "literal": 5
+  "comment_or_docstring": 8,
+  "literal": 2
  },
  "src/physverify/generator_comparison/prereg_state.py": {
   "comment_or_docstring": 5
  },
  "src/physverify/generator_comparison/preregistered_numbers.py": {
-  "comment_or_docstring": 4,
-  "literal": 1
+  "comment_or_docstring": 5
  },
  "src/physverify/generator_comparison/records.py": {
   "comment_or_docstring": 2
@@ -664,12 +659,11 @@
   "comment_or_docstring": 1
  },
  "src/physverify/human_agreement/policy_metrics.py": {
-  "comment_or_docstring": 4,
-  "literal": 2
+  "comment_or_docstring": 5,
+  "literal": 1
  },
  "src/physverify/human_agreement/prereg.py": {
-  "comment_or_docstring": 7,
-  "literal": 1
+  "comment_or_docstring": 8
  },
  "src/physverify/human_agreement/report.py": {
   "comment_or_docstring": 2,
@@ -679,8 +673,7 @@
   "comment_or_docstring": 2
  },
  "src/physverify/human_agreement/settings.py": {
-  "comment_or_docstring": 1,
-  "literal": 3
+  "comment_or_docstring": 4
  },
  "src/physverify/human_agreement/stats.py": {
   "comment_or_docstring": 3
@@ -892,8 +885,7 @@
   "comment_or_docstring": 7
  },
  "src/physverify/verification/scope.py": {
-  "comment_or_docstring": 3,
-  "literal": 1
+  "comment_or_docstring": 4
  },
  "src/physverify/verification/summary.py": {
   "literal": 1
@@ -960,9 +952,9 @@
  },
  "tests/calibration/test_monotonicity_primary.py": {
   "banner": 1,
-  "comment_or_docstring": 7,
+  "comment_or_docstring": 8,
   "identifier": 1,
-  "literal": 4,
+  "literal": 3,
   "test_name": 2
  },
  "tests/calibration/test_sealed.py": {
@@ -1026,7 +1018,7 @@
   "test_name": 1
  },
  "tests/checks/test_sigma.py": {
-  "literal": 2
+  "comment_or_docstring": 2
  },
  "tests/checks/test_tracks.py": {
   "banner": 5,
@@ -1048,8 +1040,7 @@
  },
  "tests/diagnosis/conftest.py": {
   "banner": 4,
-  "comment_or_docstring": 4,
-  "literal": 1
+  "comment_or_docstring": 5
  },
  "tests/diagnosis/test_attribution.py": {
   "banner": 4,
@@ -1074,8 +1065,7 @@
   "comment_or_docstring": 2
  },
  "tests/diagnosis/test_error_profile_writer.py": {
-  "comment_or_docstring": 2,
-  "literal": 1
+  "comment_or_docstring": 3
  },
  "tests/diagnosis/test_factorial.py": {
   "comment_or_docstring": 2
@@ -1451,5 +1441,12 @@
  "tests/verification/test_v2_checks_oracle.py": {
   "comment_or_docstring": 6,
   "test_name": 1
+ },
+ "tools/equivalence/README.md": {
+  "config_or_script_text": 4
+ },
+ "tools/equivalence/driver.py": {
+  "identifier": 1,
+  "literal": 3
  }
 }
