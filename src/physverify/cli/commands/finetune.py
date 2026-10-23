@@ -18,24 +18,18 @@ from typing import Annotated, Any, Final
 import typer
 
 from physverify.app.context import AppContext
-from physverify.app.services import scorer_for
-from physverify.cli.commands._common import choice
-from physverify.cli.commands._finetune_deps import (
+from physverify.app.finetune import (
     candidate_generator,
+    current_verdict,
     require_cuda,
+    require_stop_rule,
     scoring_deps,
     write_calibration_status,
 )
-from physverify.cli.commands._stop_rule import (
-    StopRuleDeviationOption,
-    current_verdict,
-    pairs_on_disk,
-    require_stop_rule,
-    verdict_lines,
-    write_verdict,
-)
+from physverify.app.services import scorer_for
 from physverify.cli.commands.timing import _timing_directory
-from physverify.cli.context import app_context, heavy_command
+from physverify.cli.context import app_context, echo_err, heavy_command
+from physverify.cli.options import StopRuleDeviationOption, choice
 from physverify.core.atomic import write_text_atomic
 from physverify.core.digests import file_sha256
 from physverify.core.errors import EXIT_ERROR, UsageError
@@ -89,7 +83,14 @@ from physverify.finetune.settings import (
     TrainSettings,
     load_finetune,
 )
-from physverify.finetune.stop_rule import PilotReview, pairs_sha256, review_sample
+from physverify.finetune.stop_rule import (
+    PilotReview,
+    pairs_on_disk,
+    pairs_sha256,
+    review_sample,
+    verdict_lines,
+    write_verdict,
+)
 from physverify.finetune.stored_pairs import StoredPairSource, stored_pairs
 from physverify.finetune.trainer import (
     ADAPTER_DIR,
@@ -456,7 +457,9 @@ def _beta(
 def _require_stop_rule(
     context: AppContext, store: CampaignStore, name: str, deviation: str | None
 ) -> None:
-    require_stop_rule(context, _cfg(context), store, scorer_for(context, name), deviation)
+    require_stop_rule(
+        context, _cfg(context), store, scorer_for(context, name), deviation, err=echo_err
+    )
 
 
 def run_record(

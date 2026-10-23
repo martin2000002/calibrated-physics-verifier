@@ -113,6 +113,10 @@
  "scripts/h200/smoke_autoeval.sh": {
   "config_or_script_text": 2
  },
+ "src/physverify/app/finetune.py": {
+  "comment_or_docstring": 1,
+  "literal": 1
+ },
  "src/physverify/app/sealing.py": {
   "literal": 8
  },
@@ -205,12 +209,6 @@
  "src/physverify/checks/r5b_gravity_value.py": {
   "comment_or_docstring": 5
  },
- "src/physverify/cli/commands/_finetune_deps.py": {
-  "comment_or_docstring": 3
- },
- "src/physverify/cli/commands/_stop_rule.py": {
-  "literal": 2
- },
  "src/physverify/cli/commands/abstain.py": {
   "comment_or_docstring": 6,
   "literal": 3
@@ -273,6 +271,9 @@
  },
  "src/physverify/cli/commands/verify.py": {
   "comment_or_docstring": 2,
+  "literal": 1
+ },
+ "src/physverify/cli/options.py": {
   "literal": 1
  },
  "src/physverify/core/cache_keys.py": {

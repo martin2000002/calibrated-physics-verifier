@@ -21,12 +21,12 @@ from wiring import (  # noqa: E402
     checks,
 )
 
+from physverify.app.finetune import write_calibration_status  # noqa: E402
 from physverify.calibration.artifact_io import (  # noqa: E402
     StaleCalibrationError,
     default_artifact_path,
     load_calibration,
 )
-from physverify.cli.commands._finetune_deps import write_calibration_status  # noqa: E402
 from physverify.config.models import Settings  # noqa: E402
 from physverify.core.errors import ConfigError, UsageError  # noqa: E402
 from physverify.finetune.layout import CampaignStore  # noqa: E402

@@ -17,21 +17,18 @@ from typing import Annotated, Final
 import typer
 
 from physverify.app.context import AppContext
-from physverify.app.services import checks_hash_for, external_judge, scorer_for
-from physverify.calibration.artifact_io import default_artifact_path
-from physverify.cli.commands._common import choice
-from physverify.cli.commands._finetune_deps import (
+from physverify.app.finetune import (
     candidate_generator,
+    current_verdict,
     require_cuda,
+    require_stop_rule,
     scoring_deps,
     write_calibration_status,
 )
-from physverify.cli.commands._stop_rule import (
-    StopRuleDeviationOption,
-    current_verdict,
-    require_stop_rule,
-)
-from physverify.cli.context import app_context, heavy_command
+from physverify.app.services import checks_hash_for, external_judge, scorer_for
+from physverify.calibration.artifact_io import default_artifact_path
+from physverify.cli.context import app_context, echo_err, heavy_command
+from physverify.cli.options import StopRuleDeviationOption, choice
 from physverify.core.digests import sha256_if_file
 from physverify.core.errors import EXIT_ERROR, ConfigError, MissingInputError, UsageError
 from physverify.datasets._videophy_tables import LABELS_DIR, read_table
@@ -265,7 +262,9 @@ def generate(
 
 def _require_stop_rule(h: H3Context, deviation: str | None) -> bool:
     """The eval arm runs only when the pilot showed the verifier can rank candidates."""
-    return require_stop_rule(h.context, h.finetune, h.store, _scorer(h), deviation).passed
+    return require_stop_rule(
+        h.context, h.finetune, h.store, _scorer(h), deviation, err=echo_err
+    ).passed
 
 
 def _eval_data(h: H3Context) -> bool:
