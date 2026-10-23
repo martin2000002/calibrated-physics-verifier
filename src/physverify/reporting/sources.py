@@ -33,9 +33,9 @@ from physverify.reporting.chain import (
     abstain_curve_run,
 )
 from physverify.schema.checks import InputLevel
+from physverify.selective_risk.settings import ABSTENTION_FILE, REPORT_FILE
 from physverify.verification.exclusion_record import ExclusionInputError, parse_record
 from physverify.verification.scope import CheckScope, record_path
-from physverify.verification.selective_risk import ABSTENTION_FILE, REPORT_FILE
 
 FIT_STEPS = (5, 6, 7)
 DECIDE_STEP = 9

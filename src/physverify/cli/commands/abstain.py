@@ -39,40 +39,44 @@ from physverify.runtime.runs import new_run, write_json
 from physverify.schema.checks import InputLevel, Verdict
 from physverify.schema.clip import ClipManifest
 from physverify.schema.io import stable_hash
+from physverify.selective_risk.curve import (
+    ABSTAINED,
+    FAILED,
+    PASSED,
+    Case,
+    CaseCounts,
+    alpha_grid,
+    curve_point,
+    decision_codes,
+    injected_reference,
+    k_of,
+    paired_cases,
+    raw_table,
+    reference_codes,
+    require_taus,
+    row_codes,
+)
+from physverify.selective_risk.fit import (
+    choose_k,
+    curve_rows,
+    paired_aurc_difference,
+    per_check_rows,
+    point_row,
+    z_scores,
+)
+from physverify.selective_risk.settings import (
+    ABSTENTION_FILE,
+    CURVE_FILE,
+    REPORT_FILE,
+    SECTION,
+    AbstentionSettings,
+)
 from physverify.verification.check_set import CHECKS_SECTION, ChecksSettings, checks_hash
 from physverify.verification.inputs import refuse_heavy
 from physverify.verification.runner import (
     VERIFICATION_SECTION,
     VerificationSettings,
     load_thresholds,
-)
-from physverify.verification.selective_risk import (
-    ABSTAINED,
-    ABSTENTION_FILE,
-    CURVE_FILE,
-    FAILED,
-    PASSED,
-    REPORT_FILE,
-    SECTION,
-    AbstentionSettings,
-    Case,
-    CaseCounts,
-    alpha_grid,
-    choose_k,
-    curve_point,
-    curve_rows,
-    decision_codes,
-    injected_reference,
-    k_of,
-    paired_aurc_difference,
-    paired_cases,
-    per_check_rows,
-    point_row,
-    raw_table,
-    reference_codes,
-    require_taus,
-    row_codes,
-    z_scores,
 )
 from physverify.verification.sweep import CheckUnit
 

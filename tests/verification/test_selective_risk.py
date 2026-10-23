@@ -13,30 +13,28 @@ from physverify.app.plugins import PLUGIN_KINDS
 from physverify.calibration.table import Role
 from physverify.diagnosis.pairing import Paired, ResultPair
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
-from physverify.verification.runner import VerificationSettings, build_policy
-from physverify.verification.selective_risk import (
+from physverify.selective_risk.curve import (
     ABSTAINED,
     FAILED,
     PASSED,
-    AbstentionSettings,
     Case,
     CaseCounts,
     alpha_grid,
     aurc,
-    choose_k,
     curve_point,
     decision_codes,
     injected_reference,
     k_of,
-    paired_aurc_difference,
     paired_cases,
     point_reference,
     raw_table,
     reference_codes,
     risk_bounds,
     row_codes,
-    z_scores,
 )
+from physverify.selective_risk.fit import choose_k, paired_aurc_difference, z_scores
+from physverify.selective_risk.settings import AbstentionSettings
+from physverify.verification.runner import VerificationSettings, build_policy
 
 CODE = {Verdict.PASS: PASSED, Verdict.FAIL: FAILED}
 

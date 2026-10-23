@@ -60,18 +60,12 @@ from physverify.runtime.runs import write_json as write_abstain_json
 from physverify.schema.checks import CheckResult, InputLevel, Verdict
 from physverify.schema.clip import Split
 from physverify.schema.io import json_ready
+from physverify.selective_risk.curve import Case, CaseCounts, raw_table
+from physverify.selective_risk.fit import per_check_rows
+from physverify.selective_risk.settings import ABSTENTION_FILE, REPORT_FILE, AbstentionSettings
 from physverify.synth.scene_scope import SceneScope
 from physverify.verification.exclusion_record import ExclusionRecord, InputHashes, RuleEvidence
 from physverify.verification.runner import TableRow, VerificationReport
-from physverify.verification.selective_risk import (
-    ABSTENTION_FILE,
-    REPORT_FILE,
-    AbstentionSettings,
-    Case,
-    CaseCounts,
-    per_check_rows,
-    raw_table,
-)
 
 PRIMARY = ("s000", "s011-s039")
 LAST_STEP = 11

@@ -705,6 +705,13 @@
  "src/physverify/runtime/udocker.py": {
   "comment_or_docstring": 1
  },
+ "src/physverify/selective_risk/curve.py": {
+  "banner": 2,
+  "comment_or_docstring": 3
+ },
+ "src/physverify/selective_risk/fit.py": {
+  "banner": 2
+ },
  "src/physverify/sizing/end_to_end.py": {
   "comment_or_docstring": 1
  },
@@ -831,10 +838,6 @@
  "src/physverify/verification/scope.py": {
   "comment_or_docstring": 3,
   "literal": 1
- },
- "src/physverify/verification/selective_risk.py": {
-  "banner": 4,
-  "comment_or_docstring": 3
  },
  "src/physverify/verification/sweep.py": {
   "comment_or_docstring": 3

@@ -16,7 +16,7 @@ from calibration_cases import PROFILE, artifact_of, check_calibration, stratum_m
 from physverify.cli.commands.abstain import level_tables  # noqa: E402
 from physverify.core.errors import MissingInputError, UsageError  # noqa: E402
 from physverify.schema.checks import InputLevel  # noqa: E402
-from physverify.verification.selective_risk import require_taus  # noqa: E402
+from physverify.selective_risk.curve import require_taus  # noqa: E402
 
 FALLBACK = {"status": "provisional", "source": "configs", "checks": {"R1": {"tau": 0.5}}}
 

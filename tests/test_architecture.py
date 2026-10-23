@@ -31,8 +31,6 @@ KNOWN_VIOLATIONS: frozenset[str] = frozenset(
         "physverify.finetune.wan_lora -> physverify.timing.settings",
         "physverify.sizing.model -> physverify.extraction.providers._common",
         "physverify.sizing.model -> physverify.extraction.providers.scale_size_prior",
-        "physverify.verification.selective_risk -> physverify.calibration.table",
-        "physverify.verification.selective_risk -> physverify.diagnosis.pairing",
     }
 )
 
