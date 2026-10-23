@@ -17,7 +17,7 @@ from typing import Annotated, Final
 import typer
 
 from physverify.calibration.loader import default_artifact_path
-from physverify.calibration.settings import active_checks_hash
+from physverify.cli.commands._common import choice, context_checks_hash
 from physverify.cli.commands._finetune_deps import (
     candidate_generator,
     require_cuda,
@@ -137,9 +137,7 @@ def _selection(h: H3Context) -> Selection:
 
 def _arm(h: H3Context, arm: str) -> tuple[str, Path | None]:
     """(model tag, adapter) of an arm; ft is the checkpoint chosen by ``finetune select``."""
-    if arm not in ARMS:
-        raise UsageError(f"--arm must be one of {list(ARMS)}, got {arm!r}")
-    if arm == "base":
+    if choice(arm, ARMS, "--arm") == "base":
         return BASE_TAG, None
     chosen = _selection(h).selected
     if chosen is None:
@@ -157,10 +155,6 @@ def _active_scorer(h: H3Context) -> AggregateScorer:
     if reason is not None:
         raise UsageError(f"scorer {scorer.name} is unavailable: {reason}")
     return scorer
-
-
-def _checks_hash(h: H3Context) -> str:
-    return active_checks_hash(h.context.settings, h.context.registry("checks"))
 
 
 def _judge(h: H3Context) -> Videophy2AutoevalJudge:
@@ -337,7 +331,7 @@ def score(arm: ArmOption = "base", shard: ShardOption = None) -> None:
     deps = scoring_deps(h.context)
     score_candidates(h.store, tag, prompts, scorer, deps, parse_shard(shard))
     write_calibration_status(h.store, tag, scorer)
-    record = manifest(h.store, tag, scorer, _checks_hash(h), sha256)
+    record = manifest(h.store, tag, scorer, context_checks_hash(h.context), sha256)
     write_record(h.layout.scoring(tag, scorer.name), record)
     typer.echo(f"{tag}/{scorer.name}: {record.n} eval scores under {record.stamp}")
 
@@ -350,7 +344,7 @@ def rescore_command() -> None:
     problem = frozen_stamp_problem(scorer, prereg)
     if problem is not None:
         raise UsageError(problem)
-    active = _checks_hash(h)
+    active = context_checks_hash(h.context)
     for tag in _tags(prereg):
         path = h.layout.scoring(tag, scorer.name)
         if not path.is_file():
@@ -362,19 +356,10 @@ def rescore_command() -> None:
         typer.echo(f"{tag}/{scorer.name}: {changed} scores restamped to {scorer.thresholds()}")
 
 
-def _split(split: str) -> JudgeSplit:
-    for known in JUDGE_SPLITS:
-        if split == known:
-            return known
-    raise UsageError(f"--split must be one of {list(JUDGE_SPLITS)}, got {split!r}")
-
-
 def _tasks(task: str | None) -> tuple[str, ...]:
     if task is None:
         return TASKS
-    if task not in TASKS:
-        raise UsageError(f"--task must be one of {list(TASKS)}, got {task!r}")
-    return (task,)
+    return (choice(task, TASKS, "--task"),)
 
 
 def _gate(h: H3Context) -> GateReport | None:
@@ -429,7 +414,7 @@ def judge(
 ) -> None:
     h = _h3()
     require_cuda(h.context.settings)
-    which = _split(split)
+    which = choice(split, JUDGE_SPLITS, "--split")
     tasks = _tasks(task)
     autoeval = _available_judge(h)
     problem = gate_problem(_gate(h), {t: autoeval.stamp(t) for t in tasks})

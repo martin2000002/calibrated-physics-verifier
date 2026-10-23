@@ -170,7 +170,7 @@ def evaluate_cli(
     artifact_text: str,
 ) -> Callable[..., CliResult]:
     """``calibrate evaluate`` on the fixture; the first check run records the ledger size."""
-    monkeypatch.setattr(calibrate, "_checks_hash", lambda session: "checks")
+    monkeypatch.setattr(calibrate, "context_checks_hash", lambda context: "checks")
     monkeypatch.setattr(calibrate, "_raw_runner", lambda session: _ReportRunner())
     monkeypatch.setattr(calibrate, "_source", lambda session, dataset, level: None)
     real = calibrate._eval_data

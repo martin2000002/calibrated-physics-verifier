@@ -59,11 +59,11 @@ from physverify.calibration.scenes import SceneScope, h1_scope, in_scope
 from physverify.calibration.schema import DatasetRef, StageFactor, StageSigma
 from physverify.calibration.settings import (
     CalibrationConfig,
-    active_checks_hash,
     calibration_config,
 )
 from physverify.calibration.sigma import factor_map, recalibrate_profile, stage_factors
 from physverify.calibration.table import scene_of
+from physverify.cli.commands._common import context_checks_hash
 from physverify.cli.commands._sealed import Selection, guard_sealed
 from physverify.cli.commands.extract import (
     ConsoleObserver,
@@ -161,10 +161,6 @@ def _check_units(session: Session) -> tuple[CheckUnit, ...]:
     return tuple(CheckUnit.of(registry[c]) for c in sorted(registry))
 
 
-def _checks_hash(session: Session) -> str:
-    return active_checks_hash(session.context.settings, session.context.registry("checks"))
-
-
 def _source(session: Session, dataset: DatasetSource, level: InputLevel) -> InputSource:
     if level is InputLevel.ORACLE:
         return OracleSource(dataset)
@@ -223,7 +219,9 @@ def _artifact(session: Session, artifact: Path | None, *, stale_check: bool = Tr
     path = artifact or default_artifact_path(session.context.settings)
     if not path.is_file():
         raise UsageError(f"no calibration artifact at {path}: run `physverify calibrate fit`")
-    return load_calibration(path, checks_hash=_checks_hash(session) if stale_check else None)
+    return load_calibration(
+        path, checks_hash=context_checks_hash(session.context) if stale_check else None
+    )
 
 
 def _guard(
@@ -337,7 +335,7 @@ def _fit_meta(
         run_id=session.run.run_id,
         commit=session.run.commit,
         config_hash=settings.config_hash(),
-        checks_hash=_checks_hash(session),
+        checks_hash=context_checks_hash(session.context),
         error_profile_hash=profile_hash(load_error_profile(settings.paths.error_profile)),
         profile=settings.profile,
         dataset=_dataset_ref(dataset, subset, Split.CALIB.value, clips),
@@ -678,7 +676,7 @@ def _publishable(
             path,
             level,
             name,
-            checks_hash=_checks_hash(session),
+            checks_hash=context_checks_hash(session.context),
             row_step=UNKNOWN_ROW_STEP,
             require_calibrated=session.config.calibration.require_calibrated_artifact,
         )

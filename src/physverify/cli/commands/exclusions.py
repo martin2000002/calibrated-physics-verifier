@@ -43,11 +43,11 @@ from physverify.calibration.loader import (
 )
 from physverify.calibration.schema import EvaluationReport
 from physverify.calibration.settings import (
-    active_checks_hash,
     calibration_config,
     calibration_settings,
 )
 from physverify.calibration.table import CalibrationDataError, build_rows, in_family, scene_of
+from physverify.cli.commands._common import context_checks_hash
 from physverify.cli.commands.extract import resolve_dataset
 from physverify.cli.context import AppContext, app_context
 from physverify.core.atomic import write_text_atomic
@@ -240,7 +240,7 @@ def _inputs(
     """The cheap inputs are checked first; the two runs are read last."""
     settings = context.settings
     report, report_sha = _evaluation(evaluation)
-    checks_hash = active_checks_hash(settings, context.registry("checks"))
+    checks_hash = context_checks_hash(context)
     try:
         calibration = load_calibration(artifact, checks_hash=checks_hash)
     except CalibrationError as exc:
@@ -332,7 +332,7 @@ def show_command(
     if not target.is_file():
         raise UsageError(f"no decision record at {target}: run `physverify exclusions decide`")
     if checks_hash:
-        record = load_record(target, active_checks_hash(settings, context.registry("checks")))
+        record = load_record(target, context_checks_hash(context))
     else:
         record = parse_record(target.read_text(encoding="utf-8"), str(target))
         typer.echo("note: checks_hash not validated against the active check parameters")

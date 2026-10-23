@@ -17,6 +17,7 @@ from typing import Annotated, Any, Final
 
 import typer
 
+from physverify.cli.commands._common import choice
 from physverify.cli.commands._finetune_deps import (
     candidate_generator,
     require_cuda,
@@ -137,17 +138,10 @@ def _store(context: AppContext) -> CampaignStore:
     return CampaignStore.from_settings(context.settings)
 
 
-def parse_split(split: str) -> PromptSplit:
-    for known in SPLITS:
-        if split == known:
-            return known
-    raise UsageError(f"--split must be one of {list(SPLITS)}, got {split!r}")
-
-
 def campaign_split(split: str, h3_step: str) -> PromptSplit:
     """A train or dev split; the eval candidates and scores are H3's (ADR 0013), whose
     generation stamp and pre-registration a finetune run would break."""
-    parsed = parse_split(split)
+    parsed = choice(split, SPLITS, "--split")
     if parsed == EVAL_SPLIT:
         raise UsageError(
             f"the eval split belongs to H3: run `physverify h3 {h3_step} --arm base|ft`"

@@ -1,4 +1,4 @@
-"""Run directories and JSON evidence shared by the A9 subcommands (not a plugin module)."""
+"""JSON evidence written by the subcommands (not a plugin module)."""
 
 from __future__ import annotations
 

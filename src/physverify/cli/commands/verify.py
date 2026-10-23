@@ -11,7 +11,7 @@ from typing import Annotated
 
 import typer
 
-from physverify.calibration.settings import active_checks_hash
+from physverify.cli.commands._common import context_checks_hash
 from physverify.cli.commands._sealed import Selection, guard_sealed
 from physverify.cli.commands.extract import pipeline_deps, resolve_dataset, select_clips
 from physverify.cli.context import AppContext, app_context
@@ -98,7 +98,7 @@ def verify(
     typer.echo(f"thresholds: {thresholds_label(thresholds)}")
     report = runner.run(inputs, selected)
     write_report(run_dir, report)
-    checks_hash = active_checks_hash(settings, context.registry("checks"))
+    checks_hash = context_checks_hash(context)
     (run_dir / CHECKS_HASH_FILE).write_text(checks_hash + "\n", encoding="utf-8")
     for line in summary_lines(report):
         typer.echo(line)
