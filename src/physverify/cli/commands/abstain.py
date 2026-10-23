@@ -21,7 +21,7 @@ from scipy.stats import norm
 
 from physverify.app.context import AppContext
 from physverify.app.services import chain_runner, check_suite, pipeline_deps, resolve_dataset
-from physverify.calibration.loader import default_artifact_path, load_calibration
+from physverify.calibration.artifact_io import default_artifact_path, load_calibration
 from physverify.calibration.table import Role, role_of
 from physverify.cli.commands._runs import write_json
 from physverify.cli.commands._sealed import Selection, guard_sealed

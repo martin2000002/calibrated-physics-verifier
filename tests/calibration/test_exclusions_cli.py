@@ -19,8 +19,8 @@ from stratum_cases import artifact_of, check_calibration, stratum_model
 from wiring import active_checks_hash, checks
 
 from physverify.app import plugins
+from physverify.calibration.artifact_io import default_artifact_path, parse_calibration
 from physverify.calibration.exclusion_record import ExclusionInputError, parse_record
-from physverify.calibration.loader import default_artifact_path, parse_calibration
 from physverify.cli.commands import exclusions
 from physverify.cli.commands.exclusions import (
     arm_run,

@@ -203,8 +203,8 @@ def diff_record(git: Git, name: str, start: str, head: str) -> dict[str, Any]:
 
 def frozen_paths(settings: Any) -> dict[str, Path | None]:
     """What a look judges with (the ledger's freeze) plus the stage sigma and the abstention."""
-    from physverify.calibration.sealed import frozen_files
-    from physverify.calibration.sigma import STAGE_SIGMA_FILE
+    from physverify.calibration.sealed_ledger import frozen_files
+    from physverify.calibration.sigma_recalibration import STAGE_SIGMA_FILE
     from physverify.verification.selective_risk import ABSTENTION_FILE
 
     calibration_dir = settings.paths.calibration_dir
@@ -373,7 +373,7 @@ def plan_lines(settings: Any, version: str, seed: int) -> list[str]:
 def look_state(entries: Sequence[Any], specs: Sequence[str], *, retry: bool) -> str:
     """J6: a set is looked at once; one retry only when that look wrote no evaluation."""
     from physverify.calibration.report import EVALUATION_FILE, EVALUATION_MD
-    from physverify.calibration.sealed import earlier
+    from physverify.calibration.sealed_ledger import earlier
 
     found = earlier(entries, specs)
     if not retry:
@@ -395,7 +395,7 @@ def look_state(entries: Sequence[Any], specs: Sequence[str], *, retry: bool) -> 
 
 def v1_state(entries: Sequence[Any], frozen: Mapping[str, Any], specs: Sequence[str]) -> str:
     """The v1 arm repeats a look of the freeze, once."""
-    from physverify.calibration.sealed import earlier
+    from physverify.calibration.sealed_ledger import earlier
 
     found = earlier(entries, specs)
     looks = [e for e in found if e.commit == frozen["commit"]]
@@ -413,7 +413,7 @@ def _lines(entries: Sequence[Any]) -> str:
 
 def ledger_file(settings: Any) -> Path:
     """The ledger the guard of every look appends to."""
-    from physverify.calibration.sealed import ledger_path, sealed_settings
+    from physverify.calibration.sealed_ledger import ledger_path, sealed_settings
 
     home = Path(os.environ.get("HOME") or Path.home())
     return ledger_path(sealed_settings(settings), home, settings.repo_root)
@@ -421,7 +421,7 @@ def ledger_file(settings: Any) -> Path:
 
 def ledger_entries(settings: Any) -> tuple[Any, ...]:
     """Fails closed when the ledger is missing, as the guard does."""
-    from physverify.calibration.sealed import read_entries
+    from physverify.calibration.sealed_ledger import read_entries
     from physverify.core.errors import PhysverifyError
 
     try:

@@ -12,7 +12,7 @@ from typing import Any, Final
 
 import scipy
 
-from physverify.calibration.loader import CalibrationError, load_calibration
+from physverify.calibration.artifact_io import CalibrationError, load_calibration
 from physverify.checks._base import Check
 from physverify.config.models import Settings
 from physverify.core.digests import sha256_if_file

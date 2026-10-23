@@ -27,9 +27,9 @@ from physverify.calibration.apply import (
     rule_for,
     score_clip,
 )
+from physverify.calibration.artifact_io import Stratum as StratumView
 from physverify.calibration.collect import level_data
 from physverify.calibration.fit import FitInputs, fit_calibration, platt_data
-from physverify.calibration.loader import Stratum as StratumView
 from physverify.calibration.table import CalibrationDataError, Role, results_by_row
 from physverify.calibration.thresholds import tpr_by_level, verdict_of
 from physverify.calibration.verdict import DECIDED, NO_EVENT, Rule, clip_verdict

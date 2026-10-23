@@ -10,7 +10,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from physverify.calibration.schema import CoverageAt, SigmaCorrection, StageFactor
+from physverify.calibration.artifact import CoverageAt, SigmaCorrection, StageFactor
 from physverify.calibration.settings import CalibrationSettings, PairFilter
 from physverify.calibration.stats import FloatArray
 from physverify.diagnosis.cases import sample_stats

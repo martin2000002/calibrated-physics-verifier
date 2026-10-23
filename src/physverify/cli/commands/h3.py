@@ -18,7 +18,7 @@ import typer
 
 from physverify.app.context import AppContext
 from physverify.app.services import context_checks_hash, context_scorer, external_judge
-from physverify.calibration.loader import default_artifact_path
+from physverify.calibration.artifact_io import default_artifact_path
 from physverify.cli.commands._common import choice
 from physverify.cli.commands._finetune_deps import (
     candidate_generator,

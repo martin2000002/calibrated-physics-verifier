@@ -1,4 +1,5 @@
-"""``calibration.sealed``: one-look specs, the ledger file and the repeat rule (WP-O AC11, AC14)."""
+"""``calibration.sealed_ledger``: one-look specs, the ledger file and the repeat rule
+(WP-O AC11, AC14)."""
 
 from __future__ import annotations
 
@@ -8,7 +9,7 @@ from pathlib import Path
 import pytest
 from calibration_cases import clip
 
-from physverify.calibration.sealed import (
+from physverify.calibration.sealed_ledger import (
     LedgerEntry,
     LedgerError,
     SealedSetError,

@@ -25,7 +25,7 @@ from physverify.schema.checks import CheckResult, InputLevel
 from physverify.verification.runner import UNKNOWN_ROW_STEP
 
 APPLY_MODULE: Final = "physverify.calibration.apply"
-LOADER_MODULE: Final = "physverify.calibration.loader"
+LOADER_MODULE: Final = "physverify.calibration.artifact_io"
 SETTINGS_MODULE: Final = "physverify.calibration.settings"
 CHECK_SET_MODULE: Final = "physverify.verification.check_set"
 HASH_SHOWN: Final = 12

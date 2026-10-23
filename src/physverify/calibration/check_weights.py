@@ -8,7 +8,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from physverify.calibration.schema import Probability, Weight
+from physverify.calibration.artifact import Probability, Weight
 from physverify.calibration.settings import CalibrationSettings
 from physverify.calibration.stats import balanced_weights, ece, fit_logistic, mad
 from physverify.stats.bootstrap import ClusterBlock, scene_bootstrap

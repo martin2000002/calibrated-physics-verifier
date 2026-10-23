@@ -1,6 +1,6 @@
-"""The sealed-ledger guard (``calibration.sealed``) of the commands that compute numbers on dataset
-clips, and the table that classifies every subcommand: a new one fails a test until it is listed
-here, so no command escapes the guard by omission."""
+"""The sealed-ledger guard (``calibration.sealed_ledger``) of the commands that compute numbers on
+dataset clips, and the table that classifies every subcommand: a new one fails a test until it is
+listed here, so no command escapes the guard by omission."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from typing import Final
 import typer
 
 from physverify.app.context import AppContext
-from physverify.calibration.sealed import (
+from physverify.calibration.sealed_ledger import (
     REPEAT_ENV,
     UNSEAL_ENV,
     LedgerEntry,

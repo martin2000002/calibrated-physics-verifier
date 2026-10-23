@@ -8,7 +8,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from physverify.calibration.schema import DetectionLimit, Fpr, LevelTpr, OpenSide
+from physverify.calibration.artifact import DetectionLimit, Fpr, LevelTpr, OpenSide
 from physverify.calibration.settings import CalibrationSettings
 from physverify.calibration.stats import (
     clustered_rate,

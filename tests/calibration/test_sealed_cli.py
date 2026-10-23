@@ -19,7 +19,7 @@ from cli_runner import CliResult, CliRunner
 from cli_tree import cli_leaves, command_modules
 
 from physverify.app import plugins
-from physverify.calibration.sealed import LedgerEntry, read_entries
+from physverify.calibration.sealed_ledger import LedgerEntry, read_entries
 from physverify.cli.commands import _sealed, abstain, calibrate, diagnose, verify
 from physverify.config.loader import load_settings
 from physverify.config.models import Settings

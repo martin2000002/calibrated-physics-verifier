@@ -15,6 +15,8 @@ from calibration_cases import (
     synthetic_report,
 )
 
+from physverify.calibration.artifact import CalibrationArtifact
+from physverify.calibration.artifact_io import CalibrationError, parse_calibration
 from physverify.calibration.collect import level_data
 from physverify.calibration.evaluate import (
     SCORE_CHECK,
@@ -23,9 +25,7 @@ from physverify.calibration.evaluate import (
     evaluate,
 )
 from physverify.calibration.fit import LevelData
-from physverify.calibration.loader import CalibrationError, parse_calibration
 from physverify.calibration.report import calibration_markdown, curves_csv
-from physverify.calibration.schema import CalibrationArtifact
 from physverify.calibration.thresholds import NOT_DETERMINED
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import Split

@@ -6,8 +6,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 
-from physverify.calibration.loader import Stratum as StratumView
-from physverify.calibration.schema import (
+from physverify.calibration.artifact import (
     Aggregate,
     ArtifactStatus,
     Auroc,
@@ -25,6 +24,7 @@ from physverify.calibration.schema import (
     Stratum,
     Weight,
 )
+from physverify.calibration.artifact_io import Stratum as StratumView
 from physverify.schema.checks import InputLevel
 from physverify.stats.intervals import Ci, Rate
 

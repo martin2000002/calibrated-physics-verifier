@@ -19,7 +19,7 @@ from physverify.verification.runner import RowStatus, TableRow, tau_of, threshol
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from physverify.calibration.loader import Stratum
+    from physverify.calibration.artifact_io import Stratum
     from physverify.checks._base import Check
     from physverify.config.models import Settings
 
@@ -281,7 +281,7 @@ def import_calibration() -> CalibrationApi[Stratum]:
     """A8's loader and scorer, imported only when the calibrated rule is asked for."""
     try:
         from physverify.calibration.apply import score_clip
-        from physverify.calibration.loader import (
+        from physverify.calibration.artifact_io import (
             CalibrationError,
             UnusableStratumError,
             default_artifact_path,

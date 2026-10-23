@@ -6,8 +6,7 @@ import csv
 import io
 from collections.abc import Sequence
 
-from physverify.calibration.heldout_h1 import n_met
-from physverify.calibration.schema import (
+from physverify.calibration.artifact import (
     CalibrationArtifact,
     CheckCalibration,
     CheckMonotonicity,
@@ -21,6 +20,7 @@ from physverify.calibration.schema import (
     Monotonicity,
     Stratum,
 )
+from physverify.calibration.heldout_monotonicity import n_met
 from physverify.core.markdown import number, table
 from physverify.stats.intervals import Ci, Rate
 

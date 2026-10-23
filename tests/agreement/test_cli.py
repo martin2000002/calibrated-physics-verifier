@@ -23,7 +23,7 @@ from physverify.agreement.prereg import (  # noqa: E402
     logged_comparisons,
 )
 from physverify.agreement.report import REPORT_DIR, _sign_flip_lines  # noqa: E402
-from physverify.calibration.loader import default_artifact_path  # noqa: E402
+from physverify.calibration.artifact_io import default_artifact_path  # noqa: E402
 from physverify.core.digests import sha256_if_file  # noqa: E402
 from physverify.core.errors import PhysverifyError  # noqa: E402
 from physverify.datasets._videophy_review import PENDING, load_review  # noqa: E402

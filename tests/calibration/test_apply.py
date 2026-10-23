@@ -16,7 +16,7 @@ from physverify.calibration.apply import (
     score_clip,
     violation_probability,
 )
-from physverify.calibration.loader import KSigmaMismatchError
+from physverify.calibration.artifact_io import KSigmaMismatchError
 from physverify.schema.checks import AbstainReason, CheckResult, Verdict
 
 K_SIGMA = 2.0

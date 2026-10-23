@@ -28,6 +28,8 @@ from physverify.agreement.report import REPORT_DIR, write_comparison
 from physverify.agreement.run_io import VerifyRun
 from physverify.agreement.settings import AgreementSettings
 from physverify.calibration.apply import score_clip
+from physverify.calibration.artifact import EvaluationReport
+from physverify.calibration.artifact_io import Calibration, parse_calibration
 from physverify.calibration.collect import level_data
 from physverify.calibration.evaluate import (
     EvaluationInputs,
@@ -37,10 +39,8 @@ from physverify.calibration.evaluate import (
 )
 from physverify.calibration.exclusion_record import ExclusionRecord, InputHashes, RuleEvidence
 from physverify.calibration.fit import FitInputs, fit_calibration
-from physverify.calibration.loader import Calibration, parse_calibration
 from physverify.calibration.scenes import SceneScope
-from physverify.calibration.schema import EvaluationReport
-from physverify.calibration.sigma import SigmaPair
+from physverify.calibration.sigma_recalibration import SigmaPair
 from physverify.cli.commands._runs import write_json as write_abstain_json
 from physverify.cli.commands.abstain import (
     Collected,

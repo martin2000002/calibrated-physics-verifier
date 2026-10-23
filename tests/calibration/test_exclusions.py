@@ -26,13 +26,15 @@ from exclusion_cases import (
 )
 from stratum_cases import FIXTURE_CHECKS_HASH, check_calibration, write_artifact
 
-from physverify.calibration import exclusions
+from physverify.calibration import exclusion_rules as exclusion_rules_module
+from physverify.calibration.artifact import RealFpr
+from physverify.calibration.artifact_io import load_calibration
 from physverify.calibration.exclusion_record import (
     ExclusionInputError,
     load_record,
     parse_record,
 )
-from physverify.calibration.exclusions import (
+from physverify.calibration.exclusion_rules import (
     RULES,
     ExclusionRules,
     R2Arms,
@@ -44,8 +46,6 @@ from physverify.calibration.exclusions import (
     real_fpr_rule,
     record_markdown,
 )
-from physverify.calibration.loader import load_calibration
-from physverify.calibration.schema import RealFpr
 from physverify.core.errors import ConfigError
 from physverify.stats.intervals import Ci
 from physverify.verification.runner import RowStatus
@@ -226,7 +226,7 @@ def test_an_fpr_increase_excludes_even_without_positives() -> None:
 def test_a_non_finite_tpr_interval_does_not_decide(monkeypatch: pytest.MonkeyPatch) -> None:
     nan = float("nan")
     monkeypatch.setattr(
-        exclusions, "scene_bootstrap", lambda *a: {"delta_tpr": Ci(low=nan, high=nan)}
+        exclusion_rules_module, "scene_bootstrap", lambda *a: {"delta_tpr": Ci(low=nan, high=nan)}
     )
     found = _one(r2_rule(inputs(), rules()))
     assert (found.decided, found.excluded, found.reason) == (False, False, "tpr_ci_undefined")

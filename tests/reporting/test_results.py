@@ -13,8 +13,8 @@ from calibration_cases import PROFILE
 from cli_runner import CliRunner
 from reporting_cases import Chain, build_chain, evaluation, write, write_json, write_metrics
 
-from physverify.calibration.loader import load_calibration
-from physverify.calibration.schema import EvaluationReport
+from physverify.calibration.artifact import EvaluationReport
+from physverify.calibration.artifact_io import load_calibration
 from physverify.reporting import numbers
 from physverify.reporting.numbers import DESCRIPTIVE, NOT_PREREGISTERED
 from physverify.reporting.render import value_text

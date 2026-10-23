@@ -18,7 +18,7 @@ from pathlib import Path
 
 from pydantic import ValidationError, field_validator
 
-from physverify.calibration.loader import default_artifact_path
+from physverify.calibration.artifact_io import default_artifact_path
 from physverify.config.models import Settings, _anchor
 from physverify.core.errors import ConfigError, PhysverifyError, UsageError
 from physverify.core.models import FrozenModel

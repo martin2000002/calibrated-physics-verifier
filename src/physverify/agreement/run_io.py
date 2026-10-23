@@ -11,7 +11,7 @@ from dataclasses import dataclass, fields
 from pathlib import Path
 from typing import Any
 
-from physverify.calibration.loader import MixedRowStepError, unique_row_step
+from physverify.calibration.artifact_io import MixedRowStepError, unique_row_step
 from physverify.core.errors import MissingInputError, UsageError
 from physverify.runtime.runs import RUN_FILE
 from physverify.schema.checks import AbstainReason, CheckResult, Verdict

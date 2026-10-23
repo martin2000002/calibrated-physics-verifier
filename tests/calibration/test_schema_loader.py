@@ -9,7 +9,8 @@ import pytest
 from calibration_cases import artifact_of, check_calibration, fitted_artifact, stratum_model
 from stratum_cases import FIXTURE_CHECKS_HASH, write_artifact
 
-from physverify.calibration.loader import (
+from physverify.calibration.artifact import CALIBRATION_VERSION, CheckCalibration
+from physverify.calibration.artifact_io import (
     CalibrationError,
     MixedRowStepError,
     StaleCalibrationError,
@@ -20,7 +21,6 @@ from physverify.calibration.loader import (
     projection_name,
     unique_row_step,
 )
-from physverify.calibration.schema import CALIBRATION_VERSION, CheckCalibration
 from physverify.schema.checks import InputLevel
 from physverify.verification.runner import (
     CALIBRATED,

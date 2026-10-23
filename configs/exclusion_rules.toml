@@ -1,5 +1,5 @@
 # Preregistered exclusion rules of ADR 0015 (1.1, 1.2 as amended by Enmienda 1, 1.5), applied by
-# `physverify exclusions decide` (calibration/exclusions.py). Every threshold lives here: changing
+# `physverify exclusions decide` (calibration/exclusion_rules.py). Every threshold lives here: changing
 # one after A8 v2 is a declared deviation and changes the record's rules_sha256. The record is
 # written where [check_scope].decision_record points (its .md view next to it).
 [exclusion_rules]

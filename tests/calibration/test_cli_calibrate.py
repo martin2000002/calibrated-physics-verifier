@@ -17,7 +17,7 @@ from cli_tree import command_modules
 from steps_sh import steps_read
 
 from physverify.app import plugins
-from physverify.calibration.loader import load_calibration, projection_name
+from physverify.calibration.artifact_io import load_calibration, projection_name
 from physverify.cli.commands import calibrate
 from physverify.config.loader import load_settings
 from physverify.config.models import Settings

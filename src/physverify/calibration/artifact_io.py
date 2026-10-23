@@ -11,14 +11,14 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from physverify.calibration.schema import (
+from physverify.calibration.artifact import (
     CALIBRATION_SCHEMA,
     CALIBRATION_VERSION,
     OK,
     CalibrationArtifact,
     CheckCalibration,
 )
-from physverify.calibration.schema import Stratum as StratumModel
+from physverify.calibration.artifact import Stratum as StratumModel
 from physverify.calibration.settings import calibration_settings
 from physverify.config.models import Settings
 from physverify.core.digests import text_sha256

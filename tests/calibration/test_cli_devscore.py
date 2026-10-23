@@ -17,7 +17,7 @@ from steps_sh import steps_read
 from wiring import checks
 
 from physverify.app import plugins
-from physverify.calibration.loader import load_calibration
+from physverify.calibration.artifact_io import load_calibration
 from physverify.cli.commands import calibrate
 from physverify.config.loader import load_settings
 from physverify.config.models import Settings

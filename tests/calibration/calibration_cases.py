@@ -16,12 +16,12 @@ from stratum_cases import (
     view,
 )
 
-from physverify.calibration.collect import level_data
-from physverify.calibration.fit import FitInputs, FitMeta, LevelData, fit_calibration
-from physverify.calibration.schema import (
+from physverify.calibration.artifact import (
     CalibrationArtifact,
     StageSigma,
 )
+from physverify.calibration.collect import level_data
+from physverify.calibration.fit import FitInputs, FitMeta, LevelData, fit_calibration
 from physverify.calibration.settings import CalibrationConfig, CalibrationSettings
 from physverify.calibration.table import CalibrationRow, Role
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict

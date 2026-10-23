@@ -6,12 +6,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 from physverify.calibration.apply import policy_for, rule_for, score_clip
-from physverify.calibration.fit import LevelData
-from physverify.calibration.heldout_h1 import heldout_h1
-from physverify.calibration.loader import Calibration, CalibrationError, Stratum
-from physverify.calibration.monotonicity import deltas, monotonicity, scene_kendall
-from physverify.calibration.scenes import SceneScope, in_scope
-from physverify.calibration.schema import (
+from physverify.calibration.artifact import (
     CheckMonotonicity,
     DatasetRef,
     EvaluationReport,
@@ -21,6 +16,11 @@ from physverify.calibration.schema import (
     RealFpr,
     SceneKendall,
 )
+from physverify.calibration.artifact_io import Calibration, CalibrationError, Stratum
+from physverify.calibration.fit import LevelData
+from physverify.calibration.heldout_monotonicity import heldout_h1
+from physverify.calibration.monotonicity import deltas, monotonicity, scene_kendall
+from physverify.calibration.scenes import SceneScope, in_scope
 from physverify.calibration.settings import CalibrationConfig, CalibrationSettings
 from physverify.calibration.stats import clustered_rate
 from physverify.calibration.table import (

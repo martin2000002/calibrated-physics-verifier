@@ -6,8 +6,8 @@ import numpy as np
 import pytest
 from calibration_cases import settings
 
-from physverify.calibration.schema import Weight
-from physverify.calibration.weights import (
+from physverify.calibration.artifact import Weight
+from physverify.calibration.check_weights import (
     Flag,
     Labelled,
     fit_probability,

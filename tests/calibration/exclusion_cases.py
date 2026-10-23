@@ -17,16 +17,7 @@ from stratum_cases import (
     stratum_model,
 )
 
-from physverify.calibration.exclusion_record import ExclusionRecord, InputHashes, RuleEvidence
-from physverify.calibration.exclusions import (
-    ArmRun,
-    ConsumedStratum,
-    DecisionInputs,
-    ExclusionRules,
-    R2Arms,
-)
-from physverify.calibration.loader import Calibration, parse_calibration
-from physverify.calibration.schema import (
+from physverify.calibration.artifact import (
     CheckCalibration,
     DatasetRef,
     EvaluationReport,
@@ -34,6 +25,15 @@ from physverify.calibration.schema import (
     Monotonicity,
     RealFpr,
     Weight,
+)
+from physverify.calibration.artifact_io import Calibration, parse_calibration
+from physverify.calibration.exclusion_record import ExclusionRecord, InputHashes, RuleEvidence
+from physverify.calibration.exclusion_rules import (
+    ArmRun,
+    ConsumedStratum,
+    DecisionInputs,
+    ExclusionRules,
+    R2Arms,
 )
 from physverify.calibration.table import CalibrationRow, Role
 from physverify.schema.checks import InputLevel

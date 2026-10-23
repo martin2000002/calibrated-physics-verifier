@@ -5,9 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
-from physverify.calibration.loader import Stratum as StratumView
-from physverify.calibration.monotonicity import deltas, monotonicity
-from physverify.calibration.schema import (
+from physverify.calibration.artifact import (
     OK,
     UNRANKED_NEGATIVES,
     Aggregate,
@@ -23,8 +21,17 @@ from physverify.calibration.schema import (
     Stratum,
     Weight,
 )
+from physverify.calibration.artifact_io import Stratum as StratumView
+from physverify.calibration.check_weights import (
+    Flag,
+    Labelled,
+    fit_probability,
+    normalised,
+    raw_weight,
+)
+from physverify.calibration.monotonicity import deltas, monotonicity
 from physverify.calibration.settings import CalibrationConfig, CalibrationSettings
-from physverify.calibration.sigma import SigmaPair, fit_sigma, oracle_correction
+from physverify.calibration.sigma_recalibration import SigmaPair, fit_sigma, oracle_correction
 from physverify.calibration.stats import auroc, conformal_quantile
 from physverify.calibration.table import (
     CalibrationRow,
@@ -45,7 +52,6 @@ from physverify.calibration.thresholds import (
     verdict_of,
 )
 from physverify.calibration.verdict import DECIDED, Rule, clip_verdict
-from physverify.calibration.weights import Flag, Labelled, fit_probability, normalised, raw_weight
 from physverify.schema.checks import CheckResult, InputLevel, Verdict
 from physverify.stats.bootstrap import ClusterBlock, scene_bootstrap
 from physverify.stats.intervals import Ci, Rate, rate

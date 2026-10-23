@@ -13,6 +13,17 @@ from dataclasses import dataclass
 
 from pydantic import Field
 
+from physverify.calibration.artifact import (
+    Auroc,
+    CalibrationArtifact,
+    CheckCalibration,
+    DatasetRef,
+    Monotonicity,
+    SettingsSnapshot,
+    Stratum,
+    Weight,
+)
+from physverify.calibration.check_weights import Flag, raw_weight
 from physverify.calibration.fit import (
     FitMeta,
     LevelData,
@@ -24,21 +35,10 @@ from physverify.calibration.fit import (
     fit_stratum,
     settings_snapshot,
 )
-from physverify.calibration.schema import (
-    Auroc,
-    CalibrationArtifact,
-    CheckCalibration,
-    DatasetRef,
-    Monotonicity,
-    SettingsSnapshot,
-    Stratum,
-    Weight,
-)
 from physverify.calibration.settings import CalibrationConfig, CalibrationSettings
 from physverify.calibration.table import CalibrationRow, Role
 from physverify.calibration.thresholds import fails
 from physverify.calibration.verdict import Rule
-from physverify.calibration.weights import Flag, raw_weight
 from physverify.core.errors import UsageError
 from physverify.core.models import SCHEMA_KEY, ArtifactModel
 from physverify.schema.checks import InputLevel

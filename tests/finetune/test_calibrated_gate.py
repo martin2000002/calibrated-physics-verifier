@@ -26,7 +26,7 @@ from physverify.agreement.decision import (  # noqa: E402
     calibrated_rule,
     import_calibration,
 )
-from physverify.calibration.loader import (  # noqa: E402
+from physverify.calibration.artifact_io import (  # noqa: E402
     StaleCalibrationError,
     default_artifact_path,
     load_calibration,

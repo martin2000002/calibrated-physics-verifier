@@ -17,6 +17,14 @@ from typing import Literal
 from pydantic import Field, ValidationError, model_validator
 
 from physverify.calibration.apply import policy_for, rule_for
+from physverify.calibration.artifact import DatasetRef, EvaluationReport, EvaluationStratum, RealFpr
+from physverify.calibration.artifact_io import (
+    Calibration,
+    CalibrationError,
+    Stratum,
+    UnusableStratumError,
+    open_stratum,
+)
 from physverify.calibration.exclusion_record import (
     EvidenceValue,
     ExclusionInputError,
@@ -24,14 +32,6 @@ from physverify.calibration.exclusion_record import (
     InputHashes,
     RuleEvidence,
 )
-from physverify.calibration.loader import (
-    Calibration,
-    CalibrationError,
-    Stratum,
-    UnusableStratumError,
-    open_stratum,
-)
-from physverify.calibration.schema import DatasetRef, EvaluationReport, EvaluationStratum, RealFpr
 from physverify.calibration.table import (
     CalibrationDataError,
     CalibrationRow,

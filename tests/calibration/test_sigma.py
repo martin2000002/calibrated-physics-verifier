@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 from calibration_cases import check_calibration, settings, view
 
-from physverify.calibration.sigma import (
+from physverify.calibration.sigma_recalibration import (
     FEW_PAIRS,
     SigmaPair,
     bias_factor,

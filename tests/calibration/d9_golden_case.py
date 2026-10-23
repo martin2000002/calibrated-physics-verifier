@@ -15,9 +15,9 @@ import test_devscore as td
 from calibration_cases import CHECKS, config, fit_meta
 
 from physverify.calibration.collect import level_data
-from physverify.calibration.devscore import dev_score
+from physverify.calibration.dev_score import dev_score
 from physverify.calibration.fit import FitInputs, fit_calibration
-from physverify.calibration.sigma import SigmaPair
+from physverify.calibration.sigma_recalibration import SigmaPair
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import Split
 

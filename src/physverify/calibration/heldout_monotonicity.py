@@ -12,13 +12,13 @@ import math
 from collections.abc import Sequence
 
 from physverify.calibration.apply import policy_for
-from physverify.calibration.devscore import oof_flags
-from physverify.calibration.loader import Stratum
+from physverify.calibration.artifact import HeldoutH1Check, Monotonicity
+from physverify.calibration.artifact_io import Stratum
+from physverify.calibration.check_weights import raw_weight
+from physverify.calibration.dev_score import oof_flags
 from physverify.calibration.monotonicity import deltas, monotonicity
-from physverify.calibration.schema import HeldoutH1Check, Monotonicity
 from physverify.calibration.settings import CalibrationSettings
 from physverify.calibration.table import CalibrationRow
-from physverify.calibration.weights import raw_weight
 from physverify.schema.clip import Split
 
 

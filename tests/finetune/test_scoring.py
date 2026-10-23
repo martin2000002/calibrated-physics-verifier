@@ -428,7 +428,7 @@ def _calibration_modules(score_clip: Any, stratum: Any) -> dict[str, Any]:
 
     return {
         "physverify.calibration.apply": SimpleNamespace(score_clip=score_clip),
-        "physverify.calibration.loader": SimpleNamespace(
+        "physverify.calibration.artifact_io": SimpleNamespace(
             default_artifact_path=lambda s: Path("cal/thresholds.json"),
             open_stratum=open_stratum,
             unique_row_step=lambda steps: max(steps),

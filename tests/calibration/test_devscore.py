@@ -1,4 +1,5 @@
-"""``calibration.devscore``: the development metric of the campaign (WP-O AC1-AC6, AC10, C1, C4)."""
+"""``calibration.dev_score``: the development metric of the campaign
+(WP-O AC1-AC6, AC10, C1, C4)."""
 
 from __future__ import annotations
 
@@ -20,7 +21,7 @@ from calibration_cases import (
 )
 
 from physverify.calibration.collect import level_data
-from physverify.calibration.devscore import (
+from physverify.calibration.dev_score import (
     DEVSCORE_SCHEMA,
     DevScore,
     LevelDevScore,
@@ -31,9 +32,9 @@ from physverify.calibration.devscore import (
     selection,
     split_data,
 )
-from physverify.calibration.devscore import dev_score as compute
+from physverify.calibration.dev_score import dev_score as compute
 from physverify.calibration.fit import FitInputs, LevelData, fit_calibration, fit_checks
-from physverify.calibration.sigma import SigmaPair
+from physverify.calibration.sigma_recalibration import SigmaPair
 from physverify.calibration.table import Role
 from physverify.calibration.thresholds import fit_tau
 from physverify.core.errors import UsageError

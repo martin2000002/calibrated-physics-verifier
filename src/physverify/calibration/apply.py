@@ -13,8 +13,8 @@ from types import MappingProxyType
 
 from scipy.special import expit
 
-from physverify.calibration.loader import KSigmaMismatchError, Stratum
-from physverify.calibration.schema import CheckCalibration
+from physverify.calibration.artifact import CheckCalibration
+from physverify.calibration.artifact_io import KSigmaMismatchError, Stratum
 from physverify.calibration.verdict import DECIDED, Outcome, Rule, clip_verdict
 from physverify.schema.checks import AbstainReason, CheckResult, Verdict
 from physverify.verification.policies.threshold import ThresholdParams, ThresholdPolicy

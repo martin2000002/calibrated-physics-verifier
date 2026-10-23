@@ -8,8 +8,8 @@ import numpy as np
 import pytest
 from calibration_cases import result, row, settings
 
+from physverify.calibration.artifact import UNRANKED_NEGATIVES
 from physverify.calibration.fit import check_status
-from physverify.calibration.schema import UNRANKED_NEGATIVES
 from physverify.calibration.table import CalibrationDataError, Role, require_subjects
 from physverify.calibration.thresholds import (
     NOT_DETERMINED,

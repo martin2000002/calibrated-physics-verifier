@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from physverify.calibration.schema import Monotonicity, SceneKendall
+from physverify.calibration.artifact import Monotonicity, SceneKendall
 from physverify.calibration.settings import CalibrationSettings
 from physverify.calibration.stats import median_or_none
 from physverify.calibration.table import (

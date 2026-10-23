@@ -7,8 +7,8 @@ from collections.abc import Collection, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 
-from physverify.calibration.loader import MixedRowStepError
-from physverify.calibration.loader import unique_row_step as unique_step
+from physverify.calibration.artifact_io import MixedRowStepError
+from physverify.calibration.artifact_io import unique_row_step as unique_step
 from physverify.core.errors import PhysverifyError
 from physverify.schema.checks import CheckResult, InputLevel
 from physverify.schema.clip import ClipManifest, Split

@@ -17,13 +17,13 @@ from pydantic import ValidationError
 
 from physverify.agreement.decision import CALIBRATED_NAME
 from physverify.agreement.report import REPORT_DIR
-from physverify.calibration.exclusion_record import ExclusionInputError, parse_record
-from physverify.calibration.loader import (
+from physverify.calibration.artifact import EvaluationReport
+from physverify.calibration.artifact_io import (
     Calibration,
     CalibrationError,
     parse_calibration,
 )
-from physverify.calibration.schema import EvaluationReport
+from physverify.calibration.exclusion_record import ExclusionInputError, parse_record
 from physverify.core.digests import text_sha256
 from physverify.reporting.chain import (
     EVALUATION_KEY,

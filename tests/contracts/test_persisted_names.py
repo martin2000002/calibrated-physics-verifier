@@ -14,13 +14,13 @@ from pathlib import Path
 import pytest
 from cli_tree import cli_leaves
 
-from physverify.calibration.devscore import DEVSCORE_FILE, DEVSCORE_SCHEMA, DEVSCORE_VERSION
-from physverify.calibration.exclusion_record import RECORD_SCHEMA, RECORD_VERSION
-from physverify.calibration.schema import (
+from physverify.calibration.artifact import (
     CALIBRATION_SCHEMA,
     CALIBRATION_VERSION,
     EVALUATION_SCHEMA,
 )
+from physverify.calibration.dev_score import DEVSCORE_FILE, DEVSCORE_SCHEMA, DEVSCORE_VERSION
+from physverify.calibration.exclusion_record import RECORD_SCHEMA, RECORD_VERSION
 from physverify.cli.commands._sealed import GUARDED
 from physverify.reporting.render import RESULTS_SCHEMA, RESULTS_VERSION
 from physverify.runtime.runs import RunContext

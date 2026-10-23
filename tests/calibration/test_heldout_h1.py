@@ -17,6 +17,8 @@ from calibration_cases import (
 )
 
 from physverify.calibration.apply import policy_for, rule_for
+from physverify.calibration.artifact import EvaluationReport
+from physverify.calibration.artifact_io import Calibration, parse_calibration
 from physverify.calibration.collect import level_data
 from physverify.calibration.evaluate import (
     EvaluationInputs,
@@ -26,12 +28,10 @@ from physverify.calibration.evaluate import (
     fit_settings,
 )
 from physverify.calibration.fit import FitInputs, fit_calibration
-from physverify.calibration.heldout_h1 import heldout_h1, n_met
-from physverify.calibration.loader import Calibration, parse_calibration
+from physverify.calibration.heldout_monotonicity import heldout_h1, n_met
 from physverify.calibration.monotonicity import LevelDelta, deltas, monotonicity
 from physverify.calibration.report import evaluation_markdown
 from physverify.calibration.scenes import SceneScope
-from physverify.calibration.schema import EvaluationReport
 from physverify.calibration.table import CLEAN_LEVEL, CalibrationRow, Role, corrected
 from physverify.calibration.thresholds import fails
 from physverify.schema.checks import InputLevel
