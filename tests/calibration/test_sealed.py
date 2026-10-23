@@ -183,9 +183,11 @@ def test_a_missing_sealed_section_fails_closed(config_dir: Path, environ: dict[s
     (config_dir / "verifier" / "sealed.toml").unlink()
     with pytest.raises(ConfigError, match=r"no \[sealed\] section"):
         sealed_settings(load_settings(config_dir, environ=environ))
-    no_ledger = load_settings(config_dir, environ=environ, overrides=("sealed.sets=[]",))
+    with pytest.raises(ConfigError, match=r"unknown section \[sealed\]"):
+        load_settings(config_dir, environ=environ, overrides=("sealed.sets=[]",))
+    (config_dir / "verifier" / "sealed.toml").write_text("[sealed]\nsets = []\n")
     with pytest.raises(ConfigError, match=r"\[sealed\] is invalid"):
-        sealed_settings(no_ledger)
+        sealed_settings(load_settings(config_dir, environ=environ))
 
 
 def test_the_look_hash_ignores_paths_and_threads_not_sections(
