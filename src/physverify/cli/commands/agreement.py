@@ -1,5 +1,6 @@
-"""``physverify agreement``: the verifier against the reference VLM on VideoPhy human labels
-(ADR 0011). ``fetch`` is heavy; ``subset``, ``freeze`` and ``compare`` read files only."""
+"""``physverify agreement``: the verifier against the reference VLM on VideoPhy human labels.
+
+``fetch`` is heavy; ``subset``, ``freeze`` and ``compare`` read files only."""
 
 from __future__ import annotations
 

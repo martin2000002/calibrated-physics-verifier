@@ -1,4 +1,4 @@
-"""``physverify verify``: run the checks R1-R5b over a dataset (ADR 0006 §3.10).
+"""``physverify verify``: run the checks R1-R5b over a dataset.
 
 Not a heavy command: the perceived path runs the light stages only and refuses the heavy lock.
 """

@@ -1,4 +1,4 @@
-"""``physverify compare-generators``: fine-tuned against base against best-of-8 (ADR 0013).
+"""``physverify compare-generators``: fine-tuned against base against best-of-8.
 
 Order: ``gate-autoeval``, ``judge --split dev``, ``freeze``, ``generate``, ``score``,
 ``judge --split eval``, ``compare``. Every step resumes. The GPU subcommands exit 2 without

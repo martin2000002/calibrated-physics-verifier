@@ -53,8 +53,8 @@ GeneratorOnlyOption = Annotated[
 
 
 def campaign_split(split: str, comparison_step: str) -> PromptSplit:
-    """A train or dev split; the eval candidates and scores are H3's (ADR 0013), whose
-    generation stamp and pre-registration a finetune run would break."""
+    """A train or dev split; the eval candidates and scores belong to the generator comparison,
+    whose generation stamp and pre-registration a finetune run would break."""
     parsed = choice(split, SPLITS, "--split")
     if parsed == EVAL_SPLIT:
         raise UsageError(

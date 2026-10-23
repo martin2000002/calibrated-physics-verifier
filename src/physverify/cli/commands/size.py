@@ -1,4 +1,4 @@
-"""``physverify size``: fetch Objectron boxes, fit the size model, measure it (ADR 0010).
+"""``physverify size``: fetch Objectron boxes, fit the size model, measure it.
 
 Network but not heavy: ``fetch`` reads only the leading ``Sequence.objects`` bytes of each
 annotation through ranged GETs. Every figure written is an estimate with its measured error."""

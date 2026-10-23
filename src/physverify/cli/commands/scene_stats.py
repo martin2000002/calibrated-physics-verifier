@@ -1,5 +1,5 @@
 """``physverify scene-stats``: per-clip stage errors, per-scene tables and scene-bootstrap deltas
-between two configurations (ADR 0014). ``per-clip`` reads the cache ``diagnose stages`` filled."""
+between two configurations. ``per-clip`` reads the cache ``diagnose stages`` filled."""
 
 from __future__ import annotations
 

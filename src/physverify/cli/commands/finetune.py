@@ -1,4 +1,4 @@
-"""``physverify finetune``: preference pairs from the verifier and Flow-DPO LoRA (ADR 0012, 3.10).
+"""``physverify finetune``: preference pairs from the verifier and Flow-DPO LoRA.
 
 Every step resumes: ``generate`` skips complete candidates, ``score`` the ones with a current
 score (same scorer stamp, same candidate ``config_hash``), ``train`` starts from the last

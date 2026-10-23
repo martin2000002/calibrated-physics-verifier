@@ -1,5 +1,6 @@
-"""``physverify synth``: the Kubric synthetic dataset, step by step or end to end (ADR 0004,
-section 3.10). Container steps take the heavy lock; ``build`` holds it for the whole run."""
+"""``physverify synth``: the Kubric synthetic dataset, step by step or end to end.
+
+Container steps take the heavy lock; ``build`` holds it for the whole run."""
 
 from __future__ import annotations
 

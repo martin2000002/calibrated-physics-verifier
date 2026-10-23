@@ -1,4 +1,4 @@
-"""``physverify exclusions``: the preregistered exclusion decision (ADR 0015 rules 1.1, 1.2, 1.5).
+"""``physverify exclusions``: the preregistered exclusion decision (rules 1.1, 1.2, 1.5).
 
 ``r2-clips`` lists the clips both R2 detector arms must verify (``verify --policy raw``);
 ``decide`` reads the artifact, its evaluation and the two runs and writes the decision record

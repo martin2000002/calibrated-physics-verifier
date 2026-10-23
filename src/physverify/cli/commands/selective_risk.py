@@ -1,5 +1,4 @@
-"""``physverify selective-risk``: risk-coverage of the threshold policy and the choice of k*
-(ADR 0010 §3).
+"""``physverify selective-risk``: risk-coverage of the threshold policy and the choice of k*.
 
 Not heavy: the cases come from cached chains (``selective_risk.tables``)."""
 

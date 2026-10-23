@@ -1,4 +1,4 @@
-"""``physverify download fetch``: download the real datasets into ``paths.raw_dir`` (ADR 0007 §4.3).
+"""``physverify download fetch``: download the real datasets into ``paths.raw_dir``.
 
 A heavy command (network and disk). A second run with the files intact transfers nothing.
 """

@@ -1,8 +1,9 @@
-"""``physverify results``: the numbers of deliverable 2 from one A8 v2 chain (and an H2 run).
+"""``physverify results``: the numbers of deliverable 2 from one calibration chain.
 
-Read only and not heavy: it takes no lock, runs no model and writes nothing outside ``--out``.
-Every value cites the ``path#pointer`` it was read from; inputs that do not belong to the same
-artifact are refused (exit 2). A chain whose device is not cpu is a rehearsal: not reportable.
+An optional human-agreement run adds its sections. Read only and not heavy: it takes no lock, runs
+no model and writes nothing outside ``--out``. Every value cites the ``path#pointer`` it was read
+from; inputs that do not belong to the same artifact are refused (exit 2). A chain whose device is
+not cpu is a rehearsal: not reportable.
 """
 
 from __future__ import annotations

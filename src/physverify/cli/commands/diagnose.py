@@ -1,4 +1,4 @@
-"""``physverify diagnose``: stage errors, end-to-end error, attribution and real video (ADR 0007).
+"""``physverify diagnose``: stage errors, end-to-end error, attribution and real video.
 
 Not a heavy command: ``LazyLock`` inside ``PipelineDeps`` takes the heavy lock only when a stage
 has to be computed, so a fully cached diagnosis runs next to another cycle's heavy job.

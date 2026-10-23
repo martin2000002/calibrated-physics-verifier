@@ -1,4 +1,4 @@
-"""``physverify calibrate``: fit, evaluate and publish the H1 calibration (ADR 0009 D13).
+"""``physverify calibrate``: fit, evaluate and publish the calibration.
 
 Not heavy: the checks read cached stage outputs and refuse the lock. ``stage-sigma`` takes the
 heavy lock lazily, only when a stage has to be computed.
