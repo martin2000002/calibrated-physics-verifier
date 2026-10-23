@@ -1,4 +1,4 @@
-"""``objectron_static`` (plan-congelado 3.2, F3, J14): the preregistered selection over fabricated
+"""``objectron_static``: the preregistered selection over fabricated
 Objectron indices and a fake bucket; no real video is downloaded."""
 
 from __future__ import annotations
@@ -176,7 +176,7 @@ def fetch(settings: Settings, bucket: FakeBucket, decoder: FakeDecoder) -> Path:
 
 
 def a9_looked_at(settings: Settings) -> set[str]:
-    """The A9 test draw plus the first end-to-end candidate of ``cup``, recomputed by hand."""
+    """The size estimator's test draw plus the first end-to-end candidate of ``cup``, by hand."""
     sizing = sizing_settings(settings)
     refs = {c: [objectron.VideoRef(v) for v in ids_of(c, "test")] for c in CLASSES}
     drawn = {r.video_id for c in CLASSES for r in objectron.select(refs[c], c, A9_TEST, 0)}
@@ -189,9 +189,6 @@ def expected_order(settings: Settings, label: str) -> list[str]:
     excluded = frozenset(a9_looked_at(settings))
     refs = [objectron.VideoRef(v) for v in ids_of(label, "test")]
     return [r.video_id for r in ordered(refs, excluded, seed)]
-
-
-# --- Rule ---------------------------------------------------------------------------------------
 
 
 def test_the_order_is_the_sha256_of_seed_and_id() -> None:
@@ -221,9 +218,6 @@ def test_the_e2e_draw_replays_size_e2e_prepare(settings: Settings) -> None:
     assert draw.skipped == (order[0],)
     assert draw.taken[:2] == tuple(order[1:3])
     assert draw.examined == {r.video_id for r in (*draw.taken, order[0])}
-
-
-# --- Fetch --------------------------------------------------------------------------------------
 
 
 def test_fetch_leaves_out_every_video_a9_looked_at(
@@ -347,9 +341,6 @@ def test_lost_files_are_restored_never_replaced(
     with pytest.raises(MissingInputError, match="cannot be restored"):
         fetch(settings, bucket, decoder)
     assert (dest / SELECTION_FILE).read_text(encoding="utf-8") == before
-
-
-# --- Clips --------------------------------------------------------------------------------------
 
 
 def test_clips_are_eval_with_the_class_query_and_no_count(

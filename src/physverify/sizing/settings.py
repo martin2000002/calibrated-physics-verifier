@@ -1,4 +1,4 @@
-"""The ``[sizing]`` configuration section (ADR 0010): Objectron fetch, fit, lookup tables."""
+"""The ``[sizing]`` configuration section: Objectron fetch, fit, lookup tables."""
 
 from __future__ import annotations
 

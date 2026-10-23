@@ -1,4 +1,4 @@
-"""Closed-form fit of the per-class log-normal and of its conformal sigma factor (ADR 0010)."""
+"""Closed-form fit of the per-class log-normal and of its conformal sigma factor."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""ADR 0010 §2.3: metrics on hand-made errors and the video bootstrap."""
+"""Size-estimator metrics on hand-made errors and the video bootstrap."""
 
 from __future__ import annotations
 

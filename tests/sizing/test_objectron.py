@@ -1,4 +1,4 @@
-"""ADR 0010 I4: the wire decoder reads Objectron bytes built here (no network)."""
+"""The wire decoder reads Objectron bytes built here (no network)."""
 
 from __future__ import annotations
 

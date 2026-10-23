@@ -1,4 +1,4 @@
-"""ADR 0010 Juicio change 4: one function lists every label that gets a size."""
+"""One function lists every label that gets a size."""
 
 from __future__ import annotations
 

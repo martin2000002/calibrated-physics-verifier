@@ -107,9 +107,6 @@ def sequence_objects(buf: bytes, *, complete: bool) -> tuple[list[ObjectBox], in
     return [parse_object(record) for record in records], end
 
 
-# --- Per-frame keypoints (end-to-end truth) -----------------------------------------------------
-
-
 @dataclass(frozen=True)
 class FrameObject:
     object_id: int
@@ -181,9 +178,6 @@ def _keypoint_into(payload: bytes, points: np.ndarray, depth: np.ndarray) -> Non
 
 def _scalar(values: Sequence[float]) -> float:
     return values[0] if values else float("nan")
-
-
-# --- Network ----------------------------------------------------------------------------------
 
 
 class PrefixReader(Protocol):

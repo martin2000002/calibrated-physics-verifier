@@ -1,4 +1,4 @@
-"""Held-out error of the size model against baselines, with intervals by video (ADR 0010 §2.3).
+"""Held-out error of the size model against baselines, with intervals by video.
 
 r = log(L_hat / L). B0 is the frozen prior every unknown label gets today; B1 is the per-class
 log-normal without the conformal factor (sigma_c as fitted)."""

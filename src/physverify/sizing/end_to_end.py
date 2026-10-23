@@ -1,4 +1,4 @@
-"""End-to-end check of the perceived scale on Objectron videos (ADR 0010, section 2.3(2)).
+"""End-to-end check of the perceived scale on Objectron videos.
 
 The truth scale of a clip is the median over frames of ARKit's metric depth of the box center
 divided by the lifted depth of the matched object (camera z, relative units). The match is the

@@ -1,4 +1,4 @@
-"""ADR 0010 I5: the fit is closed-form, deterministic and grouped by video."""
+"""The size fit is closed-form, deterministic and grouped by video."""
 
 from __future__ import annotations
 

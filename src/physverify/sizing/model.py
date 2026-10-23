@@ -95,8 +95,8 @@ def labels_with_size(
 
 
 def labels_in(sections: Mapping[str, object]) -> frozenset[str]:
-    """Labels that get a size under these config sections (A10 and A11 validate prompts
-    against it)."""
+    """Labels that get a size under these config sections (the human-agreement study and
+    preference fine-tuning validate prompts against it)."""
     return labels_with_size(
         SizePriorTable.model_validate(sections.get(SIZE_PRIORS_SECTION, {})),
         SizeModelTable.model_validate(sections.get(SECTION, {})),

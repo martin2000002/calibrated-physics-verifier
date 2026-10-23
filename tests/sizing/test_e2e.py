@@ -1,4 +1,4 @@
-"""ADR 0010 R2: the end-to-end truth scale, the box match and the summary (no network)."""
+"""The end-to-end truth scale, the box match and the summary (no network)."""
 
 from __future__ import annotations
 

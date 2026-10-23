@@ -1,6 +1,6 @@
-"""The seeded Objectron draws of A9 (ADR 0010): the per-class draw of each official split and the
-end-to-end candidates. ``physverify size`` makes them; the ``objectron_static`` control replays
-them to leave every video A9 looked at out of its own selection."""
+"""The seeded Objectron draws of the size estimator: the per-class draw of each official split and
+the end-to-end candidates. ``physverify size`` makes them; the ``objectron_static`` control
+replays them to leave every video the size estimator looked at out of its own selection."""
 
 from __future__ import annotations
 
