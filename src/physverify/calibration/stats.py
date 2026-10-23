@@ -13,7 +13,7 @@ from scipy.special import expit
 from scipy.stats import chi2, mannwhitneyu
 
 from physverify.physics.uncertainty import robust_scale
-from physverify.stats.bootstrap import SceneBlock, scene_bootstrap
+from physverify.stats.bootstrap import ClusterBlock, scene_bootstrap
 from physverify.stats.intervals import Ci, Rate, clopper_pearson, rate
 
 FloatArray = NDArray[np.float64]
@@ -70,7 +70,7 @@ def clustered_rate(flags: Sequence[tuple[str, bool]], n_boot: int, seed: int, ci
         return base.model_copy(
             update={"ci": bound, "n_scenes": scenes, "ci_method": "clopper_pearson_scenes"}
         )
-    blocks = [SceneBlock(scene, flag) for scene, flag in flags]
+    blocks = [ClusterBlock(scene, flag) for scene, flag in flags]
     interval = scene_bootstrap(
         blocks, lambda s: {RATE_KEY: float(np.mean(s))}, n_boot, seed, ci
     ).get(RATE_KEY, Ci())

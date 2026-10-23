@@ -11,7 +11,7 @@ import numpy as np
 from physverify.calibration.schema import Probability, Weight
 from physverify.calibration.settings import CalibrationSettings
 from physverify.calibration.stats import balanced_weights, ece, fit_logistic, mad
-from physverify.stats.bootstrap import SceneBlock, scene_bootstrap
+from physverify.stats.bootstrap import ClusterBlock, scene_bootstrap
 from physverify.stats.folds import grouped_folds
 from physverify.stats.intervals import Ci
 
@@ -38,7 +38,7 @@ def _informedness(flags: Sequence[Flag]) -> float:
 
 def raw_weight(flags: Sequence[Flag], settings: CalibrationSettings) -> Weight:
     """J = TPR_total - FPR_cv; weight max(0, lower bound of J) before normalisation."""
-    blocks = [SceneBlock(f.scene_id, f) for f in flags]
+    blocks = [ClusterBlock(f.scene_id, f) for f in flags]
     ci = scene_bootstrap(
         blocks,
         lambda s: {J_KEY: _informedness(s)},
@@ -105,7 +105,7 @@ def _cross_fitted_ece(
     data: Sequence[Labelled], tau: float, scale: float, settings: CalibrationSettings
 ) -> tuple[float | None, Ci]:
     weights = balanced_weights([d.positive for d in data])
-    blocks: list[SceneBlock[Prediction]] = []
+    blocks: list[ClusterBlock[Prediction]] = []
     for fold in grouped_folds([d.scene_id for d in data], settings.folds, settings.seed):
         train = [d for d in data if d.scene_id not in fold]
         u, y = _design(train, tau, scale)
@@ -116,7 +116,7 @@ def _cross_fitted_ece(
             if d.scene_id in fold:
                 p = float(fit.predict([(d.magnitude - tau) / scale])[0])
                 blocks.append(
-                    SceneBlock(d.scene_id, Prediction(p, float(d.positive), weights[index]))
+                    ClusterBlock(d.scene_id, Prediction(p, float(d.positive), weights[index]))
                 )
     if not blocks:
         return None, Ci()

@@ -23,7 +23,7 @@ from physverify.diagnosis.error_profile_writer import StageSamples
 from physverify.diagnosis.settings import DiagnosisSettings
 from physverify.diagnosis.stage_errors import clips_of, measure, stage_pairs
 from physverify.schema.clip import ClipManifest
-from physverify.stats.bootstrap import SceneBlock, scene_bootstrap
+from physverify.stats.bootstrap import ClusterBlock, scene_bootstrap
 
 Stat = Literal["rms", "mean", "rate"]
 Kind = Literal["samples", "ratios"]
@@ -186,7 +186,7 @@ def scene_delta(
     left = by_scene(select_rows(base, query.split, query.metric), kind, query.quantity)
     right = by_scene(select_rows(candidate, query.split, query.metric), kind, query.quantity)
     blocks = [
-        SceneBlock(clip_id=s, item=(left[s], right[s])) for s in sorted(set(left) & set(right))
+        ClusterBlock(clip_id=s, item=(left[s], right[s])) for s in sorted(set(left) & set(right))
     ]
 
     def statistic(items: Sequence[tuple[Stats, Stats]]) -> dict[str, float]:

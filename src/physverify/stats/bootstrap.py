@@ -77,15 +77,15 @@ def bootstrap[B: Clustered](
 
 
 @dataclass(frozen=True)
-class SceneBlock[T]:
-    """Adapter for ``bootstrap``: its ``clip_id`` is the scene."""
+class ClusterBlock[T]:
+    """One ``item`` of a resampling cluster (a scene, a caption) named by ``clip_id``."""
 
     clip_id: str
     item: T
 
 
 def scene_bootstrap[T](
-    blocks: Sequence[SceneBlock[T]],
+    blocks: Sequence[ClusterBlock[T]],
     statistic: Callable[[Sequence[T]], Mapping[str, float]],
     n: int,
     seed: int,

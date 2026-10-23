@@ -15,7 +15,7 @@ from physverify.calibration.table import (
     corrected,
     require_one_clean_per_scene,
 )
-from physverify.stats.bootstrap import SceneBlock, scene_bootstrap
+from physverify.stats.bootstrap import ClusterBlock, scene_bootstrap
 from physverify.stats.intervals import Ci
 from physverify.stats.rank import kendall
 
@@ -55,7 +55,7 @@ def _tau(pairs: Sequence[LevelDelta]) -> float:
 def monotonicity(pairs: Sequence[LevelDelta], settings: CalibrationSettings) -> Monotonicity:
     """``h1_pass``: the lower bound of the scene-bootstrap interval of tau_b is above 0."""
     tau = _tau(pairs)
-    blocks = [SceneBlock(p.scene_id, p) for p in pairs]
+    blocks = [ClusterBlock(p.scene_id, p) for p in pairs]
     ci = scene_bootstrap(
         blocks, lambda s: {TAU_KEY: _tau(s)}, settings.bootstrap, settings.seed, settings.ci
     ).get(TAU_KEY, Ci())

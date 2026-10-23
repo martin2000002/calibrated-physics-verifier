@@ -22,7 +22,7 @@ from physverify.core.errors import MissingInputError
 from physverify.core.models import FrozenModel
 from physverify.diagnosis.pairing import Paired
 from physverify.schema.checks import CheckResult, InputLevel, Verdict
-from physverify.stats.bootstrap import SceneBlock, scene_bootstrap
+from physverify.stats.bootstrap import ClusterBlock, scene_bootstrap
 from physverify.stats.intervals import clopper_pearson
 from physverify.verification.policies.threshold import ThresholdParams, ThresholdPolicy
 from physverify.verification.runner import entry_of
@@ -280,7 +280,7 @@ def paired_aurc_difference(
             "diff": curve_aurc(second[:, d], reference[d]) - curve_aurc(first[:, d], reference[d])
         }
 
-    blocks = [SceneBlock(clip_id, i) for i, clip_id in enumerate(clip_ids)]
+    blocks = [ClusterBlock(clip_id, i) for i, clip_id in enumerate(clip_ids)]
     bound = scene_bootstrap(blocks, difference, n_boot, seed, ci).get("diff")
     return {
         "value": curve_aurc(second, reference) - curve_aurc(first, reference),

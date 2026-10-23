@@ -24,7 +24,7 @@ from physverify.diagnosis.error_profile_writer import (
 from physverify.diagnosis.report import nominal_coverage, z_coverage
 from physverify.physics.uncertainty import MAD_TO_SIGMA
 from physverify.schema.error_profile import ErrorEntry, ErrorProfile
-from physverify.stats.bootstrap import SceneBlock, scene_bootstrap
+from physverify.stats.bootstrap import ClusterBlock, scene_bootstrap
 from physverify.stats.folds import grouped_folds
 from physverify.stats.intervals import Ci
 
@@ -130,7 +130,7 @@ def fit_sigma(pairs: Sequence[SigmaPair], settings: CalibrationSettings) -> Sigm
             n_informative=_n_informative(counted, pair_filter),
         )
     bias, factor = bias_factor(found, pair_filter)
-    blocks = [SceneBlock(p.scene_id, p) for p in found]
+    blocks = [ClusterBlock(p.scene_id, p) for p in found]
     statistic = functools.partial(_bias_factor_map, pair_filter=pair_filter)
     ci = scene_bootstrap(blocks, statistic, settings.bootstrap, settings.seed, settings.ci)
     z = cross_fitted_z(found, settings)

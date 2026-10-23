@@ -47,7 +47,7 @@ from physverify.calibration.thresholds import (
 from physverify.calibration.verdict import DECIDED, Rule, clip_verdict
 from physverify.calibration.weights import Flag, Labelled, fit_probability, normalised, raw_weight
 from physverify.schema.checks import CheckResult, InputLevel, Verdict
-from physverify.stats.bootstrap import SceneBlock, scene_bootstrap
+from physverify.stats.bootstrap import ClusterBlock, scene_bootstrap
 from physverify.stats.intervals import Ci, Rate, rate
 from physverify.verification.policies.threshold import ThresholdPolicy
 from physverify.verification.sweep import CheckUnit
@@ -285,7 +285,7 @@ def auroc_of(scored: Sequence[tuple[str, float, bool]], settings: CalibrationSet
     """In-sample AUROC (marked so) of (scene, value, positive) with a scene-bootstrap interval."""
     pos = [v for _, v, positive in scored if positive]
     neg = [v for _, v, positive in scored if not positive]
-    blocks = [SceneBlock(scene, (value, positive)) for scene, value, positive in scored]
+    blocks = [ClusterBlock(scene, (value, positive)) for scene, value, positive in scored]
     ci = scene_bootstrap(
         blocks,
         lambda s: {AUROC_KEY: auroc([v for v, p in s if p], [v for v, p in s if not p])},

@@ -46,7 +46,7 @@ from physverify.core.models import FrozenModel
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import Split
 from physverify.schema.io import stable_hash
-from physverify.stats.bootstrap import SceneBlock, scene_bootstrap
+from physverify.stats.bootstrap import ClusterBlock, scene_bootstrap
 from physverify.stats.intervals import Ci, clopper_pearson
 from physverify.verification.runner import UNKNOWN_ROW_STEP
 
@@ -436,7 +436,7 @@ def _delta_tpr_ci(
 ) -> Ci:
     """Scene bootstrap of TPR(base) - TPR(tiny), paired clip by clip inside a drawn scene."""
     blocks = [
-        SceneBlock(clip_id=r.scene_id, item=(flags["base"][r.clip_id], flags["tiny"][r.clip_id]))
+        ClusterBlock(clip_id=r.scene_id, item=(flags["base"][r.clip_id], flags["tiny"][r.clip_id]))
         for r in rows
         if r.role is Role.POSITIVE
     ]

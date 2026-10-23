@@ -15,7 +15,7 @@ from numpy.typing import NDArray
 from physverify.config.models import SizePrior
 from physverify.sizing.model import SizeModelTable, class_prior
 from physverify.sizing.samples import SizeSample, log_lengths
-from physverify.stats.bootstrap import SceneBlock, scene_bootstrap
+from physverify.stats.bootstrap import ClusterBlock, scene_bootstrap
 from physverify.stats.intervals import Ci
 
 FloatArray = NDArray[np.float64]
@@ -77,7 +77,7 @@ def grouped_intervals(
     ci: float,
 ) -> dict[str, Ci]:
     """Percentile intervals of ``statistic(sample indices)`` over resamples of whole groups."""
-    blocks = [SceneBlock(group, i) for i, group in enumerate(groups)]
+    blocks = [ClusterBlock(group, i) for i, group in enumerate(groups)]
     return scene_bootstrap(
         blocks, lambda index: statistic(np.asarray(index, dtype=np.intp)), n_boot, seed, ci
     )

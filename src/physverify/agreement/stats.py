@@ -10,7 +10,7 @@ from typing import Final
 import numpy as np
 from numpy.typing import NDArray
 
-from physverify.stats.bootstrap import BootstrapResult, bootstrap
+from physverify.stats.bootstrap import BootstrapResult, ClusterBlock, bootstrap
 
 Labels = NDArray[np.int_]
 Scores = NDArray[np.float64]
@@ -238,18 +238,6 @@ def _anova_icc(groups: Sequence[Sequence[float]], m0: float) -> float:
     return float(min(1.0, max(0.0, (between - within) / denominator)))
 
 
-@dataclass(frozen=True)
-class CaptionBlock[T]:
-    """Bootstrap adapter: ``factorial.bootstrap`` resamples by ``clip_id``, here the caption."""
-
-    item: T
-    caption: str
-
-    @property
-    def clip_id(self) -> str:
-        return self.caption
-
-
 def caption_bootstrap[T](
     items: Sequence[T],
     caption: Callable[[T], str],
@@ -259,5 +247,5 @@ def caption_bootstrap[T](
     ci: float,
 ) -> BootstrapResult:
     """Percentile intervals resampling whole captions (videos of one prompt are correlated)."""
-    blocks = [CaptionBlock(item, caption(item)) for item in items]
+    blocks = [ClusterBlock(caption(item), item) for item in items]
     return bootstrap(blocks, lambda sample: statistic([b.item for b in sample]), n, seed, ci)

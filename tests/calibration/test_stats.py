@@ -20,7 +20,7 @@ from physverify.calibration.stats import (
     profile_interval,
 )
 from physverify.physics.uncertainty import robust_scale
-from physverify.stats.bootstrap import SceneBlock, scene_bootstrap
+from physverify.stats.bootstrap import ClusterBlock, scene_bootstrap
 from physverify.stats.folds import grouped_folds
 from physverify.stats.intervals import clopper_pearson, clopper_pearson_lower
 
@@ -78,7 +78,12 @@ def test_folds_never_split_a_scene() -> None:
 
 
 def test_the_bootstrap_resamples_whole_scenes() -> None:
-    blocks = [SceneBlock("A", 1), SceneBlock("A", 1), SceneBlock("B", 0), SceneBlock("C", 0)]
+    blocks = [
+        ClusterBlock("A", 1),
+        ClusterBlock("A", 1),
+        ClusterBlock("B", 0),
+        ClusterBlock("C", 0),
+    ]
     ci = scene_bootstrap(blocks, lambda s: {"odd": float(sum(s) % 2)}, 300, 0, 0.95)
     assert (ci["odd"].low, ci["odd"].high) == (0.0, 0.0)
 
