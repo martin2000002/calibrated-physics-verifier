@@ -143,7 +143,7 @@ def test_full_sequence_with_docker_and_a_missing_image(sandbox: TimingSandbox) -
         TIMING_RUN,
     ]
     link = sandbox.runs / "h200-timing-latest"
-    assert link.is_symlink() and link.readlink() == Path(RUN_ID)
+    assert link.is_symlink() and str(link.readlink()) == RUN_ID
     assert (link / "timing").is_dir()
     assert (sandbox.runs / f"{RUN_ID}.log").read_text(encoding="utf-8").startswith("run: ")
     assert f"run: {sandbox.runs / RUN_ID}" in result.stdout

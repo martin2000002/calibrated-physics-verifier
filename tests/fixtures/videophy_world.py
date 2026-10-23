@@ -8,7 +8,6 @@ the fixtures for its directory by importing them."""
 from __future__ import annotations
 
 import csv
-import datetime
 import json
 import math
 from collections.abc import Callable, Mapping, Sequence
@@ -134,9 +133,7 @@ def keep_all(dataset: VideophyDataset) -> None:
 
     pending = audit(dataset, "h2_test")
     decisions = {p: dict.fromkeys(t, "keep") for p, t in pending.decisions.items()}
-    filled = pending.model_copy(
-        update={"decisions": decisions, "date": datetime.date(2026, 10, 17).isoformat()}
-    )
+    filled = pending.model_copy(update={"decisions": decisions, "date": "2026-10-17"})
     write_review(dataset.subset_path, record(filled, reviewed_candidates(dataset, "h2_test")))
 
 
