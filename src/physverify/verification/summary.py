@@ -22,7 +22,8 @@ def parse_level(level: str | None, gt: Sequence[str], sweep: bool) -> InputLevel
         raise UsageError("--gt applies to --level perceived; the oracle is ground truth already")
     if sweep and parsed is not InputLevel.ORACLE:
         raise UsageError(
-            "--sweep needs --level oracle (synthetic labels are exact only on the oracle)"
+            "--sweep needs --level oracle "
+            "(synthetic ground-truth labels are exact only on the oracle)"
         )
     return InputLevel.MIXED if gt else parsed
 
