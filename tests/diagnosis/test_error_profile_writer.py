@@ -14,7 +14,6 @@ from synthetic_clip import SyntheticFixtureDataset, manifest
 
 from physverify.config.models import Settings
 from physverify.core.errors import ConfigError
-from physverify.diagnosis.cases import MetricOutcome
 from physverify.diagnosis.error_profile_writer import (
     PROFILE_UNIT,
     MetricSamples,
@@ -25,6 +24,7 @@ from physverify.diagnosis.error_profile_writer import (
     merge_profiles,
     write_profile,
 )
+from physverify.diagnosis.measurement_cases import MetricOutcome
 from physverify.extraction._base import GROUND_TRUTH, StageContext
 from physverify.schema.clip import FrameSampling
 from physverify.schema.error_profile import MAX_RESIDUALS, EntryFilter, ErrorEntry, ErrorProfile

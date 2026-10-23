@@ -368,11 +368,8 @@
   "banner": 2,
   "comment_or_docstring": 3
  },
- "src/physverify/diagnosis/cases.py": {
-  "comment_or_docstring": 3
- },
- "src/physverify/diagnosis/checks_port.py": {
-  "comment_or_docstring": 5
+ "src/physverify/diagnosis/chain_variants.py": {
+  "comment_or_docstring": 2
  },
  "src/physverify/diagnosis/context.py": {
   "comment_or_docstring": 2
@@ -387,6 +384,9 @@
  },
  "src/physverify/diagnosis/factorial.py": {
   "comment_or_docstring": 2
+ },
+ "src/physverify/diagnosis/measurement_cases.py": {
+  "comment_or_docstring": 3
  },
  "src/physverify/diagnosis/metrics/contacts_impacts.py": {
   "comment_or_docstring": 1,
@@ -404,16 +404,13 @@
  "src/physverify/diagnosis/pairing.py": {
   "comment_or_docstring": 3
  },
- "src/physverify/diagnosis/plans.py": {
-  "comment_or_docstring": 2
- },
- "src/physverify/diagnosis/real_metrics.py": {
-  "banner": 2,
-  "comment_or_docstring": 2
- },
  "src/physverify/diagnosis/real_video.py": {
   "comment_or_docstring": 2,
   "literal": 1
+ },
+ "src/physverify/diagnosis/real_video_metrics.py": {
+  "banner": 2,
+  "comment_or_docstring": 2
  },
  "src/physverify/diagnosis/report.py": {
   "comment_or_docstring": 2,
@@ -428,6 +425,9 @@
  "src/physverify/diagnosis/stage_errors.py": {
   "comment_or_docstring": 3,
   "literal": 1
+ },
+ "src/physverify/diagnosis/verification_adapter.py": {
+  "comment_or_docstring": 5
  },
  "src/physverify/evaluation/__init__.py": {
   "comment_or_docstring": 2

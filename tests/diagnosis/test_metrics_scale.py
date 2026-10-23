@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 from synthetic_clip import manifest
 
-from physverify.diagnosis.cases import MetricCase, MetricOutcome
+from physverify.diagnosis.measurement_cases import MetricCase, MetricOutcome
 from physverify.diagnosis.metrics.scale_relative import ScaleRelativeMetric, source_key
 from physverify.diagnosis.settings import MetricSettings
 from physverify.schema.scale import ScaleEstimate, ScaleSource

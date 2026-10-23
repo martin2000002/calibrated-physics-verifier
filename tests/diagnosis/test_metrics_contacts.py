@@ -12,7 +12,7 @@ import pytest
 from numpy.typing import NDArray
 from synthetic_clip import manifest
 
-from physverify.diagnosis.cases import MetricCase, MetricOutcome
+from physverify.diagnosis.measurement_cases import MetricCase, MetricOutcome
 from physverify.diagnosis.metrics.contacts_events import ContactEventMetric, interval_iou
 from physverify.diagnosis.settings import MetricSettings
 from physverify.schema.constants import ENV_ID

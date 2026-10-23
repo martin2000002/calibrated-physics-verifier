@@ -28,9 +28,9 @@ from physverify.core.markdown import number
 from physverify.datasets._base import DatasetSource
 from physverify.datasets.local_video import NAME as LOCAL_VIDEO
 from physverify.datasets.objectron_static import VIDEO_FILE
-from physverify.diagnosis.cases import stage_output
-from physverify.diagnosis.chain import ChainRunner
-from physverify.diagnosis.plans import Variant
+from physverify.diagnosis.chain_runner import ChainRunner
+from physverify.diagnosis.chain_variants import Variant
+from physverify.diagnosis.measurement_cases import stage_output
 from physverify.extraction.providers.scale_size_prior import SIZE_PRIORS_SECTION
 from physverify.runtime.runs import new_run
 from physverify.schema.clip import ClipManifest

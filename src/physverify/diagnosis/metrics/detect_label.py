@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import ClassVar
 
-from physverify.diagnosis.cases import MetricCase, MetricOutcome, bare_compute
+from physverify.diagnosis.measurement_cases import MetricCase, MetricOutcome, bare_compute
 from physverify.diagnosis.settings import MetricSettings
 from physverify.extraction.matching import DEFAULT_MIN_IOU, match_boxes
 from physverify.schema.clip import ClipManifest

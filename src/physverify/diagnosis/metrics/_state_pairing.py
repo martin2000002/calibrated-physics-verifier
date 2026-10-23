@@ -8,7 +8,7 @@ from dataclasses import dataclass
 import numpy as np
 from numpy.typing import NDArray
 
-from physverify.diagnosis.cases import BoolArray, FloatArray
+from physverify.diagnosis.measurement_cases import BoolArray, FloatArray
 from physverify.diagnosis.normalizers import characteristic_lengths
 from physverify.schema.states import ObjectStateTable
 

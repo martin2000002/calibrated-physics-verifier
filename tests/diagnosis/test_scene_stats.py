@@ -10,7 +10,7 @@ import pytest
 from cli_runner import CliRunner
 
 from physverify.diagnosis import scene_stats
-from physverify.diagnosis.cases import MetricOutcome
+from physverify.diagnosis.measurement_cases import MetricOutcome
 
 
 def row(

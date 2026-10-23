@@ -11,7 +11,7 @@ import math
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
-from physverify.diagnosis.plans import CELLS, FACTORS, Cell
+from physverify.diagnosis.chain_variants import CELLS, FACTORS, Cell
 from physverify.schema.stages import Stage
 
 Means = Mapping[Cell, float]

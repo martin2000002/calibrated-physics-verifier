@@ -17,9 +17,9 @@ import numpy as np
 
 from physverify.calibration.table import scene_of
 from physverify.core.atomic import write_text_atomic
-from physverify.diagnosis.cases import MetricOutcome, SampledMetric
-from physverify.diagnosis.chain import ChainRunner
+from physverify.diagnosis.chain_runner import ChainRunner
 from physverify.diagnosis.error_profile_writer import StageSamples
+from physverify.diagnosis.measurement_cases import MetricOutcome, SampledMetric
 from physverify.diagnosis.settings import DiagnosisSettings
 from physverify.diagnosis.stage_errors import clips_of, measure, stage_pairs
 from physverify.schema.clip import ClipManifest

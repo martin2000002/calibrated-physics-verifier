@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from physverify.app.plugins import PLUGIN_KINDS
-from physverify.diagnosis.cases import SampledMetric
 from physverify.diagnosis.error_profile_writer import PROFILE_QUANTITIES
+from physverify.diagnosis.measurement_cases import SampledMetric
 from physverify.diagnosis.settings import MetricSettings
 
 OPTIONS = MetricSettings(

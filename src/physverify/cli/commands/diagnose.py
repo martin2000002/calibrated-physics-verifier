@@ -21,10 +21,9 @@ from physverify.cli.context import app_context
 from physverify.core.markdown import number
 from physverify.datasets._base import select_clips
 from physverify.diagnosis.attribution import run_attribution
-from physverify.diagnosis.cases import SampledMetric
-from physverify.diagnosis.checks_port import CheckSuite
 from physverify.diagnosis.context import DiagnosisContext
 from physverify.diagnosis.end_to_end import run_end_to_end
+from physverify.diagnosis.measurement_cases import SampledMetric
 from physverify.diagnosis.real_video import run_real
 from physverify.diagnosis.real_video import select_clips as real_clips
 from physverify.diagnosis.report import (
@@ -38,6 +37,7 @@ from physverify.diagnosis.report import (
 )
 from physverify.diagnosis.settings import MetricSettings, diagnosis_settings
 from physverify.diagnosis.stage_errors import run_stage_errors
+from physverify.diagnosis.verification_adapter import CheckSuite
 from physverify.extraction._base import StageObserver
 from physverify.extraction.pipeline import ExtractionReport
 from physverify.runtime.runs import new_run

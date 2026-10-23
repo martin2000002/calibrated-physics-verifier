@@ -8,7 +8,7 @@ from pydantic import Field, model_validator
 
 from physverify.config.models import Settings
 from physverify.core.models import FrozenModel
-from physverify.diagnosis.plans import FACTORS
+from physverify.diagnosis.chain_variants import FACTORS
 from physverify.schema.clip import Split
 from physverify.schema.stages import Stage
 

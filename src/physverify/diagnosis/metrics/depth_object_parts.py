@@ -10,7 +10,7 @@ from typing import ClassVar
 
 import numpy as np
 
-from physverify.diagnosis.cases import (
+from physverify.diagnosis.measurement_cases import (
     BoolArray,
     FloatArray,
     MetricCase,

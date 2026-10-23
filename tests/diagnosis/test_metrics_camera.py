@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 from synthetic_clip import manifest
 
-from physverify.diagnosis.cases import MetricCase, MetricOutcome
+from physverify.diagnosis.measurement_cases import MetricCase, MetricOutcome
 from physverify.diagnosis.metrics.camera_fov import FovMetric
 from physverify.diagnosis.settings import MetricSettings
 from physverify.schema.clip import FrameSampling

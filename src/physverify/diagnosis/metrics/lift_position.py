@@ -9,8 +9,8 @@ from typing import ClassVar
 
 import numpy as np
 
-from physverify.diagnosis.cases import MetricCase, MetricOutcome, bare_compute
-from physverify.diagnosis.metrics._states import finite_rows, paired_states, sigma_scores
+from physverify.diagnosis.measurement_cases import MetricCase, MetricOutcome, bare_compute
+from physverify.diagnosis.metrics._state_pairing import finite_rows, paired_states, sigma_scores
 from physverify.diagnosis.normalizers import characteristic_lengths
 from physverify.diagnosis.settings import MetricSettings
 from physverify.extraction.matching import conditional_scale_fit

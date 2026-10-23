@@ -9,7 +9,12 @@ from typing import ClassVar
 
 import numpy as np
 
-from physverify.diagnosis.cases import FloatArray, MetricCase, MetricOutcome, bare_compute
+from physverify.diagnosis.measurement_cases import (
+    FloatArray,
+    MetricCase,
+    MetricOutcome,
+    bare_compute,
+)
 from physverify.diagnosis.settings import MetricSettings
 from physverify.schema.clip import ClipManifest
 from physverify.schema.outputs import StageOutput

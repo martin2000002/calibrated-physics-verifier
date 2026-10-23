@@ -9,8 +9,8 @@ import pytest
 
 from physverify.config.models import Settings
 from physverify.core.errors import ConfigError
-from physverify.diagnosis.chain import ChainRunner
-from physverify.diagnosis.plans import (
+from physverify.diagnosis.chain_runner import ChainRunner
+from physverify.diagnosis.chain_variants import (
     CELLS,
     EXTRACTION_SECTION,
     FACTORS,

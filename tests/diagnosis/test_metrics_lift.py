@@ -10,8 +10,8 @@ import pytest
 from numpy.typing import NDArray
 from synthetic_clip import manifest
 
-from physverify.diagnosis.cases import MetricCase, MetricOutcome
-from physverify.diagnosis.metrics._states import object_length
+from physverify.diagnosis.measurement_cases import MetricCase, MetricOutcome
+from physverify.diagnosis.metrics._state_pairing import object_length
 from physverify.diagnosis.metrics.lift_position import LiftPositionMetric
 from physverify.diagnosis.settings import MetricSettings
 from physverify.schema.states import CoordFrame, LengthUnit, ObjectStateTable

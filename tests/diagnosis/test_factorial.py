@@ -9,6 +9,7 @@ from dataclasses import dataclass
 import numpy as np
 import pytest
 
+from physverify.diagnosis.chain_variants import CELLS, FACTORS, Cell
 from physverify.diagnosis.factorial import (
     ALL_PERCEIVED,
     ALL_TRUTH,
@@ -19,7 +20,6 @@ from physverify.diagnosis.factorial import (
     shapley,
     yates_effects,
 )
-from physverify.diagnosis.plans import CELLS, FACTORS, Cell
 from physverify.schema.stages import Stage
 from physverify.stats.bootstrap import bootstrap
 from physverify.stats.intervals import Interval

@@ -9,7 +9,12 @@ from typing import ClassVar
 
 import numpy as np
 
-from physverify.diagnosis.cases import FloatArray, MetricCase, MetricOutcome, bare_compute
+from physverify.diagnosis.measurement_cases import (
+    FloatArray,
+    MetricCase,
+    MetricOutcome,
+    bare_compute,
+)
 from physverify.diagnosis.metrics.depth_object import lift_params
 from physverify.diagnosis.metrics.lift_gravity import gravity_angles
 from physverify.diagnosis.settings import MetricSettings

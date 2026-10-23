@@ -11,8 +11,14 @@ from dataclasses import dataclass
 from types import MappingProxyType
 
 from physverify.datasets._base import DatasetSource
-from physverify.diagnosis.cases import MetricCase, MetricOutcome, SampledMetric, pool, summarize
-from physverify.diagnosis.chain import ChainRunner, VariantOutputs, warm_variants
+from physverify.diagnosis.chain_runner import ChainRunner, VariantOutputs, warm_variants
+from physverify.diagnosis.chain_variants import (
+    Variant,
+    ladder,
+    oracle_variant,
+    scale_variants,
+    truth_covers,
+)
 from physverify.diagnosis.context import DiagnosisContext
 from physverify.diagnosis.error_profile_writer import (
     MetricSamples,
@@ -24,7 +30,13 @@ from physverify.diagnosis.error_profile_writer import (
     merge_profiles,
 )
 from physverify.diagnosis.error_profile_writer import write_profile as save_profile
-from physverify.diagnosis.plans import Variant, ladder, oracle_variant, scale_variants, truth_covers
+from physverify.diagnosis.measurement_cases import (
+    MetricCase,
+    MetricOutcome,
+    SampledMetric,
+    pool,
+    summarize,
+)
 from physverify.diagnosis.report import (
     ProfileEntryRow,
     StageErrorReport,

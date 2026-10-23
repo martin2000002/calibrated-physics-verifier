@@ -9,10 +9,10 @@ from dataclasses import dataclass
 from physverify.checks._base import Check
 from physverify.config.models import Settings
 from physverify.datasets._base import DatasetSource
-from physverify.diagnosis.cases import SampledMetric
-from physverify.diagnosis.chain import ChainRunner
-from physverify.diagnosis.checks_port import CheckSuite
+from physverify.diagnosis.chain_runner import ChainRunner
+from physverify.diagnosis.measurement_cases import SampledMetric
 from physverify.diagnosis.settings import DiagnosisSettings
+from physverify.diagnosis.verification_adapter import CheckSuite
 from physverify.extraction._base import StageProvider
 from physverify.extraction.pipeline import PipelineDeps
 from physverify.runtime.runs import RunContext

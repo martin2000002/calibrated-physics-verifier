@@ -10,7 +10,7 @@ from typing import ClassVar
 
 import numpy as np
 
-from physverify.diagnosis.cases import MetricCase, MetricOutcome, bare_compute
+from physverify.diagnosis.measurement_cases import MetricCase, MetricOutcome, bare_compute
 from physverify.diagnosis.settings import MetricSettings
 from physverify.schema.clip import ClipManifest
 from physverify.schema.outputs import StageOutput

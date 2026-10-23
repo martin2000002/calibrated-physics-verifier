@@ -29,11 +29,11 @@ from physverify.checks._base import CheckInputs
 from physverify.config.loader import load_settings
 from physverify.config.models import RuntimeSettings, Settings
 from physverify.datasets._base import ArrayGroundTruthStore, DatasetSource
-from physverify.diagnosis.cases import SampledMetric
-from physverify.diagnosis.chain import ChainRunner
-from physverify.diagnosis.checks_port import CheckSuite
+from physverify.diagnosis.chain_runner import ChainRunner
 from physverify.diagnosis.context import DiagnosisContext
+from physverify.diagnosis.measurement_cases import SampledMetric
 from physverify.diagnosis.settings import diagnosis_settings
+from physverify.diagnosis.verification_adapter import CheckSuite
 from physverify.extraction import pipeline as extraction_pipeline
 from physverify.extraction._base import StageContext, StageProvider, WeightSpec, provider_key
 from physverify.extraction.cache import StageCache

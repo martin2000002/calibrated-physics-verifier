@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from physverify.diagnosis.cases import BoolArray, FloatArray
+from physverify.diagnosis.measurement_cases import BoolArray, FloatArray
 
 
 def mask_iou(a: BoolArray, b: BoolArray) -> FloatArray:

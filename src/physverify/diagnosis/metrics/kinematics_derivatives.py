@@ -9,7 +9,7 @@ from typing import ClassVar
 
 import numpy as np
 
-from physverify.diagnosis.cases import (
+from physverify.diagnosis.measurement_cases import (
     BoolArray,
     FloatArray,
     MetricCase,
@@ -17,7 +17,7 @@ from physverify.diagnosis.cases import (
     bare_compute,
     stage_output,
 )
-from physverify.diagnosis.metrics._states import (
+from physverify.diagnosis.metrics._state_pairing import (
     StatePairs,
     finite_rows,
     object_length,

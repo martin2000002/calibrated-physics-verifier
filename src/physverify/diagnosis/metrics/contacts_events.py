@@ -10,14 +10,14 @@ from typing import ClassVar
 
 import numpy as np
 
-from physverify.diagnosis.cases import (
+from physverify.diagnosis.measurement_cases import (
     FloatArray,
     MetricCase,
     MetricOutcome,
     bare_compute,
     stage_output,
 )
-from physverify.diagnosis.metrics._states import object_length
+from physverify.diagnosis.metrics._state_pairing import object_length
 from physverify.diagnosis.settings import MetricSettings
 from physverify.extraction.matching import hungarian
 from physverify.schema.clip import ClipManifest

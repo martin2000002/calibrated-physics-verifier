@@ -15,13 +15,12 @@ import numpy as np
 
 from physverify.core.errors import MissingInputError, PhysverifyError
 from physverify.datasets._base import DatasetSource
-from physverify.diagnosis.cases import FloatArray, stage_output
-from physverify.diagnosis.chain import ChainRunner, VariantOutputs, warm_variants
-from physverify.diagnosis.checks_port import CheckSuite
+from physverify.diagnosis.chain_runner import ChainRunner, VariantOutputs, warm_variants
+from physverify.diagnosis.chain_variants import Variant, oracle_variant, perceived_variant
 from physverify.diagnosis.context import DiagnosisContext
+from physverify.diagnosis.measurement_cases import FloatArray, stage_output
 from physverify.diagnosis.pairing import Paired, ResultPair, common_unit, merge, pair_results
 from physverify.diagnosis.pairing import subject_map as match_subjects
-from physverify.diagnosis.plans import Variant, oracle_variant, perceived_variant
 from physverify.diagnosis.report import (
     CheckAgreementRow,
     ClipCheckRow,
@@ -33,6 +32,7 @@ from physverify.diagnosis.report import (
     dataset_versions,
     z_coverage,
 )
+from physverify.diagnosis.verification_adapter import CheckSuite
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
 from physverify.schema.clip import ClipManifest
 from physverify.schema.perception import MaskTrack

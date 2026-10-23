@@ -30,12 +30,12 @@ from physverify.core.atomic import write_text_atomic
 from physverify.core.digests import sha256_if_file
 from physverify.core.errors import MissingInputError, PhysverifyError, UsageError
 from physverify.datasets._base import DatasetSource
-from physverify.diagnosis.chain import ChainRunner
-from physverify.diagnosis.checks_port import A7CheckSuite
+from physverify.diagnosis.chain_runner import ChainRunner
+from physverify.diagnosis.chain_variants import oracle_variant, perceived_variant
 from physverify.diagnosis.end_to_end import track_of, variant_outputs, variant_results
 from physverify.diagnosis.pairing import pair_results, subject_map
-from physverify.diagnosis.plans import oracle_variant, perceived_variant
 from physverify.diagnosis.settings import diagnosis_settings
+from physverify.diagnosis.verification_adapter import A7CheckSuite
 from physverify.runtime.runs import new_run
 from physverify.schema.checks import InputLevel, Verdict
 from physverify.schema.clip import ClipManifest

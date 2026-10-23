@@ -18,12 +18,12 @@ from numpy.typing import NDArray
 from physverify.core.download import MANIFEST_FILE, read_manifest
 from physverify.core.errors import MissingInputError, PhysverifyError, UsageError
 from physverify.datasets._base import DatasetSource
-from physverify.diagnosis.cases import stage_output
-from physverify.diagnosis.chain import ChainRunner, VariantOutputs, warm_variants
+from physverify.diagnosis.chain_runner import ChainRunner, VariantOutputs, warm_variants
+from physverify.diagnosis.chain_variants import perceived_variant
 from physverify.diagnosis.context import DiagnosisContext
 from physverify.diagnosis.end_to_end import decided, track_of, variant_outputs, variant_results
-from physverify.diagnosis.plans import perceived_variant
-from physverify.diagnosis.real_metrics import TimeBases, fall_diagnosis, motion_scores
+from physverify.diagnosis.measurement_cases import stage_output
+from physverify.diagnosis.real_video_metrics import TimeBases, fall_diagnosis, motion_scores
 from physverify.diagnosis.report import (
     Failure,
     FallRow,

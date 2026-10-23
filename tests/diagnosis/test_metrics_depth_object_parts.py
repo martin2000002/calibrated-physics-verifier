@@ -10,7 +10,7 @@ import pytest
 from numpy.typing import NDArray
 from synthetic_clip import manifest
 
-from physverify.diagnosis.cases import MetricCase, MetricOutcome
+from physverify.diagnosis.measurement_cases import MetricCase, MetricOutcome
 from physverify.diagnosis.metrics.depth_object import ObjectDepthMetric, object_depths
 from physverify.diagnosis.metrics.depth_object_parts import QUANTITIES, ObjectDepthPartsMetric
 from physverify.diagnosis.settings import MetricSettings

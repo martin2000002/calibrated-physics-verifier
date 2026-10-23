@@ -11,7 +11,7 @@ import pytest
 from numpy.typing import NDArray
 from synthetic_clip import manifest
 
-from physverify.diagnosis.cases import MetricCase, MetricOutcome
+from physverify.diagnosis.measurement_cases import MetricCase, MetricOutcome
 from physverify.diagnosis.metrics.depth_object import ObjectDepthMetric, relative_object_error
 from physverify.diagnosis.settings import MetricSettings
 from physverify.schema.clip import FrameSampling

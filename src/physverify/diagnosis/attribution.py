@@ -16,21 +16,8 @@ from statistics import fmean
 
 from physverify.core.errors import MissingInputError, PhysverifyError
 from physverify.datasets._base import DatasetSource
-from physverify.diagnosis.cases import stage_output
-from physverify.diagnosis.chain import ChainRunner, VariantOutputs, warm_variants
-from physverify.diagnosis.checks_port import CheckSuite
-from physverify.diagnosis.context import DiagnosisContext
-from physverify.diagnosis.end_to_end import (
-    report_clips,
-    require_suite,
-    track_of,
-    variant_outputs,
-    variant_results,
-)
-from physverify.diagnosis.factorial import FLOOR, budget, shapley, yates_effects
-from physverify.diagnosis.pairing import Paired, Span, Subject, common_unit, merge, pair_results
-from physverify.diagnosis.pairing import subject_map as match_subjects
-from physverify.diagnosis.plans import (
+from physverify.diagnosis.chain_runner import ChainRunner, VariantOutputs, warm_variants
+from physverify.diagnosis.chain_variants import (
     CELLS,
     FACTORS,
     Cell,
@@ -40,6 +27,18 @@ from physverify.diagnosis.plans import (
     oracle_variant,
     perceived_variant,
 )
+from physverify.diagnosis.context import DiagnosisContext
+from physverify.diagnosis.end_to_end import (
+    report_clips,
+    require_suite,
+    track_of,
+    variant_outputs,
+    variant_results,
+)
+from physverify.diagnosis.factorial import FLOOR, budget, shapley, yates_effects
+from physverify.diagnosis.measurement_cases import stage_output
+from physverify.diagnosis.pairing import Paired, Span, Subject, common_unit, merge, pair_results
+from physverify.diagnosis.pairing import subject_map as match_subjects
 from physverify.diagnosis.report import (
     MISSING,
     AttributionReport,
@@ -51,6 +50,7 @@ from physverify.diagnosis.report import (
     dataset_versions,
 )
 from physverify.diagnosis.settings import FactorialSettings
+from physverify.diagnosis.verification_adapter import CheckSuite
 from physverify.schema.checks import CheckResult, InputLevel
 from physverify.schema.clip import ClipManifest
 from physverify.schema.perception import MaskTrack

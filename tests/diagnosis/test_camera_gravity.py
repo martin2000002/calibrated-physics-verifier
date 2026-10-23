@@ -11,8 +11,8 @@ from numpy.typing import NDArray
 from synthetic_clip import manifest
 
 from physverify.app.plugins import PLUGIN_KINDS
-from physverify.diagnosis.cases import MetricCase, MetricOutcome
 from physverify.diagnosis.error_profile_writer import PROFILE_QUANTITIES
+from physverify.diagnosis.measurement_cases import MetricCase, MetricOutcome
 from physverify.diagnosis.metrics.camera_gravity import CameraGravityMetric
 from physverify.diagnosis.settings import MetricSettings
 from physverify.extraction.providers._gravity_pose import pose_from_gravity

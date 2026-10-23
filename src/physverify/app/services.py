@@ -10,8 +10,8 @@ from physverify.app.context import AppContext
 from physverify.core.errors import ConfigError, UsageError
 from physverify.core.registry import satisfies
 from physverify.datasets._base import DatasetSource
-from physverify.diagnosis.chain import ChainRunner
-from physverify.diagnosis.checks_port import A7CheckSuite
+from physverify.diagnosis.chain_runner import ChainRunner
+from physverify.diagnosis.verification_adapter import A7CheckSuite
 from physverify.evaluation.judges._base import ExternalJudge, Judge
 from physverify.evaluation.settings import H3Settings
 from physverify.extraction._base import StageObserver

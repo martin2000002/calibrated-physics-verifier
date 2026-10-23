@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from physverify.checks._base import Check
 from physverify.config.models import Settings
 from physverify.datasets._base import DatasetSource
-from physverify.diagnosis.plans import Variant, apply_overrides
+from physverify.diagnosis.chain_variants import Variant, apply_overrides
 from physverify.diagnosis.report import Failure
 from physverify.extraction._base import StageProvider
 from physverify.extraction.pipeline import (

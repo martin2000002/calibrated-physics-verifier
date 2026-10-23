@@ -83,11 +83,11 @@ from physverify.core.atomic import write_text_atomic
 from physverify.core.errors import MissingInputError, PhysverifyError, UsageError
 from physverify.core.markdown import number
 from physverify.datasets._base import DatasetSource, select_clips
-from physverify.diagnosis.chain import warm_variants
+from physverify.diagnosis.chain_runner import warm_variants
+from physverify.diagnosis.chain_variants import oracle_variant, perceived_variant
 from physverify.diagnosis.end_to_end import track_of
 from physverify.diagnosis.error_profile_writer import write_profile
 from physverify.diagnosis.pairing import subject_map
-from physverify.diagnosis.plans import oracle_variant, perceived_variant
 from physverify.diagnosis.report import dataset_versions, profile_hash
 from physverify.diagnosis.settings import diagnosis_settings
 from physverify.diagnosis.stage_errors import measure, pair_variants, stage_pairs

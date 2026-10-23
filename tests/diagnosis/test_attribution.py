@@ -23,10 +23,10 @@ from physverify.diagnosis.attribution import (
     run_attribution,
     stage_metric,
 )
+from physverify.diagnosis.chain_variants import CELLS, Cell, cell_name
 from physverify.diagnosis.context import DiagnosisContext
 from physverify.diagnosis.factorial import ALL_PERCEIVED, ALL_TRUTH, shapley, yates_effects
 from physverify.diagnosis.pairing import UnitMismatchError, pair_results
-from physverify.diagnosis.plans import CELLS, Cell, cell_name
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
 from physverify.schema.clip import Split
 from physverify.schema.stages import Stage

@@ -13,7 +13,6 @@ import numpy as np
 from physverify.calibration.artifact import CoverageAt, SigmaCorrection, StageFactor
 from physverify.calibration.settings import CalibrationSettings, PairFilter
 from physverify.calibration.stats import FloatArray
-from physverify.diagnosis.cases import sample_stats
 from physverify.diagnosis.error_profile_writer import (
     PROFILE_QUANTITIES,
     MetricSamples,
@@ -21,6 +20,7 @@ from physverify.diagnosis.error_profile_writer import (
     entry_identity,
     finite_samples,
 )
+from physverify.diagnosis.measurement_cases import sample_stats
 from physverify.diagnosis.report import nominal_coverage, z_coverage
 from physverify.physics.uncertainty import MAD_TO_SIGMA
 from physverify.schema.error_profile import ErrorEntry, ErrorProfile

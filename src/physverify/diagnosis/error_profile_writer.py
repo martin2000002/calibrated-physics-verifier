@@ -11,7 +11,7 @@ import numpy as np
 
 from physverify.core.atomic import write_atomic
 from physverify.core.errors import ConfigError
-from physverify.diagnosis.cases import sample_stats
+from physverify.diagnosis.measurement_cases import sample_stats
 from physverify.schema.error_profile import (
     MAX_RESIDUALS,
     PARAMS_HASH_CONDITION,
@@ -23,7 +23,7 @@ from physverify.schema.error_profile import (
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
 
-    from physverify.diagnosis.cases import FloatArray, MetricOutcome
+    from physverify.diagnosis.measurement_cases import FloatArray, MetricOutcome
     from physverify.schema.stages import Stage
 
 PROFILE_UNIT = "1"

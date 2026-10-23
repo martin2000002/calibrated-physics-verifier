@@ -11,7 +11,7 @@ from synthetic_clip import OBJECT_IDS
 
 from physverify.config.models import Settings
 from physverify.core.errors import MissingInputError
-from physverify.diagnosis.checks_port import CheckSuite
+from physverify.diagnosis.chain_variants import oracle_variant, perceived_variant
 from physverify.diagnosis.context import DiagnosisContext
 from physverify.diagnosis.end_to_end import (
     NO_POLICY,
@@ -26,7 +26,7 @@ from physverify.diagnosis.end_to_end import (
     variant_results,
 )
 from physverify.diagnosis.pairing import Paired, ResultPair, pair_results, span_iou
-from physverify.diagnosis.plans import oracle_variant, perceived_variant
+from physverify.diagnosis.verification_adapter import CheckSuite
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
 from physverify.schema.clip import ClipManifest, Split
 from physverify.schema.matching import IdMap, MatchMethod

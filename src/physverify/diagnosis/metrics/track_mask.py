@@ -11,14 +11,14 @@ from typing import ClassVar
 import numpy as np
 from scipy.ndimage import binary_erosion, distance_transform_edt
 
-from physverify.diagnosis.cases import (
+from physverify.diagnosis.masks import mask_iou
+from physverify.diagnosis.measurement_cases import (
     BoolArray,
     FloatArray,
     MetricCase,
     MetricOutcome,
     bare_compute,
 )
-from physverify.diagnosis.masks import mask_iou
 from physverify.diagnosis.settings import MetricSettings
 from physverify.extraction.matching import DEFAULT_MATCH_FRAMES, DEFAULT_MIN_IOU, match_masks
 from physverify.schema.clip import ClipManifest
