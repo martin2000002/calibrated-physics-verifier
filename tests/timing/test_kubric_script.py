@@ -8,6 +8,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
+from shell_sandbox import Sandbox, executable
 
 SCRIPTS = Path(__file__).resolve().parents[2] / "scripts" / "h200"
 SCRIPT_NAMES = ("_common.sh", "run_kubric.sh")
@@ -64,62 +65,25 @@ printf ' Avail\\n %s\\n' "${FREE_GB:-500}"
 UDOCKER = {"PHYSVERIFY_KUBRIC_ENGINE": "udocker"}
 
 
-def _executable(path: Path, text: str) -> None:
-    path.write_text(text, encoding="utf-8")
-    path.chmod(0o755)
-
-
-class Sandbox:
+class KubricSandbox(Sandbox):
     """A copied ``scripts/h200`` whose H200 root is the temporary directory."""
 
     def __init__(self, root: Path) -> None:
-        self.root = root
-        self.repo = root / "repo"
+        super().__init__(root, SCRIPT_NAMES, TOOLS)
         self.data = root / "kubric-data"
-        self.calls = root / "calls.log"
         self.env_dump = root / "env.txt"
-        scripts = self.repo / "scripts" / "h200"
-        scripts.mkdir(parents=True)
-        for name in SCRIPT_NAMES:
-            shutil.copy2(SCRIPTS / name, scripts / name)
-        tools = root / "tools"
-        tools.mkdir()
-        for tool in TOOLS:
-            found = shutil.which(tool)
-            assert found is not None, tool
-            (tools / tool).symlink_to(found)
-        fakes = root / "fakes"
-        fakes.mkdir()
         self.udocker = root / "udocker-venv" / "bin" / "udocker"
         self.udocker.parent.mkdir(parents=True)
-        _executable(fakes / "uv", FAKE_UV)
-        _executable(fakes / "docker", FAKE_DOCKER)
-        _executable(self.udocker, FAKE_UDOCKER)
-        _executable(fakes / "df", FAKE_DF)
-        self.bash = tools / "bash"
-        self.env = {
-            "PATH": f"{fakes}:{tools}",
-            "HOME": str(root),
-            "CALLS": str(self.calls),
-            "ENV_DUMP": str(self.env_dump),
-            "IMAGE": IMAGE,
-            "PHYSVERIFY_H200_ROOT": str(root),
-        }
-
-    def run(self, *args: str, **env: str) -> subprocess.CompletedProcess[str]:
-        return subprocess.run(
-            [str(self.bash), str(self.repo / "scripts" / "h200" / "run_kubric.sh"), *args],
-            env={**self.env, **env},
-            capture_output=True,
-            text=True,
-            timeout=60,
-            check=False,
+        executable(self.fakes / "uv", FAKE_UV)
+        executable(self.fakes / "docker", FAKE_DOCKER)
+        executable(self.udocker, FAKE_UDOCKER)
+        executable(self.fakes / "df", FAKE_DF)
+        self.env.update(
+            {"ENV_DUMP": str(self.env_dump), "IMAGE": IMAGE, "PHYSVERIFY_H200_ROOT": str(root)}
         )
 
-    def lines(self) -> list[str]:
-        if not self.calls.exists():
-            return []
-        return self.calls.read_text(encoding="utf-8").splitlines()
+    def run(self, *args: str, **env: str) -> subprocess.CompletedProcess[str]:
+        return self.call("run_kubric.sh", *args, **env)
 
     def exported(self) -> dict[str, str]:
         pairs = (line.split("=", 1) for line in self.env_dump.read_text().splitlines())
@@ -127,8 +91,8 @@ class Sandbox:
 
 
 @pytest.fixture
-def sandbox(tmp_path: Path) -> Sandbox:
-    return Sandbox(tmp_path)
+def sandbox(tmp_path: Path) -> KubricSandbox:
+    return KubricSandbox(tmp_path)
 
 
 def test_script_parses_and_is_executable() -> None:
@@ -139,7 +103,7 @@ def test_script_parses_and_is_executable() -> None:
     assert os.access(SCRIPTS / "run_kubric.sh", os.X_OK)
 
 
-def test_docker_is_the_default_engine(sandbox: Sandbox) -> None:
+def test_docker_is_the_default_engine(sandbox: KubricSandbox) -> None:
     result = sandbox.run()
     assert result.returncode == 0, result.stderr
     assert sandbox.lines() == [
@@ -157,7 +121,7 @@ def test_docker_is_the_default_engine(sandbox: Sandbox) -> None:
     assert all(exported[name] == "false" for name in DD_VARIABLES)
 
 
-def test_paths_derive_from_the_h200_root(sandbox: Sandbox) -> None:
+def test_paths_derive_from_the_h200_root(sandbox: KubricSandbox) -> None:
     (sandbox.root / "env.sh").write_text("export FROM_ENV_FILE=1\n", encoding="utf-8")
     assert sandbox.run().returncode == 0
     exported = sandbox.exported()
@@ -175,7 +139,7 @@ def test_paths_derive_from_the_h200_root(sandbox: Sandbox) -> None:
     ]
 
 
-def test_overrides_win_over_the_root(sandbox: Sandbox, tmp_path: Path) -> None:
+def test_overrides_win_over_the_root(sandbox: KubricSandbox, tmp_path: Path) -> None:
     data, lock = tmp_path / "other-data", tmp_path / "other.lock"
     env = {"PHYSVERIFY__PATHS__DATA_DIR": str(data), "PHYSVERIFY_KUBRIC_LOCK": str(lock)}
     assert sandbox.run(**env).returncode == 0
@@ -185,7 +149,7 @@ def test_overrides_win_over_the_root(sandbox: Sandbox, tmp_path: Path) -> None:
     assert (data / "runs" / "kubric-latest.log").is_symlink()
 
 
-def test_missing_image_is_pulled(sandbox: Sandbox) -> None:
+def test_missing_image_is_pulled(sandbox: KubricSandbox) -> None:
     assert sandbox.run(IMAGE_EXIT="1").returncode == 0
     assert sandbox.lines()[3:6] == [
         f"docker image inspect {IMAGE}",
@@ -194,7 +158,7 @@ def test_missing_image_is_pulled(sandbox: Sandbox) -> None:
     ]
 
 
-def test_udocker_engine(sandbox: Sandbox) -> None:
+def test_udocker_engine(sandbox: KubricSandbox) -> None:
     result = sandbox.run(**UDOCKER)
     assert result.returncode == 0, result.stderr
     assert sandbox.lines() == [
@@ -216,7 +180,9 @@ def test_udocker_engine(sandbox: Sandbox) -> None:
     ]
 
 
-def test_missing_udocker_container_is_created_from_the_pinned_digest(sandbox: Sandbox) -> None:
+def test_missing_udocker_container_is_created_from_the_pinned_digest(
+    sandbox: KubricSandbox,
+) -> None:
     result = sandbox.run("smoke", INSPECT_EXIT="1", PHYSVERIFY_KUBRIC_PROFILE="fast", **UDOCKER)
     assert result.returncode == 0, result.stderr
     assert sandbox.lines()[1:5] == [
@@ -238,7 +204,7 @@ def test_missing_udocker_container_is_created_from_the_pinned_digest(sandbox: Sa
     ids=["other-image", "unverifiable"],
 )
 def test_an_existing_container_off_the_pin_is_refused(
-    sandbox: Sandbox, env: dict[str, str], message: str
+    sandbox: KubricSandbox, env: dict[str, str], message: str
 ) -> None:
     result = sandbox.run(**env, **UDOCKER)
     assert result.returncode == 2
@@ -246,14 +212,14 @@ def test_an_existing_container_off_the_pin_is_refused(
     assert not any("build" in line or "--probe-container" in line for line in sandbox.lines())
 
 
-def test_an_explicit_image_accepts_its_container(sandbox: Sandbox) -> None:
+def test_an_explicit_image_accepts_its_container(sandbox: KubricSandbox) -> None:
     result = sandbox.run(CONTAINER_IMAGE=LATEST, PHYSVERIFY_KUBRIC_IMAGE=LATEST, **UDOCKER)
     assert result.returncode == 0, result.stderr
     log = sandbox.data / "runs" / "kubric-latest.log"
     assert f"container_image: {LATEST}" in log.read_text(encoding="utf-8").splitlines()
 
 
-def test_failed_build_still_lists_and_keeps_the_exit_code(sandbox: Sandbox) -> None:
+def test_failed_build_still_lists_and_keeps_the_exit_code(sandbox: KubricSandbox) -> None:
     result = sandbox.run(BUILD_EXIT="1")
     assert result.returncode == 1
     assert sandbox.lines()[-1] == f"{PV}dataset list --subset full"
@@ -277,7 +243,9 @@ def test_failed_build_still_lists_and_keeps_the_exit_code(sandbox: Sandbox) -> N
         "udocker-no-imports", "udocker-wrong-engine", "no-udocker",
     ],
 )  # fmt: skip
-def test_preflight_failures_stop_before_the_build(sandbox: Sandbox, env: dict[str, str]) -> None:
+def test_preflight_failures_stop_before_the_build(
+    sandbox: KubricSandbox, env: dict[str, str]
+) -> None:
     result = sandbox.run(**env)
     assert result.returncode == 2
     assert not any("dataset build" in line for line in sandbox.lines())

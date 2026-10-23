@@ -5,13 +5,13 @@ from __future__ import annotations
 
 import os
 import re
-import shutil
 import subprocess
 import sys
 from collections.abc import Callable
 from pathlib import Path
 
 import pytest
+from shell_sandbox import Sandbox, executable
 
 REPO = Path(__file__).resolve().parents[2]
 H200 = REPO / "scripts" / "h200"
@@ -102,34 +102,16 @@ FORBIDDEN = '#!/bin/bash\necho "forbidden $(basename "$0") $*" >> "$CALLS"\n'
 ADOPTED = ("calibration.json", "stage_errors.precise.json", "stage_sigma.json")
 
 
-def _executable(path: Path, text: str) -> None:
-    path.write_text(text, encoding="utf-8")
-    path.chmod(0o755)
-
-
-class Sandbox:
+class FreezeSandbox(Sandbox):
     def __init__(self, root: Path, iteration_factory: Callable[..., Path]) -> None:
-        self.root = root.resolve()
-        self.calls = self.root / "calls.log"
+        super().__init__(root.resolve(), SCRIPT_NAMES, TOOLS)
         self.final = self.root / "final"
         self.out = self.final / "run-freeze"
-        scripts = self.root / "repo" / "scripts" / "h200"
-        scripts.mkdir(parents=True)
-        (self.root / "repo" / "configs").mkdir()
-        self.script = scripts / "run_freeze.sh"
-        for name in SCRIPT_NAMES:
-            shutil.copy2(H200 / name, scripts / name)
-        tools, fakes = self.root / "tools", self.root / "fakes"
-        tools.mkdir()
-        fakes.mkdir()
-        for tool in TOOLS:
-            found = shutil.which(tool)
-            assert found is not None, tool
-            (tools / tool).symlink_to(found)
-        _executable(fakes / "python", FAKE_PYTHON)
-        _executable(fakes / "git", FAKE_GIT)
+        (self.repo / "configs").mkdir()
+        executable(self.fakes / "python", FAKE_PYTHON)
+        executable(self.fakes / "git", FAKE_GIT)
         for name in ("uv", "nvidia-smi"):
-            _executable(fakes / name, FORBIDDEN)
+            executable(self.fakes / name, FORBIDDEN)
         # PHYSVERIFY_FREEZE_ITERATIONS is split on spaces, as run_iteration.sh names them.
         made = [
             iteration_factory(self.root / "iterations", name, n_met, auroc, commit=HEAD)
@@ -139,38 +121,27 @@ class Sandbox:
         v1 = self.root / "v1" / "calibration.json"
         v1.parent.mkdir()
         v1.write_text("v1", encoding="utf-8")
-        self.env = {
-            "PATH": f"{fakes}:{tools}",
-            "HOME": str(self.root),
-            "CALLS": str(self.calls),
-            "REAL_PYTHON": sys.executable,
-            "REPO_CONFIGS": str(self.root / "repo" / "configs"),
-            "PHYSVERIFY_H200_ROOT": str(self.root),
-            "PHYSVERIFY_H200_ENV": str(self.root / "no-env.sh"),
-            "HEAD_SHA": HEAD,
-            "RECORD": RECORD,
-            "PHYSVERIFY_FREEZE_EXPECT_COMMIT": "c0ffee1",
-            "PHYSVERIFY_FREEZE_ITERATION": "it2-state",
-            "PHYSVERIFY_FREEZE_ITERATIONS": f"{other} {self.chosen}",
-            "PHYSVERIFY_FREEZE_P2_COMMIT": "b" * 40,
-            "PHYSVERIFY_FREEZE_V1_COMMIT": "a" * 40,
-            "PHYSVERIFY_FREEZE_V1_CALIBRATION": str(v1),
-            "PHYSVERIFY_FREEZE_CACHE_DIR": str(self.root / "cache"),
-            "PHYSVERIFY_FREEZE_PYTHON": str(fakes / "python"),
-        }
-
-    def run(self, *args: str, **env: str) -> subprocess.CompletedProcess[str]:
-        return subprocess.run(
-            [str(self.root / "tools" / "bash"), str(self.script), *args],
-            env={**self.env, **env},
-            capture_output=True,
-            text=True,
-            timeout=60,
-            check=False,
+        self.env.update(
+            {
+                "REAL_PYTHON": sys.executable,
+                "REPO_CONFIGS": str(self.repo / "configs"),
+                "PHYSVERIFY_H200_ROOT": str(self.root),
+                "PHYSVERIFY_H200_ENV": str(self.root / "no-env.sh"),
+                "HEAD_SHA": HEAD,
+                "RECORD": RECORD,
+                "PHYSVERIFY_FREEZE_EXPECT_COMMIT": "c0ffee1",
+                "PHYSVERIFY_FREEZE_ITERATION": "it2-state",
+                "PHYSVERIFY_FREEZE_ITERATIONS": f"{other} {self.chosen}",
+                "PHYSVERIFY_FREEZE_P2_COMMIT": "b" * 40,
+                "PHYSVERIFY_FREEZE_V1_COMMIT": "a" * 40,
+                "PHYSVERIFY_FREEZE_V1_CALIBRATION": str(v1),
+                "PHYSVERIFY_FREEZE_CACHE_DIR": str(self.root / "cache"),
+                "PHYSVERIFY_FREEZE_PYTHON": str(self.fakes / "python"),
+            }
         )
 
-    def lines(self) -> list[str]:
-        return self.calls.read_text(encoding="utf-8").splitlines() if self.calls.exists() else []
+    def run(self, *args: str, **env: str) -> subprocess.CompletedProcess[str]:
+        return self.call("run_freeze.sh", *args, **env)
 
     def pv(self) -> list[str]:
         return [line[3:] for line in self.lines() if line.startswith("pv ")]
@@ -187,8 +158,8 @@ class Sandbox:
 
 
 @pytest.fixture
-def sandbox(tmp_path: Path, iteration_factory: Callable[..., Path]) -> Sandbox:
-    return Sandbox(tmp_path, iteration_factory)
+def sandbox(tmp_path: Path, iteration_factory: Callable[..., Path]) -> FreezeSandbox:
+    return FreezeSandbox(tmp_path, iteration_factory)
 
 
 def _expected(final: Path) -> list[str]:
@@ -215,7 +186,9 @@ def test_the_script_parses_and_is_executable() -> None:
     assert os.access(H200 / "run_freeze.sh", os.X_OK)
 
 
-def test_the_freeze_adopts_the_chosen_iteration_and_writes_the_manifest(sandbox: Sandbox) -> None:
+def test_the_freeze_adopts_the_chosen_iteration_and_writes_the_manifest(
+    sandbox: FreezeSandbox,
+) -> None:
     """J4, J5, J12, AC-8: the sequence, cpu and precise, every path in $F, no look at all."""
     result = sandbox.run()
     assert result.returncode == 0, result.stderr
@@ -263,7 +236,7 @@ def test_the_freeze_adopts_the_chosen_iteration_and_writes_the_manifest(sandbox:
     ],
 )
 def test_a_startup_guard_stops_before_any_step(
-    sandbox: Sandbox, env: dict[str, str], message: str
+    sandbox: FreezeSandbox, env: dict[str, str], message: str
 ) -> None:
     """AC-6 for the freeze: nothing runs, nothing is adopted."""
     result = sandbox.run(**env)
@@ -273,7 +246,9 @@ def test_a_startup_guard_stops_before_any_step(
 
 
 @pytest.mark.parametrize("target", ["a8v2", "iterations/final", "kubric-data", "kubric-data/runs"])
-def test_a_freeze_directory_near_other_artifacts_is_refused(sandbox: Sandbox, target: str) -> None:
+def test_a_freeze_directory_near_other_artifacts_is_refused(
+    sandbox: FreezeSandbox, target: str
+) -> None:
     result = sandbox.run(PHYSVERIFY_FREEZE_DIR=str(sandbox.root / target))
     assert result.returncode == 2 and "never writes there" in result.stderr, result.stderr
     assert sandbox.pv() == []
@@ -287,7 +262,7 @@ def test_a_freeze_directory_near_other_artifacts_is_refused(sandbox: Sandbox, ta
     ],
 )
 def test_the_wrong_choice_or_a_j3_change_adopts_nothing(
-    sandbox: Sandbox, env: dict[str, str], message: str
+    sandbox: FreezeSandbox, env: dict[str, str], message: str
 ) -> None:
     result = sandbox.run(**env)
     assert result.returncode == 2 and message in result.stderr, result.stderr
@@ -295,7 +270,7 @@ def test_the_wrong_choice_or_a_j3_change_adopts_nothing(
     assert not (sandbox.final / "calibration" / "calibration.json").exists()
 
 
-def test_a_different_artifact_already_frozen_is_never_mixed(sandbox: Sandbox) -> None:
+def test_a_different_artifact_already_frozen_is_never_mixed(sandbox: FreezeSandbox) -> None:
     calibration = sandbox.final / "calibration"
     calibration.mkdir(parents=True)
     (calibration / "stage_sigma.json").write_text("another sigma", encoding="utf-8")
@@ -305,7 +280,7 @@ def test_a_different_artifact_already_frozen_is_never_mixed(sandbox: Sandbox) ->
     assert "ADOPTED" not in sandbox.state()
 
 
-def test_a_resume_needs_the_earlier_steps_and_the_same_commit(sandbox: Sandbox) -> None:
+def test_a_resume_needs_the_earlier_steps_and_the_same_commit(sandbox: FreezeSandbox) -> None:
     assert sandbox.run("5").returncode == 2
     assert sandbox.run("1", "3").returncode == 0
     moved = sandbox.run("4", HEAD_SHA="c0ffee1" + "9" * 33)
@@ -328,14 +303,14 @@ def test_a_resume_needs_the_earlier_steps_and_the_same_commit(sandbox: Sandbox) 
     ],
 )
 def test_a_failed_check_stops_the_freeze_before_the_manifest_is_trusted(
-    sandbox: Sandbox, env: dict[str, str], message: str
+    sandbox: FreezeSandbox, env: dict[str, str], message: str
 ) -> None:
     result = sandbox.run(**env)
     assert result.returncode == 2 and message in result.stderr, result.stderr
     assert "FREEZE_SHA" not in sandbox.state()
 
 
-def test_decide_replaces_only_when_asked(sandbox: Sandbox) -> None:
+def test_decide_replaces_only_when_asked(sandbox: FreezeSandbox) -> None:
     assert sandbox.run(PHYSVERIFY_FREEZE_DECIDE_REPLACE="1").returncode == 0
     (decide,) = [c for c in sandbox.commands() if c.startswith("exclusions decide")]
     assert decide.endswith("--r2-tiny-run r3 --replace")
