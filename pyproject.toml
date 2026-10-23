@@ -150,3 +150,49 @@ markers = [
     "network: downloads from the internet",
     "gpu: needs CUDA",
 ]
+
+[tool.importlinter]
+root_package = "physverify"
+
+[[tool.importlinter.contracts]]
+name = "Layers, top to bottom; modules joined by | are independent siblings"
+type = "layers"
+layers = [
+    "physverify.cli",
+    "physverify.app",
+    "physverify.reporting",
+    "physverify.generator_comparison | physverify.timing | physverify.demo",
+    "physverify.finetune",
+    "physverify.human_agreement | physverify.selective_risk",
+    "physverify.calibration",
+    "physverify.diagnosis",
+    "physverify.verification",
+    "physverify.checks | physverify.extraction",
+    "physverify.datasets",
+    "physverify.synth | physverify.sizing | physverify.generation",
+    "physverify.physics",
+    "physverify.runtime",
+    "physverify.config",
+    "physverify.stats",
+    "physverify.core",
+    "physverify.schema",
+]
+
+[[tool.importlinter.contracts]]
+name = "Wire records import no other physverify package nor pydantic, typer or torch"
+type = "forbidden"
+source_modules = ["physverify.schema"]
+forbidden_modules = ["physverify", "pydantic", "typer", "torch"]
+
+[[tool.importlinter.contracts]]
+name = "Container worker imports only the wire records from physverify, and no pydantic, typer or torch"
+type = "forbidden"
+source_modules = ["physverify.kubric_worker"]
+forbidden_modules = ["physverify", "pydantic", "typer", "torch"]
+allowed_modules = ["physverify.schema"]
+
+[[tool.importlinter.contracts]]
+name = "Scripts call the application layer, never the CLI"
+type = "forbidden"
+source_modules = ["scripts"]
+forbidden_modules = ["physverify.cli"]

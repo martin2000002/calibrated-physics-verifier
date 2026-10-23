@@ -1,0 +1,1341 @@
+{
+ "configs/abstention.toml": {
+  "config_or_script_text": 2
+ },
+ "configs/agreement.toml": {
+  "config_or_script_text": 9
+ },
+ "configs/calibration.toml": {
+  "config_or_script_text": 11
+ },
+ "configs/check_scope.toml": {
+  "config_or_script_text": 5
+ },
+ "configs/checks.toml": {
+  "config_or_script_text": 8
+ },
+ "configs/dataset.toml": {
+  "config_or_script_text": 7
+ },
+ "configs/default.toml": {
+  "config_or_script_text": 1
+ },
+ "configs/demo.toml": {
+  "config_or_script_text": 4
+ },
+ "configs/diagnosis.toml": {
+  "config_or_script_text": 4
+ },
+ "configs/exclusion_rules.toml": {
+  "config_or_script_text": 6
+ },
+ "configs/extraction.toml": {
+  "config_or_script_text": 13
+ },
+ "configs/finetune.toml": {
+  "config_or_script_text": 4
+ },
+ "configs/h1_scenes.toml": {
+  "config_or_script_text": 4
+ },
+ "configs/h3.toml": {
+  "config_or_script_text": 4
+ },
+ "configs/kubric_fresh.toml": {
+  "config_or_script_text": 1
+ },
+ "configs/sealed.toml": {
+  "config_or_script_text": 2
+ },
+ "configs/size_model.toml": {
+  "config_or_script_text": 1
+ },
+ "configs/size_priors.toml": {
+  "config_or_script_text": 2
+ },
+ "configs/sizing.toml": {
+  "config_or_script_text": 3
+ },
+ "configs/timing.toml": {
+  "config_or_script_text": 3
+ },
+ "scripts/h200/README.md": {
+  "config_or_script_text": 29
+ },
+ "scripts/h200/_steps.sh": {
+  "config_or_script_text": 2
+ },
+ "scripts/h200/a8v2_query.py": {
+  "comment_or_docstring": 1,
+  "identifier": 2,
+  "literal": 2
+ },
+ "scripts/h200/autoeval_requirements.txt": {
+  "config_or_script_text": 2
+ },
+ "scripts/h200/freeze_query.py": {
+  "comment_or_docstring": 16,
+  "literal": 6
+ },
+ "scripts/h200/h2_query.py": {
+  "identifier": 1
+ },
+ "scripts/h200/iteration_arms.tsv": {
+  "config_or_script_text": 6
+ },
+ "scripts/h200/run_demo.sh": {
+  "config_or_script_text": 2
+ },
+ "scripts/h200/run_final.sh": {
+  "config_or_script_text": 29
+ },
+ "scripts/h200/run_finetune.sh": {
+  "config_or_script_text": 1
+ },
+ "scripts/h200/run_freeze.sh": {
+  "config_or_script_text": 27
+ },
+ "scripts/h200/run_h2.sh": {
+  "config_or_script_text": 45
+ },
+ "scripts/h200/run_h3.sh": {
+  "config_or_script_text": 2
+ },
+ "scripts/h200/run_iteration.sh": {
+  "config_or_script_text": 6
+ },
+ "scripts/h200/run_preference.sh": {
+  "config_or_script_text": 1
+ },
+ "scripts/h200/setup_autoeval.sh": {
+  "config_or_script_text": 2
+ },
+ "scripts/h200/smoke_autoeval.sh": {
+  "config_or_script_text": 2
+ },
+ "src/physverify/agreement/abstention.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/agreement/analysis.py": {
+  "comment_or_docstring": 4,
+  "literal": 2
+ },
+ "src/physverify/agreement/breakdown.py": {
+  "comment_or_docstring": 3
+ },
+ "src/physverify/agreement/coverage.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/agreement/decision.py": {
+  "comment_or_docstring": 14,
+  "literal": 1
+ },
+ "src/physverify/agreement/error_sample.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/agreement/items.py": {
+  "comment_or_docstring": 4
+ },
+ "src/physverify/agreement/pipeline.py": {
+  "comment_or_docstring": 4
+ },
+ "src/physverify/agreement/prereg.py": {
+  "comment_or_docstring": 7,
+  "literal": 1
+ },
+ "src/physverify/agreement/report.py": {
+  "comment_or_docstring": 2,
+  "literal": 5
+ },
+ "src/physverify/agreement/settings.py": {
+  "comment_or_docstring": 1,
+  "literal": 3
+ },
+ "src/physverify/agreement/stats.py": {
+  "comment_or_docstring": 3
+ },
+ "src/physverify/agreement/workflow.py": {
+  "comment_or_docstring": 6
+ },
+ "src/physverify/calibration/apply.py": {
+  "comment_or_docstring": 7
+ },
+ "src/physverify/calibration/collect.py": {
+  "banner": 1,
+  "comment_or_docstring": 1
+ },
+ "src/physverify/calibration/devscore.py": {
+  "comment_or_docstring": 4,
+  "identifier": 2,
+  "literal": 2
+ },
+ "src/physverify/calibration/evaluate.py": {
+  "comment_or_docstring": 6
+ },
+ "src/physverify/calibration/exclusion_record.py": {
+  "comment_or_docstring": 3
+ },
+ "src/physverify/calibration/exclusions.py": {
+  "banner": 5,
+  "comment_or_docstring": 8,
+  "literal": 2
+ },
+ "src/physverify/calibration/heldout_h1.py": {
+  "comment_or_docstring": 5
+ },
+ "src/physverify/calibration/loader.py": {
+  "comment_or_docstring": 6
+ },
+ "src/physverify/calibration/monotonicity.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/calibration/report.py": {
+  "comment_or_docstring": 3,
+  "identifier": 5,
+  "literal": 4
+ },
+ "src/physverify/calibration/scenes.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/calibration/schema.py": {
+  "comment_or_docstring": 8,
+  "literal": 2
+ },
+ "src/physverify/calibration/sealed.py": {
+  "comment_or_docstring": 1,
+  "literal": 1
+ },
+ "src/physverify/calibration/settings.py": {
+  "comment_or_docstring": 2,
+  "literal": 2
+ },
+ "src/physverify/calibration/sigma.py": {
+  "banner": 1,
+  "comment_or_docstring": 6
+ },
+ "src/physverify/calibration/stats.py": {
+  "comment_or_docstring": 3
+ },
+ "src/physverify/calibration/table.py": {
+  "comment_or_docstring": 9
+ },
+ "src/physverify/calibration/thresholds.py": {
+  "comment_or_docstring": 5
+ },
+ "src/physverify/calibration/verdict.py": {
+  "comment_or_docstring": 3
+ },
+ "src/physverify/calibration/weights.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/checks/_common.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/checks/r1_interpenetration.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/checks/r2_equilibrium.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/checks/r3_collision_energy.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/checks/r4_integrity.py": {
+  "comment_or_docstring": 5
+ },
+ "src/physverify/checks/r4_jump_noise.py": {
+  "comment_or_docstring": 9
+ },
+ "src/physverify/checks/r5a_fall_shape.py": {
+  "comment_or_docstring": 4
+ },
+ "src/physverify/checks/r5b_gravity_value.py": {
+  "comment_or_docstring": 5
+ },
+ "src/physverify/cli/commands/_finetune_deps.py": {
+  "comment_or_docstring": 3
+ },
+ "src/physverify/cli/commands/_sealed.py": {
+  "literal": 8
+ },
+ "src/physverify/cli/commands/_stop_rule.py": {
+  "literal": 2
+ },
+ "src/physverify/cli/commands/abstain.py": {
+  "comment_or_docstring": 6,
+  "literal": 3
+ },
+ "src/physverify/cli/commands/agreement.py": {
+  "comment_or_docstring": 1,
+  "literal": 5
+ },
+ "src/physverify/cli/commands/calibrate.py": {
+  "banner": 5,
+  "comment_or_docstring": 3,
+  "identifier": 3,
+  "literal": 9
+ },
+ "src/physverify/cli/commands/data.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/cli/commands/dataset.py": {
+  "comment_or_docstring": 1,
+  "literal": 2
+ },
+ "src/physverify/cli/commands/demo.py": {
+  "comment_or_docstring": 4
+ },
+ "src/physverify/cli/commands/diagnose.py": {
+  "banner": 3,
+  "comment_or_docstring": 1
+ },
+ "src/physverify/cli/commands/exclusions.py": {
+  "banner": 3,
+  "comment_or_docstring": 2,
+  "literal": 5
+ },
+ "src/physverify/cli/commands/extract.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/cli/commands/finetune.py": {
+  "comment_or_docstring": 3,
+  "identifier": 2,
+  "literal": 1
+ },
+ "src/physverify/cli/commands/h3.py": {
+  "comment_or_docstring": 1,
+  "identifier": 11,
+  "literal": 4
+ },
+ "src/physverify/cli/commands/results.py": {
+  "comment_or_docstring": 2,
+  "identifier": 10,
+  "literal": 2
+ },
+ "src/physverify/cli/commands/scene_stats.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/cli/commands/size.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/cli/commands/timing.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/cli/commands/verify.py": {
+  "comment_or_docstring": 2,
+  "literal": 1
+ },
+ "src/physverify/core/hashing.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/datasets/_videophy_review.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/datasets/_videophy_tables.py": {
+  "comment_or_docstring": 7
+ },
+ "src/physverify/datasets/kubric_fresh.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/datasets/kubric_synthetic.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/datasets/local_video.py": {
+  "comment_or_docstring": 1,
+  "literal": 1
+ },
+ "src/physverify/datasets/objectron_static.py": {
+  "banner": 2,
+  "comment_or_docstring": 6,
+  "literal": 2
+ },
+ "src/physverify/datasets/physics_iq.py": {
+  "comment_or_docstring": 3
+ },
+ "src/physverify/datasets/physics_iq_views.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/datasets/pisa_real.py": {
+  "comment_or_docstring": 3
+ },
+ "src/physverify/datasets/videophy.py": {
+  "comment_or_docstring": 3
+ },
+ "src/physverify/demo/__init__.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/demo/report.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/demo/settings.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/diagnosis/attribution.py": {
+  "banner": 2,
+  "comment_or_docstring": 3
+ },
+ "src/physverify/diagnosis/cases.py": {
+  "comment_or_docstring": 3
+ },
+ "src/physverify/diagnosis/checks_port.py": {
+  "comment_or_docstring": 5
+ },
+ "src/physverify/diagnosis/context.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/diagnosis/end_to_end.py": {
+  "banner": 3,
+  "comment_or_docstring": 3,
+  "literal": 1
+ },
+ "src/physverify/diagnosis/error_profile_writer.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/diagnosis/factorial.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/diagnosis/metrics/contacts_impacts.py": {
+  "comment_or_docstring": 1,
+  "literal": 2
+ },
+ "src/physverify/diagnosis/metrics/depth_object_parts.py": {
+  "comment_or_docstring": 4
+ },
+ "src/physverify/diagnosis/metrics/detect_label.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/diagnosis/normalizers.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/diagnosis/pairing.py": {
+  "comment_or_docstring": 3
+ },
+ "src/physverify/diagnosis/plans.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/diagnosis/real_metrics.py": {
+  "banner": 2,
+  "comment_or_docstring": 2
+ },
+ "src/physverify/diagnosis/real_video.py": {
+  "comment_or_docstring": 2,
+  "literal": 1
+ },
+ "src/physverify/diagnosis/report.py": {
+  "comment_or_docstring": 2,
+  "literal": 1
+ },
+ "src/physverify/diagnosis/scene_stats.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/diagnosis/settings.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/diagnosis/stage_errors.py": {
+  "comment_or_docstring": 3,
+  "literal": 1
+ },
+ "src/physverify/evaluation/__init__.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/evaluation/analysis.py": {
+  "comment_or_docstring": 4,
+  "literal": 1
+ },
+ "src/physverify/evaluation/arms.py": {
+  "comment_or_docstring": 3
+ },
+ "src/physverify/evaluation/bestofn.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/evaluation/campaign.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/evaluation/compare.py": {
+  "identifier": 2
+ },
+ "src/physverify/evaluation/gate.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/evaluation/judges/__init__.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/evaluation/judges/_base.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/evaluation/judges/videophy2_autoeval.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/evaluation/judging.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/evaluation/layout.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/evaluation/margins.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/evaluation/prereg.py": {
+  "comment_or_docstring": 5,
+  "literal": 5
+ },
+ "src/physverify/evaluation/records.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/evaluation/report.py": {
+  "comment_or_docstring": 1,
+  "literal": 1
+ },
+ "src/physverify/evaluation/scoring.py": {
+  "comment_or_docstring": 3
+ },
+ "src/physverify/evaluation/settings.py": {
+  "comment_or_docstring": 2,
+  "identifier": 1
+ },
+ "src/physverify/evaluation/state.py": {
+  "comment_or_docstring": 5
+ },
+ "src/physverify/evaluation/stats.py": {
+  "comment_or_docstring": 5
+ },
+ "src/physverify/evaluation/verdict.py": {
+  "comment_or_docstring": 3,
+  "identifier": 1
+ },
+ "src/physverify/extraction/_base.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/extraction/cache.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/extraction/matching.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/extraction/pipeline.py": {
+  "comment_or_docstring": 3
+ },
+ "src/physverify/extraction/providers/_attribution.py": {
+  "comment_or_docstring": 4
+ },
+ "src/physverify/extraction/providers/_common.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/extraction/providers/_grounding.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/extraction/providers/_impacts.py": {
+  "comment_or_docstring": 3
+ },
+ "src/physverify/extraction/providers/_lifting.py": {
+  "comment_or_docstring": 5
+ },
+ "src/physverify/extraction/providers/_proximity.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/extraction/providers/_sam_video.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/extraction/providers/_temporal.py": {
+  "comment_or_docstring": 5
+ },
+ "src/physverify/extraction/providers/_truth.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/extraction/providers/_visibility.py": {
+  "comment_or_docstring": 5
+ },
+ "src/physverify/extraction/providers/camera_assumed_fov.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/extraction/providers/camera_geocalib.py": {
+  "comment_or_docstring": 3
+ },
+ "src/physverify/extraction/providers/contacts_kinematic.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/extraction/providers/contacts_proximity.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/extraction/providers/depth_vda.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/extraction/providers/depth_vda_metric.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/extraction/providers/detect_grounding_dino.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/extraction/providers/detect_grounding_dino_base.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/extraction/providers/detect_grounding_dino_tiny_per_query.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/extraction/providers/kinematics_savgol.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/extraction/providers/lift_backproject.py": {
+  "comment_or_docstring": 9
+ },
+ "src/physverify/extraction/providers/scale_free_fall.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/extraction/providers/scale_size_model.py": {
+  "comment_or_docstring": 1,
+  "literal": 1
+ },
+ "src/physverify/extraction/providers/scale_size_prior.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/extraction/providers/track_edgetam.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/extraction/providers/track_sam2.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/extraction/settings.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/extraction/weights.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/finetune/budget.py": {
+  "comment_or_docstring": 3
+ },
+ "src/physverify/finetune/dpo.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/finetune/generate.py": {
+  "comment_or_docstring": 3
+ },
+ "src/physverify/finetune/pairs.py": {
+  "comment_or_docstring": 6
+ },
+ "src/physverify/finetune/pilot.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/finetune/prompts.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/finetune/records.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/finetune/scope.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/finetune/scorers/_base.py": {
+  "comment_or_docstring": 3
+ },
+ "src/physverify/finetune/scorers/calibrated.py": {
+  "comment_or_docstring": 8,
+  "literal": 1
+ },
+ "src/physverify/finetune/scorers/provisional.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/finetune/scoring.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/finetune/seeds.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/finetune/selection.py": {
+  "comment_or_docstring": 4
+ },
+ "src/physverify/finetune/settings.py": {
+  "comment_or_docstring": 5
+ },
+ "src/physverify/finetune/signals.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/finetune/stop_rule.py": {
+  "comment_or_docstring": 4
+ },
+ "src/physverify/finetune/store.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/finetune/trainer.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/finetune/wan_lora.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/kubric_worker/tasks/render.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/physics/equilibrium.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/physics/geometry.py": {
+  "banner": 3
+ },
+ "src/physverify/physics/kinematics.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/physics/measures/r4_integrity.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/physics/measures/r4_jump_noise.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/physics/measures/r4_size_relative.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/physics/tracks.py": {
+  "comment_or_docstring": 10
+ },
+ "src/physverify/physics/uncertainty.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/reporting/chain.py": {
+  "comment_or_docstring": 1,
+  "literal": 1
+ },
+ "src/physverify/reporting/numbers.py": {
+  "banner": 2,
+  "comment_or_docstring": 10,
+  "identifier": 8,
+  "literal": 4
+ },
+ "src/physverify/reporting/sources.py": {
+  "identifier": 18,
+  "literal": 1
+ },
+ "src/physverify/runtime/container.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/runtime/docker.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/runtime/udocker.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/sizing/draws.py": {
+  "comment_or_docstring": 3
+ },
+ "src/physverify/sizing/e2e.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/sizing/evaluate.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/sizing/fit.py": {
+  "comment_or_docstring": 1,
+  "literal": 1
+ },
+ "src/physverify/sizing/model.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/sizing/objectron.py": {
+  "banner": 2
+ },
+ "src/physverify/sizing/settings.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/synth/contacts_gt.py": {
+  "comment_or_docstring": 3
+ },
+ "src/physverify/synth/families/f1_projectile.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/synth/families/f2_bounce.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/synth/families/f3_collision.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/synth/families/f4_stack.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/synth/families/f5_contact.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/synth/gt_export.py": {
+  "comment_or_docstring": 3
+ },
+ "src/physverify/synth/hdri.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/synth/kinematics_gt.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/synth/migrate.py": {
+  "comment_or_docstring": 3
+ },
+ "src/physverify/synth/perturb.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/synth/perturbations/_ballistics.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/synth/perturbations/_edit.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/synth/perturbations/_measure.py": {
+  "comment_or_docstring": 4
+ },
+ "src/physverify/synth/perturbations/r2_unsupported_rest.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/synth/perturbations/r3_energy_gain.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/synth/scene_kit.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/synth/settings.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/timing/budget.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/timing/generation.py": {
+  "comment_or_docstring": 3
+ },
+ "src/physverify/timing/recorder.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/timing/targets/dpo_step.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/timing/targets/extract_pipeline.py": {
+  "comment_or_docstring": 3
+ },
+ "src/physverify/timing/targets/kubric_render.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/timing/targets/verify_checks.py": {
+  "comment_or_docstring": 7,
+  "identifier": 8,
+  "literal": 1
+ },
+ "src/physverify/timing/targets/wan21_generate.py": {
+  "comment_or_docstring": 3
+ },
+ "src/physverify/verification/_base.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/verification/inputs.py": {
+  "comment_or_docstring": 4
+ },
+ "src/physverify/verification/policies/raw.py": {
+  "comment_or_docstring": 3
+ },
+ "src/physverify/verification/policies/threshold.py": {
+  "comment_or_docstring": 3
+ },
+ "src/physverify/verification/runner.py": {
+  "comment_or_docstring": 7
+ },
+ "src/physverify/verification/scope.py": {
+  "comment_or_docstring": 3,
+  "literal": 1
+ },
+ "src/physverify/verification/selective_risk.py": {
+  "banner": 4,
+  "comment_or_docstring": 3
+ },
+ "src/physverify/verification/sweep.py": {
+  "comment_or_docstring": 3
+ },
+ "tests/agreement/conftest.py": {
+  "comment_or_docstring": 1,
+  "literal": 1
+ },
+ "tests/agreement/test_breakdown.py": {
+  "comment_or_docstring": 2
+ },
+ "tests/agreement/test_cli.py": {
+  "comment_or_docstring": 1,
+  "identifier": 5,
+  "literal": 7
+ },
+ "tests/agreement/test_decision.py": {
+  "comment_or_docstring": 3
+ },
+ "tests/agreement/test_h2_script.py": {
+  "comment_or_docstring": 3,
+  "identifier": 12,
+  "literal": 5
+ },
+ "tests/agreement/test_prereg.py": {
+  "comment_or_docstring": 2
+ },
+ "tests/agreement/test_review.py": {
+  "comment_or_docstring": 1
+ },
+ "tests/agreement/test_stats.py": {
+  "identifier": 2,
+  "literal": 1
+ },
+ "tests/calibration/calibration_cases.py": {
+  "banner": 1
+ },
+ "tests/calibration/d9_golden_case.py": {
+  "comment_or_docstring": 4
+ },
+ "tests/calibration/exclusion_cases.py": {
+  "comment_or_docstring": 3
+ },
+ "tests/calibration/stratum_cases.py": {
+  "comment_or_docstring": 3
+ },
+ "tests/calibration/test_apply.py": {
+  "comment_or_docstring": 1,
+  "identifier": 1
+ },
+ "tests/calibration/test_cli_calibrate.py": {
+  "comment_or_docstring": 6,
+  "identifier": 2
+ },
+ "tests/calibration/test_cli_devscore.py": {
+  "comment_or_docstring": 1,
+  "literal": 1
+ },
+ "tests/calibration/test_d9_golden.py": {
+  "comment_or_docstring": 5,
+  "identifier": 9
+ },
+ "tests/calibration/test_devscore.py": {
+  "comment_or_docstring": 5,
+  "identifier": 3
+ },
+ "tests/calibration/test_exclusions.py": {
+  "banner": 5,
+  "comment_or_docstring": 2
+ },
+ "tests/calibration/test_exclusions_cli.py": {
+  "comment_or_docstring": 3
+ },
+ "tests/calibration/test_h1_by_dataset.py": {
+  "comment_or_docstring": 3
+ },
+ "tests/calibration/test_h1_primary.py": {
+  "banner": 1,
+  "comment_or_docstring": 7,
+  "identifier": 1,
+  "literal": 4
+ },
+ "tests/calibration/test_heldout_h1.py": {
+  "comment_or_docstring": 9,
+  "identifier": 4,
+  "literal": 3
+ },
+ "tests/calibration/test_monotonicity.py": {
+  "comment_or_docstring": 4,
+  "identifier": 2
+ },
+ "tests/calibration/test_sealed.py": {
+  "comment_or_docstring": 6
+ },
+ "tests/calibration/test_sealed_cli.py": {
+  "comment_or_docstring": 4
+ },
+ "tests/calibration/test_sigma.py": {
+  "banner": 1,
+  "comment_or_docstring": 10
+ },
+ "tests/calibration/test_table.py": {
+  "comment_or_docstring": 2
+ },
+ "tests/calibration/test_thresholds.py": {
+  "comment_or_docstring": 1
+ },
+ "tests/calibration/test_verdict.py": {
+  "banner": 2
+ },
+ "tests/checks/check_scenarios.py": {
+  "banner": 3,
+  "comment_or_docstring": 2
+ },
+ "tests/checks/r4_v1_golden_case.py": {
+  "comment_or_docstring": 4
+ },
+ "tests/checks/test_abstentions.py": {
+  "comment_or_docstring": 2
+ },
+ "tests/checks/test_it4_v1_unchanged.py": {
+  "comment_or_docstring": 4
+ },
+ "tests/checks/test_r3.py": {
+  "comment_or_docstring": 1
+ },
+ "tests/checks/test_r4.py": {
+  "banner": 3
+ },
+ "tests/checks/test_r4_jump_noise.py": {
+  "banner": 7,
+  "comment_or_docstring": 20
+ },
+ "tests/checks/test_r4_size_relative.py": {
+  "comment_or_docstring": 8
+ },
+ "tests/checks/test_r5.py": {
+  "banner": 2,
+  "comment_or_docstring": 4
+ },
+ "tests/checks/test_registry.py": {
+  "comment_or_docstring": 5,
+  "identifier": 1
+ },
+ "tests/checks/test_sigma.py": {
+  "literal": 2
+ },
+ "tests/checks/test_tracks.py": {
+  "banner": 5,
+  "comment_or_docstring": 6,
+  "identifier": 8
+ },
+ "tests/contracts/test_parsed_output.py": {
+  "comment_or_docstring": 1,
+  "identifier": 1,
+  "literal": 2
+ },
+ "tests/diagnosis/conftest.py": {
+  "banner": 4,
+  "comment_or_docstring": 4,
+  "literal": 1
+ },
+ "tests/diagnosis/test_attribution.py": {
+  "banner": 4,
+  "comment_or_docstring": 2
+ },
+ "tests/diagnosis/test_camera_gravity.py": {
+  "comment_or_docstring": 2
+ },
+ "tests/diagnosis/test_cli.py": {
+  "banner": 2,
+  "comment_or_docstring": 3,
+  "identifier": 1
+ },
+ "tests/diagnosis/test_contacts_impacts.py": {
+  "comment_or_docstring": 4
+ },
+ "tests/diagnosis/test_end_to_end.py": {
+  "banner": 3,
+  "comment_or_docstring": 2
+ },
+ "tests/diagnosis/test_error_profile_writer.py": {
+  "comment_or_docstring": 2,
+  "literal": 1
+ },
+ "tests/diagnosis/test_factorial.py": {
+  "comment_or_docstring": 2
+ },
+ "tests/diagnosis/test_metrics_camera.py": {
+  "comment_or_docstring": 2
+ },
+ "tests/diagnosis/test_metrics_contacts.py": {
+  "comment_or_docstring": 2
+ },
+ "tests/diagnosis/test_metrics_depth_absrel.py": {
+  "comment_or_docstring": 2
+ },
+ "tests/diagnosis/test_metrics_depth_object.py": {
+  "comment_or_docstring": 2
+ },
+ "tests/diagnosis/test_metrics_depth_object_parts.py": {
+  "comment_or_docstring": 2
+ },
+ "tests/diagnosis/test_metrics_detect.py": {
+  "comment_or_docstring": 2
+ },
+ "tests/diagnosis/test_metrics_detect_label.py": {
+  "comment_or_docstring": 2
+ },
+ "tests/diagnosis/test_metrics_kinematics.py": {
+  "comment_or_docstring": 2
+ },
+ "tests/diagnosis/test_metrics_lift.py": {
+  "comment_or_docstring": 2
+ },
+ "tests/diagnosis/test_metrics_scale.py": {
+  "comment_or_docstring": 2
+ },
+ "tests/diagnosis/test_metrics_track.py": {
+  "comment_or_docstring": 2
+ },
+ "tests/diagnosis/test_physics_iq.py": {
+  "banner": 3,
+  "comment_or_docstring": 2
+ },
+ "tests/diagnosis/test_physics_iq_views.py": {
+  "comment_or_docstring": 1
+ },
+ "tests/diagnosis/test_pisa_real.py": {
+  "banner": 2,
+  "comment_or_docstring": 2
+ },
+ "tests/diagnosis/test_real_metrics.py": {
+  "banner": 2,
+  "comment_or_docstring": 2
+ },
+ "tests/diagnosis/test_report.py": {
+  "comment_or_docstring": 1
+ },
+ "tests/diagnosis/test_stage_errors.py": {
+  "comment_or_docstring": 2
+ },
+ "tests/diagnosis/test_stage_errors_calib_only.py": {
+  "comment_or_docstring": 1
+ },
+ "tests/evaluation/conftest.py": {
+  "comment_or_docstring": 1,
+  "identifier": 13
+ },
+ "tests/evaluation/test_analysis.py": {
+  "identifier": 22
+ },
+ "tests/evaluation/test_candidate_identity.py": {
+  "comment_or_docstring": 1,
+  "identifier": 2
+ },
+ "tests/evaluation/test_cli_h3.py": {
+  "identifier": 31
+ },
+ "tests/evaluation/test_state.py": {
+  "identifier": 4
+ },
+ "tests/evaluation/test_stats.py": {
+  "identifier": 17
+ },
+ "tests/evaluation/test_verdict.py": {
+  "comment_or_docstring": 2,
+  "identifier": 14
+ },
+ "tests/extraction/contact_scenes.py": {
+  "comment_or_docstring": 1
+ },
+ "tests/extraction/contacts_golden_case.py": {
+  "comment_or_docstring": 4
+ },
+ "tests/extraction/fakes.py": {
+  "comment_or_docstring": 1
+ },
+ "tests/extraction/impact_noise.py": {
+  "comment_or_docstring": 5
+ },
+ "tests/extraction/kinematic_golden_case.py": {
+  "comment_or_docstring": 4
+ },
+ "tests/extraction/lift_golden_case.py": {
+  "comment_or_docstring": 2
+ },
+ "tests/extraction/test_cache_purge.py": {
+  "comment_or_docstring": 1
+ },
+ "tests/extraction/test_camera_geocalib.py": {
+  "comment_or_docstring": 5,
+  "identifier": 1
+ },
+ "tests/extraction/test_depth_vda_large.py": {
+  "comment_or_docstring": 1,
+  "identifier": 2
+ },
+ "tests/extraction/test_depth_vda_metric.py": {
+  "comment_or_docstring": 2
+ },
+ "tests/extraction/test_geocalib_config.py": {
+  "comment_or_docstring": 9,
+  "identifier": 2
+ },
+ "tests/extraction/test_gravity_pose.py": {
+  "comment_or_docstring": 3
+ },
+ "tests/extraction/test_grounding_assignment.py": {
+  "comment_or_docstring": 2
+ },
+ "tests/extraction/test_heavy_providers.py": {
+  "comment_or_docstring": 1
+ },
+ "tests/extraction/test_impacts.py": {
+  "banner": 8,
+  "comment_or_docstring": 21
+ },
+ "tests/extraction/test_impacts_noise.py": {
+  "comment_or_docstring": 7
+ },
+ "tests/extraction/test_it3_oracle_unchanged.py": {
+  "comment_or_docstring": 4
+ },
+ "tests/extraction/test_it4_floor_refactor.py": {
+  "comment_or_docstring": 3
+ },
+ "tests/extraction/test_proximity_refactor.py": {
+  "comment_or_docstring": 2
+ },
+ "tests/extraction/test_scale_size_model.py": {
+  "comment_or_docstring": 1
+ },
+ "tests/extraction/test_sealed_set_sampling.py": {
+  "comment_or_docstring": 2
+ },
+ "tests/extraction/test_temporal.py": {
+  "comment_or_docstring": 3,
+  "identifier": 1
+ },
+ "tests/extraction/test_visibility.py": {
+  "banner": 1,
+  "comment_or_docstring": 5
+ },
+ "tests/extraction/test_weights.py": {
+  "comment_or_docstring": 1
+ },
+ "tests/extraction/truth_contacts_golden_case.py": {
+  "comment_or_docstring": 3
+ },
+ "tests/finetune/test_calibrated_gate.py": {
+  "comment_or_docstring": 2,
+  "identifier": 3
+ },
+ "tests/finetune/test_check_scope.py": {
+  "comment_or_docstring": 1
+ },
+ "tests/finetune/test_cli.py": {
+  "identifier": 1
+ },
+ "tests/finetune/test_stop_rule.py": {
+  "comment_or_docstring": 1
+ },
+ "tests/kubric_worker/test_py39.py": {
+  "comment_or_docstring": 1
+ },
+ "tests/kubric_worker/test_render_docker.py": {
+  "comment_or_docstring": 2
+ },
+ "tests/reporting/reporting_cases.py": {
+  "comment_or_docstring": 2,
+  "identifier": 4,
+  "literal": 1
+ },
+ "tests/reporting/test_chain.py": {
+  "literal": 1
+ },
+ "tests/reporting/test_results.py": {
+  "banner": 1,
+  "comment_or_docstring": 2,
+  "identifier": 19,
+  "literal": 2
+ },
+ "tests/sizing/test_e2e.py": {
+  "comment_or_docstring": 1
+ },
+ "tests/sizing/test_evaluate.py": {
+  "comment_or_docstring": 2
+ },
+ "tests/sizing/test_fit.py": {
+  "comment_or_docstring": 1
+ },
+ "tests/sizing/test_model.py": {
+  "comment_or_docstring": 2
+ },
+ "tests/sizing/test_objectron.py": {
+  "comment_or_docstring": 1
+ },
+ "tests/sizing/test_objectron_static.py": {
+  "banner": 3,
+  "comment_or_docstring": 3,
+  "identifier": 6
+ },
+ "tests/synth/test_floor_bounce.py": {
+  "comment_or_docstring": 2
+ },
+ "tests/synth/test_hdri.py": {
+  "comment_or_docstring": 2
+ },
+ "tests/synth/test_kinematics_gt.py": {
+  "comment_or_docstring": 1
+ },
+ "tests/synth/test_kubric_fresh.py": {
+  "comment_or_docstring": 2
+ },
+ "tests/synth/test_migrate.py": {
+  "comment_or_docstring": 3
+ },
+ "tests/synth/test_pair_collision.py": {
+  "comment_or_docstring": 1
+ },
+ "tests/synth/test_perturbations.py": {
+  "banner": 1,
+  "comment_or_docstring": 9
+ },
+ "tests/timing/test_a8v2_query.py": {
+  "identifier": 1,
+  "literal": 2
+ },
+ "tests/timing/test_extract_target.py": {
+  "comment_or_docstring": 1,
+  "identifier": 1
+ },
+ "tests/timing/test_freeze_query.py": {
+  "comment_or_docstring": 18,
+  "literal": 17
+ },
+ "tests/timing/test_h3_scripts.py": {
+  "comment_or_docstring": 1
+ },
+ "tests/timing/test_recorder.py": {
+  "comment_or_docstring": 1
+ },
+ "tests/timing/test_run_final_script.py": {
+  "comment_or_docstring": 27,
+  "literal": 3
+ },
+ "tests/timing/test_run_freeze_script.py": {
+  "comment_or_docstring": 14,
+  "literal": 10
+ },
+ "tests/timing/test_run_iteration_script.py": {
+  "comment_or_docstring": 3,
+  "identifier": 1,
+  "literal": 29
+ },
+ "tests/timing/test_verify_target.py": {
+  "comment_or_docstring": 1,
+  "identifier": 23,
+  "literal": 1
+ },
+ "tests/unit/test_config.py": {
+  "comment_or_docstring": 2
+ },
+ "tests/verification/oracle_golden_case.py": {
+  "comment_or_docstring": 7
+ },
+ "tests/verification/test_abstain_tables.py": {
+  "comment_or_docstring": 6
+ },
+ "tests/verification/test_inputs.py": {
+  "comment_or_docstring": 1
+ },
+ "tests/verification/test_it1_oracle_unchanged.py": {
+  "comment_or_docstring": 1
+ },
+ "tests/verification/test_it2_oracle_unchanged.py": {
+  "comment_or_docstring": 4
+ },
+ "tests/verification/test_it2_temporal_survival.py": {
+  "banner": 2,
+  "comment_or_docstring": 9,
+  "literal": 1
+ },
+ "tests/verification/test_it3_contact_survival.py": {
+  "banner": 6,
+  "comment_or_docstring": 6
+ },
+ "tests/verification/test_it4_camera_inputs.py": {
+  "comment_or_docstring": 2
+ },
+ "tests/verification/test_it4_oracle.py": {
+  "comment_or_docstring": 6
+ },
+ "tests/verification/test_it4_targets.py": {
+  "comment_or_docstring": 2
+ },
+ "tests/verification/test_scope_record.py": {
+  "comment_or_docstring": 2
+ },
+ "tests/verification/test_selective_risk.py": {
+  "comment_or_docstring": 1
+ }
+}
