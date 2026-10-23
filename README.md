@@ -23,7 +23,7 @@ on a sealed set unless it is unsealed explicitly, and each look is logged before
 computed.
 
 The calibration artifact is a run output and is not versioned. The size model is
-(`configs/verifier/size_model.toml`): its coefficients are estimates and carry their measured
+versioned (`configs/verifier/size_model.toml`): its coefficients are estimates and carry their measured
 error. Generation, fine-tuning and the generator comparison need a CUDA GPU; the demo generates a
 video on the GPU or scores a given video on the CPU.
 
@@ -59,7 +59,7 @@ udocker with the pinned Kubric image (`runtime.docker_image` in `configs/default
 is set in the `[container]` table, see `configs/local.example.toml`).
 
 ```sh
-uv sync                                   # default groups: dev, cpu (CPU PyTorch), perception, analysis, data
+uv sync                                   # default groups: dev, cpu (CPU PyTorch), perception, data
 uv sync --no-default-groups --group dev   # light: core + dev tools only
 uv sync --no-default-groups --group dev --group cu128 --group perception --group generation --group data   # CUDA 12.8
 cp configs/local.example.toml configs/local.toml   # machine-local overrides (ignored by git)
@@ -86,7 +86,9 @@ Global options go before the subcommand: `--config-dir` (default `$PHYSVERIFY_CO
 lowest to highest: model defaults, `configs/**/*.toml` (except the root's `local*.toml`), the
 active profile's `[<section>.profiles.<name>]` tables, `configs/local.toml`,
 `PHYSVERIFY__SECTION__KEY` environment variables, `--device` / `--profile`, then `--set`. `doctor`
-prints every effective value with its source.
+prints every effective value with its source. A bad option value, a missing config directory, an
+unknown section in `--set` or the environment, or an invalid field exits 2; each invalid field
+prints one `[section] key: message (got value)` line.
 
 `configs/` holds `default.toml` and `local.example.toml`; `verifier/` the verifier's own settings
 (checks, extraction, calibration, sizing, sealed sets), `datasets/` one file per dataset and
@@ -125,23 +127,13 @@ change, so existing runs, caches and artifacts stay readable.
 ## Development
 
 ```sh
-uv run --no-sync pytest                 # unit tests; no network, GPU or Docker
+uv run --no-sync pytest                 # unit tests (strict markers, config, xfail); no network, GPU or Docker
 uv run --no-sync pytest -m docker       # Python 3.9 container boundary (needs the Kubric image)
 uv run --no-sync ruff check . && uv run --no-sync ruff format --check .
 uv run --no-sync mypy
 ```
 
-`CLAUDE.md` describes the layers, how to add a plugin and the contracts that must not change.
-
-## Package map
-
-The code lives in `src/physverify/`: frozen wire records shared with the Python 3.9 container
-(`schema`) and its entry point (`kubric_worker`), shared infrastructure (`core`, `stats`,
-`config`, `runtime`), the physics and the data (`physics`, `synth`, `sizing`, `datasets`), the
-verifier itself (`extraction`, `checks`, `verification`), the Wan2.1 generator (`generation`), the
-studies and tools built on them (`diagnosis`, `calibration`, `human_agreement`, `selective_risk`,
-`finetune`, `freeze`, `generator_comparison`, `timing`, `demo`, `reporting`), the composition root
-`app` and the command line `cli`. The package tree, one line per package, and the layer rule are
-in `CLAUDE.md`.
+`docker` is the only marker. The code lives in `src/physverify/`; `CLAUDE.md` gives the package
+tree, the layer rule, how to add a plugin and the contracts that must not change.
 
 Data, model weights and run outputs live under `data/` (ignored by git).
