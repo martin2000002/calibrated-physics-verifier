@@ -1,4 +1,4 @@
-"""L_C conformal guarantee (AC6), honest FPR and the L_D fit with censoring (AC7, Juicio 3)."""
+"""L_C conformal guarantee, honest FPR and the L_D fit with censoring."""
 
 from __future__ import annotations
 

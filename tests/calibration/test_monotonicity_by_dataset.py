@@ -1,4 +1,4 @@
-"""plan-congelado F6 (AC-5): the H1 primary scenes per dataset; a fresh render was never seen."""
+"""The held-out monotonicity primary scenes per dataset; a fresh render was never seen."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Sigma recalibration per check (D9, AC8) and per stage (D10)."""
+"""Sigma recalibration per check and per stage."""
 
 from __future__ import annotations
 
@@ -156,7 +156,8 @@ def test_t13_few_informative_pairs_leave_the_error_unmeasured() -> None:
 
 
 def _old_bias_factor(found: list[SigmaPair]) -> tuple[float, float]:
-    """D9 as it was before 2026-10-20 (the reference for T14)."""
+    """Per-check sigma recalibration as it was before the sigma-pair filter (the golden
+    reference)."""
     delta = np.asarray([p.delta for p in found])
     sigma = np.asarray([p.sigma for p in found])
     bias = float(np.median(delta))

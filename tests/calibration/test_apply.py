@@ -1,4 +1,4 @@
-"""Calibrated verdicts, p_c and the clip score S with its delta-method sigma (D11, AC17)."""
+"""Calibrated verdicts, p_c and the clip score S with its delta-method sigma."""
 
 from __future__ import annotations
 

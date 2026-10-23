@@ -1,5 +1,4 @@
-"""``calibration.sealed_ledger``: one-look specs, the ledger file and the repeat rule
-(WP-O AC11, AC14)."""
+"""``calibration.sealed_ledger``: one-look specs, the ledger file and the repeat rule."""
 
 from __future__ import annotations
 
@@ -80,7 +79,7 @@ def test_a_split_spec_touches_only_its_split() -> None:
 def test_the_freeze_sets_are_sealed_by_their_own_names(
     config_dir: Path, environ: dict[str, str]
 ) -> None:
-    """plan-congelado AC-2: each fresh set seals only itself; the development real sets stay
+    """Each fresh set seals only itself; the development real sets stay
     open and the new real controls are sealed."""
     specs = sealed_settings(load_settings(config_dir, environ=environ)).sets
     held, calib = clip("e", "s1", Split.EVAL), clip("c", "s0")
@@ -137,7 +136,7 @@ def test_an_unwritable_or_corrupt_ledger_fails_closed(tmp_path: Path) -> None:
 
 
 def test_a_repeat_under_another_freeze_needs_the_repeat_variable() -> None:
-    """Juicio answer 4: same freeze passes, another freeze needs PHYSVERIFY_UNSEAL_REPEAT."""
+    """Same freeze passes, another freeze needs PHYSVERIFY_UNSEAL_REPEAT."""
     earlier = [entry("f1"), entry("f9", sets=("kubric_fresh",))]
     found = ("kubric_synthetic:eval",)
     assert check_repeat(earlier, found, "f1", allow=False) is False
@@ -147,7 +146,7 @@ def test_a_repeat_under_another_freeze_needs_the_repeat_variable() -> None:
 
 
 def test_an_allowed_look_at_a_covered_set_is_a_repeat_under_the_same_freeze() -> None:
-    """plan-congelado J6: run_final.sh's retry sets the repeat variable and is marked a repeat."""
+    """run_final.sh's retry sets the repeat variable and is marked a repeat."""
     earlier = [entry("f1"), entry("f9", sets=("kubric_fresh",))]
     found = ("kubric_synthetic:eval",)
     assert check_repeat(earlier, found, "f1", allow=True) is True

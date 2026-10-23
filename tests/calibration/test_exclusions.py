@@ -1,4 +1,4 @@
-"""The preregistered exclusion rules (ADR 0015 1.1, 1.2 with Enmienda 1, 1.5) and their record."""
+"""The preregistered exclusion rules (1.1, 1.2 as amended, 1.5) and their record."""
 
 from __future__ import annotations
 
@@ -54,9 +54,6 @@ def _one(evidence: tuple) -> object:  # type: ignore[type-arg]
     return evidence[0]
 
 
-# --- configuration ------------------------------------------------------------------------------
-
-
 def test_every_threshold_comes_from_the_toml() -> None:
     """No rule number has a code default: the model without the TOML values does not load."""
     for name, field in ExclusionRules.model_fields.items():
@@ -88,7 +85,7 @@ def test_unknown_rules_and_checks_are_configuration_errors() -> None:
         exclusion_rules({**raw, "real": bad_set}, {"R2", "R5a"})
 
 
-# --- 1.1 ----------------------------------------------------------------------------------------
+# Rule 1.1.
 
 
 def test_r5a_is_kept_when_usable_weighted_and_monotone() -> None:
@@ -157,7 +154,7 @@ def test_the_consumed_stratum_goes_through_the_consumers_gate(tmp_path: Path) ->
         )
 
 
-# --- 1.2 ----------------------------------------------------------------------------------------
+# Rule 1.2.
 
 
 def test_identical_arms_have_no_difference_and_keep_r2() -> None:
@@ -296,7 +293,7 @@ def test_two_clean_clips_in_one_scene_are_refused() -> None:
         r2_rule(inputs(base=(*same, twice), tiny=(*same, twice)), rules())
 
 
-# --- 1.5 ----------------------------------------------------------------------------------------
+# Rule 1.5.
 
 
 def test_the_worst_exact_lower_bound_decides() -> None:
@@ -362,9 +359,6 @@ def test_the_fallback_set_is_accepted() -> None:
     )
     found = _one(real_fpr_rule(dataclasses.replace(base, evaluation=small), rules()))
     assert found.decided and not found.excluded and found.inputs["pisa_real.n_clips"] == 40
-
-
-# --- decision and record ------------------------------------------------------------------------
 
 
 def _decided(**kw: object) -> object:

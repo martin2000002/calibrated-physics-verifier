@@ -1,4 +1,4 @@
-"""``physverify calibrate dev-score`` over a fake calib dataset (WP-O AC7, AC8, C3)."""
+"""``physverify calibrate dev-score`` over a fake calib dataset."""
 
 from __future__ import annotations
 

@@ -1,5 +1,4 @@
-"""``calibration.dev_score``: the development metric of the campaign
-(WP-O AC1-AC6, AC10, C1, C4)."""
+"""``calibration.dev_score``: the development metric of the campaign."""
 
 from __future__ import annotations
 
@@ -207,7 +206,7 @@ def test_a_fold_without_tau_flags_nothing() -> None:
 
 
 def test_the_selection_counts_the_separable_monotone_check(dev: DevScore) -> None:
-    """AC5: R1 meets H1 and J_cv^lo > 0, the random R3a and the eventless R5b do not."""
+    """R1 is monotone and J_cv^lo > 0, the random R3a and the eventless R5b do not."""
     oracle, perceived = dev.report.levels
     assert perceived.n_met == 1 and perceived.met == ("R1",)
     assert not perceived.checks["R3a"].meets_both
@@ -256,7 +255,7 @@ def test_perfect_separation_out_of_fold_is_one() -> None:
 
 
 def test_bootstrap_zero_is_refused() -> None:
-    """Juicio answer 6: never bootstrap 0 (every weight would be 0)."""
+    """Never bootstrap 0 (every weight would be 0)."""
     with pytest.raises(UsageError, match="bootstrap"):
         require_bootstrap(config(bootstrap=0).calibration)
     with pytest.raises(UsageError, match="bootstrap"):
@@ -264,7 +263,7 @@ def test_bootstrap_zero_is_refused() -> None:
 
 
 def test_folds_without_a_sigma_factor_are_counted() -> None:
-    """J3 of it1: a fold whose training lacks min_sigma_pairs informative pairs has no factor
+    """A fold whose training lacks min_sigma_pairs informative pairs has no factor
     (its subjects abstain); the count is reported per check."""
     oracle, base = levels()
     data = LevelData(base.level, base.rows, base.results, _pairs(base))

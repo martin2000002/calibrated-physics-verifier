@@ -1,4 +1,4 @@
-"""The sealed-ledger guard through the commands (WP-O AC12-AC15, C5 and the freeze rule)."""
+"""The sealed-ledger guard through the commands and the freeze rule."""
 
 from __future__ import annotations
 
@@ -248,7 +248,7 @@ NAMED = tuple(arg for name in NEW_REAL for arg in ("--real-dataset", name))
 def test_the_named_real_datasets_enter_the_ledger_line(
     evaluate_cli: Callable[..., CliResult], ledger: Path, settings: Settings
 ) -> None:
-    """J10 of plan-congelado: ``--real-dataset`` replaces ``calibration.real_datasets`` in the
+    """``--real-dataset`` replaces ``calibration.real_datasets`` in the
     selections, so the line names the new controls only and its config hash stays the same."""
     named = evaluate_cli(seal=REAL_SEAL, real=NAMED, env=REAL_UNSEAL)
     assert named.code == 0, named.err
@@ -457,7 +457,7 @@ def test_a_refit_of_the_default_artifact_is_another_freeze(
 def test_another_frozen_state_needs_the_repeat_variable(
     cli: CliRunner, monkeypatch: pytest.MonkeyPatch, ledger: Path, reached: list[int]
 ) -> None:
-    """Juicio answer 4: the same freeze looks again, another one needs the repeat variable."""
+    """The same freeze looks again, another one needs the repeat variable."""
     run = _guarded_verify(cli, monkeypatch, ledger, reached)
     assert run(env=UNSEAL).code == REACHED
     assert run(env=UNSEAL).code == REACHED

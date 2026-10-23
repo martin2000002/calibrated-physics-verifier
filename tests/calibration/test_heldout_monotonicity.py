@@ -1,4 +1,4 @@
-"""plan-congelado F4 (J7, J8, AC-4, AC-17): H1 on the held-out rows with the frozen artifact."""
+"""Held-out monotonicity on the held-out rows with the frozen artifact."""
 
 from __future__ import annotations
 
@@ -89,7 +89,7 @@ def _evaluate(
 
 
 def test_only_calib_rows_give_no_heldout_h1(frozen: Calibration) -> None:
-    """J8: ``evaluate --subset calib`` leaves the held-out rows empty."""
+    """``evaluate --subset calib`` leaves the held-out rows empty."""
     stratum = frozen.stratum(InputLevel.ORACLE, "fast")
     calib_only = _rows(synthetic_report(10, prefix="fam-s"))
     settings = fit_settings(frozen, config())
@@ -104,7 +104,7 @@ def test_only_calib_rows_give_no_heldout_h1(frozen: Calibration) -> None:
 def test_heldout_h1_is_monotonicity_and_j_of_the_frozen_rule_by_hand(
     frozen: Calibration, mixed: tuple[CalibrationRow, ...]
 ) -> None:
-    """AC-4: tau_b from the held-out deltas only, J = TPR - FPR of the frozen tau and sigma."""
+    """tau_b from the held-out deltas only, J = TPR - FPR of the frozen tau and sigma."""
     stratum = frozen.stratum(InputLevel.ORACLE, "fast")
     settings = fit_settings(frozen, config())
     found = {c.check_id: c for c in heldout_h1(stratum, mixed, _check_ids(frozen), settings)}
@@ -154,7 +154,7 @@ def test_calib_rows_never_enter(frozen: Calibration, mixed: tuple[CalibrationRow
 
 
 def test_no_parameter_comes_from_outside_the_artifact(frozen: Calibration) -> None:
-    """AC-17: other evaluation settings (bootstrap, seed, level, policy) change nothing."""
+    """Other evaluation settings (bootstrap, seed, level, policy) change nothing."""
     reports = (
         synthetic_report(40, prefix="fam-s"),
         synthetic_report(40, seed=7, split=Split.EVAL, prefix="held-s"),

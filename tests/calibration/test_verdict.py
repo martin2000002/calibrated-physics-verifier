@@ -100,9 +100,6 @@ def test_no_tau_or_no_event_leaves_the_check_unscored() -> None:
     assert clip_verdict([], RULE, TAU) is NO_EVENT
 
 
-# --- parity on a multi-subject synthetic table ---
-
-
 def _subjects(rng: np.random.Generator, first: CheckResult) -> list[CheckResult]:
     """The fixture's subject plus a second one: smaller, noisier, or without input."""
     sigma = float(rng.choice([0.0, 0.005, 0.05]))
@@ -196,8 +193,6 @@ def _by_clip(results: Sequence[CheckResult]) -> dict[str, list[CheckResult]]:
         found.setdefault(r.clip_id, []).append(r)
     return found
 
-
-# --- parity with the run table: the same verdict and the same decisive magnitude ---
 
 BIASED = Rule(ThresholdPolicy(), bias=0.02, factor=1.5)
 BIASED_THRESHOLDS = {"checks": {"R1": {"tau": TAU, "bias": 0.02, "sigma_factor": 1.5}}}

@@ -1,4 +1,4 @@
-"""D3 roles over hand-made manifests, the calib-only rule and the time step (Juicio 1)."""
+"""Row roles over hand-made manifests, the calib-only rule and the time step."""
 
 from __future__ import annotations
 

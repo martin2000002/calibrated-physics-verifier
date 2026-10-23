@@ -1,6 +1,7 @@
-"""The fit behind the D9 golden file: two levels, R1 sigma pairs half 0-against-0 (it1 audit d1).
+"""The fit behind the per-check sigma golden file: two levels, R1 sigma pairs half 0-against-0.
 
-Kept free of it1 names so the same module also runs on the code before it1, which wrote
+Kept free of names added by the sigma-pair filter so the same module also runs on the code
+before it, which wrote
 ``golden/dev_score_all_sigma_pairs.json`` (commit 775bde5, ``write_golden``)."""
 
 from __future__ import annotations

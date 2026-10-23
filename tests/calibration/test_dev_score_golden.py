@@ -1,5 +1,5 @@
-"""T14 (it1 audit d1): with sigma_pair_filter = "all" the fit and the devscore report are
-the ones written before it1, except ``version`` and the fields it1 added (``golden.same``)."""
+"""With sigma_pair_filter = "all" the fit and the devscore report are the ones written before
+the filter existed, except ``version`` and the fields added with it (``golden.same``)."""
 
 from __future__ import annotations
 
@@ -9,7 +9,8 @@ from typing import Any
 from dev_score_golden_case import GOLDEN, fitted
 from golden import same
 
-# Fields added by it1, with the value they take under "all"; any other difference fails.
+# Fields added with the sigma-pair filter, with the value they take under "all"; any other
+# difference fails.
 ADDED_AT_ALL: dict[str, Any] = {
     "n_informative": None,
     "coverage_after_informative": [],

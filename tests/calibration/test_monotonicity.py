@@ -1,4 +1,4 @@
-"""H1 monotonicity: Kendall tau_b of level vs the change against the clean clip (D8, Juicio 4)."""
+"""Monotonicity: Kendall tau_b of level vs the change against the clean clip."""
 
 from __future__ import annotations
 
@@ -63,7 +63,7 @@ def test_a_scene_without_a_scored_clean_clip_is_left_out() -> None:
 def test_the_levels_sweep_values_give_tau_one_per_scene(
     check_id: str, clean: float, values: list[float]
 ) -> None:
-    """The oracle `levels` magnitudes of the 2026-09-24 sweep (one scene per perturbation)."""
+    """The oracle `levels` magnitudes of an earlier oracle sweep (one scene per perturbation)."""
     (found,) = scene_kendall(scene_rows("scene", clean, values, check_id), 0.0)
     assert found.kendall_tau_b == pytest.approx(1.0)
     assert (found.check_id, found.n_levels) == (check_id, 4)

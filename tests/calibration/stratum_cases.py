@@ -1,4 +1,5 @@
-"""Hand-made calibration artifacts shared by the A8 tests and by its consumers (H2, H3): one
+"""Hand-made calibration artifacts shared by the calibration tests and by its consumers
+(human-agreement study, generator comparison): one
 stratum builder, so every test of the stratum gate sees the same artifact and messages."""
 
 from __future__ import annotations
