@@ -77,6 +77,7 @@ from physverify.cli.commands.extract import (
 from physverify.cli.context import AppContext, app_context
 from physverify.core.atomic import write_text_atomic
 from physverify.core.errors import MissingInputError, PhysverifyError, UsageError
+from physverify.core.markdown import number
 from physverify.datasets._base import DatasetSource
 from physverify.diagnosis.chain import ChainRunner, warm_variants
 from physverify.diagnosis.end_to_end import track_of
@@ -733,4 +734,4 @@ def show_lines(
 
 
 def _num(value: float | None) -> str:
-    return "-" if value is None else f"{value:.4g}"
+    return number(value, ".4g", "-")

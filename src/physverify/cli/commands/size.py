@@ -23,6 +23,7 @@ from physverify.cli.context import AppContext, app_context
 from physverify.config.models import Settings, SizePriorTable
 from physverify.core.atomic import write_text_atomic
 from physverify.core.errors import MissingInputError
+from physverify.core.markdown import number
 from physverify.datasets._base import DatasetSource
 from physverify.diagnosis.cases import stage_output
 from physverify.diagnosis.chain import ChainRunner
@@ -171,7 +172,7 @@ def _v(entry: dict[str, Any]) -> str:
 
 
 def _number(value: float | None) -> str:
-    return "n/a" if value is None else f"{value:.3f}"
+    return number(value, ".3f", "n/a")
 
 
 @app.command("e2e-prepare", help="Download and decode a few Objectron test videos (network).")

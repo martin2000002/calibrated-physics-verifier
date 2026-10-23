@@ -10,6 +10,7 @@ from typing import Any
 from physverify.calibration.report import ESTIMATE_NOTE, ci_text, number_text
 from physverify.calibration.schema import Ci
 from physverify.core.atomic import write_text_atomic
+from physverify.core.markdown import table
 from physverify.reporting.numbers import Results, Section, Value
 from physverify.schema.io import json_ready
 
@@ -83,10 +84,7 @@ def _table(section: Section) -> list[str]:
         lines += [f"Note: {section.caveat}", ""]
     if section.missing:
         return [*lines, f"Missing: {section.missing}", ""]
-    lines += ["| " + " | ".join(COLUMNS) + " |", "|" + "---|" * len(COLUMNS)]
-    lines += [
-        "| " + " | ".join(c.replace("|", "\\|") for c in _cells(v)) + " |" for v in section.values
-    ]
+    lines += table(COLUMNS, ([c.replace("|", "\\|") for c in _cells(v)] for v in section.values))
     return [*lines, ""]
 
 

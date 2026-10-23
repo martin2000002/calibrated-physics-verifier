@@ -1,18 +1,16 @@
 """Byte-exact text of the reports' number cells and Markdown tables."""
 
 import importlib
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from enum import Enum
 from typing import Any
 
 import pytest
 
-from physverify.agreement.report import _table as agreement_table
-from physverify.calibration.report import _table as calibration_table
+from physverify.core.markdown import table
 from physverify.datasets.local_video import QueryEntry
 from physverify.demo.report import CheckRow, ClipBlock, RuleInfo, VideoReport, render_markdown
 from physverify.diagnosis.report import _table as diagnosis_table
-from physverify.evaluation.report import _table as evaluation_table
 from physverify.finetune.records import PromptRecord
 from physverify.reporting.numbers import Section, Value
 from physverify.reporting.render import _table as results_table
@@ -251,13 +249,8 @@ PLAIN_ROWS = [["1", "x|y"], ["", "2"]]
 PLAIN_TABLE = ["| a | b |", "|---|---|", "| 1 | x|y |", "|  | 2 |"]
 
 
-@pytest.mark.parametrize(
-    "render",
-    [calibration_table, agreement_table, evaluation_table],
-    ids=["calibration", "agreement", "evaluation"],
-)
-def test_plain_tables_keep_their_text(render: Callable[[Sequence[str], Any], list[str]]) -> None:
-    assert render(["a", "b"], PLAIN_ROWS) == PLAIN_TABLE
+def test_plain_tables_keep_their_text() -> None:
+    assert table(["a", "b"], PLAIN_ROWS) == PLAIN_TABLE
 
 
 def test_converting_tables_keep_their_text() -> None:

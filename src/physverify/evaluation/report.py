@@ -3,11 +3,11 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
 from typing import Final
 
 from physverify.agreement.prereg import FreezeAudit
 from physverify.core.atomic import write_text_atomic
+from physverify.core.markdown import number, table
 from physverify.core.models import FrozenModel
 from physverify.evaluation.analysis import ArmSummary, GuardResult, H3Analysis
 from physverify.evaluation.layout import H3Layout
@@ -47,15 +47,8 @@ class H3Report(FrozenModel):
     circularity: str = CIRCULARITY
 
 
-def _num(value: float | int | None, digits: int = 4) -> str:
-    if value is None:
-        return NONE
-    return str(value) if isinstance(value, int) else f"{value:.{digits}g}"
-
-
-def _table(header: list[str], rows: Iterable[list[str]]) -> list[str]:
-    lines = ["| " + " | ".join(header) + " |", "|" + "---|" * len(header)]
-    return [*lines, *("| " + " | ".join(row) + " |" for row in rows)]
+def _num(value: float | int | None) -> str:
+    return str(value) if isinstance(value, int) else number(value, ".4g", NONE)
 
 
 TEST_HEADER: Final = ["test", "n", "dropped", "p", "HL", "mean", "CI of mean"]
@@ -113,7 +106,7 @@ def _arms(a: H3Analysis) -> list[str]:
     return [
         "## Arms",
         "",
-        *_table([*header, "mean PC", "mean SA"], rows),
+        *table([*header, "mean PC", "mean SA"], rows),
         "",
         f"Best-of-8 picks by fallback: {fallbacks}",
         "",
@@ -125,7 +118,7 @@ def _tests(a: H3Analysis) -> list[str]:
     return [
         "## Primary and external (fixed sequence)",
         "",
-        *_table(
+        *table(
             TEST_HEADER,
             [
                 _test_row("primary: S(ft) - S(bo8)", a.primary),
@@ -135,15 +128,13 @@ def _tests(a: H3Analysis) -> list[str]:
         "",
         "## Secondary tests (Holm, m = 3)",
         "",
-        *_table([*TEST_HEADER, "Holm p"], holm_rows),
+        *table([*TEST_HEADER, "Holm p"], holm_rows),
         "",
         f"Ranking claim (PC of best-of-8 above a random base pick): {a.ranking_claim}",
         "",
         "Descriptive only (order-statistic tautology):",
         "",
-        *_table(
-            TEST_HEADER, [_test_row("verifier: S(bo8) - mean S(base)", a.bo8_vs_base_verifier)]
-        ),
+        *table(TEST_HEADER, [_test_row("verifier: S(bo8) - mean S(base)", a.bo8_vs_base_verifier)]),
         "",
     ]
 
@@ -153,7 +144,7 @@ def _guards(a: H3Analysis) -> list[str]:
     return [
         "## Guards",
         "",
-        *_table(["guard", "state", "value", "limit", "detail"], rows),
+        *table(["guard", "state", "value", "limit", "detail"], rows),
         "",
         f"G5 prompts left out (best-of-8 without a score): {a.g5_left_out}",
         "",
@@ -164,9 +155,9 @@ def _sensitivities(a: H3Analysis) -> list[str]:
     return [
         "## Sensitivities and strata",
         "",
-        *_table(TEST_HEADER, [_test_row(n, t) for n, t in a.sensitivities.items()]),
+        *table(TEST_HEADER, [_test_row(n, t) for n, t in a.sensitivities.items()]),
         "",
-        *_table(TEST_HEADER, [_test_row(n, t) for n, t in a.strata.items()]),
+        *table(TEST_HEADER, [_test_row(n, t) for n, t in a.strata.items()]),
         "",
     ]
 
@@ -181,7 +172,7 @@ def _power(r: H3Report) -> list[str]:
         f"- verifier: sd {_num(m.verifier_sd)}, MDE {_num(m.verifier_mde)} (estimated)",
         f"- PC: sd {_num(m.pc_sd)}, MDE {_num(m.pc_mde)} (estimated){flag}",
         "",
-        *_table(
+        *table(
             ["task", "column", "lowest", "highest", "spread", "SE", "margin"],
             [_margin_row(task, d) for task, d in r.margins.items()],
         ),

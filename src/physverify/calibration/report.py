@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import csv
 import io
-from collections.abc import Iterable, Sequence
+from collections.abc import Sequence
 
 from physverify.calibration.heldout_h1 import n_met
 from physverify.calibration.schema import (
@@ -23,6 +23,7 @@ from physverify.calibration.schema import (
     Rate,
     Stratum,
 )
+from physverify.core.markdown import number, table
 
 CALIBRATION_MD = "calibration.md"
 CURVES_CSV = "curves.csv"
@@ -46,7 +47,7 @@ ESTIMATE_NOTE = (
 
 
 def number_text(value: float | None, digits: int = 3) -> str:
-    return "-" if value is None else f"{value:.{digits}g}"
+    return number(value, f".{digits}g", "-")
 
 
 def ci_text(ci: Ci) -> str:
@@ -64,11 +65,6 @@ def detection_limit_text(ld: DetectionLimit) -> str:
     opened = f" open {','.join(ld.ci_open)}" if ld.ci_open else ""
     reason = f" {ld.reason}" if ld.reason else ""
     return f"{number_text(ld.value)} {ci_text(ld.ci)} {ld.censored}{opened}{reason} (estimate)"
-
-
-def _table(headers: Sequence[str], rows: Iterable[Sequence[str]]) -> list[str]:
-    lines = ["| " + " | ".join(headers) + " |", "|" + "---|" * len(headers)]
-    return lines + ["| " + " | ".join(row) + " |" for row in rows]
 
 
 def _check_row(check_id: str, c: CheckCalibration) -> list[str]:
@@ -112,7 +108,7 @@ CHECK_HEADERS = (
 def _stratum_lines(s: Stratum) -> list[str]:
     agg = s.aggregate
     lines = [f"## {s.level.value} / {s.profile} (row_step {s.row_step}, k_sigma {s.k_sigma})", ""]
-    lines += _table(CHECK_HEADERS, (_check_row(c, s.checks[c]) for c in sorted(s.checks)))
+    lines += table(CHECK_HEADERS, (_check_row(c, s.checks[c]) for c in sorted(s.checks)))
     lines += [
         "",
         f"Score threshold s* = {number_text(agg.score_threshold)}"
@@ -168,7 +164,7 @@ def curves_csv(artifact: CalibrationArtifact) -> str:
 
 def _evaluation_stratum(s: EvaluationStratum) -> list[str]:
     lines = [f"## {s.level.value} / {s.profile}", ""]
-    lines += _table(
+    lines += table(
         ("check", "fit status", "tau", "FPR clean", "FPR clean (decided)", "FPR off-target"),
         (
             [
@@ -184,7 +180,7 @@ def _evaluation_stratum(s: EvaluationStratum) -> list[str]:
     )
     if s.scene_kendall:
         lines += ["", "Per-scene Kendall tau_b over levels:", ""]
-        lines += _table(
+        lines += table(
             ("scene", "check", "tau_b", "levels", "split"),
             (
                 [k.scene_id, k.check_id, number_text(k.kendall_tau_b), str(k.n_levels), k.split]
@@ -193,14 +189,14 @@ def _evaluation_stratum(s: EvaluationStratum) -> list[str]:
         )
     if s.monotonicity:
         lines += ["", "Pooled Kendall tau_b of the calib clips (D8):", ""]
-        lines += _table(
+        lines += table(
             ("check", "tau_b", "h1_pass", "pairs", "scenes"),
             ([m.check_id, *_tau_cells(m.monotonicity)] for m in s.monotonicity),
         )
     lines += _heldout_h1(s.heldout_h1, "every scene (secondary when a primary view follows)")
     if s.real or s.real_clip_flags:
         lines += ["", "Real video (false-positive control):", ""]
-        lines += _table(
+        lines += table(
             ("dataset", "check", "FPR"),
             ([r.dataset, r.check_id, rate_text(r.fpr)] for r in (*s.real, *s.real_clip_flags)),
         )
@@ -259,7 +255,7 @@ def _heldout_h1(checks: Sequence[HeldoutH1Check], scope: str) -> list[str]:
         "tau_b^lo > 0 and J^lo > 0 (no multiplicity correction):",
         "",
     ]
-    lines += _table(
+    lines += table(
         ("check", "tau_b", "h1_pass", "pairs", "scenes", "J", "positives", "negatives", "met"),
         (
             [
@@ -299,7 +295,7 @@ def _pooled_side_by_side(
         return []
     by_id = {m.check_id: m.monotonicity for m in whole}
     lines = ["Pooled Kendall tau_b of the calib clips (D8), primary vs all scenes:", ""]
-    lines += _table(
+    lines += table(
         (
             "check",
             "tau_b primary",
@@ -326,7 +322,7 @@ def _pooled_side_by_side(
 def _side_by_side(primary: EvaluationStratum, whole: EvaluationStratum) -> list[str]:
     by_id = {c.check_id: c for c in whole.checks}
     lines = [f"### {primary.level.value} / {primary.profile}", ""]
-    lines += _table(
+    lines += table(
         (
             "check",
             "tau",

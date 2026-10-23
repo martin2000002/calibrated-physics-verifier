@@ -18,6 +18,7 @@ import numpy as np
 from numpy.typing import ArrayLike
 from pydantic import Field
 
+from physverify.core.markdown import number, table
 from physverify.core.models import FrozenModel
 from physverify.datasets._base import DatasetSource
 from physverify.runtime.runs import RunContext
@@ -359,7 +360,7 @@ def _cell(value: object) -> str:
     if isinstance(value, bool):
         return "yes" if value else "no"
     if isinstance(value, float):
-        return f"{value:.4g}" if math.isfinite(value) else MISSING
+        return number(value, ".4g", MISSING, "nonfinite")
     if isinstance(value, Enum):
         return str(value.value)
     if isinstance(value, tuple):
@@ -368,9 +369,7 @@ def _cell(value: object) -> str:
 
 
 def _table(headers: Sequence[str], rows: Iterable[Sequence[object]]) -> list[str]:
-    lines = ["| " + " | ".join(headers) + " |", "|" + "|".join("---" for _ in headers) + "|"]
-    lines += ["| " + " | ".join(_cell(value) for value in row) + " |" for row in rows]
-    return [*lines, ""]
+    return [*table(headers, ([_cell(value) for value in cells] for cells in rows)), ""]
 
 
 def _section(title: str, lines: Sequence[str]) -> list[str]:
@@ -464,8 +463,8 @@ def _stage_body(report: StageErrorReport) -> list[str]:
         for e in report.profile
     ]
     headers = ("stage", "provider", "quantity", "bias", "sigma", "rms", "n", "written")
-    table = _table(headers, profile_rows) if profile_rows else []
-    lines += _section("Error profile entries", table)
+    entries = _table(headers, profile_rows) if profile_rows else []
+    lines += _section("Error profile entries", entries)
     return lines + _failures(report.failures)
 
 

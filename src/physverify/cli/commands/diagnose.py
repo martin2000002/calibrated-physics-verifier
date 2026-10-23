@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import datetime as dt
 import functools
-import math
 from collections.abc import Callable, Mapping, Sequence
 from typing import Annotated, Any
 
@@ -24,6 +23,7 @@ from physverify.cli.commands.extract import (
     write_events,
 )
 from physverify.cli.context import AppContext, app_context
+from physverify.core.markdown import number
 from physverify.diagnosis.attribution import run_attribution
 from physverify.diagnosis.cases import SampledMetric
 from physverify.diagnosis.checks_port import A7CheckSuite, CheckSuite
@@ -234,10 +234,8 @@ def real(
 # --- Console summary --------------------------------------------------------------------------
 
 
-def _number(value: float | None, digits: int = 3) -> str:
-    if value is None or math.isnan(value):
-        return "-"
-    return f"{value:.{digits}g}"
+def _number(value: float | None) -> str:
+    return number(value, ".3g", "-", "nan")
 
 
 def _failure_lines(failures: Sequence[Failure]) -> list[str]:

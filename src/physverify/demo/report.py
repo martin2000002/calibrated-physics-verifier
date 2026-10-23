@@ -8,7 +8,6 @@ calibrated is labelled as such everywhere: its S is not a calibrated verdict.
 
 from __future__ import annotations
 
-import math
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Final
@@ -16,6 +15,7 @@ from typing import Final
 from pydantic import Field
 
 from physverify.core.atomic import write_text_atomic
+from physverify.core.markdown import number, table
 from physverify.core.models import FrozenModel
 from physverify.finetune.records import CheckSummary, PromptRecord, finite_or_none
 from physverify.finetune.scorers._base import AggregateScore, AggregateScorer
@@ -28,6 +28,18 @@ CALIBRATED: Final = "calibrated"
 PROVISIONAL: Final = "provisional"
 PROVISIONAL_BANNER: Final = "PROVISIONAL RULE: not a calibrated verdict"
 NO_VERDICT: Final = "NO_EVENT"
+CHECK_COLUMNS: Final = (
+    "check",
+    "verdict",
+    "status",
+    "magnitude",
+    "sigma",
+    "threshold",
+    "abstain reasons",
+    "frames",
+    "decided by rule",
+    "rule term",
+)
 TERM_MEANING: Final = {
     True: "p_c, estimated violation probability",
     False: "s_j = 1 / (1 + m/tau), provisional factor",
@@ -197,8 +209,8 @@ def summaries_of(report: VideoReport) -> dict[str, CheckSummary]:
     return {row.check_id: row.summary() for row in report.checks}
 
 
-def _num(value: float | None, digits: int = 3) -> str:
-    return "-" if value is None or not math.isfinite(value) else f"{value:.{digits}g}"
+def _num(value: float | None) -> str:
+    return number(value, ".3g", "-", "nonfinite")
 
 
 def score_text(clip: ClipBlock) -> str:
@@ -212,10 +224,10 @@ def _span(span: tuple[int, int] | None) -> str:
     return "-" if span is None else f"{span[0]}-{span[1]}"
 
 
-def _row_line(row: CheckRow) -> str:
+def _row_cells(row: CheckRow) -> list[str]:
     reasons = ", ".join(row.abstain_reasons) or "-"
     decided = "yes" if row.rule_decided else "no"
-    cells = [
+    return [
         row.check_id,
         row.verdict,
         row.status,
@@ -227,7 +239,6 @@ def _row_line(row: CheckRow) -> str:
         decided,
         _num(row.rule_term),
     ]
-    return "| " + " | ".join(cells) + " |"
 
 
 def _header(report: VideoReport) -> list[str]:
@@ -258,16 +269,10 @@ def _clip_lines(report: VideoReport) -> list[str]:
 
 
 def _table(report: VideoReport) -> list[str]:
-    head = (
-        "| check | verdict | status | magnitude | sigma | threshold | abstain reasons "
-        "| frames | decided by rule | rule term |"
-    )
     return [
         "## Checks",
         "",
-        head,
-        "|" + "---|" * 10,
-        *(_row_line(row) for row in report.checks),
+        *table(CHECK_COLUMNS, [_row_cells(row) for row in report.checks]),
         "",
         f"Rule term: {TERM_MEANING[report.rule.calibrated]}.",
         "",

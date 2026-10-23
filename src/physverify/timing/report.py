@@ -23,6 +23,7 @@ from typing import IO, Any, Final
 from pydantic import ValidationError
 
 from physverify.core.atomic import write_bytes_atomic
+from physverify.core.markdown import number, table
 from physverify.timing.records import (
     CallFailure,
     MeasureStats,
@@ -242,7 +243,7 @@ def write_stats(directory: Path, rows: Iterable[MeasureStats]) -> None:
 
 
 def _number(value: float) -> str:
-    return "nan" if math.isnan(value) else f"{value:.4g}"
+    return number(value, ".4g", "nan", "nan")
 
 
 def _stat_text(row: MeasureStats) -> str:
@@ -251,9 +252,7 @@ def _stat_text(row: MeasureStats) -> str:
 
 
 def _table(header: Sequence[str], rows: Iterable[Sequence[object]]) -> list[str]:
-    lines = ["| " + " | ".join(header) + " |", "|" + "---|" * len(header)]
-    lines += ["| " + " | ".join(str(cell) for cell in row) + " |" for row in rows]
-    return lines
+    return table(header, ([str(cell) for cell in cells] for cells in rows))
 
 
 def _gpu_text(environment: Mapping[str, Any]) -> str:

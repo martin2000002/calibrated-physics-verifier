@@ -6,7 +6,6 @@ Not a heavy command: the perceived path runs the light stages only and refuses t
 from __future__ import annotations
 
 import datetime as dt
-import math
 from collections.abc import Sequence
 from functools import partial
 from pathlib import Path
@@ -19,6 +18,7 @@ from physverify.cli.commands._sealed import Selection, guard_sealed
 from physverify.cli.commands.extract import pipeline_deps, resolve_dataset, select_clips
 from physverify.cli.context import AppContext, app_context
 from physverify.core.errors import EXIT_ERROR, UsageError
+from physverify.core.markdown import number
 from physverify.datasets._base import DatasetSource
 from physverify.extraction.plan import resolve_plan
 from physverify.runtime.runs import RunContext, current_commit
@@ -205,6 +205,4 @@ def _label(outcome: RuleOutcome) -> str:
 
 
 def _number(value: float | None) -> str:
-    if value is None or math.isnan(value):
-        return "-"
-    return f"{value:.4g}"
+    return number(value, ".4g", "-", "nan")

@@ -15,6 +15,7 @@ from physverify.agreement.error_sample import CATEGORIES
 from physverify.agreement.items import ComparisonItem
 from physverify.agreement.pipeline import Comparison
 from physverify.core.atomic import write_text_atomic
+from physverify.core.markdown import number, table
 from physverify.schema.checks import AbstainReason
 from physverify.schema.io import json_ready
 
@@ -70,11 +71,11 @@ def write_comparison(out_dir: Path, comparison: Comparison) -> None:
 
 
 def _fmt(value: Any) -> str:
-    if value is None or (isinstance(value, float) and not math.isfinite(value)):
-        return "n/a"
-    if isinstance(value, float) and value.is_integer() and abs(value) >= 1:
+    if isinstance(value, float) and math.isfinite(value) and value.is_integer() and abs(value) >= 1:
         return str(int(value))
-    return f"{value:.3f}" if isinstance(value, float) else str(value)
+    if value is None or isinstance(value, float):
+        return number(value, ".3f", "n/a", "nonfinite")
+    return str(value)
 
 
 def _interval(block: Mapping[str, Any], key: str) -> str:
@@ -111,11 +112,6 @@ PER_GENERATOR_COLUMNS = (
     "verifier_balanced_accuracy",
     "vlm_balanced_accuracy",
 )
-
-
-def _table(columns: Sequence[str], rows: Sequence[Sequence[str]]) -> list[str]:
-    head = [f"| {' | '.join(columns)} |", f"|{'---|' * len(columns)}"]
-    return head + [f"| {' | '.join(row)} |" for row in rows]
 
 
 def _cell(block: Mapping[str, Any], system: str, key: str) -> str:
@@ -179,7 +175,7 @@ def _group_lines(group: str, policies: Mapping[str, Any]) -> list[str]:
     columns = ["system", "n", *(label for _, label in SYSTEM_COLUMNS)]
     for block in policies.values():
         lines += [f"Policy `{block['policy']}`:", ""]
-        lines += [*_table(columns, _system_rows(block)), "", _paired_line(block), ""]
+        lines += [*table(columns, _system_rows(block)), "", _paired_line(block), ""]
     return lines
 
 
@@ -247,7 +243,7 @@ def _abstention_lines(abstention: Mapping[str, Any], coverage: Mapping[str, Any]
 
 def _breakdown_lines(title: str, columns: Sequence[str], rows: Sequence[Any]) -> list[str]:
     body = [[_fmt(row.get(c)) for c in columns] for row in rows]
-    return [f"## {title}", "", *(_table(columns, body) if body else ["(none)"]), ""]
+    return [f"## {title}", "", *(table(columns, body) if body else ["(none)"]), ""]
 
 
 def _sensitivity_lines(block: Mapping[str, Any]) -> list[str]:
@@ -261,7 +257,7 @@ def _sensitivity_lines(block: Mapping[str, Any]) -> list[str]:
     ]
     columns = ["group", "system", "n", *(label for _, label in SYSTEM_COLUMNS)]
     rows = [[g, *row] for g, view in block["groups"].items() for row in _system_rows(view)[:2]]
-    return [*lines, *_table(columns, rows), ""]
+    return [*lines, *table(columns, rows), ""]
 
 
 def _audit_lines(audit: Mapping[str, Any] | None) -> list[str]:
