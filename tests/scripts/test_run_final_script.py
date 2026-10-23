@@ -789,6 +789,21 @@ def test_a_config_file_on_one_side_only_stops_the_v1_arm(
     assert result.returncode == 2 and message in result.stderr, result.stderr
 
 
+def test_a_config_file_other_than_checks_that_differs_stops_the_v1_arm(
+    sandbox: FinalSandbox,
+) -> None:
+    _ready(sandbox)
+    sandbox.ok("look", "kubric_fresh")
+    arm = sandbox.final / "v1arm" / "configs"
+    arm.mkdir(parents=True)
+    for name, text in REPO_CONFIG_FILES.items():
+        (arm / Path(name).name).write_text(text, encoding="utf-8")
+    (arm / "fusion.toml").write_text("edited fusion\n", encoding="utf-8")
+    result = sandbox.run("v1arm", "kubric_fresh")
+    assert result.returncode == 2, result.stderr
+    assert "beyond checks.toml: fusion.toml" in result.stderr, result.stderr
+
+
 def test_a_rerun_of_the_v1_arm_needs_the_same_configs_diff(sandbox: FinalSandbox) -> None:
     _ready(sandbox)
     sandbox.ok("look", "kubric_fresh")
