@@ -55,7 +55,7 @@ def artifact_record(paths: Mapping[str, Path | None]) -> dict[str, dict[str, str
 
 
 def record_sha(settings: Settings, *, checks: Callable[[], Mapping[str, type[Check]]]) -> str:
-    """J12: the decision record's stable hash, the one run_human_agreement.sh's prereg_problem
+    """The decision record's stable hash, the one run_human_agreement.sh's prereg_problem
     compares. ``checks`` builds the registry, so a plugin that fails to load is refused too."""
     try:
         sha = check_scope(settings, checks()).record_sha256
@@ -74,7 +74,8 @@ def manifest(
     record: Callable[[], str],
     now: Callable[[], datetime],
 ) -> dict[str, Any]:
-    """freeze.json (AC-8, AC-18); refused when J3's diff is not empty or the record differs.
+    """freeze.json; refused when the j3 diff (chosen iteration to HEAD) is not empty or the record
+    differs.
 
     ``record`` gives the decision record's hash and ``now`` the UTC time of the freeze."""
     head = git(["rev-parse", "HEAD"]).strip()

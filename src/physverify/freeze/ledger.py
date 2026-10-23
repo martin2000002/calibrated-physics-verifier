@@ -20,7 +20,7 @@ from physverify.freeze.errors import QueryError
 
 
 def look_state(entries: Sequence[LedgerEntry], specs: Sequence[str], *, retry: bool) -> str:
-    """J6: a set is looked at once; one retry only when that look wrote no evaluation."""
+    """A set is looked at once; one retry only when that look wrote no evaluation."""
     found = earlier(entries, specs)
     if not retry:
         if found:
