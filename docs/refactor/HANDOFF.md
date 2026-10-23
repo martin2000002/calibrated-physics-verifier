@@ -58,8 +58,8 @@ ssh h200 'nohup bash /home/mmonterot/dev/wt/refactor_check.sh refactor/architect
 | 6 | tests mirror src | todo |
 | 7 | config layout `configs/{verifier,datasets,studies}` | todo |
 | 8 | CLI, script and env-var renames | todo |
-| 9 | English, comments, docstrings, process labels (parallel batches) | todo |
-| 10 | stricter mypy and ruff | todo |
+| 9 | English, comments, docstrings, process labels (parallel batches) | done (phase 0, A, B, C merged, integration), audit pending |
+| 10 | stricter mypy and ruff (tests under mypy deferred to WP10b) | done, audit pending |
 | 11 | README, CLAUDE.md, scripts README; delete `docs/refactor/` | todo |
 
 Test counts: the base has 3449 collected; after the WP1 audit fixes, 3424.
@@ -436,3 +436,110 @@ Stream S (CLI and script renames, J14), branch `refactor/wp8-s`:
   `results_chain_without_agreement`. The renamed help pages shift the alignment of
   `diff -r`, so the audit-migration hunk header in `wp1-audit-migration.diff` is now
   `318,334d314` (was `316,332d312`); its lines are otherwise unchanged.
+
+## WP9
+
+Plan: `Knowledge/handoffs/refactor-wp9-wp10-plan.md` (judge amendments JZ1-JZ11). Phase 0, then
+streams A (verifier: checks, physics, verification, extraction, synth), B (studies: calibration,
+human agreement, freeze, generator comparison, finetune) and C (CLI help, scripts, tools, configs,
+the remaining tests) in parallel, merged A -> B -> C, then the integration branch `refactor/wp9-10`.
+
+- One term per label: `docs/refactor/wp9/glossary.tsv` (JZ4). Integration added three rows: H2 as
+  a hypothesis -> "human-agreement hypothesis" (persisted in the human-agreement `summary.md`), the
+  H2 verdict -> "human-agreement verdict", and H1 in the dev-score context -> "monotonicity" (the
+  dev score measures it in-sample on calib, so it is not held-out).
+- Process labels, measured with the scanner of each revision (`tests/test_process_labels.py`):
+  WP9 base `630b935` 1994 (comment_or_docstring 1076, config_or_script_text 254, identifier 200,
+  test_name 185, literal 176, banner 99, camel_identifier 4); after the A+B+C merge `c03de31` 102
+  (literal 67, config_or_script_text 35, 29 of them in `scripts/h200/README.md`); now literal 67,
+  config_or_script_text 6, identifier 103 (all kept names), every other category 0. The plan
+  caps were estimates: literal <= 60 overall (A <= 5, B <= 30, C <= 25) and text C <= 4 (raised by
+  JZ5 to the measured >= 8). Measured: A 0, B 12, C 55 literals; text 6, all in `scripts/h200`.
+- `test(process-labels): enforce zero labels` replaces the never-increase baseline
+  (`tests/contracts/data/process_labels_baseline.json`, deleted) with exact per-path allow-lists
+  (JZ10): `KEPT_FRAGMENTS` (literal and text fragments, 40 entries, each naming its reader) and
+  `KEPT_IDENTIFIERS` (path -> {name: count}, 26 paths; the readers of the kept names are in
+  `IDENTIFIER_READERS`). A hit not covered fails (new use) and so does an entry or count with fewer
+  hits (stale entry). New patterns: `audit <n>`, `judge change`, `amendment(s)` and `Knowledge/`;
+  command words (`re-audit`, `--audit`, `audit_lines`) are not labels. `scripts/h200/README.md` stays
+  excluded until WP11, which must delete the exclusion. Running the file prints the totals.
+  Collected tests: 3666 (2 deselected).
+- Kept literals over the caps, all with a reader in `docs/refactor/wp9/{b,c}-literals-kept.tsv`. C's
+  55 are on-disk names the H200 reads back or test ids: the iteration ids of
+  `scripts/h200/perception_arms.tsv` (`it3-r`, `it3-ak`, `it3-ap`, `it3-c`; state.env `CHAIN_ARM`)
+  and the test fixtures that mirror them (`test_freeze_query.py` 16, `test_perception_iteration_script.py`
+  20, `test_run_freeze_script.py` 8), the chain directory `$H200_ROOT/a8v2` (`_common.sh:9`) and its
+  sandbox mirrors and param ids, the `## H1 primary` heading `run_query.py` parses, the `H2: ` stdout
+  line `run_human_agreement.sh` parses with `sed`, the environment override of the persisted
+  section `[h3.autoeval]`, and the left side's `--a8v2-dir` in `tools/equivalence/driver.py`.
+- Comment-only edits to frozen files (ADR 0017): docstrings and comments in `core/cache_keys.py`,
+  `runtime/{container,docker,udocker}.py`, `schema/clip.py`, `kubric_worker/tasks/ping.py`, the
+  `__init__.py` of `demo`, `generator_comparison` and `generator_comparison/judges`, the `_base.py`
+  of `extraction`, `verification`, `finetune/scorers` and `generator_comparison/judges`,
+  `configs/default.toml` and `configs/verifier/size_priors.toml` (header comments),
+  `tests/fixtures/videophy_world.py` (module docstring). Lint-only rewrites, same AST or same
+  value: `tests/fixtures/synthetic_clip.py` (`(*shape[:2], 1)` for `shape[:2] + (1,)`, RUF005) and
+  `tests/config/test_config.py` (a comment rewritten, the assert wrapped by `ruff format`).
+- `tests/contracts/test_config_splits.py` (phase 0, `7cb4b2a`, JZ6): `test_the_pieces_hold_the_same_lines`
+  is deleted; it pinned the comments of the seven split TOML files, and the originals have inline
+  comments, so stripping `#` lines would not have been enough. The tables test stays and pins every
+  table and value against `tests/contracts/data/pre_split_configs.json`.
+- `tests/fixtures/shell_sandbox.py` (frozen, `a6a189d`): the sandbox links `repo/src` to this
+  checkout's `src` and puts it first on `PYTHONPATH`, so the shell-script tests import `physverify`
+  from the checkout under test and not from an editable install of another worktree.
+- Persisted values changed without a reader (`docs/refactor/wp9/b-persisted-values.tsv`): the
+  `h2_verdict.reason` of `metrics.json` (copied into `results.json`), "no H2 verdict" -> "no
+  human-agreement verdict", and the real-video diagnosis `Failure.error`, "A7's check suite is
+  unavailable" -> "the check suite is unavailable". No script, test or golden blob reads either.
+- B's departures from the plan: `record_markdown` (`calibration/exclusion_decision.py:199`) was
+  reworded (no ADR pointer, "generator-comparison families"); the record's sha256 covers only its
+  JSON content (`verification/exclusion_record.py:73`), so the markdown view is not hashed. The dev-score text and stdout say
+  "monotonicity" (`N/M meet monotonicity and J_cv^lo > 0`) rather than the glossary's "held-out
+  monotonicity", because the dev score is computed in-sample on calib; `run_perception_iteration.sh`
+  copies that line into `summary.md` without parsing it (`tests/calibration/test_cli_devscore.py:125`
+  and the iteration-script fake follow it).
+- Equivalence: `tools/equivalence/expected/wp9-b-messages.diff` (the human-agreement `summary.md`
+  wording) and `wp9-c-help-text.diff` (help text and the `configs/default.toml` header comment).
+  Integration realigned the older files: a help line changed by more than one step belongs to the
+  latest file only, and the older files renumber their hunk headers in place
+  (`wp1-audit-migration.diff`, `wp7-config-layout.diff`, `wp8-cli-renames.diff`). See the harness
+  README.
+
+## WP10
+
+`build(pyproject): strict typing and wider lint` (frozen-file departure: `pyproject.toml`).
+
+- mypy: the relaxed override (5 flags over 9 globs) and the strict-again override are gone, so the
+  whole of `src/physverify`, `scripts/h200` and now `tools/equivalence` is strict.
+  `untyped_calls_exclude = ["transformers"]` (`AutoProcessor.from_pretrained`);
+  `enable_error_code = ["ignore-without-code", "truthy-bool", "truthy-iterable",
+  "possibly-undefined"]`. Result: no issues in 466 source files. The three typing fixes use true
+  annotations or `typing.cast`, never `float()`, which would turn `np.float64` into `float`.
+- mypy flags not enabled: `warn_unreachable` (2 hits in timing) and `redundant-expr` (4: 3 in
+  schema, 1 in extraction) flag defensive checks of input data, and removing them changes the
+  behaviour on bad input; `explicit-override` (87) needs `typing.override`, which the Python 3.9
+  schema code does not have; `mutable-override` (9) hits the Record classes.
+- Tests are not under mypy (WP10b). A strict probe gives about 485 errors (estimated, and measured
+  with 122 `import-not-found` left unresolved because the helper modules are loaded through
+  `sys.path`, so the real count may be higher; then 80 no-untyped-def, 73 attr-defined, 71
+  call-arg), and 15 test basenames are duplicated without an `__init__.py`. Entry criterion for
+  WP10b: the test layout resolves every helper import (packages or `mypy_path`) with no duplicate
+  module names, and a fresh probe is under the plan threshold of about 300 errors.
+- ruff adds RUF, ERA, PIE, RET, PTH, T20, TID, ARG, C4, PERF, FURB, ISC and FLY. Ignored globally:
+  RUF012 (`ClassVar` on FrozenModel fields would drop them), RUF009 (a `default_factory` would
+  change instance sharing), ARG002 (protocol method signatures). ARG001/003/004/005 stay on in src,
+  scripts and tools; `tests/**` ignores ARG. `allowed-confusables = ["’"]` (an intentional input in
+  `tests/human_agreement/test_fetch.py`). T20 is allowed only in the entry points `cli/main.py`,
+  `kubric_worker/__main__.py` and `synth/hdri_pools.py`, and in `scripts/**`, `tools/**` and
+  `tests/**`. banned-api: `physverify.cli` and `physverify.app` outside the layers allowed to import
+  them (TID251 ignored in `cli/**`, `app/**`, `scripts/**`, `tools/**`, `tests/**`);
+  `ban-relative-imports = "parents"`.
+- ruff families not adopted: PL (1114 hits), FBT (252, changes signatures), S (5612), EM (710) and
+  TRY (706) (change message texts), PT (640), TC (1754, pydantic needs the annotations at runtime),
+  D (6771), COM (1741), INP (286, the test layout of WP10b), BLE (5), SLF (7), PYI (5).
+- Frozen-file fixes for the new rules, Python 3.9 compatible: `os.replace` -> `Path.replace` in
+  `core/{atomic,download,video}.py` (PTH), a dict comprehension in `kubric_worker/tasks/ping.py`
+ , `math.floor(...)` without `int()` in `schema/clip.py` (RUF046). Outside the frozen
+  set, the two unused callback arguments in `timing/{harness,session}.py` take a leading underscore.
+- `lint-imports` is not installed in the venv; `tests/test_architecture.py` reads
+  `[tool.importlinter]` and enforces the same contracts with `ast`.
