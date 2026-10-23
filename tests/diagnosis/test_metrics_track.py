@@ -1,4 +1,4 @@
-"""track/mask: J, F and the centroid error on analytic discs (ADR 0007 §7)."""
+"""track/mask: J, F and the centroid error on analytic discs."""
 
 from __future__ import annotations
 

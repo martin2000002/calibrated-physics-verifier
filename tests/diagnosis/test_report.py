@@ -1,4 +1,4 @@
-"""Report models: deterministic JSON, markdown tables, estimated/provisional labels (ADR 0007)."""
+"""Report models: deterministic JSON, markdown tables, estimated/provisional labels."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""ADR 0010 §3 with ADR 0009 §7: abstain reads one A8 stratum per input level."""
+"""Abstain reads one calibration stratum per input level."""
 
 from __future__ import annotations
 
@@ -61,7 +61,7 @@ def test_an_explicit_table_overrides_one_level(tmp_path: Path) -> None:
 
 
 def test_strata_without_an_ok_check_are_refused_with_a_clear_error(tmp_path: Path) -> None:
-    """A8's first fit: every check insufficient, so both projections have no checks."""
+    """The first calibration fit: every check insufficient, so both projections have no checks."""
     insufficient = {"R1": check_calibration(tau=None, status="insufficient")}
     strata = tuple(
         stratum_model(insufficient, level=level)

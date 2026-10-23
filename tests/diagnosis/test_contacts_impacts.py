@@ -1,4 +1,4 @@
-"""it3 T12: contacts/impacts matches impacts alone, by time, per pair (plan-it3 §5.3)."""
+"""contacts/impacts matches impacts alone, by time, per pair."""
 
 from __future__ import annotations
 

@@ -51,7 +51,7 @@ from physverify.verification.runner import VerificationReport
 
 PRIMARY = ("s000", "s011-s039")
 SHIPPED = ("s011-s039",)
-"""s000 was looked at during the campaign."""
+"""The shipped scope leaves out s000, which was looked at during the campaign."""
 
 
 def test_specs_expand_to_inclusive_indices() -> None:
@@ -173,7 +173,7 @@ def test_the_report_round_trips_and_renders(artifact: CalibrationArtifact) -> No
     assert "H1 primary" not in evaluation_markdown(_evaluate(artifact, None))
 
 
-# --- the pooled tau_b of D8 in both views (ADR 0015 1.4, rule of ADR 0009 change 4) -----------
+# The pooled monotonicity tau_b in both views (rule 1.4); median dips do not condition it.
 
 
 def _fit_on(report: VerificationReport) -> CalibrationArtifact:

@@ -1,4 +1,4 @@
-"""The pilot's stop rule (ADR 0012, item 1.6), pure part."""
+"""The pilot's stop rule (item 1.6), pure part."""
 
 from __future__ import annotations
 

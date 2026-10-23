@@ -1,4 +1,4 @@
-"""Level 3 (ADR 0007 §5.4, AC6): blocks, unit coherence, statistics and the fixture run."""
+"""Level 3: blocks, unit coherence, statistics and the fixture run."""
 
 from __future__ import annotations
 
@@ -63,8 +63,6 @@ def result(
     )
 
 
-# --- Blocks ---------------------------------------------------------------------------------------
-
 F_TPP: Cell = (False, True, True)
 
 
@@ -120,9 +118,6 @@ def test_blocks_without_v0_pairing_have_no_v0_response() -> None:
     assert collected.incomplete == {CHECK: {}}
 
 
-# --- Units ----------------------------------------------------------------------------------------
-
-
 def test_check_units_agree_over_magnitudes() -> None:
     results = {
         "oracle": [result("a", 1.0), result("b", None, unit="")],
@@ -148,9 +143,6 @@ def test_lift_unit_is_shared_by_every_cell() -> None:
     mixed = {name: ["meter" if name == "F_ttt" else "relative"] for name in names}
     with pytest.raises(UnitMismatchError, match="lift"):
         lift_unit(mixed)
-
-
-# --- Statistics -----------------------------------------------------------------------------------
 
 
 def linear(cell: Cell) -> float:
@@ -206,9 +198,6 @@ def test_budget_rows_point_at_their_level1_metrics() -> None:
     assert stage_metric(metrics, stages[FIXED]) == "camera/fov,detect/box"
     assert stage_metric(metrics, stages["floor"]) == "lift/position"
     assert stage_metric(metrics, stages["scale"]) is None
-
-
-# --- The fixture run ------------------------------------------------------------------------------
 
 
 @pytest.fixture

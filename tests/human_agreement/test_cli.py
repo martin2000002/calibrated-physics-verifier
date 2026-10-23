@@ -278,7 +278,7 @@ STRICT = ("--set", "calibration.require_calibrated_artifact=true")
 
 
 def _artifact(world, *, record: bool = True, **kwargs) -> Path:
-    """The artifact and, unless ``record`` is False, its ADR 0015 decision record."""
+    """The artifact and, unless ``record`` is False, its exclusion decision record."""
     active = active_checks_hash(world.settings)
     options = {"profile": "precise", "checks_hash": active, **kwargs}
     artifact = write_artifact(default_artifact_path(world.settings), **options)

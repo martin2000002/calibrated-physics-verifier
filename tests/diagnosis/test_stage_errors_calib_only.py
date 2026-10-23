@@ -1,4 +1,4 @@
-"""``diagnose stages`` on calib clips only (WP-O C6): the campaign's ladder never touches eval."""
+"""``diagnose stages`` on calib clips only: the campaign's ladder never touches eval."""
 
 from __future__ import annotations
 

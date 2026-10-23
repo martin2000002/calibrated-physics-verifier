@@ -139,7 +139,7 @@ EXTERNAL_STATUSES: tuple[ExternalStatus, ...] = ("ok", "failed_gate", "unusable"
 
 
 def _expected(v: VerdictInputs, primary: str, external: str) -> str:
-    """The ADR 0013 D8 precedence written out independently of ``verdict.py``."""
+    """The verdict precedence written out independently of ``verdict.py``."""
     if v.rule_status != "calibrated" or v.contaminated or not v.label_matches:
         return NO_VERDICT
     if not v.has_ft_model:

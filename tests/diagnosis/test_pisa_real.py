@@ -1,4 +1,4 @@
-"""PISA real drops (ADR 0007 §4.2): prompt queries, seeded selection, verified member extraction."""
+"""PISA real drops: prompt queries, seeded selection, verified member extraction."""
 
 from __future__ import annotations
 
@@ -88,9 +88,6 @@ def dest_of(settings: Settings) -> Path:
     return settings.paths.raw_dir / PisaRealDataset.name
 
 
-# --- Pure helpers -----------------------------------------------------------------------------
-
-
 @pytest.mark.parametrize(
     ("prompt", "phrase"),
     [
@@ -119,9 +116,6 @@ def test_selection_is_seeded_and_puts_size_priors_first() -> None:
     assert prompts[first[4]] == "thing"
     assert select_ids(prompts, 0, 0, has_prior) != select_ids(prompts, 0, 1, has_prior)
     assert sorted(select_ids(prompts, 0, 0, has_prior)) == sorted(prompts)
-
-
-# --- Fetch and clips --------------------------------------------------------------------------
 
 
 def test_fetch_extracts_the_selected_clips_and_records_them(

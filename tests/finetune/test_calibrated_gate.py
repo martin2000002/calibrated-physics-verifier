@@ -1,4 +1,5 @@
-"""The calibrated scorer v2 opens its stratum through A8's ``open_stratum``, like H2 does."""
+"""The calibrated scorer v2 opens its stratum through the calibration chain's ``open_stratum``, like
+the human-agreement study does."""
 
 from __future__ import annotations
 

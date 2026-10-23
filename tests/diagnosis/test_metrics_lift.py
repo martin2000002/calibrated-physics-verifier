@@ -1,4 +1,4 @@
-"""lift/position: errors after the conditional scale fit, in object lengths (ADR 0007 §7)."""
+"""lift/position: errors after the conditional scale fit, in object lengths."""
 
 from __future__ import annotations
 

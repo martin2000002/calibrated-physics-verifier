@@ -1,4 +1,4 @@
-"""it2 T13: camera/gravity, the perceived pose's gravity against the true one."""
+"""camera/gravity, the perceived pose's gravity against the true one."""
 
 from __future__ import annotations
 

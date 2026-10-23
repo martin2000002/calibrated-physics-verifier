@@ -1,4 +1,4 @@
-"""ErrorProfile built from Level-1 samples: statistics, merge, atomic write (ADR 0005 §5)."""
+"""ErrorProfile built from Level-1 samples: statistics, merge, atomic write."""
 
 from __future__ import annotations
 
@@ -47,7 +47,7 @@ CONTRACT = (
     (Stage.LIFT, "centroid_rel"),
     (Stage.LIFT, "size_rel"),
 )
-"""The four quantities A5's light providers read from the profile."""
+"""The four quantities the extractor's light providers read from the profile."""
 
 
 def provider(stage: Stage, name: str) -> ProviderRef:

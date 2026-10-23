@@ -41,7 +41,7 @@ def pairs(rng: np.random.Generator, n: int = 200, scale: float = SCALE) -> list[
 
 
 def test_the_factor_and_bias_are_recovered_and_coverage_is_restored() -> None:
-    """AC8: k within 10 % of the true scale; |z| / k <= 1 on a fresh sample covers 68.3 % +- 5 pp.
+    """k within 10 % of the true scale; |z| / k <= 1 on a fresh sample covers 68.3 % +- 5 pp.
     The bias is a median of 200 deltas with sd up to 0.1 (standard error about 0.005)."""
     rng = np.random.default_rng(0)
     found = fit_sigma(pairs(rng), settings())
@@ -115,7 +115,7 @@ def test_recalibrate_profile_keeps_bias_and_scales_sigma_and_residuals() -> None
     assert profile_hash(out) != profile_hash(profile)
 
 
-# --- it1 change C: the D9 factor over the informative pairs (T12-T15, J3) ----------------------
+# The per-check sigma factor over the informative pairs only (the sigma-pair filter).
 
 
 def censored_pairs(

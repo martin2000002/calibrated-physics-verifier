@@ -1,4 +1,5 @@
-"""The H3 eval candidate identity is pinned: a change here regenerates every stored video."""
+"""The generator-comparison eval candidate identity is pinned: a change here regenerates every
+stored video."""
 
 from __future__ import annotations
 

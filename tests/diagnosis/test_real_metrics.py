@@ -1,4 +1,4 @@
-"""Real-video metrics (ADR 0007 §5.5): motion agreement and the free-fall diagnosis."""
+"""Real-video metrics: motion agreement and the free-fall diagnosis."""
 
 from __future__ import annotations
 
@@ -42,9 +42,6 @@ def real() -> RealSettings:
         fall_speed_drop=0.5,
         min_fall_frames=4,
     )
-
-
-# --- Motion -----------------------------------------------------------------------------------
 
 
 def square(left: int) -> NDArray[np.bool_]:
@@ -126,9 +123,6 @@ def test_jitter_on_a_static_clip_is_false_motion(real: RealSettings) -> None:
 def test_motion_scores_reject_a_mask_of_another_size(real: RealSettings) -> None:
     with pytest.raises(ValueError, match="do not match"):
         motion_scores(track([square(0)] * 2), np.zeros((2, HEIGHT, WIDTH + 1), bool), real)
-
-
-# --- Free fall --------------------------------------------------------------------------------
 
 
 def fixture_states(frame: CoordFrame = CoordFrame.WORLD_ZUP) -> ObjectStateTable:

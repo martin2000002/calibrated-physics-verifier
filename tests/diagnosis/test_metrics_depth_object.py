@@ -1,4 +1,4 @@
-"""depth/object_rel: per-object depth error after one scale per clip (ADR 0007 §7)."""
+"""depth/object_rel: per-object depth error after one scale per clip."""
 
 from __future__ import annotations
 

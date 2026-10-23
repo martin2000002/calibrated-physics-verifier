@@ -1,4 +1,4 @@
-"""Clip decisions (D5), the join with the labels (D3) and the abstention policies (D7)."""
+"""Clip decisions, the join with the labels and the abstention policies."""
 
 from __future__ import annotations
 

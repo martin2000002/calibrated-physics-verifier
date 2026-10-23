@@ -1,4 +1,4 @@
-"""``physics_iq_views`` (plan-congelado 3.1, F2): the other views of the ``[physics_iq]`` clips
+"""``physics_iq_views``: the other views of the ``[physics_iq]`` clips
 under their own name, raw directory and manifest; the ``center`` plugin is unchanged."""
 
 from __future__ import annotations

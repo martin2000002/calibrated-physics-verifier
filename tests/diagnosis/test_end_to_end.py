@@ -1,4 +1,4 @@
-"""Level 2 (ADR 0007 §5.3, AC7): pairing, agreement measures, flips and the fixture run."""
+"""Level 2: pairing, agreement measures, flips and the fixture run."""
 
 from __future__ import annotations
 
@@ -74,9 +74,6 @@ def id_map(pairs: dict[str, str], unmatched: tuple[str, ...] = ()) -> IdMap:
     )
 
 
-# --- Pairing ------------------------------------------------------------------------------------
-
-
 def test_span_iou_on_inclusive_native_frames() -> None:
     assert span_iou((0, 9), (5, 14), MIN_IOU) == pytest.approx(5 / 15)
     assert span_iou((0, 9), (10, 19), MIN_IOU) == 0.0
@@ -131,9 +128,6 @@ def test_pairs_below_the_span_floor_stay_apart() -> None:
     )
     assert paired.pairs == ()
     assert len(paired.missing) == len(paired.spurious) == 1
-
-
-# --- Agreement ------------------------------------------------------------------------------------
 
 
 def scripted() -> Paired:
@@ -214,8 +208,6 @@ def test_clip_rows_list_pairs_missing_and_spurious() -> None:
     assert rows[3].delta is None
     assert (rows[0].verdict_reference, rows[0].verdict_other) == (Verdict.PASS, Verdict.FAIL)
 
-
-# --- The fixture run ------------------------------------------------------------------------------
 
 ContextFactory = Callable[..., DiagnosisContext]
 Suite = Any

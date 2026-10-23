@@ -1,4 +1,4 @@
-"""The per-check breakdown follows the compared rule and the primary policy (ADR 0011 D9)."""
+"""The per-check breakdown follows the compared rule and the primary policy."""
 
 from __future__ import annotations
 

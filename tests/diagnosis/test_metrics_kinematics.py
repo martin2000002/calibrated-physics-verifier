@@ -1,4 +1,4 @@
-"""kinematics/derivatives: velocity and acceleration errors, split around impacts (ADR 0007 §7)."""
+"""kinematics/derivatives: velocity and acceleration errors, split around impacts."""
 
 from __future__ import annotations
 

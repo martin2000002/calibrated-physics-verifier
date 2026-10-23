@@ -1,4 +1,5 @@
-"""Fixtures of H3: settings over ``configs/`` and a synthetic campaign on disk.
+"""Fixtures of the generator comparison: settings over ``configs/`` and a synthetic campaign on
+disk.
 
 The campaign has 8 analysed eval prompts (two families, four templates, half unseen), one demo
 prompt and two dev prompts; base has K = 8 eval candidates, the selected adapter K = 4, both K = 2

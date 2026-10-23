@@ -1,4 +1,4 @@
-"""ADR 0010 I6-I7: the risk-coverage sweep reuses the threshold policy and its statistics."""
+"""The risk-coverage sweep reuses the threshold policy and its statistics."""
 
 from __future__ import annotations
 
