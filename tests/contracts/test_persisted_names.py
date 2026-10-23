@@ -288,14 +288,20 @@ def _string_constants() -> frozenset[str]:
     )
 
 
+def _targets(node: ast.stmt) -> list[ast.expr]:
+    if isinstance(node, ast.Assign):
+        return node.targets
+    return [node.target] if isinstance(node, ast.AnnAssign) else []
+
+
 def _module_constant(name: str) -> set[str]:
     return {
         node.value.value
         for module in _modules()
         for node in module.body
-        if isinstance(node, ast.Assign)
+        if isinstance(node, ast.Assign | ast.AnnAssign)
         and isinstance(node.value, ast.Constant)
-        and any(isinstance(t, ast.Name) and t.id == name for t in node.targets)
+        and any(isinstance(t, ast.Name) and t.id == name for t in _targets(node))
     }
 
 

@@ -58,6 +58,10 @@ lines of `diff.txt`) as a new file.
 
 ## Scenarios (J10 a: each asserts its exit code and that it wrote files or printed output)
 
+The commands and options below are the left side's (`9eb5888`) on purpose: `driver.py` writes each
+scenario with those literals and `_map_argv` maps them onto the WP8 names (`COMMAND_RENAMES`,
+`OPTION_RENAMES`) only on a checkout that lacks the old ones.
+
 | Scenario | Command | Exit |
 |---|---|---|
 | doctor, doctor_set | `doctor`; `--set runtime.threads=2 --profile precise doctor` | 0 |
