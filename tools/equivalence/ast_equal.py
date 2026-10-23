@@ -11,6 +11,7 @@ the paired files, and the allowed substitutions are applied to the old side. all
 
     <new path or *>\t<kind>\t<old>\t<new>        kind: name (identifiers) | literal (str constants)
         | alias (an imported name -> "<name> as <asname>")
+        | variable (like name, but only variables and imported names, never attributes)
 
 With --sort-imports, each run of consecutive import statements and each import's names are
 sorted on both sides, so the reordering a linter makes after a rename does not count.
@@ -35,6 +36,7 @@ class Allowed:
     names: dict[str, dict[str, str]] = field(default_factory=dict)
     literals: dict[str, dict[str, str]] = field(default_factory=dict)
     aliases: dict[str, dict[str, str]] = field(default_factory=dict)
+    variables: dict[str, dict[str, str]] = field(default_factory=dict)
 
     def for_path(self, table: Mapping[str, dict[str, str]], path: str) -> dict[str, str]:
         return {**table.get("*", {}), **table.get(path, {})}
@@ -97,9 +99,14 @@ class _Rewrite(ast.NodeTransformer):
         names: Mapping[str, str],
         literals: Mapping[str, str],
         aliases: Mapping[str, str] | None = None,
+        variables: Mapping[str, str] | None = None,
     ) -> None:
         self.modules, self.names, self.literals = modules, names, literals
         self.aliases = aliases or {}
+        self.variables = variables or {}
+
+    def _variable(self, value: str) -> str:
+        return self.variables.get(value, self._name(value))
 
     def _name(self, value: str) -> str:
         return self.names.get(value, value)
@@ -113,13 +120,13 @@ class _Rewrite(ast.NodeTransformer):
         if node.asname is None and node.name in self.aliases:
             node.name, node.asname = self.aliases[node.name].split(" as ")
             return node
-        node.name = _rename_module(self._name(node.name), self.modules)
+        node.name = _rename_module(self._variable(node.name), self.modules)
         if node.asname:
-            node.asname = self._name(node.asname)
+            node.asname = self._variable(node.asname)
         return node
 
     def visit_Name(self, node: ast.Name) -> ast.AST:
-        node.id = self._name(node.id)
+        node.id = self._variable(node.id)
         return node
 
     def visit_Attribute(self, node: ast.Attribute) -> ast.AST:
@@ -206,7 +213,12 @@ def _load_allowed(path: Path | None) -> Allowed:
         if not line.strip() or line.startswith("#"):
             continue
         where, kind, old, new = line.split("\t")
-        tables = {"name": allowed.names, "literal": allowed.literals, "alias": allowed.aliases}
+        tables = {
+            "name": allowed.names,
+            "literal": allowed.literals,
+            "alias": allowed.aliases,
+            "variable": allowed.variables,
+        }
         table = tables[kind]
         table.setdefault(where, {})[old] = new
     return allowed
@@ -239,6 +251,7 @@ def compare(
             allowed.for_path(allowed.names, new_path),
             allowed.for_path(allowed.literals, new_path),
             allowed.for_path(allowed.aliases, new_path),
+            allowed.for_path(allowed.variables, new_path),
         )
         left = _dump(_git(repo, "show", f"{old}:{old_path}"), rewrite, sort_imports)
         right = _dump(_git(repo, "show", f"{new}:{new_path}"), None, sort_imports)

@@ -102,8 +102,10 @@ Results recorded with the current scenario list and per-side inputs:
 For pure-move and comment/docstring commits: pairs modules by git rename detection (`-M30%`) plus
 `--renames` (`<old path>\t<new path>`), strips docstrings, rewrites the old side's imports and
 `physverify...` string constants through the module-rename map, applies `--allow` substitutions
-(`<new path or *>\t<name|literal|alias>\t<old>\t<new>`; an `alias` line turns the old `import <old>`
-into `import <name> as <asname>`, written `<name> as <asname>`) and compares `ast.dump`. With `--sort-imports`
+(`<new path or *>\t<name|literal|alias|variable>\t<old>\t<new>`; an `alias` line turns the old
+`import <old>` into `import <name> as <asname>`, written `<name> as <asname>`; a `variable` line
+renames variables and imported names but not attributes, for a module alias that shares its name
+with an attribute) and compares `ast.dump`. With `--sort-imports`
 (used for the renames of WP4a) each run of consecutive import statements and each import's names
 are sorted on both sides first, so the import reordering `ruff` makes after a rename is not a
 difference. Reports added, deleted
