@@ -14,10 +14,10 @@ from physverify.synth.perturb import PerturbationNotApplicableError
 from physverify.synth.perturbations._base import PerturbationTarget
 from physverify.synth.perturbations._edit import (
     PluginBase,
-    centres_in_image,
     gravity_of,
     pick,
     provisional_record,
+    require_in_image,
 )
 from physverify.synth.perturbations._measure import gravity_scale_error
 from physverify.synth.scene_kit import sphere_path
@@ -58,8 +58,7 @@ class GravityScale(PluginBase[Params]):
         paths = [
             sphere_path(o.position, o.velocity, gravity, o.extents[0] / 2.0, times) for o in balls
         ]
-        if not centres_in_image(edited, np.vstack(paths)):
-            raise PerturbationNotApplicableError(f"{NAME}: a ball leaves the image under k g")
+        require_in_image(edited, np.vstack(paths), f"{NAME}: a ball leaves the image under k g")
         record = provisional_record(
             self,
             magnitude,

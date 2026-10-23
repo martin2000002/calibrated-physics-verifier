@@ -186,6 +186,25 @@ def require_in_image(scene: SceneSpec, positions: Vec, reason: str) -> None:
         raise PerturbationNotApplicableError(reason)
 
 
+def require_clearance(
+    moved: ObjectStateTable,
+    index: int,
+    frames: Iterable[int],
+    minimum: float,
+    reason: str,
+    *,
+    skip: Sequence[int] = (),
+    with_floor: bool = False,
+) -> None:
+    """Refuse a moved ``index`` that comes within ``minimum`` of another body (or the floor)."""
+
+    def body(t: int) -> Solid:
+        return solid_at(moved, index, t)
+
+    if clearance(moved, body, index, frames, skip=skip, with_floor=with_floor) < minimum:
+        raise PerturbationNotApplicableError(reason)
+
+
 def require_clear_flight(
     scene: SceneSpec,
     moved: ObjectStateTable,
@@ -220,13 +239,10 @@ def require_clear_shift(
     """Refuse a shifted ``index`` that comes within ``min_clearance`` of a body other than
     ``partner`` or whose centre leaves the image."""
 
-    def body(t: int) -> Solid:
-        return solid_at(moved, index, t)
-
     frames = range(moved.n_frames)
-    gap = clearance(moved, body, index, frames, skip=(partner,), with_floor=with_floor)
-    if gap < min_clearance:
-        raise PerturbationNotApplicableError(too_close)
+    require_clearance(
+        moved, index, frames, min_clearance, too_close, skip=(partner,), with_floor=with_floor
+    )
     require_in_image(scene, moved.position[:, index], leaves)
 
 

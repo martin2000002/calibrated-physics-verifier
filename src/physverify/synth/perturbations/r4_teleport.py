@@ -8,7 +8,6 @@ from typing import ClassVar
 
 import numpy as np
 
-from physverify.physics.geometry import Solid
 from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactTable
 from physverify.schema.scene import MagnitudeKind, PerturbationRecord, SceneSpec
@@ -17,17 +16,16 @@ from physverify.synth.perturb import PerturbationNotApplicableError
 from physverify.synth.perturbations._base import PerturbationTarget
 from physverify.synth.perturbations._edit import (
     PluginBase,
-    centres_in_image,
-    clearance,
     pick,
     provisional_record,
+    require_clearance,
+    require_in_image,
     translated,
 )
 from physverify.synth.perturbations._measure import length_of, object_jump
 from physverify.synth.perturbations._windows import (
     on_top_pairs,
     rest_mask,
-    solid_at,
     supports_nothing,
 )
 from physverify.synth.scene_kit import heading
@@ -73,16 +71,14 @@ class Teleport(PluginBase[Params]):
             magnitude * length_of(states, index) * heading(float(rng.uniform(0.0, 2.0 * math.pi)))
         )
         moved = translated(states, index, first, offset)
-
-        def body(t: int) -> Solid:
-            return solid_at(moved, index, t)
-
-        if clearance(moved, body, index, range(first, n)) < self.params.min_clearance_m:
-            raise PerturbationNotApplicableError(
-                f"{NAME}: the jump lands too close to another body"
-            )
-        if not centres_in_image(scene, moved.position[first:, index]):
-            raise PerturbationNotApplicableError(f"{NAME}: the jump leaves the image")
+        require_clearance(
+            moved,
+            index,
+            range(first, n),
+            self.params.min_clearance_m,
+            f"{NAME}: the jump lands too close to another body",
+        )
+        require_in_image(scene, moved.position[first:, index], f"{NAME}: the jump leaves the image")
         object_id = str(states.object_ids[index])
         record = provisional_record(
             self,

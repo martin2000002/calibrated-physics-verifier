@@ -7,7 +7,6 @@ from typing import ClassVar
 
 import numpy as np
 
-from physverify.physics.geometry import Solid
 from physverify.physics.measures.r4_integrity import size_change_ratio
 from physverify.schema.contacts import ContactTable
 from physverify.schema.scene import MagnitudeKind, PerturbationRecord, SceneSpec
@@ -16,13 +15,13 @@ from physverify.synth.perturb import PerturbationNotApplicableError
 from physverify.synth.perturbations._base import PerturbationTarget
 from physverify.synth.perturbations._edit import (
     PluginBase,
-    clearance,
     edit_object,
     pick,
     provisional_record,
+    require_clearance,
     spheres,
 )
-from physverify.synth.perturbations._windows import flight_mask, rest_mask, segments, solid_at
+from physverify.synth.perturbations._windows import flight_mask, rest_mask, segments
 from physverify.synth.settings import PerturbationCommon
 
 NAME = "r4_resize"
@@ -73,15 +72,14 @@ class Resize(PluginBase[Params]):
         resized = edit_object(
             states, index, window, size=states.size[window, index] * (1.0 + magnitude)
         )
-
-        def body(t: int) -> Solid:
-            return solid_at(resized, index, t)
-
-        frames = range(first, first + width)
-        if clearance(resized, body, index, frames, with_floor=True) < self.params.contact_tol_m:
-            raise PerturbationNotApplicableError(
-                f"{NAME}: the enlarged ball would touch another body"
-            )
+        require_clearance(
+            resized,
+            index,
+            range(first, first + width),
+            self.params.contact_tol_m,
+            f"{NAME}: the enlarged ball would touch another body",
+            with_floor=True,
+        )
         record = provisional_record(
             self,
             magnitude,
