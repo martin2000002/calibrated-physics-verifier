@@ -45,7 +45,7 @@ from physverify.checks.r4_integrity import (
 )
 from physverify.checks.r5a_fall_shape import FallShapeCheck, FallShapeParams
 from physverify.checks.r5b_gravity_value import GravityValueCheck, GravityValueParams
-from physverify.extraction.providers._temporal import EdgeMode, stabilize_run
+from physverify.extraction.providers._temporal_smoothing import EdgeMode, stabilize_run
 from physverify.extraction.providers.kinematics_savgol import Params as SavgolParams
 from physverify.extraction.providers.kinematics_savgol import track_derivatives
 from physverify.extraction.providers.lift_backproject import Params as LiftParams

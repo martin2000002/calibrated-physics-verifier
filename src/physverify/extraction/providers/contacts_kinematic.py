@@ -14,12 +14,12 @@ from typing import ClassVar, Literal
 from pydantic import BaseModel, Field
 
 from physverify.extraction._base import StageContext, WeightSpec
-from physverify.extraction.providers._attribution import (
+from physverify.extraction.providers._common import expect_params
+from physverify.extraction.providers._impact_attribution import (
     KinematicScene,
     camera_positions,
     kinematic_records,
 )
-from physverify.extraction.providers._common import expect_params
 from physverify.extraction.providers._proximity import ContactScene, ProximityParams
 from physverify.schema.contacts import ContactRecord, ContactTable
 from physverify.schema.perception import CameraModel

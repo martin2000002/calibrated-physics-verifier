@@ -26,7 +26,7 @@ from physverify.diagnosis.metrics.depth_object import (
     relative_object_error,
 )
 from physverify.diagnosis.settings import MetricSettings
-from physverify.extraction.providers._lifting import DISPARITY_EPS, ShiftStrategy
+from physverify.extraction.providers._backprojection import DISPARITY_EPS, ShiftStrategy
 from physverify.extraction.providers.lift_backproject import Params as LiftParams
 from physverify.schema.clip import ClipManifest
 from physverify.schema.outputs import StageOutput

@@ -12,9 +12,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from physverify.extraction._base import StageContext, WeightSpec
 from physverify.extraction.pipeline import PENDING_SOURCE_KEY
-from physverify.extraction.providers._common import ProviderParams, expect_params, lookup_label
-from physverify.extraction.providers._gravity_pose import LEVEL_CAMERA_GRAVITY, gravity_from_pose
-from physverify.extraction.providers._lifting import (
+from physverify.extraction.providers._backprojection import (
     LiftErrors,
     ObjectSummary,
     ShiftStrategy,
@@ -26,7 +24,9 @@ from physverify.extraction.providers._lifting import (
     object_position,
     object_summary,
 )
-from physverify.extraction.providers._temporal import EdgeMode, stabilize_summaries
+from physverify.extraction.providers._common import ProviderParams, expect_params, lookup_label
+from physverify.extraction.providers._gravity_pose import LEVEL_CAMERA_GRAVITY, gravity_from_pose
+from physverify.extraction.providers._temporal_smoothing import EdgeMode, stabilize_summaries
 from physverify.extraction.providers._visibility import gap_visibility
 from physverify.physics.tracks import OCCLUDED_AT
 from physverify.schema.io import stable_hash

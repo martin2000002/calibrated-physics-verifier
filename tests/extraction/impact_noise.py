@@ -18,7 +18,7 @@ import contact_scenes as cs
 import numpy as np
 from numpy.typing import NDArray
 
-from physverify.extraction.providers._attribution import object_sigma
+from physverify.extraction.providers._impact_attribution import object_sigma
 from physverify.extraction.providers._impacts import Bases, track_impacts
 from physverify.extraction.providers.contacts_kinematic import Params
 

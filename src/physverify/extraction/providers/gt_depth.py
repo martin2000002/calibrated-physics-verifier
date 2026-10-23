@@ -8,8 +8,8 @@ import numpy as np
 from pydantic import BaseModel
 
 from physverify.extraction._base import GROUND_TRUTH, StageContext, WeightSpec
+from physverify.extraction.providers._backprojection import normalize_by_object_median
 from physverify.extraction.providers._common import ProviderParams, expect_params
-from physverify.extraction.providers._lifting import normalize_by_object_median
 from physverify.schema.perception import DepthKind, DepthMap
 from physverify.schema.stages import Stage
 

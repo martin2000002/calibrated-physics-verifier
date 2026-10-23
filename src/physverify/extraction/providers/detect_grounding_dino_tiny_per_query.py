@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import ClassVar
 
 from physverify.extraction._base import WeightSpec
-from physverify.extraction.providers._grounding import PromptedDetector
+from physverify.extraction.providers._grounding_per_query import PromptedDetector
 from physverify.extraction.providers.detect_grounding_dino import WEIGHTS
 
 

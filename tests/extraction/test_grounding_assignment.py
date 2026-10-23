@@ -15,8 +15,8 @@ from numpy.typing import NDArray
 from support import make_context, run_provider
 from synthetic_clip import SyntheticClip
 
-from physverify.extraction.providers import _grounding, detect_grounding_dino
-from physverify.extraction.providers._grounding import (
+from physverify.extraction.providers import _grounding_per_query, detect_grounding_dino
+from physverify.extraction.providers._grounding_per_query import (
     Candidates,
     PromptedParams,
     assign,
@@ -180,4 +180,4 @@ def test_base_model_loads_its_own_weights(
     run_provider(GroundingDinoTinyPerQuery, make_context(fixture_clip))
     assert loaded == [BASE_WEIGHTS, detect_grounding_dino.WEIGHTS]
     assert GroundingDinoBase.weights == (BASE_WEIGHTS,)
-    assert _grounding.PromptedDetector.Params is PromptedParams
+    assert _grounding_per_query.PromptedDetector.Params is PromptedParams

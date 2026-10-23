@@ -19,7 +19,11 @@ from physverify.diagnosis.cases import (
 )
 from physverify.diagnosis.settings import MetricSettings
 from physverify.extraction.plan import ResolvedPlan
-from physverify.extraction.providers._lifting import SummaryOptions, lift_depth, object_summary
+from physverify.extraction.providers._backprojection import (
+    SummaryOptions,
+    lift_depth,
+    object_summary,
+)
 from physverify.extraction.providers.lift_backproject import Params as LiftParams
 from physverify.schema.clip import ClipManifest
 from physverify.schema.outputs import StageOutput

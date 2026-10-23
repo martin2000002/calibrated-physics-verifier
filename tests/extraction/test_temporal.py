@@ -15,14 +15,14 @@ from test_lift_backproject import gaussian_entry
 
 from physverify.core.cache_keys import params_hash
 from physverify.extraction._base import GROUND_TRUTH
-from physverify.extraction.providers._lifting import (
+from physverify.extraction.providers._backprojection import (
     LiftErrors,
     ObjectSummary,
     closed_form_sigma,
     monte_carlo_sigma,
     object_position,
 )
-from physverify.extraction.providers._temporal import (
+from physverify.extraction.providers._temporal_smoothing import (
     running_median,
     stabilize_run,
     stabilize_summaries,

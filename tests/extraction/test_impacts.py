@@ -17,7 +17,7 @@ from synthetic_clip import SyntheticClip
 from test_cache import UPSTREAM as CACHE_UPSTREAM
 from test_cache import key_of, versioned
 
-from physverify.extraction.providers._attribution import SOURCE
+from physverify.extraction.providers._impact_attribution import SOURCE
 from physverify.extraction.providers._impacts import track_impacts
 from physverify.extraction.providers.contacts_kinematic import KinematicContacts
 from physverify.physics.tracks import MIN_NOISE_STENCILS, NoiseScale, noise_scale, pixel_floor

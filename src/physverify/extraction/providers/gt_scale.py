@@ -9,7 +9,7 @@ from pydantic import BaseModel
 
 from physverify.extraction._base import GROUND_TRUTH, StageContext, WeightSpec
 from physverify.extraction.providers._common import ProviderParams, expect_params
-from physverify.extraction.providers._truth import conditional_truth
+from physverify.extraction.providers._conditional_truth import conditional_truth
 from physverify.schema.scale import ScaleEstimate, ScaleSource
 from physverify.schema.stages import Stage
 

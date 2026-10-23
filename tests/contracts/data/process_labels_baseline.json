@@ -509,20 +509,23 @@
  "src/physverify/extraction/pipeline.py": {
   "comment_or_docstring": 3
  },
- "src/physverify/extraction/providers/_attribution.py": {
-  "comment_or_docstring": 4
+ "src/physverify/extraction/providers/_backprojection.py": {
+  "comment_or_docstring": 5
  },
  "src/physverify/extraction/providers/_common.py": {
   "comment_or_docstring": 1
  },
- "src/physverify/extraction/providers/_grounding.py": {
+ "src/physverify/extraction/providers/_conditional_truth.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/extraction/providers/_grounding_per_query.py": {
   "comment_or_docstring": 2
+ },
+ "src/physverify/extraction/providers/_impact_attribution.py": {
+  "comment_or_docstring": 4
  },
  "src/physverify/extraction/providers/_impacts.py": {
   "comment_or_docstring": 3
- },
- "src/physverify/extraction/providers/_lifting.py": {
-  "comment_or_docstring": 5
  },
  "src/physverify/extraction/providers/_proximity.py": {
   "comment_or_docstring": 1
@@ -530,11 +533,8 @@
  "src/physverify/extraction/providers/_sam_video.py": {
   "comment_or_docstring": 2
  },
- "src/physverify/extraction/providers/_temporal.py": {
+ "src/physverify/extraction/providers/_temporal_smoothing.py": {
   "comment_or_docstring": 5
- },
- "src/physverify/extraction/providers/_truth.py": {
-  "comment_or_docstring": 1
  },
  "src/physverify/extraction/providers/_visibility.py": {
   "comment_or_docstring": 5

@@ -23,7 +23,7 @@ from typing import Literal
 import numpy as np
 from numpy.typing import NDArray
 
-from physverify.extraction.providers._lifting import ObjectSummary, full_extents
+from physverify.extraction.providers._backprojection import ObjectSummary, full_extents
 from physverify.physics.kinematics import visible_runs
 
 FloatArray = NDArray[np.float64]

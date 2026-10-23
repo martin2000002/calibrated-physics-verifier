@@ -16,8 +16,8 @@ from synthetic_clip import SyntheticClip
 
 from physverify.core.cache_keys import params_hash
 from physverify.extraction._base import StageContext
+from physverify.extraction.providers._backprojection import focal_rel_sigma
 from physverify.extraction.providers._gravity_pose import LEVEL_CAMERA_GRAVITY, gravity_from_pose
-from physverify.extraction.providers._lifting import focal_rel_sigma
 from physverify.extraction.providers.camera_assumed_fov import AssumedFovCamera
 from physverify.extraction.providers.camera_assumed_fov import Params as AssumedParams
 from physverify.extraction.providers.camera_geocalib import (
