@@ -50,6 +50,10 @@ lines of `diff.txt`) as a new file.
   would hide a file that moved to the wrong place. It retired `wp4a-config-comments.diff` (WP4a's
   renamed-module comments in `configs/checks.toml`, `dataset.toml` and `exclusion_rules.toml`):
   with no file of the same path on both sides, `diff -r` no longer compares those files' lines.
+  Coverage lost: from `9eb5888` the harness no longer compares config contents path to path (a
+  comment or blank-line change in a moved file passes unseen). A changed table or value still
+  changes `config_hash`, which `doctor` prints on both sides, and
+  `tests/contracts/test_config_splits.py` pins the split files against the originals.
 
 ## Scenarios (J10 a: each asserts its exit code and that it wrote files or printed output)
 
