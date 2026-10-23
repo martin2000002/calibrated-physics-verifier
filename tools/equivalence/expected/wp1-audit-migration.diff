@@ -6,7 +6,7 @@ diff -r left/_capture/help.out right/_capture/help.out
 < │ audit-migration   Acceptance audit of a migration against a copy of the dataset taken before it (re-renders, frames, │
 < │                   contacts, records, labels, rest cells, stale cache, plus the checks of every ground-truth fix the  │
 < │                   run covers); JSON to --out.                                                                        │
-316,332d312
+318,334d314
 < ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 < 
 < === dataset audit-migration

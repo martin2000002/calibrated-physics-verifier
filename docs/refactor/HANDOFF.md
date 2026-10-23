@@ -334,3 +334,50 @@ T-b (data, study and script tests, `bd973b0`):
 - Checks: 3628 collected / 2 deselected before and after, sorted test ids (without path) equal,
   per-test fixture sets of `--setup-plan` equal (`no_network` on 1416 tests before and after);
   1552 passed over the moved directories; process-label totals unchanged (424 keys).
+
+## WP8
+
+Stream S (CLI and script renames, J14), branch `refactor/wp8-s`:
+
+- CLI renames: `h3` -> `compare-generators`, `abstain` -> `selective-risk`, `data` -> `synth`,
+  `dataset` -> `download`, `calibrate devscore` -> `calibrate dev-score`; `results` options
+  `--a8v2-dir`/`--h1-evaluation`/`--h2-run`/`--abstention-run` -> `--chain-dir`/
+  `--calibration-evaluation`/`--agreement-run`/`--selective-risk-run` (the `Request` fields keep
+  their names). Persisted names (JY6) are untouched: sealed-ledger labels
+  (`app/sealing.LEDGER_LABELS_BY_LEAF` maps the renamed leaves onto the old labels), step names
+  in `steps.tsv`, `state.env` keys, `PHYSVERIFY__*` in `ENV_SHA`, `devscore.json`/`DEVSCORE_SHA`,
+  the freeze schema, `Candidate` fields, `--p2-commit`, and `ABSTAIN_CURVE` in
+  `reporting/chain.py` (the log name of the retired chain runner).
+- Script renames: `run_h2.sh` -> `run_human_agreement.sh`, `h2_query.py` -> `agreement_query.py`,
+  `run_h3.sh` -> `run_generator_comparison.sh`, `run_iteration.sh` ->
+  `run_perception_iteration.sh`, `iteration_arms.tsv` -> `perception_arms.tsv`, `a8v2_query.py`
+  -> `run_query.py`, `setup.sh` -> `setup_cuda.sh`. Variables: `PHYSVERIFY_H2_A8V2_DIR` ->
+  `PHYSVERIFY_AGREEMENT_CHAIN_DIR`, `PHYSVERIFY_H2_*` -> `PHYSVERIFY_AGREEMENT_*`,
+  `PHYSVERIFY_ITER_*` -> `PHYSVERIFY_ITERATION_*`, `PHYSVERIFY_FREEZE_P2_COMMIT` ->
+  `PHYSVERIFY_FREEZE_EARLY_EXTRACTION_COMMIT`. `_common.sh` holds the only `pv` (`PV_RUNNER`,
+  `PV_PROFILE`, `PV_NICE`, `PV_EXTRA`) and `h200_py`; `run_query.py` exports `query_settings`
+  (was `_settings`) for `agreement_query.py`.
+- J14: the freeze queries live in `physverify.freeze` (`errors`, `files`, `selection`,
+  `manifest`, `fresh_render`, `ledger`, `arguments`); `scripts/h200/freeze_query.py` keeps only
+  the settings, the dispatch and `main`. The package sits at the `finetune` layer, so it does not
+  import `physverify.app`: the script injects `plugins.build("checks")` into `record_sha`, and
+  `manifest` takes `record` and `now`. `tests/contracts/test_freeze_manifest.py` pins the bytes of
+  a fixture freeze.json, computed with the pre-move script.
+- Frozen-file departures (ADR 0017): `README.md` (command table), `CLAUDE.md` (owner rows:
+  `cli/commands/synth.py`, `{diagnose,download}.py`, the `dev-score` subcommand,
+  `run_perception_iteration.sh`), `pyproject.toml` (mypy `files` += `scripts/h200`, `mypy_path`
+  `src:scripts/h200`, importlinter layer `physverify.finetune | physverify.freeze`), and the new
+  `src/physverify/freeze/__init__.py`.
+- Other departures: `tests/contracts/test_registries.py` renames
+  `test_command_names_and_order_are_unchanged_until_the_cli_renames` to
+  `test_command_names_and_order_are_pinned` (its name stated the WP8 deadline; an exception to
+  JY15). `tests/reporting/{test_chain,reporting_cases}.py` build the historical log lines from
+  `ledger_label(...)` and `ABSTAIN_CURVE`. `physverify.freeze.files` and `.arguments` are modules
+  the plan did not list (shared readers, and the parser that keeps the script under 150 lines).
+  The fixture freeze uses the iteration id `it6-chosen`, so the pin adds no process label.
+- Left to stream K: the `configs/sealed.toml` comment that still names `run_h2.sh`.
+- Equivalence: `tools/equivalence/expected/wp8-cli-renames.diff` declares the help pages, the
+  stderr hints and the missing-input lines of `results_chain` and
+  `results_chain_without_agreement`. The renamed help pages shift the alignment of
+  `diff -r`, so the audit-migration hunk header in `wp1-audit-migration.diff` is now
+  `318,334d314` (was `316,332d312`); its lines are otherwise unchanged.
