@@ -1,4 +1,4 @@
-# Frozen defaults (ADR 0003, section 5). Machine-specific values go in configs/local.toml.
+# Frozen defaults. Machine-specific values go in configs/local.toml.
 # Relative paths are anchored at the repository root; every other data path derives from data_dir.
 
 [paths]
