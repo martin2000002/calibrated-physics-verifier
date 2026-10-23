@@ -220,7 +220,7 @@ def test_the_manifest_records_the_freeze(
     """AC-8, AC-18: commit, configs tree, artifacts, record, seed, selection, J3/J13 diffs, v1."""
     settings = _settings(config_dir, environ, tmp_path)
     files = _frozen_files(settings)
-    git = FakeGit({"d" * 40: ["configs/extraction.toml"]})
+    git = FakeGit({"d" * 40: ["configs/verifier/extraction.toml"]})
     data = _manifest(_inputs(tmp_path, iteration_factory), settings, git)
     assert (data["commit"], data["configs_tree"]) == (HEAD, "t" * 40)
     assert (data["profile"], data["device"]) == ("precise", "cpu")
@@ -240,7 +240,7 @@ def test_the_manifest_records_the_freeze(
         "commit": "b" * 40,
     }
     assert data["diffs"]["j3"]["empty"] and data["diffs"]["j3"]["from"] == "b" * 40
-    assert data["diffs"]["j13"]["changed"] == ["configs/extraction.toml"]
+    assert data["diffs"]["j13"]["changed"] == ["configs/verifier/extraction.toml"]
     assert data["v1"] == {"commit": V1, "calibration_sha256": _sha(b"v1")}
     diffs = [c for c in git.calls if c[0] == "diff"]
     assert {c[5:] for c in diffs} == {DIFF_PATHS["j3"], DIFF_PATHS["j13"]}

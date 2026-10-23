@@ -23,8 +23,11 @@ from physverify.verification.scope import check_scope
 FREEZE_SCHEMA = "physverify/freeze"
 FREEZE_VERSION = "1.0.0"
 DIFF_PATHS: Mapping[str, tuple[str, ...]] = {
-    "j3": tuple(f"src/physverify/{d}" for d in ("checks", "physics", "extraction", "verification")),
-    "j13": ("src/physverify/extraction", "configs/extraction.toml"),
+    "j3": (
+        *(f"src/physverify/{d}" for d in ("checks", "physics", "extraction", "verification")),
+        "src/physverify/selective_risk/curve.py",
+    ),
+    "j13": ("src/physverify/extraction", "configs/verifier/extraction.toml"),
 }
 Git = Callable[[Sequence[str]], str]
 

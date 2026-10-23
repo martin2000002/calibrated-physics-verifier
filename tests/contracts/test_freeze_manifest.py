@@ -5,18 +5,34 @@ from __future__ import annotations
 
 import hashlib
 import json
+import subprocess
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from physverify.config.loader import load_settings
 from physverify.config.models import Settings
-from physverify.freeze.manifest import FREEZE_SCHEMA, FREEZE_VERSION, ManifestInputs, manifest
+from physverify.freeze.manifest import (
+    DIFF_PATHS,
+    FREEZE_SCHEMA,
+    FREEZE_VERSION,
+    ManifestInputs,
+    manifest,
+)
 from physverify.freeze.selection import J4_RULE
 
+REPO = Path(__file__).resolve().parents[2]
+REFACTOR_BASE = "9eb5888"
+J3_PACKAGES = ("checks", "physics", "extraction", "verification")
+DIFF_SOURCES = {
+    "j3": tuple(f"src/physverify/{package}/" for package in J3_PACKAGES),
+    "j13": ("src/physverify/extraction/", "configs/extraction.toml"),
+}
 HEAD = "c" * 40
-FREEZE_SHA256 = "d7dbfcde7728a95a3d6206016f1d1d58b0c25920103fce7df0194b3f7de917f8"
+FREEZE_SHA256 = "9a3741804997cdb56c3c1282fabc5ba579086afc7eb1dd77aab8effc0521c23e"
 MANIFEST_FIELDS = (
     "schema",
     "version",
@@ -149,3 +165,32 @@ def test_the_freeze_manifest_keeps_its_bytes(
     text = json.dumps(data, indent=2, sort_keys=True) + "\n"
     text = text.replace(str(tmp_path), "<tmp>").replace(str(settings.repo_root), "<repo>")
     assert hashlib.sha256(text.encode()).hexdigest() == FREEZE_SHA256
+
+
+def _git_lines(*args: str) -> list[str]:
+    result = subprocess.run(["git", "-C", str(REPO), *args], capture_output=True, text=True)
+    if result.returncode != 0:
+        pytest.skip(f"git history unavailable: {result.stderr.strip()}")
+    return result.stdout.splitlines()
+
+
+def _destinations(sources: tuple[str, ...]) -> set[str]:
+    renames = {}
+    for line in _git_lines("diff", "-M", "--name-status", REFACTOR_BASE, "HEAD"):
+        status, *paths = line.split("\t")
+        if status.startswith("R"):
+            renames[paths[0]] = paths[1]
+    files = _git_lines("ls-tree", "-r", "--name-only", REFACTOR_BASE, "--", *sources)
+    return {renames.get(path, path) for path in files}
+
+
+@pytest.mark.parametrize("name", sorted(DIFF_SOURCES))
+def test_the_diff_paths_cover_exactly_where_the_pre_refactor_paths_moved(name: str) -> None:
+    """J3: each diff covers the moved files, as whole directories where they stayed inside one."""
+    sources = DIFF_SOURCES[name]
+    directories = [source for source in sources if source.endswith("/")]
+    expected = {
+        next((d.rstrip("/") for d in directories if path.startswith(d)), path)
+        for path in _destinations(sources)
+    }
+    assert set(DIFF_PATHS[name]) == expected
