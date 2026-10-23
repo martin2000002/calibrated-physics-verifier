@@ -1,7 +1,7 @@
 """The fit behind the D9 golden file: two levels, R1 sigma pairs half 0-against-0 (it1 audit d1).
 
 Kept free of it1 names so the same module also runs on the code before it1, which wrote
-``golden/d9_all_before_it1.json`` (commit 775bde5, ``write_golden``)."""
+``golden/dev_score_all_sigma_pairs.json`` (commit 775bde5, ``write_golden``)."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ from physverify.calibration.sigma_recalibration import SigmaPair
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import Split
 
-GOLDEN = Path(__file__).resolve().parent / "golden" / "d9_all_before_it1.json"
+GOLDEN = Path(__file__).resolve().parent / "golden" / "dev_score_all_sigma_pairs.json"
 
 
 def pairs() -> tuple[SigmaPair, ...]:
