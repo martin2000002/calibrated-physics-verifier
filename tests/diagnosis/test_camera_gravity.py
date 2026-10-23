@@ -15,7 +15,7 @@ from physverify.diagnosis.error_profile_writer import PROFILE_QUANTITIES
 from physverify.diagnosis.measurement_cases import MetricCase, MetricOutcome
 from physverify.diagnosis.metrics.camera_gravity import CameraGravityMetric
 from physverify.diagnosis.settings import MetricSettings
-from physverify.extraction.providers._gravity_pose import pose_from_gravity
+from physverify.extraction.gravity_pose import pose_from_gravity
 from physverify.schema.clip import FrameSampling
 from physverify.schema.perception import CameraModel, IntrinsicsSource
 from physverify.synth.placement import camera_axes

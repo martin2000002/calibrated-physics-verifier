@@ -15,7 +15,7 @@ from test_lift_backproject import gaussian_entry
 
 from physverify.core.cache_keys import params_hash
 from physverify.extraction._base import GROUND_TRUTH
-from physverify.extraction.providers._backprojection import (
+from physverify.extraction.backprojection import (
     LiftErrors,
     ObjectSummary,
     closed_form_sigma,

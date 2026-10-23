@@ -4,18 +4,16 @@ from __future__ import annotations
 
 import math
 from dataclasses import replace
-from typing import Any, ClassVar, Literal
+from typing import Any, ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel
 
 from physverify.extraction._base import StageContext, WeightSpec
-from physverify.extraction.pipeline import PENDING_SOURCE_KEY
-from physverify.extraction.providers._backprojection import (
+from physverify.extraction.backprojection import (
     LiftErrors,
     ObjectSummary,
-    ShiftStrategy,
     SummaryOptions,
     closed_form_sigma,
     focal_rel_sigma,
@@ -24,11 +22,13 @@ from physverify.extraction.providers._backprojection import (
     object_position,
     object_summary,
 )
-from physverify.extraction.providers._common import ProviderParams, expect_params
-from physverify.extraction.providers._gravity_pose import LEVEL_CAMERA_GRAVITY, gravity_from_pose
-from physverify.extraction.providers._temporal_smoothing import EdgeMode, stabilize_summaries
+from physverify.extraction.gravity_pose import LEVEL_CAMERA_GRAVITY, gravity_from_pose
+from physverify.extraction.lift_params import GravityMode
+from physverify.extraction.lift_params import LiftParams as Params
+from physverify.extraction.pipeline import PENDING_SOURCE_KEY
+from physverify.extraction.providers._common import expect_params
+from physverify.extraction.providers._temporal_smoothing import stabilize_summaries
 from physverify.extraction.providers._visibility import gap_visibility
-from physverify.physics.tracks import OCCLUDED_AT
 from physverify.schema.io import stable_hash
 from physverify.schema.perception import CameraModel, DepthMap, IntrinsicsSource, MaskTrack
 from physverify.schema.stages import Stage
@@ -37,56 +37,6 @@ from physverify.sizing.priors import lookup_label
 
 FloatArray = NDArray[np.float64]
 SEED_HEX_DIGITS = 16
-
-GravityMode = Literal["auto", "camera_pose", "level_camera", "none"]
-# "none" is version 1 (in_frame = visible, occlusion unknown); "interpolate" infers both inside
-# interior mask gaps (``_visibility.py``).
-GapMode = Literal["none", "interpolate"]
-# "none" is version 2; "median" stabilises depth and image extent along each visible run
-# (``_temporal_smoothing.py``), off until a gate run adopts it. Run ends: "keep" (the first and
-# last two rows stay unfiltered) is the only eligible form; "shifted" fails the survival test of
-# the detections and exists only for a descriptive comparison run.
-TemporalFilter = Literal["none", "median"]
-
-
-class Params(ProviderParams):
-    shift: ShiftStrategy = ShiftStrategy.ZERO_SHIFT
-    gravity: GravityMode = "auto"
-    gravity_by_dataset: dict[str, GravityMode] = {}
-    level_sigma_deg: float = Field(default=10.0, ge=0.0)
-    pose_sigma_deg: float = Field(default=2.0, ge=0.0)
-    min_area_px: int = Field(default=9, ge=1)
-    erode_px: int = Field(default=1, ge=0)
-    extent_percentiles: tuple[float, float] = (2.0, 98.0)
-    center_offset_frac: dict[PrimitiveKind, float] = {
-        PrimitiveKind.SPHERE: 0.354,
-        PrimitiveKind.CYLINDER: 0.354,
-        PrimitiveKind.BOX: 0.5,
-        PrimitiveKind.UNKNOWN: 0.4,
-    }
-    primitive_by_label: dict[str, PrimitiveKind] = {
-        "ball": PrimitiveKind.SPHERE,
-        "sphere": PrimitiveKind.SPHERE,
-        "cube": PrimitiveKind.BOX,
-        "box": PrimitiveKind.BOX,
-        "cylinder": PrimitiveKind.CYLINDER,
-    }
-    sigma_mode: Literal["closed_form", "monte_carlo"] = "closed_form"
-    mc_draws: int = Field(default=500, ge=2)
-    gap_visibility: GapMode = "interpolate"
-    # Must equal the checks' ``occluded_at`` (resolve_plan refuses otherwise); a gap estimate
-    # below it and above 0 is unknown.
-    gap_occluded_at: float = Field(default=OCCLUDED_AT, gt=0.0, le=1.0)
-    temporal_filter: TemporalFilter = "none"
-    temporal_window: int = Field(default=5, ge=3)
-    temporal_edges: EdgeMode = "keep"
-
-    @field_validator("temporal_window")
-    @classmethod
-    def _odd_window(cls, value: int) -> int:
-        if value % 2 == 0:
-            raise ValueError("temporal_window must be odd")
-        return value
 
 
 class BackprojectLift:

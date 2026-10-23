@@ -14,7 +14,7 @@ from physverify.diagnosis.measurement_cases import MetricCase, MetricOutcome
 from physverify.diagnosis.metrics.depth_object import ObjectDepthMetric, object_depths
 from physverify.diagnosis.metrics.depth_object_parts import QUANTITIES, ObjectDepthPartsMetric
 from physverify.diagnosis.settings import MetricSettings
-from physverify.extraction.providers.lift_backproject import Params as LiftParams
+from physverify.extraction.lift_params import LiftParams
 from physverify.schema.clip import FrameSampling
 from physverify.schema.outputs import StageOutput
 from physverify.schema.perception import DepthKind, DepthMap, MaskTrack

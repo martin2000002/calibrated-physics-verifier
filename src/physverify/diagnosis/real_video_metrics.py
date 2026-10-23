@@ -16,7 +16,7 @@ import numpy as np
 from physverify.diagnosis.masks import mask_iou
 from physverify.diagnosis.measurement_cases import BoolArray, FloatArray
 from physverify.diagnosis.settings import RealSettings
-from physverify.extraction.providers._gravity_pose import LEVEL_CAMERA_GRAVITY
+from physverify.extraction.gravity_pose import LEVEL_CAMERA_GRAVITY
 from physverify.physics.measures.gravity_fit import (
     fall_fit,
     fall_residual_ratio,
