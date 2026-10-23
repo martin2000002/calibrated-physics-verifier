@@ -38,12 +38,12 @@ from physverify.schema.perception import MaskTrack
 from physverify.schema.scale import ScaleEstimate
 from physverify.schema.stages import Stage
 from physverify.schema.states import ObjectStateTable
-from physverify.sizing import e2e, objectron
-from physverify.sizing.draws import TEST, TRAIN, e2e_draw, objectron_dir, selection
+from physverify.sizing import end_to_end, objectron
 from physverify.sizing.evaluate import MODEL, evaluate
 from physverify.sizing.fit import conformal_factor, fit_model, render_toml
 from physverify.sizing.model import SECTION as MODEL_SECTION
 from physverify.sizing.model import SizeModelTable
+from physverify.sizing.objectron_draws import TEST, TRAIN, e2e_draw, objectron_dir, selection
 from physverify.sizing.samples import SizeSample, samples_of
 from physverify.sizing.settings import EndToEndSettings, SizingSettings, sizing_settings
 from physverify.verification.inputs import refuse_heavy
@@ -208,20 +208,20 @@ def _prepare_clip(
     settings: Settings, sizing: SizingSettings, plan: EndToEndSettings, ref: objectron.VideoRef
 ) -> bool:
     """Frames and truth of one video; the MOV is deleted once decoded. False if too large."""
-    clip_id = e2e.clip_id_of(ref)
+    clip_id = end_to_end.clip_id_of(ref)
     truth_path = _truth_path(settings, clip_id)
     if truth_path.is_file():
         return True
     video_url = f"{sizing.bucket_url}/{objectron.video_prefix(ref)}{VIDEO_FILE}"
-    if e2e.remote_size(video_url) > plan.max_video_mb * 1e6:
+    if end_to_end.remote_size(video_url) > plan.max_video_mb * 1e6:
         return False
     work = objectron_dir(settings) / "e2e_download" / clip_id
     work.mkdir(parents=True, exist_ok=True)
     annotation = work / "annotation.pbdata"
-    e2e.download(objectron.annotation_url(sizing.bucket_url, ref), annotation)
-    e2e.download(video_url, work / VIDEO_FILE)
-    step = e2e.step_of(plan.fps)
-    written = e2e.decode_frames(
+    end_to_end.download(objectron.annotation_url(sizing.bucket_url, ref), annotation)
+    end_to_end.download(video_url, work / VIDEO_FILE)
+    step = end_to_end.step_of(plan.fps)
+    written = end_to_end.decode_frames(
         work / VIDEO_FILE,
         _e2e_frames_root(settings, plan) / clip_id,
         step=step,
@@ -232,7 +232,7 @@ def _prepare_clip(
     parsed = objectron.sequence_objects(buf, complete=True)
     if parsed is None:
         raise objectron.ObjectronError(f"{ref.video_id}: annotation has no objects")
-    truth = e2e.clip_truth(
+    truth = end_to_end.clip_truth(
         ref, objectron.frame_records(buf[parsed[1] :]), step=step, n_frames=written
     )
     truth_path.parent.mkdir(parents=True, exist_ok=True)
@@ -245,7 +245,7 @@ def _manifest(refs: Sequence[objectron.VideoRef], plan: EndToEndSettings) -> dic
     return {
         "clips": [
             {
-                "video": f"{e2e.clip_id_of(ref)}/",
+                "video": f"{end_to_end.clip_id_of(ref)}/",
                 "real_fps": plan.fps,
                 "queries": [{"phrase": ref.label.replace("_", " "), "expected_count": 1}],
             }
@@ -261,7 +261,7 @@ def e2e_eval() -> None:
     sizing = sizing_settings(settings)
     source = resolve_dataset(context, LOCAL_VIDEO)
     chain = _e2e_chain(context, source)
-    rows: list[e2e.ScaleRow] = []
+    rows: list[end_to_end.ScaleRow] = []
     per_clip: list[dict[str, Any]] = []
     for clip in source.clips(sizing.e2e.subset):
         record, clip_rows = _e2e_clip(settings, chain, clip, sizing.e2e.min_box_iou)
@@ -271,7 +271,7 @@ def e2e_eval() -> None:
     for record in per_clip:
         if "excluded" in record:
             excluded[record["excluded"]] = excluded.get(record["excluded"], 0) + 1
-    total = e2e.summarize(rows, n_boot=sizing.bootstrap, seed=sizing.seed, ci=sizing.ci)
+    total = end_to_end.summarize(rows, n_boot=sizing.bootstrap, seed=sizing.seed, ci=sizing.ci)
     report = {
         "estimated": True,
         "n_clips": len(per_clip),
@@ -319,26 +319,26 @@ def _scale_outputs(
 
 def _e2e_clip(
     settings: Settings, chain: ChainRunner, clip: ClipManifest, min_box_iou: float
-) -> tuple[dict[str, Any], list[e2e.ScaleRow]]:
+) -> tuple[dict[str, Any], list[end_to_end.ScaleRow]]:
     record: dict[str, Any] = {"clip": clip.clip_id}
     path = _truth_path(settings, clip.clip_id)
     if not path.is_file():
         return {**record, "excluded": "no_truth"}, []
-    truth = e2e.ClipTruth.from_json(path.read_text(encoding="utf-8"))
+    truth = end_to_end.ClipTruth.from_json(path.read_text(encoding="utf-8"))
     loaded = _scale_outputs(chain, clip)
     if loaded is None:
         return {**record, "excluded": "chain_failed"}, []
     track, lift, estimates = loaded
-    match = e2e.match_object(truth, track.masks, track.sampling.frame_indices)
+    match = end_to_end.match_object(truth, track.masks, track.sampling.frame_indices)
     if match is None or match[1] < min_box_iou:
         iou = None if match is None else match[1]
         return {**record, "excluded": "low_box_iou", "iou": iou}, []
     object_id = str(track.object_ids[match[0]])
     n = lift.object_ids.tolist().index(object_id)
-    s_true = e2e.true_scale(truth, lift.position[:, n, 2], lift.frame_index)
+    s_true = end_to_end.true_scale(truth, lift.position[:, n, 2], lift.frame_index)
     record |= {"label": truth.label, "iou": match[1], "s_true": s_true}
     rows = [
-        e2e.ScaleRow(clip.clip_id, method, s_true, est.meters_per_unit, est.sigma)
+        end_to_end.ScaleRow(clip.clip_id, method, s_true, est.meters_per_unit, est.sigma)
         for method, est in estimates.items()
         if est.meters_per_unit is not None and math.isfinite(s_true)
     ]

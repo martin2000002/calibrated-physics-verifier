@@ -44,7 +44,7 @@ from physverify.core.video import FrameDirVideoSource
 from physverify.datasets._base import GroundTruthStore, VideoSource
 from physverify.datasets._layout import relative_to_data, resolve_data_path
 from physverify.schema.clip import ClipManifest, ObjectQuery, Split, TimeSource
-from physverify.sizing import draws, e2e, objectron
+from physverify.sizing import end_to_end, objectron, objectron_draws
 from physverify.sizing.settings import SizingSettings, sizing_settings
 
 if TYPE_CHECKING:
@@ -129,7 +129,7 @@ def ordered(
 
 
 def decode_upright(video: Path, target: Path, seconds: float, max_side: int) -> Decoded:
-    """The first ``seconds`` at the native rate, rotation applied (``e2e.decode_frames``)."""
+    """The first ``seconds`` at the native rate, rotation applied (``end_to_end.decode_frames``)."""
     import cv2
 
     capture = cv2.VideoCapture(str(video))
@@ -137,7 +137,7 @@ def decode_upright(video: Path, target: Path, seconds: float, max_side: int) -> 
     capture.release()
     if fps <= 0:
         return Decoded(0.0, 0, 0, 0)
-    written = e2e.decode_frames(
+    written = end_to_end.decode_frames(
         video, target, step=1, n_frames=round(seconds * fps), max_side=max_side
     )
     if written == 0:
@@ -229,7 +229,7 @@ class ObjectronStaticDataset:
             return
         reader = self._reader or objectron.UrllibPrefixReader()
         excluded = self._excluded(client, reader)
-        index = draws.official_split(self._settings, self._sizing, self._s.split, reader)
+        index = objectron_draws.official_split(self._settings, self._sizing, self._s.split, reader)
         outcomes = [
             outcome
             for label in self._sizing.classes
@@ -265,14 +265,16 @@ class ObjectronStaticDataset:
 
     def _excluded(self, client: HttpClient, reader: objectron.PrefixReader) -> frozenset[str]:
         """The A9 draw of the split and every end-to-end candidate A9 examined."""
-        tested = draws.selection(self._settings, self._sizing, self._s.split, reader)
+        tested = objectron_draws.selection(self._settings, self._sizing, self._s.split, reader)
         limit = self._sizing.e2e.max_video_mb * BYTES_PER_MB
 
         def fits(ref: objectron.VideoRef) -> bool:
             listed = self._listed(client, ref)
             return listed is not None and int(listed["size"]) <= limit
 
-        examined = draws.e2e_draw(self._settings, self._sizing, self._sizing.e2e, reader, fits)
+        examined = objectron_draws.e2e_draw(
+            self._settings, self._sizing, self._sizing.e2e, reader, fits
+        )
         return frozenset(r.video_id for r in tested) | examined.examined
 
     def _select_class(
@@ -308,7 +310,7 @@ class ObjectronStaticDataset:
         except (OSError, PhysverifyError) as exc:
             log.warning("%s: %s failed (%s); the next of the order is taken", self.name, ref, exc)
             return failed
-        decoded = self._decode(path, dest / FRAMES_DIR / e2e.clip_id_of(ref))
+        decoded = self._decode(path, dest / FRAMES_DIR / end_to_end.clip_id_of(ref))
         if decoded.n_frames == 0:
             log.warning("%s: %s decodes to no frame; the next is taken", self.name, ref.video_id)
             path.unlink()
@@ -316,7 +318,7 @@ class ObjectronStaticDataset:
         return _Outcome(
             Candidate(video_id=ref.video_id, status=TAKEN, size=remote.size),
             StaticClip(
-                clip_id=e2e.clip_id_of(ref),
+                clip_id=end_to_end.clip_id_of(ref),
                 video_id=ref.video_id,
                 label=ref.label,
                 fps=decoded.fps,

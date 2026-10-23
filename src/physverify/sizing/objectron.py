@@ -24,7 +24,7 @@ import numpy as np
 from physverify.core.atomic import write_text_atomic
 from physverify.core.download import TIMEOUT_S, retrying
 from physverify.core.errors import PhysverifyError
-from physverify.sizing import wire
+from physverify.sizing import protobuf_wire
 
 SEQUENCE_OBJECTS = 1
 SEQUENCE_FRAMES = 2
@@ -84,12 +84,12 @@ class ObjectBox:
 
 
 def parse_object(payload: bytes) -> ObjectBox:
-    fields = list(wire.iter_fields(payload))
-    scale = wire.repeated_floats(fields, OBJECT_SCALE)
+    fields = list(protobuf_wire.iter_fields(payload))
+    scale = protobuf_wire.repeated_floats(fields, OBJECT_SCALE)
     if len(scale) != 3:
         raise ObjectronError(f"object scale has {len(scale)} values, expected 3")
-    ident = wire.first(fields, OBJECT_ID)
-    category = wire.first(fields, OBJECT_CATEGORY)
+    ident = protobuf_wire.first(fields, OBJECT_ID)
+    category = protobuf_wire.first(fields, OBJECT_CATEGORY)
     return ObjectBox(
         object_id=0 if ident is None else ident.integer,
         category="" if category is None else category.payload.decode("utf-8", "replace"),
@@ -99,7 +99,7 @@ def parse_object(payload: bytes) -> ObjectBox:
 
 def sequence_objects(buf: bytes, *, complete: bool) -> tuple[list[ObjectBox], int] | None:
     """The boxes of a ``Sequence`` (or of a prefix of one) and the byte where they end."""
-    leading = wire.leading_records(buf, SEQUENCE_OBJECTS, complete=complete)
+    leading = protobuf_wire.leading_records(buf, SEQUENCE_OBJECTS, complete=complete)
     if leading is None:
         return None
     records, end = leading
@@ -130,31 +130,33 @@ class FrameRecord:
 def frame_records(buf: bytes) -> list[FrameRecord]:
     """Every ``FrameAnnotation`` of a complete ``Sequence``."""
     return [
-        _frame(field.payload) for field in wire.iter_fields(buf) if field.number == SEQUENCE_FRAMES
+        _frame(field.payload)
+        for field in protobuf_wire.iter_fields(buf)
+        if field.number == SEQUENCE_FRAMES
     ]
 
 
 def _frame(payload: bytes) -> FrameRecord:
-    fields = list(wire.iter_fields(payload))
-    ident = wire.first(fields, FRAME_ID)
-    camera = wire.first(fields, FRAME_CAMERA)
-    camera_fields = [] if camera is None else list(wire.iter_fields(camera.payload))
+    fields = list(protobuf_wire.iter_fields(payload))
+    ident = protobuf_wire.first(fields, FRAME_ID)
+    camera = protobuf_wire.first(fields, FRAME_CAMERA)
+    camera_fields = [] if camera is None else list(protobuf_wire.iter_fields(camera.payload))
     width, height = (
-        wire.first(camera_fields, CAMERA_WIDTH),
-        wire.first(camera_fields, CAMERA_HEIGHT),
+        protobuf_wire.first(camera_fields, CAMERA_WIDTH),
+        protobuf_wire.first(camera_fields, CAMERA_HEIGHT),
     )
     return FrameRecord(
         frame_id=0 if ident is None else ident.integer,
         objects=tuple(_frame_object(f.payload) for f in fields if f.number == FRAME_ANNOTATIONS),
-        intrinsics=wire.repeated_floats(camera_fields, CAMERA_INTRINSICS),
+        intrinsics=protobuf_wire.repeated_floats(camera_fields, CAMERA_INTRINSICS),
         width=0 if width is None else width.integer,
         height=0 if height is None else height.integer,
     )
 
 
 def _frame_object(payload: bytes) -> FrameObject:
-    fields = list(wire.iter_fields(payload))
-    ident = wire.first(fields, ANNOTATION_OBJECT)
+    fields = list(protobuf_wire.iter_fields(payload))
+    ident = protobuf_wire.first(fields, ANNOTATION_OBJECT)
     points = np.full((BOX_KEYPOINTS, 2), np.nan)
     depth = np.full(BOX_KEYPOINTS, np.nan)
     for field in fields:
@@ -164,14 +166,14 @@ def _frame_object(payload: bytes) -> FrameObject:
 
 
 def _keypoint_into(payload: bytes, points: np.ndarray, depth: np.ndarray) -> None:
-    fields = list(wire.iter_fields(payload))
-    ident = wire.first(fields, KEYPOINT_ID)
-    point = wire.first(fields, KEYPOINT_2D)
+    fields = list(protobuf_wire.iter_fields(payload))
+    ident = protobuf_wire.first(fields, KEYPOINT_ID)
+    point = protobuf_wire.first(fields, KEYPOINT_2D)
     index = 0 if ident is None else ident.integer
     if point is None or not 0 <= index < BOX_KEYPOINTS:
         return
-    coords = list(wire.iter_fields(point.payload))
-    values = {n: wire.repeated_floats(coords, n) for n in (POINT_X, POINT_Y, POINT_DEPTH)}
+    coords = list(protobuf_wire.iter_fields(point.payload))
+    values = {n: protobuf_wire.repeated_floats(coords, n) for n in (POINT_X, POINT_Y, POINT_DEPTH)}
     points[index] = [_scalar(values[POINT_X]), _scalar(values[POINT_Y])]
     depth[index] = _scalar(values[POINT_DEPTH])
 

@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from physverify.sizing import objectron, wire
+from physverify.sizing import objectron, protobuf_wire
 from physverify.sizing.objectron import ObjectronError, VideoRef
 from physverify.sizing.samples import samples_of
 
@@ -27,7 +27,7 @@ def tag(number: int, wire_type: int) -> bytes:
 
 
 def length(number: int, payload: bytes) -> bytes:
-    return tag(number, wire.LENGTH) + varint(len(payload)) + payload
+    return tag(number, protobuf_wire.LENGTH) + varint(len(payload)) + payload
 
 
 def packed(number: int, values: list[float]) -> bytes:
@@ -35,11 +35,11 @@ def packed(number: int, values: list[float]) -> bytes:
 
 
 def single_float(number: int, value: float) -> bytes:
-    return tag(number, wire.FIXED32) + struct.pack("<f", value)
+    return tag(number, protobuf_wire.FIXED32) + struct.pack("<f", value)
 
 
 def integer(number: int, value: int) -> bytes:
-    return tag(number, wire.VARINT) + varint(value)
+    return tag(number, protobuf_wire.VARINT) + varint(value)
 
 
 def box(object_id: int, category: str, extents: list[float]) -> bytes:
@@ -66,7 +66,7 @@ def frame(frame_id: int, depth: float) -> bytes:
         + integer(objectron.CAMERA_HEIGHT, 1440)
         + packed(objectron.CAMERA_INTRINSICS, [1500.0, 0, 960, 0, 1500.0, 720, 0, 0, 1])
     )
-    timestamp = tag(4, wire.FIXED64) + struct.pack("<d", frame_id / 30)
+    timestamp = tag(4, protobuf_wire.FIXED64) + struct.pack("<d", frame_id / 30)
     return (
         integer(objectron.FRAME_ID, frame_id)
         + length(objectron.FRAME_ANNOTATIONS, annotation)
@@ -86,7 +86,7 @@ SEQUENCE = (
 
 def test_varints_round_trip() -> None:
     for value in (0, 1, 127, 128, 300, 2**35 + 7):
-        assert wire.read_varint(varint(value), 0) == (value, len(varint(value)))
+        assert protobuf_wire.read_varint(varint(value), 0) == (value, len(varint(value)))
 
 
 def test_category_scale_and_center_depth_decode() -> None:
@@ -112,7 +112,7 @@ def test_a_prefix_is_undecided_until_the_objects_end() -> None:
         assert objectron.sequence_objects(SEQUENCE[:cut], complete=False) is None
     prefix = objectron.sequence_objects(SEQUENCE[: end + 1], complete=False)
     assert prefix is not None and prefix[1] == end
-    with pytest.raises(wire.WireError):
+    with pytest.raises(protobuf_wire.WireError):
         objectron.sequence_objects(SEQUENCE[: end - 3], complete=True)
 
 
@@ -128,8 +128,8 @@ def test_the_label_comes_from_the_directory_and_placeholders_are_dropped() -> No
 def test_bad_index_lines_and_groups_are_rejected() -> None:
     with pytest.raises(ObjectronError):
         VideoRef.from_index_line("../etc/passwd")
-    with pytest.raises(wire.WireError):
-        wire.read_field(tag(1, 3), 0)
+    with pytest.raises(protobuf_wire.WireError):
+        protobuf_wire.read_field(tag(1, 3), 0)
 
 
 class FakeReader:

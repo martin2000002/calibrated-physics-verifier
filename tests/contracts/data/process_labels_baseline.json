@@ -705,10 +705,7 @@
  "src/physverify/runtime/udocker.py": {
   "comment_or_docstring": 1
  },
- "src/physverify/sizing/draws.py": {
-  "comment_or_docstring": 3
- },
- "src/physverify/sizing/e2e.py": {
+ "src/physverify/sizing/end_to_end.py": {
   "comment_or_docstring": 1
  },
  "src/physverify/sizing/evaluate.py": {
@@ -723,6 +720,9 @@
  },
  "src/physverify/sizing/objectron.py": {
   "banner": 2
+ },
+ "src/physverify/sizing/objectron_draws.py": {
+  "comment_or_docstring": 3
  },
  "src/physverify/sizing/settings.py": {
   "comment_or_docstring": 1

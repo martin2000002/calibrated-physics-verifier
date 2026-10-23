@@ -35,7 +35,7 @@ from physverify.datasets.objectron_static import (
 )
 from physverify.schema.clip import ObjectQuery, Split, TimeSource
 from physverify.sizing import objectron
-from physverify.sizing.draws import e2e_draw
+from physverify.sizing.objectron_draws import e2e_draw
 from physverify.sizing.settings import sizing_settings
 
 BUCKET = "https://bucket.test/objectron"
