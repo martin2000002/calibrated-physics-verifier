@@ -1,4 +1,4 @@
-# Synthetic Kubric dataset (cycle A4, ADR 0004). The base table is the `fast` profile used on the
+# Synthetic Kubric dataset. The base table is the `fast` profile used on the
 # laptop; `precise` is the H200 profile. Clip content depends on everything here except
 # [dataset.render], [dataset.subsets] and `version`: changing it requires a new `version`.
 
@@ -24,7 +24,8 @@ calib_fraction = 0.5
 # `version`.
 velocity_convention = "position"
 
-# HDRI Haven ids outside GeoCalib's OpenPano training panoramas (plan-it2 J1), preregistered:
+# HDRI Haven ids outside GeoCalib's OpenPano training panoramas, so the camera estimate is tested
+# on backgrounds it never saw. Preregistered:
 # `python -m physverify.synth.hdri_pools HDRI_haven.json openpano-listing.txt` over Kubric's public
 # manifest (sha256 6407c265...79c1, 509 ids) and the listing of the public openpano.zip (749
 # panoramas, sha256 96a68ba8...8217); 12 ids remain. `openpano_ood_dev` renders the development
@@ -72,7 +73,7 @@ f3_collision = ["r3_energy_gain", "r4_vanish"]
 f4_stack = ["r2_unsupported_rest", "r4_teleport", "r4_vanish"]
 f5_contact = ["r1_penetration", "r4_teleport", "r4_vanish"]
 
-# Level sweep for the local monotonicity test (H1): all four levels of one perturbation per
+# Level sweep for the local held-out monotonicity test: all four levels of one perturbation per
 # check family (R1, R3, R5b) on the same clean scenes. With `local` and `smoke` on disk it adds
 # 8 clips.
 [dataset.subsets.levels]
@@ -98,7 +99,7 @@ f4_stack = ["r2_unsupported_rest", "r4_teleport", "r4_vanish"]
 f5_contact = ["r1_penetration", "r4_teleport", "r4_vanish"]
 
 # The clean clips of the 100 calib scenes of `full` (same scene ids, seeds, physics and camera),
-# for a version rendered with other backgrounds (plan-it2 J1 b: v1-precise-hdri-dev).
+# for a version rendered with other backgrounds (v1-precise-hdri-dev).
 [dataset.subsets.calib_clean]
 scenes_per_family = 40
 levels = [1]

@@ -7,7 +7,7 @@ real_fps = 120.0        # estimated capture rate; `diagnose real` reports a time
 max_clips = 5
 max_frames = 96         # 0.8 s; target_fps 60 -> step 2 -> 48 samples
 seed = 0
-local_ids = ["0313", "0265", "0166", "0018", "0054"]  # seed-0 selection, pinned 2026-09-24
+local_ids = ["0313", "0265", "0166", "0018", "0054"]  # seed-0 selection, pinned
 fall_verbs = ["falls", "drops", "is dropped", "tumbles", "slides", "rolls", "topples"]
 retries = 3
 

@@ -4,8 +4,8 @@ license = "MIT (labels); videos under each generator's terms"
 retries = 3
 max_frames = 0                 # 0 = every frame of the clip
 filter_version = 2            # 2: swing verbs back in the rigid list (the review decides)
-subset_file = "videophy_subset.json"     # under paths.annotations_dir (D2, hand review)
-queries_file = "videophy_queries.json"   # under paths.annotations_dir (D11)
+subset_file = "videophy_subset.json"     # under paths.annotations_dir (object-object filter, hand review)
+queries_file = "videophy_queries.json"   # under paths.annotations_dir (object queries)
 reviewed_subsets = ["v1_test", "v2_test", "h2_test"]
 # Five fixed clips of h2_dev for the local smoke run (C6): the smallest non-empty zip members.
 smoke_ids = ["v1-a8208f4dd41e", "v1-0c18f4197635", "v1-af1ab1837daf", "v2-2d1753e7ddc4", "v2-bb3c51cd270a"]
@@ -18,7 +18,7 @@ v1_dev = ["v1_dev"]
 v2_dev = ["v2_dev"]
 h2_dev = ["v1_dev", "v2_dev"]
 
-# Lexical object-object rule (D2a): keep = rigid_event and none of the exclusion lists. Words
+# Lexical object-object rule: keep = rigid_event and none of the exclusion lists. Words
 # match whole lowercase tokens; an entry with a space matches that token sequence.
 [videophy.filter]
 rigid_event = [

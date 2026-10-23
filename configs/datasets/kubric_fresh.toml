@@ -1,6 +1,6 @@
 # Sealed Kubric renders of the freeze: each version is a directory under paths.synthetic_dir,
 # rendered by run_final.sh with the freeze seed, the `full` subset's families, perturbations and
-# levels, scenes_per_family scenes per family and no calib clip (plan-congelado section 2.2). The
+# levels, scenes_per_family scenes per family and no calib clip. The
 # OOD version draws its backgrounds from ood_hdri_pool. The blind set reuses version's clips on
 # blind_scenes with the expected object counts withheld.
 [kubric_fresh]
