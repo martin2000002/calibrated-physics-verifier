@@ -10,6 +10,10 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from physverify.calibration.dev_score import DEVSCORE_FILE
+from physverify.calibration.settings import CalibrationSettings
+from physverify.calibration.sigma_recalibration import STAGE_SIGMA_FILE
+from physverify.config.models import error_profile_file
 from physverify.core.digests import text_sha256
 from physverify.freeze.errors import QueryError
 from physverify.freeze.files import read_json, readable_sha256
@@ -23,11 +27,13 @@ J4_RULE = (
     "CPU iterations only; most n_met, then the highest AUROC_cv at full precision, then the "
     "later iteration (plan-congelado J4)"
 )
+ITERATION_CALIBRATION_DIR = "calibration"
+"""The calibration directory run_perception_iteration.sh gives each iteration."""
 ITERATION_FILES: Mapping[str, str] = {
-    "DEVSCORE_SHA": "devscore.json",
-    "CALIBRATION_SHA": "calibration.json",
-    "PROFILE_SHA": "calibration/stage_errors.precise.json",
-    "STAGE_SIGMA_SHA": "calibration/stage_sigma.json",
+    "DEVSCORE_SHA": DEVSCORE_FILE,
+    "CALIBRATION_SHA": CalibrationSettings.model_fields["artifact"].default,
+    "PROFILE_SHA": f"{ITERATION_CALIBRATION_DIR}/{error_profile_file(PROFILE)}",
+    "STAGE_SIGMA_SHA": f"{ITERATION_CALIBRATION_DIR}/{STAGE_SIGMA_FILE}",
 }
 ITERATION_STEPS = range(1, 6)
 

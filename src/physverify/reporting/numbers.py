@@ -30,6 +30,7 @@ from physverify.reporting.sources import (
 )
 from physverify.reporting.values import Section, Value, interval, leaf, rate, with_ci
 from physverify.schema.checks import InputLevel
+from physverify.selective_risk.settings import CURVE_FILE
 
 INTERVAL_ONLY = "interval only: the point difference is not stored"
 NO_AUC_CI = "no interval: the AUROC bootstrap is not implemented"
@@ -83,7 +84,7 @@ def abstention(inputs: Inputs) -> Section:
             "abstention", tuple(values), caveat=f"held-out curve missing: {curve.reason}"
         )
     values += _held_out(curve, k_star)
-    return Section("abstention", tuple(values), caveat=f"curve: {curve.path.parent / 'curve.csv'}")
+    return Section("abstention", tuple(values), caveat=f"curve: {curve.path.parent / CURVE_FILE}")
 
 
 def _held_out(doc: Doc, k_star: float | None) -> list[Value]:
