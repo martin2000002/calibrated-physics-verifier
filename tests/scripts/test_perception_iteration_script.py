@@ -76,7 +76,7 @@ case "$*" in
     new_run
     echo '{"strata": []}' > "$RUN/calibration.json"
     mkdir -p "$(dirname "${!#}")"; echo '{"levels": []}' > "${!#}"
-    echo "perceived/precise: 1/9 meet H1 and J_cv^lo > 0 (R4_jump); AUROC_cv 0.6 [0.5, 0.7]"
+    echo "perceived/precise: 1/9 meet monotonicity and J_cv^lo > 0 (R4_jump); AUROC_cv 0.6 [0.5, 0.7]"
     echo "selection (perceived): n_met 1" ;;
 esac
 exit 0
@@ -167,7 +167,7 @@ def test_the_iteration_runs_its_five_steps_on_calib_only(sandbox: IterationSandb
     assert state["CHAIN_DEVICE"] == "cpu" and state["CHAIN_ITER_ID"] == "it0-baseline"
     summary = (sandbox.out / "summary.md").read_text(encoding="utf-8")
     assert state["DEVSCORE_SHA"] in summary and state["CALIBRATION_SHA"] in summary
-    assert state["PROFILE_SHA"] in summary and "1/9 meet" in summary
+    assert state["PROFILE_SHA"] in summary and "1/9 meet monotonicity and" in summary
     assert (sandbox.out / "calibration.json").is_file()
 
 
