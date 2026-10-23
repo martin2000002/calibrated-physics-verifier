@@ -19,7 +19,8 @@ amendments J1-J15).
 - `review_architecture.md`, `review_duplication.md`, `review_language_naming.md`: the reviews the
   plan is based on (line numbers refer to base `9eb5888`).
 - `tools/equivalence/`: the behavior-equivalence harness (`run_equivalence.sh <base> <head>`,
-  `ast_equal.py`); see its README. Rebuild the base output with `run_equivalence.sh 9eb5888 9eb5888`.
+  `ast_equal.py`); see its README. Rebuild the base output with
+  `EQ_EXPECTED= run_equivalence.sh 9eb5888 9eb5888`.
 - The decision record, in Spanish and outside this repo, is
   `Knowledge/decisions/0017-refactor-arquitectura.md`. Its "Estado" section logs each WP.
 
@@ -49,7 +50,7 @@ ssh h200 'nohup bash /home/mmonterot/dev/wt/refactor_check.sh refactor/architect
 |---|---|---|
 | 0 | ADR, `tests/contracts/`, harness | done, audited, H200 green |
 | 1 | dead code and one-off scripts | done, audited, H200 green (`0d4b15b`: 3415 passed, 9 skipped) |
-| 2 | shared foundations, dedupe | done (`5142476`), audit pending |
+| 2 | shared foundations, dedupe | done, audited |
 | 3 | composition root `app/`, plugin kinds | todo |
 | 4a | pure package/module renames | todo |
 | 4b | thin CLI (<=150 lines per command) | todo |
@@ -89,3 +90,10 @@ Accepted departures from the plan:
 - WP2 names the run-dir helper `runtime.runs.new_run`, because it returns a `RunContext`.
 - The freeze-manifest key paths moved into `tests/contracts/test_freeze_manifest.py`; they are not
   duplicated.
+- WP2 benign drifts, persisted bytes unchanged: the store's temporary file name now carries a uuid
+  and is removed when the write fails; `run.json` is written atomically; `diagnose` calls `clock()`
+  before `config_hash` and `current_commit`.
+
+The WP2 audit PASSED, after its fixes: the last in-image and clearance refusals go through
+`_edit.require_in_image` and `_edit.require_clearance`, `RUN_FILE` is `Final`, and the harness
+compares against the expected diffs in `tools/equivalence/expected/`.
