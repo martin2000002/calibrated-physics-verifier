@@ -8,7 +8,7 @@ from typing import Annotated
 
 import typer
 
-from physverify.app.scene_stats import collect_per_clip
+from physverify.app.scene_stats import collect_per_clip, delta_line
 from physverify.cli.commands.diagnose import ClipsOption, DatasetOption, SubsetOption
 from physverify.cli.context import app_context, echo_err, heavy_command
 from physverify.diagnosis import scene_stats
@@ -69,10 +69,4 @@ def delta(
     except ValueError as exc:
         raise typer.BadParameter(str(exc)) from exc
     query = scene_stats.DeltaQuery(split=split, metric=metric, quantity=quantity, stat=parsed)
-    result = scene_stats.scene_delta(
-        scene_stats.load(base).rows, scene_stats.load(candidate).rows, query, n, seed, ci
-    )
-    typer.echo(
-        f"{metric} {quantity} {stat} ({split}, {result.scenes} scenes): delta {result.point:+.4f}, "
-        f"{ci:.0%} CI [{result.low}, {result.high}]"
-    )
+    typer.echo(delta_line(base, candidate, query, n, seed, ci))

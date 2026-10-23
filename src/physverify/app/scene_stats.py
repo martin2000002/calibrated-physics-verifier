@@ -51,3 +51,17 @@ def collect_per_clip(
     )
     scene_stats.save(out, collected)
     return len(rows)
+
+
+def delta_line(
+    base: Path, candidate: Path, query: scene_stats.DeltaQuery, n: int, seed: int, ci: float
+) -> str:
+    """``candidate - base`` of ``query`` over the scenes both files share, with its bootstrap
+    interval."""
+    result = scene_stats.scene_delta(
+        scene_stats.load(base).rows, scene_stats.load(candidate).rows, query, n, seed, ci
+    )
+    return (
+        f"{query.metric} {query.quantity} {query.stat} ({query.split}, {result.scenes} scenes): "
+        f"delta {result.point:+.4f}, {ci:.0%} CI [{result.low}, {result.high}]"
+    )
