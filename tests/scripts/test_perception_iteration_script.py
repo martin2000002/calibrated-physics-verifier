@@ -297,8 +297,7 @@ def test_failed_clips_are_noted_and_a_failed_devscore_stops(sandbox: IterationSa
 
 
 def test_the_baseline_is_protected_whatever_data_is(sandbox: IterationSandbox) -> None:
-    """With another PHYSVERIFY_ITERATION_DATA, kubric-data/calibration is still
-    refused."""
+    """With another PHYSVERIFY_ITERATION_DATA, kubric-data/calibration is still refused."""
     result = sandbox.run(
         PHYSVERIFY_ITERATION_DATA=str(sandbox.root / "other-data"),
         PHYSVERIFY_ITERATION_DIR=str(sandbox.root / "kubric-data"),

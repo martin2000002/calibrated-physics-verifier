@@ -169,7 +169,7 @@ done
 refuse_local_config run_final.sh
 require_checkout PHYSVERIFY_FINAL_EXPECT_COMMIT
 SEED="${PHYSVERIFY_FINAL_SEED:-}"
-[[ "$SEED" =~ ^[0-9]+$ ]] || die "set PHYSVERIFY_FINAL_SEED to the seed of the amendment"
+[[ "$SEED" =~ ^[0-9]+$ ]] || die "set PHYSVERIFY_FINAL_SEED to the preregistered seed"
 PY="${PHYSVERIFY_FINAL_PYTHON:-/home/mmonterot/dev/venv/bin/python}"
 [[ -x "$PY" ]] || die "no interpreter at $PY (PHYSVERIFY_FINAL_PYTHON)"
 VENV="${PHYSVERIFY_FINAL_VENV:-$(dirname "$(dirname "$PY")")}"
