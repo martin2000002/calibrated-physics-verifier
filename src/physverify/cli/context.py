@@ -37,6 +37,11 @@ def app_context(ctx: typer.Context | None = None) -> AppContext:
     return found
 
 
+def echo_err(line: str) -> None:
+    """One line on the error stream, as ``typer.echo(line, err=True)``."""
+    typer.echo(line, err=True)
+
+
 def heavy_command[**P, R](func: Callable[P, R]) -> Callable[P, R]:
     """Run the command body while holding the heavy-job lock."""
 

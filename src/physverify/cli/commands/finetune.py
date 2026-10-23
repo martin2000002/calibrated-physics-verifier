@@ -18,7 +18,7 @@ from typing import Annotated, Any, Final
 import typer
 
 from physverify.app.context import AppContext
-from physverify.app.services import context_scorer
+from physverify.app.services import scorer_for
 from physverify.cli.commands._common import choice
 from physverify.cli.commands._finetune_deps import (
     candidate_generator,
@@ -222,7 +222,7 @@ def generate(
 
 
 def _scorer(context: AppContext, name: str | None) -> AggregateScorer:
-    built = context_scorer(context, name or _cfg(context).scorer)
+    built = scorer_for(context, name or _cfg(context).scorer)
     reason = built.unavailable()
     if reason is not None:
         raise UsageError(f"scorer {built.name} is unavailable: {reason}")
@@ -456,7 +456,7 @@ def _beta(
 def _require_stop_rule(
     context: AppContext, store: CampaignStore, name: str, deviation: str | None
 ) -> None:
-    require_stop_rule(context, _cfg(context), store, context_scorer(context, name), deviation)
+    require_stop_rule(context, _cfg(context), store, scorer_for(context, name), deviation)
 
 
 def run_record(

@@ -18,7 +18,7 @@ import typer
 from pydantic import ValidationError
 
 from physverify.app.context import AppContext
-from physverify.app.services import context_checks_hash, resolve_dataset
+from physverify.app.services import checks_hash_for, dataset_for
 from physverify.calibration.artifact import EvaluationReport
 from physverify.calibration.artifact_io import (
     CalibrationError,
@@ -42,7 +42,7 @@ from physverify.calibration.settings import (
     calibration_config,
     calibration_settings,
 )
-from physverify.calibration.table import CalibrationDataError, build_rows, in_family, scene_of
+from physverify.calibration.table import CalibrationDataError, build_rows, in_family
 from physverify.cli.context import app_context
 from physverify.core.atomic import write_text_atomic
 from physverify.core.digests import text_sha256
@@ -54,6 +54,7 @@ from physverify.schema.clip import ClipManifest
 from physverify.schema.io import stable_hash
 from physverify.schema.stages import Stage
 from physverify.synth.perturbations.none import NAME as NONE
+from physverify.synth.scene_scope import scene_of
 from physverify.verification.exclusion_record import (
     ExclusionInputError,
     ExclusionRecord,
@@ -225,7 +226,7 @@ def _units(context: AppContext) -> tuple[CheckUnit, ...]:
 
 def _arms(context: AppContext, rules: ExclusionRules, base: str, tiny: str) -> R2Arms:
     settings = context.settings
-    clips = resolve_dataset(context, rules.r2.dataset).clips(None)
+    clips = dataset_for(context, rules.r2.dataset).clips(None)
     couplings = calibration_config(settings).couplings
     units = _units(context)
     runs_dir = settings.paths.runs_dir
@@ -240,7 +241,7 @@ def _inputs(
     """The cheap inputs are checked first; the two runs are read last."""
     settings = context.settings
     report, report_sha = _evaluation(evaluation)
-    checks_hash = context_checks_hash(context)
+    checks_hash = checks_hash_for(context)
     try:
         calibration = load_calibration(artifact, checks_hash=checks_hash)
     except CalibrationError as exc:
@@ -271,7 +272,7 @@ def r2_clips(
 ) -> None:
     context = app_context()
     cfg = _rules(context).r2
-    ids = r2_clip_ids(resolve_dataset(context, cfg.dataset).clips(cfg.subset), cfg)
+    ids = r2_clip_ids(dataset_for(context, cfg.dataset).clips(cfg.subset), cfg)
     if not ids:
         raise UsageError(f"{cfg.dataset}/{cfg.subset} has no {cfg.family} {cfg.split.value} clip")
     text = "\n".join(ids) + "\n"
@@ -332,7 +333,7 @@ def show_command(
     if not target.is_file():
         raise UsageError(f"no decision record at {target}: run `physverify exclusions decide`")
     if checks_hash:
-        record = load_record(target, context_checks_hash(context))
+        record = load_record(target, checks_hash_for(context))
     else:
         record = parse_record(target.read_text(encoding="utf-8"), str(target))
         typer.echo("note: checks_hash not validated against the active check parameters")

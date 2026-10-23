@@ -9,10 +9,11 @@ import subprocess
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Final
+from typing import Any, Final
 
 from physverify.config.models import Settings
 from physverify.core.atomic import write_text_atomic
+from physverify.schema.io import json_ready
 
 RUN_FILE: Final = "run.json"
 
@@ -92,3 +93,7 @@ def new_run(settings: Settings, argv: Sequence[str], now: dt.datetime | None = N
         commit=current_commit(settings.repo_root),
         now=now if now is not None else dt.datetime.now(dt.UTC),
     )
+
+
+def write_json(path: Path, payload: Any) -> None:
+    write_text_atomic(path, json.dumps(json_ready(payload), indent=2, sort_keys=True) + "\n")

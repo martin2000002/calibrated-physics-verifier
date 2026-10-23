@@ -7,14 +7,16 @@ a ``FrameSampling`` (nearest neighbour for masks and depth, K scaled by the resi
 from __future__ import annotations
 
 import math
-from collections.abc import Mapping, Sequence
+import time
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, ClassVar, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, ClassVar, Protocol, runtime_checkable
 
 import numpy as np
 from numpy.typing import NDArray
 
+from physverify.core.download import BYTES_PER_MB, MANIFEST_FILE, read_manifest
 from physverify.core.errors import MissingInputError, UsageError
 from physverify.core.resample import resize_depth, resize_masks, scale_intrinsics
 from physverify.schema.clip import ClipManifest, FrameSampling
@@ -109,6 +111,40 @@ def select_clips(clips: Sequence[ClipManifest], wanted: Sequence[str]) -> list[C
     if unknown:
         raise UsageError(f"unknown clip ids {unknown}")
     return [by_id[clip_id] for clip_id in dict.fromkeys(wanted)]
+
+
+def dataset_from(
+    registry: Mapping[str, type[DatasetSource]], name: str, settings: Settings
+) -> DatasetSource:
+    """Dataset ``name`` of ``registry`` built from ``settings``."""
+    if name not in registry:
+        raise UsageError(f"unknown dataset {name!r}; known: {sorted(registry)}")
+    return registry[name](settings)
+
+
+def fetch_summary(dest: Path, elapsed_s: float) -> str:
+    manifest = read_manifest(dest / MANIFEST_FILE)
+    if manifest is None:
+        return f"{dest.name}: no manifest written ({elapsed_s:.1f} s)"
+    size_mb = sum(f.size for f in manifest.files) / BYTES_PER_MB
+    return (
+        f"{manifest.dataset} [{manifest.subset}]: {len(manifest.clips)} clips, "
+        f"{len(manifest.files)} files, {size_mb:.1f} MB, {elapsed_s:.1f} s -> {dest}"
+    )
+
+
+def fetch_all(
+    classes: Sequence[type[Any]],
+    settings: Settings,
+    subset: str | None,
+    echo: Callable[[str], None],
+    clock: Callable[[], float] = time.monotonic,
+) -> None:
+    for cls in classes:
+        dest = settings.paths.raw_dir / cls.name
+        started = clock()
+        cls(settings).fetch(subset, dest)
+        echo(fetch_summary(dest, clock() - started))
 
 
 @dataclass(frozen=True, eq=False)

@@ -121,7 +121,7 @@ Modules (src): diagnosis/atomic_io -> core/atomic; core/hashing -> core/cache_ke
 file_sha256; calibration/loader.sha256_of -> core/digests.text_sha256; datasets/_download -> core/download;
 calibration/stats + diagnosis/factorial.bootstrap -> stats/bootstrap; verification/sweep.kendall -> stats/rank;
 calibration/schema -> calibration/artifact (Ci/Rate -> stats/intervals); calibration/loader -> artifact_io;
-devscore -> dev_score; heldout_h1 -> heldout_monotonicity; calibration/scenes -> datasets/scene_scope;
+devscore -> dev_score; heldout_h1 -> heldout_monotonicity; calibration/scenes -> synth/scene_scope;
 calibration/exclusion_record -> verification/exclusion_record; exclusions -> exclusion_rules; sealed + cli/_sealed ->
 calibration/sealed_ledger + app/sealing; sigma -> sigma_recalibration; weights -> check_weights; settings.checks_hash/
 check_registry -> verification/check_set; verification/selective_risk + cli/abstain logic -> selective_risk/{curve,
@@ -300,7 +300,7 @@ J2. Parsed stdout contract: inventory every stdout/stderr line parsed by scripts
     literal sed/grep prefix in scripts/h200 still occurs in src.
 J3. scripts/h200/freeze_query.py DIFF_PATHS (j3, j13) must be updated to the new layout (j13: extraction package +
     configs/verifier/extraction.toml; j3: every package/config that holds verifier code after the moves: checks,
-    physics, extraction, verification, core/cache_keys, stats, sizing/priors, datasets/scene_scope, ...). ADR 0017
+    physics, extraction, verification, core/cache_keys, stats, sizing/priors, synth/scene_scope, ...). ADR 0017
     records that iteration/early-extraction artifacts from pre-refactor commits cannot be adopted by post-refactor
     freezes (run_freeze.sh:149) and later rounds must run on post-refactor commits.
 J4. run_final.sh v1 arm (449-468, 497-501) runs the C_V1 checkout (old flat loader) with HEAD-built configs:

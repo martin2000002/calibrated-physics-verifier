@@ -241,7 +241,7 @@ def family_run(monkeypatch: pytest.MonkeyPatch, settings: Settings) -> str:
     that report instead of running the checks."""
     monkeypatch.setattr(sys.modules[__name__], "REPORT", FAMILY_REPORT)
     monkeypatch.setattr(calibrate, "_raw_runner", lambda session: _ReportRunner())
-    monkeypatch.setattr(calibrate, "_source", lambda session, dataset, level: None)
+    monkeypatch.setattr(calibrate, "_input_source", lambda session, dataset, level: None)
     folder = settings.paths.runs_dir / "family"
     folder.mkdir(parents=True)
     write_report(folder, FAMILY_REPORT)

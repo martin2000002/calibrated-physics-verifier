@@ -7,13 +7,11 @@ from __future__ import annotations
 import datetime as dt
 import socket
 import subprocess
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
 from typing import Final
-
-import typer
 
 from physverify.app.context import AppContext
 from physverify.calibration.sealed_ledger import (
@@ -139,12 +137,14 @@ def guard_sealed(
     command: str,
     selections: Sequence[Selection],
     *,
+    err: Callable[[str], None],
     artifacts: Mapping[str, str] | None = None,
     run_dir: Path | None = None,
 ) -> None:
     """Nothing when no selection touches a sealed set; otherwise refuse without the unseal
     variable, or append the ledger line before returning. ``artifacts`` (label -> sha256) are
-    the files the command judges with beyond the default ones; they enter the freeze."""
+    the files the command judges with beyond the default ones; they enter the freeze. ``err``
+    prints one line on the error stream."""
     if command not in GUARDED:
         raise ValueError(f"{command!r} is not a guarded subcommand")
     sealed = sealed_settings(context.settings)
@@ -157,15 +157,14 @@ def guard_sealed(
     require_unsealed(found, unsealed(environ.get(UNSEAL_ENV)))
     home = Path(environ.get("HOME") or Path.home())
     path = ledger_path(sealed, home, context.settings.repo_root)
-    typer.echo(f"ledger: {path}", err=True)
+    err(f"ledger: {path}")
     look = _look(context, found, artifacts or {})
     previous = read_entries(path)
     repeat = check_repeat(previous, found, look.freeze, environ.get(REPEAT_ENV) == "1")
     for entry in earlier(previous, found):
-        typer.echo(
+        err(
             f"earlier look at {','.join(entry.sets)}: {entry.utc} commit {entry.commit[:12]} "
-            f"{entry.command} freeze {entry.freeze[:12]}",
-            err=True,
+            f"{entry.command} freeze {entry.freeze[:12]}"
         )
     entry = look.model_copy(
         update={
@@ -176,7 +175,7 @@ def guard_sealed(
         }
     )
     append_entry(path, entry)
-    typer.echo(f"sealed look: {','.join(found)} freeze {look.freeze[:12]}", err=True)
+    err(f"sealed look: {','.join(found)} freeze {look.freeze[:12]}")
 
 
 def _tree_state(root: Path) -> str | None:

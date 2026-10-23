@@ -6,7 +6,7 @@ import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, TypeVar
+from typing import Any
 
 from pydantic import (
     BaseModel,
@@ -21,17 +21,6 @@ from pydantic import (
 from physverify.core.errors import ConfigError
 from physverify.core.models import FrozenModel
 from physverify.schema.io import stable_hash
-
-M = TypeVar("M", bound=BaseModel)
-
-
-def validated[T: BaseModel](model: type[T], data: object, section: str) -> T:
-    """``model`` validated from ``data``; a failure names the configuration ``section``."""
-    try:
-        return model.model_validate(data)
-    except ValidationError as exc:
-        raise ConfigError(f"[{section}] is invalid:\n{exc}") from exc
-
 
 DEVICE_PATTERN = re.compile(r"^(cpu|cuda(:\d+)?)$")
 
@@ -50,6 +39,14 @@ UNPROFILED_ERROR_PROFILE_FILE = "stage_errors.json"
 """Error-profile file name when no extraction profile is known (direct validation only)."""
 PROFILE_CONTEXT = "profile"
 """Validation-context key of the active extraction profile, which names its error profile."""
+
+
+def validated[T: BaseModel](model: type[T], data: object, section: str) -> T:
+    """``model`` validated from ``data``; a failure names the configuration ``section``."""
+    try:
+        return model.model_validate(data)
+    except ValidationError as exc:
+        raise ConfigError(f"[{section}] is invalid:\n{exc}") from exc
 
 
 class PathsSettings(FrozenModel):
@@ -149,7 +146,7 @@ class Settings:
     sections: Mapping[str, Any]
     sources: tuple[str, ...]
 
-    def section(self, name: str, model: type[M]) -> M:
+    def section[M: BaseModel](self, name: str, model: type[M]) -> M:
         """Validate one configuration section with the subsystem's own model."""
         return validated(model, self.sections.get(name, {}), name)
 

@@ -156,3 +156,29 @@ unchanged (contract tests). Departures:
 WP4a checks: the harness from `9eb5888` to HEAD exits 0 (`wp1-audit-migration.diff` and
 `wp4a-config-comments.diff`; 59 golden blobs identical); the full suite passes on the laptop (3620
 passed, 2 skipped, 2 deselected); ruff and mypy are clean.
+
+S0 (`3ab707e`..`4bdd55b`, WP4b+WP5 plan S0.1-S0.4) is done: `Settings.section` with PEP 695;
+`PipelineDeps.build` shared by `app.services` and `timing.targets.extract_pipeline` (the
+`LazyLock`/`RssProbe` plumbing in `extraction/pipeline_resources.py`); `datasets._base.dataset_from`
+as the one dataset lookup, with `app.services.{dataset_for,checks_hash_for,scorer_for}` on narrow
+`PluginContext`/`LockingContext` protocols; the helpers shared across commands moved below the CLI
+(`app/sealing.py`, `app/diagnosis.py`, `runtime.runs.write_json`, `extraction/events.py`,
+`datasets._base.fetch_all`, `diagnosis.context.sampled_metrics`, `synth.scene_scope.scene_of`).
+Departures:
+
+- `pipeline.py` is 375 lines, not about 345: the `build` classmethod stays in it.
+- `PlanRegistries` (the providers/checks pair `perception_plan` needs) lives in
+  `timing/targets/extract_pipeline.py`, its only user.
+- The private seams named `_source` became `_input_source` (`cli/commands/calibrate.py`,
+  `VerifyChecks`) and `_dataset` (`scripts/h200/a8v2_query.py`); tests patch the new names. The
+  acceptance grep `def _source` also matches `_sources` and `_source_index`, which are not dataset
+  lookups and keep their names (`grep -rn "def _source\b"` is empty).
+- `dataset_for` reads `context.settings` before the unknown-dataset check; every caller had read it
+  already.
+- `guard_sealed` takes `err=`; the CLI passes `cli.context.echo_err` (`typer.echo(..., err=True)`),
+  so stderr is unchanged. The repo `CLAUDE.md` still names `cli/commands/_sealed.py`.
+
+S0 checks: the harness from `9eb5888` to `4bdd55b` exits 0 (`wp1-audit-migration.diff` and
+`wp4a-config-comments.diff`; 59 golden blobs identical); targeted suites pass (2207 passed, 9
+skipped for S0.4); ruff and mypy are clean; the process-label baseline changes only by the
+`_sealed.py` -> `sealing.py` move.

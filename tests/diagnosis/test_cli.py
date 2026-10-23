@@ -14,14 +14,15 @@ from synthetic_clip import CLIP_ID, DATASET
 
 from physverify.app import plugins
 from physverify.cli.commands import data, diagnose
-from physverify.cli.commands.extract import ConsoleObserver, EventRecorder
 from physverify.config.models import Settings
 from physverify.core.download import MANIFEST_FILE, FetchedFile, FetchManifest, write_manifest
 from physverify.core.errors import MissingInputError, UsageError
+from physverify.datasets import _base
 from physverify.diagnosis.context import DiagnosisContext
 from physverify.diagnosis.real_video import ALL_CLIPS, run_real
 from physverify.diagnosis.report import RealVideoReport, build_provenance
 from physverify.extraction._base import StageProvider
+from physverify.extraction.events import ConsoleObserver, EventRecorder
 from physverify.schema.checks import Verdict
 from physverify.schema.clip import ClipManifest
 
@@ -131,10 +132,10 @@ def test_fetch_all_reports_the_elapsed_time(make_settings: Callable[..., Setting
     settings = make_settings(fakes=False)
     lines: list[str] = []
     ticks = iter([10.0, 12.5])
-    data.fetch_all([fake_real("physics_iq")], settings, None, lines.append, lambda: next(ticks))
+    _base.fetch_all([fake_real("physics_iq")], settings, None, lines.append, lambda: next(ticks))
     dest = settings.paths.raw_dir / "physics_iq"
     assert lines == [f"physics_iq [local]: 1 clips, 1 files, 2.0 MB, 2.5 s -> {dest}"]
-    assert data.fetch_summary(settings.paths.raw_dir / "none", 1.0) == (
+    assert _base.fetch_summary(settings.paths.raw_dir / "none", 1.0) == (
         "none: no manifest written (1.0 s)"
     )
 

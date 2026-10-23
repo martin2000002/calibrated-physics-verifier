@@ -14,7 +14,7 @@ from typing import Annotated, Final
 import typer
 
 from physverify.app.context import AppContext
-from physverify.app.services import context_scorer
+from physverify.app.services import scorer_for
 from physverify.cli.commands._finetune_deps import candidate_generator, require_cuda, scoring_deps
 from physverify.cli.context import app_context, heavy_command
 from physverify.config.models import Settings
@@ -109,20 +109,20 @@ def active_scorer(context: AppContext) -> Rule:
     """``finetune.scorer``, or the provisional rule (labelled as such) when it is unavailable."""
     settings = context.settings
     name = load_finetune(settings).scorer
-    scorer = context_scorer(context, name)
+    scorer = scorer_for(context, name)
     reason = scorer.unavailable()
     if reason is None:
         return scorer, rule_info(scorer)
     if name == ProvisionalScorer.name or not load_demo(settings).allow_provisional:
         raise UsageError(f"scorer {name} is unavailable: {reason}")
-    fallback = context_scorer(context, ProvisionalScorer.name)
+    fallback = scorer_for(context, ProvisionalScorer.name)
     return fallback, rule_info(fallback, note=f"The {name} rule is unavailable: {reason}.")
 
 
 def frozen_scorer(context: AppContext, prereg: Path) -> Rule:
     """``finetune.scorer`` exactly as the H3 freeze stamped it; never the provisional fallback."""
     name = load_finetune(context.settings).scorer
-    scorer = context_scorer(context, name)
+    scorer = scorer_for(context, name)
     reason = scorer.unavailable()
     if reason is not None:
         raise UsageError(f"scorer {name} is unavailable: {reason}")

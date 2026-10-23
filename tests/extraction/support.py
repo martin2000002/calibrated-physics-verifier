@@ -24,9 +24,9 @@ from physverify.extraction.cache import StageCache, plan_entry_filter, stage_key
 from physverify.extraction.pipeline import (
     ExtractionPipeline,
     ExtractionReport,
-    LazyLock,
     PipelineDeps,
 )
+from physverify.extraction.pipeline_resources import LazyLock
 from physverify.extraction.plan import ResolvedPlan
 from physverify.extraction.providers.contacts_proximity import ProximityContacts
 from physverify.extraction.providers.gt_camera import GroundTruthCamera

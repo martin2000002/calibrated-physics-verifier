@@ -238,7 +238,7 @@ def test_a_missing_or_unknown_phase_stops_before_any_call(sandbox: Sandbox, args
     [
         ({"PHYSVERIFY_H2_EXPECT_COMMIT": ""}, "PHYSVERIFY_H2_EXPECT_COMMIT"),
         ({"HEAD_SHA": "deadbeef0000"}, "expected c0ffee1"),
-        ({"DIRTY_FILES": " M src/physverify/agreement/report.py\n"}, "uncommitted or untracked"),
+        ({"DIRTY_FILES": " M src/physverify/human_agreement/report.py\n"}, "uncommitted or untracked"),
         ({"DIRTY_FILES": "?? annotations/videophy_queries.new.json\n"}, "annotations/videophy"),
         ({"PHYSVERIFY_H2_DEVICE": "cuda"}, "PHYSVERIFY_H2_DEVICE must be cpu"),
         ({"PHYSVERIFY__AGREEMENT__RULE": "provisional_any_fail"}, "PHYSVERIFY__AGREEMENT__RULE"),

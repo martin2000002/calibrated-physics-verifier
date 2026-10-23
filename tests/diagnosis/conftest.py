@@ -37,7 +37,8 @@ from physverify.diagnosis.verification_adapter import CheckSuite
 from physverify.extraction import pipeline as extraction_pipeline
 from physverify.extraction._base import StageContext, StageProvider, WeightSpec, provider_key
 from physverify.extraction.cache import StageCache
-from physverify.extraction.pipeline import LazyLock, PipelineDeps
+from physverify.extraction.pipeline import PipelineDeps
+from physverify.extraction.pipeline_resources import LazyLock
 from physverify.extraction.providers._common import ProviderParams, expect_params
 from physverify.runtime.runs import RunContext
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
@@ -488,7 +489,7 @@ def make_diagnosis_context(
         return DiagnosisContext(
             settings=settings,
             diag=diagnosis_settings(settings),
-            resolve_dataset=lambda name: registry[name](settings),
+            dataset_for=lambda name: registry[name](settings),
             providers=providers if stage_providers is None else stage_providers,
             checks=checks(),
             metrics=dict(metrics or {}),
