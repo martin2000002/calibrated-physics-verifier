@@ -19,7 +19,7 @@ from physverify.synth.family_toolkit import (
     framed_scene,
     heading,
     image_plane_azimuth,
-    make_object,
+    material_object,
     next_id,
     sampled_extents,
     sphere_envelope,
@@ -63,7 +63,7 @@ def _draw(rng: np.random.Generator, params: Params) -> SceneSpec:
     azimuth = image_plane_azimuth(motion, rng, params.plane_spread_deg)
     yaw = math.atan2(float(motion[1]), float(motion[0]))
     cube_ext = sampled_extents(params, "cube", rng)
-    cube = _body(
+    cube = material_object(
         params, "cube_0", "cube", cube_ext, (0.0, 0.0, rest_height(cube_ext)), colors[0], yaw
     )
     ball, path = _rolling_ball(rng, params, motion, cube_ext[0] / 2.0, colors[1])
@@ -76,7 +76,9 @@ def _draw(rng: np.random.Generator, params: Params) -> SceneSpec:
     envelope = np.vstack(
         [
             box_envelope(cube),
-            box_envelope(_body(params, "cube_0", "cube", cube_ext, pushed, colors[0], yaw)),
+            box_envelope(
+                material_object(params, "cube_0", "cube", cube_ext, pushed, colors[0], yaw)
+            ),
             sphere_envelope(path, ball.extents[0] / 2.0),
             *[box_envelope(o) for o in cluster],
         ]
@@ -89,28 +91,6 @@ def _draw(rng: np.random.Generator, params: Params) -> SceneSpec:
         rng,
         settle_frames=params.settle_frames,
         azimuth_deg=azimuth,
-    )
-
-
-def _body(
-    params: Params,
-    object_id: str,
-    label: str,
-    extents: tuple[float, float, float],
-    position: tuple[float, float, float] | Vec,
-    color: tuple[float, float, float],
-    yaw: float,
-) -> ObjectSpec:
-    return make_object(
-        object_id,
-        label,
-        extents,
-        position,
-        color,
-        density=params.density,
-        friction=params.friction,
-        restitution=params.restitution,
-        yaw=yaw,
     )
 
 
@@ -130,15 +110,13 @@ def _rolling_ball(
     travel = speed * (params.settle_frames + hit) / params.fps
     start = -(radius + cube_half + travel) * motion + radius * np.array([0.0, 0.0, 1.0])
     velocity = speed * motion
-    ball = make_object(
+    ball = material_object(
+        params,
         "ball_0",
         "ball",
         extents,
         start,
         color,
-        density=params.density,
-        friction=params.friction,
-        restitution=params.restitution,
         velocity=velocity,
         angular_velocity=rolling_angular_velocity(velocity, radius),
     )
@@ -190,7 +168,9 @@ def _cluster(
         object_id = next_id(label, used)
         used.append(object_id)
         bodies.append(
-            _body(params, object_id, label, ext, (xy[0], xy[1], rest_height(ext)), color, yaw)
+            material_object(
+                params, object_id, label, ext, (xy[0], xy[1], rest_height(ext)), color, yaw
+            )
         )
     return bodies
 

@@ -22,7 +22,7 @@ from physverify.synth.family_toolkit import (
     framed_scene,
     heading,
     kind_of,
-    make_object,
+    material_object,
     next_id,
     sampled_extents,
     solid_of,
@@ -65,7 +65,7 @@ def _draw(rng: np.random.Generator, params: Params) -> SceneSpec:
         (sampled_extents(params, "cube", rng) for _ in range(2)), key=characteristic_length
     )
     yaw = float(rng.uniform(0.0, math.pi / 2.0))
-    base = _body(
+    base = material_object(
         params, "cube_0", "cube", base_ext, (0.0, 0.0, rest_height(base_ext)), colors[0], yaw
     )
     top_label = "cube" if rng.uniform() < params.top_cube_probability else "cylinder"
@@ -81,28 +81,6 @@ def _draw(rng: np.random.Generator, params: Params) -> SceneSpec:
     objects = (*stack, loose)
     envelope = np.vstack([box_envelope(o) for o in objects])
     return framed_scene(params, NAME, objects, envelope, rng, settle_frames=params.settle_frames)
-
-
-def _body(
-    params: Params,
-    object_id: str,
-    label: str,
-    extents: tuple[float, float, float],
-    position: tuple[float, float, float] | Vec,
-    color: tuple[float, float, float],
-    yaw: float,
-) -> ObjectSpec:
-    return make_object(
-        object_id,
-        label,
-        extents,
-        position,
-        color,
-        density=params.density,
-        friction=params.friction,
-        restitution=params.restitution,
-        yaw=yaw,
-    )
 
 
 def _yaw_of(obj: ObjectSpec) -> float:
@@ -125,7 +103,7 @@ def _stacked(
     direction = heading(yaw + math.pi / 2.0 * int(rng.integers(4)))
     top_z = support.position[2] + support.extents[2] / 2.0 + extents[2] / 2.0
     centre = np.array([support.position[0], support.position[1], top_z])
-    probe = _body(params, object_id, label, extents, centre, color, yaw)
+    probe = material_object(params, object_id, label, extents, centre, color, yaw)
     lower = solid_of(support)
 
     def overhang(shift: float) -> float:
@@ -135,7 +113,9 @@ def _stacked(
 
     target = float(rng.uniform(*params.overhang_range))
     shift = solve_offset(overhang, target, 0.0, support.extents[0] / 2.0)
-    return _body(params, object_id, label, extents, centre + shift * direction, color, yaw)
+    return material_object(
+        params, object_id, label, extents, centre + shift * direction, color, yaw
+    )
 
 
 def _check_joint_balance(
@@ -174,7 +154,7 @@ def _loose(
     xy = distance * heading(float(rng.uniform(0.0, 2.0 * math.pi)))
     object_id = next_id(label, [o.object_id for o in stack])
     position = (float(xy[0]), float(xy[1]), rest_height(extents))
-    return _body(
+    return material_object(
         params, object_id, label, extents, position, color, float(rng.uniform(0.0, math.pi / 2.0))
     )
 
