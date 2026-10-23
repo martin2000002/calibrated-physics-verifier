@@ -8,7 +8,7 @@ from typing import ClassVar
 
 import numpy as np
 
-from physverify.schema.contacts import ContactTable
+from physverify.schema.contacts import ContactRecord, ContactTable
 from physverify.schema.scene import MagnitudeKind, PerturbationRecord, SceneSpec
 from physverify.schema.states import ObjectStateTable
 from physverify.synth.ballistics import (
@@ -161,7 +161,7 @@ class GravitySwitch(PluginBase[Params]):
         frame: int,
         t_switch: float,
         gravities: tuple[Vec, Vec],
-    ) -> tuple[ObjectStateTable, list]:
+    ) -> tuple[ObjectStateTable, list[ContactRecord]]:
         tilted, g = gravities
         radius = radius_of(states, index)
         p, v = ballistic_state(states, index, t_switch, g)

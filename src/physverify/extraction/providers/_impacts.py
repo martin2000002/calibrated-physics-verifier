@@ -243,7 +243,7 @@ def kink_ratios(gains: FloatArray, residuals: FloatArray, known: bool) -> FloatA
     if known:
         return gains / DEGREES_OF_FREEDOM
     rss = (residuals**2).sum(axis=(1, 2)) - gains
-    variance = np.maximum(rss / residual_dof(residuals.shape[1]), 1.0)
+    variance: FloatArray = np.maximum(rss / residual_dof(residuals.shape[1]), 1.0)
     return gains / (DEGREES_OF_FREEDOM * variance)
 
 

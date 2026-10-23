@@ -89,7 +89,7 @@ def covered_fraction(box: Box, others: BoolArray) -> float:
     height, width = others.shape
     c0, c1 = max(0, round(box.x0)), min(width, round(box.x1))
     r0, r1 = max(0, round(box.y0)), min(height, round(box.y1))
-    area = max(0, c1 - c0) * max(0, r1 - r0)
+    area: int = max(0, c1 - c0) * max(0, r1 - r0)
     if area == 0:
         return math.nan
     return float(others[r0:r1, c0:c1].sum()) / area
