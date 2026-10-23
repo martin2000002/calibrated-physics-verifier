@@ -130,7 +130,7 @@ def test_two_directories_of_one_iteration_are_refused(
 
 
 def test_the_seed_is_the_preregistered_formula() -> None:
-    """Amendment 2 section 2, by hand."""
+    """The preregistered seed formula, by hand."""
     calibration, exclusions = "1" * 64, "2" * 64
     digest = hashlib.sha256((HEAD + calibration + exclusions).encode("utf-8")).hexdigest()
     assert seed_of(HEAD, calibration, exclusions) == int(digest[:8], 16)

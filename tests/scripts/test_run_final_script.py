@@ -168,7 +168,7 @@ def _sha(path: Path) -> str:
 
 
 def _seed(calibration: Path, exclusions: Path) -> int:
-    """Amendment 2 section 2, written out independently of freeze_query.py."""
+    """The preregistered seed formula, written out independently of freeze_query.py."""
     joined = HEAD + _sha(calibration) + _sha(exclusions)
     return int(hashlib.sha256(joined.encode("utf-8")).hexdigest()[:8], 16)
 
@@ -688,7 +688,7 @@ def test_a_dry_run_writes_only_under_scratch(sandbox: FinalSandbox) -> None:
 def test_a_dry_run_never_reads_a_sealed_population(
     sandbox: FinalSandbox, args: tuple[str, ...], env: dict[str, str], message: str
 ) -> None:
-    """Audit B1, M1: no frozen seed, no kubric_synthetic eval, no left/right view, no test split."""
+    """No frozen seed, no kubric_synthetic eval, no left/right view, no test split."""
     _, ledger, dry = _dry_run(sandbox)
     if env.get("PHYSVERIFY_FINAL_SEED") == "real":
         env = {"PHYSVERIFY_FINAL_SEED": str(sandbox.seed)}
@@ -710,7 +710,7 @@ def test_a_dry_run_of_the_new_real_control_reads_center_and_train(sandbox: Final
 
 
 def test_a_limited_extraction_is_not_the_extraction_a_look_needs(sandbox: FinalSandbox) -> None:
-    """Audit M2: the pace measurement is recorded as extract-limited."""
+    """The pace measurement is recorded as extract-limited."""
     sandbox.ok("seed")
     sandbox.ok("render", "kubric_fresh")
     sandbox.ok("extract", "kubric_fresh", PHYSVERIFY_FINAL_EXTRACT_LIMIT="2")

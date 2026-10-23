@@ -3,7 +3,7 @@
 # $F/freeze.json (run_freeze.sh). Every call is --profile precise --device cpu with the frozen
 # artifacts of $F/calibration.
 #
-#   bash scripts/h200/run_final.sh seed            the seed of the amendment is the freeze's
+#   bash scripts/h200/run_final.sh seed            the preregistered seed is the freeze's
 #   bash scripts/h200/run_final.sh render SET      kubric_fresh | kubric_fresh_ood (run_kubric.sh)
 #   bash scripts/h200/run_final.sh fetch SET       physics_iq_views | objectron_static
 #   bash scripts/h200/run_final.sh extract SET     any set but real_new (exempt: prints no verdict)
@@ -26,7 +26,7 @@
 # here; no PHYSVERIFY_UNSEAL or PHYSVERIFY_UNSEAL_REPEAT from the caller (this script sets them for
 # a look and a v1 arm only); freeze.json of device cpu and profile precise with its calibration
 # directory $F/calibration and its frozen files unchanged (freeze_query artifacts);
-# PHYSVERIFY_FINAL_SEED is the freeze's seed (the amendment's); $F/run-final/state.env of the same
+# PHYSVERIFY_FINAL_SEED is the freeze's preregistered seed; $F/run-final/state.env of the same
 # commit and dry-run mode; for any command but seed, the seed command has run. Then doctor must
 # report the committed configs, cpu, precise, the cache and the calibration in $F.
 #
@@ -44,7 +44,7 @@
 # Required:
 #   PHYSVERIFY_FINAL_EXPECT_COMMIT  prefix (>= 7 chars) of the freeze commit, the HEAD this
 #                                   checkout is at
-#   PHYSVERIFY_FINAL_SEED           the seed written in the amendment
+#   PHYSVERIFY_FINAL_SEED           the preregistered seed
 # Optional (defaults in brackets):
 #   PHYSVERIFY_FINAL_DIR            $F [$H200_ROOT/final]
 #   PHYSVERIFY_FINAL_FREEZE         the freeze manifest [$F/freeze.json]

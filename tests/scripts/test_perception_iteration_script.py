@@ -297,7 +297,7 @@ def test_failed_clips_are_noted_and_a_failed_devscore_stops(sandbox: IterationSa
 
 
 def test_the_baseline_is_protected_whatever_data_is(sandbox: IterationSandbox) -> None:
-    """Audit m5: with another PHYSVERIFY_ITERATION_DATA, kubric-data/calibration is still
+    """With another PHYSVERIFY_ITERATION_DATA, kubric-data/calibration is still
     refused."""
     result = sandbox.run(
         PHYSVERIFY_ITERATION_DATA=str(sandbox.root / "other-data"),
@@ -320,7 +320,7 @@ def test_another_profile_reaches_every_call_and_the_clip_list(sandbox: Iteration
 
 
 def test_a_bad_profile_name_and_an_exported_pv_profile(sandbox: IterationSandbox) -> None:
-    """Audit m4: an exported PV_PROFILE never reaches pv; the profile is explicit."""
+    """An exported PV_PROFILE never reaches pv; the profile is explicit."""
     bad = sandbox.run(PHYSVERIFY_ITERATION_PROFILE="Gpu;x")
     assert bad.returncode == 2 and "PHYSVERIFY_ITERATION_PROFILE" in bad.stderr
     assert sandbox.run(PV_PROFILE="fast").returncode == 0
@@ -328,7 +328,7 @@ def test_a_bad_profile_name_and_an_exported_pv_profile(sandbox: IterationSandbox
 
 
 def test_the_helpers_ignore_an_exported_pv_profile() -> None:
-    """Audit m4: run_human_agreement.sh sources _common.sh and _steps.sh and keeps precise."""
+    """run_human_agreement.sh sources _common.sh and _steps.sh and keeps precise."""
     sources = f'source "{H200 / "_common.sh"}"; source "{H200 / "_steps.sh"}"'
     script = f'set -u; {sources}; echo "$PV_PROFILE"'
     found = subprocess.run(
