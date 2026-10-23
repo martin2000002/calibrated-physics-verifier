@@ -26,12 +26,6 @@ from physverify.calibration.artifact_io import (
     load_calibration,
 )
 from physverify.calibration.collect import read_run, run_level_of
-from physverify.calibration.exclusion_record import (
-    ExclusionInputError,
-    ExclusionRecord,
-    load_record,
-    parse_record,
-)
 from physverify.calibration.exclusion_rules import (
     SECTION,
     ArmRun,
@@ -60,6 +54,12 @@ from physverify.schema.clip import ClipManifest
 from physverify.schema.io import stable_hash
 from physverify.schema.stages import Stage
 from physverify.synth.perturbations.none import NAME as NONE
+from physverify.verification.exclusion_record import (
+    ExclusionInputError,
+    ExclusionRecord,
+    load_record,
+    parse_record,
+)
 from physverify.verification.runner import (
     CHECKS_FILE,
     CHECKS_HASH_FILE,

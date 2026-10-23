@@ -27,7 +27,6 @@ from physverify.calibration.artifact import (
     Weight,
 )
 from physverify.calibration.artifact_io import Calibration, parse_calibration
-from physverify.calibration.exclusion_record import ExclusionRecord, InputHashes, RuleEvidence
 from physverify.calibration.exclusion_rules import (
     ArmRun,
     ConsumedStratum,
@@ -38,6 +37,7 @@ from physverify.calibration.exclusion_rules import (
 from physverify.calibration.table import CalibrationRow, Role
 from physverify.schema.checks import InputLevel
 from physverify.stats.intervals import Ci, Rate
+from physverify.verification.exclusion_record import ExclusionRecord, InputHashes, RuleEvidence
 
 REPO = Path(__file__).resolve().parents[2]
 RULES_TOML = REPO / "configs" / "exclusion_rules.toml"

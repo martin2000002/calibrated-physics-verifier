@@ -182,9 +182,6 @@
  "src/physverify/calibration/evaluate.py": {
   "comment_or_docstring": 6
  },
- "src/physverify/calibration/exclusion_record.py": {
-  "comment_or_docstring": 3
- },
  "src/physverify/calibration/exclusion_rules.py": {
   "banner": 5,
   "comment_or_docstring": 8,
@@ -200,9 +197,6 @@
   "comment_or_docstring": 3,
   "identifier": 5,
   "literal": 4
- },
- "src/physverify/calibration/scenes.py": {
-  "comment_or_docstring": 2
  },
  "src/physverify/calibration/sealed_ledger.py": {
   "comment_or_docstring": 1,
@@ -784,6 +778,9 @@
  "src/physverify/synth/scene_kit.py": {
   "comment_or_docstring": 1
  },
+ "src/physverify/synth/scene_scope.py": {
+  "comment_or_docstring": 2
+ },
  "src/physverify/synth/settings.py": {
   "comment_or_docstring": 2
  },
@@ -815,6 +812,9 @@
  },
  "src/physverify/verification/_base.py": {
   "comment_or_docstring": 1
+ },
+ "src/physverify/verification/exclusion_record.py": {
+  "comment_or_docstring": 3
  },
  "src/physverify/verification/inputs.py": {
   "comment_or_docstring": 4

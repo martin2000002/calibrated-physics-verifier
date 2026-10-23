@@ -23,7 +23,6 @@ from physverify.calibration.artifact_io import (
     CalibrationError,
     parse_calibration,
 )
-from physverify.calibration.exclusion_record import ExclusionInputError, parse_record
 from physverify.core.digests import text_sha256
 from physverify.reporting.chain import (
     EVALUATION_KEY,
@@ -34,6 +33,7 @@ from physverify.reporting.chain import (
     abstain_curve_run,
 )
 from physverify.schema.checks import InputLevel
+from physverify.verification.exclusion_record import ExclusionInputError, parse_record
 from physverify.verification.scope import CheckScope, record_path
 from physverify.verification.selective_risk import ABSTENTION_FILE, REPORT_FILE
 

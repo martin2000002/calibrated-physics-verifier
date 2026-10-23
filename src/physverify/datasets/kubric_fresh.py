@@ -12,10 +12,10 @@ from typing import TYPE_CHECKING, ClassVar
 
 from pydantic import Field
 
-from physverify.calibration.scenes import expand, in_scope
 from physverify.core.models import FrozenModel
 from physverify.datasets.kubric_synthetic import KubricSynthetic
 from physverify.schema.clip import ClipManifest, ObjectQuery
+from physverify.synth.scene_scope import expand, in_scope
 
 if TYPE_CHECKING:
     from collections.abc import Sequence

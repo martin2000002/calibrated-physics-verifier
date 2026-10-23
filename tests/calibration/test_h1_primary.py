@@ -37,7 +37,6 @@ from physverify.calibration.evaluate import (
 from physverify.calibration.fit import FitInputs, fit_calibration
 from physverify.calibration.monotonicity import LevelDelta, monotonicity
 from physverify.calibration.report import evaluation_markdown
-from physverify.calibration.scenes import SceneScope, expand, h1_scope, in_scope, scene_index
 from physverify.config.loader import load_settings
 from physverify.config.models import Settings
 from physverify.core.cache_keys import error_profile_hash
@@ -47,6 +46,7 @@ from physverify.extraction.cache import plan_entry_filter, plan_params_hashes, p
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import Split
 from physverify.schema.stages import Stage
+from physverify.synth.scene_scope import SceneScope, expand, h1_scope, in_scope, scene_index
 from physverify.verification.runner import VerificationReport
 
 PRIMARY = ("s000", "s011-s039")

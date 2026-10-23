@@ -37,9 +37,7 @@ from physverify.calibration.evaluate import (
     PrimaryScope,
     evaluate,
 )
-from physverify.calibration.exclusion_record import ExclusionRecord, InputHashes, RuleEvidence
 from physverify.calibration.fit import FitInputs, fit_calibration
-from physverify.calibration.scenes import SceneScope
 from physverify.calibration.sigma_recalibration import SigmaPair
 from physverify.cli.commands._runs import write_json as write_abstain_json
 from physverify.cli.commands.abstain import (
@@ -58,6 +56,8 @@ from physverify.datasets._videophy_tables import VideophyRow
 from physverify.schema.checks import CheckResult, InputLevel, Verdict
 from physverify.schema.clip import Split
 from physverify.schema.io import json_ready
+from physverify.synth.scene_scope import SceneScope
+from physverify.verification.exclusion_record import ExclusionRecord, InputHashes, RuleEvidence
 from physverify.verification.runner import TableRow, VerificationReport
 from physverify.verification.selective_risk import (
     ABSTENTION_FILE,

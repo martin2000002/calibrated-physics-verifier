@@ -14,11 +14,11 @@ from pydantic import BaseModel
 from physverify.app.plugins import PLUGIN_KINDS
 from physverify.calibration.artifact import CalibrationArtifact, EvaluationReport
 from physverify.calibration.dev_score import DevScoreReport
-from physverify.calibration.exclusion_record import ExclusionRecord
 from physverify.calibration.sealed_ledger import LedgerEntry
 from physverify.synth.plan import DatasetPlan
 from physverify.synth.settings import DatasetSettings
 from physverify.timing.settings import GenerationSettings
+from physverify.verification.exclusion_record import ExclusionRecord
 
 PINNED = Path(__file__).with_name("data") / "persisted_fields.json"
 

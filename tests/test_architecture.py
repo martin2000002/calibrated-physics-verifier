@@ -25,7 +25,6 @@ LEGACY_PACKAGES: Mapping[str, str] = {
 # Pairs "module -> imported" present when the guard was added; fixes shrink this set.
 KNOWN_VIOLATIONS: frozenset[str] = frozenset(
     {
-        "physverify.datasets.kubric_fresh -> physverify.calibration.scenes",
         "physverify.datasets.pisa_real -> physverify.extraction.providers._common",
         "physverify.datasets.pisa_real -> physverify.extraction.providers.scale_size_prior",
         "physverify.demo.settings -> physverify.timing.settings",
@@ -39,7 +38,6 @@ KNOWN_VIOLATIONS: frozenset[str] = frozenset(
         "physverify.finetune.wan_lora -> physverify.timing.settings",
         "physverify.sizing.model -> physverify.extraction.providers._common",
         "physverify.sizing.model -> physverify.extraction.providers.scale_size_prior",
-        "physverify.verification.scope -> physverify.calibration.exclusion_record",
         "physverify.verification.selective_risk -> physverify.calibration.table",
         "physverify.verification.selective_risk -> physverify.diagnosis.pairing",
     }

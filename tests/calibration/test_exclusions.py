@@ -29,11 +29,6 @@ from stratum_cases import FIXTURE_CHECKS_HASH, check_calibration, write_artifact
 from physverify.calibration import exclusion_rules as exclusion_rules_module
 from physverify.calibration.artifact import RealFpr
 from physverify.calibration.artifact_io import load_calibration
-from physverify.calibration.exclusion_record import (
-    ExclusionInputError,
-    load_record,
-    parse_record,
-)
 from physverify.calibration.exclusion_rules import (
     RULES,
     ExclusionRules,
@@ -48,6 +43,11 @@ from physverify.calibration.exclusion_rules import (
 )
 from physverify.core.errors import ConfigError
 from physverify.stats.intervals import Ci
+from physverify.verification.exclusion_record import (
+    ExclusionInputError,
+    load_record,
+    parse_record,
+)
 from physverify.verification.runner import RowStatus
 
 

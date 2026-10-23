@@ -20,7 +20,6 @@ from physverify.calibration.artifact_io import Calibration, CalibrationError, St
 from physverify.calibration.fit import LevelData
 from physverify.calibration.heldout_monotonicity import heldout_h1
 from physverify.calibration.monotonicity import deltas, monotonicity, scene_kendall
-from physverify.calibration.scenes import SceneScope, in_scope
 from physverify.calibration.settings import CalibrationConfig, CalibrationSettings
 from physverify.calibration.stats import clustered_rate
 from physverify.calibration.table import (
@@ -40,6 +39,7 @@ from physverify.calibration.verdict import Rule
 from physverify.schema.checks import CheckResult
 from physverify.schema.clip import Split
 from physverify.stats.intervals import Rate
+from physverify.synth.scene_scope import SceneScope, in_scope
 
 SCORE_CHECK = "score"
 

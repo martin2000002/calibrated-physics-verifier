@@ -9,11 +9,11 @@ from typing import Any, cast
 import pytest
 from calibration_cases import clip
 
-from physverify.calibration.scenes import SceneScope, h1_scope
 from physverify.cli.commands.calibrate import _primary_scope
 from physverify.config.loader import load_settings
 from physverify.core.errors import ConfigError
 from physverify.schema.clip import Split
+from physverify.synth.scene_scope import SceneScope, h1_scope
 
 SEEN = frozenset(range(11, 40))
 FRESH = frozenset(range(1, 21))

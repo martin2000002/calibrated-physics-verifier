@@ -20,7 +20,6 @@ from wiring import active_checks_hash, checks
 
 from physverify.app import plugins
 from physverify.calibration.artifact_io import default_artifact_path, parse_calibration
-from physverify.calibration.exclusion_record import ExclusionInputError, parse_record
 from physverify.cli.commands import exclusions
 from physverify.cli.commands.exclusions import (
     arm_run,
@@ -36,6 +35,7 @@ from physverify.finetune.settings import load_finetune
 from physverify.schema.checks import InputLevel, Verdict
 from physverify.schema.clip import ClipManifest
 from physverify.schema.scene import MagnitudeKind
+from physverify.verification.exclusion_record import ExclusionInputError, parse_record
 from physverify.verification.runner import (
     CHECKS_HASH_FILE,
     RowStatus,

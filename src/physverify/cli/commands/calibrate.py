@@ -65,7 +65,6 @@ from physverify.calibration.report import (
     curves_csv,
     evaluation_markdown,
 )
-from physverify.calibration.scenes import SceneScope, h1_scope, in_scope
 from physverify.calibration.settings import (
     CalibrationConfig,
     calibration_config,
@@ -98,6 +97,7 @@ from physverify.schema.checks import InputLevel
 from physverify.schema.clip import ClipManifest, Split
 from physverify.schema.error_profile import ErrorProfile
 from physverify.schema.io import stable_hash
+from physverify.synth.scene_scope import SceneScope, h1_scope, in_scope
 from physverify.verification.check_set import CHECKS_SECTION, ChecksSettings, build_checks
 from physverify.verification.inputs import (
     InputSource,

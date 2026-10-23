@@ -20,13 +20,13 @@ from physverify.calibration.artifact import (
     EVALUATION_SCHEMA,
 )
 from physverify.calibration.dev_score import DEVSCORE_FILE, DEVSCORE_SCHEMA, DEVSCORE_VERSION
-from physverify.calibration.exclusion_record import RECORD_SCHEMA, RECORD_VERSION
 from physverify.cli.commands._sealed import GUARDED
 from physverify.reporting.render import RESULTS_SCHEMA, RESULTS_VERSION
 from physverify.runtime.runs import RunContext
 from physverify.schema.io import SCHEMA_VERSION as RECORD_FORMAT_VERSION
 from physverify.synth.plan import GT_MIGRATIONS, GT_REVISION
 from physverify.timing.records import SCHEMA_VERSION as TIMING_SCHEMA_VERSION
+from physverify.verification.exclusion_record import RECORD_SCHEMA, RECORD_VERSION
 
 REPO = Path(__file__).resolve().parents[2]
 CODE_ROOTS = (REPO / "src", REPO / "scripts")

@@ -31,11 +31,11 @@ from physverify.calibration.fit import FitInputs, fit_calibration
 from physverify.calibration.heldout_monotonicity import heldout_h1, n_met
 from physverify.calibration.monotonicity import LevelDelta, deltas, monotonicity
 from physverify.calibration.report import evaluation_markdown
-from physverify.calibration.scenes import SceneScope
 from physverify.calibration.table import CLEAN_LEVEL, CalibrationRow, Role, corrected
 from physverify.calibration.thresholds import fails
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import Split
+from physverify.synth.scene_scope import SceneScope
 from physverify.verification.policies.threshold import ThresholdParams
 from physverify.verification.runner import VerificationReport
 

@@ -11,12 +11,12 @@ from pathlib import Path
 
 from pydantic import PrivateAttr
 
-from physverify.calibration.exclusion_record import ExclusionRecord, load_record
 from physverify.checks._base import Check
 from physverify.config.models import Settings
 from physverify.core.errors import ConfigError, UsageError
 from physverify.core.models import FrozenModel
 from physverify.verification.check_set import active_checks_hash
+from physverify.verification.exclusion_record import ExclusionRecord, load_record
 
 SECTION = "check_scope"
 

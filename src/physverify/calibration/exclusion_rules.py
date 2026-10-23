@@ -25,13 +25,6 @@ from physverify.calibration.artifact_io import (
     UnusableStratumError,
     open_stratum,
 )
-from physverify.calibration.exclusion_record import (
-    EvidenceValue,
-    ExclusionInputError,
-    ExclusionRecord,
-    InputHashes,
-    RuleEvidence,
-)
 from physverify.calibration.table import (
     CalibrationDataError,
     CalibrationRow,
@@ -48,6 +41,13 @@ from physverify.schema.clip import Split
 from physverify.schema.io import stable_hash
 from physverify.stats.bootstrap import ClusterBlock, scene_bootstrap
 from physverify.stats.intervals import Ci, clopper_pearson
+from physverify.verification.exclusion_record import (
+    EvidenceValue,
+    ExclusionInputError,
+    ExclusionRecord,
+    InputHashes,
+    RuleEvidence,
+)
 from physverify.verification.runner import UNKNOWN_ROW_STEP
 
 SECTION = "exclusion_rules"
