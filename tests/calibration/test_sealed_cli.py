@@ -21,9 +21,10 @@ from cli_tree import cli_leaves, command_modules
 from physverify.app import calibration as app_calibration
 from physverify.app import plugins, sealing
 from physverify.app import selective_risk as app_selective_risk
+from physverify.app import verification as app_verification
 from physverify.calibration import session as calibration_session
 from physverify.calibration.sealed_ledger import LedgerEntry, read_entries
-from physverify.cli.commands import diagnose, verify
+from physverify.cli.commands import diagnose
 from physverify.config.loader import load_settings
 from physverify.config.models import Settings
 from physverify.core.errors import PhysverifyError
@@ -318,7 +319,7 @@ def _guarded_verify(
     cli: CliRunner, monkeypatch: pytest.MonkeyPatch, ledger: Path, reached: list[int]
 ) -> Callable[..., CliResult]:
     stop = sentinel(ledger, reached)
-    monkeypatch.setattr(verify, "VerificationRunner", lambda *a: _SentinelRunner(stop))
+    monkeypatch.setattr(app_verification, "VerificationRunner", lambda *a: _SentinelRunner(stop))
 
     def invoke(
         *extra: str, options: Sequence[str] = (), env: Mapping[str, str] | None = None
@@ -405,7 +406,7 @@ def test_without_the_sealed_section_every_guarded_command_fails_closed(
     """Audit M3: even a calib-only selection stops when the sealed sets are unknown."""
     (config_dir / "sealed.toml").unlink()
     stop = sentinel(ledger, reached)
-    monkeypatch.setattr(verify, "VerificationRunner", lambda *a: _SentinelRunner(stop))
+    monkeypatch.setattr(app_verification, "VerificationRunner", lambda *a: _SentinelRunner(stop))
     result = cli("verify", "--dataset", DATASET, "--level", "oracle", "--clips", CALIB_CLIP)
     assert result.code == EXIT_USAGE and "no [sealed] section" in result.err
     assert reached == []
@@ -485,8 +486,8 @@ def _guard_labels(module: ModuleType) -> set[str]:
 
 
 def _service_labels(module: ModuleType, tree: ast.Module) -> set[str]:
-    """Labels ``f"{NAME} {leaf}"`` a command passes to a service of another module that hands
-    that argument on to ``guard_sealed``."""
+    """Labels ``NAME`` or ``f"{NAME} {leaf}"`` a command passes to a service of another module
+    that hands that argument on to ``guard_sealed``."""
     labels: set[str] = set()
     for call in (n for n in ast.walk(tree) if isinstance(n, ast.Call)):
         if not isinstance(call.func, ast.Name) or call.func.id == "guard_sealed":
@@ -495,12 +496,16 @@ def _service_labels(module: ModuleType, tree: ast.Module) -> set[str]:
         if not inspect.isfunction(service) or service.__module__ == module.__name__:
             continue
         for index, arg in enumerate(call.args):
-            if not isinstance(arg, ast.JoinedStr):
+            if not (isinstance(arg, ast.JoinedStr) or _is_name(arg)):
                 continue
             label = _label(arg, module.NAME)
             if label is not None and _reaches_guard(service, index):
                 labels.add(label)
     return labels
+
+
+def _is_name(node: ast.expr) -> bool:
+    return isinstance(node, ast.Name) and node.id == "NAME"
 
 
 def _reaches_guard(function: Callable[..., Any], index: int) -> bool:
@@ -543,7 +548,7 @@ def _calls(tree: ast.AST, name: str) -> list[ast.Call]:
 
 def _label(node: ast.expr, command: str) -> str | None:
     """The literal label, NAME resolved; None when a parameter supplies the leaf."""
-    if isinstance(node, ast.Name) and node.id == "NAME":
+    if _is_name(node):
         return command
     assert isinstance(node, ast.JoinedStr), ast.dump(node)
     parts: list[str] = []
