@@ -13,7 +13,8 @@ from pathlib import Path
 from physverify.core.choices import choice
 from physverify.core.errors import MissingInputError, UsageError
 from physverify.core.output import Echo
-from physverify.datasets._videophy_tables import VideophyRow, to_float
+from physverify.core.parsing import to_float
+from physverify.datasets._base import LabelledVideo
 from physverify.finetune.prompts import campaign_prompts
 from physverify.finetune.records import BASE_TAG, CandidateRecord, PromptRecord, write_record
 from physverify.generator_comparison.arms import analysis_prompts
@@ -45,7 +46,7 @@ def candidate_items(
     ]
 
 
-def gate_items(rows: Sequence[VideophyRow], video: Mapping[str, Path]) -> list[JudgeInput]:
+def gate_items(rows: Sequence[LabelledVideo], video: Mapping[str, Path]) -> list[JudgeInput]:
     return [JudgeInput(r.clip_id, video[r.clip_id], r.caption) for r in rows]
 
 
@@ -81,7 +82,7 @@ def judge_output(
 
 
 def gate_reference(
-    rows: Sequence[VideophyRow], table: Mapping[str, Mapping[str, str]], column: str
+    rows: Sequence[LabelledVideo], table: Mapping[str, Mapping[str, str]], column: str
 ) -> dict[str, float]:
     """Published AutoEval scores of the gate rows (by clip id), finite ones only."""
     found = {r.clip_id: to_float(table.get(r.video_url, {}).get(column)) for r in rows}

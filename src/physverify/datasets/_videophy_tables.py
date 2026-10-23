@@ -18,6 +18,7 @@ from pydantic import Field
 
 from physverify.core.errors import ConfigError, UsageError
 from physverify.core.models import FrozenModel
+from physverify.core.parsing import to_float
 from physverify.datasets._base import LabelledVideo
 from physverify.schema.clip import Split
 
@@ -107,13 +108,6 @@ VideophyRow = LabelledVideo
 def clip_id_of(version: str, video_url: str) -> str:
     digest = hashlib.sha1(video_url.encode("utf-8"), usedforsecurity=False).hexdigest()
     return f"{version}-{digest[:CLIP_ID_DIGITS]}"
-
-
-def to_float(text: str | None) -> float:
-    try:
-        return float(text) if text not in (None, "") else math.nan
-    except ValueError:
-        return math.nan
 
 
 def read_table(path: Path) -> list[dict[str, str]]:

@@ -16,7 +16,7 @@ import numpy as np
 
 from physverify.core.errors import UsageError
 from physverify.core.models import FrozenModel
-from physverify.datasets._videophy_tables import to_float
+from physverify.core.parsing import to_float
 
 DECIMALS = 2
 
