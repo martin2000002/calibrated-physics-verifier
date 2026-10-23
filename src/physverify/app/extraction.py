@@ -7,17 +7,23 @@ from pathlib import Path
 
 from physverify.app.context import AppContext
 from physverify.app.services import dataset_for, pipeline_deps, plan_for
+from physverify.core.download import BYTES_PER_MB
+from physverify.core.errors import UsageError
 from physverify.core.output import Echo
 from physverify.datasets._base import select_clips
+from physverify.extraction.cache import StageCache
 from physverify.extraction.events import (
     ConsoleObserver,
     EventRecorder,
+    plan_providers,
     summary_lines,
     write_events,
 )
 from physverify.extraction.pipeline import ExtractionPipeline, ExtractionReport
+from physverify.extraction.weights import NetworkDownloader, fetch, hub_cache
 from physverify.runtime.runs import new_run
 from physverify.schema.stages import parse_stages
+from physverify.synth.migrate import manifest_dataset, rerender_clip_ids
 
 EVENTS_FILE = "extraction.jsonl"
 
@@ -75,6 +81,46 @@ def run_extraction(
     for line in summary_lines(report):
         echo(line)
     return report
+
+
+def fetch_weights(context: AppContext, *, echo: Echo) -> None:
+    """Download and verify the weights of every provider in the active profile's plan."""
+    settings = context.settings
+    plan = plan_for(context, dataset="")
+    downloader = NetworkDownloader()
+    echo(f"hub cache: {hub_cache(settings.paths)}")
+    for provider in plan_providers(plan):
+        for spec in provider.weights:
+            path = fetch(spec, settings.paths, downloader)
+            size = _size_mb(path)
+            echo(
+                f"{provider.stage.value}/{provider.name} {spec.kind.value}:{spec.ref}@"
+                f"{spec.revision[:12]} verified {size:.1f} MB {path}"
+            )
+
+
+def purge_rerendered(
+    manifest: Path,
+    roots: Sequence[Path],
+    *,
+    default_root: Callable[[], Path],
+    echo: Echo,
+) -> None:
+    """Remove every cached stage of the clips the migration ``manifest`` re-rendered, from each of
+    ``roots`` (``default_root()`` when empty)."""
+    if not manifest.is_file():
+        raise UsageError(f"no migration manifest at {manifest}")
+    dataset = manifest_dataset(manifest)
+    clip_ids = rerender_clip_ids(manifest)
+    for root in roots or [default_root()]:
+        cache = StageCache(root)
+        entries = sum(cache.purge_clip(dataset, clip_id) for clip_id in clip_ids)
+        echo(f"purge {root}: {entries} stage entries of {len(clip_ids)} clips removed")
+
+
+def _size_mb(path: Path) -> float:
+    files = [path] if path.is_file() else [p for p in path.rglob("*") if p.is_file()]
+    return sum(p.stat().st_size for p in files) / BYTES_PER_MB
 
 
 def _same(report: ExtractionReport) -> ExtractionReport:

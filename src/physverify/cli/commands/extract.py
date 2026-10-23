@@ -7,15 +7,9 @@ from typing import Annotated
 
 import typer
 
-from physverify.app.extraction import run_extraction
-from physverify.app.services import plan_for
+from physverify.app import extraction
 from physverify.cli.context import app_context, heavy_command
-from physverify.core.download import BYTES_PER_MB
-from physverify.core.errors import EXIT_ERROR, UsageError
-from physverify.extraction.cache import StageCache
-from physverify.extraction.events import plan_providers
-from physverify.extraction.weights import NetworkDownloader, fetch, hub_cache
-from physverify.synth.migrate import manifest_dataset, rerender_clip_ids
+from physverify.core.errors import EXIT_ERROR
 
 NAME = "extract"
 
@@ -34,7 +28,7 @@ def run(
     max_side: Annotated[int | None, typer.Option(help="Longest frame side in pixels.")] = None,
     subset: Annotated[str | None, typer.Option(help="Dataset subset.")] = None,
 ) -> None:
-    report = run_extraction(
+    report = extraction.run_extraction(
         app_context(),
         dataset,
         clips or (),
@@ -51,19 +45,7 @@ def run(
 @app.command("fetch-weights", help="Download the weights of the active profile's providers.")
 @heavy_command
 def fetch_weights() -> None:
-    context = app_context()
-    settings = context.settings
-    plan = plan_for(context, dataset="")
-    downloader = NetworkDownloader()
-    typer.echo(f"hub cache: {hub_cache(settings.paths)}")
-    for provider in plan_providers(plan):
-        for spec in provider.weights:
-            path = fetch(spec, settings.paths, downloader)
-            size = _size_mb(path)
-            typer.echo(
-                f"{provider.stage.value}/{provider.name} {spec.kind.value}:{spec.ref}@"
-                f"{spec.revision[:12]} verified {size:.1f} MB {path}"
-            )
+    extraction.fetch_weights(app_context(), echo=typer.echo)
 
 
 @app.command(
@@ -79,17 +61,9 @@ def purge(
         typer.Option(help="Cache root (repeatable; default: paths.cache_dir)."),
     ] = None,
 ) -> None:
-    if not clips_from.is_file():
-        raise UsageError(f"no migration manifest at {clips_from}")
-    dataset = manifest_dataset(clips_from)
-    clip_ids = rerender_clip_ids(clips_from)
-    roots = cache_root or [app_context().settings.paths.cache_dir]
-    for root in roots:
-        cache = StageCache(root)
-        entries = sum(cache.purge_clip(dataset, clip_id) for clip_id in clip_ids)
-        typer.echo(f"purge {root}: {entries} stage entries of {len(clip_ids)} clips removed")
-
-
-def _size_mb(path: Path) -> float:
-    files = [path] if path.is_file() else [p for p in path.rglob("*") if p.is_file()]
-    return sum(p.stat().st_size for p in files) / BYTES_PER_MB
+    extraction.purge_rerendered(
+        clips_from,
+        cache_root or (),
+        default_root=lambda: app_context().settings.paths.cache_dir,
+        echo=typer.echo,
+    )
