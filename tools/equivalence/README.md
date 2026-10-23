@@ -130,9 +130,14 @@ renames variables and imported names but not attributes, for a module alias that
 with an attribute) and compares `ast.dump`. With `--sort-imports`
 (used for the renames of WP4a) each run of consecutive import statements and each import's names
 are sorted on both sides first, so the import reordering `ruff` makes after a rename is not a
-difference. Reports added, deleted
-and differing modules; exit 0 only when there are none. Comments are not in the AST, so
-comment-only changes are equal by construction.
+difference. A string constant follows the module-rename map only when it names a
+paired module or a dotted descendant, and never when the old revision assigns that value at module
+level to a `*_SCHEMA`, `*_FILE`, `*_VERSION`, `LEDGER_LABEL*` or `GUARDED` name, so a persisted
+schema id cannot move with a package rename unseen. `--strip-bare-strings` removes every
+string-constant statement on both sides (attribute docstrings too), for comment and docstring
+commits. Reports added, deleted and differing modules and every `--allow` line that was never
+applied; exit 0 only when there are none. Comments are not in the AST, so comment-only changes
+are equal by construction. `tests/equivalence/test_ast_equal.py` pins these cases.
 
 The harness may need adapting when a later step changes `physverify.cli.main.build_app`, the
 commands registry location or the fixture modules' locations; adapt `driver.py`, never the

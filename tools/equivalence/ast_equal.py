@@ -2,12 +2,16 @@
 commits.
 
     ast_equal.py <repo> <old-rev> <new-rev> [--allow allowed.tsv] [--renames renames.tsv]
-                 [--paths src scripts tests] [--sort-imports]
+                 [--paths src scripts tests] [--sort-imports] [--strip-bare-strings]
 
 Modules are paired by git rename detection, plus the explicit `<old path>\t<new path>` lines of
 renames.tsv (needed for small files whose similarity git cannot see). Before comparing, docstrings
 are stripped, the old side's imports are rewritten through the module-rename map derived from
-the paired files, and the allowed substitutions are applied to the old side. allowed.tsv lines:
+the paired files, and the allowed substitutions are applied to the old side. A string constant
+follows the module-rename map only when it names a paired module or a dotted descendant of one,
+and never when the old revision assigns that value at module level to a name like `*_SCHEMA`,
+`*_FILE`, `*_VERSION`, `LEDGER_LABEL*` or `GUARDED` (a persisted id that must not move with the
+code). allowed.tsv lines:
 
     <new path or *>\t<kind>\t<old>\t<new>        kind: name (identifiers) | literal (str constants)
         | alias (an imported name -> "<name> as <asname>")
@@ -15,8 +19,11 @@ the paired files, and the allowed substitutions are applied to the old side. all
 
 With --sort-imports, each run of consecutive import statements and each import's names are
 sorted on both sides, so the reordering a linter makes after a rename does not count.
+With --strip-bare-strings, every string-constant statement is removed on both sides, attribute
+docstrings included, not only the docstrings of modules, classes and functions.
 
-Exit 0 when every paired module is equal and no module was added or deleted.
+Exit 0 when every paired module is equal, no module was added or deleted and every allowed.tsv
+line was applied at least once.
 """
 
 from __future__ import annotations
@@ -24,22 +31,39 @@ from __future__ import annotations
 import argparse
 import ast
 import difflib
+import re
 import subprocess
 import sys
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
+
+KINDS = ("name", "literal", "alias", "variable")
+PERSISTED_NAME = re.compile(r"_(SCHEMA|FILE|VERSION)$|^LEDGER_LABEL|^GUARDED$")
+
+Line = tuple[str, str, str]
 
 
 @dataclass
 class Allowed:
-    names: dict[str, dict[str, str]] = field(default_factory=dict)
-    literals: dict[str, dict[str, str]] = field(default_factory=dict)
-    aliases: dict[str, dict[str, str]] = field(default_factory=dict)
-    variables: dict[str, dict[str, str]] = field(default_factory=dict)
+    tables: dict[str, dict[str, dict[str, str]]] = field(
+        default_factory=lambda: {kind: {} for kind in KINDS}
+    )
 
-    def for_path(self, table: Mapping[str, dict[str, str]], path: str) -> dict[str, str]:
+    def for_path(self, kind: str, path: str) -> dict[str, str]:
+        table = self.tables[kind]
         return {**table.get("*", {}), **table.get(path, {})}
+
+    def lines(self) -> set[Line]:
+        return {
+            (where, kind, old)
+            for kind, table in self.tables.items()
+            for where, entries in table.items()
+            for old in entries
+        }
+
+    def line_of(self, kind: str, old: str, path: str) -> Line:
+        return (path if old in self.tables[kind].get(path, {}) else "*", kind, old)
 
 
 def _git(repo: Path, *args: str) -> str:
@@ -92,24 +116,45 @@ def _rename_module(name: str, mapping: Mapping[str, str]) -> str:
     return name
 
 
+def persisted_values(sources: Iterable[str]) -> frozenset[str]:
+    values = set()
+    for source in sources:
+        for node in ast.parse(source).body:
+            targets = node.targets if isinstance(node, ast.Assign) else []
+            if isinstance(node, ast.AnnAssign):
+                targets = [node.target]
+            value = getattr(node, "value", None)
+            if isinstance(value, ast.Constant) and isinstance(value.value, str):
+                names = (target.id for target in targets if isinstance(target, ast.Name))
+                if any(PERSISTED_NAME.search(name) for name in names):
+                    values.add(value.value)
+    return frozenset(values)
+
+
 class _Rewrite(ast.NodeTransformer):
     def __init__(
         self,
         modules: Mapping[str, str],
-        names: Mapping[str, str],
-        literals: Mapping[str, str],
-        aliases: Mapping[str, str] | None = None,
-        variables: Mapping[str, str] | None = None,
+        allowed: Mapping[str, Mapping[str, str]],
+        persisted: frozenset[str] = frozenset(),
     ) -> None:
-        self.modules, self.names, self.literals = modules, names, literals
-        self.aliases = aliases or {}
-        self.variables = variables or {}
+        self.modules, self.persisted = modules, persisted
+        self.allowed = {kind: allowed.get(kind, {}) for kind in KINDS}
+        self.used: set[tuple[str, str]] = set()
+
+    def _lookup(self, kind: str, value: str) -> str | None:
+        if value not in self.allowed[kind]:
+            return None
+        self.used.add((kind, value))
+        return self.allowed[kind][value]
 
     def _variable(self, value: str) -> str:
-        return self.variables.get(value, self._name(value))
+        found = self._lookup("variable", value)
+        return self._name(value) if found is None else found
 
     def _name(self, value: str) -> str:
-        return self.names.get(value, value)
+        found = self._lookup("name", value)
+        return value if found is None else found
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> ast.AST:
         if node.module and node.level == 0:
@@ -117,8 +162,9 @@ class _Rewrite(ast.NodeTransformer):
         return self.generic_visit(node)
 
     def visit_alias(self, node: ast.alias) -> ast.AST:
-        if node.asname is None and node.name in self.aliases:
-            node.name, node.asname = self.aliases[node.name].split(" as ")
+        alias = self._lookup("alias", node.name) if node.asname is None else None
+        if alias is not None:
+            node.name, node.asname = alias.split(" as ")
             return node
         node.name = _rename_module(self._variable(node.name), self.modules)
         if node.asname:
@@ -150,10 +196,10 @@ class _Rewrite(ast.NodeTransformer):
 
     def visit_Constant(self, node: ast.Constant) -> ast.AST:
         if isinstance(node.value, str):
-            value = self.literals.get(node.value, node.value)
-            node.value = (
-                _rename_module(value, self.modules) if value.startswith("physverify") else value
-            )
+            found = self._lookup("literal", node.value)
+            value = node.value if found is None else found
+            movable = value.startswith("physverify") and value not in self.persisted
+            node.value = _rename_module(value, self.modules) if movable else value
         return node
 
 
@@ -169,6 +215,24 @@ def _strip_docstrings(tree: ast.AST) -> None:
             and isinstance(body[0].value.value, str)
         ):
             node.body = body[1:] or [ast.Pass()]
+
+
+def _strip_bare_strings(tree: ast.AST) -> None:
+    for node in ast.walk(tree):
+        for name in ("body", "orelse", "finalbody"):
+            statements = getattr(node, name, None)
+            if not isinstance(statements, list) or not statements:
+                continue
+            kept = [statement for statement in statements if not _is_bare_string(statement)]
+            setattr(node, name, kept or ([ast.Pass()] if name == "body" else []))
+
+
+def _is_bare_string(statement: object) -> bool:
+    return (
+        isinstance(statement, ast.Expr)
+        and isinstance(statement.value, ast.Constant)
+        and isinstance(statement.value.value, str)
+    )
 
 
 def _sorted_run(run: list[ast.stmt]) -> list[ast.stmt]:
@@ -195,12 +259,20 @@ def _sort_imports(tree: ast.AST) -> None:
         node.body = ordered  # type: ignore[attr-defined]
 
 
-def _dump(source: str, rewrite: _Rewrite | None, sort_imports: bool = False) -> str:
+@dataclass(frozen=True)
+class Options:
+    sort_imports: bool = False
+    strip_bare_strings: bool = False
+
+
+def _dump(source: str, rewrite: _Rewrite | None, options: Options) -> str:
     tree = ast.parse(source)
     _strip_docstrings(tree)
+    if options.strip_bare_strings:
+        _strip_bare_strings(tree)
     if rewrite is not None:
         tree = rewrite.visit(tree)
-    if sort_imports:
+    if options.sort_imports:
         _sort_imports(tree)
     return ast.dump(tree, indent=1)
 
@@ -213,14 +285,7 @@ def _load_allowed(path: Path | None) -> Allowed:
         if not line.strip() or line.startswith("#"):
             continue
         where, kind, old, new = line.split("\t")
-        tables = {
-            "name": allowed.names,
-            "literal": allowed.literals,
-            "alias": allowed.aliases,
-            "variable": allowed.variables,
-        }
-        table = tables[kind]
-        table.setdefault(where, {})[old] = new
+        allowed.tables[kind].setdefault(where, {})[old] = new
     return allowed
 
 
@@ -231,13 +296,17 @@ def compare(
     roots: Sequence[str],
     allowed: Allowed,
     explicit: Mapping[str, str],
-    sort_imports: bool = False,
+    options: Options | None = None,
 ) -> int:
+    options = options or Options()
     before, after = _python_files(repo, old, roots), _python_files(repo, new, roots)
     pairs = {path: path for path in before & after}
     pairs.update({o: n for o, n in _renames(repo, old, new, roots).items() if o in before})
     pairs.update({o: n for o, n in explicit.items() if o in before and n in after})
     modules = _module_map(pairs)
+    sources = {path: _git(repo, "show", f"{old}:{path}") for path in sorted(pairs)}
+    persisted = persisted_values(sources.values())
+    used: set[Line] = set()
     problems = 0
     for path in sorted(before - set(pairs)):
         print(f"deleted: {path}")
@@ -246,21 +315,20 @@ def compare(
         print(f"added: {path}")
         problems += 1
     for old_path, new_path in sorted(pairs.items()):
-        rewrite = _Rewrite(
-            modules,
-            allowed.for_path(allowed.names, new_path),
-            allowed.for_path(allowed.literals, new_path),
-            allowed.for_path(allowed.aliases, new_path),
-            allowed.for_path(allowed.variables, new_path),
-        )
-        left = _dump(_git(repo, "show", f"{old}:{old_path}"), rewrite, sort_imports)
-        right = _dump(_git(repo, "show", f"{new}:{new_path}"), None, sort_imports)
+        tables = {kind: allowed.for_path(kind, new_path) for kind in KINDS}
+        rewrite = _Rewrite(modules, tables, persisted)
+        left = _dump(sources[old_path], rewrite, options)
+        right = _dump(_git(repo, "show", f"{new}:{new_path}"), None, options)
+        used |= {allowed.line_of(kind, value, new_path) for kind, value in rewrite.used}
         if left != right:
             problems += 1
             label = old_path if old_path == new_path else f"{old_path} -> {new_path}"
             delta = difflib.unified_diff(left.splitlines(), right.splitlines(), lineterm="", n=1)
             print(f"differs: {label}")
             print("\n".join(list(delta)[2:22]))
+    for where, kind, value in sorted(allowed.lines() - used):
+        print(f"unused allow line: {where}\t{kind}\t{value}")
+        problems += 1
     print(f"{len(pairs)} modules paired, {problems} problems")
     return 1 if problems else 0
 
@@ -274,6 +342,7 @@ def main(argv: Sequence[str]) -> int:
     parser.add_argument("--renames", type=Path)
     parser.add_argument("--paths", nargs="+", default=["src", "scripts", "tests"])
     parser.add_argument("--sort-imports", action="store_true")
+    parser.add_argument("--strip-bare-strings", action="store_true")
     args = parser.parse_args(argv)
     explicit = {}
     if args.renames is not None:
@@ -282,7 +351,8 @@ def main(argv: Sequence[str]) -> int:
                 source, target = line.split("\t")
                 explicit[source] = target
     allowed = _load_allowed(args.allow)
-    return compare(args.repo, args.old, args.new, args.paths, allowed, explicit, args.sort_imports)
+    options = Options(args.sort_imports, args.strip_bare_strings)
+    return compare(args.repo, args.old, args.new, args.paths, allowed, explicit, options)
 
 
 if __name__ == "__main__":
