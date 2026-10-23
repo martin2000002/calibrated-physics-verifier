@@ -452,14 +452,16 @@ the remaining tests) in parallel, merged A -> B -> C, then the integration branc
   WP9 base `630b935` 1994 (comment_or_docstring 1076, config_or_script_text 254, identifier 200,
   test_name 185, literal 176, banner 99, camel_identifier 4); after the A+B+C merge `c03de31` 102
   (literal 67, config_or_script_text 35, 29 of them in `scripts/h200/README.md`); now literal 67,
-  config_or_script_text 6, identifier 103 (all kept names), every other category 0. The plan
+  config_or_script_text 6, identifier 109 (all kept names), every other category 0. The plan
   caps were estimates: literal <= 60 overall (A <= 5, B <= 30, C <= 25) and text C <= 4 (raised by
   JZ5 to the measured >= 8). Measured: A 0, B 12, C 55 literals; text 6, all in `scripts/h200`.
 - `test(process-labels): enforce zero labels` replaces the never-increase baseline
   (`tests/contracts/data/process_labels_baseline.json`, deleted) with exact per-path allow-lists
-  (JZ10): `KEPT_FRAGMENTS` (literal and text fragments, 40 entries, each naming its reader) and
-  `KEPT_IDENTIFIERS` (path -> {name: count}, 26 paths; the readers of the kept names are in
-  `IDENTIFIER_READERS`). A hit not covered fails (new use) and so does an entry or count with fewer
+  (JZ10): `KEPT_FRAGMENTS` (literal and text fragments, 41 entries, each naming its reader) and
+  `KEPT_IDENTIFIERS` (path -> {name: count}, 30 paths; the readers of the 9 kept names are in
+  `IDENTIFIER_READERS`). The identifier pattern is case-insensitive, so upper-snake names count,
+  and it also runs on the variable names of `.sh` files (`NAME=` and `$NAME`/`${NAME`).
+  `tests/contracts/data/pre_split_configs.json` is excluded by path; other JSON files are scanned. A hit not covered fails (new use) and so does an entry or count with fewer
   hits (stale entry). New patterns: `audit <n>`, `judge change`, `amendment(s)` and `Knowledge/`;
   command words (`re-audit`, `--audit`, `audit_lines`) are not labels. `scripts/h200/README.md` stays
   excluded until WP11, which must delete the exclusion. Running the file prints the totals.
@@ -470,8 +472,17 @@ the remaining tests) in parallel, merged A -> B -> C, then the integration branc
   and the test fixtures that mirror them (`test_freeze_query.py` 16, `test_perception_iteration_script.py`
   20, `test_run_freeze_script.py` 8), the chain directory `$H200_ROOT/a8v2` (`_common.sh:9`) and its
   sandbox mirrors and param ids, the `## H1 primary` heading `run_query.py` parses, the `H2: ` stdout
-  line `run_human_agreement.sh` parses with `sed`, the environment override of the persisted
-  section `[h3.autoeval]`, and the left side's `--a8v2-dir` in `tools/equivalence/driver.py`.
+  line `run_human_agreement.sh` parses with `sed`, and the left side's `--a8v2-dir` in
+  `tools/equivalence/driver.py`. The environment variable `PHYSVERIFY__H3__AUTOEVAL__ROOT` (the
+  settings loader's override of `root` in the persisted `[h3.autoeval]` section) is a kept
+  identifier, not a literal: 6 hits in `scripts/h200/{run_generator_comparison,setup_autoeval,smoke_autoeval}.sh`
+  and `tests/scripts/test_generator_comparison_scripts.py`.
+- Audit fixes after integration: the tightened identifier scan renamed `H3_DIR` -> `COMPARISON_DIR`,
+  `H3_FIELDS` -> `PREREGISTERED_FIELDS`, `H3_MODULE` -> `COMPARE_GENERATORS_MODULE`, `A4_MODULES` ->
+  `CONTAINER_MODULES`, `KEYS_BEFORE_IT3` -> `SMALL_MODEL_KEYS`, `H1_HEADING` -> `PRIMARY_HEADING`
+  (`run_query.py`), and the shell variables `H2_LINK` -> `AGREEMENT_LINK` and `h3_status` ->
+  `comparison_status`; the values (`h3`, `## H1 primary`, `h2-latest`) are unchanged
+  (`docs/refactor/wp9/identifiers.tsv`).
 - Comment-only edits to frozen files (ADR 0017): docstrings and comments in `core/cache_keys.py`,
   `runtime/{container,docker,udocker}.py`, `schema/clip.py`, `kubric_worker/tasks/ping.py`, the
   `__init__.py` of `demo`, `generator_comparison` and `generator_comparison/judges`, the `_base.py`
@@ -501,7 +512,8 @@ the remaining tests) in parallel, merged A -> B -> C, then the integration branc
 - Equivalence: `tools/equivalence/expected/wp9-b-messages.diff` (the human-agreement `summary.md`
   wording) and `wp9-c-help-text.diff` (help text and the `configs/default.toml` header comment).
   Integration realigned the older files: a help line changed by more than one step belongs to the
-  latest file only, and the older files renumber their hunk headers in place
+  latest file only, together with its hunk header; a hunk only an older step explains stays in
+  the older file, whose header numbers are renumbered in place when a later step shifts the page
   (`wp1-audit-migration.diff`, `wp7-config-layout.diff`, `wp8-cli-renames.diff`). See the harness
   README.
 
@@ -513,8 +525,11 @@ the remaining tests) in parallel, merged A -> B -> C, then the integration branc
   whole of `src/physverify`, `scripts/h200` and now `tools/equivalence` is strict.
   `untyped_calls_exclude = ["transformers"]` (`AutoProcessor.from_pretrained`);
   `enable_error_code = ["ignore-without-code", "truthy-bool", "truthy-iterable",
-  "possibly-undefined"]`. Result: no issues in 466 source files. The three typing fixes use true
-  annotations or `typing.cast`, never `float()`, which would turn `np.float64` into `float`.
+  "possibly-undefined"]`. Result: no issues in 466 source files. The three typing fixes
+  (`8e59ec8`) are annotations only: `variance: FloatArray` in `extraction/providers/_impacts.py`,
+  `area: int` in `extraction/providers/_visibility.py` and the return type
+  `tuple[ObjectStateTable, list[ContactRecord]]` in `synth/perturbations/r5a_gravity_switch.py`;
+  none converts a value (no `float()`, which would turn `np.float64` into `float`).
 - mypy flags not enabled: `warn_unreachable` (2 hits in timing) and `redundant-expr` (4: 3 in
   schema, 1 in extraction) flag defensive checks of input data, and removing them changes the
   behaviour on bad input; `explicit-override` (87) needs `typing.override`, which the Python 3.9
@@ -538,19 +553,20 @@ the remaining tests) in parallel, merged A -> B -> C, then the integration branc
   TRY (706) (change message texts), PT (640), TC (1754, pydantic needs the annotations at runtime),
   D (6771), COM (1741), INP (286, the test layout of WP10b), BLE (5), SLF (7), PYI (5).
 - Frozen-file fixes for the new rules, Python 3.9 compatible: `os.replace` -> `Path.replace` in
-  `core/{atomic,download,video}.py` (PTH), a dict comprehension in `kubric_worker/tasks/ping.py`
- , `math.floor(...)` without `int()` in `schema/clip.py` (RUF046). Outside the frozen
+  `core/{atomic,download,video}.py` (PTH), a dict comprehension in `kubric_worker/tasks/ping.py`,
+  `math.floor(...)` without `int()` in `schema/clip.py` (RUF046). Outside the frozen
   set, the two unused callback arguments in `timing/{harness,session}.py` take a leading underscore.
 - `lint-imports` is not installed in the venv; `tests/test_architecture.py` reads
   `[tool.importlinter]` and enforces the same contracts with `ast`.
 
-## Resume point (paused 2026-10-23)
+## Status
 
-Branch `refactor/wp9-10` (tip 335a5d2) holds WP9+WP10. Phase 0 and streams A, B and C are audited and merged. The
-integration commits are ba068b5..335a5d2: expected diffs, the zero-label scanner, the strict pyproject, the glossary
-and the handoff. The integration programmer was stopped before its report, so none of them is verified yet. To resume:
-1. Run `.venv/bin/ruff check . && .venv/bin/ruff format --check .`, then `PYTHONPATH=src .venv/bin/mypy`, then
-   `PYTHONPATH=src .venv/bin/python -m pytest -q tests/test_process_labels.py tests/equivalence tests/contracts`.
-2. Run the harness `9eb5888 HEAD` (must exit 0, 59 golden blobs), then the full H200 suite (label `wp910`).
-3. Audit the integration commits, fix what the audit finds, then fast-forward `refactor/architecture` to the result.
-4. WP11 (CLAUDE.md, README, scripts/h200/README.md rewrite; delete docs/refactor/), then the final global review.
+Branch `refactor/wp9-10` holds WP9+WP10. Phase 0 and streams A, B and C are audited and merged, the
+integration commits are verified and the integration audit findings are fixed (label scanner
+tightened, the renames above, harness README, counts and wording here). Verified on this branch:
+`ruff check` and `ruff format --check`, `mypy` (strict), the targeted tests (`tests/test_process_labels.py`,
+`tests/equivalence`, `tests/contracts`, `tests/generator_comparison`, `tests/kubric_worker`,
+`tests/extraction`, `tests/test_architecture.py`, `tests/scripts`), and the harness `9eb5888 HEAD`
+(rc=0, 59 golden blobs identical). Next: the full H200 suite (label `wp910`), fast-forward
+`refactor/architecture`, then WP11 (CLAUDE.md, README, scripts/h200/README.md rewrite; delete
+docs/refactor/) and the final global review.
