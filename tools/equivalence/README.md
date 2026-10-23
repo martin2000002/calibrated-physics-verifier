@@ -24,7 +24,8 @@ asserts that `physverify` was imported from `<wt>/src`, adds the `synthetic_fixt
 calibration fixture and `scenario` (scenes) datasets to `PLUGIN_KINDS["datasets"]` (in `physverify.app.plugins` and/or
 `physverify.cli.context`, whichever exist) and calls `physverify.cli.main.run(argv, environ)`.
 Old command and option names are translated when the checkout only has the new ones
-(`COMMAND_RENAMES`, `OPTION_RENAMES` in `driver.py`).
+(`COMMAND_RENAMES`, `OPTION_RENAMES` in `driver.py`). The `help` scenario sorts and labels its
+pages by the old command names, so a renamed command's page is compared with its old page.
 
 ## Expected differences
 

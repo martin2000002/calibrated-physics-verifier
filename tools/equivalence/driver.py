@@ -405,10 +405,18 @@ def _map_argv(argv: list[str]) -> list[str]:
     return mapped
 
 
-def _help_paths(node: Any, path: tuple[str, ...] = ()) -> Iterable[tuple[str, ...]]:
-    yield path
-    for name in sorted(getattr(node, "commands", {})):
-        yield from _help_paths(node.commands[name], (*path, name))
+OLD_NAMES = {new: old for old, new in COMMAND_RENAMES.items()}
+
+
+def _help_paths(
+    node: Any, path: tuple[str, ...] = (), label: tuple[str, ...] = ()
+) -> Iterable[tuple[tuple[str, ...], tuple[str, ...]]]:
+    """(argv path, label) of every help page, sorted and labelled by the old command names so
+    both sides print the pages in the same order under the same headers."""
+    yield path, label
+    commands = getattr(node, "commands", {})
+    for old, name in sorted((OLD_NAMES.get(name, name), name) for name in commands):
+        yield from _help_paths(commands[name], (*path, name), (*label, old))
 
 
 def _files(run: Path) -> dict[str, str]:
@@ -444,10 +452,10 @@ def run_scenario(name: str, run: Path) -> int:
     before = _files(run)
     if name == HELP:
         failures = 0
-        for path in _help_paths(_click_root()):
+        for path, label in _help_paths(_click_root()):
             argv = [*_config(run), *path, "--help"]
             for stream in (sys.stdout, sys.stderr):
-                print(f"=== {' '.join(path) or '<root>'}", file=stream, flush=True)
+                print(f"=== {' '.join(label) or '<root>'}", file=stream, flush=True)
             code = _invoke(argv, environ)
             sys.stdout.flush()
             sys.stderr.flush()
