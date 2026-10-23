@@ -1,4 +1,5 @@
-"""The extraction target: warm and timed replica cells over a scratch cache, A5's own timings."""
+"""The extraction target: warm and timed replica cells over a scratch cache, the extractor's own
+timings."""
 
 from __future__ import annotations
 

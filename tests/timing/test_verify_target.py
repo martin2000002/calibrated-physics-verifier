@@ -1,4 +1,5 @@
-"""The verification target: A7 via importlib, one span over load plus runner, per-check times."""
+"""The verification target: the check suite via importlib, one span over load plus runner,
+per-check times."""
 
 from __future__ import annotations
 
@@ -99,7 +100,7 @@ class FakeSource:
 
 @dataclass
 class FakeA7:
-    """An ``SuiteFactory``: two checks (0.125 s and 0.0625 s), a 0.5 s runner, a 0.25 s load."""
+    """A ``SuiteFactory``: two checks (0.125 s and 0.0625 s), a 0.5 s runner, a 0.25 s load."""
 
     clock: Any
     cpu_clock: Any
