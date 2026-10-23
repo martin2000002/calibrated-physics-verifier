@@ -29,7 +29,7 @@ DATA = Path(__file__).parent / "data"
 PINS = Path(__file__).with_name("truth_measures_pins.json")
 NOT_APPLICABLE = "not_applicable"
 REL_TOL = 1e-9
-ABS_TOL = 1e-12
+ABS_TOL = 1e-14
 
 type Pin = dict[str, str] | str
 
