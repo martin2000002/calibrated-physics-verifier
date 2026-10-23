@@ -123,7 +123,7 @@ def test_two_directories_of_one_iteration_are_refused(
 ) -> None:
     dirs = [
         iteration_factory(tmp_path / "a", "it2-state", 3, 0.6),
-        iteration_factory(tmp_path / "b", "it0-x", 1, 0.6),
+        iteration_factory(tmp_path / "b", "it2-x", 1, 0.6),
     ]
     with pytest.raises(QueryError, match="two directories"):
         select([candidate(d) for d in dirs])

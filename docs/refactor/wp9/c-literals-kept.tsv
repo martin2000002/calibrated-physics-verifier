@@ -13,7 +13,7 @@ tools/equivalence/driver.py:44	--a8v2-dir	CLI option of the left-side commit 9eb
 scripts/h200/perception_arms.tsv:5-8	it3-r, it3-ak, it3-ap, it3-c	arm table read by run_perception_iteration.sh; the names are existing on-disk iteration directories and state.env CHAIN_ARM values
 scripts/h200/{smoke_autoeval.sh:10,run_generator_comparison.sh:18,setup_autoeval.sh:4,13}	PHYSVERIFY__H3__AUTOEVAL__ROOT	environment override of the persisted config section [h3.autoeval] (config invariant), read by physverify config loading
 tests/scripts/test_run_query.py:38,64	## H1 primary	the heading run_query.py:58 parses, pinned literally so the test fails if the constant drifts
-tests/scripts/test_freeze_query.py:67-232	it1-fixes, it2-state, it3-arms, it4-selfrel	fixture: on-disk iteration ids
+tests/scripts/test_freeze_query.py:67-232	it1-fixes, it2-state, it2-x, it3-arms, it4-selfrel	fixture: on-disk iteration ids
 tests/scripts/test_run_freeze_script.py:118-265	it1-fixes, it2-state	fixture: on-disk iteration ids (also in the param id at :265)
 tests/scripts/test_perception_iteration_script.py:359-446	it3-r, it3-ak, it3-ap, it3-c, it3-c-cuda, it3-arms-cpu, it3-r-it3-ak	fixture: on-disk iteration ids (arms of scripts/h200/perception_arms.tsv:5-8)
 tests/fixtures/videophy_world.py:136	2026-10-17	fixture date
