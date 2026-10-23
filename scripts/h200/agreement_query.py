@@ -17,49 +17,39 @@ import argparse
 import sys
 from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING
 
 from run_query import query_settings
 
-from physverify.freeze.errors import QueryError
+from physverify.app.queries import (
+    QueryError,
+    comparison_log,
+    logged_tests,
+    preregistration_field,
+    ready_clip,
+    subset_gaps,
+)
+
+if TYPE_CHECKING:
+    from physverify.app.queries import InputGaps, Settings
 
 SHOWN_CAPTIONS = 20
 
 
 def prereg_field(path: Path, field: str) -> list[str]:
-    from physverify.core.errors import PhysverifyError
-    from physverify.human_agreement.prereg import Preregistration, load_preregistration
-
-    if field not in Preregistration.model_fields:
-        raise QueryError(f"no field {field!r} in a pre-registration")
-    try:
-        value = getattr(load_preregistration(path), field)
-    except PhysverifyError as exc:
-        raise QueryError(str(exc)) from exc
-    return ["" if value is None else str(value)]
+    value = preregistration_field(path, field)
+    return ["" if value is None else value]
 
 
-def _preregistration(settings: Any) -> Path:
-    from physverify.human_agreement.settings import agreement_settings, preregistration_path
-
-    path: Path = preregistration_path(settings, agreement_settings(settings))
-    return path
+def tested(settings: Settings) -> list[str]:
+    return [str(logged_tests(settings))]
 
 
-def tested(settings: Any) -> list[str]:
-    from physverify.human_agreement.prereg import logged_comparisons
-
-    return [str(len(logged_comparisons(_preregistration(settings))))]
+def log_path(settings: Settings) -> list[str]:
+    return [str(comparison_log(settings))]
 
 
-def log_path(settings: Any) -> list[str]:
-    from physverify.human_agreement.prereg import comparison_log_path
-
-    return [str(comparison_log_path(_preregistration(settings)))]
-
-
-def gap_lines(gaps: Any) -> list[str]:
-    """``gaps`` is an ``human_agreement.coverage.InputGaps``."""
+def gap_lines(gaps: InputGaps) -> list[str]:
     lines = [
         f"- no object query: {gaps.no_query} rows ({gaps.no_query_with_video} with video)",
         f"- no video in the source: {gaps.no_video} rows",
@@ -74,37 +64,12 @@ def gap_lines(gaps: Any) -> list[str]:
     return lines + ([f"- ... and {more} more captions"] if more > 0 else [])
 
 
-def _dataset(settings: Any) -> Any:
-    from physverify.datasets.videophy import VideophyDataset
-
-    return VideophyDataset(settings)
+def gaps(settings: Settings, subset: str) -> list[str]:
+    return gap_lines(subset_gaps(settings, subset))
 
 
-def _rows(dataset: Any, subset: str) -> Any:
-    from physverify.core.errors import PhysverifyError
-
-    try:
-        return dataset.rows(subset)
-    except PhysverifyError as exc:
-        raise QueryError(str(exc)) from exc
-
-
-def gaps(settings: Any, subset: str) -> list[str]:
-    from physverify.human_agreement.coverage import dataset_gaps
-
-    dataset = _dataset(settings)
-    return gap_lines(dataset_gaps(dataset, _rows(dataset, subset)))
-
-
-def ready(settings: Any, subset: str) -> list[str]:
-    from physverify.human_agreement.coverage import dataset_tests
-
-    dataset = _dataset(settings)
-    has_query, has_video = dataset_tests(dataset)
-    for row in sorted(_rows(dataset, subset), key=lambda r: r.clip_id):
-        if has_video(row) and has_query(row):
-            return [row.clip_id]
-    raise QueryError(f"no clip of {subset} has both a video and an object query")
+def ready(settings: Settings, subset: str) -> list[str]:
+    return [ready_clip(settings, subset)]
 
 
 def _parser() -> argparse.ArgumentParser:

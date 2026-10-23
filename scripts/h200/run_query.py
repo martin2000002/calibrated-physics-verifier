@@ -11,29 +11,26 @@ Exit codes: 0 ok, 2 a check failed or an input is unusable (message on stderr).
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from physverify.freeze.errors import QueryError
-from physverify.freeze.files import read_json
-from physverify.freeze.selection import DEVICE, PROFILE
+from physverify.app.queries import (
+    PROFILE,
+    QueryError,
+    allowed_real_sets,
+    dataset_clip_ids,
+    read_json,
+    run_errors,
+)
+from physverify.app.queries import query_settings as checkout_settings
 
 if TYPE_CHECKING:
-    from physverify.config.models import Settings
-    from physverify.datasets._base import DatasetSource
+    from physverify.app.queries import Settings
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PRIMARY_HEADING = "## H1 primary"
-ERROR_KEY = "error"
-SHOWN_ERRORS = 10
-
-
-def clip_ids(source: DatasetSource, subset: str, split: str | None) -> list[str]:
-    clips = source.clips(subset)
-    return sorted(c.clip_id for c in clips if split is None or c.split.value == split)
 
 
 def evaluation_lines(path: Path, allowed: Sequence[Mapping[str, int]]) -> list[str]:
@@ -61,60 +58,9 @@ def primary_section(markdown: Path) -> list[str]:
     return lines[start:]
 
 
-def run_errors(run_dir: Path) -> list[str]:
-    """Refused when a check row of the run carries an input or check error: verify exits 0 on an
-    uncached clip and only marks its rows abstained, with the error in ``details``."""
-    from physverify.schema.checks import CheckResult
-    from physverify.schema.io import read_jsonl
-    from physverify.verification.runner import CHECKS_FILE
-
-    path = run_dir / CHECKS_FILE
-    try:
-        rows = read_jsonl(CheckResult, path)
-    except (OSError, ValueError) as exc:
-        raise QueryError(f"cannot read {path}: {exc}") from exc
-    errors = [
-        f"{r.clip_id} {r.check_id}: {r.details[ERROR_KEY] or '(no message)'}"
-        for r in rows
-        if ERROR_KEY in r.details
-    ]
-    if errors:
-        more = len(errors) - SHOWN_ERRORS
-        shown = errors[:SHOWN_ERRORS] + ([f"... and {more} more"] if more > 0 else [])
-        raise QueryError(f"{len(errors)} check rows of {path} failed:\n" + "\n".join(shown))
-    return [f"{path}: {len(rows)} check rows, none with an error"]
-
-
 def query_settings(overrides: Sequence[str], profile: str = PROFILE) -> Settings:
     """The checkout's settings; the profile also fixes the synthetic dataset version."""
-    from physverify.config.loader import load_settings
-
-    return load_settings(
-        REPO_ROOT / "configs",
-        environ=os.environ,
-        profile=profile,
-        device=DEVICE,
-        overrides=overrides,
-    )
-
-
-def _dataset(settings: Settings, dataset: str) -> DatasetSource:
-    from physverify.app import plugins
-    from physverify.core.errors import UsageError
-    from physverify.datasets._base import dataset_from
-
-    try:
-        return dataset_from(plugins.build("datasets"), dataset, settings)
-    except UsageError as exc:
-        raise QueryError(str(exc)) from exc
-
-
-def _allowed_sets(settings: Settings) -> Sequence[Mapping[str, int]]:
-    from physverify.app import plugins
-    from physverify.calibration.exclusion_rules import SECTION, exclusion_rules
-
-    rules = exclusion_rules(settings.sections.get(SECTION, {}), plugins.build("checks"))
-    return list(rules.real.allowed_sets)
+    return checkout_settings(REPO_ROOT / "configs", overrides, profile)
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -133,13 +79,11 @@ def _parser() -> argparse.ArgumentParser:
 
 def _lines(args: argparse.Namespace) -> list[str]:
     commands: dict[str, Callable[[], list[str]]] = {
-        "clips": lambda: clip_ids(
-            _dataset(query_settings(args.overrides, args.profile), args.dataset),
-            args.subset,
-            args.split,
+        "clips": lambda: dataset_clip_ids(
+            query_settings(args.overrides, args.profile), args.dataset, args.subset, args.split
         ),
         "evaluation": lambda: evaluation_lines(
-            args.path, _allowed_sets(query_settings(args.overrides))
+            args.path, allowed_real_sets(query_settings(args.overrides))
         ),
         "run-errors": lambda: run_errors(args.run_dir),
     }

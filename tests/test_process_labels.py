@@ -84,7 +84,7 @@ class Kept:
 
 
 SEALED_SCOPE_NOTE = "SCOPE_NOTE is written to devscore.json (scope_note), pinned by a golden blob"
-PRIMARY_HEADING = "evaluation.md heading that scripts/h200/run_query.py:29 finds the section by"
+PRIMARY_HEADING = "evaluation.md heading that scripts/h200/run_query.py:33 finds the section by"
 AGREEMENT_LINE = "workflow.py stdout line that scripts/h200/run_human_agreement.sh:385 parses"
 AGREEMENT_SED = "the sed expression of scripts/h200/run_human_agreement.sh:385"
 CHAIN_DIR = "on-disk calibration-chain directory on the H200 ($H200_ROOT/a8v2, _common.sh:9)"

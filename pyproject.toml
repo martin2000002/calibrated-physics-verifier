@@ -191,3 +191,10 @@ name = "Scripts call the application layer, never the CLI"
 type = "forbidden"
 source_modules = ["scripts"]
 forbidden_modules = ["physverify.cli"]
+
+[[tool.importlinter.contracts]]
+name = "The query scripts ask the application layer; schema and core give them records and errors"
+type = "forbidden"
+source_modules = ["scripts.h200.run_query", "scripts.h200.agreement_query"]
+forbidden_modules = ["physverify"]
+allowed_modules = ["physverify.app", "physverify.schema", "physverify.core"]
