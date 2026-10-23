@@ -11,7 +11,7 @@ import pytest
 from pydantic import ValidationError
 
 from physverify.config.loader import load_settings
-from physverify.core.hashing import params_hash
+from physverify.core.cache_keys import params_hash
 from physverify.kubric_worker.build_scene import hdri_for
 from physverify.synth.generate import plan_subset
 from physverify.synth.hdri import halves, outside_ids, panorama_name, training_names

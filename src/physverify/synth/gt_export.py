@@ -23,8 +23,8 @@ import numpy as np
 from numpy.typing import NDArray
 
 from physverify.core.atomic import write_bytes_atomic
+from physverify.core.cache_keys import params_hash
 from physverify.core.digests import file_sha256
-from physverify.core.hashing import params_hash
 from physverify.core.video import write_mp4
 from physverify.physics.finite_diff import central_difference
 from physverify.physics.geometry import matrix_from_quaternion, quaternion_from_matrix

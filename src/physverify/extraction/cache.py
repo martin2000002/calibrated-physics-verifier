@@ -16,7 +16,7 @@ from typing import Any, Literal, cast
 
 from pydantic import BaseModel
 
-from physverify.core.hashing import cache_key, params_hash
+from physverify.core.cache_keys import cache_key, params_hash
 from physverify.extraction._base import StageProvider, error_profile_keys
 from physverify.extraction.plan import ResolvedPlan, StagePlan
 from physverify.schema.clip import FrameSampling, ObjectQuery

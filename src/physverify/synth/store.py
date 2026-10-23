@@ -20,8 +20,8 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from physverify.core.atomic import write_atomic, write_bytes_atomic
+from physverify.core.cache_keys import params_hash
 from physverify.core.errors import PhysverifyError
-from physverify.core.hashing import params_hash
 from physverify.schema.io import Record, dumps
 
 

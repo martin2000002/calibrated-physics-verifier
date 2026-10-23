@@ -13,8 +13,8 @@ from pathlib import Path
 from typing import Final, Protocol
 
 from physverify.config.models import PathsSettings
+from physverify.core.cache_keys import error_profile_hash, sampling_hash, upstream_keys
 from physverify.core.errors import MissingInputError, ResourceBudgetError
-from physverify.core.hashing import error_profile_hash, sampling_hash, upstream_keys
 from physverify.core.log import get_logger
 from physverify.datasets._base import DatasetSource
 from physverify.extraction._base import StageContext, StageEvent, StageObserver, StageProvider

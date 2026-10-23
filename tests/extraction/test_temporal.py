@@ -13,7 +13,7 @@ from support import make_context, run_provider
 from synthetic_clip import SyntheticClip
 from test_lift_backproject import gaussian_entry
 
-from physverify.core.hashing import params_hash
+from physverify.core.cache_keys import params_hash
 from physverify.extraction._base import GROUND_TRUTH
 from physverify.extraction.providers._lifting import (
     LiftErrors,

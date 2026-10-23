@@ -7,8 +7,8 @@ import numpy as np
 import pytest
 import records
 
+from physverify.core.cache_keys import cache_key
 from physverify.core.errors import MissingInputError
-from physverify.core.hashing import cache_key
 from physverify.extraction._base import GROUND_TRUTH, error_profile_keys
 from physverify.schema.error_profile import ErrorEntry, ErrorProfile
 from physverify.schema.stages import Stage

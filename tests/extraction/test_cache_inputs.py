@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 from pydantic import BaseModel
 
-from physverify.core.hashing import error_profile_hash, params_hash
+from physverify.core.cache_keys import error_profile_hash, params_hash
 from physverify.extraction._base import GROUND_TRUTH, StageProvider
 from physverify.extraction.cache import stage_key
 from physverify.extraction.plan import StagePlan

@@ -40,9 +40,9 @@ from physverify.calibration.schema import (
 )
 from physverify.config.loader import load_settings
 from physverify.config.models import Settings
+from physverify.core.cache_keys import error_profile_hash
 from physverify.core.digests import text_sha256
 from physverify.core.errors import ConfigError
-from physverify.core.hashing import error_profile_hash
 from physverify.extraction.cache import plan_entry_filter, plan_params_hashes, profile_keys
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import Split

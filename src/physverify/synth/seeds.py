@@ -7,7 +7,7 @@ import math
 
 import numpy as np
 
-from physverify.core.hashing import params_hash
+from physverify.core.cache_keys import params_hash
 
 _HEX_SCALE = 16**8
 

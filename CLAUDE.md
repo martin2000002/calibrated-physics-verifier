@@ -77,7 +77,7 @@ protocol. Keys must be unique; duplicates, missing `PLUGINS` and protocol mismat
 Notes:
 
 - Providers declare `stage`, `name`, `version`, `requires`, `heavy`, `error_profile_reads` and
-  `weights`; their cache key (`core.hashing.cache_key`) covers version, params, sampling, upstream
+  `weights`; their cache key (`core.cache_keys.cache_key`) covers version, params, sampling, upstream
   keys, ground-truth version and only the error-profile entries they declare.
 - Ground-truth resampling to a `FrameSampling` happens only in `datasets/_base.py`
   (`ArrayGroundTruthStore`); do not reimplement it.

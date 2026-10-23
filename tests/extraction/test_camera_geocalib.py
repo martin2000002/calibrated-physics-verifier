@@ -14,7 +14,7 @@ from numpy.typing import NDArray
 from support import make_context
 from synthetic_clip import SyntheticClip
 
-from physverify.core.hashing import params_hash
+from physverify.core.cache_keys import params_hash
 from physverify.extraction._base import StageContext
 from physverify.extraction.providers._gravity_pose import LEVEL_CAMERA_GRAVITY, gravity_from_pose
 from physverify.extraction.providers._lifting import focal_rel_sigma
