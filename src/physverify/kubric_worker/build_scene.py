@@ -340,8 +340,7 @@ def guarded(job: dict[str, Any], work: Callable[[dict[str, Any]], None]) -> bool
     """Runs one job; an error lands in ``failed_path`` so the remaining jobs still run."""
     try:
         work(job)
-    # Every failure is reported per job.
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - every failure is reported per job
         write_json(
             Path(job["failed_path"]),
             {"error": f"{type(exc).__name__}: {exc}", "traceback": traceback.format_exc()},

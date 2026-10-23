@@ -184,7 +184,9 @@ def test_the_freeze_manifest_keeps_its_bytes(
 
 
 def _git_lines(*args: str) -> list[str]:
-    result = subprocess.run(["git", "-C", str(REPO), *args], capture_output=True, text=True)
+    result = subprocess.run(
+        ["git", "-C", str(REPO), *args], capture_output=True, text=True, check=False
+    )
     if result.returncode != 0:
         pytest.skip(f"git history unavailable: {result.stderr.strip()}")
     return result.stdout.splitlines()

@@ -230,9 +230,9 @@ def test_a_loader_error_becomes_the_clip_error() -> None:
 
 def test_clip_inputs_hold_inputs_or_an_error() -> None:
     case = sc.parabola(clip_id="c")
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="exactly one of inputs and error"):
         ClipInputs(case.clip, None, None, InputLevel.ORACLE)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="without inputs needs its level"):
         ClipInputs(case.clip, None, "error")
 
 

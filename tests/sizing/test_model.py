@@ -42,7 +42,7 @@ def test_classes_synonyms_and_fixed_sizes_resolve() -> None:
 
 
 def test_fixed_sizes_declare_at_least_five_percent() -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match=r"greater than or equal to 0\.05"):
         FixedSize(mean_m=0.067, rel_spread=0.01, source="ITF")
 
 

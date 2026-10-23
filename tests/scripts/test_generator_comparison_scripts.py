@@ -184,7 +184,11 @@ def test_setup_autoeval_reads_every_pin_from_the_committed_config() -> None:
         expected = tomllib.load(handle)["h3"]["autoeval"]
     program = f'PINS="{pins.group(1)}"\n{reader.group(0)}for key; do autoeval_value "$key"; done'
     result = subprocess.run(
-        ["bash", "-c", program, "bash", *keys], cwd=repo, capture_output=True, text=True
+        ["bash", "-c", program, "bash", *keys],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=False,
     )
     assert result.returncode == 0, result.stderr
     assert result.stdout.splitlines() == [expected[key] for key in keys]

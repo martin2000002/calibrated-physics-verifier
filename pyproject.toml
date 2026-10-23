@@ -9,7 +9,7 @@ dependencies = [
     "numpy>=2.0",
     "scipy>=1.14",
     "pydantic>=2.8",
-    "typer>=0.12",
+    "typer>=0.27.2",
     "opencv-python-headless>=4.10",
     "psutil>=6",
 ]
@@ -28,25 +28,25 @@ packages = ["src/physverify"]
 dev = ["pytest>=8.3", "ruff>=0.11", "mypy>=1.13"]
 cpu = ["torch>=2.8", "torchvision>=0.23"]
 cu128 = ["torch>=2.8", "torchvision>=0.23"]
+# Packages physverify itself does not import are annotated with who needs them.
 perception = [
     "transformers>=4.57,<6",
-    "accelerate",
-    "timm",
+    "accelerate",  # not imported; timing/environment.py records its version
+    "timm",  # the EdgeTAM backbone of transformers (TimmWrapper)
     "huggingface-hub",
     "safetensors",
-    "einops",
-    "easydict",
-    "imageio",
-    "matplotlib",
-    "tqdm",
-    "kornia==0.8.3",
+    "einops",  # required by the vendored Video-Depth-Anything
+    "easydict",  # required by the vendored Video-Depth-Anything
+    "imageio",  # only the vendored Video-Depth-Anything's utils and benchmark scripts
+    "matplotlib",  # only the vendored Video-Depth-Anything's utils and benchmark scripts
+    "tqdm",  # required by the vendored Video-Depth-Anything
+    "kornia==0.8.3",  # required by the vendored GeoCalib
 ]
-analysis = ["pandas>=2.2", "matplotlib", "scikit-learn>=1.5"]
 data = ["remotezip", "huggingface-hub"]
 generation = ["diffusers>=0.37", "peft>=0.21,<0.22"]
 
 [tool.uv]
-default-groups = ["dev", "cpu", "perception", "analysis", "data"]
+default-groups = ["dev", "cpu", "perception", "data"]
 conflicts = [[{ group = "cpu" }, { group = "cu128" }]]
 environments = ["sys_platform == 'linux'"]
 
@@ -83,6 +83,7 @@ src = ["src", "tests"]
 select = [
     "E", "F", "I", "UP", "B", "SIM", "N", "C90",
     "RUF", "ERA", "PIE", "RET", "PTH", "T20", "TID", "ARG", "C4", "PERF", "FURB", "ISC", "FLY",
+    "BLE001", "PT011", "PLW1510",
 ]
 # RUF012: a ClassVar annotation would drop the field from a pydantic model. RUF009: a call default
 # in a dataclass is shared on purpose; default_factory would build one per instance. ARG002:
@@ -130,15 +131,12 @@ module = ["torch.*", "torchvision.*", "transformers.*", "kubric.*", "bpy.*", "py
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
-addopts = "--import-mode=importlib -m 'not heavy and not docker and not network and not gpu'"
+addopts = "--import-mode=importlib --strict-markers --strict-config -m 'not docker'"
 testpaths = ["tests"]
 pythonpath = ["tests/fixtures", "tests/fixtures/plugins"]
-markers = [
-    "heavy: real model inference or Kubric rendering (run under the heavy lock)",
-    "docker: needs the pinned Kubric image",
-    "network: downloads from the internet",
-    "gpu: needs CUDA",
-]
+xfail_strict = true
+filterwarnings = ["error::pytest.PytestCollectionWarning"]
+markers = ["docker: needs the pinned Kubric image (run under the heavy lock)"]
 
 [tool.importlinter]
 root_package = "physverify"

@@ -230,7 +230,7 @@ def test_choose_beta_prefers_accuracy_within_the_kl_budget() -> None:
     }
     assert choose_beta(results, kl_factor=2.0) == 500.0
     assert choose_beta(results, kl_factor=10.0) == 2500.0
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="no beta results"):
         choose_beta({}, 2.0)
 
 

@@ -34,6 +34,8 @@ class Diff:
 
 
 class TestResult(FrozenModel):
+    __test__ = False
+
     n: int
     dropped: int = 0
     p: float | None

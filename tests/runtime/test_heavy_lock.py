@@ -89,7 +89,7 @@ def test_a_failing_holder_write_releases_the_lock(tmp_path: Path) -> None:
     path = tmp_path / "heavy.lock"
     holder_path(path).mkdir(parents=True)
     lock = HeavyLock(path, 0.0, ["x"], print)
-    with pytest.raises(OSError):
+    with pytest.raises(OSError, match="Is a directory"):
         lock.acquire()
     assert lock_holder_pids(path) == []
     holder_path(path).rmdir()

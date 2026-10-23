@@ -121,9 +121,9 @@ def test_restitution_sigma_follows_the_position_sigma() -> None:
 
 
 def test_params_need_enough_rows_for_the_fit() -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="min_side_frames <= fit_frames"):
         RestitutionParams(min_side_frames=2)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="min_side_frames <= fit_frames"):
         RestitutionParams(fit_frames=3, min_side_frames=4)
     assert RestitutionParams(fit_source="velocity", min_side_frames=2).min_side_frames == 2
 
