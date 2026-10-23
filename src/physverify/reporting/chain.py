@@ -65,7 +65,7 @@ class ChainState:
 
     @property
     def rehearsal(self) -> bool:
-        """Only the CPU chain is reportable (ADR 0015, "Corrida CPU")."""
+        """Only the CPU chain is reportable; a CUDA chain is a rehearsal."""
         return self.device != CPU
 
     def completed(self, step: int) -> bool:

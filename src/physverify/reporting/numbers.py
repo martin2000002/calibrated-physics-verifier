@@ -45,9 +45,6 @@ class Results:
     sections: tuple[Section, ...]
 
 
-# --- sections --------------------------------------------------------------------------------
-
-
 def _risk_at(key: str, doc: Doc, where: str) -> list[Value]:
     return [
         with_ci(f"{key}.risk", doc, f"{where}/risk", f"{where}/risk_ci", estimated=True),
@@ -65,7 +62,7 @@ def _curve_row(doc: Doc, where: str, k: float | None) -> str | None:
 
 
 def abstention(inputs: Inputs) -> Section:
-    """P5: k* on calib (``abstention.json``) and the held-out curve of ``selective-risk curve``."""
+    """k* on calib (``abstention.json``) and the held-out curve of ``selective-risk curve``."""
     fit = inputs.abstention
     if isinstance(fit, Missing):
         return Section("abstention", missing=fit.reason)
@@ -116,7 +113,7 @@ def _agreement_caveat(doc: Doc) -> str | None:
 
 
 def agreement(inputs: Inputs) -> Section:
-    """P6: the primary policy of the H2 group: verifier and VLM, McNemar, differences."""
+    """The primary policy of the human-agreement group: verifier and VLM, McNemar, differences."""
     doc = _agreement_doc(inputs, "agreement")
     if isinstance(doc, Section):
         return doc
