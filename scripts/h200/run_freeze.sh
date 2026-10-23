@@ -1,44 +1,46 @@
 #!/usr/bin/env bash
-# The freeze (plan-congelado section 1 and phase P4, Juicio J3-J5, J12, J13) on the H200, in a
-# clean checkout at the frozen commit C_F: the chosen iteration's artifacts adopted as they are
-# (never refitted), the development real video extracted, the rule 1.5 evaluation on the calib
-# clips, both R2 detector arms, the exclusion record, the abstention and freeze.json. Every call
-# is --profile precise --device cpu; nothing names an eval clip or a sealed set, so no look is
-# made (and PHYSVERIFY_UNSEAL is refused).
+# The freeze on the H200, in a clean checkout at the freeze commit: the chosen perception
+# iteration's artifacts adopted as they are (never refitted), the development real video
+# extracted, the rule 1.5 evaluation on the calib clips, both R2 detector arms, the exclusion
+# record, the abstention and freeze.json. Every call is --profile precise --device cpu; nothing
+# names an eval clip or a sealed set, so no look is made (and PHYSVERIFY_UNSEAL is refused).
 #
 #   bash scripts/h200/run_freeze.sh [FROM [TO]]   steps FROM..TO (default 1..7); FROM resumes
 #
-#    1 adopt           J4 over PHYSVERIFY_FREEZE_ITERATIONS (freeze_query select): the choice must
-#                      be PHYSVERIFY_FREEZE_ITERATION and the J3 diff from its commit empty; its
+#    1 adopt           the selection rule over PHYSVERIFY_FREEZE_ITERATIONS (freeze_query select):
+#                      the choice must be PHYSVERIFY_FREEZE_ITERATION and the j3 diff (checks,
+#                      physics, extraction, verification) from its commit empty; its
 #                      calibration.json, stage_errors.precise.json and stage_sigma.json are copied
 #                      to $F/calibration (a different file already there stops)
 #    2 real-dev        extract run on physics_iq and pisa_real (full) and the kubric_synthetic calib
 #                      clips (LIFT reads the adopted profile; failed clips tolerated, noted)
 #    3 evaluate-calib  calibrate evaluate --dataset kubric_synthetic --subset calib --real; stops on
-#                      a skipped real dataset, a real set 1.5 does not allow or no H1 primary view
+#                      a skipped real dataset, a real set 1.5 does not allow or no primary view
 #    4 r2-arms         the R2 clips verified with the base and the tiny detector (rule 1.2)
 #    5 decide          exclusions decide, then exclusions show (the record's sha256)
-#    6 abstain         selective-risk fit (J5: always; the curve reads eval clips and is not run)
-#    7 manifest        freeze_query manifest: $F/freeze.json (AC-8, AC-18)
+#    6 abstain         selective-risk fit (always; the curve reads eval clips and is not run)
+#    7 manifest        freeze_query manifest: $F/freeze.json
 #
 # Startup (exit 2 before any physverify call): HEAD is PHYSVERIFY_FREEZE_EXPECT_COMMIT with nothing
 # uncommitted or untracked under src, configs, scripts, annotations, pyproject.toml or uv.lock; no
 # configs/local.toml and no
 # PHYSVERIFY_CONFIG_DIR; no PHYSVERIFY__* variable but the ones exported here; no PHYSVERIFY_UNSEAL
-# or PHYSVERIFY_UNSEAL_REPEAT; $F (and its calibration/ and runs/) not inside $H200_ROOT/a8v2*,
-# $H200_ROOT/iterations, $DATA/calibration* or $DATA/runs*; no other instance on its run.lock;
-# state.env of another commit; steps 1..FROM-1 completed. Then doctor must report config_dir
-# $REPO_ROOT/configs, device cpu, profile precise, the cache, and the calibration directory, runs
-# directory, error profile and thresholds inside $F.
+# or PHYSVERIFY_UNSEAL_REPEAT; $F (and its calibration/ and runs/) not inside the calibration
+# chain's directory, $H200_ROOT/iterations, $DATA/calibration* or $DATA/runs*; no other instance
+# on its run.lock; state.env of another commit; steps 1..FROM-1 completed. Then doctor must
+# report config_dir $REPO_ROOT/configs, device cpu, profile precise, the cache, and the
+# calibration directory, runs directory, error profile and thresholds inside $F.
 #
 # Required:
-#   PHYSVERIFY_FREEZE_EXPECT_COMMIT  prefix (>= 7 chars) of C_F, the HEAD this checkout is at
-#   PHYSVERIFY_FREEZE_ITERATION      the iteration id J4 chooses, written down before the run
+#   PHYSVERIFY_FREEZE_EXPECT_COMMIT  prefix (>= 7 chars) of the freeze commit, the HEAD this
+#                                    checkout is at
+#   PHYSVERIFY_FREEZE_ITERATION      the iteration id the selection rule chooses, written down
+#                                    before the run
 #   PHYSVERIFY_FREEZE_ITERATIONS     the eligible iteration directories
 #                                    (run_perception_iteration.sh), spaces
 #   PHYSVERIFY_FREEZE_EARLY_EXTRACTION_COMMIT
-#                                    the commit the early extraction (P2) ran at (J13)
-#   PHYSVERIFY_FREEZE_V1_COMMIT      C_V1, the v1 arm's commit (40 hex)
+#                                    the early-extraction commit (the j13 diff starts there)
+#   PHYSVERIFY_FREEZE_V1_COMMIT      the v1 commit, the v1 arm's (40 hex)
 #   PHYSVERIFY_FREEZE_V1_CALIBRATION the base iteration's calibration.json (the v1 arm's)
 #   PHYSVERIFY_FREEZE_CACHE_DIR      paths.cache_dir (the shared cache)
 # Optional (defaults in brackets):

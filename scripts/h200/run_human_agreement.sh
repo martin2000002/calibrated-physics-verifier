@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# H2 (ADR 0011; ADR 0015 Enmienda 1: CPU) on the H200, in two phases a person runs in turn:
+# The human-agreement study on the H200, on the CPU, in two phases a person runs in turn:
 #
 #   bash scripts/h200/run_human_agreement.sh dev
 #       pre, dev-fetch, dev-extract, dev-verify, freeze (h2_dev); ends with exit 0 and the frozen
@@ -19,28 +19,28 @@
 # frozen hashes), no PHYSVERIFY_CONFIG_DIR and no configs/local.toml (git status cannot see it);
 # PHYSVERIFY_AGREEMENT_DEVICE cpu; HEAD is PHYSVERIFY_AGREEMENT_EXPECT_COMMIT with nothing
 # uncommitted or untracked under src, configs, scripts or annotations; no other instance on
-# $OUT/run.lock; the A8 v2 CPU chain in PHYSVERIFY_AGREEMENT_CHAIN_DIR completed steps 0..9 and
-# published calibration.json, exclusions.json and stage_errors.precise.json in the calibration
+# $OUT/run.lock; the CPU calibration chain in PHYSVERIFY_AGREEMENT_CHAIN_DIR completed steps 0..9
+# and published calibration.json, exclusions.json and stage_errors.precise.json in the calibration
 # directory, or, with PHYSVERIFY_AGREEMENT_FREEZE, the freeze manifest (run_freeze.sh) stands for
 # that chain: device cpu, HEAD its commit, the calibration directory its own and its frozen files
-# unchanged; its record_sha is what A8 v2's RECORD_SHA is (plan-congelado section 5, Juicio J12).
+# unchanged; its record_sha stands for the calibration chain's RECORD_SHA.
 # Then doctor must report config_dir $REPO_ROOT/configs, device cpu, the four exported paths, the
 # precise error profile and the thresholds of that calibration directory, and the caption review
 # must be recorded.
 #
 # dev refuses once a test comparison is logged (a freeze after looking at test is post hoc). After
 # the freeze the pre-registration must be calibrated (or carry a calibration gate), cpu, precise,
-# and bound to A8 v2's calibration.json and decision record. state.env keeps what test checks:
-# the pre-registration and its sha256, the frozen commit, the sha256 of the A8 v2 files, of the
-# exported PHYSVERIFY__* environment and doctor's config_hash.
+# and bound to the calibration chain's calibration.json and decision record. state.env keeps what
+# test checks: the pre-registration and its sha256, the frozen commit, the sha256 of the chain
+# files, of the exported PHYSVERIFY__* environment and doctor's config_hash.
 #
 # test runs once: it refuses, with no physverify call, when state.env records TEST_COMPARED, the
 # comparison log has an entry, or so does any log listed in $H200_ROOT/h2-test-ledger.txt (each
 # test phase lists its log there before compare, so moving PHYSVERIFY_AGREEMENT_DIR and
 # PHYSVERIFY_AGREEMENT_DATA does not hide a spent test). No variable skips this; dev refuses on the
 # same evidence. It requires the freeze step's last exit 0 and every value dev recorded unchanged.
-# A pre-registration with a calibration gate (the stratum was not usable) makes H2 "not evaluable
-# with the calibrated rule" whether or not test runs; test then needs
+# A pre-registration with a calibration gate (the stratum was not usable) makes the study "not
+# evaluable with the calibrated rule" whether or not test runs; test then needs
 # PHYSVERIFY_AGREEMENT_ACCEPT_NOT_EVALUABLE=1 to spend it on that result.
 #
 # Optional (defaults in brackets), all PHYSVERIFY_AGREEMENT_*:
@@ -51,9 +51,10 @@
 #   DATA                     paths.data_dir: runs, agreement/ [$H200_ROOT/h2-data]
 #   CACHE_DIR                paths.cache_dir [$H200_ROOT/Repo/data/cache]
 #   RAW_DIR                  paths.raw_dir, the VideoPhy videos [$H200_ROOT/Repo/data/raw]
-#   CALIBRATION_DIR          A8 v2 CPU artifacts, read only [$H200_ROOT/kubric-data/calibration]
-#   CHAIN_DIR                the A8 v2 CPU run, read only [$H200_ROOT/a8v2]
-#   FREEZE                   the freeze's freeze.json in place of the A8 v2 run [none]; set
+#   CALIBRATION_DIR          the CPU chain's artifacts, read only
+#                            [$H200_ROOT/kubric-data/calibration]
+#   CHAIN_DIR                the CPU calibration chain's run, read only [the chain's directory]
+#   FREEZE                   the freeze's freeze.json in place of the chain's run [none]; set
 #                            CALIBRATION_DIR to its calibration directory
 #   PREFLIGHT_CLIP           dev preflight clip [v1-a8208f4dd41e]
 #   PREFLIGHT_TEST_CLIP      test preflight clip [the first h2_test clip with a video and an object
@@ -117,9 +118,9 @@ export PHYSVERIFY__PATHS__CALIBRATION_DIR="${PHYSVERIFY_AGREEMENT_CALIBRATION_DI
 export PHYSVERIFY__PATHS__WEIGHTS_DIR="$H200_ROOT/Repo/data/weights"
 export PHYSVERIFY__PATHS__VENDOR_DIR="$H200_ROOT/Repo/data/vendor"
 export PHYSVERIFY__PATHS__HF_HOME="$H200_ROOT/.cache/huggingface"
-# The CPU chain's lock: no heavy H2 step runs while an A8 v2 one does.
+# The CPU chain's lock: no heavy step here runs while a calibration chain step does.
 export PHYSVERIFY__RUNTIME__HEAVY_LOCK="$H200_ROOT/kubric.lock"
-# ADR 0015 runbook step 10: no H2 step runs without the sealed exclusion record.
+# No step runs without the sealed exclusion record.
 export PHYSVERIFY__CHECK_SCOPE__REQUIRE_DECISION_RECORD=true
 export CUDA_VISIBLE_DEVICES=""
 unset PHYSVERIFY_LOCK_HELD
@@ -146,7 +147,8 @@ if [[ -f "$STATE" ]]; then
     source "$STATE"
 fi
 
-# a8v2_state KEY: KEY of the A8 v2 state.env, read in a subshell so nothing here is overwritten.
+# a8v2_state KEY: KEY of the calibration chain's state.env, read in a subshell so nothing here is
+# overwritten.
 a8v2_state() {
     (
         # shellcheck disable=SC1091
@@ -245,7 +247,7 @@ prereg_field() {
     h200_py agreement_query.py prereg "$PREREG" "$1" || die "cannot read $1 of $PREREG"
 }
 
-# What makes the pre-registration unusable for H2 (nothing when it is usable).
+# What makes the pre-registration unusable for the study (nothing when it is usable).
 prereg_problem() {
     local rule gate value
     rule="$(prereg_field rule)"

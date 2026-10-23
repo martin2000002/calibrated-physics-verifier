@@ -37,8 +37,8 @@ def clip_ids(source: DatasetSource, subset: str, split: str | None) -> list[str]
 
 
 def evaluation_lines(path: Path, allowed: Sequence[Mapping[str, int]]) -> list[str]:
-    """The real sets and the H1 section of ``path``; refused without the primary view or with a
-    real set rule 1.5 does not allow."""
+    """The real sets and the primary-view section of ``path``; refused without the primary view or
+    with a real set rule 1.5 does not allow."""
     data = read_json(path)
     sizes = {ref["name"]: ref["n_clips"] for ref in data.get("real_sets", [])}
     if sizes not in [dict(a) for a in allowed]:

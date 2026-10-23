@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# H3 (ADR 0013): fine-tuned vs base vs best-of-8. Every step resumes; run them in this order:
+# Generator comparison: fine-tuned vs base vs best-of-8. Every step resumes; run them in this order:
 #   run_generator_comparison.sh base-eval      base eval videos (outcome-blind: may run before anything else)
 #   run_generator_comparison.sh dev            AutoEval on the dev videos (after the gate and `finetune select`)
 #   run_generator_comparison.sh freeze         the pre-registration (before any eval score or judge row)
