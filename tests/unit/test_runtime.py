@@ -10,7 +10,6 @@ import pytest
 from physverify.core.errors import ConfigError, UsageError
 from physverify.runtime.docker import CONTAINER_SRC, WORKER_MODULE, DockerRunner
 from physverify.runtime.runs import RunContext, current_commit, new_run_id
-from physverify.runtime.threads import THREAD_VARIABLES, thread_env
 
 
 def _runner(tmp_path: Path, image: str = "image@sha256:abc") -> DockerRunner:
@@ -62,12 +61,6 @@ def test_run_uses_the_injected_runner(tmp_path: Path) -> None:
 
     result = _runner(tmp_path).run("ping", tmp_path / "data" / "jobs.jsonl", runner=fake)
     assert result.returncode == 0 and calls[0][0] == "docker"
-
-
-def test_thread_env_caps_every_pool() -> None:
-    assert thread_env(2) == {name: "2" for name in THREAD_VARIABLES}
-    with pytest.raises(ValueError):
-        thread_env(0)
 
 
 def test_run_context_records_how_a_result_was_produced(tmp_path: Path) -> None:

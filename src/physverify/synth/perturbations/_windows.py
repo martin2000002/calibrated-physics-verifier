@@ -7,7 +7,6 @@ so the image is the rectangle [0, W] x [0, H] and pixel centres sit at half-inte
 from __future__ import annotations
 
 import math
-from collections.abc import Iterable
 
 import numpy as np
 from numpy.typing import NDArray
@@ -236,11 +235,3 @@ def silhouette_mask(polygon: Vec, size: tuple[int, int]) -> Mask:
         inside &= cross >= 0 if ccw else cross <= 0
     mask[y0:y1, x0:x1] = inside
     return mask
-
-
-def centre_in_image(uv: Vec, size: tuple[int, int]) -> bool:
-    return bool(0.0 <= uv[0] <= size[0] and 0.0 <= uv[1] <= size[1])
-
-
-def all_ids(states: ObjectStateTable) -> Iterable[tuple[int, str]]:
-    return enumerate(states.object_ids.astype(str).tolist())

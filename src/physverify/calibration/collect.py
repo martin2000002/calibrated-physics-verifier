@@ -17,14 +17,12 @@ from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Ver
 from physverify.schema.clip import ClipManifest, Split
 from physverify.schema.io import read_jsonl
 from physverify.schema.matching import IdMap
-from physverify.verification.inputs import InputSource
 from physverify.verification.runner import (
     CHECKS_FILE,
     TABLE_FILE,
     RowStatus,
     TableRow,
     VerificationReport,
-    VerificationRunner,
 )
 from physverify.verification.sweep import CheckIdentity
 
@@ -44,13 +42,6 @@ SubjectLookup = Callable[[ClipManifest], Subjects | None]
 class SigmaPairs:
     pairs: tuple[SigmaPair, ...]
     unpaired_clips: tuple[str, ...]
-
-
-def run_level(
-    runner: VerificationRunner, source: InputSource, clips: Sequence[ClipManifest]
-) -> VerificationReport:
-    """``runner`` is built with ``RawPolicy`` and no thresholds: magnitudes stay UNSCORED."""
-    return runner.run(source, clips)
 
 
 def sigma_pairs(
