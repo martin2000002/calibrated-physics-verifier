@@ -7,13 +7,13 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable, Mapping
 
 from physverify.calibration.artifact import DatasetRef, EvaluationStratum, RealFpr
-from physverify.calibration.exclusion_detector_arms import r2_rule
-from physverify.calibration.exclusion_inputs import (
+from physverify.calibration.exclusions.detector_arms import r2_rule
+from physverify.calibration.exclusions.inputs import (
     ConsumedStratum,
     DecisionInputs,
     rule_evidence,
 )
-from physverify.calibration.exclusion_rules import (
+from physverify.calibration.exclusions.rules import (
     KEPT,
     R2_RULE_ID,
     R5A_RULE_ID,

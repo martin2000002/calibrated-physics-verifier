@@ -18,7 +18,7 @@ from physverify.calibration.artifact_io import (
     open_stratum,
 )
 from physverify.calibration.collect import read_run, run_level_of
-from physverify.calibration.exclusion_rules import (
+from physverify.calibration.exclusions.rules import (
     KEPT,
     ExclusionRules,
     R2Rule,

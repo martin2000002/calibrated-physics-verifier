@@ -55,7 +55,7 @@ def dataset_clip_ids(settings: Settings, dataset: str, subset: str, split: str |
 def allowed_real_sets(settings: Settings) -> list[Mapping[str, int]]:
     """The real-set sizes the pre-registered exclusion rules allow an evaluation to report."""
     from physverify.app import plugins
-    from physverify.calibration.exclusion_rules import SECTION, exclusion_rules
+    from physverify.calibration.exclusions.rules import SECTION, exclusion_rules
 
     rules = exclusion_rules(settings.sections.get(SECTION, {}), plugins.build("checks"))
     return list(rules.real.allowed_sets)

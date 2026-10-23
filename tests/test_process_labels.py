@@ -209,7 +209,7 @@ KEPT_IDENTIFIERS: Mapping[str, Mapping[str, int]] = {
     },
     "src/physverify/calibration/dev_score.py": {"h1": 2, "meets_h1": 5, "h1_pass": 1},
     "src/physverify/calibration/evaluate.py": {"heldout_h1": 3, "h1_primary": 1},
-    "src/physverify/calibration/exclusion_decision.py": {"h3_families_without_target": 2},
+    "src/physverify/calibration/exclusions/decision.py": {"h3_families_without_target": 2},
     "src/physverify/calibration/heldout_monotonicity.py": {
         "heldout_h1": 1,
         "meets_h1": 4,

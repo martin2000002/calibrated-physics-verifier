@@ -26,7 +26,7 @@ R5A_RULE_ID = "1.1"
 R2_RULE_ID = "1.2"
 REAL_FPR_RULE_ID = "1.5"
 RULE_IDS = (R5A_RULE_ID, R2_RULE_ID, REAL_FPR_RULE_ID)
-"""The preregistered rule ids, in the order ``exclusion_decision.RULES`` applies them."""
+"""The preregistered rule ids, in the order ``exclusions.decision.RULES`` applies them."""
 
 
 class R5aRule(FrozenModel):

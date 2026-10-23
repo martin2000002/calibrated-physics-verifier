@@ -1,5 +1,5 @@
 # Preregistered exclusion rules, applied by `physverify exclusions decide`
-# (calibration/exclusion_rules.py). The ids in `rules` name the three tables below: 1.1 the R5a
+# (calibration/exclusions/rules.py). The ids in `rules` name the three tables below: 1.1 the R5a
 # usable stratum, 1.2 the R2 detector comparison, 1.5 the real false-positive rate. Every threshold
 # lives here: changing one after the calibration chain has run is a declared deviation and changes
 # the record's rules_sha256. The record is written where [check_scope].decision_record points (its
