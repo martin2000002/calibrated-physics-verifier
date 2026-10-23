@@ -264,7 +264,6 @@
   "comment_or_docstring": 3
  },
  "src/physverify/cli/commands/diagnose.py": {
-  "banner": 1,
   "comment_or_docstring": 1
  },
  "src/physverify/cli/commands/exclusions.py": {

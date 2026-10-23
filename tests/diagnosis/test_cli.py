@@ -12,6 +12,7 @@ import pytest
 from cli_runner import CliRunner
 from synthetic_clip import CLIP_ID, DATASET
 
+from physverify.app import diagnosis as app_diagnosis
 from physverify.app import plugins
 from physverify.app.diagnosis import EVENTS_FILE, execute
 from physverify.cli.commands import data, diagnose
@@ -180,7 +181,7 @@ def test_stages_passes_its_options_and_writes_report_and_events(
         calls.append(([c.clip_id for c in clips], write_profile, replace_mismatched))
         return empty_report(ctx)
 
-    monkeypatch.setattr(diagnose, "run_stage_errors", stub)
+    monkeypatch.setattr(app_diagnosis, "run_stage_errors", stub)
     argv = ("diagnose", "stages", "--dataset", DATASET, "--clips", CLIP_ID, "--write-profile")
     result = cli(*SET_FAKES, *argv)
     assert result.code == 0, result.err
@@ -221,9 +222,9 @@ def test_real_expands_all_to_the_configured_datasets(
     make_diagnosis_context: Callable[..., DiagnosisContext],
 ) -> None:
     ctx = make_diagnosis_context(make_settings())
-    assert diagnose.real_datasets(ctx, diagnose.ALL_DATASETS) == REAL
-    assert diagnose.real_datasets(ctx, None) == REAL
-    assert diagnose.real_datasets(ctx, "pisa_real") == ("pisa_real",)
+    assert app_diagnosis.real_datasets(ctx, app_diagnosis.ALL_DATASETS) == REAL
+    assert app_diagnosis.real_datasets(ctx, None) == REAL
+    assert app_diagnosis.real_datasets(ctx, "pisa_real") == ("pisa_real",)
 
 
 def test_run_real_counts_verdicts_and_summarises(

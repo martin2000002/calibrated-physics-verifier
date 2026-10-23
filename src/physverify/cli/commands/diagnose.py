@@ -6,26 +6,21 @@ has to be computed, so a fully cached diagnosis runs next to another cycle's hea
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from typing import Annotated
 
 import typer
 
-from physverify.app.diagnosis import launch
-from physverify.app.sealing import Selection, guard_sealed
+from physverify.app.diagnosis import (
+    ALL_DATASETS,
+    attribution_runner,
+    end_to_end_runner,
+    launch,
+    real_runner,
+    stage_errors_runner,
+)
 from physverify.cli.context import app_context, echo_err
-from physverify.datasets._base import select_clips
-from physverify.diagnosis.attribution_run import run_attribution
-from physverify.diagnosis.context import DiagnosisContext
-from physverify.diagnosis.end_to_end import run_end_to_end
-from physverify.diagnosis.real_video import run_real
-from physverify.diagnosis.real_video import select_clips as real_clips
-from physverify.diagnosis.report import Report
-from physverify.diagnosis.stage_errors import run_stage_errors
-from physverify.schema.clip import ClipManifest
 
 NAME = "diagnose"
-ALL_DATASETS = "all"
 STAGES, END_TO_END, ATTRIBUTION, REAL = "stages", "end_to_end", "attribution", "real"
 
 
@@ -41,27 +36,6 @@ SubsetOption = Annotated[
     str | None, typer.Option(help="Dataset subset (default: diagnosis.subset).")
 ]
 ClipsOption = Annotated[list[str] | None, typer.Option(help="Clip ids (repeatable).")]
-
-
-# --- Context ----------------------------------------------------------------------------------
-
-
-def dataset_clips(ctx: DiagnosisContext, wanted: Sequence[str]) -> list[ClipManifest]:
-    return select_clips(ctx.dataset().clips(ctx.diag.subset), wanted)
-
-
-def guarded_clips(ctx: DiagnosisContext, leaf: str, wanted: Sequence[str]) -> list[ClipManifest]:
-    """``dataset_clips`` after the sealed-ledger guard of ``diagnose <leaf>``."""
-    selected = dataset_clips(ctx, wanted)
-    selection = Selection(ctx.dataset().name, ctx.diag.subset, tuple(selected))
-    guard_sealed(
-        app_context(), f"{NAME} {leaf}", [selection], err=echo_err, run_dir=ctx.run.run_dir
-    )
-    return selected
-
-
-def real_datasets(ctx: DiagnosisContext, dataset: str | None) -> tuple[str, ...]:
-    return ctx.diag.real.datasets if dataset in (None, ALL_DATASETS) else (str(dataset),)
 
 
 @app.command("stages", help="Level 1: per-stage error against ground truth (error profile).")
@@ -80,37 +54,34 @@ def stages(
         ),
     ] = False,
 ) -> None:
-    def runner(ctx: DiagnosisContext) -> Report:
-        selected = guarded_clips(ctx, "stages", clips or ())
-        return run_stage_errors(
-            ctx, selected, write_profile=write_profile, replace_mismatched=replace_mismatched
-        )
-
-    launch(app_context(), STAGES, runner, typer.echo, suite=False, dataset=dataset, subset=subset)
+    context = app_context()
+    runner = stage_errors_runner(
+        context,
+        f"{NAME} stages",
+        clips or (),
+        write_profile=write_profile,
+        replace_mismatched=replace_mismatched,
+        err=echo_err,
+    )
+    launch(context, STAGES, runner, typer.echo, suite=False, dataset=dataset, subset=subset)
 
 
 @app.command("end-to-end", help="Level 2: check magnitudes of the perceived chain vs the oracle.")
 def end_to_end(
     dataset: DatasetOption = None, subset: SubsetOption = None, clips: ClipsOption = None
 ) -> None:
-    def runner(ctx: DiagnosisContext) -> Report:
-        return run_end_to_end(ctx, guarded_clips(ctx, "end-to-end", clips or ()))
-
-    launch(
-        app_context(), END_TO_END, runner, typer.echo, suite=True, dataset=dataset, subset=subset
-    )
+    context = app_context()
+    runner = end_to_end_runner(context, f"{NAME} end-to-end", clips or (), err=echo_err)
+    launch(context, END_TO_END, runner, typer.echo, suite=True, dataset=dataset, subset=subset)
 
 
 @app.command("attribution", help="Level 3: factorial attribution of check error to stages.")
 def attribution(
     dataset: DatasetOption = None, subset: SubsetOption = None, clips: ClipsOption = None
 ) -> None:
-    def runner(ctx: DiagnosisContext) -> Report:
-        return run_attribution(ctx, guarded_clips(ctx, "attribution", clips or ()))
-
-    launch(
-        app_context(), ATTRIBUTION, runner, typer.echo, suite=True, dataset=dataset, subset=subset
-    )
+    context = app_context()
+    runner = attribution_runner(context, f"{NAME} attribution", clips or (), err=echo_err)
+    launch(context, ATTRIBUTION, runner, typer.echo, suite=True, dataset=dataset, subset=subset)
 
 
 @app.command("real", help="Real video (end-to-end only): Physics-IQ motion, PISA falls, verdicts.")
@@ -121,13 +92,6 @@ def real(
     subset: SubsetOption = None,
     clips: ClipsOption = None,
 ) -> None:
-    def runner(ctx: DiagnosisContext) -> Report:
-        names, subset = real_datasets(ctx, dataset), ctx.diag.subset
-        chosen = real_clips(ctx, names, subset, clips or ())
-        selections = [Selection(source.name, subset, found) for source, found in chosen]
-        guard_sealed(
-            app_context(), f"{NAME} real", selections, err=echo_err, run_dir=ctx.run.run_dir
-        )
-        return run_real(ctx, names, subset, clips or ())
-
-    launch(app_context(), REAL, runner, typer.echo, suite=True, subset=subset)
+    context = app_context()
+    runner = real_runner(context, f"{NAME} real", dataset, clips or (), err=echo_err)
+    launch(context, REAL, runner, typer.echo, suite=True, subset=subset)

@@ -19,12 +19,12 @@ from cli_runner import CliResult, CliRunner
 from cli_tree import cli_leaves, command_modules
 
 from physverify.app import calibration as app_calibration
+from physverify.app import diagnosis as app_diagnosis
 from physverify.app import plugins, sealing
 from physverify.app import selective_risk as app_selective_risk
 from physverify.app import verification as app_verification
 from physverify.calibration import session as calibration_session
 from physverify.calibration.sealed_ledger import LedgerEntry, read_entries
-from physverify.cli.commands import diagnose
 from physverify.config.loader import load_settings
 from physverify.config.models import Settings
 from physverify.core.errors import PhysverifyError
@@ -343,7 +343,7 @@ def guarded(
         return cli(*SEAL, *sets, *extra, "abstain", "curve", env=env)
 
     def diagnose_stages(*extra: str, env: Mapping[str, str] | None = None) -> CliResult:
-        monkeypatch.setattr(diagnose, "run_stage_errors", stop)
+        monkeypatch.setattr(app_diagnosis, "run_stage_errors", stop)
         return cli(*SEAL, *extra, "diagnose", "stages", "--dataset", DATASET, env=env)
 
     def scene_stats_per_clip(*extra: str, env: Mapping[str, str] | None = None) -> CliResult:
