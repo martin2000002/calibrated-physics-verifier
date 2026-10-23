@@ -1,8 +1,8 @@
-"""Contract of a clip scorer: verifier results of one candidate -> one score in [0, 1] (ADR 0012).
+"""Contract of a clip scorer: verifier results of one candidate -> one score in [0, 1].
 
 A higher score is more physically consistent; an abstention is ``score = None``. ``only`` restricts
 the score to a set of checks, so two candidates of one prompt are compared on the checks decided
-in both (ADR 0009, Juicio 7) and abstaining never pays.
+in both and abstaining never pays.
 """
 
 from __future__ import annotations

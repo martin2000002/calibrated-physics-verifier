@@ -1,4 +1,4 @@
-"""Seeds and shards that depend only on identifiers, never on order or on K (D5, D10)."""
+"""Seeds and shards that depend only on identifiers, never on order or on K."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""The fit/val partition of the train prompts and the pilot drawn from them (ADR 0012, 4.3).
+"""The fit/val partition of the train prompts and the pilot drawn from them.
 
 The pilot measures the pair yield that sizes the run, so it takes fit prompts only (val prompts
 land in another report) spread across the families: the prompt set is ordered by family, and its

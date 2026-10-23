@@ -1,4 +1,5 @@
-"""``[check_scope]`` for H3: one wrapper around every scorer ``build_scorer`` returns.
+"""``[check_scope]`` for the generator comparison: one wrapper around every scorer ``build_scorer``
+returns.
 
 The excluded checks never reach the scorer, whichever it is, and their ids are part of the
 thresholds stamp (``@excl:``), so scores of another scope are stale (``same_stamp``,

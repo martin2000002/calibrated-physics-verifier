@@ -1,4 +1,4 @@
-"""On-disk layout of one preference campaign (ADR 0012, 3.3); paths only, no policy.
+"""On-disk layout of one preference campaign; paths only, no policy.
 
 ```
 <data_dir>/finetune/<campaign>/

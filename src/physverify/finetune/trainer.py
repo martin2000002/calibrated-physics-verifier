@@ -1,4 +1,4 @@
-"""Offline Flow-DPO trainer over stored latent pairs (ADR 0012, 3.8 and 4.4).
+"""Offline Flow-DPO trainer over stored latent pairs.
 
 The model is injected (``AdapterModel``): the Wan transformer with a LoRA on the H200, a tiny
 torch module in the tests. Determinism comes from identifiers, not from global RNG state: the data

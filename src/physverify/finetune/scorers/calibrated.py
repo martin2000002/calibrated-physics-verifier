@@ -1,13 +1,13 @@
-"""Calibrated score: a thin wrapper over A8's ``calibration.apply.score_clip`` (ADR 0009, 7).
+"""Calibrated score: a thin wrapper over the calibration chain's
+``calibration.apply.score_clip``.
 
-No score formula lives here; the ``ClipScore`` of A8 maps one to one onto ``AggregateScore``.
-``k_sigma`` is not passed: ``score_clip`` uses the one the stratum was fitted with.
-A8's modules are imported lazily. The stratum is opened through A8's one gate
-(``loader.open_stratum``), the same H2 uses, so a missing, stale or unusable artifact is a reason
-(exit 2) with A8's own message, never a silent fallback to the provisional thresholds. The
-checks hash is part of the thresholds stamp, so scores of another check configuration never mix
-in one set of pairs.
-"""
+No score formula lives here; the calibration's ``ClipScore`` maps one to one onto
+``AggregateScore``. ``k_sigma`` is not passed: ``score_clip`` uses the one the stratum was fitted
+with. The calibration modules are imported lazily. The stratum is opened through the calibration's
+one gate (``loader.open_stratum``), the same the human-agreement study uses, so a missing, stale or
+unusable artifact is a reason (exit 2) with the calibration's own message, never a silent fallback
+to the provisional thresholds. The checks hash is part of the thresholds stamp, so scores of another
+check configuration never mix in one set of pairs."""
 
 from __future__ import annotations
 
@@ -102,7 +102,7 @@ class CalibratedScorer:
         return to_aggregate(apply.score_clip(results, self._stratum, only=only))
 
     def _require_time_base(self, results: Sequence[CheckResult]) -> None:
-        """tau depends on the time base (ADR 0006 R9): a clip of another row_step is refused."""
+        """tau depends on the time base: a clip of another row_step is refused."""
         steps = (r.details.get(ROW_STEP_KEY) for r in results)
         try:
             step = self._loader.unique_row_step(UNKNOWN_ROW_STEP if s is None else s for s in steps)
