@@ -34,8 +34,9 @@ def generate(
     stop_rule_deviation: StopRuleDeviationOption = None,
 ) -> None:
     context = app_context()
-    deviation = stop_rule_deviation
-    comparison.generate_arm(context, arm, shard, limit, deviation, echo=typer.echo, err=echo_err)
+    comparison.generate_arm(
+        context, arm, shard, limit, stop_rule_deviation, echo=typer.echo, err=echo_err
+    )
 
 
 @app.command("freeze", help="Write the pre-registration (before any eval score or judge row).")
@@ -53,9 +54,8 @@ def freeze(
     stop_rule_deviation: StopRuleDeviationOption = None,
 ) -> None:
     context = app_context()
-    deviation = stop_rule_deviation
     comparison.freeze_prereg(
-        context, force, declare_deviation, deviation, echo=typer.echo, err=echo_err
+        context, force, declare_deviation, stop_rule_deviation, echo=typer.echo, err=echo_err
     )
 
 

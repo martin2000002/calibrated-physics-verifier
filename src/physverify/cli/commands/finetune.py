@@ -110,9 +110,9 @@ def beta_grid(
     allow_provisional: opt.ProvisionalOption = False,
     stop_rule_deviation: opt.StopRuleDeviationOption = None,
 ) -> None:
-    deviation = stop_rule_deviation
+    context = app_context()
     training.beta_grid_runs(
-        app_context(), scorer, allow_provisional, deviation, echo=typer.echo, err=echo_err
+        context, scorer, allow_provisional, stop_rule_deviation, echo=typer.echo, err=echo_err
     )
 
 
