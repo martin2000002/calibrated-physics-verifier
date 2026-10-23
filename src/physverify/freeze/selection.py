@@ -125,7 +125,7 @@ def seed_of(commit: str, calibration_sha: str, exclusions_sha: str) -> int:
     for sha in (calibration_sha, exclusions_sha):
         if not SHA256.match(sha):
             raise QueryError(f"a sha256 must be 64 lowercase hex characters, got {sha!r}")
-    return int(text_sha256("".join([commit, calibration_sha, exclusions_sha]))[:8], 16)
+    return int(text_sha256(f"{commit}{calibration_sha}{exclusions_sha}")[:8], 16)
 
 
 def chosen_candidate(selection: Mapping[str, Any]) -> Mapping[str, Any]:

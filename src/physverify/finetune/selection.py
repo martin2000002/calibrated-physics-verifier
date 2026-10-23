@@ -55,7 +55,7 @@ def spaced(steps: Sequence[int], count: int) -> list[int]:
     if len(ordered) <= count:
         return ordered
     picks = np.linspace(len(ordered) - 1, 0, count)
-    return sorted({ordered[int(round(i))] for i in picks})
+    return sorted({ordered[round(i)] for i in picks})
 
 
 def _rate(scores: Sequence[CandidateScore]) -> float:

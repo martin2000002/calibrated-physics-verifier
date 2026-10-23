@@ -72,7 +72,7 @@ def test_strata_without_an_ok_check_are_refused_with_a_clear_error(tmp_path: Pat
     tables = level_tables(path, PROFILE, FALLBACK, {})
     assert tables[InputLevel.ORACLE]["checks"] == {}
     with pytest.raises(
-        MissingInputError, match="oracle threshold table .* has no tau for any check"
+        MissingInputError, match=r"oracle threshold table .* has no tau for any check"
     ):
         require_taus(tables[InputLevel.ORACLE], InputLevel.ORACLE)
     require_taus(FALLBACK, InputLevel.PERCEIVED)

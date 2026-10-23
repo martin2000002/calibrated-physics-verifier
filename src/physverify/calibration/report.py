@@ -111,11 +111,13 @@ def _stratum_lines(s: Stratum) -> list[str]:
     lines += table(CHECK_HEADERS, (_check_row(c, s.checks[c]) for c in sorted(s.checks)))
     lines += [
         "",
-        f"Score threshold s* = {number_text(agg.score_threshold)}"
-        f"{' (in-sample, optimistic)' if agg.score_threshold_in_sample else ''} "
-        f"(sufficient: {agg.sufficient}, "
-        f"{agg.n_clean_scenes} clean / {agg.n_perturbed_clips} perturbed clips); "
-        f"AUROC {number_text(agg.auroc.value)} {ci_text(agg.auroc.ci)}.",
+        (
+            f"Score threshold s* = {number_text(agg.score_threshold)}"
+            f"{' (in-sample, optimistic)' if agg.score_threshold_in_sample else ''} "
+            f"(sufficient: {agg.sufficient}, "
+            f"{agg.n_clean_scenes} clean / {agg.n_perturbed_clips} perturbed clips); "
+            f"AUROC {number_text(agg.auroc.value)} {ci_text(agg.auroc.ci)}."
+        ),
         "",
     ]
     return lines
@@ -126,9 +128,11 @@ def calibration_markdown(artifact: CalibrationArtifact) -> str:
     lines = [
         f"# Calibration {artifact.run_id} ({artifact.status})",
         "",
-        f"Dataset {d.name} {d.version} subset {d.subset} split {d.split}: {d.n_clips} clips, "
-        f"{d.n_scenes} scenes. Commit {artifact.commit}; alpha {artifact.settings.alpha}, "
-        f"beta {artifact.settings.beta}, ci {artifact.settings.ci}.",
+        (
+            f"Dataset {d.name} {d.version} subset {d.subset} split {d.split}: {d.n_clips} clips, "
+            f"{d.n_scenes} scenes. Commit {artifact.commit}; alpha {artifact.settings.alpha}, "
+            f"beta {artifact.settings.beta}, ci {artifact.settings.ci}."
+        ),
         "",
         ESTIMATE_NOTE,
         "",
@@ -209,9 +213,11 @@ def evaluation_markdown(report: EvaluationReport) -> str:
     lines = [
         f"# Evaluation {report.run_id}",
         "",
-        f"Artifact {report.artifact_path} (sha256 {report.artifact_sha256[:16]}, "
-        f"run {report.artifact_run_id}); dataset {report.dataset.name} subset "
-        f"{report.dataset.subset}: {report.dataset.n_clips} clips.",
+        (
+            f"Artifact {report.artifact_path} (sha256 {report.artifact_sha256[:16]}, "
+            f"run {report.artifact_run_id}); dataset {report.dataset.name} subset "
+            f"{report.dataset.subset}: {report.dataset.n_clips} clips."
+        ),
         "",
         ESTIMATE_NOTE,
         "",
@@ -230,8 +236,10 @@ def _primary_view(
     lines = [
         f"## H1 primary (scenes {', '.join(view.scenes)}) vs all scenes",
         "",
-        f"Primary: {view.dataset.n_clips} clips, {view.dataset.n_scenes} scenes. "
-        f"All: {dataset.n_clips} clips, {dataset.n_scenes} scenes.",
+        (
+            f"Primary: {view.dataset.n_clips} clips, {view.dataset.n_scenes} scenes. "
+            f"All: {dataset.n_clips} clips, {dataset.n_scenes} scenes."
+        ),
         "",
     ]
     for primary in view.strata:
@@ -255,8 +263,10 @@ def _heldout_monotonicity(checks: Sequence[HeldoutMonotonicityCheck], scope: str
         return []
     lines = [
         "",
-        f"Held-out monotonicity over {scope}: {n_met(checks)} of {len(checks)} checks meet "
-        "tau_b^lo > 0 and J^lo > 0 (no multiplicity correction):",
+        (
+            f"Held-out monotonicity over {scope}: {n_met(checks)} of {len(checks)} checks meet "
+            "tau_b^lo > 0 and J^lo > 0 (no multiplicity correction):"
+        ),
         "",
     ]
     lines += table(

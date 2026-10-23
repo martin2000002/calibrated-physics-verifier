@@ -21,13 +21,19 @@ from physverify.schema.io import json_ready
 
 REPORT_DIR = "agreement"
 HONESTY = (
-    "Verifier magnitudes come from perceived inputs: depth, size and scale are learned "
-    "estimates, never measurements, and carry their measured error (sigma, NaN when unknown).",
-    "Time comes from the container rate of generated videos, which need not match physical "
-    "time; the sensitivity block repeats the primary metrics with the time-dependent checks "
-    "moved out of (or back into) the primary.",
-    "The reference VLM numbers are the published AutoEval predictions, joined by video URL and "
-    "cut at the published thresholds; nothing was tuned on test.",
+    (
+        "Verifier magnitudes come from perceived inputs: depth, size and scale are learned "
+        "estimates, never measurements, and carry their measured error (sigma, NaN when unknown)."
+    ),
+    (
+        "Time comes from the container rate of generated videos, which need not match physical "
+        "time; the sensitivity block repeats the primary metrics with the time-dependent checks "
+        "moved out of (or back into) the primary."
+    ),
+    (
+        "The reference VLM numbers are the published AutoEval predictions, joined by video URL and "
+        "cut at the published thresholds; nothing was tuned on test."
+    ),
 )
 
 
@@ -204,19 +210,23 @@ def _verdict_lines(verdict: Mapping[str, Any], primary: Mapping[str, Any]) -> li
         return _not_evaluable_lines(verdict, rate)
     if not verdict["applicable"]:
         return [
-            f"**Human-agreement hypothesis: {verdict['reason']}.** The numbers below test the "
-            f"pipeline only; {rate}."
+            (
+                f"**Human-agreement hypothesis: {verdict['reason']}.** The numbers below test the "
+                f"pipeline only; {rate}."
+            )
         ]
     state = "supported" if verdict["supported"] else "not supported"
     if verdict.get("post_hoc"):
         state += " (POST HOC: the pre-registration was replaced after a test comparison)"
     low, high = verdict["kappa_difference_ci"]
     return [
-        f"**Human-agreement hypothesis {state}** (McNemar p = {_fmt(verdict['mcnemar_p'])}, "
-        "accuracy difference "
-        f"{_fmt(verdict['accuracy_difference'])}, kappa difference CI [{_fmt(low)}, {_fmt(high)}]; "
-        f"minimum detectable accuracy difference {_fmt(verdict['mde_accuracy'])}, estimated "
-        f"with caption clustering {_fmt(verdict.get('mde_accuracy_clustered'))}); {rate}."
+        (
+            f"**Human-agreement hypothesis {state}** (McNemar p = {_fmt(verdict['mcnemar_p'])}, "
+            f"accuracy difference {_fmt(verdict['accuracy_difference'])}, "
+            f"kappa difference CI [{_fmt(low)}, {_fmt(high)}]; "
+            f"minimum detectable accuracy difference {_fmt(verdict['mde_accuracy'])}, estimated "
+            f"with caption clustering {_fmt(verdict.get('mde_accuracy_clustered'))}); {rate}."
+        )
     ]
 
 
@@ -224,11 +234,15 @@ def _not_evaluable_lines(verdict: Mapping[str, Any], rate: str) -> list[str]:
     """Item 1.3: the stratum was not usable, so the provisional rule ran and the study has no
     verdict."""
     return [
-        "**Human-agreement hypothesis not evaluable with the calibrated rule** "
-        f"({verdict['gate']}). The numbers below "
-        f"are descriptive, from the provisional rule; {rate}.",
-        "Abstention and coverage follow; the `decided_only` policy block shows the agreement "
-        "on the clips the verifier decided, which is descriptive as well.",
+        (
+            "**Human-agreement hypothesis not evaluable with the calibrated rule** "
+            f"({verdict['gate']}). The numbers below "
+            f"are descriptive, from the provisional rule; {rate}."
+        ),
+        (
+            "Abstention and coverage follow; the `decided_only` policy block shows the agreement "
+            "on the clips the verifier decided, which is descriptive as well."
+        ),
     ]
 
 
@@ -242,8 +256,10 @@ def _abstention_lines(abstention: Mapping[str, Any], coverage: Mapping[str, Any]
     )
     return [
         f"Verifier outcomes: {abstention['outcomes']}. Coverage (decided fraction): {decided}.",
-        f"Undecided clips with an interval crossing the threshold: {crossing}; "
-        f"other abstention reasons: {reasons}.",
+        (
+            f"Undecided clips with an interval crossing the threshold: {crossing}; "
+            f"other abstention reasons: {reasons}."
+        ),
     ]
 
 
@@ -257,8 +273,10 @@ def _sensitivity_lines(block: Mapping[str, Any]) -> list[str]:
     lines = [
         f"## Sensitivity {moved} the time-dependent checks",
         "",
-        f"Time-dependent: {', '.join(block['time_dependent']) or 'none'}; excluded here: "
-        f"{', '.join(block['excluded']) or 'none'}; policy {block['policy']}, no bootstrap.",
+        (
+            f"Time-dependent: {', '.join(block['time_dependent']) or 'none'}; excluded here: "
+            f"{', '.join(block['excluded']) or 'none'}; policy {block['policy']}, no bootstrap."
+        ),
         "",
     ]
     columns = ["group", "system", "n", *(label for _, label in SYSTEM_COLUMNS)]
@@ -271,13 +289,16 @@ def _audit_lines(audit: Mapping[str, Any] | None) -> list[str]:
         return []
     deviations = "; ".join(audit["deviations"]) or "none"
     return [
-        f"Pre-registration {audit['prereg_sha256'][:12]} (created {audit['created_utc']}, "
-        f"replaces {(audit['replaces_sha256'] or 'none')[:12]}, {audit['versions']} version(s), "
-        f"first frozen {audit['first_created_utc']}); verify run files from "
-        f"{audit['earliest_eval_utc'] or 'n/a'}, first freeze before them: {audit['blind']}, "
-        f"current freeze after them: {audit.get('frozen_after_eval')} "
-        "(file times are informational); post hoc: "
-        f"{'YES' if audit['post_hoc'] else 'no'}; deviations: {deviations}.",
+        (
+            f"Pre-registration {audit['prereg_sha256'][:12]} (created {audit['created_utc']}, "
+            f"replaces {(audit['replaces_sha256'] or 'none')[:12]}, "
+            f"{audit['versions']} version(s), "
+            f"first frozen {audit['first_created_utc']}); verify run files from "
+            f"{audit['earliest_eval_utc'] or 'n/a'}, first freeze before them: {audit['blind']}, "
+            f"current freeze after them: {audit.get('frozen_after_eval')} "
+            "(file times are informational); post hoc: "
+            f"{'YES' if audit['post_hoc'] else 'no'}; deviations: {deviations}."
+        ),
         "",
     ]
 
@@ -288,9 +309,11 @@ def _gap_lines(gaps: Mapping[str, Any] | None) -> list[str]:
     missing = [(g, c[NO_VIDEO]) for g, c in sorted(gaps["by_generator"].items()) if c[NO_VIDEO]]
     generators = ", ".join(f"{g} {n}" for g, n in missing) or "none"
     return [
-        f"No object query: {gaps['no_query']} rows ({gaps['no_query_with_video']} with video, "
-        f"compared as abstentions); videos missing from the source: {gaps['no_video']} "
-        f"(by generator: {generators})."
+        (
+            f"No object query: {gaps['no_query']} rows ({gaps['no_query_with_video']} with video, "
+            f"compared as abstentions); videos missing from the source: {gaps['no_video']} "
+            f"(by generator: {generators})."
+        )
     ]
 
 
@@ -300,16 +323,20 @@ def _header_lines(metrics: Mapping[str, Any]) -> list[str]:
     return [
         "# Verifier vs reference VLM on VideoPhy human labels",
         "",
-        f"Rule: `{metrics['rule']}`. Primary policy: `{metrics['primary_policy']}`. "
-        f"Pre-registered: {'yes' if metrics['preregistered'] else 'no (exploratory)'}. "
-        f"Run: `{run['path']}` ({run['profile']}, {run['device']}).",
+        (
+            f"Rule: `{metrics['rule']}`. Primary policy: `{metrics['primary_policy']}`. "
+            f"Pre-registered: {'yes' if metrics['preregistered'] else 'no (exploratory)'}. "
+            f"Run: `{run['path']}` ({run['profile']}, {run['device']})."
+        ),
         "",
         *_audit_lines(metrics.get("preregistration")),
         *_verdict_lines(metrics["h2_verdict"], primary),
         "",
-        f"Rows {counts['rows']}, compared {counts['compared']}; left out: no human label "
-        f"{counts['human_missing']}, no VLM prediction {counts['vlm_missing']}. Clips missing "
-        f"from the run: {counts['not_verified']} (compared as check_error abstentions).",
+        (
+            f"Rows {counts['rows']}, compared {counts['compared']}; left out: no human label "
+            f"{counts['human_missing']}, no VLM prediction {counts['vlm_missing']}. Clips missing "
+            f"from the run: {counts['not_verified']} (compared as check_error abstentions)."
+        ),
         *_gap_lines(metrics.get("input_gaps")),
         *_abstention_lines(metrics["abstention"], metrics["coverage"]),
         *_sign_flip_lines(metrics["groups"], metrics["primary_policy"]),

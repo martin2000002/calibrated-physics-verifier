@@ -239,8 +239,7 @@ def summary_lines(report: dict[str, Any]) -> list[str]:
     tables = report["tables"]
     diff = tables["aurc_calibrated_minus_raw"]
     lines = [f"eval cases: {report['n']}", f"k* (calib): {report['k_star_from_calib']}"]
-    for name in ("raw", "calibrated"):
-        lines.append(f"  {name}: k* on eval {tables[name]['k_star']}")
+    lines.extend(f"  {name}: k* on eval {tables[name]['k_star']}" for name in ("raw", "calibrated"))
     lines.append(f"  AURC calibrated - raw: {diff['value']:.4f} {diff['ci']}")
     injected = report["injected_label"]
     if injected.get("rows"):

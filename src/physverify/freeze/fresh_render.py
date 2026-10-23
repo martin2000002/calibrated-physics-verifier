@@ -52,6 +52,8 @@ def plan_lines(settings: Settings, version: str, seed: int) -> list[str]:
     if calib:
         raise QueryError(f"{store.plan_path} plans {len(calib)} calib scenes or clips")
     return [
-        f"plan {store.plan_path}: version {version}, seed {seed}, {len(plan.scenes)} scenes, "
-        f"{len(plan.variants)} clips, 0 calib"
+        (
+            f"plan {store.plan_path}: version {version}, seed {seed}, {len(plan.scenes)} scenes, "
+            f"{len(plan.variants)} clips, 0 calib"
+        )
     ]

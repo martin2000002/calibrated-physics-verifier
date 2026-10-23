@@ -198,7 +198,7 @@ def test_require_stamp_refuses_scores_of_another_version_or_label(
     if accepted:
         require_stamp(scores, prereg, BASE_TAG)
     else:
-        with pytest.raises(UsageError, match="scorer version '2'.*rescore"):
+        with pytest.raises(UsageError, match=r"scorer version '2'.*rescore"):
             require_stamp(scores, prereg, BASE_TAG)
     with pytest.raises(UsageError, match="no eval scores"):
         require_stamp([], prereg, BASE_TAG)
@@ -327,7 +327,7 @@ def test_external_status_needs_the_gate_of_the_frozen_judge_stamps(
     layout.gate.parent.mkdir(parents=True, exist_ok=True)
     write_record(layout.gate, gate(dict(frozen.judge_stamps)))
     assert external_status(layout, usable, outputs) == "ok"
-    write_record(layout.gate, gate({task: "another-stamp" for task in frozen.judge_stamps}))
+    write_record(layout.gate, gate(dict.fromkeys(frozen.judge_stamps, "another-stamp")))
     assert external_status(layout, usable, outputs) == "not_run"
 
 

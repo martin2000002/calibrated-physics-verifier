@@ -131,7 +131,7 @@ def holm(pvalues: Mapping[str, float | None]) -> dict[str, float | None]:
     """Holm-adjusted p-values; an undefined p counts in m and stays undefined."""
     m = len(pvalues)
     ordered = sorted((p, name) for name, p in pvalues.items() if p is not None)
-    adjusted: dict[str, float | None] = {name: None for name in pvalues}
+    adjusted: dict[str, float | None] = dict.fromkeys(pvalues)
     running = 0.0
     for rank, (p, name) in enumerate(ordered):
         running = max(running, min(1.0, (m - rank) * p))

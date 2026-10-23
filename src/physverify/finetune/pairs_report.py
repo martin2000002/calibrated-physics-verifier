@@ -68,8 +68,10 @@ def yields(report: PairsReport) -> str:
 
 def report_lines(label: str, report: PairsReport) -> list[str]:
     return [
-        f"{label}: {report.pairs} pairs; {yields(report)}; "
-        f"{report.eligible}/{report.candidates} candidates eligible",
+        (
+            f"{label}: {report.pairs} pairs; {yields(report)}; "
+            f"{report.eligible}/{report.candidates} candidates eligible"
+        ),
         f"  dropped: {json.dumps(report.dropped, sort_keys=True)}",
         f"  rejected: {json.dumps(report.rejected, sort_keys=True)}",
     ]

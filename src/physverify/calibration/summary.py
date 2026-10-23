@@ -47,9 +47,11 @@ def devscore_lines(report: DevScoreReport) -> list[str]:
 def _level_lines(level: LevelDevScore) -> list[str]:
     auroc = level.auroc_cv
     lines = [
-        f"{level.level.value}/{level.profile}: {level.n_met}/{len(level.checks)} meet "
-        f"monotonicity and J_cv^lo > 0 ({','.join(level.met) or 'none'}); AUROC_cv "
-        f"{_num(auroc.value)} [{_num(auroc.ci.low)}, {_num(auroc.ci.high)}]"
+        (
+            f"{level.level.value}/{level.profile}: {level.n_met}/{len(level.checks)} meet "
+            f"monotonicity and J_cv^lo > 0 ({','.join(level.met) or 'none'}); AUROC_cv "
+            f"{_num(auroc.value)} [{_num(auroc.ci.low)}, {_num(auroc.ci.high)}]"
+        )
     ]
     for check_id, c in sorted(level.checks.items()):
         lines.append(

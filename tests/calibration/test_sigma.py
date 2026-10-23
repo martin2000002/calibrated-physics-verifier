@@ -204,7 +204,7 @@ def test_cross_fitting_skips_a_fold_whose_training_lacks_informative_pairs() -> 
     found += [SigmaPair("s0", "R1", 0.1, 0.1 + 0.01 * k, 0.01) for k in range(-3, 4)]
     cfg = settings(sigma_pair_filter="nonzero", folds=3)
     z = cross_fitted_z(found, cfg)
-    held_with_s0 = [p for p in found if p.scene_id in {"s0"}]
+    held_with_s0 = [p for p in found if p.scene_id == "s0"]
     assert z.shape[1] == 2
     assert z.shape[0] < len(found)
     assert z.shape[0] <= len(found) - len(held_with_s0)

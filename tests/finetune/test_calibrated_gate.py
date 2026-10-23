@@ -17,7 +17,7 @@ if CALIBRATION_TESTS not in sys.path:
 
 from stratum_cases import write_artifact  # noqa: E402
 from wiring import (  # noqa: E402
-    active_checks_hash,  # noqa: E402
+    active_checks_hash,
     build_scorer,
     checks,
 )

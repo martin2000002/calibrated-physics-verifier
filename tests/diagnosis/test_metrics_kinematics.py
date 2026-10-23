@@ -72,7 +72,7 @@ def predicted(
     acceleration[:, 0, 2] += acc_error
     return dataclasses.replace(
         base,
-        velocity=base.velocity + [velocity_bias, 0.0, 0.0],
+        velocity=base.velocity + np.array([velocity_bias, 0.0, 0.0]),
         acceleration=acceleration,
         velocity_sigma=np.full((FRAMES, 1, 3), sigma),
         acceleration_sigma=np.full((FRAMES, 1, 3), sigma),
@@ -134,7 +134,7 @@ def test_velocity_bias_in_reference_speeds() -> None:
 def test_slow_objects_are_normalized_by_length_over_duration() -> None:
     bias, speed = 0.05, 0.01
     slow = truth(speed)
-    pred = dataclasses.replace(slow, velocity=slow.velocity + [bias, 0.0, 0.0])
+    pred = dataclasses.replace(slow, velocity=slow.velocity + np.array([bias, 0.0, 0.0]))
     v_ref = LENGTH / float(slow.t[-1] - slow.t[0])
     vel = measure(pred, slow).samples["vel_rel"].reshape(FRAMES, 3)
     np.testing.assert_allclose(vel[:, 0], bias / v_ref, atol=TOL)

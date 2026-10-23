@@ -207,7 +207,7 @@ def test_a_fold_without_tau_flags_nothing() -> None:
 
 def test_the_selection_counts_the_separable_monotone_check(dev: DevScore) -> None:
     """R1 is monotone and J_cv^lo > 0, the random R3a and the eventless R5b do not."""
-    oracle, perceived = dev.report.levels
+    _oracle, perceived = dev.report.levels
     assert perceived.n_met == 1 and perceived.met == ("R1",)
     assert not perceived.checks["R3a"].meets_both
     assert dev.report.selection is not None

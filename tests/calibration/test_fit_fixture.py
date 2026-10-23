@@ -135,5 +135,5 @@ def test_evaluation_refuses_another_row_step(artifact: CalibrationArtifact) -> N
     real = item.real["real_fixture"]
     slower = LevelData(real.level, tuple(replace(r, row_step=2) for r in real.rows), real.results)
     inputs = EvaluationInputs(item.synthetic, {"real_fixture": slower})
-    with pytest.raises(CalibrationError, match="real_fixture clips: .*row_step"):
+    with pytest.raises(CalibrationError, match=r"real_fixture clips: .*row_step"):
         evaluate(parse_calibration(artifact.to_json()), (inputs,), meta(), config())

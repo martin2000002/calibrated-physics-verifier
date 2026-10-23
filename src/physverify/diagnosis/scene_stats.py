@@ -215,8 +215,10 @@ def table_lines(collected: Collected) -> list[str]:
     for split, metric in sorted({(r["split"], r["metric"]) for r in collected.rows}):
         rows = select_rows(collected.rows, split, metric)
         for kind in ("samples", "ratios"):
-            for quantity in sorted({q for r in rows for q in r[kind]}):
-                lines.append(table_line(collected.label, split, metric, kind, quantity, rows))
+            quantities = sorted({q for r in rows for q in r[kind]})
+            lines.extend(
+                table_line(collected.label, split, metric, kind, q, rows) for q in quantities
+            )
     return lines
 
 

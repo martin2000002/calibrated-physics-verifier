@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from itertools import pairwise
 from typing import Any
 
 import numpy as np
@@ -135,7 +136,7 @@ def test_coverage_does_not_grow_as_alpha_shrinks() -> None:
     assert np.all(np.diff(ks) > 0)
     codes = decision_codes(cases, ks, thresholds)
     coverage = [curve_point(row, reference_codes(cases)).coverage for row in codes]
-    assert all(b <= a for a, b in zip(coverage, coverage[1:], strict=False))
+    assert all(b <= a for a, b in pairwise(coverage))
     assert ks[0] == pytest.approx(norm.isf(0.5)) and ks[-1] == pytest.approx(norm.isf(1e-4))
 
 
