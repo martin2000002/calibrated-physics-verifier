@@ -12,9 +12,9 @@ from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from physverify.core.atomic import write_bytes_atomic
 from physverify.datasets.local_video import QueryList
 from physverify.finetune.settings import PromptSplit
-from physverify.synth.store import atomic_write_bytes
 
 BASE_TAG = "base"
 DEMO_TAG = "demo"
@@ -155,7 +155,7 @@ class PairsReport(ScorerStamp):
 def write_records(path: Path, records: Iterable[BaseModel]) -> None:
     """JSON lines, written atomically."""
     text = "".join(record.model_dump_json() + "\n" for record in records)
-    atomic_write_bytes(path, text.encode("utf-8"))
+    write_bytes_atomic(path, text.encode("utf-8"))
 
 
 def read_records[M: BaseModel](path: Path, model: type[M]) -> list[M]:
@@ -164,7 +164,7 @@ def read_records[M: BaseModel](path: Path, model: type[M]) -> list[M]:
 
 
 def write_record(path: Path, record: BaseModel) -> None:
-    atomic_write_bytes(path, record.model_dump_json(indent=2).encode("utf-8"))
+    write_bytes_atomic(path, record.model_dump_json(indent=2).encode("utf-8"))
 
 
 def read_record[M: BaseModel](path: Path, model: type[M]) -> M:

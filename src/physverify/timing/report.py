@@ -22,7 +22,7 @@ from typing import IO, Any, Final
 
 from pydantic import ValidationError
 
-from physverify.synth.store import atomic_write_bytes
+from physverify.core.atomic import write_bytes_atomic
 from physverify.timing.records import (
     CallFailure,
     MeasureStats,
@@ -138,7 +138,7 @@ class CsvSampleSink:
 
 def write_results(directory: Path, results: ResultsFile) -> None:
     directory.mkdir(parents=True, exist_ok=True)
-    atomic_write_bytes(directory / RESULTS, results.model_dump_json(indent=2).encode("utf-8"))
+    write_bytes_atomic(directory / RESULTS, results.model_dump_json(indent=2).encode("utf-8"))
 
 
 def load_results(directory: Path) -> ResultsFile:
@@ -238,7 +238,7 @@ def write_stats(directory: Path, rows: Iterable[MeasureStats]) -> None:
     for row in rows:
         values = row.model_dump()
         writer.writerow([_cell(values[column]) for column in STAT_COLUMNS])
-    atomic_write_bytes(directory / STATS, buffer.getvalue().encode("utf-8"))
+    write_bytes_atomic(directory / STATS, buffer.getvalue().encode("utf-8"))
 
 
 def _number(value: float) -> str:
@@ -410,5 +410,5 @@ def rebuild(directory: Path, max_iqr_rel: float, total_measures: Sequence[str]) 
     write_results(directory, results)
     write_stats(directory, rows)
     summary = render_summary(results, total_measures)
-    atomic_write_bytes(directory / SUMMARY, summary.encode("utf-8"))
+    write_bytes_atomic(directory / SUMMARY, summary.encode("utf-8"))
     return results

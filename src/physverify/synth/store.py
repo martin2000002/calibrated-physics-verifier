@@ -14,12 +14,12 @@
 from __future__ import annotations
 
 import json
-import os
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 from typing import Any, Protocol
 
+from physverify.core.atomic import write_atomic, write_bytes_atomic
 from physverify.core.errors import PhysverifyError
 from physverify.core.hashing import params_hash
 from physverify.schema.io import Record, dumps
@@ -125,7 +125,7 @@ class DatasetStore:
     def write_jobs(self, task: str, jobs: list[dict[str, Any]]) -> Path:
         """JSONL job file named by the hash of its content (identical batches share a file)."""
         path = self.jobs_path(task, params_hash({"jobs": jobs})[:12])
-        atomic_write_bytes(path, "".join(dumps(job) + "\n" for job in jobs).encode("utf-8"))
+        write_bytes_atomic(path, "".join(dumps(job) + "\n" for job in jobs).encode("utf-8"))
         return path
 
 
@@ -137,16 +137,8 @@ def run_container(runner: ContainerRunner, task: str, jobs: Path) -> None:
         raise PhysverifyError(f"container task {task!r} exited with {code} (jobs {jobs})")
 
 
-def atomic_write_bytes(path: Path, data: bytes) -> None:
-    """Write through a sibling temporary file and rename, so readers never see partial files."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
-    tmp.write_bytes(data)
-    os.replace(tmp, path)
-
-
 def atomic_write_json(path: Path, payload: Any) -> None:
-    atomic_write_bytes(path, dumps(payload).encode("utf-8"))
+    write_bytes_atomic(path, dumps(payload).encode("utf-8"))
 
 
 def read_json(path: Path) -> Any:
@@ -155,10 +147,4 @@ def read_json(path: Path) -> Any:
 
 def atomic_save(record: Record, path: Path) -> None:
     """``Record.save_json`` / ``save_npz`` (chosen by suffix) through a temporary file."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
-    if path.suffix == ".npz":
-        record.save_npz(tmp)
-    else:
-        record.save_json(tmp)
-    os.replace(tmp, path)
+    write_atomic(path, record.save_npz if path.suffix == ".npz" else record.save_json)

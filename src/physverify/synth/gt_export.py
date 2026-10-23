@@ -22,6 +22,7 @@ import cv2
 import numpy as np
 from numpy.typing import NDArray
 
+from physverify.core.atomic import write_bytes_atomic
 from physverify.core.hashing import params_hash
 from physverify.core.video import write_mp4
 from physverify.physics.finite_diff import central_difference
@@ -64,7 +65,6 @@ from physverify.synth.store import (
     DatasetStore,
     Step,
     atomic_save,
-    atomic_write_bytes,
     atomic_write_json,
     read_json,
 )
@@ -285,7 +285,7 @@ def write_frames(rgba: NDArray[np.uint8], directory: Path) -> None:
         ok, encoded = cv2.imencode(".png", cv2.cvtColor(frame[..., :3], cv2.COLOR_RGB2BGR))
         if not ok:
             raise RuntimeError(f"cannot encode frame {index} of {directory}")
-        atomic_write_bytes(directory / FRAME_NAME.format(index), encoded.tobytes())
+        write_bytes_atomic(directory / FRAME_NAME.format(index), encoded.tobytes())
 
 
 def video_path(frames_dir: Path, data_dir: Path) -> str:
@@ -431,7 +431,7 @@ def exported_manifests(store: DatasetStore) -> list[ClipManifest]:
 def write_index(store: DatasetStore) -> None:
     """``manifest.jsonl``: one exported clip manifest (JSON envelope) per line."""
     lines = [dumps(envelope(m, m.to_dict())) + "\n" for m in exported_manifests(store)]
-    atomic_write_bytes(store.manifest_path, "".join(lines).encode("utf-8"))
+    write_bytes_atomic(store.manifest_path, "".join(lines).encode("utf-8"))
 
 
 def read_index(store: DatasetStore) -> list[ClipManifest]:

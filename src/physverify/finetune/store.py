@@ -32,6 +32,7 @@ from pathlib import Path
 from typing import Final
 
 from physverify.config.models import Settings
+from physverify.core.atomic import write_bytes_atomic
 from physverify.datasets.local_video import MANIFEST_FILE, ClipEntry, LocalManifest
 from physverify.finetune.records import (
     CandidateRecord,
@@ -42,7 +43,6 @@ from physverify.finetune.records import (
 )
 from physverify.finetune.seeds import candidate_id
 from physverify.finetune.settings import load_finetune
-from physverify.synth.store import atomic_write_bytes
 
 FINETUNE_DIR: Final = "finetune"
 LOCAL_VIDEO: Final = "local_video"
@@ -141,7 +141,7 @@ class CampaignStore:
         ]
         path = self.video_dir(model_tag) / MANIFEST_FILE
         payload = LocalManifest(clips=entries).model_dump(mode="json", exclude_none=True)
-        atomic_write_bytes(path, json.dumps(payload, indent=2).encode("utf-8"))
+        write_bytes_atomic(path, json.dumps(payload, indent=2).encode("utf-8"))
         return path
 
     def score_dir(self, model_tag: str, scorer: str) -> Path:

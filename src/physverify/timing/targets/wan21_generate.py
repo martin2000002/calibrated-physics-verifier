@@ -21,6 +21,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from physverify.config.models import Settings
+from physverify.core.atomic import write_bytes_atomic
 from physverify.datasets.local_video import (
     MANIFEST_FILE,
     ClipEntry,
@@ -29,7 +30,6 @@ from physverify.datasets.local_video import (
     to_queries,
 )
 from physverify.schema.clip import ClipManifest, Split, TimeSource
-from physverify.synth.store import atomic_write_bytes
 from physverify.timing._base import TimingContext
 from physverify.timing.generation import (
     StepTimer,
@@ -246,7 +246,7 @@ class Wan21Generate(TargetHooks):
         self._written.setdefault(prompt.id, ClipEntry(video=video.name, queries=prompt.queries))
         manifest = LocalManifest(clips=list(self._written.values()))
         payload = manifest.model_dump_json(exclude_none=True, indent=2).encode("utf-8")
-        atomic_write_bytes(video.parent / MANIFEST_FILE, payload)
+        write_bytes_atomic(video.parent / MANIFEST_FILE, payload)
         return clock() - start
 
 
