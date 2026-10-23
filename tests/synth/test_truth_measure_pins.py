@@ -1,10 +1,12 @@
-"""Ground-truth magnitudes of every check, pinned bit for bit (``float.hex``) on the committed
-Bullet clips of ``tests/synth/data``: each clean clip, every level of every trajectory
-perturbation on it and the committed gravity-scale re-simulations."""
+"""Ground-truth magnitudes of every check on the committed Bullet clips of ``tests/synth/data``:
+each clean clip, every level of every trajectory perturbation on it and the committed
+gravity-scale re-simulations. They are pinned as ``float.hex`` and compared within float
+tolerance, since the last bits differ across platforms."""
 
 from __future__ import annotations
 
 import json
+import math
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
@@ -26,6 +28,10 @@ from physverify.synth.truth_measures._base import measure_truth
 DATA = Path(__file__).parent / "data"
 PINS = Path(__file__).with_name("truth_measures_pins.json")
 NOT_APPLICABLE = "not_applicable"
+REL_TOL = 1e-9
+ABS_TOL = 1e-12
+
+type Pin = dict[str, str] | str
 
 
 def measures(
@@ -77,8 +83,23 @@ def computed(bank: Any, ds: DatasetSettings, registry: Any, truth: Any) -> dict[
     return pins
 
 
+def same_value(got: str, pinned: str) -> bool:
+    x, y = float.fromhex(got), float.fromhex(pinned)
+    if math.isnan(x) or math.isnan(y):
+        return math.isnan(x) and math.isnan(y)
+    return math.isclose(x, y, rel_tol=REL_TOL, abs_tol=ABS_TOL)
+
+
+def same_case(got: Pin, pinned: Pin) -> bool:
+    if isinstance(got, str) or isinstance(pinned, str):
+        return got == pinned
+    return got.keys() == pinned.keys() and all(same_value(got[k], pinned[k]) for k in pinned)
+
+
 def test_truth_measures_match_the_pins(
     bank: Any, clean_ds: DatasetSettings, perturbations: Any, truth_measures: Any
 ) -> None:
-    expected = json.loads(PINS.read_text(encoding="utf-8"))
-    assert computed(bank, clean_ds, perturbations, truth_measures) == expected
+    expected: dict[str, Pin] = json.loads(PINS.read_text(encoding="utf-8"))
+    got = computed(bank, clean_ds, perturbations, truth_measures)
+    assert got.keys() == expected.keys()
+    assert [case for case in expected if not same_case(got[case], expected[case])] == []
