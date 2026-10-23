@@ -92,6 +92,12 @@ ARM_IDS = "arm ids of perception_arms.tsv: existing iteration directories and CH
 ITERATION_IDS = "fixture: iteration directory ids as they exist on the H200"
 
 KEPT_FRAGMENTS = (
+    Kept(
+        "README.md",
+        "`--a8v2-dir`",
+        1,
+        "renamed-names table: the old `results` option that stored launchers may still pass",
+    ),
     Kept("scripts/h200/_common.sh", '"$H200_ROOT/a8v2"', 1, CHAIN_DIR),
     Kept("scripts/h200/perception_arms.tsv", "it3-r", 1, ARM_IDS),
     Kept("scripts/h200/perception_arms.tsv", "it3-ak", 1, ARM_IDS),
