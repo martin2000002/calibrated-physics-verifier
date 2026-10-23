@@ -36,7 +36,7 @@ JARGON = re.compile(
     r"\bADRs?\b|\bADR[ -]?[0-9]{1,4}\b|\bA([3-9]|1[0-3])\b|\bA8 ?v2\b|\ba8v2\b|\bH[123]\b"
     r"|\bJuicio\b|\bJ[0-9]{1,2}\b|\bplan-it[0-9]\b|\bit[1-5]\b|\bD[0-9]{1,2}(\.[0-9]+)?\b"
     r"|\bAC-[0-9]+\b|\bT[0-9]{1,2}\b|[Pp]lan[- ]congelado|[Ee]nmienda|\bC_F\b|\bC_V1\b"
-    r"|\bWP-[A-Z0-9]+\b|\bP[1-5]\b|§|\b20[0-9]{2}-[01][0-9]-[0-3][0-9]\b"
+    r"|\b(?i:wp)-?[0-9]+[a-z]?\b|\bWP-[A-Z0-9]+\b|\bP[1-5]\b|§|\b20[0-9]{2}-[01][0-9]-[0-3][0-9]\b"
     r"|(?<![-\w])[Aa]udit [A-Za-z]?[0-9]|\b[Jj]udge change|(?<![-\w])[Aa]mendments?\b"
     r"|\bKnowledge/"
 )
@@ -416,9 +416,33 @@ def test_label_literals_and_text_are_only_the_kept_fragments() -> None:
     assert not mismatches, "kept fragments differ from KEPT_FRAGMENTS:\n" + "\n".join(mismatches)
 
 
+def test_no_labels_in_file_or_directory_names() -> None:
+    names = {
+        part
+        for folder in SCANNED_DIRS
+        for path in (REPO / folder).rglob("*")
+        if not EXCLUDED_PARTS.intersection(path.parts)
+        for part in path.relative_to(REPO).parts
+    }
+    labelled = sorted(
+        name for name in names if JARGON.search(re.sub(r"[-_.]", " ", name)) or IDENT.search(name)
+    )
+    assert not labelled, f"process labels in names: {labelled}"
+
+
 @pytest.mark.parametrize(
     "text",
-    ["audit A3 found", "the audit 2 notes", "judge change", "per amendment 7", "Knowledge/x.md"],
+    [
+        "audit A3 found",
+        "the audit 2 notes",
+        "judge change",
+        "per amendment 7",
+        "Knowledge/x.md",
+        "since WP7",
+        "wp9-c-help-text.diff",
+        "WP-X",
+        "WP4a",
+    ],
 )
 def test_process_references_are_labels(text: str) -> None:
     assert JARGON.search(text)
