@@ -9,7 +9,7 @@ from types import ModuleType
 
 import pytest
 
-from physverify.agreement.prereg import (
+from physverify.human_agreement.prereg import (
     LoggedComparison,
     Preregistration,
     log_comparison,

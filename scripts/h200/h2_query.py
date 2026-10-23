@@ -25,8 +25,8 @@ SHOWN_CAPTIONS = 20
 
 
 def prereg_field(path: Path, field: str) -> list[str]:
-    from physverify.agreement.prereg import Preregistration, load_preregistration
     from physverify.core.errors import PhysverifyError
+    from physverify.human_agreement.prereg import Preregistration, load_preregistration
 
     if field not in Preregistration.model_fields:
         raise QueryError(f"no field {field!r} in a pre-registration")
@@ -38,20 +38,20 @@ def prereg_field(path: Path, field: str) -> list[str]:
 
 
 def _preregistration(settings: Any) -> Path:
-    from physverify.agreement.settings import agreement_settings, preregistration_path
+    from physverify.human_agreement.settings import agreement_settings, preregistration_path
 
     path: Path = preregistration_path(settings, agreement_settings(settings))
     return path
 
 
 def tested(settings: Any) -> list[str]:
-    from physverify.agreement.prereg import logged_comparisons
+    from physverify.human_agreement.prereg import logged_comparisons
 
     return [str(len(logged_comparisons(_preregistration(settings))))]
 
 
 def log_path(settings: Any) -> list[str]:
-    from physverify.agreement.prereg import comparison_log_path
+    from physverify.human_agreement.prereg import comparison_log_path
 
     return [str(comparison_log_path(_preregistration(settings)))]
 
@@ -88,14 +88,14 @@ def _rows(dataset: Any, subset: str) -> Any:
 
 
 def gaps(settings: Any, subset: str) -> list[str]:
-    from physverify.agreement.coverage import dataset_gaps
+    from physverify.human_agreement.coverage import dataset_gaps
 
     dataset = _dataset(settings)
     return gap_lines(dataset_gaps(dataset, _rows(dataset, subset)))
 
 
 def ready(settings: Any, subset: str) -> list[str]:
-    from physverify.agreement.coverage import dataset_tests
+    from physverify.human_agreement.coverage import dataset_tests
 
     dataset = _dataset(settings)
     has_query, has_video = dataset_tests(dataset)

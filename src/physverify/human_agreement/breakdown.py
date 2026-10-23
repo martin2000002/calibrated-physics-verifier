@@ -6,10 +6,10 @@ from collections.abc import Callable, Collection, Mapping, Sequence
 
 import numpy as np
 
-from physverify.agreement.abstention import labels_of, policy_view
-from physverify.agreement.decision import ClipDecision
-from physverify.agreement.items import ComparisonItem
-from physverify.agreement.stats import accuracy, balanced_accuracy
+from physverify.human_agreement.abstention import labels_of, policy_view
+from physverify.human_agreement.decision import ClipDecision
+from physverify.human_agreement.items import ComparisonItem
+from physverify.human_agreement.stats import accuracy, balanced_accuracy
 from physverify.verification.runner import RowStatus
 
 # The pooled group H2 is decided on; each version alone is descriptive (too few pairs).

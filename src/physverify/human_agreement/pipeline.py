@@ -10,14 +10,15 @@ from typing import Any
 
 import numpy as np
 
-from physverify.agreement.abstention import (
+from physverify.datasets._videophy_tables import VideophyRow
+from physverify.human_agreement.abstention import (
     POLICIES,
     abstention_counts,
     decided,
     policy_view,
     risk_coverage,
 )
-from physverify.agreement.analysis import (
+from physverify.human_agreement.analysis import (
     BootstrapPlan,
     best_cut,
     cut_metrics,
@@ -25,21 +26,20 @@ from physverify.agreement.analysis import (
     h2_verdict,
     view_design_effect,
 )
-from physverify.agreement.breakdown import AGGREGATE, by_version, per_check, per_group
-from physverify.agreement.coverage import InputGaps, generator_key
-from physverify.agreement.decision import CALIBRATED_NAME, ClipDecisionRule
-from physverify.agreement.error_sample import sample_errors
-from physverify.agreement.items import (
+from physverify.human_agreement.breakdown import AGGREGATE, by_version, per_check, per_group
+from physverify.human_agreement.coverage import InputGaps, generator_key
+from physverify.human_agreement.decision import CALIBRATED_NAME, ClipDecisionRule
+from physverify.human_agreement.error_sample import sample_errors
+from physverify.human_agreement.items import (
     ComparisonItem,
     JoinCounts,
     build_items,
     decide_all,
     implausible,
 )
-from physverify.agreement.prereg import FreezeAudit
-from physverify.agreement.run_io import VerifyRun
-from physverify.agreement.settings import AgreementSettings
-from physverify.datasets._videophy_tables import VideophyRow
+from physverify.human_agreement.prereg import FreezeAudit
+from physverify.human_agreement.run_io import VerifyRun
+from physverify.human_agreement.settings import AgreementSettings
 
 
 @dataclass(frozen=True)

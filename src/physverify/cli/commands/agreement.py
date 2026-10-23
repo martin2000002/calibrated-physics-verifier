@@ -10,26 +10,6 @@ from typing import Annotated, Any
 
 import typer
 
-from physverify.agreement.decision import import_calibration
-from physverify.agreement.prereg import (
-    load_preregistration,
-    logged_comparisons,
-    plan_refreeze,
-    write_preregistration,
-)
-from physverify.agreement.report import REPORT_DIR, write_comparison
-from physverify.agreement.settings import agreement_settings
-from physverify.agreement.workflow import (
-    CompareRequest,
-    audit,
-    draft_queries,
-    freeze,
-    log_test_comparison,
-    reviewed_candidates,
-    run_comparison,
-    sized_labels_or_none,
-    uncovered,
-)
 from physverify.cli.commands.data import fetch_all
 from physverify.cli.context import app_context, heavy_command
 from physverify.core.atomic import write_text_atomic
@@ -44,6 +24,26 @@ from physverify.datasets._videophy_review import (
     write_review,
 )
 from physverify.datasets.videophy import VideophyDataset
+from physverify.human_agreement.decision import import_calibration
+from physverify.human_agreement.prereg import (
+    load_preregistration,
+    logged_comparisons,
+    plan_refreeze,
+    write_preregistration,
+)
+from physverify.human_agreement.report import REPORT_DIR, write_comparison
+from physverify.human_agreement.settings import agreement_settings
+from physverify.human_agreement.workflow import (
+    CompareRequest,
+    audit,
+    draft_queries,
+    freeze,
+    log_test_comparison,
+    reviewed_candidates,
+    run_comparison,
+    sized_labels_or_none,
+    uncovered,
+)
 
 NAME = "agreement"
 

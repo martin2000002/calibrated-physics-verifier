@@ -10,9 +10,9 @@ from typing import Any
 
 import numpy as np
 
-from physverify.agreement.abstention import PolicyView, labels_of
-from physverify.agreement.items import ComparisonItem
-from physverify.agreement.stats import (
+from physverify.human_agreement.abstention import PolicyView, labels_of
+from physverify.human_agreement.items import ComparisonItem
+from physverify.human_agreement.stats import (
     Labels,
     Scores,
     accuracy,

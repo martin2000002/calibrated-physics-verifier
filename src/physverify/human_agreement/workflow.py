@@ -10,9 +10,16 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from physverify.agreement.analysis import SECONDARY_TESTS
-from physverify.agreement.coverage import dataset_gaps
-from physverify.agreement.decision import (
+from physverify.checks._base import Check
+from physverify.core.digests import sha256_if_file
+from physverify.core.errors import ConfigError, UsageError
+from physverify.datasets._queries import derive_queries
+from physverify.datasets._videophy_review import REVIEWED, SubsetReview, load_review, template
+from physverify.datasets._videophy_tables import SECTION as VIDEOPHY_SECTION
+from physverify.datasets._videophy_tables import VideophyRow
+from physverify.human_agreement.analysis import SECONDARY_TESTS
+from physverify.human_agreement.coverage import dataset_gaps
+from physverify.human_agreement.decision import (
     CALIBRATED_NAME,
     CalibrationApi,
     CalibrationStratum,
@@ -22,14 +29,14 @@ from physverify.agreement.decision import (
     UnusableCalibrationError,
     calibrated_rule,
 )
-from physverify.agreement.pipeline import (
+from physverify.human_agreement.pipeline import (
     Comparison,
     ComparisonInputs,
     RuleScope,
     compare,
     freeze_dev,
 )
-from physverify.agreement.prereg import (
+from physverify.human_agreement.prereg import (
     FreezeAudit,
     LoggedComparison,
     Preregistration,
@@ -43,20 +50,13 @@ from physverify.agreement.prereg import (
     preregistration_chain,
     require_unchanged,
 )
-from physverify.agreement.run_io import VerifyRun, load_run, run_files, run_row_step
-from physverify.agreement.settings import (
+from physverify.human_agreement.run_io import VerifyRun, load_run, run_files, run_row_step
+from physverify.human_agreement.settings import (
     SECTION,
     AgreementSettings,
     agreement_settings,
     preregistration_path,
 )
-from physverify.checks._base import Check
-from physverify.core.digests import sha256_if_file
-from physverify.core.errors import ConfigError, UsageError
-from physverify.datasets._queries import derive_queries
-from physverify.datasets._videophy_review import REVIEWED, SubsetReview, load_review, template
-from physverify.datasets._videophy_tables import SECTION as VIDEOPHY_SECTION
-from physverify.datasets._videophy_tables import VideophyRow
 from physverify.runtime.runs import current_commit
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import Split

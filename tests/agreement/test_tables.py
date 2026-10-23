@@ -6,7 +6,6 @@ import math
 
 import pytest
 
-from physverify.agreement.items import implausible
 from physverify.config.models import Settings
 from physverify.core.errors import UsageError
 from physverify.datasets._videophy_tables import (
@@ -21,6 +20,7 @@ from physverify.datasets._videophy_tables import (
     tokens,
     url_member,
 )
+from physverify.human_agreement.items import implausible
 
 RULES = FilterSettings(
     rigid_event=("falls", "rolls", "knocked over"),

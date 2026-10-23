@@ -5,7 +5,6 @@ from __future__ import annotations
 
 from typing import Final
 
-from physverify.agreement.prereg import FreezeAudit
 from physverify.core.atomic import write_text_atomic
 from physverify.core.markdown import number, table
 from physverify.core.models import FrozenModel
@@ -15,6 +14,7 @@ from physverify.evaluation.margins import MarginDerivation
 from physverify.evaluation.prereg import Mde
 from physverify.evaluation.stats import TestResult
 from physverify.evaluation.verdict import H3Verdict
+from physverify.human_agreement.prereg import FreezeAudit
 
 ESTIMAND: Final = (
     "Estimand: the per-prompt Hodges-Lehmann shift of S(fine-tuned) - S(best-of-8), on the "

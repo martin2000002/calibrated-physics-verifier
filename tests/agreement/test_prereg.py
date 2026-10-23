@@ -9,7 +9,9 @@ from pathlib import Path
 import pytest
 from pydantic import BaseModel
 
-from physverify.agreement.prereg import (
+from physverify.core.digests import sha256_if_file
+from physverify.core.errors import ConfigError, MissingInputError, UsageError
+from physverify.human_agreement.prereg import (
     FROZEN_FIELDS,
     LoggedComparison,
     Preregistration,
@@ -25,10 +27,8 @@ from physverify.agreement.prereg import (
     require_unchanged,
     write_preregistration,
 )
-from physverify.agreement.run_io import VerifyRun
-from physverify.agreement.workflow import freeze_audit
-from physverify.core.digests import sha256_if_file
-from physverify.core.errors import ConfigError, MissingInputError, UsageError
+from physverify.human_agreement.run_io import VerifyRun
+from physverify.human_agreement.workflow import freeze_audit
 
 RECORD = Preregistration(
     created_utc="2026-10-17T00:00:00Z",

@@ -18,7 +18,6 @@ SCANNED_DIRS = (REPO / "src" / "physverify", REPO / "scripts")
 
 # Current package names that the contract lists under their target name.
 LEGACY_PACKAGES: Mapping[str, str] = {
-    "physverify.agreement": "physverify.human_agreement",
     "physverify.evaluation": "physverify.generator_comparison",
 }
 

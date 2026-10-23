@@ -18,15 +18,15 @@ from exclusion_cases import write_record  # noqa: E402
 from stratum_cases import write_artifact  # noqa: E402
 from wiring import active_checks_hash  # noqa: E402
 
-from physverify.agreement.prereg import (  # noqa: E402
-    load_preregistration,
-    logged_comparisons,
-)
-from physverify.agreement.report import REPORT_DIR, _sign_flip_lines  # noqa: E402
 from physverify.calibration.artifact_io import default_artifact_path  # noqa: E402
 from physverify.core.digests import sha256_if_file  # noqa: E402
 from physverify.core.errors import PhysverifyError  # noqa: E402
 from physverify.datasets._videophy_review import PENDING, load_review  # noqa: E402
+from physverify.human_agreement.prereg import (  # noqa: E402
+    load_preregistration,
+    logged_comparisons,
+)
+from physverify.human_agreement.report import REPORT_DIR, _sign_flip_lines  # noqa: E402
 from physverify.schema.checks import InputLevel  # noqa: E402
 
 FAST = ("--set", "agreement.bootstrap_n=50")

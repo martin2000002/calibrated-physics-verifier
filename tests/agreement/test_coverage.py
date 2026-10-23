@@ -5,8 +5,8 @@ from __future__ import annotations
 import json
 import math
 
-from physverify.agreement.coverage import InputGaps, dataset_gaps, input_gaps
 from physverify.datasets._videophy_tables import VideophyRow
+from physverify.human_agreement.coverage import InputGaps, dataset_gaps, input_gaps
 from physverify.schema.clip import Split
 
 QUERYLESS = "A spinning top made of wood."

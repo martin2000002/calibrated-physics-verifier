@@ -176,7 +176,7 @@ FORMATTERS: dict[str, list[tuple[Any, str]]] = {
         (3, "3"),
         (-12, "-12"),
     ],
-    "physverify.agreement.report:_fmt": [
+    "physverify.human_agreement.report:_fmt": [
         (None, "n/a"),
         (0.0, "0.000"),
         (-0.0, "-0.000"),

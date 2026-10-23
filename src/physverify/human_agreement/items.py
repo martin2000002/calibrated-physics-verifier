@@ -11,9 +11,14 @@ import math
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
-from physverify.agreement.decision import ERROR_REASON, ClipDecision, ClipDecisionRule, Decision
-from physverify.agreement.run_io import VerifyRun
 from physverify.datasets._videophy_tables import VideophyRow
+from physverify.human_agreement.decision import (
+    ERROR_REASON,
+    ClipDecision,
+    ClipDecisionRule,
+    Decision,
+)
+from physverify.human_agreement.run_io import VerifyRun
 from physverify.verification.runner import TableRow
 
 

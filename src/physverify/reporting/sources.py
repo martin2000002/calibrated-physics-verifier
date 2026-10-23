@@ -15,8 +15,6 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from physverify.agreement.decision import CALIBRATED_NAME
-from physverify.agreement.report import REPORT_DIR
 from physverify.calibration.artifact import EvaluationReport
 from physverify.calibration.artifact_io import (
     Calibration,
@@ -24,6 +22,8 @@ from physverify.calibration.artifact_io import (
     parse_calibration,
 )
 from physverify.core.digests import text_sha256
+from physverify.human_agreement.decision import CALIBRATED_NAME
+from physverify.human_agreement.report import REPORT_DIR
 from physverify.reporting.chain import (
     EVALUATION_KEY,
     RECORD_KEY,

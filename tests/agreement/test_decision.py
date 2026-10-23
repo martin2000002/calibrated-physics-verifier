@@ -11,7 +11,8 @@ from typing import Any
 import numpy as np
 import pytest
 
-from physverify.agreement.abstention import (
+from physverify.core.errors import ConfigError, UsageError
+from physverify.human_agreement.abstention import (
     AS_IMPLAUSIBLE,
     AS_PLAUSIBLE,
     COVERAGE_MATCHED_VLM,
@@ -19,7 +20,7 @@ from physverify.agreement.abstention import (
     abstention_counts,
     policy_view,
 )
-from physverify.agreement.decision import (
+from physverify.human_agreement.decision import (
     CalibratedRule,
     CalibrationApi,
     ClipDecision,
@@ -28,9 +29,8 @@ from physverify.agreement.decision import (
     UnusableCalibrationError,
     calibrated_rule,
 )
-from physverify.agreement.items import build_items, decide_all
-from physverify.agreement.run_io import VerifyRun, load_run, run_row_step
-from physverify.core.errors import ConfigError, UsageError
+from physverify.human_agreement.items import build_items, decide_all
+from physverify.human_agreement.run_io import VerifyRun, load_run, run_row_step
 from physverify.schema.checks import InputLevel
 from physverify.verification.runner import RowStatus
 

@@ -6,9 +6,9 @@ from typing import TYPE_CHECKING, Literal
 
 from pydantic import Field, model_validator
 
-from physverify.agreement.abstention import POLICIES
-from physverify.agreement.decision import RULES
 from physverify.core.models import FrozenModel
+from physverify.human_agreement.abstention import POLICIES
+from physverify.human_agreement.decision import RULES
 
 if TYPE_CHECKING:
     from pathlib import Path

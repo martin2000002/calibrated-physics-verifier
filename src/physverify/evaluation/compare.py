@@ -12,7 +12,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
 
-from physverify.agreement.prereg import FreezeAudit, earliest_mtime, frozen_after, frozen_before
 from physverify.core.errors import UsageError
 from physverify.evaluation.analysis import AnalysisInputs, analyse
 from physverify.evaluation.arms import EVAL_SPLIT, analysis_prompts, build_arms
@@ -44,6 +43,12 @@ from physverify.finetune.records import BASE_TAG, CandidateScore, read_record
 from physverify.finetune.settings import FinetuneSettings
 from physverify.finetune.stop_rule import fired_reason
 from physverify.finetune.store import CampaignStore
+from physverify.human_agreement.prereg import (
+    FreezeAudit,
+    earliest_mtime,
+    frozen_after,
+    frozen_before,
+)
 
 RESCORE_HINT: Final = "run `physverify h3 rescore`"
 

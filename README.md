@@ -110,7 +110,7 @@ uv run --no-sync mypy
 | `physverify.diagnosis` | Per-stage metrics, end-to-end error, attribution, real-video diagnosis and per-scene statistics |
 | `physverify.calibration` | H1 calibration: thresholds, rates, detection limits, sigma recalibration, weights and clip score; held-out evaluation, exclusion rules and the sealed-set ledger |
 | `physverify.sizing` | Object size model learned on Objectron: annotation download, fit and evaluation |
-| `physverify.agreement` | H2 comparison: verifier decisions, agreement statistics, pre-registration and report |
+| `physverify.human_agreement` | H2 comparison: verifier decisions, agreement statistics, pre-registration and report |
 | `physverify.finetune` | Preference fine-tuning of Wan2.1: prompts, generation, scoring, pairs, stop rule, Flow-DPO trainer, checkpoint selection and GPU budget |
 | `physverify.evaluation` | H3 comparison: arms, judges, pre-registration, statistics and verdict |
 | `physverify.demo` | End-to-end demo: report and overlay video for one prompt or video |

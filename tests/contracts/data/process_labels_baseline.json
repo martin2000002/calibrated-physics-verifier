@@ -113,50 +113,6 @@
  "scripts/h200/smoke_autoeval.sh": {
   "config_or_script_text": 2
  },
- "src/physverify/agreement/abstention.py": {
-  "comment_or_docstring": 2
- },
- "src/physverify/agreement/analysis.py": {
-  "comment_or_docstring": 4,
-  "literal": 2
- },
- "src/physverify/agreement/breakdown.py": {
-  "comment_or_docstring": 3
- },
- "src/physverify/agreement/coverage.py": {
-  "comment_or_docstring": 2
- },
- "src/physverify/agreement/decision.py": {
-  "comment_or_docstring": 14,
-  "literal": 1
- },
- "src/physverify/agreement/error_sample.py": {
-  "comment_or_docstring": 1
- },
- "src/physverify/agreement/items.py": {
-  "comment_or_docstring": 4
- },
- "src/physverify/agreement/pipeline.py": {
-  "comment_or_docstring": 4
- },
- "src/physverify/agreement/prereg.py": {
-  "comment_or_docstring": 7,
-  "literal": 1
- },
- "src/physverify/agreement/report.py": {
-  "comment_or_docstring": 2,
-  "literal": 5
- },
- "src/physverify/agreement/settings.py": {
-  "comment_or_docstring": 1,
-  "literal": 3
- },
- "src/physverify/agreement/stats.py": {
-  "comment_or_docstring": 3
- },
- "src/physverify/agreement/workflow.py": {
-  "comment_or_docstring": 6
- },
  "src/physverify/calibration/apply.py": {
   "comment_or_docstring": 7
  },
@@ -654,6 +610,50 @@
  },
  "src/physverify/finetune/wan_lora.py": {
   "comment_or_docstring": 1
+ },
+ "src/physverify/human_agreement/abstention.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/human_agreement/analysis.py": {
+  "comment_or_docstring": 4,
+  "literal": 2
+ },
+ "src/physverify/human_agreement/breakdown.py": {
+  "comment_or_docstring": 3
+ },
+ "src/physverify/human_agreement/coverage.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/human_agreement/decision.py": {
+  "comment_or_docstring": 14,
+  "literal": 1
+ },
+ "src/physverify/human_agreement/error_sample.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/human_agreement/items.py": {
+  "comment_or_docstring": 4
+ },
+ "src/physverify/human_agreement/pipeline.py": {
+  "comment_or_docstring": 4
+ },
+ "src/physverify/human_agreement/prereg.py": {
+  "comment_or_docstring": 7,
+  "literal": 1
+ },
+ "src/physverify/human_agreement/report.py": {
+  "comment_or_docstring": 2,
+  "literal": 5
+ },
+ "src/physverify/human_agreement/settings.py": {
+  "comment_or_docstring": 1,
+  "literal": 3
+ },
+ "src/physverify/human_agreement/stats.py": {
+  "comment_or_docstring": 3
+ },
+ "src/physverify/human_agreement/workflow.py": {
+  "comment_or_docstring": 6
  },
  "src/physverify/kubric_worker/tasks/render.py": {
   "comment_or_docstring": 1
