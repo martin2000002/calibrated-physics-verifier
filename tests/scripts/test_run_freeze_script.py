@@ -115,7 +115,7 @@ class FreezeSandbox(Sandbox):
         # them.
         made = [
             iteration_factory(self.root / "iterations", name, n_met, auroc, commit=HEAD)
-            for name, n_met, auroc in (("it1-fixes", 2, 0.9), ("it2-state", 3, 0.6))
+            for name, n_met, auroc in (("it6-fixes", 2, 0.9), ("it7-state", 3, 0.6))
         ]
         other, self.chosen = (d.rename(d.with_name(d.name.replace(" ", "-"))) for d in made)
         v1 = self.root / "v1" / "calibration.json"
@@ -130,7 +130,7 @@ class FreezeSandbox(Sandbox):
                 "HEAD_SHA": HEAD,
                 "RECORD": RECORD,
                 "PHYSVERIFY_FREEZE_EXPECT_COMMIT": "c0ffee1",
-                "PHYSVERIFY_FREEZE_ITERATION": "it2-state",
+                "PHYSVERIFY_FREEZE_ITERATION": "it7-state",
                 "PHYSVERIFY_FREEZE_ITERATIONS": f"{other} {self.chosen}",
                 "PHYSVERIFY_FREEZE_EARLY_EXTRACTION_COMMIT": "b" * 40,
                 "PHYSVERIFY_FREEZE_V1_COMMIT": "a" * 40,
@@ -211,10 +211,10 @@ def test_the_freeze_adopts_the_chosen_iteration_and_writes_the_manifest(
     assert manifest.endswith(f"--out {sandbox.final / 'freeze.json'}")
     assert queries[-1] == f"freeze_query.py artifacts {sandbox.final / 'freeze.json'}"
     state = sandbox.state()
-    assert state["ADOPTED"] == "it2-state" and state["RECORD_SHA"] == RECORD
+    assert state["ADOPTED"] == "it7-state" and state["RECORD_SHA"] == RECORD
     assert state["FREEZE_COMMIT"] == HEAD and state["R2_TINY_RUN"] == "r3"
     summary = (sandbox.out / "summary.md").read_text(encoding="utf-8")
-    assert "h1_primary present" in summary and RECORD in summary and "it2-state" in summary
+    assert "h1_primary present" in summary and RECORD in summary and "it7-state" in summary
 
 
 @pytest.mark.parametrize(
@@ -260,7 +260,7 @@ def test_a_freeze_directory_near_other_artifacts_is_refused(
 @pytest.mark.parametrize(
     ("env", "message"),
     [
-        ({"PHYSVERIFY_FREEZE_ITERATION": "it1-fixes"}, "the selection rule chooses it2-state"),
+        ({"PHYSVERIFY_FREEZE_ITERATION": "it6-fixes"}, "the selection rule chooses it7-state"),
         ({"J3_CHANGES": "src/physverify/checks/r1.py\n"}, "refit needed"),
     ],
 )

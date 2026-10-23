@@ -64,18 +64,18 @@ def test_the_most_n_met_wins_then_auroc_cv_at_full_precision(
 ) -> None:
     dirs = [
         iteration_factory(tmp_path, "it0-baseline", 1, 0.99),
-        iteration_factory(tmp_path, "it1-fixes", 3, 0.5861),
-        iteration_factory(tmp_path, "it2-state", 3, 0.5862),
-        iteration_factory(tmp_path, "it4-selfrel", 2, 0.9),
+        iteration_factory(tmp_path, "it6-fixes", 3, 0.5861),
+        iteration_factory(tmp_path, "it7-state", 3, 0.5862),
+        iteration_factory(tmp_path, "it9-selfrel", 2, 0.9),
     ]
     found = select([candidate(d) for d in dirs])
-    assert found["chosen"] == "it2-state"
+    assert found["chosen"] == "it7-state"
     assert found["rule"] == J4_RULE
     assert [c["auroc_cv"] for c in found["candidates"]] == [0.99, 0.5861, 0.5862, 0.9]
     assert found["candidates"][2]["commit"] == HEAD
     selection = tmp_path / "selection.json"
     selection.write_text(json.dumps(found))
-    for key, value in (("id", "it2-state"), ("dir", str(dirs[2])), ("commit", HEAD)):
+    for key, value in (("id", "it7-state"), ("dir", str(dirs[2])), ("commit", HEAD)):
         assert script.main(["chosen", str(selection), key]) == 0
         assert capsys.readouterr().out == f"{value}\n"
 
@@ -84,11 +84,11 @@ def test_a_full_tie_goes_to_the_later_iteration_and_a_null_auroc_ranks_last(
     tmp_path: Path, iteration_factory: Callable[..., Path]
 ) -> None:
     tied = [
-        iteration_factory(tmp_path, "it4-selfrel", 2, 0.586),
-        iteration_factory(tmp_path, "it1-fixes", 2, 0.586),
-        iteration_factory(tmp_path, "it2-state", 2, None),
+        iteration_factory(tmp_path, "it9-selfrel", 2, 0.586),
+        iteration_factory(tmp_path, "it6-fixes", 2, 0.586),
+        iteration_factory(tmp_path, "it7-state", 2, None),
     ]
-    assert select([candidate(d) for d in tied])["chosen"] == "it4-selfrel"
+    assert select([candidate(d) for d in tied])["chosen"] == "it9-selfrel"
 
 
 @pytest.mark.parametrize(
@@ -104,7 +104,7 @@ def test_a_cuda_or_incomplete_iteration_is_refused(
     message: str,
     iteration_factory: Callable[..., Path],
 ) -> None:
-    directory = iteration_factory(tmp_path, "it3-arms", 9, 0.99, **change)
+    directory = iteration_factory(tmp_path, "it8-arms", 9, 0.99, **change)
     with pytest.raises(QueryError, match=message):
         candidate(directory)
 
@@ -112,7 +112,7 @@ def test_a_cuda_or_incomplete_iteration_is_refused(
 def test_a_file_that_moved_after_the_iteration_is_refused(
     tmp_path: Path, iteration_factory: Callable[..., Path]
 ) -> None:
-    directory = iteration_factory(tmp_path, "it2-state", 3, 0.6)
+    directory = iteration_factory(tmp_path, "it7-state", 3, 0.6)
     (directory / "calibration" / "stage_sigma.json").write_bytes(b"refit")
     with pytest.raises(QueryError, match="STAGE_SIGMA_SHA"):
         candidate(directory)
@@ -122,8 +122,8 @@ def test_two_directories_of_one_iteration_are_refused(
     tmp_path: Path, iteration_factory: Callable[..., Path]
 ) -> None:
     dirs = [
-        iteration_factory(tmp_path / "a", "it2-state", 3, 0.6),
-        iteration_factory(tmp_path / "b", "it2-x", 1, 0.6),
+        iteration_factory(tmp_path / "a", "it7-state", 3, 0.6),
+        iteration_factory(tmp_path / "b", "it7-x", 1, 0.6),
     ]
     with pytest.raises(QueryError, match="two directories"):
         select([candidate(d) for d in dirs])
@@ -160,7 +160,7 @@ def _frozen_files(settings: Settings) -> dict[str, bytes]:
     directory = settings.paths.calibration_dir
     directory.mkdir(parents=True, exist_ok=True)
     files = {
-        "calibration.json": b"calibration of it2-state",
+        "calibration.json": b"calibration of it7-state",
         "exclusions.json": b"record",
         "stage_errors.precise.json": b"profile",
         "stage_sigma.json": b"sigma",
@@ -187,7 +187,7 @@ class FakeGit:
 def _inputs(
     tmp_path: Path, iteration_factory: Callable[..., Path], **change: Any
 ) -> ManifestInputs:
-    directory = iteration_factory(tmp_path / "iterations", "it2-state", 3, 0.6, commit="b" * 40)
+    directory = iteration_factory(tmp_path / "iterations", "it7-state", 3, 0.6, commit="b" * 40)
     selection = select([candidate(directory)])
     v1 = tmp_path / "v1-calibration.json"
     v1.write_bytes(b"v1")
@@ -229,7 +229,7 @@ def test_the_manifest_records_the_freeze(
     assert data["seed"] == seed_of(HEAD, calibration, exclusions)
     assert data["record_sha"] == "r" * 64
     assert data["iteration"] == {
-        "id": "it2-state",
+        "id": "it7-state",
         "dir": data["selection"]["candidates"][0]["dir"],
         "commit": "b" * 40,
     }

@@ -167,7 +167,7 @@ def test_the_iteration_runs_its_five_steps_on_calib_only(sandbox: IterationSandb
     assert state["CHAIN_DEVICE"] == "cpu" and state["CHAIN_ITER_ID"] == "it0-baseline"
     summary = (sandbox.out / "summary.md").read_text(encoding="utf-8")
     assert state["DEVSCORE_SHA"] in summary and state["CALIBRATION_SHA"] in summary
-    assert state["PROFILE_SHA"] in summary and "1/9 meet H1" in summary
+    assert state["PROFILE_SHA"] in summary and "1/9 meet" in summary
     assert (sandbox.out / "calibration.json").is_file()
 
 
@@ -349,6 +349,8 @@ def test_the_query_helper_takes_the_profile() -> None:
     assert query.query_settings([], "fast").profile == "fast"
 
 
+# The arm names declared in scripts/h200/perception_arms.tsv.
+ARM_R, ARM_AK, ARM_AP, ARM = "it3-r", "it3-ak", "it3-ap", "it3-c"
 ARM_C = ["--set extraction.plan.depth=vda_large", "--set extraction.plan.contacts=kinematic"]
 
 
@@ -356,23 +358,23 @@ def test_an_arm_swaps_providers_on_every_call_on_one_gpu(sandbox: IterationSandb
     """PHYSVERIFY_ITERATION_ARM passes its declared swaps to every physverify call, the run is
     CUDA on GPU 0 only, and state.env and the summary name the arm."""
     result = sandbox.run(
-        PHYSVERIFY_ITERATION_ID="it3-c",
-        PHYSVERIFY_ITERATION_ARM="it3-c",
+        PHYSVERIFY_ITERATION_ID=ARM,
+        PHYSVERIFY_ITERATION_ARM=ARM,
         PHYSVERIFY_ITERATION_DEVICE="cuda",
         CUDA_VISIBLE_DEVICES="0",
     )
     assert result.returncode == 0, result.stderr
-    out = sandbox.root / "iterations" / "it3-c-cuda"
+    out = sandbox.root / "iterations" / f"{ARM}-cuda"
     swaps = " ".join(ARM_C)
     assert all(f"--device cuda --set runtime.threads=16 {swaps} " in line for line in sandbox.pv())
     assert all(line.startswith("env 0|") for line in sandbox.lines() if line.startswith("env "))
     state = dict(
         line.split("=", 1) for line in (out / "state.env").read_text(encoding="utf-8").splitlines()
     )
-    assert state["CHAIN_ARM"] == "it3-c"
+    assert state["CHAIN_ARM"] == ARM
     summary = (out / "summary.md").read_text(encoding="utf-8")
     assert (
-        "arm it3-c (extraction.plan.depth=vda_large extraction.plan.contacts=kinematic)" in summary
+        f"arm {ARM} (extraction.plan.depth=vda_large extraction.plan.contacts=kinematic)" in summary
     )
     assert "CUDA_VISIBLE_DEVICES=0" in summary
 
@@ -381,17 +383,17 @@ def test_the_four_perception_arms_are_declared() -> None:
     table = (H200 / "perception_arms.tsv").read_text(encoding="utf-8").splitlines()
     arms = dict(line.split("\t") for line in table if line and not line.startswith("#"))
     assert arms == {
-        "it3-r": "extraction.plan.depth=vda_small extraction.plan.contacts=proximity",
-        "it3-ak": "extraction.plan.depth=vda_small extraction.plan.contacts=kinematic",
-        "it3-ap": "extraction.plan.depth=vda_large extraction.plan.contacts=proximity",
-        "it3-c": "extraction.plan.depth=vda_large extraction.plan.contacts=kinematic",
+        ARM_R: "extraction.plan.depth=vda_small extraction.plan.contacts=proximity",
+        ARM_AK: "extraction.plan.depth=vda_small extraction.plan.contacts=kinematic",
+        ARM_AP: "extraction.plan.depth=vda_large extraction.plan.contacts=proximity",
+        ARM: "extraction.plan.depth=vda_large extraction.plan.contacts=kinematic",
     }
 
 
 @pytest.mark.parametrize(
     ("env", "message"),
     [
-        ({"PHYSVERIFY_ITERATION_ARM": "it3-x"}, "not declared exactly once"),
+        ({"PHYSVERIFY_ITERATION_ARM": "undeclared-x"}, "not declared exactly once"),
         ({"PHYSVERIFY_ITERATION_ARM": "It3;c"}, "must be an arm name"),
         ({"PHYSVERIFY_ITERATION_DEVICE": "cuda", "CUDA_VISIBLE_DEVICES": "4"}, "0-3"),
         ({"PHYSVERIFY_ITERATION_DEVICE": "cuda", "CUDA_VISIBLE_DEVICES": "0,1"}, "0-3"),
@@ -408,39 +410,41 @@ def test_an_undeclared_arm_or_a_gpu_outside_0_to_3_stops_before_any_call(
 
 def test_a_malformed_swap_and_a_doctor_without_the_swaps_stop(sandbox: IterationSandbox) -> None:
     table = sandbox.scripts / "perception_arms.tsv"
-    table.write_text("it3-bad\tchecks.R1.tau=0\n", encoding="utf-8")
-    bad = sandbox.run(PHYSVERIFY_ITERATION_ARM="it3-bad")
+    table.write_text("bad-arm\tchecks.R1.tau=0\n", encoding="utf-8")
+    bad = sandbox.run(PHYSVERIFY_ITERATION_ARM="bad-arm")
     assert bad.returncode == 2 and "extraction.plan.<stage>=<provider>" in bad.stderr
     assert sandbox.pv() == []
-    table.write_text("it3-ok\textraction.plan.contacts=kinematic\n", encoding="utf-8")
+    table.write_text("ok-arm\textraction.plan.contacts=kinematic\n", encoding="utf-8")
     dropped = sandbox.run(
-        PHYSVERIFY_ITERATION_ID="it3-ok", PHYSVERIFY_ITERATION_ARM="it3-ok", DOCTOR_DROP_SETS="1"
+        PHYSVERIFY_ITERATION_ID="it6-ok-arm",
+        PHYSVERIFY_ITERATION_ARM="ok-arm",
+        DOCTOR_DROP_SETS="1",
     )
     assert dropped.returncode == 2 and "does not list the arm's override" in dropped.stderr
     assert sandbox.commands() == ["doctor"]
 
 
 def test_resume_with_another_arm_is_refused(sandbox: IterationSandbox) -> None:
-    out = sandbox.root / "iterations" / "it3-arms-cpu"
+    out = sandbox.root / "iterations" / "it6-arms-cpu"
     first = sandbox.run(
         "1",
         "1",
-        PHYSVERIFY_ITERATION_ID="it3-r-it3-ak",
-        PHYSVERIFY_ITERATION_ARM="it3-r",
+        PHYSVERIFY_ITERATION_ID=f"{ARM_R}-{ARM_AK}",
+        PHYSVERIFY_ITERATION_ARM=ARM_R,
         PHYSVERIFY_ITERATION_DIR=str(out),
     )
     assert first.returncode == 0, first.stderr
     result = sandbox.run(
         "2",
-        PHYSVERIFY_ITERATION_ID="it3-r-it3-ak",
-        PHYSVERIFY_ITERATION_ARM="it3-ak",
+        PHYSVERIFY_ITERATION_ID=f"{ARM_R}-{ARM_AK}",
+        PHYSVERIFY_ITERATION_ARM=ARM_AK,
         PHYSVERIFY_ITERATION_DIR=str(out),
     )
-    assert result.returncode == 2 and "belongs to CHAIN_ARM=it3-r" in result.stderr
+    assert result.returncode == 2 and f"belongs to CHAIN_ARM={ARM_R}" in result.stderr
 
 
 def test_an_arm_needs_an_iteration_id_that_names_it(sandbox: IterationSandbox) -> None:
-    """Audit L5: the output directory follows PHYSVERIFY_ITERATION_ID, so it must name the arm."""
-    result = sandbox.run(PHYSVERIFY_ITERATION_ID="it3-x", PHYSVERIFY_ITERATION_ARM="it3-c")
+    """The output directory follows PHYSVERIFY_ITERATION_ID, so it must name the arm."""
+    result = sandbox.run(PHYSVERIFY_ITERATION_ID="it6-x", PHYSVERIFY_ITERATION_ARM=ARM)
     assert result.returncode == 2 and "must contain the arm name" in result.stderr
     assert sandbox.pv() == []
