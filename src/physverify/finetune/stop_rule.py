@@ -41,6 +41,7 @@ from physverify.finetune.records import (
 from physverify.finetune.scorers._base import AggregateScorer
 from physverify.finetune.settings import StopRuleSettings
 
+STOP_RULE_DEVIATION: Final = "--stop-rule-deviation"
 ROUNDING: Final = 9  # the configured edges (0.3 pairs, 0.5 abstention, 0.6 x n) pass exactly
 
 

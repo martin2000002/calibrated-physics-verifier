@@ -7,10 +7,10 @@ from typing import Annotated
 
 import typer
 
-from physverify.app.finetune import STOP_RULE_DEVIATION
 from physverify.core.choices import choice
 from physverify.core.errors import UsageError
 from physverify.finetune.settings import SPLITS, PromptSplit
+from physverify.finetune.stop_rule import STOP_RULE_DEVIATION
 from physverify.generator_comparison.arms import EVAL_SPLIT
 
 StopRuleDeviationOption = Annotated[

@@ -51,6 +51,7 @@ from physverify.finetune.settings import (
     load_finetune,
 )
 from physverify.finetune.stop_rule import (
+    STOP_RULE_DEVIATION,
     StopVerdict,
     base_abstention,
     evaluate_stop,
@@ -79,7 +80,6 @@ from physverify.verification.runner import (
 )
 
 NESTED_LOCK: Final = "held by finetune"
-STOP_RULE_DEVIATION = "--stop-rule-deviation"
 
 
 def require_cuda(settings: Settings) -> None:
