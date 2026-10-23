@@ -7,13 +7,14 @@ import contextlib
 import json
 import signal
 import threading
-from collections.abc import Callable, Iterator, Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from pathlib import Path
 from types import FrameType
 from typing import Any, Final, cast
 
 from physverify.config.models import Settings
 from physverify.core.errors import EXIT_ERROR, EXIT_OK, UsageError
+from physverify.core.output import Echo
 from physverify.datasets._base import dataset_from
 from physverify.runtime.runs import RUN_FILE, RunContext
 from physverify.timing._base import TimingContext, TimingTarget
@@ -137,7 +138,7 @@ def time_targets(
     ctx: TimingContext,
     writer: ResultsWriter,
     *,
-    err: Callable[[str], None],
+    err: Echo,
 ) -> bool:
     """Run the harness; False when it was interrupted (what it wrote is kept)."""
     with CsvSampleSink(timing_dir(ctx.run_dir)) as sink, sigterm_as_interrupt():
@@ -150,7 +151,7 @@ def time_targets(
     return True
 
 
-def report(results: ResultsFile, directory: Path, echo: Callable[[str], None]) -> None:
+def report(results: ResultsFile, directory: Path, echo: Echo) -> None:
     """Terminal output: a harness check prints no numbers, only the banner, statuses and paths."""
     head = banner(results)
     if head is not None:

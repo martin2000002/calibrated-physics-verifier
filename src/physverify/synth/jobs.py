@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import subprocess
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 from functools import cached_property
 from typing import Any, Protocol
 
 from physverify.config.plugin_context import PluginContext
 from physverify.core.errors import MissingInputError, PhysverifyError, UsageError
+from physverify.core.output import Echo
 from physverify.runtime.container import ContainerEngine, missing_reason
 from physverify.runtime.docker import Runner
 from physverify.synth.generate import (
@@ -52,7 +53,7 @@ class DatasetJob:
 
     context: JobContext
     subset: str | None
-    echo: Callable[[str], None]
+    echo: Echo
 
     @cached_property
     def ds(self) -> DatasetSettings:
@@ -95,7 +96,7 @@ class DatasetJob:
         return runner
 
 
-def _report(echo: Callable[[str], None], step: str, report: StepReport) -> list[str]:
+def _report(echo: Echo, step: str, report: StepReport) -> list[str]:
     echo(f"{step}: {report.launched} launched, {report.done} done, {len(report.failed)} failed")
     return [f"{step} {item}" for item in report.failed]
 

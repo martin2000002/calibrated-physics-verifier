@@ -16,6 +16,7 @@ from pathlib import Path
 from types import TracebackType
 
 from physverify.core.errors import LockBusyError
+from physverify.core.output import Echo
 
 LOCK_HELD_ENV = "PHYSVERIFY_LOCK_HELD"
 PROC_LOCKS = Path("/proc/locks")
@@ -53,7 +54,7 @@ class HeavyLock:
         path: Path,
         timeout_s: float | None,
         argv: Sequence[str],
-        notify: Callable[[str], None],
+        notify: Echo,
         sleep: Callable[[float], None] = time.sleep,
         clock: Callable[[], float] = time.monotonic,
         poll_s: float = 1.0,

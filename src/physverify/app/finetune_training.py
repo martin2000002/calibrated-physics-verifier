@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import gc
 import json
-from collections.abc import Callable
 from dataclasses import dataclass
 
 from physverify.app.context import AppContext
@@ -19,6 +18,7 @@ from physverify.app.finetune import (
 from physverify.app.services import scorer_for
 from physverify.core.atomic import write_text_atomic
 from physverify.core.errors import UsageError
+from physverify.core.output import Echo
 from physverify.finetune.candidate_scoring import rescorer
 from physverify.finetune.candidates import generate_candidates
 from physverify.finetune.dpo import ShiftedFlowNoise
@@ -67,8 +67,8 @@ def train_lora(
     context: AppContext,
     request: TrainRequest,
     *,
-    echo: Callable[[str], None],
-    err: Callable[[str], None],
+    echo: Echo,
+    err: Echo,
 ) -> None:
     settings = context.settings
     cfg = load_finetune(settings)
@@ -109,8 +109,8 @@ def beta_grid_runs(
     allow_provisional: bool,
     deviation: str | None,
     *,
-    echo: Callable[[str], None],
-    err: Callable[[str], None],
+    echo: Echo,
+    err: Echo,
 ) -> None:
     """One short run per ``finetune.train.beta_grid`` value; the beta chosen on the val pairs
     is written to the campaign's beta file."""
@@ -163,8 +163,8 @@ def select_checkpoint(
     scorer: str | None,
     run_id: str,
     *,
-    echo: Callable[[str], None],
-    err: Callable[[str], None],
+    echo: Echo,
+    err: Echo,
 ) -> None:
     """Scores dev for spaced checkpoints of the run against the base and records the pick."""
     cfg = load_finetune(context.settings)

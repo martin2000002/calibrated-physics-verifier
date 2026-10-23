@@ -7,7 +7,7 @@ from __future__ import annotations
 import datetime as dt
 import socket
 import subprocess
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
@@ -34,6 +34,7 @@ from physverify.calibration.sealed_ledger import (
     unsealed,
 )
 from physverify.core.digests import sha256_if_file
+from physverify.core.output import Echo
 from physverify.runtime.runs import current_commit
 from physverify.schema.clip import ClipManifest
 
@@ -137,7 +138,7 @@ def guard_sealed(
     command: str,
     selections: Sequence[Selection],
     *,
-    err: Callable[[str], None],
+    err: Echo,
     artifacts: Mapping[str, str] | None = None,
     run_dir: Path | None = None,
 ) -> None:

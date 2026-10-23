@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import datetime as dt
 import math
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -14,6 +14,7 @@ from physverify.checks._base import Check
 from physverify.core.digests import sha256_if_file
 from physverify.core.errors import UsageError
 from physverify.core.log import get_logger
+from physverify.core.output import Echo
 from physverify.datasets._videophy_review import load_review
 from physverify.datasets._videophy_tables import SECTION as VIDEOPHY_SECTION
 from physverify.human_agreement.clip_decision import (
@@ -260,8 +261,8 @@ def apply_freeze(
     *,
     force: bool,
     deviation: str | None,
-    echo: Callable[[str], None],
-    err: Callable[[str], None],
+    echo: Echo,
+    err: Echo,
 ) -> None:
     """Write the frozen state at ``path`` unless it is unchanged; a replacement is announced."""
     previous = sha256_if_file(path)

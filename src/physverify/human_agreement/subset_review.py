@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from physverify.core.atomic import write_text_atomic
 from physverify.core.errors import ConfigError
+from physverify.core.output import Echo
 from physverify.datasets._queries import derive_queries
 from physverify.datasets._videophy_review import (
     REVIEWED,
@@ -99,7 +100,7 @@ def write_draft_queries(
     dataset: VideophyDataset,
     settings: Settings,
     captions: list[str],
-    echo: Callable[[str], None],
+    echo: Echo,
 ) -> None:
     path = dataset.queries_path
     drafts = draft_queries(_read_json(path), captions, dataset.settings.filter.rigid_event)
@@ -114,7 +115,7 @@ def write_draft_queries(
         echo(f"  no size: {phrase}")
 
 
-def record_subsets(dataset: VideophyDataset, chosen: str, echo: Callable[[str], None]) -> None:
+def record_subsets(dataset: VideophyDataset, chosen: str, echo: Echo) -> None:
     review = load_review(dataset.subset_path)
     if review is None:
         raise ConfigError(f"{dataset.subset_path} is missing; run `agreement subset --audit`")
@@ -124,7 +125,7 @@ def record_subsets(dataset: VideophyDataset, chosen: str, echo: Callable[[str], 
         echo(f"{part}: n={stored.n} sha256={stored.sha256}")
 
 
-def check_recorded(dataset: VideophyDataset, echo: Callable[[str], None]) -> None:
+def check_recorded(dataset: VideophyDataset, echo: Echo) -> None:
     require_recorded(load_review(dataset.subset_path), dataset.settings.filter_version)
     echo(f"review: {dataset.subset_path} ({REVIEWED})")
 
@@ -135,7 +136,7 @@ def review_subset(
     chosen: str,
     *,
     show: bool,
-    echo: Callable[[str], None],
+    echo: Echo,
 ) -> None:
     """Write the pending review and the draft queries of its captions, then list the review."""
     review = audit(dataset, chosen)

@@ -4,7 +4,6 @@ frozen state."""
 from __future__ import annotations
 
 import datetime as dt
-from collections.abc import Callable
 
 from physverify.app.context import AppContext
 from physverify.app.finetune import (
@@ -19,6 +18,7 @@ from physverify.app.services import checks_hash_for, external_judge, scorer_for
 from physverify.calibration.artifact_io import default_artifact_path
 from physverify.core.digests import sha256_if_file
 from physverify.core.errors import MissingInputError, UsageError, choice
+from physverify.core.output import Echo
 from physverify.datasets.videophy import FETCH_HINT, VideophyDataset
 from physverify.finetune.candidate_scoring import rescorer, score_candidates
 from physverify.finetune.records import read_record, write_record
@@ -135,7 +135,7 @@ def require_frozen(context: AppContext, h: H3Context) -> tuple[H3Preregistration
 
 
 def require_pilot_stop_rule(
-    context: AppContext, h: H3Context, deviation: str | None, *, err: Callable[[str], None]
+    context: AppContext, h: H3Context, deviation: str | None, *, err: Echo
 ) -> bool:
     """The eval arm runs only when the pilot showed the verifier can rank candidates."""
     return require_stop_rule(
@@ -155,8 +155,8 @@ def generate_arm(
     limit: int | None,
     deviation: str | None,
     *,
-    echo: Callable[[str], None],
-    err: Callable[[str], None],
+    echo: Echo,
+    err: Echo,
 ) -> None:
     h = H3Context.of(context.settings)
     require_pilot_stop_rule(context, h, deviation, err=err)
@@ -187,8 +187,8 @@ def freeze_prereg(
     declare_deviation: str | None,
     deviation: str | None,
     *,
-    echo: Callable[[str], None],
-    err: Callable[[str], None],
+    echo: Echo,
+    err: Echo,
 ) -> None:
     h = H3Context.of(context.settings)
     passed = require_pilot_stop_rule(context, h, deviation, err=err)
@@ -221,9 +221,7 @@ def _frozen_scorer(
     return prereg, sha256, scorer
 
 
-def score_arm(
-    context: AppContext, arm: str, shard: str | None, *, echo: Callable[[str], None]
-) -> None:
+def score_arm(context: AppContext, arm: str, shard: str | None, *, echo: Echo) -> None:
     h = H3Context.of(context.settings)
     require_cuda(context.settings)
     _, sha256, scorer = _frozen_scorer(context, h)
@@ -239,7 +237,7 @@ def score_arm(
     echo(f"{tag}/{scorer.name}: {record.n} eval scores under {record.stamp}")
 
 
-def rescore_arms(context: AppContext, *, echo: Callable[[str], None]) -> None:
+def rescore_arms(context: AppContext, *, echo: Echo) -> None:
     h = H3Context.of(context.settings)
     prereg, sha256, scorer = _frozen_scorer(context, h)
     active = checks_hash_for(context)
@@ -254,9 +252,7 @@ def rescore_arms(context: AppContext, *, echo: Callable[[str], None]) -> None:
         echo(f"{tag}/{scorer.name}: {changed} scores restamped to {scorer.thresholds()}")
 
 
-def judge_split(
-    context: AppContext, split: str, task: str | None, *, echo: Callable[[str], None]
-) -> None:
+def judge_split(context: AppContext, split: str, task: str | None, *, echo: Echo) -> None:
     h = H3Context.of(context.settings)
     require_cuda(context.settings)
     which = choice(split, JUDGE_SPLITS, "--split")
@@ -276,7 +272,7 @@ def judge_split(
             judge_one(h, autoeval, (which, tag, t), tag_items, sha256, echo=echo)
 
 
-def run_gate(context: AppContext, *, echo: Callable[[str], None]) -> bool:
+def run_gate(context: AppContext, *, echo: Echo) -> bool:
     """The AutoEval regression gate on published videos; True when it passed."""
     h = H3Context.of(context.settings)
     require_cuda(context.settings)
@@ -308,7 +304,7 @@ def run_gate(context: AppContext, *, echo: Callable[[str], None]) -> bool:
     return report.passed
 
 
-def compare_arms(context: AppContext, *, echo: Callable[[str], None]) -> None:
+def compare_arms(context: AppContext, *, echo: Echo) -> None:
     h = H3Context.of(context.settings)
     prereg, sha256 = require_frozen(context, h)
     scorer = available_scorer(context, h)

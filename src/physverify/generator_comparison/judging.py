@@ -7,10 +7,11 @@ has the same stamp, the same pre-registration and the same videos.
 from __future__ import annotations
 
 import math
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 from physverify.core.errors import MissingInputError, UsageError, choice
+from physverify.core.output import Echo
 from physverify.datasets._videophy_tables import VideophyRow, to_float
 from physverify.finetune.records import BASE_TAG, CandidateRecord, PromptRecord, write_record
 from physverify.generator_comparison.arms import analysis_prompts
@@ -152,7 +153,7 @@ def judge_one(
     items: list[JudgeInput],
     prereg_sha256: str | None,
     *,
-    echo: Callable[[str], None],
+    echo: Echo,
 ) -> None:
     path = h.layout.judge_output(*where)
     ids = {i.video_id for i in items}

@@ -18,6 +18,7 @@ from numpy.typing import NDArray
 
 from physverify.core.download import BYTES_PER_MB, MANIFEST_FILE, read_manifest
 from physverify.core.errors import MissingInputError, UsageError
+from physverify.core.output import Echo
 from physverify.core.resample import resize_depth, resize_masks, scale_intrinsics
 from physverify.schema.clip import ClipManifest, FrameSampling
 from physverify.schema.contacts import ContactTable
@@ -137,7 +138,7 @@ def fetch_all(
     classes: Sequence[type[Any]],
     settings: Settings,
     subset: str | None,
-    echo: Callable[[str], None],
+    echo: Echo,
     clock: Callable[[], float] = time.monotonic,
 ) -> None:
     for cls in classes:

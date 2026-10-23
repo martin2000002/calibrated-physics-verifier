@@ -5,11 +5,11 @@ from __future__ import annotations
 
 import json
 import math
-from collections.abc import Callable
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
+from physverify.core.output import Echo
 from physverify.extraction._base import StageEvent, StageObserver, StageProvider
 from physverify.extraction.pipeline import ClipFailure, ExtractionReport
 from physverify.extraction.plan import ResolvedPlan
@@ -19,7 +19,7 @@ from physverify.schema.stages import STAGE_ORDER
 class ConsoleObserver:
     """Prints one line per finished stage and clip."""
 
-    def __init__(self, echo: Callable[[str], None]) -> None:
+    def __init__(self, echo: Echo) -> None:
         self._echo = echo
 
     def on_stage_start(self, event: StageEvent) -> None:

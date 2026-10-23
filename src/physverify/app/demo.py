@@ -3,7 +3,7 @@ report services behind ``physverify demo``."""
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -12,6 +12,7 @@ from physverify.app.finetune import candidate_generator, require_cuda, scoring_d
 from physverify.app.services import scorer_for
 from physverify.config.models import Settings
 from physverify.core.errors import UsageError
+from physverify.core.output import Echo
 from physverify.demo.adhoc import (
     adhoc_prompt,
     adhoc_store,
@@ -122,7 +123,7 @@ def demo_deps(
     )
 
 
-def _echo(report: VideoReport, out: Path, echo: Callable[[str], None]) -> None:
+def _echo(report: VideoReport, out: Path, echo: Echo) -> None:
     rule = report.rule
     echo(
         f"{report.candidate_id} ({report.model_tag}): {score_text(report.clip)}, coverage "
@@ -131,7 +132,7 @@ def _echo(report: VideoReport, out: Path, echo: Callable[[str], None]) -> None:
     echo(f"  {report_dir(out, report)}")
 
 
-def run_adhoc(context: AppContext, request: AdhocRequest, echo: Callable[[str], None]) -> None:
+def run_adhoc(context: AppContext, request: AdhocRequest, echo: Echo) -> None:
     settings = context.settings
     video, adapter = request.video, request.adapter
     if video is not None and adapter is not None:
@@ -165,7 +166,7 @@ def scene_reports(
     from_select: bool,
     adapter: Path | None,
     out: Path | None,
-    echo: Callable[[str], None],
+    echo: Echo,
 ) -> None:
     settings = context.settings
     if from_select == (adapter is not None):
@@ -187,9 +188,7 @@ def scene_reports(
         _echo(ft, target, echo)
 
 
-def rebuild(
-    context: AppContext, results: Path, out: Path | None, echo: Callable[[str], None]
-) -> None:
+def rebuild(context: AppContext, results: Path, out: Path | None, echo: Echo) -> None:
     settings = context.settings
     if not results.exists():
         raise UsageError(f"{results} does not exist")

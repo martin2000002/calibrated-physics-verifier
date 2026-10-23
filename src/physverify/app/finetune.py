@@ -8,7 +8,7 @@ base scores and pilot review; a ``stop_rule.json`` left from other pairs never c
 from __future__ import annotations
 
 import json
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Final
 
@@ -18,6 +18,7 @@ from physverify.config.models import Settings
 from physverify.core.atomic import write_text_atomic
 from physverify.core.digests import file_sha256
 from physverify.core.errors import UsageError
+from physverify.core.output import Echo
 from physverify.datasets.local_video import NAME as LOCAL_VIDEO
 from physverify.finetune.candidate_scoring import ScoringDeps, score_candidates
 from physverify.finetune.candidates import CandidateGenerator, generate_candidates
@@ -167,7 +168,7 @@ def require_stop_rule(
     scorer: AggregateScorer,
     deviation: str | None,
     *,
-    err: Callable[[str], None],
+    err: Echo,
 ) -> StopVerdict:
     """Exit 2 when the rule fires, is enforced and no deviation is declared; the verdict, with
     the deviation that let it through, is written to ``stop_rule.json`` (and printed when it
@@ -204,7 +205,7 @@ def score_prompts(
     scorer: AggregateScorer,
     shard: str | None = None,
     *,
-    echo: Callable[[str], None],
+    echo: Echo,
 ) -> list[CandidateScore]:
     scores = score_candidates(
         store, model_tag, prompts, scorer, scoring_deps(context), parse_shard(shard)
@@ -217,9 +218,7 @@ def score_prompts(
     return selected
 
 
-def build_prompts(
-    context: AppContext, check: bool, *, echo: Callable[[str], None], err: Callable[[str], None]
-) -> bool:
+def build_prompts(context: AppContext, check: bool, *, echo: Echo, err: Echo) -> bool:
     """Writes prompts.jsonl, or with ``check`` only compares it; False when the check fails."""
     store = CampaignStore.from_settings(context.settings)
     cfg = load_finetune(context.settings)
@@ -252,7 +251,7 @@ def generate_split(
     limit: int | None,
     pilot: int | None,
     *,
-    echo: Callable[[str], None],
+    echo: Echo,
 ) -> None:
     require_cuda(context.settings)
     store = CampaignStore.from_settings(context.settings)
@@ -271,7 +270,7 @@ def score_split(
     scorer: str | None,
     shard: str | None,
     *,
-    echo: Callable[[str], None],
+    echo: Echo,
 ) -> None:
     require_cuda(context.settings)
     store = CampaignStore.from_settings(context.settings)
@@ -281,7 +280,7 @@ def score_split(
     )
 
 
-def write_pairs(context: AppContext, scorer: str | None, *, echo: Callable[[str], None]) -> None:
+def write_pairs(context: AppContext, scorer: str | None, *, echo: Echo) -> None:
     """Winner-loser pairs of the fit prompts and of the val prompts, then the stop-rule verdict."""
     cfg = load_finetune(context.settings)
     store = CampaignStore.from_settings(context.settings)

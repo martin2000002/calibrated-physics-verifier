@@ -18,6 +18,7 @@ from typing import Any, Final
 
 from physverify.core.atomic import write_atomic
 from physverify.core.errors import PhysverifyError, UsageError
+from physverify.core.output import Echo
 from physverify.finetune.layout import CampaignStore
 from physverify.finetune.records import (
     BASE_TAG,
@@ -267,7 +268,7 @@ def generate_candidates(
     shard: str | None,
     limit: int | None,
     *,
-    echo: Callable[[str], None],
+    echo: Echo,
 ) -> int:
     plan = generator.plan(prompts, parse_shard(shard))
     plan = plan if limit is None else plan[:limit]

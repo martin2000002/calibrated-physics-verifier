@@ -11,6 +11,7 @@ from typing import Final
 
 from physverify.app.context import AppContext
 from physverify.config.models import Settings
+from physverify.core.output import Echo
 from physverify.runtime.heavy import NullLock
 from physverify.runtime.runs import new_run
 from physverify.timing._base import TimingContext
@@ -87,8 +88,8 @@ def run_timing(
     request: TimingRequest,
     make_probe: Callable[[], CudaProbe],
     *,
-    echo: Callable[[str], None],
-    err: Callable[[str], None],
+    echo: Echo,
+    err: Echo,
 ) -> int:
     """Time the requested targets under the heavy lock; returns the exit code."""
     settings = context.settings
@@ -117,7 +118,7 @@ def run_timing(
     return exit_code(results, finished)
 
 
-def summarize(settings: Settings, run_dir: Path, echo: Callable[[str], None]) -> None:
+def summarize(settings: Settings, run_dir: Path, echo: Echo) -> None:
     timing = load_timing(settings)
     directory = timing_directory(run_dir)
     report(rebuild(directory, timing.max_iqr_rel, timing.total_measures), directory, echo)

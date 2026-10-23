@@ -5,7 +5,7 @@ from __future__ import annotations
 import functools
 import os
 import sys
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import cached_property
 from pathlib import Path
@@ -14,6 +14,7 @@ from typing import Any
 from physverify.app import plugins
 from physverify.config.loader import load_settings
 from physverify.config.models import Settings
+from physverify.core.output import Echo
 from physverify.core.registry import Registry
 from physverify.runtime.container import ContainerEngine, make_runner
 from physverify.runtime.heavy import LOCK_HELD_ENV, HeavyLock, NullLock
@@ -43,7 +44,7 @@ class AppContext:
         self,
         invocation: Invocation,
         options: GlobalOptions,
-        err: Callable[[str], None] | None = None,
+        err: Echo | None = None,
     ) -> None:
         self.invocation = invocation
         self.options = options
