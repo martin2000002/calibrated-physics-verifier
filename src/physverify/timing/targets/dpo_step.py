@@ -22,8 +22,8 @@ from physverify.timing._base import TimingContext
 from physverify.timing.generation import snapshot_dir, snapshot_problem
 from physverify.timing.hooks import TargetHooks
 from physverify.timing.records import TimingError
-from physverify.timing.services import TimingServices
 from physverify.timing.settings import TEMPORAL_STRIDE, GenerationSettings, load_timing
+from physverify.timing.target_services import TimingServices
 from physverify.timing.targets.wan21_generate import module_found
 
 LATENT_CHANNELS: Final = 16

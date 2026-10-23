@@ -24,9 +24,9 @@ from physverify.timing.records import (
     TargetOutcome,
     TargetStatus,
 )
-from physverify.timing.services import TimingServices
 from physverify.timing.settings import TargetRunSettings
 from physverify.timing.stats import per_clip
+from physverify.timing.target_services import TimingServices
 
 ONE_CALL = TargetRunSettings(repetitions=1)
 

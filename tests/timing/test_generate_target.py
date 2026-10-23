@@ -39,8 +39,8 @@ from physverify.timing.records import (
     check_measures,
     generate_measure,
 )
-from physverify.timing.services import TimingServices
 from physverify.timing.settings import GenerationSettings, load_timing
+from physverify.timing.target_services import TimingServices
 from physverify.timing.targets.wan21_generate import MISSING_DIFFUSERS, Wan21Generate
 
 from .conftest import FakeClock, FakeCudaMemory

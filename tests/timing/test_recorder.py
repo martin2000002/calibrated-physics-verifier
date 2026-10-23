@@ -29,10 +29,10 @@ from physverify.timing.records import (
     measure_name,
     unit_of,
 )
-from physverify.timing.services import cuda_sync
+from physverify.timing.target_services import cuda_sync
 
 HEAVY_MODULES = ("torch", "transformers", "diffusers", "kubric", "bpy")
-TIMING_MODULES = ("settings", "records", "hooks", "services", "envinfo", "recorder")
+TIMING_MODULES = ("settings", "records", "hooks", "target_services", "envinfo", "recorder")
 
 
 def event(
@@ -203,7 +203,7 @@ def test_timing_modules_never_import_heavy_libraries() -> None:
         f"import sys; {imports}; "
         "from physverify.timing.recorder import TorchCudaMemory; "
         "m = TorchCudaMemory(); m.reset(); assert m.peak_mb() is None; "
-        "from physverify.timing.services import cuda_sync, cuda_empty_cache; "
+        "from physverify.timing.target_services import cuda_sync, cuda_empty_cache; "
         "cuda_sync('cuda'); cuda_empty_cache(); "
         f"print(sorted(set({HEAVY_MODULES!r}) & set(sys.modules)))"
     )

@@ -39,8 +39,8 @@ from physverify.timing._base import TimingContext
 from physverify.timing.hooks import TargetHooks
 from physverify.timing.records import RENDER_PER_FRAME_S, RENDER_WALL_S, TimingError
 from physverify.timing.report import discard_scratch, scratch_dir
-from physverify.timing.services import TimingServices
 from physverify.timing.settings import load_timing, run_settings
+from physverify.timing.target_services import TimingServices
 
 TASK: Final = "render"
 JOBS_PER_CONTAINER: Final = 1  # isolates the per-clip cost, container start-up included

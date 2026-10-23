@@ -52,12 +52,6 @@ from physverify.timing.report import (
     rebuild,
     timing_dir,
 )
-from physverify.timing.services import (
-    ClipSelection,
-    TimingServices,
-    dataset_source,
-    selected_clips,
-)
 from physverify.timing.settings import (
     GenerationSettings,
     TargetRunSettings,
@@ -67,6 +61,12 @@ from physverify.timing.settings import (
     with_overrides,
 )
 from physverify.timing.stats import stat_rows
+from physverify.timing.target_services import (
+    ClipSelection,
+    TimingServices,
+    dataset_source,
+    selected_clips,
+)
 
 NAME = "timing"
 NESTED_LOCK = "held by timing run"

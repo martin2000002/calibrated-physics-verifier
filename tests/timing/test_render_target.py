@@ -29,7 +29,7 @@ from physverify.synth.store import (
 from physverify.timing._base import TimingContext
 from physverify.timing.records import RENDER_PER_FRAME_S, RENDER_WALL_S, TimingError, check_measures
 from physverify.timing.report import SCRATCH_DIR, timing_dir
-from physverify.timing.services import TimingServices
+from physverify.timing.target_services import TimingServices
 from physverify.timing.targets.kubric_render import (
     FRAMES_S,
     OVERHEAD_S,

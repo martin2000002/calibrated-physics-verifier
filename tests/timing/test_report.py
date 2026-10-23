@@ -41,9 +41,9 @@ from physverify.timing.report import (
     render_summary,
     write_results,
 )
-from physverify.timing.services import TimingServices
 from physverify.timing.settings import TargetRunSettings
 from physverify.timing.stats import stat_row, stat_rows
+from physverify.timing.target_services import TimingServices
 
 MAX_IQR_REL = 0.10
 TOTAL = ("fake.wall_s", "fake.load_s")

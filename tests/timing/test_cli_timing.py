@@ -27,8 +27,8 @@ from physverify.timing.records import (
     generate_measure,
 )
 from physverify.timing.report import RESULTS, SAMPLES, STATS, SUMMARY, TOTAL_LABEL, load_results
-from physverify.timing.services import TimingServices
 from physverify.timing.settings import load_timing
+from physverify.timing.target_services import TimingServices
 
 FAKE_DATASET = "fake_ds"
 SCRIPTED_COST = {generate_measure(1, "per_video_s"): 10.0, EXTRACT_SPAN_S: 4.0, VERIFY_WALL_S: 1.0}

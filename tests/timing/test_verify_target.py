@@ -29,7 +29,7 @@ from physverify.timing.records import (
     TimingError,
     check_measures,
 )
-from physverify.timing.services import TimingServices
+from physverify.timing.target_services import TimingServices
 from physverify.timing.targets.verify_checks import (
     CHECK_SET_MODULE,
     INPUTS_MODULE,

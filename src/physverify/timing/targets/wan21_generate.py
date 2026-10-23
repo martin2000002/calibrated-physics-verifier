@@ -49,8 +49,8 @@ from physverify.timing.records import (
     TimingError,
     generate_measure,
 )
-from physverify.timing.services import TimingServices
 from physverify.timing.settings import GenerationSettings, PromptSpec, load_timing
+from physverify.timing.target_services import TimingServices
 
 BATCH_NDIM: Final = 5  # (videos, frames, height, width, channels)
 MISSING_DIFFUSERS: Final = "diffusers is not installed: sync the 'generation' dependency group"

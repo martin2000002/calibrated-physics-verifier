@@ -40,7 +40,7 @@ from physverify.timing.records import (
 )
 from physverify.timing.replica import TIMED, WARM, replica_id, replica_source, replicas
 from physverify.timing.report import discard_scratch, scratch_dir
-from physverify.timing.services import TimingServices, dataset_source
+from physverify.timing.target_services import TimingServices, dataset_source
 from physverify.verification.check_set import occlusion_thresholds
 
 PREFIX: Final = "extract"

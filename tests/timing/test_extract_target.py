@@ -33,7 +33,7 @@ from physverify.timing.records import (
 )
 from physverify.timing.replica import TIMED, WARM, replica_id
 from physverify.timing.report import SCRATCH_DIR, timing_dir
-from physverify.timing.services import ClipSelection, TimingServices
+from physverify.timing.target_services import ClipSelection, TimingServices
 from physverify.timing.targets.extract_pipeline import (
     ExtractPipeline,
     cold_extra,

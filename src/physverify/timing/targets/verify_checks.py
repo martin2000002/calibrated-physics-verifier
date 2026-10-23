@@ -35,7 +35,7 @@ from physverify.timing.records import (
     TimingError,
     measure_name,
 )
-from physverify.timing.services import TimingServices, dataset_source
+from physverify.timing.target_services import TimingServices, dataset_source
 from physverify.timing.targets.extract_pipeline import (
     PipelineFactory,
     PlanFactory,

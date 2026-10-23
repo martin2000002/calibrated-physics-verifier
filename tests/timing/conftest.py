@@ -26,7 +26,7 @@ from physverify.synth.store import ContainerRunner
 from physverify.timing._base import TimingContext
 from physverify.timing.hooks import TargetHooks
 from physverify.timing.records import TimingError
-from physverify.timing.services import ClipSelection, TimingServices
+from physverify.timing.target_services import ClipSelection, TimingServices
 
 FAKE_DATASET = "fake_ds"
 FAKE_CLIP_IDS = ("c0", "c1", "c2")
