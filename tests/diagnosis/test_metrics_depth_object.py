@@ -4,16 +4,23 @@ from __future__ import annotations
 
 import math
 from collections.abc import Mapping
-from types import MappingProxyType
 
 import numpy as np
 import pytest
+from metric_cases import METRIC_OPTIONS as OPTIONS
+from metric_cases import (
+    depth_on,
+    metric_case,
+    native_sampling,
+    sloped_z,
+    squares_track,
+    two_squares,
+)
 from numpy.typing import NDArray
 from synthetic_clip import manifest
 
-from physverify.diagnosis.measurement_cases import MetricCase, MetricOutcome
+from physverify.diagnosis.measurement_cases import MetricOutcome
 from physverify.diagnosis.metrics.depth_object import ObjectDepthMetric, relative_object_error
-from physverify.diagnosis.settings import MetricSettings
 from physverify.schema.clip import FrameSampling
 from physverify.schema.outputs import StageOutput
 from physverify.schema.perception import (
@@ -25,61 +32,28 @@ from physverify.schema.perception import (
 )
 from physverify.schema.stages import Stage
 
-OPTIONS = MetricSettings(
-    boundary_tol_frac=0.008,
-    depth_alignment="clip",
-    depth_eps_frac=1e-3,
-    contact_min_tiou=0.3,
-    impact_half_window_s=0.125,
-)
 FRAMES, SIZE = 2, 20
 FLOAT32_TOL = 1e-6
 
 
 def sampling() -> FrameSampling:
-    return FrameSampling(
-        frame_indices=np.arange(FRAMES, dtype=np.int64),
-        width=SIZE,
-        height=SIZE,
-        native_width=SIZE,
-        native_height=SIZE,
-        seconds_per_frame=1.0 / 24.0,
-        step=1,
-        max_side=None,
-    )
+    return native_sampling(FRAMES, SIZE, SIZE)
 
 
 def object_masks() -> NDArray[np.bool_]:
-    """(T, 2, h, w): "ball" a 7x7 square, "box" an 8x8 square, disjoint."""
-    masks = np.zeros((FRAMES, 2, SIZE, SIZE), dtype=bool)
-    masks[:, 0, 2:9, 2:9] = True
-    masks[:, 1, 10:18, 10:18] = True
-    return masks
+    return two_squares(FRAMES, SIZE)
 
 
 def masks_track() -> MaskTrack:
-    return MaskTrack(
-        sampling=sampling(),
-        object_ids=np.array(["ball", "box"]),
-        labels=np.array(["ball", "box"]),
-        masks=object_masks(),
-        scores=np.ones((FRAMES, 2)),
-    )
+    return squares_track(FRAMES, SIZE)
 
 
 def true_z() -> NDArray[np.float64]:
-    t, rows, cols = np.mgrid[:FRAMES, :SIZE, :SIZE]
-    z: NDArray[np.float64] = 2.0 + 0.1 * cols + 0.05 * rows + 0.3 * t
-    return z
+    return sloped_z(FRAMES, SIZE)
 
 
 def depth_map(values: NDArray[np.float64], kind: DepthKind = DepthKind.METRIC_Z) -> DepthMap:
-    return DepthMap(
-        sampling=sampling(),
-        depth=values.astype(np.float32),
-        kind=kind,
-        valid=np.ones(values.shape, dtype=bool),
-    )
+    return depth_on(values, sampling(), kind)
 
 
 def with_ball_error(c: float, eps: float) -> NDArray[np.float64]:
@@ -89,15 +63,7 @@ def with_ball_error(c: float, eps: float) -> NDArray[np.float64]:
 
 
 def measure(pred: DepthMap, context: Mapping[Stage, StageOutput]) -> MetricOutcome:
-    case = MetricCase(
-        clip=manifest(),
-        pred=pred,
-        truth=depth_map(true_z()),
-        context=MappingProxyType(dict(context)),
-        gt=None,
-        options=OPTIONS,
-        plan=None,
-    )
+    case = metric_case(pred, depth_map(true_z()), context=context)
     return ObjectDepthMetric(OPTIONS).samples(case)
 
 

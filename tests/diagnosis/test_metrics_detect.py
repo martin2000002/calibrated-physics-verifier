@@ -2,40 +2,23 @@
 
 from __future__ import annotations
 
-from types import MappingProxyType
-
 import numpy as np
 import pytest
+from metric_cases import METRIC_OPTIONS as OPTIONS
+from metric_cases import metric_case, native_sampling
 from synthetic_clip import manifest
 
-from physverify.diagnosis.measurement_cases import MetricCase, MetricOutcome
+from physverify.diagnosis.measurement_cases import MetricOutcome
 from physverify.diagnosis.metrics.detect_box import BoxMetric
-from physverify.diagnosis.settings import MetricSettings
 from physverify.schema.clip import FrameSampling
 from physverify.schema.perception import Detections
 
-OPTIONS = MetricSettings(
-    boundary_tol_frac=0.008,
-    depth_alignment="clip",
-    depth_eps_frac=1e-3,
-    contact_min_tiou=0.3,
-    impact_half_window_s=0.125,
-)
 BOX_A = (10.0, 10.0, 20.0, 20.0)
 BOX_B = (30.0, 30.0, 40.0, 44.0)
 
 
 def sampling() -> FrameSampling:
-    return FrameSampling(
-        frame_indices=np.arange(1, dtype=np.int64),
-        width=64,
-        height=48,
-        native_width=64,
-        native_height=48,
-        seconds_per_frame=1.0 / 24.0,
-        step=1,
-        max_side=None,
-    )
+    return native_sampling(1, 64, 48)
 
 
 def detections(boxes: list[tuple[float, float, float, float]], ids: list[str]) -> Detections:
@@ -50,15 +33,7 @@ def detections(boxes: list[tuple[float, float, float, float]], ids: list[str]) -
 
 
 def measure(pred: Detections, truth: Detections) -> MetricOutcome:
-    case = MetricCase(
-        clip=manifest(),
-        pred=pred,
-        truth=truth,
-        context=MappingProxyType({}),
-        gt=None,
-        options=OPTIONS,
-        plan=None,
-    )
+    case = metric_case(pred, truth)
     return BoxMetric(OPTIONS).samples(case)
 
 

@@ -5,13 +5,13 @@ import check_scenarios as sc
 import numpy as np
 import pytest
 
-from physverify.checks._base import Check, CheckInputs
+from physverify.checks._base import Check
 from physverify.checks.r5a_fall_shape import PLUGINS as R5A_PLUGINS
 from physverify.checks.r5a_fall_shape import FallShapeCheck, FallShapeParams
 from physverify.checks.r5b_gravity_value import PLUGINS as R5B_PLUGINS
 from physverify.checks.r5b_gravity_value import GravityValueCheck, GravityValueParams
 from physverify.physics.measures.gravity_fit import accel_inconsistency, fall_fit
-from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
+from physverify.schema.checks import AbstainReason, CheckResult, Verdict
 from physverify.schema.constants import STANDARD_GRAVITY
 from physverify.schema.scale import ScaleSource
 from physverify.schema.states import PrimitiveKind
@@ -19,20 +19,8 @@ from physverify.schema.states import PrimitiveKind
 G = STANDARD_GRAVITY
 
 
-def inputs(case: sc.Case) -> CheckInputs:
-    return CheckInputs(
-        clip=case.clip,
-        states=case.states,
-        contacts=case.contacts,
-        scale=case.scale,
-        input_level=InputLevel.ORACLE,
-        provenance={},
-        scene=case.scene,
-    )
-
-
 def run(check: Check, case: sc.Case) -> list[CheckResult]:
-    results = check.evaluate(inputs(case))
+    results = check.evaluate(sc.bare_inputs(case))
     native = set(case.states.frame_index.tolist())
     for result in results:
         if result.frame_span is not None:

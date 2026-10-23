@@ -3,47 +3,31 @@
 from __future__ import annotations
 
 import math
-from types import MappingProxyType
 
 import numpy as np
 import pytest
+from metric_cases import METRIC_OPTIONS as OPTIONS
+from metric_cases import metric_case, native_sampling
 from numpy.typing import NDArray
 from synthetic_clip import manifest
 
-from physverify.diagnosis.measurement_cases import MetricCase, MetricOutcome
+from physverify.diagnosis.measurement_cases import MetricOutcome
 from physverify.diagnosis.metrics.track_mask import (
     MaskMetric,
     boundary_f,
     boundary_tolerance_px,
     region_similarity,
 )
-from physverify.diagnosis.settings import MetricSettings
 from physverify.schema.clip import FrameSampling
 from physverify.schema.perception import MaskTrack
 
-OPTIONS = MetricSettings(
-    boundary_tol_frac=0.008,
-    depth_alignment="clip",
-    depth_eps_frac=1e-3,
-    contact_min_tiou=0.3,
-    impact_half_window_s=0.125,
-)
 SIZE = 48
 FRAMES = 3
 RADIUS = 6
 
 
 def sampling() -> FrameSampling:
-    return FrameSampling(
-        frame_indices=np.arange(FRAMES, dtype=np.int64),
-        width=SIZE,
-        height=SIZE,
-        native_width=SIZE,
-        native_height=SIZE,
-        seconds_per_frame=1.0 / 24.0,
-        step=1,
-        max_side=None,
-    )
+    return native_sampling(FRAMES, SIZE, SIZE)
 
 
 def disc(cx: int, cy: int) -> NDArray[np.bool_]:
@@ -65,15 +49,7 @@ def track(ids: list[str], discs: list[NDArray[np.bool_]]) -> MaskTrack:
 
 
 def measure(pred: MaskTrack, truth: MaskTrack) -> MetricOutcome:
-    case = MetricCase(
-        clip=manifest(),
-        pred=pred,
-        truth=truth,
-        context=MappingProxyType({}),
-        gt=None,
-        options=OPTIONS,
-        plan=None,
-    )
+    case = metric_case(pred, truth)
     return MaskMetric(OPTIONS).samples(case)
 
 

@@ -3,26 +3,19 @@
 from __future__ import annotations
 
 import dataclasses
-from types import MappingProxyType
 
 import numpy as np
 import pytest
+from metric_cases import METRIC_OPTIONS as OPTIONS
+from metric_cases import metric_case
 from numpy.typing import NDArray
 from synthetic_clip import manifest
 
-from physverify.diagnosis.measurement_cases import MetricCase, MetricOutcome
+from physverify.diagnosis.measurement_cases import MetricOutcome
 from physverify.diagnosis.metrics._state_pairing import object_length
 from physverify.diagnosis.metrics.lift_position import LiftPositionMetric
-from physverify.diagnosis.settings import MetricSettings
 from physverify.schema.states import CoordFrame, LengthUnit, ObjectStateTable
 
-OPTIONS = MetricSettings(
-    boundary_tol_frac=0.008,
-    depth_alignment="clip",
-    depth_eps_frac=1e-3,
-    contact_min_tiou=0.3,
-    impact_half_window_s=0.125,
-)
 FRAMES = 6
 S0 = 2.5
 LENGTH = 0.2
@@ -72,15 +65,7 @@ def lifted(
 
 
 def measure(pred: ObjectStateTable, truth_table: ObjectStateTable) -> MetricOutcome:
-    case = MetricCase(
-        clip=manifest(),
-        pred=pred,
-        truth=truth_table,
-        context=MappingProxyType({}),
-        gt=None,
-        options=OPTIONS,
-        plan=None,
-    )
+    case = metric_case(pred, truth_table)
     return LiftPositionMetric(OPTIONS).samples(case)
 
 

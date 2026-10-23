@@ -4,28 +4,21 @@ from __future__ import annotations
 
 import dataclasses
 import math
-from types import MappingProxyType
 
 import numpy as np
 import pytest
+from metric_cases import METRIC_OPTIONS as OPTIONS
+from metric_cases import metric_case
 from numpy.typing import NDArray
 from synthetic_clip import manifest
 
 from physverify.app.plugins import PLUGIN_KINDS
 from physverify.diagnosis.error_profile_writer import PROFILE_QUANTITIES
-from physverify.diagnosis.measurement_cases import MetricCase, MetricOutcome
+from physverify.diagnosis.measurement_cases import MetricOutcome
 from physverify.diagnosis.metrics.lift_gravity import LiftGravityAngleMetric
-from physverify.diagnosis.settings import MetricSettings
 from physverify.schema.states import CoordFrame, LengthUnit, ObjectStateTable
 from physverify.synth.placement import camera_axes
 
-OPTIONS = MetricSettings(
-    boundary_tol_frac=0.008,
-    depth_alignment="clip",
-    depth_eps_frac=1e-3,
-    contact_min_tiou=0.3,
-    impact_half_window_s=0.125,
-)
 KEY = "lift/gravity_angle"
 WORLD_DOWN = np.array([0.0, 0.0, -1.0])
 DECLARED_LEVEL_SIGMA_DEG = 10.0
@@ -59,14 +52,8 @@ def table(gravity_dir: NDArray[np.float64], unit: LengthUnit) -> ObjectStateTabl
 
 
 def measure(pred_gravity: NDArray[np.float64], pitch_deg: float) -> MetricOutcome:
-    case = MetricCase(
-        clip=manifest(),
-        pred=table(pred_gravity, LengthUnit.RELATIVE),
-        truth=table(camera_gravity(pitch_deg), LengthUnit.METER),
-        context=MappingProxyType({}),
-        gt=None,
-        options=OPTIONS,
-        plan=None,
+    case = metric_case(
+        table(pred_gravity, LengthUnit.RELATIVE), table(camera_gravity(pitch_deg), LengthUnit.METER)
     )
     return LiftGravityAngleMetric(OPTIONS).samples(case)
 

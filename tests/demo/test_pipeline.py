@@ -5,6 +5,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 import pytest
+from campaign_stores import campaign_store
 
 from physverify.config.models import Settings
 from physverify.core.errors import UsageError
@@ -47,14 +48,6 @@ def _prompt(prompt_id: str = "adhoc-0001") -> PromptRecord:
     )
 
 
-def _store(settings: Settings, campaign: str = "demo_adhoc") -> CampaignStore:
-    return CampaignStore(
-        settings.paths.data_dir / "finetune" / campaign,
-        settings.paths.raw_dir / "local_video",
-        campaign,
-    )
-
-
 def _deps(settings: Settings, store: CampaignStore, scoring: ScoringDeps) -> DemoDeps:
     scorer = ProvisionalScorer(settings, {})
     report = ReportDeps(scorer, rule_info(scorer), OverlayStyle(), 10**9, {"commit": "c"})
@@ -68,7 +61,7 @@ def _files(root: Path) -> set[Path]:
 def test_a_given_video_is_scored_into_its_own_campaign(
     tmp_path: Path, settings: Settings, write_video: Videos, fake_scoring: FakeScoring
 ) -> None:
-    store = _store(settings)
+    store = campaign_store(settings, "demo_adhoc")
     out = tmp_path / "out"
     report = run_demo(
         _prompt(), _deps(settings, store, fake_scoring(settings)), out=out, video=write_video()
@@ -88,7 +81,7 @@ def test_a_given_video_is_scored_into_its_own_campaign(
 def test_rerunning_reuses_the_stored_scores(
     tmp_path: Path, settings: Settings, write_video: Videos, fake_scoring: FakeScoring
 ) -> None:
-    store, video = _store(settings), write_video()
+    store, video = campaign_store(settings, "demo_adhoc"), write_video()
     scoring = fake_scoring(settings)
     deps = _deps(settings, store, scoring)
     first = run_demo(_prompt(), deps, out=tmp_path / "out", video=video)
@@ -101,7 +94,7 @@ def test_rerunning_reuses_the_stored_scores(
 def test_two_given_videos_of_one_prompt_never_share_a_clip_id(
     tmp_path: Path, settings: Settings, write_video: Videos, fake_scoring: FakeScoring
 ) -> None:
-    store, scoring = _store(settings), fake_scoring(settings)
+    store, scoring = campaign_store(settings, "demo_adhoc"), fake_scoring(settings)
     deps = _deps(settings, store, scoring)
     reports = [
         run_demo(
@@ -118,7 +111,7 @@ def test_two_given_videos_of_one_prompt_never_share_a_clip_id(
 def test_a_given_video_never_overwrites_another_under_its_tag(
     tmp_path: Path, settings: Settings, write_video: Videos, fake_scoring: FakeScoring
 ) -> None:
-    store, video = _store(settings), write_video()
+    store, video = campaign_store(settings, "demo_adhoc"), write_video()
     tag, _ = pipeline.video_tag(video)
     target = store.video_path(tag, "adhoc-0001", 0)
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -132,7 +125,7 @@ def test_a_given_video_never_overwrites_another_under_its_tag(
 def test_missing_stored_video_is_a_usage_error(
     tmp_path: Path, settings: Settings, fake_scoring: FakeScoring
 ) -> None:
-    deps = _deps(settings, _store(settings), fake_scoring(settings))
+    deps = _deps(settings, campaign_store(settings, "demo_adhoc"), fake_scoring(settings))
     with pytest.raises(UsageError, match="no complete k = 0 video"):
         run_demo(_prompt(), deps, out=tmp_path / "out")
 
@@ -140,7 +133,7 @@ def test_missing_stored_video_is_a_usage_error(
 def test_rebuild_reproduces_the_report(
     tmp_path: Path, settings: Settings, write_video: Videos, fake_scoring: FakeScoring
 ) -> None:
-    deps = _deps(settings, _store(settings), fake_scoring(settings))
+    deps = _deps(settings, campaign_store(settings, "demo_adhoc"), fake_scoring(settings))
     report = run_demo(_prompt(), deps, out=tmp_path / "a", video=write_video())
     rebuilt = rebuild_report(report, deps.report, tmp_path / "b")
     assert rebuilt == report
@@ -170,7 +163,7 @@ def _stored(store: CampaignStore, prompt: PromptRecord, tag: str, video: Path) -
 def test_scenes_write_two_reports_per_prompt_and_a_side_by_side(
     tmp_path: Path, settings: Settings, write_video: Videos, fake_scoring: FakeScoring
 ) -> None:
-    store = _store(settings, "wan21_smoke")
+    store = campaign_store(settings, "wan21_smoke")
     prompts = [_prompt("demo-a"), _prompt("demo-b")]
     for prompt in prompts:
         _stored(store, prompt, BASE_TAG, write_video("base.mp4"))
