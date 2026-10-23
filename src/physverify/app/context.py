@@ -12,12 +12,23 @@ from pathlib import Path
 from typing import Any
 
 from physverify.app import plugins
+from physverify.config.loader import CONFIG_DIR_ENV as CONFIG_DIR_ENV
 from physverify.config.loader import load_settings
-from physverify.config.models import Settings
+from physverify.config.models import DEVICE_PATTERN, Settings
 from physverify.core.output import Echo
 from physverify.core.registry import Registry
 from physverify.runtime.container import ContainerEngine, make_runner
 from physverify.runtime.heavy import LOCK_HELD_ENV, HeavyLock, NullLock
+
+
+def default_config_dir(environ: Mapping[str, str]) -> Path:
+    if environ.get(CONFIG_DIR_ENV):
+        return Path(environ[CONFIG_DIR_ENV])
+    return Path(__file__).resolve().parents[3] / "configs"
+
+
+def is_device(value: str) -> bool:
+    return DEVICE_PATTERN.match(value) is not None
 
 
 @dataclass(frozen=True)

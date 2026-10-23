@@ -15,21 +15,20 @@ from typing import Annotated, Protocol, runtime_checkable
 import typer
 import typer.main
 
-from physverify.app.context import AppContext, GlobalOptions, Invocation
+from physverify.app.context import (
+    CONFIG_DIR_ENV,
+    AppContext,
+    GlobalOptions,
+    Invocation,
+    default_config_dir,
+    is_device,
+)
 from physverify.cli.context import COMMANDS_PACKAGE, check_command, command_name
-from physverify.config.loader import CONFIG_DIR_ENV
-from physverify.config.models import DEVICE_PATTERN
 from physverify.core.errors import EXIT_ERROR, PhysverifyError
 from physverify.core.log import LOG_LEVELS, configure_logging
 from physverify.core.registry import Registry, discover_modules
 
 PROG = "physverify"
-
-
-def default_config_dir(environ: Mapping[str, str]) -> Path:
-    if environ.get(CONFIG_DIR_ENV):
-        return Path(environ[CONFIG_DIR_ENV])
-    return Path(__file__).resolve().parents[3] / "configs"
 
 
 @runtime_checkable
@@ -40,7 +39,7 @@ class _Showable(Protocol):
 
 
 def _checked_device(value: str | None) -> str | None:
-    if value is not None and not DEVICE_PATTERN.match(value):
+    if value is not None and not is_device(value):
         raise typer.BadParameter(f"must be cpu, cuda or cuda:N, got {value!r}")
     return value
 
