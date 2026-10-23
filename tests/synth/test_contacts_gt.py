@@ -37,7 +37,7 @@ DATA = Path(__file__).parent / "data"
 
 
 def load_sim(family: str) -> tuple[SceneSpec, ObjectStateTable, RawCollisions]:
-    directory = DATA / family
+    directory = DATA / "clean" / family
     return (
         SceneSpec.load_json(directory / "spec.json"),
         ObjectStateTable.load_npz(directory / "states.npz"),

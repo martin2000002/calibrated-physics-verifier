@@ -72,7 +72,7 @@ def build(
     plan_hash: str,
     families: Any,
     perturbations: Any,
-    simulation: Path = DATA / "f2_bounce",
+    simulation: Path = DATA / "clean" / "f2_bounce",
 ) -> tuple[DatasetPlan, DatasetStore, dict[str, Any]]:
     """The smoke subset on the recorded f2 simulation, applied under ``ds``, plan hashed as told."""
     store = DatasetStore(root)
@@ -266,7 +266,7 @@ def penetrated_simulation(root: Path) -> Path:
     """The recorded f2 simulation with the first row after the ball's bounce replaced by its
     incoming arc continued from the row before: under the floor and still falling."""
     root.mkdir(parents=True)
-    for path in (DATA / "f2_bounce").iterdir():
+    for path in (DATA / "clean" / "f2_bounce").iterdir():
         shutil.copy(path, root / path.name)
     states = ObjectStateTable.load_npz(root / SIM_STATES)
     index = states.object_index("ball_0")

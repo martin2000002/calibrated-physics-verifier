@@ -1,5 +1,8 @@
 """A10 fixtures: miniature VideoPhy tables under the real file names, a recorded review and
-fake perceived verify runs. No network, no videos (``compare`` only reads tables and runs)."""
+fake perceived verify runs. No network, no videos (``compare`` only reads tables and runs).
+
+Shared by ``tests/human_agreement`` and ``tests/scripts/human_agreement``; a conftest activates
+the fixtures for its directory by importing them."""
 
 from __future__ import annotations
 
@@ -12,7 +15,6 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from network import no_network as no_network
 
 from physverify.config.loader import load_settings
 from physverify.config.models import Settings

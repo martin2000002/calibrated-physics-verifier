@@ -49,6 +49,7 @@ from physverify.synth.settings import (
 from physverify.synth.store import DatasetStore
 
 DATA = Path(__file__).parent / "data"
+CLEAN = DATA / "clean"
 REPO_CONFIGS = Path(__file__).resolve().parents[2] / "configs"
 Vec = np.ndarray
 
@@ -130,14 +131,14 @@ class ClipBank:
         self._cache: dict[tuple[str, str], Clip] = {}
 
     def recorded(self, family: str) -> Clip:
-        return self._cached("recorded", family, lambda: recorded_clip(DATA / family, self.cfg))
+        return self._cached("recorded", family, lambda: recorded_clip(CLEAN / family, self.cfg))
 
     def analytic(self, family: str) -> Clip:
         return self._cached("analytic", family, lambda: self.of_scene(self.recorded(family).scene))
 
     def recorded_gravity_scale(self, family: str) -> tuple[Clip, PerturbationRecord]:
         """The committed r5b level-3 re-simulation of the family's scene and its record."""
-        directory = DATA / "r5b" / family
+        directory = DATA / "gravity_scale" / family
         record = PerturbationRecord.load_json(directory / "perturbation.json")
         return recorded_clip(directory, self.cfg), record
 

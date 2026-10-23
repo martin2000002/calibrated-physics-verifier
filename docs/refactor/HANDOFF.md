@@ -306,3 +306,31 @@ T-a (verification, calibration and the split of `tests/unit`):
   docstrings are joined. One src comment (`extraction/providers/_temporal_smoothing.py`) names the
   renamed test path. Test function names are untouched (JY15: deferred to WP9). The process-labels
   baseline was regenerated: identifier total 285 -> 284 (the `d9` import), the rest equal.
+
+T-b (data, study and script tests, `bd973b0`):
+
+- Moves: `tests/agreement` -> `tests/human_agreement`, `tests/evaluation` ->
+  `tests/generator_comparison` (JY9; no finetune test imports `generator_comparison`, so none
+  moved), the ten H200 script tests of `tests/timing` -> `tests/scripts`, the extraction goldens
+  `test_it3_oracle_unchanged`/`test_it4_floor_refactor` -> `test_oracle_contacts_golden`/
+  `test_floor_contacts` and `golden/truth_contacts_before_it3.json` -> `golden/truth_contacts.json`.
+  Test functions keep their names (JY15).
+- Departure: `test_h2_query.py` and `test_h2_script.py` are in `tests/scripts/human_agreement/`,
+  not flat in `tests/scripts/`: their `make_settings` (agreement, `bootstrap_n=50`) and the timing
+  one of `test_a8v2_query.py` (data dir in `tmp_path`) share a name, and the autouse
+  `provisional_by_default` must reach only them. Their `parents[2]` became `parents[3]`.
+- Frozen-file departures (ADR 0017): new `tests/fixtures/videophy_world.py` (the former agreement
+  conftest, verbatim) and `tests/fixtures/timing_settings.py` (`data_dir`, `timing_environ`,
+  `make_settings`, `make_clip`, `clip_factory` from the timing conftest), because two directories
+  use each; the conftests import them as they import `no_network`. `iteration_factory` moved to
+  `tests/scripts/conftest.py`, its only user.
+- Synth data: `<family>` is the family NAME (`data/clean/f1_projectile`, ...), not the bare
+  `projectile` of the plan's D3 example, because `test_truth_measure_pins.py` keys the pins by the
+  directory name; `data/r5b` -> `data/gravity_scale`. Path constants updated in
+  `tests/synth/{conftest,test_contacts_gt,test_gt_export,test_migrate,test_truth_measure_pins}.py`
+  and `tests/kubric_worker/test_render_docker.py` (outside T-b's folders, one line). Nothing in
+  `src/`, `tools/` or `scripts/` read these paths.
+- Repo `CLAUDE.md` names `tests/scripts/test_run_iteration_script.py`.
+- Checks: 3628 collected / 2 deselected before and after, sorted test ids (without path) equal,
+  per-test fixture sets of `--setup-plan` equal (`no_network` on 1416 tests before and after);
+  1552 passed over the moved directories; process-label totals unchanged (424 keys).

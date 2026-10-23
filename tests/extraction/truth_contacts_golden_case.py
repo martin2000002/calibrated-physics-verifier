@@ -1,6 +1,6 @@
 """V8 contacts of the fixture: the whole ground-truth chain down to ``contacts/ground_truth``,
 written once by the code before it3 (commit 2a762ad) into
-``golden/truth_contacts_before_it3.json`` and compared with the current code (it3 T11). The same
+``golden/truth_contacts.json`` and compared with the current code (it3 T11). The same
 module runs in both trees:
 
     PYTHONPATH=<old>/src:tests/fixtures:tests/extraction \
@@ -22,7 +22,7 @@ from physverify.schema.contacts import ContactTable
 from physverify.schema.outputs import StageOutput
 from physverify.schema.stages import STAGE_ORDER, Stage
 
-GOLDEN = Path(__file__).resolve().parent / "golden" / "truth_contacts_before_it3.json"
+GOLDEN = Path(__file__).resolve().parent / "golden" / "truth_contacts.json"
 
 
 def truth_contacts() -> ContactTable:

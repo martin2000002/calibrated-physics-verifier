@@ -7,9 +7,6 @@ module name can collide with the other test packages under ``--import-mode=impor
 
 from __future__ import annotations
 
-import hashlib
-import json
-import shlex
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from pathlib import Path
@@ -17,45 +14,25 @@ from typing import Any, ClassVar
 
 import pytest
 from network import no_network as no_network
+from timing_settings import FAKE_DATASET, make_clip
+from timing_settings import clip_factory as clip_factory
+from timing_settings import data_dir as data_dir
+from timing_settings import make_settings as make_settings
+from timing_settings import timing_environ as timing_environ
 
-from physverify.config.loader import load_settings
 from physverify.config.models import Settings
 from physverify.core.errors import TimingError
 from physverify.runtime.heavy import NullLock
-from physverify.schema.clip import ClipManifest, Split, TimeSource
+from physverify.schema.clip import ClipManifest
 from physverify.synth.store import ContainerRunner
 from physverify.timing._base import TimingContext
 from physverify.timing.hooks import TargetHooks
 from physverify.timing.target_services import ClipSelection, TimingServices
 
-FAKE_DATASET = "fake_ds"
 FAKE_CLIP_IDS = ("c0", "c1", "c2")
-FAKE_FPS = 16.0
 
 ScriptItem = Mapping[str, float] | BaseException
 Script = Sequence[ScriptItem] | Callable[[int, ClipManifest], ScriptItem]
-
-
-@pytest.fixture
-def data_dir(tmp_path: Path) -> Path:
-    return tmp_path / "data"
-
-
-@pytest.fixture
-def timing_environ(environ: dict[str, str], data_dir: Path) -> dict[str, str]:
-    return {**environ, "PHYSVERIFY__PATHS__DATA_DIR": str(data_dir)}
-
-
-@pytest.fixture
-def make_settings(config_dir: Path, timing_environ: dict[str, str]) -> Callable[..., Settings]:
-    """``make_settings("section.key=value", ..., profile=None)`` over the committed configs."""
-
-    def build(*overrides: str, profile: str | None = None) -> Settings:
-        return load_settings(
-            config_dir, environ=timing_environ, profile=profile, overrides=overrides
-        )
-
-    return build
 
 
 class FakeClock:
@@ -102,21 +79,6 @@ class FakeCudaMemory:
         peak = self._peaks[min(self._reads, len(self._peaks) - 1)]
         self._reads += 1
         return peak
-
-
-def make_clip(clip_id: str, dataset: str = FAKE_DATASET, n_frames: int = 5) -> ClipManifest:
-    return ClipManifest(
-        dataset=dataset,
-        clip_id=clip_id,
-        split=Split.EVAL,
-        video_path=f"{dataset}/{clip_id}.mp4",
-        n_frames=n_frames,
-        width=16,
-        height=16,
-        container_fps=FAKE_FPS,
-        seconds_per_frame=1.0 / FAKE_FPS,
-        time_source=TimeSource.CONTAINER_FPS,
-    )
 
 
 class FakeDataset:
@@ -277,55 +239,3 @@ def fake_probe() -> Callable[..., FakeCudaProbe]:
 @pytest.fixture
 def fake_memory() -> Callable[..., FakeCudaMemory]:
     return FakeCudaMemory
-
-
-@pytest.fixture
-def clip_factory() -> Callable[..., ClipManifest]:
-    return make_clip
-
-
-ITERATION_FILES = {
-    "DEVSCORE_SHA": "devscore.json",
-    "CALIBRATION_SHA": "calibration.json",
-    "PROFILE_SHA": "calibration/stage_errors.precise.json",
-    "STAGE_SIGMA_SHA": "calibration/stage_sigma.json",
-}
-
-
-def make_iteration(
-    root: Path,
-    name: str,
-    n_met: int,
-    auroc: float | None,
-    *,
-    device: str = "cpu",
-    steps: Sequence[int] = (1, 2, 3, 4, 5),
-    commit: str = "c" * 40,
-) -> Path:
-    """A run_iteration.sh directory: state.env written with printf %q, steps.tsv, the files."""
-    directory = root / f"{name} {device}"
-    (directory / "calibration").mkdir(parents=True)
-    devscore = {"commit": commit, "selection": {"n_met": n_met, "tiebreak_auroc_cv": auroc}}
-    contents = {
-        "devscore.json": json.dumps(devscore).encode(),
-        "calibration.json": f"calibration of {name}".encode(),
-        "calibration/stage_errors.precise.json": f"profile of {name}".encode(),
-        "calibration/stage_sigma.json": f"sigma of {name}".encode(),
-    }
-    for relative, data in contents.items():
-        (directory / relative).write_bytes(data)
-    state = [("CHAIN_DEVICE", device), ("CHAIN_ITER_ID", name), ("CHAIN_DEVICE", device)]
-    state += [
-        (key, hashlib.sha256(contents[relative]).hexdigest())
-        for key, relative in ITERATION_FILES.items()
-    ]
-    (directory / "state.env").write_text("".join(f"{k}={shlex.quote(v)}\n" for k, v in state))
-    rows = [f"{n}\tstep\trunning\t0\t-" for n in steps] + [f"{n}\tstep\t0\t9\t-" for n in steps]
-    (directory / "steps.tsv").write_text("\n".join(rows) + "\n")
-    return directory
-
-
-@pytest.fixture
-def iteration_factory() -> Callable[..., Path]:
-    """Directories of run_iteration.sh, as freeze_query.py select reads them."""
-    return make_iteration

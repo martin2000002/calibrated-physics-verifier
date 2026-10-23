@@ -47,7 +47,7 @@ def measures(
 
 
 def families() -> list[str]:
-    return sorted(p.name for p in DATA.iterdir() if (p / "spec.json").is_file())
+    return sorted(p.name for p in (DATA / "clean").iterdir() if (p / "spec.json").is_file())
 
 
 def computed(bank: Any, ds: DatasetSettings, registry: Any, truth: Any) -> dict[str, Any]:
@@ -75,7 +75,7 @@ def computed(bank: Any, ds: DatasetSettings, registry: Any, truth: Any) -> dict[
                 pins[f"{family}/{name}/{level}"] = measures(
                     truth, clip.scene, states, contacts, tol, cuts
                 )
-    for directory in sorted((DATA / "r5b").iterdir()):
+    for directory in sorted((DATA / "gravity_scale").iterdir()):
         clip, record = bank.recorded_gravity_scale(directory.name)
         case = f"{directory.name}/{record.name}/{record.level}"
         cuts = record_cuts(record)
