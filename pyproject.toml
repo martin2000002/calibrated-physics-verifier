@@ -98,7 +98,6 @@ allowed-confusables = ["’"]
 "scripts/**" = ["T20", "TID251"]
 "src/physverify/cli/main.py" = ["T20"]
 "src/physverify/kubric_worker/__main__.py" = ["T20"]
-"src/physverify/synth/hdri_pools.py" = ["T20"]
 "src/physverify/cli/**" = ["TID251"]
 "src/physverify/app/**" = ["TID251"]
 
