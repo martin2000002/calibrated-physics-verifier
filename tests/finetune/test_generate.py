@@ -236,6 +236,6 @@ def _field_names(model: type[BaseModel]) -> set[str]:
 
 
 def test_generator_parameters_are_only_in_timing(repo_root: Path) -> None:
-    text = (repo_root / "configs" / "finetune.toml").read_text(encoding="utf-8")
+    text = (repo_root / "configs" / "studies" / "finetune.toml").read_text(encoding="utf-8")
     assert not [name for name in GENERATOR_FIELDS if f"{name} =" in text]
     assert not set(GENERATOR_FIELDS) & _field_names(FinetuneSettings)

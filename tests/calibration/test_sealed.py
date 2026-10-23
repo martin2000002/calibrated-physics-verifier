@@ -164,7 +164,7 @@ def test_the_freeze_moves_with_each_part() -> None:
 
 def test_a_missing_sealed_section_fails_closed(config_dir: Path, environ: dict[str, str]) -> None:
     """Audit M3."""
-    (config_dir / "sealed.toml").unlink()
+    (config_dir / "verifier" / "sealed.toml").unlink()
     with pytest.raises(ConfigError, match=r"no \[sealed\] section"):
         sealed_settings(load_settings(config_dir, environ=environ))
     no_ledger = load_settings(config_dir, environ=environ, overrides=("sealed.sets=[]",))

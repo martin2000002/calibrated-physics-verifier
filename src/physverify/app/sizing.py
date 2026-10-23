@@ -41,7 +41,7 @@ from physverify.sizing.settings import EndToEndSettings, sizing_settings
 from physverify.verification.inputs import refuse_heavy
 
 SCALE_METHODS = ("size_prior", "size_model")
-MODEL_FILE = "size_model.toml"
+MODEL_FILE = "verifier/size_model.toml"
 
 
 def fetch_heads(settings: Settings, *, echo: Echo) -> None:

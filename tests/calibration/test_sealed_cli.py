@@ -404,7 +404,7 @@ def test_without_the_sealed_section_every_guarded_command_fails_closed(
     config_dir: Path,
 ) -> None:  # fmt: skip
     """Audit M3: even a calib-only selection stops when the sealed sets are unknown."""
-    (config_dir / "sealed.toml").unlink()
+    (config_dir / "verifier" / "sealed.toml").unlink()
     stop = sentinel(ledger, reached)
     monkeypatch.setattr(app_verification, "VerificationRunner", lambda *a: _SentinelRunner(stop))
     result = cli("verify", "--dataset", DATASET, "--level", "oracle", "--clips", CALIB_CLIP)

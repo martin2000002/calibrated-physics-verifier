@@ -1,0 +1,12 @@
+# Sealed real control of the freeze: Objectron test videos of still objects (Amendment 7).
+# Classes, bucket and license come from [sizing]; the freeze passes the amendment seed through
+# PHYSVERIFY__OBJECTRON_STATIC__SEED when it fetches (scripts/h200/run_final.sh fetch).
+[objectron_static]
+per_class = 6
+seed = 0
+seconds = 4.0
+max_video_mb = 40.0
+max_side = 1920            # the native long side: frames are kept at full resolution
+retries = 3
+# The sealed population; a dry run passes PHYSVERIFY__OBJECTRON_STATIC__SPLIT=train.
+split = "test"

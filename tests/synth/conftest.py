@@ -5,13 +5,13 @@ from __future__ import annotations
 
 import math
 import os
-import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 import pytest
+from repo_configs import copy_repo_configs
 
 from physverify.app.plugins import PLUGIN_KINDS
 from physverify.config.loader import load_settings
@@ -50,7 +50,6 @@ from physverify.synth.store import DatasetStore
 
 DATA = Path(__file__).parent / "data"
 CLEAN = DATA / "clean"
-REPO_CONFIGS = Path(__file__).resolve().parents[2] / "configs"
 Vec = np.ndarray
 
 
@@ -104,11 +103,7 @@ def store(tmp_path: Path) -> DatasetStore:
 def clean_ds(tmp_path_factory: pytest.TempPathFactory) -> DatasetSettings:
     """The committed dataset settings, loaded once per session (no local.toml)."""
     root = tmp_path_factory.mktemp("clean_ds")
-    configs = root / "configs"
-    configs.mkdir()
-    for source in REPO_CONFIGS.glob("*.toml"):
-        if not source.name.startswith("local"):
-            shutil.copy(source, configs / source.name)
+    configs = copy_repo_configs(root / "configs")
     lock = root / "heavy.lock"
     (configs / "local.toml").write_text(f'[runtime]\nheavy_lock = "{lock}"\n', encoding="utf-8")
     environ = {"HOME": str(root / "home"), "PATH": os.environ.get("PATH", "")}

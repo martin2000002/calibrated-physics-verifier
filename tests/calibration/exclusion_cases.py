@@ -35,7 +35,7 @@ from physverify.stats.intervals import Ci, Rate
 from physverify.verification.exclusion_record import ExclusionRecord, InputHashes, RuleEvidence
 
 REPO = Path(__file__).resolve().parents[2]
-RULES_TOML = REPO / "configs" / "exclusion_rules.toml"
+RULES_TOML = REPO / "configs" / "verifier" / "exclusion_rules.toml"
 FAMILY = "f4_stack"
 R2_PERT = "r2_unsupported_rest"
 PRECISE = "precise"
