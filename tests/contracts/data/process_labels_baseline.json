@@ -247,7 +247,7 @@
  },
  "src/physverify/cli/commands/agreement.py": {
   "comment_or_docstring": 1,
-  "literal": 4
+  "literal": 2
  },
  "src/physverify/cli/commands/calibrate.py": {
   "comment_or_docstring": 3,
@@ -690,7 +690,7 @@
  },
  "src/physverify/human_agreement/workflow.py": {
   "comment_or_docstring": 2,
-  "literal": 1
+  "literal": 3
  },
  "src/physverify/kubric_worker/tasks/render.py": {
   "comment_or_docstring": 1

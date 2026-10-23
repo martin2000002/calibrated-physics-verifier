@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import datetime as dt
 import math
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -45,6 +45,7 @@ from physverify.human_agreement.prereg import (
     require_unchanged,
     write_preregistration,
 )
+from physverify.human_agreement.report import REPORT_DIR, write_comparison
 from physverify.human_agreement.rule_setup import ApiLoader, RuleSetup, build_rule, check_run
 from physverify.human_agreement.settings import (
     SECTION,
@@ -253,6 +254,39 @@ def log_test_comparison(
     )
     log_comparison(path, entry)
     return path
+
+
+def compare_and_report[S: CalibrationStratum](
+    settings: Settings,
+    checks: Mapping[str, type[Check]],
+    dataset: VideophyDataset,
+    request: CompareRequest,
+    api_loader: ApiLoader[S],
+    clock: Callable[[], dt.datetime],
+    *,
+    echo: Echo,
+) -> None:
+    """Compare a verify run, log it if it is a test comparison, write the report and print the
+    verdict. Logged before anything is written or shown: no test report may exist without its
+    entry."""
+    comparison = run_comparison(settings, checks, dataset, request, api_loader)
+    log_test_comparison(settings, comparison, request.run_dir, clock())
+    out_dir = request.run_dir / REPORT_DIR
+    write_comparison(out_dir, comparison)
+    echo(f"agreement: {out_dir}")
+    for line in verdict_lines(comparison):
+        echo(line)
+
+
+def verdict_lines(comparison: Comparison) -> list[str]:
+    verdict = comparison.metrics["h2_verdict"]
+    lines = [f"rule: {comparison.metrics['rule']}; compared {comparison.counts.compared}"]
+    if not verdict["applicable"]:
+        lines.append(f"H2: {verdict['reason']}")
+    else:
+        post_hoc = " (POST HOC)" if verdict["post_hoc"] else ""
+        lines.append(f"H2: {'supported' if verdict['supported'] else 'not supported'}{post_hoc}")
+    return lines
 
 
 def apply_freeze(

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import functools
 from pathlib import Path
 from typing import Annotated
 
@@ -13,15 +14,13 @@ from physverify.cli.context import app_context, echo_err, heavy_command
 from physverify.datasets._base import fetch_all
 from physverify.datasets.videophy import VideophyDataset
 from physverify.human_agreement.clip_decision import import_calibration
-from physverify.human_agreement.report import REPORT_DIR, write_comparison
 from physverify.human_agreement.settings import agreement_settings
 from physverify.human_agreement.subset_review import check_recorded, record_subsets, review_subset
 from physverify.human_agreement.workflow import (
     CompareRequest,
     apply_freeze,
+    compare_and_report,
     freeze,
-    log_test_comparison,
-    run_comparison,
 )
 
 NAME = "agreement"
@@ -105,18 +104,12 @@ def compare_command(
 ) -> None:
     request = CompareRequest(run_dir, name, rule, preregistration)
     context = app_context()
-    comparison = run_comparison(
-        context.settings, context.registry("checks"), _dataset(), request, import_calibration
+    compare_and_report(
+        context.settings,
+        context.registry("checks"),
+        _dataset(),
+        request,
+        import_calibration,
+        functools.partial(dt.datetime.now, dt.UTC),
+        echo=typer.echo,
     )
-    # Logged before anything is written or shown: no test report may exist without its entry.
-    log_test_comparison(app_context().settings, comparison, run_dir, dt.datetime.now(dt.UTC))
-    out_dir = run_dir / REPORT_DIR
-    write_comparison(out_dir, comparison)
-    verdict = comparison.metrics["h2_verdict"]
-    typer.echo(f"agreement: {out_dir}")
-    typer.echo(f"rule: {comparison.metrics['rule']}; compared {comparison.counts.compared}")
-    if not verdict["applicable"]:
-        typer.echo(f"H2: {verdict['reason']}")
-    else:
-        post_hoc = " (POST HOC)" if verdict["post_hoc"] else ""
-        typer.echo(f"H2: {'supported' if verdict['supported'] else 'not supported'}{post_hoc}")

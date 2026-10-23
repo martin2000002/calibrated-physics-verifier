@@ -116,7 +116,7 @@ def test_a_test_comparison_is_logged_before_its_report_is_written(
     def broken(*args: object) -> None:
         raise PhysverifyError("disk full")
 
-    monkeypatch.setattr("physverify.cli.commands.agreement.write_comparison", broken)
+    monkeypatch.setattr("physverify.human_agreement.workflow.write_comparison", broken)
     result = cli(*FAST, "agreement", "compare", "--verify-run", str(run))
     assert result.code == 1 and "disk full" in result.err
     prereg = world.settings.paths.data_dir / "agreement" / "preregistration.json"
