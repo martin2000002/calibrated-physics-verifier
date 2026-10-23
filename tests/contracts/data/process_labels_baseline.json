@@ -113,6 +113,9 @@
  "scripts/h200/smoke_autoeval.sh": {
   "config_or_script_text": 2
  },
+ "src/physverify/app/calibration.py": {
+  "comment_or_docstring": 1
+ },
  "src/physverify/app/sealing.py": {
   "literal": 8
  },
@@ -250,8 +253,7 @@
   "comment_or_docstring": 1
  },
  "src/physverify/cli/commands/exclusions.py": {
-  "banner": 3,
-  "comment_or_docstring": 2,
+  "comment_or_docstring": 1,
   "literal": 5
  },
  "src/physverify/cli/commands/extract.py": {
