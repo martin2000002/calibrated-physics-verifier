@@ -7,7 +7,6 @@ the ``path#pointer`` it cites cannot drift apart. The typed loaders (``parse_cal
 
 from __future__ import annotations
 
-import json
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -21,6 +20,7 @@ from physverify.calibration.artifact_io import (
     CalibrationError,
     parse_calibration,
 )
+from physverify.core import jsonio
 from physverify.core.digests import text_sha256
 from physverify.human_agreement.clip_decision import CALIBRATED_NAME
 from physverify.human_agreement.report import REPORT_DIR
@@ -72,17 +72,14 @@ def walk(data: Any, path: str) -> Any:
 def resolve(source: str) -> Any:
     """What a ``path#pointer`` source names, read again from disk."""
     path, _, where = source.partition(POINTER_SEPARATOR)
-    return walk(json.loads(Path(path).read_text(encoding="utf-8")), where)
+    return walk(jsonio.read_json(Path(path), ResultsInputError), where)
 
 
 def read_doc(path: Path) -> Doc:
     if not path.is_file():
         raise ResultsInputError(f"no file at {path}")
     text = path.read_text(encoding="utf-8")
-    try:
-        data = json.loads(text)
-    except json.JSONDecodeError as exc:
-        raise ResultsInputError(f"{path} is not valid JSON: {exc}") from exc
+    data = jsonio.loads(text, path, ResultsInputError)
     return Doc(path=path, data=data, sha256=text_sha256(text))
 
 
