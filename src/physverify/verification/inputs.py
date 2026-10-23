@@ -1,4 +1,4 @@
-"""Check inputs from ground truth (oracle) or from cached pipeline outputs (ADR 0006 §3.7, D8)."""
+"""Check inputs from ground truth (oracle) or from cached pipeline outputs."""
 
 from __future__ import annotations
 
@@ -87,7 +87,7 @@ class InputsError(ValueError):
 
 
 def build_inputs(raw: RawInputs) -> CheckInputs:
-    """Validate the time axis (D14.2) and bind the scale to the table it was fitted on."""
+    """Validate the time axis and bind the scale to the table it was fitted on."""
     states = raw.states
     try:
         tracks.row_step(states.frame_index)

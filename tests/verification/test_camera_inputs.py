@@ -1,4 +1,4 @@
-"""it4 judgement J6: the checks receive the camera the states were lifted with.
+"""The checks receive the camera the states were lifted with.
 
 Perceived: the CAMERA output of the same plan that produced KINEMATICS, loaded from the cache
 (never computed: the lock refuses heavy stages); with LIFT ground truth and CAMERA perceived there

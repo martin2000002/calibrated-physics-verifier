@@ -1,8 +1,8 @@
-"""it4 AC-1 on the analytic fixture, and the versioning of the two magnitudes (judgement J4, J5).
+"""The v2 registry on the analytic fixture, and the versioning of the two magnitudes.
 
-The seven checks it4 does not touch give, with the v2 registry, the oracle results of the golden
-written before it2; R4_jump and R4_size v2 are new versions whose parameters hash differently, so
-no calibration, exclusion record or scope written for v1 is accepted for v2."""
+The seven checks left unchanged give, with the v2 registry, the oracle results of the golden
+written by commit 01140e2; R4_jump and R4_size v2 are new versions whose parameters hash
+differently, so no calibration, exclusion record or scope written for v1 is accepted for v2."""
 
 from __future__ import annotations
 

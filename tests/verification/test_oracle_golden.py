@@ -1,9 +1,9 @@
-"""it1 (changes A and B): the oracle of the analytic fixture gives the same results with the new
-defaults as with the old behaviour behind each parameter.
+"""The oracle of the analytic fixture gives the same results with the new defaults as with the old
+behaviour behind each parameter.
 
-it2 T14: the oracle never goes through the perceived CAMERA or LIFT, so the fixture's oracle
-results equal those written by the code before it2 (01140e2). R4_jump and R4_size run as v1
-(``v1_checks``): since it4 the registry holds their v2, compared in ``test_v2_checks_oracle.py``."""
+The oracle never goes through the perceived CAMERA or LIFT, so the fixture's oracle results equal
+those written by the code of commit 01140e2. R4_jump and R4_size run as v1 (``v1_checks``): the
+registry now holds their v2, compared in ``test_v2_checks_oracle.py``."""
 
 from __future__ import annotations
 

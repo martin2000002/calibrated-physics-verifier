@@ -1,4 +1,4 @@
-"""it4 judgement J1: r4_teleport stays the target of R4_jump v2 although the check measures
+"""r4_teleport stays the target of R4_jump v2 although the check measures
 ``jump_over_noise`` and the perturbation is labelled ``jump_over_size``.
 
 Roles (calibration, devscore) are the v1 roles for every perturbation; in the sweep the injected

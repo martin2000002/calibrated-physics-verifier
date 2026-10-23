@@ -1,6 +1,6 @@
-"""PASS/FAIL when the k-sigma interval of a magnitude clears its threshold (ADR 0006 §3.6).
+"""PASS/FAIL when the k-sigma interval of a magnitude clears its threshold.
 
-A calibrated entry (ADR 0009) also corrects the magnitude by its measured bias and scales its
+A calibrated entry also corrects the magnitude by its measured bias and scales its
 sigma by the measured factor before the comparison."""
 
 from __future__ import annotations

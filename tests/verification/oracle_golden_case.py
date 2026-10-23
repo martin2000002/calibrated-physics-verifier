@@ -1,10 +1,10 @@
-"""Oracle check results of the analytic fixture, written once by the code before it2 (commit
-01140e2) into ``golden/oracle.json`` and compared with the current code (it2 T14).
+"""Oracle check results of the analytic fixture, written once by the code of commit 01140e2 into
+``golden/oracle.json`` and compared with the current code.
 The same module runs in both trees:
 
     PYTHONPATH=<old>/src:tests/fixtures python tests/verification/oracle_golden_case.py
 
-Since it4 the registry holds R4_jump v2 and R4_size v2, so the comparisons with the golden pass
+The registry now holds R4_jump v2 and R4_size v2, so the comparisons with the golden pass
 ``v1_checks()`` (the preregistered R4_jump and R4_size "self"); the other seven checks run as
 registered.
 """
@@ -34,7 +34,7 @@ V1_OVERRIDES: dict[str, dict[str, Any]] = {"R4_size": {"reference": "self"}}
 
 
 def v1_checks() -> tuple[dict[str, type[Check]], dict[str, dict[str, Any]]]:
-    """The registry with the v1 R4_jump, and the overrides that make R4_size v1 (it4 J4, J5)."""
+    """The registry with the v1 R4_jump, and the overrides that make R4_size v1."""
     from reference.r4_jump_v1 import ContinuityCheck
 
     return {**PLUGIN_KINDS["checks"](), "R4_jump": ContinuityCheck}, V1_OVERRIDES

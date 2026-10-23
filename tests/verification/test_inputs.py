@@ -101,7 +101,7 @@ def test_without_scale_the_inputs_have_no_scale() -> None:
 
 
 def strided_on_rows(case: sc.Case) -> sc.Case:
-    """Frames 0, 2, 4... but ``t`` counted per row: the D14.2 mismatch."""
+    """Frames 0, 2, 4... but ``t`` counted per row: the frame/time mismatch."""
     states = sc.strided(case, 2, quantize=False).states
     return replace(case, states=replace(states, t=np.arange(len(states.t)) * sc.DT))
 

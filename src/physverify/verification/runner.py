@@ -1,4 +1,4 @@
-"""Runs the checks over check inputs, applies the verdict policy, writes the run (ADR 0006 §3.8)."""
+"""Runs the checks over check inputs, applies the verdict policy, writes the run."""
 
 from __future__ import annotations
 
@@ -48,7 +48,7 @@ class VerificationSettings(FrozenModel):
 
 
 class ThresholdEntry(FrozenModel):
-    """``tau`` in check units. The H1 calibration (ADR 0009) may add the measured bias of the
+    """``tau`` in check units. The calibration may add the measured bias of the
     magnitude and the factor of its sigma; ``sigma_factor`` None: the error was not measured."""
 
     tau: float
@@ -62,7 +62,7 @@ class ArtifactRef(FrozenModel):
 
 
 class ThresholdTable(FrozenModel):
-    """Shape of ``paths.thresholds`` (written by the H1 calibration) and of the provisional set."""
+    """Shape of ``paths.thresholds`` (written by the calibration) and of the provisional set."""
 
     status: Literal["provisional", "calibrated"]
     source: str
@@ -176,7 +176,7 @@ class VerificationRunner:
         try:
             found = check.evaluate(item.inputs)
             return [self._decide(result) for result in found], False
-        except Exception as exc:  # a failing check must not abort the run (ADR 0006 §3.8)
+        except Exception as exc:  # a failing check must not abort the run
             error = f"{type(exc).__name__}: {exc}"
             return [self._missing(check, item, {"error": error})], True
 

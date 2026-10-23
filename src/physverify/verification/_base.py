@@ -10,7 +10,7 @@ from physverify.schema.checks import CheckResult
 
 @runtime_checkable
 class VerdictPolicy(Protocol):
-    """Registered by ``name``; ``thresholds`` is the parsed calibration file (H1)."""
+    """Registered by ``name``; ``thresholds`` is the parsed calibration file."""
 
     name: ClassVar[str]
 

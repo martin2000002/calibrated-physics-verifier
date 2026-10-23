@@ -1,19 +1,19 @@
-"""it2 T15 (judgement J5): the injected violations survive LIFT version 3's running median.
+"""The injected violations survive LIFT version 3's running median.
 
 Analytic scenes (tests/checks/check_scenarios.py) seen by a camera tilted 25 degrees down, so
 vertical motion moves the depth. B is applied to the camera-frame centres and extents of every
 visible run exactly as LIFT applies it to its summaries (``stabilize_run``); velocities and
 accelerations are then recomputed with the chain's Savitzky-Golay for both tables, and each
-check runs on both. J5: (i) R4_size, R4_jump, R4_missing, R1 and R2 must not move; (ii) R3a,
+check runs on both. Criteria: (i) R4_size, R4_jump, R4_missing, R1 and R2 must not move; (ii) R3a,
 R3b, R5a and R5b at L1..L4 must stay closer to their own level than to the level below (0 below
-L1). The clean scene is not part of J5; its drift is measured and asserted as found.
+L1). The clean scene is not part of the criteria; its drift is measured and asserted as found.
 
 Both edge rules are run. With ``"shifted"`` the ends of every run lose their slope: a 3-row
 r4_resize at a run end loses 9-53 % of its magnitude, so (i) fails (asserted as found) and that
 rule is not eligible; a clean parabola's R5a also goes from 0 to about 1.1, which the ladder of
 (ii) does not see. ``"keep"`` (LIFT's rule) passes (i) and (ii), but its clean R5a drift from
 clipping the depth apex is 0.0335, about 0.69 of the unfiltered L1 (0.0488): the filtered clean
-scene is closer to L1 than to clean. J6 measures that drift on calib (clean R5a).
+scene is closer to L1 than to clean. That drift is measured on calib (clean R5a).
 """
 
 from __future__ import annotations
@@ -131,7 +131,7 @@ def resized(level: float, width: int, where: str) -> sc.Case:
     return sc.with_values(case, "size", "ball", range(start, start + width), grown)
 
 
-# --- (i) magnitudes that must not move ---------------------------------------------------------
+# (i) magnitudes that must not move.
 
 
 @pytest.mark.parametrize("where", ["start", "middle", "end"])
@@ -139,7 +139,7 @@ def resized(level: float, width: int, where: str) -> sc.Case:
 @pytest.mark.parametrize("level", ResizeLevels().levels)
 @pytest.mark.parametrize("edges", EDGES)
 def test_t15_r4_resize_is_unchanged(edges: EdgeMode, level: float, width: int, where: str) -> None:
-    check = SizeConstancyCheck(SizeParams(reference="self"))  # the v1 measure it2 tested
+    check = SizeConstancyCheck(SizeParams(reference="self"))  # the v1 measure
     plain, filtered = both(check, resized(level, width, where), edges)
     print(f"R4_size {edges} m={level} w={width} {where}: {plain} -> {filtered}")
     assert plain[0] == pytest.approx(level, rel=1e-6)
@@ -188,11 +188,11 @@ def test_t15_r2_constant_overhang_is_unchanged(edges: EdgeMode, offset: float) -
     assert filtered == pytest.approx(plain, rel=REL)
 
 
-# --- (ii) magnitudes that must stay at their level -----------------------------------------------
+# (ii) magnitudes that must stay at their level.
 
 
 def ladder(check: Any, make: Make, levels: tuple[float, ...], label: str, edges: EdgeMode) -> None:
-    """J5 (ii): each level L1..L4 stays closer to its own magnitude than to the one below."""
+    """Criterion (ii): each level L1..L4 stays closer to its own magnitude than to the one below."""
     plain = [magnitudes(check, make(m), None)[0] for m in levels]
     filtered = [magnitudes(check, make(m), edges)[0] for m in levels]
     below = [0.0, *plain[:-1]]
@@ -243,9 +243,9 @@ KEEP_DRIFT_OVER_L1 = (0.6, 0.8)
 
 @pytest.mark.parametrize("edges", EDGES)
 def test_t15_the_clean_parabola_r5a_drift_is_measured(edges: EdgeMode) -> None:
-    """Not part of J5, asserted as found: on a clean flight the median clips the depth apex
-    (keep) and also flattens both ends (shifted). Without B the clean R5a is 0 and L1 is 0.0488;
-    with "keep" the clean scene lands at 0.0335, closer to L1 than to clean."""
+    """Not part of the criteria, asserted as found: on a clean flight the median clips the depth
+    apex (keep) and also flattens both ends (shifted). Without B the clean R5a is 0 and L1 is
+    0.0488; with "keep" the clean scene lands at 0.0335, closer to L1 than to clean."""
     check = FallShapeCheck(FallShapeParams())
     clean = sc.parabola(pitch_deg=PITCH_DEG)
     g = sc.STANDARD_GRAVITY

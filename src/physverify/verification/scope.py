@@ -1,7 +1,8 @@
-"""Which checks a consumer leaves out (H2 agreement, H3 scorer): one place for the ids.
+"""Which checks a consumer leaves out (human-agreement study, generator comparison scorer):
+one place for the ids.
 
 The ids are validated by the consumer against its check registry (``checked``), so a typo fails
-loudly instead of excluding nothing. The ids decided by the preregistered rules (ADR 0015) come
+loudly instead of excluding nothing. The ids decided by the preregistered rules come
 from the decision record ``exclusions.json`` and are merged here, so no consumer reads it."""
 
 from __future__ import annotations
@@ -25,7 +26,7 @@ class CheckScope(FrozenModel):
     exclude_checks: tuple[str, ...] = ()
     """Checks no consumer decides with: the record's ids plus any manual ones."""
     time_dependent_checks: tuple[str, ...] = ("R5b", "R4_jump")
-    """Checks whose magnitude depends on the clip's time base (fps, ADR 0006 R9)."""
+    """Checks whose magnitude depends on the clip's time base (fps)."""
     decision_record: str | None = None
     """The record of ``exclusions decide``, relative to ``paths.calibration_dir``."""
     require_decision_record: bool = False

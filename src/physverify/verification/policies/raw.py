@@ -1,4 +1,4 @@
-"""Leaves every result UNSCORED: raw magnitudes for the H1 calibration (ADR 0006 §3.6)."""
+"""Leaves every result UNSCORED: raw magnitudes for the calibration."""
 
 from __future__ import annotations
 

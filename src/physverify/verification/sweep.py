@@ -1,4 +1,4 @@
-"""Specificity sweep: each perturbation moves its own check and no other (ADR 0006 §3.9)."""
+"""Specificity sweep: each perturbation moves its own check and no other."""
 
 from __future__ import annotations
 
@@ -143,8 +143,8 @@ def perturbation_name(clip: ClipManifest) -> str:
 def target_check_ids(
     record: PerturbationRecord, checks: Sequence[CheckIdentity]
 ) -> tuple[str, ...]:
-    """A4 labels name a check exactly (R1) or a family resolved by ``target_unit`` (R4 ->
-    R4_jump)."""
+    """Synthetic ground-truth labels name a check exactly (R1) or a family resolved by
+    ``target_unit`` (R4 -> R4_jump)."""
     found: list[str] = []
     for label in record.target_checks:
         exact = [c.check_id for c in checks if c.check_id == label]

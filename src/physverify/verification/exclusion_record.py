@@ -1,6 +1,7 @@
-"""The exclusion decision record ``exclusions.json`` (ADR 0015 items 1.1, 1.2 and 1.5).
+"""The exclusion decision record ``exclusions.json``.
 
-Written by ``exclusions decide``; H2, H3 and the scorer read it only through ``[check_scope]``.
+Written by ``exclusions decide``; the human-agreement study, the generator comparison and
+the scorer read it only through ``[check_scope]``.
 It imports no consumer and holds no timestamp nor absolute path, so the same inputs give the same
 bytes, and ``sha256`` (``stable_hash`` of the record without it) binds what was decided.
 """

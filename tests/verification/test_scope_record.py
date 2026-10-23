@@ -1,4 +1,5 @@
-"""``[check_scope]`` merges the exclusion decision record: the one place H2 and H3 read it."""
+"""``[check_scope]`` merges the exclusion decision record: the one place the human-agreement
+study and the generator comparison read it."""
 
 from __future__ import annotations
 

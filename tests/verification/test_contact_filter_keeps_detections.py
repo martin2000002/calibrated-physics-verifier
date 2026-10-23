@@ -1,4 +1,4 @@
-"""it3 T9 and T10 (judgement J6): the injected violations survive ``contacts/kinematic``.
+"""The injected violations survive ``contacts/kinematic``.
 
 Analytic scenes (tests/checks/check_scenarios.py) seen by a camera tilted 25 degrees down; each
 check runs on the scene's states with three contact tables: the scene's true records, those of
@@ -89,7 +89,7 @@ def jump_of_the_ball(case: sc.Case) -> float:
     return ball.magnitude
 
 
-# --- (i) r4_teleport keeps its magnitude -----------------------------------------------------
+# (i) r4_teleport keeps its magnitude.
 
 
 @pytest.mark.parametrize("flight", [False, True])
@@ -102,7 +102,7 @@ def test_t9_i_teleport_jump_equals_the_truth(level: float, flight: bool) -> None
     assert truth == pytest.approx(level, rel=1e-6)
 
 
-# --- (ii) a clean bounce no longer looks like a jump ------------------------------------------
+# (ii) a clean bounce no longer looks like a jump.
 
 
 @pytest.mark.parametrize("beta", [0.1, 0.4, 0.8])
@@ -115,7 +115,7 @@ def test_t9_ii_clean_bounce_jump_is_excluded_like_the_truth(beta: float) -> None
     assert found == pytest.approx(truth, rel=1e-6, abs=1e-12)
 
 
-# --- (iii) R3a and R3b keep their levels ------------------------------------------------------
+# (iii) R3a and R3b keep their levels.
 
 
 @pytest.mark.parametrize("level", RestitutionLevels().levels)
@@ -138,7 +138,7 @@ def test_t9_iii_energy_gain_matches_the_truth(level: float) -> None:
     assert abs(found[0] - truth[0]) <= 0.01
 
 
-# --- (iv) R5a and R5b: gravity changes are not impacts ----------------------------------------
+# (iv) R5a and R5b: gravity changes are not impacts.
 
 
 @pytest.mark.parametrize("level", SwitchLevels().levels)
@@ -156,7 +156,7 @@ def test_t9_iv_gravity_value_is_unchanged(level: float) -> None:
     assert magnitudes(check, kinematic(case)) == magnitudes(check, proximity(case))
 
 
-# --- (v) R1 and R2 on still scenes, R1 on a bounce (J6) ---------------------------------------
+# (v) R1 and R2 on still scenes, R1 on a bounce.
 
 
 @pytest.mark.parametrize("depth", [0.01, 0.05])
@@ -178,7 +178,7 @@ def test_t9_v_equilibrium_is_unchanged(make: Any) -> None:
 
 
 def test_t9_v_penetration_of_a_bounce_against_the_truth() -> None:
-    """J6: the kinematic ENV record is the support plane R1 reads for a ball that never rests;
+    """The kinematic ENV record is the support plane R1 reads for a ball that never rests;
     its point lies on the ground at the impact, so R1 equals the truth's."""
     case = sc.bounce(impact_frame=15.3, pitch_deg=PITCH_DEG)
     check = InterpenetrationCheck(InterpenetrationParams())
@@ -188,7 +188,7 @@ def test_t9_v_penetration_of_a_bounce_against_the_truth() -> None:
     assert found == pytest.approx(truth, abs=1e-9)
 
 
-# --- (vi) R4_missing and R4_size do not read contacts -----------------------------------------
+# (vi) R4_missing and R4_size do not read contacts.
 
 
 def test_t9_vi_missing_and_size_are_unchanged() -> None:
