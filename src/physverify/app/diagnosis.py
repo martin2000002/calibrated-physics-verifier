@@ -117,7 +117,7 @@ def dataset_clips(ctx: DiagnosisContext, wanted: Sequence[str]) -> list[ClipMani
 
 
 def guarded_clips(
-    app: AppContext, ctx: DiagnosisContext, command: str, wanted: Sequence[str], err: Echo
+    app: AppContext, ctx: DiagnosisContext, command: str, wanted: Sequence[str], *, err: Echo
 ) -> list[ClipManifest]:
     """``dataset_clips`` after the sealed-ledger guard of ``command``."""
     selected = dataset_clips(ctx, wanted)
@@ -140,7 +140,7 @@ def stage_errors_runner(
     err: Echo,
 ) -> Runner:
     def runner(ctx: DiagnosisContext) -> Report:
-        selected = guarded_clips(app, ctx, command, clips, err)
+        selected = guarded_clips(app, ctx, command, clips, err=err)
         return run_stage_errors(
             ctx, selected, write_profile=write_profile, replace_mismatched=replace_mismatched
         )
@@ -150,14 +150,14 @@ def stage_errors_runner(
 
 def end_to_end_runner(app: AppContext, command: str, clips: Sequence[str], *, err: Echo) -> Runner:
     def runner(ctx: DiagnosisContext) -> Report:
-        return run_end_to_end(ctx, guarded_clips(app, ctx, command, clips, err))
+        return run_end_to_end(ctx, guarded_clips(app, ctx, command, clips, err=err))
 
     return runner
 
 
 def attribution_runner(app: AppContext, command: str, clips: Sequence[str], *, err: Echo) -> Runner:
     def runner(ctx: DiagnosisContext) -> Report:
-        return run_attribution(ctx, guarded_clips(app, ctx, command, clips, err))
+        return run_attribution(ctx, guarded_clips(app, ctx, command, clips, err=err))
 
     return runner
 
