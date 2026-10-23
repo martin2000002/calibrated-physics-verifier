@@ -10,7 +10,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from physverify.checks._base import Check, CheckInputs
-from physverify.checks._params import TIE_RTOL
+from physverify.physics.ties import TIE_RTOL
 from physverify.physics.tracks import row_step
 from physverify.schema.checks import AbstainReason, CheckResult, Verdict
 

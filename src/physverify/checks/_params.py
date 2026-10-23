@@ -7,7 +7,6 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from physverify.core.models import FrozenModel
-from physverify.physics.ties import TIE_RTOL as TIE_RTOL
 from physverify.physics.tracks import MIN_NOISE_STENCILS, OCCLUDED_AT
 
 
