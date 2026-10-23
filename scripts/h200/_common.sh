@@ -74,3 +74,8 @@ pv() {
 h200_py() {
     env PYTHONPATH="$REPO_ROOT/src" "$PY" "$REPO_ROOT/scripts/h200/$1" "${@:2}"
 }
+
+# query ARGS: run_query.py of this checkout.
+query() {
+    h200_py run_query.py "$@"
+}

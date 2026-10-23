@@ -135,10 +135,6 @@ for pair in "FREEZE_COMMIT $HEAD_COMMIT" "FREEZE_ITERATION $PHYSVERIFY_FREEZE_IT
 done
 require_completed "$FIRST_STEP" "$FROM"
 
-query() {
-    h200_py run_query.py "$@"
-}
-
 step_1() {
     local selection="$F/selection.json" chosen dir commit changed file
     fq select "${ITERATIONS[@]}" >"$selection.tmp" || stop "J4 selection failed (see above)"

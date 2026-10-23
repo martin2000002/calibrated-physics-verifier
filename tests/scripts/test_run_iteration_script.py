@@ -328,9 +328,10 @@ def test_a_bad_profile_name_and_an_exported_pv_profile(sandbox: IterationSandbox
     assert all(line.startswith("--profile precise ") for line in sandbox.pv())
 
 
-def test_steps_sh_ignores_an_exported_pv_profile() -> None:
-    """Audit m4: run_human_agreement.sh sources _steps.sh and must keep --profile precise."""
-    script = f'set -u; die() {{ exit 2; }}; source "{H200 / "_steps.sh"}"; echo "$PV_PROFILE"'
+def test_the_helpers_ignore_an_exported_pv_profile() -> None:
+    """Audit m4: run_human_agreement.sh sources _common.sh and _steps.sh and keeps precise."""
+    sources = f'source "{H200 / "_common.sh"}"; source "{H200 / "_steps.sh"}"'
+    script = f'set -u; {sources}; echo "$PV_PROFILE"'
     found = subprocess.run(
         ["bash", "-c", script], env={"PV_PROFILE": "fast", "PATH": os.environ["PATH"]},
         capture_output=True, text=True, check=True,

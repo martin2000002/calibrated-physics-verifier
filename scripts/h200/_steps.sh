@@ -3,12 +3,11 @@
 #
 # The caller sets LOGS, STATE, STEPS, NOTES and SUMMARY, the summary's SUMMARY_TITLE
 # and SUMMARY_INFO line, and PY, PV_DEVICE and THREADS for pv (DOCTOR before doctor_value).
-# PV_PROFILE is precise unless the caller sets it after sourcing this file (an exported one is
-# ignored: run_human_agreement.sh always runs precise). require_completed reads STEP_SAVES (step ->
+# _common.sh sets PV_PROFILE to precise and ignores an exported one (run_human_agreement.sh always
+# runs precise); a caller changes it after sourcing. require_completed reads STEP_SAVES (step ->
 # keys). The runners call the checkout through the interpreter $PY, never through uv.
 
 PV_RUNNER=py
-PV_PROFILE=precise
 
 sha_of() {
     sha256sum "$1" | cut -d ' ' -f 1

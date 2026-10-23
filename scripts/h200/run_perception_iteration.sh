@@ -169,10 +169,6 @@ for pair in "CHAIN_DEVICE $DEVICE" "CHAIN_PROFILE $PV_PROFILE" "CHAIN_ITER_ID $I
 done
 require_completed "$FIRST_STEP" "$FROM"
 
-query() {
-    h200_py run_query.py "$@"
-}
-
 check_doctor() {
     local name
     DOCTOR="$(pv doctor)" || die "physverify doctor failed"

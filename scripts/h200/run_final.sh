@@ -270,10 +270,6 @@ if [[ "$CMD" != seed && "${FINAL_SEED:-}" != "$SEED" ]]; then
 fi
 exec {state_fd}>&-
 
-query() {
-    h200_py run_query.py "$@"
-}
-
 # completed CMD SET: CMD on SET last recorded exit 0 in steps.tsv.
 completed() {
     [[ "$(awk -F '\t' -v c="$1" -v s="$2" '$1 == c && $2 == s { x = $3 } END { print x }' \
