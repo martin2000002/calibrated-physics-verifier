@@ -3,6 +3,9 @@
 H1	any	held-out monotonicity
 H2	any	human-agreement study
 H3	any	generator comparison
+H2	hypothesis	human-agreement hypothesis (persisted in the human-agreement summary.md)
+H2	verdict	human-agreement verdict
+H1	dev_score	monotonicity (in-sample on calib/dev, not held-out)
 A3	any	timing harness
 A4	any	synthetic Kubric dataset
 A4 labels	any	synthetic ground-truth labels
