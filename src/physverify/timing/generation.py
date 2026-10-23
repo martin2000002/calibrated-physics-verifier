@@ -16,8 +16,9 @@ from pathlib import Path
 from typing import Any, Final
 
 from physverify.config.models import PathsSettings
+from physverify.core.digests import file_sha256
 from physverify.extraction._base import WeightKind, WeightSpec
-from physverify.extraction.weights import hub_offline, local_path, sha256_of, weight_file
+from physverify.extraction.weights import hub_offline, local_path, weight_file
 from physverify.timing.records import TimingError
 from physverify.timing.settings import GenerationSettings
 
@@ -87,7 +88,7 @@ def snapshot_problem(gen: GenerationSettings, paths: PathsSettings) -> str | Non
     index = weight_file(spec, paths)
     if not index.is_file():
         return f"Wan2.1 weights not found in {local_path(spec, paths)}: {FETCH_HINT}"
-    if sha256_of(index) != spec.sha256:
+    if file_sha256(index) != spec.sha256:
         return f"{index} does not match the pinned sha256: {FETCH_HINT}"
     missing = missing_files(local_path(spec, paths), index)
     if missing:

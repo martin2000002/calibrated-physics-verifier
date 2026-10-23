@@ -22,9 +22,9 @@ from physverify.calibration.loader import (
     Calibration,
     CalibrationError,
     parse_calibration,
-    sha256_of,
 )
 from physverify.calibration.schema import EvaluationReport
+from physverify.core.digests import text_sha256
 from physverify.reporting.chain import (
     EVALUATION_KEY,
     RECORD_KEY,
@@ -83,7 +83,7 @@ def read_doc(path: Path) -> Doc:
         data = json.loads(text)
     except json.JSONDecodeError as exc:
         raise ResultsInputError(f"{path} is not valid JSON: {exc}") from exc
-    return Doc(path=path, data=data, sha256=sha256_of(text))
+    return Doc(path=path, data=data, sha256=text_sha256(text))
 
 
 @dataclass(frozen=True)

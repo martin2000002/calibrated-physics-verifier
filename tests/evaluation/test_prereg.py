@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 
-from physverify.agreement.prereg import file_sha256
+from physverify.core.digests import sha256_if_file
 from physverify.core.errors import ConfigError, PhysverifyError, UsageError
 from physverify.evaluation.analysis import SECONDARY_TESTS
 from physverify.evaluation.layout import H3Layout
@@ -226,10 +226,10 @@ def test_refreezes_keep_the_chain_to_the_first_freeze(tmp_path: Path) -> None:
     layout = H3Layout(tmp_path / "h3")
     first = record()
     write_prereg(layout, first)
-    sha1 = file_sha256(layout.prereg)
+    sha1 = sha256_if_file(layout.prereg)
     second = record(rule_label="c", created_utc="2026-10-20T00:00:00+00:00", replaces_sha256=sha1)
     write_prereg(layout, second)
-    sha2 = file_sha256(layout.prereg)
+    sha2 = sha256_if_file(layout.prereg)
     assert sha1 is not None and sha2 is not None
     loaded = load_prereg(layout.prereg)
     assert [r.rule_label for r in chain(layout, loaded)] == ["c", "provisional"]

@@ -12,7 +12,6 @@ import typer
 
 from physverify.agreement.decision import import_calibration
 from physverify.agreement.prereg import (
-    file_sha256,
     load_preregistration,
     logged_comparisons,
     plan_refreeze,
@@ -34,6 +33,7 @@ from physverify.agreement.workflow import (
 from physverify.cli.commands.data import fetch_all
 from physverify.cli.context import app_context, heavy_command
 from physverify.core.atomic import write_text_atomic
+from physverify.core.digests import sha256_if_file
 from physverify.core.errors import ConfigError
 from physverify.core.log import get_logger
 from physverify.datasets._videophy_review import (
@@ -152,7 +152,7 @@ def freeze_command(
     path, current = freeze(
         settings, _dataset(), run_dir, import_calibration, dt.datetime.now(dt.UTC)
     )
-    previous = file_sha256(path)
+    previous = sha256_if_file(path)
     old = None if previous is None else load_preregistration(path)
     record_ = plan_refreeze(
         old,

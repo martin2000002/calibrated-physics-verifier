@@ -12,10 +12,10 @@ from typing import Any, Final
 
 import scipy
 
-from physverify.agreement.prereg import file_sha256
 from physverify.calibration.loader import CalibrationError, load_calibration
 from physverify.calibration.settings import check_registry
 from physverify.config.models import Settings
+from physverify.core.digests import sha256_if_file
 from physverify.core.errors import MissingInputError, PhysverifyError
 from physverify.evaluation.analysis import (
     SECONDARY_TESTS,
@@ -231,12 +231,12 @@ def current_record(inputs: FreezeInputs, now: dt.datetime) -> H3Preregistration:
     return H3Preregistration(
         commit=inputs.commit,
         section_hashes=section_hashes(inputs.settings.sections),
-        prompts_sha256=file_sha256(inputs.store.prompts_path),
+        prompts_sha256=sha256_if_file(inputs.store.prompts_path),
         eval_counts=eval_counts(prompts, analysed),
         selection_run_id=inputs.selection.run_id,
         adapter=adapter,
         adapter_tag=tag,
-        calibration_artifact_sha256=file_sha256(inputs.calibration_path),
+        calibration_artifact_sha256=sha256_if_file(inputs.calibration_path),
         rule=inputs.scorer.name,
         scorer_version=inputs.scorer.version,
         rule_label=rule_label,
@@ -244,10 +244,10 @@ def current_record(inputs: FreezeInputs, now: dt.datetime) -> H3Preregistration:
         calibration_dataset=dataset,
         contaminated=contaminated(dataset),
         judge_stamps=stamps,
-        gate_sha256=file_sha256(inputs.layout.gate),
+        gate_sha256=sha256_if_file(inputs.layout.gate),
         margins={task: d.value for task, d in margins.items()},
         margin_derivations=margins,
-        margin_source_sha256=file_sha256(inputs.margin_source),
+        margin_source_sha256=sha256_if_file(inputs.margin_source),
         bootstrap_seed=inputs.cfg.bootstrap_seed,
         mde=_mde(inputs, prompts, tag, len(analysed)),
         usability=dev_usability(inputs.layout, dev_tags, stamps, inputs.cfg),

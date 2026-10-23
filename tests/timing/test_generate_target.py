@@ -14,10 +14,10 @@ import pytest
 from numpy.typing import NDArray
 
 from physverify.config.models import Settings
+from physverify.core.digests import file_sha256
 from physverify.core.video import Mp4VideoSource
 from physverify.datasets.local_video import MANIFEST_FILE, LocalVideoDataset, to_queries
 from physverify.extraction._base import WeightKind
-from physverify.extraction.weights import sha256_of
 from physverify.schema.clip import ClipManifest, TimeSource
 from physverify.timing._base import TimingContext
 from physverify.timing.generation import (
@@ -157,7 +157,7 @@ def settings(make_settings: Callable[..., Settings], base_settings: Settings) ->
     return make_settings(
         *SMALL,
         f"paths.hf_home={base_settings.paths.hf_home}",
-        f"timing.generation.sha256={sha256_of(index)}",
+        f"timing.generation.sha256={file_sha256(index)}",
     )
 
 
@@ -267,7 +267,7 @@ def test_unavailable_with_an_incomplete_snapshot(
     settings = make_settings(
         *SMALL,
         f"paths.hf_home={base_settings.paths.hf_home}",
-        f"timing.generation.sha256={sha256_of(index)}",
+        f"timing.generation.sha256={file_sha256(index)}",
     )
     reason = rig.target.unavailable(_ctx(settings, tmp_path))
     assert reason is not None

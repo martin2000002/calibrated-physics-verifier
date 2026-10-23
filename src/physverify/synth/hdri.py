@@ -9,12 +9,13 @@ LISTING`` prints both as the ``[dataset.hdri_pools]`` TOML table.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import re
 import sys
 from collections.abc import Iterable
 from pathlib import PurePosixPath
+
+from physverify.core.digests import text_sha256
 
 PANORAMA_DIR = "openpano/panoramas/"
 RESOLUTION_SUFFIX = re.compile(r"_\d+k$")
@@ -34,7 +35,7 @@ def training_names(listing: Iterable[str]) -> set[str]:
 def outside_ids(manifest_ids: Iterable[str], seen: set[str]) -> list[str]:
     """Manifest ids not in ``seen``, ordered by the sha256 of the id."""
     unseen = {i for i in manifest_ids if i not in seen}
-    return sorted(unseen, key=lambda i: hashlib.sha256(i.encode("utf-8")).hexdigest())
+    return sorted(unseen, key=text_sha256)
 
 
 def halves(ids: list[str]) -> tuple[list[str], list[str]]:

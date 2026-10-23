@@ -13,6 +13,7 @@ import numpy as np
 import pytest
 
 from physverify.config.models import Settings
+from physverify.core.digests import file_sha256
 from physverify.core.errors import MissingInputError, UsageError
 from physverify.datasets._download import MANIFEST_FILE, ChecksumError, part_path, read_manifest
 from physverify.datasets.pisa_real import (
@@ -21,7 +22,6 @@ from physverify.datasets.pisa_real import (
     derive_queries,
     select_ids,
 )
-from physverify.extraction.weights import sha256_of
 from physverify.schema.clip import ObjectQuery, TimeSource
 
 SIZE = (32, 24)
@@ -142,7 +142,7 @@ def test_fetch_extracts_the_selected_clips_and_records_them(
     assert [f.relative for f in manifest.files] == [
         f"{i}/{m}" for i in expected for m in ("movie.mp4", "clip_info.json")
     ]
-    assert all(f.sha256 == sha256_of(dest / f.relative) for f in manifest.files)
+    assert all(f.sha256 == file_sha256(dest / f.relative) for f in manifest.files)
 
 
 def test_a_second_fetch_reuses_the_intact_files(settings: Settings, movie: bytes) -> None:

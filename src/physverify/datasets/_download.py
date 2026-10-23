@@ -24,10 +24,10 @@ from typing import IO, Any, BinaryIO, Protocol
 from pydantic import BaseModel, ConfigDict, RootModel, ValidationError
 
 from physverify.core.atomic import write_text_atomic
+from physverify.core.digests import file_sha256
 from physverify.core.errors import ConfigError, PhysverifyError
 from physverify.core.log import get_logger
 from physverify.datasets.local_video import QueryList, to_queries
-from physverify.extraction.weights import sha256_of
 from physverify.schema.clip import ObjectQuery
 
 PART_SUFFIX = ".part"
@@ -165,7 +165,7 @@ def intact(path: Path, record: FetchedFile) -> bool:
     if not path.is_file() or path.stat().st_size != record.size:
         return False
     if record.sha256 is not None:
-        return sha256_of(path) == record.sha256
+        return file_sha256(path) == record.sha256
     return record.md5_b64 is not None and md5_b64(path) == record.md5_b64
 
 

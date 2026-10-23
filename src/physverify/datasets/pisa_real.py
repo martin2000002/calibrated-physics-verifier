@@ -19,6 +19,7 @@ from pydantic import Field
 
 from physverify.config.models import FrozenModel, SizePriorTable
 from physverify.core.atomic import write_text_atomic
+from physverify.core.digests import file_sha256
 from physverify.core.errors import MissingInputError, UsageError
 from physverify.core.log import get_logger
 from physverify.core.video import Mp4VideoSource
@@ -40,7 +41,6 @@ from physverify.datasets._download import (
 from physverify.datasets._queries import derive_queries
 from physverify.extraction.providers._common import lookup_label
 from physverify.extraction.providers.scale_size_prior import SIZE_PRIORS_SECTION
-from physverify.extraction.weights import sha256_of
 from physverify.schema.clip import ClipManifest, ObjectQuery, Split, TimeSource
 
 if TYPE_CHECKING:
@@ -210,7 +210,7 @@ class PisaRealDataset:
             return record
         size = extract_member(archive.get(), f"{ARCHIVE_ROOT}/{relative}", target)
         log.info("%s: %d bytes", relative, size)
-        return FetchedFile(relative=relative, size=size, sha256=sha256_of(target))
+        return FetchedFile(relative=relative, size=size, sha256=file_sha256(target))
 
     def _manifest(
         self, clip_id: str, queries: Mapping[str, tuple[ObjectQuery, ...]]

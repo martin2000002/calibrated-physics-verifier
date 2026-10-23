@@ -24,7 +24,6 @@ so every query sees what the physverify calls of the same script see.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import math
 import os
@@ -37,6 +36,8 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+from physverify.core.digests import file_sha256, text_sha256
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PROFILE = "precise"
@@ -85,9 +86,9 @@ class Candidate:
         return (self.n_met, -math.inf if self.auroc_cv is None else self.auroc_cv, self.number)
 
 
-def sha256_of(path: Path) -> str:
+def readable_sha256(path: Path) -> str:
     try:
-        return hashlib.sha256(path.read_bytes()).hexdigest()
+        return file_sha256(path)
     except OSError as exc:
         raise QueryError(f"cannot read {path}: {exc}") from exc
 
@@ -134,7 +135,7 @@ def candidate(directory: Path) -> Candidate:
     if missing:
         raise QueryError(f"{iteration}: steps {missing} are not completed in steps.tsv")
     for key, name in ITERATION_FILES.items():
-        if sha256_of(directory / name) != state.get(key):
+        if readable_sha256(directory / name) != state.get(key):
             raise QueryError(f"{iteration}: {name} is not the file state.env records ({key})")
     devscore = _json(directory / ITERATION_FILES["DEVSCORE_SHA"])
     selection = devscore.get("selection")
@@ -170,8 +171,7 @@ def seed_of(commit: str, calibration_sha: str, exclusions_sha: str) -> int:
     for sha in (calibration_sha, exclusions_sha):
         if not SHA256.match(sha):
             raise QueryError(f"a sha256 must be 64 lowercase hex characters, got {sha!r}")
-    digest = hashlib.sha256("".join([commit, calibration_sha, exclusions_sha]).encode("utf-8"))
-    return int(digest.hexdigest()[:8], 16)
+    return int(text_sha256("".join([commit, calibration_sha, exclusions_sha]))[:8], 16)
 
 
 def run_git(args: Sequence[str]) -> str:
@@ -221,7 +221,7 @@ def artifact_record(paths: Mapping[str, Path | None]) -> dict[str, dict[str, str
         present = path is not None and path.is_file()
         if not present and label != "thresholds":
             raise QueryError(f"the frozen {label} file {path} is missing")
-        sha = sha256_of(path) if present and path is not None else None
+        sha = readable_sha256(path) if present and path is not None else None
         record[label] = {"path": None if path is None else str(path), "sha256": sha}
     return record
 
@@ -284,7 +284,7 @@ def manifest(inputs: ManifestInputs, settings: Any, git: Git) -> dict[str, Any]:
         "diffs": {"j3": j3, "j13": diff_record(git, "j13", inputs.p2_commit, head)},
         "v1": {
             "commit": inputs.v1_commit,
-            "calibration_sha256": sha256_of(inputs.v1_calibration),
+            "calibration_sha256": readable_sha256(inputs.v1_calibration),
         },
     }
 
@@ -316,7 +316,7 @@ def artifact_problems(frozen: Mapping[str, Any], settings: Any) -> list[str]:
         if entry is None:
             problems.append(f"the manifest records no {label}")
             continue
-        now = sha256_of(path) if path is not None and path.is_file() else None
+        now = readable_sha256(path) if path is not None and path.is_file() else None
         if entry.get("path") != (None if path is None else str(path)):
             problems.append(f"{label} is read from {path}, the manifest froze {entry.get('path')}")
         elif now != entry.get("sha256"):
@@ -508,7 +508,7 @@ def _write_manifest(args: argparse.Namespace) -> list[str]:
     args.out.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     j13 = "empty" if data["diffs"]["j13"]["empty"] else f"changes {data['diffs']['j13']['changed']}"
     return [
-        f"freeze: {args.out} sha256 {sha256_of(args.out)}",
+        f"freeze: {args.out} sha256 {readable_sha256(args.out)}",
         f"commit {data['commit']}, configs tree {data['configs_tree']}, seed {data['seed']}",
         f"J13 diff from P2 {args.p2_commit}: {j13}",
     ]

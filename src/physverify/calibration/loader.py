@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import math
 from collections.abc import Iterable
@@ -24,6 +23,7 @@ from physverify.calibration.schema import (
 from physverify.calibration.schema import Stratum as StratumModel
 from physverify.calibration.settings import calibration_settings
 from physverify.config.models import Settings
+from physverify.core.digests import text_sha256
 from physverify.core.errors import PhysverifyError
 from physverify.schema.checks import InputLevel
 from physverify.verification.runner import (
@@ -63,10 +63,6 @@ def default_artifact_path(settings: Settings) -> Path:
 
 def projection_name(level: InputLevel, profile: str) -> str:
     return f"thresholds.{level.value}.{profile}.json"
-
-
-def sha256_of(text: str) -> str:
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
 @dataclass(frozen=True)
@@ -291,7 +287,7 @@ def parse_calibration(text: str, *, path: Path | None = None) -> Calibration:
         artifact = CalibrationArtifact.model_validate(data, context={LENIENT: lenient})
     except ValidationError as exc:
         raise CalibrationError(f"{label} is invalid:\n{exc}") from exc
-    return Calibration(artifact=artifact, path=path, sha256=sha256_of(text))
+    return Calibration(artifact=artifact, path=path, sha256=text_sha256(text))
 
 
 def _compatible(version: str, label: str) -> bool:

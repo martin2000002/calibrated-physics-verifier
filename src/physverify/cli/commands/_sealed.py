@@ -24,7 +24,6 @@ from physverify.calibration.sealed import (
     check_repeat,
     dataset_entry,
     earlier,
-    file_sha,
     freeze_of,
     ledger_path,
     look_config_hash,
@@ -37,6 +36,7 @@ from physverify.calibration.sealed import (
 )
 from physverify.cli.context import AppContext
 from physverify.config.models import Settings
+from physverify.core.digests import sha256_if_file
 from physverify.runtime.runs import current_commit
 from physverify.schema.clip import ClipManifest
 from physverify.verification.scope import SECTION as SCOPE_SECTION
@@ -215,7 +215,7 @@ def _look(context: AppContext, found: tuple[str, ...], artifacts: Mapping[str, s
     commit = current_commit(settings.repo_root)
     require_clean(commit, _tree_state(settings.repo_root))
     config_hash = look_config_hash(settings)
-    frozen = {label: file_sha(path) for label, path in frozen_files(settings).items()}
+    frozen = {label: sha256_if_file(path) for label, path in frozen_files(settings).items()}
     frozen |= dict(artifacts)
     return LedgerEntry(
         utc=dt.datetime.now(dt.UTC).isoformat(timespec="seconds"),

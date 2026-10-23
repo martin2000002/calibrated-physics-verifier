@@ -20,7 +20,6 @@ import typer
 from scipy.stats import norm
 
 from physverify.calibration.loader import default_artifact_path, load_calibration
-from physverify.calibration.sealed import file_sha
 from physverify.calibration.settings import checks_hash
 from physverify.calibration.table import Role, role_of
 from physverify.cli.commands._runs import new_run_dir, write_json
@@ -28,6 +27,7 @@ from physverify.cli.commands._sealed import Selection, guard_sealed
 from physverify.cli.commands.extract import pipeline_deps, resolve_dataset
 from physverify.cli.context import AppContext, app_context
 from physverify.core.atomic import write_text_atomic
+from physverify.core.digests import sha256_if_file
 from physverify.core.errors import MissingInputError, PhysverifyError, UsageError
 from physverify.datasets._base import DatasetSource
 from physverify.diagnosis.chain import ChainRunner
@@ -422,7 +422,7 @@ def _guard(context: AppContext, leaf: str, *, real: bool) -> None:
         except PhysverifyError:
             continue
         selections.append(Selection(source.name, subset, tuple(source.clips(subset))))
-    abstention = file_sha(settings.paths.calibration_dir / ABSTENTION_FILE)
+    abstention = sha256_if_file(settings.paths.calibration_dir / ABSTENTION_FILE)
     shas = {} if abstention is None else {"abstention": abstention}
     guard_sealed(context, f"{NAME} {leaf}", selections, artifacts=shas)
 

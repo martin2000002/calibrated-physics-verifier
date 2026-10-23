@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import shutil
 import subprocess
 import sys
@@ -15,13 +14,13 @@ from pathlib import Path
 from typing import Protocol
 
 from physverify.config.models import PathsSettings
+from physverify.core.digests import CHUNK_BYTES, file_sha256
 from physverify.core.errors import ConfigError
 from physverify.extraction._base import StageProvider, WeightKind, WeightSpec
 
 ALLOW_PATTERNS = ("*.json", "*.safetensors", "*.txt", "*.model")
 DEFAULT_HF_FILE = "model.safetensors"
 HF_REPO_PARTS = 2
-CHUNK_BYTES = 1 << 20
 
 
 class Downloader(Protocol):
@@ -116,14 +115,6 @@ def missing_weights(
     return tuple(spec for spec in specs if not is_present(spec, paths))
 
 
-def sha256_of(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(CHUNK_BYTES), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
 def _discard(path: Path) -> None:
     target = path.resolve()
     path.unlink(missing_ok=True)
@@ -134,7 +125,7 @@ def _discard(path: Path) -> None:
 def _verify_file(spec: WeightSpec, path: Path) -> Path:
     if not path.is_file():
         raise ConfigError(f"{spec.ref}: {path} was not downloaded")
-    actual = sha256_of(path)
+    actual = file_sha256(path)
     if actual != spec.sha256:
         _discard(path)
         raise ConfigError(f"{spec.ref}: sha256 {actual} != pinned {spec.sha256}; file removed")

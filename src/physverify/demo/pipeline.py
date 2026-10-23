@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Final
 
 from physverify.core.atomic import write_atomic, write_text_atomic
+from physverify.core.digests import file_sha256
 from physverify.core.errors import UsageError
 from physverify.demo.overlay import (
     OVERLAY_FILE,
@@ -37,7 +38,6 @@ from physverify.demo.report import (
     write_report,
 )
 from physverify.demo.settings import OverlayStyle
-from physverify.extraction.weights import sha256_of
 from physverify.finetune.generate import ADAPTER_HASH_CHARS, CandidateGenerator
 from physverify.finetune.records import (
     BASE_TAG,
@@ -90,7 +90,7 @@ def register_prompt(store: CampaignStore, prompt: PromptRecord) -> None:
 
 def video_tag(video: Path) -> tuple[str, str]:
     """The model tag of a given video (``video-<sha12>``) and its full sha256."""
-    digest = sha256_of(video)
+    digest = file_sha256(video)
     return f"{VIDEO_TAG_PREFIX}{digest[:ADAPTER_HASH_CHARS]}", digest
 
 
@@ -126,7 +126,7 @@ def import_video(
 
 
 def _require_same(target: Path, digest: str) -> None:
-    if sha256_of(target) != digest:
+    if file_sha256(target) != digest:
         raise UsageError(
             f"{target} holds another video under the same model tag; refusing to overwrite it"
         )

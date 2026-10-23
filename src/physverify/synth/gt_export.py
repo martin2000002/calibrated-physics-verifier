@@ -23,6 +23,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from physverify.core.atomic import write_bytes_atomic
+from physverify.core.digests import file_sha256
 from physverify.core.hashing import params_hash
 from physverify.core.video import write_mp4
 from physverify.physics.finite_diff import central_difference
@@ -328,7 +329,7 @@ def content_sha256(path: Path) -> str:
     """sha256 of a file's content. For an NPZ it hashes each member's uncompressed bytes by name,
     so the zip container (compression, headers, the numpy that wrote it) does not change it."""
     if path.suffix != ".npz":
-        return hashlib.sha256(path.read_bytes()).hexdigest()
+        return file_sha256(path)
     with zipfile.ZipFile(path) as archive:
         members = {
             name: hashlib.sha256(archive.read(name)).hexdigest() for name in archive.namelist()

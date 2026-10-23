@@ -35,7 +35,6 @@ from physverify.agreement.prereg import (
     Preregistration,
     compared_under_other,
     earliest_mtime,
-    file_sha256,
     frozen_after,
     frozen_before,
     load_preregistration,
@@ -52,6 +51,7 @@ from physverify.agreement.settings import (
     preregistration_path,
 )
 from physverify.calibration.settings import check_registry
+from physverify.core.digests import sha256_if_file
 from physverify.core.errors import ConfigError, UsageError
 from physverify.datasets._queries import derive_queries
 from physverify.datasets._videophy_review import REVIEWED, SubsetReview, load_review, template
@@ -180,10 +180,10 @@ def frozen_state(
         "commit": current_commit(settings.repo_root),
         "agreement_config_sha256": stable_hash(config),
         "subset_sha256": subsets,
-        "queries_sha256": file_sha256(dataset.queries_path),
+        "queries_sha256": sha256_if_file(dataset.queries_path),
         "calibration_artifact_sha256": None
         if setup.artifact is None
-        else file_sha256(setup.artifact),
+        else sha256_if_file(setup.artifact),
         "rule": setup.rule.name,
         "rule_label": setup.rule.label,
         "profile": profile,
@@ -207,7 +207,7 @@ def freeze[S: CalibrationStratum](
     require_record_for(
         setup.checks,
         calibrated=agreement.rule == CALIBRATED_NAME,
-        artifact_sha256=None if setup.artifact is None else file_sha256(setup.artifact),
+        artifact_sha256=None if setup.artifact is None else sha256_if_file(setup.artifact),
     )
     check_run(run, rows, setup, Split.CALIB)
     dev = freeze_dev(rows, setup.primary, run, agreement.primary_policy)
@@ -271,7 +271,7 @@ def freeze_audit(
     chain = preregistration_chain(path, frozen)
     first = chain[-1].created_utc
     earliest = earliest_mtime(run_files(run.path))
-    sha256 = file_sha256(path) or ""
+    sha256 = sha256_if_file(path) or ""
     return FreezeAudit(
         prereg_sha256=sha256,
         versions=len(chain),

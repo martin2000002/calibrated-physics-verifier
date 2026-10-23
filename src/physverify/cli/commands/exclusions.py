@@ -41,7 +41,6 @@ from physverify.calibration.loader import (
     CalibrationError,
     default_artifact_path,
     load_calibration,
-    sha256_of,
 )
 from physverify.calibration.schema import EvaluationReport
 from physverify.calibration.settings import (
@@ -53,6 +52,7 @@ from physverify.calibration.table import CalibrationDataError, build_rows, in_fa
 from physverify.cli.commands.extract import resolve_dataset
 from physverify.cli.context import AppContext, app_context
 from physverify.core.atomic import write_text_atomic
+from physverify.core.digests import text_sha256
 from physverify.core.errors import UsageError
 from physverify.finetune.scope import family_targets
 from physverify.finetune.settings import FinetuneSettings, load_finetune
@@ -101,7 +101,7 @@ def report_sha256(run_dir: Path) -> str:
     """Hash of the run's checks.jsonl and table.csv, the evidence the decision read."""
     return stable_hash(
         {
-            name: sha256_of((run_dir / name).read_text(encoding="utf-8"))
+            name: text_sha256((run_dir / name).read_text(encoding="utf-8"))
             for name in (CHECKS_FILE, TABLE_FILE)
         }
     )
@@ -215,7 +215,7 @@ def _evaluation(path: Path) -> tuple[EvaluationReport, str]:
         raise UsageError(f"no evaluation at {path}: run `physverify calibrate evaluate`")
     text = path.read_text(encoding="utf-8")
     try:
-        return EvaluationReport.model_validate_json(text), sha256_of(text)
+        return EvaluationReport.model_validate_json(text), text_sha256(text)
     except ValidationError as exc:
         raise UsageError(f"{path} is not an evaluation report:\n{exc}") from exc
 
@@ -359,7 +359,7 @@ def show_command(
 def _artifact_note(artifact: Path, record: ExclusionRecord) -> None:
     if not artifact.is_file():
         return
-    current = sha256_of(artifact.read_text(encoding="utf-8"))
+    current = text_sha256(artifact.read_text(encoding="utf-8"))
     if current != record.inputs.artifact_sha256:
         typer.echo(
             f"note: {artifact} (sha256 {current[:12]}) is not the artifact the record was "

@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import datetime as dt
 import gc
-import hashlib
 import json
 from collections.abc import Sequence
 from pathlib import Path
@@ -35,6 +34,7 @@ from physverify.cli.commands._stop_rule import (
 from physverify.cli.commands.timing import _timing_directory
 from physverify.cli.context import AppContext, app_context, heavy_command
 from physverify.core.atomic import write_text_atomic
+from physverify.core.digests import file_sha256
 from physverify.core.errors import EXIT_ERROR, UsageError
 from physverify.evaluation.arms import EVAL_SPLIT
 from physverify.finetune.budget import (
@@ -164,10 +164,6 @@ def campaign_prompts(store: CampaignStore, split: PromptSplit | None = None) -> 
     return [p for p in prompts if split is None or p.split == split]
 
 
-def _sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
-
-
 @prompts_app.command("build", help="Write prompts.jsonl (or with --check, verify it).")
 def prompts_build(
     check: Annotated[bool, typer.Option(help="Only verify the existing file.")] = False,
@@ -189,7 +185,7 @@ def prompts_build(
                 "use a new finetune.campaign"
             )
         write_records(path, records)
-    typer.echo(f"prompts: {path} sha256 {_sha256(path)}")
+    typer.echo(f"prompts: {path} sha256 {file_sha256(path)}")
     for split in SPLITS:
         typer.echo(f"  {split}: {sum(r.split == split for r in records)}")
 

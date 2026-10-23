@@ -26,7 +26,7 @@ from physverify.calibration.evaluate import (
     evaluate,
 )
 from physverify.calibration.fit import FitInputs, fit_calibration
-from physverify.calibration.loader import parse_calibration, sha256_of
+from physverify.calibration.loader import parse_calibration
 from physverify.calibration.monotonicity import LevelDelta, monotonicity
 from physverify.calibration.report import evaluation_markdown
 from physverify.calibration.scenes import SceneScope, expand, h1_scope, in_scope, scene_index
@@ -40,6 +40,7 @@ from physverify.calibration.settings import active_checks_hash
 from physverify.cli.context import PLUGIN_KINDS
 from physverify.config.loader import load_settings
 from physverify.config.models import Settings
+from physverify.core.digests import text_sha256
 from physverify.core.errors import ConfigError
 from physverify.core.hashing import error_profile_hash
 from physverify.extraction.cache import plan_entry_filter, plan_params_hashes, profile_keys
@@ -267,5 +268,5 @@ def test_a_1_3_0_artifact_loads_strictly_and_is_not_rewritten(
     assert calibration.version == "1.3.0"
     assert calibration.artifact.to_json() == text
     report = evaluate(calibration, (inputs,), _meta(_scope()), config())
-    assert report.artifact_sha256 == sha256_of(text)
+    assert report.artifact_sha256 == text_sha256(text)
     assert report.strata[0].monotonicity

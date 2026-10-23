@@ -16,7 +16,6 @@ from typing import Annotated, Final
 
 import typer
 
-from physverify.agreement.prereg import file_sha256
 from physverify.calibration.loader import default_artifact_path
 from physverify.calibration.settings import active_checks_hash
 from physverify.cli.commands._finetune_deps import (
@@ -31,6 +30,7 @@ from physverify.cli.commands._stop_rule import (
     require_stop_rule,
 )
 from physverify.cli.context import AppContext, app_context, heavy_command
+from physverify.core.digests import sha256_if_file
 from physverify.core.errors import EXIT_ERROR, ConfigError, MissingInputError, UsageError
 from physverify.datasets._videophy_tables import LABELS_DIR, read_table
 from physverify.datasets.videophy import FETCH_HINT, VideophyDataset
@@ -222,7 +222,7 @@ def _require_frozen(h: H3Context) -> tuple[H3Preregistration, str]:
     """The pre-registration and its content hash, refused when the current state differs."""
     prereg = load_prereg(h.layout.prereg)
     require_unchanged(prereg, identity(_current(h)))
-    sha256 = file_sha256(h.layout.prereg)
+    sha256 = sha256_if_file(h.layout.prereg)
     if sha256 is None:
         raise UsageError(f"{h.layout.prereg} disappeared while it was read")
     return prereg, sha256
@@ -295,14 +295,14 @@ def freeze(
     require_exclusion_record(h.context.settings, current)
     request = FreezeRequest(force, declare_deviation, _eval_data(h), h.layout.gate.is_file())
     old = optional_prereg(h.layout.prereg)
-    record = plan_freeze(old, file_sha256(h.layout.prereg), current, request)
+    record = plan_freeze(old, sha256_if_file(h.layout.prereg), current, request)
     if record is None:
         typer.echo(f"{h.layout.prereg}: unchanged")
         return
     write_prereg(h.layout, record)
     for line in _freeze_lines(record):
         typer.echo(line)
-    typer.echo(f"frozen: {h.layout.prereg} sha256 {file_sha256(h.layout.prereg)}")
+    typer.echo(f"frozen: {h.layout.prereg} sha256 {sha256_if_file(h.layout.prereg)}")
 
 
 def _freeze_lines(record: H3Preregistration) -> list[str]:
@@ -466,7 +466,7 @@ def gate_autoeval() -> None:
         raise UsageError(str(exc)) from exc
     references = {t: gate_reference(rows, table, h.cfg.gate.columns[t]) for t in TASKS}
     freeze_file = h.cfg.autoeval.path(h.cfg.autoeval.freeze_file)
-    shas = (file_sha256(source), None if freeze_file is None else file_sha256(freeze_file))
+    shas = (sha256_if_file(source), None if freeze_file is None else sha256_if_file(freeze_file))
     stamps = {t: autoeval.stamp(t) for t in TASKS}
     report = gate_report(judged, references, stamps, shas, h.cfg.gate)
     write_record(h.layout.gate, report)

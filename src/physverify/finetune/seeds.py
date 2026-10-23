@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import hashlib
 import re
 from dataclasses import dataclass
 from typing import Final
 
+from physverify.core.digests import text_sha256
 from physverify.core.errors import UsageError
 
 SEED_HEX_DIGITS: Final = 8
@@ -14,7 +14,7 @@ SHARD_PATTERN: Final = re.compile(r"^(\d+)/(\d+)$")
 
 
 def _digest(text: str) -> int:
-    return int(hashlib.sha256(text.encode("utf-8")).hexdigest()[:SEED_HEX_DIGITS], 16)
+    return int(text_sha256(text)[:SEED_HEX_DIGITS], 16)
 
 
 def candidate_seed(base_seed: int, prompt_id: str, k: int) -> int:

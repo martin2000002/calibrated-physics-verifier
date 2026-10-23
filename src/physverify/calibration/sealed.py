@@ -20,7 +20,6 @@ from pydantic import ValidationError, field_validator
 
 from physverify.config.models import FrozenModel, Settings, _anchor
 from physverify.core.errors import ConfigError, PhysverifyError, UsageError
-from physverify.extraction.weights import sha256_of
 from physverify.schema.clip import ClipManifest, Split
 from physverify.schema.io import stable_hash
 
@@ -127,10 +126,6 @@ def require_clean(commit: str, dirty: str | None) -> None:
             "uncommitted or untracked files under src or configs: commit them before a sealed "
             f"look, or its freeze would not be the commit's:\n{dirty.rstrip()}"
         )
-
-
-def file_sha(path: Path) -> str | None:
-    return sha256_of(path) if path.is_file() else None
 
 
 class LedgerDataset(FrozenModel):

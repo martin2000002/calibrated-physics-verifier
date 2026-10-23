@@ -37,7 +37,7 @@ from physverify.calibration.evaluate import (
 )
 from physverify.calibration.exclusion_record import ExclusionRecord, InputHashes, RuleEvidence
 from physverify.calibration.fit import FitInputs, fit_calibration
-from physverify.calibration.loader import Calibration, parse_calibration, sha256_of
+from physverify.calibration.loader import Calibration, parse_calibration
 from physverify.calibration.scenes import SceneScope
 from physverify.calibration.schema import EvaluationReport
 from physverify.calibration.sigma import SigmaPair
@@ -53,6 +53,7 @@ from physverify.cli.commands.abstain import (
     sweep,
 )
 from physverify.cli.commands.abstain import artifact_of as abstain_table
+from physverify.core.digests import text_sha256
 from physverify.datasets._videophy_tables import VideophyRow
 from physverify.schema.checks import CheckResult, InputLevel, Verdict
 from physverify.schema.clip import Split
@@ -270,9 +271,9 @@ def _record(calibration_dir: Path, artifact: Path, evaluation_path: Path) -> Pat
         consumed_profile=PROFILE,
         checks_hash="checks",
         inputs=InputHashes(
-            artifact_sha256=sha256_of(artifact.read_text(encoding="utf-8")),
+            artifact_sha256=text_sha256(artifact.read_text(encoding="utf-8")),
             artifact_run_id="run-a",
-            evaluation_sha256=sha256_of(text),
+            evaluation_sha256=text_sha256(text),
             evaluation_run_id="eval-a",
             r2_base_run="r2-base",
             r2_base_report_sha256="b",

@@ -14,9 +14,9 @@ import pytest  # noqa: E402
 from cli_runner import CliRunner  # noqa: E402
 from exclusion_cases import write_record as write_exclusions  # noqa: E402
 
-from physverify.agreement.prereg import file_sha256  # noqa: E402
 from physverify.calibration.settings import active_checks_hash  # noqa: E402
 from physverify.cli.commands.h3 import GATE_LINE, GATE_PASSED  # noqa: E402
+from physverify.core.digests import sha256_if_file  # noqa: E402
 from physverify.core.errors import UsageError  # noqa: E402
 from physverify.evaluation.analysis import SECONDARY_TESTS  # noqa: E402
 from physverify.evaluation.compare import (  # noqa: E402
@@ -96,7 +96,7 @@ def frozen(cli: CliRunner, campaign: Any, h3_environ: dict[str, str]) -> H3Prere
 def _score_eval(campaign: Any, prereg: H3Preregistration) -> str:
     """Scores both arms on eval and writes their manifests, as `h3 score` does on the H200."""
     campaign.write_split("eval", scored=True)
-    sha256 = file_sha256(campaign.layout.prereg)
+    sha256 = sha256_if_file(campaign.layout.prereg)
     assert sha256 is not None
     for tag in (BASE_TAG, prereg.adapter_tag):
         record = manifest(campaign.store, tag, campaign.scorer, None, sha256)
@@ -241,7 +241,7 @@ def test_task_values_keep_the_arms_of_one_seed_apart() -> None:
 def test_eval_judges_refuse_an_unbound_or_restamped_output(
     campaign: Any, frozen: H3Preregistration
 ) -> None:
-    sha256 = file_sha256(campaign.layout.prereg)
+    sha256 = sha256_if_file(campaign.layout.prereg)
     assert sha256 is not None
     known = chain_shas(campaign.layout, frozen, sha256)
     path = campaign.layout.judge_output("eval", BASE_TAG, "pc")

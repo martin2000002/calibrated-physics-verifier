@@ -14,7 +14,6 @@ from physverify.agreement.prereg import (
     LoggedComparison,
     Preregistration,
     changed_fields,
-    file_sha256,
     frozen_after,
     frozen_before,
     load_preregistration,
@@ -28,6 +27,7 @@ from physverify.agreement.prereg import (
 )
 from physverify.agreement.run_io import VerifyRun
 from physverify.agreement.workflow import freeze_audit
+from physverify.core.digests import sha256_if_file
 from physverify.core.errors import ConfigError, MissingInputError, UsageError
 
 RECORD = Preregistration(
@@ -152,7 +152,7 @@ def test_a_refreeze_after_a_test_comparison_must_declare_a_deviation() -> None:
 def test_a_replaced_file_is_archived_and_the_chain_walks_back(tmp_path: Path) -> None:
     path = tmp_path / "preregistration.json"
     write_preregistration(path, RECORD)
-    first_sha = file_sha256(path)
+    first_sha = sha256_if_file(path)
     assert first_sha is not None
     second = RECORD.model_copy(update={"replaces_sha256": first_sha, "profile": "fast"})
     write_preregistration(path, second)
@@ -180,7 +180,7 @@ def _audit(tmp_path: Path, record: Preregistration, logged: list[LoggedCompariso
     (run_dir / "table.csv").write_text("", encoding="utf-8")
     os.utime(run_dir / "table.csv", (mtime, mtime))
     run = VerifyRun(path=run_dir, run={}, rows={}, results={})
-    return freeze_audit(path, record, run, "def", logged), file_sha256(path)
+    return freeze_audit(path, record, run, "def", logged), sha256_if_file(path)
 
 
 def test_a_comparison_logged_under_another_preregistration_makes_the_audit_post_hoc(

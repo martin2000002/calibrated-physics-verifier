@@ -9,7 +9,6 @@ The inspection itself stays manual: the code only requires that it is recorded, 
 
 from __future__ import annotations
 
-import hashlib
 import math
 import random
 from collections.abc import Mapping, Sequence
@@ -17,6 +16,7 @@ from typing import Final
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from physverify.core.digests import text_sha256
 from physverify.finetune.records import CandidateScore, PairRecord, PairsReport
 from physverify.finetune.settings import StopRuleSettings
 
@@ -77,7 +77,7 @@ def fired_reason(state: StopRuleState, deviation: str | None) -> str | None:
 def pairs_sha256(pairs: Sequence[PairRecord]) -> str:
     """The hash of the pairs as stored (one JSON line each)."""
     text = "".join(p.model_dump_json() + "\n" for p in pairs)
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+    return text_sha256(text)
 
 
 def inspected_count(n_pairs: int, rules: StopRuleSettings) -> int:

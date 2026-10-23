@@ -18,13 +18,13 @@ from exclusion_cases import write_record  # noqa: E402
 from stratum_cases import write_artifact  # noqa: E402
 
 from physverify.agreement.prereg import (  # noqa: E402
-    file_sha256,
     load_preregistration,
     logged_comparisons,
 )
 from physverify.agreement.report import REPORT_DIR, _sign_flip_lines  # noqa: E402
 from physverify.calibration.loader import default_artifact_path  # noqa: E402
 from physverify.calibration.settings import active_checks_hash  # noqa: E402
+from physverify.core.digests import sha256_if_file  # noqa: E402
 from physverify.core.errors import PhysverifyError  # noqa: E402
 from physverify.datasets._videophy_review import PENDING, load_review  # noqa: E402
 from physverify.schema.checks import InputLevel  # noqa: E402
@@ -121,7 +121,7 @@ def test_a_test_comparison_is_logged_before_its_report_is_written(
     assert result.code == 1 and "disk full" in result.err
     prereg = world.settings.paths.data_dir / "agreement" / "preregistration.json"
     (entry,) = logged_comparisons(prereg)
-    assert entry.run == str(run) and entry.prereg_sha256 == file_sha256(prereg)
+    assert entry.run == str(run) and entry.prereg_sha256 == sha256_if_file(prereg)
     assert not (run / REPORT_DIR / "metrics.json").exists()
 
 
@@ -284,7 +284,7 @@ def _artifact(world, *, record: bool = True, **kwargs) -> Path:
     artifact = write_artifact(default_artifact_path(world.settings), **options)
     if record:
         path = world.settings.paths.calibration_dir / "exclusions.json"
-        write_record(path, artifact_sha256=file_sha256(artifact) or "", checks_hash=active)
+        write_record(path, artifact_sha256=sha256_if_file(artifact) or "", checks_hash=active)
     return artifact
 
 
@@ -306,7 +306,7 @@ def test_an_unusable_stratum_runs_descriptive_and_h2_is_not_evaluable(cli, world
     path = Path(frozen.out.split("preregistration: ", 1)[1].splitlines()[0])
     prereg = load_preregistration(path)
     assert "aggregate threshold" in str(prereg.calibration_gate)
-    assert prereg.calibration_artifact_sha256 == file_sha256(artifact)
+    assert prereg.calibration_artifact_sha256 == sha256_if_file(artifact)
     run = _test(world)
     result = cli(*FAST, *CALIBRATED, "agreement", "compare", "--verify-run", str(run))
     assert result.code == 0, result.err

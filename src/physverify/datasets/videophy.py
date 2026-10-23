@@ -14,6 +14,7 @@ from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
+from physverify.core.digests import file_sha256
 from physverify.core.errors import MissingInputError, PhysverifyError
 from physverify.core.log import get_logger
 from physverify.core.video import Mp4VideoSource
@@ -54,7 +55,6 @@ from physverify.datasets._videophy_tables import (
     read_table,
     reference_scores,
 )
-from physverify.extraction.weights import sha256_of
 from physverify.schema.clip import ClipManifest, ObjectQuery, TimeSource
 
 if TYPE_CHECKING:
@@ -190,7 +190,7 @@ class VideophyDataset:
         if record is not None and intact(target, record) and hub.sha256 in (None, record.sha256):
             return record
         size = self._download(hub.url(self._s.hub_url), target)
-        digest = sha256_of(target)
+        digest = file_sha256(target)
         if hub.sha256 is not None and digest != hub.sha256:
             target.unlink()
             raise ChecksumError(f"{relative}: sha256 {digest} differs from the pinned {hub.sha256}")
@@ -256,7 +256,9 @@ class VideophyDataset:
             target.unlink()
             return None
         return FetchedFile(
-            relative=self._relative(row, dest), size=target.stat().st_size, sha256=sha256_of(target)
+            relative=self._relative(row, dest),
+            size=target.stat().st_size,
+            sha256=file_sha256(target),
         )
 
     def _write_manifest(

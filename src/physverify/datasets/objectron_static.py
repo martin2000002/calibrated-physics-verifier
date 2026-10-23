@@ -13,7 +13,6 @@ The camera moves around the object: the control is still objects, not a still ca
 from __future__ import annotations
 
 import datetime as dt
-import hashlib
 import shutil
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
@@ -24,6 +23,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from physverify.config.models import FrozenModel
 from physverify.core.atomic import write_text_atomic
+from physverify.core.digests import file_sha256, text_sha256
 from physverify.core.errors import MissingInputError, PhysverifyError, UsageError
 from physverify.core.log import get_logger
 from physverify.core.video import FrameDirVideoSource
@@ -43,7 +43,6 @@ from physverify.datasets._download import (
     resolve_data_path,
     write_manifest,
 )
-from physverify.extraction.weights import sha256_of
 from physverify.schema.clip import ClipManifest, ObjectQuery, Split, TimeSource
 from physverify.sizing import draws, e2e, objectron
 from physverify.sizing.settings import SizingSettings, sizing_settings
@@ -123,7 +122,7 @@ Decoder = Callable[[Path, Path, float, int], Decoded]
 
 
 def order_key(seed: int, video_id: str) -> str:
-    return hashlib.sha256(f"{seed}:{video_id}".encode()).hexdigest()
+    return text_sha256(f"{seed}:{video_id}")
 
 
 def ordered(
@@ -334,7 +333,7 @@ class ObjectronStaticDataset:
                 relative=remote.relative,
                 size=remote.size,
                 md5_b64=remote.md5_b64,
-                sha256=sha256_of(path),
+                sha256=file_sha256(path),
             ),
         )
 

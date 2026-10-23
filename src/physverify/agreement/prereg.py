@@ -17,8 +17,8 @@ from typing import Final, Protocol
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from physverify.core.atomic import write_text_atomic
+from physverify.core.digests import sha256_if_file
 from physverify.core.errors import ConfigError, MissingInputError, UsageError
-from physverify.extraction.weights import sha256_of
 
 FROZEN_FIELDS = (
     "commit",
@@ -110,13 +110,9 @@ class Chained(Protocol):
     def replaces_sha256(self) -> str | None: ...
 
 
-def file_sha256(path: Path) -> str | None:
-    return sha256_of(path) if path.is_file() else None
-
-
 def archive_replaced(path: Path, archive: Callable[[str], Path]) -> None:
     """Copies the file at ``path`` (if any) to ``archive(its sha256)`` before it is replaced."""
-    sha = file_sha256(path)
+    sha = sha256_if_file(path)
     if sha is None:
         return
     target = archive(sha)
