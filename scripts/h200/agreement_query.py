@@ -1,14 +1,14 @@
-"""Read-only queries run_h2.sh asks of the checkout: a field of the pre-registration, how many
-test comparisons are logged, the input gaps of a subset and a clip ready to preflight. None of
-them reads a label.
+"""Read-only queries run_human_agreement.sh asks of the checkout: a field of the
+pre-registration, how many test comparisons are logged, the input gaps of a subset and a clip ready
+to preflight. None of them reads a label.
 
 Exit codes: 0 ok, 2 an input is unusable (message on stderr).
 
-    python h2_query.py prereg PATH FIELD   the field's value (empty for null)
-    python h2_query.py tested              logged test comparisons of the configured freeze
-    python h2_query.py log-path            the comparison log of the configured freeze
-    python h2_query.py gaps SUBSET         rows without an object query or a video
-    python h2_query.py ready SUBSET        the first clip with a video and an object query
+    python agreement_query.py prereg PATH FIELD   the field's value (empty for null)
+    python agreement_query.py tested              logged test comparisons of the configured freeze
+    python agreement_query.py log-path            the comparison log of the configured freeze
+    python agreement_query.py gaps SUBSET         rows without an object query or a video
+    python agreement_query.py ready SUBSET        the first clip with a video and an object query
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any
 
-from a8v2_query import QueryError, _settings
+from run_query import QueryError, query_settings
 
 SHOWN_CAPTIONS = 20
 
@@ -121,10 +121,10 @@ def _parser() -> argparse.ArgumentParser:
 def _lines(args: argparse.Namespace) -> list[str]:
     commands: dict[str, Callable[[], list[str]]] = {
         "prereg": lambda: prereg_field(args.path, args.field),
-        "tested": lambda: tested(_settings(())),
-        "log-path": lambda: log_path(_settings(())),
-        "gaps": lambda: gaps(_settings(()), args.subset),
-        "ready": lambda: ready(_settings(()), args.subset),
+        "tested": lambda: tested(query_settings(())),
+        "log-path": lambda: log_path(query_settings(())),
+        "gaps": lambda: gaps(query_settings(()), args.subset),
+        "ready": lambda: ready(query_settings(()), args.subset),
     }
     return commands[args.command]()
 
@@ -134,7 +134,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         lines = _lines(args)
     except QueryError as exc:
-        print(f"h2_query: {exc}", file=sys.stderr)
+        print(f"agreement_query: {exc}", file=sys.stderr)
         return 2
     for line in lines:
         print(line)

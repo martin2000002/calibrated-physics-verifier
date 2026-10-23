@@ -139,7 +139,7 @@ def score_devscore(
     echo: Echo,
     err: Echo,
 ) -> None:
-    """``calibrate devscore``: writes only its run directory (and ``out``)."""
+    """``calibrate dev-score``: writes only its run directory (and ``out``)."""
     session = _session(context, echo, err)
     guard = _guard(context, command, session, err)
     cal = session.config.calibration

@@ -271,7 +271,7 @@ fi
 exec {state_fd}>&-
 
 query() {
-    env PYTHONPATH="$REPO_ROOT/src" "$PY" "$REPO_ROOT/scripts/h200/a8v2_query.py" "$@"
+    h200_py run_query.py "$@"
 }
 
 # completed CMD SET: CMD on SET last recorded exit 0 in steps.tsv.
@@ -350,7 +350,7 @@ cmd_fetch() {
     [[ ! -e "$RUN/extract-$SET.started" ]] \
         || stop "the extraction of $SET started: its downloaded files are fixed (J14)"
     export PHYSVERIFY__OBJECTRON_STATIC__SEED="$SEED"
-    call 0 -- data fetch "$SET" --subset full
+    call 0 -- download fetch "$SET" --subset full
     unset PHYSVERIFY__OBJECTRON_STATIC__SEED
     local raw manifest="$RUN/fetch-$SET.sha256"
     raw="$(raw_dir_of "$SET")"

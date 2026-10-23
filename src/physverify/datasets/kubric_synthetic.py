@@ -1,4 +1,4 @@
-"""``kubric_synthetic``: the clips exported by ``physverify dataset`` (ADR 0004, section 3.8).
+"""``kubric_synthetic``: the clips exported by ``physverify synth`` (ADR 0004, section 3.8).
 
 Clips are generated locally, never downloaded. ``z`` at or beyond ``render.far_z_m`` is the
 background (Blender's miss value) and becomes 0, the "no surface" value of ``NativeGroundTruth``.
@@ -92,9 +92,7 @@ class KubricSynthetic:
             return [c for c in exported if c.split.value == subset]
         plan = load_plan(self._store)
         if plan is None:
-            raise MissingInputError(
-                f"no dataset plan in {self._store.root}: run `dataset generate`"
-            )
+            raise MissingInputError(f"no dataset plan in {self._store.root}: run `synth generate`")
         wanted = {v.clip_id for v in plan.subset(subset).variants}
         return [c for c in exported if c.clip_id in wanted]
 
@@ -110,14 +108,14 @@ class KubricSynthetic:
     def ground_truth(self, clip: ClipManifest) -> ArrayGroundTruthStore:
         if not (self._store.clip_dir(clip.clip_id) / GT_META).is_file():
             raise MissingInputError(
-                f"{clip.clip_id}: ground truth not exported (`dataset export-gt`)"
+                f"{clip.clip_id}: ground truth not exported (`synth export-gt`)"
             )
         return ArrayGroundTruthStore(load_native(self._store, clip.clip_id, self._far_z_m))
 
     def fetch(self, subset: str | None, dest: Path) -> None:
         raise UsageError(
             f"{self.name} is generated locally, not downloaded: "
-            f"physverify dataset build --subset {subset or 'local'}"
+            f"physverify synth build --subset {subset or 'local'}"
         )
 
 

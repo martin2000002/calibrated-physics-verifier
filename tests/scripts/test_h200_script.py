@@ -11,7 +11,7 @@ import pytest
 from shell_sandbox import Sandbox, executable
 
 SCRIPTS = Path(__file__).resolve().parents[2] / "scripts" / "h200"
-SCRIPT_NAMES = ("_common.sh", "setup.sh", "run_timing.sh")
+SCRIPT_NAMES = ("_common.sh", "setup_cuda.sh", "run_timing.sh")
 TOOLS = (
     "bash", "basename", "cat", "dirname", "grep", "head", "ln", "mkdir", "mktemp", "mv", "nproc",
     "rm", "sed", "tee",
@@ -91,9 +91,9 @@ SETUP = [
     _pv("timing fetch"),
 ]
 RENDER = [
-    _pv("dataset generate --subset smoke"),
-    _pv("dataset simulate --subset smoke"),
-    _pv("dataset perturb --subset smoke"),
+    _pv("synth generate --subset smoke"),
+    _pv("synth simulate --subset smoke"),
+    _pv("synth perturb --subset smoke"),
 ]
 TIMING_RUN = _pv("timing run --dataset local_video --subset timing_wan21")
 
@@ -110,7 +110,7 @@ def test_entry_scripts_are_executable(name: str) -> None:
     assert os.access(SCRIPTS / name, os.X_OK)
 
 
-@pytest.mark.parametrize("script", ["run_timing.sh", "setup.sh"])
+@pytest.mark.parametrize("script", ["run_timing.sh", "setup_cuda.sh"])
 @pytest.mark.parametrize(
     ("nvidia_smi", "env"),
     [(False, {}), (True, {"GPU_LIST": ""}), (True, {"PHYSVERIFY_TIMING_THREADS": "0"})],
@@ -136,7 +136,7 @@ def test_full_sequence_with_docker_and_a_missing_image(sandbox: TimingSandbox) -
         "docker info",
         _pv("doctor"),
         f"docker image inspect {IMAGE}",
-        _pv("dataset pull-image"),
+        _pv("synth pull-image"),
         *RENDER,
         TIMING_RUN,
     ]
@@ -150,7 +150,7 @@ def test_full_sequence_with_docker_and_a_missing_image(sandbox: TimingSandbox) -
 def test_present_image_is_not_pulled(sandbox: TimingSandbox) -> None:
     sandbox.install()
     assert sandbox.run(IMAGE_EXIT="0").returncode == 0
-    assert _pv("dataset pull-image") not in sandbox.lines()
+    assert _pv("synth pull-image") not in sandbox.lines()
     assert sandbox.lines()[-4:] == [*RENDER, TIMING_RUN]
 
 
@@ -182,5 +182,5 @@ def test_timing_run_exit_code_is_kept(sandbox: TimingSandbox) -> None:
 
 def test_setup_alone(sandbox: TimingSandbox) -> None:
     sandbox.install()
-    assert sandbox.run("setup.sh").returncode == 0
+    assert sandbox.run("setup_cuda.sh").returncode == 0
     assert sandbox.lines() == SETUP

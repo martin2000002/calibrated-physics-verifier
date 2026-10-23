@@ -1,4 +1,5 @@
-"""The records ``abstain fit`` and ``abstain curve`` write, and the lines they print."""
+"""The records ``selective-risk fit`` and ``selective-risk curve`` write, and the lines they
+print."""
 
 from __future__ import annotations
 
@@ -93,7 +94,7 @@ def fit_record(
 
 @dataclass(frozen=True)
 class CurveParts:
-    """What ``abstain curve`` computes beyond the two swept tables."""
+    """What ``selective-risk curve`` computes beyond the two swept tables."""
 
     per_check: dict[str, Any]
     injected_label: dict[str, Any]
@@ -138,7 +139,7 @@ def curve_record(
 def fitted_k(session: Session) -> float | None:
     path = session.calibration_dir / ABSTENTION_FILE
     if not path.is_file():
-        raise MissingInputError(f"no {path}; run `physverify abstain fit` first")
+        raise MissingInputError(f"no {path}; run `physverify selective-risk fit` first")
     k = json.loads(path.read_text(encoding="utf-8")).get("k_star")
     return None if k is None else float(k)
 

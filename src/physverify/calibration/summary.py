@@ -1,4 +1,4 @@
-"""The console lines of ``calibrate show``, ``devscore`` and ``stage-sigma``."""
+"""The console lines of ``calibrate show``, ``dev-score`` and ``stage-sigma``."""
 
 from __future__ import annotations
 

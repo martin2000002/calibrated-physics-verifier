@@ -1,7 +1,8 @@
-"""Pre-registration of H3 (ADR 0013 D9): written by ``h3 freeze`` before any eval score or judge
-row exists; ``score``, ``judge`` and ``compare`` recompute every identity field and refuse when one
-changed. A refreeze archives the replaced file, so the chain back to the first freeze is kept.
-Once eval data exist, any refreeze needs a declared deviation and makes the verdict post hoc.
+"""Pre-registration of H3 (ADR 0013 D9): written by ``compare-generators freeze`` before any eval
+score or judge row exists; ``score``, ``judge`` and ``compare`` recompute every identity field and
+refuse when one changed. A refreeze archives the replaced file, so the chain back to the first
+freeze is kept. Once eval data exist, any refreeze needs a declared deviation and makes the
+verdict post hoc.
 """
 
 from __future__ import annotations
@@ -25,7 +26,7 @@ from physverify.human_agreement.prereg import archive_replaced, changed_fields, 
 
 EVAL_DATA_DEVIATION: Final = "ran after eval data existed"
 JUDGE_STAMPS: Final = "judge_stamps"
-FREEZE_HINT: Final = "run `physverify h3 freeze`"
+FREEZE_HINT: Final = "run `physverify compare-generators freeze`"
 
 
 class Mde(FrozenModel):

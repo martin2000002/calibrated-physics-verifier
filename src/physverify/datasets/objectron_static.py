@@ -138,7 +138,7 @@ class ObjectronStaticDataset:
         self._client = client
         self._reader = reader
         self._decoder = decoder or decode_upright
-        self._fetch_hint = f"physverify data fetch {self.name}"
+        self._fetch_hint = f"physverify download fetch {self.name}"
 
     # --- Reading ------------------------------------------------------------------------------
 

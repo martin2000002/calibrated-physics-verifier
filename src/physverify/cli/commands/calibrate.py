@@ -64,7 +64,7 @@ def fit(
     )
 
 
-@app.command("devscore", help="Development metric on calib: H1 and out-of-fold J (WP-O).")
+@app.command("dev-score", help="Development metric on calib: H1 and out-of-fold J (WP-O).")
 def devscore(
     dataset: DatasetOption = None,
     subset: SubsetOption = None,
@@ -77,7 +77,7 @@ def devscore(
     picked = Picked(dataset, subset, clips)
     score_devscore(
         app_context(),
-        f"{NAME} devscore",
+        f"{NAME} dev-score",
         picked,
         level,
         out,

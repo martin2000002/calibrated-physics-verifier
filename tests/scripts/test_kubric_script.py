@@ -38,8 +38,8 @@ case "$*" in
     echo "docker_image: $IMAGE"
     echo "container_engine: ${DOCTOR_ENGINE:-$PHYSVERIFY__CONTAINER__ENGINE (detail)}" ;;
   *" doctor --probe-container") exit "${PROBE_EXIT:-0}" ;;
-  *" dataset build "*) echo "render: 0 launched"; exit "${BUILD_EXIT:-0}" ;;
-  *" dataset list "*) echo "render 2 done" ;;
+  *" synth build "*) echo "render: 0 launched"; exit "${BUILD_EXIT:-0}" ;;
+  *" synth list "*) echo "render 2 done" ;;
 esac
 """
 FAKE_DOCKER = """#!/bin/bash
@@ -112,8 +112,8 @@ def test_docker_is_the_default_engine(sandbox: KubricSandbox) -> None:
         f"{PV}doctor",
         f"docker image inspect {IMAGE}",
         PROBE,
-        f"{PV}dataset build --subset full",
-        f"{PV}dataset list --subset full",
+        f"{PV}synth build --subset full",
+        f"{PV}synth list --subset full",
     ]
     exported = sandbox.exported()
     assert exported["PHYSVERIFY__CONTAINER__ENGINE"] == "docker"
@@ -153,7 +153,7 @@ def test_missing_image_is_pulled(sandbox: KubricSandbox) -> None:
     assert sandbox.run(IMAGE_EXIT="1").returncode == 0
     assert sandbox.lines()[3:6] == [
         f"docker image inspect {IMAGE}",
-        f"{PV}dataset pull-image",
+        f"{PV}synth pull-image",
         PROBE,
     ]
 
@@ -166,8 +166,8 @@ def test_udocker_engine(sandbox: KubricSandbox) -> None:
         "udocker inspect kub",
         "udocker ps",
         PROBE,
-        f"{PV}dataset build --subset full",
-        f"{PV}dataset list --subset full",
+        f"{PV}synth build --subset full",
+        f"{PV}synth list --subset full",
     ]
     exported = sandbox.exported()
     assert exported["PHYSVERIFY__CONTAINER__ENGINE"] == "udocker"
@@ -191,7 +191,7 @@ def test_missing_udocker_container_is_created_from_the_pinned_digest(
         f"udocker create --name=kub {IMAGE}",
         "udocker ps",
     ]
-    assert sandbox.lines()[-1].endswith("dataset list --subset smoke")
+    assert sandbox.lines()[-1].endswith("synth list --subset smoke")
     assert "--profile fast" in sandbox.lines()[-1]
 
 
@@ -222,7 +222,7 @@ def test_an_explicit_image_accepts_its_container(sandbox: KubricSandbox) -> None
 def test_failed_build_still_lists_and_keeps_the_exit_code(sandbox: KubricSandbox) -> None:
     result = sandbox.run(BUILD_EXIT="1")
     assert result.returncode == 1
-    assert sandbox.lines()[-1] == f"{PV}dataset list --subset full"
+    assert sandbox.lines()[-1] == f"{PV}synth list --subset full"
 
 
 @pytest.mark.parametrize(
@@ -248,4 +248,4 @@ def test_preflight_failures_stop_before_the_build(
 ) -> None:
     result = sandbox.run(**env)
     assert result.returncode == 2
-    assert not any("dataset build" in line for line in sandbox.lines())
+    assert not any("synth build" in line for line in sandbox.lines())

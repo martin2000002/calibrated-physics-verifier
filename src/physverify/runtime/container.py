@@ -73,7 +73,7 @@ def _udocker(
 ENGINES: Mapping[str, EngineFactory] = MappingProxyType({"docker": _docker, "udocker": _udocker})
 MISSING_HINTS: Mapping[str, str] = MappingProxyType(
     {
-        "docker": "run `physverify dataset pull-image`",
+        "docker": "run `physverify synth pull-image`",
         "udocker": "run `scripts/h200/run_kubric.sh` (it pulls and creates the container)",
     }
 )

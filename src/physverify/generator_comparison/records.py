@@ -18,7 +18,8 @@ TASKS: tuple[str, ...] = ("pc", "sa")
 
 
 class ScoringManifest(FrozenModel):
-    """Written by ``h3 score`` and ``h3 rescore``; binds a tag's eval scores to a freeze."""
+    """Written by ``compare-generators score`` and ``rescore``; binds a tag's eval scores to a
+    freeze."""
 
     model_tag: str
     scorer: str

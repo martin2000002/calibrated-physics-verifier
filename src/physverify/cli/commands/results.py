@@ -30,26 +30,26 @@ app = typer.Typer(
 
 @app.callback()
 def results(
-    a8v2_dir: Annotated[Path, typer.Option(help="The chain's output directory (state.env).")],
-    h1_evaluation: Annotated[
+    chain_dir: Annotated[Path, typer.Option(help="The chain's output directory (state.env).")],
+    calibration_evaluation: Annotated[
         Path | None,
         typer.Option(help="evaluation.json with the pooled tau_b (default: the chain's)."),
     ] = None,
-    h2_run: Annotated[
+    agreement_run: Annotated[
         Path | None, typer.Option(help="The verify run `agreement compare` wrote into.")
     ] = None,
-    abstention_run: Annotated[
+    selective_risk_run: Annotated[
         Path | None,
-        typer.Option(help="The `abstain curve` run (default: the one step 7's log names)."),
+        typer.Option(help="The `selective-risk curve` run (default: the one step 7's log names)."),
     ] = None,
-    out: Annotated[Path | None, typer.Option(help="Default: <a8v2-dir>/results.")] = None,
+    out: Annotated[Path | None, typer.Option(help="Default: <chain-dir>/results.")] = None,
 ) -> None:
     scope = app_context().settings.section(SCOPE_SECTION, CheckScope)
     request = Request(
-        a8v2_dir=a8v2_dir,
-        h1_evaluation=h1_evaluation,
-        h2_run=h2_run,
-        abstention_run=abstention_run,
+        a8v2_dir=chain_dir,
+        h1_evaluation=calibration_evaluation,
+        h2_run=agreement_run,
+        abstention_run=selective_risk_run,
         check_scope=scope,
     )
     found = collect_results(collect_inputs(request))
@@ -58,6 +58,6 @@ def results(
     for section in found.sections:
         if section.missing:
             typer.echo(f"{section.key}: missing ({section.missing})")
-    json_path, md_path = write_results(out or a8v2_dir / DEFAULT_OUT, found)
+    json_path, md_path = write_results(out or chain_dir / DEFAULT_OUT, found)
     typer.echo(f"results: {md_path}")
     typer.echo(f"json: {json_path}")

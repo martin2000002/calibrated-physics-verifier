@@ -1,5 +1,5 @@
 # Declared arms of an iteration (ADR 0015 amendment 5, it3 judgement): one line per arm, the arm
-# name, a tab, then the provider swaps that run_iteration.sh passes as --set on every physverify
+# name, a tab, then the provider swaps that run_perception_iteration.sh passes as --set on every physverify
 # call (only extraction.plan.<stage>=<provider>). Every arm runs the committed profile otherwise,
 # so arms that share a provider prefix share its cache keys and error-profile entries.
 it3-r	extraction.plan.depth=vda_small extraction.plan.contacts=proximity

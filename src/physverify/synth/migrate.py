@@ -95,7 +95,7 @@ def rerender_clip_ids(manifest: Path) -> list[str]:
     data = read_json(manifest)
     if COMPLETED_KEY not in data:
         raise MissingInputError(
-            f"{manifest} has no {COMPLETED_KEY}: run `dataset migrate` to the end first"
+            f"{manifest} has no {COMPLETED_KEY}: run `synth migrate` to the end first"
         )
     return [str(c) for c in data[RERENDER_KEY]]
 
@@ -135,7 +135,7 @@ def check_plan_hash(plan: DatasetPlan, ds: DatasetSettings, name: str) -> None:
     if plan.config_hash in known:
         return
     velocity = velocity_migration(ds)
-    hint = "" if name == velocity else f"; run `physverify dataset migrate --name {velocity}` first"
+    hint = "" if name == velocity else f"; run `physverify synth migrate --name {velocity}` first"
     raise ConfigError(
         f"dataset {plan.version} was planned with other settings than the current ones "
         f"(beyond velocity_convention): migration refused{hint}"
@@ -287,4 +287,4 @@ def run_migrate(job: DatasetJob, name: str, commit: str | None) -> None:
         f"migrate {name}: {report.applied} applied, {len(report.rerender)} renders discarded, "
         f"{len(report.status_changes)} status changes; manifest {report.manifest}"
     )
-    job.echo("next: `physverify dataset build --subset <name>` for every built subset")
+    job.echo("next: `physverify synth build --subset <name>` for every built subset")

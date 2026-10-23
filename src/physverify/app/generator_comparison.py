@@ -221,7 +221,9 @@ def score_arm(context: AppContext, arm: str, shard: str | None, *, echo: Echo) -
     _, sha256, scorer = _frozen_scorer(context, h)
     tag, _ = arm_of(h, arm)
     if stale(eval_scores(h.store, tag, scorer.name), scorer):
-        raise UsageError(f"{tag} has eval scores of another stamp: run `physverify h3 rescore`")
+        raise UsageError(
+            f"{tag} has eval scores of another stamp: run `physverify compare-generators rescore`"
+        )
     prompts = eval_prompts(campaign_prompts(h.store))
     deps = scoring_deps(context)
     score_candidates(h.store, tag, prompts, scorer, deps, parse_shard(shard))
@@ -238,7 +240,7 @@ def rescore_arms(context: AppContext, *, echo: Echo) -> None:
     for tag in arm_tags(prereg):
         path = h.layout.scoring(tag, scorer.name)
         if not path.is_file():
-            raise UsageError(f"{path} is missing: run `physverify h3 score`")
+            raise UsageError(f"{path} is missing: run `physverify compare-generators score`")
         if read_record(path, ScoringManifest).checks_hash != active:
             raise UsageError(f"{tag}: the checks changed since scoring; score again, not rescore")
         changed = rescore(h.store, tag, scorer)

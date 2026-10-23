@@ -113,7 +113,7 @@ def gate_report(
 def gate_problem(gate: GateReport | None, stamps: Mapping[str, str]) -> str | None:
     """Why the judge may not be used: no gate, a failed gate or a gate of another stamp."""
     if gate is None:
-        return "the AutoEval gate has not run: run `physverify h3 gate-autoeval`"
+        return "the AutoEval gate has not run: run `physverify compare-generators gate-autoeval`"
     if not gate.passed:
         return "the AutoEval gate failed; the external judge is not used"
     for task, stamp in stamps.items():

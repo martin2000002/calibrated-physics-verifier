@@ -1,5 +1,5 @@
 # Startup guards of the H200 runners that must run the committed configuration of a clean
-# checkout (run_iteration.sh, run_freeze.sh, run_final.sh); sourced after _common.sh, never
+# checkout (run_perception_iteration.sh, run_freeze.sh, run_final.sh); sourced after _common.sh, never
 # executed. Each guard exits 2 (die) before any physverify call.
 
 # near PATH BASE: PATH is a directory named BASE* (BASE, BASE-cuda, ...) or below one.

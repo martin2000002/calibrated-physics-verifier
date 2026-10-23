@@ -65,7 +65,7 @@ def _curve_row(doc: Doc, where: str, k: float | None) -> str | None:
 
 
 def abstention(inputs: Inputs) -> Section:
-    """P5: k* on calib (``abstention.json``) and the held-out curve of ``abstain curve``."""
+    """P5: k* on calib (``abstention.json``) and the held-out curve of ``selective-risk curve``."""
     fit = inputs.abstention
     if isinstance(fit, Missing):
         return Section("abstention", missing=fit.reason)
@@ -106,7 +106,7 @@ def _held_out(doc: Doc, k_star: float | None) -> list[Value]:
 def _agreement_doc(inputs: Inputs, key: str) -> Doc | Section:
     doc = inputs.metrics
     if doc is None:
-        return Section(key, missing="no --h2-run given")
+        return Section(key, missing="no --agreement-run given")
     return doc
 
 

@@ -3,9 +3,9 @@ evaluation and the input errors of a verify run.
 
 Exit codes: 0 ok, 2 a check failed or an input is unusable (message on stderr).
 
-    python a8v2_query.py [--profile P] [--set K=V]... clips DATASET SUBSET [--split calib|eval]
-    python a8v2_query.py [--set K=V]... evaluation EVALUATION_JSON
-    python a8v2_query.py run-errors RUN_DIR
+    python run_query.py [--profile P] [--set K=V]... clips DATASET SUBSET [--split calib|eval]
+    python run_query.py [--set K=V]... evaluation EVALUATION_JSON
+    python run_query.py run-errors RUN_DIR
 """
 
 from __future__ import annotations
@@ -104,7 +104,7 @@ def _json(path: Path) -> dict[str, Any]:
     return data
 
 
-def _settings(overrides: Sequence[str], profile: str = PROFILE) -> Any:
+def query_settings(overrides: Sequence[str], profile: str = PROFILE) -> Any:
     """The checkout's settings; the profile also fixes the synthetic dataset version."""
     from physverify.config.loader import load_settings
 
@@ -154,9 +154,13 @@ def _parser() -> argparse.ArgumentParser:
 def _lines(args: argparse.Namespace) -> list[str]:
     commands: dict[str, Callable[[], list[str]]] = {
         "clips": lambda: clip_ids(
-            _dataset(_settings(args.overrides, args.profile), args.dataset), args.subset, args.split
+            _dataset(query_settings(args.overrides, args.profile), args.dataset),
+            args.subset,
+            args.split,
         ),
-        "evaluation": lambda: evaluation_lines(args.path, _allowed_sets(_settings(args.overrides))),
+        "evaluation": lambda: evaluation_lines(
+            args.path, _allowed_sets(query_settings(args.overrides))
+        ),
         "run-errors": lambda: run_errors(args.run_dir),
     }
     return commands[args.command]()
@@ -167,7 +171,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         lines = _lines(args)
     except QueryError as exc:
-        print(f"a8v2_query: {exc}", file=sys.stderr)
+        print(f"run_query: {exc}", file=sys.stderr)
         return 2
     for line in lines:
         print(line)

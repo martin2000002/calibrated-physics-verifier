@@ -46,7 +46,8 @@ def run(
 
 
 @app.command(
-    "scenes", help="Base vs fine-tuned reports of the fixed demo scenes (after h3 freeze)."
+    "scenes",
+    help="Base vs fine-tuned reports of the fixed demo scenes (after compare-generators freeze).",
 )
 @heavy_command
 def scenes(

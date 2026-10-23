@@ -1,4 +1,5 @@
-"""scripts/h200/run_h2.sh against a fake interpreter and ``git`` in a copied tree (C9, WP-N)."""
+"""scripts/h200/run_human_agreement.sh against a fake interpreter and ``git`` in a copied tree
+(C9, WP-N)."""
 
 from __future__ import annotations
 
@@ -17,7 +18,8 @@ from shell_sandbox import Sandbox, executable
 REPO = Path(__file__).resolve().parents[3]
 H200 = REPO / "scripts" / "h200"
 SCRIPT_NAMES = (
-    "_common.sh", "_steps.sh", "run_h2.sh", "a8v2_query.py", "h2_query.py", "freeze_query.py",
+    "_common.sh", "_steps.sh", "run_human_agreement.sh", "run_query.py", "agreement_query.py",
+    "freeze_query.py",
 )  # fmt: skip
 TOOLS = (
     "awk", "basename", "bash", "cat", "cmp", "cp", "cut", "dirname", "env", "flock", "grep",
@@ -26,7 +28,7 @@ TOOLS = (
 )  # fmt: skip
 PREFIX = re.compile(r"^--profile precise --device cpu --set runtime\.threads=(\d+) ")
 RECORD_SHA = "rec0123"
-# pv calls go to the case below; the helpers answer from files (h2_query) or run for real on
+# pv calls go to the case below; the helpers answer from files (agreement_query) or run for real on
 # run-errors unless the run holds the clean rows and REAL_QUERY is unset (its import costs
 # seconds). freeze writes a key=value pre-registration, compare appends to the comparison log.
 FAKE_PYTHON = r"""#!/bin/bash
@@ -38,15 +40,15 @@ if [[ "$1" != -c ]]; then
     script="$(basename "$1")"
     printf 'query %s %s\n' "$script" "${*:2}" >> "$CALLS"
     case "$script ${*:2}" in
-      "a8v2_query.py run-errors "*)
+      "run_query.py run-errors "*)
         [[ -z "${REAL_QUERY:-}" ]] && cmp -s "$CLEAN_CHECKS" "${!#}/checks.jsonl" && exit 0
         PYTHONPATH="$REAL_SRC" exec "$REAL_PYTHON" "$@" ;;
-      "h2_query.py tested")
+      "agreement_query.py tested")
         if [[ -f "$LOG" ]]; then grep -c . "$LOG" || true; else echo 0; fi ;;
-      "h2_query.py prereg "*) sed -n "s/^$4=//p" "$3" ;;
-      "h2_query.py gaps "*) echo "- no object query: 32 rows (32 with video) of $3" ;;
-      "h2_query.py ready "*) echo v2-ready000001 ;;
-      "h2_query.py log-path") echo "$LOG" ;;
+      "agreement_query.py prereg "*) sed -n "s/^$4=//p" "$3" ;;
+      "agreement_query.py gaps "*) echo "- no object query: 32 rows (32 with video) of $3" ;;
+      "agreement_query.py ready "*) echo v2-ready000001 ;;
+      "agreement_query.py log-path") echo "$LOG" ;;
       "freeze_query.py field "*) exec "$REAL_PYTHON" "$@" ;;
       "freeze_query.py artifacts "*) exit "${ARTIFACTS_EXIT:-0}" ;;
     esac
@@ -123,7 +125,7 @@ class AgreementSandbox(Sandbox):
         self.data = self.root / "h2-data"
         self.a8v2 = self.root / "a8v2"
         self.calibration = self.root / "kubric-data" / "calibration"
-        executable(self.scripts / "setup.sh", FORBIDDEN)
+        executable(self.scripts / "setup_cuda.sh", FORBIDDEN)
         executable(self.fakes / "python", FAKE_PYTHON)
         executable(self.fakes / "git", FAKE_GIT)
         for name in ("uv", "nvidia-smi"):
@@ -143,8 +145,8 @@ class AgreementSandbox(Sandbox):
                 "CLEAN_CHECKS": str(write_check_rows(self.root / "clean.jsonl")),
                 "PHYSVERIFY_H200_ROOT": str(self.root),
                 "PHYSVERIFY_H200_ENV": str(self.root / "no-env.sh"),
-                "PHYSVERIFY_H2_PYTHON": str(self.fakes / "python"),
-                "PHYSVERIFY_H2_EXPECT_COMMIT": "c0ffee1",
+                "PHYSVERIFY_AGREEMENT_PYTHON": str(self.fakes / "python"),
+                "PHYSVERIFY_AGREEMENT_EXPECT_COMMIT": "c0ffee1",
                 "PHYSVERIFY_LOCK_HELD": "1",
                 "REPO_CONFIGS": str(self.repo / "configs"),
             }
@@ -152,7 +154,7 @@ class AgreementSandbox(Sandbox):
         self.uncached = write_check_rows(self.root / "uncached.jsonl", error=UNCACHED)
 
     def run(self, *args: str, **env: str) -> subprocess.CompletedProcess[str]:
-        return self.call("run_h2.sh", *args, **env)
+        return self.call("run_human_agreement.sh", *args, **env)
 
     def commands(self) -> list[str]:
         """The pv calls without their common prefix."""
@@ -193,33 +195,33 @@ def _pass(subset: str) -> list[str]:
 
 
 def test_the_scripts_parse_and_run_h2_is_executable() -> None:
-    for name in ("run_h2.sh", "_steps.sh"):
+    for name in ("run_human_agreement.sh", "_steps.sh"):
         subprocess.run(["bash", "-n", str(H200 / name)], check=True)
-    assert os.access(H200 / "run_h2.sh", os.X_OK)
+    assert os.access(H200 / "run_human_agreement.sh", os.X_OK)
 
 
 @pytest.mark.parametrize("args", [(), ("all",), ("dev", "test")])
 def test_a_missing_or_unknown_phase_stops_before_any_call(sandbox: AgreementSandbox, args) -> None:
     result = sandbox.run(*args)
-    assert result.returncode == 2 and "usage: run_h2.sh dev|test" in result.stderr
+    assert result.returncode == 2 and "usage: run_human_agreement.sh dev|test" in result.stderr
     assert sandbox.lines() == []
 
 
 @pytest.mark.parametrize(
     ("env", "message"),
     [
-        ({"PHYSVERIFY_H2_EXPECT_COMMIT": ""}, "PHYSVERIFY_H2_EXPECT_COMMIT"),
+        ({"PHYSVERIFY_AGREEMENT_EXPECT_COMMIT": ""}, "PHYSVERIFY_AGREEMENT_EXPECT_COMMIT"),
         ({"HEAD_SHA": "deadbeef0000"}, "expected c0ffee1"),
         (
             {"DIRTY_FILES": " M src/physverify/human_agreement/report.py\n"},
             "uncommitted or untracked",
         ),
         ({"DIRTY_FILES": "?? annotations/videophy_queries.new.json\n"}, "annotations/videophy"),
-        ({"PHYSVERIFY_H2_DEVICE": "cuda"}, "PHYSVERIFY_H2_DEVICE must be cpu"),
+        ({"PHYSVERIFY_AGREEMENT_DEVICE": "cuda"}, "PHYSVERIFY_AGREEMENT_DEVICE must be cpu"),
         ({"PHYSVERIFY__AGREEMENT__RULE": "provisional_any_fail"}, "PHYSVERIFY__AGREEMENT__RULE"),
         ({"PHYSVERIFY__VERIFICATION__X": "1"}, "PHYSVERIFY__VERIFICATION__X"),
         ({"PHYSVERIFY__PATHS__THRESHOLDS": "/t.json"}, "PHYSVERIFY__PATHS__THRESHOLDS"),
-        ({"PHYSVERIFY_H2_THREADS": "0"}, "PHYSVERIFY_H2_THREADS"),
+        ({"PHYSVERIFY_AGREEMENT_THREADS": "0"}, "PHYSVERIFY_AGREEMENT_THREADS"),
         ({"PHYSVERIFY_CONFIG_DIR": "/other/configs"}, "PHYSVERIFY_CONFIG_DIR"),
     ],
 )
@@ -303,7 +305,7 @@ def test_every_call_runs_on_the_cpu_through_the_interpreter(sandbox: AgreementSa
 
 
 def test_the_thread_budget_can_be_set(sandbox: AgreementSandbox) -> None:
-    assert sandbox.run("dev", PHYSVERIFY_H2_THREADS="8").returncode == 0
+    assert sandbox.run("dev", PHYSVERIFY_AGREEMENT_THREADS="8").returncode == 0
     pv = [line[3:] for line in sandbox.lines() if line.startswith("pv ")]
     assert {PREFIX.match(call)[1] for call in pv} == {"8"}
 
@@ -311,7 +313,7 @@ def test_the_thread_budget_can_be_set(sandbox: AgreementSandbox) -> None:
 def test_dev_freezes_without_touching_test(sandbox: AgreementSandbox) -> None:
     result = sandbox.run("dev", CLIP_EXIT="1", REAL_QUERY="1")
     assert result.returncode == 0, result.stderr
-    assert "run_h2.sh test" in result.stdout
+    assert "run_human_agreement.sh test" in result.stdout
     assert "WARNING" not in result.stderr
     runs = sandbox.data / "runs"
     assert sandbox.commands() == [
@@ -354,7 +356,7 @@ def _freeze(sandbox: AgreementSandbox, **change: str) -> dict[str, str]:
         **change,
     }
     manifest.write_text(json.dumps(data), encoding="utf-8")
-    return {"PHYSVERIFY_H2_FREEZE": str(manifest)}
+    return {"PHYSVERIFY_AGREEMENT_FREEZE": str(manifest)}
 
 
 def test_the_freeze_manifest_stands_for_the_a8v2_chain(sandbox: AgreementSandbox) -> None:
@@ -364,7 +366,7 @@ def test_the_freeze_manifest_stands_for_the_a8v2_chain(sandbox: AgreementSandbox
     result = sandbox.run("test", **env)
     assert result.returncode == 0, result.stderr
     queries = [line for line in sandbox.lines() if line.startswith("query freeze_query.py")]
-    assert f"query freeze_query.py artifacts {env['PHYSVERIFY_H2_FREEZE']}" in queries
+    assert f"query freeze_query.py artifacts {env['PHYSVERIFY_AGREEMENT_FREEZE']}" in queries
     assert sandbox.state()["TEST_COMPARED"] == "1"
 
 
@@ -375,7 +377,7 @@ def test_the_freeze_manifest_stands_for_the_a8v2_chain(sandbox: AgreementSandbox
         ({"commit": "b" * 40}, {}, "froze commit"),
         ({"calibration_dir": "/elsewhere"}, {}, "froze /elsewhere"),
         ({}, {"ARTIFACTS_EXIT": "2"}, "frozen files"),
-        ({}, {"PHYSVERIFY_H2_FREEZE": "/no/freeze.json"}, "no freeze manifest"),
+        ({}, {"PHYSVERIFY_AGREEMENT_FREEZE": "/no/freeze.json"}, "no freeze manifest"),
     ],
 )
 def test_a_freeze_of_another_state_stops_before_any_call(
@@ -448,7 +450,7 @@ def test_test_without_a_completed_dev_phase_stops_before_any_call(
     sandbox: AgreementSandbox,
 ) -> None:
     result = sandbox.run("test")
-    assert result.returncode == 2 and "run run_h2.sh dev" in result.stderr
+    assert result.returncode == 2 and "run run_human_agreement.sh dev" in result.stderr
     assert sandbox.commands() == []
 
 
@@ -475,7 +477,7 @@ def test_test_compares_once_with_the_calibrated_rule(sandbox: AgreementSandbox) 
 
 def test_the_test_preflight_clip_can_be_given(sandbox: AgreementSandbox) -> None:
     _dev_done(sandbox)
-    assert sandbox.run("test", PHYSVERIFY_H2_PREFLIGHT_TEST_CLIP="v1-chosen").returncode == 0
+    assert sandbox.run("test", PHYSVERIFY_AGREEMENT_PREFLIGHT_TEST_CLIP="v1-chosen").returncode == 0
     assert any(call.endswith("--clips v1-chosen") for call in sandbox.commands())
     assert not any("ready" in line for line in sandbox.lines())
 
@@ -511,11 +513,11 @@ def test_a_gate_needs_the_explicit_acceptance(sandbox: AgreementSandbox) -> None
     gate = {"PREREG_RULE": "provisional_any_fail", "PREREG_GATE": "aggregate weight 0"}
     _dev_done(sandbox, **gate)
     for value in ("", "yes", "true"):
-        refused = sandbox.run("test", PHYSVERIFY_H2_ACCEPT_NOT_EVALUABLE=value)
+        refused = sandbox.run("test", PHYSVERIFY_AGREEMENT_ACCEPT_NOT_EVALUABLE=value)
         assert refused.returncode == 2 and "not evaluable" in refused.stderr
         assert "post hoc" in refused.stderr
     assert sandbox.commands() == []
-    accepted = sandbox.run("test", PHYSVERIFY_H2_ACCEPT_NOT_EVALUABLE="1")
+    accepted = sandbox.run("test", PHYSVERIFY_AGREEMENT_ACCEPT_NOT_EVALUABLE="1")
     assert accepted.returncode == 0, accepted.stderr
     assert sandbox.commands()[-1].endswith("--subset h2_test --rule calibrated")
 
@@ -542,7 +544,7 @@ def test_another_environment_or_commit_stops_the_test_before_any_call(
     sandbox: AgreementSandbox,
 ) -> None:
     _dev_done(sandbox)
-    moved = sandbox.run("test", PHYSVERIFY_H2_RAW_DIR=str(sandbox.root / "raw2"))
+    moved = sandbox.run("test", PHYSVERIFY_AGREEMENT_RAW_DIR=str(sandbox.root / "raw2"))
     assert moved.returncode == 2 and "environment differs" in moved.stderr
     later = sandbox.run("test", HEAD_SHA="c0ffee1999999")
     assert later.returncode == 2 and "the freeze was at c0ffee1234567" in later.stderr
@@ -575,8 +577,8 @@ def test_moving_the_output_and_data_directories_does_not_unspend_test(
     assert ledger.read_text().splitlines() == [str(sandbox.comparison_log())]
     sandbox.calls.unlink()
     moved = {
-        "PHYSVERIFY_H2_DIR": str(sandbox.root / "h2b"),
-        "PHYSVERIFY_H2_DATA": str(sandbox.root / "d2"),
+        "PHYSVERIFY_AGREEMENT_DIR": str(sandbox.root / "h2b"),
+        "PHYSVERIFY_AGREEMENT_DATA": str(sandbox.root / "d2"),
     }
     dev = sandbox.run("dev", **moved)
     assert dev.returncode == 2 and "post hoc" in dev.stderr and str(ledger) in dev.stderr

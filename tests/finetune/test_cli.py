@@ -86,7 +86,7 @@ def test_the_eval_split_is_left_to_h3(
 ) -> None:
     result = cli("--device", "cuda", "finetune", step, "--split", "eval", env=env)
     assert result.code == 2
-    assert f"physverify h3 {step}" in result.err
+    assert f"physverify compare-generators {step}" in result.err
     assert not (tmp_path / "data").exists() or not any((tmp_path / "data").rglob("*.json*"))
 
 

@@ -238,7 +238,7 @@ def test_refreezes_keep_the_chain_to_the_first_freeze(tmp_path: Path) -> None:
 
 
 def test_a_missing_prereg_names_the_freeze(tmp_path: Path) -> None:
-    with pytest.raises(UsageError, match="h3 freeze"):
+    with pytest.raises(UsageError, match="compare-generators freeze"):
         load_prereg(tmp_path / "none.json")
 
 

@@ -1,4 +1,4 @@
-"""``physverify dataset``: the Kubric synthetic dataset, step by step or end to end (ADR 0004,
+"""``physverify synth``: the Kubric synthetic dataset, step by step or end to end (ADR 0004,
 section 3.10). Container steps take the heavy lock; ``build`` holds it for the whole run."""
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ from physverify.synth.jobs import (
 from physverify.synth.migrate import run_migrate, velocity_migration
 from physverify.synth.plan import GT_MIGRATIONS
 
-NAME = "dataset"
+NAME = "synth"
 
 SubsetOption = Annotated[
     str,

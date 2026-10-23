@@ -20,7 +20,7 @@ SCRIPT_NAMES = (
     "_steps.sh",
     "_guards.sh",
     "run_freeze.sh",
-    "a8v2_query.py",
+    "run_query.py",
     "freeze_query.py",
 )
 TOOLS = (
@@ -49,7 +49,7 @@ if [[ "$1" != -c ]]; then
       "freeze_query.py manifest")
         echo '{"freeze": 1}' > "${!#}"; echo "freeze: ${!#} sha256 f00" ;;
       "freeze_query.py artifacts") exit "${ARTIFACTS_EXIT:-0}" ;;
-      "a8v2_query.py evaluation") echo "real sets physics_iq, pisa_real; h1_primary present" ;;
+      "run_query.py evaluation") echo "real sets physics_iq, pisa_real; h1_primary present" ;;
     esac
     exit 0
 fi
@@ -88,7 +88,7 @@ case "$*" in
     echo "$hash" > "$RUN/checks_hash.txt" ;;
   *" exclusions decide "*) echo "decided" ;;
   *" exclusions show") echo "record: $CAL/exclusions.json sha256 ${RECORD:-}" ;;
-  *" abstain fit") echo '{}' > "$CAL/abstention.json" ;;
+  *" selective-risk fit") echo '{}' > "$CAL/abstention.json" ;;
 esac
 exit 0
 """
@@ -112,7 +112,8 @@ class FreezeSandbox(Sandbox):
         executable(self.fakes / "git", FAKE_GIT)
         for name in ("uv", "nvidia-smi"):
             executable(self.fakes / name, FORBIDDEN)
-        # PHYSVERIFY_FREEZE_ITERATIONS is split on spaces, as run_iteration.sh names them.
+        # PHYSVERIFY_FREEZE_ITERATIONS is split on spaces, as run_perception_iteration.sh names
+        # them.
         made = [
             iteration_factory(self.root / "iterations", name, n_met, auroc, commit=HEAD)
             for name, n_met, auroc in (("it1-fixes", 2, 0.9), ("it2-state", 3, 0.6))
@@ -132,7 +133,7 @@ class FreezeSandbox(Sandbox):
                 "PHYSVERIFY_FREEZE_EXPECT_COMMIT": "c0ffee1",
                 "PHYSVERIFY_FREEZE_ITERATION": "it2-state",
                 "PHYSVERIFY_FREEZE_ITERATIONS": f"{other} {self.chosen}",
-                "PHYSVERIFY_FREEZE_P2_COMMIT": "b" * 40,
+                "PHYSVERIFY_FREEZE_EARLY_EXTRACTION_COMMIT": "b" * 40,
                 "PHYSVERIFY_FREEZE_V1_COMMIT": "a" * 40,
                 "PHYSVERIFY_FREEZE_V1_CALIBRATION": str(v1),
                 "PHYSVERIFY_FREEZE_CACHE_DIR": str(self.root / "cache"),
@@ -177,7 +178,7 @@ def _expected(final: Path) -> list[str]:
         f"exclusions decide --evaluation {runs / 'r1' / 'evaluation.json'} --r2-base-run r2 "
         "--r2-tiny-run r3",
         "exclusions show",
-        "abstain fit",
+        "selective-risk fit",
     ]
 
 
@@ -228,7 +229,10 @@ def test_the_freeze_adopts_the_chosen_iteration_and_writes_the_manifest(
         ({"PHYSVERIFY__SEALED__SETS": "[]"}, "PHYSVERIFY__SEALED__SETS"),
         ({"PHYSVERIFY_CONFIG_DIR": "/other"}, "PHYSVERIFY_CONFIG_DIR"),
         ({"PHYSVERIFY_FREEZE_ITERATION": ""}, "PHYSVERIFY_FREEZE_ITERATION"),
-        ({"PHYSVERIFY_FREEZE_P2_COMMIT": ""}, "PHYSVERIFY_FREEZE_P2_COMMIT"),
+        (
+            {"PHYSVERIFY_FREEZE_EARLY_EXTRACTION_COMMIT": ""},
+            "PHYSVERIFY_FREEZE_EARLY_EXTRACTION_COMMIT",
+        ),
         ({"PHYSVERIFY_FREEZE_V1_CALIBRATION": "/no/such.json"}, "no v1 calibration"),
         ({"PHYSVERIFY_FREEZE_THREADS": "0"}, "PHYSVERIFY_FREEZE_THREADS"),
         ({"DOCTOR_DEVICE": "cuda:0"}, "not cpu"),

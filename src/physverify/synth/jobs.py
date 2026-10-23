@@ -1,4 +1,4 @@
-"""The steps of ``physverify dataset`` on one subset, with the context and output injected."""
+"""The steps of ``physverify synth`` on one subset, with the context and output injected."""
 
 from __future__ import annotations
 
@@ -76,7 +76,7 @@ class DatasetJob:
         plan = load_plan(self.store)
         if plan is None:
             raise MissingInputError(
-                f"nothing planned in {self.store.root}: run `physverify dataset generate "
+                f"nothing planned in {self.store.root}: run `physverify synth generate "
                 f"--subset {self.subset or 'local'}`"
             )
         if current:

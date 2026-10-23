@@ -333,7 +333,7 @@ def test_annotations_by_clip_id_then_by_scenario(
 
 
 def test_clips_before_fetch_point_to_the_fetch_command(settings: Settings) -> None:
-    with pytest.raises(MissingInputError, match="data fetch physics_iq"):
+    with pytest.raises(MissingInputError, match="download fetch physics_iq"):
         PhysicsIQDataset(settings).clips("local")
 
 

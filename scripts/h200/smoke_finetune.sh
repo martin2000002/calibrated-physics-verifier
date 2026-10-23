@@ -39,7 +39,7 @@ wipe_provisional() {
 }
 
 require_cuda
-bash scripts/h200/setup.sh
+bash scripts/h200/setup_cuda.sh
 pv_fast finetune prompts build
 wipe_provisional
 pv_fast finetune generate --split train

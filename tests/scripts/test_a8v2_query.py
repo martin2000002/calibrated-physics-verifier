@@ -1,4 +1,4 @@
-"""scripts/h200/a8v2_query.py: the read-only checks the H200 scripts ask of the checkout."""
+"""scripts/h200/run_query.py: the read-only checks the H200 scripts ask of the checkout."""
 
 from __future__ import annotations
 
@@ -14,13 +14,13 @@ from check_rows import UNCACHED, write_check_rows
 
 from physverify.schema.clip import ClipManifest
 
-HELPER = Path(__file__).resolve().parents[2] / "scripts" / "h200" / "a8v2_query.py"
+HELPER = Path(__file__).resolve().parents[2] / "scripts" / "h200" / "run_query.py"
 ALLOWED = ({"physics_iq": 54, "pisa_real": 360}, {"physics_iq": 54, "pisa_real": 40})
 
 
 @pytest.fixture(scope="module")
 def query() -> ModuleType:
-    spec = importlib.util.spec_from_file_location("a8v2_query", HELPER)
+    spec = importlib.util.spec_from_file_location("run_query", HELPER)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)

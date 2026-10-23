@@ -105,7 +105,7 @@ if [[ "$1" != -c ]]; then
       "freeze_query.py ledger")
         [[ -f "$LEDGER_FILE" ]] || exit 2
         echo "ledger $LEDGER_FILE: $(grep -c . "$LEDGER_FILE") lines" ;;
-      "a8v2_query.py clips") printf '%s-1\n%s-2\n%s-3\n' "$3" "$3" "$3" ;;
+      "run_query.py clips") printf '%s-1\n%s-2\n%s-3\n' "$3" "$3" "$3" ;;
       "overlay_cli.py "*)
         log_env
         [[ -z "${META:-}" ]] || { mkdir -p "$2/x"; touch "$2/x/meta.json"; }
@@ -131,8 +131,8 @@ case "$*" in
   *" extract run "*)
     dataset="$(sed -n 's/.*--dataset \([^ ]*\).*/\1/p' <<<"$*")"
     mkdir -p "$PHYSVERIFY__PATHS__CACHE_DIR/$dataset" ;;
-  *" data fetch "*)
-    name="$(sed -n 's/.* data fetch \([^ ]*\).*/\1/p' <<<"$*")"
+  *" download fetch "*)
+    name="$(sed -n 's/.* download fetch \([^ ]*\).*/\1/p' <<<"$*")"
     echo "fetch $name seed ${PHYSVERIFY__OBJECTRON_STATIC__SEED-unset}" >> "$CALLS"
     mkdir -p "$PHYSVERIFY__PATHS__DATA_DIR/raw/$name/sub"
     echo a > "$PHYSVERIFY__PATHS__DATA_DIR/raw/$name/a.mp4"

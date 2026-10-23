@@ -71,7 +71,8 @@ def test_callable_key() -> None:
 
 def test_every_real_plugin_kind_builds() -> None:
     commands = command_modules()
-    assert set(commands) >= {"doctor", "dataset", "extract", "verify", "diagnose", "data", "timing"}
+    expected = {"doctor", "synth", "extract", "verify", "diagnose", "download", "timing"}
+    assert set(commands) >= expected
     assert "ping" in PLUGIN_KINDS["container_tasks"]()
     for kind, build in PLUGIN_KINDS.items():
         assert build() is not None, kind

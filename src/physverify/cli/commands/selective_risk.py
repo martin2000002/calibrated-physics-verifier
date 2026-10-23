@@ -1,4 +1,5 @@
-"""``physverify abstain``: risk-coverage of the threshold policy and the choice of k* (ADR 0010 §3).
+"""``physverify selective-risk``: risk-coverage of the threshold policy and the choice of k*
+(ADR 0010 §3).
 
 Not heavy: the cases come from cached chains (``selective_risk.tables``)."""
 
@@ -12,7 +13,7 @@ import typer
 from physverify.app.selective_risk import abstention_curve, fit_abstention
 from physverify.cli.context import app_context, echo_err
 
-NAME = "abstain"
+NAME = "selective-risk"
 
 app = typer.Typer(help="Risk-coverage of the verdict policy and the abstention level k*.")
 

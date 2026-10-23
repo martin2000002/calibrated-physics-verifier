@@ -58,6 +58,7 @@ def campaign_split(split: str, h3_step: str) -> PromptSplit:
     parsed = choice(split, SPLITS, "--split")
     if parsed == EVAL_SPLIT:
         raise UsageError(
-            f"the eval split belongs to H3: run `physverify h3 {h3_step} --arm base|ft`"
+            "the eval split belongs to H3: run "
+            f"`physverify compare-generators {h3_step} --arm base|ft`"
         )
     return parsed

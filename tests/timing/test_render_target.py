@@ -163,10 +163,10 @@ def test_unavailable_reasons_come_in_order(setup: Setup) -> None:
     missing_docker = setup.target(which=lambda name: None, image_check=refuse)
     assert missing_docker.unavailable(setup.ctx) == "docker is not on PATH"
     missing_image = setup.target(image_check=lambda image: False)
-    assert "physverify dataset pull-image" in str(missing_image.unavailable(setup.ctx))
-    assert "physverify dataset generate" in str(setup.target().unavailable(setup.ctx))
+    assert "physverify synth pull-image" in str(missing_image.unavailable(setup.ctx))
+    assert "physverify synth generate" in str(setup.target().unavailable(setup.ctx))
     write_dataset(setup.settings, applied=False)
-    assert "physverify dataset perturb" in str(setup.target().unavailable(setup.ctx))
+    assert "physverify synth perturb" in str(setup.target().unavailable(setup.ctx))
 
 
 def test_unavailable_when_the_run_dir_cannot_be_mounted(setup: Setup) -> None:

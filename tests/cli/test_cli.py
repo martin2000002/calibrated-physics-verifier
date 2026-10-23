@@ -11,7 +11,7 @@ from physverify.cli.context import COMMANDS_PACKAGE, check_command, command_name
 from physverify.cli.main import build_app
 from physverify.core.registry import discover_modules
 
-EXPECTED = {"doctor", "dataset", "extract", "verify", "diagnose", "data", "timing"}
+EXPECTED = {"doctor", "synth", "extract", "verify", "diagnose", "download", "timing"}
 COMMANDS = discover_modules(COMMANDS_PACKAGE, check_command, command_name)
 
 
@@ -46,9 +46,9 @@ def test_help_exits_zero(cli: CliRunner, leaf: tuple[str, ...]) -> None:
 def test_expected_subcommands_exist() -> None:
     names = {leaf for _, leaf in LEAVES}
     for leaf in [
-        ("dataset", "pull-image"),
-        ("dataset", "export-gt"),
-        ("dataset", "list"),
+        ("synth", "pull-image"),
+        ("synth", "export-gt"),
+        ("synth", "list"),
         ("extract", "run"),
         ("extract", "fetch-weights"),
         ("verify",),
@@ -56,7 +56,7 @@ def test_expected_subcommands_exist() -> None:
         ("diagnose", "end-to-end"),
         ("diagnose", "attribution"),
         ("diagnose", "real"),
-        ("data", "fetch"),
+        ("download", "fetch"),
         ("timing", "run"),
     ]:
         assert leaf in names

@@ -169,7 +169,7 @@ class PhysicsIQDataset:
         self._annotations = paths.annotations_dir / f"{SECTION}.json"
         self._max_frame_bytes = settings.runtime.max_frame_bytes
         self._client = client
-        self._fetch_hint = f"physverify data fetch {self.name}"
+        self._fetch_hint = f"physverify download fetch {self.name}"
 
     def views_of(self, settings: Settings) -> tuple[str, ...]:
         return (self._s.view,)

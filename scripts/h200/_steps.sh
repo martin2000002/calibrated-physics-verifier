@@ -4,19 +4,11 @@
 # The caller sets LOGS, STATE, STEPS, NOTES and SUMMARY, the summary's SUMMARY_TITLE
 # and SUMMARY_INFO line, and PY, PV_DEVICE and THREADS for pv (DOCTOR before doctor_value).
 # PV_PROFILE is precise unless the caller sets it after sourcing this file (an exported one is
-# ignored: run_h2.sh always runs precise). require_completed reads STEP_SAVES (step -> keys).
-# PV_NICE prefixes and PV_EXTRA extends every pv call. This pv replaces the uv one of _common.sh:
-# the runners call the checkout through the interpreter $PY, never through uv.
+# ignored: run_human_agreement.sh always runs precise). require_completed reads STEP_SAVES (step ->
+# keys). The runners call the checkout through the interpreter $PY, never through uv.
 
-PV_NICE=()
-PV_EXTRA=()
+PV_RUNNER=py
 PV_PROFILE=precise
-
-pv() {
-    "${PV_NICE[@]}" env PYTHONPATH="$REPO_ROOT/src" "$PY" -c "from physverify.cli.main import main; main()" \
-        --profile "$PV_PROFILE" --device "$PV_DEVICE" --set "runtime.threads=$THREADS" \
-        "${PV_EXTRA[@]}" "$@"
-}
 
 sha_of() {
     sha256sum "$1" | cut -d ' ' -f 1
@@ -30,7 +22,7 @@ record_sha_of() {
 
 # fq ARGS: scripts/h200/freeze_query.py of this checkout (the freeze and the final looks).
 fq() {
-    env PYTHONPATH="$REPO_ROOT/src" "$PY" "$REPO_ROOT/scripts/h200/freeze_query.py" "$@"
+    h200_py freeze_query.py "$@"
 }
 
 # copy_once FILE TARGET: FILE copied to TARGET unless TARGET already holds it; a different TARGET

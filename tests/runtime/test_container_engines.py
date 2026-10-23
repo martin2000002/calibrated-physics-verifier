@@ -230,7 +230,7 @@ def test_doctor_reports_the_engine(cli: Any) -> None:
 
 
 def test_pull_image_refuses_other_engines(cli: Any) -> None:
-    result = cli("dataset", "pull-image", env={"PHYSVERIFY__CONTAINER__ENGINE": "udocker"})
+    result = cli("synth", "pull-image", env={"PHYSVERIFY__CONTAINER__ENGINE": "udocker"})
     assert result.code == 2
     assert "run_kubric.sh" in result.err
 
@@ -241,7 +241,7 @@ def test_dataset_steps_stop_when_the_container_is_missing(cli: Any, tmp_path: Pa
         "PHYSVERIFY__CONTAINER__ENGINE": "udocker",
         "PHYSVERIFY__CONTAINER__UDOCKER_BIN": str(tmp_path / "no-such-udocker"),
     }
-    assert cli("dataset", "generate", "--subset", "smoke", env=env).code == 0
-    result = cli("dataset", "simulate", "--subset", "smoke", env=env)
+    assert cli("synth", "generate", "--subset", "smoke", env=env).code == 0
+    result = cli("synth", "simulate", "--subset", "smoke", env=env)
     assert result.code == 1
     assert "Kubric container is not available" in result.err

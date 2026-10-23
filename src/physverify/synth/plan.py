@@ -71,7 +71,7 @@ class DatasetPlan:
         if pending is not None:
             raise ConfigError(
                 f"dataset {self.version} has ground-truth revision {self.gt_revision}, this "
-                f"checkout {GT_REVISION}: run `physverify dataset migrate --name {pending}` "
+                f"checkout {GT_REVISION}: run `physverify synth migrate --name {pending}` "
                 "before building on it"
             )
         if self.gt_revision > GT_REVISION:
@@ -87,7 +87,7 @@ class DatasetPlan:
         if name not in self.subsets:
             raise UsageError(
                 f"subset {name!r} is not planned yet: "
-                f"run `physverify dataset generate --subset {name}`"
+                f"run `physverify synth generate --subset {name}`"
             )
         wanted = set(self.subsets[name])
         variants = tuple(v for v in self.variants if v.clip_id in wanted)
@@ -109,7 +109,7 @@ class DatasetPlan:
                 f"dataset {self.version} was planned with other settings: bump [dataset] version "
                 "before changing anything that alters clip content (a plan made before "
                 "velocity_convention existed is migrated by "
-                "`physverify dataset migrate --name velocity-<convention>`)"
+                "`physverify synth migrate --name velocity-<convention>`)"
             )
         self.check_gt_revision()
         other.check_gt_revision()

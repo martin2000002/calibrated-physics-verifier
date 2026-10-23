@@ -12,13 +12,13 @@ prepare_render() {
         return 0
     fi
     ensure_kubric_image pv >/dev/null || return 1
-    pv dataset generate --subset smoke \
-        && pv dataset simulate --subset smoke \
-        && pv dataset perturb --subset smoke
+    pv synth generate --subset smoke \
+        && pv synth simulate --subset smoke \
+        && pv synth perturb --subset smoke
 }
 
 require_cuda
-bash scripts/h200/setup.sh
+bash scripts/h200/setup_cuda.sh
 pv timing env
 prepare_render || echo "render prerequisites failed: kubric_render may be skipped" >&2
 

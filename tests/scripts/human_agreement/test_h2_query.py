@@ -1,4 +1,5 @@
-"""scripts/h200/h2_query.py: the read-only answers run_h2.sh asks of the checkout."""
+"""scripts/h200/agreement_query.py: the read-only answers run_human_agreement.sh asks of the
+checkout."""
 
 from __future__ import annotations
 
@@ -41,10 +42,12 @@ RECORD = Preregistration(
 
 @pytest.fixture(scope="module")
 def query() -> ModuleType:
-    """Loaded like the script runs: its directory first on the path (it reuses a8v2_query)."""
+    """Loaded like the script runs: its directory first on the path (it reuses run_query)."""
     sys.path.insert(0, str(SCRIPTS))
     try:
-        spec = importlib.util.spec_from_file_location("h2_query", SCRIPTS / "h2_query.py")
+        spec = importlib.util.spec_from_file_location(
+            "agreement_query", SCRIPTS / "agreement_query.py"
+        )
         assert spec is not None and spec.loader is not None
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)

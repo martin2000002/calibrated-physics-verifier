@@ -374,7 +374,7 @@ def test_clips_are_eval_with_the_class_query_and_no_count(
 
 def test_clips_before_fetch_and_unknown_subsets_are_refused(settings: Settings) -> None:
     dataset = ObjectronStaticDataset(settings)
-    with pytest.raises(MissingInputError, match="data fetch objectron_static"):
+    with pytest.raises(MissingInputError, match="download fetch objectron_static"):
         dataset.clips("full")
     with pytest.raises(UsageError, match="unknown objectron_static subset"):
         dataset.clips("everything")

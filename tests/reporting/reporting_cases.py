@@ -21,6 +21,7 @@ from calibration_cases import (
     synthetic_report,
 )
 
+from physverify.app.sealing import ledger_label
 from physverify.calibration.apply import score_clip
 from physverify.calibration.artifact import EvaluationReport
 from physverify.calibration.artifact_io import Calibration, parse_calibration
@@ -45,6 +46,7 @@ from physverify.human_agreement.report import REPORT_DIR, write_comparison
 from physverify.human_agreement.settings import AgreementSettings
 from physverify.human_agreement.undecided_policy import AS_PLAUSIBLE
 from physverify.human_agreement.verify_run_reader import VerifyRun
+from physverify.reporting.chain import ABSTAIN_CURVE
 from physverify.runtime.runs import write_json as write_abstain_json
 from physverify.schema.checks import CheckResult, InputLevel, Verdict
 from physverify.schema.clip import Split
@@ -191,8 +193,10 @@ def _chain_files(chain: Chain, device: str, codes: Mapping[int, str]) -> None:
     rows = [f"{n}\tstep-{n}\t{codes.get(n, '0')}\t1\t-\n" for n in range(LAST_STEP + 1)]
     write(chain.dir / "steps.tsv", "".join(rows))
     logs = chain.dir / "logs"
-    write(logs / "7-abstain-1.log", "$ pv abstain fit\nk*: 2.0000\n")
-    write(logs / "7-abstain-2.log", f"$ pv abstain curve\neval cases: 3\nrun: {chain.curve_run}\n")
+    write(logs / "7-abstain-1.log", f"$ pv {ledger_label('selective-risk fit')}\nk*: 2.0000\n")
+    write(
+        logs / "7-abstain-2.log", f"$ pv {ABSTAIN_CURVE}\neval cases: 3\nrun: {chain.curve_run}\n"
+    )
 
 
 def _calibration() -> Calibration:
@@ -229,7 +233,7 @@ def _collected(n_scenes: int, seed: int, prefix: str) -> Collected:
 
 @functools.cache
 def _abstention_records() -> tuple[dict[str, Any], dict[str, Any]]:
-    """``abstain fit`` and ``abstain curve`` content through their own builders."""
+    """``selective-risk fit`` and ``selective-risk curve`` content through their own builders."""
     tables, calibrated = _tables(), _projection(InputLevel.PERCEIVED)
     calib = _collected(30, 11, "ab-s")
     fitted = fit_record(calib, sweep(calib, calibrated, ABSTENTION), ABSTENTION, tables)
