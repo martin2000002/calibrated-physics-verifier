@@ -21,11 +21,16 @@ import pytest
 
 REPO = Path(__file__).resolve().parents[1]
 SCANNED_DIRS = ("src", "scripts", "tests", "configs", "tools")
-EXCLUDED_SUFFIXES = frozenset({".json", ".jsonl", ".npz", ".pyc"})
+EXCLUDED_SUFFIXES = frozenset({".jsonl", ".npz", ".pyc"})
 EXCLUDED_NAMES = frozenset({"uv.lock", "local.toml", "py.typed"})
 EXCLUDED_PARTS = frozenset({"golden", "__pycache__", ".pytest_cache"})
 # scripts/h200/README.md is rewritten in WP11, which must delete this exclusion.
-EXCLUDED_PREFIXES = ("tests/synth/data/", "tools/equivalence/expected/", "scripts/h200/README.md")
+EXCLUDED_PREFIXES = (
+    "tests/synth/data/",
+    "tests/contracts/data/pre_split_configs.json",
+    "tools/equivalence/expected/",
+    "scripts/h200/README.md",
+)
 SELF = Path(__file__).resolve()
 
 JARGON = re.compile(
@@ -36,13 +41,14 @@ JARGON = re.compile(
     r"|(?<![-\w])[Aa]udit [A-Za-z]?[0-9]|\b[Jj]udge change|(?<![-\w])[Aa]mendments?\b"
     r"|\bKnowledge/"
 )
-IDENT = re.compile(r"(^|_)(h[123]|a8v2|a([3-9]|1[0-3])|it[1-5]|d9)(_|$)")
+IDENT = re.compile(r"(^|_)(h[123]|a8v2|a([3-9]|1[0-3])|it[1-5]|d9)(_|$)", re.IGNORECASE)
 CAMEL = re.compile(r"(?<![A-Z])(H[123]|A(?:[3-9]|1[0-3])|A8V2|It[1-5])(?=[A-Z][a-z]|$)")
 TEST_NAME = re.compile(
     r"^test_(.*_)?(h[123]|a8v2|a[0-9]{1,2}|it[1-5]|d[0-9]{1,2}|j[0-9]{1,2}|p[1-5]|t[0-9]{1,2}"
     r"|ac[0-9]+|adr[0-9]*)(_|$)"
 )
 BANNER = re.compile(r"^\s*#\s*(-{3,}|={3,})|^\s*#.*(-{5,}|={5,})\s*$")
+SHELL_NAME = re.compile(r"\$\{?([A-Za-z_]\w*)|\b([A-Za-z_]\w*)(?==)")
 PROCESS_ATTRS = re.compile(r"\b(OWNER|IMPLEMENTED|not_implemented|NotImplementedCommandError)\b")
 
 COMMENT = "comment_or_docstring"
@@ -79,9 +85,9 @@ class Kept:
 
 
 SEALED_SCOPE_NOTE = "SCOPE_NOTE is written to devscore.json (scope_note), pinned by a golden blob"
-H1_HEADING = "evaluation.md heading that scripts/h200/run_query.py:29 finds the section by"
-H2_LINE = "workflow.py stdout line that scripts/h200/run_human_agreement.sh:385 parses"
-H2_SED = "the sed expression of scripts/h200/run_human_agreement.sh:385"
+PRIMARY_HEADING = "evaluation.md heading that scripts/h200/run_query.py:29 finds the section by"
+AGREEMENT_LINE = "workflow.py stdout line that scripts/h200/run_human_agreement.sh:385 parses"
+AGREEMENT_SED = "the sed expression of scripts/h200/run_human_agreement.sh:385"
 CHAIN_DIR = "on-disk calibration-chain directory on the H200 ($H200_ROOT/a8v2, _common.sh:9)"
 ARM_IDS = "arm ids of perception_arms.tsv: existing iteration directories and CHAIN_ARM values"
 ITERATION_IDS = "fixture: iteration directory ids as they exist on the H200"
@@ -92,39 +98,39 @@ KEPT_FRAGMENTS = (
     Kept("scripts/h200/perception_arms.tsv", "it3-ak", 1, ARM_IDS),
     Kept("scripts/h200/perception_arms.tsv", "it3-ap", 1, ARM_IDS),
     Kept("scripts/h200/perception_arms.tsv", "it3-c", 1, ARM_IDS),
-    Kept("scripts/h200/run_human_agreement.sh", "sed -n '/^H2: /{p;q}'", 1, H2_LINE),
-    Kept("scripts/h200/run_query.py", '"## H1 primary"', 1, H1_HEADING),
+    Kept("scripts/h200/run_human_agreement.sh", "sed -n '/^H2: /{p;q}'", 1, AGREEMENT_LINE),
+    Kept("scripts/h200/run_query.py", '"## H1 primary"', 1, PRIMARY_HEADING),
     Kept(
         "src/physverify/calibration/dev_score.py",
         "(calibrate stage-sigma, D10) and H1 (Kendall",
         2,
         SEALED_SCOPE_NOTE,
     ),
-    Kept("src/physverify/calibration/report.py", "## H1 primary (scenes ", 1, H1_HEADING),
+    Kept("src/physverify/calibration/report.py", "## H1 primary (scenes ", 1, PRIMARY_HEADING),
     Kept(
         "src/physverify/freeze/selection.py",
         "(plan-congelado J4)",
         2,
         "J4_RULE is persisted in freeze.json (selection.rule)",
     ),
-    Kept("src/physverify/human_agreement/workflow.py", "H2: ", 2, H2_LINE),
+    Kept("src/physverify/human_agreement/workflow.py", "H2: ", 2, AGREEMENT_LINE),
     Kept(
         "tests/calibration/test_monotonicity_primary.py",
         "## H1 primary (scenes s000, s011-s039) vs all scenes",
         1,
-        H1_HEADING,
+        PRIMARY_HEADING,
     ),
-    Kept("tests/calibration/test_monotonicity_primary.py", '"H1 primary"', 1, H1_HEADING),
-    Kept("tests/contracts/test_parsed_output.py", "'/^H2: /{p;q}'", 1, H2_SED),
-    Kept("tests/contracts/test_parsed_output.py", '"H2: "', 1, H2_LINE),
+    Kept("tests/calibration/test_monotonicity_primary.py", '"H1 primary"', 1, PRIMARY_HEADING),
+    Kept("tests/contracts/test_parsed_output.py", "'/^H2: /{p;q}'", 1, AGREEMENT_SED),
+    Kept("tests/contracts/test_parsed_output.py", '"H2: "', 1, AGREEMENT_LINE),
     Kept(
         "tests/fixtures/videophy_world.py",
         '"2026-10-17"',
         1,
         "fixture date of the reviewed-subset file the tests build",
     ),
-    Kept("tests/human_agreement/test_cli.py", '"/^H2: /{p;q}"', 1, H2_SED),
-    Kept("tests/human_agreement/test_cli.py", "H2: ", 2, H2_LINE),
+    Kept("tests/human_agreement/test_cli.py", '"/^H2: /{p;q}"', 1, AGREEMENT_SED),
+    Kept("tests/human_agreement/test_cli.py", "H2: ", 2, AGREEMENT_LINE),
     Kept(
         "tests/reporting/reporting_cases.py",
         '"a8v2"',
@@ -136,7 +142,7 @@ KEPT_FRAGMENTS = (
         "tests/scripts/human_agreement/test_human_agreement_script.py",
         '"H2: supported"',
         1,
-        H2_LINE,
+        AGREEMENT_LINE,
     ),
     Kept("tests/scripts/human_agreement/test_human_agreement_script.py", '"a8v2"', 1, CHAIN_DIR),
     Kept(
@@ -162,7 +168,7 @@ KEPT_FRAGMENTS = (
     Kept("tests/scripts/test_run_freeze_script.py", "it1-fixes", 2, ITERATION_IDS),
     Kept("tests/scripts/test_run_freeze_script.py", "it2-state", 5, ITERATION_IDS),
     Kept("tests/scripts/test_run_freeze_script.py", '"a8v2"', 1, CHAIN_DIR),
-    Kept("tests/scripts/test_run_query.py", "## H1 primary", 2, H1_HEADING),
+    Kept("tests/scripts/test_run_query.py", "## H1 primary", 2, PRIMARY_HEADING),
     Kept(
         "tools/equivalence/driver.py",
         '"--a8v2-dir"',
@@ -172,6 +178,7 @@ KEPT_FRAGMENTS = (
 )
 
 PERSISTED_FIELD = "field name persisted in a written report"
+AUTOEVAL_ROOT = "PHYSVERIFY__H3__AUTOEVAL__ROOT"
 IDENTIFIER_READERS = {
     "h1": "CheckDevScore.h1, a key of devscore.json",
     "h1_pass": PERSISTED_FIELD,
@@ -181,8 +188,13 @@ IDENTIFIER_READERS = {
     "h1_scope": "the [h1_scope] config section and its loader",
     "h2_verdict": "metrics.json and results.json key, and the function that builds it",
     "h3_families_without_target": "field of the sealed exclusion decision record",
+    AUTOEVAL_ROOT: "environment override of root in the persisted "
+    "[h3.autoeval] config section, read by the settings loader",
 }
 KEPT_IDENTIFIERS: Mapping[str, Mapping[str, int]] = {
+    "scripts/h200/run_generator_comparison.sh": {AUTOEVAL_ROOT: 2},
+    "scripts/h200/setup_autoeval.sh": {AUTOEVAL_ROOT: 1},
+    "scripts/h200/smoke_autoeval.sh": {AUTOEVAL_ROOT: 2},
     "src/physverify/calibration/artifact.py": {
         "h1_pass": 1,
         "meets_h1": 1,
@@ -226,6 +238,7 @@ KEPT_IDENTIFIERS: Mapping[str, Mapping[str, int]] = {
     "tests/human_agreement/test_stats.py": {"h2_verdict": 7},
     "tests/reporting/reporting_cases.py": {"h3_families_without_target": 1},
     "tests/reporting/test_results.py": {"h1_pass": 1},
+    "tests/scripts/test_generator_comparison_scripts.py": {AUTOEVAL_ROOT: 1},
 }
 
 
@@ -300,11 +313,20 @@ def _python_hits(source: str, path: str) -> Iterator[Hit]:
         yield from _token_hits(token, bare_strings, path)
 
 
+def _shell_name_hits(line: str, path: str, number: int) -> Iterator[Hit]:
+    for match in SHELL_NAME.finditer(line):
+        group = 1 if match.group(1) else 2
+        if IDENT.search(match.group(group)):
+            yield Hit(path, number, IDENTIFIER, line, match.span(group))
+
+
 def _text_hits(source: str, path: str) -> Iterator[Hit]:
     for number, line in enumerate(source.splitlines(), start=1):
         yield from _matches(JARGON, path, number, TEXT, line)
         yield from _matches(BANNER, path, number, BANNER_HITS, line)
         yield from _matches(PROCESS_ATTRS, path, number, PROCESS, line)
+        if path.endswith(".sh"):
+            yield from _shell_name_hits(line, path, number)
 
 
 def file_hits(path: Path) -> list[Hit]:
@@ -407,6 +429,23 @@ def test_process_references_are_labels(text: str) -> None:
 )
 def test_command_words_are_not_labels(text: str) -> None:
     assert not JARGON.search(text)
+
+
+@pytest.mark.parametrize("name", ["h3_dir", "H3_DIR", "KEYS_BEFORE_IT3", "PHYSVERIFY__H3__ROOT"])
+def test_snake_names_with_labels_are_hits(name: str) -> None:
+    assert IDENT.search(name)
+
+
+@pytest.mark.parametrize(
+    ("line", "names"),
+    [
+        ("H2_LINK=h2-latest", ["H2_LINK"]),
+        ('ln -s x "$dir/$H2_LINK" "${A4_ROOT:-}"', ["H2_LINK", "A4_ROOT"]),
+        ('chain_dir="$H200_ROOT/a8v2"', []),
+    ],
+)
+def test_shell_variable_names_with_labels_are_hits(line: str, names: list[str]) -> None:
+    assert [hit.label for hit in _shell_name_hits(line, "x.sh", 1)] == names
 
 
 if __name__ == "__main__":
