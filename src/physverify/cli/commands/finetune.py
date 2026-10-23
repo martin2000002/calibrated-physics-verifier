@@ -18,10 +18,6 @@ from physverify.app import finetune_training as training
 from physverify.cli import options as opt
 from physverify.cli.context import app_context, echo_err, heavy_command
 from physverify.core.errors import EXIT_ERROR, UsageError
-from physverify.finetune.layout import CampaignStore
-from physverify.finetune.records import BASE_TAG
-from physverify.finetune.status import status_lines
-from physverify.timing.finetune_budget import BudgetRequest, budget_report
 
 NAME = "finetune"
 DEFAULT_RUN: Final = "main"
@@ -51,10 +47,7 @@ def generate(
     limit: opt.LimitOption = None,
     pilot: opt.PilotOption = None,
 ) -> None:
-    which = opt.campaign_split(split, "generate")
-    if pilot is not None and which != "train":
-        raise UsageError("--pilot draws train prompts: use it with --split train")
-    campaign.generate_split(app_context(ctx), which, adapter, shard, limit, pilot, echo=typer.echo)
+    campaign.generate_split(app_context(ctx), split, adapter, shard, limit, pilot, echo=typer.echo)
 
 
 @app.command("score", help="Extract, verify and score the candidates of a model tag (resumes).")
@@ -62,12 +55,11 @@ def generate(
 def score(
     ctx: typer.Context,
     split: opt.SplitOption,
-    model_tag: Annotated[str, typer.Option(help="base or lora-<hash>.")] = BASE_TAG,
+    model_tag: Annotated[str, typer.Option(help="base or lora-<hash>.")] = campaign.BASE_TAG,
     scorer: opt.ScorerOption = None,
     shard: opt.ShardOption = None,
 ) -> None:
-    which = opt.campaign_split(split, "score")
-    campaign.score_split(app_context(ctx), which, model_tag, scorer, shard, echo=typer.echo)
+    campaign.score_split(app_context(ctx), split, model_tag, scorer, shard, echo=typer.echo)
 
 
 @app.command("pairs", help="Winner-loser pairs of the train prompts (val prompts kept apart).")
@@ -143,14 +135,14 @@ def budget(
     ),
     scorer: opt.ScorerOption = None,
 ) -> None:
-    request = BudgetRequest(
+    request = campaign.BudgetRequest(
         timing_run, gpu_hours, pair_yield, extract_batch, generator_only, pilot_prompts, scorer
     )
-    for line in budget_report(app_context(ctx).settings, request):
+    for line in campaign.budget_lines(app_context(ctx), request):
         typer.echo(line)
 
 
 @app.command("status", help="Candidates, scores, pairs and training steps of the campaign.")
 def status(ctx: typer.Context) -> None:
-    for line in status_lines(CampaignStore.from_settings(app_context(ctx).settings)):
+    for line in campaign.campaign_status_lines(app_context(ctx)):
         typer.echo(line)

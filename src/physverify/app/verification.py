@@ -32,7 +32,12 @@ from physverify.verification.runner import (
     thresholds_label,
     write_report,
 )
-from physverify.verification.summary import matrix_lines, specificity_lines, summary_lines
+from physverify.verification.summary import (
+    matrix_lines,
+    parse_level,
+    specificity_lines,
+    summary_lines,
+)
 from physverify.verification.sweep import CheckUnit, matrix, write_sweep
 from physverify.verification.target_ranking import specificity
 
@@ -41,7 +46,7 @@ def run_verify(
     context: AppContext,
     command: str,
     dataset: str,
-    level: InputLevel,
+    level: str | None,
     gt: Sequence[str],
     *,
     subset: str | None,
@@ -52,6 +57,7 @@ def run_verify(
     err: Echo,
 ) -> bool:
     """Run the checks and print the summary; whether a row errored or the sweep failed."""
+    input_level = parse_level(level, gt, sweep)
     settings = context.settings
     verification = settings.section(VERIFICATION_SECTION, VerificationSettings)
     if policy is not None:
@@ -65,7 +71,7 @@ def run_verify(
     runner = VerificationRunner(
         checks, build_policy(context.registry("policies"), verification), thresholds
     )
-    inputs = _inputs(context, source, level, parse_stages(gt))
+    inputs = _inputs(context, source, input_level, parse_stages(gt))
     run_dir = new_run(context.settings, context.invocation.argv).run_dir
     echo(f"run: {run_dir}")
     guard_sealed(

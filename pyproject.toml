@@ -168,6 +168,13 @@ layers = [
 ]
 
 [[tool.importlinter.contracts]]
+name = "The CLI parses arguments and calls the application layer; core gives it errors and exit codes"
+type = "forbidden"
+source_modules = ["physverify.cli"]
+forbidden_modules = ["physverify"]
+allowed_modules = ["physverify.app", "physverify.core"]
+
+[[tool.importlinter.contracts]]
 name = "Wire records import no other physverify package nor pydantic, typer or torch"
 type = "forbidden"
 source_modules = ["physverify.schema"]

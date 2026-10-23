@@ -4,25 +4,13 @@
 
 from __future__ import annotations
 
-import datetime as dt
-import functools
 from pathlib import Path
 from typing import Annotated
 
 import typer
 
+from physverify.app import human_agreement as service
 from physverify.cli.context import app_context, echo_err, heavy_command
-from physverify.datasets._base import fetch_all
-from physverify.datasets.videophy import VideophyDataset
-from physverify.human_agreement.clip_decision import import_calibration
-from physverify.human_agreement.settings import agreement_settings
-from physverify.human_agreement.subset_review import check_recorded, record_subsets, review_subset
-from physverify.human_agreement.workflow import (
-    CompareRequest,
-    apply_freeze,
-    compare_and_report,
-    freeze,
-)
 
 NAME = "agreement"
 
@@ -33,16 +21,12 @@ app = typer.Typer(
 RunOption = Annotated[Path, typer.Option("--verify-run", help="A perceived verify run directory.")]
 
 
-def _dataset(ctx: typer.Context) -> VideophyDataset:
-    return VideophyDataset(app_context(ctx).settings)
-
-
 @app.command("fetch", help="Download the label tables and the subset's videos (default: smoke).")
 @heavy_command
 def fetch(
     ctx: typer.Context, subset: Annotated[str | None, typer.Option(help="VideoPhy subset.")] = None
 ) -> None:
-    fetch_all([VideophyDataset], app_context(ctx).settings, subset, echo=typer.echo)
+    service.fetch(app_context(ctx), subset, echo=typer.echo)
 
 
 @app.command("subset", help="Write the pending caption review (--audit) or record it (--record).")
@@ -57,16 +41,9 @@ def subset(
         bool, typer.Option("--check", help="Fail unless the review is recorded (no download).")
     ] = False,
 ) -> None:
-    dataset = _dataset(ctx)
-    settings = app_context(ctx).settings
-    chosen = name or agreement_settings(settings).test_subset
-    if check:
-        check_recorded(dataset, echo=typer.echo)
-        return
-    if freeze_review:
-        record_subsets(dataset, chosen, echo=typer.echo)
-        return
-    review_subset(dataset, settings, chosen, show=show, echo=typer.echo)
+    service.subset(
+        app_context(ctx), name, show=show, record=freeze_review, check=check, echo=typer.echo
+    )
 
 
 @app.command("freeze", help="Pre-register the test comparison from a dev verify run.")
@@ -86,17 +63,13 @@ def freeze_command(
         ),
     ] = None,
 ) -> None:
-    context = app_context(ctx)
-    path, current = freeze(
-        context.settings,
-        context.registry("checks"),
-        _dataset(ctx),
+    service.preregister(
+        app_context(ctx),
         run_dir,
-        import_calibration,
-        dt.datetime.now(dt.UTC),
-    )
-    apply_freeze(
-        path, current, force=force, deviation=declare_deviation, echo=typer.echo, err=echo_err
+        force=force,
+        deviation=declare_deviation,
+        echo=typer.echo,
+        err=echo_err,
     )
 
 
@@ -114,14 +87,5 @@ def compare_command(
         ),
     ] = None,
 ) -> None:
-    request = CompareRequest(run_dir, name, rule, preregistration)
-    context = app_context(ctx)
-    compare_and_report(
-        context.settings,
-        context.registry("checks"),
-        _dataset(ctx),
-        request,
-        import_calibration,
-        functools.partial(dt.datetime.now, dt.UTC),
-        echo=typer.echo,
-    )
+    request = service.CompareRequest(run_dir, name, rule, preregistration)
+    service.compare(app_context(ctx), request, echo=typer.echo)

@@ -12,7 +12,6 @@ import typer
 from physverify.app.verification import run_verify
 from physverify.cli.context import app_context, echo_err
 from physverify.core.errors import EXIT_ERROR
-from physverify.verification.summary import parse_level
 
 NAME = "verify"
 
@@ -35,12 +34,11 @@ def verify(
     policy: Annotated[str | None, typer.Option(help="Verdict policy: threshold or raw.")] = None,
     sweep: Annotated[bool, typer.Option(help="Specificity sweep (oracle only).")] = False,
 ) -> None:
-    input_level = parse_level(level, gt or (), sweep)
     failed = run_verify(
         app_context(ctx),
         NAME,
         dataset,
-        input_level,
+        level,
         gt or (),
         subset=subset,
         clips=clips or (),

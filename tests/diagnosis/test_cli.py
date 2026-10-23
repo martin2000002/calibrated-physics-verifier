@@ -14,8 +14,9 @@ from synthetic_clip import CLIP_ID, DATASET
 
 from physverify.app import diagnosis as app_diagnosis
 from physverify.app import plugins
+from physverify.app.datasets import fetch_targets
 from physverify.app.diagnosis import EVENTS_FILE, execute
-from physverify.cli.commands import diagnose, download
+from physverify.cli.commands import diagnose
 from physverify.config.models import Settings
 from physverify.core.download import MANIFEST_FILE, FetchedFile, FetchManifest, write_manifest
 from physverify.core.errors import MissingInputError, UsageError
@@ -110,10 +111,10 @@ def test_only_the_real_datasets_can_be_fetched(cli: CliRunner) -> None:
 
 def test_fetch_targets() -> None:
     registry = {"physics_iq": int, "pisa_real": str, "kubric_synthetic": float}
-    assert download.fetch_targets(registry, REAL, None) == [int, str]
-    assert download.fetch_targets(registry, REAL, "pisa_real") == [str]
+    assert fetch_targets(registry, REAL, None) == [int, str]
+    assert fetch_targets(registry, REAL, "pisa_real") == [str]
     with pytest.raises(UsageError, match="not registered"):
-        download.fetch_targets({"physics_iq": int}, REAL, None)
+        fetch_targets({"physics_iq": int}, REAL, None)
 
 
 @pytest.mark.usefixtures("registries")

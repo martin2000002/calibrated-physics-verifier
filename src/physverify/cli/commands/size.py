@@ -9,17 +9,9 @@ from typing import Annotated
 
 import typer
 
-from physverify.app.sizing import (
-    MODEL_FILE,
-    evaluate_end_to_end,
-    evaluate_test_split,
-    fetch_heads,
-    fit_and_write,
-    prepare_end_to_end,
-)
+from physverify.app.size_report import end_to_end_lines, evaluation_lines
+from physverify.app.sizing import MODEL_FILE, fetch_heads, fit_and_write, prepare_end_to_end
 from physverify.cli.context import app_context
-from physverify.sizing.end_to_end import e2e_lines
-from physverify.sizing.evaluate import eval_lines
 
 NAME = "size"
 
@@ -40,10 +32,8 @@ def fit(ctx: typer.Context) -> None:
 
 @app.command("eval", help="Error on the official test split against B0 and B1.")
 def evaluate_command(ctx: typer.Context) -> None:
-    report, run_dir = evaluate_test_split(app_context(ctx))
-    for line in eval_lines(report):
+    for line in evaluation_lines(app_context(ctx)):
         typer.echo(line)
-    typer.echo(f"run: {run_dir}")
 
 
 @app.command("e2e-prepare", help="Download and decode a few Objectron test videos (network).")
@@ -60,7 +50,5 @@ def e2e_prepare(
 
 @app.command("e2e-eval", help="Perceived scale against ARKit depth on the prepared clips.")
 def e2e_eval(ctx: typer.Context) -> None:
-    report, run_dir = evaluate_end_to_end(app_context(ctx))
-    for line in e2e_lines(report):
+    for line in end_to_end_lines(app_context(ctx)):
         typer.echo(line)
-    typer.echo(f"run: {run_dir}")

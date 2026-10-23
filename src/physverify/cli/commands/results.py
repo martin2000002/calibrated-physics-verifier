@@ -13,15 +13,10 @@ from typing import Annotated
 
 import typer
 
+from physverify.app.results import report_results
 from physverify.cli.context import app_context
-from physverify.reporting.numbers import collect_results
-from physverify.reporting.render import write_results
-from physverify.reporting.sources import Request, collect_inputs
-from physverify.verification.scope import SECTION as SCOPE_SECTION
-from physverify.verification.scope import CheckScope
 
 NAME = "results"
-DEFAULT_OUT = "results"
 
 app = typer.Typer(
     invoke_without_command=True,
@@ -46,20 +41,12 @@ def results(
     ] = None,
     out: Annotated[Path | None, typer.Option(help="Default: <chain-dir>/results.")] = None,
 ) -> None:
-    scope = app_context(ctx).settings.section(SCOPE_SECTION, CheckScope)
-    request = Request(
-        chain_dir=chain_dir,
+    report_results(
+        app_context(ctx),
+        chain_dir,
         calibration_evaluation=calibration_evaluation,
         agreement_run=agreement_run,
         abstention_run=selective_risk_run,
-        check_scope=scope,
+        out=out,
+        echo=typer.echo,
     )
-    found = collect_results(collect_inputs(request))
-    if found.banner:
-        typer.echo(found.banner)
-    for section in found.sections:
-        if section.missing:
-            typer.echo(f"{section.key}: missing ({section.missing})")
-    json_path, md_path = write_results(out or chain_dir / DEFAULT_OUT, found)
-    typer.echo(f"results: {md_path}")
-    typer.echo(f"json: {json_path}")

@@ -211,7 +211,7 @@ def test_doctor_probes_the_container(
         seen.append((runner, timeout_s))
         return None if len(seen) == 1 else "boom"
 
-    monkeypatch.setattr("physverify.cli.commands.doctor.preflight_problem", fake)
+    monkeypatch.setattr("physverify.app.doctor.preflight_problem", fake)
     env = {"PHYSVERIFY__PATHS__DATA_DIR": str(tmp_path / "data")}
     ok = cli("doctor", "--probe-container", env=env)
     assert ok.code == 0 and "container_probe: ok" in ok.out

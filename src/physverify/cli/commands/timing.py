@@ -14,12 +14,6 @@ import typer
 from physverify.app import timing as service
 from physverify.cli.context import app_context, echo_err, heavy_command
 from physverify.core.errors import EXIT_OK
-from physverify.extraction.weights import NetworkDownloader, hub_cache
-from physverify.generation.wan21 import fetch_generator
-from physverify.timing.budget import BudgetQuery
-from physverify.timing.environment import TorchCudaProbe
-from physverify.timing.settings import load_timing
-from physverify.timing.target_services import ClipSelection
 
 NAME = "timing"
 
@@ -40,16 +34,13 @@ def list_targets(ctx: typer.Context) -> None:
 
 @app.command("env", help="Environment of a run with the current options and its validity (JSON).")
 def env(ctx: typer.Context) -> None:
-    typer.echo(service.environment_report(app_context(ctx).settings, TorchCudaProbe))
+    typer.echo(service.environment_report(app_context(ctx).settings))
 
 
 @app.command("fetch", help="Download the pinned Wan2.1 weights (about 29 GB; for the H200).")
 @heavy_command
 def fetch_weights(ctx: typer.Context) -> None:
-    settings = app_context(ctx).settings
-    typer.echo(f"hub cache: {hub_cache(settings.paths)}")
-    path = fetch_generator(load_timing(settings).generation, settings.paths, NetworkDownloader())
-    typer.echo(f"verified {path}")
+    service.fetch_weights(app_context(ctx).settings, echo=typer.echo)
 
 
 @app.command("run", help="Time targets; only an H200 run (cuda, precise profile) is a measurement.")
@@ -73,13 +64,11 @@ def run(
 ) -> None:
     request = service.TimingRequest(
         tuple(target or ()),
-        ClipSelection(dataset, subset, tuple(clips or ()), limit),
+        service.ClipSelection(dataset, subset, tuple(clips or ()), limit),
         warmup,
         repetitions,
     )
-    code = service.run_timing(
-        app_context(ctx), request, TorchCudaProbe, echo=typer.echo, err=echo_err
-    )
+    code = service.run_timing(app_context(ctx), request, echo=typer.echo, err=echo_err)
     if code != EXIT_OK:
         raise typer.Exit(code=code)
 
@@ -108,7 +97,7 @@ def budget(
     ] = None,
     batch_size: Annotated[int, typer.Option(help="Generation batch size (B).")] = 1,
 ) -> None:
-    query = BudgetQuery(
+    query = service.BudgetQuery(
         gpu_hours, candidates, eval_prompts, eval_samples, finetune_hours, extract_batch, batch_size
     )
     for line in service.budget_report(app_context(ctx).settings, run_dir, query):

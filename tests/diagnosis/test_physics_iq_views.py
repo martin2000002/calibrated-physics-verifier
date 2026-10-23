@@ -141,7 +141,7 @@ def test_a_missing_view_names_its_own_fetch_command(settings: Settings) -> None:
 
 
 def test_both_real_controls_are_downloadable_by_name_only(settings: Settings) -> None:
-    from physverify.cli.commands.download import fetch_targets
+    from physverify.app.datasets import fetch_targets
     from physverify.diagnosis.settings import diagnosis_settings
 
     real = diagnosis_settings(settings).real

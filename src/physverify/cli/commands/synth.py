@@ -4,26 +4,12 @@ Container steps take the heavy lock; ``build`` holds it for the whole run."""
 
 from __future__ import annotations
 
-import subprocess
 from typing import Annotated
 
 import typer
 
+from physverify.app import synth as service
 from physverify.cli.context import app_context, heavy_command
-from physverify.core.errors import PhysverifyError, UsageError
-from physverify.runtime.container import container_settings
-from physverify.synth.jobs import (
-    DatasetJob,
-    fail_if,
-    run_export,
-    run_generate,
-    run_perturb,
-    run_render,
-    run_simulate,
-    status_lines,
-)
-from physverify.synth.migrate import run_migrate, velocity_migration
-from physverify.synth.plan import GT_MIGRATIONS
 
 NAME = "synth"
 
@@ -41,44 +27,27 @@ app = typer.Typer(
 )
 
 
-def _job(ctx: typer.Context, subset: str | None) -> DatasetJob:
-    job = DatasetJob(app_context(ctx), subset, typer.echo)
-    _ = job.ds
-    return job
-
-
 @app.command("pull-image", help="Pull the pinned Kubric image (heavy).")
 @heavy_command
 def pull_image(ctx: typer.Context) -> None:
-    settings = app_context(ctx).settings
-    engine = container_settings(settings).engine
-    if engine != "docker":
-        raise UsageError(
-            f"pull-image only drives docker; container.engine is {engine!r} "
-            "(on the H200, scripts/h200/run_kubric.sh pulls and creates the container)"
-        )
-    image = settings.runtime.docker_image
-    if subprocess.run(["docker", "pull", image], check=False).returncode != 0:
-        raise PhysverifyError(f"docker pull {image} failed")
+    service.pull_image(app_context(ctx))
 
 
 @app.command("generate", help="Plan the subset and write the scene specs.")
 def generate(ctx: typer.Context, subset: SubsetOption = "local") -> None:
-    run_generate(_job(ctx, subset))
+    service.generate(app_context(ctx), subset, echo=typer.echo)
 
 
 @app.command("simulate", help="Simulate the pending scenes in the container (heavy).")
 @heavy_command
 def simulate(ctx: typer.Context, subset: SubsetOption = "local") -> None:
-    job = _job(ctx, subset)
-    fail_if(run_simulate(job, job.runner()))
+    service.simulate(app_context(ctx), subset, echo=typer.echo)
 
 
 @app.command("perturb", help="Apply perturbations and compute contact truth (heavy).")
 @heavy_command
 def perturb(ctx: typer.Context, subset: SubsetOption = "local") -> None:
-    job = _job(ctx, subset)
-    fail_if(run_perturb(job, job.runner()))
+    service.perturb(app_context(ctx), subset, echo=typer.echo)
 
 
 @app.command("render", help="Render the pending clips in the container (heavy, resumable).")
@@ -89,20 +58,17 @@ def render(
     limit: Annotated[int | None, typer.Option(min=1, help="Render at most N clips.")] = None,
     clips: Annotated[str | None, typer.Option(help="Comma-separated clip ids.")] = None,
 ) -> None:
-    job = _job(ctx, subset)
-    wanted = [c.strip() for c in clips.split(",") if c.strip()] if clips else None
-    fail_if(run_render(job, job.runner(), limit, wanted))
+    service.render(app_context(ctx), subset, limit, clips, echo=typer.echo)
 
 
 @app.command("export-gt", help="Export frames, camera, states, contacts and final records.")
 def export_gt(ctx: typer.Context, subset: SubsetOption = "local") -> None:
-    run_export(_job(ctx, subset))
+    service.export_gt(app_context(ctx), subset, echo=typer.echo)
 
 
 @app.command("list", help="Progress of every step for the subset, skipped clips and s/frame.")
 def list_command(ctx: typer.Context, subset: SubsetOption = "local") -> None:
-    job = _job(ctx, subset)
-    for line in status_lines(job.plan(current=False), job.store):
+    for line in service.progress_lines(app_context(ctx), subset, echo=typer.echo):
         typer.echo(line)
 
 
@@ -114,7 +80,7 @@ NameOption = Annotated[
     typer.Option(
         "--name",
         help="velocity-<convention> (the default) or the ground-truth fix the plan "
-        f"needs next, in order: {', '.join(GT_MIGRATIONS)}.",
+        f"needs next, in order: {', '.join(service.GT_MIGRATIONS)}.",
     ),
 ]
 
@@ -129,25 +95,16 @@ NameOption = Annotated[
 def migrate_command(
     ctx: typer.Context, name: NameOption = None, commit: CommitOption = None
 ) -> None:
-    job = _job(ctx, None)
-    run_migrate(job, name or velocity_migration(job.ds), commit)
+    service.migrate(app_context(ctx), name, commit, echo=typer.echo)
 
 
 @app.command("migrate-velocity", help="Alias of `migrate --name velocity-<convention>`.")
 @heavy_command
 def velocity_alias(ctx: typer.Context, commit: CommitOption = None) -> None:
-    job = _job(ctx, None)
-    run_migrate(job, velocity_migration(job.ds), commit)
+    service.migrate(app_context(ctx), None, commit, echo=typer.echo)
 
 
 @app.command("build", help="generate, simulate, perturb, render and export-gt under one lock.")
 @heavy_command
 def build(ctx: typer.Context, subset: SubsetOption = "local") -> None:
-    job = _job(ctx, subset)
-    runner = job.runner()
-    run_generate(job)
-    failures = run_simulate(job, runner)
-    failures += run_perturb(job, runner)
-    failures += run_render(job, runner, None, None)
-    run_export(job)
-    fail_if(failures)
+    service.build(app_context(ctx), subset, echo=typer.echo)

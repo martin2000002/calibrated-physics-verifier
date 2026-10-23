@@ -4,7 +4,7 @@ and budget services behind ``physverify timing``."""
 from __future__ import annotations
 
 import json
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
@@ -12,11 +12,14 @@ from typing import Final
 from physverify.app.context import AppContext
 from physverify.config.models import Settings
 from physverify.core.output import Echo
+from physverify.extraction.weights import NetworkDownloader, hub_cache
+from physverify.generation.wan21 import fetch_generator
 from physverify.runtime.heavy import NullLock
 from physverify.runtime.runs import new_run
 from physverify.timing._base import TimingContext
-from physverify.timing.budget import BudgetQuery, answer, budget_lines, cost_from_results
-from physverify.timing.environment import CudaProbe, run_environment, validity
+from physverify.timing.budget import BudgetQuery as BudgetQuery
+from physverify.timing.budget import answer, budget_lines, cost_from_results
+from physverify.timing.environment import CudaProbe, TorchCudaProbe, run_environment, validity
 from physverify.timing.report import rebuild, run_lines, timing_dir
 from physverify.timing.results_io import load_results, load_samples, timing_directory
 from physverify.timing.session import (
@@ -30,7 +33,8 @@ from physverify.timing.session import (
 )
 from physverify.timing.settings import load_timing, run_settings
 from physverify.timing.stats import stat_rows
-from physverify.timing.target_services import ClipSelection, TimingServices
+from physverify.timing.target_services import ClipSelection as ClipSelection
+from physverify.timing.target_services import TimingServices
 
 NESTED_LOCK: Final = "held by timing run"
 
@@ -74,9 +78,9 @@ def target_lines(context: AppContext) -> list[str]:
     return lines
 
 
-def environment_report(settings: Settings, make_probe: Callable[[], CudaProbe]) -> str:
+def environment_report(settings: Settings) -> str:
     timing = load_timing(settings)
-    environment = run_environment(settings, make_probe())
+    environment = run_environment(settings, TorchCudaProbe())
     reasons = validity(settings.runtime.device, settings.profile, environment, timing.valid_profile)
     payload = {"environment": environment, "valid_measurement": not reasons, "reasons": reasons}
     return json.dumps(payload, indent=2, default=str)
@@ -85,7 +89,6 @@ def environment_report(settings: Settings, make_probe: Callable[[], CudaProbe]) 
 def run_timing(
     context: AppContext,
     request: TimingRequest,
-    make_probe: Callable[[], CudaProbe],
     *,
     echo: Echo,
     err: Echo,
@@ -100,7 +103,7 @@ def run_timing(
         warmup=request.warmup,
         repetitions=request.repetitions,
     )
-    probe = make_probe()
+    probe = TorchCudaProbe()
     check_device(plan, settings.runtime.device, probe)
     services = timing_services(context, request.selection, probe)
     chosen = clip_source(plan, services, settings)
@@ -116,6 +119,13 @@ def run_timing(
     for line in run_lines(results, directory):
         echo(line)
     return exit_code(results, finished)
+
+
+def fetch_weights(settings: Settings, *, echo: Echo) -> None:
+    """Download and verify the pinned generator weights into the hub cache."""
+    echo(f"hub cache: {hub_cache(settings.paths)}")
+    path = fetch_generator(load_timing(settings).generation, settings.paths, NetworkDownloader())
+    echo(f"verified {path}")
 
 
 def summarize(settings: Settings, run_dir: Path, *, echo: Echo) -> None:

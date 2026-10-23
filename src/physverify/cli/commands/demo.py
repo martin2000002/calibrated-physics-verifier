@@ -14,7 +14,6 @@ import typer
 
 from physverify.app import demo as service
 from physverify.cli.context import app_context, heavy_command
-from physverify.demo.adhoc import ADHOC_FAMILY
 
 NAME = "demo"
 
@@ -34,7 +33,7 @@ def run(
     query: Annotated[
         list[str] | None, typer.Option(help="Object to detect, 'phrase' or 'phrase:N'.")
     ] = None,
-    family: Annotated[str, typer.Option(help="Scene family label.")] = ADHOC_FAMILY,
+    family: Annotated[str, typer.Option(help="Scene family label.")] = service.ADHOC_FAMILY,
     target_check: Annotated[
         list[str] | None, typer.Option(help="Checks the prompt targets (default: all).")
     ] = None,
