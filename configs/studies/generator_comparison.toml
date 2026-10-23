@@ -1,6 +1,7 @@
 # H3: fine-tuned vs base vs best-of-8 under the verifier and VideoPhy-2 AutoEval (cycle A13,
-# ADR 0013). Every value here is pre-registered: `physverify h3 freeze` hashes this section
-# (without [h3.autoeval], which is machine-local and enters through the judge stamps).
+# ADR 0013). Every value here is pre-registered: `physverify compare-generators freeze` hashes
+# this section (without [h3.autoeval], which is machine-local and enters through the judge
+# stamps).
 # Fix eval_store_latents before the first eval video: store_latents is inside config_hash.
 
 [h3]

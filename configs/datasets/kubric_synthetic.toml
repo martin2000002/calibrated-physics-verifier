@@ -20,7 +20,7 @@ calib_fraction = 0.5
 # Ground-truth velocities: "position" adds g h / 2 to the simulator's semi-implicit Euler
 # velocity outside resting contact, the velocity the rendered positions imply
 # (synth/gt_velocity.py); "state" keeps PyBullet's. A dataset planned before this key existed
-# is moved over with `physverify dataset migrate --name velocity-<convention>`, never by bumping
+# is moved over with `physverify synth migrate --name velocity-<convention>`, never by bumping
 # `version`.
 velocity_convention = "position"
 

@@ -4,9 +4,9 @@
 # split, a bare name the whole dataset. kubric_synthetic:eval is the A8 eval split. The fresh
 # Kubric renders (kubric_fresh*) and the new real controls (physics_iq_views, objectron_static)
 # are their own dataset plugins, so their looks and their stage cache never mix with
-# kubric_synthetic or the development real sets. h2_test keeps its own ledger (run_h2.sh). `~` is
-# the invoking HOME: the H200 scripts source env.sh, so the ledger is
-# $PHYSVERIFY_H200_ROOT/sealed-ledger.txt.
+# kubric_synthetic or the development real sets. h2_test keeps its own ledger
+# (run_human_agreement.sh). `~` is the invoking HOME: the H200 scripts source env.sh, so the
+# ledger is $PHYSVERIFY_H200_ROOT/sealed-ledger.txt.
 [sealed]
 ledger = "~/sealed-ledger.txt"
 sets = [
