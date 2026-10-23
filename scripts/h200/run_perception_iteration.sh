@@ -37,7 +37,7 @@
 #                                        its provider swaps (extraction.plan.<stage>=<provider>) go as
 #                                        --set to every physverify call; doctor must list each one;
 #                                        PHYSVERIFY_ITERATION_ID must contain the arm name. The heavy lock is
-#                                        per output directory: run arms one at a time (it3_arms.sh)
+#                                        per output directory: run arms one at a time
 #   PHYSVERIFY_ITERATION_DEVICE          cpu or cuda [cpu]; cuda needs CUDA_VISIBLE_DEVICES in 0-3
 #                                        (launch through gpu_queue.sh)
 #   PHYSVERIFY_ITERATION_PYTHON          interpreter [/home/mmonterot/dev/venv/bin/python]
