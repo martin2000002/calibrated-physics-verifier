@@ -12,15 +12,14 @@ import inspect
 import pkgutil
 from collections.abc import Callable, Iterator, Mapping
 from types import MappingProxyType, ModuleType
-from typing import Any, TypeVar
+from typing import Any
 
 from physverify.core.errors import DuplicatePluginError, InvalidPluginError, MissingPluginsError
 
-T = TypeVar("T")
 Key = str | Callable[[Any], str]
 
 
-class Registry(Mapping[str, T]):
+class Registry[T](Mapping[str, T]):
     """Read-only name -> plugin mapping."""
 
     def __init__(self, items: Mapping[str, T]) -> None:

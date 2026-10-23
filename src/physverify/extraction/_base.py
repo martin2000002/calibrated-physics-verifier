@@ -9,7 +9,7 @@ import math
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import ClassVar, Protocol, TypeVar, runtime_checkable
+from typing import ClassVar, Protocol, runtime_checkable
 
 from pydantic import BaseModel
 
@@ -24,8 +24,6 @@ from physverify.schema.stages import Stage, check_upstream_order, stage_index
 
 GROUND_TRUTH = "ground_truth"
 """Provider name of every conditional ground-truth provider."""
-
-O = TypeVar("O")  # noqa: E741
 
 
 class WeightKind(StrEnum):
@@ -63,7 +61,7 @@ class StageContext:
     paths: PathsSettings
     entry_filter: EntryFilter = field(default_factory=EntryFilter)
 
-    def require(self, stage: Stage, kind: type[O]) -> O:
+    def require[O](self, stage: Stage, kind: type[O]) -> O:
         output = self.upstream.get(stage)
         if output is None:
             raise MissingInputError(f"{self.clip.clip_id}: upstream {stage.value} is missing")
