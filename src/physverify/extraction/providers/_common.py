@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 
 import numpy as np
 from numpy.typing import NDArray
@@ -21,20 +21,6 @@ def expect_params[P: BaseModel](params: BaseModel, model: type[P]) -> P:
     if not isinstance(params, model):
         raise TypeError(f"expected {model.__name__}, got {type(params).__name__}")
     return params
-
-
-def label_candidates(label: str) -> tuple[str, ...]:
-    """The whole label first, then each of its words (a query phrase like "red ball")."""
-    text = label.strip().lower()
-    return (text, *text.replace("_", " ").split())
-
-
-def lookup_label[V](label: str, table: Mapping[str, V]) -> V | None:
-    """Exact match of the label, else of its first word that is a key of ``table``."""
-    for candidate in label_candidates(label):
-        if candidate in table:
-            return table[candidate]
-    return None
 
 
 def centred_intrinsics(focal: float, sampling: FrameSampling) -> NDArray[np.float64]:

@@ -19,8 +19,6 @@ SCANNED_DIRS = (REPO / "src" / "physverify", REPO / "scripts")
 # Pairs "module -> imported" present when the guard was added; fixes shrink this set.
 KNOWN_VIOLATIONS: frozenset[str] = frozenset(
     {
-        "physverify.datasets.pisa_real -> physverify.extraction.providers._common",
-        "physverify.datasets.pisa_real -> physverify.extraction.providers.scale_size_prior",
         "physverify.demo.settings -> physverify.timing.settings",
         "physverify.finetune.budget -> physverify.timing.budget",
         "physverify.finetune.candidates -> physverify.timing.generation",
@@ -29,8 +27,6 @@ KNOWN_VIOLATIONS: frozenset[str] = frozenset(
         "physverify.finetune.candidates -> physverify.timing.targets.wan21_generate",
         "physverify.finetune.settings -> physverify.timing.settings",
         "physverify.finetune.wan_lora -> physverify.timing.settings",
-        "physverify.sizing.model -> physverify.extraction.providers._common",
-        "physverify.sizing.model -> physverify.extraction.providers.scale_size_prior",
         "physverify.verification.selective_risk -> physverify.calibration.table",
         "physverify.verification.selective_risk -> physverify.diagnosis.pairing",
     }

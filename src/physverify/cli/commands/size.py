@@ -30,7 +30,6 @@ from physverify.datasets.objectron_static import VIDEO_FILE
 from physverify.diagnosis.chain_runner import ChainRunner
 from physverify.diagnosis.chain_variants import Variant
 from physverify.diagnosis.measurement_cases import stage_output
-from physverify.extraction.providers.scale_size_prior import SIZE_PRIORS_SECTION
 from physverify.runtime.runs import new_run, write_json
 from physverify.schema.clip import ClipManifest
 from physverify.schema.perception import MaskTrack
@@ -43,6 +42,7 @@ from physverify.sizing.fit import conformal_factor, fit_model, render_toml
 from physverify.sizing.model import SECTION as MODEL_SECTION
 from physverify.sizing.model import SizeModelTable
 from physverify.sizing.objectron_draws import TEST, TRAIN, e2e_draw, objectron_dir, selection
+from physverify.sizing.priors import SIZE_PRIORS_SECTION
 from physverify.sizing.samples import SizeSample, samples_of
 from physverify.sizing.settings import EndToEndSettings, SizingSettings, sizing_settings
 from physverify.verification.inputs import refuse_heavy

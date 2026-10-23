@@ -38,9 +38,8 @@ from physverify.core.video import Mp4VideoSource
 from physverify.datasets._base import GroundTruthStore, VideoSource
 from physverify.datasets._layout import load_annotations, relative_to_data, resolve_data_path
 from physverify.datasets._queries import derive_queries
-from physverify.extraction.providers._common import lookup_label
-from physverify.extraction.providers.scale_size_prior import SIZE_PRIORS_SECTION
 from physverify.schema.clip import ClipManifest, ObjectQuery, Split, TimeSource
+from physverify.sizing.priors import SIZE_PRIORS_SECTION, lookup_label
 
 if TYPE_CHECKING:
     from physverify.config.models import Settings
