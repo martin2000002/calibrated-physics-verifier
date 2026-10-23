@@ -1,4 +1,5 @@
-"""``[agreement]`` (configs/agreement.toml): the pre-registered comparison of ADR 0011."""
+"""``[agreement]`` (configs/studies/human_agreement.toml): the pre-registered comparison of ADR
+0011."""
 
 from __future__ import annotations
 

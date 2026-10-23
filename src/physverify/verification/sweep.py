@@ -33,7 +33,7 @@ class SpecificitySettings(FrozenModel):
     null_tol: float = Field(default=1e-3, ge=0.0)
     couplings: list[tuple[str, str]] = Field(default_factory=list)
     """(perturbation, check) pairs that are expected to move together; reported, never failed.
-    Declared in ``configs/checks.toml`` with their physical reason."""
+    Declared in ``configs/verifier/checks.toml`` with their physical reason."""
 
 
 class Rule(StrEnum):

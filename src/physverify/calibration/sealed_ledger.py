@@ -59,7 +59,7 @@ def sealed_settings(settings: Settings) -> SealedSettings:
     """Fails closed: without ``[sealed]`` nothing would be guarded."""
     if SECTION not in settings.sections:
         raise ConfigError(
-            f"no [{SECTION}] section (configs/sealed.toml): the sealed sets are unknown"
+            f"no [{SECTION}] section (configs/verifier/sealed.toml): the sealed sets are unknown"
         )
     return settings.section(SECTION, SealedSettings)
 

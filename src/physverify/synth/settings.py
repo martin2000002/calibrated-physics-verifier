@@ -1,4 +1,5 @@
-"""Typed ``[dataset]`` section (configs/dataset.toml) and the parameters shared by every family."""
+"""Typed ``[dataset]`` section (configs/datasets/kubric_synthetic.toml) and the parameters shared
+by every family."""
 
 from __future__ import annotations
 

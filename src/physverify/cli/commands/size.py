@@ -30,7 +30,9 @@ def fetch() -> None:
     fetch_heads(app_context().settings, echo=typer.echo)
 
 
-@app.command("fit", help="Fit the per-class model on train; writes configs/size_model.toml.")
+@app.command(
+    "fit", help="Fit the per-class model on train; writes configs/verifier/size_model.toml."
+)
 def fit() -> None:
     model, target, run_dir = fit_and_write(app_context())
     typer.echo(f"model: {target} ({len(model.classes)} classes, factor {model.sigma_factor:.4f})")
