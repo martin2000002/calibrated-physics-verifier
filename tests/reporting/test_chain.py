@@ -1,4 +1,4 @@
-"""The A8 v2 chain directory as ``run_a8v2.sh`` leaves it (state.env, steps.tsv, logs)."""
+"""A recorded chain directory as the H200 step runners leave it (state.env, steps.tsv, logs)."""
 
 from __future__ import annotations
 

@@ -106,7 +106,7 @@ source "$PHYSVERIFY_H200_ROOT/env.sh"   # HOME, XDG_CACHE_HOME, HF_HOME, UV_*, P
 ```
 
 It derives every path from the directory it sits in. `run_kubric.sh`, `run_demo.sh`,
-`run_h3.sh`, `run_p1_perception.sh`, `setup_autoeval.sh` and `smoke_autoeval.sh` source it when
+`run_h3.sh`, `setup_autoeval.sh` and `smoke_autoeval.sh` source it when
 present (`source_h200_env` in `_common.sh`); source it by hand before the other scripts. The first
 runs used the root `/tmp/mmonterot`, which the 30-day
 purge of `/tmp` can wipe; `PHYSVERIFY_H200_ROOT=/tmp/mmonterot` still reproduces that layout.
@@ -185,41 +185,6 @@ preregistration (then refreeze). `run` and `report` fall back to the provisional
 such, while `demo.allow_provisional` is on. `physverify demo report --results <dir>` rebuilds a
 report on CPU, for example once the calibrated rule replaces the provisional one.
 
-## P1 perception
-
-```sh
-source "$PHYSVERIFY_H200_ROOT/env.sh"
-CUDA_VISIBLE_DEVICES=1 PHYSVERIFY_TIMING_THREADS=32 \
-    nohup bash scripts/h200/run_p1_perception.sh v1 > "$PHYSVERIFY_H200_ROOT/p1/p1.log" 2>&1 &
-PHYSVERIFY_P1_CLIPS="<clip ids>" bash scripts/h200/run_p1_perception.sh v1-precise A-fast <ID>
-```
-
-Runs the P1 depth (A) and detection (B) configurations of ADR 0014 (IDs `A-fast A-518 A-280 A-392
-A-e2 A-met B-tpq B-bj B-bpq`; default: all but `A-392`). `A-fast` and the B rows use the `fast`
-profile, the other A rows `precise`. Every option is a root `--set` placed before the subcommand:
-`runtime.threads`, `runtime.heavy_lock=$P1_DATA/p1.lock`, `paths.data_dir=$P1_DATA`,
-`paths.hf_home=$P1_HF`, a per-configuration `paths.error_profile` (written by `diagnose stages
---write-profile` from `calib`, read by every later step), the dataset version (`v1`: 128 px, plain;
-`v1-precise`: 256 px, HDRI) and the row's own settings. The selection is `--subset local` on `v1`, `--subset full` (or `PHYSVERIFY_P1_CLIPS`) on
-`v1-precise`.
-
-`P1_DATA` is `PHYSVERIFY_P1_DATA` (default `$PHYSVERIFY_H200_ROOT/p1/data`) and `P1_HF` is
-`PHYSVERIFY_P1_HF` (default `$PHYSVERIFY_H200_ROOT/p1/hf`). The first run seeds them, reading only:
-`synthetic`, `weights` and `vendor` from `$PHYSVERIFY_H200_ROOT/Repo/data`, the whole HF `hub/`
-(hard links when possible) and `thresholds.perceived.fast.json`, pinned as
-`$P1_DATA/calibration/thresholds.json`; existing copies are kept. On `v1-precise` it links
-`$P1_DATA/synthetic/v1-precise` to `$PHYSVERIFY_H200_ROOT/kubric-data/synthetic/v1-precise`, since
-manifest video paths are relative to `paths.data_dir`. A pinned table with no `checks` stops the
-batch (every verdict would be UNSCORED) unless `PHYSVERIFY_P1_PROVISIONAL=1`, which points
-`paths.thresholds` at a missing file so verify falls back to `configs/checks.toml`, and records
-`provisional:<sha of checks.toml>` in the manifest. Per configuration it runs
-`extract fetch-weights`, `extract run`, `diagnose stages`, `scene-stats per-clip` (to
-`$P1_DATA/runs/p1-<set>-<ID>.json`; compare two with `scene-stats delta`), `diagnose end-to-end`, `verify --level perceived`
-and, with `PHYSVERIFY_P1_ATTRIBUTION=1`, `diagnose attribution`. Exit 1 (some clips failed) is
-reported and tolerated; any other failure stops the batch. Logs go to `$P1_DATA/runs/p1-logs/`, and
-`$P1_DATA/runs/p1-manifest.tsv` records per step the run directory, `CUDA_VISIBLE_DEVICES`, the
-sha256 of `src/**/*.py` and of the thresholds. Exit 2 without a CUDA GPU, before any `uv`.
-
 ## H3 comparison
 
 ```sh
@@ -251,29 +216,20 @@ peft, numpy and Python versions are our choice, and the freeze file records the 
 `PHYSVERIFY_AUTOEVAL_UPSTREAM` overrides the clone URL. The GPU steps exit 2 without a CUDA GPU
 before any `uv` call.
 
-## GT migrations (ADR 0004: WP-G 1.C velocity, WP-H floor crossing, WP-I pair collision)
+## GT migrations
 
-`migrate_velocity.sh` runs one GT migration of a stored dataset in place (CPU only, no version
-bump), picked by `PHYSVERIFY_MIGRATE_NAME`: `velocity-position` (default) moves it to
-`velocity_convention = "position"`; the ground-truth fixes of `plan.GT_MIGRATIONS` follow, in
-order: `floor-crossing` re-solves the floor bounces whose row after the crossing was already under
-the floor, and `pair-collision` holds a ball's velocity at a ball-ball collision only when a floor
-record overlaps the row's interval or the ball is within `contacts.tol_m` of the floor (both need
-a dataset on `velocity-position`). A fix runs only as the first one the plan lacks and covers every
-later one, since APPLY re-runs with the checkout's code. Each
-run is `dataset migrate --name <name>`, a rebuild of every listed subset (only the renders whose
-poses changed are redone), `extract purge` of the re-rendered clips on every cache root, oracle
-sweeps with `fit_source` position and velocity, and `dataset audit-migration --name <name>`
-against a copy taken before. Every written path must lie under `PHYSVERIFY_MIGRATE_ROOT`; the
-header lists the variables and the commands for a dev copy and for the full v1-precise dataset.
-A plan whose `gt_revision` is older than the checkout's is refused by every build step until its
-pending fix (named in the refusal) has run on it.
-
-It holds the Kubric lock (`PHYSVERIFY_MIGRATE_LOCK`, default `${PHYSVERIFY_KUBRIC_LOCK:-$ROOT/kubric.lock}`),
-so it never renders beside a `run_kubric.sh` build. It stops after `dataset migrate` when any clip
-changed state (applied or skipped) until `PHYSVERIFY_MIGRATE_ALLOW_STATUS_CHANGES=1`, and moves the
-calibration artifacts fitted on the old GT into `<calibration dir>/stale-<name>/` once,
-printing a notice; recalibrate afterwards. `calibration-baseline-*` directories are refused.
+`physverify dataset migrate --name <name>` re-runs APPLY on every simulated clip of a stored
+dataset in place (no version bump), keeping every render whose inputs did not change, and writes
+`migrations/<name>.json`. `velocity-position` (the default, also `dataset migrate-velocity`) moves
+a dataset to `velocity_convention = "position"`; the ground-truth fixes of `plan.GT_MIGRATIONS`
+follow, in order: `floor-crossing` re-solves the floor bounces whose row after the crossing was
+already under the floor, and `pair-collision` holds a ball's velocity at a ball-ball collision only
+when a floor record overlaps the row's interval or the ball is within `contacts.tol_m` of the floor
+(both need a dataset on `velocity-position`). A fix runs only as the first one the plan lacks and
+covers every later one, since APPLY re-runs with the checkout's code. Afterwards rebuild every
+listed subset (only the renders whose poses changed are redone) and `extract purge` the
+re-rendered clips. A plan whose `gt_revision` is older than the checkout's is refused by every
+build step until its pending fix (named in the refusal) has run on it.
 
 ## Perception campaign iterations (ADR 0015 amendment 2, WP-O)
 
@@ -314,13 +270,7 @@ commit, the configuration sections with profile and device (not paths, threads o
 the sha256 of `calibration.json` (or the `--artifact` used), `thresholds.json`,
 `exclusions.json` and the error profile; a look under another frozen state, a refit at the same
 commit included, also needs `PHYSVERIFY_UNSEAL_REPEAT=1`. A missing `[sealed]` section fails
-closed. A baseline rerun of `run_a8v2.sh` on main therefore stops at its
-first look at eval (an eval preflight clip, or step 2: `diagnose stages --subset full` reports on
-eval) unless `PHYSVERIFY_UNSEAL=kubric_synthetic:eval` is exported by hand, which records each of
-its looks; the checkout of the running chain is not updated until it finishes.
-
-Debt: `_steps.sh` `require_completed` repeats `run_a8v2.sh`'s `require_earlier_steps`; it goes
-away when `run_a8v2.sh` moves to `_steps.sh` after the A8 v2 chain completes.
+closed.
 
 ## Freeze and final looks (amendment 7)
 
@@ -379,5 +329,4 @@ H2 then runs from the freeze manifest instead of the A8 v2 run:
 `PHYSVERIFY_H2_FREEZE=$F/freeze.json PHYSVERIFY_H2_CALIBRATION_DIR=$F/calibration bash
 scripts/h200/run_h2.sh dev` (and `test` once).
 
-Debt: `run_h2.sh` keeps its own startup guards (not `_guards.sh`) and `run_a8v2.sh` reads the
-record hash with its own `sed` (`_steps.sh` `record_sha_of` is the same expression).
+Debt: `run_h2.sh` keeps its own startup guards (not `_guards.sh`).

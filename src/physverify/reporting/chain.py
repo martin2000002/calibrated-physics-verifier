@@ -1,8 +1,8 @@
-"""Read-only view of one A8 v2 chain directory (``scripts/h200/run_a8v2.sh``).
+"""Read-only view of one recorded chain directory of the H200 step runners.
 
 ``state.env`` holds ``KEY=%q`` lines appended by ``save`` (a later line wins, as when the script
 sources it); ``steps.tsv`` holds ``n, name, exit, wall_s, log`` rows, and a step's last row is
-its state, the rule of ``require_earlier_steps``.
+its state, the rule of ``require_completed`` in ``scripts/h200/_steps.sh``.
 """
 
 from __future__ import annotations

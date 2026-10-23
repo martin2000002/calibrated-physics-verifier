@@ -1,6 +1,5 @@
 # Step bookkeeping of the H200 runners (steps.tsv, state.env, notes, summary, logged calls);
-# sourced after _common.sh, never executed. Taken from run_a8v2.sh with the same names, arguments
-# and behaviour, so that script can move here unchanged.
+# sourced after _common.sh, never executed.
 #
 # The caller sets LOGS, STATE, STEPS, NOTES and SUMMARY, the summary's SUMMARY_TITLE
 # and SUMMARY_INFO line, and PY, PV_DEVICE and THREADS for pv (DOCTOR before doctor_value).
@@ -136,8 +135,7 @@ run_logged() {
 }
 
 # require_completed FIRST FROM: steps FIRST..FROM-1 last recorded with exit 0 and with their
-# STEP_SAVES keys set (a tolerated exit 1 is recorded as 0). The same check as run_a8v2.sh's
-# require_earlier_steps, kept there until that script moves here (README, debt).
+# STEP_SAVES keys set (a tolerated exit 1 is recorded as 0).
 require_completed() {
     local k code key
     for ((k = $1; k < $2; k++)); do

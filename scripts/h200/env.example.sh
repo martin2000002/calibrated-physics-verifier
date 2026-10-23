@@ -1,7 +1,6 @@
 # Template of $PHYSVERIFY_H200_ROOT/env.sh, the machine-local environment of the H200 (not in git):
 #   cp scripts/h200/env.example.sh "$PHYSVERIFY_H200_ROOT/env.sh"
-# run_kubric.sh, run_demo.sh, run_h3.sh, run_p1_perception.sh, setup_autoeval.sh and
-# smoke_autoeval.sh source it (source_h200_env in _common.sh); source it by hand before the other
+# run_kubric.sh, run_demo.sh, run_h3.sh, setup_autoeval.sh and smoke_autoeval.sh source it (source_h200_env in _common.sh); source it by hand before the other
 # scripts. Every path derives from the directory the file sits in, so the copy needs no editing.
 H200_ENV_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export PHYSVERIFY_H200_ROOT="$H200_ENV_ROOT"

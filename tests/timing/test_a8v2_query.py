@@ -13,7 +13,6 @@ import pytest
 from check_rows import UNCACHED, write_check_rows
 
 from physverify.schema.clip import ClipManifest
-from physverify.synth.migrate import COMPLETED_KEY, RERENDER_KEY
 
 HELPER = Path(__file__).resolve().parents[2] / "scripts" / "h200" / "a8v2_query.py"
 ALLOWED = ({"physics_iq": 54, "pisa_real": 360}, {"physics_iq": 54, "pisa_real": 40})
@@ -57,18 +56,6 @@ def test_clip_ids_filter_by_split(
     assert query.clip_ids(source, "full", "calib") == []
 
 
-def test_rerendered_needs_a_completed_manifest(query: ModuleType, tmp_path: Path) -> None:
-    missing = tmp_path / "pair-collision.json"
-    assert query.rerendered(missing, missing_ok=True) == []
-    with pytest.raises(query.QueryError, match="run step 0"):
-        query.rerendered(missing, missing_ok=False)
-    _write(missing, {RERENDER_KEY: ["c2", "c1"]})
-    with pytest.raises(query.QueryError, match=COMPLETED_KEY):
-        query.rerendered(missing, missing_ok=True)
-    _write(missing, {RERENDER_KEY: ["c2", "c1"], COMPLETED_KEY: "2026-10-19T00:00:00Z"})
-    assert query.rerendered(missing, missing_ok=False) == ["c2", "c1"]
-
-
 def test_an_allowed_evaluation_prints_its_real_sets_and_h1_section(
     query: ModuleType, tmp_path: Path
 ) -> None:
@@ -93,31 +80,11 @@ def test_the_allowed_sets_are_the_preregistered_ones(
     assert sets == [{"physics_iq": 54, "pisa_real": n} for n in (360, 40, 361)]
 
 
-def test_gravity_keeps_the_calib_lift_rows(query: ModuleType, tmp_path: Path) -> None:
-    row = {"stage": "lift", "metric": "gravity_angle", "provider": "p", "n_clips": 3,
-           "values": {"gravity_angle_deg": 1.25}}  # fmt: skip
-    rows = [{**row, "split": "calib"}, {**row, "split": "eval"}, {**row, "metric": "other"}]
-    path = _write(tmp_path / "stages.json", {"profile_split": "calib", "rows": rows})
-    lines = query.gravity_lines(path)
-    assert lines[-1] == "| p | 3 | gravity_angle_deg 1.25 |"
-    assert len(lines) == 5
-    _write(path, {"rows": rows[2:]})
-    with pytest.raises(query.QueryError, match="no calib row"):
-        query.gravity_lines(path)
-
-
 def test_main_exits_2_with_the_reason(
     query: ModuleType, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    assert query.main(["gravity", str(tmp_path / "absent.json")]) == 2
+    assert query.main(["run-errors", str(tmp_path / "absent")]) == 2
     assert "cannot read" in capsys.readouterr().err
-
-
-def test_null_gravity_values_print_as_nan(query: ModuleType, tmp_path: Path) -> None:
-    row = {"stage": "lift", "metric": "gravity_angle", "provider": "p", "n_clips": 0,
-           "split": "calib", "values": {"gravity_angle_deg": None}}  # fmt: skip
-    path = _write(tmp_path / "stages.json", {"rows": [row]})
-    assert query.gravity_lines(path)[-1] == "| p | 0 | gravity_angle_deg nan |"
 
 
 def test_run_errors_passes_a_run_without_errors(query: ModuleType, tmp_path: Path) -> None:

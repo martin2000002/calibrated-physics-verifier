@@ -176,7 +176,7 @@ step_3() {
     note_block "Rule 1.5 evaluation on calib ($EVAL_JSON)" <<<"$checked"
 }
 
-# Rule 1.2, as run_a8v2.sh step 8: the same calib clips with the precise detector and the tiny one.
+# Rule 1.2: the same calib clips with the precise detector and the tiny one.
 step_4() {
     local clips_file="$F/r2_clips.txt"
     call 0 -- exclusions r2-clips --out "$clips_file"
