@@ -3,13 +3,12 @@ settings."""
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from typing import Any
 
 import pytest
 from pydantic import ValidationError
+from settings_factory import SettingsFactory
 
-from physverify.config.models import Settings
 from physverify.core.errors import ConfigError, UsageError
 from physverify.datasets.local_video import QueryEntry
 from physverify.generation.settings import GenerationSettings
@@ -20,8 +19,6 @@ from physverify.timing.settings import (
     run_settings,
     with_overrides,
 )
-
-SettingsFactory = Callable[..., Settings]
 
 ORDER = ["wan21_generate", "extract_pipeline", "verify_checks", "kubric_render"]
 PRECISE_REPETITIONS = {

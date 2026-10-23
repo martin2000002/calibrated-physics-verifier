@@ -6,8 +6,8 @@ import dataclasses
 from collections.abc import Callable
 
 import pytest
+from settings_factory import SettingsFactory
 
-from physverify.config.models import Settings
 from physverify.core.errors import ConfigError
 from physverify.diagnosis.chain_runner import ChainRunner
 from physverify.diagnosis.chain_variants import (
@@ -29,7 +29,6 @@ from physverify.schema.clip import Split
 from physverify.schema.stages import STAGE_ORDER, Stage
 
 FIXED = frozenset({Stage.DETECT, Stage.CAMERA})
-SettingsFactory = Callable[..., Settings]
 
 
 def test_ladder_uses_ground_truth_prefixes() -> None:

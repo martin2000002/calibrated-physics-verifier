@@ -25,7 +25,6 @@ from physverify.app import selective_risk as app_selective_risk
 from physverify.app import verification as app_verification
 from physverify.calibration import session as calibration_session
 from physverify.calibration.sealed_ledger import LedgerEntry, read_entries
-from physverify.config.loader import load_settings
 from physverify.config.models import Settings
 from physverify.core.errors import PhysverifyError
 from physverify.datasets._base import GroundTruthStore, VideoSource
@@ -121,11 +120,6 @@ def ledger(environ: dict[str, str], checkout: Path) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.touch()
     return path
-
-
-@pytest.fixture
-def settings(config_dir: Path, environ: dict[str, str]) -> Settings:
-    return load_settings(config_dir, environ=environ)
 
 
 @pytest.fixture

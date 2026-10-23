@@ -19,7 +19,6 @@ from wiring import checks
 from physverify.app import calibration as app_calibration
 from physverify.app import plugins
 from physverify.calibration.artifact_io import load_calibration
-from physverify.config.loader import load_settings
 from physverify.config.models import Settings
 from physverify.datasets._base import GroundTruthStore, VideoSource
 from physverify.schema.checks import InputLevel
@@ -72,11 +71,6 @@ def calls(monkeypatch: pytest.MonkeyPatch) -> list[int]:
     monkeypatch.setattr(app_calibration, "_raw_runner", lambda session: _CalibRunner(found))
     monkeypatch.setattr(app_calibration, "_input_source", lambda session, dataset, level: None)
     return found
-
-
-@pytest.fixture
-def settings(config_dir: Path, environ: dict[str, str]) -> Settings:
-    return load_settings(config_dir, environ=environ)
 
 
 def _snapshot(*paths: Path) -> dict[Path, tuple[str, int]]:

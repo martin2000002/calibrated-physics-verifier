@@ -15,7 +15,8 @@ import numpy as np
 import pytest
 from fakes import DISPARITY_A, affine_disparity, fixture_truth
 from numpy.typing import NDArray
-from support import SettingsFactory, plan_overrides, run_pipeline
+from settings_factory import SettingsFactory
+from support import plan_overrides, run_pipeline
 from synthetic_clip import SyntheticFixtureDataset
 from wiring import resolve_plan
 

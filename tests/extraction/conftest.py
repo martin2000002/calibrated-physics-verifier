@@ -16,12 +16,10 @@ if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
 from fakes import FAKES, JOURNAL  # noqa: E402
-from support import SettingsFactory  # noqa: E402
 from synthetic_clip import SyntheticClip, SyntheticFixtureDataset, build_clip  # noqa: E402
 
 from physverify.app.plugins import PLUGIN_KINDS  # noqa: E402
-from physverify.config.loader import load_settings  # noqa: E402
-from physverify.config.models import RuntimeSettings, Settings  # noqa: E402
+from physverify.config.models import RuntimeSettings  # noqa: E402
 from physverify.extraction._base import StageProvider, provider_key  # noqa: E402
 
 
@@ -41,14 +39,6 @@ def real_providers() -> Mapping[str, type[StageProvider]]:
 def providers(real_providers: Mapping[str, type[StageProvider]]) -> dict[str, type[StageProvider]]:
     """The real registry plus ``<stage>/fake`` for DETECT, TRACK and DEPTH."""
     return {**real_providers, **{provider_key(fake): fake for fake in FAKES}}
-
-
-@pytest.fixture
-def make_settings(config_dir: Path, environ: dict[str, str]) -> SettingsFactory:
-    def build(*overrides: str, profile: str | None = None) -> Settings:
-        return load_settings(config_dir, environ=environ, profile=profile, overrides=overrides)
-
-    return build
 
 
 @pytest.fixture(scope="session")

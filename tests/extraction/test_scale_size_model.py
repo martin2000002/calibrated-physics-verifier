@@ -8,7 +8,8 @@ from dataclasses import replace
 
 import numpy as np
 import pytest
-from support import SettingsFactory, chain_keys, make_context, run_provider
+from settings_factory import SettingsFactory
+from support import chain_keys, make_context, run_provider
 from synthetic_clip import SyntheticClip
 from test_scale import PRIORS, truth_lift
 from wiring import resolve_plan

@@ -6,13 +6,14 @@ import base64
 import hashlib
 import io
 import json
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, BinaryIO
 
 import cv2
 import numpy as np
 import pytest
+from settings_factory import SettingsFactory
 
 from physverify.config.models import Settings
 from physverify.core.download import (
@@ -42,8 +43,6 @@ SIZE = (32, 24)
 N_FRAMES = 12
 MAX_FRAMES = 8
 REPO_ANNOTATIONS = Path(__file__).resolve().parents[2] / "annotations"
-
-SettingsFactory = Callable[..., Settings]
 
 
 def md5_of(data: bytes) -> str:

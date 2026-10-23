@@ -11,8 +11,8 @@ from typing import Any
 
 import pytest
 from pydantic import ValidationError
+from settings_factory import SettingsFactory
 
-from physverify.config.models import Settings
 from physverify.timing.environment import (
     DRIVER_QUERY,
     PACKAGES,
@@ -32,8 +32,6 @@ from physverify.timing.records import (
     TargetStatus,
 )
 from physverify.timing.settings import TargetRunSettings
-
-SettingsFactory = Callable[..., Settings]
 
 ENVIRONMENT_KEYS = {
     "os",

@@ -10,14 +10,14 @@ from __future__ import annotations
 import csv
 import json
 import math
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import pytest
+from settings_factory import SettingsFactory
 
-from physverify.config.loader import load_settings
 from physverify.config.models import Settings
 from physverify.datasets._videophy_review import write_review
 from physverify.datasets.videophy import VideophyDataset
@@ -101,17 +101,15 @@ def provisional_by_default(environ: dict[str, str]) -> None:
     environ.update(PROVISIONAL_ENV)
 
 
-SettingsFactory = Callable[..., Settings]
+@pytest.fixture
+def settings_environ(environ: dict[str, str]) -> dict[str, str]:
+    """The plain environment, also under ``tests/scripts`` whose conftest moves the data dir."""
+    return environ
 
 
 @pytest.fixture
-def make_settings(config_dir: Path, environ: dict[str, str]) -> SettingsFactory:
-    def build(*overrides: str) -> Settings:
-        return load_settings(
-            config_dir, environ=environ, overrides=("agreement.bootstrap_n=50", *overrides)
-        )
-
-    return build
+def settings_overrides() -> tuple[str, ...]:
+    return ("agreement.bootstrap_n=50",)
 
 
 @pytest.fixture

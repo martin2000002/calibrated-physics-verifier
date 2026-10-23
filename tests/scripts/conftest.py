@@ -10,11 +10,10 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 
 import pytest
+from data_environ import data_dir as data_dir
+from data_environ import settings_environ as settings_environ
 from network import no_network as no_network
 from timing_settings import clip_factory as clip_factory
-from timing_settings import data_dir as data_dir
-from timing_settings import make_settings as make_settings
-from timing_settings import timing_environ as timing_environ
 
 ITERATION_FILES = {
     "DEVSCORE_SHA": "devscore.json",

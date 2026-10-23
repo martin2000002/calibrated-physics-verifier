@@ -42,8 +42,6 @@ from physverify.schema.outputs import StageOutput
 from physverify.schema.stages import STAGE_ORDER, Stage
 from physverify.schema.states import ObjectStateTable
 
-SettingsFactory = Callable[..., Settings]
-
 TEST_PARAMS_HASH = "test-params"
 """Plan params hash of ``make_context``; entries without a ``params_hash`` condition match it."""
 
