@@ -1,0 +1,126 @@
+diff -r left/_capture/doctor.out right/_capture/doctor.out
+9,14c9,15
+< source: RUN/repo/configs/abstention.toml
+< source: RUN/repo/configs/agreement.toml
+< source: RUN/repo/configs/calibration.toml
+< source: RUN/repo/configs/check_scope.toml
+< source: RUN/repo/configs/checks.toml
+< source: RUN/repo/configs/dataset.toml
+---
+> source: RUN/repo/configs/datasets/kubric_fresh.toml
+> source: RUN/repo/configs/datasets/kubric_synthetic.toml
+> source: RUN/repo/configs/datasets/objectron_static.toml
+> source: RUN/repo/configs/datasets/physics_iq.toml
+> source: RUN/repo/configs/datasets/physics_iq_views.toml
+> source: RUN/repo/configs/datasets/pisa_real.toml
+> source: RUN/repo/configs/datasets/videophy.toml
+16,28c17,33
+< source: RUN/repo/configs/demo.toml
+< source: RUN/repo/configs/diagnosis.toml
+< source: RUN/repo/configs/exclusion_rules.toml
+< source: RUN/repo/configs/extraction.toml
+< source: RUN/repo/configs/finetune.toml
+< source: RUN/repo/configs/h1_scenes.toml
+< source: RUN/repo/configs/h3.toml
+< source: RUN/repo/configs/kubric_fresh.toml
+< source: RUN/repo/configs/sealed.toml
+< source: RUN/repo/configs/size_model.toml
+< source: RUN/repo/configs/size_priors.toml
+< source: RUN/repo/configs/sizing.toml
+< source: RUN/repo/configs/timing.toml
+---
+> source: RUN/repo/configs/studies/demo.toml
+> source: RUN/repo/configs/studies/diagnosis.toml
+> source: RUN/repo/configs/studies/finetune.toml
+> source: RUN/repo/configs/studies/generator_comparison.toml
+> source: RUN/repo/configs/studies/human_agreement.toml
+> source: RUN/repo/configs/studies/primary_scenes.toml
+> source: RUN/repo/configs/studies/selective_risk.toml
+> source: RUN/repo/configs/studies/timing.toml
+> source: RUN/repo/configs/verifier/calibration.toml
+> source: RUN/repo/configs/verifier/check_scope.toml
+> source: RUN/repo/configs/verifier/checks.toml
+> source: RUN/repo/configs/verifier/exclusion_rules.toml
+> source: RUN/repo/configs/verifier/extraction.toml
+> source: RUN/repo/configs/verifier/sealed.toml
+> source: RUN/repo/configs/verifier/size_model.toml
+> source: RUN/repo/configs/verifier/size_priors.toml
+> source: RUN/repo/configs/verifier/sizing.toml
+diff -r left/_capture/doctor_set.out right/_capture/doctor_set.out
+9,14c9,15
+< source: RUN/repo/configs/abstention.toml
+< source: RUN/repo/configs/agreement.toml
+< source: RUN/repo/configs/calibration.toml
+< source: RUN/repo/configs/check_scope.toml
+< source: RUN/repo/configs/checks.toml
+< source: RUN/repo/configs/dataset.toml
+---
+> source: RUN/repo/configs/datasets/kubric_fresh.toml
+> source: RUN/repo/configs/datasets/kubric_synthetic.toml
+> source: RUN/repo/configs/datasets/objectron_static.toml
+> source: RUN/repo/configs/datasets/physics_iq.toml
+> source: RUN/repo/configs/datasets/physics_iq_views.toml
+> source: RUN/repo/configs/datasets/pisa_real.toml
+> source: RUN/repo/configs/datasets/videophy.toml
+16,28c17,33
+< source: RUN/repo/configs/demo.toml
+< source: RUN/repo/configs/diagnosis.toml
+< source: RUN/repo/configs/exclusion_rules.toml
+< source: RUN/repo/configs/extraction.toml
+< source: RUN/repo/configs/finetune.toml
+< source: RUN/repo/configs/h1_scenes.toml
+< source: RUN/repo/configs/h3.toml
+< source: RUN/repo/configs/kubric_fresh.toml
+< source: RUN/repo/configs/sealed.toml
+< source: RUN/repo/configs/size_model.toml
+< source: RUN/repo/configs/size_priors.toml
+< source: RUN/repo/configs/sizing.toml
+< source: RUN/repo/configs/timing.toml
+---
+> source: RUN/repo/configs/studies/demo.toml
+> source: RUN/repo/configs/studies/diagnosis.toml
+> source: RUN/repo/configs/studies/finetune.toml
+> source: RUN/repo/configs/studies/generator_comparison.toml
+> source: RUN/repo/configs/studies/human_agreement.toml
+> source: RUN/repo/configs/studies/primary_scenes.toml
+> source: RUN/repo/configs/studies/selective_risk.toml
+> source: RUN/repo/configs/studies/timing.toml
+> source: RUN/repo/configs/verifier/calibration.toml
+> source: RUN/repo/configs/verifier/check_scope.toml
+> source: RUN/repo/configs/verifier/checks.toml
+> source: RUN/repo/configs/verifier/exclusion_rules.toml
+> source: RUN/repo/configs/verifier/extraction.toml
+> source: RUN/repo/configs/verifier/sealed.toml
+> source: RUN/repo/configs/verifier/size_model.toml
+> source: RUN/repo/configs/verifier/size_priors.toml
+> source: RUN/repo/configs/verifier/sizing.toml
+1093c1073
+< │ fit          Fit the per-class model on train; writes configs/size_model.toml.                                       │
+---
+> │ fit          Fit the per-class model on train; writes configs/verifier/size_model.toml.                              │
+1144c1124
+<  Fit the per-class model on train; writes configs/size_model.toml.                                                      
+---
+>  Fit the per-class model on train; writes configs/verifier/size_model.toml.                                             
+Only in left/repo/configs: abstention.toml
+Only in left/repo/configs: agreement.toml
+Only in left/repo/configs: calibration.toml
+Only in left/repo/configs: check_scope.toml
+Only in left/repo/configs: checks.toml
+Only in right/repo/configs: datasets
+Only in left/repo/configs: dataset.toml
+Only in left/repo/configs: demo.toml
+Only in left/repo/configs: diagnosis.toml
+Only in left/repo/configs: exclusion_rules.toml
+Only in left/repo/configs: extraction.toml
+Only in left/repo/configs: finetune.toml
+Only in left/repo/configs: h1_scenes.toml
+Only in left/repo/configs: h3.toml
+Only in left/repo/configs: kubric_fresh.toml
+Only in left/repo/configs: sealed.toml
+Only in left/repo/configs: size_model.toml
+Only in left/repo/configs: size_priors.toml
+Only in left/repo/configs: sizing.toml
+Only in right/repo/configs: studies
+Only in left/repo/configs: timing.toml
+Only in right/repo/configs: verifier
