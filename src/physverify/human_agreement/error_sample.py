@@ -10,8 +10,8 @@ from collections.abc import Callable, Mapping, Sequence
 
 import numpy as np
 
-from physverify.human_agreement.abstention import policy_view
-from physverify.human_agreement.items import ComparisonItem
+from physverify.human_agreement.comparison_items import ComparisonItem
+from physverify.human_agreement.undecided_policy import policy_view
 from physverify.schema.checks import CheckResult
 
 CATEGORIES = (

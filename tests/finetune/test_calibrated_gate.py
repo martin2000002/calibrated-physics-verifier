@@ -32,7 +32,7 @@ from physverify.core.errors import ConfigError, UsageError  # noqa: E402
 from physverify.finetune.records import BASE_TAG  # noqa: E402
 from physverify.finetune.scorers.calibrated import CalibratedScorer  # noqa: E402
 from physverify.finetune.store import CampaignStore  # noqa: E402
-from physverify.human_agreement.decision import (  # noqa: E402
+from physverify.human_agreement.clip_decision import (  # noqa: E402
     StratumRequest,
     calibrated_rule,
     import_calibration,

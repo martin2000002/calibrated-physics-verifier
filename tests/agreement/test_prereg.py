@@ -27,7 +27,7 @@ from physverify.human_agreement.prereg import (
     require_unchanged,
     write_preregistration,
 )
-from physverify.human_agreement.run_io import VerifyRun
+from physverify.human_agreement.verify_run_reader import VerifyRun
 from physverify.human_agreement.workflow import freeze_audit
 
 RECORD = Preregistration(

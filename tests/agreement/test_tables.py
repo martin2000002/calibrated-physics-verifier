@@ -20,7 +20,7 @@ from physverify.datasets._videophy_tables import (
     tokens,
     url_member,
 )
-from physverify.human_agreement.items import implausible
+from physverify.human_agreement.comparison_items import implausible
 
 RULES = FilterSettings(
     rigid_event=("falls", "rolls", "knocked over"),

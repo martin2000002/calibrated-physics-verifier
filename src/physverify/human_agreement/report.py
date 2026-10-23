@@ -12,10 +12,10 @@ from typing import Any
 from physverify.core.atomic import write_text_atomic
 from physverify.core.markdown import number, table
 from physverify.human_agreement.breakdown import AGGREGATE
+from physverify.human_agreement.comparison import Comparison
+from physverify.human_agreement.comparison_items import ComparisonItem
 from physverify.human_agreement.coverage import NO_VIDEO
 from physverify.human_agreement.error_sample import CATEGORIES
-from physverify.human_agreement.items import ComparisonItem
-from physverify.human_agreement.pipeline import Comparison
 from physverify.schema.checks import AbstainReason
 from physverify.schema.io import json_ready
 

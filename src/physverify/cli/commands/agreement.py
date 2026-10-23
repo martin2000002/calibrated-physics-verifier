@@ -24,7 +24,7 @@ from physverify.datasets._videophy_review import (
     write_review,
 )
 from physverify.datasets.videophy import VideophyDataset
-from physverify.human_agreement.decision import import_calibration
+from physverify.human_agreement.clip_decision import import_calibration
 from physverify.human_agreement.prereg import (
     load_preregistration,
     logged_comparisons,

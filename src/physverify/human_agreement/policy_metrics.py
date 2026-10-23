@@ -10,8 +10,7 @@ from typing import Any
 
 import numpy as np
 
-from physverify.human_agreement.abstention import PolicyView, labels_of
-from physverify.human_agreement.items import ComparisonItem
+from physverify.human_agreement.comparison_items import ComparisonItem
 from physverify.human_agreement.stats import (
     Labels,
     Scores,
@@ -27,6 +26,7 @@ from physverify.human_agreement.stats import (
     mcnemar_exact,
     mde_accuracy,
 )
+from physverify.human_agreement.undecided_policy import PolicyView, labels_of
 
 PAIRED_KEYS = ("accuracy", "balanced_accuracy", "kappa")
 

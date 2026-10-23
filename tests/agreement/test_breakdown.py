@@ -7,11 +7,11 @@ from collections.abc import Sequence
 
 import pytest
 
-from physverify.human_agreement.abstention import AS_IMPLAUSIBLE, AS_PLAUSIBLE
 from physverify.human_agreement.breakdown import per_check, policy_accuracy
-from physverify.human_agreement.decision import ClipDecision, ProvisionalAnyFail
-from physverify.human_agreement.items import ComparisonItem, build_items, decide_all
-from physverify.human_agreement.run_io import VerifyRun, load_run
+from physverify.human_agreement.clip_decision import ClipDecision, ProvisionalAnyFail
+from physverify.human_agreement.comparison_items import ComparisonItem, build_items, decide_all
+from physverify.human_agreement.undecided_policy import AS_IMPLAUSIBLE, AS_PLAUSIBLE
+from physverify.human_agreement.verify_run_reader import VerifyRun, load_run
 
 THRESHOLDS = {"status": "provisional", "checks": {"R1": {"tau": 0.05}, "R3a": {"tau": 0.05}}}
 

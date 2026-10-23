@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING, Literal
 from pydantic import Field, model_validator
 
 from physverify.core.models import FrozenModel
-from physverify.human_agreement.abstention import POLICIES
-from physverify.human_agreement.decision import RULES
+from physverify.human_agreement.clip_decision import RULES
+from physverify.human_agreement.undecided_policy import POLICIES
 
 if TYPE_CHECKING:
     from pathlib import Path

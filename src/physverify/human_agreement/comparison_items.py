@@ -12,13 +12,13 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
 from physverify.datasets._videophy_tables import VideophyRow
-from physverify.human_agreement.decision import (
+from physverify.human_agreement.clip_decision import (
     ERROR_REASON,
     ClipDecision,
     ClipDecisionRule,
     Decision,
 )
-from physverify.human_agreement.run_io import VerifyRun
+from physverify.human_agreement.verify_run_reader import VerifyRun
 from physverify.verification.runner import TableRow
 
 

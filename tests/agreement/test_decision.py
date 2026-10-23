@@ -12,15 +12,7 @@ import numpy as np
 import pytest
 
 from physverify.core.errors import ConfigError, UsageError
-from physverify.human_agreement.abstention import (
-    AS_IMPLAUSIBLE,
-    AS_PLAUSIBLE,
-    COVERAGE_MATCHED_VLM,
-    DECIDED_ONLY,
-    abstention_counts,
-    policy_view,
-)
-from physverify.human_agreement.decision import (
+from physverify.human_agreement.clip_decision import (
     CalibratedRule,
     CalibrationApi,
     ClipDecision,
@@ -29,8 +21,16 @@ from physverify.human_agreement.decision import (
     UnusableCalibrationError,
     calibrated_rule,
 )
-from physverify.human_agreement.items import build_items, decide_all
-from physverify.human_agreement.run_io import VerifyRun, load_run, run_row_step
+from physverify.human_agreement.comparison_items import build_items, decide_all
+from physverify.human_agreement.undecided_policy import (
+    AS_IMPLAUSIBLE,
+    AS_PLAUSIBLE,
+    COVERAGE_MATCHED_VLM,
+    DECIDED_ONLY,
+    abstention_counts,
+    policy_view,
+)
+from physverify.human_agreement.verify_run_reader import VerifyRun, load_run, run_row_step
 from physverify.schema.checks import InputLevel
 from physverify.verification.runner import RowStatus
 

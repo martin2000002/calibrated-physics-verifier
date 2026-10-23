@@ -17,9 +17,7 @@ from physverify.datasets._queries import derive_queries
 from physverify.datasets._videophy_review import REVIEWED, SubsetReview, load_review, template
 from physverify.datasets._videophy_tables import SECTION as VIDEOPHY_SECTION
 from physverify.datasets._videophy_tables import VideophyRow
-from physverify.human_agreement.analysis import SECONDARY_TESTS
-from physverify.human_agreement.coverage import dataset_gaps
-from physverify.human_agreement.decision import (
+from physverify.human_agreement.clip_decision import (
     CALIBRATED_NAME,
     CalibrationApi,
     CalibrationStratum,
@@ -29,13 +27,15 @@ from physverify.human_agreement.decision import (
     UnusableCalibrationError,
     calibrated_rule,
 )
-from physverify.human_agreement.pipeline import (
+from physverify.human_agreement.comparison import (
     Comparison,
     ComparisonInputs,
     RuleScope,
     compare,
     freeze_dev,
 )
+from physverify.human_agreement.coverage import dataset_gaps
+from physverify.human_agreement.policy_metrics import SECONDARY_TESTS
 from physverify.human_agreement.prereg import (
     FreezeAudit,
     LoggedComparison,
@@ -50,12 +50,17 @@ from physverify.human_agreement.prereg import (
     preregistration_chain,
     require_unchanged,
 )
-from physverify.human_agreement.run_io import VerifyRun, load_run, run_files, run_row_step
 from physverify.human_agreement.settings import (
     SECTION,
     AgreementSettings,
     agreement_settings,
     preregistration_path,
+)
+from physverify.human_agreement.verify_run_reader import (
+    VerifyRun,
+    load_run,
+    run_files,
+    run_row_step,
 )
 from physverify.runtime.runs import current_commit
 from physverify.schema.checks import InputLevel

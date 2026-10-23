@@ -9,8 +9,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from physverify.human_agreement.decision import DECIDED, ClipDecision
-from physverify.human_agreement.items import ComparisonItem
+from physverify.human_agreement.clip_decision import DECIDED, ClipDecision
+from physverify.human_agreement.comparison_items import ComparisonItem
 from physverify.human_agreement.stats import Labels, accuracy, as_labels
 
 AS_PLAUSIBLE = "as_plausible"

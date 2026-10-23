@@ -22,7 +22,7 @@ from physverify.calibration.artifact_io import (
     parse_calibration,
 )
 from physverify.core.digests import text_sha256
-from physverify.human_agreement.decision import CALIBRATED_NAME
+from physverify.human_agreement.clip_decision import CALIBRATED_NAME
 from physverify.human_agreement.report import REPORT_DIR
 from physverify.reporting.chain import (
     EVALUATION_KEY,

@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 from scipy.stats import binomtest
 
-from physverify.human_agreement.analysis import best_cut, h2_verdict, predict_cut
+from physverify.human_agreement.policy_metrics import best_cut, h2_verdict, predict_cut
 from physverify.human_agreement.stats import (
     accuracy,
     as_labels,

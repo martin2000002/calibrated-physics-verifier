@@ -611,31 +611,28 @@
  "src/physverify/finetune/wan_lora.py": {
   "comment_or_docstring": 1
  },
- "src/physverify/human_agreement/abstention.py": {
-  "comment_or_docstring": 2
- },
- "src/physverify/human_agreement/analysis.py": {
-  "comment_or_docstring": 4,
-  "literal": 2
- },
  "src/physverify/human_agreement/breakdown.py": {
   "comment_or_docstring": 3
+ },
+ "src/physverify/human_agreement/clip_decision.py": {
+  "comment_or_docstring": 14,
+  "literal": 1
+ },
+ "src/physverify/human_agreement/comparison.py": {
+  "comment_or_docstring": 4
+ },
+ "src/physverify/human_agreement/comparison_items.py": {
+  "comment_or_docstring": 4
  },
  "src/physverify/human_agreement/coverage.py": {
   "comment_or_docstring": 2
  },
- "src/physverify/human_agreement/decision.py": {
-  "comment_or_docstring": 14,
-  "literal": 1
- },
  "src/physverify/human_agreement/error_sample.py": {
   "comment_or_docstring": 1
  },
- "src/physverify/human_agreement/items.py": {
-  "comment_or_docstring": 4
- },
- "src/physverify/human_agreement/pipeline.py": {
-  "comment_or_docstring": 4
+ "src/physverify/human_agreement/policy_metrics.py": {
+  "comment_or_docstring": 4,
+  "literal": 2
  },
  "src/physverify/human_agreement/prereg.py": {
   "comment_or_docstring": 7,
@@ -651,6 +648,9 @@
  },
  "src/physverify/human_agreement/stats.py": {
   "comment_or_docstring": 3
+ },
+ "src/physverify/human_agreement/undecided_policy.py": {
+  "comment_or_docstring": 2
  },
  "src/physverify/human_agreement/workflow.py": {
   "comment_or_docstring": 6
