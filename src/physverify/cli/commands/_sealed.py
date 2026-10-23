@@ -16,7 +16,6 @@ from typing import Final
 import typer
 
 from physverify.app.context import AppContext
-from physverify.calibration.loader import default_artifact_path
 from physverify.calibration.sealed import (
     REPEAT_ENV,
     UNSEAL_ENV,
@@ -26,6 +25,7 @@ from physverify.calibration.sealed import (
     dataset_entry,
     earlier,
     freeze_of,
+    frozen_files,
     ledger_path,
     look_config_hash,
     read_entries,
@@ -35,12 +35,9 @@ from physverify.calibration.sealed import (
     touched,
     unsealed,
 )
-from physverify.config.models import Settings
 from physverify.core.digests import sha256_if_file
 from physverify.runtime.runs import current_commit
 from physverify.schema.clip import ClipManifest
-from physverify.verification.scope import SECTION as SCOPE_SECTION
-from physverify.verification.scope import CheckScope, record_path
 
 GUARDED: Final = frozenset(
     {
@@ -180,19 +177,6 @@ def guard_sealed(
     )
     append_entry(path, entry)
     typer.echo(f"sealed look: {','.join(found)} freeze {look.freeze[:12]}", err=True)
-
-
-def frozen_files(settings: Settings) -> dict[str, Path]:
-    """What every verdict of a look reads: the artifact, its projection, the decision record
-    and the error profile (a refit at the same commit is another freeze)."""
-    scope = settings.section(SCOPE_SECTION, CheckScope)
-    record = record_path(scope, settings.paths.calibration_dir)
-    files = {
-        "calibration": default_artifact_path(settings),
-        "thresholds": settings.paths.thresholds,
-        "error_profile": settings.paths.error_profile,
-    }
-    return files if record is None else {**files, "exclusions": record}
 
 
 def _tree_state(root: Path) -> str | None:

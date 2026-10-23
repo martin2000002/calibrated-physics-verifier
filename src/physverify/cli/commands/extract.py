@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import math
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from contextlib import AbstractContextManager
 from dataclasses import asdict
 from pathlib import Path
@@ -16,9 +16,10 @@ from physverify.app.context import AppContext
 from physverify.cli.context import app_context, heavy_command
 from physverify.core.download import BYTES_PER_MB
 from physverify.core.errors import EXIT_ERROR, UsageError
-from physverify.datasets._base import DatasetSource
+from physverify.datasets._base import DatasetSource, select_clips
 from physverify.extraction._base import StageEvent, StageObserver, StageProvider
 from physverify.extraction.cache import StageCache
+from physverify.extraction.error_profile import load_error_profile
 from physverify.extraction.pipeline import (
     ClipFailure,
     ExtractionPipeline,
@@ -30,8 +31,6 @@ from physverify.extraction.pipeline import (
 from physverify.extraction.plan import ResolvedPlan, resolve_plan
 from physverify.extraction.weights import NetworkDownloader, fetch, hub_cache
 from physverify.runtime.runs import new_run
-from physverify.schema.clip import ClipManifest
-from physverify.schema.error_profile import ErrorProfile
 from physverify.schema.stages import STAGE_ORDER, parse_stages
 from physverify.synth.migrate import manifest_dataset, rerender_clip_ids
 
@@ -172,16 +171,6 @@ def resolve_dataset(context: AppContext, name: str) -> DatasetSource:
     return source
 
 
-def select_clips(clips: Sequence[ClipManifest], wanted: Sequence[str]) -> list[ClipManifest]:
-    if not wanted:
-        return list(clips)
-    by_id = {clip.clip_id: clip for clip in clips}
-    unknown = sorted(set(wanted) - set(by_id))
-    if unknown:
-        raise UsageError(f"unknown clip ids {unknown}")
-    return [by_id[clip_id] for clip_id in dict.fromkeys(wanted)]
-
-
 def pipeline_deps(
     context: AppContext,
     observer: StageObserver | None,
@@ -200,10 +189,6 @@ def pipeline_deps(
         observer=observer,
         rss=ProcRssProbe(),
     )
-
-
-def load_error_profile(path: Path) -> ErrorProfile | None:
-    return ErrorProfile.load_json(path) if path.is_file() else None
 
 
 def plan_providers(plan: ResolvedPlan) -> list[type[StageProvider]]:

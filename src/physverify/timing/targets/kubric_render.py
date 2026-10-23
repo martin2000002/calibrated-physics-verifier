@@ -14,8 +14,8 @@ from pathlib import Path
 from statistics import fmean
 from typing import Any, ClassVar, Final
 
-from physverify.cli.commands.dataset import image_present
 from physverify.core.errors import PhysverifyError
+from physverify.runtime.docker import image_present
 from physverify.schema.clip import ClipManifest
 from physverify.schema.scene import PerturbationRecord, SceneSpec
 from physverify.synth.generate import load_plan

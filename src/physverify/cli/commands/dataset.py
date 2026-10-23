@@ -4,7 +4,7 @@ section 3.10). Container steps take the heavy lock; ``build`` holds it for the w
 from __future__ import annotations
 
 import subprocess
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 from functools import cached_property
 from typing import Annotated, Any
@@ -15,6 +15,7 @@ from physverify.app.context import AppContext
 from physverify.cli.context import app_context, heavy_command
 from physverify.core.errors import MissingInputError, PhysverifyError, UsageError
 from physverify.runtime.container import container_settings, missing_reason
+from physverify.runtime.docker import Runner
 from physverify.runtime.runs import current_commit
 from physverify.synth.generate import (
     load_plan,
@@ -45,8 +46,6 @@ from physverify.synth.simulate import simulate as simulate_scenes
 from physverify.synth.store import ContainerRunner, DatasetStore, Step
 
 NAME = "dataset"
-
-Run = Callable[..., "subprocess.CompletedProcess[bytes]"]
 
 SubsetOption = Annotated[
     str,
@@ -102,18 +101,12 @@ class DatasetJob:
             raise UsageError("this step needs --subset")
         return self.subset
 
-    def runner(self, run: Run = subprocess.run) -> ContainerRunner:
+    def runner(self, run: Runner = subprocess.run) -> ContainerRunner:
         runner = self.context.docker()
         reason = missing_reason(self.context.settings, runner, run)
         if reason is not None:
             raise MissingInputError(f"the Kubric container is not available: {reason}")
         return runner
-
-
-def image_present(image: str, run: Run = subprocess.run) -> bool:
-    return (
-        run(["docker", "image", "inspect", image], capture_output=True, check=False).returncode == 0
-    )
 
 
 def _job(subset: str | None) -> DatasetJob:

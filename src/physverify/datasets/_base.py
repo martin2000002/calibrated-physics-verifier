@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, ClassVar, Protocol, runtime_checkable
 import numpy as np
 from numpy.typing import NDArray
 
-from physverify.core.errors import MissingInputError
+from physverify.core.errors import MissingInputError, UsageError
 from physverify.core.resample import resize_depth, resize_masks, scale_intrinsics
 from physverify.schema.clip import ClipManifest, FrameSampling
 from physverify.schema.contacts import ContactTable
@@ -98,6 +98,17 @@ class DatasetSource(Protocol):
     def ground_truth(self, clip: ClipManifest) -> GroundTruthStore | None: ...
 
     def fetch(self, subset: str | None, dest: Path) -> None: ...
+
+
+def select_clips(clips: Sequence[ClipManifest], wanted: Sequence[str]) -> list[ClipManifest]:
+    """``wanted`` in its first-seen order, or every clip when empty."""
+    if not wanted:
+        return list(clips)
+    by_id = {clip.clip_id: clip for clip in clips}
+    unknown = sorted(set(wanted) - set(by_id))
+    if unknown:
+        raise UsageError(f"unknown clip ids {unknown}")
+    return [by_id[clip_id] for clip_id in dict.fromkeys(wanted)]
 
 
 @dataclass(frozen=True, eq=False)

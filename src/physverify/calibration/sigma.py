@@ -28,6 +28,7 @@ from physverify.stats.bootstrap import ClusterBlock, scene_bootstrap
 from physverify.stats.folds import grouped_folds
 from physverify.stats.intervals import Ci
 
+STAGE_SIGMA_FILE = "stage_sigma.json"
 COVERAGE_LEVELS = (1.0, 2.0)
 BIAS_KEY = "bias"
 FACTOR_KEY = "factor"

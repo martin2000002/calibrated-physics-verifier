@@ -18,11 +18,14 @@ from pathlib import Path
 
 from pydantic import ValidationError, field_validator
 
+from physverify.calibration.loader import default_artifact_path
 from physverify.config.models import Settings, _anchor
 from physverify.core.errors import ConfigError, PhysverifyError, UsageError
 from physverify.core.models import FrozenModel
 from physverify.schema.clip import ClipManifest, Split
 from physverify.schema.io import stable_hash
+from physverify.verification.scope import SECTION as SCOPE_SECTION
+from physverify.verification.scope import CheckScope, record_path
 
 SECTION = "sealed"
 UNSEAL_ENV = "PHYSVERIFY_UNSEAL"
@@ -111,6 +114,19 @@ def look_config_hash(settings: Settings) -> str:
             "sections": dict(settings.sections),
         }
     )
+
+
+def frozen_files(settings: Settings) -> dict[str, Path]:
+    """What every verdict of a look reads: the artifact, its projection, the decision record
+    and the error profile (a refit at the same commit is another freeze)."""
+    scope = settings.section(SCOPE_SECTION, CheckScope)
+    record = record_path(scope, settings.paths.calibration_dir)
+    files = {
+        "calibration": default_artifact_path(settings),
+        "thresholds": settings.paths.thresholds,
+        "error_profile": settings.paths.error_profile,
+    }
+    return files if record is None else {**files, "exclusions": record}
 
 
 def freeze_of(commit: str, config_hash: str, artifacts: Mapping[str, str | None]) -> str:

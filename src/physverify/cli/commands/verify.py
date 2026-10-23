@@ -14,11 +14,11 @@ import typer
 from physverify.app.context import AppContext
 from physverify.cli.commands._common import context_checks_hash
 from physverify.cli.commands._sealed import Selection, guard_sealed
-from physverify.cli.commands.extract import pipeline_deps, resolve_dataset, select_clips
+from physverify.cli.commands.extract import pipeline_deps, resolve_dataset
 from physverify.cli.context import app_context
 from physverify.core.errors import EXIT_ERROR, UsageError
 from physverify.core.markdown import number
-from physverify.datasets._base import DatasetSource
+from physverify.datasets._base import DatasetSource, select_clips
 from physverify.extraction.plan import resolve_plan
 from physverify.runtime.runs import new_run
 from physverify.schema.checks import InputLevel, Verdict

@@ -9,10 +9,9 @@ from contextlib import AbstractContextManager
 from dataclasses import dataclass
 
 from physverify.checks._base import Check
-from physverify.cli.commands.extract import select_clips
 from physverify.config.models import Settings
 from physverify.core.errors import UsageError
-from physverify.datasets._base import DatasetSource
+from physverify.datasets._base import DatasetSource, select_clips
 from physverify.extraction._base import StageProvider
 from physverify.extraction.pipeline import ProcRssProbe, RssProbe
 from physverify.schema.clip import ClipManifest

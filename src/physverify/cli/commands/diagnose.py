@@ -20,11 +20,11 @@ from physverify.cli.commands.extract import (
     EventRecorder,
     pipeline_deps,
     resolve_dataset,
-    select_clips,
     write_events,
 )
 from physverify.cli.context import app_context
 from physverify.core.markdown import number
+from physverify.datasets._base import select_clips
 from physverify.diagnosis.attribution import run_attribution
 from physverify.diagnosis.cases import SampledMetric
 from physverify.diagnosis.checks_port import A7CheckSuite, CheckSuite

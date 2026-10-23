@@ -18,8 +18,8 @@ from typing import Any, Final, Protocol
 
 import psutil
 
-from physverify.cli.commands.doctor import package_version
 from physverify.config.models import Settings
+from physverify.runtime.environment import package_version
 from physverify.timing.records import MIB
 
 PACKAGES: Final = (

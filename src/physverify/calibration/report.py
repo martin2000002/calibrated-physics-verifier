@@ -27,6 +27,7 @@ from physverify.stats.intervals import Ci, Rate
 CALIBRATION_MD = "calibration.md"
 CURVES_CSV = "curves.csv"
 EVALUATION_MD = "evaluation.md"
+EVALUATION_FILE = "evaluation.json"
 CURVE_COLUMNS = (
     "level",
     "profile",

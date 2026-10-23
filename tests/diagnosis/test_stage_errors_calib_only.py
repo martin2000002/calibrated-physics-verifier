@@ -8,11 +8,11 @@ from synthetic_clip import DATASET
 
 from physverify.app.plugins import PLUGIN_KINDS
 from physverify.cli.commands.diagnose import sampled_metrics
-from physverify.cli.commands.extract import load_error_profile
 from physverify.config.models import Settings
 from physverify.diagnosis.context import DiagnosisContext
 from physverify.diagnosis.settings import diagnosis_settings
 from physverify.diagnosis.stage_errors import run_stage_errors
+from physverify.extraction.error_profile import load_error_profile
 from physverify.schema.clip import Split
 
 

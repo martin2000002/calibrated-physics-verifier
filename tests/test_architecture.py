@@ -41,16 +41,10 @@ KNOWN_VIOLATIONS: frozenset[str] = frozenset(
         "physverify.finetune.wan_lora -> physverify.timing.settings",
         "physverify.sizing.model -> physverify.extraction.providers._common",
         "physverify.sizing.model -> physverify.extraction.providers.scale_size_prior",
-        "physverify.timing.envinfo -> physverify.cli.commands.doctor",
-        "physverify.timing.services -> physverify.cli.commands.extract",
-        "physverify.timing.targets.extract_pipeline -> physverify.cli.commands.extract",
-        "physverify.timing.targets.kubric_render -> physverify.cli.commands.dataset",
         "physverify.verification.scope -> physverify.calibration.exclusion_record",
         "physverify.verification.scope -> physverify.calibration.settings",
         "physverify.verification.selective_risk -> physverify.calibration.table",
         "physverify.verification.selective_risk -> physverify.diagnosis.pairing",
-        "scripts.h200.freeze_query -> physverify.cli.commands._sealed",
-        "scripts.h200.freeze_query -> physverify.cli.commands.calibrate",
     }
 )
 

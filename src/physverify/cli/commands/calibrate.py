@@ -51,6 +51,7 @@ from physverify.calibration.loader import (
 from physverify.calibration.report import (
     CALIBRATION_MD,
     CURVES_CSV,
+    EVALUATION_FILE,
     EVALUATION_MD,
     calibration_markdown,
     curves_csv,
@@ -62,23 +63,26 @@ from physverify.calibration.settings import (
     CalibrationConfig,
     calibration_config,
 )
-from physverify.calibration.sigma import factor_map, recalibrate_profile, stage_factors
+from physverify.calibration.sigma import (
+    STAGE_SIGMA_FILE,
+    factor_map,
+    recalibrate_profile,
+    stage_factors,
+)
 from physverify.calibration.table import scene_of
 from physverify.cli.commands._common import context_checks_hash
 from physverify.cli.commands._sealed import Selection, guard_sealed
 from physverify.cli.commands.extract import (
     ConsoleObserver,
     EventRecorder,
-    load_error_profile,
     pipeline_deps,
     resolve_dataset,
-    select_clips,
 )
 from physverify.cli.context import app_context
 from physverify.core.atomic import write_text_atomic
 from physverify.core.errors import MissingInputError, PhysverifyError, UsageError
 from physverify.core.markdown import number
-from physverify.datasets._base import DatasetSource
+from physverify.datasets._base import DatasetSource, select_clips
 from physverify.diagnosis.chain import ChainRunner, warm_variants
 from physverify.diagnosis.end_to_end import track_of
 from physverify.diagnosis.error_profile_writer import write_profile
@@ -87,6 +91,7 @@ from physverify.diagnosis.plans import oracle_variant, perceived_variant
 from physverify.diagnosis.report import dataset_versions, profile_hash
 from physverify.diagnosis.settings import diagnosis_settings
 from physverify.diagnosis.stage_errors import measure, pair_variants, stage_pairs
+from physverify.extraction.error_profile import load_error_profile
 from physverify.extraction.plan import resolve_plan
 from physverify.runtime.runs import RunContext, new_run
 from physverify.schema.checks import InputLevel
@@ -113,8 +118,6 @@ from physverify.verification.sweep import CheckUnit
 
 NAME = "calibrate"
 BOTH = "both"
-STAGE_SIGMA_FILE = "stage_sigma.json"
-EVALUATION_FILE = "evaluation.json"
 
 app = typer.Typer(
     help="H1 calibration: thresholds, rates, detection limits and the clip score.",

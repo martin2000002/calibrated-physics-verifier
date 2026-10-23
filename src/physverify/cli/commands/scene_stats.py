@@ -15,8 +15,9 @@ from physverify.cli.commands.diagnose import (
     SubsetOption,
     sampled_metrics,
 )
-from physverify.cli.commands.extract import pipeline_deps, resolve_dataset, select_clips
+from physverify.cli.commands.extract import pipeline_deps, resolve_dataset
 from physverify.cli.context import app_context, heavy_command
+from physverify.datasets._base import select_clips
 from physverify.diagnosis import scene_stats
 from physverify.diagnosis.chain import ChainRunner
 from physverify.diagnosis.settings import diagnosis_settings

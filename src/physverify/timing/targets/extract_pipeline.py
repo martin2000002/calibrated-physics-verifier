@@ -14,11 +14,11 @@ from itertools import count
 from pathlib import Path
 from typing import ClassVar, Final, Protocol
 
-from physverify.cli.commands.extract import load_error_profile
 from physverify.config.models import Settings
 from physverify.datasets._base import DatasetSource
 from physverify.extraction._base import StageObserver, StageProvider
 from physverify.extraction.cache import StageCache
+from physverify.extraction.error_profile import load_error_profile
 from physverify.extraction.pipeline import (
     ExtractionPipeline,
     ExtractionReport,

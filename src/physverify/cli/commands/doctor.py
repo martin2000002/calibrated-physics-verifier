@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import platform
 import time
-from importlib import metadata
 from typing import Annotated
 
 import typer
@@ -15,6 +14,7 @@ from physverify.core.errors import PhysverifyError
 from physverify.runtime.container import container_settings, preflight_problem
 from physverify.runtime.container import describe as describe_engine
 from physverify.runtime.docker import PREFLIGHT_IMPORTS
+from physverify.runtime.environment import package_version
 from physverify.runtime.heavy import describe_holder, lock_holder_pids
 
 NAME = "doctor"
@@ -24,13 +24,6 @@ app = typer.Typer(
     invoke_without_command=True,
     help="Show configuration, paths, lock and package versions.",
 )
-
-
-def package_version(name: str) -> str:
-    try:
-        return metadata.version(name)
-    except metadata.PackageNotFoundError:
-        return "not installed"
 
 
 def report_lines(context: AppContext) -> list[str]:

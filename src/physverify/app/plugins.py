@@ -1,7 +1,7 @@
 """Every plugin kind and how its registry is discovered.
 
 ``PLUGIN_KINDS`` is the single seam: readers look it up through this module at call time.
-The CLI discovers its own commands (``physverify.cli.context``).
+The CLI discovers its own commands.
 """
 
 from __future__ import annotations

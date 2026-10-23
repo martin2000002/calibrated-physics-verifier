@@ -203,8 +203,8 @@ def diff_record(git: Git, name: str, start: str, head: str) -> dict[str, Any]:
 
 def frozen_paths(settings: Any) -> dict[str, Path | None]:
     """What a look judges with (the ledger's freeze) plus the stage sigma and the abstention."""
-    from physverify.cli.commands._sealed import frozen_files
-    from physverify.cli.commands.calibrate import STAGE_SIGMA_FILE
+    from physverify.calibration.sealed import frozen_files
+    from physverify.calibration.sigma import STAGE_SIGMA_FILE
     from physverify.verification.selective_risk import ABSTENTION_FILE
 
     calibration_dir = settings.paths.calibration_dir
@@ -372,9 +372,8 @@ def plan_lines(settings: Any, version: str, seed: int) -> list[str]:
 
 def look_state(entries: Sequence[Any], specs: Sequence[str], *, retry: bool) -> str:
     """J6: a set is looked at once; one retry only when that look wrote no evaluation."""
-    from physverify.calibration.report import EVALUATION_MD
+    from physverify.calibration.report import EVALUATION_FILE, EVALUATION_MD
     from physverify.calibration.sealed import earlier
-    from physverify.cli.commands.calibrate import EVALUATION_FILE
 
     found = earlier(entries, specs)
     if not retry:

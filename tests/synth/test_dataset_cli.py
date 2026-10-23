@@ -7,7 +7,7 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-from physverify.cli.commands.dataset import image_present
+from physverify.runtime.docker import image_present
 
 
 def data_env(tmp_path: Path) -> dict[str, str]:
