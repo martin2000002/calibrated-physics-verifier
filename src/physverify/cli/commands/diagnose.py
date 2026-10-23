@@ -6,44 +6,28 @@ has to be computed, so a fully cached diagnosis runs next to another cycle's hea
 
 from __future__ import annotations
 
-import functools
-from collections.abc import Callable, Sequence
-from typing import Annotated, Any
+from collections.abc import Sequence
+from typing import Annotated
 
 import typer
 
-from physverify.app.diagnosis import diagnosis_context
+from physverify.app.diagnosis import launch
 from physverify.app.sealing import Selection, guard_sealed
-from physverify.app.services import check_suite
 from physverify.cli.context import app_context, echo_err
-from physverify.core.markdown import number
 from physverify.datasets._base import select_clips
 from physverify.diagnosis.attribution_run import run_attribution
 from physverify.diagnosis.context import DiagnosisContext
 from physverify.diagnosis.end_to_end import run_end_to_end
 from physverify.diagnosis.real_video import run_real
 from physverify.diagnosis.real_video import select_clips as real_clips
-from physverify.diagnosis.report import (
-    AttributionReport,
-    EndToEndReport,
-    Failure,
-    RealVideoReport,
-    Report,
-    StageErrorReport,
-)
-from physverify.diagnosis.report_markdown import write_report
+from physverify.diagnosis.report import Report
 from physverify.diagnosis.stage_errors import run_stage_errors
-from physverify.extraction.events import ConsoleObserver, EventRecorder, write_events
-from physverify.extraction.pipeline import ExtractionReport
 from physverify.schema.clip import ClipManifest
 
 NAME = "diagnose"
-EVENTS_FILE = "events.jsonl"
 ALL_DATASETS = "all"
-MAX_SUMMARY_LINES = 10
 STAGES, END_TO_END, ATTRIBUTION, REAL = "stages", "end_to_end", "attribution", "real"
 
-Runner = Callable[[DiagnosisContext], Report]
 
 app = typer.Typer(
     help="Extractor diagnosis: per-stage error, end-to-end error, attribution and real video.",
@@ -80,42 +64,6 @@ def real_datasets(ctx: DiagnosisContext, dataset: str | None) -> tuple[str, ...]
     return ctx.diag.real.datasets if dataset in (None, ALL_DATASETS) else (str(dataset),)
 
 
-# --- Running one level ------------------------------------------------------------------------
-
-
-def execute(ctx: DiagnosisContext, recorder: EventRecorder, name: str, runner: Runner) -> Report:
-    """Run ``runner``, then write ``diagnosis/<name>.{json,md}`` and ``events.jsonl``."""
-    run_dir = ctx.run.run_dir
-    events = run_dir / EVENTS_FILE
-    typer.echo(f"run: {run_dir}")
-    try:
-        report = runner(ctx)
-    except Exception as exc:
-        write_events(events, recorder.aborted_report(exc))
-        raise
-    write_events(events, ExtractionReport(tuple(recorder.finished), (), {}))
-    _, markdown = write_report(run_dir, name, report)
-    typer.echo(f"report: {markdown}")
-    for line in summary_lines(report)[:MAX_SUMMARY_LINES]:
-        typer.echo(line)
-    return report
-
-
-def _launch(
-    name: str,
-    runner: Runner,
-    *,
-    suite: bool,
-    dataset: str | None = None,
-    subset: str | None = None,
-) -> None:
-    app = app_context()
-    recorder = EventRecorder(ConsoleObserver(typer.echo))
-    checks = check_suite(app) if suite else None
-    ctx = diagnosis_context(app, recorder, checks, dataset=dataset, subset=subset)
-    execute(ctx, recorder, name, runner)
-
-
 @app.command("stages", help="Level 1: per-stage error against ground truth (error profile).")
 def stages(
     dataset: DatasetOption = None,
@@ -138,7 +86,7 @@ def stages(
             ctx, selected, write_profile=write_profile, replace_mismatched=replace_mismatched
         )
 
-    _launch(STAGES, runner, suite=False, dataset=dataset, subset=subset)
+    launch(app_context(), STAGES, runner, typer.echo, suite=False, dataset=dataset, subset=subset)
 
 
 @app.command("end-to-end", help="Level 2: check magnitudes of the perceived chain vs the oracle.")
@@ -148,7 +96,9 @@ def end_to_end(
     def runner(ctx: DiagnosisContext) -> Report:
         return run_end_to_end(ctx, guarded_clips(ctx, "end-to-end", clips or ()))
 
-    _launch(END_TO_END, runner, suite=True, dataset=dataset, subset=subset)
+    launch(
+        app_context(), END_TO_END, runner, typer.echo, suite=True, dataset=dataset, subset=subset
+    )
 
 
 @app.command("attribution", help="Level 3: factorial attribution of check error to stages.")
@@ -158,7 +108,9 @@ def attribution(
     def runner(ctx: DiagnosisContext) -> Report:
         return run_attribution(ctx, guarded_clips(ctx, "attribution", clips or ()))
 
-    _launch(ATTRIBUTION, runner, suite=True, dataset=dataset, subset=subset)
+    launch(
+        app_context(), ATTRIBUTION, runner, typer.echo, suite=True, dataset=dataset, subset=subset
+    )
 
 
 @app.command("real", help="Real video (end-to-end only): Physics-IQ motion, PISA falls, verdicts.")
@@ -178,70 +130,4 @@ def real(
         )
         return run_real(ctx, names, subset, clips or ())
 
-    _launch(REAL, runner, suite=True, subset=subset)
-
-
-# --- Console summary --------------------------------------------------------------------------
-
-
-def _number(value: float | None) -> str:
-    return number(value, ".3g", "-", "nan")
-
-
-def _failure_lines(failures: Sequence[Failure]) -> list[str]:
-    return [f"FAILED {f.clip_id}: {f.error}" for f in failures]
-
-
-@functools.singledispatch
-def summary_lines(report: Any) -> list[str]:
-    raise TypeError(f"no summary for {type(report).__name__}")
-
-
-@summary_lines.register
-def _stages_summary(report: StageErrorReport) -> list[str]:
-    written = report.profile_path if report.profile_written else "not written"
-    lines = [f"error profile: {written}", f"metric rows: {len(report.rows)}"]
-    lines += [
-        f"{r.stage.value}/{r.metric} {r.split.value}: n_clips {r.n_clips}" for r in report.rows
-    ]
-    return _failure_lines(report.failures) + lines
-
-
-@summary_lines.register
-def _end_to_end_summary(report: EndToEndReport) -> list[str]:
-    lines = [
-        f"{c.name} {row.check_id}: pairs {row.n_pairs} mae {_number(row.mae)} {row.unit}"
-        f" flips {_number(row.flips.rate)}"
-        for c in report.comparisons
-        for row in c.checks
-    ]
-    return _failure_lines(report.failures) + lines
-
-
-@summary_lines.register
-def _attribution_summary(report: AttributionReport) -> list[str]:
-    lines = [
-        f"{c.check_id}: blocks {c.n_blocks} v0 {_number(c.v0)} {c.unit} shapley "
-        + ", ".join(f"{stage.value} {_number(value)}" for stage, value in c.shapley.items())
-        for c in report.checks
-    ]
-    return _failure_lines(report.failures) + lines
-
-
-@summary_lines.register
-def _real_summary(report: RealVideoReport) -> list[str]:
-    lines = [
-        f"{r.clip_id}: motion IoU {_number(r.motion_iou)}"
-        f" false motion {_number(r.false_motion_rate)}"
-        + (f" ({r.unavailable})" if r.unavailable else "")
-        for r in report.motion
-    ]
-    lines += [
-        f"{r.clip_id}: g [estimated] {_number(r.g_est)} m/s2 closer base {r.closer_time_base}"
-        + (f" abstain {r.abstain_reason.value}" if r.abstain_reason else "")
-        for r in report.falls
-    ]
-    lines += [
-        f"{v.dataset} {v.check_id}: fail rate {_number(v.fail_rate)}" for v in report.verdicts
-    ]
-    return _failure_lines(report.failures) + lines
+    launch(app_context(), REAL, runner, typer.echo, suite=True, subset=subset)
