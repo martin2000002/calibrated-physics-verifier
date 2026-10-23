@@ -1,10 +1,11 @@
 """Layered configuration (lowest to highest precedence):
 
-model defaults < configs/*.toml < active profile ``[<section>.profiles.<name>]`` <
+model defaults < configs/**/*.toml < active profile ``[<section>.profiles.<name>]`` <
 configs/local.toml < environment ``PHYSVERIFY__<SECTION>__<KEY>`` < --device / --profile <
 --set section.key=value.
 
-Every top-level table lives in exactly one ``configs/*.toml`` file (``local*.toml`` excluded).
+Every top-level table lives in exactly one ``configs/**/*.toml`` file (``local*.toml`` at the root
+excluded).
 """
 
 from __future__ import annotations
@@ -54,17 +55,28 @@ def load_settings(
 
 
 def read_config_files(config_dir: Path) -> tuple[Table, list[str]]:
-    """Merge ``*.toml`` (not ``local*.toml``); a table repeated across files is an error."""
+    """Merge ``**/*.toml`` (not the root's ``local*.toml``); a table repeated across files is an
+    error."""
     merged: Table = {}
     owner: dict[str, str] = {}
-    files = sorted(p for p in config_dir.glob("*.toml") if not p.name.startswith("local"))
+    files = config_files(config_dir)
     for path in files:
+        name = path.relative_to(config_dir).as_posix()
         for key, value in _read_toml(path).items():
             if key in owner:
-                raise ConfigError(f"table [{key}] is defined in both {owner[key]} and {path.name}")
-            owner[key] = path.name
+                raise ConfigError(f"table [{key}] is defined in both {owner[key]} and {name}")
+            owner[key] = name
             merged[key] = value
     return merged, [str(p) for p in files]
+
+
+def config_files(config_dir: Path) -> list[Path]:
+    """Every ``*.toml`` under ``config_dir``, sorted, without the root's ``local*.toml``."""
+    return sorted(
+        path
+        for path in config_dir.rglob("*.toml")
+        if not (path.parent == config_dir and path.name.startswith("local"))
+    )
 
 
 def _read_toml(path: Path) -> Table:
