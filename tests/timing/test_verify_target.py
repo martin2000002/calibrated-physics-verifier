@@ -1,4 +1,4 @@
-"""The verification target: the check suite via importlib, one span over load plus runner,
+"""The verification target: the check suite built on demand, one span over load plus runner,
 per-check times."""
 
 from __future__ import annotations
@@ -12,7 +12,6 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from pydantic import BaseModel, ConfigDict
 
 from physverify.app import plugins
 from physverify.config.models import Settings
@@ -32,9 +31,6 @@ from physverify.timing.records import (
 )
 from physverify.timing.target_services import TimingServices
 from physverify.timing.targets.verify_checks import (
-    CHECK_SET_MODULE,
-    INPUTS_MODULE,
-    RUNNER_MODULE,
     Verifier,
     VerifyChecks,
     check_measure,
@@ -144,10 +140,6 @@ def plan_of(settings: Settings, services: Any, dataset: str) -> Any:
     return PLAN
 
 
-def found(name: str) -> object:
-    return object()
-
-
 @dataclass
 class Setup:
     services: TimingServices
@@ -158,7 +150,6 @@ class Setup:
     def target(self, **changes: Any) -> VerifyChecks:
         options: dict[str, Any] = {
             "suite_factory": self.suite,
-            "find_spec": found,
             "pipeline_factory": self.fill,
             "plan_factory": plan_of,
         }
@@ -177,17 +168,6 @@ def setup(
     observer: Any = object()
     ctx = TimingContext(make_settings(), "cpu", 1, tmp_path / "run", observer)
     return Setup(services, FakeSuite(clock, cpu_clock), FakeFill(), ctx)
-
-
-def test_skipped_while_the_suite_is_missing(setup: Setup) -> None:
-    missing = setup.target(find_spec=lambda name: None).unavailable(setup.ctx)
-    assert missing is not None
-    assert RUNNER_MODULE in missing and INPUTS_MODULE in missing
-    only_inputs = setup.target(find_spec=lambda name: None if name == INPUTS_MODULE else object())
-    assert only_inputs.unavailable(setup.ctx) == (
-        f"check suite runner not installed ({INPUTS_MODULE})"
-    )
-    assert setup.target().unavailable(setup.ctx) is None
 
 
 def test_wall_spans_load_and_runner_and_checks_are_timed_apart(
@@ -270,60 +250,9 @@ def test_check_ids_become_lower_case_measures(check_id: str, measure: str) -> No
     assert check_measure(check_id) == measure
 
 
-class Section(BaseModel):
-    model_config = ConfigDict(extra="allow")
-    thresholds: Any = "provisional"
-
-
-def fake_suite_modules(
-    calls: dict[str, Any],
-) -> tuple[types.ModuleType, types.ModuleType, types.ModuleType]:
-    runner = types.ModuleType(RUNNER_MODULE)
-    check_set = types.ModuleType(CHECK_SET_MODULE)
-    vars(check_set).update(
-        CHECKS_SECTION="checks",
-        ChecksSettings=Section,
-        build_checks=lambda registry, overrides: [CHECK],
-    )
-    vars(runner).update(
-        VERIFICATION_SECTION="verification",
-        VerificationSettings=Section,
-        build_policy=lambda registry, settings: "policy",
-        load_thresholds=lambda path, provisional: calls.setdefault("thresholds", path),
-        VerificationRunner=lambda *args: calls.setdefault("runner", args),
-    )
-    inputs = types.ModuleType(INPUTS_MODULE)
-    vars(inputs).update(
-        PipelineOutputLoader=lambda plan, deps: ("loader", plan, deps),
-        PerceivedSource=lambda *args: calls.setdefault("source", args),
-    )
-    return runner, check_set, inputs
-
-
-def test_load_suite_wires_the_suite_api(
-    monkeypatch: pytest.MonkeyPatch, make_settings: Callable[..., Settings]
-) -> None:
-    calls: dict[str, Any] = {}
-    runner, check_set, inputs = fake_suite_modules(calls)
-    monkeypatch.setitem(sys.modules, RUNNER_MODULE, runner)
-    monkeypatch.setitem(sys.modules, CHECK_SET_MODULE, check_set)
-    monkeypatch.setitem(sys.modules, INPUTS_MODULE, inputs)
-    settings = make_settings()
-    verifier = load_suite(settings, {}, {})
-    assert verifier.checks == (CHECK,)
-    assert calls["thresholds"] == settings.paths.thresholds
-    assert calls["runner"] == ((CHECK,), "policy", settings.paths.thresholds)
-    dataset: Any = types.SimpleNamespace(name="fake_ds")
-    deps: Any = object()
-    verifier.source(dataset, PLAN, deps)
-    assert calls["source"] == (dataset, ("loader", PLAN, deps), InputLevel.PERCEIVED)
-
-
-def test_load_suite_builds_the_real_suite_api_when_it_is_installed(
+def test_load_suite_builds_the_real_suite_api(
     make_settings: Callable[..., Settings],
 ) -> None:
-    pytest.importorskip(RUNNER_MODULE)
-    pytest.importorskip(INPUTS_MODULE)
     checks, policies = plugins.PLUGIN_KINDS["checks"](), plugins.PLUGIN_KINDS["policies"]()
     verifier = load_suite(make_settings(), checks, policies)
     assert verifier.checks
@@ -337,7 +266,8 @@ def test_importing_the_targets_loads_no_heavy_library_nor_the_suite() -> None:
         "import physverify.timing.targets.extract_pipeline\n"
         "import physverify.timing.targets.verify_checks\n"
         "import physverify.timing.targets.kubric_render\n"
-        f"banned = ('torch', 'transformers', 'diffusers', 'kubric', 'bpy', {RUNNER_MODULE!r})\n"
+        "banned = ('torch', 'transformers', 'diffusers', 'kubric', 'bpy',"
+        " 'physverify.verification.runner')\n"
         "print(sorted(name for name in banned if name in sys.modules))\n"
     )
     result = subprocess.run(
