@@ -15,11 +15,10 @@ from physverify.app.context import AppContext
 from physverify.app.sealing import Selection, guard_sealed
 from physverify.app.services import checks_hash_for, dataset_for, pipeline_deps, plan_for
 from physverify.cli.context import app_context, echo_err
-from physverify.core.errors import EXIT_ERROR, UsageError
-from physverify.core.markdown import number
+from physverify.core.errors import EXIT_ERROR
 from physverify.datasets._base import DatasetSource, select_clips
 from physverify.runtime.runs import new_run
-from physverify.schema.checks import InputLevel, Verdict
+from physverify.schema.checks import InputLevel
 from physverify.schema.stages import Stage, parse_stages
 from physverify.verification.check_set import CHECKS_SECTION, ChecksSettings, build_checks
 from physverify.verification.inputs import (
@@ -33,7 +32,6 @@ from physverify.verification.runner import (
     CHECKS_HASH_FILE,
     VERIFICATION_SECTION,
     RowStatus,
-    VerificationReport,
     VerificationRunner,
     VerificationSettings,
     build_policy,
@@ -41,19 +39,20 @@ from physverify.verification.runner import (
     thresholds_label,
     write_report,
 )
+from physverify.verification.summary import (
+    matrix_lines,
+    parse_level,
+    specificity_lines,
+    summary_lines,
+)
 from physverify.verification.sweep import (
     CheckUnit,
-    MatrixCell,
-    Rule,
-    RuleOutcome,
-    SpecificityReport,
     matrix,
     write_sweep,
 )
 from physverify.verification.target_ranking import specificity
 
 NAME = "verify"
-LEVELS = (InputLevel.ORACLE.value, InputLevel.PERCEIVED.value)
 
 app = typer.Typer(
     invoke_without_command=True,
@@ -118,18 +117,6 @@ def verify(
         raise typer.Exit(code=EXIT_ERROR)
 
 
-def parse_level(level: str | None, gt: Sequence[str], sweep: bool) -> InputLevel:
-    """ORACLE, PERCEIVED, or MIXED when a perceived run replaces stages with ground truth."""
-    if level not in LEVELS:
-        raise UsageError(f"--level is required: one of {list(LEVELS)}")
-    parsed = InputLevel(level)
-    if parsed is InputLevel.ORACLE and gt:
-        raise UsageError("--gt applies to --level perceived; the oracle is ground truth already")
-    if sweep and parsed is not InputLevel.ORACLE:
-        raise UsageError("--sweep needs --level oracle (A4 labels are exact only on the oracle)")
-    return InputLevel.MIXED if gt else parsed
-
-
 def _inputs(
     context: AppContext, source: DatasetSource, level: InputLevel, gt_stages: Sequence[Stage]
 ) -> InputSource:
@@ -143,50 +130,3 @@ def _inputs(
         ),
         level,
     )
-
-
-def summary_lines(report: VerificationReport) -> list[str]:
-    lines: list[str] = []
-    check_ids = list(dict.fromkeys(row.check_id for row in report.table))
-    for check_id in check_ids:
-        rows = [row for row in report.table if row.check_id == check_id]
-        counts = {status: sum(r.status is status for r in rows) for status in RowStatus}
-        fails = sum(r.verdict is Verdict.FAIL for r in rows)
-        tally = " ".join(f"{status.value} {n}" for status, n in counts.items())
-        lines.append(f"{check_id}: {tally} FAIL {fails}")
-    return lines
-
-
-def matrix_lines(cells: Sequence[MatrixCell]) -> list[str]:
-    lines = ["sweep: perturbation check median max n/clips"]
-    for cell in cells:
-        lines.append(
-            f"{cell.perturbation} {cell.check_id} {_number(cell.median)} {_number(cell.max)} "
-            f"{cell.n}/{cell.n_clips}"
-        )
-    return lines
-
-
-def specificity_lines(spec: SpecificityReport) -> list[str]:
-    verdict = "PASS" if spec.passed else "FAIL"
-    lines = [f"specificity: {verdict} ({len(spec.outcomes)} outcomes, {len(spec.failures)} failed)"]
-    for outcome in spec.outcomes:
-        if outcome.passed and outcome.rule is not Rule.COUPLING:
-            continue
-        label = _label(outcome)
-        lines.append(
-            f"{label} {outcome.rule.value} {outcome.perturbation} {outcome.check_id}: "
-            f"expected {_number(outcome.expected)} observed {_number(outcome.observed)} "
-            f"{outcome.detail}".rstrip()
-        )
-    return lines
-
-
-def _label(outcome: RuleOutcome) -> str:
-    if outcome.rule is Rule.COUPLING:
-        return "expected coupling"
-    return "UNDEFINED" if outcome.undefined else "FAILED"
-
-
-def _number(value: float | None) -> str:
-    return number(value, ".4g", "-", "nan")

@@ -101,7 +101,7 @@ FORMATTERS: dict[str, list[tuple[Any, str]]] = {
         (3, "3"),
         (-12, "-12"),
     ],
-    "physverify.cli.commands.verify:_number": [
+    "physverify.verification.summary:_number": [
         (None, "-"),
         (0.0, "0"),
         (-0.0, "-0"),

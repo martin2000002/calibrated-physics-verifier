@@ -289,8 +289,7 @@
   "comment_or_docstring": 2
  },
  "src/physverify/cli/commands/verify.py": {
-  "comment_or_docstring": 2,
-  "literal": 1
+  "comment_or_docstring": 2
  },
  "src/physverify/core/cache_keys.py": {
   "comment_or_docstring": 1
@@ -860,6 +859,9 @@
  },
  "src/physverify/verification/scope.py": {
   "comment_or_docstring": 3,
+  "literal": 1
+ },
+ "src/physverify/verification/summary.py": {
   "literal": 1
  },
  "src/physverify/verification/sweep.py": {
