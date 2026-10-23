@@ -12,7 +12,7 @@ import math
 from collections.abc import Sequence
 
 from physverify.calibration.apply import policy_for
-from physverify.calibration.artifact import HeldoutH1Check, Monotonicity
+from physverify.calibration.artifact import HeldoutMonotonicityCheck, Monotonicity
 from physverify.calibration.artifact_io import Stratum
 from physverify.calibration.check_weights import raw_weight
 from physverify.calibration.dev_score import oof_flags
@@ -27,10 +27,10 @@ def heldout_h1(
     rows: Sequence[CalibrationRow],
     check_ids: Sequence[str],
     settings: CalibrationSettings,
-) -> tuple[HeldoutH1Check, ...]:
+) -> tuple[HeldoutMonotonicityCheck, ...]:
     """Checks without a held-out row are left out: only calib rows give ``()``."""
     held = [r for r in rows if r.split is not Split.CALIB]
-    found: list[HeldoutH1Check] = []
+    found: list[HeldoutMonotonicityCheck] = []
     for check_id in check_ids:
         mine = [r for r in held if r.check_id == check_id]
         if mine:
@@ -43,13 +43,13 @@ def _check(
     check_id: str,
     rows: Sequence[CalibrationRow],
     settings: CalibrationSettings,
-) -> HeldoutH1Check:
+) -> HeldoutMonotonicityCheck:
     frozen = stratum.model.checks[check_id]
     tau_b = _finite(monotonicity(deltas(rows, stratum.sigma_correction(check_id)[0]), settings))
     j = raw_weight(oof_flags(rows, frozen, policy_for(stratum)), settings)
     low = j.informedness_ci.low
     meets_h1, meets_j = tau_b.h1_pass, low is not None and low > 0.0
-    return HeldoutH1Check(
+    return HeldoutMonotonicityCheck(
         check_id=check_id,
         monotonicity=tau_b,
         j=j,
@@ -65,5 +65,5 @@ def _finite(m: Monotonicity) -> Monotonicity:
     return m if tau is None or math.isfinite(tau) else m.model_copy(update={"kendall_tau_b": None})
 
 
-def n_met(checks: Sequence[HeldoutH1Check]) -> int:
+def n_met(checks: Sequence[HeldoutMonotonicityCheck]) -> int:
     return sum(c.meets_both for c in checks)

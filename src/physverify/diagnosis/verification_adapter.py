@@ -64,7 +64,7 @@ class _Prepared:
         yield self.item
 
 
-class A7CheckSuite:
+class VerificationCheckSuite:
     """Thin adapter over ADR 0006 §3.7-3.8 (perceived_inputs, OracleSource, runner)."""
 
     def __init__(
@@ -83,7 +83,7 @@ class A7CheckSuite:
         settings: Settings,
         checks: Mapping[str, type[Check]],
         policies: Mapping[str, type[VerdictPolicy]],
-    ) -> A7CheckSuite:
+    ) -> VerificationCheckSuite:
         verification = settings.section(VERIFICATION_SECTION, VerificationSettings)
         built = build_checks(checks, settings.section(CHECKS_SECTION, ChecksSettings))
         policy = build_policy(policies, verification)

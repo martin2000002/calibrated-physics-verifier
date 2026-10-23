@@ -32,7 +32,7 @@ from physverify.generator_comparison.arms import EVAL_SPLIT, analysis_prompts, e
 from physverify.generator_comparison.candidate_queries import eval_scores, has_eval_scores
 from physverify.generator_comparison.compare import CompareInputs, build_compare
 from physverify.generator_comparison.context import (
-    H3Context,
+    ComparisonContext,
     arm_of,
     arm_tags,
     reference_path,
@@ -53,8 +53,8 @@ from physverify.generator_comparison.judging import (
     judge_tasks,
 )
 from physverify.generator_comparison.prereg import (
+    ComparisonPreregistration,
     FreezeRequest,
-    H3Preregistration,
     identity,
     load_prereg,
     optional_prereg,
@@ -74,15 +74,15 @@ from physverify.generator_comparison.status import freeze_lines, status_lines
 from physverify.runtime.runs import current_commit
 
 
-def campaign_scorer(context: AppContext, h: H3Context) -> AggregateScorer:
+def campaign_scorer(context: AppContext, h: ComparisonContext) -> AggregateScorer:
     return scorer_for(context, h.finetune.scorer)
 
 
-def campaign_judge(context: AppContext, h: H3Context) -> Judge:
+def campaign_judge(context: AppContext, h: ComparisonContext) -> Judge:
     return external_judge(context, h.cfg, h.layout.runs)
 
 
-def available_judge(context: AppContext, h: H3Context) -> Judge:
+def available_judge(context: AppContext, h: ComparisonContext) -> Judge:
     judge = campaign_judge(context, h)
     reason = judge.unavailable()
     if reason is not None:
@@ -90,7 +90,7 @@ def available_judge(context: AppContext, h: H3Context) -> Judge:
     return judge
 
 
-def current_prereg(context: AppContext, h: H3Context) -> H3Preregistration:
+def current_prereg(context: AppContext, h: ComparisonContext) -> ComparisonPreregistration:
     campaign_prompts(h.store)
     scorer = campaign_scorer(context, h)
     source = reference_path(h)
@@ -118,7 +118,9 @@ def current_prereg(context: AppContext, h: H3Context) -> H3Preregistration:
         raise UsageError(str(exc)) from exc
 
 
-def require_frozen(context: AppContext, h: H3Context) -> tuple[H3Preregistration, str]:
+def require_frozen(
+    context: AppContext, h: ComparisonContext
+) -> tuple[ComparisonPreregistration, str]:
     """The pre-registration and its content hash, refused when the current state differs."""
     prereg = load_prereg(h.layout.prereg)
     require_unchanged(prereg, identity(current_prereg(context, h)))
@@ -129,7 +131,7 @@ def require_frozen(context: AppContext, h: H3Context) -> tuple[H3Preregistration
 
 
 def require_pilot_stop_rule(
-    context: AppContext, h: H3Context, deviation: str | None, *, err: Echo
+    context: AppContext, h: ComparisonContext, deviation: str | None, *, err: Echo
 ) -> bool:
     """The eval arm runs only when the pilot showed the verifier can rank candidates."""
     return require_stop_rule(
@@ -137,7 +139,7 @@ def require_pilot_stop_rule(
     ).passed
 
 
-def eval_data(context: AppContext, h: H3Context) -> bool:
+def eval_data(context: AppContext, h: ComparisonContext) -> bool:
     scorers = list(context.registry("scorers"))
     return has_eval_scores(h.store, scorers) or bool(h.layout.judge_outputs(EVAL_SPLIT))
 
@@ -152,7 +154,7 @@ def generate_arm(
     echo: Echo,
     err: Echo,
 ) -> None:
-    h = H3Context.of(context.settings)
+    h = ComparisonContext.of(context.settings)
     require_pilot_stop_rule(context, h, deviation, err=err)
     require_cuda(context.settings)
     tag, adapter = arm_of(h, arm)
@@ -184,7 +186,7 @@ def freeze_prereg(
     echo: Echo,
     err: Echo,
 ) -> None:
-    h = H3Context.of(context.settings)
+    h = ComparisonContext.of(context.settings)
     passed = require_pilot_stop_rule(context, h, deviation, err=err)
     current = current_prereg(context, h).model_copy(
         update={"stop_rule_deviation": None if passed else deviation}
@@ -205,8 +207,8 @@ def freeze_prereg(
 
 
 def _frozen_scorer(
-    context: AppContext, h: H3Context
-) -> tuple[H3Preregistration, str, AggregateScorer]:
+    context: AppContext, h: ComparisonContext
+) -> tuple[ComparisonPreregistration, str, AggregateScorer]:
     prereg, sha256 = require_frozen(context, h)
     scorer = active_scorer(context, h.finetune.scorer)
     problem = frozen_stamp_problem(scorer, prereg)
@@ -216,7 +218,7 @@ def _frozen_scorer(
 
 
 def score_arm(context: AppContext, arm: str, shard: str | None, *, echo: Echo) -> None:
-    h = H3Context.of(context.settings)
+    h = ComparisonContext.of(context.settings)
     require_cuda(context.settings)
     _, sha256, scorer = _frozen_scorer(context, h)
     tag, _ = arm_of(h, arm)
@@ -234,7 +236,7 @@ def score_arm(context: AppContext, arm: str, shard: str | None, *, echo: Echo) -
 
 
 def rescore_arms(context: AppContext, *, echo: Echo) -> None:
-    h = H3Context.of(context.settings)
+    h = ComparisonContext.of(context.settings)
     prereg, sha256, scorer = _frozen_scorer(context, h)
     active = checks_hash_for(context)
     for tag in arm_tags(prereg):
@@ -249,7 +251,7 @@ def rescore_arms(context: AppContext, *, echo: Echo) -> None:
 
 
 def judge_split(context: AppContext, split: str, task: str | None, *, echo: Echo) -> None:
-    h = H3Context.of(context.settings)
+    h = ComparisonContext.of(context.settings)
     require_cuda(context.settings)
     which = choice(split, JUDGE_SPLITS, "--split")
     tasks = judge_tasks(task)
@@ -270,7 +272,7 @@ def judge_split(context: AppContext, split: str, task: str | None, *, echo: Echo
 
 def run_gate(context: AppContext, *, echo: Echo) -> bool:
     """The AutoEval regression gate on published videos; True when it passed."""
-    h = H3Context.of(context.settings)
+    h = ComparisonContext.of(context.settings)
     require_cuda(context.settings)
     autoeval = available_judge(context, h)
     dataset = VideophyDataset(context.settings)
@@ -301,7 +303,7 @@ def run_gate(context: AppContext, *, echo: Echo) -> bool:
 
 
 def compare_arms(context: AppContext, *, echo: Echo) -> None:
-    h = H3Context.of(context.settings)
+    h = ComparisonContext.of(context.settings)
     prereg, sha256 = require_frozen(context, h)
     scorer = active_scorer(context, h.finetune.scorer)
     inputs = CompareInputs(
@@ -325,5 +327,5 @@ def compare_arms(context: AppContext, *, echo: Echo) -> None:
 
 
 def campaign_status_lines(context: AppContext) -> list[str]:
-    h = H3Context.of(context.settings)
+    h = ComparisonContext.of(context.settings)
     return status_lines(h, lambda: context.registry("scorers"))

@@ -12,7 +12,7 @@ from physverify.core.errors import ConfigError
 from physverify.core.registry import satisfies
 from physverify.datasets._base import DatasetSource, dataset_from
 from physverify.diagnosis.chain_runner import ChainRunner
-from physverify.diagnosis.verification_adapter import A7CheckSuite
+from physverify.diagnosis.verification_adapter import VerificationCheckSuite
 from physverify.extraction._base import StageObserver
 from physverify.extraction.pipeline import PipelineDeps
 from physverify.extraction.pipeline_resources import ProcRssProbe
@@ -20,7 +20,7 @@ from physverify.extraction.plan import ResolvedPlan, resolve_plan
 from physverify.finetune.candidate_scoring import build_scorer
 from physverify.finetune.scorers._base import AggregateScorer
 from physverify.generator_comparison.judges._base import ExternalJudge, Judge
-from physverify.generator_comparison.settings import H3Settings
+from physverify.generator_comparison.settings import ComparisonSettings
 from physverify.schema.stages import Stage
 from physverify.verification.check_set import active_checks_hash, occlusion_thresholds
 
@@ -87,9 +87,9 @@ def checks_hash_for(context: PluginContext) -> str:
     return active_checks_hash(context.settings, context.registry("checks"))
 
 
-def check_suite(context: PluginContext) -> A7CheckSuite:
+def check_suite(context: PluginContext) -> VerificationCheckSuite:
     """The diagnosis adapter over the context's checks, policy and thresholds."""
-    return A7CheckSuite.build(
+    return VerificationCheckSuite.build(
         context.settings, context.registry("checks"), context.registry("policies")
     )
 
@@ -104,7 +104,7 @@ def scorer_for(context: PluginContext, name: str) -> AggregateScorer:
     )
 
 
-def external_judge(context: PluginContext, cfg: H3Settings, workdir: Path) -> Judge:
+def external_judge(context: PluginContext, cfg: ComparisonSettings, workdir: Path) -> Judge:
     """The judge named by ``[h3] external_judge``, built from its own configuration."""
     registry = context.registry("judges")
     judge = registry.get(cfg.external_judge)

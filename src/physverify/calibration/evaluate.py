@@ -11,8 +11,8 @@ from physverify.calibration.artifact import (
     DatasetRef,
     EvaluationReport,
     EvaluationStratum,
-    H1PrimaryView,
     HeldoutCheck,
+    PrimaryScenesView,
     RealFpr,
     SceneKendall,
 )
@@ -113,11 +113,11 @@ def _primary(
     primary: PrimaryScope | None,
     config: CalibrationConfig,
     pooled: CalibrationSettings,
-) -> H1PrimaryView | None:
+) -> PrimaryScenesView | None:
     if primary is None or not primary.scope.primary_scenes:
         return None
     keep = primary.scope.indices
-    return H1PrimaryView(
+    return PrimaryScenesView(
         scenes=primary.scope.primary_scenes,
         dataset=primary.dataset,
         strata=tuple(

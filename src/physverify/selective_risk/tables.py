@@ -21,7 +21,7 @@ from physverify.diagnosis.chain_runner import ChainRunner
 from physverify.diagnosis.chain_variants import oracle_variant, perceived_variant
 from physverify.diagnosis.end_to_end import track_of, variant_outputs, variant_results
 from physverify.diagnosis.pairing import pair_results, subject_map
-from physverify.diagnosis.verification_adapter import A7CheckSuite
+from physverify.diagnosis.verification_adapter import VerificationCheckSuite
 from physverify.schema.checks import InputLevel, Verdict
 from physverify.schema.clip import ClipManifest
 from physverify.selective_risk.curve import (
@@ -59,7 +59,7 @@ class Session:
     chain: ChainFor
     calibration_dir: Path
     settings: AbstentionSettings
-    suite: A7CheckSuite
+    suite: VerificationCheckSuite
     reference_table: dict[str, Any]
     """Oracle level: the reference is the point verdict against its raw taus."""
     thresholds: dict[str, Any]

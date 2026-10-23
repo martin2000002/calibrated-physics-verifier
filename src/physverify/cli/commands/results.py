@@ -46,9 +46,9 @@ def results(
 ) -> None:
     scope = app_context().settings.section(SCOPE_SECTION, CheckScope)
     request = Request(
-        a8v2_dir=chain_dir,
-        h1_evaluation=calibration_evaluation,
-        h2_run=agreement_run,
+        chain_dir=chain_dir,
+        calibration_evaluation=calibration_evaluation,
+        agreement_run=agreement_run,
         abstention_run=selective_risk_run,
         check_scope=scope,
     )

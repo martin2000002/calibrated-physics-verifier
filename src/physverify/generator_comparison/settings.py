@@ -57,7 +57,7 @@ class AutoevalSettings(FrozenModel):
         return Path(self.root).expanduser() / candidate if self.root else None
 
 
-class H3Settings(FrozenModel):
+class ComparisonSettings(FrozenModel):
     exclude_tags: list[str] = Field(default_factory=lambda: ["demo"])
     selection_run: str = "main"
     alpha: float = Field(0.05, gt=0, lt=1)
@@ -82,5 +82,5 @@ class H3Settings(FrozenModel):
     autoeval: AutoevalSettings
 
 
-def load_h3(settings: Settings) -> H3Settings:
-    return settings.section(SECTION, H3Settings)
+def load_comparison(settings: Settings) -> ComparisonSettings:
+    return settings.section(SECTION, ComparisonSettings)

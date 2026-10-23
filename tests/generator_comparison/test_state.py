@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from physverify.finetune.records import BASE_TAG, write_record
-from physverify.generator_comparison.layout import H3Layout
+from physverify.generator_comparison.layout import ComparisonLayout
 from physverify.generator_comparison.prereg_state import (
     DEV_SPLIT,
     contaminated,
@@ -11,12 +11,12 @@ from physverify.generator_comparison.prereg_state import (
     dev_usability,
 )
 from physverify.generator_comparison.records import TASKS, JudgeOutput, JudgeRow
-from physverify.generator_comparison.settings import H3Settings
+from physverify.generator_comparison.settings import ComparisonSettings
 
 STAMPS = {task: f"stamp-{task}" for task in TASKS}
 
 
-def _write_dev(layout: H3Layout, stamps: dict[str, str]) -> None:
+def _write_dev(layout: ComparisonLayout, stamps: dict[str, str]) -> None:
     for task in TASKS:
         rows = {f"d{i}__k00": JudgeRow(value=float(1 + i % 4), reason=None) for i in range(8)}
         output = JudgeOutput(
@@ -34,9 +34,9 @@ def _write_dev(layout: H3Layout, stamps: dict[str, str]) -> None:
 
 
 def test_dev_usability_needs_outputs_under_the_current_stamps(
-    tmp_path: Path, h3_cfg: H3Settings
+    tmp_path: Path, h3_cfg: ComparisonSettings
 ) -> None:
-    layout = H3Layout.of(tmp_path)
+    layout = ComparisonLayout.of(tmp_path)
     assert dev_usability(layout, [BASE_TAG], STAMPS, h3_cfg) is None
     _write_dev(layout, STAMPS)
     found = dev_usability(layout, [BASE_TAG], STAMPS, h3_cfg)
@@ -46,7 +46,7 @@ def test_dev_usability_needs_outputs_under_the_current_stamps(
 
 
 def test_dev_pc_skips_outputs_of_another_pc_stamp(tmp_path: Path) -> None:
-    layout = H3Layout.of(tmp_path)
+    layout = ComparisonLayout.of(tmp_path)
     assert dev_pc(layout, [BASE_TAG], STAMPS["pc"]) == {}
     _write_dev(layout, STAMPS)
     found = dev_pc(layout, [BASE_TAG], STAMPS["pc"])

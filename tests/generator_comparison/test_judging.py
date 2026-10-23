@@ -32,8 +32,8 @@ from physverify.generator_comparison.judging import (
 )
 from physverify.generator_comparison.settings import (
     AutoevalSettings,
+    ComparisonSettings,
     GateSettings,
-    H3Settings,
     UsabilitySettings,
 )
 from physverify.schema.clip import Split
@@ -93,7 +93,7 @@ class RegistryContext:
 
 
 def test_the_external_judge_is_selected_by_name(tmp_path: Path) -> None:
-    cfg = H3Settings(autoeval=AutoevalSettings(hf_revision="0" * 12, code_commit="0" * 12))
+    cfg = ComparisonSettings(autoeval=AutoevalSettings(hf_revision="0" * 12, code_commit="0" * 12))
     context: Any = RegistryContext()
     assert isinstance(external_judge(context, cfg, tmp_path), Videophy2AutoevalJudge)
     for name in ("verifier", "missing"):

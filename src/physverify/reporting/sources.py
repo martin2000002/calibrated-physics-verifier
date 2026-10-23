@@ -91,9 +91,9 @@ class Request:
     """``check_scope``: ``[check_scope]``, whose record is resolved against the artifact's
     directory by ``verification.scope.record_path``."""
 
-    a8v2_dir: Path
-    h1_evaluation: Path | None = None
-    h2_run: Path | None = None
+    chain_dir: Path
+    calibration_evaluation: Path | None = None
+    agreement_run: Path | None = None
     abstention_run: Path | None = None
     check_scope: CheckScope = CheckScope()
 
@@ -105,7 +105,7 @@ class Inputs:
     artifact: Doc
     calibration: Calibration
     evaluation: Doc
-    h1: Doc
+    heldout_evaluation: Doc
     abstention: Doc | Missing
     abstention_report: Doc | Missing
     record: Doc | Missing
@@ -113,21 +113,21 @@ class Inputs:
 
 
 def collect_inputs(request: Request) -> Inputs:
-    chain = ChainState.load(request.a8v2_dir)
-    if request.h2_run is not None and chain.rehearsal:
+    chain = ChainState.load(request.chain_dir)
+    if request.agreement_run is not None and chain.rehearsal:
         raise ResultsInputError(
             f"--agreement-run with the {chain.device} chain: H2 runs only on the CPU calibration"
         )
     chain.require_steps(FIT_STEPS)
     evaluation, report = _evaluation(Path(chain.required(EVALUATION_KEY)))
     artifact, calibration = _artifact(report)
-    h1, h1_report = (
+    heldout_evaluation, calibration_report = (
         (evaluation, report)
-        if request.h1_evaluation is None
-        else _evaluation(request.h1_evaluation)
+        if request.calibration_evaluation is None
+        else _evaluation(request.calibration_evaluation)
     )
-    _require_same_artifact(h1_report, calibration, h1.path)
-    require_artifact_tau(h1_report, calibration, h1.path)
+    _require_same_artifact(calibration_report, calibration, heldout_evaluation.path)
+    require_artifact_tau(calibration_report, calibration, heldout_evaluation.path)
     calibration_dir = artifact.path.parent
     curve = request.abstention_run or abstain_curve_run(chain)
     profile = evaluation_profile(report)
@@ -138,13 +138,17 @@ def collect_inputs(request: Request) -> Inputs:
         artifact=artifact,
         calibration=calibration,
         evaluation=evaluation,
-        h1=h1,
+        heldout_evaluation=heldout_evaluation,
         abstention=_abstention(calibration_dir / ABSTENTION_FILE, calibration),
         abstention_report=(
             curve if isinstance(curve, Missing) else _abstention(curve / REPORT_FILE, calibration)
         ),
         record=_record(chain, record, calibration, evaluation),
-        metrics=None if request.h2_run is None else _metrics(request.h2_run, calibration, profile),
+        metrics=(
+            None
+            if request.agreement_run is None
+            else _metrics(request.agreement_run, calibration, profile)
+        ),
     )
 
 

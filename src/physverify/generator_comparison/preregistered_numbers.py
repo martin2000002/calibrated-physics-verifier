@@ -32,7 +32,7 @@ from physverify.generator_comparison.guards import (
     signal_guards,
     strata,
 )
-from physverify.generator_comparison.settings import H3Settings
+from physverify.generator_comparison.settings import ComparisonSettings
 from physverify.generator_comparison.stats import (
     TestResult,
     holm,
@@ -58,7 +58,7 @@ class HolmEntry(FrozenModel):
     p_adjusted: float | None
 
 
-class H3Analysis(FrozenModel):
+class ComparisonAnalysis(FrozenModel):
     n_prompts: int
     arms: dict[str, ArmSummary]
     fallbacks: dict[str, int]
@@ -223,7 +223,7 @@ def judged_against_base(
     return values, len(arms) - len(values)
 
 
-def _test(found: tuple[Values, int], cfg: H3Settings) -> TestResult:
+def _test(found: tuple[Values, int], cfg: ComparisonSettings) -> TestResult:
     values, dropped = found
     return paired_test(as_diffs(values), cfg, dropped)
 
@@ -286,7 +286,7 @@ def _bo8_verifier(arms: Sequence[PromptArms], picks: Mapping[str, Pick | None]) 
     return values
 
 
-def analyse(inputs: AnalysisInputs) -> H3Analysis:
+def analyse(inputs: AnalysisInputs) -> ComparisonAnalysis:
     arms, cfg, rules, n = inputs.arms, inputs.cfg, inputs.rules, inputs.cfg.min_ft_pairs_per_prompt
     picks = {a.prompt_id: pick_best(a.base, rules, lambda s: s.score) for a in arms}
     chosen = [p for p in picks.values() if p is not None]
@@ -314,7 +314,7 @@ def analyse(inputs: AnalysisInputs) -> H3Analysis:
     s1 = ft_vs_bo8(
         arms, picks, inputs.k_ft, inputs.rescore, n, lambda s: drop_reason(s, rules) is None
     )
-    return H3Analysis(
+    return ComparisonAnalysis(
         n_prompts=len(arms),
         arms=summaries,
         fallbacks=dict(Counter(p.fallback or "none" for p in chosen)),
@@ -357,7 +357,7 @@ def template_means(found: tuple[Values, int], templates: Mapping[str, str]) -> t
 
 
 def _clustered(
-    found: tuple[Values, int], templates: Mapping[str, str], cfg: H3Settings
+    found: tuple[Values, int], templates: Mapping[str, str], cfg: ComparisonSettings
 ) -> TestResult:
     values, dropped = found
     base = paired_test(as_diffs(values), cfg, dropped)

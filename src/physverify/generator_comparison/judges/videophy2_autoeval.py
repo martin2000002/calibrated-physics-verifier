@@ -16,7 +16,7 @@ from typing import ClassVar, Final
 
 from physverify.core.errors import MissingInputError, PhysverifyError
 from physverify.generator_comparison.judges._base import Judge, JudgeInput, JudgeScore
-from physverify.generator_comparison.settings import AutoevalSettings, H3Settings
+from physverify.generator_comparison.settings import AutoevalSettings, ComparisonSettings
 
 SCALE: Final = (1.0, 5.0)
 INFERENCE: Final = "VIDEOPHY2/inference.py"
@@ -148,7 +148,7 @@ class Videophy2AutoevalJudge:
         self._runner = runner
 
     @classmethod
-    def from_config(cls, cfg: H3Settings, workdir: Path) -> Judge:
+    def from_config(cls, cfg: ComparisonSettings, workdir: Path) -> Judge:
         return cls(cfg.autoeval, workdir)
 
     def unavailable(self) -> str | None:

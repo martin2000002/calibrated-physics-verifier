@@ -13,7 +13,7 @@ from physverify.demo.report import PROVISIONAL_BANNER, REPORT_JSON, REPORT_MD, r
 from physverify.finetune.candidate_scoring import ScoringDeps
 from physverify.finetune.records import PromptRecord, read_records
 from physverify.finetune.scorers.provisional import ProvisionalScorer
-from physverify.generator_comparison.prereg import H3Preregistration
+from physverify.generator_comparison.prereg import ComparisonPreregistration
 
 SERVICES = "physverify.app.demo"
 ADHOC = ("demo", "run", "--prompt", "A ball falls off a table", "--query", "ball:1")
@@ -188,7 +188,7 @@ def test_scenes_never_fall_back_from_the_frozen_rule(
 ) -> None:
     adapter = _scene_campaign(tmp_path)
     label = frozen_label or ProvisionalScorer(make_settings(profile="precise"), {}).thresholds()
-    frozen = H3Preregistration.model_construct(
+    frozen = ComparisonPreregistration.model_construct(
         rule="calibrated", scorer_version=frozen_version, rule_label=label
     )
     monkeypatch.setattr(f"{SERVICES}.require_videos", lambda store, prompts, tags: None)

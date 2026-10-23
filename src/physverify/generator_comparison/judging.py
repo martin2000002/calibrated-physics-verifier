@@ -18,10 +18,10 @@ from physverify.finetune.prompts import campaign_prompts
 from physverify.finetune.records import BASE_TAG, CandidateRecord, PromptRecord, write_record
 from physverify.generator_comparison.arms import analysis_prompts
 from physverify.generator_comparison.candidate_queries import eval_records
-from physverify.generator_comparison.context import H3Context, arm_tags, selection
+from physverify.generator_comparison.context import ComparisonContext, arm_tags, selection
 from physverify.generator_comparison.judge_gate import gate_task
 from physverify.generator_comparison.judges._base import Judge, JudgeInput, JudgeScore
-from physverify.generator_comparison.prereg import H3Preregistration
+from physverify.generator_comparison.prereg import ComparisonPreregistration
 from physverify.generator_comparison.prereg_state import DEV_SPLIT
 from physverify.generator_comparison.records import (
     TASKS,
@@ -129,7 +129,7 @@ def judge_tasks(task: str | None) -> tuple[str, ...]:
     return (choice(task, TASKS, "--task"),)
 
 
-def dev_items(h: H3Context) -> dict[str, list[JudgeInput]]:
+def dev_items(h: ComparisonContext) -> dict[str, list[JudgeInput]]:
     """Dev candidates of the base and of the selected checkpoint (the usability test)."""
     selected = selection(h).selected
     tags = [BASE_TAG] if selected is None else [BASE_TAG, selected.model_tag]
@@ -140,7 +140,9 @@ def dev_items(h: H3Context) -> dict[str, list[JudgeInput]]:
     }
 
 
-def eval_items(h: H3Context, prereg: H3Preregistration) -> dict[str, list[JudgeInput]]:
+def eval_items(
+    h: ComparisonContext, prereg: ComparisonPreregistration
+) -> dict[str, list[JudgeInput]]:
     analysed = analysis_prompts(campaign_prompts(h.store), h.cfg.exclude_tags)
     return {
         tag: candidate_items(eval_records(h.store, tag), {p.prompt_id: p for p in analysed})
@@ -149,7 +151,7 @@ def eval_items(h: H3Context, prereg: H3Preregistration) -> dict[str, list[JudgeI
 
 
 def judge_one(
-    h: H3Context,
+    h: ComparisonContext,
     judge: Judge,
     where: tuple[JudgeSplit, str, str],
     items: list[JudgeInput],

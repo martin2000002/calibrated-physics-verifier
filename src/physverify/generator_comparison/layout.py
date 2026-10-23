@@ -20,11 +20,11 @@ JUDGES_DIR: Final = "judges"
 
 
 @dataclass(frozen=True)
-class H3Layout:
+class ComparisonLayout:
     root: Path
 
     @classmethod
-    def of(cls, campaign_root: Path) -> H3Layout:
+    def of(cls, campaign_root: Path) -> ComparisonLayout:
         return cls(campaign_root / H3_DIR)
 
     @property

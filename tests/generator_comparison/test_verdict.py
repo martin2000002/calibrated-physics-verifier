@@ -21,7 +21,7 @@ from physverify.generator_comparison.verdict import (
     GuardState,
     RuleStatus,
     VerdictInputs,
-    h3_verdict,
+    comparison_verdict,
 )
 
 MARGIN = 0.13
@@ -62,23 +62,23 @@ def _inputs(**update: Any) -> VerdictInputs:
     ],
 )
 def test_a_provisional_rule_never_gives_a_verdict(update: dict[str, Any]) -> None:
-    result = h3_verdict(_inputs(**update, has_ft_model=False, guards={"G1": "fail"}))
+    result = comparison_verdict(_inputs(**update, has_ft_model=False, guards={"G1": "fail"}))
     assert result.verdict == NO_VERDICT
 
 
 def test_no_fine_tuned_model_comes_before_the_guards() -> None:
-    result = h3_verdict(_inputs(has_ft_model=False, guards={"G1": "fail"}))
+    result = comparison_verdict(_inputs(has_ft_model=False, guards={"G1": "fail"}))
     assert result.verdict == NO_FT_MODEL
 
 
 def test_a_failed_guard_is_hacking() -> None:
-    result = h3_verdict(_inputs(guards={"G2": "fail", "G1": "ok", "G5": "fail"}))
+    result = comparison_verdict(_inputs(guards={"G2": "fail", "G1": "ok", "G5": "fail"}))
     assert result.verdict == HACKING
     assert result.reasons == ["guard G2 failed", "guard G5 failed"]
 
 
 def test_the_external_judge_is_tested_only_after_the_primary() -> None:
-    result = h3_verdict(_inputs(primary=NULL))
+    result = comparison_verdict(_inputs(primary=NULL))
     assert (result.verdict, result.external_outcome) == (NOT_SUPPORTED, "not_tested")
 
 
@@ -95,18 +95,18 @@ def test_the_external_judge_is_tested_only_after_the_primary() -> None:
 def test_external_outcomes_use_the_mean_interval_against_the_margin(
     external: TestResult, verdict: str, outcome: str
 ) -> None:
-    result = h3_verdict(_inputs(external=external))
+    result = comparison_verdict(_inputs(external=external))
     assert (result.verdict, result.external_outcome) == (verdict, outcome)
 
 
 def test_an_interval_touching_the_margin_is_not_noninferior() -> None:
-    result = h3_verdict(_inputs(external=_test(0.4, 0.0, -MARGIN, 0.1)))
+    result = comparison_verdict(_inputs(external=_test(0.4, 0.0, -MARGIN, 0.1)))
     assert result.external_outcome == "inconclusive"
 
 
 @pytest.mark.parametrize("status", ["failed_gate", "unusable", "not_run"])
 def test_without_a_usable_judge_the_result_is_verifier_only(status: str) -> None:
-    result = h3_verdict(_inputs(external_status=status))
+    result = comparison_verdict(_inputs(external_status=status))
     assert (result.verdict, result.external_outcome) == (VERIFIER_ONLY, "not_tested")
     assert result.external_status == status
 
@@ -173,7 +173,7 @@ def test_the_verdict_product_table(
             external_status=status,
             external=EXTERNALS[external],
         )
-        result = h3_verdict(v)
+        result = comparison_verdict(v)
         case = (guard, primary, status, external)
         assert result.verdict == _expected(v, primary, external), case
         assert result.external_status == status
@@ -185,13 +185,13 @@ def test_the_verdict_product_table(
 
 
 def test_unknown_provenance_is_named_and_never_clean() -> None:
-    result = h3_verdict(_inputs(contaminated=None))
+    result = comparison_verdict(_inputs(contaminated=None))
     assert result.verdict == NO_VERDICT
     assert "calibration dataset provenance is unknown" in result.reasons
 
 
 def test_a_post_hoc_freeze_marks_the_verdict_without_changing_its_tier() -> None:
-    plain, late = h3_verdict(_inputs()), h3_verdict(_inputs(post_hoc=True))
+    plain, late = comparison_verdict(_inputs()), comparison_verdict(_inputs(post_hoc=True))
     assert not plain.post_hoc and late.post_hoc
     assert late.verdict == plain.verdict
     assert late.reasons[-1].startswith("post hoc")
@@ -201,6 +201,6 @@ def test_a_fired_stop_rule_leaves_h3_without_a_verdict() -> None:
     state = StopRuleState(passed=False, enforced=True, reasons=["few pairs"], pairs_sha256="p")
     reason = fired_reason(state, "pilot accepted")
     assert reason is not None and "'pilot accepted'" in reason
-    result = h3_verdict(_inputs(stop_rule_fired=reason))
+    result = comparison_verdict(_inputs(stop_rule_fired=reason))
     assert result.verdict == NO_VERDICT and reason in result.reasons
     assert fired_reason(state.model_copy(update={"passed": True}), None) is None

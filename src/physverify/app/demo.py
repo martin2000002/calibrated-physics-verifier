@@ -38,7 +38,7 @@ from physverify.finetune.records import BASE_TAG
 from physverify.finetune.scorers._base import AggregateScorer
 from physverify.finetune.scorers.provisional import ProvisionalScorer
 from physverify.finetune.settings import load_finetune
-from physverify.generator_comparison.layout import H3Layout
+from physverify.generator_comparison.layout import ComparisonLayout
 from physverify.generator_comparison.prereg import load_prereg
 from physverify.generator_comparison.scoring import frozen_stamp_problem
 from physverify.runtime.runs import current_commit
@@ -173,7 +173,7 @@ def scene_reports(
         raise UsageError("pass exactly one of --from-select or --adapter")
     demo = load_demo(settings)
     store = CampaignStore.from_settings(settings)
-    prereg = H3Layout.of(store.root).prereg
+    prereg = ComparisonLayout.of(store.root).prereg
     if not prereg.is_file():
         raise UsageError(
             f"{prereg} does not exist: run 'compare-generators freeze' before scoring the scenes"

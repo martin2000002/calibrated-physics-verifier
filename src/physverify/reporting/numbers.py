@@ -110,7 +110,7 @@ def _agreement_doc(inputs: Inputs, key: str) -> Doc | Section:
     return doc
 
 
-def _h2_caveat(doc: Doc) -> str | None:
+def _agreement_caveat(doc: Doc) -> str | None:
     calibrated = is_calibrated(str(doc.at("/rule")))
     return None if calibrated and doc.at("/preregistered") is True else NOT_PREREGISTERED
 
@@ -142,7 +142,7 @@ def agreement(inputs: Inputs) -> Section:
         name = f"difference.{metric}"
         if name in known:
             values.append(_interval_only(name, doc, intervals + pointer(name)))
-    return Section("agreement", tuple(values), caveat=_h2_caveat(doc))
+    return Section("agreement", tuple(values), caveat=_agreement_caveat(doc))
 
 
 def _interval_only(key: str, doc: Doc, where: str) -> Value:
@@ -168,7 +168,7 @@ def h2_verdict(inputs: Inputs) -> Section:
         leaf("accuracy_difference", doc, "/h2_verdict/accuracy_difference"),
         _interval_only("kappa_difference", doc, "/h2_verdict/kappa_difference_ci"),
     ]
-    return Section("h2_verdict", tuple(values), caveat=_h2_caveat(doc))
+    return Section("h2_verdict", tuple(values), caveat=_agreement_caveat(doc))
 
 
 def exclusions(inputs: Inputs) -> Section:
@@ -238,7 +238,7 @@ def _inputs_summary(inputs: Inputs) -> dict[str, dict[str, str]]:
     docs: dict[str, Doc | Missing | None] = {
         "artifact": inputs.artifact,
         "evaluation": inputs.evaluation,
-        "h1_evaluation": inputs.h1,
+        "h1_evaluation": inputs.heldout_evaluation,
         "abstention": inputs.abstention,
         "abstention_report": inputs.abstention_report,
         "metrics": inputs.metrics,

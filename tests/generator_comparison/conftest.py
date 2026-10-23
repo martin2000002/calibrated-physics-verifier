@@ -34,8 +34,8 @@ from physverify.finetune.scorers._base import AggregateScorer
 from physverify.finetune.seeds import candidate_id
 from physverify.finetune.selection import CheckpointResult, Selection
 from physverify.finetune.settings import load_finetune
-from physverify.generator_comparison.layout import H3Layout
-from physverify.generator_comparison.settings import H3Settings, load_h3
+from physverify.generator_comparison.layout import ComparisonLayout
+from physverify.generator_comparison.settings import ComparisonSettings, load_comparison
 from physverify.schema.checks import CheckResult, InputLevel, Verdict
 from physverify.schema.io import write_jsonl
 
@@ -79,8 +79,8 @@ def h3_settings(config_dir: Path, h3_environ: dict[str, str]) -> Settings:
 
 
 @pytest.fixture
-def h3_cfg(h3_settings: Settings) -> H3Settings:
-    return load_h3(h3_settings)
+def h3_cfg(h3_settings: Settings) -> ComparisonSettings:
+    return load_comparison(h3_settings)
 
 
 @pytest.fixture
@@ -173,7 +173,7 @@ def default_magnitudes(tag: str, prompt_id: str, k: int) -> tuple[float, float]:
 class Campaign:
     settings: Settings
     store: CampaignStore
-    layout: H3Layout
+    layout: ComparisonLayout
     adapter: Path
     ft_tag: str
     scorer: AggregateScorer
@@ -309,7 +309,7 @@ def campaign(h3_settings: Settings, tmp_path: Path) -> Campaign:
     return Campaign(
         settings=h3_settings,
         store=store,
-        layout=H3Layout.of(store.root),
+        layout=ComparisonLayout.of(store.root),
         adapter=adapter,
         ft_tag=adapter_tag(adapter),
         scorer=build_scorer(SCORER, h3_settings),

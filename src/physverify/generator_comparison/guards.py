@@ -12,7 +12,7 @@ from physverify.generator_comparison.analysis_inputs import (
     as_diffs,
 )
 from physverify.generator_comparison.arms import PromptArms
-from physverify.generator_comparison.settings import H3Settings
+from physverify.generator_comparison.settings import ComparisonSettings
 from physverify.generator_comparison.stats import TestResult, mean_interval, paired_test, supported
 from physverify.generator_comparison.verdict import GuardState
 
@@ -68,7 +68,9 @@ def sa_guard(found: tuple[Values, int], inputs: AnalysisInputs) -> GuardResult:
     return GuardResult(state=state, value=hi, limit=-margin, detail="upper CI of mean SA(ft - bo8)")
 
 
-def missing_pair_guard(primary: TestResult, worst: TestResult, cfg: H3Settings) -> GuardResult:
+def missing_pair_guard(
+    primary: TestResult, worst: TestResult, cfg: ComparisonSettings
+) -> GuardResult:
     if not supported(primary, cfg.alpha):
         return GuardResult(state="not_evaluated", detail="primary not supported")
     if worst.hl is None:
@@ -79,7 +81,9 @@ def missing_pair_guard(primary: TestResult, worst: TestResult, cfg: H3Settings) 
     )
 
 
-def strata(values: Values, arms: Sequence[PromptArms], cfg: H3Settings) -> dict[str, TestResult]:
+def strata(
+    values: Values, arms: Sequence[PromptArms], cfg: ComparisonSettings
+) -> dict[str, TestResult]:
     groups: dict[str, list[str]] = {"unseen": [], "seen": []}
     for arm in arms:
         groups["unseen" if arm.unseen else "seen"].append(arm.prompt_id)

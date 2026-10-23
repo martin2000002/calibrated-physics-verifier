@@ -84,12 +84,12 @@ class Verifier:
     source: SourceFactory
 
 
-A7Factory = Callable[
+SuiteFactory = Callable[
     [Settings, Mapping[str, type[Check]], Mapping[str, type[VerdictPolicy]]], Verifier
 ]
 
 
-def load_a7(
+def load_suite(
     settings: Settings,
     checks: Mapping[str, type[Check]],
     policies: Mapping[str, type[VerdictPolicy]],
@@ -116,7 +116,7 @@ def check_measure(check_id: str) -> str:
     return measure_name(PREFIX, _NOT_SLUG.sub("_", check_id.lower()), "wall_s")
 
 
-def a7_missing(find_spec: Callable[[str], object | None]) -> str | None:
+def suite_missing(find_spec: Callable[[str], object | None]) -> str | None:
     missing = [name for name in (RUNNER_MODULE, INPUTS_MODULE) if find_spec(name) is None]
     return f"A7 verification runner not installed ({', '.join(missing)})" if missing else None
 
@@ -150,13 +150,13 @@ class VerifyChecks(TargetHooks):
         self,
         services: TimingServices,
         *,
-        a7_factory: A7Factory = load_a7,
+        suite_factory: SuiteFactory = load_suite,
         find_spec: Callable[[str], object | None] = importlib.util.find_spec,
         pipeline_factory: PipelineFactory = ExtractionPipeline,
         plan_factory: PlanFactory = perception_plan,
     ) -> None:
         self._services = services
-        self._a7_factory = a7_factory
+        self._suite_factory = suite_factory
         self._find_spec = find_spec
         self._pipeline_factory = pipeline_factory
         self._plan_factory = plan_factory
@@ -165,7 +165,7 @@ class VerifyChecks(TargetHooks):
         self._prepare_failures: tuple[str, ...] = ()
 
     def unavailable(self, ctx: TimingContext) -> str | None:
-        return a7_missing(self._find_spec)
+        return suite_missing(self._find_spec)
 
     def prepare(self, clips: Sequence[ClipManifest], ctx: TimingContext) -> Mapping[str, float]:
         """Fills the persistent extraction cache (untimed; cached cells are not recomputed) and
@@ -206,7 +206,7 @@ class VerifyChecks(TargetHooks):
 
     def _build(self, ctx: TimingContext) -> Verifier:
         services = self._services
-        verifier = self._a7_factory(ctx.settings, services.checks, services.policies)
+        verifier = self._suite_factory(ctx.settings, services.checks, services.policies)
         self._check_ids = tuple(type(check).check_id for check in verifier.checks)
         return verifier
 

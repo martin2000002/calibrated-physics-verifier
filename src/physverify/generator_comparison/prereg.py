@@ -18,7 +18,7 @@ from physverify.core.errors import ConfigError, PhysverifyError, UsageError
 from physverify.core.models import FrozenModel
 from physverify.finetune.records import read_record, write_record
 from physverify.finetune.stop_rule import StopRuleState
-from physverify.generator_comparison.layout import H3Layout
+from physverify.generator_comparison.layout import ComparisonLayout
 from physverify.generator_comparison.margins import MarginDerivation
 from physverify.generator_comparison.records import Usability
 from physverify.generator_comparison.verdict import RuleStatus
@@ -47,7 +47,7 @@ class CandidateSnapshot(FrozenModel):
     sha256: str
 
 
-class H3Preregistration(FrozenModel):
+class ComparisonPreregistration(FrozenModel):
     commit: str
     section_hashes: dict[str, str]
     prompts_sha256: str | None
@@ -97,7 +97,7 @@ AUDIT_FIELDS: Final = frozenset(
     }
 )
 """Recorded and reported, never refused on: a code fix after the freeze is shown, not blocked."""
-H3_FIELDS: Final = tuple(f for f in H3Preregistration.model_fields if f not in AUDIT_FIELDS)
+H3_FIELDS: Final = tuple(f for f in ComparisonPreregistration.model_fields if f not in AUDIT_FIELDS)
 REFREEZE_MUTABLE: Final = frozenset(
     {
         "calibration_artifact_sha256",
@@ -114,11 +114,13 @@ REFREEZE_MUTABLE: Final = frozenset(
 )
 
 
-def identity(record: H3Preregistration) -> dict[str, object]:
+def identity(record: ComparisonPreregistration) -> dict[str, object]:
     return record.model_dump(include=set(H3_FIELDS))
 
 
-def stamp_problem(scorer_version: str, label: str | None, prereg: H3Preregistration) -> str | None:
+def stamp_problem(
+    scorer_version: str, label: str | None, prereg: ComparisonPreregistration
+) -> str | None:
     """Why a scorer stamp (version, thresholds label) is not the frozen one."""
     if (scorer_version, label) == (prereg.scorer_version, prereg.rule_label):
         return None
@@ -135,7 +137,7 @@ def assert_complete(current: Mapping[str, object]) -> None:
         raise PhysverifyError(f"the H3 state lacks pre-registered fields {missing}")
 
 
-def require_unchanged(frozen: H3Preregistration, current: Mapping[str, object]) -> None:
+def require_unchanged(frozen: ComparisonPreregistration, current: Mapping[str, object]) -> None:
     assert_complete(current)
     changed = changed_fields(frozen, current, fields=H3_FIELDS)
     if changed:
@@ -158,18 +160,20 @@ def mutable(gate_exists: bool) -> frozenset[str]:
     return REFREEZE_MUTABLE if gate_exists else REFREEZE_MUTABLE | {JUDGE_STAMPS}
 
 
-def _deviations(old: H3Preregistration, changed: list[str], request: FreezeRequest) -> list[str]:
+def _deviations(
+    old: ComparisonPreregistration, changed: list[str], request: FreezeRequest
+) -> list[str]:
     added = [] if request.deviation is None else [f"{request.deviation} (changed: {changed})"]
     late = [f"{EVAL_DATA_DEVIATION} (changed: {changed})"] if request.eval_data else []
     return [*old.deviations, *added, *late]
 
 
 def plan_freeze(
-    old: H3Preregistration | None,
+    old: ComparisonPreregistration | None,
     old_sha256: str | None,
-    current: H3Preregistration,
+    current: ComparisonPreregistration,
     request: FreezeRequest,
-) -> H3Preregistration | None:
+) -> ComparisonPreregistration | None:
     """The record to write, or None when the frozen state still holds."""
     state = identity(current)
     assert_complete(state)
@@ -202,7 +206,7 @@ def plan_freeze(
     )
 
 
-def _require_known_provenance(current: H3Preregistration) -> None:
+def _require_known_provenance(current: ComparisonPreregistration) -> None:
     """Unknown provenance is never taken as clean (ADR 0013 D9)."""
     if current.rule_status == "calibrated" and current.contaminated is None:
         raise UsageError(
@@ -211,34 +215,38 @@ def _require_known_provenance(current: H3Preregistration) -> None:
         )
 
 
-def load_prereg(path: Path) -> H3Preregistration:
+def load_prereg(path: Path) -> ComparisonPreregistration:
     if not path.is_file():
         raise UsageError(f"{path} is missing; {FREEZE_HINT}")
     try:
-        return read_record(path, H3Preregistration)
+        return read_record(path, ComparisonPreregistration)
     except ValidationError as exc:
         raise ConfigError(f"{path} is invalid:\n{exc}") from exc
 
 
-def optional_prereg(path: Path) -> H3Preregistration | None:
+def optional_prereg(path: Path) -> ComparisonPreregistration | None:
     return load_prereg(path) if path.is_file() else None
 
 
-def write_prereg(layout: H3Layout, record: H3Preregistration) -> None:
+def write_prereg(layout: ComparisonLayout, record: ComparisonPreregistration) -> None:
     """Archives the file it replaces under its sha256, then writes the new one."""
     archive_replaced(layout.prereg, layout.replaced)
     write_record(layout.prereg, record)
 
 
-def chain(layout: H3Layout, record: H3Preregistration) -> list[H3Preregistration]:
+def chain(
+    layout: ComparisonLayout, record: ComparisonPreregistration
+) -> list[ComparisonPreregistration]:
     """The record and every archived one it replaces, newest first (stops at a missing link)."""
     return walk_chain(record, lambda sha: optional_prereg(layout.replaced(sha)))
 
 
-def chain_shas(layout: H3Layout, record: H3Preregistration, sha256: str) -> set[str]:
+def chain_shas(
+    layout: ComparisonLayout, record: ComparisonPreregistration, sha256: str
+) -> set[str]:
     """sha256 of ``record``'s file and of every version it replaced."""
     return {sha256} | {r.replaces_sha256 for r in chain(layout, record) if r.replaces_sha256}
 
 
-def first_created(layout: H3Layout, record: H3Preregistration) -> str:
+def first_created(layout: ComparisonLayout, record: ComparisonPreregistration) -> str:
     return chain(layout, record)[-1].created_utc

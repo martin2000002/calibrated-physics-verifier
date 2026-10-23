@@ -14,10 +14,10 @@ from physverify.calibration.artifact import (
     DetectionLimit,
     EvaluationReport,
     EvaluationStratum,
-    H1PrimaryView,
     HeldoutCheck,
-    HeldoutH1Check,
+    HeldoutMonotonicityCheck,
     Monotonicity,
+    PrimaryScenesView,
     Stratum,
 )
 from physverify.calibration.heldout_monotonicity import n_met
@@ -193,7 +193,9 @@ def _evaluation_stratum(s: EvaluationStratum) -> list[str]:
             ("check", "tau_b", "h1_pass", "pairs", "scenes"),
             ([m.check_id, *_tau_cells(m.monotonicity)] for m in s.monotonicity),
         )
-    lines += _heldout_h1(s.heldout_h1, "every scene (secondary when a primary view follows)")
+    lines += _heldout_monotonicity(
+        s.heldout_h1, "every scene (secondary when a primary view follows)"
+    )
     if s.real or s.real_clip_flags:
         lines += ["", "Real video (false-positive control):", ""]
         lines += table(
@@ -217,12 +219,12 @@ def evaluation_markdown(report: EvaluationReport) -> str:
     for stratum in report.strata:
         lines += _evaluation_stratum(stratum)
     if report.h1_primary is not None:
-        lines += _h1_primary(report.h1_primary, report.strata, report.dataset)
+        lines += _primary_view(report.h1_primary, report.strata, report.dataset)
     return "\n".join(lines)
 
 
-def _h1_primary(
-    view: H1PrimaryView, everything: Sequence[EvaluationStratum], dataset: DatasetRef
+def _primary_view(
+    view: PrimaryScenesView, everything: Sequence[EvaluationStratum], dataset: DatasetRef
 ) -> list[str]:
     """Side by side: the primary scenes (ADR 0015 1.4) against every scene."""
     lines = [
@@ -240,11 +242,13 @@ def _h1_primary(
         if whole is not None:
             lines += _side_by_side(primary, whole)
             lines += _pooled_side_by_side(primary.monotonicity, whole.monotonicity)
-        lines += _heldout_h1(primary.heldout_h1, f"the primary scenes ({primary.level.value})")
+        lines += _heldout_monotonicity(
+            primary.heldout_h1, f"the primary scenes ({primary.level.value})"
+        )
     return lines
 
 
-def _heldout_h1(checks: Sequence[HeldoutH1Check], scope: str) -> list[str]:
+def _heldout_monotonicity(checks: Sequence[HeldoutMonotonicityCheck], scope: str) -> list[str]:
     """J7: frozen tau and sigma correction, the artifact's bootstrap; met = both lower bounds
     above 0. Every check is listed, without a multiplicity correction."""
     if not checks:

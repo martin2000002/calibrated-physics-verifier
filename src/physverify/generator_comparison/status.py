@@ -8,8 +8,8 @@ from typing import Final
 
 from physverify.finetune.stop_rule import fired_reason
 from physverify.generator_comparison.candidate_queries import eval_records, eval_scores
-from physverify.generator_comparison.context import H3Context, stored_gate
-from physverify.generator_comparison.prereg import H3Preregistration, optional_prereg
+from physverify.generator_comparison.context import ComparisonContext, stored_gate
+from physverify.generator_comparison.prereg import ComparisonPreregistration, optional_prereg
 from physverify.generator_comparison.records import JUDGE_SPLITS, load_judge_output
 
 GATE_LINE: Final = "  gate: "
@@ -18,7 +18,7 @@ GATE_PASSED: Final = "passed"
 without a passed gate."""
 
 
-def freeze_lines(record: H3Preregistration) -> list[str]:
+def freeze_lines(record: ComparisonPreregistration) -> list[str]:
     usability = "not judged yet" if record.usability is None else str(record.usability.usable)
     fired = fired_reason(record.stop_rule, record.stop_rule_deviation)
     return [
@@ -33,7 +33,7 @@ def freeze_lines(record: H3Preregistration) -> list[str]:
     ]
 
 
-def _tag_lines(h: H3Context, tag: str, scorers: Callable[[], Iterable[str]]) -> list[str]:
+def _tag_lines(h: ComparisonContext, tag: str, scorers: Callable[[], Iterable[str]]) -> list[str]:
     records = eval_records(h.store, tag)
     lines = [f"  {tag}: {len(records)} eval candidates"]
     for name in scorers():
@@ -50,7 +50,7 @@ def _tag_lines(h: H3Context, tag: str, scorers: Callable[[], Iterable[str]]) -> 
     return lines
 
 
-def _judge_lines(h: H3Context) -> list[str]:
+def _judge_lines(h: ComparisonContext) -> list[str]:
     lines = []
     for split in JUDGE_SPLITS:
         for path in h.layout.judge_outputs(split):
@@ -63,7 +63,7 @@ def _judge_lines(h: H3Context) -> list[str]:
     return lines
 
 
-def status_lines(h: H3Context, scorers: Callable[[], Iterable[str]]) -> list[str]:
+def status_lines(h: ComparisonContext, scorers: Callable[[], Iterable[str]]) -> list[str]:
     """``scorers`` gives the registered scorer names, asked only when a model tag exists."""
     prereg = optional_prereg(h.layout.prereg)
     gate = stored_gate(h)

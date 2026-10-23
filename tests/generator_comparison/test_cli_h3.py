@@ -26,7 +26,7 @@ from physverify.generator_comparison.compare import (  # noqa: E402
     task_values,
 )
 from physverify.generator_comparison.prereg import (  # noqa: E402
-    H3Preregistration,
+    ComparisonPreregistration,
     chain_shas,
     load_prereg,
 )
@@ -91,7 +91,7 @@ def test_status_runs_on_an_empty_campaign(cli: CliRunner, h3_environ: dict[str, 
 
 
 @pytest.fixture
-def frozen(cli: CliRunner, campaign: Any, h3_environ: dict[str, str]) -> H3Preregistration:
+def frozen(cli: CliRunner, campaign: Any, h3_environ: dict[str, str]) -> ComparisonPreregistration:
     campaign.build()
     result = cli("compare-generators", "freeze", env=h3_environ)
     assert result.code == 0, result.err
@@ -99,7 +99,7 @@ def frozen(cli: CliRunner, campaign: Any, h3_environ: dict[str, str]) -> H3Prere
     return load_prereg(campaign.layout.prereg)
 
 
-def _score_eval(campaign: Any, prereg: H3Preregistration) -> str:
+def _score_eval(campaign: Any, prereg: ComparisonPreregistration) -> str:
     """Scores both arms on eval and writes their manifests, as `compare-generators score` does on
     the H200."""
     campaign.write_split("eval", scored=True)
@@ -112,7 +112,7 @@ def _score_eval(campaign: Any, prereg: H3Preregistration) -> str:
 
 
 def test_freeze_records_the_state_and_is_idempotent(
-    cli: CliRunner, campaign: Any, h3_environ: dict[str, str], frozen: H3Preregistration
+    cli: CliRunner, campaign: Any, h3_environ: dict[str, str], frozen: ComparisonPreregistration
 ) -> None:
     assert frozen.adapter_tag == campaign.ft_tag
     assert frozen.rule_status == "provisional"
@@ -134,7 +134,7 @@ def test_the_first_freeze_is_refused_after_eval_scores_exist(
 
 
 def test_compare_writes_the_provisional_report_end_to_end(
-    cli: CliRunner, campaign: Any, h3_environ: dict[str, str], frozen: H3Preregistration
+    cli: CliRunner, campaign: Any, h3_environ: dict[str, str], frozen: ComparisonPreregistration
 ) -> None:
     _score_eval(campaign, frozen)
     result = cli("compare-generators", "compare", env=h3_environ)
@@ -164,7 +164,7 @@ def test_compare_writes_the_provisional_report_end_to_end(
 
 
 def test_compare_refuses_scores_without_a_bound_manifest(
-    cli: CliRunner, campaign: Any, h3_environ: dict[str, str], frozen: H3Preregistration
+    cli: CliRunner, campaign: Any, h3_environ: dict[str, str], frozen: ComparisonPreregistration
 ) -> None:
     _score_eval(campaign, frozen)
     campaign.layout.scoring(BASE_TAG, campaign.scorer.name).unlink()
@@ -181,7 +181,7 @@ def test_require_stamp_refuses_scores_of_another_version_or_label(
     make_score: Any, version: str, label: str, accepted: bool
 ) -> None:
     scores = [make_score("e0__k00", 0.5)]
-    prereg = H3Preregistration.model_construct(scorer_version=version, rule_label=label)
+    prereg = ComparisonPreregistration.model_construct(scorer_version=version, rule_label=label)
     if accepted:
         require_stamp(scores, prereg, BASE_TAG)
     else:
@@ -191,7 +191,9 @@ def test_require_stamp_refuses_scores_of_another_version_or_label(
         require_stamp([], prereg, BASE_TAG)
 
 
-def test_freeze_records_the_scorer_version(campaign: Any, frozen: H3Preregistration) -> None:
+def test_freeze_records_the_scorer_version(
+    campaign: Any, frozen: ComparisonPreregistration
+) -> None:
     assert (frozen.scorer_version, frozen.rule_label) == (
         campaign.scorer.version,
         campaign.scorer.thresholds(),
@@ -246,7 +248,7 @@ def test_task_values_keep_the_arms_of_one_seed_apart() -> None:
 
 
 def test_eval_judges_refuse_an_unbound_or_restamped_output(
-    campaign: Any, frozen: H3Preregistration
+    campaign: Any, frozen: ComparisonPreregistration
 ) -> None:
     sha256 = sha256_if_file(campaign.layout.prereg)
     assert sha256 is not None
@@ -265,7 +267,7 @@ def test_eval_judges_refuse_an_unbound_or_restamped_output(
 
 
 def test_external_status_follows_the_gate_and_the_dev_usability(
-    campaign: Any, frozen: H3Preregistration
+    campaign: Any, frozen: ComparisonPreregistration
 ) -> None:
     layout = campaign.layout
     assert external_status(layout, frozen, {}) == "not_run"
@@ -281,7 +283,7 @@ def test_external_status_follows_the_gate_and_the_dev_usability(
 
 
 def test_external_status_needs_the_gate_of_the_frozen_judge_stamps(
-    campaign: Any, frozen: H3Preregistration
+    campaign: Any, frozen: ComparisonPreregistration
 ) -> None:
     layout = campaign.layout
     usable = frozen.model_copy(update={"usability": Usability(usable=True)})
@@ -399,7 +401,7 @@ def test_freeze_records_the_exclusion_record_sha(
 
 
 def test_a_calibrated_h3_rule_needs_the_record_of_its_artifact(
-    campaign: Any, frozen: H3Preregistration
+    campaign: Any, frozen: ComparisonPreregistration
 ) -> None:
     calibrated = frozen.model_copy(
         update={"rule_status": "calibrated", "calibration_artifact_sha256": "artifact"}

@@ -4,7 +4,7 @@ from typing import Any
 
 from physverify.finetune.records import BASE_TAG, write_record
 from physverify.generator_comparison.candidate_queries import eval_records, eval_scores
-from physverify.generator_comparison.prereg import H3Preregistration
+from physverify.generator_comparison.prereg import ComparisonPreregistration
 from physverify.generator_comparison.scoring import frozen_stamp_problem, manifest, rescore, stale
 
 SCORER = "provisional"
@@ -49,8 +49,8 @@ def test_the_manifest_binds_the_scores_to_a_freeze(campaign: Any) -> None:
 def test_the_frozen_stamp_is_the_scorer_version_and_label(campaign: Any) -> None:
     scorer = campaign.scorer
 
-    def frozen(version: str, label: str) -> H3Preregistration:
-        return H3Preregistration.model_construct(scorer_version=version, rule_label=label)
+    def frozen(version: str, label: str) -> ComparisonPreregistration:
+        return ComparisonPreregistration.model_construct(scorer_version=version, rule_label=label)
 
     assert frozen_stamp_problem(scorer, frozen(scorer.version, scorer.thresholds())) is None
     for other in (frozen("0", scorer.thresholds()), frozen(scorer.version, "older-rule")):

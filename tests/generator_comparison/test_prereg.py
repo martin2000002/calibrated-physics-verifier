@@ -8,7 +8,7 @@ import pytest
 from physverify.core.digests import sha256_if_file
 from physverify.core.errors import ConfigError, PhysverifyError, UsageError
 from physverify.finetune.stop_rule import StopRuleState
-from physverify.generator_comparison.layout import H3Layout
+from physverify.generator_comparison.layout import ComparisonLayout
 from physverify.generator_comparison.margins import MarginDerivation
 from physverify.generator_comparison.prereg import (
     AUDIT_FIELDS,
@@ -16,8 +16,8 @@ from physverify.generator_comparison.prereg import (
     H3_FIELDS,
     REFREEZE_MUTABLE,
     CandidateSnapshot,
+    ComparisonPreregistration,
     FreezeRequest,
-    H3Preregistration,
     Mde,
     assert_complete,
     chain,
@@ -46,7 +46,7 @@ DERIVATION = MarginDerivation(
 )
 
 
-def record(**update: Any) -> H3Preregistration:
+def record(**update: Any) -> ComparisonPreregistration:
     fields: dict[str, Any] = {
         "commit": "c0ffee",
         "section_hashes": {"h3": "h"},
@@ -84,7 +84,7 @@ def record(**update: Any) -> H3Preregistration:
         "stop_rule": StopRuleState(passed=True, enforced=True, reasons=[], pairs_sha256="p"),
         "created_utc": "2026-10-18T00:00:00+00:00",
     }
-    return H3Preregistration(**{**fields, **update})
+    return ComparisonPreregistration(**{**fields, **update})
 
 
 def request(
@@ -94,7 +94,7 @@ def request(
 
 
 def test_identity_has_every_field_but_the_audit_ones() -> None:
-    assert set(H3_FIELDS) == set(H3Preregistration.model_fields) - AUDIT_FIELDS
+    assert set(H3_FIELDS) == set(ComparisonPreregistration.model_fields) - AUDIT_FIELDS
     assert {"commit", "created_utc", "eval_candidates_at_freeze"} <= AUDIT_FIELDS
     assert set(identity(record())) == set(H3_FIELDS)
 
@@ -223,7 +223,7 @@ def test_a_changed_field_is_refused() -> None:
 
 
 def test_refreezes_keep_the_chain_to_the_first_freeze(tmp_path: Path) -> None:
-    layout = H3Layout(tmp_path / "h3")
+    layout = ComparisonLayout(tmp_path / "h3")
     first = record()
     write_prereg(layout, first)
     sha1 = sha256_if_file(layout.prereg)

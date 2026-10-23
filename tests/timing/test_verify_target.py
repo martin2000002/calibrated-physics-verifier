@@ -37,7 +37,7 @@ from physverify.timing.targets.verify_checks import (
     Verifier,
     VerifyChecks,
     check_measure,
-    load_a7,
+    load_suite,
 )
 
 PLAN: Any = object()
@@ -99,7 +99,7 @@ class FakeSource:
 
 @dataclass
 class FakeA7:
-    """An ``A7Factory``: two checks (0.125 s and 0.0625 s), a 0.5 s runner, a 0.25 s load."""
+    """An ``SuiteFactory``: two checks (0.125 s and 0.0625 s), a 0.5 s runner, a 0.25 s load."""
 
     clock: Any
     cpu_clock: Any
@@ -156,7 +156,7 @@ class Setup:
 
     def target(self, **changes: Any) -> VerifyChecks:
         options: dict[str, Any] = {
-            "a7_factory": self.a7,
+            "suite_factory": self.a7,
             "find_spec": found,
             "pipeline_factory": self.fill,
             "plan_factory": plan_of,
@@ -308,7 +308,7 @@ def test_load_a7_wires_the_adr_api(
     monkeypatch.setitem(sys.modules, CHECK_SET_MODULE, check_set)
     monkeypatch.setitem(sys.modules, INPUTS_MODULE, inputs)
     settings = make_settings()
-    verifier = load_a7(settings, {}, {})
+    verifier = load_suite(settings, {}, {})
     assert verifier.checks == (CHECK,)
     assert calls["thresholds"] == settings.paths.thresholds
     assert calls["runner"] == ((CHECK,), "policy", settings.paths.thresholds)
@@ -324,7 +324,7 @@ def test_load_a7_builds_the_real_a7_api_when_it_is_installed(
     pytest.importorskip(RUNNER_MODULE)
     pytest.importorskip(INPUTS_MODULE)
     checks, policies = plugins.PLUGIN_KINDS["checks"](), plugins.PLUGIN_KINDS["policies"]()
-    verifier = load_a7(make_settings(), checks, policies)
+    verifier = load_suite(make_settings(), checks, policies)
     assert verifier.checks
     assert {check.check_id for check in verifier.checks} <= set(checks)
     assert callable(verifier.runner.run)

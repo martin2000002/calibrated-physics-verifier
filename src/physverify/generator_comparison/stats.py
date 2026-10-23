@@ -17,7 +17,7 @@ import numpy as np
 from scipy import stats as sps
 
 from physverify.core.models import FrozenModel
-from physverify.generator_comparison.settings import H3Settings
+from physverify.generator_comparison.settings import ComparisonSettings
 from physverify.stats.bootstrap import bootstrap
 
 MEAN: Final = "mean"
@@ -65,12 +65,12 @@ def significant_negative(result: TestResult | None, alpha: float) -> bool:
     )
 
 
-def method_label(cfg: H3Settings) -> str:
+def method_label(cfg: ComparisonSettings) -> str:
     correction = "continuity" if cfg.correction else "no-correction"
     return f"wilcoxon:{cfg.wilcoxon_method}:{cfg.zero_method}:{correction}"
 
 
-def wilcoxon_p(values: Sequence[float], cfg: H3Settings) -> float | None:
+def wilcoxon_p(values: Sequence[float], cfg: ComparisonSettings) -> float | None:
     """Two-sided p of the signed-rank test, or None when it is undefined (all zero, n < 2)."""
     if len(values) < 2 or not any(values):
         return None
@@ -95,7 +95,9 @@ def hodges_lehmann(values: Sequence[float]) -> float | None:
     return float(statistics.median(walsh))
 
 
-def mean_interval(diffs: Sequence[Diff], cfg: H3Settings) -> tuple[float | None, float | None]:
+def mean_interval(
+    diffs: Sequence[Diff], cfg: ComparisonSettings
+) -> tuple[float | None, float | None]:
     """Percentile bootstrap interval of the mean, resampling whole ``clip_id`` units."""
     if len(diffs) < 2:
         return None, None
@@ -110,7 +112,7 @@ def mean_interval(diffs: Sequence[Diff], cfg: H3Settings) -> tuple[float | None,
     return interval.low, interval.high
 
 
-def paired_test(diffs: Sequence[Diff], cfg: H3Settings, dropped: int = 0) -> TestResult:
+def paired_test(diffs: Sequence[Diff], cfg: ComparisonSettings, dropped: int = 0) -> TestResult:
     values = [d.value for d in diffs]
     lo, hi = mean_interval(diffs, cfg)
     return TestResult(

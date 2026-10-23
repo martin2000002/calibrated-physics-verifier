@@ -10,12 +10,12 @@ from physverify.core.markdown import number, table
 from physverify.core.models import FrozenModel
 from physverify.generator_comparison.analysis_inputs import ArmSummary
 from physverify.generator_comparison.guards import GuardResult
-from physverify.generator_comparison.layout import H3Layout
+from physverify.generator_comparison.layout import ComparisonLayout
 from physverify.generator_comparison.margins import MarginDerivation
 from physverify.generator_comparison.prereg import Mde
-from physverify.generator_comparison.preregistered_numbers import H3Analysis
+from physverify.generator_comparison.preregistered_numbers import ComparisonAnalysis
 from physverify.generator_comparison.stats import TestResult
-from physverify.generator_comparison.verdict import H3Verdict
+from physverify.generator_comparison.verdict import ComparisonVerdict
 from physverify.human_agreement.prereg import FreezeAudit
 
 ESTIMAND: Final = (
@@ -33,15 +33,15 @@ CIRCULARITY: Final = (
 NONE: Final = "-"
 
 
-class H3Report(FrozenModel):
+class ComparisonReport(FrozenModel):
     campaign: str
     rule_label: str | None
     rule_status: str
     ft_model_tag: str | None
     scipy_version: str
     method: str
-    analysis: H3Analysis
-    verdict: H3Verdict
+    analysis: ComparisonAnalysis
+    verdict: ComparisonVerdict
     margins: dict[str, MarginDerivation]
     mde: Mde
     audit: FreezeAudit
@@ -84,7 +84,7 @@ def _margin_row(task: str, d: MarginDerivation) -> list[str]:
     ]
 
 
-def _verdict(r: H3Report) -> list[str]:
+def _verdict(r: ComparisonReport) -> list[str]:
     v = r.verdict
     post_hoc = " POST HOC" if v.post_hoc else ""
     return [
@@ -101,7 +101,7 @@ def _verdict(r: H3Report) -> list[str]:
     ]
 
 
-def _arms(a: H3Analysis) -> list[str]:
+def _arms(a: ComparisonAnalysis) -> list[str]:
     header = ["arm", "n", "scored", "abstention", "mean S", "median motion", "objects_ok"]
     rows = [_arm_row(name, arm) for name, arm in a.arms.items()]
     fallbacks = ", ".join(f"{k}: {n}" for k, n in sorted(a.fallbacks.items())) or NONE
@@ -115,7 +115,7 @@ def _arms(a: H3Analysis) -> list[str]:
     ]
 
 
-def _tests(a: H3Analysis) -> list[str]:
+def _tests(a: ComparisonAnalysis) -> list[str]:
     holm_rows = [[*_test_row(name, e.test), _num(e.p_adjusted)] for name, e in a.holm.items()]
     return [
         "## Primary and external (fixed sequence)",
@@ -141,7 +141,7 @@ def _tests(a: H3Analysis) -> list[str]:
     ]
 
 
-def _guards(a: H3Analysis) -> list[str]:
+def _guards(a: ComparisonAnalysis) -> list[str]:
     rows = [_guard_row(name, g) for name, g in a.guards.items()]
     return [
         "## Guards",
@@ -153,7 +153,7 @@ def _guards(a: H3Analysis) -> list[str]:
     ]
 
 
-def _sensitivities(a: H3Analysis) -> list[str]:
+def _sensitivities(a: ComparisonAnalysis) -> list[str]:
     return [
         "## Sensitivities and strata",
         "",
@@ -164,7 +164,7 @@ def _sensitivities(a: H3Analysis) -> list[str]:
     ]
 
 
-def _power(r: H3Report) -> list[str]:
+def _power(r: ComparisonReport) -> list[str]:
     m = r.mde
     flag = " (underpowered: above twice the margin)" if m.pc_underpowered else ""
     return [
@@ -182,7 +182,7 @@ def _power(r: H3Report) -> list[str]:
     ]
 
 
-def _audit(r: H3Report) -> list[str]:
+def _audit(r: ComparisonReport) -> list[str]:
     a = r.audit
     deviations = [f"- {d}" for d in a.deviations] or ["- none"]
     return [
@@ -208,7 +208,7 @@ def _audit(r: H3Report) -> list[str]:
     ]
 
 
-def render_markdown(report: H3Report) -> str:
+def render_markdown(report: ComparisonReport) -> str:
     sections = (
         _verdict(report),
         _arms(report.analysis),
@@ -221,6 +221,6 @@ def render_markdown(report: H3Report) -> str:
     return "\n".join(line for section in sections for line in section)
 
 
-def write_report(layout: H3Layout, report: H3Report) -> None:
+def write_report(layout: ComparisonLayout, report: ComparisonReport) -> None:
     write_text_atomic(layout.report_json, report.model_dump_json(indent=2) + "\n")
     write_text_atomic(layout.report_md, render_markdown(report))

@@ -56,7 +56,7 @@ class VerdictInputs:
     stop_rule_fired: str | None = None
 
 
-class H3Verdict(FrozenModel):
+class ComparisonVerdict(FrozenModel):
     """``post_hoc``: an outcome-defining field was refrozen after eval data existed."""
 
     verdict: str
@@ -124,11 +124,11 @@ def _tier(v: VerdictInputs, outcome: ExternalOutcome) -> tuple[str, list[str]]:
     return OUTCOME_TIER[outcome], [f"external {v.external_status}: {outcome}"]
 
 
-def h3_verdict(v: VerdictInputs) -> H3Verdict:
+def comparison_verdict(v: VerdictInputs) -> ComparisonVerdict:
     outcome = external_outcome(v.primary, v.external_status, v.external, v.margin_pc, v.alpha)
     verdict, reasons = _tier(v, outcome)
     late = [POST_HOC_REASON] if v.post_hoc else []
-    return H3Verdict(
+    return ComparisonVerdict(
         verdict=verdict,
         external_status=v.external_status,
         external_outcome=outcome,

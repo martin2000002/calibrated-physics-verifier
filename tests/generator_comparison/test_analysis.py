@@ -21,7 +21,7 @@ from physverify.generator_comparison.preregistered_numbers import (
     template_means,
     worst_case,
 )
-from physverify.generator_comparison.settings import H3Settings
+from physverify.generator_comparison.settings import ComparisonSettings
 from physverify.generator_comparison.stats import TestResult
 
 Score = Callable[..., CandidateScore]
@@ -47,7 +47,7 @@ def arm(
 
 
 def inputs(
-    settings: Settings, cfg: H3Settings, arms: list[PromptArms], **update: Any
+    settings: Settings, cfg: ComparisonSettings, arms: list[PromptArms], **update: Any
 ) -> AnalysisInputs:
     finetune = load_finetune(settings)
     fields: dict[str, Any] = {
@@ -115,7 +115,7 @@ def test_worst_case_imputes_zero_and_leaves_out_unscored_bo8(
     assert left_out == 1
 
 
-def test_g5_runs_only_after_a_supported_primary(h3_cfg: H3Settings) -> None:
+def test_g5_runs_only_after_a_supported_primary(h3_cfg: ComparisonSettings) -> None:
     weak = TestResult(n=8, p=0.5, hl=0.1, mean=0.1, ci_lo=None, ci_hi=None, method="m")
     strong = weak.model_copy(update={"p": 0.001})
     worst = weak.model_copy(update={"hl": -0.1})
@@ -139,7 +139,7 @@ def test_judged_vs_bo8_needs_the_bo8_value(
 
 
 def test_a_clear_improvement_is_supported_by_the_verifier(
-    better: list[PromptArms], h3_settings: Settings, h3_cfg: H3Settings
+    better: list[PromptArms], h3_settings: Settings, h3_cfg: ComparisonSettings
 ) -> None:
     result = analyse(inputs(h3_settings, h3_cfg, better))
     assert result.n_prompts == 8
@@ -168,7 +168,7 @@ def test_template_means_average_the_prompts_of_a_template() -> None:
 
 
 def test_without_a_fine_tuned_model_no_guard_is_evaluated(
-    better: list[PromptArms], h3_settings: Settings, h3_cfg: H3Settings
+    better: list[PromptArms], h3_settings: Settings, h3_cfg: ComparisonSettings
 ) -> None:
     result = analyse(inputs(h3_settings, h3_cfg, better, has_ft=False))
     assert {g.state for g in result.guards.values()} == {"not_evaluated"}
@@ -176,7 +176,7 @@ def test_without_a_fine_tuned_model_no_guard_is_evaluated(
 
 
 def test_the_external_judge_enters_when_it_has_values(
-    better: list[PromptArms], h3_settings: Settings, h3_cfg: H3Settings
+    better: list[PromptArms], h3_settings: Settings, h3_cfg: ComparisonSettings
 ) -> None:
     pc = {(s.model_tag, s.candidate_id): 4.0 for a in better for s in a.ft.values()}
     pc |= {(s.model_tag, s.candidate_id): 3.0 for a in better for s in a.base.values()}

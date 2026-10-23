@@ -52,13 +52,13 @@ GeneratorOnlyOption = Annotated[
 ]
 
 
-def campaign_split(split: str, h3_step: str) -> PromptSplit:
+def campaign_split(split: str, comparison_step: str) -> PromptSplit:
     """A train or dev split; the eval candidates and scores are H3's (ADR 0013), whose
     generation stamp and pre-registration a finetune run would break."""
     parsed = choice(split, SPLITS, "--split")
     if parsed == EVAL_SPLIT:
         raise UsageError(
             "the eval split belongs to H3: run "
-            f"`physverify compare-generators {h3_step} --arm base|ft`"
+            f"`physverify compare-generators {comparison_step} --arm base|ft`"
         )
     return parsed

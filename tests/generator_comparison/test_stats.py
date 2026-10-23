@@ -5,7 +5,7 @@ import math
 import pytest
 from pydantic import ValidationError
 
-from physverify.generator_comparison.settings import H3Settings
+from physverify.generator_comparison.settings import ComparisonSettings
 from physverify.generator_comparison.stats import (
     Diff,
     TestResult,
@@ -26,24 +26,24 @@ def _result(p: float | None, hl: float | None) -> TestResult:
     return TestResult(n=5, p=p, hl=hl, mean=hl, ci_lo=None, ci_hi=None, method="m")
 
 
-def test_wilcoxon_is_undefined_without_signal(h3_cfg: H3Settings) -> None:
+def test_wilcoxon_is_undefined_without_signal(h3_cfg: ComparisonSettings) -> None:
     assert wilcoxon_p([0.0, 0.0, 0.0], h3_cfg) is None
     assert wilcoxon_p([0.3], h3_cfg) is None
 
 
-def test_wilcoxon_is_small_for_a_consistent_shift(h3_cfg: H3Settings) -> None:
+def test_wilcoxon_is_small_for_a_consistent_shift(h3_cfg: ComparisonSettings) -> None:
     p = wilcoxon_p([0.1, 0.2, 0.15, 0.3, 0.25, 0.12, 0.18, 0.22], h3_cfg)
     assert p is not None
     assert p < 0.05
 
 
-def test_wilcoxon_method_is_pinned(h3_cfg: H3Settings) -> None:
+def test_wilcoxon_method_is_pinned(h3_cfg: ComparisonSettings) -> None:
     assert method_label(h3_cfg) == "wilcoxon:asymptotic:pratt:no-correction"
     data = h3_cfg.model_dump()
     with pytest.raises(ValidationError):
-        H3Settings.model_validate({**data, "wilcoxon_method": "exact"})
+        ComparisonSettings.model_validate({**data, "wilcoxon_method": "exact"})
     with pytest.raises(ValidationError):
-        H3Settings.model_validate({**data, "zero_method": "wilcox"})
+        ComparisonSettings.model_validate({**data, "zero_method": "wilcox"})
 
 
 def test_hodges_lehmann_is_the_median_of_walsh_averages() -> None:
@@ -65,7 +65,7 @@ def test_holm_is_monotone_and_capped() -> None:
     assert holm({"a": 0.9, "b": 0.8})["a"] == 1.0
 
 
-def test_mean_interval_resamples_units_and_is_reproducible(h3_cfg: H3Settings) -> None:
+def test_mean_interval_resamples_units_and_is_reproducible(h3_cfg: ComparisonSettings) -> None:
     diffs = [Diff(f"p{i}", v) for i, v in enumerate([0.1, 0.2, 0.3, 0.4, 0.5])]
     lo, hi = mean_interval(diffs, h3_cfg)
     assert lo is not None and hi is not None
@@ -74,12 +74,12 @@ def test_mean_interval_resamples_units_and_is_reproducible(h3_cfg: H3Settings) -
     assert mean_interval(diffs[:1], h3_cfg) == (None, None)
 
 
-def test_one_cluster_has_a_degenerate_interval(h3_cfg: H3Settings) -> None:
+def test_one_cluster_has_a_degenerate_interval(h3_cfg: ComparisonSettings) -> None:
     lo, hi = mean_interval([Diff("t0", 0.1), Diff("t0", 0.3)], h3_cfg)
     assert lo == pytest.approx(0.2) and hi == pytest.approx(0.2)
 
 
-def test_paired_test_reports_everything(h3_cfg: H3Settings) -> None:
+def test_paired_test_reports_everything(h3_cfg: ComparisonSettings) -> None:
     diffs = [Diff(f"p{i}", v) for i, v in enumerate([0.1, -0.05, 0.2, 0.3])]
     result = paired_test(diffs, h3_cfg, dropped=2)
     assert (result.n, result.dropped) == (4, 2)

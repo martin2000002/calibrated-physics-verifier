@@ -155,17 +155,20 @@ def monotonicity(inputs: Inputs) -> Section:
         values += _tau_values(f"{check_id}.calib_all", doc, where, medians=True)
         if check_id in primary:
             values += _tau_values(
-                f"{check_id}.calib_primary", inputs.h1, primary[check_id], medians=True
+                f"{check_id}.calib_primary",
+                inputs.heldout_evaluation,
+                primary[check_id],
+                medians=True,
             )
     caveat = None if primary else _no_primary_reason(inputs)
     return Section("monotonicity", tuple(values), caveat=caveat)
 
 
 def _pooled_primary(inputs: Inputs) -> dict[str, str]:
-    stratum = _primary_stratum(inputs.h1, inputs.profile)
+    stratum = _primary_stratum(inputs.heldout_evaluation, inputs.profile)
     if stratum is None:
         return {}
-    entries = inputs.h1.at(stratum).get("monotonicity", [])
+    entries = inputs.heldout_evaluation.at(stratum).get("monotonicity", [])
     return {
         e["check_id"]: f"{stratum}/monotonicity/{i}/monotonicity" for i, e in enumerate(entries)
     }
@@ -173,7 +176,8 @@ def _pooled_primary(inputs: Inputs) -> dict[str, str]:
 
 def _no_primary_reason(inputs: Inputs) -> str:
     return (
-        f"calib_primary missing: {inputs.h1.path} has no pooled tau_b of the H1 primary view "
+        f"calib_primary missing: {inputs.heldout_evaluation.path} has no pooled tau_b of the "
+        "H1 primary view "
         "(an evaluation before 1.4.0; rerun `calibrate evaluate --no-real` and pass "
         "--calibration-evaluation)"
     )

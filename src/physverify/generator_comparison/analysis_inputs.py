@@ -10,7 +10,7 @@ from physverify.finetune.pairs import Rescore
 from physverify.finetune.settings import PairSettings, SelectSettings
 from physverify.generator_comparison.arms import PromptArms
 from physverify.generator_comparison.records import JudgeKey
-from physverify.generator_comparison.settings import H3Settings
+from physverify.generator_comparison.settings import ComparisonSettings
 from physverify.generator_comparison.stats import Diff
 from physverify.generator_comparison.verdict import ExternalStatus
 
@@ -36,7 +36,7 @@ class AnalysisInputs:
     rescore: Rescore
     rules: PairSettings
     select: SelectSettings
-    cfg: H3Settings
+    cfg: ComparisonSettings
     pc: JudgeValues
     sa: JudgeValues
     external_status: ExternalStatus

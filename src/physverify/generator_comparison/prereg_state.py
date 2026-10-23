@@ -37,9 +37,9 @@ from physverify.generator_comparison.arms import (
 from physverify.generator_comparison.candidate_queries import all_eval_records, candidate_snapshot
 from physverify.generator_comparison.judge_gate import usability
 from physverify.generator_comparison.judges._base import Judge
-from physverify.generator_comparison.layout import H3Layout
+from physverify.generator_comparison.layout import ComparisonLayout
 from physverify.generator_comparison.margins import MarginDerivation, margin
-from physverify.generator_comparison.prereg import H3Preregistration, Mde
+from physverify.generator_comparison.prereg import ComparisonPreregistration, Mde
 from physverify.generator_comparison.preregistered_numbers import (
     SECONDARY_TESTS,
     crn_ft_vs_base,
@@ -54,7 +54,7 @@ from physverify.generator_comparison.records import (
     keyed_values,
     load_judge_output,
 )
-from physverify.generator_comparison.settings import AUTOEVAL_KEY, SECTION, H3Settings
+from physverify.generator_comparison.settings import AUTOEVAL_KEY, SECTION, ComparisonSettings
 from physverify.generator_comparison.stats import mde_paired, sample_sd
 from physverify.generator_comparison.verdict import RuleStatus
 from physverify.schema.io import stable_hash
@@ -117,7 +117,7 @@ def contaminated(dataset: Mapping[str, Any] | None) -> bool | None:
 
 
 def derive_margins(
-    rows: Sequence[Mapping[str, str]], columns: Mapping[str, str], cfg: H3Settings
+    rows: Sequence[Mapping[str, str]], columns: Mapping[str, str], cfg: ComparisonSettings
 ) -> dict[str, MarginDerivation]:
     """Recomputed from the published table; a value other than ``[h3]``'s stops the freeze."""
     derived = {
@@ -150,7 +150,7 @@ def dev_mde(
     rescore: Rescore,
     pc: JudgeValues,
     n: int,
-    cfg: H3Settings,
+    cfg: ComparisonSettings,
 ) -> Mde:
     """sd of the per-prompt dev differences, FT against base on common seeds (estimated)."""
     verifier = sample_sd(list(crn_ft_vs_base(arms, k_dev, rescore, 1)[0].values()))
@@ -175,7 +175,10 @@ def dev_mde(
 
 
 def dev_usability(
-    layout: H3Layout, tags: Sequence[str], stamps: Mapping[str, str], cfg: H3Settings
+    layout: ComparisonLayout,
+    tags: Sequence[str],
+    stamps: Mapping[str, str],
+    cfg: ComparisonSettings,
 ) -> Usability | None:
     """None until every dev judge output exists under the current judge stamp of its task."""
     values: dict[str, list[float | None]] = {}
@@ -187,7 +190,9 @@ def dev_usability(
     return usability(values, cfg.usability)
 
 
-def dev_pc(layout: H3Layout, tags: Sequence[str], stamp: str) -> dict[JudgeKey, float | None]:
+def dev_pc(
+    layout: ComparisonLayout, tags: Sequence[str], stamp: str
+) -> dict[JudgeKey, float | None]:
     """Dev PC values judged under the current PC stamp; outputs of another judge are skipped."""
     found: dict[JudgeKey, float | None] = {}
     for tag in tags:
@@ -202,8 +207,8 @@ class FreezeInputs:
     settings: Settings
     checks: Mapping[str, type[Check]]
     store: CampaignStore
-    layout: H3Layout
-    cfg: H3Settings
+    layout: ComparisonLayout
+    cfg: ComparisonSettings
     finetune: FinetuneSettings
     scorer: AggregateScorer
     rescore: Rescore
@@ -226,7 +231,7 @@ def adapter_identity(selection: Selection) -> tuple[str | None, str | None]:
     return str(path), adapter_tag(path)
 
 
-def current_record(inputs: FreezeInputs, now: dt.datetime) -> H3Preregistration:
+def current_record(inputs: FreezeInputs, now: dt.datetime) -> ComparisonPreregistration:
     prompts = inputs.store.prompts()
     analysed = analysis_prompts(prompts, inputs.cfg.exclude_tags)
     rule_status, rule_label = rule_state(inputs.scorer)
@@ -235,7 +240,7 @@ def current_record(inputs: FreezeInputs, now: dt.datetime) -> H3Preregistration:
     adapter, tag = adapter_identity(inputs.selection)
     dev_tags = [BASE_TAG] if tag is None else [BASE_TAG, tag]
     stamps = {task: inputs.judge.stamp(task) for task in TASKS}
-    return H3Preregistration(
+    return ComparisonPreregistration(
         commit=inputs.commit,
         section_hashes=section_hashes(inputs.settings.sections),
         prompts_sha256=sha256_if_file(inputs.store.prompts_path),
@@ -268,7 +273,7 @@ def current_record(inputs: FreezeInputs, now: dt.datetime) -> H3Preregistration:
 
 
 def require_exclusion_record(
-    settings: Settings, current: H3Preregistration, checks: Mapping[str, type[Check]]
+    settings: Settings, current: ComparisonPreregistration, checks: Mapping[str, type[Check]]
 ) -> None:
     """A calibrated H3 rule is frozen only on the decision record of its artifact (ADR 0015)."""
     require_record_for(

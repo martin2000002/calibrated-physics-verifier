@@ -270,7 +270,7 @@ class CheckMonotonicity(ArtifactModel):
     monotonicity: Monotonicity
 
 
-class HeldoutH1Check(ArtifactModel):
+class HeldoutMonotonicityCheck(ArtifactModel):
     """H1 of one check on the held-out rows (plan-congelado J7): the pooled tau_b and the J of
     the frozen tau and sigma correction, bootstrapped as the artifact was. No refit, no folds."""
 
@@ -300,11 +300,11 @@ class EvaluationStratum(ArtifactModel):
     """Share of real clips whose aggregate score is flagged (check_id ``score``)."""
     monotonicity: tuple[CheckMonotonicity, ...] = ()
     """From 1.4.0; checks with at least one calib (level, delta) pair."""
-    heldout_h1: tuple[HeldoutH1Check, ...] = ()
+    heldout_h1: tuple[HeldoutMonotonicityCheck, ...] = ()
     """From 1.6.0; checks with at least one held-out row (none when every row is calib)."""
 
 
-class H1PrimaryView(ArtifactModel):
+class PrimaryScenesView(ArtifactModel):
     """The strata restricted to the primary scenes (ADR 0015 1.4); real video is not repeated."""
 
     scenes: tuple[str, ...]
@@ -325,5 +325,5 @@ class EvaluationReport(ArtifactModel):
     strata: tuple[EvaluationStratum, ...]
     real_sets: tuple[DatasetRef, ...] = ()
     """The real clip sets the evaluation scored (empty before 1.2.0): what rule 1.5 checks."""
-    h1_primary: H1PrimaryView | None = None
+    h1_primary: PrimaryScenesView | None = None
     """The H1 primary view (from 1.3.0); ``strata`` stays the all-scenes view."""

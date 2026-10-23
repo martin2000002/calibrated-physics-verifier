@@ -23,9 +23,9 @@ from physverify.generator_comparison.analysis_inputs import AnalysisInputs
 from physverify.generator_comparison.arms import EVAL_SPLIT, analysis_prompts, build_arms
 from physverify.generator_comparison.candidate_queries import eval_ids, eval_scores
 from physverify.generator_comparison.judging import gate_problem
-from physverify.generator_comparison.layout import H3Layout
+from physverify.generator_comparison.layout import ComparisonLayout
 from physverify.generator_comparison.prereg import (
-    H3Preregistration,
+    ComparisonPreregistration,
     chain,
     chain_shas,
     first_created,
@@ -41,10 +41,14 @@ from physverify.generator_comparison.records import (
     keyed_values,
     load_judge_output,
 )
-from physverify.generator_comparison.report import H3Report
-from physverify.generator_comparison.settings import H3Settings
+from physverify.generator_comparison.report import ComparisonReport
+from physverify.generator_comparison.settings import ComparisonSettings
 from physverify.generator_comparison.stats import method_label
-from physverify.generator_comparison.verdict import ExternalStatus, VerdictInputs, h3_verdict
+from physverify.generator_comparison.verdict import (
+    ExternalStatus,
+    VerdictInputs,
+    comparison_verdict,
+)
 from physverify.human_agreement.prereg import (
     FreezeAudit,
     earliest_mtime,
@@ -58,17 +62,19 @@ RESCORE_HINT: Final = "run `physverify compare-generators rescore`"
 @dataclass(frozen=True)
 class CompareInputs:
     store: CampaignStore
-    layout: H3Layout
-    cfg: H3Settings
+    layout: ComparisonLayout
+    cfg: ComparisonSettings
     finetune: FinetuneSettings
-    prereg: H3Preregistration
+    prereg: ComparisonPreregistration
     prereg_sha256: str
     scorer: str
     rescore: Rescore
     commit: str
 
 
-def require_stamp(scores: Sequence[CandidateScore], prereg: H3Preregistration, tag: str) -> None:
+def require_stamp(
+    scores: Sequence[CandidateScore], prereg: ComparisonPreregistration, tag: str
+) -> None:
     if not scores:
         raise UsageError(
             f"no eval scores of {tag}: run `physverify compare-generators score --arm ...`"
@@ -87,7 +93,9 @@ def require_bound(sha256: str | None, known: set[str], what: str) -> None:
         raise UsageError(f"{what} is not bound to this pre-registration; produce it again")
 
 
-def require_manifest(layout: H3Layout, tag: str, scorer: str, known: set[str]) -> ScoringManifest:
+def require_manifest(
+    layout: ComparisonLayout, tag: str, scorer: str, known: set[str]
+) -> ScoringManifest:
     path = layout.scoring(tag, scorer)
     if not path.is_file():
         raise UsageError(f"{path} is missing: run `physverify compare-generators score`")
@@ -97,7 +105,10 @@ def require_manifest(layout: H3Layout, tag: str, scorer: str, known: set[str]) -
 
 
 def eval_judges(
-    layout: H3Layout, tags: Sequence[str], prereg: H3Preregistration, known: set[str]
+    layout: ComparisonLayout,
+    tags: Sequence[str],
+    prereg: ComparisonPreregistration,
+    known: set[str],
 ) -> dict[str, JudgeOutput | None]:
     """``{"<tag>__<task>": output}``; a present output must be bound and carry the frozen stamp."""
     found: dict[str, JudgeOutput | None] = {}
@@ -114,7 +125,9 @@ def eval_judges(
 
 
 def external_status(
-    layout: H3Layout, prereg: H3Preregistration, outputs: Mapping[str, JudgeOutput | None]
+    layout: ComparisonLayout,
+    prereg: ComparisonPreregistration,
+    outputs: Mapping[str, JudgeOutput | None],
 ) -> ExternalStatus:
     """A gate that did not run the frozen judge stamps counts as not run."""
     gate = read_record(layout.gate, GateReport) if layout.gate.is_file() else None
@@ -164,7 +177,7 @@ def audit(inputs: CompareInputs, tags: Sequence[str]) -> FreezeAudit:
     )
 
 
-def build_compare(inputs: CompareInputs) -> H3Report:
+def build_compare(inputs: CompareInputs) -> ComparisonReport:
     prereg, cfg, cand = inputs.prereg, inputs.cfg, inputs.finetune.candidates
     tag = prereg.adapter_tag
     tags = [BASE_TAG] if tag is None else [BASE_TAG, tag]
@@ -193,7 +206,7 @@ def build_compare(inputs: CompareInputs) -> H3Report:
             external_status=status,
         )
     )
-    verdict = h3_verdict(
+    verdict = comparison_verdict(
         VerdictInputs(
             rule_status=prereg.rule_status,
             contaminated=prereg.contaminated,
@@ -209,7 +222,7 @@ def build_compare(inputs: CompareInputs) -> H3Report:
             guards={name: g.state for name, g in result.guards.items()},
         )
     )
-    return H3Report(
+    return ComparisonReport(
         campaign=inputs.store.campaign,
         rule_label=prereg.rule_label,
         rule_status=prereg.rule_status,

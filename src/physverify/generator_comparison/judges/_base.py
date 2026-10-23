@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
-    from physverify.generator_comparison.settings import H3Settings
+    from physverify.generator_comparison.settings import ComparisonSettings
 
 
 @dataclass(frozen=True)
@@ -48,4 +48,4 @@ class ExternalJudge(Judge, Protocol):
     """A judge that can be selected by name in ``external_judge`` and built from its settings."""
 
     @classmethod
-    def from_config(cls, cfg: H3Settings, workdir: Path) -> Judge: ...
+    def from_config(cls, cfg: ComparisonSettings, workdir: Path) -> Judge: ...

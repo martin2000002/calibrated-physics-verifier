@@ -14,7 +14,7 @@ from physverify.generator_comparison.candidate_queries import (
     eval_records,
     eval_scores,
 )
-from physverify.generator_comparison.prereg import H3Preregistration, stamp_problem
+from physverify.generator_comparison.prereg import ComparisonPreregistration, stamp_problem
 from physverify.generator_comparison.records import ScoringManifest
 from physverify.schema.checks import CheckResult
 from physverify.schema.io import read_jsonl
@@ -54,6 +54,6 @@ def rescore(store: CampaignStore, tag: str, scorer: AggregateScorer) -> int:
     return len(todo)
 
 
-def frozen_stamp_problem(scorer: AggregateScorer, prereg: H3Preregistration) -> str | None:
+def frozen_stamp_problem(scorer: AggregateScorer, prereg: ComparisonPreregistration) -> str | None:
     problem = stamp_problem(scorer.version, scorer.thresholds(), prereg)
     return None if problem is None else f"the active {problem}; refreeze"
