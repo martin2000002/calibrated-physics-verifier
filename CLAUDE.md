@@ -47,7 +47,8 @@ src/physverify/
   human_agreement/ verifier vs reference VLM on human labels
   selective_risk/  risk-coverage curve and abstention level
   finetune/        preference pairs, scorers/, Flow-DPO trainer, checkpoint selection
-  freeze/          freeze manifest and the queries of scripts/h200/freeze_query.py
+  freeze/          freeze manifest and the git diffs it records, iteration selection and seed,
+                   final-look ledger rules and fresh renders (behind scripts/h200/freeze_query.py)
   generator_comparison/  fine-tuned vs base vs best-of-8, judges/
   timing/          per-clip cost harness, targets/, GPU budget
   demo/            one prompt or video through the whole verifier
@@ -55,7 +56,8 @@ src/physverify/
   app/             composition root: plugins.py (PLUGIN_KINDS), context.py, services
   cli/             typer entry point; commands/ holds one module per subcommand
   kubric_worker/   container entry point and tasks/ (Python 3.9)
-tests/             mirrors src/ (tests/<package>/), plus scripts/, contracts/, equivalence/, fixtures/
+tests/             mirrors src/ (tests/<package>/), plus scripts/, contracts/, docker/ (`-m docker`),
+                   equivalence/, fixtures/
 scripts/h200/      shell runners and small query scripts for the university H200 server
 tools/equivalence/ behaviour-equivalence harness (see its README)
 configs/           default.toml, local.example.toml, verifier/, datasets/, studies/
@@ -81,11 +83,13 @@ imports pydantic, typer or torch. `scripts/` may import `physverify.app` and bel
 
 ## How to add a plugin
 
-`app/plugins.py` discovers every kind through `core.registry.discover`: each public module (name
-not starting with `_`) of the package is imported and must define `PLUGINS`, a tuple of classes
-that satisfy the kind's protocol. Duplicate keys, a missing `PLUGINS` and protocol mismatches fail
-loudly. Modules load in file-name order and the registry keeps that order, which is the output
-order of reports and tables.
+`app/plugins.py` (`PLUGIN_KINDS`) discovers every class-based kind through
+`core.registry.discover`: each public module (name not starting with `_`) of the package is
+imported and must define `PLUGINS`, a tuple of classes that satisfy the kind's protocol. Container
+tasks are modules, discovered with `core.registry.discover_modules` (also in `app/plugins.py`), and
+CLI subcommands are discovered the same way by `cli/main.py`. Duplicate keys, a missing `PLUGINS`
+and protocol mismatches fail loudly. Modules load in file-name order and the registry keeps that
+order, which is the output order of reports and tables.
 
 | Kind | Add one file | Interface it implements | Registry key |
 |---|---|---|---|
@@ -113,9 +117,10 @@ adds its key there in the same commit.
 
 Notes:
 
-- Providers declare `stage`, `name`, `version`, `requires`, `heavy`, `error_profile_reads` and
-  `weights`; their cache key (`core.cache_keys.cache_key`) covers version, params, sampling,
-  upstream keys, ground-truth version and only the error-profile entries they declare.
+- Providers declare `stage`, `name`, `version`, `requires`, `heavy`, `is_ground_truth`,
+  `error_profile_reads`, `weights` and a pydantic `Params` model; their cache key
+  (`core.cache_keys.cache_key`) covers version, params, sampling, upstream keys, ground-truth
+  version and only the error-profile entries they declare.
 - Ground-truth resampling to a `FrameSampling` happens only in `datasets/_base.py`
   (`ArrayGroundTruthStore`); do not reimplement it.
 - A check's `Params` defaults can be overridden in a `[checks.<id>]` table of
@@ -153,28 +158,13 @@ a cleanup. `tests/contracts/` pins each one.
 
 ## How to run
 
-```sh
-uv sync                                   # default groups: dev, cpu (torch +cpu), perception, analysis, data
-uv sync --no-default-groups --group dev   # light environment: core + dev only
-uv run --no-sync physverify --help
-uv run --no-sync physverify doctor        # effective config, sources, device, lock, versions
-uv run --no-sync pytest                   # no network, GPU or Docker
-uv run --no-sync pytest -m docker         # Python 3.9 container boundary (needs the Kubric image)
-uv run --no-sync ruff check . && uv run --no-sync ruff format --check .
-uv run --no-sync ruff check --target-version py39 src/physverify/schema src/physverify/kubric_worker
-uv run --no-sync mypy
-```
+Installation, the usage commands, global options, configuration precedence, exit codes and the
+development commands (tests, ruff, mypy) are in `README.md`. Container code is also linted for
+Python 3.9:
 
-- Use `uv run --no-sync` so uv does not install the default groups behind your back; installs
-  are heavy jobs and run under the lock (`flock <lock> uv sync ...`).
-- `cpu` and `cu128` are conflicting groups with their own PyTorch indexes; `uv.lock` covers both.
-- Global options go before the subcommand: `--config-dir`, `--profile fast|precise`,
-  `--device cpu|cuda|cuda:N`, `--set section.key=value` (repeatable), `--no-lock`,
-  `--lock-timeout SECONDS`, `--log-level`.
-- Config precedence (lowest to highest): model defaults < `configs/**/*.toml` (except the root's
-  `local*.toml`) < `[<section>.profiles.<name>]` of the active profile < `configs/local.toml` <
-  `PHYSVERIFY__SECTION__KEY` < `--device` / `--profile` < `--set`.
-- Exit codes: 0 ok, 1 error, 2 usage / config / resource budget, 75 heavy lock busy.
+```sh
+uv run --no-sync ruff check --target-version py39 src/physverify/schema src/physverify/kubric_worker
+```
 
 ### Heavy jobs and the lock
 
