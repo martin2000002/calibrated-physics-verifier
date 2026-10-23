@@ -116,7 +116,7 @@ def collect_inputs(request: Request) -> Inputs:
     chain = ChainState.load(request.a8v2_dir)
     if request.h2_run is not None and chain.rehearsal:
         raise ResultsInputError(
-            f"--h2-run with the {chain.device} chain: H2 runs only on the CPU calibration"
+            f"--agreement-run with the {chain.device} chain: H2 runs only on the CPU calibration"
         )
     chain.require_steps(FIT_STEPS)
     evaluation, report = _evaluation(Path(chain.required(EVALUATION_KEY)))

@@ -175,7 +175,7 @@ def _no_primary_reason(inputs: Inputs) -> str:
     return (
         f"calib_primary missing: {inputs.h1.path} has no pooled tau_b of the H1 primary view "
         "(an evaluation before 1.4.0; rerun `calibrate evaluate --no-real` and pass "
-        "--h1-evaluation)"
+        "--calibration-evaluation)"
     )
 
 

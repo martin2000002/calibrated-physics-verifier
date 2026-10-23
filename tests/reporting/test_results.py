@@ -44,9 +44,9 @@ def chain(tmp_path: Path) -> Chain:
 
 
 def _run(cli: CliRunner, chain: Chain, *extra: str, h2: bool = True) -> tuple[int, str]:
-    args = ["--profile", "fast", "results", "--a8v2-dir", str(chain.dir), *extra]
+    args = ["--profile", "fast", "results", "--chain-dir", str(chain.dir), *extra]
     if h2:
-        args += ["--h2-run", str(chain.h2_run)]
+        args += ["--agreement-run", str(chain.h2_run)]
     result = cli(*args)
     return result.code, result.out + result.err
 
@@ -188,7 +188,7 @@ def test_a_1_3_0_evaluation_leaves_the_primary_tau_missing(
     for stratum in (*data["strata"], *data["h1_primary"]["strata"]):
         del stratum["monotonicity"]
     old = write_json(tmp_path / "old" / "evaluation.json", data)
-    results = _results(cli, chain, "--h1-evaluation", str(old))
+    results = _results(cli, chain, "--calibration-evaluation", str(old))
     section = results["sections"]["monotonicity"]
     assert "calib_primary missing" in section["caveat"]
     assert not any(".calib_primary." in key for key in section["values"])
@@ -201,7 +201,7 @@ def test_a_cuda_chain_is_a_rehearsal(cli: CliRunner, tmp_path: Path) -> None:
     assert data["reportable"] is False
     assert data["banner"] == "REHEARSAL (device cuda): not reportable"
     assert all(v["reportable"] is False for v in _values(data).values())
-    assert data["sections"]["agreement"]["missing"] == "no --h2-run given"
+    assert data["sections"]["agreement"]["missing"] == "no --agreement-run given"
     markdown = (chain.dir / "results" / "results.md").read_text()
     assert "**REHEARSAL (device cuda): not reportable**" in markdown
 
@@ -219,7 +219,7 @@ def test_the_abstention_run_option_replaces_the_log(cli: CliRunner, chain: Chain
         log.unlink()
     caveat = _results(cli, chain)["sections"]["abstention"]["caveat"]
     assert caveat.startswith("held-out curve missing: no `run:` line")
-    values = _results(cli, chain, "--abstention-run", str(chain.curve_run))
+    values = _results(cli, chain, "--selective-risk-run", str(chain.curve_run))
     assert "k_star_eval.calibrated" in values["sections"]["abstention"]["values"]
 
 
@@ -293,7 +293,9 @@ def test_an_h1_evaluation_of_another_artifact_is_refused(
     data = json.loads(chain.evaluation.read_text())
     data["artifact_sha256"] = "0" * 64
     other = write_json(tmp_path / "other" / "evaluation.json", data)
-    _refused(cli, chain, "evaluated artifact sha256 000000000000", "--h1-evaluation", str(other))
+    _refused(
+        cli, chain, "evaluated artifact sha256 000000000000", "--calibration-evaluation", str(other)
+    )
 
 
 def test_a_pooled_tau_that_differs_from_the_artifact_is_refused(
@@ -303,7 +305,7 @@ def test_a_pooled_tau_that_differs_from_the_artifact_is_refused(
     data = json.loads(chain.evaluation.read_text())
     data["strata"][0]["monotonicity"][0]["monotonicity"]["kendall_tau_b"] = 0.123
     changed = write_json(tmp_path / "changed" / "evaluation.json", data)
-    _refused(cli, chain, "differs from the artifact's", "--h1-evaluation", str(changed))
+    _refused(cli, chain, "differs from the artifact's", "--calibration-evaluation", str(changed))
 
 
 def test_an_abstention_of_another_table_is_refused(cli: CliRunner, chain: Chain) -> None:

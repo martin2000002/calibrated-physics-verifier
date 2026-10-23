@@ -106,7 +106,7 @@ def _held_out(doc: Doc, k_star: float | None) -> list[Value]:
 def _agreement_doc(inputs: Inputs, key: str) -> Doc | Section:
     doc = inputs.metrics
     if doc is None:
-        return Section(key, missing="no --h2-run given")
+        return Section(key, missing="no --agreement-run given")
     return doc
 
 
