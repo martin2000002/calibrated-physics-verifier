@@ -9,7 +9,10 @@ from typing import Any
 
 from physverify.app.context import AppContext
 from physverify.app.services import chain_runner, dataset_for, pipeline_deps
-from physverify.config.models import Settings
+from physverify.config.models import Settings, SizePriorTable
+from physverify.core.atomic import write_text_atomic
+from physverify.core.errors import MissingInputError
+from physverify.core.output import Echo
 from physverify.datasets._base import DatasetSource
 from physverify.datasets.local_video import NAME as LOCAL_VIDEO
 from physverify.diagnosis.chain_runner import ChainRunner
@@ -22,11 +25,82 @@ from physverify.schema.scale import ScaleEstimate
 from physverify.schema.stages import Stage
 from physverify.schema.states import ObjectStateTable
 from physverify.sizing import end_to_end, objectron
-from physverify.sizing.objectron_draws import EndToEndDraw
+from physverify.sizing.evaluate import MODEL, evaluate
+from physverify.sizing.fit import fit_model, fit_record, render_toml
+from physverify.sizing.model import SECTION as MODEL_SECTION
+from physverify.sizing.model import SizeModelTable
+from physverify.sizing.objectron_draws import (
+    TEST,
+    TRAIN,
+    EndToEndDraw,
+    load_samples,
+    objectron_dir,
+    selection,
+)
+from physverify.sizing.priors import SIZE_PRIORS_SECTION
 from physverify.sizing.settings import EndToEndSettings, sizing_settings
 from physverify.verification.inputs import refuse_heavy
 
 SCALE_METHODS = ("size_prior", "size_model")
+MODEL_FILE = "size_model.toml"
+
+
+def fetch_heads(settings: Settings, echo: Echo) -> None:
+    """Store the leading box bytes of every selected Objectron video, one line per split."""
+    sizing = sizing_settings(settings)
+    reader = objectron.UrllibPrefixReader()
+    plan = objectron.HeadFetch(
+        sizing.bucket_url, objectron_dir(settings) / "heads", sizing.head_bytes, sizing.retries
+    )
+    for split in objectron.SPLITS:
+        refs = selection(settings, sizing, split, reader)
+        stored = objectron.fetch_heads(reader, plan, refs, sizing.workers)
+        echo(f"{split}: {len(refs)} videos, {stored} new bytes stored")
+
+
+def fit_and_write(context: AppContext) -> tuple[SizeModelTable, Path, Path]:
+    """Fit the model on train and write it to the config directory; returns the model, its file
+    and the run directory holding ``fit.json``."""
+    settings = context.settings
+    sizing = sizing_settings(settings)
+    train = load_samples(settings, sizing, TRAIN, objectron.UrllibPrefixReader())
+    source = f"objectron train ({sizing.license}), {len(train)} objects, seed {sizing.seed}"
+    model = fit_model(
+        train,
+        folds=sizing.folds,
+        seed=sizing.seed,
+        coverage=sizing.coverage_target,
+        source=source,
+    )
+    target = settings.config_dir / MODEL_FILE
+    write_text_atomic(target, render_toml(model))
+    run_dir = new_run(context.settings, context.invocation.argv).run_dir
+    write_json(run_dir / "fit.json", fit_record(model, train, sizing))
+    return model, target, run_dir
+
+
+def evaluate_test_split(context: AppContext) -> tuple[dict[str, Any], Path]:
+    """Error on the official test split against B0 and B1; writes the run's ``eval.json``."""
+    settings = context.settings
+    sizing = sizing_settings(settings)
+    model = settings.section(MODEL_SECTION, SizeModelTable)
+    if not model.classes:
+        raise MissingInputError("configs/size_model.toml is empty; run `size fit` first")
+    test = load_samples(settings, sizing, TEST, objectron.UrllibPrefixReader())
+    priors = settings.section(SIZE_PRIORS_SECTION, SizePriorTable).root
+    report = evaluate(
+        test,
+        model,
+        priors[sizing.baseline_prior],
+        n_boot=sizing.bootstrap,
+        seed=sizing.seed,
+        ci=sizing.ci,
+    )
+    report["test_sigma_log"] = report["total"][MODEL]["rms_log"]
+    report["truth_limit"] = "box sizes come from ARKit; their own error is not documented"
+    run_dir = new_run(context.settings, context.invocation.argv).run_dir
+    write_json(run_dir / "eval.json", report)
+    return report, run_dir
 
 
 def e2e_frames_root(settings: Settings, plan: EndToEndSettings) -> Path:
