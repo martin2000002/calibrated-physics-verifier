@@ -63,9 +63,12 @@ lines of `diff.txt`) as a new file.
 - `wp9-c-help-text.diff`: help text (command docstrings and `help=` reach Typer's output) and the
   `configs/default.toml` header comment.
 
-A help line changed by more than one step belongs to the latest file only, and so does its hunk
-header; the older files keep the lines that step alone still explains. When a later step shifts
-the help page, the older files' hunk headers are renumbered in place.
+A hunk header lives in the file that holds the hunk's lines. A help line changed by more than one
+step belongs to the latest file only, so a hunk with such a line, header included, moves to that
+file (WP8's `1093c1073` is now `1093c1076` in `wp9-c-help-text.diff`). A hunk whose lines only
+one older step explains stays in the older file, and when a later step shifts the page only its
+header numbers change there (WP8's `175c175` became `175c176`). The harness compares the sorted
+lines of all the files together, so where a header sits does not change the check.
 
 ## Scenarios (each asserts its exit code and that it wrote files or printed output)
 
