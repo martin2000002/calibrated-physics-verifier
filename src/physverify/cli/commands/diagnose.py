@@ -48,8 +48,6 @@ from physverify.runtime.runs import RunContext, current_commit
 from physverify.schema.clip import ClipManifest
 
 NAME = "diagnose"
-OWNER = "A6"
-IMPLEMENTED = True
 EVENTS_FILE = "events.jsonl"
 ALL_DATASETS = "all"
 MAX_SUMMARY_LINES = 10

@@ -75,8 +75,6 @@ FamilyGap = Callable[[frozenset[str]], list[str]]
 RunPair = tuple[str, str]
 
 NAME = "exclusions"
-OWNER = "WP-J"
-IMPLEMENTED = True
 RUN_FILE = "run.json"
 
 app = typer.Typer(

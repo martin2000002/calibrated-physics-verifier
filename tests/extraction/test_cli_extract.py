@@ -47,11 +47,6 @@ def events_of(output: str) -> list[dict[str, Any]]:
     return [json.loads(line) for line in lines]
 
 
-def test_the_command_is_implemented() -> None:
-    assert extract.IMPLEMENTED
-    assert extract.OWNER == "A5"
-
-
 @pytest.mark.parametrize(
     ("argv", "message"),
     [

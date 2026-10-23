@@ -58,8 +58,6 @@ from physverify.verification.sweep import (
 )
 
 NAME = "verify"
-OWNER = "A7"
-IMPLEMENTED = True
 LEVELS = (InputLevel.ORACLE.value, InputLevel.PERCEIVED.value)
 
 app = typer.Typer(

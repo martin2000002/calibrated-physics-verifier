@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from functools import cached_property
 from pathlib import Path
 from types import MappingProxyType, ModuleType
-from typing import Any, NoReturn
+from typing import Any
 
 import typer
 from typer._click.globals import get_current_context
@@ -18,7 +18,7 @@ from typer._click.globals import get_current_context
 from physverify.checks._base import Check
 from physverify.config.loader import load_settings
 from physverify.config.models import Settings
-from physverify.core.errors import InvalidPluginError, NotImplementedCommandError, UsageError
+from physverify.core.errors import InvalidPluginError, UsageError
 from physverify.core.registry import Registry, discover, discover_modules
 from physverify.datasets._base import DatasetSource
 from physverify.diagnosis._base import StageMetric, metric_key
@@ -56,15 +56,12 @@ class Invocation:
 
 
 def check_command(module: ModuleType) -> None:
-    """A CLI plugin module defines NAME, OWNER, IMPLEMENTED and a typer ``app``."""
-    ok = (
-        isinstance(getattr(module, "NAME", None), str)
-        and isinstance(getattr(module, "OWNER", None), str)
-        and isinstance(getattr(module, "IMPLEMENTED", None), bool)
-        and isinstance(getattr(module, "app", None), typer.Typer)
+    """A CLI plugin module defines NAME and a typer ``app``."""
+    ok = isinstance(getattr(module, "NAME", None), str) and isinstance(
+        getattr(module, "app", None), typer.Typer
     )
     if not ok:
-        raise InvalidPluginError(f"{module.__name__}: needs NAME, OWNER, IMPLEMENTED and app")
+        raise InvalidPluginError(f"{module.__name__}: needs NAME and app")
 
 
 def command_name(module: ModuleType) -> str:
@@ -179,7 +176,3 @@ def heavy_command[**P, R](func: Callable[P, R]) -> Callable[P, R]:
             return func(*args, **kwargs)
 
     return wrapper
-
-
-def not_implemented(owner: str, command: str) -> NoReturn:
-    raise NotImplementedCommandError(f"{command}: not implemented (owned by cycle {owner})")

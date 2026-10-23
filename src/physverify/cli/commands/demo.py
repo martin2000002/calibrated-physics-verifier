@@ -43,8 +43,6 @@ from physverify.runtime.runs import current_commit
 from physverify.schema.io import stable_hash
 
 NAME = "demo"
-OWNER = "A12"
-IMPLEMENTED = True
 ADHOC_PREFIX: Final = "adhoc-"
 ADHOC_TAG: Final = "adhoc"
 ADHOC_FAMILY: Final = "adhoc"

@@ -8,8 +8,6 @@ from physverify.cli.context import app_context
 from physverify.core.video import check_frame_budget
 
 NAME = "budget"
-OWNER = "fixture"
-IMPLEMENTED = True
 
 app = typer.Typer(invoke_without_command=True, help="Over-budget fixture command.")
 

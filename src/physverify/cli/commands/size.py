@@ -44,8 +44,6 @@ from physverify.sizing.settings import EndToEndSettings, SizingSettings, sizing_
 from physverify.verification.inputs import refuse_heavy
 
 NAME = "size"
-OWNER = "A9"
-IMPLEMENTED = True
 MODEL_FILE = "size_model.toml"
 LOCAL_VIDEO = "local_video"
 SCALE_METHODS = ("size_prior", "size_model")

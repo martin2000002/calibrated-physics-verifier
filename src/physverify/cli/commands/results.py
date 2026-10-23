@@ -20,8 +20,6 @@ from physverify.verification.scope import SECTION as SCOPE_SECTION
 from physverify.verification.scope import CheckScope
 
 NAME = "results"
-OWNER = "WP-M"
-IMPLEMENTED = True
 DEFAULT_OUT = "results"
 
 app = typer.Typer(

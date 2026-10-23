@@ -88,8 +88,6 @@ from physverify.finetune.store import SELECTED_FILE, CampaignStore
 from physverify.runtime.runs import current_commit
 
 NAME = "h3"
-OWNER = "A13"
-IMPLEMENTED = True
 ARMS: Final = ("base", "ft")
 GATE_LINE: Final = "  gate: "
 GATE_PASSED: Final = "passed"

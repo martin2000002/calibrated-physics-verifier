@@ -89,11 +89,6 @@ def run_dir_of(output: str) -> Path:
     return Path(line.removeprefix("run: "))
 
 
-def test_both_commands_are_implemented_by_a6() -> None:
-    assert (diagnose.IMPLEMENTED, diagnose.OWNER) == (True, "A6")
-    assert (data.IMPLEMENTED, data.OWNER) == (True, "A6")
-
-
 def test_help_lists_every_subcommand(cli: CliRunner) -> None:
     result = cli("diagnose", "--help")
     assert result.code == 0

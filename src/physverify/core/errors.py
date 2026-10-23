@@ -5,7 +5,6 @@ from __future__ import annotations
 EXIT_OK = 0
 EXIT_ERROR = 1
 EXIT_USAGE = 2
-EXIT_NOT_IMPLEMENTED = 3
 EXIT_LOCK_BUSY = 75
 
 
@@ -27,10 +26,6 @@ class ResourceBudgetError(PhysverifyError):
     """A request would exceed a configured memory budget (for example max_frame_bytes)."""
 
     exit_code = EXIT_USAGE
-
-
-class NotImplementedCommandError(PhysverifyError):
-    exit_code = EXIT_NOT_IMPLEMENTED
 
 
 class LockBusyError(PhysverifyError):

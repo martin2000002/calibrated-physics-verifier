@@ -111,8 +111,6 @@ from physverify.verification.runner import (
 from physverify.verification.sweep import CheckUnit
 
 NAME = "calibrate"
-OWNER = "A8"
-IMPLEMENTED = True
 BOTH = "both"
 STAGE_SIGMA_FILE = "stage_sigma.json"
 EVALUATION_FILE = "evaluation.json"

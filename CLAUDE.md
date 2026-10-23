@@ -44,8 +44,7 @@ uv run --no-sync mypy
 - Config precedence (lowest to highest): model defaults < `configs/*.toml` (except `local*.toml`)
   < `[<section>.profiles.<name>]` of the active profile < `configs/local.toml` <
   `PHYSVERIFY__SECTION__KEY` < `--device` / `--profile` < `--set`.
-- Exit codes: 0 ok, 1 error, 2 usage / config / resource budget, 3 not implemented, 75 heavy lock
-  busy.
+- Exit codes: 0 ok, 1 error, 2 usage / config / resource budget, 75 heavy lock busy.
 
 ### Heavy jobs and the lock
 
@@ -73,7 +72,7 @@ protocol. Keys must be unique; duplicates, missing `PLUGINS` and protocol mismat
 | Verdict policy | `src/physverify/verification/policies/` | `VerdictPolicy` | `name` |
 | Timing target | `src/physverify/timing/targets/` | `TimingTarget` | `name` |
 | Container task | `src/physverify/kubric_worker/tasks/<task>.py` | module with `run(job: dict) -> None`; Python 3.9 syntax | module name |
-| CLI subcommand | `src/physverify/cli/commands/<name>.py` | module with `NAME`, `OWNER`, `IMPLEMENTED`, typer `app` | `NAME` |
+| CLI subcommand | `src/physverify/cli/commands/<name>.py` | module with `NAME` and a typer `app` | `NAME` |
 
 Notes:
 
@@ -82,8 +81,6 @@ Notes:
   keys, ground-truth version and only the error-profile entries they declare.
 - Ground-truth resampling to a `FrameSampling` happens only in `datasets/_base.py`
   (`ArrayGroundTruthStore`); do not reimplement it.
-- A stub subcommand keeps `IMPLEMENTED = False` and exits 3 naming its owner; the owner sets
-  `IMPLEMENTED = True` when replacing it.
 - Test against `tests/fixtures/synthetic_clip.py` (analytic clip implementing every dataset
   protocol) instead of real data.
 - Container code (`schema/**`, `kubric_worker/**`) must run on Python 3.9 and numpy 1.21:

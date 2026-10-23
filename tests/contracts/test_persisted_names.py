@@ -77,7 +77,6 @@ ERROR_CLASSES = frozenset(
         "MissingInputError",
         "MissingPluginsError",
         "MixedRowStepError",
-        "NotImplementedCommandError",
         "ObjectronError",
         "PerturbationNotApplicableError",
         "PhysverifyError",

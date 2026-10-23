@@ -21,8 +21,6 @@ if TYPE_CHECKING:
     from physverify.config.models import Settings
 
 NAME = "data"
-OWNER = "A6"
-IMPLEMENTED = True
 BYTES_PER_MB = 1_000_000
 
 app = typer.Typer(help="Download the real datasets (Physics-IQ, PISA).", no_args_is_help=True)

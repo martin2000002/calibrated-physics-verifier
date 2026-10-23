@@ -112,8 +112,6 @@ from physverify.timing.settings import load_timing
 from physverify.timing.stats import across_medians, stat_rows
 
 NAME = "finetune"
-OWNER = "A11"
-IMPLEMENTED = True
 DEFAULT_RUN: Final = "main"
 SIGMA_LEVELS: Final = (0.1, 0.25, 0.5, 0.75, 0.9)
 PILOT_PROMPTS: Final = 20

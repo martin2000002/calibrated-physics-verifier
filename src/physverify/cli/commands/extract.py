@@ -35,8 +35,6 @@ from physverify.schema.stages import STAGE_ORDER, parse_stages
 from physverify.synth.migrate import manifest_dataset, rerender_clip_ids
 
 NAME = "extract"
-OWNER = "A5"
-IMPLEMENTED = True
 EVENTS_FILE = "extraction.jsonl"
 BYTES_PER_MB = 1_000_000
 

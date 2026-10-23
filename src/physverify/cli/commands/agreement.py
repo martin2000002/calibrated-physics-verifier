@@ -46,8 +46,6 @@ from physverify.datasets.videophy import VideophyDataset
 from physverify.diagnosis.atomic_io import write_text_atomic
 
 NAME = "agreement"
-OWNER = "A10"
-IMPLEMENTED = True
 
 log = get_logger("cli.agreement")
 

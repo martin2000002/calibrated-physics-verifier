@@ -46,8 +46,6 @@ from physverify.synth.simulate import simulate as simulate_scenes
 from physverify.synth.store import ContainerRunner, DatasetStore, Step, atomic_write_json
 
 NAME = "dataset"
-OWNER = "A4"
-IMPLEMENTED = True
 
 Run = Callable[..., "subprocess.CompletedProcess[bytes]"]
 

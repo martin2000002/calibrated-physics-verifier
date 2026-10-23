@@ -78,8 +78,6 @@ from physverify.verification.selective_risk import (
 from physverify.verification.sweep import CheckUnit
 
 NAME = "abstain"
-OWNER = "A9"
-IMPLEMENTED = True
 DEFAULT_K = 2.0
 _NAMES = {ABSTAINED: "abstain", PASSED: "PASS", FAILED: "FAIL"}
 

@@ -69,8 +69,6 @@ from physverify.timing.settings import (
 from physverify.timing.stats import stat_rows
 
 NAME = "timing"
-OWNER = "A3"
-IMPLEMENTED = True
 RUN_FILE = "run.json"
 NESTED_LOCK = "held by timing run"
 FAILING = frozenset({TargetStatus.FAILED, TargetStatus.PARTIAL})

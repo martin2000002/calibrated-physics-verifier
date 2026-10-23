@@ -17,8 +17,6 @@ from physverify.runtime.docker import PREFLIGHT_IMPORTS
 from physverify.runtime.heavy import describe_holder, lock_holder_pids
 
 NAME = "doctor"
-OWNER = "scaffold"
-IMPLEMENTED = True
 OPTIONAL_PACKAGES = ("numpy", "torch", "transformers")
 
 app = typer.Typer(

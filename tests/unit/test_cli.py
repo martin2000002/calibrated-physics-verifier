@@ -11,16 +11,7 @@ from physverify.cli.context import COMMANDS_PACKAGE, check_command, command_name
 from physverify.cli.main import build_app
 from physverify.core.registry import discover_modules
 
-OWNERS = {
-    "doctor": "scaffold",
-    "dataset": "A4",
-    "extract": "A5",
-    "verify": "A7",
-    "diagnose": "A6",
-    "data": "A6",
-    "timing": "A3",
-}
-EXPECTED = set(OWNERS)
+EXPECTED = {"doctor", "dataset", "extract", "verify", "diagnose", "data", "timing"}
 COMMANDS = discover_modules(COMMANDS_PACKAGE, check_command, command_name)
 
 
@@ -33,7 +24,6 @@ def _leaves(module: ModuleType) -> list[tuple[str, ...]]:
 
 
 LEAVES = [(module, leaf) for module in COMMANDS.values() for leaf in _leaves(module)]
-STUBS = [(module, leaf) for module, leaf in LEAVES if not module.IMPLEMENTED]
 
 
 def test_root_lists_the_scaffold_subcommands(cli: CliRunner) -> None:
@@ -44,13 +34,6 @@ def test_root_lists_the_scaffold_subcommands(cli: CliRunner) -> None:
     assert all(name in result.out for name in EXPECTED)
 
 
-def test_every_command_module_declares_owner_and_state() -> None:
-    owners = {name: module.OWNER for name, module in COMMANDS.items()}
-    assert owners.items() >= OWNERS.items()
-    assert all(isinstance(module.IMPLEMENTED, bool) for module in COMMANDS.values())
-    assert COMMANDS["doctor"].IMPLEMENTED
-
-
 @pytest.mark.parametrize(
     "leaf", sorted({leaf for _, leaf in LEAVES} | {(name,) for name in EXPECTED}), ids=" ".join
 )
@@ -58,16 +41,6 @@ def test_help_exits_zero(cli: CliRunner, leaf: tuple[str, ...]) -> None:
     result = cli(*leaf, "--help")
     assert result.code == 0, result.err
     assert "Usage" in result.out
-
-
-@pytest.mark.parametrize(("module", "leaf"), STUBS, ids=[" ".join(leaf) for _, leaf in STUBS])
-def test_stub_exits_3_and_names_its_owner(
-    cli: CliRunner, module: ModuleType, leaf: tuple[str, ...]
-) -> None:
-    result = cli(*leaf)
-    assert result.code == 3
-    assert f"owned by cycle {module.OWNER}" in result.err
-    assert " ".join(leaf) in result.err
 
 
 def test_expected_subcommands_exist() -> None:

@@ -22,8 +22,6 @@ from physverify.diagnosis.chain import ChainRunner
 from physverify.diagnosis.settings import diagnosis_settings
 
 NAME = "scene-stats"
-OWNER = "P1"
-IMPLEMENTED = True
 STAGES = ("detect", "depth")
 
 app = typer.Typer(

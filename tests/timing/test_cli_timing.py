@@ -92,9 +92,7 @@ def run_dir_of(output: str) -> Path:
     return Path(line.removeprefix("run: "))
 
 
-def test_the_command_is_implemented(timing_cli: TimingCli) -> None:
-    assert timing.IMPLEMENTED
-    assert timing.OWNER == "A3"
+def test_the_command_has_help(timing_cli: TimingCli) -> None:
     result = timing_cli("timing", "--help")
     assert result.code == 0
     for command in ("list", "env", "fetch", "run", "summarize", "budget"):

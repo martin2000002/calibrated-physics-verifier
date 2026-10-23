@@ -1,6 +1,6 @@
 """Root CLI: global options, plugin subcommands discovered from ``cli/commands/``.
 
-Exit codes: 0 ok, 1 error, 2 usage/budget/config, 3 not implemented, 75 heavy lock busy.
+Exit codes: 0 ok, 1 error, 2 usage/budget/config, 75 heavy lock busy.
 """
 
 from __future__ import annotations

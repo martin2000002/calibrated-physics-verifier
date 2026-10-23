@@ -13,7 +13,6 @@ from cli_runner import CliResult, CliRunner
 from synthetic_clip import SyntheticFixtureDataset
 
 from physverify.cli import context
-from physverify.cli.commands import verify
 from physverify.runtime.heavy import holder_path
 from physverify.verification.runner import CHECKS_FILE, TABLE_FILE, RowStatus
 
@@ -40,10 +39,6 @@ def run_dir(result: CliResult) -> Path:
 def table(result: CliResult) -> list[dict[str, str]]:
     with (run_dir(result) / TABLE_FILE).open(encoding="utf-8") as handle:
         return list(csv.DictReader(handle))
-
-
-def test_the_command_is_implemented() -> None:
-    assert verify.IMPLEMENTED
 
 
 def test_the_oracle_run_exits_zero_and_writes_the_run(cli: CliRunner, lock_path: Path) -> None:

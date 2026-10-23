@@ -71,8 +71,8 @@ def _run(  # type: ignore[no-untyped-def]
     return folder
 
 
-def test_the_command_is_registered_and_implemented() -> None:
-    assert exclusions.NAME == "exclusions" and exclusions.IMPLEMENTED
+def test_the_command_is_registered() -> None:
+    assert exclusions.NAME == "exclusions"
 
 
 def test_r2_clips_are_the_clean_and_r2_clips_of_the_family() -> None:

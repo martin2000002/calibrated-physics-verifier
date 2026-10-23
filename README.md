@@ -81,8 +81,7 @@ Global options go before the subcommand. Configuration is layered: model default
 variables, `--device` / `--profile`, then `--set`. `doctor` prints every effective value with its
 source.
 
-Exit codes: 0 ok, 1 error, 2 usage, configuration or resource budget, 3 not implemented, 75 heavy
-lock busy.
+Exit codes: 0 ok, 1 error, 2 usage, configuration or resource budget, 75 heavy lock busy.
 
 ## Development
 

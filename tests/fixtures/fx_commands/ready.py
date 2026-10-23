@@ -5,8 +5,6 @@ from __future__ import annotations
 import typer
 
 NAME = "ready"
-OWNER = "fixture"
-IMPLEMENTED = True
 
 app = typer.Typer(help="Implemented fixture command.", no_args_is_help=True)
 
