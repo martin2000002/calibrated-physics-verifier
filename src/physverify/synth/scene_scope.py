@@ -13,6 +13,7 @@ from pydantic import field_validator
 from physverify.config.models import Settings
 from physverify.core.errors import ConfigError
 from physverify.core.models import FrozenModel
+from physverify.schema.clip import ClipManifest
 
 SECTION = "h1_scope"
 _SPEC = re.compile(r"^s(\d+)(?:-s(\d+))?$")
@@ -76,3 +77,7 @@ def in_scope(scene_id: str, indices: frozenset[int]) -> bool:
 
 def h1_scope(settings: Settings) -> SceneScope:
     return settings.section(SECTION, SceneScope)
+
+
+def scene_of(clip: ClipManifest) -> str:
+    return clip.scene_id or clip.clip_id

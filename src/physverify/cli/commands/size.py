@@ -18,8 +18,7 @@ from typing import Annotated, Any
 import typer
 
 from physverify.app.context import AppContext
-from physverify.app.services import chain_runner, pipeline_deps, resolve_dataset
-from physverify.cli.commands._runs import write_json
+from physverify.app.services import chain_runner, dataset_for, pipeline_deps
 from physverify.cli.context import app_context
 from physverify.config.models import Settings, SizePriorTable
 from physverify.core.atomic import write_text_atomic
@@ -32,7 +31,7 @@ from physverify.diagnosis.chain_runner import ChainRunner
 from physverify.diagnosis.chain_variants import Variant
 from physverify.diagnosis.measurement_cases import stage_output
 from physverify.extraction.providers.scale_size_prior import SIZE_PRIORS_SECTION
-from physverify.runtime.runs import new_run
+from physverify.runtime.runs import new_run, write_json
 from physverify.schema.clip import ClipManifest
 from physverify.schema.perception import MaskTrack
 from physverify.schema.scale import ScaleEstimate
@@ -259,7 +258,7 @@ def e2e_eval() -> None:
     context = app_context()
     settings = context.settings
     sizing = sizing_settings(settings)
-    source = resolve_dataset(context, LOCAL_VIDEO)
+    source = dataset_for(context, LOCAL_VIDEO)
     chain = _e2e_chain(context, source)
     rows: list[end_to_end.ScaleRow] = []
     per_clip: list[dict[str, Any]] = []

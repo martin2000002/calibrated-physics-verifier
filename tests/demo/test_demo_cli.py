@@ -195,7 +195,7 @@ def test_scenes_never_fall_back_from_the_frozen_rule(
     monkeypatch.setattr(f"{COMMANDS}.load_prereg", lambda path: frozen)
     if available:
         monkeypatch.setattr(
-            f"{COMMANDS}.context_scorer",
+            f"{COMMANDS}.scorer_for",
             lambda context, name: ProvisionalScorer(context.settings, {}),
         )
     before = sorted((tmp_path / "data").rglob("*"))

@@ -70,7 +70,7 @@ def calls(monkeypatch: pytest.MonkeyPatch) -> list[int]:
     monkeypatch.setattr(plugins, "PLUGIN_KINDS", MappingProxyType(patched))
     found: list[int] = []
     monkeypatch.setattr(calibrate, "_raw_runner", lambda session: _CalibRunner(found))
-    monkeypatch.setattr(calibrate, "_source", lambda session, dataset, level: None)
+    monkeypatch.setattr(calibrate, "_input_source", lambda session, dataset, level: None)
     return found
 
 

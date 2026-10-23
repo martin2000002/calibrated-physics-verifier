@@ -33,7 +33,6 @@ from physverify.calibration.evaluate import (
 )
 from physverify.calibration.fit import FitInputs, fit_calibration
 from physverify.calibration.sigma_recalibration import SigmaPair
-from physverify.cli.commands._runs import write_json as write_abstain_json
 from physverify.cli.commands.abstain import (
     Collected,
     CurveParts,
@@ -57,6 +56,7 @@ from physverify.human_agreement.report import REPORT_DIR, write_comparison
 from physverify.human_agreement.settings import AgreementSettings
 from physverify.human_agreement.undecided_policy import AS_PLAUSIBLE
 from physverify.human_agreement.verify_run_reader import VerifyRun
+from physverify.runtime.runs import write_json as write_abstain_json
 from physverify.schema.checks import CheckResult, InputLevel, Verdict
 from physverify.schema.clip import Split
 from physverify.schema.io import json_ready

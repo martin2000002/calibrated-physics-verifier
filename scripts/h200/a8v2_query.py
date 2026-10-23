@@ -117,13 +117,15 @@ def _settings(overrides: Sequence[str], profile: str = PROFILE) -> Any:
     )
 
 
-def _source(settings: Any, dataset: str) -> Source:
+def _dataset(settings: Any, dataset: str) -> Source:
     from physverify.app import plugins
+    from physverify.core.errors import UsageError
+    from physverify.datasets._base import dataset_from
 
-    registry = plugins.build("datasets")
-    if dataset not in registry:
-        raise QueryError(f"unknown dataset {dataset!r}; known: {sorted(registry)}")
-    source: Source = registry[dataset](settings)
+    try:
+        source: Source = dataset_from(plugins.build("datasets"), dataset, settings)
+    except UsageError as exc:
+        raise QueryError(str(exc)) from exc
     return source
 
 
@@ -152,7 +154,7 @@ def _parser() -> argparse.ArgumentParser:
 def _lines(args: argparse.Namespace) -> list[str]:
     commands: dict[str, Callable[[], list[str]]] = {
         "clips": lambda: clip_ids(
-            _source(_settings(args.overrides, args.profile), args.dataset), args.subset, args.split
+            _dataset(_settings(args.overrides, args.profile), args.dataset), args.subset, args.split
         ),
         "evaluation": lambda: evaluation_lines(args.path, _allowed_sets(_settings(args.overrides))),
         "run-errors": lambda: run_errors(args.run_dir),

@@ -17,7 +17,7 @@ from typing import Annotated, Final
 import typer
 
 from physverify.app.context import AppContext
-from physverify.app.services import context_checks_hash, context_scorer, external_judge
+from physverify.app.services import checks_hash_for, external_judge, scorer_for
 from physverify.calibration.artifact_io import default_artifact_path
 from physverify.cli.commands._common import choice
 from physverify.cli.commands._finetune_deps import (
@@ -151,7 +151,7 @@ def _arm(h: H3Context, arm: str) -> tuple[str, Path | None]:
 
 
 def _scorer(h: H3Context) -> AggregateScorer:
-    return context_scorer(h.context, h.finetune.scorer)
+    return scorer_for(h.context, h.finetune.scorer)
 
 
 def _active_scorer(h: H3Context) -> AggregateScorer:
@@ -337,7 +337,7 @@ def score(arm: ArmOption = "base", shard: ShardOption = None) -> None:
     deps = scoring_deps(h.context)
     score_candidates(h.store, tag, prompts, scorer, deps, parse_shard(shard))
     write_calibration_status(h.store, tag, scorer)
-    record = manifest(h.store, tag, scorer, context_checks_hash(h.context), sha256)
+    record = manifest(h.store, tag, scorer, checks_hash_for(h.context), sha256)
     write_record(h.layout.scoring(tag, scorer.name), record)
     typer.echo(f"{tag}/{scorer.name}: {record.n} eval scores under {record.stamp}")
 
@@ -350,7 +350,7 @@ def rescore_command() -> None:
     problem = frozen_stamp_problem(scorer, prereg)
     if problem is not None:
         raise UsageError(problem)
-    active = context_checks_hash(h.context)
+    active = checks_hash_for(h.context)
     for tag in _tags(prereg):
         path = h.layout.scoring(tag, scorer.name)
         if not path.is_file():

@@ -19,7 +19,7 @@ from typing import Any, ClassVar, Final, Protocol
 
 from physverify.checks._base import Check, CheckInputs
 from physverify.config.models import Settings
-from physverify.datasets._base import DatasetSource
+from physverify.datasets._base import DatasetSource, dataset_from
 from physverify.extraction._base import StageObserver
 from physverify.extraction.pipeline import ExtractionPipeline, PipelineDeps
 from physverify.extraction.plan import ResolvedPlan
@@ -35,7 +35,7 @@ from physverify.timing.records import (
     TimingError,
     measure_name,
 )
-from physverify.timing.target_services import TimingServices, dataset_source
+from physverify.timing.target_services import TimingServices
 from physverify.timing.targets.extract_pipeline import (
     PipelineFactory,
     PlanFactory,
@@ -187,7 +187,7 @@ class VerifyChecks(TargetHooks):
 
     def run(self, clip: ClipManifest, ctx: TimingContext) -> Mapping[str, float]:
         verifier = self._verifier = self._verifier or self._build(ctx)
-        source = self._source(verifier, clip, ctx)
+        source = self._input_source(verifier, clip, ctx)
         clock, cpu_clock = self._services.clock, self._services.cpu_clock
         started, cpu_started = clock(), cpu_clock()
         loaded = tuple(source.load([clip]))
@@ -210,8 +210,10 @@ class VerifyChecks(TargetHooks):
         self._check_ids = tuple(type(check).check_id for check in verifier.checks)
         return verifier
 
-    def _source(self, verifier: Verifier, clip: ClipManifest, ctx: TimingContext) -> InputSource:
-        dataset = dataset_source(self._services, ctx.settings, clip.dataset)
+    def _input_source(
+        self, verifier: Verifier, clip: ClipManifest, ctx: TimingContext
+    ) -> InputSource:
+        dataset = dataset_from(self._services.datasets, clip.dataset, ctx.settings)
         plan = self._plan_factory(ctx.settings, self._services, clip.dataset)
         deps = self._deps(ctx, None)
         return verifier.source(dataset, plan, deps)
@@ -225,7 +227,7 @@ class VerifyChecks(TargetHooks):
         for dataset_name in dict.fromkeys(clip.dataset for clip in clips):
             group = [clip for clip in clips if clip.dataset == dataset_name]
             plan = self._plan_factory(ctx.settings, self._services, dataset_name)
-            dataset = dataset_source(self._services, ctx.settings, dataset_name)
+            dataset = dataset_from(self._services.datasets, dataset_name, ctx.settings)
             pipeline = self._pipeline_factory(plan, self._deps(ctx, ctx.observer))
             report = pipeline.run(dataset, group)
             failures += [f"{f.clip_id} {f.stage.value}: {f.error}" for f in report.failures]

@@ -16,12 +16,14 @@ from typing import Annotated
 import typer
 
 from physverify.app.context import AppContext
+from physverify.app.diagnosis import diagnosis_context
+from physverify.app.sealing import Selection, guard_sealed
 from physverify.app.services import (
     chain_runner,
-    context_checks_hash,
+    checks_hash_for,
+    dataset_for,
     pipeline_deps,
     plan_for,
-    resolve_dataset,
 )
 from physverify.calibration.artifact import DatasetRef, StageFactor, StageSigma
 from physverify.calibration.artifact_io import (
@@ -75,10 +77,7 @@ from physverify.calibration.sigma_recalibration import (
     recalibrate_profile,
     stage_factors,
 )
-from physverify.calibration.table import scene_of
-from physverify.cli.commands._sealed import Selection, guard_sealed
-from physverify.cli.commands.extract import ConsoleObserver, EventRecorder
-from physverify.cli.context import app_context
+from physverify.cli.context import app_context, echo_err
 from physverify.core.atomic import write_text_atomic
 from physverify.core.errors import MissingInputError, PhysverifyError, UsageError
 from physverify.core.markdown import number
@@ -92,12 +91,13 @@ from physverify.diagnosis.report import dataset_versions, profile_hash
 from physverify.diagnosis.settings import diagnosis_settings
 from physverify.diagnosis.stage_errors import measure, pair_variants, stage_pairs
 from physverify.extraction.error_profile import load_error_profile
+from physverify.extraction.events import ConsoleObserver, EventRecorder
 from physverify.runtime.runs import RunContext, new_run
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import ClipManifest, Split
 from physverify.schema.error_profile import ErrorProfile
 from physverify.schema.io import stable_hash
-from physverify.synth.scene_scope import SceneScope, h1_scope, in_scope
+from physverify.synth.scene_scope import SceneScope, h1_scope, in_scope, scene_of
 from physverify.verification.check_set import CHECKS_SECTION, ChecksSettings, build_checks
 from physverify.verification.inputs import (
     InputSource,
@@ -163,7 +163,7 @@ def _check_units(session: Session) -> tuple[CheckUnit, ...]:
     return tuple(CheckUnit.of(registry[c]) for c in sorted(registry))
 
 
-def _source(session: Session, dataset: DatasetSource, level: InputLevel) -> InputSource:
+def _input_source(session: Session, dataset: DatasetSource, level: InputLevel) -> InputSource:
     if level is InputLevel.ORACLE:
         return OracleSource(dataset)
     context = session.context
@@ -222,7 +222,7 @@ def _artifact(session: Session, artifact: Path | None, *, stale_check: bool = Tr
     if not path.is_file():
         raise UsageError(f"no calibration artifact at {path}: run `physverify calibrate fit`")
     return load_calibration(
-        path, checks_hash=context_checks_hash(session.context) if stale_check else None
+        path, checks_hash=checks_hash_for(session.context) if stale_check else None
     )
 
 
@@ -236,6 +236,7 @@ def _guard(
         session.context,
         f"{NAME} {leaf}",
         selections,
+        err=echo_err,
         artifacts=artifacts,
         run_dir=session.run.run_dir,
     )
@@ -263,7 +264,7 @@ def _live_reports(
 ) -> Reports:
     runner = _raw_runner(session)
     wanted = set(levels) | ({InputLevel.ORACLE} if InputLevel.PERCEIVED in levels else set())
-    reports = {lv: runner.run(_source(session, dataset, lv), clips) for lv in sorted(wanted)}
+    reports = {lv: runner.run(_input_source(session, dataset, lv), clips) for lv in sorted(wanted)}
     return Reports(reports, tuple(clips))
 
 
@@ -337,7 +338,7 @@ def _fit_meta(
         run_id=session.run.run_id,
         commit=session.run.commit,
         config_hash=settings.config_hash(),
-        checks_hash=context_checks_hash(session.context),
+        checks_hash=checks_hash_for(session.context),
         error_profile_hash=profile_hash(load_error_profile(settings.paths.error_profile)),
         profile=settings.profile,
         dataset=_dataset_ref(dataset, subset, Split.CALIB.value, clips),
@@ -357,7 +358,7 @@ def fit(
 ) -> None:
     session = _session()
     cal = session.config.calibration
-    source = resolve_dataset(session.context, dataset or cal.dataset)
+    source = dataset_for(session.context, dataset or cal.dataset)
     name = subset or cal.subset
     levels: tuple[InputLevel, ...]
     if from_run:
@@ -420,7 +421,7 @@ def devscore(
     session = _session()
     cal = session.config.calibration
     require_bootstrap(cal)
-    source = resolve_dataset(session.context, dataset or cal.dataset)
+    source = dataset_for(session.context, dataset or cal.dataset)
     name = subset or cal.subset
     levels = _levels(level, session)
     chosen = _fit_clips(source, name, clips or ())
@@ -486,8 +487,6 @@ def _level_lines(level: LevelDevScore) -> list[str]:
 def stage_sigma(
     dataset: DatasetOption = None, subset: SubsetOption = None, clips: ClipsOption = None
 ) -> None:
-    from physverify.cli.commands.diagnose import diagnosis_context
-
     session = _session()
     cal = session.config.calibration
     recorder = EventRecorder(ConsoleObserver(typer.echo))
@@ -561,7 +560,7 @@ def evaluate_command(
     session = _session()
     calibration = _artifact(session, artifact)
     cal = session.config.calibration
-    source = resolve_dataset(session.context, dataset or cal.dataset)
+    source = dataset_for(session.context, dataset or cal.dataset)
     name = subset or cal.subset
     chosen = select_clips(source.clips(name), clips or ())
     levels = sorted({lv for lv, _ in calibration.strata()})
@@ -608,7 +607,7 @@ def _primary_scope(
 def _eval_data(
     session: Session, source: DatasetSource, clips: Sequence[ClipManifest], level: InputLevel
 ) -> LevelData:
-    report = _raw_runner(session).run(_source(session, source, level), clips)
+    report = _raw_runner(session).run(_input_source(session, source, level), clips)
     return level_data(level, report, _check_units(session), session.config, split=None, pairs=None)
 
 
@@ -622,7 +621,7 @@ def _real_sources(session: Session, named: Sequence[str] | None = None) -> RealS
     found: RealSources = {}
     for name in dict.fromkeys(named or session.config.calibration.real_datasets):
         try:
-            source = resolve_dataset(session.context, name)
+            source = dataset_for(session.context, name)
             found[name] = (source, tuple(source.clips(subset)))
         except PhysverifyError as exc:
             if named:
@@ -678,7 +677,7 @@ def _publishable(
             path,
             level,
             name,
-            checks_hash=context_checks_hash(session.context),
+            checks_hash=checks_hash_for(session.context),
             row_step=UNKNOWN_ROW_STEP,
             require_calibrated=session.config.calibration.require_calibrated_artifact,
         )

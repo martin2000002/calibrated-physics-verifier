@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 import gc
-import resource
 import time
 from collections.abc import Callable, Mapping, Sequence
 from contextlib import AbstractContextManager
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Final, Protocol
+from typing import Final
 
 from physverify.config.models import PathsSettings
 from physverify.core.cache_keys import error_profile_hash, sampling_hash, upstream_keys
@@ -25,6 +24,8 @@ from physverify.extraction.cache import (
     stage_key,
     step_params_hash,
 )
+from physverify.extraction.error_profile import load_error_profile
+from physverify.extraction.pipeline_resources import LazyLock, RssProbe
 from physverify.extraction.plan import ResolvedPlan, StagePlan
 from physverify.extraction.weights import missing_weights
 from physverify.schema.clip import ClipManifest, FrameSampling, resolve_sampling
@@ -40,80 +41,8 @@ PENDING_SOURCE_KEY: Final = "pending"
 
 DOMAIN_ERRORS: Final = (MissingInputError, ResourceBudgetError, SchemaError, ValueError)
 LIGHT_DEVICE: Final = "cpu"
-KIB_PER_MIB: Final = 1024.0
 
 log = get_logger("extraction.pipeline")
-
-
-class LazyLock:
-    """Enters the heavy lock on the first ``ensure()``; a fully cached run never builds it."""
-
-    def __init__(self, factory: Callable[[], AbstractContextManager[object]]) -> None:
-        self._factory = factory
-        self._held: AbstractContextManager[object] | None = None
-        self._acquisitions = 0
-
-    def ensure(self) -> None:
-        if self._held is not None:
-            return
-        manager = self._factory()
-        manager.__enter__()
-        self._held = manager
-        self._acquisitions += 1
-
-    def release(self) -> None:
-        held, self._held = self._held, None
-        if held is not None:
-            held.__exit__(None, None, None)
-
-    @property
-    def acquisitions(self) -> int:
-        return self._acquisitions
-
-    @property
-    def held(self) -> bool:
-        return self._held is not None
-
-
-class RssProbe(Protocol):
-    def reset(self) -> None: ...
-
-    def peak_mb(self) -> float: ...
-
-
-class ProcRssProbe:
-    """Per-stage peak RSS from ``VmHWM`` after resetting it through ``clear_refs``.
-
-    ``exact`` turns False when the reset or the read fails; the fallback ``ru_maxrss`` is the
-    process-lifetime peak, an upper bound of the stage peak."""
-
-    def __init__(self, proc: Path = Path("/proc/self")) -> None:
-        self._proc = proc
-        self.exact = True
-
-    def reset(self) -> None:
-        try:
-            (self._proc / "clear_refs").write_text("5", encoding="ascii")
-        except OSError:
-            self.exact = False
-
-    def peak_mb(self) -> float:
-        if self.exact:
-            hwm_kb = self._vm_hwm_kb()
-            if hwm_kb is not None:
-                return hwm_kb / KIB_PER_MIB
-            self.exact = False
-        return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / KIB_PER_MIB
-
-    def _vm_hwm_kb(self) -> float | None:
-        try:
-            lines = (self._proc / "status").read_text(encoding="ascii").splitlines()
-        except OSError:
-            return None
-        for line in lines:
-            if line.startswith("VmHWM:"):
-                return float(line.split()[1])
-        return None
 
 
 @dataclass(frozen=True)
@@ -141,6 +70,31 @@ class PipelineDeps:
     observer: StageObserver | None
     rss: RssProbe
     clock: Callable[[], float] = time.perf_counter
+
+    @classmethod
+    def build(
+        cls,
+        paths: PathsSettings,
+        cache_root: Path,
+        lock: Callable[[], AbstractContextManager[object]],
+        *,
+        device: str,
+        threads: int,
+        observer: StageObserver | None,
+        rss: RssProbe,
+    ) -> PipelineDeps:
+        """Deps over the stage cache at ``cache_root``, the lazily entered ``lock`` and the error
+        profile at ``paths.error_profile``, loaded when the file exists."""
+        return cls(
+            cache=StageCache(cache_root),
+            lock=LazyLock(lock),
+            paths=paths,
+            device=device,
+            threads=threads,
+            error_profile=load_error_profile(paths.error_profile),
+            observer=observer,
+            rss=rss,
+        )
 
 
 @dataclass
