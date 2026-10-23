@@ -25,6 +25,7 @@ import numpy as np
 from physverify.finetune.dpo import (
     DpoStats,
     ShiftedFlowNoise,
+    _torch,
     flow_dpo_loss,
     noised,
     per_sample_error,
@@ -39,10 +40,6 @@ STATE_FILE: Final = "trainer.pt"
 METRICS_FILE: Final = "metrics.csv"
 VAL_FILE: Final = "val.csv"
 VAL_KEY_OFFSET: Final = 1 << 40
-
-
-def _torch() -> Any:
-    return importlib.import_module("torch")
 
 
 class AdapterModel(Protocol):
