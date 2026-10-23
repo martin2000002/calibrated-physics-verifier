@@ -111,7 +111,7 @@ def test_lines_append_and_read_back(tmp_path: Path) -> None:
 
 
 def test_a_missing_ledger_is_never_created(tmp_path: Path) -> None:
-    """Audit M2: a wrong HOME or path fails closed instead of starting an empty ledger."""
+    """A wrong HOME or path fails closed instead of starting an empty ledger."""
     absent = tmp_path / "deep" / "ledger.txt"
     with pytest.raises(LedgerError, match="created once by hand"):
         read_entries(absent)
@@ -160,7 +160,6 @@ def test_the_freeze_moves_with_each_part() -> None:
 
 
 def test_a_missing_sealed_section_fails_closed(config_dir: Path, environ: dict[str, str]) -> None:
-    """Audit M3."""
     (config_dir / "verifier" / "sealed.toml").unlink()
     with pytest.raises(ConfigError, match=r"no \[sealed\] section"):
         sealed_settings(load_settings(config_dir, environ=environ))
@@ -172,7 +171,6 @@ def test_a_missing_sealed_section_fails_closed(config_dir: Path, environ: dict[s
 def test_the_look_hash_ignores_paths_and_threads_not_sections(
     config_dir: Path, environ: dict[str, str]
 ) -> None:
-    """Audit m1."""
     base = look_config_hash(load_settings(config_dir, environ=environ))
     for same in ("runtime.threads=3", "paths.runs_dir=/elsewhere"):
         moved = load_settings(config_dir, environ=environ, overrides=(same,))
@@ -183,7 +181,6 @@ def test_the_look_hash_ignores_paths_and_threads_not_sections(
 
 
 def test_a_look_needs_a_clean_checkout() -> None:
-    """Audit m2."""
     require_clean("abc1234", "")
     with pytest.raises(SealedSetError, match="uncommitted"):
         require_clean("abc1234", " M configs/verifier/checks.toml\n")

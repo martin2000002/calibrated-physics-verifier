@@ -239,7 +239,7 @@ def test_no_ok_check_with_weight_is_unusable(tmp_path: Path) -> None:
 
 
 def test_require_calibrated_turns_an_insufficient_artifact_unusable(tmp_path: Path) -> None:
-    """Judge change 4: the artifact status is a state of the fit, not a configuration error."""
+    """The artifact status is a state of the fit, not a configuration error."""
     path = write_artifact(tmp_path / "c.json", status="insufficient")
     assert opened(path) is not None
     with pytest.raises(UnusableStratumError, match="not 'calibrated'"):

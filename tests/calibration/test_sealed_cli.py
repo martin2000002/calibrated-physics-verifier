@@ -289,7 +289,7 @@ def test_an_unwritable_ledger_stops_before_computing(
 def test_a_missing_ledger_fails_closed_and_is_not_created(
     evaluate_cli: Callable[..., CliResult], tmp_path: Path, reached: list[int]
 ) -> None:
-    """Audit M2: a wrong path (or HOME) never starts an empty ledger."""
+    """A wrong path (or HOME) never starts an empty ledger."""
     absent = tmp_path / "elsewhere" / "sealed-ledger.txt"
     result = evaluate_cli(options=("--set", f"sealed.ledger={absent}"), env=UNSEAL)
     assert result.code == 1 and f"touch {absent}" in result.err
@@ -300,7 +300,7 @@ def test_a_missing_ledger_fails_closed_and_is_not_created(
 def test_another_artifact_at_the_same_commit_is_another_freeze(
     evaluate_cli: Callable[..., CliResult], ledger: Path, tmp_path: Path, reached: list[int]
 ) -> None:
-    """Audit M1: a refit (another --artifact) needs the repeat variable."""
+    """A refit (another --artifact) needs the repeat variable."""
     assert evaluate_cli(env=UNSEAL).code == 0
     refit = tmp_path / "refit" / "calibration.json"
     refit.parent.mkdir()
@@ -410,7 +410,7 @@ def test_without_the_sealed_section_every_guarded_command_fails_closed(
     cli: CliRunner, monkeypatch: pytest.MonkeyPatch, ledger: Path, reached: list[int],
     config_dir: Path,
 ) -> None:  # fmt: skip
-    """Audit M3: even a calib-only selection stops when the sealed sets are unknown."""
+    """Even a calib-only selection stops when the sealed sets are unknown."""
     (config_dir / "verifier" / "sealed.toml").unlink()
     stop = sentinel(ledger, reached)
     monkeypatch.setattr(app_verification, "VerificationRunner", lambda *a: _SentinelRunner(stop))
@@ -423,7 +423,7 @@ def test_a_dirty_tree_cannot_look(
     cli: CliRunner, monkeypatch: pytest.MonkeyPatch, ledger: Path, reached: list[int],
     checkout: Path,
 ) -> None:  # fmt: skip
-    """Audit m2: the commit of the freeze must be the tree that runs."""
+    """The commit of the freeze must be the tree that runs."""
     (checkout / "src").mkdir()
     (checkout / "src" / "patch.py").write_text("x = 1\n", encoding="utf-8")
     result = _guarded_verify(cli, monkeypatch, ledger, reached)(env=UNSEAL)
@@ -435,7 +435,7 @@ def test_a_refit_of_the_default_artifact_is_another_freeze(
     cli: CliRunner, monkeypatch: pytest.MonkeyPatch, ledger: Path, reached: list[int],
     settings: Settings,
 ) -> None:  # fmt: skip
-    """Audit M1: calibration.json and exclusions.json enter the freeze."""
+    """The calibration.json and exclusions.json artifacts enter the freeze."""
     run = _guarded_verify(cli, monkeypatch, ledger, reached)
     calibration_dir = settings.paths.calibration_dir
     calibration_dir.mkdir(parents=True)
@@ -619,7 +619,7 @@ def test_fit_from_a_perceived_run_guards_before_the_oracle_runs(
     cli: CliRunner, monkeypatch: pytest.MonkeyPatch, ledger: Path, reached: list[int],
     settings: Settings,
 ) -> None:  # fmt: skip
-    """Audit m3: the oracle a --from-run fit completes is computed after the guard."""
+    """The oracle a --from-run fit completes is computed after the guard."""
     perceived = synthetic_report(
         20, seed=7, split=Split.EVAL, prefix="e", level=InputLevel.PERCEIVED
     )

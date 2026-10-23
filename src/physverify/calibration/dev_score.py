@@ -94,8 +94,9 @@ class LevelDevScore(ArtifactModel):
 
 
 class Selection(ArtifactModel):
-    """The preregistered early-freeze criterion on ``level``; ``oracle_evaluable`` is None without
-    an oracle stratum."""
+    """The preregistered final-version criterion (most checks met, AUROC_cv tiebreak, early freeze
+    when every oracle-evaluable check meets) on ``level``; ``oracle_evaluable`` is None without an
+    oracle stratum."""
 
     level: InputLevel
     n_met: int

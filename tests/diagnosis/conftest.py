@@ -112,6 +112,7 @@ def fixture_truth() -> ArrayGroundTruthStore:
     return build_clip(RuntimeSettings()).ground_truth
 
 
+# The detect, track and depth fakes return the fixture truth plus a known error.
 class FakeParams(ProviderParams):
     fail_clip: str = ""
 

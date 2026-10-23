@@ -212,7 +212,7 @@ def test_cross_fitting_skips_a_fold_whose_training_lacks_informative_pairs() -> 
 
 
 def test_the_pair_filter_has_no_silent_default() -> None:
-    """Audit m2: neither the settings nor ``bias_factor`` pick an estimator on their own."""
+    """Neither the settings nor ``bias_factor`` pick an estimator on their own."""
     from physverify.calibration.settings import CalibrationSettings
 
     with pytest.raises(ValueError, match="sigma_pair_filter"):
