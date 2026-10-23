@@ -16,6 +16,7 @@ from physverify.app.context import AppContext
 from physverify.app.services import dataset_for, pipeline_deps, plan_for, scorer_for
 from physverify.config.models import Settings
 from physverify.core.atomic import write_text_atomic
+from physverify.core.choices import choice
 from physverify.core.digests import file_sha256
 from physverify.core.errors import UsageError
 from physverify.core.output import Echo
@@ -32,8 +33,8 @@ from physverify.finetune.layout import (
 from physverify.finetune.pairs_report import check_current, pairs_of, report_lines
 from physverify.finetune.pilot import fit_and_val, pilot_prompts
 from physverify.finetune.prompts import build_prompt_set, campaign_prompts, sizing_labels
+from physverify.finetune.records import BASE_TAG as BASE_TAG
 from physverify.finetune.records import (
-    BASE_TAG,
     CandidateScore,
     PromptRecord,
     write_record,
@@ -50,8 +51,9 @@ from physverify.finetune.settings import (
     PromptSplit,
     load_finetune,
 )
+from physverify.finetune.status import status_lines
+from physverify.finetune.stop_rule import STOP_RULE_DEVIATION as STOP_RULE_DEVIATION
 from physverify.finetune.stop_rule import (
-    STOP_RULE_DEVIATION,
     StopVerdict,
     base_abstention,
     evaluate_stop,
@@ -63,11 +65,14 @@ from physverify.finetune.stop_rule import (
     write_verdict,
 )
 from physverify.generation.wan21 import load_wan_pipeline, snapshot_dir, snapshot_problem
+from physverify.generator_comparison.arms import EVAL_SPLIT
 from physverify.runtime.heavy import NullLock
 from physverify.runtime.runs import current_commit
 from physverify.schema.checks import InputLevel
 from physverify.schema.io import json_ready
 from physverify.timing.environment import TorchCudaProbe
+from physverify.timing.finetune_budget import BudgetRequest as BudgetRequest
+from physverify.timing.finetune_budget import budget_report
 from physverify.timing.settings import load_timing
 from physverify.verification.check_set import CHECKS_SECTION, ChecksSettings, build_checks
 from physverify.verification.inputs import PerceivedSource, PipelineOutputLoader
@@ -243,9 +248,21 @@ def build_prompts(context: AppContext, check: bool, *, echo: Echo, err: Echo) ->
     return True
 
 
+def campaign_split(split: str, comparison_step: str) -> PromptSplit:
+    """A train or dev split; the eval candidates and scores belong to the generator comparison,
+    whose generation stamp and pre-registration a finetune run would break."""
+    parsed = choice(split, SPLITS, "--split")
+    if parsed == EVAL_SPLIT:
+        raise UsageError(
+            "the eval split belongs to the generator comparison: run "
+            f"`physverify compare-generators {comparison_step} --arm base|ft`"
+        )
+    return parsed
+
+
 def generate_split(
     context: AppContext,
-    split: PromptSplit,
+    split: str,
     adapter: Path | None,
     shard: str | None,
     limit: int | None,
@@ -253,9 +270,12 @@ def generate_split(
     *,
     echo: Echo,
 ) -> None:
+    which = campaign_split(split, "generate")
+    if pilot is not None and which != "train":
+        raise UsageError("--pilot draws train prompts: use it with --split train")
     require_cuda(context.settings)
     store = CampaignStore.from_settings(context.settings)
-    prompts = campaign_prompts(store, split)
+    prompts = campaign_prompts(store, which)
     if pilot is not None:
         prompts = pilot_prompts(prompts, pilot)
     generate_candidates(
@@ -265,19 +285,28 @@ def generate_split(
 
 def score_split(
     context: AppContext,
-    split: PromptSplit,
+    split: str,
     model_tag: str,
     scorer: str | None,
     shard: str | None,
     *,
     echo: Echo,
 ) -> None:
+    which = campaign_split(split, "score")
     require_cuda(context.settings)
     store = CampaignStore.from_settings(context.settings)
-    prompts = campaign_prompts(store, split)
+    prompts = campaign_prompts(store, which)
     score_prompts(
         context, store, model_tag, prompts, active_scorer(context, scorer), shard, echo=echo
     )
+
+
+def campaign_status_lines(context: AppContext) -> list[str]:
+    return status_lines(CampaignStore.from_settings(context.settings))
+
+
+def budget_lines(context: AppContext, request: BudgetRequest) -> list[str]:
+    return budget_report(context.settings, request)
 
 
 def write_pairs(context: AppContext, scorer: str | None, *, echo: Echo) -> None:

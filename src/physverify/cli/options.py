@@ -1,17 +1,14 @@
-"""Option types and parsing of the subcommands."""
+"""Option types of the subcommands."""
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Annotated
 
 import typer
 
-from physverify.core.choices import choice
-from physverify.core.errors import UsageError
-from physverify.finetune.settings import SPLITS, PromptSplit
-from physverify.finetune.stop_rule import STOP_RULE_DEVIATION
-from physverify.generator_comparison.arms import EVAL_SPLIT
+from physverify.app.finetune import STOP_RULE_DEVIATION
 
 StopRuleDeviationOption = Annotated[
     str | None,
@@ -21,6 +18,19 @@ StopRuleDeviationOption = Annotated[
         "(recorded; the generator comparison then has no verdict).",
     ),
 ]
+
+
+def require_one_of(value: str, values: Sequence[str]) -> str:
+    """``value`` when it is one of ``values``, else typer's usage error (exit 2)."""
+    if value not in values:
+        raise typer.BadParameter(f"{value!r} is not one of {', '.join(map(repr, values))}.")
+    return value
+
+
+def choices_metavar(values: Sequence[str]) -> str:
+    return f"[{'|'.join(values)}]"
+
+
 ShardOption = Annotated[str | None, typer.Option(help="Shard i/n of the candidates.")]
 
 SplitOption = Annotated[
@@ -53,15 +63,3 @@ ExtractBatchOption = Annotated[int | None, typer.Option(help="Clips per extracti
 GeneratorOnlyOption = Annotated[
     bool, typer.Option(help="Cost = generation only (extraction runs elsewhere).")
 ]
-
-
-def campaign_split(split: str, comparison_step: str) -> PromptSplit:
-    """A train or dev split; the eval candidates and scores belong to the generator comparison,
-    whose generation stamp and pre-registration a finetune run would break."""
-    parsed = choice(split, SPLITS, "--split")
-    if parsed == EVAL_SPLIT:
-        raise UsageError(
-            "the eval split belongs to the generator comparison: run "
-            f"`physverify compare-generators {comparison_step} --arm base|ft`"
-        )
-    return parsed

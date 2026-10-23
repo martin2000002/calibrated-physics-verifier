@@ -9,6 +9,7 @@ from pydantic import Field
 
 from physverify.config.models import Settings
 from physverify.core.models import FrozenModel
+from physverify.datasets._base import DEFAULT_LABEL_SOURCE
 
 SECTION: Final = "h3"
 AUTOEVAL_KEY: Final = "autoeval"
@@ -24,6 +25,8 @@ class GateSettings(FrozenModel):
     min_exact: float = Field(0.90, ge=0, le=1)
     max_mae: float = Field(0.25, ge=0)
     max_parse_fail: int = Field(2, ge=0)
+    label_source: str = DEFAULT_LABEL_SOURCE
+    """The dataset plugin of the published videos and reference scores (``HumanLabelSource``)."""
 
 
 class UsabilitySettings(FrozenModel):

@@ -45,12 +45,13 @@ ProvisionalOption = Annotated[
 
 @app.command("fit", help="Choose k* on the calibration split; writes abstention.json.")
 def fit(
+    ctx: typer.Context,
     oracle_table: OracleTableOption = None,
     perceived_table: PerceivedTableOption = None,
     provisional: ProvisionalOption = False,
 ) -> None:
     lines = fit_abstention(
-        app_context(), f"{NAME} fit", oracle_table, perceived_table, provisional, err=echo_err
+        app_context(ctx), f"{NAME} fit", oracle_table, perceived_table, provisional, err=echo_err
     )
     for line in lines:
         typer.echo(line)
@@ -58,12 +59,13 @@ def fit(
 
 @app.command("curve", help="Held-out curve, raw vs calibrated table, per check, real video.")
 def curve(
+    ctx: typer.Context,
     oracle_table: OracleTableOption = None,
     perceived_table: PerceivedTableOption = None,
     provisional: ProvisionalOption = False,
 ) -> None:
     lines = abstention_curve(
-        app_context(), f"{NAME} curve", oracle_table, perceived_table, provisional, err=echo_err
+        app_context(ctx), f"{NAME} curve", oracle_table, perceived_table, provisional, err=echo_err
     )
     for line in lines:
         typer.echo(line)

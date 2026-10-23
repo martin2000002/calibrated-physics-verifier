@@ -491,9 +491,9 @@ def _service_labels(module: ModuleType, tree: ast.Module) -> set[str]:
     that hands that argument on to ``guard_sealed``."""
     labels: set[str] = set()
     for call in (n for n in ast.walk(tree) if isinstance(n, ast.Call)):
-        if not isinstance(call.func, ast.Name) or call.func.id == "guard_sealed":
+        service = _callee(module, call.func)
+        if getattr(service, "__name__", None) == "guard_sealed":
             continue
-        service = getattr(module, call.func.id, None)
         if not inspect.isfunction(service) or service.__module__ == module.__name__:
             continue
         for index, arg in enumerate(call.args):
@@ -503,6 +503,15 @@ def _service_labels(module: ModuleType, tree: ast.Module) -> set[str]:
             if label is not None and _reaches_guard(service, index):
                 labels.add(label)
     return labels
+
+
+def _callee(module: ModuleType, func: ast.expr) -> object:
+    """What a call ``f(...)`` or ``service.f(...)`` in the command module calls."""
+    if isinstance(func, ast.Name):
+        return getattr(module, func.id, None)
+    if isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name):
+        return getattr(getattr(module, func.value.id, None), func.attr, None)
+    return None
 
 
 def _is_name(node: ast.expr) -> bool:

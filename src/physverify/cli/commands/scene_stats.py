@@ -8,10 +8,9 @@ from typing import Annotated
 
 import typer
 
-from physverify.app.scene_stats import collect_per_clip, delta_line
+from physverify.app.scene_stats import collect_per_clip, delta_line, delta_query, print_tables
 from physverify.cli.commands.diagnose import ClipsOption, DatasetOption, SubsetOption
 from physverify.cli.context import app_context, echo_err, heavy_command
-from physverify.diagnosis import scene_stats
 
 NAME = "scene-stats"
 
@@ -24,6 +23,7 @@ app = typer.Typer(
 @app.command("per-clip", help="Per-clip sufficient statistics of the DETECT and DEPTH metrics.")
 @heavy_command
 def per_clip(
+    ctx: typer.Context,
     label: Annotated[str, typer.Option(help="Configuration label stored in the file.")],
     out: Annotated[Path, typer.Option(help="Output JSON.")],
     dataset: DatasetOption = None,
@@ -31,7 +31,7 @@ def per_clip(
     clips: ClipsOption = None,
 ) -> None:
     rows = collect_per_clip(
-        app_context(),
+        app_context(ctx),
         f"{NAME} per-clip",
         label,
         out,
@@ -45,11 +45,7 @@ def per_clip(
 
 @app.command("table", help="Pooled and per-scene values of every collected file.")
 def table(files: Annotated[list[Path], typer.Argument(help="per-clip JSON files.")]) -> None:
-    for line in scene_stats.TABLE_HEADER:
-        typer.echo(line)
-    for path in files:
-        for line in scene_stats.table_lines(scene_stats.load(path)):
-            typer.echo(line)
+    print_tables(files, echo=typer.echo)
 
 
 @app.command("delta", help="candidate - base with a scene-bootstrap interval.")
@@ -65,8 +61,7 @@ def delta(
     ci: Annotated[float, typer.Option(help="Interval level.")] = 0.95,
 ) -> None:
     try:
-        parsed = scene_stats.parse_stat(stat)
+        query = delta_query(split, metric, quantity, stat)
     except ValueError as exc:
         raise typer.BadParameter(str(exc)) from exc
-    query = scene_stats.DeltaQuery(split=split, metric=metric, quantity=quantity, stat=parsed)
     typer.echo(delta_line(base, candidate, query, n, seed, ci))

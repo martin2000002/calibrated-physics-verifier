@@ -13,5 +13,5 @@ app = typer.Typer(invoke_without_command=True, help="Over-budget fixture command
 
 
 @app.callback()
-def budget() -> None:
-    check_frame_budget(240, (3840, 2160), app_context().settings.runtime.max_frame_bytes)
+def budget(ctx: typer.Context) -> None:
+    check_frame_budget(240, (3840, 2160), app_context(ctx).settings.runtime.max_frame_bytes)

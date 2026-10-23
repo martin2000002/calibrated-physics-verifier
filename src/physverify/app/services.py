@@ -10,7 +10,7 @@ from typing import Protocol
 from physverify.config.plugin_context import PluginContext
 from physverify.core.errors import ConfigError
 from physverify.core.registry import satisfies
-from physverify.datasets._base import DatasetSource, dataset_from
+from physverify.datasets._base import DatasetSource, HumanLabelSource, dataset_from
 from physverify.diagnosis.chain_runner import ChainRunner
 from physverify.diagnosis.verification_adapter import VerificationCheckSuite
 from physverify.extraction._base import StageObserver
@@ -116,3 +116,16 @@ def external_judge(context: PluginContext, cfg: ComparisonSettings, workdir: Pat
         raise ConfigError(f"[h3] external_judge {cfg.external_judge!r} cannot be built from config")
     built: Judge = judge.from_config(cfg, workdir)
     return built
+
+
+def label_source_class(context: PluginContext, key: str, name: str) -> type[HumanLabelSource]:
+    """Dataset ``name`` (configured as ``key``) of the context's registry, which must publish
+    human labels."""
+    registry = context.registry("datasets")
+    source = registry.get(name)
+    if source is None:
+        raise ConfigError(f"{key} {name!r} is unknown; known: {sorted(registry)}")
+    if not satisfies(source, HumanLabelSource):
+        raise ConfigError(f"{key} {name!r} publishes no human labels")
+    cls: type[HumanLabelSource] = source
+    return cls

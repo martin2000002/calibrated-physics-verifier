@@ -15,8 +15,7 @@ from typing import Any
 import pytest
 from cli_runner import CliResult, CliRunner
 
-from physverify.app import plugins
-from physverify.cli.commands import timing
+from physverify.app import plugins, timing
 from physverify.extraction.weights import ALLOW_PATTERNS, hub_cache
 from physverify.generation import wan21
 from physverify.schema.clip import ClipManifest

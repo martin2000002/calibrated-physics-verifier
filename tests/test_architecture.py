@@ -154,3 +154,27 @@ def test_every_package_is_covered_by_a_contract() -> None:
 def test_no_new_import_violations() -> None:
     found = [str(violation) for violation in _violations()]
     assert not found, "imports breaking the layer contract:\n" + "\n".join(found)
+
+
+def _source_contract(source: str) -> Mapping[str, Any]:
+    return next(c for c in _contract("forbidden") if c["source_modules"] == [source])
+
+
+def test_cli_commands_reach_the_domain_only_through_the_application_layer() -> None:
+    contract = _source_contract("physverify.cli")
+    command = "physverify.cli.commands.verify"
+    assert _breaks_forbidden(ImportEdge(command, 1, "physverify.verification.summary"), contract)
+    assert _breaks_forbidden(ImportEdge(command, 1, "physverify.datasets._base"), contract)
+    assert not _breaks_forbidden(ImportEdge(command, 1, "physverify.app.verification"), contract)
+    assert not _breaks_forbidden(ImportEdge(command, 1, "physverify.core.errors"), contract)
+
+
+def test_the_query_scripts_reach_the_checkout_only_through_the_application_layer() -> None:
+    contract = next(
+        c for c in _contract("forbidden") if "scripts.h200.run_query" in c["source_modules"]
+    )
+    script = "scripts.h200.agreement_query"
+    assert _breaks_forbidden(ImportEdge(script, 1, "physverify.human_agreement.prereg"), contract)
+    assert _breaks_forbidden(ImportEdge(script, 1, "physverify.freeze.errors"), contract)
+    assert not _breaks_forbidden(ImportEdge(script, 1, "physverify.app.queries"), contract)
+    assert not _breaks_forbidden(ImportEdge(script, 1, "run_query.query_settings"), contract)

@@ -15,13 +15,18 @@ from physverify.app.finetune import (
     scoring_deps,
     write_calibration_status,
 )
-from physverify.app.services import checks_hash_for, external_judge, scorer_for
+from physverify.app.services import (
+    checks_hash_for,
+    external_judge,
+    label_source_class,
+    scorer_for,
+)
 from physverify.calibration.artifact_io import default_artifact_path
 from physverify.core.choices import choice
 from physverify.core.digests import sha256_if_file
 from physverify.core.errors import MissingInputError, UsageError
 from physverify.core.output import Echo
-from physverify.datasets.videophy import FETCH_HINT, VideophyDataset
+from physverify.datasets._base import HumanLabelSource
 from physverify.finetune.candidate_scoring import rescorer, score_candidates
 from physverify.finetune.prompts import campaign_prompts
 from physverify.finetune.records import read_record, write_record
@@ -35,8 +40,6 @@ from physverify.generator_comparison.context import (
     ComparisonContext,
     arm_of,
     arm_tags,
-    reference_path,
-    reference_rows,
     selection,
     stored_gate,
 )
@@ -70,6 +73,7 @@ from physverify.generator_comparison.prereg_state import (
 from physverify.generator_comparison.records import JUDGE_SPLITS, TASKS, ScoringManifest
 from physverify.generator_comparison.report import write_report
 from physverify.generator_comparison.scoring import frozen_stamp_problem, manifest, rescore, stale
+from physverify.generator_comparison.settings import SECTION as COMPARISON_SECTION
 from physverify.generator_comparison.status import freeze_lines, status_lines
 from physverify.runtime.runs import current_commit
 
@@ -80,6 +84,13 @@ def campaign_scorer(context: AppContext, h: ComparisonContext) -> AggregateScore
 
 def campaign_judge(context: AppContext, h: ComparisonContext) -> Judge:
     return external_judge(context, h.cfg, h.layout.runs)
+
+
+def gate_labels(context: AppContext, h: ComparisonContext) -> HumanLabelSource:
+    """The published videos and reference scores the judge's regression gate reads."""
+    key = f"[{COMPARISON_SECTION}.gate] label_source"
+    cls = label_source_class(context, key, h.cfg.gate.label_source)
+    return cls(context.settings)
 
 
 def available_judge(context: AppContext, h: ComparisonContext) -> Judge:
@@ -93,7 +104,8 @@ def available_judge(context: AppContext, h: ComparisonContext) -> Judge:
 def current_prereg(context: AppContext, h: ComparisonContext) -> ComparisonPreregistration:
     campaign_prompts(h.store)
     scorer = campaign_scorer(context, h)
-    source = reference_path(h)
+    labels = gate_labels(context, h)
+    source = labels.reference_table(h.cfg.gate.part)
     settings = context.settings
     inputs = FreezeInputs(
         settings=settings,
@@ -107,7 +119,7 @@ def current_prereg(context: AppContext, h: ComparisonContext) -> ComparisonPrere
         judge=campaign_judge(context, h),
         selection=selection(h),
         calibration_path=default_artifact_path(settings),
-        margin_rows=reference_rows(source),
+        margin_rows=labels.reference_records(h.cfg.gate.part),
         margin_source=source,
         commit=current_commit(settings.repo_root),
         stop_rule=frozen_state(current_verdict(context, h.finetune, h.store, scorer)),
@@ -275,13 +287,13 @@ def run_gate(context: AppContext, *, echo: Echo) -> bool:
     h = ComparisonContext.of(context.settings)
     require_cuda(context.settings)
     autoeval = available_judge(context, h)
-    dataset = VideophyDataset(context.settings)
+    dataset = gate_labels(context, h)
     part_rows = [r for r in dataset.rows(h.cfg.gate.subset) if r.part == h.cfg.gate.part]
     rows = gate_rows(part_rows, lambda r: dataset.video_file(r).is_file(), h.cfg.gate.n)
     if not rows:
-        raise UsageError(f"no {h.cfg.gate.part} videos on disk: run `{FETCH_HINT}`")
-    source = reference_path(h)
-    table = {r["video_url"]: r for r in reference_rows(source)}
+        raise UsageError(f"no {h.cfg.gate.part} videos on disk: run `{dataset.fetch_hint}`")
+    source = dataset.reference_table(h.cfg.gate.part)
+    table = {r["video_url"]: r for r in dataset.reference_records(h.cfg.gate.part)}
     items = gate_items(rows, {r.clip_id: dataset.video_file(r) for r in rows})
     try:
         judged = {t: autoeval.judge(items, t) for t in TASKS}

@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import functools
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from types import ModuleType
+from typing import Protocol, runtime_checkable
 
 import typer
-from typer._click.globals import get_current_context
 
 from physverify.app.context import AppContext
 from physverify.core.errors import InvalidPluginError
@@ -29,9 +29,15 @@ def command_name(module: ModuleType) -> str:
     return name
 
 
-def app_context(ctx: typer.Context | None = None) -> AppContext:
-    context = ctx if ctx is not None else get_current_context()
-    found = context.find_object(AppContext)
+@runtime_checkable
+class CommandContext(Protocol):
+    """What the CLI needs of a click context (typer passes its own subclasses)."""
+
+    def find_object[T](self, object_type: type[T]) -> T | None: ...
+
+
+def app_context(ctx: CommandContext) -> AppContext:
+    found = ctx.find_object(AppContext)
     if found is None:
         raise RuntimeError("no AppContext: run commands through physverify.cli.main")
     return found
@@ -43,11 +49,19 @@ def echo_err(line: str) -> None:
 
 
 def heavy_command[**P, R](func: Callable[P, R]) -> Callable[P, R]:
-    """Run the command body while holding the heavy-job lock."""
+    """Run the command body while holding the heavy-job lock; the command takes
+    ``ctx: typer.Context``, which typer passes by keyword."""
 
     @functools.wraps(func)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
-        with app_context().heavy_lock():
+        with app_context(_command_context(kwargs)).heavy_lock():
             return func(*args, **kwargs)
 
     return wrapper
+
+
+def _command_context(kwargs: Mapping[str, object]) -> CommandContext:
+    ctx = kwargs.get("ctx")
+    if not isinstance(ctx, CommandContext):
+        raise TypeError("a heavy command needs a `ctx: typer.Context` parameter")
+    return ctx

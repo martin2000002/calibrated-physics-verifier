@@ -17,7 +17,7 @@ from physverify.datasets._videophy_review import (
     template,
     write_review,
 )
-from physverify.human_agreement.subset_review import (
+from physverify.datasets._videophy_subset import (
     audit,
     reviewed_candidates,
     sized_labels_or_none,

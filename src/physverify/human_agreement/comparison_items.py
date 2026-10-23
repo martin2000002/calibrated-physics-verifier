@@ -11,7 +11,7 @@ import math
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
-from physverify.datasets._videophy_tables import VideophyRow
+from physverify.datasets._base import LabelledVideo
 from physverify.human_agreement.clip_decision import (
     ERROR_REASON,
     ClipDecision,
@@ -24,7 +24,7 @@ from physverify.verification.runner import TableRow
 
 @dataclass(frozen=True)
 class ComparisonItem:
-    row: VideophyRow
+    row: LabelledVideo
     human_implausible: bool
     vlm_implausible: bool | None
     decision: Decision
@@ -76,7 +76,7 @@ def decide_all(rule: ClipDecisionRule, run: VerifyRun) -> dict[str, Decision]:
 
 
 def build_items(
-    rows: Sequence[VideophyRow],
+    rows: Sequence[LabelledVideo],
     decisions: Mapping[str, Decision],
     run: VerifyRun,
     cut: float | None,

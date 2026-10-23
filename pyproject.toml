@@ -99,7 +99,6 @@ allowed-confusables = ["’"]
 "scripts/**" = ["T20", "TID251"]
 "src/physverify/cli/main.py" = ["T20"]
 "src/physverify/kubric_worker/__main__.py" = ["T20"]
-"src/physverify/synth/hdri_pools.py" = ["T20"]
 "src/physverify/cli/**" = ["TID251"]
 "src/physverify/app/**" = ["TID251"]
 
@@ -166,6 +165,13 @@ layers = [
 ]
 
 [[tool.importlinter.contracts]]
+name = "The CLI parses arguments and calls the application layer; core gives it errors and exit codes"
+type = "forbidden"
+source_modules = ["physverify.cli"]
+forbidden_modules = ["physverify"]
+allowed_modules = ["physverify.app", "physverify.core"]
+
+[[tool.importlinter.contracts]]
 name = "Wire records import no other physverify package nor pydantic, typer or torch"
 type = "forbidden"
 source_modules = ["physverify.schema"]
@@ -183,3 +189,10 @@ name = "Scripts call the application layer, never the CLI"
 type = "forbidden"
 source_modules = ["scripts"]
 forbidden_modules = ["physverify.cli"]
+
+[[tool.importlinter.contracts]]
+name = "The query scripts ask the application layer; schema and core give them records and errors"
+type = "forbidden"
+source_modules = ["scripts.h200.run_query", "scripts.h200.agreement_query"]
+forbidden_modules = ["physverify"]
+allowed_modules = ["physverify.app", "physverify.schema", "physverify.core"]

@@ -11,7 +11,7 @@ import time
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, ClassVar, Final, Protocol, runtime_checkable
 
 import numpy as np
 from numpy.typing import NDArray
@@ -20,7 +20,7 @@ from physverify.core.download import BYTES_PER_MB, MANIFEST_FILE, read_manifest
 from physverify.core.errors import MissingInputError, UsageError
 from physverify.core.output import Echo
 from physverify.core.resample import resize_depth, resize_masks, scale_intrinsics
-from physverify.schema.clip import ClipManifest, FrameSampling
+from physverify.schema.clip import ClipManifest, FrameSampling, ObjectQuery, Split
 from physverify.schema.contacts import ContactTable
 from physverify.schema.perception import (
     CameraModel,
@@ -101,6 +101,70 @@ class DatasetSource(Protocol):
     def ground_truth(self, clip: ClipManifest) -> GroundTruthStore | None: ...
 
     def fetch(self, subset: str | None, dest: Path) -> None: ...
+
+
+DEFAULT_LABEL_SOURCE: Final = "videophy"
+
+
+@dataclass(frozen=True)
+class LabelledVideo:
+    """One generated video with its published labels. ``human_raw`` and ``reference_raw`` keep
+    the published values (NaN when the table has none); binarisation is the comparison's job."""
+
+    part: str
+    version: str
+    split: Split
+    clip_id: str
+    video_url: str
+    caption: str
+    generator: str
+    human_raw: float
+    human_cut: float
+    reference_raw: float
+    reference_cut: float
+    reference_name: str
+    violated_rules: str
+
+
+class HumanLabelSource(DatasetSource, Protocol):
+    """A dataset of generated videos with published human labels and a reference model's
+    scores, which the human-agreement study and the generator comparison read."""
+
+    config_section: ClassVar[str]
+    """The configuration section the source reads; the study's pre-registration hashes it."""
+    fetch_hint: ClassVar[str]
+    """The command that downloads the label tables and videos."""
+
+    @property
+    def queries_path(self) -> Path: ...
+
+    def rows(self, subset: str | None = None) -> list[LabelledVideo]: ...
+
+    def queries(self) -> dict[str, tuple[ObjectQuery, ...]]: ...
+
+    def object_queries(
+        self, row: LabelledVideo, queries: Mapping[str, tuple[ObjectQuery, ...]]
+    ) -> tuple[ObjectQuery, ...]: ...
+
+    def video_file(self, row: LabelledVideo, root: Path | None = None) -> Path: ...
+
+    def recorded_subsets(self) -> dict[str, str | None]:
+        """The recorded sha256 of each hand-reviewed part; empty before the review."""
+        ...
+
+    def reference_table(self, part: str) -> Path:
+        """The table of the reference model's published scores of ``part``."""
+        ...
+
+    def reference_records(self, part: str) -> list[dict[str, str]]: ...
+
+    def review_subset(self, subset: str, *, show: bool, echo: Echo) -> None:
+        """Write the pending hand review of ``subset`` and the draft queries of its captions."""
+        ...
+
+    def record_review(self, subset: str, *, echo: Echo) -> None: ...
+
+    def check_review(self, *, echo: Echo) -> None: ...
 
 
 def select_clips(clips: Sequence[ClipManifest], wanted: Sequence[str]) -> list[ClipManifest]:

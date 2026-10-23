@@ -30,12 +30,13 @@ TaskOption = Annotated[str | None, typer.Option(help="pc or sa (default: both)."
 @app.command("generate", help="Generate the eval candidates of one arm (resumes).")
 @heavy_command
 def generate(
+    ctx: typer.Context,
     arm: ArmOption = "base",
     shard: ShardOption = None,
     limit: int | None = None,
     stop_rule_deviation: StopRuleDeviationOption = None,
 ) -> None:
-    context = app_context()
+    context = app_context(ctx)
     comparison.generate_arm(
         context, arm, shard, limit, stop_rule_deviation, echo=typer.echo, err=echo_err
     )
@@ -43,6 +44,7 @@ def generate(
 
 @app.command("freeze", help="Write the pre-registration (before any eval score or judge row).")
 def freeze(
+    ctx: typer.Context,
     force: Annotated[
         bool, typer.Option(help="Replace a pre-registration whose state changed.")
     ] = False,
@@ -55,7 +57,7 @@ def freeze(
     ] = None,
     stop_rule_deviation: StopRuleDeviationOption = None,
 ) -> None:
-    context = app_context()
+    context = app_context(ctx)
     comparison.freeze_prereg(
         context, force, declare_deviation, stop_rule_deviation, echo=typer.echo, err=echo_err
     )
@@ -63,41 +65,42 @@ def freeze(
 
 @app.command("score", help="Extract, verify and score the eval candidates of one arm (resumes).")
 @heavy_command
-def score(arm: ArmOption = "base", shard: ShardOption = None) -> None:
-    comparison.score_arm(app_context(), arm, shard, echo=typer.echo)
+def score(ctx: typer.Context, arm: ArmOption = "base", shard: ShardOption = None) -> None:
+    comparison.score_arm(app_context(ctx), arm, shard, echo=typer.echo)
 
 
 @app.command("rescore", help="Re-aggregate stored eval check results under the frozen rule (CPU).")
-def rescore_command() -> None:
-    comparison.rescore_arms(app_context(), echo=typer.echo)
+def rescore_command(ctx: typer.Context) -> None:
+    comparison.rescore_arms(app_context(ctx), echo=typer.echo)
 
 
 @app.command("judge", help="Run VideoPhy-2 AutoEval on the dev or eval candidates (resumes).")
 @heavy_command
 def judge(
+    ctx: typer.Context,
     split: Annotated[str, typer.Option(help="dev (usability) or eval (after the freeze).")],
     task: TaskOption = None,
 ) -> None:
-    comparison.judge_split(app_context(), split, task, echo=typer.echo)
+    comparison.judge_split(app_context(ctx), split, task, echo=typer.echo)
 
 
 @app.command("gate-autoeval", help="Regression gate of AutoEval on published VideoPhy-2 videos.")
 @heavy_command
-def gate_autoeval() -> None:
-    if not comparison.run_gate(app_context(), echo=typer.echo):
+def gate_autoeval(ctx: typer.Context) -> None:
+    if not comparison.run_gate(app_context(ctx), echo=typer.echo):
         raise typer.Exit(code=EXIT_ERROR)
 
 
 @app.command(
     "compare", help="The comparison's analysis and verdict from the frozen eval data (CPU)."
 )
-def compare() -> None:
-    comparison.compare_arms(app_context(), echo=typer.echo)
+def compare(ctx: typer.Context) -> None:
+    comparison.compare_arms(app_context(ctx), echo=typer.echo)
 
 
 @app.command(
     "status", help="Eval candidates, scores, judge rows, gate and freeze of the comparison."
 )
-def status() -> None:
-    for line in comparison.campaign_status_lines(app_context()):
+def status(ctx: typer.Context) -> None:
+    for line in comparison.campaign_status_lines(app_context(ctx)):
         typer.echo(line)

@@ -131,13 +131,11 @@ def test_the_agreement_verdict_needs_the_calibrated_rule_and_both_conditions() -
         "bootstrap": {"intervals": {"difference.kappa": [0.02, 0.3]}},
         "mde_accuracy": 0.05,
     }
-    assert h2_verdict(primary, True, 0.05)["supported"] is True
+    assert h2_verdict(primary, True, 0.05).supported is True
     provisional = h2_verdict(primary, False, 0.05)
-    assert (
-        provisional["supported"] is None and "no human-agreement verdict" in provisional["reason"]
-    )
+    assert provisional.supported is None and "no human-agreement verdict" in provisional.reason
     weak = {**primary, "bootstrap": {"intervals": {"difference.kappa": [-0.01, 0.3]}}}
-    assert h2_verdict(weak, True, 0.05)["supported"] is False
+    assert h2_verdict(weak, True, 0.05).supported is False
 
 
 def test_the_agreement_verdict_with_a_gate_is_not_evaluable_whatever_the_numbers() -> None:
@@ -148,10 +146,10 @@ def test_the_agreement_verdict_with_a_gate_is_not_evaluable_whatever_the_numbers
         "bootstrap": {"intervals": {"difference.kappa": [0.02, 0.3]}},
     }
     gated = h2_verdict(primary, False, 0.05, gate="aggregate insufficient")
-    assert gated["status"] == "not_evaluable" and gated["applicable"] is False
-    assert gated["supported"] is None and "aggregate insufficient" in gated["reason"]
-    assert h2_verdict(primary, True, 0.05)["status"] == "evaluated"
-    assert h2_verdict(primary, False, 0.05)["status"] == "pipeline_test"
+    assert gated.status == "not_evaluable" and gated.applicable is False
+    assert gated.supported is None and "aggregate insufficient" in gated.reason
+    assert h2_verdict(primary, True, 0.05).status == "evaluated"
+    assert h2_verdict(primary, False, 0.05).status == "pipeline_test"
 
 
 def test_singleton_clusters_have_no_design_effect() -> None:

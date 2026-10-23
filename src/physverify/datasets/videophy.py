@@ -30,10 +30,12 @@ from physverify.core.download import (
     save_atomic,
     write_manifest,
 )
-from physverify.core.errors import MissingInputError, PhysverifyError
+from physverify.core.errors import ConfigError, MissingInputError, PhysverifyError, UsageError
 from physverify.core.log import get_logger
+from physverify.core.output import Echo
 from physverify.core.video import Mp4VideoSource
-from physverify.datasets._base import GroundTruthStore, VideoSource
+from physverify.datasets import _videophy_subset as subset_review
+from physverify.datasets._base import GroundTruthStore, LabelledVideo, VideoSource
 from physverify.datasets._layout import load_annotations, relative_to_data, resolve_data_path
 from physverify.datasets._queries import derive_queries
 from physverify.datasets._videophy_review import load_review, reviewed_rows
@@ -44,7 +46,6 @@ from physverify.datasets._videophy_tables import (
     VIDEOS_DIR,
     HubFile,
     PartSettings,
-    VideophyRow,
     VideophySettings,
     build_rows,
     in_scope,
@@ -65,6 +66,8 @@ ArchiveOpener = Callable[[str], zipfile.ZipFile]
 
 class VideophyDataset:
     name: ClassVar[str] = "videophy"
+    config_section: ClassVar[str] = SECTION
+    fetch_hint: ClassVar[str] = FETCH_HINT
 
     def __init__(
         self,
@@ -72,6 +75,7 @@ class VideophyDataset:
         client: HttpClient | None = None,
         opener: ArchiveOpener | None = None,
     ) -> None:
+        self._settings = settings
         self._s = settings.section(SECTION, VideophySettings)
         paths = settings.paths
         self._root = paths.raw_dir / self.name
@@ -94,15 +98,15 @@ class VideophyDataset:
     def queries_path(self) -> Path:
         return self._queries_path
 
-    def candidates(self, subset: str) -> dict[str, list[VideophyRow]]:
+    def candidates(self, subset: str) -> dict[str, list[LabelledVideo]]:
         """``{part: rows}`` kept by the scope column and the lexical rule, before the review."""
         return {name: self._candidates(name, self._root) for name in self._s.parts_of(subset)}
 
-    def rows(self, subset: str | None = None) -> list[VideophyRow]:
+    def rows(self, subset: str | None = None) -> list[LabelledVideo]:
         """Labelled rows of the subset: reviewed parts go through the recorded hand review."""
         subset = subset or SMOKE
         review = load_review(self._subset_path)
-        rows: list[VideophyRow] = []
+        rows: list[LabelledVideo] = []
         for name, part_rows in self.candidates(subset).items():
             if name in self._s.reviewed_subsets:
                 part_rows = reviewed_rows(review, name, part_rows, self._s.filter_version)
@@ -123,7 +127,7 @@ class VideophyDataset:
         return load_annotations(self._queries_path)
 
     def object_queries(
-        self, row: VideophyRow, queries: Mapping[str, tuple[ObjectQuery, ...]]
+        self, row: LabelledVideo, queries: Mapping[str, tuple[ObjectQuery, ...]]
     ) -> tuple[ObjectQuery, ...]:
         """The queries a clip is extracted with: the file's entry, else the caption heuristic;
         empty means the clip has no object to detect."""
@@ -136,8 +140,33 @@ class VideophyDataset:
     def ground_truth(self, clip: ClipManifest) -> GroundTruthStore | None:
         return None
 
-    def video_file(self, row: VideophyRow, root: Path | None = None) -> Path:
+    def video_file(self, row: LabelledVideo, root: Path | None = None) -> Path:
         return (root or self._root) / VIDEOS_DIR / row.version / f"{row.clip_id}.mp4"
+
+    def recorded_subsets(self) -> dict[str, str | None]:
+        review = load_review(self._subset_path)
+        return {} if review is None else {p: r.sha256 for p, r in review.subsets.items()}
+
+    def reference_table(self, part: str) -> Path:
+        settings = self._s.parts.get(part)
+        if settings is None or settings.reference is None:
+            raise ConfigError(f"[{SECTION}.parts.{part}] has no reference table")
+        return self._root / LABELS_DIR / settings.reference.file
+
+    def reference_records(self, part: str) -> list[dict[str, str]]:
+        path = self.reference_table(part)
+        if not path.is_file():
+            raise UsageError(f"{path} is missing; run `{FETCH_HINT}`")
+        return read_table(path)
+
+    def review_subset(self, subset: str, *, show: bool, echo: Echo) -> None:
+        subset_review.review_subset(self, self._settings, subset, show=show, echo=echo)
+
+    def record_review(self, subset: str, *, echo: Echo) -> None:
+        subset_review.record_subsets(self, subset, echo=echo)
+
+    def check_review(self, *, echo: Echo) -> None:
+        subset_review.check_recorded(self, echo=echo)
 
     def fetch(self, subset: str | None, dest: Path) -> None:
         subset = subset or SMOKE
@@ -162,7 +191,7 @@ class VideophyDataset:
             files.extend(f for f in (part.labels, part.reference) if f is not None)
         return list({f.url(self._s.hub_url): f for f in files}.values())
 
-    def _candidates(self, name: str, root: Path) -> list[VideophyRow]:
+    def _candidates(self, name: str, root: Path) -> list[LabelledVideo]:
         part = self._s.parts[name]
         records = [r for r in read_table(self._table(part.labels, root)) if in_scope(r, part)]
         kept = [r for r in records if lexical_reason(r["caption"], self._s.filter) is None]
@@ -207,7 +236,7 @@ class VideophyDataset:
     def _fetch_part(
         self,
         part: PartSettings,
-        rows: Sequence[VideophyRow],
+        rows: Sequence[LabelledVideo],
         dest: Path,
         known: Mapping[str, FetchedFile],
     ) -> list[FetchedFile]:
@@ -230,15 +259,15 @@ class VideophyDataset:
         log.info("%s: %d/%d videos (%d failed)", part.videos.file, len(records), len(rows), failed)
         return records
 
-    def _relative(self, row: VideophyRow, dest: Path) -> str:
+    def _relative(self, row: LabelledVideo, dest: Path) -> str:
         return str(self.video_file(row, dest).relative_to(dest))
 
-    def _cached(self, row: VideophyRow, dest: Path, known: Mapping[str, FetchedFile]) -> bool:
+    def _cached(self, row: LabelledVideo, dest: Path, known: Mapping[str, FetchedFile]) -> bool:
         record = known.get(self._relative(row, dest))
         return record is not None and intact(self.video_file(row, dest), record)
 
     def _fetch_video(
-        self, archive: zipfile.ZipFile, member: str | None, row: VideophyRow, dest: Path
+        self, archive: zipfile.ZipFile, member: str | None, row: LabelledVideo, dest: Path
     ) -> FetchedFile | None:
         target = self.video_file(row, dest)
         try:
@@ -289,7 +318,7 @@ class VideophyDataset:
         return "; ".join(sorted(pinned))
 
     def _manifest(
-        self, row: VideophyRow, queries: Mapping[str, tuple[ObjectQuery, ...]]
+        self, row: LabelledVideo, queries: Mapping[str, tuple[ObjectQuery, ...]]
     ) -> ClipManifest | None:
         """None (logged) for a video OpenCV cannot read: no frames or no container rate."""
         path = self.video_file(row)

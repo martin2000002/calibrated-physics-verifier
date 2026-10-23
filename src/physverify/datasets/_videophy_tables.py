@@ -11,7 +11,6 @@ import re
 import urllib.parse
 from collections import Counter
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
@@ -19,6 +18,7 @@ from pydantic import Field
 
 from physverify.core.errors import ConfigError, UsageError
 from physverify.core.models import FrozenModel
+from physverify.datasets._base import LabelledVideo
 from physverify.schema.clip import Split
 
 SECTION = "videophy"
@@ -101,24 +101,7 @@ class VideophySettings(FrozenModel):
         return self.subsets[name]
 
 
-@dataclass(frozen=True)
-class VideophyRow:
-    """One labelled video. ``human_raw`` and ``reference_raw`` keep the published values
-    (NaN when the table has none); binarisation is the comparison's job."""
-
-    part: str
-    version: str
-    split: Split
-    clip_id: str
-    video_url: str
-    caption: str
-    generator: str
-    human_raw: float
-    human_cut: float
-    reference_raw: float
-    reference_cut: float
-    reference_name: str
-    violated_rules: str
+VideophyRow = LabelledVideo
 
 
 def clip_id_of(version: str, video_url: str) -> str:

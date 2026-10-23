@@ -7,15 +7,15 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from physverify.datasets._videophy_tables import VideophyRow
+from physverify.datasets._base import LabelledVideo
 
 if TYPE_CHECKING:
-    from physverify.datasets.videophy import VideophyDataset
+    from physverify.datasets._base import HumanLabelSource
 
 NO_QUERY = "no_query"
 NO_VIDEO = "no_video"
 
-type RowTest = Callable[[VideophyRow], bool]
+type RowTest = Callable[[LabelledVideo], bool]
 
 
 @dataclass(frozen=True)
@@ -31,7 +31,7 @@ class InputGaps:
     no_query_captions: tuple[str, ...] = ()
 
 
-def generator_key(row: VideophyRow) -> str:
+def generator_key(row: LabelledVideo) -> str:
     return f"{row.version}:{row.generator}"
 
 
@@ -40,7 +40,7 @@ def _tally(groups: dict[str, dict[str, int]], key: str, name: str) -> None:
     counts[name] += 1
 
 
-def input_gaps(rows: Sequence[VideophyRow], has_query: RowTest, has_video: RowTest) -> InputGaps:
+def input_gaps(rows: Sequence[LabelledVideo], has_query: RowTest, has_video: RowTest) -> InputGaps:
     by_part: dict[str, dict[str, int]] = {}
     by_generator: dict[str, dict[str, int]] = {}
     no_query = with_video = no_video = 0
@@ -59,7 +59,7 @@ def input_gaps(rows: Sequence[VideophyRow], has_query: RowTest, has_video: RowTe
     return InputGaps(no_query, with_video, no_video, by_part, by_generator, tuple(sorted(captions)))
 
 
-def dataset_tests(dataset: VideophyDataset) -> tuple[RowTest, RowTest]:
+def dataset_tests(dataset: HumanLabelSource) -> tuple[RowTest, RowTest]:
     """``(has_query, has_video)`` as extraction sees them: the queries the clip would be
     extracted with, and its video file on disk."""
     queries = dataset.queries()
@@ -69,5 +69,5 @@ def dataset_tests(dataset: VideophyDataset) -> tuple[RowTest, RowTest]:
     )
 
 
-def dataset_gaps(dataset: VideophyDataset, rows: Sequence[VideophyRow]) -> InputGaps:
+def dataset_gaps(dataset: HumanLabelSource, rows: Sequence[LabelledVideo]) -> InputGaps:
     return input_gaps(rows, *dataset_tests(dataset))

@@ -9,15 +9,15 @@ from collections.abc import Callable, Mapping, Sequence
 
 import numpy as np
 
-from physverify.datasets._videophy_tables import VideophyRow
+from physverify.datasets._base import LabelledVideo
 from physverify.generator_comparison.judges._base import JudgeScore
 from physverify.generator_comparison.records import GateTask, TaskUsability, Usability
 from physverify.generator_comparison.settings import GateSettings, UsabilitySettings
 
 
 def gate_rows(
-    rows: Sequence[VideophyRow], present: Callable[[VideophyRow], bool], n: int
-) -> list[VideophyRow]:
+    rows: Sequence[LabelledVideo], present: Callable[[LabelledVideo], bool], n: int
+) -> list[LabelledVideo]:
     """The first ``n`` rows by clip id with a published reference and a video on disk."""
     kept = [r for r in rows if math.isfinite(r.reference_raw) and present(r)]
     return sorted(kept, key=lambda r: r.clip_id)[:n]

@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Literal
 from pydantic import Field, model_validator
 
 from physverify.core.models import FrozenModel
+from physverify.datasets._base import DEFAULT_LABEL_SOURCE
 from physverify.human_agreement.clip_decision import RULES
 from physverify.human_agreement.undecided_policy import POLICIES
 
@@ -41,6 +42,8 @@ class AgreementSettings(FrozenModel):
     dev_subset: str
     test_subset: str
     preregistration: str
+    label_source: str = DEFAULT_LABEL_SOURCE
+    """The dataset plugin whose human labels the study compares with (a ``HumanLabelSource``)."""
 
     @model_validator(mode="after")
     def _known(self) -> AgreementSettings:

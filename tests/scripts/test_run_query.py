@@ -12,6 +12,7 @@ from typing import Any
 import pytest
 from check_rows import UNCACHED, write_check_rows
 
+from physverify.app import queries
 from physverify.schema.clip import ClipManifest
 
 HELPER = Path(__file__).resolve().parents[2] / "scripts" / "h200" / "run_query.py"
@@ -47,13 +48,11 @@ class _Source:
         return self._clips
 
 
-def test_clip_ids_filter_by_split(
-    query: ModuleType, clip_factory: Callable[..., ClipManifest]
-) -> None:
+def test_clip_ids_filter_by_split(clip_factory: Callable[..., ClipManifest]) -> None:
     source = _Source([clip_factory("b"), clip_factory("a")])
-    assert query.clip_ids(source, "full", None) == ["a", "b"]
-    assert query.clip_ids(source, "full", "eval") == ["a", "b"]
-    assert query.clip_ids(source, "full", "calib") == []
+    assert queries.clip_ids(source, "full", None) == ["a", "b"]
+    assert queries.clip_ids(source, "full", "eval") == ["a", "b"]
+    assert queries.clip_ids(source, "full", "calib") == []
 
 
 def test_an_allowed_evaluation_prints_its_real_sets_and_primary_section(
@@ -73,10 +72,8 @@ def test_an_evaluation_without_the_primary_view_or_with_another_set_is_refused(
         query.evaluation_lines(_evaluation(tmp_path, 41, {"scenes": []}), ALLOWED)
 
 
-def test_the_allowed_sets_are_the_preregistered_ones(
-    query: ModuleType, make_settings: Callable[..., Any]
-) -> None:
-    sets = [dict(s) for s in query._allowed_sets(make_settings())]
+def test_the_allowed_sets_are_the_preregistered_ones(make_settings: Callable[..., Any]) -> None:
+    sets = [dict(s) for s in queries.allowed_real_sets(make_settings())]
     assert sets == [{"physics_iq": 54, "pisa_real": n} for n in (360, 40, 361)]
 
 
@@ -87,24 +84,22 @@ def test_main_exits_2_with_the_reason(
     assert "cannot read" in capsys.readouterr().err
 
 
-def test_run_errors_passes_a_run_without_errors(query: ModuleType, tmp_path: Path) -> None:
+def test_run_errors_passes_a_run_without_errors(tmp_path: Path) -> None:
     write_check_rows(tmp_path / "checks.jsonl")
-    assert query.run_errors(tmp_path)[0].endswith("1 check rows, none with an error")
+    assert queries.run_errors(tmp_path)[0].endswith("1 check rows, none with an error")
 
 
 @pytest.mark.parametrize("error", [UNCACHED, ""])
-def test_run_errors_refuses_any_row_with_an_error(
-    query: ModuleType, tmp_path: Path, error: str
-) -> None:
+def test_run_errors_refuses_any_row_with_an_error(tmp_path: Path, error: str) -> None:
     write_check_rows(tmp_path / "checks.jsonl", error=error)
-    with pytest.raises(query.QueryError, match=r"1 check rows .* failed") as raised:
-        query.run_errors(tmp_path)
+    with pytest.raises(queries.QueryError, match=r"1 check rows .* failed") as raised:
+        queries.run_errors(tmp_path)
     assert f"clip R1: {error or '(no message)'}" in str(raised.value)
 
 
-def test_run_errors_refuses_a_run_without_checks(query: ModuleType, tmp_path: Path) -> None:
-    with pytest.raises(query.QueryError, match="cannot read"):
-        query.run_errors(tmp_path)
+def test_run_errors_refuses_a_run_without_checks(tmp_path: Path) -> None:
+    with pytest.raises(queries.QueryError, match="cannot read"):
+        queries.run_errors(tmp_path)
     (tmp_path / "checks.jsonl").write_text("{}\n", encoding="utf-8")
-    with pytest.raises(query.QueryError, match="cannot read"):
-        query.run_errors(tmp_path)
+    with pytest.raises(queries.QueryError, match="cannot read"):
+        queries.run_errors(tmp_path)

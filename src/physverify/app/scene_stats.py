@@ -50,6 +50,22 @@ def collect_per_clip(
     return len(rows)
 
 
+def print_tables(files: Sequence[Path], *, echo: Echo) -> None:
+    """The header, then the pooled and per-scene rows of every collected file."""
+    for line in scene_stats.TABLE_HEADER:
+        echo(line)
+    for path in files:
+        for line in scene_stats.table_lines(scene_stats.load(path)):
+            echo(line)
+
+
+def delta_query(split: str, metric: str, quantity: str, stat: str) -> scene_stats.DeltaQuery:
+    """The query of ``scene-stats delta``; ValueError when ``stat`` is not a known statistic."""
+    return scene_stats.DeltaQuery(
+        split=split, metric=metric, quantity=quantity, stat=scene_stats.parse_stat(stat)
+    )
+
+
 def delta_line(
     base: Path, candidate: Path, query: scene_stats.DeltaQuery, n: int, seed: int, ci: float
 ) -> str:

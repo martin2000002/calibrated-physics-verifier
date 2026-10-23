@@ -13,6 +13,7 @@ from physverify.app.services import scorer_for
 from physverify.config.models import Settings
 from physverify.core.errors import UsageError
 from physverify.core.output import Echo
+from physverify.demo.adhoc import ADHOC_FAMILY as ADHOC_FAMILY
 from physverify.demo.adhoc import (
     adhoc_prompt,
     adhoc_store,

@@ -23,6 +23,7 @@ from physverify.calibration.artifact_io import (
 from physverify.core import jsonio
 from physverify.core.digests import text_sha256
 from physverify.human_agreement.clip_decision import CALIBRATED_NAME
+from physverify.human_agreement.metrics import METRICS_FILE
 from physverify.human_agreement.report import REPORT_DIR
 from physverify.reporting.chain import (
     EVALUATION_KEY,
@@ -39,7 +40,6 @@ from physverify.verification.scope import CheckScope, record_path
 
 FIT_STEPS = (5, 6, 7)
 DECIDE_STEP = 9
-METRICS_FILE = "metrics.json"
 CONSUMED_LEVEL = InputLevel.PERCEIVED
 POINTER_SEPARATOR = "#"
 
