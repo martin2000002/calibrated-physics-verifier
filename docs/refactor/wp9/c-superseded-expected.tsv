@@ -1,4 +1,4 @@
-expected_file	line no longer in the diff (superseded by wp9-c-help-text.diff)
+expected_file	line no longer in the diff (superseded by wp9-c-help-text.diff: help text and comments)
 wp1-audit-migration.diff	312,314d311
 wp7-config-layout.diff	1093c1073
 wp7-config-layout.diff	1144c1124
