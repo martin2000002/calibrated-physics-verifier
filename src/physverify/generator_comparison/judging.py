@@ -10,7 +10,8 @@ import math
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 
-from physverify.core.errors import MissingInputError, UsageError, choice
+from physverify.core.choices import choice
+from physverify.core.errors import MissingInputError, UsageError
 from physverify.core.output import Echo
 from physverify.datasets._videophy_tables import VideophyRow, to_float
 from physverify.finetune.prompts import campaign_prompts

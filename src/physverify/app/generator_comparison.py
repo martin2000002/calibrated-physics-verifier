@@ -17,8 +17,9 @@ from physverify.app.finetune import (
 )
 from physverify.app.services import checks_hash_for, external_judge, scorer_for
 from physverify.calibration.artifact_io import default_artifact_path
+from physverify.core.choices import choice
 from physverify.core.digests import sha256_if_file
-from physverify.core.errors import MissingInputError, UsageError, choice
+from physverify.core.errors import MissingInputError, UsageError
 from physverify.core.output import Echo
 from physverify.datasets.videophy import FETCH_HINT, VideophyDataset
 from physverify.finetune.candidate_scoring import rescorer, score_candidates

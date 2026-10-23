@@ -8,7 +8,8 @@ from pathlib import Path
 from typing import Final
 
 from physverify.config.models import Settings
-from physverify.core.errors import ConfigError, UsageError, choice
+from physverify.core.choices import choice
+from physverify.core.errors import ConfigError, UsageError
 from physverify.datasets._videophy_tables import LABELS_DIR, read_table
 from physverify.datasets.videophy import FETCH_HINT, VideophyDataset
 from physverify.finetune.layout import SELECTED_FILE, CampaignStore
