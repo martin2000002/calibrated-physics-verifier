@@ -26,9 +26,9 @@ velocity_convention = "position"
 
 # HDRI Haven ids outside GeoCalib's OpenPano training panoramas, so the camera estimate is tested
 # on backgrounds it never saw. Preregistered:
-# `python -m physverify.synth.hdri_pools HDRI_haven.json openpano-listing.txt` over Kubric's public
-# manifest (sha256 6407c265...79c1, 509 ids) and the listing of the public openpano.zip (749
-# panoramas, sha256 96a68ba8...8217); 12 ids remain. `openpano_ood_dev` renders the development
+# `PYTHONPATH=src python tools/hdri_pools.py HDRI_haven.json openpano-listing.txt` over Kubric's
+# public manifest (sha256 6407c265...79c1, 509 ids) and the listing of the public openpano.zip
+# (749 panoramas, sha256 96a68ba8...8217); 12 ids remain. `openpano_ood_dev` renders the development
 # set v1-precise-hdri-dev; `openpano_ood_reserved` is never rendered before the freeze.
 [dataset.hdri_pools]
 openpano_ood_dev = ["shudu_lake", "sunset_forest", "orbita", "bergen", "art_studio", "vintage_measuring_lab"]
