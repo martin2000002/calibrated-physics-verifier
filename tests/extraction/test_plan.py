@@ -79,6 +79,17 @@ def test_bad_plans_are_config_errors(
         resolve_plan(make_settings(override), real_providers, dataset="x")
 
 
+def test_an_invalid_size_prior_table_names_its_params_model(
+    make_settings: SettingsFactory, real_providers: Providers
+) -> None:
+    settings = make_settings("extraction.providers.scale.size_prior.unknown_field=1")
+    with pytest.raises(ConfigError) as caught:
+        resolve_plan(settings, real_providers, dataset="x")
+    header, first_error = str(caught.value).splitlines()[:2]
+    assert header == "[extraction.providers.scale.size_prior] is invalid:"
+    assert first_error == "1 validation error for Params"
+
+
 def test_requires_out_of_stage_order_is_a_config_error(
     make_settings: SettingsFactory, real_providers: Providers
 ) -> None:
