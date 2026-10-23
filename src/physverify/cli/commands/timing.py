@@ -86,7 +86,7 @@ RunOption = Annotated[Path, typer.Option("--run", help="Run directory (or its ti
 
 @app.command("summarize", help="Rebuild stats.csv and summary.md from samples.csv.")
 def summarize(run_dir: RunOption) -> None:
-    service.summarize(app_context().settings, run_dir, typer.echo)
+    service.summarize(app_context().settings, run_dir, echo=typer.echo)
 
 
 @app.command(

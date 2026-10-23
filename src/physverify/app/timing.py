@@ -17,7 +17,7 @@ from physverify.runtime.runs import new_run
 from physverify.timing._base import TimingContext
 from physverify.timing.budget import BudgetQuery, answer, budget_lines, cost_from_results
 from physverify.timing.environment import CudaProbe, run_environment, validity
-from physverify.timing.report import rebuild, timing_dir
+from physverify.timing.report import rebuild, run_lines, timing_dir
 from physverify.timing.results_io import load_results, load_samples, timing_directory
 from physverify.timing.session import (
     check_device,
@@ -25,7 +25,6 @@ from physverify.timing.session import (
     exit_code,
     ordered,
     plan_targets,
-    report,
     start_results,
     time_targets,
 )
@@ -114,14 +113,17 @@ def run_timing(
         finished = time_targets(plan, services, chosen, ctx, writer, err=err)
         directory = timing_dir(run_context.run_dir)
         results = rebuild(directory, timing.max_iqr_rel, timing.total_measures)
-    report(results, directory, echo)
+    for line in run_lines(results, directory):
+        echo(line)
     return exit_code(results, finished)
 
 
-def summarize(settings: Settings, run_dir: Path, echo: Echo) -> None:
+def summarize(settings: Settings, run_dir: Path, *, echo: Echo) -> None:
     timing = load_timing(settings)
     directory = timing_directory(run_dir)
-    report(rebuild(directory, timing.max_iqr_rel, timing.total_measures), directory, echo)
+    results = rebuild(directory, timing.max_iqr_rel, timing.total_measures)
+    for line in run_lines(results, directory):
+        echo(line)
 
 
 def budget_report(settings: Settings, run_dir: Path, query: BudgetQuery) -> list[str]:

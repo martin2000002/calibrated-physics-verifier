@@ -23,6 +23,9 @@ from physverify.timing.records import (
     unit_of,
 )
 from physverify.timing.results_io import (
+    RESULTS,
+    SAMPLES,
+    STATS,
     TIMING_DIR,
     flag,
     load_failures,
@@ -175,6 +178,19 @@ def banner(results: ResultsFile) -> str | None:
     if results.valid_measurement:
         return None
     return BANNER.format(reasons="; ".join(results.validity_reasons))
+
+
+def run_lines(results: ResultsFile, directory: Path) -> list[str]:
+    """Terminal output: a harness check prints no numbers, only the banner, statuses and paths."""
+    head = banner(results)
+    lines = [] if head is None else [head]
+    for target in results.targets:
+        reason = f" ({target.reason})" if target.reason else ""
+        lines.append(f"{target.name}: {target.status.value}{reason}")
+    lines += [f"{name}: {directory / name}" for name in (RESULTS, SAMPLES, STATS, SUMMARY)]
+    if results.valid_measurement:
+        lines.append((directory / SUMMARY).read_text(encoding="utf-8"))
+    return lines
 
 
 def render_summary(results: ResultsFile, total_measures: Sequence[str]) -> str:

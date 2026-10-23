@@ -8,7 +8,6 @@ import json
 import signal
 import threading
 from collections.abc import Iterator, Mapping, Sequence
-from pathlib import Path
 from types import FrameType
 from typing import Any, Final, cast
 
@@ -22,8 +21,8 @@ from physverify.timing.environment import CudaProbe, run_environment, validity
 from physverify.timing.harness import ClipSource, TimingHarness
 from physverify.timing.hooks import brings_own_clips
 from physverify.timing.records import ResultsFile, TargetStatus
-from physverify.timing.report import SUMMARY, banner, timing_dir
-from physverify.timing.results_io import RESULTS, SAMPLES, STATS, CsvSampleSink, ResultsWriter
+from physverify.timing.report import timing_dir
+from physverify.timing.results_io import CsvSampleSink, ResultsWriter
 from physverify.timing.settings import (
     TargetRunSettings,
     TimingSettings,
@@ -149,20 +148,6 @@ def time_targets(
             err("interrupted: the samples written so far are kept")
             return False
     return True
-
-
-def report(results: ResultsFile, directory: Path, echo: Echo) -> None:
-    """Terminal output: a harness check prints no numbers, only the banner, statuses and paths."""
-    head = banner(results)
-    if head is not None:
-        echo(head)
-    for target in results.targets:
-        reason = f" ({target.reason})" if target.reason else ""
-        echo(f"{target.name}: {target.status.value}{reason}")
-    for name in (RESULTS, SAMPLES, STATS, SUMMARY):
-        echo(f"{name}: {directory / name}")
-    if results.valid_measurement:
-        echo((directory / SUMMARY).read_text(encoding="utf-8"))
 
 
 def exit_code(results: ResultsFile, finished: bool) -> int:
