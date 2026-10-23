@@ -50,10 +50,14 @@ FRESH = KubricFresh.name
 
 @pytest.fixture
 def smoke_env(
-    data_settings: Settings, families: Any, perturbations: Any, environ: dict[str, str]
+    data_settings: Settings,
+    families: Any,
+    perturbations: Any,
+    truth_measures: Any,
+    environ: dict[str, str],
 ) -> dict[str, str]:
     """The exported smoke store, seen by ``kubric_fresh`` through its own section."""
-    exported_smoke(data_settings, families, perturbations)
+    exported_smoke(data_settings, families, perturbations, truth_measures)
     version = load_dataset_settings(data_settings).version
     return environ | {
         "PHYSVERIFY__PATHS__DATA_DIR": str(data_settings.paths.data_dir),

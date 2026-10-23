@@ -13,7 +13,6 @@ from typing import Any
 import numpy as np
 import pytest
 
-from physverify.app.plugins import PLUGIN_KINDS
 from physverify.config.models import Settings
 from physverify.core.video import Mp4VideoSource
 from physverify.datasets.kubric_synthetic import KubricSynthetic, load_native
@@ -219,7 +218,9 @@ def applied_smoke(data_settings: Settings, families: Any, perturbations: Any) ->
     return Smoke(plan, store, plugins, ds)
 
 
-def exported_smoke(data_settings: Settings, families: Any, perturbations: Any) -> Smoke:
+def exported_smoke(
+    data_settings: Settings, families: Any, perturbations: Any, truth_measures: Any
+) -> Smoke:
     """The smoke subset exported, with empty closest-point samples and a rasterized render."""
     smoke = applied_smoke(data_settings, families, perturbations)
     plan, store, ds = smoke.plan, smoke.store, smoke.ds
@@ -240,7 +241,6 @@ def exported_smoke(data_settings: Settings, families: Any, perturbations: Any) -
     scene = SceneSpec.load_json(store.scene_dir(SIM_ID) / "spec.json")
     for variant in plan.variants:
         fake_render(store, variant.clip_id, scene)
-    truth_measures = PLUGIN_KINDS["truth_measures"]()
     exported = export_all(
         plan, store, smoke.plugins, truth_measures, ds, data_settings.paths.data_dir
     )
@@ -249,9 +249,9 @@ def exported_smoke(data_settings: Settings, families: Any, perturbations: Any) -
 
 
 def test_exported_clips_round_trip(
-    data_settings: Settings, families: Any, perturbations: Any
+    data_settings: Settings, families: Any, perturbations: Any, truth_measures: Any
 ) -> None:
-    smoke = exported_smoke(data_settings, families, perturbations)
+    smoke = exported_smoke(data_settings, families, perturbations, truth_measures)
     plan, store, ds = smoke.plan, smoke.store, smoke.ds
     exported = [v.clip_id for v in plan.variants]
     scene = SceneSpec.load_json(store.scene_dir(SIM_ID) / "spec.json")
@@ -306,7 +306,7 @@ def test_npz_content_hash_ignores_the_zip_container(tmp_path: Path) -> None:
 def test_gt_version_follows_the_exported_contacts(
     data_settings: Settings, families: Any, perturbations: Any, truth_measures: Any
 ) -> None:
-    smoke = exported_smoke(data_settings, families, perturbations)
+    smoke = exported_smoke(data_settings, families, perturbations, truth_measures)
     store, ds = smoke.store, smoke.ds
     clip_id = smoke.clip("none")
     variant = smoke.plan.variant(clip_id)
