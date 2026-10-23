@@ -13,9 +13,8 @@ from physverify.datasets._base import DatasetSource
 from physverify.diagnosis.chain_runner import ChainRunner
 from physverify.diagnosis.verification_adapter import A7CheckSuite
 from physverify.extraction._base import StageObserver
-from physverify.extraction.cache import StageCache
-from physverify.extraction.error_profile import load_error_profile
-from physverify.extraction.pipeline import LazyLock, PipelineDeps, ProcRssProbe
+from physverify.extraction.pipeline import PipelineDeps
+from physverify.extraction.pipeline_resources import ProcRssProbe
 from physverify.extraction.plan import ResolvedPlan, resolve_plan
 from physverify.finetune.candidate_scoring import build_scorer
 from physverify.finetune.scorers._base import AggregateScorer
@@ -41,13 +40,12 @@ def pipeline_deps(
     """``heavy_lock`` replaces the machine lock, e.g. with one that refuses in commands that must
     never run a heavy stage."""
     settings = context.settings
-    return PipelineDeps(
-        cache=StageCache(settings.paths.cache_dir),
-        lock=LazyLock(heavy_lock or context.heavy_lock),
-        paths=settings.paths,
+    return PipelineDeps.build(
+        settings.paths,
+        settings.paths.cache_dir,
+        heavy_lock or context.heavy_lock,
         device=settings.runtime.device,
         threads=settings.runtime.threads,
-        error_profile=load_error_profile(settings.paths.error_profile),
         observer=observer,
         rss=ProcRssProbe(),
     )

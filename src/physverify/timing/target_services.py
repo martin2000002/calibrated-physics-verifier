@@ -13,7 +13,7 @@ from physverify.config.models import Settings
 from physverify.core.errors import UsageError
 from physverify.datasets._base import DatasetSource, select_clips
 from physverify.extraction._base import StageProvider
-from physverify.extraction.pipeline import ProcRssProbe, RssProbe
+from physverify.extraction.pipeline_resources import ProcRssProbe, RssProbe
 from physverify.schema.clip import ClipManifest
 from physverify.synth.store import ContainerRunner
 from physverify.timing.envinfo import CudaProbe

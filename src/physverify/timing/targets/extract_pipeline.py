@@ -17,12 +17,9 @@ from typing import ClassVar, Final, Protocol
 from physverify.config.models import Settings
 from physverify.datasets._base import DatasetSource
 from physverify.extraction._base import StageObserver
-from physverify.extraction.cache import StageCache
-from physverify.extraction.error_profile import load_error_profile
 from physverify.extraction.pipeline import (
     ExtractionPipeline,
     ExtractionReport,
-    LazyLock,
     PipelineDeps,
 )
 from physverify.extraction.plan import ResolvedPlan, resolve_plan
@@ -72,14 +69,12 @@ def pipeline_deps(
     observer: StageObserver | None,
 ) -> PipelineDeps:
     """Deps of a pipeline run inside ``timing run``: the lazy lock never builds a ``HeavyLock``."""
-    paths = ctx.settings.paths
-    return PipelineDeps(
-        cache=StageCache(cache_root),
-        lock=LazyLock(services.lock_factory),
-        paths=paths,
+    return PipelineDeps.build(
+        ctx.settings.paths,
+        cache_root,
+        services.lock_factory,
         device=ctx.device,
         threads=ctx.threads,
-        error_profile=load_error_profile(paths.error_profile),
         observer=observer,
         rss=services.rss(),
     )

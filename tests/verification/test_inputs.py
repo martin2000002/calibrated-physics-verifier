@@ -24,7 +24,8 @@ from physverify.datasets._base import DatasetSource
 from physverify.extraction._base import GROUND_TRUTH
 from physverify.extraction.cache import StageCache
 from physverify.extraction.matching import take_frames
-from physverify.extraction.pipeline import LazyLock, PipelineDeps, ProcRssProbe
+from physverify.extraction.pipeline import PipelineDeps
+from physverify.extraction.pipeline_resources import LazyLock, ProcRssProbe
 from physverify.schema.checks import AbstainReason, InputLevel
 from physverify.schema.clip import ClipManifest
 from physverify.schema.outputs import StageOutput

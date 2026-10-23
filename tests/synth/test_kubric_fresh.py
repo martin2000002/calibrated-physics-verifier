@@ -25,10 +25,9 @@ from physverify.extraction.cache import StageCache
 from physverify.extraction.pipeline import (
     ExtractionPipeline,
     ExtractionReport,
-    LazyLock,
     PipelineDeps,
-    ProcRssProbe,
 )
+from physverify.extraction.pipeline_resources import LazyLock, ProcRssProbe
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import ClipManifest
 from physverify.schema.stages import STAGE_ORDER
