@@ -1,4 +1,4 @@
-"""Numeric helpers shared by the checks."""
+"""The tie-aware peak index the checks share."""
 
 from __future__ import annotations
 

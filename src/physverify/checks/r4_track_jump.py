@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 
 from physverify.checks._base import CheckInputs, abstain, unscored
 from physverify.checks._params import CommonParams
-from physverify.checks._results import first_max
+from physverify.checks._peaks import first_max
 from physverify.physics.geometry import characteristic_length
 from physverify.physics.measures.object_integrity import jump_ratio
 from physverify.physics.measures.track_jump import jump_over_noise, noise_jumps

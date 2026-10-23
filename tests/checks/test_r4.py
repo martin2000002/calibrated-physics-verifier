@@ -8,7 +8,7 @@ from reference.r4_jump_v1 import ContinuityCheck
 
 from physverify.checks._base import Check
 from physverify.checks._params import CommonParams
-from physverify.checks._results import first_max
+from physverify.checks._peaks import first_max
 from physverify.checks.r4_missing_permanence import PLUGINS as MISSING_PLUGINS
 from physverify.checks.r4_missing_permanence import PermanenceCheck, PermanenceParams
 from physverify.checks.r4_size_constancy import PLUGINS as SIZE_PLUGINS

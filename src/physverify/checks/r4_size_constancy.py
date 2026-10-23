@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 
 from physverify.checks._base import CheckInputs, abstain, unscored
 from physverify.checks._params import OcclusionParams
-from physverify.checks._results import first_max
+from physverify.checks._peaks import first_max
 from physverify.physics.geometry import characteristic_lengths
 from physverify.physics.measures.object_integrity import size_change_ratio
 from physverify.physics.measures.relative_size import relative_lengths, relative_size_change
