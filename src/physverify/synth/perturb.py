@@ -9,7 +9,7 @@ import shutil
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 import numpy as np
 
@@ -18,7 +18,12 @@ from physverify.schema.scene import PerturbationRecord, SceneSpec
 from physverify.schema.states import ObjectStateTable, ground_truth_source_key
 from physverify.synth.gt_contacts import ClosestSamples, from_closest, from_raw_events
 from physverify.synth.gt_velocity import position_consistent
-from physverify.synth.perturbations._base import ScenePerturbation, TrajectoryPerturbation
+from physverify.synth.perturbations._base import (
+    Perturbation,
+    ScenePerturbation,
+    TrajectoryPerturbation,
+    is_trajectory,
+)
 from physverify.synth.placement import UnreachableTargetError
 from physverify.synth.plan import DatasetPlan, VariantPlan
 from physverify.synth.seeds import perturbation_seed
@@ -73,7 +78,9 @@ class SeedKey:
         return perturbation_seed(self.seed, self.family, self.index, name, self.level, attempt)
 
 
-def instantiate(registry: Mapping[str, PerturbationClass], ds: DatasetSettings) -> dict[str, Any]:
+def instantiate(
+    registry: Mapping[str, PerturbationClass], ds: DatasetSettings
+) -> dict[str, Perturbation]:
     """One configured instance per registered perturbation."""
     return {name: cls(perturbation_params(cls, ds)) for name, cls in registry.items()}
 
@@ -218,7 +225,10 @@ class ApplyReport:
 
 
 def apply_variants(
-    plan: DatasetPlan, store: DatasetStore, plugins: Mapping[str, Any], ds: DatasetSettings
+    plan: DatasetPlan,
+    store: DatasetStore,
+    plugins: Mapping[str, Perturbation],
+    ds: DatasetSettings,
 ) -> ApplyReport:
     """Writes each pending variant's states, contacts and record; refusals become ``skipped``."""
     applied: list[str] = []
@@ -248,7 +258,9 @@ def discard_clip(clip_dir: Path) -> bool:
     return rendered
 
 
-def _apply_one(variant: VariantPlan, store: DatasetStore, plugin: Any, ds: DatasetSettings) -> bool:
+def _apply_one(
+    variant: VariantPlan, store: DatasetStore, plugin: Perturbation, ds: DatasetSettings
+) -> bool:
     scene, states, clean = load_simulation(store, variant.sim_id, variant.clip_id, ds)
     if variant.scene_perturbation:
         provisional = PerturbationRecord.load_json(store.scene_dir(variant.sim_id) / SCENE_RECORD)
@@ -257,11 +269,13 @@ def _apply_one(variant: VariantPlan, store: DatasetStore, plugin: Any, ds: Datas
             provisional, level=provisional.level, seed=provisional.seed, magnitude=magnitude
         )
         new_states, contacts = states, clean
-    else:
+    elif is_trajectory(plugin):
         key = SeedKey(ds.seed, variant.family, variant.index, variant.level)
         new_states, contacts, record = perturb_trajectory(
             plugin, scene, states, clean, variant.target_magnitude, key
         )
+    else:
+        raise TypeError(f"{plugin.name}: a scene perturbation planned as a trajectory variant")
     clip_dir = store.clip_dir(variant.clip_id)
     discarded = discard_downstream(clip_dir, new_states)
     atomic_save(new_states, clip_dir / VARIANT_STATES)

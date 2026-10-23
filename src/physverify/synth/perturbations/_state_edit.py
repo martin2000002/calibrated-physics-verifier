@@ -6,7 +6,7 @@ from __future__ import annotations
 import dataclasses
 import math
 from collections.abc import Callable, Iterable, Sequence
-from typing import Any, ClassVar, Protocol
+from typing import Any, ClassVar, Protocol, cast
 
 import numpy as np
 from numpy.typing import NDArray
@@ -39,7 +39,7 @@ class PluginBase[P: PerturbationCommon]:
     def __init__(self, params: BaseModel) -> None:
         if not isinstance(params, self.Params):
             raise TypeError(f"{type(self).__name__} expects {self.Params.__name__}")
-        self.params: P = params  # type: ignore[assignment]
+        self.params = cast(P, params)  # Params is the class of P; a ClassVar cannot say so
 
     def applicable(self, scene: SceneSpec) -> bool:
         return not self.families or scene.family in self.families

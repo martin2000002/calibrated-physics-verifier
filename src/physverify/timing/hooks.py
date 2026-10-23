@@ -1,15 +1,14 @@
-"""Optional lifecycle of a timing target around the frozen ``TimingTarget.run``.
+"""No-op defaults of a timing target's lifecycle around ``TimingTarget.run``.
 
-A target that inherits ``TargetHooks`` can say why it cannot run here, bring its own clips,
-prepare untimed state once, describe itself and release resources. The harness calls, per target:
-``unavailable`` -> ``own_clips`` (else the ``--dataset`` selection) -> ``prepare`` -> ``run`` per
-call -> ``close`` (always). A plain ``TimingTarget`` gets the no-op hooks.
+A target says why it cannot run here, brings its own clips, prepares untimed state once,
+describes itself and releases resources. The harness calls, per target: ``unavailable`` ->
+``own_clips`` (else the ``--dataset`` selection) -> ``prepare`` -> ``run`` per call -> ``close``
+(always). A target inherits ``TargetHooks`` and overrides the hooks it needs.
 """
 
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Final
 
 from physverify.schema.clip import ClipManifest
 from physverify.timing._base import TimingContext, TimingTarget
@@ -33,13 +32,6 @@ class TargetHooks:
 
     def close(self) -> None:
         return None
-
-
-NO_HOOKS: Final = TargetHooks()
-
-
-def hooks_of(target: TimingTarget) -> TargetHooks:
-    return target if isinstance(target, TargetHooks) else NO_HOOKS
 
 
 def brings_own_clips(target: type[TimingTarget]) -> bool:

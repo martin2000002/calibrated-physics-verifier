@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any, Protocol
 
 from physverify.config.models import Settings
@@ -15,3 +16,17 @@ class PluginContext(Protocol):
     def settings(self) -> Settings: ...
 
     def registry(self, kind: str) -> Registry[Any]: ...
+
+
+@dataclass(frozen=True)
+class PluginKind[T]:
+    """A registry name tied to the type of its entries; each kind is declared beside its
+    protocol."""
+
+    name: str
+
+
+def registry_of[T](context: PluginContext, kind: PluginKind[T]) -> Registry[T]:
+    """The registry of ``kind``, typed by its declaration."""
+    registry: Registry[T] = context.registry(kind.name)
+    return registry

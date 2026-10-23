@@ -12,6 +12,7 @@ from typing import Any
 import numpy as np
 import pytest
 
+from physverify.app.plugins import PLUGIN_KINDS
 from physverify.config.loader import load_settings
 from physverify.physics.geometry import Plane
 from physverify.physics.signed_distance import signed_distance
@@ -44,14 +45,18 @@ OWN_KEY = {
     "r5a_object_gravity": "R5a",
     "r5b_gravity_scale": "R5b",
 }
+PLUGINS = PLUGIN_KINDS["perturbations"]()
 APPLICABLE = {
-    "f1_projectile": {"r4_resize", "r4_vanish", "r5a_gravity_switch", "r5a_object_gravity"},
-    "f2_bounce": {"r3_restitution_gain", "r4_resize", "r4_teleport", "r4_vanish"},
-    "f3_collision": {"r3_energy_gain", "r4_vanish"},
-    "f4_stack": {"r2_unsupported_rest", "r4_teleport", "r4_vanish"},
-    "f5_contact": {"r1_penetration", "r4_teleport", "r4_vanish"},
+    family: {
+        name
+        for name, plugin in PLUGINS.items()
+        if name != "none"
+        and plugin.target is PerturbationTarget.TRAJECTORY
+        and (not plugin.families or family in plugin.families)
+    }
+    for family in PLUGIN_KINDS["families"]()
 }
-GRAVITY_FAMILIES = ("f1_projectile", "f2_bounce")
+GRAVITY_FAMILIES = PLUGINS["r5b_gravity_scale"].families
 # Entries a Bullet clip moves besides the plugin's own, each with its measured cause:
 # the analytic edit replaces the clean bounce and with it Bullet's impact penetration (R1).
 RECORDED_LEAKS = {

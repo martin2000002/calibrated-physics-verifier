@@ -10,25 +10,25 @@ from collections.abc import Callable, Mapping
 from types import MappingProxyType, ModuleType
 from typing import Any
 
-from physverify.checks._base import Check
+from physverify.checks._base import CHECKS, Check, validate_check
 from physverify.core.errors import InvalidPluginError, UsageError
 from physverify.core.registry import Registry, discover, discover_modules
 from physverify.datasets._base import DatasetSource
 from physverify.diagnosis._base import StageMetric, metric_key
 from physverify.extraction._base import StageProvider, provider_key, validate_provider
-from physverify.finetune.scorers._base import AggregateScorer
+from physverify.finetune.scorers._base import SCORERS, AggregateScorer
 from physverify.generator_comparison.judges._base import Judge
-from physverify.synth.families._base import SceneFamily
+from physverify.kubric_worker import TASKS_PACKAGE
+from physverify.synth.families._base import FAMILIES, SceneFamily
 from physverify.synth.perturbations._base import (
+    PERTURBATIONS,
     ScenePerturbation,
     TrajectoryPerturbation,
     validate_perturbation,
 )
-from physverify.synth.truth_measures._base import TruthMeasure
-from physverify.timing._base import TimingTarget
-from physverify.verification._base import VerdictPolicy
-
-TASKS_PACKAGE = "physverify.kubric_worker.tasks"
+from physverify.synth.truth_measures._base import TRUTH_MEASURES, TruthMeasure
+from physverify.timing._base import TIMING_TARGETS, TimingTarget
+from physverify.verification._base import POLICIES, VerdictPolicy
 
 
 def check_task(module: ModuleType) -> None:
@@ -42,25 +42,27 @@ def module_name(module: ModuleType) -> str:
 
 PLUGIN_KINDS: Mapping[str, Callable[[], Registry[Any]]] = MappingProxyType(
     {
-        "checks": lambda: discover("physverify.checks", (Check,), "check_id"),
-        "perturbations": lambda: discover(
+        CHECKS.name: lambda: discover("physverify.checks", (Check,), "check_id", validate_check),
+        PERTURBATIONS.name: lambda: discover(
             "physverify.synth.perturbations",
             (ScenePerturbation, TrajectoryPerturbation),
             "name",
             validate_perturbation,
         ),
-        "families": lambda: discover("physverify.synth.families", (SceneFamily,), "name"),
+        FAMILIES.name: lambda: discover("physverify.synth.families", (SceneFamily,), "name"),
         "providers": lambda: discover(
             "physverify.extraction.providers", (StageProvider,), provider_key, validate_provider
         ),
         "datasets": lambda: discover("physverify.datasets", (DatasetSource,), "name"),
         "container_tasks": lambda: discover_modules(TASKS_PACKAGE, check_task, module_name),
         "metrics": lambda: discover("physverify.diagnosis.metrics", (StageMetric,), metric_key),
-        "policies": lambda: discover("physverify.verification.policies", (VerdictPolicy,), "name"),
-        "timing_targets": lambda: discover("physverify.timing.targets", (TimingTarget,), "name"),
+        POLICIES.name: lambda: discover(
+            "physverify.verification.policies", (VerdictPolicy,), "name"
+        ),
+        TIMING_TARGETS.name: lambda: discover("physverify.timing.targets", (TimingTarget,), "name"),
         "judges": lambda: discover("physverify.generator_comparison.judges", (Judge,), "name"),
-        "scorers": lambda: discover("physverify.finetune.scorers", (AggregateScorer,), "name"),
-        "truth_measures": lambda: discover(
+        SCORERS.name: lambda: discover("physverify.finetune.scorers", (AggregateScorer,), "name"),
+        TRUTH_MEASURES.name: lambda: discover(
             "physverify.synth.truth_measures", (TruthMeasure,), "check_id"
         ),
     }

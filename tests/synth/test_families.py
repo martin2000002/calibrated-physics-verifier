@@ -7,6 +7,7 @@ from typing import Any
 import numpy as np
 import pytest
 
+from physverify.app.plugins import PLUGIN_KINDS
 from physverify.schema.scene import SceneSpec
 from physverify.synth.family_toolkit import solid_of
 from physverify.synth.generate import base_scene, split_of
@@ -22,7 +23,7 @@ from physverify.synth.plan import ScenePlan, scene_id_of
 from physverify.synth.seeds import scene_rng
 from physverify.synth.settings import DatasetSettings, family_params
 
-FAMILIES = ("f1_projectile", "f2_bounce", "f3_collision", "f4_stack", "f5_contact")
+FAMILIES = tuple(PLUGIN_KINDS["families"]())
 INDICES = range(6)
 
 
@@ -51,10 +52,6 @@ def samples(
     if family not in sampled:
         sampled[family] = [_scene(ds, families, priors, family, i) for i in INDICES]
     return sampled[family]
-
-
-def test_families_are_registered(families: Any) -> None:
-    assert set(FAMILIES) <= set(families)
 
 
 def test_scenes_are_seeded_and_distinct(

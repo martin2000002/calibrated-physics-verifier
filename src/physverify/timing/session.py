@@ -9,7 +9,7 @@ import signal
 import threading
 from collections.abc import Iterator, Mapping, Sequence
 from types import FrameType
-from typing import Any, Final, cast
+from typing import Any, Final
 
 from physverify.config.models import Settings
 from physverify.core.errors import EXIT_ERROR, EXIT_OK, UsageError
@@ -92,11 +92,6 @@ def clip_source(plan: Plan, services: TimingServices, settings: Settings) -> Cli
     return lambda: selected_clips(services, settings)
 
 
-def _construct(cls: type[TimingTarget], services: TimingServices) -> TimingTarget:
-    factory: Any = cls  # targets take the services; the frozen protocol does not declare __init__
-    return cast(TimingTarget, factory(services))
-
-
 @contextlib.contextmanager
 def sigterm_as_interrupt() -> Iterator[None]:
     """Turn SIGTERM (a cluster time limit) into KeyboardInterrupt so targets close and the files
@@ -143,7 +138,7 @@ def time_targets(
     with CsvSampleSink(timing_dir(ctx.run_dir)) as sink, sigterm_as_interrupt():
         harness = TimingHarness(sink, on_outcome=writer.record)
         try:
-            harness.run(plan, lambda cls: _construct(cls, services), clips, ctx)
+            harness.run(plan, lambda cls: cls(services), clips, ctx)
         except KeyboardInterrupt:
             err("interrupted: the samples written so far are kept")
             return False
