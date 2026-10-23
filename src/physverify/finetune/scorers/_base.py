@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import ClassVar, Protocol, runtime_checkable
+from typing import Any, ClassVar, Protocol, runtime_checkable
 
 from physverify.checks._base import Check
 from physverify.config.models import Settings
@@ -48,6 +48,14 @@ class AggregateScorer(Protocol):
     def score(
         self, results: Sequence[CheckResult], only: frozenset[str] | None = None
     ) -> AggregateScore: ...
+
+
+@runtime_checkable
+class CalibrationStatusSource(Protocol):
+    """Optional scorer extra, not part of ``AggregateScorer``: the calibration state behind its
+    scores."""
+
+    def calibration_status(self) -> Mapping[str, Any] | None: ...
 
 
 SCORERS = PluginKind[type[AggregateScorer]]("scorers")
