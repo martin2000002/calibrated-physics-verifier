@@ -6,12 +6,12 @@ from collections.abc import Mapping
 from dataclasses import replace
 
 import numpy as np
+from difference_sigma import central_difference_sigma, second_difference_sigma
 from support import make_context, run_provider, sampling_of
 from synthetic_clip import SyntheticClip
 
 from physverify.extraction.matching import align_ground_truth
 from physverify.extraction.providers.kinematics_savgol import SavgolKinematics
-from physverify.physics.finite_diff import central_difference_sigma, second_difference_sigma
 from physverify.physics.kinematics import (
     SavgolSpec,
     differentiate,
