@@ -1,5 +1,6 @@
 """Queries and records of the freeze (run_freeze.sh) and of the sealed final looks (run_final.sh,
-run_h2.sh PHYSVERIFY_H2_FREEZE): plan-congelado F7 with Juicio J1, J3-J6, J12 and J13.
+run_human_agreement.sh PHYSVERIFY_AGREEMENT_FREEZE): plan-congelado F7 with Juicio J1, J3-J6, J12
+and J13.
 
 Exit codes: 0 ok, 2 a check failed or an input is unusable (message on stderr).
 
@@ -120,7 +121,7 @@ def completed_steps(path: Path) -> set[int]:
 
 
 def candidate(directory: Path) -> Candidate:
-    """One iteration of run_iteration.sh, refused unless CPU, complete and unchanged."""
+    """One iteration of run_perception_iteration.sh, refused unless CPU, complete and unchanged."""
     state = state_env(directory / "state.env")
     iteration = state.get("CHAIN_ITER_ID", "")
     match = ITERATION_ID.match(iteration)
@@ -227,7 +228,8 @@ def artifact_record(paths: Mapping[str, Path | None]) -> dict[str, dict[str, str
 
 
 def record_sha(settings: Any) -> str:
-    """J12: the decision record's stable hash, the one run_h2.sh's prereg_problem compares."""
+    """J12: the decision record's stable hash, the one run_human_agreement.sh's prereg_problem
+    compares."""
     from physverify.app import plugins
     from physverify.core.errors import PhysverifyError
     from physverify.verification.scope import check_scope

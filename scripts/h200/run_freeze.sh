@@ -34,8 +34,10 @@
 # Required:
 #   PHYSVERIFY_FREEZE_EXPECT_COMMIT  prefix (>= 7 chars) of C_F, the HEAD this checkout is at
 #   PHYSVERIFY_FREEZE_ITERATION      the iteration id J4 chooses, written down before the run
-#   PHYSVERIFY_FREEZE_ITERATIONS     the eligible iteration directories (run_iteration.sh), spaces
-#   PHYSVERIFY_FREEZE_P2_COMMIT      the commit the early extraction (P2) ran at (J13)
+#   PHYSVERIFY_FREEZE_ITERATIONS     the eligible iteration directories
+#                                    (run_perception_iteration.sh), spaces
+#   PHYSVERIFY_FREEZE_EARLY_EXTRACTION_COMMIT
+#                                    the commit the early extraction (P2) ran at (J13)
 #   PHYSVERIFY_FREEZE_V1_COMMIT      C_V1, the v1 arm's commit (40 hex)
 #   PHYSVERIFY_FREEZE_V1_CALIBRATION the base iteration's calibration.json (the v1 arm's)
 #   PHYSVERIFY_FREEZE_CACHE_DIR      paths.cache_dir (the shared cache)
@@ -72,7 +74,7 @@ done
 refuse_local_config run_freeze.sh
 require_checkout PHYSVERIFY_FREEZE_EXPECT_COMMIT
 
-for name in ITERATION ITERATIONS P2_COMMIT V1_COMMIT V1_CALIBRATION CACHE_DIR; do
+for name in ITERATION ITERATIONS EARLY_EXTRACTION_COMMIT V1_COMMIT V1_CALIBRATION CACHE_DIR; do
     var="PHYSVERIFY_FREEZE_$name"
     [[ -n "${!var:-}" ]] || die "set $var (see the header of run_freeze.sh)"
 done
@@ -134,7 +136,7 @@ done
 require_completed "$FIRST_STEP" "$FROM"
 
 query() {
-    env PYTHONPATH="$REPO_ROOT/src" "$PY" "$REPO_ROOT/scripts/h200/a8v2_query.py" "$@"
+    h200_py run_query.py "$@"
 }
 
 step_1() {
@@ -217,7 +219,8 @@ step_6() {
 
 step_7() {
     run_logged 0 -- fq manifest --selection "$F/selection.json" --record-sha "$RECORD_SHA" \
-        --p2-commit "$PHYSVERIFY_FREEZE_P2_COMMIT" --v1-commit "$PHYSVERIFY_FREEZE_V1_COMMIT" \
+        --p2-commit "$PHYSVERIFY_FREEZE_EARLY_EXTRACTION_COMMIT" \
+        --v1-commit "$PHYSVERIFY_FREEZE_V1_COMMIT" \
         --v1-calibration "$PHYSVERIFY_FREEZE_V1_CALIBRATION" --out "$F/freeze.json"
     local manifest_log="$LAST_LOG"
     run_logged 0 -- fq artifacts "$F/freeze.json"

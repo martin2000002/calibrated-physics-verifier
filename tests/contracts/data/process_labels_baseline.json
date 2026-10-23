@@ -65,11 +65,6 @@
  "scripts/h200/_steps.sh": {
   "config_or_script_text": 2
  },
- "scripts/h200/a8v2_query.py": {
-  "comment_or_docstring": 1,
-  "identifier": 2,
-  "literal": 2
- },
  "scripts/h200/autoeval_requirements.txt": {
   "config_or_script_text": 2
  },
@@ -77,10 +72,7 @@
   "comment_or_docstring": 16,
   "literal": 6
  },
- "scripts/h200/h2_query.py": {
-  "identifier": 1
- },
- "scripts/h200/iteration_arms.tsv": {
+ "scripts/h200/perception_arms.tsv": {
   "config_or_script_text": 6
  },
  "scripts/h200/run_demo.sh": {
@@ -95,17 +87,22 @@
  "scripts/h200/run_freeze.sh": {
   "config_or_script_text": 27
  },
- "scripts/h200/run_h2.sh": {
-  "config_or_script_text": 45
- },
- "scripts/h200/run_h3.sh": {
+ "scripts/h200/run_generator_comparison.sh": {
   "config_or_script_text": 2
  },
- "scripts/h200/run_iteration.sh": {
+ "scripts/h200/run_human_agreement.sh": {
+  "config_or_script_text": 45
+ },
+ "scripts/h200/run_perception_iteration.sh": {
   "config_or_script_text": 6
  },
  "scripts/h200/run_preference.sh": {
   "config_or_script_text": 1
+ },
+ "scripts/h200/run_query.py": {
+  "comment_or_docstring": 1,
+  "identifier": 2,
+  "literal": 2
  },
  "scripts/h200/setup_autoeval.sh": {
   "config_or_script_text": 2
@@ -274,8 +271,8 @@
  },
  "src/physverify/cli/commands/results.py": {
   "comment_or_docstring": 2,
-  "identifier": 10,
-  "literal": 2
+  "identifier": 3,
+  "literal": 1
  },
  "src/physverify/cli/commands/scene_stats.py": {
   "comment_or_docstring": 1
@@ -1277,7 +1274,7 @@
   "banner": 1,
   "comment_or_docstring": 2,
   "identifier": 19,
-  "literal": 2
+  "literal": 1
  },
  "tests/scripts/human_agreement/test_h2_script.py": {
   "comment_or_docstring": 3,

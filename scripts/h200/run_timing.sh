@@ -18,7 +18,7 @@ prepare_render() {
 }
 
 require_cuda
-bash scripts/h200/setup.sh
+bash scripts/h200/setup_cuda.sh
 pv timing env
 prepare_render || echo "render prerequisites failed: kubric_render may be skipped" >&2
 

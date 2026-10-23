@@ -6,7 +6,9 @@ from pathlib import Path
 
 import pytest
 
+from physverify.app.sealing import ledger_label
 from physverify.reporting.chain import (
+    ABSTAIN_CURVE,
     ChainState,
     Missing,
     ResultsInputError,
@@ -14,6 +16,10 @@ from physverify.reporting.chain import (
     last_codes,
     parse_state,
 )
+
+# The retired chain runner logged its step 7 calls under the pre-rename names, the ledger labels.
+FIT_LOG = f"$ pv {ledger_label('selective-risk fit')}\n"
+CURVE_LOG = f"$ pv {ABSTAIN_CURVE}\n"
 
 
 def test_state_reads_quoted_values_and_the_last_line_wins() -> None:
@@ -42,8 +48,8 @@ def test_the_curve_run_is_the_one_run_line_of_abstain_curve(tmp_path: Path) -> N
     chain = _chain(
         tmp_path,
         {
-            "7-abstain-1.log": "$ pv abstain fit\nrun: /fit\n",
-            "7-abstain-2.log": "$ pv abstain curve\nrun: /curve\n",
+            "7-abstain-1.log": f"{FIT_LOG}run: /fit\n",
+            "7-abstain-2.log": f"{CURVE_LOG}run: /curve\n",
         },
     )
     assert abstain_curve_run(chain) == Path("/curve")
@@ -53,8 +59,8 @@ def test_the_curve_run_is_the_one_run_line_of_abstain_curve(tmp_path: Path) -> N
 @pytest.mark.parametrize(
     ("text", "reason"),
     [
-        ("$ pv abstain curve\n", "no `run:`"),
-        ("$ pv abstain curve\nrun: /a\nrun: /b\n", "2 ambiguous"),
+        (CURVE_LOG, "no `run:`"),
+        (f"{CURVE_LOG}run: /a\nrun: /b\n", "2 ambiguous"),
     ],
 )
 def test_no_or_several_candidates_are_missing(tmp_path: Path, text: str, reason: str) -> None:

@@ -31,19 +31,19 @@ need a CUDA GPU. The demo (A12) generates a video on the GPU or scores a given v
 | Command | What it does | Activity |
 |---|---|---|
 | `timing` | Per-clip cost harness (generation, extraction, checks, rendering, DPO step) and GPU budget; only H200 runs (`--device cuda --profile precise`) count as measurements | A3 |
-| `dataset` | Kubric synthetic dataset: five scene families, ten perturbation types at four magnitude levels, per-stage ground truth; resumable steps and ground-truth migrations | A4 |
+| `synth` | Kubric synthetic dataset: five scene families, ten perturbation types at four magnitude levels, per-stage ground truth; resumable steps and ground-truth migrations | A4 |
 | `extract` | Eight-stage perception pipeline (detection, tracking, depth, camera, 3D lifting, scale with provenance, kinematics, contacts), `fast` (CPU) and `precise` (GPU) profiles; weight download | A5 |
 | `diagnose` | Extractor error per stage, end to end and by factorial attribution, plus real video (Physics-IQ, PISA) | A6 |
-| `data` | Download of the real datasets (Physics-IQ, PISA) and, by name, of the sealed real controls | A6 |
+| `download` | Download of the real datasets (Physics-IQ, PISA) and, by name, of the sealed real controls | A6 |
 | `verify` | Checks R1-R5b (nine measures) on ground-truth ("oracle") or perceived states, with verdict intervals, abstention and a specificity sweep | A7 |
 | `calibrate` | H1 calibration on the calibration split: thresholds, false-positive rates, detection limits, per-check and per-stage sigma correction, clip score; held-out and real-video evaluation; publication of the thresholds | A8 |
 | `exclusions` | Applies the pre-registered exclusion rules to the calibration results; writes the hashed decision record that H2 and H3 read | A8 |
-| `abstain` | Risk-coverage of the threshold policy: choice of the abstention level k* on the calibration split, held-out curve | A9 |
+| `selective-risk` | Risk-coverage of the threshold policy: choice of the abstention level k* on the calibration split, held-out curve | A9 |
 | `size` | Per-class object size model learned on Objectron: fetch, fit, held-out and end-to-end error | A9 |
 | `agreement` | Verifier vs reference VLM on VideoPhy human labels (H2): data, reviewed subset, pre-registration on dev, comparison on test | A10 |
 | `finetune` | Prompt set, Wan2.1-T2V-1.3B candidates scored by the verifier, preference pairs with a pilot stop rule, Flow-DPO LoRA training and checkpoint selection | A11 |
 | `demo` | One prompt or video through the whole verifier: per-check report and overlay video | A12 |
-| `h3` | Fine-tuned vs base vs best-of-8 under the verifier and VideoPhy-2 AutoEval (H3), with a pre-registration and a regression gate for the judge | A13 |
+| `compare-generators` | Fine-tuned vs base vs best-of-8 under the verifier and VideoPhy-2 AutoEval (H3), with a pre-registration and a regression gate for the judge | A13 |
 | `scene-stats` | Per-clip detection and depth errors, per-scene tables and scene-bootstrap differences between two extractor configurations | - |
 | `results` | Collects the reported numbers of a calibration chain (and an H2 run) into `results.md` and `results.json`, each value with its source and estimates marked | - |
 | `doctor` | Effective configuration, paths, lock and package versions | - |

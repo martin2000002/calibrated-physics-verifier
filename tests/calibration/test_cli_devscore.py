@@ -129,7 +129,8 @@ def test_devscore_writes_only_its_run_and_out(
 def test_the_runners_keep_the_development_metric_lines(
     cli: CliRunner, calls: list[int], tmp_path: Path
 ) -> None:
-    """run_iteration.sh step 5: run_of finds the run and its grep keeps the metric lines."""
+    """run_perception_iteration.sh step 5: run_of finds the run and its grep keeps the metric
+    lines."""
     result = cli(*FAST, "calibrate", "dev-score", "--dataset", DATASET, "--level", "oracle")
     assert result.code == 0, result.err
     log = tmp_path / "devscore.log"

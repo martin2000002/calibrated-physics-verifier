@@ -4,7 +4,7 @@
 # calib clips and written only under its own directory. No call evaluates, abstains, reads real
 # video or names an eval clip, so no sealed set is looked at (and PHYSVERIFY_UNSEAL is refused).
 #
-#   bash scripts/h200/run_iteration.sh [FROM [TO]]   steps FROM..TO (default 1..5); FROM resumes
+#   bash scripts/h200/run_perception_iteration.sh [FROM [TO]]   steps FROM..TO (default 1..5); FROM resumes
 #
 #    1 extract      extract run on the calib clips (failed clips tolerated, noted)
 #    2 stages       diagnose stages --clips <calib> --write-profile: the iteration's own error
@@ -14,8 +14,8 @@
 #    5 devscore     calibrate dev-score --level both: devscore.json, and the full calib fit as
 #                   <run>/calibration.json (never in a calibration directory); copied to $OUT
 #
-# Startup (exit 2 before any physverify call): PHYSVERIFY_ITER_ID; HEAD is
-# PHYSVERIFY_ITER_EXPECT_COMMIT with nothing uncommitted or untracked under src, configs, scripts,
+# Startup (exit 2 before any physverify call): PHYSVERIFY_ITERATION_ID; HEAD is
+# PHYSVERIFY_ITERATION_EXPECT_COMMIT with nothing uncommitted or untracked under src, configs, scripts,
 # annotations, pyproject.toml or uv.lock; no configs/local.toml and no PHYSVERIFY_CONFIG_DIR; no PHYSVERIFY__* variable
 # but the ones exported here (PHYSVERIFY__SEALED__* included); no PHYSVERIFY_UNSEAL or
 # PHYSVERIFY_UNSEAL_REPEAT; the output directory (and its calibration/ and runs/) is not inside
@@ -26,25 +26,25 @@
 # calibration directory, runs directory, error profile and thresholds inside $OUT.
 #
 # Required:
-#   PHYSVERIFY_ITER_ID              ^it[0-9]+[a-z0-9-]*$, e.g. it0-baseline
-#   PHYSVERIFY_ITER_EXPECT_COMMIT   prefix (>= 7 chars) of the HEAD this checkout is at
-#   PHYSVERIFY_ITER_CACHE_DIR       paths.cache_dir (normally the shared cache: its keys hold the
-#                                   device and provider versions, so an iteration only adds)
+#   PHYSVERIFY_ITERATION_ID              ^it[0-9]+[a-z0-9-]*$, e.g. it0-baseline
+#   PHYSVERIFY_ITERATION_EXPECT_COMMIT   prefix (>= 7 chars) of the HEAD this checkout is at
+#   PHYSVERIFY_ITERATION_CACHE_DIR       paths.cache_dir (normally the shared cache: its keys hold the
+#                                        device and provider versions, so an iteration only adds)
 # Optional (defaults in brackets):
-#   PHYSVERIFY_ITER_PROFILE         sampling profile [precise]; it also fixes the synthetic
-#                                   dataset version the calib clips are listed from
-#   PHYSVERIFY_ITER_ARM             a declared arm of scripts/h200/iteration_arms.tsv [none]:
-#                                   its provider swaps (extraction.plan.<stage>=<provider>) go as
-#                                   --set to every physverify call; doctor must list each one;
-#                                   PHYSVERIFY_ITER_ID must contain the arm name. The heavy lock is
-#                                   per output directory: run arms one at a time (it3_arms.sh)
-#   PHYSVERIFY_ITER_DEVICE          cpu or cuda [cpu]; cuda needs CUDA_VISIBLE_DEVICES in 0-3
-#                                   (launch through gpu_queue.sh)
-#   PHYSVERIFY_ITER_PYTHON          interpreter [/home/mmonterot/dev/venv/bin/python]
-#   PHYSVERIFY_ITER_THREADS         runtime.threads [16: at most 16 while the A8 v2 chain runs]
-#   PHYSVERIFY_ITER_DATA            paths.data_dir, the synthetic dataset read only
-#                                   [$H200_ROOT/kubric-data]
-#   PHYSVERIFY_ITER_DIR             output [$H200_ROOT/iterations/$PHYSVERIFY_ITER_ID-$DEVICE]
+#   PHYSVERIFY_ITERATION_PROFILE         sampling profile [precise]; it also fixes the synthetic
+#                                        dataset version the calib clips are listed from
+#   PHYSVERIFY_ITERATION_ARM             a declared arm of scripts/h200/perception_arms.tsv [none]:
+#                                        its provider swaps (extraction.plan.<stage>=<provider>) go as
+#                                        --set to every physverify call; doctor must list each one;
+#                                        PHYSVERIFY_ITERATION_ID must contain the arm name. The heavy lock is
+#                                        per output directory: run arms one at a time (it3_arms.sh)
+#   PHYSVERIFY_ITERATION_DEVICE          cpu or cuda [cpu]; cuda needs CUDA_VISIBLE_DEVICES in 0-3
+#                                        (launch through gpu_queue.sh)
+#   PHYSVERIFY_ITERATION_PYTHON          interpreter [/home/mmonterot/dev/venv/bin/python]
+#   PHYSVERIFY_ITERATION_THREADS         runtime.threads [16: at most 16 while the A8 v2 chain runs]
+#   PHYSVERIFY_ITERATION_DATA            paths.data_dir, the synthetic dataset read only
+#                                        [$H200_ROOT/kubric-data]
+#   PHYSVERIFY_ITERATION_DIR             output [$H200_ROOT/iterations/$PHYSVERIFY_ITERATION_ID-$DEVICE]
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/_common.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/_steps.sh"
@@ -53,76 +53,76 @@ cd "$REPO_ROOT"
 
 FIRST_STEP=1
 LAST_STEP=5
-[[ $# -le 2 ]] || die "usage: run_iteration.sh [FROM [TO]]"
+[[ $# -le 2 ]] || die "usage: run_perception_iteration.sh [FROM [TO]]"
 FROM="${1:-$FIRST_STEP}"
 TO="${2:-$LAST_STEP}"
 [[ "$FROM" =~ ^[1-5]$ && "$TO" =~ ^[1-5]$ && "$FROM" -le "$TO" ]] \
     || die "FROM and TO must be steps with $FIRST_STEP <= FROM <= TO <= $LAST_STEP, got '$FROM' '$TO'"
-PV_PROFILE="${PHYSVERIFY_ITER_PROFILE:-precise}"
+PV_PROFILE="${PHYSVERIFY_ITERATION_PROFILE:-precise}"
 [[ "$PV_PROFILE" =~ ^[a-z][a-z0-9_]*$ ]] \
-    || die "PHYSVERIFY_ITER_PROFILE must be a profile name, got '$PV_PROFILE'"
+    || die "PHYSVERIFY_ITERATION_PROFILE must be a profile name, got '$PV_PROFILE'"
 KS=(--dataset kubric_synthetic --subset full)
 STEP_SAVES=([1]="CALIB_SHA" [2]="STAGES_RUN PROFILE_SHA" [4]="STAGE_SIGMA_SHA"
     [5]="DEVSCORE_SHA CALIBRATION_SHA")
-ARMS_FILE="$(dirname "${BASH_SOURCE[0]}")/iteration_arms.tsv"
+ARMS_FILE="$(dirname "${BASH_SOURCE[0]}")/perception_arms.tsv"
 SWAP_PATTERN='^extraction\.plan\.[a-z]+=[a-z0-9_]+$'
 
 # arm_swaps NAME: the provider swaps of a declared arm, one per line (exit 2 if undeclared).
 arm_swaps() {
     local lines swap
-    [[ "$1" =~ ^[a-z0-9][a-z0-9-]*$ ]] || die "PHYSVERIFY_ITER_ARM must be an arm name, got '$1'"
+    [[ "$1" =~ ^[a-z0-9][a-z0-9-]*$ ]] || die "PHYSVERIFY_ITERATION_ARM must be an arm name, got '$1'"
     [[ -f "$ARMS_FILE" ]] || die "no arm table at $ARMS_FILE"
     lines="$(awk -F '\t' -v arm="$1" '$1 == arm { print $2 }' "$ARMS_FILE")"
     [[ -n "$lines" && "$lines" != *$'\n'* ]] \
-        || die "PHYSVERIFY_ITER_ARM=$1 is not declared exactly once in $ARMS_FILE"
+        || die "PHYSVERIFY_ITERATION_ARM=$1 is not declared exactly once in $ARMS_FILE"
     for swap in $lines; do
         [[ "$swap" =~ $SWAP_PATTERN ]] || die "arm $1: '$swap' is not extraction.plan.<stage>=<provider>"
         printf '%s\n' "$swap"
     done
 }
 
-ITER_ID="${PHYSVERIFY_ITER_ID:-}"
+ITER_ID="${PHYSVERIFY_ITERATION_ID:-}"
 [[ "$ITER_ID" =~ ^it[0-9]+[a-z0-9-]*$ ]] \
-    || die "PHYSVERIFY_ITER_ID must match ^it[0-9]+[a-z0-9-]*\$ (e.g. it0-baseline), got '$ITER_ID'"
+    || die "PHYSVERIFY_ITERATION_ID must match ^it[0-9]+[a-z0-9-]*\$ (e.g. it0-baseline), got '$ITER_ID'"
 
 source_h200_env
-refuse_foreign_config run_iteration.sh " PATHS__DATA_DIR PATHS__CACHE_DIR PATHS__WEIGHTS_DIR
+refuse_foreign_config run_perception_iteration.sh " PATHS__DATA_DIR PATHS__CACHE_DIR PATHS__WEIGHTS_DIR
     PATHS__VENDOR_DIR PATHS__HF_HOME PATHS__CALIBRATION_DIR PATHS__RUNS_DIR RUNTIME__HEAVY_LOCK "
 for name in PHYSVERIFY_UNSEAL PHYSVERIFY_UNSEAL_REPEAT; do
     [[ -z "${!name+set}" ]] || die "$name is set: an iteration never looks at a sealed set; unset it"
 done
-refuse_local_config run_iteration.sh
-require_checkout PHYSVERIFY_ITER_EXPECT_COMMIT
+refuse_local_config run_perception_iteration.sh
+require_checkout PHYSVERIFY_ITERATION_EXPECT_COMMIT
 
-DEVICE="${PHYSVERIFY_ITER_DEVICE:-cpu}"
+DEVICE="${PHYSVERIFY_ITERATION_DEVICE:-cpu}"
 case "$DEVICE" in
     cpu) export CUDA_VISIBLE_DEVICES="" ;;
     cuda)
         [[ "${CUDA_VISIBLE_DEVICES:-}" =~ ^[0-3]$ ]] \
-            || die "PHYSVERIFY_ITER_DEVICE=cuda needs CUDA_VISIBLE_DEVICES in 0-3 (gpu_queue.sh), got '${CUDA_VISIBLE_DEVICES-unset}'"
+            || die "PHYSVERIFY_ITERATION_DEVICE=cuda needs CUDA_VISIBLE_DEVICES in 0-3 (gpu_queue.sh), got '${CUDA_VISIBLE_DEVICES-unset}'"
         ;;
-    *) die "PHYSVERIFY_ITER_DEVICE must be cpu or cuda, got '$DEVICE'" ;;
+    *) die "PHYSVERIFY_ITERATION_DEVICE must be cpu or cuda, got '$DEVICE'" ;;
 esac
 PV_DEVICE="$DEVICE"
-ARM="${PHYSVERIFY_ITER_ARM:-}"
+ARM="${PHYSVERIFY_ITERATION_ARM:-}"
 SWAPS=()
 if [[ -n "$ARM" ]]; then
     SWAP_LINES="$(arm_swaps "$ARM")" || exit 2
     [[ "$ITER_ID" == *"$ARM"* ]] \
-        || die "PHYSVERIFY_ITER_ID '$ITER_ID' must contain the arm name '$ARM' (one directory per arm)"
+        || die "PHYSVERIFY_ITERATION_ID '$ITER_ID' must contain the arm name '$ARM' (one directory per arm)"
     mapfile -t SWAPS <<<"$SWAP_LINES"
     for swap in "${SWAPS[@]}"; do
         PV_EXTRA+=(--set "$swap")
     done
 fi
-CACHE="${PHYSVERIFY_ITER_CACHE_DIR:-}"
-[[ -n "$CACHE" ]] || die "set PHYSVERIFY_ITER_CACHE_DIR to the cache root (normally the shared one)"
-PY="${PHYSVERIFY_ITER_PYTHON:-/home/mmonterot/dev/venv/bin/python}"
-[[ -x "$PY" ]] || die "no interpreter at $PY (PHYSVERIFY_ITER_PYTHON)"
-THREADS="${PHYSVERIFY_ITER_THREADS:-16}"
-[[ "$THREADS" =~ ^[1-9][0-9]*$ ]] || die "PHYSVERIFY_ITER_THREADS must be a positive integer"
-DATA="${PHYSVERIFY_ITER_DATA:-$H200_ROOT/kubric-data}"
-OUT="${PHYSVERIFY_ITER_DIR:-$H200_ROOT/iterations/$ITER_ID-$DEVICE}"
+CACHE="${PHYSVERIFY_ITERATION_CACHE_DIR:-}"
+[[ -n "$CACHE" ]] || die "set PHYSVERIFY_ITERATION_CACHE_DIR to the cache root (normally the shared one)"
+PY="${PHYSVERIFY_ITERATION_PYTHON:-/home/mmonterot/dev/venv/bin/python}"
+[[ -x "$PY" ]] || die "no interpreter at $PY (PHYSVERIFY_ITERATION_PYTHON)"
+THREADS="${PHYSVERIFY_ITERATION_THREADS:-16}"
+[[ "$THREADS" =~ ^[1-9][0-9]*$ ]] || die "PHYSVERIFY_ITERATION_THREADS must be a positive integer"
+DATA="${PHYSVERIFY_ITERATION_DATA:-$H200_ROOT/kubric-data}"
+OUT="${PHYSVERIFY_ITERATION_DIR:-$H200_ROOT/iterations/$ITER_ID-$DEVICE}"
 
 for dir in "$OUT" "$OUT/calibration" "$OUT/runs"; do
     for base in "$H200_ROOT/a8v2" "$DATA/calibration" "$DATA/runs" \
@@ -133,7 +133,7 @@ done
 
 mkdir -p "$OUT"
 exec 9>"$OUT/run.lock"
-flock -n 9 || die "another run_iteration.sh holds $OUT/run.lock"
+flock -n 9 || die "another run_perception_iteration.sh holds $OUT/run.lock"
 
 export PHYSVERIFY__PATHS__DATA_DIR="$DATA"
 export PHYSVERIFY__PATHS__CACHE_DIR="$CACHE"
@@ -170,7 +170,7 @@ done
 require_completed "$FIRST_STEP" "$FROM"
 
 query() {
-    env PYTHONPATH="$REPO_ROOT/src" "$PY" "$REPO_ROOT/scripts/h200/a8v2_query.py" "$@"
+    h200_py run_query.py "$@"
 }
 
 check_doctor() {
@@ -266,6 +266,6 @@ for ((n = FROM; n <= TO; n++)); do
     row 0
 done
 if [[ "$TO" -lt "$LAST_STEP" ]]; then
-    note "stopped after step $TO as requested; resume with run_iteration.sh $((TO + 1))"
+    note "stopped after step $TO as requested; resume with run_perception_iteration.sh $((TO + 1))"
 fi
 echo "iteration $ITER_ID: $SUMMARY"

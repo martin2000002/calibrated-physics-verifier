@@ -11,7 +11,7 @@ import pytest
 from shell_sandbox import Sandbox, executable
 
 SCRIPTS = Path(__file__).resolve().parents[2] / "scripts" / "h200"
-SCRIPT_NAMES = ("_common.sh", "setup.sh", "run_timing.sh")
+SCRIPT_NAMES = ("_common.sh", "setup_cuda.sh", "run_timing.sh")
 TOOLS = (
     "bash", "basename", "cat", "dirname", "grep", "head", "ln", "mkdir", "mktemp", "mv", "nproc",
     "rm", "sed", "tee",
@@ -110,7 +110,7 @@ def test_entry_scripts_are_executable(name: str) -> None:
     assert os.access(SCRIPTS / name, os.X_OK)
 
 
-@pytest.mark.parametrize("script", ["run_timing.sh", "setup.sh"])
+@pytest.mark.parametrize("script", ["run_timing.sh", "setup_cuda.sh"])
 @pytest.mark.parametrize(
     ("nvidia_smi", "env"),
     [(False, {}), (True, {"GPU_LIST": ""}), (True, {"PHYSVERIFY_TIMING_THREADS": "0"})],
@@ -182,5 +182,5 @@ def test_timing_run_exit_code_is_kept(sandbox: TimingSandbox) -> None:
 
 def test_setup_alone(sandbox: TimingSandbox) -> None:
     sandbox.install()
-    assert sandbox.run("setup.sh").returncode == 0
+    assert sandbox.run("setup_cuda.sh").returncode == 0
     assert sandbox.lines() == SETUP

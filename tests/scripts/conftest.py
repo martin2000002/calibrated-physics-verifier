@@ -1,5 +1,5 @@
 """Script test fixtures: no network, the timing settings and clip factory, and directories of
-run_iteration.sh as freeze_query.py select reads them."""
+run_perception_iteration.sh as freeze_query.py select reads them."""
 
 from __future__ import annotations
 
@@ -34,7 +34,8 @@ def make_iteration(
     steps: Sequence[int] = (1, 2, 3, 4, 5),
     commit: str = "c" * 40,
 ) -> Path:
-    """A run_iteration.sh directory: state.env written with printf %q, steps.tsv, the files."""
+    """A run_perception_iteration.sh directory: state.env written with printf %q, steps.tsv, the
+    files."""
     directory = root / f"{name} {device}"
     (directory / "calibration").mkdir(parents=True)
     devscore = {"commit": commit, "selection": {"n_met": n_met, "tiebreak_auroc_cv": auroc}}
@@ -59,5 +60,5 @@ def make_iteration(
 
 @pytest.fixture
 def iteration_factory() -> Callable[..., Path]:
-    """Directories of run_iteration.sh, as freeze_query.py select reads them."""
+    """Directories of run_perception_iteration.sh, as freeze_query.py select reads them."""
     return make_iteration

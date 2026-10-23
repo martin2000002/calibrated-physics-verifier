@@ -105,7 +105,7 @@ if [[ "$1" != -c ]]; then
       "freeze_query.py ledger")
         [[ -f "$LEDGER_FILE" ]] || exit 2
         echo "ledger $LEDGER_FILE: $(grep -c . "$LEDGER_FILE") lines" ;;
-      "a8v2_query.py clips") printf '%s-1\n%s-2\n%s-3\n' "$3" "$3" "$3" ;;
+      "run_query.py clips") printf '%s-1\n%s-2\n%s-3\n' "$3" "$3" "$3" ;;
       "overlay_cli.py "*)
         log_env
         [[ -z "${META:-}" ]] || { mkdir -p "$2/x"; touch "$2/x/meta.json"; }

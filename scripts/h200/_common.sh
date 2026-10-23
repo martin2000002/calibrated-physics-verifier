@@ -53,7 +53,24 @@ THREADS="${PHYSVERIFY_TIMING_THREADS:-$(nproc)}"
 # or after sourcing this file; an exported PV_DEVICE is kept.
 PV_DEVICE="${PV_DEVICE:-cuda}"
 
+# PV_RUNNER picks how pv reaches the checkout: uv (the default) or py, the interpreter $PY with
+# this checkout's src first (_steps.sh). PV_PROFILE is precise; PV_NICE prefixes and PV_EXTRA
+# extends every call. A caller changes them after sourcing; exported values are ignored.
+PV_RUNNER=uv
+PV_PROFILE=precise
+PV_NICE=()
+PV_EXTRA=()
+
 pv() {
-    uv run --no-sync physverify --profile precise --device "$PV_DEVICE" \
-        --set "runtime.threads=$THREADS" "$@"
+    local runner=(uv run --no-sync physverify)
+    if [[ "$PV_RUNNER" == py ]]; then
+        runner=(env PYTHONPATH="$REPO_ROOT/src" "$PY" -c "from physverify.cli.main import main; main()")
+    fi
+    "${PV_NICE[@]}" "${runner[@]}" --profile "$PV_PROFILE" --device "$PV_DEVICE" \
+        --set "runtime.threads=$THREADS" "${PV_EXTRA[@]}" "$@"
+}
+
+# h200_py SCRIPT ARGS: scripts/h200/SCRIPT of this checkout through $PY.
+h200_py() {
+    env PYTHONPATH="$REPO_ROOT/src" "$PY" "$REPO_ROOT/scripts/h200/$1" "${@:2}"
 }

@@ -50,7 +50,7 @@ def _test(world, **kwargs) -> Path:
 
 
 def _h2_note(out: str) -> str:
-    """The line run_h2.sh notes from the compare log."""
+    """The line run_human_agreement.sh notes from the compare log."""
     sed = subprocess.run(
         ["sed", "-n", "/^H2: /{p;q}"], input=out, capture_output=True, text=True, check=True
     )

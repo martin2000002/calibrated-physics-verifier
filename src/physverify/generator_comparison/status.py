@@ -14,8 +14,8 @@ from physverify.generator_comparison.records import JUDGE_SPLITS, load_judge_out
 
 GATE_LINE: Final = "  gate: "
 GATE_PASSED: Final = "passed"
-"""``scripts/h200/run_h3.sh eval`` reads this status line to skip the judge without a passed
-gate."""
+"""``scripts/h200/run_generator_comparison.sh eval`` reads this status line to skip the judge
+without a passed gate."""
 
 
 def freeze_lines(record: H3Preregistration) -> list[str]:

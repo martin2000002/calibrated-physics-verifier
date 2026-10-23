@@ -21,7 +21,7 @@ bash scripts/h200/run_timing.sh
 
 It runs, from `Repo/`:
 
-1. `setup.sh`: `uv sync --no-default-groups --group dev --group cu128 --group perception --group
+1. `setup_cuda.sh`: `uv sync --no-default-groups --group dev --group cu128 --group perception --group
    generation`, a check that torch sees CUDA, `physverify extract fetch-weights` and
    `physverify timing fetch` (the pinned Wan2.1 snapshot; a cut download resumes).
 2. `physverify timing env`: the environment of the run and whether it is a valid measurement.
@@ -106,7 +106,7 @@ source "$PHYSVERIFY_H200_ROOT/env.sh"   # HOME, XDG_CACHE_HOME, HF_HOME, UV_*, P
 ```
 
 It derives every path from the directory it sits in. `run_kubric.sh`, `run_demo.sh`,
-`run_h3.sh`, `setup_autoeval.sh` and `smoke_autoeval.sh` source it when
+`run_generator_comparison.sh`, `setup_autoeval.sh` and `smoke_autoeval.sh` source it when
 present (`source_h200_env` in `_common.sh`); source it by hand before the other scripts. The first
 runs used the root `/tmp/mmonterot`, which the 30-day
 purge of `/tmp` can wipe; `PHYSVERIFY_H200_ROOT=/tmp/mmonterot` still reproduces that layout.
@@ -140,7 +140,7 @@ nohup bash scripts/h200/run_kubric.sh full >/dev/null 2>&1 &
 
 Preflight (exit 2 on failure): the data directory has at least `PHYSVERIFY_KUBRIC_MIN_FREE_GB`
 (50) GB free; `physverify doctor` reports the chosen `container_engine`; then, for Docker,
-`docker info` responds, the pinned image is pulled with `physverify dataset pull-image` when
+`docker info` responds, the pinned image is pulled with `physverify synth pull-image` when
 `docker image inspect` misses it; for udocker, the binary exists and the container exists
 (otherwise the image is pulled and the container created). The udocker image is
 `runtime.docker_image` unless `PHYSVERIFY_KUBRIC_IMAGE` is set, and the image `udocker ps` lists for
@@ -150,13 +150,13 @@ with `udocker rm kub` so the next run recreates it from the pin, or set `PHYSVER
 to its image to use it knowingly. Last, `physverify doctor --probe-container` runs the configured
 engine with the build's own mounts, workdir and environment and imports `kubric`, `bpy`,
 `pybullet` and `physverify.kubric_worker.build_scene` from the mounted source. Then it runs
-`physverify dataset build`
-and `dataset list` with `--set runtime.threads=$PHYSVERIFY_KUBRIC_THREADS` (16, also Blender's
+`physverify synth build`
+and `synth list` with `--set runtime.threads=$PHYSVERIFY_KUBRIC_THREADS` (16, also Blender's
 fixed thread count), `dataset.render.workers=$PHYSVERIFY_KUBRIC_WORKERS` (12) and
 `dataset.render.jobs_per_process=$PHYSVERIFY_KUBRIC_JOBS` (8); render settings do not enter the
 dataset hash. The log goes to `<data_dir>/runs/kubric-<subset>-<UTC time>.log`
 (`kubric-latest.log` links to it) and starts with the engine and the image the container came
-from; `dataset list` always runs, and the script exits with the build's exit code.
+from; `synth list` always runs, and the script exits with the build's exit code.
 
 When a run fails or is cut, run the same command again: it resumes, and every step skips finished
 items. If udocker is what failed and Docker responds, rerun it with
@@ -165,7 +165,7 @@ items. If udocker is what failed and Docker responds, rerun it with
 ## Demo (A12)
 
 ```sh
-bash scripts/h200/run_demo.sh scenes      # after `h3 freeze` and the eval generation of run_h3.sh
+bash scripts/h200/run_demo.sh scenes      # after `compare-generators freeze` and the eval generation of run_generator_comparison.sh
 bash scripts/h200/run_demo.sh run --prompt "A ball rolls off a table, static camera" \
     --query ball:1 --query table:1        # generates k = 0 (needs CUDA), then verifies it
 bash scripts/h200/run_demo.sh run --prompt "..." --query ball --video clip.mp4   # no GPU needed
@@ -189,21 +189,21 @@ report on CPU, for example once the calibrated rule replaces the provisional one
 
 ```sh
 source "$PHYSVERIFY_H200_ROOT/env.sh"
-bash scripts/h200/run_h3.sh base-eval            # base eval videos; outcome-blind, can start first
+bash scripts/h200/run_generator_comparison.sh base-eval            # base eval videos; outcome-blind, can start first
 bash scripts/h200/setup_autoeval.sh              # VideoPhy-2 AutoEval in its own venv (no GPU)
 bash scripts/h200/smoke_autoeval.sh              # the gate: exit 1 when the pinned judge fails it
-bash scripts/h200/run_h3.sh dev                  # AutoEval on dev videos (after `finetune select`)
-bash scripts/h200/run_h3.sh freeze               # pre-registration, before any eval score
-bash scripts/h200/run_h3.sh eval                 # ft videos, scores, eval judge rows, compare
-bash scripts/h200/run_h3.sh status
+bash scripts/h200/run_generator_comparison.sh dev                  # AutoEval on dev videos (after `finetune select`)
+bash scripts/h200/run_generator_comparison.sh freeze               # pre-registration, before any eval score
+bash scripts/h200/run_generator_comparison.sh eval                 # ft videos, scores, eval judge rows, compare
+bash scripts/h200/run_generator_comparison.sh status
 ```
 
 ADR 0013 fixes the order. `freeze` writes `h3/preregistration.json`, and it must exist before any
 eval score or judge row; `score`, `judge --split eval` and `compare` refuse to run without it.
-When `h3 status` does not show `gate: passed`, `eval` skips the judge and still runs `compare`
+When `compare-generators status` does not show `gate: passed`, `eval` skips the judge and still runs `compare`
 (verdict at most `supported_verifier_only`); any other failure stops the script. The eval split
-belongs to `h3`: `finetune generate|score --split eval` exit 2.
-`base-eval` and `dev` accept the `physverify h3` options (`--shard I/N`, `--limit N`, `--task
+belongs to `compare-generators`: `finetune generate|score --split eval` exit 2.
+`base-eval` and `dev` accept the `physverify compare-generators` options (`--shard I/N`, `--limit N`, `--task
 pc|sa`). Every step skips the work it finds done with the same stamp.
 
 `setup_autoeval.sh` is idempotent. It reads the pins from `[h3.autoeval]` in `configs/h3.toml`
@@ -218,9 +218,9 @@ before any `uv` call.
 
 ## GT migrations
 
-`physverify dataset migrate --name <name>` re-runs APPLY on every simulated clip of a stored
+`physverify synth migrate --name <name>` re-runs APPLY on every simulated clip of a stored
 dataset in place (no version bump), keeping every render whose inputs did not change, and writes
-`migrations/<name>.json`. `velocity-position` (the default, also `dataset migrate-velocity`) moves
+`migrations/<name>.json`. `velocity-position` (the default, also `synth migrate-velocity`) moves
 a dataset to `velocity_convention = "position"`; the ground-truth fixes of `plan.GT_MIGRATIONS`
 follow, in order: `floor-crossing` re-solves the floor bounces whose row after the crossing was
 already under the floor, and `pair-collision` holds a ball's velocity at a ball-ball collision only
@@ -235,32 +235,32 @@ build step until its pending fix (named in the refusal) has run on it.
 
 ```sh
 source "$PHYSVERIFY_H200_ROOT/env.sh"
-PHYSVERIFY_ITER_ID=it0-baseline PHYSVERIFY_ITER_EXPECT_COMMIT=<head> \
-    PHYSVERIFY_ITER_CACHE_DIR=<shared cache root> \
-    nohup bash scripts/h200/run_iteration.sh > "$PHYSVERIFY_H200_ROOT/iterations/it0.log" 2>&1 &
+PHYSVERIFY_ITERATION_ID=it0-baseline PHYSVERIFY_ITERATION_EXPECT_COMMIT=<head> \
+    PHYSVERIFY_ITERATION_CACHE_DIR=<shared cache root> \
+    nohup bash scripts/h200/run_perception_iteration.sh > "$PHYSVERIFY_H200_ROOT/iterations/it0.log" 2>&1 &
 ```
 
-`run_iteration.sh [FROM [TO]]` runs, on the `kubric_synthetic` calib clips only: `extract run`,
+`run_perception_iteration.sh [FROM [TO]]` runs, on the `kubric_synthetic` calib clips only: `extract run`,
 `diagnose stages --write-profile` (its own error profile), `extract run` again, `calibrate
-stage-sigma` and `calibrate devscore --level both`, the development metric (H1 of the full calib
+stage-sigma` and `calibrate dev-score --level both`, the development metric (H1 of the full calib
 fit and J of out-of-fold decisions per check, AUROC of the clip score out of fold). Everything
 lands in `$PHYSVERIFY_H200_ROOT/iterations/<id>-<device>/` (calibration directory, runs, heavy
 lock, `devscore.json`, the full calib fit `calibration.json`, `summary.md`); the header lists the
-startup checks and variables. `PHYSVERIFY_ITER_PROFILE` (default `precise`) picks the sampling
+startup checks and variables. `PHYSVERIFY_ITERATION_PROFILE` (default `precise`) picks the sampling
 profile, which also fixes the dataset version the calib clips are listed from. With
-`PHYSVERIFY_ITER_DEVICE=cuda` launch it through `gpu_queue.sh` with one GPU,
+`PHYSVERIFY_ITERATION_DEVICE=cuda` launch it through `gpu_queue.sh` with one GPU,
 `CUDA_VISIBLE_DEVICES` in 0-3 (anything else, a list included, exits 2).
 
-Declared arms (it3): `PHYSVERIFY_ITER_ARM=<arm>` names a line of `iteration_arms.tsv`, whose
+Declared arms (it3): `PHYSVERIFY_ITERATION_ARM=<arm>` names a line of `perception_arms.tsv`, whose
 provider swaps (`extraction.plan.<stage>=<provider>` only) go as `--set` to every physverify
 call. The profile stays the committed one, so arms that share a provider prefix share its cache
 keys and its error-profile entries (a separate profile name would not: the name is part of every
 entry). `doctor` must list each swap among its sources, `state.env` records `CHAIN_ARM` (a
 resume with another arm exits 2) and the summary names the arm and the GPU. Give each arm its
-own `PHYSVERIFY_ITER_ID` (e.g. `it3-c`), so it lands in `iterations/it3-c-cuda/`.
+own `PHYSVERIFY_ITERATION_ID` (e.g. `it3-c`), so it lands in `iterations/it3-c-cuda/`.
 
-The sealed ledger (`configs/sealed.toml`): `calibrate fit|stage-sigma|evaluate|devscore`, `abstain
-fit|curve`, `verify`, `diagnose *` and `scene-stats per-clip` exit 2 before computing on a sealed
+The sealed ledger (`configs/sealed.toml`): `calibrate fit|stage-sigma|evaluate|dev-score`,
+`selective-risk fit|curve`, `verify`, `diagnose *` and `scene-stats per-clip` exit 2 before computing on a sealed
 set (`kubric_synthetic:eval`, the fresh controls) unless `PHYSVERIFY_UNSEAL` names it, and then
 append a line to the ledger first. A look never creates the ledger: create it once, by hand,
 with `env.sh` sourced (`touch "$PHYSVERIFY_H200_ROOT/sealed-ledger.txt"`); a missing file (a
@@ -281,7 +281,7 @@ before any physverify call).
 ```sh
 source "$PHYSVERIFY_H200_ROOT/env.sh"
 PHYSVERIFY_FREEZE_EXPECT_COMMIT=$C PHYSVERIFY_FREEZE_ITERATION=<J4 choice> \
-    PHYSVERIFY_FREEZE_ITERATIONS="<iteration dirs>" PHYSVERIFY_FREEZE_P2_COMMIT=<P2 commit> \
+    PHYSVERIFY_FREEZE_ITERATIONS="<iteration dirs>" PHYSVERIFY_FREEZE_EARLY_EXTRACTION_COMMIT=<P2 commit> \
     PHYSVERIFY_FREEZE_V1_COMMIT=<C_V1> PHYSVERIFY_FREEZE_V1_CALIBRATION=<base calibration.json> \
     PHYSVERIFY_FREEZE_CACHE_DIR=<cache> \
     nohup bash scripts/h200/run_freeze.sh > "$PHYSVERIFY_H200_ROOT/final/freeze.log" 2>&1 &
@@ -289,7 +289,7 @@ PHYSVERIFY_FREEZE_EXPECT_COMMIT=$C PHYSVERIFY_FREEZE_ITERATION=<J4 choice> \
 
 `run_freeze.sh [FROM [TO]]` adopts the iteration J4 chooses (`freeze_query.py select`; never
 refitted), extracts the development real video, runs the rule 1.5 evaluation on calib, the two R2
-arms, `exclusions decide`, `abstain fit`, and writes `$F/freeze.json` (`freeze_query.py
+arms, `exclusions decide`, `selective-risk fit`, and writes `$F/freeze.json` (`freeze_query.py
 manifest`: commit, configs tree, artifact sha256, `record_sha`, the seed of amendment 2 section 2,
 the J3 and J13 diffs and the v1 arm's commit and calibration). `$F` defaults to
 `$PHYSVERIFY_H200_ROOT/final`.
@@ -321,12 +321,12 @@ A run with `PHYSVERIFY_FINAL_EXTRACT_LIMIT` (the pace measurement) is recorded a
 
 Look order (plan-congelado, "Recortes"; the script enforces only that a v1 arm follows its look
 and that no render follows a look, so this order is kept by hand): (1) `look
-kubric_synthetic_eval` (the set already seen), (2) `look kubric_fresh`, (3) `run_h2.sh dev`, then
+kubric_synthetic_eval` (the set already seen), (2) `look kubric_fresh`, (3) `run_human_agreement.sh dev`, then
 `test`, (4) `look real_new`; afterwards, with the same freeze and seed, the `kubric_fresh_ood`
 render and look, `look kubric_fresh_blind` and the v1 arms.
 
 H2 then runs from the freeze manifest instead of the A8 v2 run:
-`PHYSVERIFY_H2_FREEZE=$F/freeze.json PHYSVERIFY_H2_CALIBRATION_DIR=$F/calibration bash
-scripts/h200/run_h2.sh dev` (and `test` once).
+`PHYSVERIFY_AGREEMENT_FREEZE=$F/freeze.json PHYSVERIFY_AGREEMENT_CALIBRATION_DIR=$F/calibration bash
+scripts/h200/run_human_agreement.sh dev` (and `test` once).
 
-Debt: `run_h2.sh` keeps its own startup guards (not `_guards.sh`).
+Debt: `run_human_agreement.sh` keeps its own startup guards (not `_guards.sh`).

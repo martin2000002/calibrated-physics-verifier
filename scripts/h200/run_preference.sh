@@ -10,7 +10,7 @@ cd "$REPO_ROOT"
 PILOT_PROMPTS=20
 
 require_cuda
-bash scripts/h200/setup.sh
+bash scripts/h200/setup_cuda.sh
 pv finetune prompts build
 if [[ "${PHYSVERIFY_FINETUNE_PILOT:-0}" == "1" ]]; then
     pv finetune generate --split train --pilot "$PILOT_PROMPTS"

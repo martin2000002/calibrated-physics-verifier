@@ -271,7 +271,7 @@ fi
 exec {state_fd}>&-
 
 query() {
-    env PYTHONPATH="$REPO_ROOT/src" "$PY" "$REPO_ROOT/scripts/h200/a8v2_query.py" "$@"
+    h200_py run_query.py "$@"
 }
 
 # completed CMD SET: CMD on SET last recorded exit 0 in steps.tsv.
