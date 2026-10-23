@@ -16,7 +16,7 @@ from physverify.extraction._base import StageProvider
 from physverify.extraction.pipeline_resources import ProcRssProbe, RssProbe
 from physverify.schema.clip import ClipManifest
 from physverify.synth.store import ContainerRunner
-from physverify.timing.envinfo import CudaProbe
+from physverify.timing.environment import CudaProbe
 from physverify.timing.recorder import CudaMemory, StageRecorder, loaded_cuda_torch, memory_for
 from physverify.verification._base import VerdictPolicy
 

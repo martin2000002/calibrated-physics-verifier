@@ -12,6 +12,7 @@ from typing import Any
 import numpy as np
 import pytest
 
+from physverify.core.errors import TimingError
 from physverify.extraction._base import StageEvent
 from physverify.schema.stages import Stage
 from physverify.timing.recorder import (
@@ -21,18 +22,11 @@ from physverify.timing.recorder import (
     TorchCudaMemory,
     memory_for,
 )
-from physverify.timing.records import (
-    MIB,
-    TimingError,
-    check_measures,
-    generate_measure,
-    measure_name,
-    unit_of,
-)
+from physverify.timing.records import MIB, check_measures, generate_measure, measure_name, unit_of
 from physverify.timing.target_services import cuda_sync
 
 HEAVY_MODULES = ("torch", "transformers", "diffusers", "kubric", "bpy")
-TIMING_MODULES = ("settings", "records", "hooks", "target_services", "envinfo", "recorder")
+TIMING_MODULES = ("settings", "records", "hooks", "target_services", "environment", "recorder")
 
 
 def event(

@@ -18,6 +18,7 @@ from physverify.finetune.pairs import Rescore, stamp_of
 from physverify.finetune.records import BASE_TAG, CandidateScore, read_record
 from physverify.finetune.settings import FinetuneSettings
 from physverify.finetune.stop_rule import fired_reason
+from physverify.generator_comparison.analysis_inputs import AnalysisInputs
 from physverify.generator_comparison.arms import EVAL_SPLIT, analysis_prompts, build_arms
 from physverify.generator_comparison.candidate_queries import eval_ids, eval_scores
 from physverify.generator_comparison.judging import gate_problem
@@ -29,7 +30,7 @@ from physverify.generator_comparison.prereg import (
     first_created,
     stamp_problem,
 )
-from physverify.generator_comparison.preregistered_numbers import AnalysisInputs, analyse
+from physverify.generator_comparison.preregistered_numbers import analyse
 from physverify.generator_comparison.records import (
     TASKS,
     GateReport,

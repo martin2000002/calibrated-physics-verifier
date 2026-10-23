@@ -15,7 +15,6 @@ from cli_runner import CliRunner  # noqa: E402
 from exclusion_cases import write_record as write_exclusions  # noqa: E402
 from wiring import active_checks_hash, checks  # noqa: E402
 
-from physverify.cli.commands.h3 import GATE_LINE, GATE_PASSED  # noqa: E402
 from physverify.core.digests import sha256_if_file  # noqa: E402
 from physverify.core.errors import UsageError  # noqa: E402
 from physverify.finetune.records import BASE_TAG, write_record  # noqa: E402
@@ -41,6 +40,7 @@ from physverify.generator_comparison.records import (  # noqa: E402
     Usability,
 )
 from physverify.generator_comparison.scoring import manifest  # noqa: E402
+from physverify.generator_comparison.status import GATE_LINE, GATE_PASSED  # noqa: E402
 from physverify.generator_comparison.verdict import NO_VERDICT  # noqa: E402
 
 SUBCOMMANDS = (

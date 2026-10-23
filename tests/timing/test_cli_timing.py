@@ -18,6 +18,7 @@ from cli_runner import CliResult, CliRunner
 from physverify.app import plugins
 from physverify.cli.commands import timing
 from physverify.extraction.weights import ALLOW_PATTERNS, hub_cache
+from physverify.generation import wan21
 from physverify.schema.clip import ClipManifest
 from physverify.timing.records import (
     EXTRACT_SPAN_S,
@@ -26,7 +27,8 @@ from physverify.timing.records import (
     TargetStatus,
     generate_measure,
 )
-from physverify.timing.report import RESULTS, SAMPLES, STATS, SUMMARY, TOTAL_LABEL, load_results
+from physverify.timing.report import SUMMARY, TOTAL_LABEL
+from physverify.timing.results_io import RESULTS, SAMPLES, STATS, load_results
 from physverify.timing.settings import load_timing
 from physverify.timing.target_services import TimingServices
 
@@ -276,13 +278,13 @@ def test_fetch_snapshots_before_verifying_so_a_cut_download_resumes(
 ) -> None:
     spec = SimpleNamespace(ref="org/wan/model_index.json", revision="rev1")
     calls: list[tuple[Any, ...]] = []
-    monkeypatch.setattr(timing, "wan_weight_spec", lambda gen: spec)
+    monkeypatch.setattr(wan21, "wan_weight_spec", lambda gen: spec)
 
     def verify(weight: Any, paths: Any, downloader: Any) -> Path:
         calls.append(("fetch", weight))
         return Path("w")
 
-    monkeypatch.setattr(timing, "fetch", verify)
+    monkeypatch.setattr(wan21, "fetch", verify)
 
     class Downloader:
         def hf_snapshot(self, repo: str, revision: str, cache: Path, allow: Any) -> Path:
@@ -297,7 +299,7 @@ def test_fetch_snapshots_before_verifying_so_a_cut_download_resumes(
 
     settings = make_settings()
     paths, gen = settings.paths, load_timing(settings).generation
-    assert timing.fetch_generator(gen, paths, Downloader()) == Path("w")
+    assert wan21.fetch_generator(gen, paths, Downloader()) == Path("w")
     assert calls == [
         ("snapshot", "org/wan", "rev1", hub_cache(paths), (*ALLOW_PATTERNS, "model_index.json")),
         ("fetch", spec),

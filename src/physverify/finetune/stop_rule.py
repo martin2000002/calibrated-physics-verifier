@@ -9,6 +9,7 @@ The inspection itself stays manual: the code only requires that it is recorded, 
 
 from __future__ import annotations
 
+import datetime as dt
 import math
 import random
 from collections.abc import Mapping, Sequence
@@ -17,8 +18,27 @@ from typing import Final
 from pydantic import Field
 
 from physverify.core.digests import text_sha256
+from physverify.core.errors import UsageError
 from physverify.core.models import FrozenModel
-from physverify.finetune.records import CandidateScore, PairRecord, PairsReport
+from physverify.finetune.candidate_scoring import same_stamp
+from physverify.finetune.layout import (
+    PAIRS_FILE,
+    PILOT_REVIEW_FILE,
+    REPORT_FILE,
+    STOP_RULE_FILE,
+    CampaignStore,
+)
+from physverify.finetune.pilot import fit_and_val
+from physverify.finetune.records import (
+    BASE_TAG,
+    CandidateScore,
+    PairRecord,
+    PairsReport,
+    read_record,
+    read_records,
+    write_record,
+)
+from physverify.finetune.scorers._base import AggregateScorer
 from physverify.finetune.settings import StopRuleSettings
 
 ROUNDING: Final = 9  # the configured edges (0.3 pairs, 0.5 abstention, 0.6 x n) pass exactly
@@ -161,3 +181,77 @@ def evaluate_stop(
         thresholds=None if report is None else report.thresholds,
         families=dict(families),
     )
+
+
+def pairs_on_disk(store: CampaignStore, scorer: str) -> list[PairRecord]:
+    path = store.pairs_dir(scorer) / PAIRS_FILE
+    return read_records(path, PairRecord) if path.is_file() else []
+
+
+def stored_review(store: CampaignStore, scorer: str) -> PilotReview | None:
+    path = store.pairs_dir(scorer) / PILOT_REVIEW_FILE
+    return read_record(path, PilotReview) if path.is_file() else None
+
+
+def stored_report(store: CampaignStore, scorer: str) -> PairsReport | None:
+    path = store.pairs_dir(scorer) / REPORT_FILE
+    return read_record(path, PairsReport) if path.is_file() else None
+
+
+def base_abstention(store: CampaignStore, scorer: AggregateScorer) -> float | None:
+    """Over the active scorer's base scores of the fit prompts (the pilot's)."""
+    train = (
+        [p for p in store.prompts() if p.split == "train"] if store.prompts_path.is_file() else []
+    )
+    fit_ids = {p.prompt_id for p in fit_and_val(train)[0]}
+    scores = store.scores(BASE_TAG, scorer.name)
+    return candidate_abstention(
+        [s for s in scores if s.prompt_id in fit_ids and same_stamp(s, scorer)]
+    )
+
+
+def write_verdict(store: CampaignStore, scorer: str, verdict: StopVerdict) -> None:
+    write_record(store.pairs_dir(scorer) / STOP_RULE_FILE, verdict)
+
+
+def verdict_lines(verdict: StopVerdict) -> list[str]:
+    state = "passed" if verdict.passed else "FIRED"
+    mode = "enforced" if verdict.enforced else "reported only"
+    lines = [f"pilot stop rule: {state} ({mode}); measured {verdict.measured}"]
+    lines += [f"  reason: {reason}" for reason in verdict.reasons]
+    lines += [f"  family {name}: targets {kept}" for name, kept in verdict.families.items()]
+    if verdict.deviation is not None:
+        lines.append(f"  declared deviation: {verdict.deviation}")
+    return lines
+
+
+def review_pilot(
+    store: CampaignStore,
+    scorer: str,
+    rules: StopRuleSettings,
+    better: int | None,
+    note: str | None,
+) -> list[str]:
+    """The pairs to inspect (``better`` None), or the recorded review's line."""
+    pairs_ = pairs_on_disk(store, scorer)
+    if not pairs_:
+        raise UsageError(f"there are no {scorer} pairs: run 'finetune pairs'")
+    drawn = review_sample(pairs_, rules)
+    if better is None:
+        return [
+            f"{pair.pair_id}: winner {pair.winner} ({pair.score_w:.3f}) "
+            f"loser {pair.loser} ({pair.score_l:.3f})"
+            for pair in drawn
+        ]
+    if better > len(drawn):
+        raise UsageError(f"--better {better} exceeds the {len(drawn)} inspected pairs")
+    review = PilotReview(
+        pairs_sha256=pairs_sha256(pairs_),
+        inspected=[p.pair_id for p in drawn],
+        better=better,
+        note=note,
+        created_utc=dt.datetime.now(dt.UTC).isoformat(),
+    )
+    path = store.pairs_dir(scorer) / PILOT_REVIEW_FILE
+    write_record(path, review)
+    return [f"pilot review: {better} of {len(drawn)} better ({path})"]

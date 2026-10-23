@@ -26,14 +26,13 @@ from physverify.finetune.records import (
     read_record,
     write_record,
 )
-from physverify.finetune.seeds import WHOLE, Shard, candidate_id, candidate_seed
+from physverify.finetune.seeds import WHOLE, Shard, candidate_id, candidate_seed, parse_shard
 from physverify.finetune.settings import CandidateSettings, PromptSplit
 from physverify.finetune.wan_lora import load_adapter
+from physverify.generation.mp4_writer import to_uint8, write_mp4
+from physverify.generation.settings import GenerationSettings
+from physverify.generation.wan21 import batch_frames, call_kwargs, is_out_of_memory, torch_generator
 from physverify.schema.io import stable_hash
-from physverify.timing.generation import call_kwargs, is_out_of_memory, torch_generator
-from physverify.timing.mp4 import to_uint8, write_mp4
-from physverify.timing.settings import GenerationSettings
-from physverify.timing.targets.wan21_generate import batch_frames
 
 BATCH_SIZE: Final = 1
 CAPTURED: Final = ["latents", "prompt_embeds"]
@@ -260,3 +259,18 @@ class CandidateGenerator:
             if capture.prompt_embeds is None:
                 raise GenerationError(f"{record.candidate_id}: the pipeline gave no prompt_embeds")
             self._save({EMBEDS_KEY: capture.prompt_embeds}, embeds)
+
+
+def generate_candidates(
+    generator: CandidateGenerator,
+    prompts: Sequence[PromptRecord],
+    shard: str | None,
+    limit: int | None,
+    *,
+    echo: Callable[[str], None],
+) -> int:
+    plan = generator.plan(prompts, parse_shard(shard))
+    plan = plan if limit is None else plan[:limit]
+    report = generator.run(plan, {p.prompt_id: p for p in prompts})
+    echo(f"{generator.model_tag}: generated {len(report.generated)} candidates")
+    return len(report.generated)

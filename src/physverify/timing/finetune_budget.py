@@ -15,9 +15,22 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Final
 
-from physverify.timing.budget import SECONDS_PER_HOUR, BudgetError, CostPerVideo
+from physverify.config.models import Settings
+from physverify.finetune.layout import CampaignStore
+from physverify.finetune.pairs_report import pair_yield_of
+from physverify.finetune.settings import load_finetune
+from physverify.timing.budget import (
+    SECONDS_PER_HOUR,
+    BudgetError,
+    CostPerVideo,
+    cost_from_results,
+)
+from physverify.timing.results_io import load_results, load_samples, timing_directory
+from physverify.timing.settings import load_timing
+from physverify.timing.stats import across_medians, stat_rows
 
 PAIR_MEASURE: Final = "dpo.pair_s"
 
@@ -109,3 +122,49 @@ def budget_lines(result: FinetuneBudget) -> list[str]:
     lines.append(f"T_ft = {result.finetune_s:.1f} s{mark}")
     lines.append(f"T_beta = {result.beta_grid_s:.1f} s{mark}")
     return lines
+
+
+@dataclass(frozen=True)
+class BudgetRequest:
+    timing_run: Path
+    gpu_hours: float
+    pair_yield: float | None
+    extract_batch: int | None
+    generator_only: bool
+    pilot_prompts: int
+    scorer: str | None
+
+
+def budget_report(settings: Settings, request: BudgetRequest) -> list[str]:
+    """The budget lines of a valid timing run with ``dpo_step``; the pair yield is the measured
+    one of ``report.json`` unless given."""
+    cfg = load_finetune(settings)
+    timing = load_timing(settings)
+    directory = timing_directory(request.timing_run)
+    rows = stat_rows(load_samples(directory), timing.max_iqr_rel)
+    cost = cost_from_results(load_results(directory), rows, timing.total_measures, 1)
+    pair_s = across_medians(rows).get(PAIR_MEASURE)
+    if pair_s is None:
+        raise BudgetError(f"the timing run has no {PAIR_MEASURE}: run the dpo_step target")
+    store = CampaignStore.from_settings(settings)
+    y, measured = pair_yield_of(store, request.scorer or cfg.scorer, request.pair_yield)
+    query = FinetuneBudgetQuery(
+        gpu_hours=request.gpu_hours,
+        k=cfg.candidates.k_train,
+        k_eval_base=cfg.candidates.k_eval,
+        k_eval_ft=cfg.candidates.k_eval_finetuned,
+        n_eval=cfg.prompts.n_eval + len(cfg.prompts.fixed_eval),
+        n_dev=cfg.prompts.n_dev,
+        k_dev=cfg.candidates.k_dev,
+        dev_checkpoints=cfg.select.checkpoints,
+        epochs=cfg.train.epochs,
+        pair_yield=y,
+        yield_measured=measured,
+        n_pilot=request.pilot_prompts,
+        n_beta=len(cfg.train.beta_grid),
+        beta_fraction=cfg.train.beta_grid_fraction,
+    )
+    cost_s = (
+        cost.generator_only() if request.generator_only else cost.sequential(request.extract_batch)
+    )
+    return budget_lines(train_prompts(cost, cost_s, pair_s, query))

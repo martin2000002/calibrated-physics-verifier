@@ -14,7 +14,7 @@ from pathlib import Path
 from statistics import fmean
 from typing import Any, ClassVar, Final
 
-from physverify.core.errors import PhysverifyError
+from physverify.core.errors import PhysverifyError, TimingError
 from physverify.runtime.docker import image_present
 from physverify.schema.clip import ClipManifest
 from physverify.schema.scene import PerturbationRecord, SceneSpec
@@ -37,7 +37,7 @@ from physverify.synth.store import (
 )
 from physverify.timing._base import TimingContext
 from physverify.timing.hooks import TargetHooks
-from physverify.timing.records import RENDER_PER_FRAME_S, RENDER_WALL_S, TimingError
+from physverify.timing.records import RENDER_PER_FRAME_S, RENDER_WALL_S
 from physverify.timing.report import discard_scratch, scratch_dir
 from physverify.timing.settings import load_timing, run_settings
 from physverify.timing.target_services import TimingServices

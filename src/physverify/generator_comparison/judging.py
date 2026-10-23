@@ -7,15 +7,27 @@ has the same stamp, the same pre-registration and the same videos.
 from __future__ import annotations
 
 import math
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 
-from physverify.core.errors import UsageError
+from physverify.core.errors import MissingInputError, UsageError, choice
 from physverify.datasets._videophy_tables import VideophyRow, to_float
-from physverify.finetune.records import CandidateRecord, PromptRecord
+from physverify.finetune.records import BASE_TAG, CandidateRecord, PromptRecord, write_record
+from physverify.generator_comparison.arms import analysis_prompts
+from physverify.generator_comparison.candidate_queries import eval_records
+from physverify.generator_comparison.context import H3Context, arm_tags, campaign_prompts, selection
 from physverify.generator_comparison.judge_gate import gate_task
 from physverify.generator_comparison.judges._base import Judge, JudgeInput, JudgeScore
-from physverify.generator_comparison.records import GateReport, JudgeOutput, JudgeRow, JudgeSplit
+from physverify.generator_comparison.prereg import H3Preregistration
+from physverify.generator_comparison.prereg_state import DEV_SPLIT
+from physverify.generator_comparison.records import (
+    TASKS,
+    GateReport,
+    JudgeOutput,
+    JudgeRow,
+    JudgeSplit,
+    load_judge_output,
+)
 from physverify.generator_comparison.settings import GateSettings
 
 
@@ -106,3 +118,51 @@ def gate_problem(gate: GateReport | None, stamps: Mapping[str, str]) -> str | No
         if ran is None or ran.stamp != stamp:
             return f"the gate did not run the {task} judge with stamp {stamp}; run it again"
     return None
+
+
+def judge_tasks(task: str | None) -> tuple[str, ...]:
+    if task is None:
+        return TASKS
+    return (choice(task, TASKS, "--task"),)
+
+
+def dev_items(h: H3Context) -> dict[str, list[JudgeInput]]:
+    """Dev candidates of the base and of the selected checkpoint (the usability test)."""
+    selected = selection(h).selected
+    tags = [BASE_TAG] if selected is None else [BASE_TAG, selected.model_tag]
+    dev = {p.prompt_id: p for p in campaign_prompts(h) if p.split == DEV_SPLIT}
+    return {
+        tag: candidate_items([r for r in h.store.candidates(tag) if r.split == DEV_SPLIT], dev)
+        for tag in tags
+    }
+
+
+def eval_items(h: H3Context, prereg: H3Preregistration) -> dict[str, list[JudgeInput]]:
+    analysed = analysis_prompts(campaign_prompts(h), h.cfg.exclude_tags)
+    return {
+        tag: candidate_items(eval_records(h.store, tag), {p.prompt_id: p for p in analysed})
+        for tag in arm_tags(prereg)
+    }
+
+
+def judge_one(
+    h: H3Context,
+    judge: Judge,
+    where: tuple[JudgeSplit, str, str],
+    items: list[JudgeInput],
+    prereg_sha256: str | None,
+    *,
+    echo: Callable[[str], None],
+) -> None:
+    path = h.layout.judge_output(*where)
+    ids = {i.video_id for i in items}
+    if reusable(load_judge_output(path), judge.stamp(where[2]), prereg_sha256, ids):
+        echo(f"{path}: already judged")
+        return
+    try:
+        output = judge_output(judge, items, where, prereg_sha256)
+    except MissingInputError as exc:
+        raise UsageError(str(exc)) from exc
+    write_record(path, output)
+    failed = sum(row.value is None for row in output.rows.values())
+    echo(f"{where[0]}/{where[1]}/{where[2]}: {len(output.rows)} judged, {failed} unread")

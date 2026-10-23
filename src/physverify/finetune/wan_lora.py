@@ -16,7 +16,7 @@ from typing import Any, Final
 
 from physverify.extraction.weights import hub_offline
 from physverify.finetune.settings import LoraSettings
-from physverify.timing.settings import GenerationSettings
+from physverify.generation.settings import GenerationSettings
 
 TRANSFORMER: Final = "transformer"
 ADAPTER_NAME: Final = "default"

@@ -6,7 +6,8 @@ from collections.abc import Callable
 import numpy as np
 import pytest
 
-from physverify.timing.records import Sample, TimingError
+from physverify.core.errors import TimingError
+from physverify.timing.records import Sample
 from physverify.timing.stats import (
     ACROSS_CLIPS,
     across_clips,

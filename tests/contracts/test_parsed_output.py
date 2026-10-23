@@ -13,7 +13,7 @@ from pathlib import Path
 from cli_runner import CliRunner
 from steps_sh import steps_read
 
-from physverify.cli.commands import h3
+from physverify.generator_comparison import status as h3
 
 REPO = Path(__file__).resolve().parents[2]
 SCRIPTS = REPO / "scripts" / "h200"

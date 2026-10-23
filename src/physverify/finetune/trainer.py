@@ -9,12 +9,9 @@ resumed from a checkpoint reproduces the uninterrupted one exactly.
 from __future__ import annotations
 
 import csv
-import importlib
-import math
-import re
 import shutil
 import time
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping
 from contextlib import AbstractContextManager
 from dataclasses import asdict, dataclass, fields
 from pathlib import Path
@@ -25,18 +22,22 @@ import numpy as np
 from physverify.finetune.dpo import (
     DpoStats,
     ShiftedFlowNoise,
-    _torch,
     flow_dpo_loss,
+    import_torch,
     noised,
     per_sample_error,
 )
-from physverify.finetune.records import CandidateRecord, PairRecord
+from physverify.finetune.schedule import (
+    STATE_FILE,
+    checkpoint_name,
+    checkpoints,
+    data_order,
+    kept,
+    schedule,
+)
 from physverify.finetune.settings import TrainSettings
 
-STEP_PREFIX: Final = "step-"
-STEP_PATTERN: Final = re.compile(r"^step-(\d+)$")
 ADAPTER_DIR: Final = "adapter"
-STATE_FILE: Final = "trainer.pt"
 METRICS_FILE: Final = "metrics.csv"
 VAL_FILE: Final = "val.csv"
 VAL_KEY_OFFSET: Final = 1 << 40
@@ -75,7 +76,7 @@ def pair_loss(
     model: AdapterModel, batch: PairBatch, noise: ShiftedFlowNoise, key: int, beta: float
 ) -> tuple[Any, DpoStats]:
     """Learner with gradient and reference (adapter off) without, on one shared ``sigma, eps``."""
-    torch = _torch()
+    torch = import_torch()
     draw = noise.draw(key)
     eps = noise.epsilon(draw, batch.x0_w)
     x_w, v_w, t = noised(batch.x0_w, eps, draw.sigma)
@@ -90,63 +91,6 @@ def pair_loss(
     n = batch.x0_w.shape[0]
     weight = torch.full((n,), batch.weight, device=err.device)
     return flow_dpo_loss(err[:n], err_ref[:n], err[n:], err_ref[n:], beta, weight)
-
-
-def data_order(seed: int, epoch: int, n: int) -> np.ndarray:
-    return np.random.default_rng([seed, epoch]).permutation(n)
-
-
-def total_steps(cfg: TrainSettings, n_pairs: int, max_steps: int | None = None) -> int:
-    if max_steps is not None:
-        return max_steps
-    if cfg.max_steps is not None:
-        return cfg.max_steps
-    return max(1, math.ceil(cfg.epochs * n_pairs / cfg.grad_accum))
-
-
-class ScheduleError(ValueError):
-    """The schedule cannot work for this many optimizer steps."""
-
-
-@dataclass(frozen=True)
-class Schedule:
-    """Optimizer steps of one run; warmup and checkpoint spacing are fractions of ``total``."""
-
-    total: int
-    warmup: int
-    checkpoint_every: int
-
-    def checkpoint_steps(self) -> list[int]:
-        return sorted(
-            set(range(self.checkpoint_every, self.total + 1, self.checkpoint_every)) | {self.total}
-        )
-
-
-def schedule(cfg: TrainSettings, n_pairs: int, max_steps: int | None = None) -> Schedule:
-    total = total_steps(cfg, n_pairs, max_steps)
-    warmup = math.floor(cfg.warmup_fraction * total)
-    if warmup >= total:
-        raise ScheduleError(f"warmup of {warmup} steps does not end within {total} steps")
-    every = max(1, round(cfg.checkpoint_fraction * total))
-    return Schedule(total, warmup, every)
-
-
-def require_checkpoints(plan: Schedule, keep_last: int | None, needed: int) -> None:
-    """``select`` compares ``needed`` checkpoints; fewer kept ones would make it a no-op."""
-    have = len(kept(plan.checkpoint_steps(), keep_last))
-    if have < needed:
-        raise ScheduleError(
-            f"{plan.total} steps keep {have} checkpoints (every {plan.checkpoint_every}), "
-            f"fewer than finetune.select.checkpoints = {needed}: lower checkpoint_fraction "
-            "or raise epochs"
-        )
-
-
-def beta_grid_steps(cfg: TrainSettings, main_total: int) -> int:
-    steps = max(1, round(cfg.beta_grid_fraction * main_total))
-    if steps > main_total:
-        raise ScheduleError(f"beta-grid runs of {steps} steps exceed the main run ({main_total})")
-    return steps
 
 
 @dataclass(frozen=True)
@@ -175,26 +119,6 @@ class TrainReport:
     resumed_from: int
     last_checkpoint: Path | None
     val: ValMetrics | None
-
-
-def checkpoint_name(step: int) -> str:
-    return f"{STEP_PREFIX}{step:06d}"
-
-
-def checkpoints(directory: Path) -> list[tuple[int, Path]]:
-    if not directory.is_dir():
-        return []
-    found = []
-    for path in directory.iterdir():
-        match = STEP_PATTERN.match(path.name)
-        if match and (path / STATE_FILE).is_file():
-            found.append((int(match.group(1)), path))
-    return sorted(found)
-
-
-def kept(steps: Sequence[int], keep_last: int | None) -> set[int]:
-    """Every checkpoint, or the last ``keep_last``."""
-    return set(steps) if keep_last is None else set(sorted(steps)[-keep_last:])
 
 
 class CsvSink:
@@ -260,7 +184,7 @@ class DpoTrainer:
         self, resume: bool = True, max_steps: int | None = None, force: bool = False
     ) -> TrainReport:
         """``resume=False`` refuses a directory holding checkpoints unless ``force`` clears it."""
-        torch = _torch()
+        torch = import_torch()
         plan = schedule(self._cfg, len(self._data), max_steps)
         params = self._model.trainable_parameters()
         optimizer = torch.optim.AdamW(params, lr=self._cfg.lr, weight_decay=self._cfg.weight_decay)
@@ -286,7 +210,7 @@ class DpoTrainer:
         """Validation pairs on fixed ``(sigma, eps)`` per pair, never trained on."""
         if self._val is None or len(self._val) == 0:
             return None
-        torch = _torch()
+        torch = import_torch()
         stats = []
         with torch.no_grad():
             for index in range(len(self._val)):
@@ -305,7 +229,7 @@ class DpoTrainer:
         return metrics
 
     def _step(self, step: int, params: list[Any], optimizer: Any, scheduler: Any) -> StepMetrics:
-        torch = _torch()
+        torch = import_torch()
         optimizer.zero_grad(set_to_none=True)
         accum = self._cfg.grad_accum
         stats: list[DpoStats] = []
@@ -336,7 +260,7 @@ class DpoTrainer:
         return self._data.get(int(data_order(self._cfg.seed, epoch, n)[position]))
 
     def _checkpoint(self, step: int, optimizer: Any, scheduler: Any) -> Path:
-        torch = _torch()
+        torch = import_torch()
         final = self._dir / checkpoint_name(step)
         partial = self._dir / f".{final.name}.partial"
         shutil.rmtree(partial, ignore_errors=True)
@@ -378,7 +302,7 @@ class DpoTrainer:
         if not found:
             return self._fresh()
         step, path = found[-1]
-        torch = _torch()
+        torch = import_torch()
         self._model.load(path / ADAPTER_DIR)
         state = torch.load(path / STATE_FILE, weights_only=False)
         optimizer.load_state_dict(state["optimizer"])
@@ -411,78 +335,3 @@ def last_val(run_dir: Path) -> ValMetrics | None:
     return ValMetrics(
         int(row["step"]), float(row["implicit_acc"]), float(row["kl_proxy"]), int(row["n_pairs"])
     )
-
-
-TensorLoader = Callable[[Path], Mapping[str, Any]]
-
-
-def load_safetensors(path: Path) -> Mapping[str, Any]:
-    load_file = importlib.import_module("safetensors.torch").load_file
-    loaded: Mapping[str, Any] = load_file(str(path))
-    return loaded
-
-
-@dataclass(frozen=True)
-class StoredPair:
-    pair_id: str
-    latents_w: Path
-    latents_l: Path
-    embeds: Path
-    weight: float
-
-
-class StoredPairSource:
-    """Pairs read from the campaign store on demand (latents float32, embeds as generated)."""
-
-    def __init__(
-        self,
-        pairs: Sequence[StoredPair],
-        device: str,
-        dtype: Any = None,
-        loader: TensorLoader = load_safetensors,
-    ) -> None:
-        self._pairs = list(pairs)
-        self._device = device
-        self._dtype = dtype
-        self._load = loader
-
-    def __len__(self) -> int:
-        return len(self._pairs)
-
-    def get(self, index: int) -> PairBatch:
-        pair = self._pairs[index]
-        return PairBatch(
-            pair_id=pair.pair_id,
-            x0_w=self._tensor(pair.latents_w, "latents"),
-            x0_l=self._tensor(pair.latents_l, "latents"),
-            cond=self._tensor(pair.embeds, "prompt_embeds"),
-            weight=pair.weight,
-        )
-
-    def _tensor(self, path: Path, key: str) -> Any:
-        tensor = self._load(path)[key].to(self._device)
-        return tensor if self._dtype is None else tensor.to(self._dtype)
-
-
-def stored_pairs(
-    pairs: Sequence[PairRecord], candidates: Sequence[CandidateRecord]
-) -> list[StoredPair]:
-    """The latent files of each pair; the embeddings are the prompt's (shared by both)."""
-    by_id = {c.candidate_id: c for c in candidates}
-    stored = []
-    for pair in pairs:
-        winner, loser = by_id.get(pair.winner), by_id.get(pair.loser)
-        if winner is None or loser is None:
-            raise ValueError(f"{pair.pair_id}: a member has no candidate record")
-        if winner.latents_path is None or loser.latents_path is None:
-            raise ValueError(f"{pair.pair_id}: latents were not stored (store_latents = false)")
-        stored.append(
-            StoredPair(
-                pair.pair_id,
-                Path(winner.latents_path),
-                Path(loser.latents_path),
-                Path(winner.embeds_path),
-                pair.weight,
-            )
-        )
-    return stored

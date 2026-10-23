@@ -17,7 +17,7 @@ from typing import Any, Final, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from physverify.core.errors import PhysverifyError
+from physverify.core.errors import TimingError
 from physverify.timing.settings import TargetRunSettings
 
 SCHEMA_VERSION: Final = "physverify.timing/1"
@@ -40,10 +40,6 @@ VERIFY_CHECKS_S: Final = "verify.checks_s"
 VERIFY_CPU_S: Final = "verify.cpu_s"
 RENDER_WALL_S: Final = "render.wall_s"
 RENDER_PER_FRAME_S: Final = "render.per_frame_s"
-
-
-class TimingError(PhysverifyError):
-    pass
 
 
 def unit_of(measure: str) -> str:

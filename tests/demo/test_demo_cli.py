@@ -15,7 +15,7 @@ from physverify.finetune.records import PromptRecord, read_records
 from physverify.finetune.scorers.provisional import ProvisionalScorer
 from physverify.generator_comparison.prereg import H3Preregistration
 
-COMMANDS = "physverify.cli.commands.demo"
+SERVICES = "physverify.app.demo"
 ADHOC = ("demo", "run", "--prompt", "A ball falls off a table", "--query", "ball:1")
 FakeScoring = Callable[[Settings], ScoringDeps]
 
@@ -31,8 +31,8 @@ def fakes(
     make_settings: Callable[..., Settings],
     fake_scoring: FakeScoring,
 ) -> None:
-    monkeypatch.setattr(f"{COMMANDS}.sizing_labels", lambda settings: frozenset({"ball"}))
-    monkeypatch.setattr(f"{COMMANDS}.scoring_deps", lambda context: fake_scoring(make_settings()))
+    monkeypatch.setattr(f"{SERVICES}.sizing_labels", lambda settings: frozenset({"ball"}))
+    monkeypatch.setattr(f"{SERVICES}.scoring_deps", lambda context: fake_scoring(make_settings()))
 
 
 @pytest.mark.parametrize("command", ["run", "scenes", "report"])
@@ -191,11 +191,11 @@ def test_scenes_never_fall_back_from_the_frozen_rule(
     frozen = H3Preregistration.model_construct(
         rule="calibrated", scorer_version=frozen_version, rule_label=label
     )
-    monkeypatch.setattr(f"{COMMANDS}.require_videos", lambda store, prompts, tags: None)
-    monkeypatch.setattr(f"{COMMANDS}.load_prereg", lambda path: frozen)
+    monkeypatch.setattr(f"{SERVICES}.require_videos", lambda store, prompts, tags: None)
+    monkeypatch.setattr(f"{SERVICES}.load_prereg", lambda path: frozen)
     if available:
         monkeypatch.setattr(
-            f"{COMMANDS}.scorer_for",
+            f"{SERVICES}.scorer_for",
             lambda context, name: ProvisionalScorer(context.settings, {}),
         )
     before = sorted((tmp_path / "data").rglob("*"))

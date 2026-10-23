@@ -113,8 +113,15 @@
  "scripts/h200/smoke_autoeval.sh": {
   "config_or_script_text": 2
  },
+ "src/physverify/app/demo.py": {
+  "comment_or_docstring": 1
+ },
  "src/physverify/app/exclusions.py": {
   "comment_or_docstring": 1
+ },
+ "src/physverify/app/finetune.py": {
+  "comment_or_docstring": 1,
+  "literal": 1
  },
  "src/physverify/app/sealing.py": {
   "literal": 8
@@ -234,19 +241,13 @@
  "src/physverify/checks/r5b_gravity_value.py": {
   "comment_or_docstring": 5
  },
- "src/physverify/cli/commands/_finetune_deps.py": {
-  "comment_or_docstring": 3
- },
- "src/physverify/cli/commands/_stop_rule.py": {
-  "literal": 2
- },
  "src/physverify/cli/commands/abstain.py": {
   "comment_or_docstring": 2,
   "literal": 3
  },
  "src/physverify/cli/commands/agreement.py": {
   "comment_or_docstring": 1,
-  "literal": 5
+  "literal": 4
  },
  "src/physverify/cli/commands/calibrate.py": {
   "comment_or_docstring": 3,
@@ -260,7 +261,7 @@
   "literal": 2
  },
  "src/physverify/cli/commands/demo.py": {
-  "comment_or_docstring": 4
+  "comment_or_docstring": 3
  },
  "src/physverify/cli/commands/diagnose.py": {
   "banner": 1,
@@ -274,13 +275,10 @@
   "comment_or_docstring": 1
  },
  "src/physverify/cli/commands/finetune.py": {
-  "comment_or_docstring": 3,
-  "identifier": 2,
-  "literal": 1
+  "comment_or_docstring": 1
  },
  "src/physverify/cli/commands/h3.py": {
   "comment_or_docstring": 1,
-  "identifier": 11,
   "literal": 4
  },
  "src/physverify/cli/commands/results.py": {
@@ -295,10 +293,15 @@
   "comment_or_docstring": 1
  },
  "src/physverify/cli/commands/timing.py": {
-  "comment_or_docstring": 2
+  "comment_or_docstring": 1
  },
  "src/physverify/cli/commands/verify.py": {
   "comment_or_docstring": 2
+ },
+ "src/physverify/cli/options.py": {
+  "comment_or_docstring": 2,
+  "identifier": 2,
+  "literal": 2
  },
  "src/physverify/core/cache_keys.py": {
   "comment_or_docstring": 1
@@ -507,9 +510,6 @@
  "src/physverify/extraction/weights.py": {
   "comment_or_docstring": 1
  },
- "src/physverify/finetune/budget.py": {
-  "comment_or_docstring": 3
- },
  "src/physverify/finetune/candidate_scoring.py": {
   "comment_or_docstring": 1
  },
@@ -557,7 +557,7 @@
   "comment_or_docstring": 4
  },
  "src/physverify/finetune/settings.py": {
-  "comment_or_docstring": 5
+  "comment_or_docstring": 4
  },
  "src/physverify/finetune/stop_rule.py": {
   "comment_or_docstring": 4
@@ -567,6 +567,9 @@
  },
  "src/physverify/finetune/wan_lora.py": {
   "comment_or_docstring": 1
+ },
+ "src/physverify/generation/wan21.py": {
+  "comment_or_docstring": 3
  },
  "src/physverify/generator_comparison/__init__.py": {
   "comment_or_docstring": 2
@@ -581,6 +584,9 @@
   "comment_or_docstring": 1
  },
  "src/physverify/generator_comparison/compare.py": {
+  "identifier": 2
+ },
+ "src/physverify/generator_comparison/context.py": {
   "identifier": 2
  },
  "src/physverify/generator_comparison/judge_gate.py": {
@@ -667,6 +673,9 @@
   "comment_or_docstring": 2,
   "literal": 5
  },
+ "src/physverify/human_agreement/rule_setup.py": {
+  "comment_or_docstring": 2
+ },
  "src/physverify/human_agreement/settings.py": {
   "comment_or_docstring": 1,
   "literal": 3
@@ -674,11 +683,15 @@
  "src/physverify/human_agreement/stats.py": {
   "comment_or_docstring": 3
  },
+ "src/physverify/human_agreement/subset_review.py": {
+  "comment_or_docstring": 2
+ },
  "src/physverify/human_agreement/undecided_policy.py": {
   "comment_or_docstring": 2
  },
  "src/physverify/human_agreement/workflow.py": {
-  "comment_or_docstring": 6
+  "comment_or_docstring": 2,
+  "literal": 1
  },
  "src/physverify/kubric_worker/tasks/render.py": {
   "comment_or_docstring": 1
@@ -710,15 +723,20 @@
  "src/physverify/physics/uncertainty.py": {
   "comment_or_docstring": 1
  },
+ "src/physverify/reporting/calibration_numbers.py": {
+  "comment_or_docstring": 8,
+  "identifier": 4,
+  "literal": 1
+ },
  "src/physverify/reporting/chain.py": {
   "comment_or_docstring": 1,
   "literal": 1
  },
  "src/physverify/reporting/numbers.py": {
-  "banner": 2,
-  "comment_or_docstring": 10,
-  "identifier": 8,
-  "literal": 4
+  "banner": 1,
+  "comment_or_docstring": 2,
+  "identifier": 4,
+  "literal": 3
  },
  "src/physverify/reporting/sources.py": {
   "identifier": 18,
@@ -831,11 +849,14 @@
  "src/physverify/timing/budget.py": {
   "comment_or_docstring": 1
  },
- "src/physverify/timing/generation.py": {
+ "src/physverify/timing/finetune_budget.py": {
   "comment_or_docstring": 3
  },
  "src/physverify/timing/recorder.py": {
   "comment_or_docstring": 2
+ },
+ "src/physverify/timing/session.py": {
+  "comment_or_docstring": 1
  },
  "src/physverify/timing/targets/dpo_step.py": {
   "comment_or_docstring": 2

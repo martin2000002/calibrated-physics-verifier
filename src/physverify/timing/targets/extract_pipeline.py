@@ -16,6 +16,7 @@ from typing import ClassVar, Final, Protocol
 
 from physverify.checks._base import Check
 from physverify.config.models import Settings
+from physverify.core.errors import TimingError
 from physverify.datasets._base import DatasetSource, dataset_from
 from physverify.extraction._base import StageObserver, StageProvider
 from physverify.extraction.pipeline import (
@@ -33,7 +34,6 @@ from physverify.timing.records import (
     EXTRACT_PEAK_RSS_MB,
     EXTRACT_SPAN_S,
     EXTRACT_WALL_S,
-    TimingError,
     measure_name,
 )
 from physverify.timing.replica import TIMED, WARM, replica_id, replica_source, replicas

@@ -18,7 +18,7 @@ TIMESTEP_SCALE: Final = 1000.0
 SIGMA_LEVELS: Final = (0.1, 0.25, 0.5, 0.75, 0.9)
 
 
-def _torch() -> Any:
+def import_torch() -> Any:
     return importlib.import_module("torch")
 
 
@@ -41,7 +41,7 @@ def flow_dpo_loss(
 ) -> tuple[Any, DpoStats]:
     """``inside = -beta/2 [(err_w - err_ref_w) - (err_l - err_ref_l)]``,
     ``loss = mean(-logsigmoid(inside) * weight)``; equal learner and reference give ln 2."""
-    torch = _torch()
+    torch = import_torch()
     delta_w = err_w - err_ref_w
     delta_l = err_l - err_ref_l
     inside = -0.5 * beta * (delta_w - delta_l)
@@ -83,7 +83,7 @@ class ShiftedFlowNoise:
         return NoiseDraw(float(shifted_sigma(u, self.shift)), int(state[1]))
 
     def epsilon(self, draw: NoiseDraw, like: Any) -> Any:
-        torch = _torch()
+        torch = import_torch()
         generator = torch.Generator(device="cpu").manual_seed(draw.seed)
         eps = torch.randn(like.shape, generator=generator, dtype=torch.float32)
         return eps.to(device=like.device, dtype=like.dtype)
@@ -95,7 +95,7 @@ class ShiftedFlowNoise:
 
 def noised(x0: Any, eps: Any, sigma: float) -> tuple[Any, Any, Any]:
     """``(x_t, v_target, t)`` for a batch sharing one ``sigma``."""
-    torch = _torch()
+    torch = import_torch()
     x_t = (1.0 - sigma) * x0 + sigma * eps
     t = torch.full((x0.shape[0],), TIMESTEP_SCALE * sigma, device=x0.device)
     return x_t, eps - x0, t

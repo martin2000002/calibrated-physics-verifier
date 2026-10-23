@@ -17,18 +17,7 @@ SOURCE_ROOTS = (REPO / "src", REPO)
 SCANNED_DIRS = (REPO / "src" / "physverify", REPO / "scripts")
 
 # Pairs "module -> imported" present when the guard was added; fixes shrink this set.
-KNOWN_VIOLATIONS: frozenset[str] = frozenset(
-    {
-        "physverify.demo.settings -> physverify.timing.settings",
-        "physverify.finetune.budget -> physverify.timing.budget",
-        "physverify.finetune.candidates -> physverify.timing.generation",
-        "physverify.finetune.candidates -> physverify.timing.mp4",
-        "physverify.finetune.candidates -> physverify.timing.settings",
-        "physverify.finetune.candidates -> physverify.timing.targets.wan21_generate",
-        "physverify.finetune.settings -> physverify.timing.settings",
-        "physverify.finetune.wan_lora -> physverify.timing.settings",
-    }
-)
+KNOWN_VIOLATIONS: frozenset[str] = frozenset({})
 
 
 @dataclass(frozen=True, order=True)

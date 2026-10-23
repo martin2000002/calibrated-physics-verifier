@@ -9,7 +9,6 @@ from __future__ import annotations
 import statistics
 from collections import Counter
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from dataclasses import dataclass
 
 import numpy as np
 
@@ -17,26 +16,32 @@ from physverify.core.models import FrozenModel
 from physverify.finetune.pairs import Rescore, drop_reason, on_common_checks
 from physverify.finetune.records import CandidateScore
 from physverify.finetune.scorers._base import AggregateScore
-from physverify.finetune.settings import PairSettings, SelectSettings
+from physverify.generator_comparison.analysis_inputs import (
+    AnalysisInputs,
+    ArmSummary,
+    JudgeValues,
+    Values,
+    as_diffs,
+)
 from physverify.generator_comparison.arms import PromptArms
 from physverify.generator_comparison.best_of_n import Key, Pick, pick_best
-from physverify.generator_comparison.records import JudgeKey
+from physverify.generator_comparison.guards import (
+    GuardResult,
+    missing_pair_guard,
+    sa_guard,
+    signal_guards,
+    strata,
+)
 from physverify.generator_comparison.settings import H3Settings
 from physverify.generator_comparison.stats import (
-    Diff,
     TestResult,
     holm,
     mean_interval,
     paired_test,
-    supported,
 )
-from physverify.generator_comparison.verdict import ExternalStatus, GuardState
 
 ABSENT = AggregateScore(None, None, True, "no_checks", 0, 0, 0.0)
 GUARDS = ("G1", "G2", "G3", "G4", "G5")
-ABSTENTION = "FT abstention rate minus base"
-MOTION = "FT median motion against (1 - max_motion_drop) x base median"
-OBJECTS = "base objects_ok rate minus FT"
 HOLM_TESTS = ("verifier_ft_vs_base", "pc_ft_vs_base", "pc_bo8_vs_random")
 SECONDARY_TESTS = (
     "S1_ft_drop_reason",
@@ -46,25 +51,6 @@ SECONDARY_TESTS = (
     "S5_template_mean_wilcoxon",
 )
 """The pre-registered sensitivities, in order; S5 is ADR 0015 1.7 (template means, Wilcoxon)."""
-JudgeValues = Mapping[JudgeKey, float | None]
-
-
-class ArmSummary(FrozenModel):
-    n: int
-    n_scored: int
-    abstention: float | None
-    mean_score: float | None
-    median_motion: float | None
-    objects_ok_rate: float | None
-    mean_pc: float | None
-    mean_sa: float | None
-
-
-class GuardResult(FrozenModel):
-    state: GuardState
-    value: float | None = None
-    limit: float | None = None
-    detail: str = ""
 
 
 class HolmEntry(FrozenModel):
@@ -85,23 +71,6 @@ class H3Analysis(FrozenModel):
     g5_left_out: int
     sensitivities: dict[str, TestResult | None]
     strata: dict[str, TestResult]
-
-
-@dataclass(frozen=True)
-class AnalysisInputs:
-    arms: Sequence[PromptArms]
-    has_ft: bool
-    k_ft: int
-    rescore: Rescore
-    rules: PairSettings
-    select: SelectSettings
-    cfg: H3Settings
-    pc: JudgeValues
-    sa: JudgeValues
-    external_status: ExternalStatus
-
-
-Values = dict[str, float]
 
 
 def judged(values: JudgeValues, score: CandidateScore) -> float | None:
@@ -254,10 +223,6 @@ def judged_against_base(
     return values, len(arms) - len(values)
 
 
-def as_diffs(values: Values, unit: Mapping[str, str] | None = None) -> list[Diff]:
-    return [Diff(unit[pid] if unit else pid, v) for pid, v in sorted(values.items())]
-
-
 def _test(found: tuple[Values, int], cfg: H3Settings) -> TestResult:
     values, dropped = found
     return paired_test(as_diffs(values), cfg, dropped)
@@ -279,68 +244,6 @@ def summarize(scores: Sequence[CandidateScore], pc: JudgeValues, sa: JudgeValues
         mean_pc=_mean(judged(pc, s) for s in scores),
         mean_sa=_mean(judged(sa, s) for s in scores),
     )
-
-
-def _limit_guard(
-    value: float | None, limit: float, ok: Callable[[float, float], bool], detail: str
-) -> GuardResult:
-    if value is None:
-        return GuardResult(state="not_evaluated", limit=limit, detail=detail)
-    state: GuardState = "ok" if ok(value, limit) else "fail"
-    return GuardResult(state=state, value=value, limit=limit, detail=detail)
-
-
-def signal_guards(
-    ft: ArmSummary, base: ArmSummary, inputs: AnalysisInputs
-) -> dict[str, GuardResult]:
-    """G1-G3: abstention rise, motion drop and objects_ok drop of FT against base."""
-    sel, cfg = inputs.select, inputs.cfg
-    rise = _minus(ft.abstention, base.abstention)
-    drop = _minus(base.objects_ok_rate, ft.objects_ok_rate)
-    floor = None if base.median_motion is None else (1 - sel.max_motion_drop) * base.median_motion
-    motion = None if floor is None else ft.median_motion
-    return {
-        "G1": _limit_guard(rise, sel.max_abstention_rise, lambda v, lim: v <= lim, ABSTENTION),
-        "G2": _limit_guard(motion, floor or 0.0, lambda v, lim: v >= lim, MOTION),
-        "G3": _limit_guard(drop, cfg.max_objects_ok_drop, lambda v, lim: v <= lim, OBJECTS),
-    }
-
-
-def _minus(a: float | None, b: float | None) -> float | None:
-    return None if a is None or b is None else a - b
-
-
-def sa_guard(found: tuple[Values, int], inputs: AnalysisInputs) -> GuardResult:
-    margin = inputs.cfg.sa_guard_margin
-    if inputs.external_status != "ok":
-        return GuardResult(state="not_evaluated", limit=-margin, detail="external judge not ok")
-    _, hi = mean_interval(as_diffs(found[0]), inputs.cfg)
-    if hi is None:
-        return GuardResult(state="not_evaluated", limit=-margin, detail="too few SA pairs")
-    state: GuardState = "fail" if hi < -margin else "ok"
-    return GuardResult(state=state, value=hi, limit=-margin, detail="upper CI of mean SA(ft - bo8)")
-
-
-def missing_pair_guard(primary: TestResult, worst: TestResult, cfg: H3Settings) -> GuardResult:
-    if not supported(primary, cfg.alpha):
-        return GuardResult(state="not_evaluated", detail="primary not supported")
-    if worst.hl is None:
-        return GuardResult(state="not_evaluated", detail="no imputable prompt")
-    state: GuardState = "fail" if worst.hl <= 0 else "ok"
-    return GuardResult(
-        state=state, value=worst.hl, limit=0.0, detail="HL with missing pairs as S=0"
-    )
-
-
-def _strata(values: Values, arms: Sequence[PromptArms], cfg: H3Settings) -> dict[str, TestResult]:
-    groups: dict[str, list[str]] = {"unseen": [], "seen": []}
-    for arm in arms:
-        groups["unseen" if arm.unseen else "seen"].append(arm.prompt_id)
-        groups.setdefault(f"family:{arm.prompt.family}", []).append(arm.prompt_id)
-    return {
-        name: paired_test(as_diffs({p: values[p] for p in ids if p in values}), cfg)
-        for name, ids in sorted(groups.items())
-    }
 
 
 def _holm(inputs: AnalysisInputs, picks: Mapping[str, Pick | None]) -> dict[str, HolmEntry]:
@@ -440,7 +343,7 @@ def analyse(inputs: AnalysisInputs) -> H3Analysis:
                 strict=True,
             )
         ),
-        strata=_strata(primary_found[0], arms, cfg),
+        strata=strata(primary_found[0], arms, cfg),
     )
 
 

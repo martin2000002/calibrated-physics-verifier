@@ -8,16 +8,11 @@ import pytest
 from cli_runner import CliRunner
 from wiring import build_scorer
 
-from physverify.cli.commands.finetune import (
-    DEFAULT_RUN,
-    _beta,
-    _check_current,
-    _check_resume,
-    status_lines,
-)
+from physverify.cli.commands.finetune import DEFAULT_RUN
 from physverify.config.models import Settings
 from physverify.core.errors import UsageError
 from physverify.finetune.layout import PAIRS_FILE, REPORT_FILE, CampaignStore
+from physverify.finetune.pairs_report import check_current
 from physverify.finetune.records import (
     CandidateRecord,
     CandidateScore,
@@ -27,9 +22,11 @@ from physverify.finetune.records import (
     write_record,
     write_records,
 )
+from physverify.finetune.schedule import STATE_FILE, checkpoint_name
 from physverify.finetune.scorers.provisional import ProvisionalScorer
 from physverify.finetune.settings import load_finetune
-from physverify.finetune.trainer import STATE_FILE, checkpoint_name
+from physverify.finetune.status import status_lines
+from physverify.finetune.training_run import check_resume, run_beta
 from physverify.runtime.runs import RUN_FILE
 from physverify.schema.checks import CheckResult, Verdict
 from physverify.schema.io import write_jsonl
@@ -61,9 +58,7 @@ def store(make_settings: Callable[..., Settings]) -> CampaignStore:
 
 @pytest.fixture
 def labels(monkeypatch: pytest.MonkeyPatch, fake_labels: frozenset[str]) -> None:
-    monkeypatch.setattr(
-        "physverify.cli.commands.finetune.sizing_labels", lambda settings: fake_labels
-    )
+    monkeypatch.setattr("physverify.app.finetune.sizing_labels", lambda settings: fake_labels)
 
 
 @pytest.mark.parametrize("words", SUBCOMMANDS)
@@ -112,7 +107,7 @@ def test_prompts_build_writes_and_checks_the_set(
 def test_an_unsized_noun_fails_the_build(
     cli: CliRunner, env: dict[str, str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr("physverify.cli.commands.finetune.sizing_labels", lambda s: {"ball"})
+    monkeypatch.setattr("physverify.app.finetune.sizing_labels", lambda s: {"ball"})
     result = cli("finetune", "prompts", "build", env=env)
     assert result.code == 2
     assert "size prior" in result.err
@@ -327,10 +322,10 @@ def test_select_refuses_stale_checkpoint_scores(
     write_record(store.meta_path(tag, "d", 0), record)
     fields = {"model_tag": tag, "thresholds": scorer.thresholds(), "candidate_config_hash": "h"}
     current = make_score("d__k00", 0.5, scorer_version=scorer.version, **fields)
-    _check_current(store, tag, [current], scorer, "dev")
+    check_current(store, tag, [current], scorer, "dev")
     old = current.model_copy(update={"scorer_version": "0"})
     with pytest.raises(UsageError, match=f"--split dev --model-tag {tag}"):
-        _check_current(store, tag, [old], scorer, "dev")
+        check_current(store, tag, [old], scorer, "dev")
 
 
 def test_resume_compares_every_run_field_but_commit_and_beta_source(tmp_path: Path) -> None:
@@ -344,7 +339,7 @@ def test_resume_compares_every_run_field_but_commit_and_beta_source(tmp_path: Pa
         "beta_source": "--beta",
     }
     path.write_text(json.dumps(record), encoding="utf-8")
-    _check_resume(path, {**record, "commit": "c2", "beta_source": "beta_grid.json"})
+    check_resume(path, {**record, "commit": "c2", "beta_source": "beta_grid.json"})
     changes = [
         ("train", {"lr": 5e-5, "seed": 0}),
         ("lora", {"rank": 8}),
@@ -353,9 +348,9 @@ def test_resume_compares_every_run_field_but_commit_and_beta_source(tmp_path: Pa
     ]
     for key, value in changes:
         with pytest.raises(UsageError, match=key):
-            _check_resume(path, {**record, key: value})
+            check_resume(path, {**record, key: value})
     with pytest.raises(UsageError, match="new_key"):
-        _check_resume(path, {**record, "new_key": 1})
+        check_resume(path, {**record, "new_key": 1})
 
 
 def test_a_run_from_before_base_model_tracking_must_be_restarted(tmp_path: Path) -> None:
@@ -363,7 +358,7 @@ def test_a_run_from_before_base_model_tracking_must_be_restarted(tmp_path: Path)
     record = {"pairs_sha256": "p", "train": {"lr": 1e-4}, "commit": "c1"}
     path.write_text(json.dumps(record), encoding="utf-8")
     with pytest.raises(UsageError, match="predates base-model tracking.*must be restarted"):
-        _check_resume(path, {**record, "base_model": {"revision": "r"}})
+        check_resume(path, {**record, "base_model": {"revision": "r"}})
 
 
 def test_status_reads_a_pairs_report_without_the_scored_prompt_yield(
@@ -397,13 +392,13 @@ def test_the_beta_grid_choice_is_tied_to_its_pairs(
     store: CampaignStore, make_settings: Callable[..., Settings]
 ) -> None:
     cfg = load_finetune(make_settings())
-    assert _beta(store, cfg, None, "p") == (cfg.train.beta, "finetune.train.beta")
+    assert run_beta(store, cfg, None, "p") == (cfg.train.beta, "finetune.train.beta")
     store.beta_path().parent.mkdir(parents=True)
     store.beta_path().write_text(json.dumps({"chosen": 500.0, "pairs_sha256": "p"}), "utf-8")
-    assert _beta(store, cfg, None, "p") == (500.0, str(store.beta_path()))
-    assert _beta(store, cfg, 7.0, "q") == (7.0, "--beta")
+    assert run_beta(store, cfg, None, "p") == (500.0, str(store.beta_path()))
+    assert run_beta(store, cfg, 7.0, "q") == (7.0, "--beta")
     with pytest.raises(UsageError, match="other pairs"):
-        _beta(store, cfg, None, "q")
+        run_beta(store, cfg, None, "q")
 
 
 def test_status_without_prompts(cli: CliRunner, env: dict[str, str]) -> None:

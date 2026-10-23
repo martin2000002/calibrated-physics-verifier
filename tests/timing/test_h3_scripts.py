@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from physverify.cli.commands.h3 import GATE_LINE, GATE_PASSED
+from physverify.generator_comparison.status import GATE_LINE, GATE_PASSED
 
 SCRIPTS = Path(__file__).resolve().parents[2] / "scripts" / "h200"
 SCRIPT_NAMES = ("_common.sh", "run_h3.sh", "smoke_autoeval.sh", "setup_autoeval.sh")
