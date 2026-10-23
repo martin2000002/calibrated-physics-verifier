@@ -27,9 +27,9 @@ from physverify.finetune.records import (
     write_record,
     write_records,
 )
+from physverify.finetune.schedule import STATE_FILE, checkpoint_name
 from physverify.finetune.scorers.provisional import ProvisionalScorer
 from physverify.finetune.settings import load_finetune
-from physverify.finetune.trainer import STATE_FILE, checkpoint_name
 from physverify.runtime.runs import RUN_FILE
 from physverify.schema.checks import CheckResult, Verdict
 from physverify.schema.io import write_jsonl

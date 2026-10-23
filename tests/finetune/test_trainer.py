@@ -12,27 +12,27 @@ import torch
 from physverify.config.models import Settings
 from physverify.finetune.dpo import ShiftedFlowNoise
 from physverify.finetune.records import CandidateRecord, PairRecord
+from physverify.finetune.schedule import (
+    Schedule,
+    ScheduleError,
+    beta_grid_steps,
+    checkpoints,
+    kept,
+    require_checkpoints,
+    schedule,
+    total_steps,
+)
 from physverify.finetune.settings import TrainSettings, load_finetune
+from physverify.finetune.stored_pairs import StoredPair, StoredPairSource, stored_pairs
 from physverify.finetune.trainer import (
     METRICS_FILE,
     DpoTrainer,
     ExistingRunError,
     PairBatch,
-    Schedule,
-    ScheduleError,
-    StoredPair,
-    StoredPairSource,
     ValMetrics,
-    beta_grid_steps,
-    checkpoints,
     choose_beta,
-    kept,
     last_val,
     pair_loss,
-    require_checkpoints,
-    schedule,
-    stored_pairs,
-    total_steps,
 )
 
 SHAPE = (1, 2, 1, 2, 2)
