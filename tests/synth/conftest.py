@@ -83,6 +83,11 @@ def perturbations() -> Any:
     return PLUGIN_KINDS["perturbations"]()
 
 
+@pytest.fixture(scope="session")
+def truth_measures() -> Any:
+    return PLUGIN_KINDS["truth_measures"]()
+
+
 @pytest.fixture
 def plugins(perturbations: Any, ds: DatasetSettings) -> dict[str, Any]:
     return instantiate(perturbations, ds)

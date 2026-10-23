@@ -10,7 +10,7 @@ import pytest
 from physverify.schema.scene import SceneSpec
 from physverify.synth.family_toolkit import solid_of
 from physverify.synth.generate import base_scene, split_of
-from physverify.synth.perturbations._measure import overhang_on, penetration_between
+from physverify.synth.magnitudes import overhang_on, penetration_between
 from physverify.synth.placement import (
     primitive_volume,
     project,

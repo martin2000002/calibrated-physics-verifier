@@ -13,6 +13,7 @@ from typing import Any
 import numpy as np
 import pytest
 
+from physverify.app.plugins import PLUGIN_KINDS
 from physverify.config.models import Settings
 from physverify.core.video import Mp4VideoSource
 from physverify.datasets.kubric_synthetic import KubricSynthetic, load_native
@@ -241,7 +242,10 @@ def exported_smoke(data_settings: Settings, families: Any, perturbations: Any) -
     scene = SceneSpec.load_json(store.scene_dir(SIM_ID) / "spec.json")
     for variant in plan.variants:
         fake_render(store, variant.clip_id, scene)
-    exported = export_all(plan, store, smoke.plugins, ds, data_settings.paths.data_dir)
+    truth_measures = PLUGIN_KINDS["truth_measures"]()
+    exported = export_all(
+        plan, store, smoke.plugins, truth_measures, ds, data_settings.paths.data_dir
+    )
     assert sorted(exported) == sorted(v.clip_id for v in plan.variants)
     return smoke
 
@@ -302,7 +306,7 @@ def test_npz_content_hash_ignores_the_zip_container(tmp_path: Path) -> None:
 
 
 def test_gt_version_follows_the_exported_contacts(
-    data_settings: Settings, families: Any, perturbations: Any
+    data_settings: Settings, families: Any, perturbations: Any, truth_measures: Any
 ) -> None:
     smoke = exported_smoke(data_settings, families, perturbations)
     store, ds = smoke.store, smoke.ds
@@ -312,7 +316,7 @@ def test_gt_version_follows_the_exported_contacts(
     plugin = smoke.plugins[variant.perturbation]
 
     def export() -> tuple[str, dict[str, Any], str]:
-        export_clip(variant, store, plugin, ds, data_settings.paths.data_dir)
+        export_clip(variant, store, plugin, truth_measures, ds, data_settings.paths.data_dir)
         meta = read_json(clip_dir / GT_META)
         return meta["gt_version"], meta["record"], content_sha256(clip_dir / LAYERS)
 

@@ -1,5 +1,5 @@
-"""Ground-truth magnitudes of every check (R1..R5b) on a clip, built only from the frozen
-measures in ``physics/measures``. Plugins reuse the per-object helpers for their ``measure``."""
+"""Ground-truth magnitudes shared by the truth measures and the perturbation plugins, built only
+from the frozen measures in ``physics/measures``."""
 
 from __future__ import annotations
 
@@ -25,24 +25,19 @@ from physverify.physics.measures.gravity_fit import (
     fall_fit,
     gravity_rel_error,
 )
-from physverify.physics.measures.object_integrity import (
-    jump_ratio,
-    missing_frames,
-    size_change_ratio,
-)
+from physverify.physics.measures.object_integrity import jump_ratio, missing_frames
 from physverify.physics.measures.penetration import penetration_ratio
 from physverify.physics.measures.support_overhang import overhang_fraction
 from physverify.physics.tracks import records_of
 from physverify.schema.constants import ENV_ID
-from physverify.schema.contacts import ContactKind, ContactTable
-from physverify.schema.scene import PerturbationRecord, SceneSpec
+from physverify.schema.contacts import ContactTable
+from physverify.schema.scene import PerturbationRecord
 from physverify.schema.states import ObjectStateTable, PrimitiveKind
 from physverify.synth.perturbations._ballistics import EPS_T, impact_velocity, time_to_height
 from physverify.synth.perturbations._frame_windows import (
     UP,
     flight_mask,
     impact_frames,
-    on_top_pairs,
     rest_mask,
     segments,
     solid_at,
@@ -56,31 +51,6 @@ SIDE_FRAMES = 4
 SWITCH_FRAME = "switch_frame"
 # Slack on fractional native-frame comparisons (row indices against contact times).
 FRAME_EPS = 1e-9
-MEASURE_KEYS = ("R1", "R2", "R3a", "R3b", "R4_missing", "R4_size", "R4_jump", "R5a", "R5b")
-
-
-def measure_all(
-    scene: SceneSpec,
-    states: ObjectStateTable,
-    contacts: ContactTable,
-    tol: float,
-    cuts: Sequence[int] = (),
-) -> dict[str, float]:
-    """Every check on the clip; ``cuts`` are frames where gravity is known to change, so R5 fits
-    each side of them separately (the windowing of ``r5a_gravity_switch.measure``)."""
-    g = np.asarray(scene.gravity, dtype=np.float64)
-    masses = {obj.object_id: obj.mass for obj in scene.objects}
-    return {
-        "R1": max_penetration(states),
-        "R2": max_overhang(states, contacts, tol),
-        "R3a": max_restitution_excess(states, contacts, g),
-        "R3b": max_energy_gain(states, contacts, masses, g, tol),
-        "R4_missing": _nanmax([float(_missing(states, i)) for i in range(states.n_objects)]),
-        "R4_size": _nanmax([size_change_ratio(states.size[:, i]) for i in range(states.n_objects)]),
-        "R4_jump": _nanmax([object_jump(states, contacts, i) for i in range(states.n_objects)]),
-        "R5a": gravity_inconsistency(states, contacts, cuts),
-        "R5b": gravity_scale_error(states, contacts, cuts),
-    }
 
 
 def record_cuts(record: PerturbationRecord) -> tuple[int, ...]:
@@ -88,7 +58,7 @@ def record_cuts(record: PerturbationRecord) -> tuple[int, ...]:
     return (int(record.params[SWITCH_FRAME]),) if SWITCH_FRAME in record.params else ()
 
 
-def _nanmax(values: Sequence[float]) -> float:
+def nanmax(values: Sequence[float]) -> float:
     finite = [v for v in values if math.isfinite(v)]
     return max(finite) if finite else math.nan
 
@@ -126,17 +96,6 @@ def pair_penetration(states: ObjectStateTable, i: int, j: int) -> float:
     )
 
 
-def max_penetration(states: ObjectStateTable) -> float:
-    """Largest penetration over object pairs and object-floor, divided by the smaller L."""
-    values: list[float] = []
-    for t in range(states.n_frames):
-        solids = [solid_at(states, i, t) for i in range(states.n_objects)]
-        for i, solid in enumerate(solids):
-            values.append(floor_penetration(solid))
-            values.extend(penetration_between(solid, other) for other in solids[i + 1 :])
-    return _nanmax(values)
-
-
 def support_manifolds(upper: Solid, lowers: Sequence[Solid | None], tol: float) -> list[Manifold]:
     """Manifolds of ``upper`` against each support (``None`` is the floor)."""
     manifolds = [contact_manifold(upper, Plane.ground() if s is None else s, tol) for s in lowers]
@@ -150,23 +109,6 @@ def overhang_on(upper: Solid, lowers: Sequence[Solid | None], tol: float) -> flo
         return math.nan
     polygon = support_polygon(manifolds, -UP)
     return overhang_fraction(upper.pose.position, polygon, -UP, upper.primitive.extents)
-
-
-def max_overhang(states: ObjectStateTable, contacts: ContactTable, tol: float) -> float:
-    """R2 over bodies at rest in the middle frame that stand on at least one movable body."""
-    mid = states.n_frames // 2
-    ids = states.object_ids.astype(str).tolist()
-    pairs = on_top_pairs(contacts)
-    values: list[float] = []
-    for i, object_id in enumerate(ids):
-        lowers = sorted({low for up, low in pairs if up == object_id})
-        if not lowers or all(low == ENV_ID for low in lowers) or not rest_mask(states, i)[mid]:
-            continue
-        solids = [
-            None if low == ENV_ID else solid_at(states, ids.index(low), mid) for low in lowers
-        ]
-        values.append(overhang_on(solid_at(states, i, mid), solids, tol))
-    return _nanmax(values)
 
 
 def bounce_rows(states: ObjectStateTable, index: int, t_guess: float) -> list[int]:
@@ -231,18 +173,6 @@ def floor_bounce(
 def bounce_restitution(states: ObjectStateTable, index: int, t_guess: float, g: Vec) -> float:
     bounce = floor_bounce(states, index, t_guess, g)
     return math.nan if bounce is None else restitution(bounce[1], bounce[2], UP)
-
-
-def max_restitution_excess(states: ObjectStateTable, contacts: ContactTable, g: Vec) -> float:
-    ids = states.object_ids.astype(str).tolist()
-    values = [
-        bounce_restitution(states, ids.index(r.object_a), r.t_start, g) - 1.0
-        for r in contacts.records
-        if r.kind is ContactKind.IMPACT
-        and r.object_b == ENV_ID
-        and str(states.primitive[ids.index(r.object_a)]) == PrimitiveKind.SPHERE.value
-    ]
-    return _nanmax(values)
 
 
 def floor_gap(states: ObjectStateTable, index: int, row: int) -> float:
@@ -329,31 +259,6 @@ def pair_energy_gain(
     return kinetic_energy_gain(mass_ratio, va_minus, vb_minus, va_plus, vb_plus)
 
 
-def max_energy_gain(
-    states: ObjectStateTable,
-    contacts: ContactTable,
-    masses: dict[str, float],
-    g: Vec,
-    tol: float,
-) -> float:
-    ids = states.object_ids.astype(str).tolist()
-    fps = native_fps(states)
-    values = [
-        pair_energy_gain(
-            states,
-            contacts,
-            (ids.index(r.object_a), ids.index(r.object_b)),
-            masses[r.object_a] / masses[r.object_b],
-            r.t_start / fps,
-            g,
-            tol,
-        )
-        for r in contacts.records
-        if r.kind is ContactKind.IMPACT and r.object_b != ENV_ID
-    ]
-    return _nanmax(values)
-
-
 def _missing(states: ObjectStateTable, index: int) -> int:
     return missing_frames(
         states.visible[:, index], states.in_frame[:, index], states.occlusion[:, index]
@@ -404,17 +309,6 @@ def cut_segment(
 
 def inconsistency(fits: Sequence[FallFit]) -> float:
     return accel_inconsistency([f.a for f in fits]) if len(fits) >= 2 else math.nan
-
-
-def gravity_inconsistency(
-    states: ObjectStateTable, contacts: ContactTable, cuts: Sequence[int] = ()
-) -> float:
-    fits = [
-        fit
-        for i in range(states.n_objects)
-        for fit in flight_fits(states, contacts, i, R5A_MIN_FRAMES, cuts)
-    ]
-    return inconsistency(fits)
 
 
 def gravity_scale_error(

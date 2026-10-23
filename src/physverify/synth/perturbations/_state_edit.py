@@ -18,10 +18,10 @@ from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactKind, ContactRecord, ContactTable, ManifoldKind
 from physverify.schema.scene import MagnitudeKind, PerturbationRecord, SceneSpec
 from physverify.schema.states import ObjectStateTable, PrimitiveKind
+from physverify.synth.magnitudes import bounce_restitution, nominal_extents
 from physverify.synth.perturb import PerturbationNotApplicableError
 from physverify.synth.perturbations._ballistics import Bounce, Flight
 from physverify.synth.perturbations._frame_windows import UP, solid_at
-from physverify.synth.perturbations._measure import bounce_restitution, nominal_extents
 from physverify.synth.placement import project, spec_intrinsics, spec_world_from_camera
 from physverify.synth.settings import PerturbationCommon
 

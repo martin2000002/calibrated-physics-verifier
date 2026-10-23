@@ -11,9 +11,9 @@ from physverify.schema.contacts import ContactTable
 from physverify.schema.scene import MagnitudeKind, PerturbationRecord, SceneSpec
 from physverify.schema.states import ObjectStateTable, PrimitiveKind
 from physverify.synth.family_toolkit import sphere_path
+from physverify.synth.magnitudes import gravity_scale_error
 from physverify.synth.perturb import PerturbationNotApplicableError
 from physverify.synth.perturbations._base import PerturbationTarget
-from physverify.synth.perturbations._measure import gravity_scale_error
 from physverify.synth.perturbations._state_edit import (
     PluginBase,
     gravity_of,

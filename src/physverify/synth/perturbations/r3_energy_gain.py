@@ -12,6 +12,7 @@ from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactKind, ContactRecord, ContactTable
 from physverify.schema.scene import MagnitudeKind, PerturbationRecord, SceneSpec
 from physverify.schema.states import ObjectStateTable, PrimitiveKind
+from physverify.synth.magnitudes import collision_velocities, pair_energy_gain
 from physverify.synth.perturb import PerturbationNotApplicableError
 from physverify.synth.perturbations._ballistics import (
     GravitySchedule,
@@ -19,7 +20,6 @@ from physverify.synth.perturbations._ballistics import (
     integrate_sphere,
 )
 from physverify.synth.perturbations._base import PerturbationTarget
-from physverify.synth.perturbations._measure import collision_velocities, pair_energy_gain
 from physverify.synth.perturbations._state_edit import (
     PluginBase,
     Vec,

@@ -27,7 +27,7 @@ from physverify.synth.family_toolkit import (
     solid_of,
     with_retries,
 )
-from physverify.synth.perturbations._measure import overhang_on, support_manifolds
+from physverify.synth.magnitudes import overhang_on, support_manifolds
 from physverify.synth.placement import UP, footprint_radius, palette, rest_height, solve_offset
 
 NAME = "f4_stack"

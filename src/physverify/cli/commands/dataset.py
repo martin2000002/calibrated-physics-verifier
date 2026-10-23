@@ -178,7 +178,12 @@ def run_render(
 
 def run_export(job: DatasetJob) -> None:
     exported = export_all(
-        job.plan(), job.store, job.plugins, job.ds, job.context.settings.paths.data_dir
+        job.plan(),
+        job.store,
+        job.plugins,
+        job.context.registry("truth_measures"),
+        job.ds,
+        job.context.settings.paths.data_dir,
     )
     typer.echo(f"export-gt: {len(exported)} clips exported; index {job.store.manifest_path}")
 

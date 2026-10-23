@@ -12,6 +12,7 @@ from typing import Any
 from physverify.schema.contacts import ContactTable
 from physverify.schema.scene import SceneSpec
 from physverify.schema.states import ObjectStateTable
+from physverify.synth.magnitudes import record_cuts
 from physverify.synth.perturb import (
     PerturbationNotApplicableError,
     SeedKey,
@@ -19,8 +20,8 @@ from physverify.synth.perturb import (
     perturb_trajectory,
 )
 from physverify.synth.perturbations._base import PerturbationTarget
-from physverify.synth.perturbations._measure import measure_all, record_cuts
 from physverify.synth.settings import DatasetSettings, perturbation_params
+from physverify.synth.truth_measures._base import measure_clip
 
 DATA = Path(__file__).parent / "data"
 PINS = Path(__file__).with_name("truth_measures_pins.json")
@@ -28,13 +29,14 @@ NOT_APPLICABLE = "not_applicable"
 
 
 def measures(
+    truth: Any,
     scene: SceneSpec,
     states: ObjectStateTable,
     contacts: ContactTable,
     tol: float,
     cuts: Sequence[int] = (),
 ) -> dict[str, str]:
-    values = measure_all(scene, states, contacts, tol, cuts)
+    values = measure_clip(truth, scene, states, contacts, tol, cuts)
     return {key: float.hex(value) for key, value in values.items()}
 
 
@@ -42,14 +44,14 @@ def families() -> list[str]:
     return sorted(p.name for p in DATA.iterdir() if (p / "spec.json").is_file())
 
 
-def computed(bank: Any, ds: DatasetSettings, registry: Any) -> dict[str, Any]:
+def computed(bank: Any, ds: DatasetSettings, registry: Any, truth: Any) -> dict[str, Any]:
     """Pins per case ``<family>/<perturbation>/<level>`` (``<family>/none`` for the clean clip)."""
     tol = ds.contacts.tol_m
     plugins = instantiate(registry, ds)
     pins: dict[str, Any] = {}
     for family in families():
         clip = bank.recorded(family)
-        pins[f"{family}/none"] = measures(clip.scene, clip.states, clip.contacts, tol)
+        pins[f"{family}/none"] = measures(truth, clip.scene, clip.states, clip.contacts, tol)
         for name, plugin in sorted(plugins.items()):
             if name == "none" or plugin.target is not PerturbationTarget.TRAJECTORY:
                 continue
@@ -64,17 +66,19 @@ def computed(bank: Any, ds: DatasetSettings, registry: Any) -> dict[str, Any]:
                     pins[f"{family}/{name}/{level}"] = NOT_APPLICABLE
                     continue
                 cuts = record_cuts(record)
-                pins[f"{family}/{name}/{level}"] = measures(clip.scene, states, contacts, tol, cuts)
+                pins[f"{family}/{name}/{level}"] = measures(
+                    truth, clip.scene, states, contacts, tol, cuts
+                )
     for directory in sorted((DATA / "r5b").iterdir()):
         clip, record = bank.recorded_gravity_scale(directory.name)
         case = f"{directory.name}/{record.name}/{record.level}"
         cuts = record_cuts(record)
-        pins[case] = measures(clip.scene, clip.states, clip.contacts, tol, cuts)
+        pins[case] = measures(truth, clip.scene, clip.states, clip.contacts, tol, cuts)
     return pins
 
 
 def test_truth_measures_match_the_pins(
-    bank: Any, clean_ds: DatasetSettings, perturbations: Any
+    bank: Any, clean_ds: DatasetSettings, perturbations: Any, truth_measures: Any
 ) -> None:
     expected = json.loads(PINS.read_text(encoding="utf-8"))
-    assert computed(bank, clean_ds, perturbations) == expected
+    assert computed(bank, clean_ds, perturbations, truth_measures) == expected

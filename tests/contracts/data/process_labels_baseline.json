@@ -766,6 +766,9 @@
  "src/physverify/synth/hdri_pools.py": {
   "comment_or_docstring": 2
  },
+ "src/physverify/synth/magnitudes.py": {
+  "comment_or_docstring": 4
+ },
  "src/physverify/synth/migrate.py": {
   "comment_or_docstring": 3
  },
@@ -774,9 +777,6 @@
  },
  "src/physverify/synth/perturbations/_ballistics.py": {
   "comment_or_docstring": 2
- },
- "src/physverify/synth/perturbations/_measure.py": {
-  "comment_or_docstring": 4
  },
  "src/physverify/synth/perturbations/_state_edit.py": {
   "comment_or_docstring": 2

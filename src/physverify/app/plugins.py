@@ -24,6 +24,7 @@ from physverify.synth.perturbations._base import (
     TrajectoryPerturbation,
     validate_perturbation,
 )
+from physverify.synth.truth_measures._base import TruthMeasure
 from physverify.timing._base import TimingTarget
 from physverify.verification._base import VerdictPolicy
 
@@ -59,6 +60,9 @@ PLUGIN_KINDS: Mapping[str, Callable[[], Registry[Any]]] = MappingProxyType(
         "timing_targets": lambda: discover("physverify.timing.targets", (TimingTarget,), "name"),
         "judges": lambda: discover("physverify.generator_comparison.judges", (Judge,), "name"),
         "scorers": lambda: discover("physverify.finetune.scorers", (AggregateScorer,), "name"),
+        "truth_measures": lambda: discover(
+            "physverify.synth.truth_measures", (TruthMeasure,), "check_id"
+        ),
     }
 )
 """Perceived and ground-truth providers share ``providers`` (keys ``<stage>/<name>`` and

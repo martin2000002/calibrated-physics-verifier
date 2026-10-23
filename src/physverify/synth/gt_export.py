@@ -36,17 +36,13 @@ from physverify.schema.render import RenderLayers
 from physverify.schema.scene import PerturbationRecord, SceneSpec
 from physverify.schema.stages import STAGE_ORDER
 from physverify.schema.states import CoordFrame, ObjectStateTable, PrimitiveKind
+from physverify.synth.magnitudes import bounce_restitution, record_cuts
 from physverify.synth.perturb import load_simulation, measured
 from physverify.synth.perturbations._frame_windows import (
     in_image_fraction,
     projected_silhouette,
     silhouette_mask,
     solid_at,
-)
-from physverify.synth.perturbations._measure import (
-    bounce_restitution,
-    measure_all,
-    record_cuts,
 )
 from physverify.synth.store import (
     CAMERA,
@@ -69,6 +65,7 @@ from physverify.synth.store import (
     atomic_write_json,
     read_json,
 )
+from physverify.synth.truth_measures._base import TruthMeasure, measure_clip
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -351,7 +348,12 @@ def gt_version(version: str, scene: SceneSpec, record: PerturbationRecord, clip_
 
 
 def export_clip(
-    variant: VariantPlan, store: DatasetStore, plugin: Any, ds: DatasetSettings, data_dir: Path
+    variant: VariantPlan,
+    store: DatasetStore,
+    plugin: Any,
+    truth: Mapping[str, type[TruthMeasure]],
+    ds: DatasetSettings,
+    data_dir: Path,
 ) -> ClipManifest:
     clip_dir = store.clip_dir(variant.clip_id)
     scene = SceneSpec.load_json(store.scene_dir(variant.sim_id) / SPEC)
@@ -389,8 +391,8 @@ def export_clip(
             "gt_version": gt_version(ds.version, scene, record, clip_dir),
             "sim_id": variant.sim_id,
             "record": record.to_dict(),
-            "measures": measure_all(
-                scene, states, contacts, ds.contacts.tol_m, record_cuts(record)
+            "measures": measure_clip(
+                truth, scene, states, contacts, ds.contacts.tol_m, record_cuts(record)
             ),
             **restitution_meta(clean_restitution(store, variant, ds)),
         },
@@ -402,6 +404,7 @@ def export_all(
     plan: DatasetPlan,
     store: DatasetStore,
     plugins: Mapping[str, Any],
+    truth: Mapping[str, type[TruthMeasure]],
     ds: DatasetSettings,
     data_dir: Path,
 ) -> list[str]:
@@ -414,7 +417,7 @@ def export_all(
             continue
         if not (store.is_done(Step.RENDER, clip_id) and store.is_done(Step.PERTURB, clip_id)):
             continue
-        export_clip(variant, store, plugins[variant.perturbation], ds, data_dir)
+        export_clip(variant, store, plugins[variant.perturbation], truth, ds, data_dir)
         exported.append(clip_id)
     write_index(store)
     return exported
