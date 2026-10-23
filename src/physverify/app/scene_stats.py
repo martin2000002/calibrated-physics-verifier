@@ -6,13 +6,13 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from physverify.app.context import AppContext
+from physverify.app.diagnosis import diag_settings
 from physverify.app.sealing import Selection, guard_sealed
 from physverify.app.services import chain_runner, dataset_for, pipeline_deps
 from physverify.core.output import Echo
 from physverify.datasets._base import select_clips
 from physverify.diagnosis import scene_stats
 from physverify.diagnosis.context import sampled_metrics
-from physverify.diagnosis.settings import diagnosis_settings
 
 STAGES = ("detect", "depth")
 
@@ -31,10 +31,7 @@ def collect_per_clip(
     """Collect and save the per-clip rows of the selected clips; returns how many were written.
     ``command`` names the caller in the sealed ledger."""
     settings = app_ctx.settings
-    update = {"dataset": dataset, "subset": subset}
-    diag = diagnosis_settings(settings).model_copy(
-        update={key: value for key, value in update.items() if value is not None}
-    )
+    diag = diag_settings(settings, dataset=dataset, subset=subset)
     source = dataset_for(app_ctx, diag.dataset)
     selected = select_clips(source.clips(diag.subset), clips)
     guard_sealed(

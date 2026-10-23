@@ -10,6 +10,7 @@ from physverify.app.context import AppContext
 from physverify.app.extraction import recorded_run
 from physverify.app.sealing import Selection, guard_sealed
 from physverify.app.services import check_suite, dataset_for, pipeline_deps
+from physverify.config.models import Settings
 from physverify.core.output import Echo
 from physverify.datasets._base import select_clips
 from physverify.diagnosis.attribution_run import run_attribution
@@ -19,7 +20,7 @@ from physverify.diagnosis.real_video import run_real
 from physverify.diagnosis.real_video import select_clips as real_clips
 from physverify.diagnosis.report import Report
 from physverify.diagnosis.report_markdown import write_report
-from physverify.diagnosis.settings import diagnosis_settings
+from physverify.diagnosis.settings import DiagnosisSettings, diagnosis_settings
 from physverify.diagnosis.stage_errors import run_stage_errors
 from physverify.diagnosis.summary import MAX_SUMMARY_LINES, summary_lines
 from physverify.diagnosis.verification_adapter import CheckSuite
@@ -35,6 +36,16 @@ ALL_DATASETS = "all"
 Runner = Callable[[DiagnosisContext], Report]
 
 
+def diag_settings(
+    settings: Settings, *, dataset: str | None, subset: str | None
+) -> DiagnosisSettings:
+    """The ``diagnosis`` section with ``dataset`` and ``subset`` replaced when given."""
+    overrides = {"dataset": dataset, "subset": subset}
+    return diagnosis_settings(settings).model_copy(
+        update={key: value for key, value in overrides.items() if value is not None}
+    )
+
+
 def diagnosis_context(
     app: AppContext,
     observer: StageObserver,
@@ -44,10 +55,7 @@ def diagnosis_context(
     subset: str | None = None,
 ) -> DiagnosisContext:
     settings = app.settings
-    overrides = {"dataset": dataset, "subset": subset}
-    diag = diagnosis_settings(settings).model_copy(
-        update={key: value for key, value in overrides.items() if value is not None}
-    )
+    diag = diag_settings(settings, dataset=dataset, subset=subset)
     clock = functools.partial(dt.datetime.now, dt.UTC)
     run = new_run(settings, app.invocation.argv, clock())
     return DiagnosisContext(
