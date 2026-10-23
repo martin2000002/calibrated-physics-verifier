@@ -39,7 +39,7 @@ def _heldout_rate(key: str, doc: Doc, stratum: str | None, check_id: str) -> tup
 
 
 def per_check(inputs: Inputs) -> Section:
-    """P1: tau, cross-validated and held-out FPR (all scenes and H1 primary), L_D, sigma."""
+    """tau, cross-validated and held-out FPR (all scenes and the primary view), L_D, sigma."""
     base = _artifact_stratum(inputs, CONSUMED_LEVEL)
     if base is None:
         return Section("per_check", missing=f"no {CONSUMED_LEVEL.value}/{inputs.profile} stratum")
@@ -75,7 +75,7 @@ def _primary_stratum(doc: Doc, profile: str) -> str | None:
 
 
 def aggregate(inputs: Inputs) -> Section:
-    """P2: weights (with the informedness interval they come from), p_c, s* and its AUROC."""
+    """Weights (with the informedness interval they come from), p_c, s* and its AUROC."""
     base = _artifact_stratum(inputs, CONSUMED_LEVEL)
     if base is None:
         return Section("aggregate", missing=f"no {CONSUMED_LEVEL.value}/{inputs.profile} stratum")
@@ -140,8 +140,8 @@ def _tau_values(key: str, doc: Doc, where: str, *, medians: bool) -> list[Value]
 
 
 def monotonicity(inputs: Inputs) -> Section:
-    """P3: D8's pooled tau_b on every calib scene (the artifact, read by rule 1.1) and on the
-    H1 primary calib scenes (ADR 0015 1.4); ``h1_pass`` is the lower bound alone."""
+    """The held-out monotonicity's pooled tau_b on every calib scene (the artifact, read by rule
+    1.1) and on the primary-view calib scenes; ``h1_pass`` is the lower bound alone."""
     base = _artifact_stratum(inputs, CONSUMED_LEVEL)
     if base is None:
         return Section(
@@ -177,14 +177,14 @@ def _pooled_primary(inputs: Inputs) -> dict[str, str]:
 def _no_primary_reason(inputs: Inputs) -> str:
     return (
         f"calib_primary missing: {inputs.heldout_evaluation.path} has no pooled tau_b of the "
-        "H1 primary view "
+        "held-out monotonicity's primary view "
         "(an evaluation before 1.4.0; rerun `calibrate evaluate --no-real` and pass "
         "--calibration-evaluation)"
     )
 
 
 def real_fpr(inputs: Inputs) -> Section:
-    """P4: per-check and clip-score false-positive rate on real video (all negatives)."""
+    """Per-check and clip-score false-positive rate on real video (all negatives)."""
     doc = inputs.evaluation
     where = evaluation_stratum(doc, CONSUMED_LEVEL, inputs.profile)
     if where is None:

@@ -83,8 +83,10 @@ def _pv(command: str, threads: int = 6) -> str:
 
 
 SETUP = [
-    "uv sync --no-default-groups --group dev --group cu128 --group perception --group generation"
-    " --group data",
+    (
+        "uv sync --no-default-groups --group dev --group cu128 --group perception"
+        " --group generation --group data"
+    ),
     "uv run --no-sync python -c import sys, torch; sys.exit(0 if torch.cuda.is_available() else 2)",
     _pv("extract fetch-weights"),
     "uv run --no-sync physverify --profile fast extract fetch-weights",
@@ -141,7 +143,7 @@ def test_full_sequence_with_docker_and_a_missing_image(sandbox: TimingSandbox) -
         TIMING_RUN,
     ]
     link = sandbox.runs / "h200-timing-latest"
-    assert link.is_symlink() and os.readlink(link) == RUN_ID
+    assert link.is_symlink() and str(link.readlink()) == RUN_ID
     assert (link / "timing").is_dir()
     assert (sandbox.runs / f"{RUN_ID}.log").read_text(encoding="utf-8").startswith("run: ")
     assert f"run: {sandbox.runs / RUN_ID}" in result.stdout

@@ -1,4 +1,4 @@
-"""``physverify calibrate``: fit, evaluate and publish the H1 calibration (ADR 0009 D13).
+"""``physverify calibrate``: fit, evaluate and publish the calibration.
 
 Not heavy: the checks read cached stage outputs and refuse the lock. ``stage-sigma`` takes the
 heavy lock lazily, only when a stage has to be computed.
@@ -25,7 +25,7 @@ from physverify.cli.context import app_context, echo_err
 NAME = "calibrate"
 
 app = typer.Typer(
-    help="H1 calibration: thresholds, rates, detection limits and the clip score.",
+    help="Calibration: thresholds, rates, detection limits and the clip score.",
     no_args_is_help=True,
 )
 
@@ -40,7 +40,7 @@ LevelOption = Annotated[str | None, typer.Option(help="oracle, perceived or both
 NoSigmaOption = Annotated[bool, typer.Option(help="Do not recalibrate the perceived sigma.")]
 
 
-@app.command("fit", help="Fit thresholds, rates and weights on split=calib (D5-D11).")
+@app.command("fit", help="Fit thresholds, rates and weights on split=calib.")
 def fit(
     dataset: DatasetOption = None,
     subset: SubsetOption = None,
@@ -64,7 +64,9 @@ def fit(
     )
 
 
-@app.command("dev-score", help="Development metric on calib: H1 and out-of-fold J (WP-O).")
+@app.command(
+    "dev-score", help="Development metric on calib: held-out monotonicity and out-of-fold J."
+)
 def devscore(
     dataset: DatasetOption = None,
     subset: SubsetOption = None,
@@ -87,7 +89,7 @@ def devscore(
     )
 
 
-@app.command("stage-sigma", help="D10: per-stage sigma factors (heavy, lazy lock; H200).")
+@app.command("stage-sigma", help="Per-stage sigma factors (heavy, lazy lock; H200).")
 def stage_sigma(
     dataset: DatasetOption = None, subset: SubsetOption = None, clips: ClipsOption = None
 ) -> None:
@@ -95,7 +97,7 @@ def stage_sigma(
     fit_stage_sigma(app_context(), f"{NAME} stage-sigma", picked, echo=typer.echo, err=echo_err)
 
 
-@app.command("evaluate", help="Score held-out and real clips with the frozen artifact (D12).")
+@app.command("evaluate", help="Score held-out and real clips with the frozen artifact.")
 def evaluate_command(
     artifact: ArtifactOption = None,
     dataset: DatasetOption = None,

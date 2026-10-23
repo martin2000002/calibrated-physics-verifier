@@ -17,12 +17,15 @@ StopRuleDeviationOption = Annotated[
     str | None,
     typer.Option(
         STOP_RULE_DEVIATION,
-        help="Go on although the pilot stop rule fired (recorded; H3 then has no verdict).",
+        help="Go on although the pilot stop rule fired "
+        "(recorded; the generator comparison then has no verdict).",
     ),
 ]
 ShardOption = Annotated[str | None, typer.Option(help="Shard i/n of the candidates.")]
 
-SplitOption = Annotated[str, typer.Option(help="train or dev (eval belongs to `h3`).")]
+SplitOption = Annotated[
+    str, typer.Option(help="train or dev (eval belongs to `compare-generators`).")
+]
 ScorerOption = Annotated[
     str | None, typer.Option(help="calibrated or provisional (default: finetune.scorer).")
 ]
@@ -53,12 +56,12 @@ GeneratorOnlyOption = Annotated[
 
 
 def campaign_split(split: str, comparison_step: str) -> PromptSplit:
-    """A train or dev split; the eval candidates and scores are H3's (ADR 0013), whose
-    generation stamp and pre-registration a finetune run would break."""
+    """A train or dev split; the eval candidates and scores belong to the generator comparison,
+    whose generation stamp and pre-registration a finetune run would break."""
     parsed = choice(split, SPLITS, "--split")
     if parsed == EVAL_SPLIT:
         raise UsageError(
-            "the eval split belongs to H3: run "
+            "the eval split belongs to the generator comparison: run "
             f"`physverify compare-generators {comparison_step} --arm base|ft`"
         )
     return parsed

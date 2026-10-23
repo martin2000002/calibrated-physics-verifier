@@ -1,8 +1,9 @@
-"""Per-clip cost of A4's Kubric render, one clip per container in a scratch dataset store.
+"""Per-clip cost of the Kubric render, one clip per container in a scratch dataset store.
 
-A4 batches several clips per container; here each call renders a single clip so the container
-start-up is charged to that clip (``render.overhead_s``). The frame and post-processing times are
-the worker's own (``kubric_meta.json``); ``render.wall_s`` is measured on the host.
+The synthetic Kubric dataset batches several clips per container; here each call renders a single
+clip so the container start-up is charged to that clip (``render.overhead_s``). The frame and
+post-processing times are the worker's own (``kubric_meta.json``); ``render.wall_s`` is measured
+on the host.
 """
 
 from __future__ import annotations

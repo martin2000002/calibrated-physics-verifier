@@ -13,8 +13,8 @@ sha_of() {
     sha256sum "$1" | cut -d ' ' -f 1
 }
 
-# record_sha_of LOG: the decision record's sha256 that `exclusions show` printed in LOG (J12: the
-# hash check_scope and the H2 pre-registration carry).
+# record_sha_of LOG: the decision record's sha256 that `exclusions show` printed in LOG (the hash
+# check_scope and the human-agreement pre-registration carry).
 record_sha_of() {
     sed -n 's/^record: .* sha256 \([0-9a-f]*\)$/\1/p' "$1"
 }

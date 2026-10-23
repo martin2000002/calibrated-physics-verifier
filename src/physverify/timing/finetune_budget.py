@@ -1,4 +1,4 @@
-"""Training prompts that fit in a GPU budget, tied to A3's measured costs (ADR 0012, 5 + Juicio 8).
+"""Training prompts that fit in a GPU budget, tied to the timing harness's measured costs.
 
 With ``c`` the cost per video, ``t_p`` the seconds per pair of ``dpo_step``, ``y`` pairs per prompt,
 ``E`` epochs, ``L_g`` the generator load, ``f`` the beta-grid run length as a fraction of the

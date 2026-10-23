@@ -1,10 +1,9 @@
 """Queries and records of the freeze (run_freeze.sh) and of the sealed final looks (run_final.sh,
-run_human_agreement.sh PHYSVERIFY_AGREEMENT_FREEZE): plan-congelado F7 with Juicio J1, J3-J6, J12
-and J13.
+run_human_agreement.sh PHYSVERIFY_AGREEMENT_FREEZE).
 
 Exit codes: 0 ok, 2 a check failed or an input is unusable (message on stderr).
 
-    python freeze_query.py select ITERATION_DIR...       J4 over the iterations' devscore.json
+    python freeze_query.py select ITERATION_DIR...       the selection rule over their devscore.json
     python freeze_query.py chosen SELECTION_JSON KEY      one value of the chosen iteration
     python freeze_query.py seed COMMIT CALIBRATION_SHA EXCLUSIONS_SHA
     python freeze_query.py diff j3|j13 FROM               files changed from FROM to HEAD
@@ -14,7 +13,7 @@ Exit codes: 0 ok, 2 a check failed or an input is unusable (message on stderr).
     python freeze_query.py artifacts FREEZE_JSON          the frozen files are unchanged
     python freeze_query.py render-env SET SEED            the dataset overrides of a fresh render
     python freeze_query.py plan SET SEED                  the render's plan.json is that render's
-    python freeze_query.py look-state [--retry] SPEC...   J6: first look, or the one retry
+    python freeze_query.py look-state [--retry] SPEC...   the first look, or the one retry
     python freeze_query.py v1-state FREEZE_JSON SPEC...   the v1 arm follows the look, once
     python freeze_query.py ledger                         the sealed ledger and its line count
 
@@ -115,7 +114,7 @@ def _write_manifest(args: argparse.Namespace) -> list[str]:
     return [
         f"freeze: {args.out} sha256 {readable_sha256(args.out)}",
         f"commit {data['commit']}, configs tree {data['configs_tree']}, seed {data['seed']}",
-        f"J13 diff from P2 {args.p2_commit}: {j13}",
+        f"j13 diff from the early-extraction commit {args.p2_commit}: {j13}",
     ]
 
 

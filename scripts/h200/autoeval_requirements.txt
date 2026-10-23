@@ -1,4 +1,4 @@
-# VideoPhy-2 AutoEval environment (ADR 0013 D4), installed by setup_autoeval.sh into its own venv.
+# VideoPhy-2 AutoEval environment, installed by setup_autoeval.sh into its own venv.
 # The exact versions that passed the gate are in $PHYSVERIFY_H200_ROOT/autoeval/autoeval_freeze.txt.
 --extra-index-url https://download.pytorch.org/whl/cu121
 # The only upstream pin (root requirements.txt; VIDEOPHY2/requirements.txt does not exist).

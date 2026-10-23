@@ -1,4 +1,4 @@
-"""``physverify exclusions``: the preregistered exclusion decision (ADR 0015 rules 1.1, 1.2, 1.5).
+"""``physverify exclusions``: the preregistered exclusion decision (rules 1.1, 1.2, 1.5).
 
 ``r2-clips`` lists the clips both R2 detector arms must verify (``verify --policy raw``);
 ``decide`` reads the artifact, its evaluation and the two runs and writes the decision record
@@ -20,7 +20,10 @@ from physverify.cli.context import app_context
 NAME = "exclusions"
 
 app = typer.Typer(
-    help="ADR 0015: the preregistered check exclusions H2 and H3 consume.",
+    help=(
+        "The preregistered check exclusions the human-agreement study and generator comparison"
+        " consume."
+    ),
     no_args_is_help=True,
 )
 
@@ -52,7 +55,7 @@ def decide_command(
     )
 
 
-@app.command("show", help="Print the decision record and its sha256 (what H2/H3 freeze on).")
+@app.command("show", help="Print the decision record and its sha256 (what both studies freeze on).")
 def show_command(
     checks_hash: Annotated[
         bool, typer.Option(help="Refuse a record decided with other check parameters.")

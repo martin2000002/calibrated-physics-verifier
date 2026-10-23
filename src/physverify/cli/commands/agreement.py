@@ -1,5 +1,6 @@
-"""``physverify agreement``: the verifier against the reference VLM on VideoPhy human labels
-(ADR 0011). ``fetch`` is heavy; ``subset``, ``freeze`` and ``compare`` read files only."""
+"""``physverify agreement``: the verifier against the reference VLM on VideoPhy human labels.
+
+``fetch`` is heavy; ``subset``, ``freeze`` and ``compare`` read files only."""
 
 from __future__ import annotations
 
@@ -26,7 +27,8 @@ from physverify.human_agreement.workflow import (
 NAME = "agreement"
 
 app = typer.Typer(
-    help="Verifier vs reference VLM on VideoPhy human labels (H2).", no_args_is_help=True
+    help="Verifier vs reference VLM on VideoPhy human labels (human-agreement study).",
+    no_args_is_help=True,
 )
 RunOption = Annotated[Path, typer.Option("--verify-run", help="A perceived verify run directory.")]
 
@@ -72,7 +74,12 @@ def freeze_command(
     ] = False,
     declare_deviation: Annotated[
         str | None,
-        typer.Option(help="Why the freeze is redone after a test comparison (makes H2 post hoc)."),
+        typer.Option(
+            help=(
+                "Why the freeze is redone after a test comparison (makes the human-agreement"
+                " study post hoc)."
+            )
+        ),
     ] = None,
 ) -> None:
     context = app_context()

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# VideoPhy-2 AutoEval in its own environment (ADR 0013 D4); idempotent, needs no GPU.
+# VideoPhy-2 AutoEval in its own environment; idempotent, needs no GPU.
 # Pins come from [h3.autoeval] in configs/studies/generator_comparison.toml; relative paths are
 # under PHYSVERIFY__H3__AUTOEVAL__ROOT (default $PHYSVERIFY_H200_ROOT). Steps: a Python 3.10 venv,
 # the upstream clone checked out at code_commit, autoeval_requirements.txt, the model at

@@ -37,19 +37,21 @@ def clip_ids(source: DatasetSource, subset: str, split: str | None) -> list[str]
 
 
 def evaluation_lines(path: Path, allowed: Sequence[Mapping[str, int]]) -> list[str]:
-    """The real sets and the H1 section of ``path``; refused without the primary view or with a
-    real set rule 1.5 does not allow."""
+    """The real sets and the primary-view section of ``path``; refused without the primary view or
+    with a real set rule 1.5 does not allow."""
     data = read_json(path)
     sizes = {ref["name"]: ref["n_clips"] for ref in data.get("real_sets", [])}
     if sizes not in [dict(a) for a in allowed]:
         raise QueryError(f"{path}: real_sets {sizes} not in the allowed sets {list(allowed)}")
     if data.get("h1_primary") is None:
-        raise QueryError(f"{path} has no h1_primary: the evaluation predates WP-J2, rerun from 6")
+        raise QueryError(
+            f"{path} has no h1_primary: the evaluation predates that section, rerun from 6"
+        )
     lines = ["Real sets: " + ", ".join(f"{k} {v}" for k, v in sorted(sizes.items())), ""]
-    return lines + h1_section(path.with_suffix(".md"))
+    return lines + primary_section(path.with_suffix(".md"))
 
 
-def h1_section(markdown: Path) -> list[str]:
+def primary_section(markdown: Path) -> list[str]:
     if not markdown.is_file():
         raise QueryError(f"no {markdown} next to the evaluation")
     lines = markdown.read_text(encoding="utf-8").splitlines()

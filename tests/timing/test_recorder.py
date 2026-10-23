@@ -1,4 +1,5 @@
-"""Stage spans from A5's observer hook, CUDA memory without importing torch, measure names."""
+"""Stage spans from the extractor's observer hook, CUDA memory without importing torch, measure
+names."""
 
 from __future__ import annotations
 

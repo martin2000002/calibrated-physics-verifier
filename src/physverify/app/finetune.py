@@ -118,7 +118,7 @@ def candidate_generator(
 
 
 def scoring_deps(context: AppContext) -> ScoringDeps:
-    """Perceived inputs from the extraction pipeline over ``local_video``, checks from A7."""
+    """Perceived inputs from the extraction pipeline over ``local_video``; checks from the suite."""
     settings = context.settings
     verification = settings.section(VERIFICATION_SECTION, VerificationSettings)
     runner = VerificationRunner(
@@ -182,9 +182,9 @@ def require_stop_rule(
             err(line)
     if not verdict.passed and verdict.enforced and deviation is None:
         raise UsageError(
-            f"pilot stop rule fired: {'; '.join(verdict.reasons)}; H3 is not evaluable with "
-            f"this verifier ({STOP_RULE_DEVIATION} TEXT, or finetune.stop_rule.enforce = false, "
-            "to go on)"
+            f"pilot stop rule fired: {'; '.join(verdict.reasons)}; the generator comparison is not "
+            f"evaluable with this verifier ({STOP_RULE_DEVIATION} TEXT, or "
+            "finetune.stop_rule.enforce = false, to go on)"
         )
     return verdict
 

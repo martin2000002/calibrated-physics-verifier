@@ -5,6 +5,8 @@ LATEST_LINK="h200-timing-latest"
 # The persistent per-user directory every H200 path derives from (see env.example.sh).
 H200_ROOT="${PHYSVERIFY_H200_ROOT:-/home/mmonterot/work}"
 H200_ENV="${PHYSVERIFY_H200_ENV:-$H200_ROOT/env.sh}"
+# The CPU calibration chain's directory; the name is the existing on-disk layout.
+CHAIN_ROOT="$H200_ROOT/a8v2"
 
 die() {
     printf '%s\n' "$*" >&2

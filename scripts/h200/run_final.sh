@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# The sealed final evaluation (plan-congelado sections 2 and 4, Juicio J1, J2, J6, J11, J14) on the
-# H200, in a clean checkout at the frozen commit of $F/freeze.json (run_freeze.sh). Every call is
-# --profile precise --device cpu with the frozen artifacts of $F/calibration.
+# The sealed final evaluation on the H200, in a clean checkout at the frozen commit of
+# $F/freeze.json (run_freeze.sh). Every call is --profile precise --device cpu with the frozen
+# artifacts of $F/calibration.
 #
-#   bash scripts/h200/run_final.sh seed            the seed of the amendment is the freeze's
+#   bash scripts/h200/run_final.sh seed            the preregistered seed is the freeze's
 #   bash scripts/h200/run_final.sh render SET      kubric_fresh | kubric_fresh_ood (run_kubric.sh)
 #   bash scripts/h200/run_final.sh fetch SET       physics_iq_views | objectron_static
 #   bash scripts/h200/run_final.sh extract SET     any set but real_new (exempt: prints no verdict)
@@ -26,24 +26,25 @@
 # here; no PHYSVERIFY_UNSEAL or PHYSVERIFY_UNSEAL_REPEAT from the caller (this script sets them for
 # a look and a v1 arm only); freeze.json of device cpu and profile precise with its calibration
 # directory $F/calibration and its frozen files unchanged (freeze_query artifacts);
-# PHYSVERIFY_FINAL_SEED is the freeze's seed (the amendment's); $F/run-final/state.env of the same
+# PHYSVERIFY_FINAL_SEED is the freeze's preregistered seed; $F/run-final/state.env of the same
 # commit and dry-run mode; for any command but seed, the seed command has run. Then doctor must
 # report the committed configs, cpu, precise, the cache and the calibration in $F.
 #
-# J1: extract refuses a set whose cache directory ($CACHE/<dataset>) exists before its first
+# Fresh data: extract refuses a set whose cache directory ($CACHE/<dataset>) exists before its first
 # extraction (the marker $F/run-final/extract-SET.started tells a resume), and every Kubric command
-# needs the render's plan.json of the seed (freeze_query plan). J2: render resumes the same version
-# and seed only, never after a look; the exported share of the plan is noted against 90 %. J6: look
-# refuses a set any ledger line covers; --retry passes once, when that line's run wrote no
-# evaluation, with PHYSVERIFY_UNSEAL_REPEAT=1; a missing ledger stops render, look and v1arm (it is
-# created once by hand, never by a look). J14: fetch writes the sha256 manifest of the
-# downloaded files; extract and look check it, and fetch is refused once extraction has started.
+# needs the render's plan.json of the seed (freeze_query plan). Render resumes the same version
+# and seed only, never after a look; the exported share of the plan is noted against 90 %. One
+# look: look refuses a set any ledger line covers; --retry passes once, when that line's run wrote
+# no evaluation, with PHYSVERIFY_UNSEAL_REPEAT=1; a missing ledger stops render, look and v1arm (it
+# is created once by hand, never by a look). Fixed downloads: fetch writes the sha256 manifest of
+# the downloaded files; extract and look check it, and fetch is refused once extraction has started.
 # A set's commands hold $F/run-final/<command>-<set>.lock; extract also holds its render's and its
 # fetch's lock, and look its extractions' locks.
 #
 # Required:
-#   PHYSVERIFY_FINAL_EXPECT_COMMIT  prefix (>= 7 chars) of C_F, the HEAD this checkout is at
-#   PHYSVERIFY_FINAL_SEED           the seed written in the amendment
+#   PHYSVERIFY_FINAL_EXPECT_COMMIT  prefix (>= 7 chars) of the freeze commit, the HEAD this
+#                                   checkout is at
+#   PHYSVERIFY_FINAL_SEED           the preregistered seed
 # Optional (defaults in brackets):
 #   PHYSVERIFY_FINAL_DIR            $F [$H200_ROOT/final]
 #   PHYSVERIFY_FINAL_FREEZE         the freeze manifest [$F/freeze.json]
@@ -55,7 +56,7 @@
 #   PHYSVERIFY_FINAL_EXTRACT_LIMIT  extract only the first N clips (to measure the pace) [all]
 #   PHYSVERIFY_FINAL_EXTRACT_SHARDS --no-lock extract shards under nice before the full pass [none]
 #   PHYSVERIFY_FINAL_SHARD_THREADS  runtime.threads of each shard [THREADS / SHARDS]
-#   PHYSVERIFY_FINAL_DRYRUN         1 for the P3 rehearsal: $F, the data, the cache and the ledger
+#   PHYSVERIFY_FINAL_DRYRUN         1 for a dry-run rehearsal: $F, the data, the cache and the ledger
 #                                   (PHYSVERIFY__SEALED__LEDGER, then required) under
 #                                   $H200_ROOT/scratch; PHYSVERIFY__KUBRIC_FRESH__*,
 #                                   PHYSVERIFY__PHYSICS_IQ_VIEWS__* and PHYSVERIFY__OBJECTRON_STATIC__*
@@ -65,11 +66,11 @@
 #                                   PHYSVERIFY__PHYSICS_IQ_VIEWS__VIEWS='["center"]', objectron_static
 #                                   and real_new PHYSVERIFY__OBJECTRON_STATIC__SPLIT=train, so that a
 #                                   rehearsal never reads a sealed population [0]
-# v1arm (J11, impl-it4.md section 6.7):
-#   PHYSVERIFY_FINAL_V1_CHECKOUT    clean checkout at the freeze's v1.commit (C_V1)
+# v1arm (the v1 commit's checks with the base iteration's calibration, after the look):
+#   PHYSVERIFY_FINAL_V1_CHECKOUT    clean checkout at the freeze's v1.commit (the v1 commit)
 #   PHYSVERIFY_FINAL_V1_BASE        the base iteration directory (its calibration.json is the
 #                                   freeze's v1.calibration_sha256)
-#   PHYSVERIFY_FINAL_OVERLAY_CLI    Knowledge/tooling/pruebas/it2-p0/overlay_cli.py
+#   PHYSVERIFY_FINAL_OVERLAY_CLI    the overlay CLI script the v1 arm runs (kept outside the repo)
 #   PHYSVERIFY_FINAL_V1_ARM         the arm's directory [$F/v1arm]
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/_common.sh"
@@ -168,7 +169,7 @@ done
 refuse_local_config run_final.sh
 require_checkout PHYSVERIFY_FINAL_EXPECT_COMMIT
 SEED="${PHYSVERIFY_FINAL_SEED:-}"
-[[ "$SEED" =~ ^[0-9]+$ ]] || die "set PHYSVERIFY_FINAL_SEED to the seed of the amendment"
+[[ "$SEED" =~ ^[0-9]+$ ]] || die "set PHYSVERIFY_FINAL_SEED to the preregistered seed"
 PY="${PHYSVERIFY_FINAL_PYTHON:-/home/mmonterot/dev/venv/bin/python}"
 [[ -x "$PY" ]] || die "no interpreter at $PY (PHYSVERIFY_FINAL_PYTHON)"
 VENV="${PHYSVERIFY_FINAL_VENV:-$(dirname "$(dirname "$PY")")}"
@@ -276,7 +277,7 @@ completed() {
         "$STEPS")" == 0 ]]
 }
 
-# The plan.json of the render a Kubric set reads must be that of the seed (J1).
+# The plan.json of the render a Kubric set reads must be that of the seed.
 check_plan() {
     [[ -z "$RENDER" ]] && return 0
     local plan
@@ -288,7 +289,7 @@ raw_dir_of() {
     printf '%s/%s\n' "$(doctor_value paths.raw_dir)" "$1"
 }
 
-# check_fetched SET: the downloaded files are those of fetch's manifest (J14).
+# check_fetched SET: the downloaded files are those of fetch's manifest.
 check_fetched() {
     local manifest="$RUN/fetch-$1.sha256"
     [[ -f "$manifest" ]] || stop "no $manifest: run fetch $1 first"
@@ -316,7 +317,7 @@ cmd_render() {
     hold "render-$SET"
     local covered=("$SET") state planned clips exported share line renv=()
     [[ "$SET" != kubric_fresh ]] || covered+=(kubric_fresh_blind)
-    state="$(fq look-state "${covered[@]}")" || stop "a covering ledger line exists: no render after a look (J2)"
+    state="$(fq look-state "${covered[@]}")" || stop "a covering ledger line exists: no render after a look"
     note "ledger: $state look at ${covered[*]}"
     if line="$(fq plan "$SET" "$SEED" 2>&1)"; then
         note "resuming the render of seed $SEED: $line"
@@ -337,14 +338,14 @@ cmd_render() {
     clips="$(query clips "$SET" eval)" || stop "cannot list the $SET clips"
     exported="$(grep -c . <<<"$clips" || true)"
     share="$(awk -v e="$exported" -v p="$planned" 'BEGIN { printf "%.1f", 100 * e / p }')"
-    note "AC-9: $exported of $planned planned clips exported ($share %, threshold 90 %)"
+    note "exported share: $exported of $planned planned clips exported ($share %, threshold 90 %)"
 }
 
 cmd_fetch() {
     hold "fetch-$SET"
     hold "extract-$SET"
     [[ ! -e "$RUN/extract-$SET.started" ]] \
-        || stop "the extraction of $SET started: its downloaded files are fixed (J14)"
+        || stop "the extraction of $SET started: its downloaded files are fixed"
     export PHYSVERIFY__OBJECTRON_STATIC__SEED="$SEED"
     call 0 -- download fetch "$SET" --subset full
     unset PHYSVERIFY__OBJECTRON_STATIC__SEED
@@ -367,7 +368,7 @@ cmd_extract() {
     local marker="$RUN/extract-$SET.started"
     if [[ "$SET" != kubric_synthetic_eval && -e "$CACHE/$DS" && ! -e "$marker" ]]; then
         stop "$CACHE/$DS exists before the first extraction of $SET: another render or a dry run" \
-            "wrote it (J1)"
+            "wrote it"
     fi
     touch "$marker"
     local clips_file="$LOGS/clips.txt" clips=() id
@@ -431,7 +432,7 @@ cmd_look() {
     describe "$SET"
     ledger="$(fq ledger)" || stop "the sealed ledger is unreadable or missing (fail closed)"
     note "before: $ledger"
-    state="$(fq look-state ${RETRY:+--retry} ${SPECS//,/ })" || stop "J6: no look at $SPECS"
+    state="$(fq look-state ${RETRY:+--retry} ${SPECS//,/ })" || stop "one look per set: no look at $SPECS"
     export PHYSVERIFY_UNSEAL="$SPECS"
     [[ "$state" != retry ]] || export PHYSVERIFY_UNSEAL_REPEAT=1
     note "$state look at $SPECS"
@@ -455,7 +456,7 @@ flat_files() {
     done
 }
 
-# The v1 arm's configs: the freeze's, flattened, with C_V1's checks.toml (J11); a rerun must find
+# The v1 arm's configs: the freeze's, flattened, with the v1 commit's checks.toml; a rerun must find
 # the same. Only checks.toml may differ; a file missing on either side stops.
 v1_configs() {
     local arm="$1" ckv="$2" diff="$1/configs.diff" now="" file name
@@ -498,13 +499,13 @@ cmd_v1arm() {
     completed look "$SET" || stop "look $SET has not completed: the v1 arm follows the look"
     local ckv="${PHYSVERIFY_FINAL_V1_CHECKOUT:-}" base="${PHYSVERIFY_FINAL_V1_BASE:-}"
     local overlay_cli="${PHYSVERIFY_FINAL_OVERLAY_CLI:-}" arm="${PHYSVERIFY_FINAL_V1_ARM:-$F/v1arm}"
-    [[ -d "$ckv" ]] || stop "set PHYSVERIFY_FINAL_V1_CHECKOUT to the checkout at C_V1"
+    [[ -d "$ckv" ]] || stop "set PHYSVERIFY_FINAL_V1_CHECKOUT to the checkout at the v1 commit"
     [[ -f "$base/calibration.json" ]] || stop "set PHYSVERIFY_FINAL_V1_BASE to the base iteration"
     [[ -f "$overlay_cli" ]] || stop "set PHYSVERIFY_FINAL_OVERLAY_CLI to overlay_cli.py"
     ! near "$arm" "$CAL" || stop "the v1 arm never writes in $CAL"
     local v1 dirty state file meta evaluation
     v1="$(frozen v1.commit)"
-    [[ "$(git -C "$ckv" rev-parse HEAD)" == "$v1" ]] || stop "$ckv is not at C_V1 $v1"
+    [[ "$(git -C "$ckv" rev-parse HEAD)" == "$v1" ]] || stop "$ckv is not at the v1 commit $v1"
     dirty="$(git -C "$ckv" status --porcelain -- src configs)" || stop "git status failed in $ckv"
     [[ -z "$dirty" ]] || stop "$ckv has uncommitted files: $dirty"
     [[ "$(sha_of "$base/calibration.json")" == "$(frozen v1.calibration_sha256)" ]] \
@@ -515,7 +516,7 @@ cmd_v1arm() {
     done
     v1_configs "$arm" "$ckv"
     state="$(fq v1-state "$FREEZE" ${SPECS//,/ })" || stop "the v1 arm of $SPECS cannot run"
-    note "$state of $SPECS at C_V1 $v1, the base calibration $(sha_of "$arm/calibration/calibration.json")"
+    note "$state of $SPECS at the v1 commit $v1, the base calibration $(sha_of "$arm/calibration/calibration.json")"
     run_logged 0 -- env -C "$ckv" PHYSVERIFY__PATHS__CALIBRATION_DIR="$arm/calibration" \
         PHYSVERIFY__PATHS__RUNS_DIR="$arm/runs" PHYSVERIFY__RUNTIME__HEAVY_LOCK="$arm/heavy.lock" \
         PHYSVERIFY_UNSEAL="$SPECS" PHYSVERIFY_UNSEAL_REPEAT=1 PYTHONPATH="$ckv/src" \

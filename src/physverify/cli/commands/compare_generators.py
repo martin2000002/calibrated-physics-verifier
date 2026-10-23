@@ -1,4 +1,4 @@
-"""``physverify compare-generators``: fine-tuned against base against best-of-8 (ADR 0013).
+"""``physverify compare-generators``: fine-tuned against base against best-of-8.
 
 Order: ``gate-autoeval``, ``judge --split dev``, ``freeze``, ``generate``, ``score``,
 ``judge --split eval``, ``compare``. Every step resumes. The GPU subcommands exit 2 without
@@ -19,7 +19,9 @@ from physverify.core.errors import EXIT_ERROR
 
 NAME = "compare-generators"
 
-app = typer.Typer(no_args_is_help=True, help="H3: fine-tuned vs base vs best-of-8 (ADR 0013).")
+app = typer.Typer(
+    no_args_is_help=True, help="Generator comparison: fine-tuned vs base vs best-of-8."
+)
 
 ArmOption = Annotated[str, typer.Option(help="base, or ft (the selected checkpoint).")]
 TaskOption = Annotated[str | None, typer.Option(help="pc or sa (default: both).")]
@@ -86,12 +88,16 @@ def gate_autoeval() -> None:
         raise typer.Exit(code=EXIT_ERROR)
 
 
-@app.command("compare", help="The H3 analysis and verdict from the frozen eval data (CPU).")
+@app.command(
+    "compare", help="The comparison's analysis and verdict from the frozen eval data (CPU)."
+)
 def compare() -> None:
     comparison.compare_arms(app_context(), echo=typer.echo)
 
 
-@app.command("status", help="Eval candidates, scores, judge rows, gate and freeze of H3.")
+@app.command(
+    "status", help="Eval candidates, scores, judge rows, gate and freeze of the comparison."
+)
 def status() -> None:
     for line in comparison.campaign_status_lines(app_context()):
         typer.echo(line)

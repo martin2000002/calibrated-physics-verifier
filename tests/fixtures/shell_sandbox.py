@@ -7,7 +7,9 @@ import subprocess
 from collections.abc import Iterable
 from pathlib import Path
 
-H200_SCRIPTS = Path(__file__).resolve().parents[2] / "scripts" / "h200"
+CHECKOUT = Path(__file__).resolve().parents[2]
+H200_SCRIPTS = CHECKOUT / "scripts" / "h200"
+CHECKOUT_SRC = CHECKOUT / "src"
 
 
 def executable(path: Path, text: str) -> None:
@@ -17,6 +19,9 @@ def executable(path: Path, text: str) -> None:
 
 class Sandbox:
     """``repo/scripts/h200`` holds ``script_names``; PATH is ``fakes`` then ``tools``.
+
+    ``repo/src`` links to this checkout's ``src``, which also leads PYTHONPATH, so the scripts
+    import ``physverify`` from this checkout and not from an editable install elsewhere.
 
     ``tools`` links each named tool to the host binary; ``fakes`` starts empty and shadows them.
     Fakes log to ``calls``, which ``lines`` reads back.
@@ -30,6 +35,7 @@ class Sandbox:
         self.scripts.mkdir(parents=True)
         for name in script_names:
             shutil.copy2(H200_SCRIPTS / name, self.scripts / name)
+        (self.repo / "src").symlink_to(CHECKOUT_SRC, target_is_directory=True)
         self.tools = root / "tools"
         self.tools.mkdir()
         for tool in tools:
@@ -43,6 +49,7 @@ class Sandbox:
             "PATH": f"{self.fakes}:{self.tools}",
             "HOME": str(root),
             "CALLS": str(self.calls),
+            "PYTHONPATH": str(CHECKOUT_SRC),
         }
 
     def call(self, script: str, *args: str, **env: str) -> subprocess.CompletedProcess[str]:

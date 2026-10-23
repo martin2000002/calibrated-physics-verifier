@@ -1,5 +1,4 @@
-"""scripts/h200/run_final.sh against a fake interpreter, ``git`` and Kubric render (plan-congelado
-F7, F8: AC-6, AC-9, AC-10, AC-11, Juicio J1, J2, J6, J11, J14)."""
+"""scripts/h200/run_final.sh against a fake interpreter, ``git`` and Kubric render."""
 
 from __future__ import annotations
 
@@ -28,7 +27,7 @@ V1 = "a" * 40
 PREFIX = re.compile(r"^--profile precise --device cpu --set runtime\.threads=\d+ ")
 # freeze_query.py field and seed run for real (they only read freeze.json or hash strings); the
 # ledger is a file of commit|sets|run_dir lines that a fake look appends to before it computes,
-# as the sealed guard does, and that the fake look-state and v1-state read with J6's rules.
+# as the sealed guard does, and that the fake look-state and v1-state read with the one-look rule.
 FAKE_PYTHON = r"""#!/bin/bash
 LEDGER_FILE="${PHYSVERIFY__SEALED__LEDGER:-$LEDGER}"
 log_env() {
@@ -169,7 +168,7 @@ def _sha(path: Path) -> str:
 
 
 def _seed(calibration: Path, exclusions: Path) -> int:
-    """Amendment 2 section 2, written out independently of freeze_query.py."""
+    """The preregistered seed formula, written out independently of freeze_query.py."""
     joined = HEAD + _sha(calibration) + _sha(exclusions)
     return int(hashlib.sha256(joined.encode("utf-8")).hexdigest()[:8], 16)
 
@@ -300,7 +299,8 @@ def test_the_script_parses_and_is_executable() -> None:
 
 
 def test_the_fresh_kubric_look_and_its_v1_arm(sandbox: FinalSandbox) -> None:
-    """AC-9 noted, AC-10 (one line per look plus the arm's), AC-11 (no meta.json), J11 configs."""
+    """The exported share noted, one ledger line per look plus the arm's, no meta.json, the
+    arm's configs."""
     for args in (
         ("seed",),
         ("render", "kubric_fresh"),
@@ -333,7 +333,7 @@ def test_the_fresh_kubric_look_and_its_v1_arm(sandbox: FinalSandbox) -> None:
     envs = sandbox.envs()
     assert envs[-1] == ["", "kubric_fresh", "1", cache, *theirs]
     assert envs[-3] == ["", "kubric_fresh", "unset", cache, *mine]
-    assert all(e == ["", "unset", "unset", cache, *mine] for e in envs[:-3] + [envs[-2]])
+    assert all(e == ["", "unset", "unset", cache, *mine] for e in [*envs[:-3], envs[-2]])
     commits = [line.split("|")[:2] for line in sandbox.ledger_lines()]
     assert commits == [[HEAD, "kubric_fresh"], [V1, "kubric_fresh"]]
     assert (arm / "configs" / "checks.toml").read_text("utf-8") == "v1 checks\n"
@@ -380,7 +380,7 @@ def test_the_fresh_kubric_look_and_its_v1_arm(sandbox: FinalSandbox) -> None:
 def test_a_refused_command_runs_nothing_and_leaves_the_ledger(
     sandbox: FinalSandbox, args: tuple[str, ...], env: dict[str, str], message: str
 ) -> None:
-    """AC-6: every refusal exits 2 before any physverify call; the ledger keeps its lines."""
+    """Every refusal exits 2 before any physverify call; the ledger keeps its lines."""
     sandbox.ledger.write_text("x|kubric_synthetic:calib|r0\n", encoding="utf-8")
     result = sandbox.run(*args, **env)
     assert result.returncode == 2 and message in result.stderr, result.stderr
@@ -434,7 +434,7 @@ def test_a_resumed_command_keeps_the_commit_and_the_mode(sandbox: FinalSandbox) 
 
 
 def test_extract_needs_the_render_of_the_seed(sandbox: FinalSandbox) -> None:
-    """J1: no plan.json of this seed, no extraction."""
+    """No plan.json of this seed, no extraction."""
     sandbox.ok("seed")
     result = sandbox.run("extract", "kubric_fresh")
     assert result.returncode == 2 and "not the one of seed" in result.stderr
@@ -442,7 +442,7 @@ def test_extract_needs_the_render_of_the_seed(sandbox: FinalSandbox) -> None:
 
 
 def test_a_cache_written_before_the_first_extraction_is_refused(sandbox: FinalSandbox) -> None:
-    """J1: another render or a dry run under the same name never feeds a look."""
+    """Another render or a dry run under the same name never feeds a look."""
     sandbox.ok("seed")
     sandbox.ok("render", "kubric_fresh")
     (sandbox.root / "kubric-data" / "cache" / "kubric_fresh").mkdir(parents=True)
@@ -487,12 +487,12 @@ def _ready(sandbox: FinalSandbox, dataset: str = "kubric_fresh") -> None:
 
 
 def test_a_set_is_looked_at_once(sandbox: FinalSandbox) -> None:
-    """J6: a second look and a retry after a written evaluation are both refused."""
+    """A second look and a retry after a written evaluation are both refused."""
     _ready(sandbox)
     sandbox.ok("look", "kubric_fresh")
     for args in (("look", "kubric_fresh"), ("look", "kubric_fresh", "--retry")):
         result = sandbox.run(*args)
-        assert result.returncode == 2 and "J6" in result.stderr, result.stderr
+        assert result.returncode == 2 and "one look per set" in result.stderr, result.stderr
     assert len(sandbox.looks()) == 1
     assert len(sandbox.ledger_lines()) == 1
 
@@ -511,7 +511,7 @@ def test_one_retry_follows_a_look_that_wrote_no_evaluation(sandbox: FinalSandbox
 
 
 def test_a_render_after_a_look_is_refused(sandbox: FinalSandbox) -> None:
-    """J2: no new render of a set that has been looked at."""
+    """No new render of a set that has been looked at."""
     _ready(sandbox)
     sandbox.ok("look", "kubric_fresh")
     result = sandbox.run("render", "kubric_fresh")
@@ -542,7 +542,7 @@ def test_a_look_needs_its_extraction(sandbox: FinalSandbox) -> None:
 
 
 def test_the_new_real_control_is_fetched_once_and_looked_at_together(sandbox: FinalSandbox) -> None:
-    """J14: the downloaded files are fixed by their manifest; one look covers both sets."""
+    """The downloaded files are fixed by their manifest; one look covers both sets."""
     sandbox.ok("seed")
     for name in ("physics_iq_views", "objectron_static"):
         sandbox.ok("fetch", name)
@@ -550,7 +550,7 @@ def test_the_new_real_control_is_fetched_once_and_looked_at_together(sandbox: Fi
     for name in ("physics_iq_views", "objectron_static"):
         sandbox.ok("extract", name)
     refetch = sandbox.run("fetch", "objectron_static")
-    assert refetch.returncode == 2 and "J14" in refetch.stderr
+    assert refetch.returncode == 2 and "downloaded files are fixed" in refetch.stderr
     sandbox.ok("look", "real_new")
     assert sandbox.looks() == [_look(sandbox.final, *REAL_NEW)]
     assert sandbox.envs()[-1][1] == "physics_iq_views,objectron_static"
@@ -588,7 +588,7 @@ def test_a_skipped_real_dataset_fails_the_look(sandbox: FinalSandbox) -> None:
     ("setup", "env", "message"),
     [
         ("none", {}, "look kubric_fresh has not completed"),
-        ("look", {"CKV_SHA": "b" * 40}, "is not at C_V1"),
+        ("look", {"CKV_SHA": "b" * 40}, "is not at the v1 commit"),
         ("look", {"CKV_DIRTY": " M configs/checks.toml\n"}, "uncommitted"),
         ("look", {"META": "1"}, "recomputed stages"),
         ("base", {}, "not the freeze's v1 calibration"),
@@ -598,7 +598,6 @@ def test_a_skipped_real_dataset_fails_the_look(sandbox: FinalSandbox) -> None:
 def test_the_v1_arm_is_refused_unless_it_repeats_the_look_with_the_base_state(
     sandbox: FinalSandbox, setup: str, env: dict[str, str], message: str
 ) -> None:
-    """J11 and AC-11."""
     _ready(sandbox)
     if setup != "none":
         sandbox.ok("look", "kubric_fresh")
@@ -640,7 +639,7 @@ def _dry_run(sandbox: FinalSandbox) -> tuple[Path, Path, dict[str, str]]:
 
 
 def test_a_dry_run_writes_only_under_scratch(sandbox: FinalSandbox) -> None:
-    """P3: its own freeze, data, cache and ledger; the seed is not the freeze's."""
+    """Its own freeze, data, cache and ledger; the seed is not the freeze's."""
     final, ledger, env = _dry_run(sandbox)
     scratch = final.parent
     for args in (("seed",), ("render", "kubric_fresh"), ("extract", "kubric_fresh")):
@@ -689,7 +688,7 @@ def test_a_dry_run_writes_only_under_scratch(sandbox: FinalSandbox) -> None:
 def test_a_dry_run_never_reads_a_sealed_population(
     sandbox: FinalSandbox, args: tuple[str, ...], env: dict[str, str], message: str
 ) -> None:
-    """Audit B1, M1: no frozen seed, no kubric_synthetic eval, no left/right view, no test split."""
+    """No frozen seed, no kubric_synthetic eval, no left/right view, no test split."""
     _, ledger, dry = _dry_run(sandbox)
     if env.get("PHYSVERIFY_FINAL_SEED") == "real":
         env = {"PHYSVERIFY_FINAL_SEED": str(sandbox.seed)}
@@ -711,7 +710,7 @@ def test_a_dry_run_of_the_new_real_control_reads_center_and_train(sandbox: Final
 
 
 def test_a_limited_extraction_is_not_the_extraction_a_look_needs(sandbox: FinalSandbox) -> None:
-    """Audit M2: the pace measurement is recorded as extract-limited."""
+    """The pace measurement is recorded as extract-limited."""
     sandbox.ok("seed")
     sandbox.ok("render", "kubric_fresh")
     sandbox.ok("extract", "kubric_fresh", PHYSVERIFY_FINAL_EXTRACT_LIMIT="2")
@@ -727,14 +726,14 @@ def test_a_limited_extraction_is_not_the_extraction_a_look_needs(sandbox: FinalS
 
 
 def test_a_render_without_a_planned_clip_count_stops(sandbox: FinalSandbox) -> None:
-    """Audit m3: the AC-9 share is never divided by an empty or zero plan."""
+    """The exported share is never divided by an empty or zero plan."""
     sandbox.ok("seed")
     result = sandbox.run("render", "kubric_fresh", PLAN_CLIPS="0")
     assert result.returncode == 2 and "no planned clip count" in result.stderr
 
 
 def test_an_unchanged_checks_toml_is_not_a_foreign_config_difference(sandbox: FinalSandbox) -> None:
-    """Audit m1: an empty configs diff (C_V1's checks.toml is the freeze's) passes."""
+    """An empty configs diff (the v1 commit's checks.toml is the freeze's) passes."""
     (sandbox.ckv / "configs" / "checks.toml").write_text("frozen checks\n", encoding="utf-8")
     _ready(sandbox)
     sandbox.ok("look", "kubric_fresh")

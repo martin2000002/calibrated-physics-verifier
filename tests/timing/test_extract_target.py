@@ -1,4 +1,5 @@
-"""The extraction target: warm and timed replica cells over a scratch cache, A5's own timings."""
+"""The extraction target: warm and timed replica cells over a scratch cache, the extractor's own
+timings."""
 
 from __future__ import annotations
 
@@ -201,7 +202,7 @@ def test_the_lock_is_lazy_and_never_built_without_a_heavy_stage(
     assert built == []
 
 
-def test_real_pipeline_copies_a5_timings_bit_for_bit(
+def test_real_pipeline_copies_extractor_timings_bit_for_bit(
     make_settings: Callable[..., Settings],
     make_services: Callable[..., TimingServices],
     tmp_path: Path,

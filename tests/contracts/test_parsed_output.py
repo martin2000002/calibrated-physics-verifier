@@ -1,7 +1,7 @@
 """Output lines that scripts/h200 parses with sed, grep or awk: the scripts' patterns and the text
 the commands print must stay in step. The commands' own tests run the runners' parse functions
 (tests/fixtures/steps_sh.py) on real output: verify and devscore (run:), calibrate evaluate
-(evaluation:), exclusions show (record: ... sha256), agreement compare (H2:)."""
+(evaluation:), exclusions show (record: ... sha256), agreement compare (its summary line)."""
 
 from __future__ import annotations
 
@@ -141,7 +141,7 @@ def test_a_fragment_inside_a_line_does_not_count_as_its_start() -> None:
     assert _printed("sha256 ") and not _starts_a_line(" sha256 ")
 
 
-def test_run_h3_waits_for_the_gate_line_h3_prints() -> None:
+def test_the_comparison_runner_waits_for_the_gate_line_it_prints() -> None:
     assert h3.GATE_LINE + h3.GATE_PASSED == "  gate: passed"
 
 

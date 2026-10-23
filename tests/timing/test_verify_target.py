@@ -1,4 +1,5 @@
-"""The verification target: A7 via importlib, one span over load plus runner, per-check times."""
+"""The verification target: the check suite via importlib, one span over load plus runner,
+per-check times."""
 
 from __future__ import annotations
 
@@ -98,8 +99,8 @@ class FakeSource:
 
 
 @dataclass
-class FakeA7:
-    """An ``SuiteFactory``: two checks (0.125 s and 0.0625 s), a 0.5 s runner, a 0.25 s load."""
+class FakeSuite:
+    """A ``SuiteFactory``: two checks (0.125 s and 0.0625 s), a 0.5 s runner, a 0.25 s load."""
 
     clock: Any
     cpu_clock: Any
@@ -150,13 +151,13 @@ def found(name: str) -> object:
 @dataclass
 class Setup:
     services: TimingServices
-    a7: FakeA7
+    suite: FakeSuite
     fill: FakeFill
     ctx: TimingContext
 
     def target(self, **changes: Any) -> VerifyChecks:
         options: dict[str, Any] = {
-            "suite_factory": self.a7,
+            "suite_factory": self.suite,
             "find_spec": found,
             "pipeline_factory": self.fill,
             "plan_factory": plan_of,
@@ -175,16 +176,16 @@ def setup(
     services = make_services(clock=clock, cpu_clock=cpu_clock)
     observer: Any = object()
     ctx = TimingContext(make_settings(), "cpu", 1, tmp_path / "run", observer)
-    return Setup(services, FakeA7(clock, cpu_clock), FakeFill(), ctx)
+    return Setup(services, FakeSuite(clock, cpu_clock), FakeFill(), ctx)
 
 
-def test_skipped_while_a7_is_missing(setup: Setup) -> None:
+def test_skipped_while_the_suite_is_missing(setup: Setup) -> None:
     missing = setup.target(find_spec=lambda name: None).unavailable(setup.ctx)
     assert missing is not None
     assert RUNNER_MODULE in missing and INPUTS_MODULE in missing
     only_inputs = setup.target(find_spec=lambda name: None if name == INPUTS_MODULE else object())
     assert only_inputs.unavailable(setup.ctx) == (
-        f"A7 verification runner not installed ({INPUTS_MODULE})"
+        f"check suite runner not installed ({INPUTS_MODULE})"
     )
     assert setup.target().unavailable(setup.ctx) is None
 
@@ -203,15 +204,15 @@ def test_wall_spans_load_and_runner_and_checks_are_timed_apart(
         "verify.r4_jump.wall_s": 0.125,
         "verify.r1_pen.wall_s": 0.0625,
     }
-    assert setup.a7.source.loads == 1
-    assert setup.a7.runner.seen == [["c0"]]
+    assert setup.suite.source.loads == 1
+    assert setup.suite.runner.seen == [["c0"]]
 
 
 def test_check_timing_skips_missing_inputs_and_survives_a_failing_check(setup: Setup) -> None:
     inputs = types.SimpleNamespace(contacts=None)
     checks = (
-        fake_check("R2", 0.5, setup.a7.clock, requires=frozenset({"contacts"}), inputs=inputs),
-        fake_check("R5a", 0.25, setup.a7.clock, fails=True, inputs=inputs),
+        fake_check("R2", 0.5, setup.suite.clock, requires=frozenset({"contacts"}), inputs=inputs),
+        fake_check("R5a", 0.25, setup.suite.clock, fails=True, inputs=inputs),
     )
     assert setup.target()._time_checks(checks, inputs) == {"verify.r5a.wall_s": 0.25}
 
@@ -220,14 +221,14 @@ def test_inputs_come_from_the_persistent_cache_without_an_observer(
     setup: Setup, clip_factory: Callable[..., ClipManifest]
 ) -> None:
     setup.target().run(clip_factory("c0"), setup.ctx)
-    [(dataset, plan, deps)] = setup.a7.sources
+    [(dataset, plan, deps)] = setup.suite.sources
     assert (dataset, plan) == ("fake_ds", PLAN)
     assert deps.cache.root == setup.ctx.settings.paths.cache_dir
     assert deps.observer is None
     assert deps.lock.acquisitions == 0
 
 
-def test_prepare_fills_the_cache_per_dataset_and_builds_a7_once(
+def test_prepare_fills_the_cache_per_dataset_and_builds_the_suite_once(
     setup: Setup, clip_factory: Callable[..., ClipManifest]
 ) -> None:
     setup.fill.failures = (ClipFailure("c1", Stage.DEPTH, "boom"),)
@@ -248,17 +249,17 @@ def test_prepare_fills_the_cache_per_dataset_and_builds_a7_once(
     }
     target.run(clips[0], setup.ctx)
     target.run(clips[2], setup.ctx)
-    assert setup.a7.builds == 1
+    assert setup.suite.builds == 1
     target.close()
     target.run(clips[0], setup.ctx)
-    assert setup.a7.builds == 2
+    assert setup.suite.builds == 2
 
 
 def test_failed_inputs_raise(setup: Setup, clip_factory: Callable[..., ClipManifest]) -> None:
-    setup.a7 = FakeA7(setup.a7.clock, setup.a7.cpu_clock, error="no depth")
+    setup.suite = FakeSuite(setup.suite.clock, setup.suite.cpu_clock, error="no depth")
     with pytest.raises(TimingError, match="c0: verification inputs failed: no depth"):
         setup.target().run(clip_factory("c0"), setup.ctx)
-    assert setup.a7.runner.seen == []
+    assert setup.suite.runner.seen == []
 
 
 @pytest.mark.parametrize(
@@ -274,7 +275,7 @@ class Section(BaseModel):
     thresholds: Any = "provisional"
 
 
-def fake_a7_modules(
+def fake_suite_modules(
     calls: dict[str, Any],
 ) -> tuple[types.ModuleType, types.ModuleType, types.ModuleType]:
     runner = types.ModuleType(RUNNER_MODULE)
@@ -299,11 +300,11 @@ def fake_a7_modules(
     return runner, check_set, inputs
 
 
-def test_load_a7_wires_the_adr_api(
+def test_load_suite_wires_the_suite_api(
     monkeypatch: pytest.MonkeyPatch, make_settings: Callable[..., Settings]
 ) -> None:
     calls: dict[str, Any] = {}
-    runner, check_set, inputs = fake_a7_modules(calls)
+    runner, check_set, inputs = fake_suite_modules(calls)
     monkeypatch.setitem(sys.modules, RUNNER_MODULE, runner)
     monkeypatch.setitem(sys.modules, CHECK_SET_MODULE, check_set)
     monkeypatch.setitem(sys.modules, INPUTS_MODULE, inputs)
@@ -318,7 +319,7 @@ def test_load_a7_wires_the_adr_api(
     assert calls["source"] == (dataset, ("loader", PLAN, deps), InputLevel.PERCEIVED)
 
 
-def test_load_a7_builds_the_real_a7_api_when_it_is_installed(
+def test_load_suite_builds_the_real_suite_api_when_it_is_installed(
     make_settings: Callable[..., Settings],
 ) -> None:
     pytest.importorskip(RUNNER_MODULE)
@@ -330,7 +331,7 @@ def test_load_a7_builds_the_real_a7_api_when_it_is_installed(
     assert callable(verifier.runner.run)
 
 
-def test_importing_the_targets_loads_no_heavy_library_nor_a7() -> None:
+def test_importing_the_targets_loads_no_heavy_library_nor_the_suite() -> None:
     probe = (
         "import sys\n"
         "import physverify.timing.targets.extract_pipeline\n"

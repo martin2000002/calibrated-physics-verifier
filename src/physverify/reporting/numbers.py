@@ -32,8 +32,10 @@ from physverify.reporting.values import Section, Value, interval, leaf, rate, wi
 from physverify.schema.checks import InputLevel
 
 INTERVAL_ONLY = "interval only: the point difference is not stored"
-NO_AUC_CI = "no interval: the AUROC bootstrap is not implemented (ADR 0011 D6)"
-NOT_PREREGISTERED = "NOT PREREGISTERED: not the preregistered calibrated rule, no H2 claim"
+NO_AUC_CI = "no interval: the AUROC bootstrap is not implemented"
+NOT_PREREGISTERED = (
+    "NOT PREREGISTERED: not the preregistered calibrated rule, no human-agreement claim"
+)
 REHEARSAL_NOTE = "REHEARSAL (device {device}): not reportable"
 
 
@@ -43,9 +45,6 @@ class Results:
     banner: str | None
     inputs: Mapping[str, Mapping[str, str]]
     sections: tuple[Section, ...]
-
-
-# --- sections --------------------------------------------------------------------------------
 
 
 def _risk_at(key: str, doc: Doc, where: str) -> list[Value]:
@@ -65,7 +64,7 @@ def _curve_row(doc: Doc, where: str, k: float | None) -> str | None:
 
 
 def abstention(inputs: Inputs) -> Section:
-    """P5: k* on calib (``abstention.json``) and the held-out curve of ``selective-risk curve``."""
+    """k* on calib (``abstention.json``) and the held-out curve of ``selective-risk curve``."""
     fit = inputs.abstention
     if isinstance(fit, Missing):
         return Section("abstention", missing=fit.reason)
@@ -116,7 +115,7 @@ def _agreement_caveat(doc: Doc) -> str | None:
 
 
 def agreement(inputs: Inputs) -> Section:
-    """P6: the primary policy of the H2 group: verifier and VLM, McNemar, differences."""
+    """The primary policy of the human-agreement group: verifier and VLM, McNemar, differences."""
     doc = _agreement_doc(inputs, "agreement")
     if isinstance(doc, Section):
         return doc

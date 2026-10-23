@@ -1,5 +1,4 @@
-"""scripts/h200/run_freeze.sh against a fake interpreter and ``git`` (plan-congelado F7, F8:
-AC-6, AC-8, AC-18, Juicio J3, J4, J5, J12)."""
+"""scripts/h200/run_freeze.sh against a fake interpreter and ``git``."""
 
 from __future__ import annotations
 
@@ -175,8 +174,10 @@ def _expected(final: Path) -> list[str]:
         f"verify {KS} --level perceived --policy raw {CLIPS}",
         f"extract run {KS} {CLIPS}",
         f"verify {KS} --level perceived --policy raw {CLIPS}",
-        f"exclusions decide --evaluation {runs / 'r1' / 'evaluation.json'} --r2-base-run r2 "
-        "--r2-tiny-run r3",
+        (
+            f"exclusions decide --evaluation {runs / 'r1' / 'evaluation.json'} --r2-base-run r2 "
+            "--r2-tiny-run r3"
+        ),
         "exclusions show",
         "selective-risk fit",
     ]
@@ -190,7 +191,7 @@ def test_the_script_parses_and_is_executable() -> None:
 def test_the_freeze_adopts_the_chosen_iteration_and_writes_the_manifest(
     sandbox: FreezeSandbox,
 ) -> None:
-    """J4, J5, J12, AC-8: the sequence, cpu and precise, every path in $F, no look at all."""
+    """The sequence, cpu and precise, every path in $F, no look at all."""
     result = sandbox.run()
     assert result.returncode == 0, result.stderr
     assert sandbox.commands() == _expected(sandbox.final)
@@ -242,7 +243,7 @@ def test_the_freeze_adopts_the_chosen_iteration_and_writes_the_manifest(
 def test_a_startup_guard_stops_before_any_step(
     sandbox: FreezeSandbox, env: dict[str, str], message: str
 ) -> None:
-    """AC-6 for the freeze: nothing runs, nothing is adopted."""
+    """A refused freeze: nothing runs, nothing is adopted."""
     result = sandbox.run(**env)
     assert result.returncode == 2 and message in result.stderr, result.stderr
     assert sandbox.commands() in ([], ["doctor"])
@@ -261,11 +262,11 @@ def test_a_freeze_directory_near_other_artifacts_is_refused(
 @pytest.mark.parametrize(
     ("env", "message"),
     [
-        ({"PHYSVERIFY_FREEZE_ITERATION": "it1-fixes"}, "J4 chooses it2-state"),
-        ({"J3_CHANGES": "src/physverify/checks/r1.py\n"}, "J3"),
+        ({"PHYSVERIFY_FREEZE_ITERATION": "it1-fixes"}, "the selection rule chooses it2-state"),
+        ({"J3_CHANGES": "src/physverify/checks/r1.py\n"}, "refit needed"),
     ],
 )
-def test_the_wrong_choice_or_a_j3_change_adopts_nothing(
+def test_the_wrong_choice_or_a_refit_change_adopts_nothing(
     sandbox: FreezeSandbox, env: dict[str, str], message: str
 ) -> None:
     result = sandbox.run(**env)
@@ -291,10 +292,11 @@ def test_a_resume_needs_the_earlier_steps_and_the_same_commit(sandbox: FreezeSan
     assert moved.returncode == 2 and "belongs to FREEZE_COMMIT" in moved.stderr
     resumed = sandbox.run("4")
     assert resumed.returncode == 0, resumed.stderr
-    assert (
-        sandbox.commands()
-        == _expected(sandbox.final)[:5] + ["doctor"] + _expected(sandbox.final)[5:]
-    )
+    assert sandbox.commands() == [
+        *_expected(sandbox.final)[:5],
+        "doctor",
+        *_expected(sandbox.final)[5:],
+    ]
 
 
 @pytest.mark.parametrize(

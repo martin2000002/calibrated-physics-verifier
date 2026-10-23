@@ -1,10 +1,10 @@
-"""Per-clip cost of A5's extraction pipeline, read from its own stage events (no re-timing).
+"""Per-clip cost of the extraction pipeline, read from its own stage events (no re-timing).
 
 Each call runs the pipeline on a ``warm`` and a ``timed`` replica of the clip over a fresh scratch
 cache. Per stage, the timed cell gives the steady-state cost: ``wall_s`` and ``peak_rss_mb`` exactly
-as A5 reports them (provider compute only) plus the recorder's ``span_s`` (upstream cache loads,
-compute and cache store), ``cpu_s`` and ``cuda_peak_mb``. The warm cell adds the model load
-(``cold_*``). ``extract.span_s`` is the per-clip extraction total.
+as the extractor reports them (provider compute only) plus the recorder's ``span_s`` (upstream
+cache loads, compute and cache store), ``cpu_s`` and ``cuda_peak_mb``. The warm cell adds the model
+load (``cold_*``). ``extract.span_s`` is the per-clip extraction total.
 """
 
 from __future__ import annotations
@@ -150,7 +150,7 @@ def _cell(spans: Sequence[StageSpan], clip_id: str, tag: str) -> dict[str, Stage
 
 
 def stage_measures(clip_id: str, spans: Sequence[StageSpan]) -> dict[str, float]:
-    """Per-stage and total measures of one call; ``wall_s``/``peak_rss_mb`` are A5's values."""
+    """Per-stage and total measures of one call; ``wall_s``/``peak_rss_mb`` are the extractor's."""
     timed, warm = _cell(spans, clip_id, TIMED), _cell(spans, clip_id, WARM)
     if not timed:
         raise TimingError(f"{clip_id}: no uncached stage ran in the timed cell")

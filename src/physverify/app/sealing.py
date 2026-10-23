@@ -78,11 +78,14 @@ GUARDED_LEAVES: Final = frozenset(_LEAVES_BY_LABEL.get(label, label) for label i
 
 _DATA = "builds, fetches or lists data; computes no check or error number"
 _READS = "re-reads files a guarded command wrote (its look is already in the ledger)"
-_GENERATED = "scores generated videos, not a dataset split (H3 has its own pre-registration)"
+_GENERATED = (
+    "scores generated videos, not a dataset split "
+    "(the generator comparison has its own pre-registration)"
+)
 _TIMING = "measures wall time only"
 EXEMPT: Final[Mapping[str, str]] = MappingProxyType(
     {
-        "agreement compare": "VideoPhy h2_test keeps its own ledger (run_human_agreement.sh, WP-N)",
+        "agreement compare": "VideoPhy h2_test keeps its own ledger (run_human_agreement.sh)",
         "agreement fetch": _DATA,
         "agreement freeze": "reads the h2_dev verify run (development data)",
         "agreement subset": _DATA,
@@ -120,11 +123,11 @@ EXEMPT: Final[Mapping[str, str]] = MappingProxyType(
         "results": _READS,
         "scene-stats delta": _READS,
         "scene-stats table": _READS,
-        "size e2e-eval": "Objectron through sizing/, not a DatasetSource (WP-O Juicio 7)",
+        "size e2e-eval": "Objectron through sizing/, not a DatasetSource",
         "size e2e-prepare": _DATA,
-        "size eval": "Objectron through sizing/, not a DatasetSource (WP-O Juicio 7)",
+        "size eval": "Objectron through sizing/, not a DatasetSource",
         "size fetch": _DATA,
-        "size fit": "fits on Objectron train (WP-O Juicio 7)",
+        "size fit": "fits on Objectron train",
         "synth build": _DATA,
         "synth export-gt": _DATA,
         "synth generate": _DATA,

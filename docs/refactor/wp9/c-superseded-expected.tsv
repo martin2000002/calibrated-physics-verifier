@@ -1,0 +1,21 @@
+expected_file	line no longer in the diff (superseded by wp9-c-help-text.diff: help text and comments)
+wp1-audit-migration.diff	312,314d311
+wp7-config-layout.diff	1093c1073
+wp7-config-layout.diff	1144c1124
+wp8-cli-renames.diff	1010,1015c990,995
+wp8-cli-renames.diff	166c166
+wp8-cli-renames.diff	892c872
+wp8-cli-renames.diff	912c892
+wp8-cli-renames.diff	922c902
+wp8-cli-renames.diff	937c917
+wp8-cli-renames.diff	947c927
+wp8-cli-renames.diff	961c941
+wp8-cli-renames.diff	973c953
+wp8-cli-renames.diff	983c963
+wp8-cli-renames.diff	995c975
+wp8-cli-renames.diff	> │ agreement           Verifier vs reference VLM on VideoPhy human labels (H2).                                         │
+wp8-cli-renames.diff	> │ calibrate           H1 calibration: thresholds, rates, detection limits and the clip score.                          │
+wp8-cli-renames.diff	> │ compare-generators  H3: fine-tuned vs base vs best-of-8 (ADR 0013).                                                  │
+wp8-cli-renames.diff	> │ dev-score    Development metric on calib: H1 and out-of-fold J (WP-O).                                               │
+wp8-cli-renames.diff	> │ exclusions          ADR 0015: the preregistered check exclusions H2 and H3 consume.                                  │
+wp8-cli-renames.diff	> │ results             Collect the reported numbers of an A8 v2 chain into results.md and results.json.                 │

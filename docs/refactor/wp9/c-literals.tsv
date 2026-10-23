@@ -1,0 +1,44 @@
+scripts/h200/freeze_query.py	literal	J13 diff from P2 	j13 diff from the early-extraction commit 
+scripts/h200/run_query.py	literal	 has no h1_primary: the evaluation predates WP-J2, rerun from 6	 has no h1_primary: the evaluation predates that section, rerun from 6
+src/physverify/app/finetune.py	literal	; H3 is not evaluable with this verifier (	; the generator comparison is not evaluable with this verifier (
+src/physverify/app/sealing.py	literal	scores generated videos, not a dataset split (H3 has its own pre-registration)	scores generated videos, not a dataset split (the generator comparison has its own pre-registration)
+src/physverify/app/sealing.py	literal	VideoPhy h2_test keeps its own ledger (run_human_agreement.sh, WP-N)	VideoPhy h2_test keeps its own ledger (run_human_agreement.sh)
+src/physverify/app/sealing.py	literal	Objectron through sizing/, not a DatasetSource (WP-O Juicio 7)	Objectron through sizing/, not a DatasetSource
+src/physverify/app/sealing.py	literal	fits on Objectron train (WP-O Juicio 7)	fits on Objectron train
+src/physverify/cli/commands/agreement.py	literal	Verifier vs reference VLM on VideoPhy human labels (H2).	Verifier vs reference VLM on VideoPhy human labels (human-agreement study).
+src/physverify/cli/commands/agreement.py	literal	Why the freeze is redone after a test comparison (makes H2 post hoc).	Why the freeze is redone after a test comparison (makes the study post hoc).
+src/physverify/cli/commands/calibrate.py	literal	H1 calibration: thresholds, rates, detection limits and the clip score.	Calibration: thresholds, rates, detection limits and the clip score.
+src/physverify/cli/commands/calibrate.py	literal	Fit thresholds, rates and weights on split=calib (D5-D11).	Fit thresholds, rates and weights on split=calib.
+src/physverify/cli/commands/calibrate.py	literal	Development metric on calib: H1 and out-of-fold J (WP-O).	Development metric on calib: held-out monotonicity and out-of-fold J.
+src/physverify/cli/commands/calibrate.py	literal	D10: per-stage sigma factors (heavy, lazy lock; H200).	Per-stage sigma factors (heavy, lazy lock; H200).
+src/physverify/cli/commands/calibrate.py	literal	Score held-out and real clips with the frozen artifact (D12).	Score held-out and real clips with the frozen artifact.
+src/physverify/cli/commands/compare_generators.py	literal	H3: fine-tuned vs base vs best-of-8 (ADR 0013).	Generator comparison: fine-tuned vs base vs best-of-8.
+src/physverify/cli/commands/compare_generators.py	literal	The H3 analysis and verdict from the frozen eval data (CPU).	The comparison's analysis and verdict from the frozen eval data (CPU).
+src/physverify/cli/commands/compare_generators.py	literal	Eval candidates, scores, judge rows, gate and freeze of H3.	Eval candidates, scores, judge rows, gate and freeze of the comparison.
+src/physverify/cli/commands/exclusions.py	literal	ADR 0015: the preregistered check exclusions H2 and H3 consume.	The preregistered check exclusions the agreement study and generator comparison consume.
+src/physverify/cli/commands/exclusions.py	literal	Print the decision record and its sha256 (what H2/H3 freeze on).	Print the decision record and its sha256 (what both studies freeze on).
+src/physverify/cli/commands/results.py	literal	Collect the reported numbers of an A8 v2 chain into results.md and results.json.	Collect the reported numbers of a calibration chain into results.md and results.json.
+src/physverify/cli/commands/selective_risk.py	literal	Oracle-level table for the reference (default: A8's oracle stratum).	Oracle-level table for the reference (default: the calibration's oracle stratum).
+src/physverify/cli/commands/selective_risk.py	literal	Perceived-level table for the decisions (default: A8's perceived stratum).	Perceived-level table for the decisions (default: the calibration's perceived stratum).
+src/physverify/cli/commands/selective_risk.py	literal	Ignore A8's artifact: both levels use verify's fallback table (paths.thresholds, else the provisional taus).	Ignore the calibration artifact: both levels use verify's fallback table (paths.thresholds, else the provisional taus).
+src/physverify/cli/commands/synth.py	literal	Alias of `migrate --name velocity-<convention>` (WP-G 1.C).	Alias of `migrate --name velocity-<convention>`.
+src/physverify/cli/commands/synth.py	literal	velocity-<convention> (WP-G 1.C, the default) or the ground-truth fix the plan needs next, in order: 	velocity-<convention> (the default) or the ground-truth fix the plan needs next, in order: 
+src/physverify/cli/options.py	literal	Go on although the pilot stop rule fired (recorded; H3 then has no verdict).	Go on although the pilot stop rule fired (recorded; the generator comparison then has no verdict).
+src/physverify/cli/options.py	literal	train or dev (eval belongs to `h3`).	train or dev (eval belongs to `compare-generators`).
+src/physverify/cli/options.py	literal	the eval split belongs to H3: run `physverify compare-generators 	the eval split belongs to the generator comparison: run `physverify compare-generators 
+src/physverify/reporting/calibration_numbers.py	literal	 has no pooled tau_b of the H1 primary view (an evaluation before 1.4.0; rerun `calibrate evaluate --no-real` and pass --calibration-evaluation)	 has no pooled tau_b of the held-out monotonicity's primary view (an evaluation before 1.4.0; rerun `calibrate evaluate --no-real` and pass --calibration-evaluation)
+src/physverify/reporting/chain.py	literal	 is not an A8 v2 chain directory: no 	 is not a calibration chain directory: no 
+src/physverify/reporting/numbers.py	literal	no interval: the AUROC bootstrap is not implemented (ADR 0011 D6)	no interval: the AUROC bootstrap is not implemented
+src/physverify/reporting/numbers.py	literal	NOT PREREGISTERED: not the preregistered calibrated rule, no H2 claim	NOT PREREGISTERED: not the preregistered calibrated rule, no human-agreement claim
+src/physverify/reporting/sources.py	literal	 chain: H2 runs only on the CPU calibration	 chain: the agreement study runs only on the CPU calibration
+src/physverify/timing/targets/verify_checks.py	literal	A7 verification runner not installed (	check suite runner not installed (
+tests/reporting/test_chain.py	literal	not an A8 v2 chain directory	not a calibration chain directory
+tests/reporting/test_results.py	literal	H2 runs only on the CPU calibration	the agreement study runs only on the CPU calibration
+tests/timing/test_verify_target.py	literal	A7 verification runner not installed (	check suite runner not installed (
+tests/scripts/human_agreement/test_human_agreement_script.py	literal	A8 v2 files	the calibration chain's files
+tests/scripts/test_freeze_query.py	literal	J3	refit, not adopt
+tests/scripts/test_run_final_script.py	literal	J14	downloaded files are fixed
+tests/scripts/test_run_final_script.py	literal	is not at C_V1	is not at the v1 commit
+tests/scripts/test_run_final_script.py	literal	J6	one look per set
+tests/scripts/test_run_freeze_script.py	literal	J4 chooses it2-state	the selection rule chooses it2-state
+tests/scripts/test_run_freeze_script.py	literal	J3	refit needed

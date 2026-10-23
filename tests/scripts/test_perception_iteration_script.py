@@ -1,5 +1,4 @@
-"""scripts/h200/run_perception_iteration.sh against a fake interpreter and ``git`` (WP-O
-AC17-AC20)."""
+"""scripts/h200/run_perception_iteration.sh against a fake interpreter and ``git``."""
 
 from __future__ import annotations
 
@@ -77,7 +76,8 @@ case "$*" in
     new_run
     echo '{"strata": []}' > "$RUN/calibration.json"
     mkdir -p "$(dirname "${!#}")"; echo '{"levels": []}' > "${!#}"
-    echo "perceived/precise: 1/9 meet H1 and J_cv^lo > 0 (R4_jump); AUROC_cv 0.6 [0.5, 0.7]"
+    echo "perceived/precise: 1/9 meet monotonicity and J_cv^lo > 0 (R4_jump);" \
+        "AUROC_cv 0.6 [0.5, 0.7]"
     echo "selection (perceived): n_met 1" ;;
 esac
 exit 0
@@ -168,7 +168,7 @@ def test_the_iteration_runs_its_five_steps_on_calib_only(sandbox: IterationSandb
     assert state["CHAIN_DEVICE"] == "cpu" and state["CHAIN_ITER_ID"] == "it0-baseline"
     summary = (sandbox.out / "summary.md").read_text(encoding="utf-8")
     assert state["DEVSCORE_SHA"] in summary and state["CALIBRATION_SHA"] in summary
-    assert state["PROFILE_SHA"] in summary and "1/9 meet H1" in summary
+    assert state["PROFILE_SHA"] in summary and "1/9 meet monotonicity and" in summary
     assert (sandbox.out / "calibration.json").is_file()
 
 
@@ -210,7 +210,7 @@ def test_a_startup_guard_stops_before_any_call(
 def test_an_output_near_the_chain_or_its_artifacts_is_refused(
     sandbox: IterationSandbox, target: str
 ) -> None:
-    """AC17: $OUT, $OUT/calibration and $OUT/runs stay away from A8 v2's files."""
+    """$OUT, $OUT/calibration and $OUT/runs stay away from the calibration chain's files."""
     result = sandbox.run(PHYSVERIFY_ITERATION_DIR=str(sandbox.root / target))
     assert result.returncode == 2 and "never writes there" in result.stderr, result.stderr
     assert sandbox.pv() == []
@@ -298,8 +298,7 @@ def test_failed_clips_are_noted_and_a_failed_devscore_stops(sandbox: IterationSa
 
 
 def test_the_baseline_is_protected_whatever_data_is(sandbox: IterationSandbox) -> None:
-    """Audit m5: with another PHYSVERIFY_ITERATION_DATA, kubric-data/calibration is still
-    refused."""
+    """With another PHYSVERIFY_ITERATION_DATA, kubric-data/calibration is still refused."""
     result = sandbox.run(
         PHYSVERIFY_ITERATION_DATA=str(sandbox.root / "other-data"),
         PHYSVERIFY_ITERATION_DIR=str(sandbox.root / "kubric-data"),
@@ -321,7 +320,7 @@ def test_another_profile_reaches_every_call_and_the_clip_list(sandbox: Iteration
 
 
 def test_a_bad_profile_name_and_an_exported_pv_profile(sandbox: IterationSandbox) -> None:
-    """Audit m4: an exported PV_PROFILE never reaches pv; the profile is explicit."""
+    """An exported PV_PROFILE never reaches pv; the profile is explicit."""
     bad = sandbox.run(PHYSVERIFY_ITERATION_PROFILE="Gpu;x")
     assert bad.returncode == 2 and "PHYSVERIFY_ITERATION_PROFILE" in bad.stderr
     assert sandbox.run(PV_PROFILE="fast").returncode == 0
@@ -329,7 +328,7 @@ def test_a_bad_profile_name_and_an_exported_pv_profile(sandbox: IterationSandbox
 
 
 def test_the_helpers_ignore_an_exported_pv_profile() -> None:
-    """Audit m4: run_human_agreement.sh sources _common.sh and _steps.sh and keeps precise."""
+    """run_human_agreement.sh sources _common.sh and _steps.sh and keeps precise."""
     sources = f'source "{H200 / "_common.sh"}"; source "{H200 / "_steps.sh"}"'
     script = f'set -u; {sources}; echo "$PV_PROFILE"'
     found = subprocess.run(
@@ -354,7 +353,7 @@ ARM_C = ["--set extraction.plan.depth=vda_large", "--set extraction.plan.contact
 
 
 def test_an_arm_swaps_providers_on_every_call_on_one_gpu(sandbox: IterationSandbox) -> None:
-    """it3: PHYSVERIFY_ITERATION_ARM passes its declared swaps to every physverify call, the run is
+    """PHYSVERIFY_ITERATION_ARM passes its declared swaps to every physverify call, the run is
     CUDA on GPU 0 only, and state.env and the summary name the arm."""
     result = sandbox.run(
         PHYSVERIFY_ITERATION_ID="it3-c",
@@ -378,7 +377,7 @@ def test_an_arm_swaps_providers_on_every_call_on_one_gpu(sandbox: IterationSandb
     assert "CUDA_VISIBLE_DEVICES=0" in summary
 
 
-def test_the_four_it3_arms_are_declared() -> None:
+def test_the_four_perception_arms_are_declared() -> None:
     table = (H200 / "perception_arms.tsv").read_text(encoding="utf-8").splitlines()
     arms = dict(line.split("\t") for line in table if line and not line.startswith("#"))
     assert arms == {
@@ -392,7 +391,7 @@ def test_the_four_it3_arms_are_declared() -> None:
 @pytest.mark.parametrize(
     ("env", "message"),
     [
-        ({"PHYSVERIFY_ITERATION_ARM": "it3-x"}, "not declared exactly once"),
+        ({"PHYSVERIFY_ITERATION_ARM": "undeclared-x"}, "not declared exactly once"),
         ({"PHYSVERIFY_ITERATION_ARM": "It3;c"}, "must be an arm name"),
         ({"PHYSVERIFY_ITERATION_DEVICE": "cuda", "CUDA_VISIBLE_DEVICES": "4"}, "0-3"),
         ({"PHYSVERIFY_ITERATION_DEVICE": "cuda", "CUDA_VISIBLE_DEVICES": "0,1"}, "0-3"),
@@ -409,13 +408,15 @@ def test_an_undeclared_arm_or_a_gpu_outside_0_to_3_stops_before_any_call(
 
 def test_a_malformed_swap_and_a_doctor_without_the_swaps_stop(sandbox: IterationSandbox) -> None:
     table = sandbox.scripts / "perception_arms.tsv"
-    table.write_text("it3-bad\tchecks.R1.tau=0\n", encoding="utf-8")
-    bad = sandbox.run(PHYSVERIFY_ITERATION_ARM="it3-bad")
+    table.write_text("bad-arm\tchecks.R1.tau=0\n", encoding="utf-8")
+    bad = sandbox.run(PHYSVERIFY_ITERATION_ARM="bad-arm")
     assert bad.returncode == 2 and "extraction.plan.<stage>=<provider>" in bad.stderr
     assert sandbox.pv() == []
-    table.write_text("it3-ok\textraction.plan.contacts=kinematic\n", encoding="utf-8")
+    table.write_text("ok-arm\textraction.plan.contacts=kinematic\n", encoding="utf-8")
     dropped = sandbox.run(
-        PHYSVERIFY_ITERATION_ID="it3-ok", PHYSVERIFY_ITERATION_ARM="it3-ok", DOCTOR_DROP_SETS="1"
+        PHYSVERIFY_ITERATION_ID="it0-ok-arm",
+        PHYSVERIFY_ITERATION_ARM="ok-arm",
+        DOCTOR_DROP_SETS="1",
     )
     assert dropped.returncode == 2 and "does not list the arm's override" in dropped.stderr
     assert sandbox.commands() == ["doctor"]
@@ -441,7 +442,7 @@ def test_resume_with_another_arm_is_refused(sandbox: IterationSandbox) -> None:
 
 
 def test_an_arm_needs_an_iteration_id_that_names_it(sandbox: IterationSandbox) -> None:
-    """Audit L5: the output directory follows PHYSVERIFY_ITERATION_ID, so it must name the arm."""
-    result = sandbox.run(PHYSVERIFY_ITERATION_ID="it3-x", PHYSVERIFY_ITERATION_ARM="it3-c")
+    """The output directory follows PHYSVERIFY_ITERATION_ID, so it must name the arm."""
+    result = sandbox.run(PHYSVERIFY_ITERATION_ID="it0-x", PHYSVERIFY_ITERATION_ARM="it3-c")
     assert result.returncode == 2 and "must contain the arm name" in result.stderr
     assert sandbox.pv() == []

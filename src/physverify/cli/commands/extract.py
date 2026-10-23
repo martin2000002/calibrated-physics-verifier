@@ -1,4 +1,4 @@
-"""``physverify extract``: run the stage plan over a dataset, fetch its weights (ADR 0005, 3.12)."""
+"""``physverify extract``: run the stage plan over a dataset, fetch its weights."""
 
 from __future__ import annotations
 

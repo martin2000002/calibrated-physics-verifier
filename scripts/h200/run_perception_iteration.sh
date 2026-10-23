@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One iteration of the perception campaign (ADR 0015 amendment 2 sections 3-4, WP-O) on the H200:
+# One iteration of the perception campaign on the H200:
 # the error profile, the per-stage sigma and the development metric, all on the kubric_synthetic
 # calib clips and written only under its own directory. No call evaluates, abstains, reads real
 # video or names an eval clip, so no sealed set is looked at (and PHYSVERIFY_UNSEAL is refused).
@@ -10,7 +10,7 @@
 #    2 stages       diagnose stages --clips <calib> --write-profile: the iteration's own error
 #                   profile; only calib clips are passed, so the report pass is empty
 #    3 relift       extract run again (LIFT reads the new profile)
-#    4 stage-sigma  calibrate stage-sigma (D10, calib only)
+#    4 stage-sigma  calibrate stage-sigma (per-stage sigma recalibration, calib only)
 #    5 devscore     calibrate dev-score --level both: devscore.json, and the full calib fit as
 #                   <run>/calibration.json (never in a calibration directory); copied to $OUT
 #
@@ -19,8 +19,8 @@
 # annotations, pyproject.toml or uv.lock; no configs/local.toml and no PHYSVERIFY_CONFIG_DIR; no PHYSVERIFY__* variable
 # but the ones exported here (PHYSVERIFY__SEALED__* included); no PHYSVERIFY_UNSEAL or
 # PHYSVERIFY_UNSEAL_REPEAT; the output directory (and its calibration/ and runs/) is not inside
-# $H200_ROOT/a8v2*, $DATA/calibration*, $DATA/runs* or the baseline $H200_ROOT/kubric-data/
-# {calibration,runs}* (whatever DATA is); no other instance on $OUT/run.lock;
+# the calibration chain's directory, $DATA/calibration*, $DATA/runs* or the baseline
+# $H200_ROOT/kubric-data/{calibration,runs}* (whatever DATA is); no other instance on $OUT/run.lock;
 # state.env of another device, profile or iteration id; steps 1..FROM-1 completed. Then doctor
 # must report config_dir $REPO_ROOT/configs, the device, the profile, the cache, and the
 # calibration directory, runs directory, error profile and thresholds inside $OUT.
@@ -41,7 +41,7 @@
 #   PHYSVERIFY_ITERATION_DEVICE          cpu or cuda [cpu]; cuda needs CUDA_VISIBLE_DEVICES in 0-3
 #                                        (launch through gpu_queue.sh)
 #   PHYSVERIFY_ITERATION_PYTHON          interpreter [/home/mmonterot/dev/venv/bin/python]
-#   PHYSVERIFY_ITERATION_THREADS         runtime.threads [16: at most 16 while the A8 v2 chain runs]
+#   PHYSVERIFY_ITERATION_THREADS         runtime.threads [16: at most 16 while a calibration chain runs]
 #   PHYSVERIFY_ITERATION_DATA            paths.data_dir, the synthetic dataset read only
 #                                        [$H200_ROOT/kubric-data]
 #   PHYSVERIFY_ITERATION_DIR             output [$H200_ROOT/iterations/$PHYSVERIFY_ITERATION_ID-$DEVICE]
@@ -125,7 +125,7 @@ DATA="${PHYSVERIFY_ITERATION_DATA:-$H200_ROOT/kubric-data}"
 OUT="${PHYSVERIFY_ITERATION_DIR:-$H200_ROOT/iterations/$ITER_ID-$DEVICE}"
 
 for dir in "$OUT" "$OUT/calibration" "$OUT/runs"; do
-    for base in "$H200_ROOT/a8v2" "$DATA/calibration" "$DATA/runs" \
+    for base in "$CHAIN_ROOT" "$DATA/calibration" "$DATA/runs" \
         "$H200_ROOT/kubric-data/calibration" "$H200_ROOT/kubric-data/runs"; do
         ! near "$dir" "$base" || die "$dir is inside $base*: an iteration never writes there"
     done

@@ -129,7 +129,7 @@ def test_a_missing_measure_is_refused() -> None:
     partial = {k: v for k, v in TOY.items() if k != VERIFY_WALL_S}
     with pytest.raises(BudgetError, match=VERIFY_WALL_S):
         cost_from_results(results(), rows_for(partial), TOTAL, 1)
-    with pytest.raises(BudgetError, match="generate.b2.per_video_s"):
+    with pytest.raises(BudgetError, match=r"generate\.b2\.per_video_s"):
         cost_from_results(results(), rows_for(TOY), TOTAL, 2)
 
 

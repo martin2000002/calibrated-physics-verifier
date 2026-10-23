@@ -1,9 +1,9 @@
-"""Per-stage spans of the extraction pipeline, taken from A5's StageObserver hook.
+"""Per-stage spans of the extraction pipeline, taken from the extractor's StageObserver hook.
 
-``wall_s`` and ``peak_rss_mb`` are copied from each ``StageEvent`` untouched (A5 times only the
-provider call). The recorder adds what the event lacks: the ``on_stage_start -> on_stage_end`` span
-(model load on a stage's first uncached cell, upstream cache loads and the cache store), the
-process CPU time and the CUDA peak.
+``wall_s`` and ``peak_rss_mb`` are copied from each ``StageEvent`` untouched (the extractor times
+only the provider call). The recorder adds what the event lacks: the ``on_stage_start ->
+on_stage_end`` span (model load on a stage's first uncached cell, upstream cache loads and the
+cache store), the process CPU time and the CUDA peak.
 """
 
 from __future__ import annotations

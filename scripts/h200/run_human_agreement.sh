@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# H2 (ADR 0011; ADR 0015 Enmienda 1: CPU) on the H200, in two phases a person runs in turn:
+# The human-agreement study on the H200, on the CPU, in two phases a person runs in turn:
 #
 #   bash scripts/h200/run_human_agreement.sh dev
 #       pre, dev-fetch, dev-extract, dev-verify, freeze (h2_dev); ends with exit 0 and the frozen
@@ -19,28 +19,28 @@
 # frozen hashes), no PHYSVERIFY_CONFIG_DIR and no configs/local.toml (git status cannot see it);
 # PHYSVERIFY_AGREEMENT_DEVICE cpu; HEAD is PHYSVERIFY_AGREEMENT_EXPECT_COMMIT with nothing
 # uncommitted or untracked under src, configs, scripts or annotations; no other instance on
-# $OUT/run.lock; the A8 v2 CPU chain in PHYSVERIFY_AGREEMENT_CHAIN_DIR completed steps 0..9 and
-# published calibration.json, exclusions.json and stage_errors.precise.json in the calibration
+# $OUT/run.lock; the CPU calibration chain in PHYSVERIFY_AGREEMENT_CHAIN_DIR completed steps 0..9
+# and published calibration.json, exclusions.json and stage_errors.precise.json in the calibration
 # directory, or, with PHYSVERIFY_AGREEMENT_FREEZE, the freeze manifest (run_freeze.sh) stands for
 # that chain: device cpu, HEAD its commit, the calibration directory its own and its frozen files
-# unchanged; its record_sha is what A8 v2's RECORD_SHA is (plan-congelado section 5, Juicio J12).
+# unchanged; its record_sha stands for the calibration chain's RECORD_SHA.
 # Then doctor must report config_dir $REPO_ROOT/configs, device cpu, the four exported paths, the
 # precise error profile and the thresholds of that calibration directory, and the caption review
 # must be recorded.
 #
 # dev refuses once a test comparison is logged (a freeze after looking at test is post hoc). After
 # the freeze the pre-registration must be calibrated (or carry a calibration gate), cpu, precise,
-# and bound to A8 v2's calibration.json and decision record. state.env keeps what test checks:
-# the pre-registration and its sha256, the frozen commit, the sha256 of the A8 v2 files, of the
-# exported PHYSVERIFY__* environment and doctor's config_hash.
+# and bound to the calibration chain's calibration.json and decision record. state.env keeps what
+# test checks: the pre-registration and its sha256, the frozen commit, the sha256 of the chain
+# files, of the exported PHYSVERIFY__* environment and doctor's config_hash.
 #
 # test runs once: it refuses, with no physverify call, when state.env records TEST_COMPARED, the
 # comparison log has an entry, or so does any log listed in $H200_ROOT/h2-test-ledger.txt (each
 # test phase lists its log there before compare, so moving PHYSVERIFY_AGREEMENT_DIR and
 # PHYSVERIFY_AGREEMENT_DATA does not hide a spent test). No variable skips this; dev refuses on the
 # same evidence. It requires the freeze step's last exit 0 and every value dev recorded unchanged.
-# A pre-registration with a calibration gate (the stratum was not usable) makes H2 "not evaluable
-# with the calibrated rule" whether or not test runs; test then needs
+# A pre-registration with a calibration gate (the stratum was not usable) makes the human-agreement
+# study "not evaluable with the calibrated rule" whether or not test runs; test then needs
 # PHYSVERIFY_AGREEMENT_ACCEPT_NOT_EVALUABLE=1 to spend it on that result.
 #
 # Optional (defaults in brackets), all PHYSVERIFY_AGREEMENT_*:
@@ -51,9 +51,10 @@
 #   DATA                     paths.data_dir: runs, agreement/ [$H200_ROOT/h2-data]
 #   CACHE_DIR                paths.cache_dir [$H200_ROOT/Repo/data/cache]
 #   RAW_DIR                  paths.raw_dir, the VideoPhy videos [$H200_ROOT/Repo/data/raw]
-#   CALIBRATION_DIR          A8 v2 CPU artifacts, read only [$H200_ROOT/kubric-data/calibration]
-#   CHAIN_DIR                the A8 v2 CPU run, read only [$H200_ROOT/a8v2]
-#   FREEZE                   the freeze's freeze.json in place of the A8 v2 run [none]; set
+#   CALIBRATION_DIR          the CPU chain's artifacts, read only
+#                            [$H200_ROOT/kubric-data/calibration]
+#   CHAIN_DIR                the CPU calibration chain's run, read only [the chain's directory]
+#   FREEZE                   the freeze's freeze.json in place of the chain's run [none]; set
 #                            CALIBRATION_DIR to its calibration directory
 #   PREFLIGHT_CLIP           dev preflight clip [v1-a8208f4dd41e]
 #   PREFLIGHT_TEST_CLIP      test preflight clip [the first h2_test clip with a video and an object
@@ -69,7 +70,7 @@ PHASE="$1"
 DEV_SUBSET=h2_dev
 TEST_SUBSET=h2_test
 H2_LINK=h2-latest
-A8V2_STEPS=9
+CHAIN_STEPS=9
 CALIBRATED=calibrated
 PROVISIONAL=provisional_any_fail
 
@@ -81,17 +82,18 @@ for name in $(compgen -e -X '!PHYSVERIFY__*'); do
     [[ "$OWN_VARS" == *[[:space:]]"${name#PHYSVERIFY__}"[[:space:]]* ]] || foreign+=" $name"
 done
 [[ -z "$foreign" ]] || die "the environment sets configuration run_human_agreement.sh does not own:$foreign" \
-    "(it would change H2 without moving its frozen hashes); unset it"
+    "(it would change the human-agreement study without moving its frozen hashes); unset it"
 
 [[ -z "${PHYSVERIFY_CONFIG_DIR+set}" ]] \
-    || die "PHYSVERIFY_CONFIG_DIR is set: H2 reads only the committed $REPO_ROOT/configs; unset it"
+    || die "PHYSVERIFY_CONFIG_DIR is set: the human-agreement study reads only the committed $REPO_ROOT/configs; unset it"
 [[ ! -e "$REPO_ROOT/configs/local.toml" ]] \
-    || die "$REPO_ROOT/configs/local.toml exists: it is not committed, so H2 would not run the" \
-        "frozen configuration; remove it (run_human_agreement.sh sets every path and the lock itself)"
+    || die "$REPO_ROOT/configs/local.toml exists: it is not committed, so the human-agreement" \
+        "study would not run the frozen configuration; remove it (run_human_agreement.sh sets" \
+        "every path and the lock itself)"
 
 DEVICE="${PHYSVERIFY_AGREEMENT_DEVICE:-cpu}"
 [[ "$DEVICE" == cpu ]] \
-    || die "PHYSVERIFY_AGREEMENT_DEVICE must be cpu (ADR 0015 Enmienda 1; the VideoPhy cache is the CPU one), got '$DEVICE'"
+    || die "PHYSVERIFY_AGREEMENT_DEVICE must be cpu (the VideoPhy cache is the CPU one), got '$DEVICE'"
 EXPECT="${PHYSVERIFY_AGREEMENT_EXPECT_COMMIT:-}"
 [[ ${#EXPECT} -ge 7 ]] || die "set PHYSVERIFY_AGREEMENT_EXPECT_COMMIT to the commit this run uses"
 HEAD_COMMIT="$(git -C "$REPO_ROOT" rev-parse HEAD)" || die "$REPO_ROOT is not a git checkout"
@@ -117,17 +119,17 @@ export PHYSVERIFY__PATHS__CALIBRATION_DIR="${PHYSVERIFY_AGREEMENT_CALIBRATION_DI
 export PHYSVERIFY__PATHS__WEIGHTS_DIR="$H200_ROOT/Repo/data/weights"
 export PHYSVERIFY__PATHS__VENDOR_DIR="$H200_ROOT/Repo/data/vendor"
 export PHYSVERIFY__PATHS__HF_HOME="$H200_ROOT/.cache/huggingface"
-# The CPU chain's lock: no heavy H2 step runs while an A8 v2 one does.
+# The CPU chain's lock: no heavy step here runs while a calibration chain step does.
 export PHYSVERIFY__RUNTIME__HEAVY_LOCK="$H200_ROOT/kubric.lock"
-# ADR 0015 runbook step 10: no H2 step runs without the sealed exclusion record.
+# No step runs without the sealed exclusion record.
 export PHYSVERIFY__CHECK_SCOPE__REQUIRE_DECISION_RECORD=true
 export CUDA_VISIBLE_DEVICES=""
 unset PHYSVERIFY_LOCK_HELD
 PV_DEVICE=cpu
 CAL="$PHYSVERIFY__PATHS__CALIBRATION_DIR"
-A8V2="${PHYSVERIFY_AGREEMENT_CHAIN_DIR:-$H200_ROOT/a8v2}"
+CHAIN_DIR="${PHYSVERIFY_AGREEMENT_CHAIN_DIR:-$CHAIN_ROOT}"
 FREEZE="${PHYSVERIFY_AGREEMENT_FREEZE:-}"
-FROZEN_BY="A8 v2"
+FROZEN_BY="the calibration chain"
 [[ -z "$FREEZE" ]] || FROZEN_BY="the freeze"
 LEDGER="$H200_ROOT/h2-test-ledger.txt"
 ENV_SHA="$(env | grep '^PHYSVERIFY__' | LC_ALL=C sort | sha256sum | cut -d ' ' -f 1)"
@@ -137,7 +139,7 @@ STATE="$OUT/state.env"
 STEPS="$OUT/steps.tsv"
 NOTES="$OUT/notes.md"
 SUMMARY="$OUT/summary.md"
-SUMMARY_TITLE="H2 on VideoPhy (CPU)"
+SUMMARY_TITLE="Human-agreement study on VideoPhy (CPU)"
 SUMMARY_INFO="commit $HEAD_COMMIT, data $PHYSVERIFY__PATHS__DATA_DIR, cache $PHYSVERIFY__PATHS__CACHE_DIR, calibration $CAL, threads $THREADS"
 mkdir -p "$LOGS"
 touch "$STEPS" "$NOTES"
@@ -146,28 +148,29 @@ if [[ -f "$STATE" ]]; then
     source "$STATE"
 fi
 
-# a8v2_state KEY: KEY of the A8 v2 state.env, read in a subshell so nothing here is overwritten.
-a8v2_state() {
+# chain_state KEY: KEY of the calibration chain's state.env, read in a subshell so nothing here is
+# overwritten.
+chain_state() {
     (
         # shellcheck disable=SC1091
-        [[ -f "$A8V2/state.env" ]] && source "$A8V2/state.env"
+        [[ -f "$CHAIN_DIR/state.env" ]] && source "$CHAIN_DIR/state.env"
         printf '%s' "${!1:-}"
     )
 }
 
-require_a8v2() {
+require_chain() {
     local device k code name
-    device="$(a8v2_state CHAIN_DEVICE)"
-    [[ "$device" == cpu ]] || die "$A8V2 is not the A8 v2 cpu chain (CHAIN_DEVICE '$device')"
-    A8V2_RECORD_SHA="$(a8v2_state RECORD_SHA)"
-    [[ -n "$A8V2_RECORD_SHA" ]] || die "$A8V2/state.env has no RECORD_SHA: A8 v2 step 9 is not done"
-    for ((k = 0; k <= A8V2_STEPS; k++)); do
-        code="$(last_exit "$k" "$A8V2/steps.tsv")"
+    device="$(chain_state CHAIN_DEVICE)"
+    [[ "$device" == cpu ]] || die "$CHAIN_DIR is not the cpu chain of the calibration chain (CHAIN_DEVICE '$device')"
+    CHAIN_RECORD_SHA="$(chain_state RECORD_SHA)"
+    [[ -n "$CHAIN_RECORD_SHA" ]] || die "$CHAIN_DIR/state.env has no RECORD_SHA: its step 9 is not done"
+    for ((k = 0; k <= CHAIN_STEPS; k++)); do
+        code="$(last_exit "$k" "$CHAIN_DIR/steps.tsv")"
         [[ "$code" == 0 ]] \
-            || die "A8 v2 step $k has not completed (last exit '${code:-none}' in $A8V2/steps.tsv)"
+            || die "calibration chain step $k has not completed (last exit '${code:-none}' in $CHAIN_DIR/steps.tsv)"
     done
     for name in calibration.json exclusions.json stage_errors.precise.json; do
-        [[ -f "$CAL/$name" ]] || die "no $CAL/$name: A8 v2 has not published it"
+        [[ -f "$CAL/$name" ]] || die "no $CAL/$name: the calibration chain has not published it"
     done
 }
 
@@ -184,7 +187,7 @@ require_freeze() {
     same_path "$(freeze_field calibration_dir)" "$CAL" \
         || die "$FREEZE froze $(freeze_field calibration_dir), not $CAL" \
             "(set PHYSVERIFY_AGREEMENT_CALIBRATION_DIR to it)"
-    A8V2_RECORD_SHA="$(freeze_field record_sha)"
+    CHAIN_RECORD_SHA="$(freeze_field record_sha)"
     h200_py freeze_query.py artifacts "$FREEZE" >/dev/null \
         || die "the frozen files of $FREEZE changed (freeze_query artifacts)"
 }
@@ -199,7 +202,7 @@ artifacts_unchanged() {
     [[ "$(sha_of "$CAL/calibration.json")" == "${CALIB_SHA:-}" \
         && "$(sha_of "$CAL/exclusions.json")" == "${RECORD_FILE_SHA:-}" \
         && "$(sha_of "$CAL/stage_errors.precise.json")" == "${PROFILE_SHA:-}" ]] \
-        || die "the $FROZEN_BY files in $CAL changed since the dev phase: H2 must be frozen again"
+        || die "$FROZEN_BY's files in $CAL changed since the dev phase: the human-agreement study must be frozen again"
 }
 
 # Neither the comparison log of the configured pre-registration nor any log in the ledger holds
@@ -245,7 +248,7 @@ prereg_field() {
     h200_py agreement_query.py prereg "$PREREG" "$1" || die "cannot read $1 of $PREREG"
 }
 
-# What makes the pre-registration unusable for H2 (nothing when it is usable).
+# What makes the pre-registration unusable for the human-agreement study (nothing when it is usable).
 prereg_problem() {
     local rule gate value
     rule="$(prereg_field rule)"
@@ -262,8 +265,8 @@ prereg_problem() {
     [[ "$value" == "$CALIB_SHA" ]] \
         || { echo "calibration artifact $value, not $FROZEN_BY's $CAL/calibration.json ($CALIB_SHA)"; return; }
     value="$(prereg_field exclusion_record_sha256)"
-    [[ "$value" == "$A8V2_RECORD_SHA" ]] \
-        || { echo "decision record $value, not $FROZEN_BY's $A8V2_RECORD_SHA"; return; }
+    [[ "$value" == "$CHAIN_RECORD_SHA" ]] \
+        || { echo "decision record $value, not $FROZEN_BY's $CHAIN_RECORD_SHA"; return; }
 }
 
 # preflight STEP SUBSET CLIP: one cached clip verified; any error in its checks stops.
@@ -317,7 +320,7 @@ phase_dev() {
     [[ -n "$PREREG" && -f "$PREREG" ]] || stop "no pre-registration in $LAST_LOG"
     local problem field
     problem="$(prereg_problem)"
-    [[ -z "$problem" ]] || stop "the pre-registration $PREREG is not H2's: $problem"
+    [[ -z "$problem" ]] || stop "the pre-registration $PREREG is not this study's: $problem"
     save PREREG "$PREREG"
     save PREREG_SHA "$(sha_of "$PREREG")"
     save FROZEN_COMMIT "$HEAD_COMMIT"
@@ -331,15 +334,15 @@ phase_dev() {
     local gate
     gate="$(prereg_field calibration_gate)"
     if [[ -n "$gate" ]]; then
-        echo "WARNING: calibration_gate not null ($gate): H2 is not evaluable with the calibrated" \
-            "rule, whether or not test runs (ADR 0015 1.3); test needs" \
+        echo "WARNING: calibration_gate not null ($gate): the human-agreement study is not evaluable with" \
+            "the calibrated rule, whether or not test runs; test needs" \
             "PHYSVERIFY_AGREEMENT_ACCEPT_NOT_EVALUABLE=1" >&2
     fi
     echo "dev frozen ($PREREG); review $SUMMARY, then run_human_agreement.sh test"
 }
 
 phase_test() {
-    local spent="H2 test is spent: a test comparison is already logged (configured log or $LEDGER)"
+    local spent="the human-agreement study's test is spent: a test comparison is already logged (configured log or $LEDGER)"
     spent+=" and compare never runs twice. Its report is in <test verify run>/agreement/ if the"
     spent+=" write completed; if not, the compare step's log in $LOGS (or the ledger's run) says why"
     [[ -z "${TEST_COMPARED:-}" ]] || die "$spent (TEST_COMPARED in $STATE)"
@@ -354,11 +357,11 @@ phase_test() {
     artifacts_unchanged
     local problem gate
     problem="$(prereg_problem)"
-    [[ -z "$problem" ]] || die "the pre-registration $PREREG is not H2's: $problem"
+    [[ -z "$problem" ]] || die "the pre-registration $PREREG is not this study's: $problem"
     gate="$(prereg_field calibration_gate)"
     if [[ -n "$gate" && "${PHYSVERIFY_AGREEMENT_ACCEPT_NOT_EVALUABLE:-}" != 1 ]]; then
-        die "the calibrated stratum was not usable at the freeze ($gate): H2 is not evaluable" \
-            "with the calibrated rule (ADR 0015 1.3) whether or not test runs, and redoing A8 or" \
+        die "the calibrated stratum was not usable at the freeze ($gate): the human-agreement study is not" \
+            "evaluable with the calibrated rule whether or not test runs, and redoing the chain or" \
             "the freeze to avoid that is post hoc. Set PHYSVERIFY_AGREEMENT_ACCEPT_NOT_EVALUABLE=1 to" \
             "spend test on the descriptive result."
     fi
@@ -384,12 +387,12 @@ phase_test() {
     note_gaps "$TEST_SUBSET"
     artifacts_unchanged
     row 0
-    echo "H2 run: $(dirname "$TEST_VERIFY_RUN")/$H2_LINK (summary: agreement/summary.md)"
+    echo "Agreement run: $(dirname "$TEST_VERIFY_RUN")/$H2_LINK (summary: agreement/summary.md)"
 }
 
 if [[ -n "$FREEZE" ]]; then
     require_freeze
 else
-    require_a8v2
+    require_chain
 fi
 "phase_$PHASE"

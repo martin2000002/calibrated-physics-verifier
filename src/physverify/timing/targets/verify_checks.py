@@ -1,7 +1,7 @@
-"""Per-clip cost of A7's verification: loading the perceived inputs, the checks and the policy.
+"""Per-clip cost of the check suite: loading the perceived inputs, the checks and the policy.
 
-A7 is reached only through ``importlib`` (ADR 0006, section 3.7-3.8), so building the registry or
-type-checking this module never needs A7's code; without its runner the target is skipped.
+The check suite is reached only through ``importlib``, so building the registry or type-checking
+this module never needs the verification package; without its runner the target is skipped.
 ``verify.wall_s`` is one span over the input load and the runner (checks plus policy);
 ``verify.load_s`` and the per-check ``verify.<check_id>.wall_s`` are its components, the latter
 timed again right after the span on the same in-memory inputs.
@@ -52,7 +52,7 @@ _NOT_SLUG: Final = re.compile(r"[^a-z0-9_]")
 
 
 class LoadedInputs(Protocol):
-    """A7's ``ClipInputs``."""
+    """The check suite's ``ClipInputs``."""
 
     @property
     def clip(self) -> ClipManifest: ...
@@ -77,7 +77,7 @@ SourceFactory = Callable[[DatasetSource, ResolvedPlan, PipelineDeps], InputSourc
 
 @dataclass(frozen=True)
 class Verifier:
-    """What A7 builds once per run: the checks, the runner over them, and the perceived source."""
+    """What the check suite builds once per run: the checks, their runner, the perceived source."""
 
     checks: tuple[Check, ...]
     runner: Runner
@@ -118,12 +118,12 @@ def check_measure(check_id: str) -> str:
 
 def suite_missing(find_spec: Callable[[str], object | None]) -> str | None:
     missing = [name for name in (RUNNER_MODULE, INPUTS_MODULE) if find_spec(name) is None]
-    return f"A7 verification runner not installed ({', '.join(missing)})" if missing else None
+    return f"check suite runner not installed ({', '.join(missing)})" if missing else None
 
 
 @dataclass(frozen=True)
 class PreloadedSource:
-    """An A7 ``InputSource`` over inputs already in memory, so the runner times no loading."""
+    """A check-suite ``InputSource`` over in-memory inputs, so the runner times no loading."""
 
     loaded: tuple[LoadedInputs, ...]
 

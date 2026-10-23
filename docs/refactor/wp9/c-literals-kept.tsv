@@ -1,0 +1,19 @@
+path:line	literal	reader
+scripts/h200/run_query.py:29	## H1 primary	section heading written by src/physverify/calibration/report.py:231; run_query.py:58 finds the section by it
+scripts/h200/run_human_agreement.sh:384	sed '/^H2: /{p;q}'	parses the verdict line printed by src/physverify/human_agreement/workflow.py:286,289
+tests/contracts/test_parsed_output.py:32	'/^H2: /{p;q}', H2: 	contract pinning the stdout line that run_human_agreement.sh:384 parses
+tests/scripts/human_agreement/test_human_agreement_script.py:33	H2: supported (fake python stdout)	mirrors workflow.py stdout; parsed by run_human_agreement.sh:384
+tests/scripts/human_agreement/test_human_agreement_script.py:474	- H2: supported	asserts the summary line built from run_human_agreement.sh:384
+scripts/h200/_common.sh:9	$H200_ROOT/a8v2	existing on-disk directory of the CPU calibration chain on the H200; read by run_freeze.sh, run_perception_iteration.sh, run_human_agreement.sh
+tests/scripts/human_agreement/test_human_agreement_script.py:125	a8v2	sandbox mirror of the on-disk chain directory (_common.sh:9)
+tests/scripts/test_perception_iteration_script.py:208	a8v2, a8v2-cuda/it	pytest param ids (test-id invariant) and the on-disk chain directory guarded by run_perception_iteration.sh
+tests/scripts/test_run_freeze_script.py:253	a8v2	pytest param id (test-id invariant) and the on-disk chain directory guarded by run_freeze.sh
+tests/reporting/reporting_cases.py:176	a8v2	chain directory of the results scenario; the harness pairs output trees by path (tools/equivalence/driver.py) and the left side 9eb5888 writes it
+tools/equivalence/driver.py:44	--a8v2-dir	CLI option of the left-side commit 9eb5888, passed when the harness runs it
+scripts/h200/perception_arms.tsv:5-8	it3-r, it3-ak, it3-ap, it3-c	arm table read by run_perception_iteration.sh; the names are existing on-disk iteration directories and state.env CHAIN_ARM values
+scripts/h200/{smoke_autoeval.sh:10,run_generator_comparison.sh:18,setup_autoeval.sh:4,13}	PHYSVERIFY__H3__AUTOEVAL__ROOT	environment override of the persisted config section [h3.autoeval] (config invariant), read by physverify config loading
+tests/scripts/test_run_query.py:38,64	## H1 primary	the heading run_query.py:58 parses, pinned literally so the test fails if the constant drifts
+tests/scripts/test_freeze_query.py:67-232	it1-fixes, it2-state, it2-x, it3-arms, it4-selfrel	fixture: on-disk iteration ids
+tests/scripts/test_run_freeze_script.py:118-265	it1-fixes, it2-state	fixture: on-disk iteration ids (also in the param id at :265)
+tests/scripts/test_perception_iteration_script.py:359-446	it3-r, it3-ak, it3-ap, it3-c, it3-c-cuda, it3-arms-cpu, it3-r-it3-ak	fixture: on-disk iteration ids (arms of scripts/h200/perception_arms.tsv:5-8)
+tests/fixtures/videophy_world.py:136	2026-10-17	fixture date

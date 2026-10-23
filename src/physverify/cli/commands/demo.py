@@ -1,8 +1,8 @@
 """``physverify demo``: one video through the whole verifier, with its report and overlay.
 
 Ad-hoc prompts and given videos live in their own campaign (``demo.adhoc_campaign``), never in
-the H3 campaign. ``scenes`` reuses the H3 campaign's k = 0 videos of the fixed demo prompts and
-scores them only once the H3 preregistration exists, with the rule it froze.
+the generator-comparison campaign. ``scenes`` reuses that campaign's k = 0 videos of the fixed
+demo prompts and scores them only once its preregistration exists, with the rule it froze.
 """
 
 from __future__ import annotations

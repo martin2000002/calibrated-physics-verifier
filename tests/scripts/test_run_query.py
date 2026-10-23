@@ -56,7 +56,7 @@ def test_clip_ids_filter_by_split(
     assert query.clip_ids(source, "full", "calib") == []
 
 
-def test_an_allowed_evaluation_prints_its_real_sets_and_h1_section(
+def test_an_allowed_evaluation_prints_its_real_sets_and_primary_section(
     query: ModuleType, tmp_path: Path
 ) -> None:
     lines = query.evaluation_lines(_evaluation(tmp_path, 40, {"scenes": []}), ALLOWED)
@@ -97,7 +97,7 @@ def test_run_errors_refuses_any_row_with_an_error(
     query: ModuleType, tmp_path: Path, error: str
 ) -> None:
     write_check_rows(tmp_path / "checks.jsonl", error=error)
-    with pytest.raises(query.QueryError, match="1 check rows .* failed") as raised:
+    with pytest.raises(query.QueryError, match=r"1 check rows .* failed") as raised:
         query.run_errors(tmp_path)
     assert f"clip R1: {error or '(no message)'}" in str(raised.value)
 

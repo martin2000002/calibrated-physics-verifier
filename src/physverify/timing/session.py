@@ -63,7 +63,7 @@ def plan_targets(
 
 
 def check_device(plan: Plan, device: str, probe: CudaProbe) -> None:
-    """D6: a GPU target needs ``--device cuda``, and ``--device cuda`` needs a CUDA host."""
+    """A GPU target needs ``--device cuda``, and ``--device cuda`` needs a CUDA host."""
     gpu_targets = [cls.name for cls, _ in plan if cls.requires_gpu]
     on_cuda = device.startswith("cuda")
     if gpu_targets and not on_cuda:

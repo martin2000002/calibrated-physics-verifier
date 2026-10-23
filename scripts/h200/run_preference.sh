@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Preference phase (ADR 0012): prompts, base candidates of train and dev, scores, pairs.
+# Preference phase: prompts, base candidates of train and dev, scores, pairs.
 # Every step resumes, so the script can simply be run again after an interruption.
 # PHYSVERIFY_FINETUNE_PILOT=1 runs the pilot only: 20 fit prompts of train spread across the
 # families, x K = 4 candidates each, scored and paired.

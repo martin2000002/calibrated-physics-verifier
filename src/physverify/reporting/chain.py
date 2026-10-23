@@ -49,7 +49,9 @@ class ChainState:
         state, steps = root / STATE_FILE, root / STEPS_FILE
         for path in (state, steps):
             if not path.is_file():
-                raise ResultsInputError(f"{root} is not an A8 v2 chain directory: no {path.name}")
+                raise ResultsInputError(
+                    f"{root} is not a calibration chain directory: no {path.name}"
+                )
         return cls(
             root=root,
             env=parse_state(state.read_text(encoding="utf-8")),
@@ -65,7 +67,7 @@ class ChainState:
 
     @property
     def rehearsal(self) -> bool:
-        """Only the CPU chain is reportable (ADR 0015, "Corrida CPU")."""
+        """Only the CPU chain is reportable; a CUDA chain is a rehearsal."""
         return self.device != CPU
 
     def completed(self, step: int) -> bool:

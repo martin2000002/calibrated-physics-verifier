@@ -1,4 +1,4 @@
-"""Per-video verifier report: what the demo shows next to the overlay (ADR 0013, D1).
+"""Per-video verifier report: what the demo shows next to the overlay.
 
 The check rows are the verifier's own table rows (``CandidateScore.per_check``) plus, per check,
 the abstain reasons, threshold and frame span of its results and whether the active rule decided
@@ -253,16 +253,24 @@ def _clip_lines(report: VideoReport) -> list[str]:
     clip = report.clip
     rule = report.rule
     return [
-        f"- Prompt ({report.prompt.prompt_id}, family {report.prompt.family}): "
-        f"{report.prompt.text}",
+        (
+            f"- Prompt ({report.prompt.prompt_id}, family {report.prompt.family}): "
+            f"{report.prompt.text}"
+        ),
         f"- Video: `{report.video_path}`",
         f"- Rule: {rule.scorer}, status **{rule.status}**, label `{rule.label}`",
-        f"- {score_text(clip)}; coverage {clip.coverage:.2f}; "
-        f"{clip.n_decided} checks decided, {clip.n_failed} failed",
-        f"- Motion index {_num(clip.motion)}; expected objects found: "
-        f"{'-' if clip.objects_ok is None else clip.objects_ok}",
-        "- Magnitudes from perceived inputs are estimates; sigma is their propagated error "
-        "('-' when not yet measured).",
+        (
+            f"- {score_text(clip)}; coverage {clip.coverage:.2f}; "
+            f"{clip.n_decided} checks decided, {clip.n_failed} failed"
+        ),
+        (
+            f"- Motion index {_num(clip.motion)}; expected objects found: "
+            f"{'-' if clip.objects_ok is None else clip.objects_ok}"
+        ),
+        (
+            "- Magnitudes from perceived inputs are estimates; sigma is their propagated error "
+            "('-' when not yet measured)."
+        ),
         "",
     ]
 

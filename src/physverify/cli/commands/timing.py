@@ -1,4 +1,4 @@
-"""``physverify timing``: the per-clip cost harness (ADR 0008).
+"""``physverify timing``: the per-clip cost harness.
 
 Only runs on the H200 (``--device cuda --profile precise``) are cost measurements; any other run is
 a harness check, and then no timing is printed to the terminal.

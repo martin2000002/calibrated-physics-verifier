@@ -181,7 +181,7 @@ def _destinations(sources: tuple[str, ...]) -> set[str]:
 
 @pytest.mark.parametrize("name", sorted(DIFF_SOURCES))
 def test_the_diff_paths_cover_exactly_where_the_pre_refactor_paths_moved(name: str) -> None:
-    """J3: each diff covers the moved files, as whole directories where they stayed inside one."""
+    """Each diff covers the moved files, as whole directories where they stayed inside one."""
     sources = DIFF_SOURCES[name]
     directories = [source for source in sources if source.endswith("/")]
     expected = {
