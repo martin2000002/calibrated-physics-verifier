@@ -16,19 +16,12 @@ REPO = Path(__file__).resolve().parents[1]
 SOURCE_ROOTS = (REPO / "src", REPO)
 SCANNED_DIRS = (REPO / "src" / "physverify", REPO / "scripts")
 
-# Pairs "module -> imported" present when the guard was added; fixes shrink this set.
-KNOWN_VIOLATIONS: frozenset[str] = frozenset({})
-
 
 @dataclass(frozen=True, order=True)
 class Violation:
     module: str
     line: int
     imported: str
-
-    @property
-    def pair(self) -> str:
-        return f"{self.module} -> {self.imported}"
 
     def __str__(self) -> str:
         return f"{self.module}:{self.line} -> {self.imported}"
@@ -159,10 +152,5 @@ def test_every_package_is_covered_by_a_contract() -> None:
 
 
 def test_no_new_import_violations() -> None:
-    new = [str(v) for v in _violations() if v.pair not in KNOWN_VIOLATIONS]
-    assert not new, "imports breaking the layer contract:\n" + "\n".join(new)
-
-
-def test_known_violations_still_occur() -> None:
-    fixed = sorted(KNOWN_VIOLATIONS - {violation.pair for violation in _violations()})
-    assert not fixed, "fixed; remove from KNOWN_VIOLATIONS:\n" + "\n".join(fixed)
+    found = [str(violation) for violation in _violations()]
+    assert not found, "imports breaking the layer contract:\n" + "\n".join(found)
