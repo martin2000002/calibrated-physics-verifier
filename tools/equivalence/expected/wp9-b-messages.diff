@@ -1,0 +1,13 @@
+diff -r left/chain/data/runs/h2/agreement/summary.md right/chain/data/runs/h2/agreement/summary.md
+5c5
+< **H2 not supported** (McNemar p = 0.442, accuracy difference -0.089, kappa difference CI [-0.792, 0.409]; minimum detectable accuracy difference 0.255, estimated with caption clustering 0.255); verifier predicts implausible on 0.429 of clips, the VLM on 0.625.
+---
+> **Human-agreement hypothesis not supported** (McNemar p = 0.442, accuracy difference -0.089, kappa difference CI [-0.792, 0.409]; minimum detectable accuracy difference 0.255, estimated with caption clustering 0.255); verifier predicts implausible on 0.429 of clips, the VLM on 0.625.
+12c12
+< ## Group all (aggregate: decides H2)
+---
+> ## Group all (aggregate: decides the human-agreement verdict)
+62c62
+< ## Group v1 (descriptive only: too few pairs to test H2 on one version)
+---
+> ## Group v1 (descriptive only: too few pairs to test agreement on one version)
