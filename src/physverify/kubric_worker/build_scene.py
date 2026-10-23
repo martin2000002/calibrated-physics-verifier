@@ -249,6 +249,7 @@ def _hdri_dome(kb: Any, built: BuiltScene, hdri_id: str) -> None:
     import bpy
 
     background = kb.AssetSource.from_manifest(HDRI_MANIFEST).create(asset_id=hdri_id)
+    # Kubric has no public API for the ambient HDRI.
     built.renderer._set_ambient_light_hdri(background.filename)
     dome = kubasic_source().create(
         asset_id="dome",
@@ -339,6 +340,7 @@ def guarded(job: dict[str, Any], work: Callable[[dict[str, Any]], None]) -> bool
     """Runs one job; an error lands in ``failed_path`` so the remaining jobs still run."""
     try:
         work(job)
+    # Every failure is reported per job.
     except Exception as exc:
         write_json(
             Path(job["failed_path"]),

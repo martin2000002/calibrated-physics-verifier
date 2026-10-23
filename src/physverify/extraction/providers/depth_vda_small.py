@@ -93,7 +93,7 @@ class VideoDepthAnythingSmall:
 
     @classmethod
     def checkpoint(cls) -> WeightSpec:
-        """The model checkpoint: the entry of ``weights`` after the code (one place, audit L3)."""
+        """The model checkpoint: the entry of ``weights`` after the code (kept in one place)."""
         (checkpoint,) = (w for w in cls.weights if w != CODE)
         return checkpoint
 

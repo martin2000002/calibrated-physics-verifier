@@ -48,7 +48,7 @@ class VerificationSettings(FrozenModel):
 
 
 class ThresholdEntry(FrozenModel):
-    """``tau`` in check units. The calibration may add the measured bias of the
+    """``tau`` in check units. The calibration chain may add the measured bias of the
     magnitude and the factor of its sigma; ``sigma_factor`` None: the error was not measured."""
 
     tau: float
@@ -62,7 +62,8 @@ class ArtifactRef(FrozenModel):
 
 
 class ThresholdTable(FrozenModel):
-    """Shape of ``paths.thresholds`` (written by the calibration) and of the provisional set."""
+    """Shape of ``paths.thresholds`` (written by the calibration chain) and of the provisional
+    set."""
 
     status: Literal["provisional", "calibrated"]
     source: str

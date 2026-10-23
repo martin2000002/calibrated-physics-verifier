@@ -260,7 +260,7 @@ def test_a_split_occlusion_threshold_fails_at_plan_resolution(
     real_providers: Mapping[str, type[StageProvider]],
     overrides: tuple[str, ...],
 ) -> None:
-    """Audit m3: the effective configuration, --set included, must agree."""
+    """The effective configuration, --set included, must agree."""
     with pytest.raises(ConfigError, match="gap_occluded_at"):
         resolve_plan(make_settings(*overrides), real_providers, dataset="kubric_synthetic")
 

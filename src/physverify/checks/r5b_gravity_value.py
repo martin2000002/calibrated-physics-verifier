@@ -1,6 +1,6 @@
-"""R5b gravity value: the fitted free-fall acceleration in meters per second squared against
-g0, for spheres only and only with a scale that does not come from the fall itself (a scale fitted
-on g would make the test circular)."""
+"""R5b gravity value: the fitted free-fall acceleration in meters per second squared against g0, for
+spheres only (the same restriction as the synthetic label) and only with a scale that does not come
+from the fall itself (a scale fitted on g would make the test circular)."""
 
 from __future__ import annotations
 

@@ -163,7 +163,7 @@ def real_teleport(mu: float) -> tuple[list[object], list[object]]:
 
 
 def test_m1_the_estimated_jump_agrees_with_the_injected_one() -> None:
-    """Audit M1: with one r4_teleport level per calib scene the order is undefined, so the sweep
+    """With one r4_teleport level per calib scene the order is undefined, so the sweep
     also checks, clip by clip, the estimated jump at the peak against mu (as v1 did)."""
     (agreement,), (ranking,) = real_teleport(1.5)
     assert agreement.passed  # type: ignore[attr-defined]

@@ -234,7 +234,7 @@ def resolve(scene: KinematicScene, events: Sequence[Event]) -> list[Choice]:
     """Final choices. The pair through (a) with the largest cosine is accepted and consumes both
     objects' impacts within one row step; the events left choose again among themselves, so an
     event whose best partner was consumed falls back to its next surface (three bodies meeting
-    at once, audit L4). Without pairs left, the remaining events keep their choices."""
+    at once). Without pairs left, the remaining events keep their choices."""
     consumed: set[EventKey] = set()
     final: list[Choice] = []
     while True:

@@ -1,4 +1,4 @@
-"""Leaves every result UNSCORED: raw magnitudes for the calibration."""
+"""Leaves every result UNSCORED: raw magnitudes for the calibration chain."""
 
 from __future__ import annotations
 

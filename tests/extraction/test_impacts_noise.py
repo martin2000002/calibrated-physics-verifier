@@ -5,7 +5,9 @@ a false impact, because the MAD of 29 third differences often comes out low; the
 window's own residual (floored at that noise) brings it to 1.25 % and costs power: a bounce with
 dv dt = 20 sigma is found in 85.5 % of the replicates, 30 sigma in 99.5 % (the measured figures the
 tests print). The bars: clean false impacts <= 8 %, 20 sigma >= 80 %, 30 sigma >= 95 %,
-teleport 0.25 L <= 8 %, correlated noise <= 8 % per level.
+teleport 0.25 L <= 8 %, and the gravity perturbations (R5a switch, R5a object gravity, R5b scale)
+<= 8 % false impacts per level. The correlated-noise description (AR(1), two-row depth impulses)
+is printed by impact_noise.py; its test only checks that it runs.
 """
 
 from __future__ import annotations

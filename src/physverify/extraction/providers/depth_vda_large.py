@@ -1,10 +1,9 @@
 """Video Depth Anything Large: ``depth/vda_small`` with the ViT-L encoder and its checkpoint.
 
-Same vendored code, inference path and numeric precision (fp16 on a GPU, fp32 on the CPU); only
-the encoder and the weights change. Its training data (TartanAir, VKITTI, PointOdyssey, IRS, wild
-stereo video, and Depth Anything V2's sets) hold no Kubric or MOVi (Knowledge/tooling/
-percepcion-gpu.md). The weights are CC-BY-NC-4.0: ``extract fetch-weights`` downloads them
-and they are never redistributed.
+Same vendored code, inference path and numeric precision (fp16 on a GPU, fp32 on the CPU); only the
+encoder and the weights change. Its training data (TartanAir, VKITTI, PointOdyssey, IRS, wild stereo
+video, and Depth Anything V2's sets) hold no Kubric or MOVi. The weights are CC-BY-NC-4.0:
+``extract fetch-weights`` downloads them and they are never redistributed.
 """
 
 from __future__ import annotations

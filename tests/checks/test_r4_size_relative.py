@@ -110,7 +110,7 @@ def test_relative_lengths_use_each_reference_relative_to_its_median() -> None:
 
 @pytest.mark.parametrize("leave", [12, 16, 20])
 def test_a_reference_leaving_the_image_makes_no_step(leave: int) -> None:
-    """Audit A1: three rigid bodies of lengths 0.2, 0.2 and 0.1; the small one leaves the image
+    """Three rigid bodies of lengths 0.2, 0.2 and 0.1; the small one leaves the image
     from row ``leave`` on. With the plain geometric mean the denominator stepped (0.29 at row 16);
     with each reference relative to its median every body stays at 0."""
     case = sc.resized_pair(factor=1.0, balls=3)
