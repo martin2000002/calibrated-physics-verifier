@@ -1,4 +1,4 @@
-"""Physics-IQ real videos (ADR 0007 §4.2, §5.6): the ``testing`` part of each scenario and its
+"""Physics-IQ real videos: the ``testing`` part of each scenario and its
 pixel-change mask, downloaded from the public GCS bucket. There is no per-stage ground truth.
 The plugin reads the configured ``view``; a subclass reads other views (``views_of``) of the same
 scenarios, takes and annotations under its own name and raw directory.

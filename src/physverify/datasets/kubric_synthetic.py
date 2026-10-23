@@ -1,4 +1,4 @@
-"""``kubric_synthetic``: the clips exported by ``physverify synth`` (ADR 0004, section 3.8).
+"""``kubric_synthetic``: the clips exported by ``physverify synth``.
 
 Clips are generated locally, never downloaded. ``z`` at or beyond ``render.far_z_m`` is the
 background (Blender's miss value) and becomes 0, the "no surface" value of ``NativeGroundTruth``.

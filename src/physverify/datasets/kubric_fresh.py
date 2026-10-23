@@ -1,4 +1,4 @@
-"""``kubric_fresh*``: the sealed Kubric renders of the freeze (plan-congelado section 2).
+"""``kubric_fresh*``: the sealed Kubric renders of the freeze.
 
 Same generator, store layout and loader as ``kubric_synthetic``, rendered under another dataset
 version with a new seed, so only the root and the name differ: the name keys the stage cache and

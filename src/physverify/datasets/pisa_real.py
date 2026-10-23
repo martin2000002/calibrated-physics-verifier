@@ -1,4 +1,4 @@
-"""PISA real drops (ADR 0007 §4.2, §5.6): ``movie.mp4`` and ``clip_info.json`` of selected clips,
+"""PISA real drops: ``movie.mp4`` and ``clip_info.json`` of selected clips,
 read by HTTP range from ``pisabench/real.zip`` at a pinned revision. There is no ground truth;
 the capture rate ``real_fps`` is declared, not measured.
 """

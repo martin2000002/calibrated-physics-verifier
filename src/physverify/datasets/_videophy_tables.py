@@ -1,4 +1,4 @@
-"""VideoPhy label tables (ADR 0011 D1-D4): settings, CSV rows, the lexical object-object rule and
+"""VideoPhy label tables: settings, CSV rows, the lexical object-object rule and
 the mapping from a video URL to its member in the published zip.
 """
 
@@ -104,7 +104,7 @@ class VideophySettings(FrozenModel):
 @dataclass(frozen=True)
 class VideophyRow:
     """One labelled video. ``human_raw`` and ``reference_raw`` keep the published values
-    (NaN when the table has none); binarisation is the comparison's job (ADR 0011 D3-D4)."""
+    (NaN when the table has none); binarisation is the comparison's job."""
 
     part: str
     version: str
@@ -159,7 +159,7 @@ def has_term(words: Sequence[str], term: str) -> bool:
 
 
 def lexical_reason(caption: str, rules: FilterSettings) -> str | None:
-    """None when the caption passes the object-object rule, else why it is out (ADR 0011 D2a)."""
+    """None when the caption passes the object-object rule, else why it is out."""
     words = tokens(caption)
     if not any(has_term(words, t) for t in rules.rigid_event):
         return NO_RIGID_EVENT

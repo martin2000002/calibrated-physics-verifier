@@ -1,4 +1,4 @@
-"""VideoPhy and VideoPhy-2 generated videos with human physical-commonsense labels (ADR 0011 D1).
+"""VideoPhy and VideoPhy-2 generated videos with human physical-commonsense labels.
 
 Label tables are pinned by revision and sha256; videos are read member by member from the
 published zips through HTTP ranges (CRC-checked), or from their URL when the zip lacks them.
@@ -119,7 +119,7 @@ class VideophyDataset:
         return [m for m in manifests if m is not None]
 
     def queries(self) -> dict[str, tuple[ObjectQuery, ...]]:
-        """``{caption: queries}`` of the queries file (D11: the unreviewed heuristic draft)."""
+        """``{caption: queries}`` of the queries file (an unreviewed heuristic draft)."""
         return load_annotations(self._queries_path)
 
     def object_queries(

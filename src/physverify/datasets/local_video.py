@@ -1,4 +1,4 @@
-"""Hand-copied videos listed in ``<raw_dir>/local_video/<subset>/manifest.json`` (ADR 0005, 3.11).
+"""Hand-copied videos listed in ``<raw_dir>/local_video/<subset>/manifest.json``.
 
 A clip is an mp4 (container rate unless ``real_fps`` is declared) or a directory of numbered
 frames (``real_fps`` required). Its id is the manifest's ``clip_id``, else the file or directory

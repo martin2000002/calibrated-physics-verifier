@@ -1,10 +1,11 @@
 """``objectron_static``: Objectron test videos of still objects, a sealed real control of the
-freeze (plan-congelado section 3.2, J14).
+freeze. A selection is fixed once made: it is restored, never replaced.
 
-Selection rule (Amendment 7): per class, the official ``test`` videos minus every video A9 looked
-at (its seeded test draw and the end-to-end candidates), ordered by ``sha256(f"{seed}:{id}")``;
-the first ``per_class`` whose MOV is at most ``max_video_mb`` are taken. A failed download or an
-undecodable video gives its place to the next of the same order, never to another criterion. The
+Selection rule: per class, the official ``test`` videos minus every video the size estimator
+looked at (its seeded test draw and the end-to-end candidates), ordered by
+``sha256(f"{seed}:{id}")``; the first ``per_class`` whose MOV is at most ``max_video_mb`` are
+taken. A failed download or an undecodable video gives its place to the next of the same order,
+never to another criterion. The
 MOV is downloaded whole (its ``moov`` atom is not reliably first) and kept with its sha256; the
 first ``seconds`` are decoded upright (the container rotation applied) into a frame directory.
 The camera moves around the object: the control is still objects, not a still camera.
@@ -140,8 +141,6 @@ class ObjectronStaticDataset:
         self._decoder = decoder or decode_upright
         self._fetch_hint = f"physverify download fetch {self.name}"
 
-    # --- Reading ------------------------------------------------------------------------------
-
     def clips(self, subset: str | None = None) -> Sequence[ClipManifest]:
         """Every selected clip: the control has one fixed selection, so ``local`` and ``full``
         (the subsets ``calibrate evaluate`` passes) are the same clips."""
@@ -178,8 +177,6 @@ class ObjectronStaticDataset:
             license=self._sizing.license,
         )
 
-    # --- Fetching -----------------------------------------------------------------------------
-
     def fetch(self, subset: str | None, dest: Path) -> None:
         subset = _check_subset(subset)
         previous = read_selection(dest / SELECTION_FILE)
@@ -204,7 +201,7 @@ class ObjectronStaticDataset:
     def _restore(
         self, client: HttpClient, dest: Path, subset: str, previous: StaticSelection
     ) -> None:
-        """Download again the clips of a selection already made; never a replacement (J14)."""
+        """Download again the clips of a selection already made; never a replacement."""
         refs = (objectron.VideoRef(c.video_id) for c in previous.clips)
         outcomes = [self._try(client, dest, ref) for ref in refs]
         lost = [o.candidate.video_id for o in outcomes if o.clip is None]
@@ -228,7 +225,7 @@ class ObjectronStaticDataset:
         return (s.seed, s.split, s.per_class, s.max_video_mb, s.seconds)
 
     def _excluded(self, client: HttpClient, reader: objectron.PrefixReader) -> frozenset[str]:
-        """The A9 draw of the split and every end-to-end candidate A9 examined."""
+        """The size estimator's draw of the split and every end-to-end candidate it examined."""
         tested = objectron_draws.selection(self._settings, self._sizing, self._s.split, reader)
         limit = self._sizing.e2e.max_video_mb * BYTES_PER_MB
 

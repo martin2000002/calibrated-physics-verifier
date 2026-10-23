@@ -1,5 +1,5 @@
 """``physics_iq_views``: the ``left`` and ``right`` views of Physics-IQ, a sealed real control of
-the freeze (plan-congelado section 3.1).
+the freeze.
 
 Scenarios, takes, frame rate, annotations and bucket come from ``[physics_iq]``; this section only
 adds the views. The raw directory and the fetch manifest are the plugin's own, so the development

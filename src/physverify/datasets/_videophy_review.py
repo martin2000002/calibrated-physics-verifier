@@ -1,4 +1,4 @@
-"""Hand review of the VideoPhy test subset (ADR 0011 D2b, Juicio change 5).
+"""Hand review of the VideoPhy test subset (captions only, exclusions only).
 
 The review sees captions only. The review can exclude a caption the lexical rule kept, with a
 reason from a fixed list, never add one. ``record`` stores n and the sha256 of the clip ids, and
