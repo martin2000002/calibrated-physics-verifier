@@ -34,8 +34,8 @@ Full suite on the H200 (CPU only, separate dev clone, never the frozen checkouts
 
 ```sh
 git bundle create /tmp/refactor.bundle main refactor/architecture
-scp /tmp/refactor.bundle <h200>:/home/mmonterot/dev/refactor.bundle
-ssh <h200> 'nohup bash /home/mmonterot/dev/wt/refactor_check.sh refactor/architecture <label> >/dev/null 2>&1 &'
+scp /tmp/refactor.bundle h200:/home/mmonterot/dev/refactor.bundle
+ssh h200 'nohup bash /home/mmonterot/dev/wt/refactor_check.sh refactor/architecture <label> >/dev/null 2>&1 &'
 # result: /home/mmonterot/dev/wt/logs/refactor-<label>.log (+ .done)
 ```
 
@@ -49,7 +49,7 @@ ssh <h200> 'nohup bash /home/mmonterot/dev/wt/refactor_check.sh refactor/archite
 |---|---|---|
 | 0 | ADR, `tests/contracts/`, harness | done, audited, H200 green |
 | 1 | dead code and one-off scripts | done, audited, H200 green (`0d4b15b`: 3415 passed, 9 skipped) |
-| 2 | shared foundations, dedupe | in progress (paused at `d6c2186`) |
+| 2 | shared foundations, dedupe | done (`5142476`), audit pending |
 | 3 | composition root `app/`, plugin kinds | todo |
 | 4a | pure package/module renames | todo |
 | 4b | thin CLI (<=150 lines per command) | todo |
@@ -63,15 +63,15 @@ ssh <h200> 'nohup bash /home/mmonterot/dev/wt/refactor_check.sh refactor/archite
 
 Test counts: the base has 3449 collected; after the WP1 audit fixes, 3424.
 
-The WP2 items still open are these:
-
-- `records_of`: `_windows` should import the one in `physics/tracks`.
-- The duplicated `_torch` in `finetune/dpo` and `finetune/trainer`.
-- The perturbation `_check` helpers in `_edit.py`, keeping their exact messages.
-- `write_mp4`, merged only if the output is byte-identical.
-
-To close WP2, record the collected count, run global ruff and mypy, and run the harness from
-`9eb5888` to HEAD. After that comes the WP2 audit, then the H200 run.
+The last four WP2 items are done (`0107fcd`..`5142476`): `records_of` comes from
+`physics.tracks`, the trainer imports `_torch` from `finetune.dpo`, and the perturbation in-image and
+clearance refusals go through `require_in_image`, `require_clear_flight` and `require_clear_shift` in
+`_edit.py` with their messages unchanged. The two `write_mp4` stay apart: their encoded bytes match,
+but their error types, directory creation, temporary names and failure cleanup differ; only the
+fourcc constant is shared. After them, 3616 tests are collected (2 deselected); global ruff and mypy
+are clean. The harness from `9eb5888` to `5142476` differs only in the `--help` pages of
+`dataset audit-migration`, which WP1 deleted (`2b34c0e`); golden blobs are identical. Next come the
+WP2 audit and the H200 run.
 
 Kept separate, with reasons recorded in the ADR:
 
