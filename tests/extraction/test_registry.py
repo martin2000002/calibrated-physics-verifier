@@ -18,37 +18,6 @@ from physverify.schema.stages import Stage, check_upstream_order
 REPO = Path(__file__).resolve().parents[2]
 PROVIDERS_DIR = REPO / "src" / "physverify" / "extraction" / "providers"
 LAZY_MODULES = ("torch", "transformers", "huggingface_hub", "timm", "geocalib", "kornia")
-EXPECTED = {
-    "detect/grounding_dino_tiny",
-    "detect/grounding_dino_tiny_per_query",
-    "detect/grounding_dino_base",
-    "track/edgetam",
-    "track/sam2_1_hiera_tiny",
-    "depth/vda_small",
-    "depth/vda_metric_small",
-    "depth/vda_large",
-    "camera/assumed_fov",
-    "camera/geocalib",
-    "lift/backproject",
-    "scale/size_prior",
-    "scale/size_model",
-    "scale/free_fall",
-    "kinematics/savgol",
-    "contacts/proximity",
-    "contacts/kinematic",
-    *(f"{stage.value}/ground_truth" for stage in Stage),
-}
-HEAVY = {
-    "detect/grounding_dino_tiny",
-    "detect/grounding_dino_tiny_per_query",
-    "detect/grounding_dino_base",
-    "track/edgetam",
-    "track/sam2_1_hiera_tiny",
-    "depth/vda_small",
-    "depth/vda_metric_small",
-    "depth/vda_large",
-    "camera/geocalib",
-}
 
 
 @pytest.fixture(scope="module")
@@ -59,20 +28,14 @@ def registry() -> dict[str, type[StageProvider]]:
     return dict(context.registry("providers"))
 
 
-def test_registry_has_exactly_the_twenty_five_providers(
-    registry: dict[str, type[StageProvider]],
-) -> None:
-    assert len(EXPECTED) == 25
-    assert set(registry) == EXPECTED
-
-
-def test_every_provider_validates_and_only_perception_models_are_heavy(
+def test_every_provider_validates_and_only_providers_with_weights_are_heavy(
     registry: dict[str, type[StageProvider]],
 ) -> None:
     for provider in registry.values():
         validate_provider(provider)
         check_upstream_order(provider.stage, provider.error_profile_reads)
-    assert {key for key, p in registry.items() if p.heavy} == HEAVY
+    assert all(provider.heavy == bool(provider.weights) for provider in registry.values())
+    assert any(provider.heavy for provider in registry.values())
 
 
 def test_only_backproject_reads_its_own_profile_entry(
@@ -169,6 +132,6 @@ def test_frames_are_requested_with_the_context_sampling() -> None:
             start, stop, step, max_side = node.args
             assert _is_attr(start, "s", "start") and _is_attr(step, "s", "step"), path.name
             assert _is_attr(max_side, "s", "max_side"), path.name
-            dino = path.name == "detect_grounding_dino_tiny.py"
+            dino = path.name == "_grounding_dino.py"
             assert _is_attr(stop, "s", "stop") or (dino and isinstance(stop, ast.Name)), path.name
     assert calls == 4

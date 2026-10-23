@@ -15,8 +15,8 @@ from wiring import resolve_plan
 
 from physverify.config.models import SizePriorTable
 from physverify.extraction._base import StageProvider
+from physverify.extraction.providers._size_prior import SizePriorScale
 from physverify.extraction.providers.scale_size_model import SizeModelScale
-from physverify.extraction.providers.scale_size_prior import SizePriorScale
 from physverify.physics.geometry import characteristic_lengths
 from physverify.schema.scale import ScaleEstimate, ScaleSource
 from physverify.schema.stages import STAGE_ORDER, Stage

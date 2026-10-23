@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import ClassVar
 
 from physverify.extraction._base import WeightKind, WeightSpec
-from physverify.extraction.providers.depth_vda_small import CODE, Encoder, VideoDepthAnythingSmall
+from physverify.extraction.providers._vda import CODE, Encoder, VideoDepthAnythingSmall
 
 LARGE_CHECKPOINT = WeightSpec(
     WeightKind.URL,
