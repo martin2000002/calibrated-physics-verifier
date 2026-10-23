@@ -69,8 +69,8 @@
   "config_or_script_text": 2
  },
  "scripts/h200/freeze_query.py": {
-  "comment_or_docstring": 16,
-  "literal": 6
+  "comment_or_docstring": 9,
+  "literal": 2
  },
  "scripts/h200/perception_arms.tsv": {
   "config_or_script_text": 6
@@ -563,6 +563,19 @@
  },
  "src/physverify/finetune/wan_lora.py": {
   "comment_or_docstring": 1
+ },
+ "src/physverify/freeze/fresh_render.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/freeze/ledger.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/freeze/manifest.py": {
+  "comment_or_docstring": 4,
+  "literal": 1
+ },
+ "src/physverify/freeze/selection.py": {
+  "literal": 3
  },
  "src/physverify/generation/wan21.py": {
   "comment_or_docstring": 3

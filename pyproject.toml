@@ -91,8 +91,8 @@ known-first-party = ["physverify"]
 [tool.mypy]
 python_version = "3.12"
 strict = true
-files = ["src/physverify"]
-mypy_path = "src"
+files = ["src/physverify", "scripts/h200"]
+mypy_path = "src:scripts/h200"
 explicit_package_bases = true
 plugins = ["pydantic.mypy"]
 
@@ -162,7 +162,7 @@ layers = [
     "physverify.app",
     "physverify.reporting",
     "physverify.generator_comparison | physverify.timing | physverify.demo",
-    "physverify.finetune",
+    "physverify.finetune | physverify.freeze",
     "physverify.human_agreement | physverify.selective_risk",
     "physverify.calibration",
     "physverify.diagnosis",
