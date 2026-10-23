@@ -1,7 +1,7 @@
 > │ agreement           Verifier vs reference VLM on VideoPhy human labels (human-agreement study).                      │
 > │ calibrate           Calibration: thresholds, rates, detection limits and the clip score.                             │
 > │ compare-generators  Generator comparison: fine-tuned vs base vs best-of-8.                                           │
-> │ exclusions          The preregistered check exclusions the agreement study and generator comparison consume.         │
+> │ exclusions          The preregistered check exclusions the human-agreement study and generator comparison consume.   │
 > │ results             Collect the reported numbers of a calibration chain into results.md and results.json.            │
 59,64c59,64
 < │ --oracle-table                           <path>  Oracle-level table for the reference (default: A8's oracle          │
@@ -10,10 +10,10 @@
 < │                                                  stratum).                                                           │
 < │ --provisional        --no-provisional            Ignore A8's artifact: both levels use verify's fallback table       │
 < │                                                  (paths.thresholds, else the provisional taus).                      │
-> │ --oracle-table                           <path>  Oracle-level table for the reference (default: the calibration's    │
-> │                                                  oracle stratum).                                                    │
-> │ --perceived-table                        <path>  Perceived-level table for the decisions (default: the calibration's │
-> │                                                  perceived stratum).                                                 │
+> │ --oracle-table                           <path>  Oracle-level table for the reference (default: the calibration      │
+> │                                                  chain's oracle stratum).                                            │
+> │ --perceived-table                        <path>  Perceived-level table for the decisions (default: the calibration   │
+> │                                                  chain's perceived stratum).                                         │
 > │ --provisional        --no-provisional            Ignore the calibration artifact: both levels use verify's fallback  │
 > │                                                  table (paths.thresholds, else the provisional taus).                │
 76,81c76,81
@@ -23,22 +23,23 @@
 < │                                                  stratum).                                                           │
 < │ --provisional        --no-provisional            Ignore A8's artifact: both levels use verify's fallback table       │
 < │                                                  (paths.thresholds, else the provisional taus).                      │
-> │ --oracle-table                           <path>  Oracle-level table for the reference (default: the calibration's    │
-> │                                                  oracle stratum).                                                    │
-> │ --perceived-table                        <path>  Perceived-level table for the decisions (default: the calibration's │
-> │                                                  perceived stratum).                                                 │
+> │ --oracle-table                           <path>  Oracle-level table for the reference (default: the calibration      │
+> │                                                  chain's oracle stratum).                                            │
+> │ --perceived-table                        <path>  Perceived-level table for the decisions (default: the calibration   │
+> │                                                  chain's perceived stratum).                                         │
 > │ --provisional        --no-provisional            Ignore the calibration artifact: both levels use verify's fallback  │
 > │                                                  table (paths.thresholds, else the provisional taus).                │
 90c90
 <  Verifier vs reference VLM on VideoPhy human labels (H2).                                                               
 >  Verifier vs reference VLM on VideoPhy human labels (human-agreement study).                                            
-137c137
+137c137,138
 < │    --declare-deviation        <str>   Why the freeze is redone after a test comparison (makes H2 post hoc).          │
-> │    --declare-deviation        <str>   Why the freeze is redone after a test comparison (makes the study post hoc).   │
-159c159
+> │    --declare-deviation        <str>   Why the freeze is redone after a test comparison (makes the human-agreement    │
+> │                                       study post hoc).                                                               │
+159c160
 <  H1 calibration: thresholds, rates, detection limits and the clip score.                                                
 >  Calibration: thresholds, rates, detection limits and the clip score.                                                   
-165,168c165,168
+165,168c166,169
 < │ fit          Fit thresholds, rates and weights on split=calib (D5-D11).                                              │
 < │ stage-sigma  D10: per-stage sigma factors (heavy, lazy lock; H200).                                                  │
 < │ evaluate     Score held-out and real clips with the frozen artifact (D12).                                           │
@@ -46,111 +47,111 @@
 > │ dev-score    Development metric on calib: held-out monotonicity and out-of-fold J.                                   │
 > │ stage-sigma  Per-stage sigma factors (heavy, lazy lock; H200).                                                       │
 > │ evaluate     Score held-out and real clips with the frozen artifact.                                                 │
-177c177
+177c178
 <  Development metric on calib: H1 and out-of-fold J (WP-O).                                                              
 >  Development metric on calib: held-out monotonicity and out-of-fold J.                                                  
-193c193
+193c194
 <  Score held-out and real clips with the frozen artifact (D12).                                                          
 >  Score held-out and real clips with the frozen artifact.                                                                
-209c209
+209c210
 <  Fit thresholds, rates and weights on split=calib (D5-D11).                                                             
 >  Fit thresholds, rates and weights on split=calib.                                                                      
-253c253
+253c254
 <  D10: per-stage sigma factors (heavy, lazy lock; H200).                                                                 
 >  Per-stage sigma factors (heavy, lazy lock; H200).                                                                      
-311,314c311
+311,314c312
 < │ migrate-velocity  Alias of `migrate --name velocity-<convention>` (WP-G 1.C).                                        │
 > │ migrate-velocity  Alias of `migrate --name velocity-<convention>`.                                                   │
-391,392c371,372
+391,392c372,373
 < │ --name          <str>  velocity-<convention> (WP-G 1.C, the default) or the ground-truth fix the plan needs next, in │
 < │                        order: floor-crossing, pair-collision.                                                        │
 > │ --name          <str>  velocity-<convention> (the default) or the ground-truth fix the plan needs next, in order:    │
 > │                        floor-crossing, pair-collision.                                                               │
-401c381
+401c382
 <  Alias of `migrate --name velocity-<convention>` (WP-G 1.C).                                                            
 >  Alias of `migrate --name velocity-<convention>`.                                                                       
-606c586
+606c587
 <  ADR 0015: the preregistered check exclusions H2 and H3 consume.                                                        
->  The preregistered check exclusions the agreement study and generator comparison consume.                               
-614c594
+>  The preregistered check exclusions the human-agreement study and generator comparison consume.                         
+614c595
 < │ show      Print the decision record and its sha256 (what H2/H3 freeze on).                                           │
 > │ show      Print the decision record and its sha256 (what both studies freeze on).                                    │
-648c628
+648c629
 <  Print the decision record and its sha256 (what H2/H3 freeze on).                                                       
 >  Print the decision record and its sha256 (what both studies freeze on).                                                
-740,741c720,721
+740,741c721,722
 < │ --stop-rule-deviation                              <str>  Go on although the pilot stop rule fired (recorded; H3     │
 < │                                                           then has no verdict).                                      │
 > │ --stop-rule-deviation                              <str>  Go on although the pilot stop rule fired (recorded; the    │
 > │                                                           generator comparison then has no verdict).                 │
-773c753
+773c754
 < │ *  --split          <str>               train or dev (eval belongs to `h3`). [required]                              │
 > │ *  --split          <str>               train or dev (eval belongs to `compare-generators`). [required]              │
-837c817
+837c818
 < │ *  --split            <str>  train or dev (eval belongs to `h3`). [required]                                         │
 ---
 > │ *  --split            <str>  train or dev (eval belongs to `compare-generators`). [required]                         │
-886c866,867
+886c867,868
 < │                                                                        (recorded; H3 then has no verdict).           │
 ---
 > │                                                                        (recorded; the generator comparison then has  │
 > │                                                                        no verdict).                                  │
-892c873
+892c874
 ---
-894c875
+894c876
 <  H3: fine-tuned vs base vs best-of-8 (ADR 0013).                                                                        
 ---
 >  Generator comparison: fine-tuned vs base vs best-of-8.                                                                 
-906,907c887,888
+906,907c888,889
 < │ compare        The H3 analysis and verdict from the frozen eval data (CPU).                                          │
 < │ status         Eval candidates, scores, judge rows, gate and freeze of H3.                                           │
 ---
 > │ compare        The comparison's analysis and verdict from the frozen eval data (CPU).                                │
 > │ status         Eval candidates, scores, judge rows, gate and freeze of the comparison.                               │
-912c893
+912c894
 ---
-914c895
+914c896
 <  The H3 analysis and verdict from the frozen eval data (CPU).                                                           
 ---
 >  The comparison's analysis and verdict from the frozen eval data (CPU).                                                 
-922c903
+922c904
 ---
-930,931c911,912
+930,931c912,913
 < │ --stop-rule-deviation                  <str>  Go on although the pilot stop rule fired (recorded; H3 then has no     │
 < │                                               verdict).                                                              │
 ---
 > │ --stop-rule-deviation                  <str>  Go on although the pilot stop rule fired (recorded; the generator      │
 > │                                               comparison then has no verdict).                                       │
-937c918
+937c919
 ---
-947c928
+947c929
 ---
-955c936,937
+955c937,938
 < │ --stop-rule-deviation        <str>  Go on although the pilot stop rule fired (recorded; H3 then has no verdict).     │
 ---
 > │ --stop-rule-deviation        <str>  Go on although the pilot stop rule fired (recorded; the generator comparison     │
 > │                                     then has no verdict).                                                            │
-961c943
+961c944
 ---
-973c955
+973c956
 ---
-983c965
+983c966
 ---
-995c977
+995c978
 ---
-997c979
+997c980
 <  Eval candidates, scores, judge rows, gate and freeze of H3.                                                            
 ---
 >  Eval candidates, scores, judge rows, gate and freeze of the comparison.                                                
-1007c989
+1007c990
 <  Collect the reported numbers of an A8 v2 chain into results.md and results.json.                                       
 ---
 >  Collect the reported numbers of a calibration chain into results.md and results.json.                                  
-1010,1015c992,997
+1010,1015c993,998
 ---
-1093c1075
+1093c1076
 ---
-1144c1126
+1144c1127
 ---
 ---
 ---

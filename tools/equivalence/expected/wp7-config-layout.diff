@@ -94,11 +94,9 @@ diff -r left/_capture/doctor_set.out right/_capture/doctor_set.out
 > source: RUN/repo/configs/verifier/size_model.toml
 > source: RUN/repo/configs/verifier/size_priors.toml
 > source: RUN/repo/configs/verifier/sizing.toml
-1093c1073
 < │ fit          Fit the per-class model on train; writes configs/size_model.toml.                                       │
 ---
 > │ fit          Fit the per-class model on train; writes configs/verifier/size_model.toml.                              │
-1144c1124
 <  Fit the per-class model on train; writes configs/size_model.toml.                                                      
 ---
 >  Fit the per-class model on train; writes configs/verifier/size_model.toml.                                             

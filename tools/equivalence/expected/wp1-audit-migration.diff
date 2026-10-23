@@ -2,11 +2,10 @@ diff -r left/_capture/help.err right/_capture/help.err
 20d19
 < === dataset audit-migration
 diff -r left/_capture/help.out right/_capture/help.out
-312,314d311
 < │ audit-migration   Acceptance audit of a migration against a copy of the dataset taken before it (re-renders, frames, │
 < │                   contacts, records, labels, rest cells, stale cache, plus the checks of every ground-truth fix the  │
 < │                   run covers); JSON to --out.                                                                        │
-318,334d314
+318,334d315
 < === dataset audit-migration
 <                                                                                                                         
 <  Usage: physverify dataset audit-migration [OPTIONS]                                                                    

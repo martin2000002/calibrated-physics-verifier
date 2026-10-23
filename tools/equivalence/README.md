@@ -41,8 +41,9 @@ lines of `diff.txt`) as a new file.
 
 - `wp1-audit-migration.diff`: WP1 (`2b34c0e`) removed `dataset audit-migration`, so its `--help`
   page and its row in `dataset --help` are gone.
-  Its hunk headers are where `diff` aligns the deletion, which moved by two lines (same deleted
-  lines) once WP7 changed the `size fit` help further down the page.
+  Its hunk headers are where `diff` aligns the deletion, so they move when other help lines on the
+  page change (same deleted lines). Since WP9 the row's deletion shares a hunk with a reworded
+  line just above it, and that hunk's header (`311,314c312`) is in `wp9-c-help-text.diff`.
 - `wp7-config-layout.diff`: WP7 moved every config file into `configs/verifier/`,
   `configs/datasets/` and `configs/studies/` (same tables, same `config_hash`). The flat files are
   `Only in left/repo/configs`, the subdirectories `Only in right/repo/configs`; `doctor`'s
@@ -55,6 +56,16 @@ lines of `diff.txt`) as a new file.
   comment or blank-line change in a moved file passes unseen). A changed table or value still
   changes `config_hash`, which `doctor` prints on both sides, and
   `tests/contracts/test_config_splits.py` pins the split files against the originals.
+- `wp8-cli-renames.diff`: WP8's command, option and script renames: the help pages, the stderr
+  hints, and the missing-input lines of `results_chain_without_agreement` (stdout, `results.json`
+  and `results.md` name `--agreement-run`).
+- `wp9-b-messages.diff`: the human-agreement `summary.md` wording (no script reads that file).
+- `wp9-c-help-text.diff`: help text (command docstrings and `help=` reach Typer's output) and the
+  `configs/default.toml` header comment.
+
+A help line changed by more than one step belongs to the latest file only, and so does its hunk
+header; the older files keep the lines that step alone still explains. When a later step shifts
+the help page, the older files' hunk headers are renumbered in place.
 
 ## Scenarios (each asserts its exit code and that it wrote files or printed output)
 

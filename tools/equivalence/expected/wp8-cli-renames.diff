@@ -21,17 +21,12 @@ diff -r left/_capture/dataset_list_local.err right/_capture/dataset_list_local.e
 < │ timing       Per-clip cost harness. Only H200 runs (--device cuda --profile precise) are cost measurements; anything │
 < │              else is a harness check.                                                                                │
 < │ verify       Run the physics checks R1-R5b over a dataset (oracle or perceived inputs).                              │
-> │ agreement           Verifier vs reference VLM on VideoPhy human labels (H2).                                         │
-> │ calibrate           H1 calibration: thresholds, rates, detection limits and the clip score.                          │
-> │ compare-generators  H3: fine-tuned vs base vs best-of-8 (ADR 0013).                                                  │
 > │ demo                End-to-end demo: verifier report and overlay video.                                              │
 > │ diagnose            Extractor diagnosis: per-stage error, end-to-end error, attribution and real video.              │
 > │ doctor              Show configuration, paths, lock and package versions.                                            │
 > │ download            Download the real datasets (Physics-IQ, PISA).                                                   │
-> │ exclusions          ADR 0015: the preregistered check exclusions H2 and H3 consume.                                  │
 > │ extract             Perception pipeline: from video to states and contacts.                                          │
 > │ finetune            Preference pairs and Flow-DPO LoRA of Wan2.1.                                                    │
-> │ results             Collect the reported numbers of an A8 v2 chain into results.md and results.json.                 │
 > │ scene-stats         Per-clip DETECT/DEPTH errors, per-scene tables and scene-bootstrap deltas.                       │
 > │ selective-risk      Risk-coverage of the verdict policy and the abstention level k*.                                 │
 > │ size                Object size model learned on Objectron (fetch, fit, eval).                                       │
@@ -49,111 +44,99 @@ diff -r left/_capture/dataset_list_local.err right/_capture/dataset_list_local.e
 <  Usage: physverify abstain fit [OPTIONS]                                                                                
 ---
 >  Usage: physverify selective-risk fit [OPTIONS]                                                                         
-166c166
 < │ devscore     Development metric on calib: H1 and out-of-fold J (WP-O).                                               │
 ---
-> │ dev-score    Development metric on calib: H1 and out-of-fold J (WP-O).                                               │
-175c175
+175c176
 <  Usage: physverify calibrate devscore [OPTIONS]                                                                         
 ---
 >  Usage: physverify calibrate dev-score [OPTIONS]                                                                        
-264c264
+264c265
 <  Usage: physverify data [OPTIONS] COMMAND [ARGS]...                                                                     
 ---
 >  Usage: physverify download [OPTIONS] COMMAND [ARGS]...                                                                 
-278c278
+278c279
 <  Usage: physverify data fetch [OPTIONS] [dataset]                                                                       
 ---
 >  Usage: physverify download fetch [OPTIONS] [dataset]                                                                   
-293c293
+293c294
 <  Usage: physverify dataset [OPTIONS] COMMAND [ARGS]...                                                                  
 ---
 >  Usage: physverify synth [OPTIONS] COMMAND [ARGS]...                                                                    
-337c317
+337c318
 <  Usage: physverify dataset build [OPTIONS]                                                                              
 ---
 >  Usage: physverify synth build [OPTIONS]                                                                                
-349c329
+349c330
 <  Usage: physverify dataset export-gt [OPTIONS]                                                                          
 ---
 >  Usage: physverify synth export-gt [OPTIONS]                                                                            
-361c341
+361c342
 <  Usage: physverify dataset generate [OPTIONS]                                                                           
 ---
 >  Usage: physverify synth generate [OPTIONS]                                                                             
-373c353
+373c354
 <  Usage: physverify dataset list [OPTIONS]                                                                               
 ---
 >  Usage: physverify synth list [OPTIONS]                                                                                 
-385c365
+385c366
 <  Usage: physverify dataset migrate [OPTIONS]                                                                            
 ---
 >  Usage: physverify synth migrate [OPTIONS]                                                                              
-399c379
+399c380
 <  Usage: physverify dataset migrate-velocity [OPTIONS]                                                                   
 ---
 >  Usage: physverify synth migrate-velocity [OPTIONS]                                                                     
-410c390
+410c391
 <  Usage: physverify dataset perturb [OPTIONS]                                                                            
 ---
 >  Usage: physverify synth perturb [OPTIONS]                                                                              
-422c402
+422c403
 <  Usage: physverify dataset pull-image [OPTIONS]                                                                         
 ---
 >  Usage: physverify synth pull-image [OPTIONS]                                                                           
-432c412
+432c413
 <  Usage: physverify dataset render [OPTIONS]                                                                             
 ---
 >  Usage: physverify synth render [OPTIONS]                                                                               
-446c426
+446c427
 <  Usage: physverify dataset simulate [OPTIONS]                                                                           
 ---
 >  Usage: physverify synth simulate [OPTIONS]                                                                             
-467c447
+467c448
 < │ scenes  Base vs fine-tuned reports of the fixed demo scenes (after h3 freeze).                                       │
 ---
 > │ scenes  Base vs fine-tuned reports of the fixed demo scenes (after compare-generators freeze).                       │
-504c484
+504c485
 <  Base vs fine-tuned reports of the fixed demo scenes (after h3 freeze).                                                 
 ---
 >  Base vs fine-tuned reports of the fixed demo scenes (after compare-generators freeze).                                 
-892c872
 <  Usage: physverify h3 [OPTIONS] COMMAND [ARGS]...                                                                       
 ---
 >  Usage: physverify compare-generators [OPTIONS] COMMAND [ARGS]...                                                       
-912c892
 <  Usage: physverify h3 compare [OPTIONS]                                                                                 
 ---
 >  Usage: physverify compare-generators compare [OPTIONS]                                                                 
-922c902
 <  Usage: physverify h3 freeze [OPTIONS]                                                                                  
 ---
 >  Usage: physverify compare-generators freeze [OPTIONS]                                                                  
-937c917
 <  Usage: physverify h3 gate-autoeval [OPTIONS]                                                                           
 ---
 >  Usage: physverify compare-generators gate-autoeval [OPTIONS]                                                           
-947c927
 <  Usage: physverify h3 generate [OPTIONS]                                                                                
 ---
 >  Usage: physverify compare-generators generate [OPTIONS]                                                                
-961c941
 <  Usage: physverify h3 judge [OPTIONS]                                                                                   
 ---
 >  Usage: physverify compare-generators judge [OPTIONS]                                                                   
-973c953
 <  Usage: physverify h3 rescore [OPTIONS]                                                                                 
 ---
 >  Usage: physverify compare-generators rescore [OPTIONS]                                                                 
-983c963
 <  Usage: physverify h3 score [OPTIONS]                                                                                   
 ---
 >  Usage: physverify compare-generators score [OPTIONS]                                                                   
-995c975
 <  Usage: physverify h3 status [OPTIONS]                                                                                  
 ---
 >  Usage: physverify compare-generators status [OPTIONS]                                                                  
-1010,1015c990,995
 < │ *  --a8v2-dir              <path>  The chain's output directory (state.env). [required]                              │
 < │    --h1-evaluation         <path>  evaluation.json with the pooled tau_b (default: the chain's).                     │
 < │    --h2-run                <path>  The verify run `agreement compare` wrote into.                                    │
