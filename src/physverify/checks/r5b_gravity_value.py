@@ -14,13 +14,9 @@ from physverify.checks._base import CheckInputs
 from physverify.checks._falls import find_falls
 from physverify.checks._params import FallParams
 from physverify.checks._results import abstain, unscored
+from physverify.physics.flights import Flight, fit_flight, flights_span
 from physverify.physics.measures.gravity_fit import gravity_rel_error
-from physverify.physics.tracks import (
-    MIN_FIT_ROWS,
-    Flight,
-    fit_flight,
-    flights_span,
-)
+from physverify.physics.tracks import MIN_FIT_ROWS
 from physverify.schema.checks import AbstainReason, CheckResult
 from physverify.schema.constants import STANDARD_GRAVITY
 from physverify.schema.contacts import ContactTable

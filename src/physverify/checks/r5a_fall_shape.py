@@ -23,19 +23,13 @@ from physverify.checks._falls import find_falls
 from physverify.checks._params import FallParams
 from physverify.checks._results import abstain, first_max, unscored
 from physverify.checks._uncertainty import check_rng, mc_sigma
+from physverify.physics.flights import Flight, fit_flight, flights_span
 from physverify.physics.measures.gravity_fit import (
     accel_inconsistency,
     fall_residual_ratio,
     lateral_accel_ratio,
 )
-from physverify.physics.tracks import (
-    MIN_FIT_ROWS,
-    Flight,
-    body_length,
-    fit_flight,
-    flights_span,
-    native_span,
-)
+from physverify.physics.tracks import MIN_FIT_ROWS, body_length, native_span
 from physverify.schema.checks import AbstainReason, CheckResult
 from physverify.schema.contacts import ContactTable
 from physverify.schema.states import ObjectStateTable

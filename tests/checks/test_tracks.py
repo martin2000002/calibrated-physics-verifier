@@ -5,6 +5,7 @@ import check_scenarios as sc
 import numpy as np
 import pytest
 
+from physverify.physics.flights import split_at_jumps
 from physverify.physics.signed_distance import signed_distance
 from physverify.physics.tracks import (
     MotionFit,
@@ -20,7 +21,6 @@ from physverify.physics.tracks import (
     rest_mask,
     row_step,
     segments,
-    split_at_jumps,
     support_plane,
     track_noise,
 )

@@ -7,7 +7,8 @@ import math
 import numpy as np
 
 from physverify.checks._params import FallParams
-from physverify.physics.tracks import Flight, FloatArray, body_length, find_flights, track_noise
+from physverify.physics.flights import Flight, find_flights
+from physverify.physics.tracks import FloatArray, body_length, track_noise
 from physverify.schema.contacts import ContactTable
 from physverify.schema.states import ObjectStateTable
 

@@ -670,6 +670,9 @@
  "src/physverify/physics/equilibrium.py": {
   "comment_or_docstring": 1
  },
+ "src/physverify/physics/flights.py": {
+  "comment_or_docstring": 1
+ },
  "src/physverify/physics/kinematics.py": {
   "comment_or_docstring": 1
  },
@@ -686,7 +689,7 @@
   "banner": 2
  },
  "src/physverify/physics/tracks.py": {
-  "comment_or_docstring": 10
+  "comment_or_docstring": 9
  },
  "src/physverify/physics/uncertainty.py": {
   "comment_or_docstring": 1
