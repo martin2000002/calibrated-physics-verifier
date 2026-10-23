@@ -25,7 +25,7 @@ from physverify.core.download import (
 )
 from physverify.core.errors import MissingInputError, UsageError
 from physverify.datasets._layout import load_annotations
-from physverify.datasets.physics_iq import (
+from physverify.datasets._physics_iq import (
     MASKS,
     TESTING,
     PhysicsIQDataset,
