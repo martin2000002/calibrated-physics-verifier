@@ -75,7 +75,10 @@ def freeze_command(
     declare_deviation: Annotated[
         str | None,
         typer.Option(
-            help="Why the freeze is redone after a test comparison (makes the study post hoc)."
+            help=(
+                "Why the freeze is redone after a test comparison (makes the human-agreement"
+                " study post hoc)."
+            )
         ),
     ] = None,
 ) -> None:

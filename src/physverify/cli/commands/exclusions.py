@@ -20,7 +20,10 @@ from physverify.cli.context import app_context
 NAME = "exclusions"
 
 app = typer.Typer(
-    help="The preregistered check exclusions the agreement study and generator comparison consume.",
+    help=(
+        "The preregistered check exclusions the human-agreement study and generator comparison"
+        " consume."
+    ),
     no_args_is_help=True,
 )
 

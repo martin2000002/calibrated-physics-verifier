@@ -117,7 +117,7 @@ def collect_inputs(request: Request) -> Inputs:
     if request.agreement_run is not None and chain.rehearsal:
         raise ResultsInputError(
             f"--agreement-run with the {chain.device} chain: "
-            "the agreement study runs only on the CPU calibration"
+            "the human-agreement study runs only on the CPU calibration"
         )
     chain.require_steps(FIT_STEPS)
     evaluation, report = _evaluation(Path(chain.required(EVALUATION_KEY)))

@@ -19,14 +19,19 @@ app = typer.Typer(help="Risk-coverage of the verdict policy and the abstention l
 OracleTableOption = Annotated[
     Path | None,
     typer.Option(
-        help="Oracle-level table for the reference (default: the calibration's oracle stratum)."
+        help=(
+            "Oracle-level table for the reference (default: the calibration chain's oracle"
+            " stratum)."
+        )
     ),
 ]
 PerceivedTableOption = Annotated[
     Path | None,
     typer.Option(
-        help="Perceived-level table for the decisions (default: the calibration's perceived "
-        "stratum)."
+        help=(
+            "Perceived-level table for the decisions (default: the calibration chain's"
+            " perceived stratum)."
+        )
     ),
 ]
 ProvisionalOption = Annotated[

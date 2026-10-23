@@ -39,8 +39,8 @@
 # test phase lists its log there before compare, so moving PHYSVERIFY_AGREEMENT_DIR and
 # PHYSVERIFY_AGREEMENT_DATA does not hide a spent test). No variable skips this; dev refuses on the
 # same evidence. It requires the freeze step's last exit 0 and every value dev recorded unchanged.
-# A pre-registration with a calibration gate (the stratum was not usable) makes the study "not
-# evaluable with the calibrated rule" whether or not test runs; test then needs
+# A pre-registration with a calibration gate (the stratum was not usable) makes the human-agreement
+# study "not evaluable with the calibrated rule" whether or not test runs; test then needs
 # PHYSVERIFY_AGREEMENT_ACCEPT_NOT_EVALUABLE=1 to spend it on that result.
 #
 # Optional (defaults in brackets), all PHYSVERIFY_AGREEMENT_*:
@@ -82,13 +82,14 @@ for name in $(compgen -e -X '!PHYSVERIFY__*'); do
     [[ "$OWN_VARS" == *[[:space:]]"${name#PHYSVERIFY__}"[[:space:]]* ]] || foreign+=" $name"
 done
 [[ -z "$foreign" ]] || die "the environment sets configuration run_human_agreement.sh does not own:$foreign" \
-    "(it would change the study without moving its frozen hashes); unset it"
+    "(it would change the human-agreement study without moving its frozen hashes); unset it"
 
 [[ -z "${PHYSVERIFY_CONFIG_DIR+set}" ]] \
-    || die "PHYSVERIFY_CONFIG_DIR is set: the study reads only the committed $REPO_ROOT/configs; unset it"
+    || die "PHYSVERIFY_CONFIG_DIR is set: the human-agreement study reads only the committed $REPO_ROOT/configs; unset it"
 [[ ! -e "$REPO_ROOT/configs/local.toml" ]] \
-    || die "$REPO_ROOT/configs/local.toml exists: it is not committed, so the study would not run the" \
-        "frozen configuration; remove it (run_human_agreement.sh sets every path and the lock itself)"
+    || die "$REPO_ROOT/configs/local.toml exists: it is not committed, so the human-agreement" \
+        "study would not run the frozen configuration; remove it (run_human_agreement.sh sets" \
+        "every path and the lock itself)"
 
 DEVICE="${PHYSVERIFY_AGREEMENT_DEVICE:-cpu}"
 [[ "$DEVICE" == cpu ]] \
@@ -138,7 +139,7 @@ STATE="$OUT/state.env"
 STEPS="$OUT/steps.tsv"
 NOTES="$OUT/notes.md"
 SUMMARY="$OUT/summary.md"
-SUMMARY_TITLE="Human agreement on VideoPhy (CPU)"
+SUMMARY_TITLE="Human-agreement study on VideoPhy (CPU)"
 SUMMARY_INFO="commit $HEAD_COMMIT, data $PHYSVERIFY__PATHS__DATA_DIR, cache $PHYSVERIFY__PATHS__CACHE_DIR, calibration $CAL, threads $THREADS"
 mkdir -p "$LOGS"
 touch "$STEPS" "$NOTES"
@@ -160,7 +161,7 @@ chain_state() {
 require_chain() {
     local device k code name
     device="$(chain_state CHAIN_DEVICE)"
-    [[ "$device" == cpu ]] || die "$CHAIN_DIR is not the calibration's cpu chain (CHAIN_DEVICE '$device')"
+    [[ "$device" == cpu ]] || die "$CHAIN_DIR is not the cpu chain of the calibration chain (CHAIN_DEVICE '$device')"
     CHAIN_RECORD_SHA="$(chain_state RECORD_SHA)"
     [[ -n "$CHAIN_RECORD_SHA" ]] || die "$CHAIN_DIR/state.env has no RECORD_SHA: its step 9 is not done"
     for ((k = 0; k <= CHAIN_STEPS; k++)); do
@@ -201,7 +202,7 @@ artifacts_unchanged() {
     [[ "$(sha_of "$CAL/calibration.json")" == "${CALIB_SHA:-}" \
         && "$(sha_of "$CAL/exclusions.json")" == "${RECORD_FILE_SHA:-}" \
         && "$(sha_of "$CAL/stage_errors.precise.json")" == "${PROFILE_SHA:-}" ]] \
-        || die "$FROZEN_BY's files in $CAL changed since the dev phase: the study must be frozen again"
+        || die "$FROZEN_BY's files in $CAL changed since the dev phase: the human-agreement study must be frozen again"
 }
 
 # Neither the comparison log of the configured pre-registration nor any log in the ledger holds
@@ -247,7 +248,7 @@ prereg_field() {
     h200_py agreement_query.py prereg "$PREREG" "$1" || die "cannot read $1 of $PREREG"
 }
 
-# What makes the pre-registration unusable for the study (nothing when it is usable).
+# What makes the pre-registration unusable for the human-agreement study (nothing when it is usable).
 prereg_problem() {
     local rule gate value
     rule="$(prereg_field rule)"
@@ -333,15 +334,15 @@ phase_dev() {
     local gate
     gate="$(prereg_field calibration_gate)"
     if [[ -n "$gate" ]]; then
-        echo "WARNING: calibration_gate not null ($gate): the study is not evaluable with the" \
-            "calibrated rule, whether or not test runs; test needs" \
+        echo "WARNING: calibration_gate not null ($gate): the human-agreement study is not evaluable with" \
+            "the calibrated rule, whether or not test runs; test needs" \
             "PHYSVERIFY_AGREEMENT_ACCEPT_NOT_EVALUABLE=1" >&2
     fi
     echo "dev frozen ($PREREG); review $SUMMARY, then run_human_agreement.sh test"
 }
 
 phase_test() {
-    local spent="the agreement test is spent: a test comparison is already logged (configured log or $LEDGER)"
+    local spent="the human-agreement study's test is spent: a test comparison is already logged (configured log or $LEDGER)"
     spent+=" and compare never runs twice. Its report is in <test verify run>/agreement/ if the"
     spent+=" write completed; if not, the compare step's log in $LOGS (or the ledger's run) says why"
     [[ -z "${TEST_COMPARED:-}" ]] || die "$spent (TEST_COMPARED in $STATE)"
@@ -359,7 +360,7 @@ phase_test() {
     [[ -z "$problem" ]] || die "the pre-registration $PREREG is not this study's: $problem"
     gate="$(prereg_field calibration_gate)"
     if [[ -n "$gate" && "${PHYSVERIFY_AGREEMENT_ACCEPT_NOT_EVALUABLE:-}" != 1 ]]; then
-        die "the calibrated stratum was not usable at the freeze ($gate): the study is not" \
+        die "the calibrated stratum was not usable at the freeze ($gate): the human-agreement study is not" \
             "evaluable with the calibrated rule whether or not test runs, and redoing the chain or" \
             "the freeze to avoid that is post hoc. Set PHYSVERIFY_AGREEMENT_ACCEPT_NOT_EVALUABLE=1 to" \
             "spend test on the descriptive result."
