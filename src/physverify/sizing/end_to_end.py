@@ -12,7 +12,7 @@ import json
 import math
 import shutil
 import urllib.request
-from collections.abc import Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass
 from functools import partial
 from pathlib import Path
@@ -21,13 +21,34 @@ from typing import Any
 import numpy as np
 from numpy.typing import NDArray
 
-from physverify.sizing.evaluate import Errors, grouped_intervals, metrics, subset, with_intervals
-from physverify.sizing.objectron import CENTER_KEYPOINT, FrameRecord, VideoRef
+from physverify.config.models import Settings
+from physverify.core.atomic import write_text_atomic
+from physverify.schema.clip import ClipManifest
+from physverify.schema.perception import MaskTrack
+from physverify.schema.scale import ScaleEstimate
+from physverify.schema.states import ObjectStateTable
+from physverify.sizing import objectron
+from physverify.sizing.evaluate import (
+    Errors,
+    grouped_intervals,
+    interval_text,
+    metrics,
+    subset,
+    with_intervals,
+)
+from physverify.sizing.objectron import CENTER_KEYPOINT, VIDEO_FILE, FrameRecord, VideoRef
+from physverify.sizing.objectron_draws import EndToEndDraw, e2e_draw, objectron_dir
+from physverify.sizing.settings import EndToEndSettings, SizingSettings
 
 NATIVE_FPS = 30.0
 TIMEOUT_S = 60.0
 Box = tuple[float, float, float, float]
 """Normalized (x0, y0, x1, y1), x right and y down in the upright (portrait) frame."""
+ScaleOutputs = Callable[
+    [ClipManifest], tuple[MaskTrack, ObjectStateTable, dict[str, ScaleEstimate]] | None
+]
+"""Track, lift and the scale of each method of a clip from the perception chain; None if any
+stage failed."""
 
 
 @dataclass(frozen=True)
@@ -205,3 +226,139 @@ def decode_frames(video: Path, target: Path, *, step: int, n_frames: int, max_si
     finally:
         capture.release()
     return written
+
+
+def truth_file(settings: Settings, clip_id: str) -> Path:
+    return objectron_dir(settings) / "e2e" / f"{clip_id}.json"
+
+
+def prepare_clip(
+    settings: Settings,
+    sizing: SizingSettings,
+    plan: EndToEndSettings,
+    frames_root: Path,
+    ref: objectron.VideoRef,
+) -> bool:
+    """Frames and truth of one video; the MOV is deleted once decoded. False if too large."""
+    clip_id = clip_id_of(ref)
+    truth_path = truth_file(settings, clip_id)
+    if truth_path.is_file():
+        return True
+    video_url = f"{sizing.bucket_url}/{objectron.video_prefix(ref)}{VIDEO_FILE}"
+    if remote_size(video_url) > plan.max_video_mb * 1e6:
+        return False
+    work = objectron_dir(settings) / "e2e_download" / clip_id
+    work.mkdir(parents=True, exist_ok=True)
+    annotation = work / "annotation.pbdata"
+    download(objectron.annotation_url(sizing.bucket_url, ref), annotation)
+    download(video_url, work / VIDEO_FILE)
+    step = step_of(plan.fps)
+    written = decode_frames(
+        work / VIDEO_FILE,
+        frames_root / clip_id,
+        step=step,
+        n_frames=round(plan.seconds * plan.fps),
+        max_side=plan.max_side,
+    )
+    buf = annotation.read_bytes()
+    parsed = objectron.sequence_objects(buf, complete=True)
+    if parsed is None:
+        raise objectron.ObjectronError(f"{ref.video_id}: annotation has no objects")
+    truth = clip_truth(ref, objectron.frame_records(buf[parsed[1] :]), step=step, n_frames=written)
+    truth_path.parent.mkdir(parents=True, exist_ok=True)
+    write_text_atomic(truth_path, truth.to_json())
+    shutil.rmtree(work)
+    return True
+
+
+def manifest_of(refs: Sequence[objectron.VideoRef], plan: EndToEndSettings) -> dict[str, Any]:
+    return {
+        "clips": [
+            {
+                "video": f"{clip_id_of(ref)}/",
+                "real_fps": plan.fps,
+                "queries": [{"phrase": ref.label.replace("_", " "), "expected_count": 1}],
+            }
+            for ref in refs
+        ]
+    }
+
+
+def clip_record(
+    settings: Settings, outputs: ScaleOutputs, clip: ClipManifest, min_box_iou: float
+) -> tuple[dict[str, Any], list[ScaleRow]]:
+    record: dict[str, Any] = {"clip": clip.clip_id}
+    path = truth_file(settings, clip.clip_id)
+    if not path.is_file():
+        return {**record, "excluded": "no_truth"}, []
+    truth = ClipTruth.from_json(path.read_text(encoding="utf-8"))
+    loaded = outputs(clip)
+    if loaded is None:
+        return {**record, "excluded": "chain_failed"}, []
+    track, lift, estimates = loaded
+    match = match_object(truth, track.masks, track.sampling.frame_indices)
+    if match is None or match[1] < min_box_iou:
+        iou = None if match is None else match[1]
+        return {**record, "excluded": "low_box_iou", "iou": iou}, []
+    object_id = str(track.object_ids[match[0]])
+    n = lift.object_ids.tolist().index(object_id)
+    s_true = true_scale(truth, lift.position[:, n, 2], lift.frame_index)
+    record |= {"label": truth.label, "iou": match[1], "s_true": s_true}
+    rows = [
+        ScaleRow(clip.clip_id, method, s_true, est.meters_per_unit, est.sigma)
+        for method, est in estimates.items()
+        if est.meters_per_unit is not None and math.isfinite(s_true)
+    ]
+    record["rows"] = [asdict(r) for r in rows]
+    return record, rows
+
+
+def prepare(
+    settings: Settings,
+    sizing: SizingSettings,
+    plan: EndToEndSettings,
+    frames_root: Path,
+    reader: objectron.PrefixReader,
+) -> tuple[EndToEndDraw, Path]:
+    """Prepare the drawn clips under ``frames_root`` and write their ``manifest.json``."""
+    draw = e2e_draw(
+        settings, sizing, plan, reader, partial(prepare_clip, settings, sizing, plan, frames_root)
+    )
+    manifest = frames_root / "manifest.json"
+    write_text_atomic(manifest, json.dumps(manifest_of(draw.taken, plan), indent=1))
+    return draw, manifest
+
+
+def evaluate_clips(
+    settings: Settings, sizing: SizingSettings, clips: Iterable[ClipManifest], outputs: ScaleOutputs
+) -> dict[str, Any]:
+    rows: list[ScaleRow] = []
+    per_clip: list[dict[str, Any]] = []
+    for clip in clips:
+        record, clip_rows = clip_record(settings, outputs, clip, sizing.e2e.min_box_iou)
+        per_clip.append(record)
+        rows += clip_rows
+    excluded: dict[str, int] = {}
+    for record in per_clip:
+        if "excluded" in record:
+            excluded[record["excluded"]] = excluded.get(record["excluded"], 0) + 1
+    total = summarize(rows, n_boot=sizing.bootstrap, seed=sizing.seed, ci=sizing.ci)
+    return {
+        "estimated": True,
+        "n_clips": len(per_clip),
+        "excluded": excluded,
+        "min_box_iou": sizing.e2e.min_box_iou,
+        "total": total,
+        "per_clip": per_clip,
+        "camera": "assumed FOV (the true-FOV attribution is not run)",
+        "truth_limit": "ARKit depth of the box center; its own error is not documented",
+    }
+
+
+def e2e_lines(report: Mapping[str, Any]) -> list[str]:
+    lines = [
+        f"{method}: n {m['n']}  median|s/s-1| {interval_text(m['median_abs_rel'])}  "
+        f"rms log {interval_text(m['rms_log'])}  cover 1s {interval_text(m['cover_1s'])}"
+        for method, m in report["total"].items()
+    ]
+    return [*lines, f"excluded: {report['excluded']}"]

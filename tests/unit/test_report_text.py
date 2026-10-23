@@ -139,7 +139,7 @@ FORMATTERS: dict[str, list[tuple[Any, str]]] = {
         (3, "3"),
         (-12, "-12"),
     ],
-    "physverify.cli.commands.size:_number": [
+    "physverify.sizing.evaluate:_number": [
         (None, "n/a"),
         (0.0, "0.000"),
         (-0.0, "-0.000"),

@@ -63,7 +63,6 @@ if TYPE_CHECKING:
 SECTION = "objectron_static"
 SELECTION_FILE = "selection.json"
 FRAMES_DIR = "frames"
-VIDEO_FILE = "video.MOV"
 LOCAL, FULL = "local", "full"
 SUBSETS = (LOCAL, FULL)
 REVISION = "unversioned bucket, md5 per object; official {split} index"
@@ -313,7 +312,7 @@ class ObjectronStaticDataset:
         return decoded
 
     def _listed(self, client: HttpClient, ref: objectron.VideoRef) -> Mapping[str, Any] | None:
-        name = f"{objectron.video_prefix(ref)}{VIDEO_FILE}"
+        name = f"{objectron.video_prefix(ref)}{objectron.VIDEO_FILE}"
         items = list_objects(client, self._sizing.listing_url, name, self._s.retries)
         return next((item for item in items if item.get("name") == name), None)
 

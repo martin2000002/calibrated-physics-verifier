@@ -10,7 +10,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from physverify.config.models import Settings
+from physverify.core.errors import MissingInputError
 from physverify.sizing import objectron
+from physverify.sizing.samples import SizeSample, samples_of
 from physverify.sizing.settings import EndToEndSettings, SizingSettings
 
 DATASET_DIR = "objectron"
@@ -87,3 +89,20 @@ def e2e_draw(
             else:
                 skipped.append(ref)
     return EndToEndDraw(tuple(taken), tuple(skipped))
+
+
+def load_samples(
+    settings: Settings, sizing: SizingSettings, split: str, reader: objectron.PrefixReader
+) -> list[SizeSample]:
+    heads = objectron_dir(settings) / "heads"
+    samples: list[SizeSample] = []
+    missing = []
+    for ref in selection(settings, sizing, split, reader):
+        path = objectron.head_path(heads, ref)
+        if not path.is_file():
+            missing.append(ref.video_id)
+            continue
+        samples += samples_of(ref, objectron.load_head(path), split, sizing.min_extent_m)
+    if missing:
+        raise MissingInputError(f"{len(missing)} annotations not fetched; run `size fetch`")
+    return samples

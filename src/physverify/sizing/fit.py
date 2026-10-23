@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
 
 from physverify.sizing.model import ClassSize, SizeModelTable
 from physverify.sizing.samples import SizeSample, log_lengths
+from physverify.sizing.settings import SizingSettings
 from physverify.stats.folds import grouped_folds
 
 MIN_CLASS_OBJECTS = 2
@@ -98,3 +100,21 @@ def render_toml(model: SizeModelTable) -> str:
 
 def _string(text: str) -> str:
     return '"' + text.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def fit_record(
+    model: SizeModelTable, train: Sequence[SizeSample], sizing: SizingSettings
+) -> dict[str, Any]:
+    """Fit evidence; the test sigma is measured by ``size eval`` (eval.json), never here."""
+    return {
+        "estimated": True,
+        "model": model.model_dump(mode="json"),
+        "n_objects": len(train),
+        "n_videos": len({s.video_id for s in train}),
+        "folds": sizing.folds,
+        "factor_at_coverage": {
+            str(q): conformal_factor(train, sizing.folds, sizing.seed, q) for q in (0.683, 0.954)
+        },
+        "test_sigma": "see eval.json (size eval)",
+        "truth_limit": "box sizes come from ARKit; their own error is not documented",
+    }
