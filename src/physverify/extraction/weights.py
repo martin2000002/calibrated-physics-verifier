@@ -48,7 +48,7 @@ class NetworkDownloader:
     def http_file(self, url: str, dest: Path) -> None:
         partial = dest.with_name(dest.name + ".part")
         dest.parent.mkdir(parents=True, exist_ok=True)
-        with urllib.request.urlopen(url) as response, partial.open("wb") as out:  # noqa: S310
+        with urllib.request.urlopen(url) as response, partial.open("wb") as out:
             shutil.copyfileobj(response, out, CHUNK_BYTES)
         partial.replace(dest)
 

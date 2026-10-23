@@ -53,4 +53,4 @@ def write_mp4(frames: NDArray[np.uint8], path: Path, fps: float) -> None:
         partial.unlink(missing_ok=True)
         raise
     writer.release()
-    os.replace(partial, path)
+    partial.replace(path)

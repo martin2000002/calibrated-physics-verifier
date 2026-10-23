@@ -198,5 +198,5 @@ class StageCache:
             json.dumps(params.model_dump(mode="json"), indent=2, sort_keys=True), encoding="utf-8"
         )
         shutil.rmtree(final, ignore_errors=True)
-        os.replace(staging, final)
+        staging.replace(final)
         return final

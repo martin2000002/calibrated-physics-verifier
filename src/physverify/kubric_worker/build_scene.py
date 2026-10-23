@@ -193,19 +193,19 @@ def _owned_pybullet() -> type:
 
 
 def _object(kb: Any, obj: ObjectSpec, segmentation_id: int) -> tuple[Any, Any]:
-    common = dict(
-        name=obj.object_id,
-        position=tuple(obj.position),
-        quaternion=tuple(obj.quaternion),
-        velocity=tuple(obj.velocity),
-        angular_velocity=tuple(obj.angular_velocity),
-        mass=obj.mass,
-        friction=obj.friction,
-        restitution=obj.restitution,
-        static=obj.static,
-        material=kb.PrincipledBSDFMaterial(color=kb.Color(*obj.color)),
-        segmentation_id=segmentation_id,
-    )
+    common: dict[str, Any] = {
+        "name": obj.object_id,
+        "position": tuple(obj.position),
+        "quaternion": tuple(obj.quaternion),
+        "velocity": tuple(obj.velocity),
+        "angular_velocity": tuple(obj.angular_velocity),
+        "mass": obj.mass,
+        "friction": obj.friction,
+        "restitution": obj.restitution,
+        "static": obj.static,
+        "material": kb.PrincipledBSDFMaterial(color=kb.Color(*obj.color)),
+        "segmentation_id": segmentation_id,
+    }
     if obj.primitive in (PrimitiveKind.BOX, PrimitiveKind.SPHERE):
         cls = kb.Cube if obj.primitive is PrimitiveKind.BOX else kb.Sphere
         return cls(scale=kubric_scale(obj.extents, *PRIMITIVE_BOUNDS), **common), PRIMITIVE_BOUNDS
@@ -249,7 +249,7 @@ def _hdri_dome(kb: Any, built: BuiltScene, hdri_id: str) -> None:
     import bpy
 
     background = kb.AssetSource.from_manifest(HDRI_MANIFEST).create(asset_id=hdri_id)
-    built.renderer._set_ambient_light_hdri(background.filename)  # noqa: SLF001 - Kubric has no public API
+    built.renderer._set_ambient_light_hdri(background.filename)
     dome = kubasic_source().create(
         asset_id="dome",
         name="dome",
@@ -316,7 +316,7 @@ def _temporary(path: Path) -> Path:
 def write_json(path: Path, payload: Any) -> None:
     tmp = _temporary(path)
     tmp.write_text(dumps(payload), encoding="utf-8")
-    os.replace(tmp, path)
+    tmp.replace(path)
 
 
 def save_record(record: Record, path: Path) -> None:
@@ -325,21 +325,21 @@ def save_record(record: Record, path: Path) -> None:
         record.save_npz(tmp)
     else:
         record.save_json(tmp)
-    os.replace(tmp, path)
+    tmp.replace(path)
 
 
 def save_arrays(path: Path, arrays: dict[str, Any]) -> None:
     tmp = _temporary(path)
     with tmp.open("wb") as handle:
         np.savez_compressed(handle, **arrays)
-    os.replace(tmp, path)
+    tmp.replace(path)
 
 
 def guarded(job: dict[str, Any], work: Callable[[dict[str, Any]], None]) -> bool:
     """Runs one job; an error lands in ``failed_path`` so the remaining jobs still run."""
     try:
         work(job)
-    except Exception as exc:  # noqa: BLE001 - every failure is reported per job
+    except Exception as exc:
         write_json(
             Path(job["failed_path"]),
             {"error": f"{type(exc).__name__}: {exc}", "traceback": traceback.format_exc()},

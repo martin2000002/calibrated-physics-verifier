@@ -55,10 +55,10 @@ def closest_points(job: dict[str, Any]) -> None:
             for a, b in object_pairs(present):
                 other = floor if b is None else bodies[b]
                 name_b = ENV_ID if b is None else ids[b]
-                for point in pb.getClosestPoints(
+                points = pb.getClosestPoints(
                     bodies[a], other, float(job["tol"]), physicsClientId=client
-                ):
-                    rows.append((t, ids[a], name_b, *_point(point)))
+                )
+                rows.extend((t, ids[a], name_b, *_point(point)) for point in points)
     save_arrays(Path(job["out_path"]), closest_arrays(rows))
 
 
