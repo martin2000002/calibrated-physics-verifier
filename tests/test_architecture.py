@@ -21,7 +21,6 @@ KNOWN_VIOLATIONS: frozenset[str] = frozenset(
     {
         "physverify.datasets.pisa_real -> physverify.extraction.providers._common",
         "physverify.datasets.pisa_real -> physverify.extraction.providers.scale_size_prior",
-        "physverify.finetune.budget -> physverify.timing.budget",
         "physverify.sizing.model -> physverify.extraction.providers._common",
         "physverify.sizing.model -> physverify.extraction.providers.scale_size_prior",
         "physverify.verification.selective_risk -> physverify.calibration.table",

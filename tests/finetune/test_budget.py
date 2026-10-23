@@ -5,8 +5,8 @@ from dataclasses import replace
 
 import pytest
 
-from physverify.finetune.budget import FinetuneBudgetQuery, budget_lines, train_prompts
 from physverify.timing.budget import BudgetError, CostPerVideo
+from physverify.timing.finetune_budget import FinetuneBudgetQuery, budget_lines, train_prompts
 
 QUERY = FinetuneBudgetQuery(
     gpu_hours=100.0,

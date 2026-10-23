@@ -482,9 +482,6 @@
  "src/physverify/extraction/weights.py": {
   "comment_or_docstring": 1
  },
- "src/physverify/finetune/budget.py": {
-  "comment_or_docstring": 3
- },
  "src/physverify/finetune/candidate_scoring.py": {
   "comment_or_docstring": 1
  },
@@ -789,6 +786,9 @@
  },
  "src/physverify/timing/budget.py": {
   "comment_or_docstring": 1
+ },
+ "src/physverify/timing/finetune_budget.py": {
+  "comment_or_docstring": 3
  },
  "src/physverify/timing/recorder.py": {
   "comment_or_docstring": 2

@@ -39,12 +39,6 @@ from physverify.cli.context import app_context, heavy_command
 from physverify.core.atomic import write_text_atomic
 from physverify.core.digests import file_sha256
 from physverify.core.errors import EXIT_ERROR, UsageError
-from physverify.finetune.budget import (
-    PAIR_MEASURE,
-    FinetuneBudgetQuery,
-    budget_lines,
-    train_prompts,
-)
 from physverify.finetune.candidate_scoring import rescorer, score_candidates, stale_scores
 from physverify.finetune.candidates import CandidateGenerator
 from physverify.finetune.dpo import SIGMA_LEVELS, ShiftedFlowNoise
@@ -108,6 +102,12 @@ from physverify.generation.wan21 import snapshot_dir, snapshot_problem
 from physverify.generator_comparison.arms import EVAL_SPLIT
 from physverify.runtime.runs import RUN_FILE, current_commit
 from physverify.timing.budget import BudgetError, cost_from_results
+from physverify.timing.finetune_budget import (
+    PAIR_MEASURE,
+    FinetuneBudgetQuery,
+    budget_lines,
+    train_prompts,
+)
 from physverify.timing.report import load_results, load_samples
 from physverify.timing.settings import load_timing
 from physverify.timing.stats import across_medians, stat_rows
