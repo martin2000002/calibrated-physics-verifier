@@ -23,22 +23,19 @@ from physverify.timing.records import (
     TargetResult,
     TargetStatus,
 )
-from physverify.timing.report import (
+from physverify.timing.report import SUMMARY, TOTAL_LABEL, rebuild, render_summary
+from physverify.timing.results_io import (
     FAILURES,
     RESULTS,
     SAMPLE_COLUMNS,
     SAMPLES,
     STAT_COLUMNS,
     STATS,
-    SUMMARY,
-    TOTAL_LABEL,
     CsvSampleSink,
     ResultsWriter,
     load_failures,
     load_results,
     load_samples,
-    rebuild,
-    render_summary,
     write_results,
 )
 from physverify.timing.settings import TargetRunSettings

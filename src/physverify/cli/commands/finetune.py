@@ -108,7 +108,7 @@ from physverify.timing.finetune_budget import (
     budget_lines,
     train_prompts,
 )
-from physverify.timing.report import load_results, load_samples
+from physverify.timing.results_io import load_results, load_samples
 from physverify.timing.settings import load_timing
 from physverify.timing.stats import across_medians, stat_rows
 

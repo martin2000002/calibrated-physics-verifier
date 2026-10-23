@@ -26,7 +26,8 @@ from physverify.timing.records import (
     TargetStatus,
     generate_measure,
 )
-from physverify.timing.report import RESULTS, SAMPLES, STATS, SUMMARY, TOTAL_LABEL, load_results
+from physverify.timing.report import SUMMARY, TOTAL_LABEL
+from physverify.timing.results_io import RESULTS, SAMPLES, STATS, load_results
 from physverify.timing.settings import load_timing
 from physverify.timing.target_services import TimingServices
 
