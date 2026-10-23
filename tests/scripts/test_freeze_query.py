@@ -265,7 +265,7 @@ def test_a_j3_change_record_mismatch_or_other_calibration_refuses_the_manifest(
         _manifest(inputs, settings, FakeGit({}))
 
 
-def test_a_plugin_that_fails_to_load_refuses_the_manifest_after_j3(
+def test_a_plugin_that_fails_to_load_refuses_the_manifest_after_the_diffs(
     script: ModuleType,
     tmp_path: Path,
     config_dir: Path,
@@ -274,7 +274,7 @@ def test_a_plugin_that_fails_to_load_refuses_the_manifest_after_j3(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """The check registry is built only for the record, after the J3 and v1 refusals, and a
+    """The check registry is built only for the record, after the diff and v1 refusals, and a
     plugin that fails to load is a refusal (exit 2), not a traceback."""
     settings = _settings(config_dir, environ, tmp_path)
     _frozen_files(settings)
@@ -292,7 +292,8 @@ def test_a_plugin_that_fails_to_load_refuses_the_manifest_after_j3(
     monkeypatch.setattr(script, "_settings", lambda extra=None: settings)
     monkeypatch.setattr(script, "_git", FakeGit({"b" * 40: ["src/physverify/checks/r1.py"]}))
     assert script.main(argv) == 2
-    assert capsys.readouterr().err.startswith("freeze_query: J3")
+    refusal = capsys.readouterr().err
+    assert refusal.startswith("freeze_query: ") and "refit, not adopt" in refusal
     monkeypatch.setattr(script, "_git", FakeGit({}))
     assert script.main(argv) == 2
     assert capsys.readouterr().err == "freeze_query: the checks plugin r9 does not load\n"
