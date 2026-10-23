@@ -53,8 +53,8 @@ ssh h200 'nohup bash /home/mmonterot/dev/wt/refactor_check.sh refactor/architect
 | 2 | shared foundations, dedupe | done, audited |
 | 3 | composition root `app/`, plugin kinds | done, audit pending |
 | 4a | pure package/module renames | done, audit pending |
-| 4b | thin CLI (<=150 lines per command) | todo |
-| 5 | split modules >400 lines, layer fixes, `tests/test_architecture.py` | todo |
+| 4b | thin CLI (<=150 lines per command) | done (S0, A, B, C merged), fix-ups done, audit pending |
+| 5 | split modules >400 lines, layer fixes, `tests/test_architecture.py` | done (S0, A, B, C merged), fix-ups done, audit pending |
 | 6 | tests mirror src | todo |
 | 7 | config layout `configs/{verifier,datasets,studies}` | todo |
 | 8 | CLI, script and env-var renames | todo |
@@ -182,3 +182,74 @@ S0 checks: the harness from `9eb5888` to `4bdd55b` exits 0 (`wp1-audit-migration
 `wp4a-config-comments.diff`; 59 golden blobs identical); targeted suites pass (2207 passed, 9
 skipped for S0.4); ruff and mypy are clean; the process-label baseline changes only by the
 `_sealed.py` -> `sealing.py` move.
+
+## WP4b/WP5
+
+| Part | Scope | State |
+|---|---|---|
+| S0 | shared seams (`3ab707e`..`4bdd55b`) | done, merged (`bc9b0d2`) |
+| C | physics, checks, synth, sizing, diagnosis, extract, scene-stats (`911fde0`..`7863eb5`) | done, merged (`4d22c47`) |
+| A | calibration, selective risk, exclusions, verification (`f060f69`..`cbdc58f`) | done, merged (`0aa1bb7`) |
+| B | generation, finetune, timing, h3, demo, agreement (`157e378`..`a93454b`) | done, merged (`cbd3f4c`) |
+| fix-ups | audit findings of C6-C9 and B (`c947fad`..HEAD) | done, audit pending |
+
+Departures of stream C:
+
+- `write_report` moved from `diagnosis/report.py` to `diagnosis/report_markdown.py` with the
+  markdown rendering (the plan kept it in `report.py`); the cell formatters are in
+  `diagnosis/markdown_cells.py`.
+- `SizePriorParams` is a `FrozenModel` with `title="Params"`, so its JSON schema title is
+  unchanged; the `TypeError` text of `expect_params` now names `SizePriorParams`.
+- `VIDEO_FILE` moved to `sizing/objectron.py`. `sizing.end_to_end.evaluate_clips` receives the
+  scale step as an injected `ScaleOutputs` callable (`app.sizing.scale_outputs`).
+- `synth.jobs.JobContext` is a Protocol (settings, registries, docker), so `synth` does not import
+  `app`.
+- C9 needed extra import edits beyond the moved files (importers of the moved names).
+- C9 evidence: `extraction/cache.py:96-110` (`stage_key`) hashes the provider name and version and
+  the params dump, not the provider's module path, so the moves do not change cache keys; the
+  `doctor` S1 output is equal per the harness (exit 0).
+
+Departures of stream A:
+
+- The exclusion code is four modules (`calibration/exclusion_{rules,decision,inputs,detector_arms}.py`)
+  with each rule id named once in `RULE_IDS`; the command wiring is in
+  `app/exclusions.py`, and `families_without_target` is in the app layer.
+- `specificity` and `null_band` live in `target_ranking`.
+- `core/output.Echo` is the line-sink alias; the verify flow is `app/verification.py`.
+- A8/J14: `scripts/h200/freeze_query.py` moves to WP8.
+
+Departures of stream B:
+
+- D1: `generation` is a sibling of `verification`
+  (`"physverify.verification | physverify.generation"`), not on the synth line as ADR 0017 A.1
+  had it, because it imports `extraction` and `datasets`.
+- D3: the finetune budget is `timing/finetune_budget.py`, not `runtime/budget` (A.1, JW7), because
+  it depends on `timing.records` and `timing.stats`.
+- The B5 metrics classes stay in the trainer.
+- Extra modules `generator_comparison/analysis_inputs.py` and `reporting/values.py` break an import
+  cycle; `app/finetune_training.py` holds the training flows (with `select`).
+- `choice()` went to `core/errors` (now `core/choices`, see below).
+- `H3Context` holds `Settings` (D7).
+- `agreement compare` stayed in the CLI (now moved, see below); the logger name `cli.agreement`
+  is kept so log lines do not change.
+
+Fix-ups after the C and B audits (`c947fad`..HEAD):
+
+- `extract run` calls `app.extraction.run_extraction`; it and `app.diagnosis.execute` share
+  `app.extraction.recorded_run`. `scene-stats per-clip` wiring is `app.scene_stats.collect_per_clip`.
+- `size fetch/fit/eval` call `app.sizing.{fetch_heads,fit_and_write,evaluate_test_split}`.
+- The diagnose runners are factories in `app.diagnosis` with the ledger label and `err` injected;
+  seams `app.diagnosis.run_stage_errors` and `app.diagnosis.real_datasets`.
+- `PluginContext` lives in `config/plugin_context.py`; `JobContext` extends it with `docker`.
+  `SIZE_PRIORS_SECTION` lives in `config/models.py`.
+- Every `echo`/`err`/`notify` line sink is typed `Echo` and keyword-only in the services touched.
+- `agreement compare` calls `human_agreement.workflow.compare_and_report` (seam
+  `human_agreement.workflow.write_comparison`); the log timestamp comes from an injected clock.
+- `generator_comparison.context.campaign_prompts` and `available_scorer` are gone
+  (`finetune.prompts.campaign_prompts`, `app.finetune.active_scorer`); `app.demo.active_scorer` is
+  `demo_rule`; `choice()` is in `core/choices.py`; `STOP_RULE_DEVIATION` is `Final` in
+  `finetune/stop_rule.py`; `timing.session.report` is the formatter `timing.report.run_lines`.
+- `tests/synth/test_truth_measure_pins.py` compares the `float.hex` pins within float tolerance
+  (rel 1e-9, abs 1e-12; NaN and `not_applicable` exact): the H200 and the laptop differ in the last
+  bits for the same commit.
+- No `src` module is over 400 lines and no command module over 150, so nothing else was split.
