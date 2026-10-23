@@ -1,4 +1,4 @@
-"""Resumable, verified downloads and local layout shared by the real datasets (ADR 0007 §4.2).
+"""Resumable, verified downloads shared by the real datasets.
 
 Bytes land in ``<file>.part`` and are renamed into place only after their size and checksum
 match, so an interrupted fetch never leaves a file that looks complete.
@@ -24,13 +24,12 @@ from typing import IO, Any, BinaryIO, Protocol
 from pydantic import BaseModel, ConfigDict, ValidationError
 
 from physverify.core.atomic import write_text_atomic
-from physverify.core.digests import file_sha256
+from physverify.core.digests import CHUNK_BYTES, file_sha256
 from physverify.core.errors import PhysverifyError
 from physverify.core.log import get_logger
 
 PART_SUFFIX = ".part"
 MANIFEST_FILE = "manifest.json"
-CHUNK_BYTES = 1 << 20
 HTTP_OK = 200
 HTTP_PARTIAL = 206
 TIMEOUT_S = 60.0
