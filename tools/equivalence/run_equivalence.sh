@@ -2,7 +2,7 @@
 # Behavior-equivalence harness: run the same CPU CLI scenarios on two revisions and diff the
 # normalized stdout, stderr, exit codes and written files.
 #
-#   run_equivalence.sh <left-rev> <right-rev>     e.g. 9eb5888 refactor/architecture
+#   run_equivalence.sh <left-rev> <right-rev>     e.g. 9eb5888 HEAD
 #
 # Output under $EQ_WORKDIR (default $TMPDIR/physverify-equivalence): out/<label>/ (raw run dirs), norm/<label>/ (normalized), diff.txt, golden.txt.
 # EQ_EXPECTED: space-separated file names under expected/ whose concatenated lines are the expected

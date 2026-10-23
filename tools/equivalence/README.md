@@ -1,7 +1,7 @@
 # Behavior-equivalence harness
 
 ```sh
-bash tools/equivalence/run_equivalence.sh 9eb5888 refactor/architecture       # ~3 min on the laptop, CPU only
+bash tools/equivalence/run_equivalence.sh 9eb5888 HEAD   # ~3 min on the laptop, CPU only
 Repo/.venv/bin/python tools/equivalence/ast_equal.py <repo> <old-rev> <new-rev> [--renames r.tsv] [--allow a.tsv]
 ```
 
