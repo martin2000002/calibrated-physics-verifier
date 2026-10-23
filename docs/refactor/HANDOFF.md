@@ -543,3 +543,14 @@ the remaining tests) in parallel, merged A -> B -> C, then the integration branc
   set, the two unused callback arguments in `timing/{harness,session}.py` take a leading underscore.
 - `lint-imports` is not installed in the venv; `tests/test_architecture.py` reads
   `[tool.importlinter]` and enforces the same contracts with `ast`.
+
+## Resume point (paused 2026-10-23)
+
+Branch `refactor/wp9-10` (tip 335a5d2) holds WP9+WP10. Phase 0 and streams A, B and C are audited and merged. The
+integration commits are ba068b5..335a5d2: expected diffs, the zero-label scanner, the strict pyproject, the glossary
+and the handoff. The integration programmer was stopped before its report, so none of them is verified yet. To resume:
+1. Run `.venv/bin/ruff check . && .venv/bin/ruff format --check .`, then `PYTHONPATH=src .venv/bin/mypy`, then
+   `PYTHONPATH=src .venv/bin/python -m pytest -q tests/test_process_labels.py tests/equivalence tests/contracts`.
+2. Run the harness `9eb5888 HEAD` (must exit 0, 59 golden blobs), then the full H200 suite (label `wp910`).
+3. Audit the integration commits, fix what the audit finds, then fast-forward `refactor/architecture` to the result.
+4. WP11 (CLAUDE.md, README, scripts/h200/README.md rewrite; delete docs/refactor/), then the final global review.
