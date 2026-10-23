@@ -18,4 +18,4 @@ def test_a_missing_file_has_no_digest(tmp_path: Path) -> None:
 
 
 def test_text_digest_is_over_utf8() -> None:
-    assert text_sha256("é") == hashlib.sha256("é".encode()).hexdigest()
+    assert text_sha256("\u00e9") == hashlib.sha256("\u00e9".encode()).hexdigest()
