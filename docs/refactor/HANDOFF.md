@@ -51,7 +51,7 @@ ssh h200 'nohup bash /home/mmonterot/dev/wt/refactor_check.sh refactor/architect
 | 0 | ADR, `tests/contracts/`, harness | done, audited, H200 green |
 | 1 | dead code and one-off scripts | done, audited, H200 green (`0d4b15b`: 3415 passed, 9 skipped) |
 | 2 | shared foundations, dedupe | done, audited |
-| 3 | composition root `app/`, plugin kinds | todo |
+| 3 | composition root `app/`, plugin kinds | done, audit pending |
 | 4a | pure package/module renames | todo |
 | 4b | thin CLI (<=150 lines per command) | todo |
 | 5 | split modules >400 lines, layer fixes, `tests/test_architecture.py` | todo |
@@ -82,7 +82,8 @@ Kept separate, with reasons recorded in the ADR:
 - the agreement `CALIBRATED_NAME`;
 - the two `NO_DECIDED` values.
 
-Known upward import, left for WP5: `timing/envinfo.py:21` imports `cli.commands.doctor`.
+`timing/envinfo.py` no longer imports `cli.commands.doctor`: WP3 moved `package_version` to
+`runtime/environment.py` (`cdb3193`). `truth_measures` stays for WP5.
 
 Accepted departures from the plan:
 
@@ -97,3 +98,28 @@ Accepted departures from the plan:
 The WP2 audit PASSED, after its fixes: the last in-image and clearance refusals go through
 `_edit.require_in_image` and `_edit.require_clearance`, `RUN_FILE` is `Final`, and the harness
 compares against the expected diffs in `tools/equivalence/expected/`.
+
+WP3 (`93b4dcf`..`4952261`) builds every registry through `app.plugins.PLUGIN_KINDS` (11 kinds,
+with `scorers` and `judges`) and wires repeated services in `app/services.py`. Departures from the
+plan:
+
+- The verification adapter (`A7CheckSuite.build` with explicit dependencies) went first, and the
+  scorers commit went before the check-registry commit, because `CalibratedScorer` fell back to
+  `check_registry()`.
+- The scorer helper is `app.services.context_scorer`, so it does not shadow `scorer` locals; the
+  stop-rule and demo helpers take the `AppContext`.
+- `app.services.plan_for` and `app.services.chain_runner` wire the plan and the chain runner with
+  the context's checks for the four commands that built each one.
+- `config.models.validated` holds the model validation that `Settings.section` and the runner
+  duplicated; the `[checks]` section lives in `verification/check_set.py`.
+- `dataset.py`'s `Run` alias became `runtime.docker.Runner`; `select_clips` gained a one-line
+  docstring in `datasets/_base.py`.
+- Commands are not a plugin kind; the heavy-import subprocess test discovers them itself, and the
+  equivalence driver falls back to `discover_modules` when no kind is `commands`.
+- The timing `PlanFactory` takes `TimingServices` to reach the checks.
+- `core.registry.protocol_members` counts classmethods and staticmethods, so `ExternalJudge`
+  validates; no earlier protocol had one.
+- 8 test files patch `plugins.PLUGIN_KINDS`, not 9: the base had 8 files patching it.
+
+WP3 checks: the harness from `9eb5888` to `4952261` exits 0 (only the expected
+`wp1-audit-migration.diff`; 59 golden blobs identical); targeted tests, ruff and mypy are clean.
