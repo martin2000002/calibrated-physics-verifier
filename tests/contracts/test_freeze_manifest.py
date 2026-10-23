@@ -194,7 +194,9 @@ def _git_lines(*args: str) -> list[str]:
 
 def _destinations(sources: tuple[str, ...]) -> set[str]:
     renames = {}
-    for line in _git_lines("diff", "-M", "--name-status", REFACTOR_BASE, "HEAD"):
+    # 40 %: selective_risk/curve.py kept 44 % of verification/selective_risk.py once its
+    # dict-table helpers became ThresholdTable methods.
+    for line in _git_lines("diff", "-M40%", "--name-status", REFACTOR_BASE, "HEAD"):
         status, *paths = line.split("\t")
         if status.startswith("R"):
             renames[paths[0]] = paths[1]

@@ -12,8 +12,7 @@ from support import entry, make_context, profile_of, run_provider
 from synthetic_clip import SyntheticClip
 
 from physverify.extraction._base import GROUND_TRUTH
-from physverify.extraction.matching import align_ground_truth
-from physverify.extraction.providers._backprojection import (
+from physverify.extraction.backprojection import (
     LiftErrors,
     ObjectSummary,
     closed_form_sigma,
@@ -23,8 +22,9 @@ from physverify.extraction.providers._backprojection import (
     object_position,
     resolve_disparity_shift,
 )
-from physverify.extraction.providers._gravity_pose import LEVEL_CAMERA_GRAVITY
-from physverify.extraction.providers.camera_assumed_fov import AssumedFovCamera
+from physverify.extraction.gravity_pose import LEVEL_CAMERA_GRAVITY
+from physverify.extraction.matching import align_ground_truth
+from physverify.extraction.providers._assumed_fov import AssumedFovCamera
 from physverify.extraction.providers.lift_backproject import BackprojectLift
 from physverify.physics.geometry import characteristic_lengths
 from physverify.schema.clip import FrameSampling

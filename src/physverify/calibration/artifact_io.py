@@ -25,9 +25,9 @@ from physverify.core.digests import text_sha256
 from physverify.core.errors import PhysverifyError
 from physverify.core.models import LENIENT, SCHEMA_KEY
 from physverify.schema.checks import InputLevel
-from physverify.verification.runner import (
+from physverify.verification.runner import UNKNOWN_ROW_STEP
+from physverify.verification.thresholding import (
     CALIBRATED,
-    UNKNOWN_ROW_STEP,
     ArtifactRef,
     ThresholdEntry,
     ThresholdTable,

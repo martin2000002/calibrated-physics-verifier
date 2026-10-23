@@ -18,13 +18,13 @@ from physverify.diagnosis.measurement_cases import (
     stage_output,
 )
 from physverify.diagnosis.settings import MetricSettings
-from physverify.extraction.plan import ResolvedPlan
-from physverify.extraction.providers._backprojection import (
+from physverify.extraction.backprojection import (
     SummaryOptions,
     lift_depth,
     object_summary,
 )
-from physverify.extraction.providers.lift_backproject import Params as LiftParams
+from physverify.extraction.lift_params import LiftParams
+from physverify.extraction.plan import ResolvedPlan
 from physverify.schema.clip import ClipManifest
 from physverify.schema.outputs import StageOutput
 from physverify.schema.perception import CameraModel, DepthMap, MaskTrack

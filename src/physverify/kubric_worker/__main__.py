@@ -14,10 +14,11 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from physverify.kubric_worker import TASKS_PACKAGE
+
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-TASKS_PACKAGE = "physverify.kubric_worker.tasks"
 EXIT_USAGE = 2
 
 

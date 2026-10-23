@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, ClassVar
 from pydantic import Field
 
 from physverify.core.models import FrozenModel
-from physverify.datasets.kubric_synthetic import KubricSynthetic
+from physverify.datasets._kubric_synthetic import KubricSynthetic
 from physverify.schema.clip import ClipManifest, ObjectQuery
 from physverify.synth.scene_scope import expand, in_scope
 
@@ -23,6 +23,8 @@ if TYPE_CHECKING:
     from physverify.config.models import Settings
 
 SECTION = "kubric_fresh"
+FRESH_SUBSET = "full"
+VERSION_ENV = "PHYSVERIFY__DATASET__VERSION"
 
 
 class KubricFreshSettings(FrozenModel):
@@ -45,9 +47,31 @@ class KubricFresh(KubricSynthetic):
         version = self.version_of(fresh_settings(settings))
         super().__init__(settings, root=settings.paths.synthetic_dir / version)
 
+    @classmethod
+    def render_overrides(cls, fresh: KubricFreshSettings, seed: int) -> dict[str, str]:
+        """The dataset section a fresh render reads: its version, seed and scenes, with no calib
+        clip."""
+        return {
+            VERSION_ENV: cls.version_of(fresh),
+            "PHYSVERIFY__DATASET__SEED": str(seed),
+            "PHYSVERIFY__DATASET__CALIB_FRACTION": "0.0",
+            f"PHYSVERIFY__DATASET__SUBSETS__{FRESH_SUBSET.upper()}__SCENES_PER_FAMILY": str(
+                cls.scenes_of(fresh)
+            ),
+            **cls.render_extra(fresh),
+        }
+
     @staticmethod
     def version_of(fresh: KubricFreshSettings) -> str:
         return fresh.version
+
+    @staticmethod
+    def scenes_of(fresh: KubricFreshSettings) -> int:
+        return fresh.scenes_per_family
+
+    @staticmethod
+    def render_extra(_fresh: KubricFreshSettings) -> dict[str, str]:
+        return {}
 
 
 class KubricFreshOod(KubricFresh):
@@ -56,6 +80,14 @@ class KubricFreshOod(KubricFresh):
     @staticmethod
     def version_of(fresh: KubricFreshSettings) -> str:
         return fresh.ood_version
+
+    @staticmethod
+    def scenes_of(fresh: KubricFreshSettings) -> int:
+        return fresh.ood_scenes_per_family
+
+    @staticmethod
+    def render_extra(fresh: KubricFreshSettings) -> dict[str, str]:
+        return {"PHYSVERIFY__DATASET__HDRI_POOL": fresh.ood_hdri_pool}
 
 
 class KubricFreshBlind(KubricFresh):

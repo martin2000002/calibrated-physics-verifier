@@ -11,10 +11,10 @@ from typing import Any
 import numpy as np
 import pytest
 
+from physverify.calibration.api import CalibrationApi
 from physverify.core.errors import ConfigError, UsageError
 from physverify.human_agreement.clip_decision import (
     CalibratedRule,
-    CalibrationApi,
     ClipDecision,
     ProvisionalAnyFail,
     StratumRequest,
@@ -33,8 +33,9 @@ from physverify.human_agreement.undecided_policy import (
 from physverify.human_agreement.verify_run_reader import VerifyRun, load_run, run_row_step
 from physverify.schema.checks import InputLevel
 from physverify.verification.runner import RowStatus
+from physverify.verification.thresholding import ThresholdTable
 
-THRESHOLDS = {"status": "provisional", "checks": {"R1": {"tau": 0.05}, "R3a": {"tau": 0.05}}}
+THRESHOLDS = ThresholdTable.provisional({"R1": 0.05, "R3a": 0.05})
 
 
 def _decide(world, rows, excluded=()):
@@ -120,6 +121,7 @@ def _api(score: Score, problem: Exception | None = None) -> tuple[CalibrationApi
         active_checks_hash=lambda settings, checks: "hash",
         require_calibrated=lambda settings: False,
         score_clip=score_clip,
+        unique_row_step=max,
         error=FakeError,
         unusable_error=FakeUnusableError,
     )

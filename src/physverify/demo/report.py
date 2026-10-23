@@ -21,7 +21,7 @@ from physverify.finetune.records import CheckSummary, PromptRecord, finite_or_no
 from physverify.finetune.scorers._base import AggregateScore, AggregateScorer
 from physverify.schema.checks import CheckResult
 from physverify.verification.decisive import decisive
-from physverify.verification.runner import CALIBRATED, PROVISIONAL
+from physverify.verification.thresholding import CALIBRATED, PROVISIONAL
 
 REPORT_JSON: Final = "report.json"
 REPORT_MD: Final = "report.md"

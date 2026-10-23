@@ -15,7 +15,7 @@ import pytest
 
 from physverify.config.models import Settings
 from physverify.core.video import Mp4VideoSource
-from physverify.datasets.kubric_synthetic import KubricSynthetic, load_native
+from physverify.datasets._kubric_synthetic import KubricSynthetic, load_native
 from physverify.schema.contacts import ContactTable
 from physverify.schema.render import RenderLayers
 from physverify.schema.scene import CameraSpec, SceneSpec

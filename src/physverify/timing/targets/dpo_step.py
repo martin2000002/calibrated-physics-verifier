@@ -25,7 +25,7 @@ from physverify.timing._base import TimingContext
 from physverify.timing.hooks import TargetHooks
 from physverify.timing.settings import load_timing
 from physverify.timing.target_services import TimingServices
-from physverify.timing.targets.wan21_generate import module_found
+from physverify.timing.targets._modules import module_found
 
 LATENT_CHANNELS: Final = 16
 VAE_SPATIAL: Final = 8

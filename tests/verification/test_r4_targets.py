@@ -32,6 +32,7 @@ from physverify.verification.sweep import (
     target_check_ids,
 )
 from physverify.verification.target_ranking import specificity
+from physverify.verification.thresholding import ThresholdTable
 
 COUPLINGS = frozenset({("r5a_gravity_switch", "R5b"), ("r5a_gravity_switch", "R4_jump")})
 
@@ -119,7 +120,8 @@ def teleport(level: int, obj: str, scene: str = "s0") -> ClipInputs:
 
 def sweep(items: list[ClipInputs], values: dict[str, float]) -> list[object]:
     check: Check = FakeJump(values)  # type: ignore[assignment]
-    report = VerificationRunner([check], RawPolicy(), {}).run(Items(items), [i.clip for i in items])
+    runner = VerificationRunner([check], RawPolicy(), ThresholdTable.provisional({}))
+    report = runner.run(Items(items), [i.clip for i in items])
     spec = specificity(report, SpecificitySettings(), [CheckUnit.of(check)])
     return [o for o in spec.outcomes if o.check_id == "R4_jump"]
 
@@ -153,7 +155,8 @@ def real_teleport(mu: float) -> tuple[list[object], list[object]]:
     clip = replace(case.clip, perturbation=record, scene_id="s0")
     item = ClipInputs(clip, replace(case.inputs(), clip=clip), None)
     check: Check = NoiseContinuityCheck(NoiseContinuityCheck.Params())
-    report = VerificationRunner([check], RawPolicy(), {}).run(Items([item]), [clip])
+    runner = VerificationRunner([check], RawPolicy(), ThresholdTable.provisional({}))
+    report = runner.run(Items([item]), [clip])
     spec = specificity(report, SpecificitySettings(), [CheckUnit.of(check)])
     found = [o for o in spec.outcomes if o.check_id == "R4_jump"]
     return (

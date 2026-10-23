@@ -15,12 +15,12 @@ from physverify.checks._collision_windows import (
     CollisionParams,
     FloatArray,
     Window,
-    as_params,
     contact_span,
     fit_window,
     no_contacts,
     side_data,
 )
+from physverify.checks._params import as_params
 from physverify.checks._results import abstain, unscored
 from physverify.checks._uncertainty import check_rng, mc_sigma
 from physverify.physics.geometry import matrix_from_quaternion
@@ -61,11 +61,12 @@ class EnergyGainCheck:
 
     check_id: ClassVar[str] = "R3b"
     requires: ClassVar[frozenset[str]] = frozenset({"contacts"})
+    time_dependent: ClassVar[bool] = False
     magnitude_unit: ClassVar[str] = "dE_over_E"
     Params: ClassVar[type[BaseModel]] = EnergyGainParams
 
     def __init__(self, params: BaseModel) -> None:
-        self.params: EnergyGainParams = as_params(EnergyGainParams, params)
+        self.params = as_params(EnergyGainParams, params)
 
     def evaluate(self, inputs: CheckInputs) -> list[CheckResult]:
         contacts = inputs.contacts

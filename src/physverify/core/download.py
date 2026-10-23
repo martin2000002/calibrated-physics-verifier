@@ -234,6 +234,19 @@ def save_atomic(source: IO[bytes], target: Path) -> int:
     return written
 
 
+def fetch_url(url: str, target: Path, timeout_s: float = TIMEOUT_S) -> int:
+    """GET ``url`` into ``target`` through a ``.part`` (no resume, no checksum)."""
+    with urllib.request.urlopen(url, timeout=timeout_s) as response:
+        return save_atomic(response, target)
+
+
+def remote_size(url: str, timeout_s: float = TIMEOUT_S) -> int:
+    """``Content-Length`` of a HEAD request, 0 when the server does not send it."""
+    request = urllib.request.Request(url, method="HEAD")
+    with urllib.request.urlopen(request, timeout=timeout_s) as response:
+        return int(response.headers.get("Content-Length", "0"))
+
+
 def remote_zip(url: str) -> zipfile.ZipFile:
     """A zip read member by member through HTTP ranges (the archive is never downloaded whole)."""
     from remotezip import RemoteZip  # type: ignore[import-untyped]

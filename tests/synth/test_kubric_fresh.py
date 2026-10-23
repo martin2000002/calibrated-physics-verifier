@@ -19,8 +19,8 @@ from physverify.config.loader import load_settings
 from physverify.config.models import Settings
 from physverify.core.errors import UsageError
 from physverify.datasets._base import DatasetSource
+from physverify.datasets._kubric_synthetic import KubricSynthetic
 from physverify.datasets.kubric_fresh import KubricFresh, KubricFreshBlind, KubricFreshOod
-from physverify.datasets.kubric_synthetic import KubricSynthetic
 from physverify.extraction.cache import StageCache
 from physverify.extraction.pipeline import (
     ExtractionPipeline,
@@ -43,6 +43,8 @@ if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
 from test_gt_export import exported_smoke  # noqa: E402
+
+from physverify.verification.thresholding import ThresholdTable  # noqa: E402
 
 SYNTHETIC = KubricSynthetic.name
 FRESH = KubricFresh.name
@@ -76,7 +78,8 @@ def unlabelled(clips: Sequence[ClipManifest]) -> list[dict[str, Any]]:
 
 def oracle_report(dataset: DatasetSource, clips: Sequence[ClipManifest]) -> Any:
     checks = build_checks(PLUGIN_KINDS["checks"](), ChecksSettings({}))
-    return VerificationRunner(checks, RawPolicy(), {}).run(OracleSource(dataset), clips)
+    runner = VerificationRunner(checks, RawPolicy(), ThresholdTable.provisional({}))
+    return runner.run(OracleSource(dataset), clips)
 
 
 def ground_truth_chain(

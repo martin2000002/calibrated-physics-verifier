@@ -1,6 +1,6 @@
 """Risk-coverage of the threshold policy as k_sigma sweeps, and the choice of k*.
 
-The rule is never copied: every point of the curve is ``ThresholdPolicy(k_sigma=k).decide`` on
+The rule is never copied: every point of the curve is ``ThresholdRule(k_sigma=k).decide`` on
 the same perceived results. The grid is set in alpha (one-sided miss probability of a Gaussian
 interval), k = Phi^-1(1 - alpha); both are reported. A case is one reference event: its
 reference verdict and the perceived result paired with it (None when perception missed it,
@@ -8,9 +8,8 @@ which counts as an abstention)."""
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
@@ -22,7 +21,7 @@ from physverify.diagnosis.pairing import Paired
 from physverify.schema.checks import CheckResult, InputLevel, Verdict
 from physverify.selective_risk.settings import AbstentionSettings
 from physverify.stats.intervals import clopper_pearson
-from physverify.verification.policies.threshold import ThresholdParams, ThresholdPolicy
+from physverify.verification.thresholding import ThresholdParams, ThresholdRule, ThresholdTable
 
 ABSTAINED, PASSED, FAILED = 0, 1, 2
 _CODES = {Verdict.PASS: PASSED, Verdict.FAIL: FAILED}
@@ -58,30 +57,19 @@ def k_of(alpha: NDArray[np.float64]) -> NDArray[np.float64]:
     return np.asarray(norm.isf(alpha), dtype=np.float64)
 
 
-def point_reference(oracle: CheckResult, thresholds: Mapping[str, Any]) -> Verdict | None:
+def point_reference(oracle: CheckResult, thresholds: ThresholdTable) -> Verdict | None:
     """The oracle's point verdict against ``thresholds`` (None if it cannot be decided); callers
-    pass ``raw_table`` so that the reference never carries a perceived-level correction."""
-    policy = ThresholdPolicy(ThresholdParams(k_sigma=REFERENCE_K, on_unknown_sigma="point"))
-    verdict = policy.decide(oracle, thresholds).verdict
+    pass a ``raw`` table so that the reference never carries a perceived-level correction."""
+    rule = ThresholdRule(ThresholdParams(k_sigma=REFERENCE_K, on_unknown_sigma="point"))
+    verdict = rule.decide(oracle, thresholds).verdict
     return verdict if verdict in _CODES else None
 
 
-def raw_table(thresholds: Mapping[str, Any]) -> dict[str, Any]:
-    """The same taus with no calibration correction (bias 0, sigma factor 1)."""
-    checks = {
-        check_id: {"tau": float(entry["tau"])}
-        for check_id, entry in thresholds.get("checks", {}).items()
-    }
-    return {**thresholds, "checks": checks, "artifact": None}
-
-
-def paired_cases(
-    paired: Paired, reference_table: Mapping[str, Any]
-) -> tuple[list[Case], CaseCounts]:
-    """One case per oracle event with a point reference against ``raw_table(reference_table)``
+def paired_cases(paired: Paired, reference_table: ThresholdTable) -> tuple[list[Case], CaseCounts]:
+    """One case per oracle event with a point reference against ``reference_table.raw()``
     (the oracle level's taus); an event the perceived chain missed is a case with no perceived
     result."""
-    reference = raw_table(reference_table)
+    reference = reference_table.raw()
     cases: list[Case] = []
     undecidable = 0
     events = [(p.oracle, p.other) for p in paired.pairs] + [(r, None) for r in paired.missing]
@@ -94,12 +82,11 @@ def paired_cases(
     return cases, CaseCounts(no_reference=undecidable, spurious=len(paired.spurious))
 
 
-def require_taus(table: Mapping[str, Any], level: InputLevel) -> None:
+def require_taus(table: ThresholdTable, level: InputLevel) -> None:
     """Refuse a table with no tau for any check: every event would drop or abstain."""
-    checks = table.get("checks", {})
-    if not any(entry.get("tau") is not None for entry in checks.values()):
+    if not table.checks:
         raise MissingInputError(
-            f"the {level.value} threshold table ({table.get('source')}) has no tau for any "
+            f"the {level.value} threshold table ({table.source}) has no tau for any "
             "check; pass a table with --oracle-table/--perceived-table or use --provisional"
         )
 
@@ -111,22 +98,20 @@ def injected_reference(role: Role) -> Verdict | None:
 
 
 def decision_codes(
-    cases: Sequence[Case], ks: Iterable[float], thresholds: Mapping[str, Any]
+    cases: Sequence[Case], ks: Iterable[float], thresholds: ThresholdTable
 ) -> IntArray:
-    """``(len(ks), len(cases))`` codes of ``ThresholdPolicy(k).decide`` on each perceived result."""
+    """``(len(ks), len(cases))`` codes of ``ThresholdRule(k).decide`` on each perceived result."""
     rows = []
     for k in ks:
-        policy = ThresholdPolicy(ThresholdParams(k_sigma=float(k)))
-        rows.append([_code(policy, case.perceived, thresholds) for case in cases])
+        rule = ThresholdRule(ThresholdParams(k_sigma=float(k)))
+        rows.append([_code(rule, case.perceived, thresholds) for case in cases])
     return np.array(rows, dtype=np.int64).reshape(-1, len(cases))
 
 
-def _code(
-    policy: ThresholdPolicy, result: CheckResult | None, thresholds: Mapping[str, Any]
-) -> int:
+def _code(rule: ThresholdRule, result: CheckResult | None, thresholds: ThresholdTable) -> int:
     if result is None:
         return ABSTAINED
-    return _CODES.get(policy.decide(result, thresholds).verdict, ABSTAINED)
+    return _CODES.get(rule.decide(result, thresholds).verdict, ABSTAINED)
 
 
 def row_codes(keys: Sequence[tuple[str, str]], codes: IntArray) -> dict[tuple[str, str], int]:

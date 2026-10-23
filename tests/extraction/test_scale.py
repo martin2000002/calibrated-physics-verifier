@@ -12,12 +12,12 @@ from synthetic_clip import SyntheticClip
 
 from physverify.config.models import SizePrior, SizePriorTable
 from physverify.extraction.matching import align_ground_truth
-from physverify.extraction.providers.scale_free_fall import FreeFallScale
-from physverify.extraction.providers.scale_size_prior import (
+from physverify.extraction.providers._size_prior import (
     ObjectScale,
     SizePriorScale,
     combine,
 )
+from physverify.extraction.providers.scale_free_fall import FreeFallScale
 from physverify.physics.geometry import characteristic_lengths
 from physverify.schema.scale import ScaleEstimate, ScaleSource
 from physverify.schema.stages import Stage

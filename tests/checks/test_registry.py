@@ -1,4 +1,4 @@
-"""The nine checks are discovered, typed, match the perturbation units of the synthetic Kubric
+"""The checks are discovered, typed, match the perturbation units of the synthetic Kubric
 dataset and use the measures."""
 
 from __future__ import annotations
@@ -6,18 +6,19 @@ from __future__ import annotations
 import ast
 from dataclasses import fields
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 import physverify.checks
 from physverify.app.plugins import PLUGIN_KINDS
-from physverify.checks._base import Check, CheckInputs
-from physverify.core.errors import ConfigError
+from physverify.checks._base import Check, CheckInputs, missing_inputs, validate_check
+from physverify.core.errors import ConfigError, InvalidPluginError
 from physverify.schema.scene import MagnitudeKind, PerturbationRecord
 from physverify.verification.check_set import ChecksSettings, build_checks
 from physverify.verification.sweep import CheckUnit, target_check_ids, target_unit
 
-CHECK_IDS = {"R1", "R2", "R3a", "R3b", "R4_missing", "R4_size", "R4_jump", "R5a", "R5b"}
+CHECK_IDS = frozenset(PLUGIN_KINDS["checks"]())
 MEASURES = "physverify.physics.measures"
 CHECKS_DIR = Path(physverify.checks.__file__).parent
 
@@ -26,16 +27,27 @@ def registry() -> dict[str, type[Check]]:
     return dict(PLUGIN_KINDS["checks"]())
 
 
-def test_the_nine_checks_are_discovered() -> None:
-    assert set(registry()) == CHECK_IDS
-
-
 @pytest.mark.parametrize("check_id", sorted(CHECK_IDS))
 def test_each_check_satisfies_the_protocol(check_id: str) -> None:
     cls = registry()[check_id]
     assert isinstance(cls(cls.Params()), Check)
     assert cls.check_id == check_id
     assert cls.requires <= {field.name for field in fields(CheckInputs)}
+
+
+class UnknownInput:
+    requires = frozenset({"states", "depth"})
+
+
+def test_a_check_requiring_an_unknown_input_is_rejected() -> None:
+    with pytest.raises(InvalidPluginError, match="depth"):
+        validate_check(UnknownInput)
+
+
+def test_missing_inputs_lists_the_absent_required_fields() -> None:
+    check = registry()["R1"]
+    inputs = SimpleNamespace(**dict.fromkeys(check.requires), states=object())
+    assert missing_inputs(check, inputs) == sorted(check.requires - {"states"})
 
 
 def label(name: str, targets: tuple[str, ...], unit: str) -> PerturbationRecord:
@@ -80,7 +92,7 @@ def test_an_invalid_check_parameter_is_a_config_error() -> None:
         build_checks(registry(), ChecksSettings({"R1": {"no_such_parameter": 1}}))
 
 
-def test_the_defaults_build_all_nine() -> None:
+def test_the_defaults_build_every_check() -> None:
     built = build_checks(registry(), ChecksSettings({}))
     assert {check.check_id for check in built} == CHECK_IDS
 

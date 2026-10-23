@@ -11,7 +11,6 @@ B > 1 drops that batch size for the rest of the run (noted in ``describe``); at 
 from __future__ import annotations
 
 import gc
-import importlib.util
 from collections.abc import Callable, Mapping, Sequence
 from functools import partial
 from pathlib import Path
@@ -22,14 +21,9 @@ from numpy.typing import NDArray
 from physverify.config.models import Settings
 from physverify.core.atomic import write_bytes_atomic
 from physverify.core.errors import TimingError
+from physverify.core.local_manifest import MANIFEST_FILE, ClipEntry, LocalManifest, to_queries
 from physverify.core.video import write_mp4
-from physverify.datasets.local_video import (
-    MANIFEST_FILE,
-    ClipEntry,
-    LocalManifest,
-    LocalVideoDataset,
-    to_queries,
-)
+from physverify.datasets.local_video import LocalVideoDataset
 from physverify.generation.mp4_writer import VIDEO_SUFFIX, to_uint8
 from physverify.generation.settings import GenerationSettings, PromptSpec
 from physverify.generation.wan21 import (
@@ -49,15 +43,12 @@ from physverify.timing.hooks import TargetHooks
 from physverify.timing.records import GENERATE_LOAD_CUDA_MB, GENERATE_LOAD_S, generate_measure
 from physverify.timing.settings import load_timing
 from physverify.timing.target_services import TimingServices
+from physverify.timing.targets._modules import module_found
 
 MISSING_DIFFUSERS: Final = "diffusers is not installed: sync the 'generation' dependency group"
 
 PipeFactory = Callable[[Path, GenerationSettings, str], Any]
 GeneratorFactory = Callable[[str, int], Any]
-
-
-def module_found(name: str) -> bool:
-    return importlib.util.find_spec(name) is not None
 
 
 def subset_dir(settings: Settings, gen: GenerationSettings) -> Path:

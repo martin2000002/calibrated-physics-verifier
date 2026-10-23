@@ -12,7 +12,7 @@ from collections.abc import Callable
 from typing import Any, ClassVar
 
 from physverify.extraction._base import StageContext, WeightKind, WeightSpec
-from physverify.extraction.providers.depth_vda_small import (
+from physverify.extraction.providers._vda import (
     CODE,
     VideoDepthAnythingSmall,
     load_model,

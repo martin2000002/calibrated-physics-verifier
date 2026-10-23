@@ -18,7 +18,7 @@ from physverify.diagnosis.chain_runner import ChainRunner
 from physverify.diagnosis.settings import diagnosis_settings
 from physverify.runtime.runs import new_run, write_json
 from physverify.schema.checks import InputLevel
-from physverify.selective_risk.curve import raw_table, require_taus
+from physverify.selective_risk.curve import require_taus
 from physverify.selective_risk.report import (
     curve_csv,
     curve_parts,
@@ -46,12 +46,9 @@ from physverify.selective_risk.tables import (
 )
 from physverify.verification.check_set import CHECKS_SECTION, ChecksSettings, checks_hash
 from physverify.verification.inputs import refuse_heavy
-from physverify.verification.runner import (
-    VERIFICATION_SECTION,
-    VerificationSettings,
-    load_thresholds,
-)
+from physverify.verification.runner import VERIFICATION_SECTION, VerificationSettings
 from physverify.verification.sweep import units_of
+from physverify.verification.thresholding import load_thresholds
 
 
 def fit_abstention(
@@ -69,12 +66,12 @@ def fit_abstention(
     settings = session.settings
     collected = collect_synthetic(session, settings.calib_split)
     require(collected, settings.calib_split)
-    result = sweep(collected, session.thresholds, settings)
+    result = sweep(collected, session.thresholds, settings).table
     record = fit_record(collected, result, settings, tables_of(session))
     target = session.calibration_dir / ABSTENTION_FILE
     target.parent.mkdir(parents=True, exist_ok=True)
-    write_json(target, record)
-    return fit_lines(record, result, settings.risk_target, target)
+    write_json(target, record.model_dump())
+    return fit_lines(record, settings.risk_target, target)
 
 
 def abstention_curve(
@@ -94,13 +91,13 @@ def abstention_curve(
     fitted = fitted_k(session)
     evaluated = collect_synthetic(session, settings.eval_split)
     require(evaluated, settings.eval_split)
-    calibrated, raw = session.thresholds, raw_table(session.thresholds)
+    calibrated, raw = session.thresholds, session.thresholds.raw()
     run_dir = new_run(context.settings, context.invocation.argv).run_dir
     compared = compare_tables(evaluated, calibrated, raw, settings)
     parts = curve_parts(session, evaluated, fitted)
     report = curve_record(evaluated, compared, fitted, settings, tables_of(session), parts)
     write_text_atomic(run_dir / CURVE_FILE, curve_csv(compared))
-    write_json(run_dir / REPORT_FILE, report)
+    write_json(run_dir / REPORT_FILE, report.model_dump())
     return [*summary_lines(report), f"run: {run_dir}"]
 
 

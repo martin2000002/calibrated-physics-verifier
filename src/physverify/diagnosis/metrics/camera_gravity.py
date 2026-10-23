@@ -18,7 +18,7 @@ from physverify.diagnosis.measurement_cases import (
 from physverify.diagnosis.metrics.depth_object import lift_params
 from physverify.diagnosis.metrics.lift_gravity import gravity_angles
 from physverify.diagnosis.settings import MetricSettings
-from physverify.extraction.providers._gravity_pose import LEVEL_CAMERA_GRAVITY, gravity_from_pose
+from physverify.extraction.gravity_pose import LEVEL_CAMERA_GRAVITY, gravity_from_pose
 from physverify.schema.clip import ClipManifest
 from physverify.schema.outputs import StageOutput
 from physverify.schema.perception import CameraModel

@@ -24,6 +24,9 @@ from numpy.typing import NDArray
 from pydantic import BaseModel, Field, field_validator
 
 from physverify.extraction._base import StageContext, WeightKind, WeightSpec
+from physverify.extraction.gravity_pose import pose_from_gravity
+from physverify.extraction.providers._assumed_fov import AssumedFovCamera
+from physverify.extraction.providers._assumed_fov import Params as AssumedParams
 from physverify.extraction.providers._common import (
     LazyModel,
     ProviderParams,
@@ -31,9 +34,6 @@ from physverify.extraction.providers._common import (
     expect_params,
     set_torch_threads,
 )
-from physverify.extraction.providers._gravity_pose import pose_from_gravity
-from physverify.extraction.providers.camera_assumed_fov import AssumedFovCamera
-from physverify.extraction.providers.camera_assumed_fov import Params as AssumedParams
 from physverify.extraction.weights import local_path, vendored_import_path, weight_file
 from physverify.schema.clip import FrameSampling
 from physverify.schema.perception import CameraModel, IntrinsicsSource

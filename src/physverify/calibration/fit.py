@@ -56,8 +56,8 @@ from physverify.calibration.verdict import DECIDED, Rule, clip_verdict
 from physverify.schema.checks import CheckResult, InputLevel, Verdict
 from physverify.stats.bootstrap import ClusterBlock, scene_bootstrap
 from physverify.stats.intervals import Ci, Rate, rate
-from physverify.verification.policies.threshold import ThresholdPolicy
 from physverify.verification.sweep import CheckUnit
+from physverify.verification.thresholding import ThresholdRule
 
 AUROC_KEY = "auroc"
 NOT_RECALIBRATED = "not recalibrated (--no-sigma): the propagated sigma is used as is"
@@ -150,7 +150,7 @@ def fit_checks(
     data: LevelData, checks: Sequence[CheckUnit], config: CalibrationConfig
 ) -> dict[str, CheckCalibration]:
     """Every check of one level with its raw weight (before ``normalised``)."""
-    policy = ThresholdPolicy(config.policy)
+    policy = ThresholdRule(config.policy)
     return {
         check.check_id: fit_check(
             [r for r in data.rows if r.check_id == check.check_id],
@@ -216,7 +216,7 @@ def fit_check(
     rows: Sequence[CalibrationRow],
     check: CheckUnit,
     sigma: SigmaCorrection,
-    policy: ThresholdPolicy,
+    policy: ThresholdRule,
     settings: CalibrationSettings,
 ) -> CheckCalibration:
     rule = Rule(policy, sigma.bias, sigma.factor)

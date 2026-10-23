@@ -23,12 +23,8 @@ from physverify.config.models import Settings
 from physverify.finetune.scorers._base import AggregateScore
 from physverify.schema.checks import CheckResult, Verdict
 from physverify.verification.decisive import decisive
-from physverify.verification.runner import (
-    VERIFICATION_SECTION,
-    VerificationSettings,
-    load_thresholds,
-    thresholds_label,
-)
+from physverify.verification.runner import VERIFICATION_SECTION, VerificationSettings
+from physverify.verification.thresholding import load_thresholds
 
 NO_DECIDED = "no_decided_check"
 DECIDED_VERDICTS = frozenset({Verdict.PASS, Verdict.FAIL})
@@ -134,7 +130,7 @@ class ProvisionalScorer:
     def thresholds(self) -> str:
         verification = self._settings.section(VERIFICATION_SECTION, VerificationSettings)
         table = load_thresholds(self._settings.paths.thresholds, verification.thresholds)
-        return thresholds_label(table)
+        return table.label
 
     def score(
         self, results: Sequence[CheckResult], only: frozenset[str] | None = None

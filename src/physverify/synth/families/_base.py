@@ -7,6 +7,7 @@ from typing import ClassVar, Protocol, runtime_checkable
 import numpy as np
 from pydantic import BaseModel
 
+from physverify.config.plugin_context import PluginKind
 from physverify.schema.scene import SceneSpec
 
 
@@ -18,3 +19,6 @@ class SceneFamily(Protocol):
     Params: ClassVar[type[BaseModel]]
 
     def sample(self, rng: np.random.Generator, params: BaseModel) -> SceneSpec: ...
+
+
+FAMILIES = PluginKind[type[SceneFamily]]("families")

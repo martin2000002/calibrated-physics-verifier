@@ -7,7 +7,7 @@ from the decision record ``exclusions.json`` and are merged here, so no consumer
 
 from __future__ import annotations
 
-from collections.abc import Collection, Mapping
+from collections.abc import Mapping
 from pathlib import Path
 
 from pydantic import PrivateAttr
@@ -26,7 +26,8 @@ class CheckScope(FrozenModel):
     exclude_checks: tuple[str, ...] = ()
     """Checks no consumer decides with: the record's ids plus any manual ones."""
     time_dependent_checks: tuple[str, ...] = ("R5b", "R4_jump")
-    """Checks whose magnitude depends on the clip's time base (fps)."""
+    """Checks whose magnitude depends on the clip's time base (fps): those that declare
+    ``time_dependent`` (``checked`` refuses any other set)."""
     decision_record: str | None = None
     """The record of ``exclusions decide``, relative to ``paths.calibration_dir``."""
     require_decision_record: bool = False
@@ -47,10 +48,16 @@ class CheckScope(FrozenModel):
         extra = self.time_dependent_checks if time_dependent else ()
         return frozenset((*self.exclude_checks, *extra))
 
-    def checked(self, known: Collection[str]) -> CheckScope:
+    def checked(self, known: Mapping[str, type[Check]]) -> CheckScope:
         unknown = sorted(set(self.exclude_checks + self.time_dependent_checks) - set(known))
         if unknown:
             raise ConfigError(f"[{SECTION}] names unknown checks {unknown}; known: {sorted(known)}")
+        declared = sorted(check_id for check_id, check in known.items() if check.time_dependent)
+        if sorted(self.time_dependent_checks) != declared:
+            raise ConfigError(
+                f"[{SECTION}].time_dependent_checks {list(self.time_dependent_checks)} differs "
+                f"from the checks that declare time_dependent {declared}"
+            )
         return self
 
     def with_record(self, record: ExclusionRecord) -> CheckScope:

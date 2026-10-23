@@ -4,10 +4,13 @@ from __future__ import annotations
 
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, ClassVar, Protocol
+from typing import ClassVar, Protocol
+
+from pydantic import BaseModel
 
 from physverify.checks._base import Check, CheckInputs
 from physverify.config.models import Settings
+from physverify.core.models import FrozenModel
 from physverify.datasets._base import DatasetSource
 from physverify.schema.checks import CheckResult, InputLevel
 from physverify.schema.clip import ClipManifest
@@ -17,13 +20,12 @@ from physverify.verification._base import VerdictPolicy
 from physverify.verification.check_set import CHECKS_SECTION, ChecksSettings, build_checks
 from physverify.verification.inputs import ClipInputs, OracleSource, perceived_inputs
 from physverify.verification.runner import (
-    CALIBRATED,
     VERIFICATION_SECTION,
     VerificationRunner,
     VerificationSettings,
     build_policy,
-    load_thresholds,
 )
+from physverify.verification.thresholding import ThresholdTable, load_thresholds
 
 
 class CheckSuite(Protocol):
@@ -53,8 +55,9 @@ class _Undecided:
     later."""
 
     name: ClassVar[str] = "undecided"
+    Params: ClassVar[type[BaseModel]] = FrozenModel
 
-    def decide(self, result: CheckResult, thresholds: Mapping[str, Any]) -> CheckResult:
+    def decide(self, result: CheckResult, thresholds: ThresholdTable) -> CheckResult:
         return result
 
 
@@ -74,7 +77,7 @@ class VerificationCheckSuite:
         self,
         checks: Sequence[Check],
         policy: VerdictPolicy | None,
-        thresholds: Mapping[str, Any],
+        thresholds: ThresholdTable,
     ) -> None:
         self._checks = tuple(checks)
         self._policy = policy
@@ -95,7 +98,7 @@ class VerificationCheckSuite:
 
     @property
     def provisional(self) -> bool:
-        return self._thresholds.get("status") != CALIBRATED
+        return not self._thresholds.calibrated
 
     def inputs(
         self,

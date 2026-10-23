@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from physverify.config.models import Settings
-from physverify.datasets.local_video import QueryEntry
+from physverify.core.local_manifest import QueryEntry
 from physverify.demo.report import (
     NO_VERDICT,
     PROVISIONAL_BANNER,

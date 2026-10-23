@@ -29,6 +29,7 @@ class PermanenceCheck:
 
     check_id: ClassVar[str] = "R4_missing"
     requires: ClassVar[frozenset[str]] = frozenset()
+    time_dependent: ClassVar[bool] = False
     magnitude_unit: ClassVar[str] = "frames"
     Params: ClassVar[type[BaseModel]] = PermanenceParams
 

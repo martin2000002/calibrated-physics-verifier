@@ -76,8 +76,8 @@ from physverify.verification.runner import (
     VerificationRunner,
     VerificationSettings,
     build_policy,
-    load_thresholds,
 )
+from physverify.verification.thresholding import load_thresholds
 
 NESTED_LOCK: Final = "held by finetune"
 

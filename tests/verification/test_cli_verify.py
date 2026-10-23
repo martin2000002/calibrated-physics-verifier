@@ -48,7 +48,7 @@ def test_the_oracle_run_exits_zero_and_writes_the_run(cli: CliRunner, lock_path:
     folder = run_dir(result)
     assert {"run.json", CHECKS_FILE, TABLE_FILE} <= {p.name for p in folder.iterdir()}
     rows = table(result)
-    assert len(rows) == 9
+    assert len(rows) == len(plugins.PLUGIN_KINDS["checks"]())
     assert {row["status"] for row in rows} == {RowStatus.SCORED.value, RowStatus.NO_EVENT.value}
     assert "thresholds: provisional" in result.out
     assert not holder_path(lock_path).exists()

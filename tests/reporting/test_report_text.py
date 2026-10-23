@@ -7,8 +7,8 @@ from typing import Any
 
 import pytest
 
+from physverify.core.local_manifest import QueryEntry
 from physverify.core.markdown import table
-from physverify.datasets.local_video import QueryEntry
 from physverify.demo.report import CheckRow, ClipBlock, RuleInfo, VideoReport, render_markdown
 from physverify.diagnosis.markdown_cells import text_table as diagnosis_table
 from physverify.finetune.records import PromptRecord

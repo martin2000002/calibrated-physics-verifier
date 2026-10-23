@@ -11,7 +11,7 @@ from pydantic import ValidationError
 
 from physverify.config.models import Settings
 from physverify.core.errors import ConfigError, UsageError
-from physverify.datasets.local_video import QueryEntry
+from physverify.core.local_manifest import QueryEntry
 from physverify.generation.settings import GenerationSettings
 from physverify.timing.settings import (
     TargetRunSettings,

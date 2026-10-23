@@ -13,8 +13,8 @@ from pathlib import Path
 from pydantic import BaseModel, Field, field_validator
 
 from physverify.core.atomic import write_bytes_atomic
+from physverify.core.local_manifest import QueryList
 from physverify.core.models import FrozenModel
-from physverify.datasets.local_video import QueryList
 from physverify.finetune.settings import PromptSplit
 
 BASE_TAG = "base"

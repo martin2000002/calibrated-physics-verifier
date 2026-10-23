@@ -2,36 +2,31 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 from physverify.config.models import Settings
-from physverify.datasets.kubric_fresh import KubricFreshSettings
+from physverify.datasets._base import DatasetSource
+from physverify.datasets.kubric_fresh import VERSION_ENV, KubricFresh, KubricFreshSettings
 from physverify.freeze.errors import QueryError
 from physverify.schema.clip import Split
 from physverify.synth.generate import load_plan
 from physverify.synth.settings import dataset_root, load_dataset_settings
 from physverify.synth.store import DatasetStore
 
-FRESH_SUBSET = "full"
-VERSION_ENV = "PHYSVERIFY__DATASET__VERSION"
+__all__ = ("VERSION_ENV", "plan_lines", "render_overrides")
 
 
-def render_overrides(fresh: KubricFreshSettings, dataset: str, seed: int) -> dict[str, str]:
-    """The dataset section a fresh render reads: its version, seed and scenes, with no calib
-    clip."""
-    extra: dict[str, str]
-    if dataset == "kubric_fresh_ood":
-        version, scenes = fresh.ood_version, fresh.ood_scenes_per_family
-        extra = {"PHYSVERIFY__DATASET__HDRI_POOL": fresh.ood_hdri_pool}
-    elif dataset in ("kubric_fresh", "kubric_fresh_blind"):
-        version, scenes, extra = fresh.version, fresh.scenes_per_family, {}
-    else:
+def render_overrides(
+    fresh: KubricFreshSettings,
+    datasets: Mapping[str, type[DatasetSource]],
+    dataset: str,
+    seed: int,
+) -> dict[str, str]:
+    """The overrides of the fresh Kubric set ``dataset``, found in the dataset registry."""
+    source = datasets.get(dataset)
+    if source is None or not issubclass(source, KubricFresh):
         raise QueryError(f"{dataset} is not a fresh Kubric set")
-    return {
-        VERSION_ENV: version,
-        "PHYSVERIFY__DATASET__SEED": str(seed),
-        "PHYSVERIFY__DATASET__CALIB_FRACTION": "0.0",
-        f"PHYSVERIFY__DATASET__SUBSETS__{FRESH_SUBSET.upper()}__SCENES_PER_FAMILY": str(scenes),
-        **extra,
-    }
+    return source.render_overrides(fresh, seed)
 
 
 def plan_lines(settings: Settings, version: str, seed: int) -> list[str]:

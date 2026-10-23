@@ -77,6 +77,7 @@ from physverify.verification.inputs import (
 from physverify.verification.policies.raw import RawPolicy
 from physverify.verification.runner import VerificationRunner
 from physverify.verification.sweep import units_of
+from physverify.verification.thresholding import ThresholdTable
 
 Guard = Callable[[Sequence[Selection], Mapping[str, str] | None], None]
 
@@ -323,7 +324,9 @@ def _guard(context: AppContext, command: str, session: Session, err: Echo) -> Gu
 def _raw_runner(context: AppContext) -> VerificationRunner:
     registry = context.registry("checks")
     overrides = context.settings.section(CHECKS_SECTION, ChecksSettings)
-    return VerificationRunner(build_checks(registry, overrides), RawPolicy(), {})
+    return VerificationRunner(
+        build_checks(registry, overrides), RawPolicy(), ThresholdTable.provisional({})
+    )
 
 
 def _input_source(context: AppContext, dataset: DatasetSource, level: InputLevel) -> InputSource:

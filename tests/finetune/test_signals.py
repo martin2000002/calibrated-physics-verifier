@@ -5,7 +5,7 @@ from collections.abc import Callable
 import numpy as np
 import pytest
 
-from physverify.datasets.local_video import QueryEntry
+from physverify.core.local_manifest import QueryEntry
 from physverify.finetune.reward_hacking_signals import motion_index, objects_ok
 from physverify.schema.states import ObjectStateTable
 

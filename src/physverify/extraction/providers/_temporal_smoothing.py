@@ -19,16 +19,15 @@ from __future__ import annotations
 import math
 from collections.abc import Sequence
 from dataclasses import replace
-from typing import Literal
 
 import numpy as np
 from numpy.typing import NDArray
 
-from physverify.extraction.providers._backprojection import ObjectSummary, full_extents
+from physverify.extraction.backprojection import ObjectSummary, full_extents
+from physverify.extraction.lift_params import EdgeMode
 from physverify.physics.kinematics import visible_runs
 
 FloatArray = NDArray[np.float64]
-EdgeMode = Literal["shifted", "keep"]
 
 
 def running_median(x: FloatArray, window: int, edges: EdgeMode) -> FloatArray:

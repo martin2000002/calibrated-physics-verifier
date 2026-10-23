@@ -10,16 +10,16 @@ from numpy.typing import NDArray
 from support import make_context, run_provider
 from synthetic_clip import SyntheticClip
 
-from physverify.extraction.providers import depth_vda_metric_small, depth_vda_small
-from physverify.extraction.providers.depth_vda_metric_small import (
-    METRIC_CHECKPOINT,
-    VideoDepthAnythingMetricSmall,
-)
-from physverify.extraction.providers.depth_vda_small import (
+from physverify.extraction.providers import _vda, depth_vda_metric_small
+from physverify.extraction.providers._vda import (
     CHECKPOINT,
     CODE,
     SMALL_ENCODER,
     VideoDepthAnythingSmall,
+)
+from physverify.extraction.providers.depth_vda_metric_small import (
+    METRIC_CHECKPOINT,
+    VideoDepthAnythingMetricSmall,
 )
 from physverify.schema.perception import DepthKind, DepthMap
 
@@ -38,9 +38,9 @@ def fake_loads(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
         calls.append(kwargs)
         return ConstantDepthModel()
 
-    for module in (depth_vda_small, depth_vda_metric_small):
+    for module in (_vda, depth_vda_metric_small):
         monkeypatch.setattr(module, "load_model", load)
-    monkeypatch.setattr(depth_vda_small, "set_torch_threads", lambda threads: None)
+    monkeypatch.setattr(_vda, "set_torch_threads", lambda threads: None)
     return calls
 
 

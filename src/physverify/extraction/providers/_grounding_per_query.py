@@ -20,7 +20,7 @@ from scipy.optimize import linear_sum_assignment
 
 from physverify.extraction._base import StageContext, WeightSpec
 from physverify.extraction.matching import box_iou_matrix
-from physverify.extraction.providers import detect_grounding_dino_tiny as base
+from physverify.extraction.providers import _grounding_dino as base
 from physverify.extraction.providers._common import expect_params
 from physverify.schema.clip import ObjectQuery
 

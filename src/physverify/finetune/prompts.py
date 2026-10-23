@@ -7,8 +7,6 @@ whose checks that need a scale then abstain (no scale is invented).
 
 from __future__ import annotations
 
-import importlib
-import inspect
 import itertools
 import string
 import zlib
@@ -20,7 +18,7 @@ import numpy as np
 
 from physverify.config.models import Settings
 from physverify.core.errors import ConfigError, UsageError
-from physverify.datasets.local_video import QueryEntry, QueryList
+from physverify.core.local_manifest import QueryEntry, QueryList
 from physverify.finetune.layout import CampaignStore
 from physverify.finetune.records import (
     DEMO_TAG,
@@ -39,11 +37,10 @@ from physverify.finetune.settings import (
     TemplateSpec,
 )
 from physverify.schema.io import stable_hash
+from physverify.sizing.model import sized_labels
 
 PROMPT_HASH_CHARS: Final = 10
 FIXED_TEMPLATE: Final = "fixed"
-SIZING_MODULE: Final = "physverify.sizing.model"
-SIZING_FUNCTION: Final = "sized_labels"
 
 LabelSource = Callable[[], Collection[str]]
 
@@ -242,19 +239,8 @@ def build_prompt_set(cfg: PromptSetSettings, labels: Collection[str]) -> list[Pr
 
 
 def sizing_labels(settings: Settings) -> Collection[str]:
-    """Labels with a size prior, from the sizing model (imported lazily: another cycle's code)."""
-    try:
-        module = importlib.import_module(SIZING_MODULE)
-    except ImportError as exc:
-        raise UsageError(
-            f"{SIZING_MODULE} is not available ({exc}); the prompt vocabulary is checked "
-            "against its sized labels"
-        ) from exc
-    function = getattr(module, SIZING_FUNCTION)
-    labels: Collection[str] = (
-        function(settings) if inspect.signature(function).parameters else function()
-    )
-    return frozenset(labels)
+    """Labels with a size prior, from the sizing model."""
+    return sized_labels(settings)
 
 
 def campaign_prompts(store: CampaignStore, split: PromptSplit | None = None) -> list[PromptRecord]:

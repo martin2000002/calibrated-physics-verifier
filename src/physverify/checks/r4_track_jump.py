@@ -91,6 +91,7 @@ class NoiseContinuityCheck:
 
     check_id: ClassVar[str] = "R4_jump"
     requires: ClassVar[frozenset[str]] = frozenset({"contacts", "camera"})
+    time_dependent: ClassVar[bool] = True
     magnitude_unit: ClassVar[str] = "jump_over_noise"
     perturbation_unit: ClassVar[str] = "jump_over_size"
     perturbation_estimate: ClassVar[str] = "jump_over_size_estimated"

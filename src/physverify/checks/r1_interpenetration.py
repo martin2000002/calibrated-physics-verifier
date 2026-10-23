@@ -12,7 +12,7 @@ from numpy.typing import NDArray
 from pydantic import BaseModel
 
 from physverify.checks._base import CheckInputs
-from physverify.checks._params import OcclusionParams
+from physverify.checks._params import OcclusionParams, as_params
 from physverify.checks._results import abstain, unscored
 from physverify.physics.geometry import Body, Plane, characteristic_length
 from physverify.physics.measures.penetration import penetration_ratio
@@ -55,15 +55,12 @@ class InterpenetrationCheck:
 
     check_id: ClassVar[str] = "R1"
     requires: ClassVar[frozenset[str]] = frozenset()
+    time_dependent: ClassVar[bool] = False
     magnitude_unit: ClassVar[str] = "pen_over_size"
     Params: ClassVar[type[BaseModel]] = InterpenetrationParams
 
     def __init__(self, params: BaseModel) -> None:
-        self.params = (
-            params
-            if isinstance(params, InterpenetrationParams)
-            else InterpenetrationParams.model_validate(params.model_dump(exclude_unset=True))
-        )
+        self.params = as_params(InterpenetrationParams, params)
 
     def evaluate(self, inputs: CheckInputs) -> list[CheckResult]:
         return [self._subject(inputs, i, other) for i, other in self._subjects(inputs)]

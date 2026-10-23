@@ -20,6 +20,7 @@ from physverify.verification.check_set import ChecksSettings, build_checks
 from physverify.verification.inputs import OracleSource
 from physverify.verification.policies.raw import RawPolicy
 from physverify.verification.runner import VerificationRunner
+from physverify.verification.thresholding import ThresholdTable
 
 OLD = {
     "R4_missing": {"sigma_model": "unknown"},
@@ -31,7 +32,8 @@ OLD = {
 def oracle_results(overrides: dict[str, dict[str, str]]) -> tuple[CheckResult, ...]:
     dataset = SyntheticFixtureDataset()
     checks = build_checks(PLUGIN_KINDS["checks"](), ChecksSettings(overrides))
-    report = VerificationRunner(checks, RawPolicy(), {}).run(OracleSource(dataset), dataset.clips())
+    runner = VerificationRunner(checks, RawPolicy(), ThresholdTable.provisional({}))
+    report = runner.run(OracleSource(dataset), dataset.clips())
     return report.results
 
 

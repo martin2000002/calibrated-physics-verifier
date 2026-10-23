@@ -12,7 +12,8 @@ import pytest
 from support import SettingsFactory
 
 from physverify.core.errors import ConfigError, MissingInputError
-from physverify.datasets.local_video import MANIFEST_FILE, QUERIES_SUFFIX, LocalVideoDataset
+from physverify.core.local_manifest import MANIFEST_FILE
+from physverify.datasets.local_video import QUERIES_SUFFIX, LocalVideoDataset
 from physverify.schema.clip import ObjectQuery, TimeSource
 
 SUBSET = "smoke"

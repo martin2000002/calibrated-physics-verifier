@@ -32,7 +32,8 @@ class BudgetError(TimingError):
     exit_code = EXIT_USAGE
 
 
-def _require(condition: bool, message: str) -> None:
+def require(condition: bool, message: str) -> None:
+    """A ``BudgetError`` with ``message`` unless ``condition`` holds."""
     if not condition:
         raise BudgetError(message)
 
@@ -48,18 +49,18 @@ class BudgetQuery:
     batch_size: int = 1
 
     def __post_init__(self) -> None:
-        _require(math.isfinite(self.gpu_hours) and self.gpu_hours > 0, "--gpu-hours must be > 0")
-        _require(self.candidates >= 1, "--candidates must be >= 1")
-        _require(self.eval_prompts >= 0, "--eval-prompts must be >= 0")
-        _require(self.eval_samples >= 0, "--eval-samples must be >= 0")
-        _require(
+        require(math.isfinite(self.gpu_hours) and self.gpu_hours > 0, "--gpu-hours must be > 0")
+        require(self.candidates >= 1, "--candidates must be >= 1")
+        require(self.eval_prompts >= 0, "--eval-prompts must be >= 0")
+        require(self.eval_samples >= 0, "--eval-samples must be >= 0")
+        require(
             math.isfinite(self.finetune_hours) and self.finetune_hours >= 0,
             "--finetune-hours must be >= 0",
         )
-        _require(
+        require(
             self.extract_batch is None or self.extract_batch >= 1, "--extract-batch must be >= 1"
         )
-        _require(self.batch_size >= 1, "--batch-size must be >= 1")
+        require(self.batch_size >= 1, "--batch-size must be >= 1")
 
 
 @dataclass(frozen=True)
@@ -76,7 +77,7 @@ class CostPerVideo:
         cost = self.generate_s + math.fsum(self.components.values())
         if extract_batch is None:
             return cost
-        _require(
+        require(
             self.extract_load_s is not None,
             f"--extract-batch needs {EXTRACT_COLD_EXTRA_S}, which this run did not measure",
         )
@@ -107,7 +108,7 @@ class BudgetAnswer:
 def bound(cost_s: float, query: BudgetQuery) -> Bound:
     """``S = 3600 H - T_ft - Q (K + K') c``, ``P_max = floor(S / (K c))``,
     ``P_max <= pairs <= P_max K (K - 1) / 2``."""
-    _require(cost_s > 0, "the cost per video must be > 0")
+    require(cost_s > 0, "the cost per video must be > 0")
     k = query.candidates
     available = SECONDS_PER_HOUR * (query.gpu_hours - query.finetune_hours) - (
         query.eval_prompts * (k + query.eval_samples) * cost_s
@@ -140,14 +141,14 @@ def cost_from_results(
     components = [m for m in total_measures if m != generate_measure(1, PER_VIDEO_S)]
     medians = across_medians(rows)
     missing = [m for m in (generate, *components) if m not in medians]
-    _require(not missing, f"the run has no across-clip median of {', '.join(missing)}")
+    require(not missing, f"the run has no across-clip median of {', '.join(missing)}")
     cost = CostPerVideo(
         generate_s=medians[generate],
         components=MappingProxyType({m: medians[m] for m in components}),
         extract_load_s=medians.get(EXTRACT_COLD_EXTRA_S),
         generator_load_s=_setup_value(results, GENERATE_LOAD_S),
     )
-    _require(cost.generate_s > 0, f"the across-clip median of {generate} is 0")
+    require(cost.generate_s > 0, f"the across-clip median of {generate} is 0")
     return cost
 
 

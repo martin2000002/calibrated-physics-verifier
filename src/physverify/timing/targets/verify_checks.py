@@ -1,7 +1,7 @@
 """Per-clip cost of the check suite: loading the perceived inputs, the checks and the policy.
 
-The check suite is reached only through ``importlib``, so building the registry or type-checking
-this module never needs the verification package; without its runner the target is skipped.
+The check suite is imported only when the target builds it, so building the registry does not
+load the runner.
 ``verify.wall_s`` is one span over the input load and the runner (checks plus policy);
 ``verify.load_s`` and the per-check ``verify.<check_id>.wall_s`` are its components, the latter
 timed again right after the span on the same in-memory inputs.
@@ -10,14 +10,12 @@ timed again right after the span on the same in-memory inputs.
 from __future__ import annotations
 
 import contextlib
-import importlib
-import importlib.util
 import re
-from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, ClassVar, Final, Protocol
+from typing import ClassVar, Final, Protocol
 
-from physverify.checks._base import Check, CheckInputs
+from physverify.checks._base import Check, CheckInputs, missing_inputs
 from physverify.config.models import Settings
 from physverify.core.errors import TimingError
 from physverify.datasets._base import DatasetSource, dataset_from
@@ -36,40 +34,26 @@ from physverify.timing.records import (
     measure_name,
 )
 from physverify.timing.target_services import TimingServices
-from physverify.timing.targets.extract_pipeline import (
+from physverify.timing.targets._extract_pipeline import (
     PipelineFactory,
     PlanFactory,
     perception_plan,
     pipeline_deps,
 )
 from physverify.verification._base import VerdictPolicy
+from physverify.verification.inputs import (
+    ClipInputs,
+    InputSource,
+    PerceivedSource,
+    PipelineOutputLoader,
+)
 
 PREFIX: Final = "verify"
-RUNNER_MODULE: Final = "physverify.verification.runner"
-CHECK_SET_MODULE: Final = "physverify.verification.check_set"
-INPUTS_MODULE: Final = "physverify.verification.inputs"
 _NOT_SLUG: Final = re.compile(r"[^a-z0-9_]")
 
 
-class LoadedInputs(Protocol):
-    """The check suite's ``ClipInputs``."""
-
-    @property
-    def clip(self) -> ClipManifest: ...
-
-    @property
-    def inputs(self) -> CheckInputs | None: ...
-
-    @property
-    def error(self) -> str | None: ...
-
-
-class InputSource(Protocol):
-    def load(self, clips: Sequence[ClipManifest]) -> Iterable[LoadedInputs]: ...
-
-
 class Runner(Protocol):
-    def run(self, source: Any, clips: Sequence[ClipManifest]) -> object: ...
+    def run(self, source: InputSource, clips: Sequence[ClipManifest]) -> object: ...
 
 
 SourceFactory = Callable[[DatasetSource, ResolvedPlan, PipelineDeps], InputSource]
@@ -94,21 +78,25 @@ def load_suite(
     checks: Mapping[str, type[Check]],
     policies: Mapping[str, type[VerdictPolicy]],
 ) -> Verifier:
-    runner_api: Any = importlib.import_module(RUNNER_MODULE)
-    check_set_api: Any = importlib.import_module(CHECK_SET_MODULE)
-    inputs_api: Any = importlib.import_module(INPUTS_MODULE)
-    config = settings.section(runner_api.VERIFICATION_SECTION, runner_api.VerificationSettings)
-    overrides = settings.section(check_set_api.CHECKS_SECTION, check_set_api.ChecksSettings)
-    built = tuple(check_set_api.build_checks(checks, overrides))
-    policy = runner_api.build_policy(policies, config)
-    thresholds = runner_api.load_thresholds(settings.paths.thresholds, config.thresholds)
+    from physverify.verification.check_set import CHECKS_SECTION, ChecksSettings, build_checks
+    from physverify.verification.runner import (
+        VERIFICATION_SECTION,
+        VerificationRunner,
+        VerificationSettings,
+        build_policy,
+    )
+    from physverify.verification.thresholding import load_thresholds
+
+    config = settings.section(VERIFICATION_SECTION, VerificationSettings)
+    built = tuple(build_checks(checks, settings.section(CHECKS_SECTION, ChecksSettings)))
+    policy = build_policy(policies, config)
+    thresholds = load_thresholds(settings.paths.thresholds, config.thresholds)
 
     def perceived(dataset: DatasetSource, plan: ResolvedPlan, deps: PipelineDeps) -> InputSource:
-        loader = inputs_api.PipelineOutputLoader(plan, deps)
-        source: InputSource = inputs_api.PerceivedSource(dataset, loader, InputLevel.PERCEIVED)
-        return source
+        loader = PipelineOutputLoader(plan, deps)
+        return PerceivedSource(dataset, loader, InputLevel.PERCEIVED)
 
-    return Verifier(built, runner_api.VerificationRunner(built, policy, thresholds), perceived)
+    return Verifier(built, VerificationRunner(built, policy, thresholds), perceived)
 
 
 def check_measure(check_id: str) -> str:
@@ -116,23 +104,18 @@ def check_measure(check_id: str) -> str:
     return measure_name(PREFIX, _NOT_SLUG.sub("_", check_id.lower()), "wall_s")
 
 
-def suite_missing(find_spec: Callable[[str], object | None]) -> str | None:
-    missing = [name for name in (RUNNER_MODULE, INPUTS_MODULE) if find_spec(name) is None]
-    return f"check suite runner not installed ({', '.join(missing)})" if missing else None
-
-
 @dataclass(frozen=True)
 class PreloadedSource:
     """A check-suite ``InputSource`` over in-memory inputs, so the runner times no loading."""
 
-    loaded: tuple[LoadedInputs, ...]
+    loaded: tuple[ClipInputs, ...]
 
-    def load(self, clips: Sequence[ClipManifest]) -> Iterator[LoadedInputs]:
+    def load(self, clips: Sequence[ClipManifest]) -> Iterator[ClipInputs]:
         wanted = {clip.clip_id for clip in clips}
         return (item for item in self.loaded if item.clip.clip_id in wanted)
 
 
-def only_inputs(clip: ClipManifest, loaded: Sequence[LoadedInputs]) -> CheckInputs:
+def only_inputs(clip: ClipManifest, loaded: Sequence[ClipInputs]) -> CheckInputs:
     for item in loaded:
         if item.error:
             raise TimingError(f"{clip.clip_id}: verification inputs failed: {item.error}")
@@ -151,21 +134,16 @@ class VerifyChecks(TargetHooks):
         services: TimingServices,
         *,
         suite_factory: SuiteFactory = load_suite,
-        find_spec: Callable[[str], object | None] = importlib.util.find_spec,
         pipeline_factory: PipelineFactory = ExtractionPipeline,
         plan_factory: PlanFactory = perception_plan,
     ) -> None:
         self._services = services
         self._suite_factory = suite_factory
-        self._find_spec = find_spec
         self._pipeline_factory = pipeline_factory
         self._plan_factory = plan_factory
         self._verifier: Verifier | None = None
         self._check_ids: tuple[str, ...] = ()
         self._prepare_failures: tuple[str, ...] = ()
-
-    def unavailable(self, ctx: TimingContext) -> str | None:
-        return suite_missing(self._find_spec)
 
     def prepare(self, clips: Sequence[ClipManifest], ctx: TimingContext) -> Mapping[str, float]:
         """Fills the persistent extraction cache (untimed; cached cells are not recomputed) and
@@ -239,7 +217,7 @@ class VerifyChecks(TargetHooks):
         clock = self._services.clock
         spent: dict[str, float] = {}
         for check in checks:
-            if any(getattr(inputs, name) is None for name in check.requires):
+            if missing_inputs(check, inputs):
                 continue
             started = clock()
             with contextlib.suppress(Exception):

@@ -38,6 +38,7 @@ from physverify.synth.migrate import (
     velocity_migration,
 )
 from physverify.synth.perturb import apply_variants, instantiate
+from physverify.synth.perturbations._base import PerturbationTarget
 from physverify.synth.plan import GT_MIGRATIONS, GT_REVISION, DatasetPlan
 from physverify.synth.settings import DatasetSettings, load_dataset_settings
 from physverify.synth.store import (
@@ -227,6 +228,7 @@ class Refusing:
     """A perturbation the new settings no longer apply to this scene."""
 
     name = "none"
+    target = PerturbationTarget.TRAJECTORY
 
     def applicable(self, scene: Any) -> bool:
         return False

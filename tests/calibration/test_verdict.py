@@ -37,6 +37,7 @@ from physverify.schema.checks import CheckResult, InputLevel, Verdict
 from physverify.schema.clip import Split
 from physverify.verification.policies.threshold import ThresholdPolicy
 from physverify.verification.runner import RowStatus, VerificationReport, aggregate
+from physverify.verification.thresholding import ThresholdTable
 
 RULE = Rule(ThresholdPolicy(), bias=0.0, factor=1.0)
 TAU = 0.08
@@ -195,7 +196,13 @@ def _by_clip(results: Sequence[CheckResult]) -> dict[str, list[CheckResult]]:
 
 
 BIASED = Rule(ThresholdPolicy(), bias=0.02, factor=1.5)
-BIASED_THRESHOLDS = {"checks": {"R1": {"tau": TAU, "bias": 0.02, "sigma_factor": 1.5}}}
+BIASED_THRESHOLDS = ThresholdTable.model_validate(
+    {
+        "status": "calibrated",
+        "source": "test",
+        "checks": {"R1": {"tau": TAU, "bias": 0.02, "sigma_factor": 1.5}},
+    }
+)
 NAN = float("nan")
 
 
@@ -222,11 +229,11 @@ def _same(a: float | None, b: float | None) -> bool:
     ("thresholds", "tau", "expected"),
     [
         (BIASED_THRESHOLDS, TAU, {Verdict.PASS, Verdict.FAIL, Verdict.ABSTAIN}),
-        ({}, None, {Verdict.UNSCORED, Verdict.ABSTAIN}),
+        (ThresholdTable.provisional({}), None, {Verdict.UNSCORED, Verdict.ABSTAIN}),
     ],
 )
 def test_clip_verdict_matches_the_run_table_row(
-    thresholds: dict[str, Any], tau: float | None, expected: set[Verdict]
+    thresholds: ThresholdTable, tau: float | None, expected: set[Verdict]
 ) -> None:
     """``clip_verdict`` and ``aggregate`` agree on the verdict and on magnitude (m - bias + bias)
     for random sets with NaN magnitudes, unknown sigmas and missing inputs."""

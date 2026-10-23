@@ -9,7 +9,7 @@ import pytest
 from support import make_context
 from synthetic_clip import SyntheticClip, world_from_camera
 
-from physverify.extraction.providers._gravity_pose import (
+from physverify.extraction.gravity_pose import (
     LEVEL_CAMERA_GRAVITY,
     gravity_from_pose,
     pose_from_gravity,

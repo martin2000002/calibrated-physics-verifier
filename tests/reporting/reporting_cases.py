@@ -51,8 +51,9 @@ from physverify.runtime.runs import write_json as write_abstain_json
 from physverify.schema.checks import CheckResult, InputLevel, Verdict
 from physverify.schema.clip import Split
 from physverify.schema.io import json_ready
-from physverify.selective_risk.curve import Case, CaseCounts, raw_table
+from physverify.selective_risk.curve import Case, CaseCounts
 from physverify.selective_risk.fit import per_check_rows
+from physverify.selective_risk.records import AbstentionRecord, CurveRecord, InjectedLabel, ZSummary
 from physverify.selective_risk.report import CurveParts, curve_record, fit_record, real_rows
 from physverify.selective_risk.report import artifact_of as abstain_table
 from physverify.selective_risk.settings import ABSTENTION_FILE, REPORT_FILE, AbstentionSettings
@@ -60,6 +61,7 @@ from physverify.selective_risk.tables import Collected, compare_tables, named_ks
 from physverify.synth.scene_scope import SceneScope
 from physverify.verification.exclusion_record import ExclusionRecord, InputHashes, RuleEvidence
 from physverify.verification.runner import TableRow, VerificationReport
+from physverify.verification.thresholding import ThresholdTable
 
 PRIMARY = ("s000", "s011-s039")
 LAST_STEP = 11
@@ -204,8 +206,9 @@ def _calibration() -> Calibration:
     return parse_calibration(artifact_text(), path=FIXTURE_ROOT / ARTIFACT_NAME)
 
 
-def _projection(level: InputLevel) -> dict[str, Any]:
-    return _calibration().stratum(level, PROFILE).thresholds_projection(FIXTURE_ROOT)
+def _projection(level: InputLevel) -> ThresholdTable:
+    projection = _calibration().stratum(level, PROFILE).thresholds_projection(FIXTURE_ROOT)
+    return ThresholdTable.complete(projection, ARTIFACT_NAME)
 
 
 def _tables() -> dict[str, Any]:
@@ -232,28 +235,28 @@ def _collected(n_scenes: int, seed: int, prefix: str) -> Collected:
 
 
 @functools.cache
-def _abstention_records() -> tuple[dict[str, Any], dict[str, Any]]:
+def _abstention_records() -> tuple[AbstentionRecord, CurveRecord]:
     """``selective-risk fit`` and ``selective-risk curve`` content through their own builders."""
     tables, calibrated = _tables(), _projection(InputLevel.PERCEIVED)
     calib = _collected(30, 11, "ab-s")
-    fitted = fit_record(calib, sweep(calib, calibrated, ABSTENTION), ABSTENTION, tables)
-    k = fitted["k_star"]
+    fitted = fit_record(calib, sweep(calib, calibrated, ABSTENTION).table, ABSTENTION, tables)
+    k = fitted.k_star
     held = _collected(30, 12, "ah-s")
     parts = CurveParts(
         per_check=per_check_rows(held.cases, calibrated, named_ks(k), ABSTENTION.ci),
-        injected_label={"rows": 0},
-        z={"n": 0},
+        injected_label=InjectedLabel(rows=0),
+        z=ZSummary(n=0),
         real_video={"physics_iq": real_rows(_collected(10, 13, "pi-s"), calibrated, k, 0.95)},
     )
-    compared = compare_tables(held, calibrated, raw_table(calibrated), ABSTENTION)
+    compared = compare_tables(held, calibrated, calibrated.raw(), ABSTENTION)
     return fitted, curve_record(held, compared, k, ABSTENTION, tables, parts)
 
 
 def _write_abstention(artifact: Path, curve_run: Path) -> Path:
     fitted, report = _abstention_records()
-    write_abstain_json(curve_run / REPORT_FILE, report)
+    write_abstain_json(curve_run / REPORT_FILE, report.model_dump())
     path = artifact.parent / ABSTENTION_FILE
-    write_abstain_json(path, fitted)
+    write_abstain_json(path, fitted.model_dump())
     return path
 
 

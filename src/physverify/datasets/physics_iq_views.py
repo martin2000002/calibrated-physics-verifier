@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, ClassVar
 from pydantic import Field
 
 from physverify.core.models import FrozenModel
-from physverify.datasets.physics_iq import PhysicsIQDataset
+from physverify.datasets._physics_iq import PhysicsIQDataset
 
 if TYPE_CHECKING:
     from physverify.config.models import Settings

@@ -1,22 +1,20 @@
-"""Calibrated score: a thin wrapper over the calibration chain's
-``calibration.apply.score_clip``.
+"""Calibrated score: a thin wrapper over the calibration chain's ``score_clip``.
 
-No score formula lives here; the calibration's ``ClipScore`` maps one to one onto
+No score formula lives here; the calibration's clip score maps one to one onto
 ``AggregateScore``. ``k_sigma`` is not passed: ``score_clip`` uses the one the stratum was fitted
-with. The calibration modules are imported lazily. The stratum is opened through the calibration's
-one gate (``loader.open_stratum``), the same the human-agreement study uses, so a missing, stale or
-unusable artifact is a reason (exit 2) with the calibration's own message, never a silent fallback
-to the provisional thresholds. The checks hash is part of the thresholds stamp, so scores of another
-check configuration never mix in one set of pairs."""
+with. The chain is reached through its facade (``calibration.api``), loaded on first use. The
+stratum is opened through the calibration's one gate (``open_stratum``), the same the
+human-agreement study uses, so a missing, stale or unusable artifact is a reason (exit 2) with the
+calibration's own message, never a silent fallback to the provisional thresholds. The checks hash
+is part of the thresholds stamp, so scores of another check configuration never mix in one set of
+pairs."""
 
 from __future__ import annotations
 
-import importlib
 from collections.abc import Callable, Mapping, Sequence
-from pathlib import Path
-from types import ModuleType
-from typing import Any, ClassVar, Final
+from typing import TYPE_CHECKING, Any, ClassVar, Final
 
+from physverify.calibration.api import CalibrationApi, ScoredClip, calibration_api
 from physverify.checks._base import Check
 from physverify.config.models import Settings
 from physverify.core.errors import PhysverifyError, UsageError
@@ -24,19 +22,18 @@ from physverify.finetune.scorers._base import AggregateScore
 from physverify.schema.checks import CheckResult, InputLevel
 from physverify.verification.runner import UNKNOWN_ROW_STEP
 
-APPLY_MODULE: Final = "physverify.calibration.apply"
-LOADER_MODULE: Final = "physverify.calibration.artifact_io"
-SETTINGS_MODULE: Final = "physverify.calibration.settings"
-CHECK_SET_MODULE: Final = "physverify.verification.check_set"
+if TYPE_CHECKING:
+    from physverify.calibration.artifact_io import Stratum
+
 HASH_SHOWN: Final = 12
 LEVEL: Final = InputLevel.PERCEIVED
 SOURCE_PREFIX: Final = "calibrated:"
 ROW_STEP_KEY: Final = "row_step"
 
-ModuleImporter = Callable[[str], ModuleType]
+ApiLoader = Callable[[], "CalibrationApi[Stratum]"]
 
 
-def to_aggregate(clip_score: Any) -> AggregateScore:
+def to_aggregate(clip_score: ScoredClip) -> AggregateScore:
     decided = frozenset(str(check) for check in clip_score.decided_checks)
     return AggregateScore(
         score=clip_score.score,
@@ -60,22 +57,19 @@ class CalibratedScorer:
         self,
         settings: Settings,
         checks: Mapping[str, type[Check]],
-        import_module: ModuleImporter = importlib.import_module,
+        api_loader: ApiLoader = calibration_api,
     ) -> None:
         self._settings = settings
-        self._import = import_module
+        self._api_loader = api_loader
         self._checks = checks
-        self._stratum: Any = None
-        self._loader: Any = None
+        self._api: CalibrationApi[Stratum] | None = None
+        self._stratum: Stratum | None = None
         self._label = ""
-        self._apply: ModuleType | None = None
         self._status_problem: str | None = None
 
     def unavailable(self) -> str | None:
         try:
             self._load()
-        except ImportError as exc:
-            return f"{APPLY_MODULE} is not available ({exc}); run the calibration chain first"
         except (PhysverifyError, OSError, ValueError) as exc:
             return f"no usable calibration: {type(exc).__name__}: {exc}"
         return self._status_problem
@@ -89,41 +83,39 @@ class CalibratedScorer:
         self._load()
         if self._stratum is None:
             return {"problem": self._status_problem}
-        status: Mapping[str, Any] = self._stratum.check_status()
-        return status
+        return self._stratum.check_status()
 
     def score(
         self, results: Sequence[CheckResult], only: frozenset[str] | None = None
     ) -> AggregateScore:
-        apply = self._load()
-        if self._status_problem is not None:
-            raise UsageError(self._status_problem)
-        self._require_time_base(results)
-        return to_aggregate(apply.score_clip(results, self._stratum, only=only))
+        api = self._load()
+        if self._status_problem is not None or self._stratum is None:
+            raise UsageError(self._status_problem or "no calibrated stratum")
+        self._require_time_base(api, self._stratum, results)
+        return to_aggregate(api.score_clip(results, self._stratum, only=only))
 
-    def _require_time_base(self, results: Sequence[CheckResult]) -> None:
+    def _require_time_base(
+        self, api: CalibrationApi[Stratum], stratum: Stratum, results: Sequence[CheckResult]
+    ) -> None:
         """tau depends on the time base: a clip of another row_step is refused."""
         steps = (r.details.get(ROW_STEP_KEY) for r in results)
         try:
-            step = self._loader.unique_row_step(UNKNOWN_ROW_STEP if s is None else s for s in steps)
-        except self._loader.CalibrationError as exc:
+            step = api.unique_row_step(UNKNOWN_ROW_STEP if s is None else int(s) for s in steps)
+        except api.error as exc:
             raise UsageError(str(exc)) from exc
-        problem = self._stratum.time_base_problem(self._settings.profile, step)
+        problem = stratum.time_base_problem(self._settings.profile, step)
         if problem is not None:
             raise UsageError(problem)
 
-    def _load(self) -> ModuleType:
-        if self._apply is not None:
-            return self._apply
-        apply = self._import(APPLY_MODULE)
-        loader = self._import(LOADER_MODULE)
-        calibration = self._import(SETTINGS_MODULE)
-        check_set = self._import(CHECK_SET_MODULE)
-        path: Path = loader.default_artifact_path(self._settings)
-        active: str = check_set.active_checks_hash(self._settings, self._checks)
-        require = calibration.calibration_settings(self._settings).require_calibrated_artifact
+    def _load(self) -> CalibrationApi[Stratum]:
+        if self._api is not None:
+            return self._api
+        api = self._api_loader()
+        path = api.default_artifact_path(self._settings)
+        active = api.active_checks_hash(self._settings, self._checks)
+        require = api.require_calibrated(self._settings)
         try:
-            self._stratum = loader.open_stratum(
+            self._stratum = api.open_stratum(
                 path,
                 LEVEL,
                 self._settings.profile,
@@ -131,12 +123,12 @@ class CalibratedScorer:
                 row_step=UNKNOWN_ROW_STEP,
                 require_calibrated=require,
             )
-        except loader.CalibrationError as exc:
+        except api.error as exc:
             self._status_problem = str(exc)
         source = "unusable" if self._stratum is None else self._stratum.source
         self._label = f"{SOURCE_PREFIX}{source}@checks:{active[:HASH_SHOWN]}"
-        self._loader, self._apply = loader, apply
-        return apply
+        self._api = api
+        return api
 
 
 PLUGINS = (CalibratedScorer,)

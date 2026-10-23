@@ -6,13 +6,14 @@ import subprocess
 from collections.abc import Sequence
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Any, Protocol
+from typing import Protocol
 
-from physverify.config.plugin_context import PluginContext
+from physverify.config.plugin_context import PluginContext, registry_of
 from physverify.core.errors import MissingInputError, PhysverifyError, UsageError
 from physverify.core.output import Echo
 from physverify.runtime.container import ContainerEngine, missing_reason
 from physverify.runtime.docker import Runner
+from physverify.synth.families._base import FAMILIES
 from physverify.synth.generate import (
     load_plan,
     plan_subset,
@@ -27,6 +28,7 @@ from physverify.synth.perturb import (
     ground_truth_contacts,
     instantiate,
 )
+from physverify.synth.perturbations._base import PERTURBATIONS, Perturbation
 from physverify.synth.plan import DatasetPlan
 from physverify.synth.render import render as render_clips
 from physverify.synth.render import seconds_per_frame
@@ -39,6 +41,7 @@ from physverify.synth.settings import (
 from physverify.synth.simulate import StepReport
 from physverify.synth.simulate import simulate as simulate_scenes
 from physverify.synth.store import ContainerRunner, DatasetStore, Step
+from physverify.synth.truth_measures._base import TRUTH_MEASURES
 
 
 class JobContext(PluginContext, Protocol):
@@ -67,8 +70,8 @@ class DatasetJob:
         return DatasetStore(dataset_root(self.context.settings, self.ds))
 
     @cached_property
-    def plugins(self) -> dict[str, Any]:
-        return instantiate(self.context.registry("perturbations"), self.ds)
+    def plugins(self) -> dict[str, Perturbation]:
+        return instantiate(registry_of(self.context, PERTURBATIONS), self.ds)
 
     def plan(self, current: bool = True) -> DatasetPlan:
         """The stored plan of the subset; ``current`` refuses one built before this checkout's
@@ -109,8 +112,8 @@ def fail_if(failures: Sequence[str]) -> None:
 
 
 def run_generate(job: DatasetJob) -> DatasetPlan:
-    registry = job.context.registry("families")
-    perturbations = job.context.registry("perturbations")
+    registry = registry_of(job.context, FAMILIES)
+    perturbations = registry_of(job.context, PERTURBATIONS)
     plan = plan_subset(job.ds, registry, perturbations, job.subset_name())
     save_plan(job.store, plan)
     written = write_specs(
@@ -160,7 +163,7 @@ def run_export(job: DatasetJob) -> None:
         job.plan(),
         job.store,
         job.plugins,
-        job.context.registry("truth_measures"),
+        registry_of(job.context, TRUTH_MEASURES),
         job.ds,
         job.context.settings.paths.data_dir,
     )

@@ -8,7 +8,7 @@ from pathlib import Path
 from pydantic import RootModel, ValidationError
 
 from physverify.core.errors import ConfigError
-from physverify.datasets.local_video import QueryList, to_queries
+from physverify.core.local_manifest import QueryList, to_queries
 from physverify.schema.clip import ObjectQuery
 
 

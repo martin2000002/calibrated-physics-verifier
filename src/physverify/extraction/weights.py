@@ -7,14 +7,14 @@ import shutil
 import subprocess
 import sys
 import urllib.parse
-import urllib.request
 from collections.abc import Iterable, Iterator, Sequence
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Protocol
 
 from physverify.config.models import PathsSettings
-from physverify.core.digests import CHUNK_BYTES, file_sha256
+from physverify.core.digests import file_sha256
+from physverify.core.download import fetch_url
 from physverify.core.errors import ConfigError
 from physverify.extraction._base import StageProvider, WeightKind, WeightSpec
 
@@ -46,11 +46,7 @@ class NetworkDownloader:
         )
 
     def http_file(self, url: str, dest: Path) -> None:
-        partial = dest.with_name(dest.name + ".part")
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        with urllib.request.urlopen(url) as response, partial.open("wb") as out:
-            shutil.copyfileobj(response, out, CHUNK_BYTES)
-        partial.replace(dest)
+        fetch_url(url, dest)
 
     def git_checkout(self, url: str, revision: str, dest: Path) -> None:
         dest.parent.mkdir(parents=True, exist_ok=True)

@@ -36,8 +36,8 @@ from physverify.calibration.thresholds import fails
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import Split
 from physverify.synth.scene_scope import SceneScope
-from physverify.verification.policies.threshold import ThresholdParams
 from physverify.verification.runner import VerificationReport
+from physverify.verification.thresholding import ThresholdParams
 
 PRIMARY = ("s011-s039",)
 

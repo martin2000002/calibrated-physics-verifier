@@ -27,17 +27,13 @@ from physverify.timing.budget import (
     BudgetError,
     CostPerVideo,
     cost_from_results,
+    require,
 )
 from physverify.timing.results_io import load_results, load_samples, timing_directory
 from physverify.timing.settings import load_timing
 from physverify.timing.stats import across_medians, stat_rows
 
 PAIR_MEASURE: Final = "dpo.pair_s"
-
-
-def _require(condition: bool, message: str) -> None:
-    if not condition:
-        raise BudgetError(message)
 
 
 @dataclass(frozen=True)
@@ -58,11 +54,11 @@ class FinetuneBudgetQuery:
     beta_fraction: float
 
     def __post_init__(self) -> None:
-        _require(math.isfinite(self.gpu_hours) and self.gpu_hours > 0, "--gpu-hours must be > 0")
-        _require(self.k >= 2, "K must be >= 2 to form pairs")
-        _require(0 <= self.pair_yield <= self.k // 2, "pair yield must lie in [0, K/2]")
-        _require(self.epochs > 0, "epochs must be > 0")
-        _require(0 < self.beta_fraction <= 1, "the beta-grid fraction must lie in (0, 1]")
+        require(math.isfinite(self.gpu_hours) and self.gpu_hours > 0, "--gpu-hours must be > 0")
+        require(self.k >= 2, "K must be >= 2 to form pairs")
+        require(0 <= self.pair_yield <= self.k // 2, "pair yield must lie in [0, K/2]")
+        require(self.epochs > 0, "epochs must be > 0")
+        require(0 < self.beta_fraction <= 1, "the beta-grid fraction must lie in (0, 1]")
 
 
 @dataclass(frozen=True)
@@ -87,8 +83,8 @@ class FinetuneBudget:
 def train_prompts(
     cost: CostPerVideo, cost_s: float, pair_s: float, q: FinetuneBudgetQuery
 ) -> FinetuneBudget:
-    _require(cost_s > 0, "the cost per video must be > 0")
-    _require(pair_s > 0, "the seconds per pair must be > 0")
+    require(cost_s > 0, "the cost per video must be > 0")
+    require(pair_s > 0, "the seconds per pair must be > 0")
     load = cost.generator_load_s or 0.0
     terms = (
         BudgetTerm("eval", q.n_eval * (q.k_eval_base + q.k_eval_ft) * cost_s, False),

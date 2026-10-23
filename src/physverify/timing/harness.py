@@ -17,7 +17,6 @@ from typing import Final, Protocol
 
 from physverify.schema.clip import ClipManifest
 from physverify.timing._base import TimingContext, TimingTarget
-from physverify.timing.hooks import TargetHooks, hooks_of
 from physverify.timing.records import (
     PREPARE_S,
     CallFailure,
@@ -131,23 +130,23 @@ class _Progress:
 
 
 def _select(
-    hooks: TargetHooks, clips: ClipSource, ctx: TimingContext, run: TargetRunSettings
+    target: TimingTarget, clips: ClipSource, ctx: TimingContext, run: TargetRunSettings
 ) -> list[ClipManifest]:
-    own = hooks.own_clips(ctx)
+    own = target.own_clips(ctx)
     chosen = list(own if own is not None else clips())
     return chosen if run.max_clips is None else chosen[: run.max_clips]
 
 
-def _describe(hooks: TargetHooks, ctx: TimingContext) -> dict[str, str]:
+def _describe(target: TimingTarget, ctx: TimingContext) -> dict[str, str]:
     try:
-        return {str(key): str(value) for key, value in hooks.describe(ctx).items()}
+        return {str(key): str(value) for key, value in target.describe(ctx).items()}
     except Exception as exc:  # noqa: BLE001 - a target's description never aborts the run
         return {"describe_error": _error_text(exc)}
 
 
-def _close(hooks: TargetHooks, progress: _Progress) -> None:
+def _close(target: TimingTarget, progress: _Progress) -> None:
     try:
-        hooks.close()
+        target.close()
     except Exception as exc:  # noqa: BLE001 - a failing close is recorded, not raised
         _log.warning("%s: close failed: %s", progress.name, _error_text(exc))
         progress.info["close_error"] = _error_text(exc)
@@ -179,16 +178,15 @@ class TimingHarness:
         self, target: TimingTarget, run: TargetRunSettings, clips: ClipSource, ctx: TimingContext
     ) -> TargetOutcome:
         """``on_outcome`` receives a provisional outcome after ``prepare`` and the final one."""
-        hooks = hooks_of(target)
         progress = _Progress(target.name, target.requires_gpu, run)
         try:
-            self._attempt(target, hooks, progress, clips, ctx)
+            self._attempt(target, progress, clips, ctx)
         except KeyboardInterrupt:
             progress.interrupt()
             raise
         finally:
-            progress.info.update(_describe(hooks, ctx))
-            _close(hooks, progress)
+            progress.info.update(_describe(target, ctx))
+            _close(target, progress)
             outcome = progress.outcome()
             self._on_outcome(outcome)
         return outcome
@@ -214,22 +212,21 @@ class TimingHarness:
     def _attempt(
         self,
         target: TimingTarget,
-        hooks: TargetHooks,
         progress: _Progress,
         clips: ClipSource,
         ctx: TimingContext,
     ) -> None:
         try:
-            reason = _hook("unavailable", lambda: hooks.unavailable(ctx))
+            reason = _hook("unavailable", lambda: target.unavailable(ctx))
             if reason is not None:
                 progress.stop(TargetStatus.SKIPPED, reason)
                 return
-            chosen = _hook("clip selection", lambda: _select(hooks, clips, ctx, progress.run))
+            chosen = _hook("clip selection", lambda: _select(target, clips, ctx, progress.run))
             if not chosen:
                 progress.stop(TargetStatus.FAILED, NO_CLIPS)
                 return
             progress.clip_ids = tuple(clip.clip_id for clip in chosen)
-            progress.setup = _hook("prepare", lambda: self._prepare(hooks, chosen, ctx))
+            progress.setup = _hook("prepare", lambda: self._prepare(target, chosen, ctx))
         except _HookError as exc:
             progress.stop(TargetStatus.FAILED, str(exc))
             return
@@ -237,10 +234,10 @@ class TimingHarness:
         self._loop(target, chosen, progress, ctx)
 
     def _prepare(
-        self, hooks: TargetHooks, clips: Sequence[ClipManifest], ctx: TimingContext
+        self, target: TimingTarget, clips: Sequence[ClipManifest], ctx: TimingContext
     ) -> dict[str, float]:
         start = self._clock()
-        measures = dict(hooks.prepare(clips, ctx))
+        measures = dict(target.prepare(clips, ctx))
         elapsed = self._clock() - start
         check_measures(measures)
         return {**measures, PREPARE_S: elapsed}

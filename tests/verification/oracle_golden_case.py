@@ -26,6 +26,7 @@ from physverify.verification.check_set import ChecksSettings, build_checks
 from physverify.verification.inputs import OracleSource
 from physverify.verification.policies.raw import RawPolicy
 from physverify.verification.runner import VerificationRunner
+from physverify.verification.thresholding import ThresholdTable
 
 GOLDEN = Path(__file__).resolve().parent / "golden" / "oracle.json"
 
@@ -47,7 +48,8 @@ def oracle_results(
     dataset = SyntheticFixtureDataset()
     found = PLUGIN_KINDS["checks"]() if registry is None else registry
     checks = build_checks(found, ChecksSettings(overrides or {}))
-    report = VerificationRunner(checks, RawPolicy(), {}).run(OracleSource(dataset), dataset.clips())
+    runner = VerificationRunner(checks, RawPolicy(), ThresholdTable.provisional({}))
+    report = runner.run(OracleSource(dataset), dataset.clips())
     return [json_ready(r.to_dict()) for r in report.results]
 
 

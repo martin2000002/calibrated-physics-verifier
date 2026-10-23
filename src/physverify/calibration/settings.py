@@ -11,8 +11,8 @@ from physverify.config.models import Settings
 from physverify.core.models import FrozenModel
 from physverify.diagnosis.settings import diagnosis_settings
 from physverify.schema.checks import InputLevel
-from physverify.verification.policies.threshold import ThresholdParams
 from physverify.verification.runner import VERIFICATION_SECTION, VerificationSettings
+from physverify.verification.thresholding import ThresholdParams
 
 SECTION = "calibration"
 THRESHOLD_POLICY = "threshold"

@@ -18,6 +18,8 @@ from physverify.datasets.local_video import NAME as LOCAL_VIDEO
 from physverify.diagnosis.chain_runner import ChainRunner
 from physverify.diagnosis.chain_variants import Variant
 from physverify.diagnosis.measurement_cases import stage_output
+from physverify.extraction.providers.scale_size_model import SizeModelScale
+from physverify.extraction.providers.scale_size_prior import SizePriorScale
 from physverify.runtime.runs import new_run, write_json
 from physverify.schema.clip import ClipManifest
 from physverify.schema.perception import MaskTrack
@@ -40,7 +42,7 @@ from physverify.sizing.objectron_draws import (
 from physverify.sizing.settings import EndToEndSettings, sizing_settings
 from physverify.verification.inputs import refuse_heavy
 
-SCALE_METHODS = ("size_prior", "size_model")
+SCALE_METHODS = (SizePriorScale.name, SizeModelScale.name)
 MODEL_FILE = "verifier/size_model.toml"
 
 

@@ -7,21 +7,19 @@ rule decides by itself; the calibrated rule only scores, and the frozen dev cut 
 from __future__ import annotations
 
 import math
-from collections.abc import Callable, Collection, Mapping, Sequence
+from collections.abc import Collection, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any, Protocol
 
+from physverify.calibration.api import CalibrationApi, CalibrationStratum, ScoreClip
 from physverify.core.errors import ConfigError, PhysverifyError
 from physverify.schema.checks import CheckResult, InputLevel, Verdict
-from physverify.verification.runner import RowStatus, TableRow, tau_of, thresholds_label
+from physverify.verification.runner import RowStatus, TableRow
+from physverify.verification.thresholding import ThresholdTable
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-    from physverify.calibration.artifact_io import Stratum
-    from physverify.checks._base import Check
-    from physverify.config.models import Settings
 
 ERROR_REASON = "check_error"
 PROVISIONAL_NAME = "provisional_any_fail"
@@ -80,8 +78,8 @@ class ClipDecisionRule(Protocol):
     ) -> Decision: ...
 
 
-def _ratio(row: TableRow, thresholds: Mapping[str, Any]) -> float:
-    tau = tau_of(thresholds, row.check_id)
+def _ratio(row: TableRow, thresholds: ThresholdTable) -> float:
+    tau = thresholds.tau_of(row.check_id)
     if row.magnitude is None or tau is None or tau <= 0:
         return math.nan
     return row.magnitude / tau
@@ -104,20 +102,20 @@ class ProvisionalAnyFail:
 
     name = PROVISIONAL_NAME
 
-    def __init__(self, thresholds: Mapping[str, Any], excluded: Collection[str] = ()) -> None:
+    def __init__(self, thresholds: ThresholdTable, excluded: Collection[str] = ()) -> None:
         self._thresholds = thresholds
         self._excluded = frozenset(excluded)
 
     @property
     def label(self) -> str:
-        return f"{self.name}/{thresholds_label(self._thresholds)}"
+        return f"{self.name}/{self._thresholds.label}"
 
     @property
     def kubric_threshold(self) -> float | None:
         return None
 
     def tau(self, check_id: str) -> float | None:
-        return tau_of(self._thresholds, check_id)
+        return self._thresholds.tau_of(check_id)
 
     def excluding(self, excluded: Collection[str]) -> ProvisionalAnyFail:
         return ProvisionalAnyFail(self._thresholds, self._excluded | frozenset(excluded))
@@ -150,65 +148,9 @@ def _provisional_outcome(rows: Sequence[TableRow], failed: bool) -> ClipDecision
     return ClipDecision.ABSTAIN
 
 
-class CalibrationStratum(Protocol):
-    """What the rule reads from the calibration chain's stratum (per-check tau, aggregate cut, and
-    the artefact#level/profile@run label)."""
-
-    @property
-    def source(self) -> str: ...
-
-    def tau(self, check_id: str) -> float | None: ...
-
-    def score_threshold(self) -> float | None: ...
-
-    def check_status(self) -> dict[str, Any]: ...
-
-
 class UnusableCalibrationError(PhysverifyError):
     """The calibrated stratum matches the run but cannot score yet (item 1.3): the workflow
     falls back to the provisional rule or stops, per ``[agreement].on_unusable_stratum``."""
-
-
-class ScoredClip(Protocol):
-    """The calibration chain's clip score: S in [0, 1] or None when it abstains."""
-
-    @property
-    def score(self) -> float | None: ...
-
-    @property
-    def reason(self) -> str | None: ...
-
-    @property
-    def abstained_checks(self) -> Sequence[str]: ...
-
-    @property
-    def per_check(self) -> Mapping[str, float]: ...
-
-
-class ScoreClip[S: CalibrationStratum](Protocol):
-    def __call__(
-        self,
-        results: Sequence[CheckResult],
-        stratum: S,
-        k_sigma: float | None = None,
-        *,
-        only: Collection[str] | None = None,
-    ) -> ScoredClip: ...
-
-
-class OpenStratum[S: CalibrationStratum](Protocol):
-    """The calibration chain's ``open_stratum``: the one gate in front of a stratum."""
-
-    def __call__(
-        self,
-        path: Path,
-        level: InputLevel,
-        profile: str,
-        *,
-        checks_hash: str,
-        row_step: int,
-        require_calibrated: bool = False,
-    ) -> S: ...
 
 
 class CalibratedRule[S: CalibrationStratum]:
@@ -261,47 +203,6 @@ class CalibratedRule[S: CalibrationStratum]:
         deciding = max(per_check, key=lambda k: per_check[k], default=None)
         reasons = tuple(sorted(str(c) for c in scored.abstained_checks))
         return Decision(clip_id, None, 1.0 - float(scored.score), deciding, reasons)
-
-
-@dataclass(frozen=True)
-class CalibrationApi[S: CalibrationStratum]:
-    """The calibration chain's entry points, injected so tests can pass a fake. ``error`` is a
-    configuration problem (missing or stale artifact, another stratum or time base);
-    ``unusable_error``, a subclass of it, a stratum that cannot score yet."""
-
-    open_stratum: OpenStratum[S]
-    default_artifact_path: Callable[[Settings], Path]
-    active_checks_hash: Callable[[Settings, Mapping[str, type[Check]]], str]
-    require_calibrated: Callable[[Settings], bool]
-    score_clip: ScoreClip[S]
-    error: type[Exception]
-    unusable_error: type[Exception]
-
-
-def import_calibration() -> CalibrationApi[Stratum]:
-    """The calibration chain's loader and scorer, imported only when the calibrated rule is asked
-    for."""
-    try:
-        from physverify.calibration.apply import score_clip
-        from physverify.calibration.artifact_io import (
-            CalibrationError,
-            UnusableStratumError,
-            default_artifact_path,
-            open_stratum,
-        )
-        from physverify.calibration.settings import calibration_settings
-        from physverify.verification.check_set import active_checks_hash
-    except ImportError as exc:
-        raise ConfigError(f"the calibrated rule needs the calibration package: {exc}") from exc
-    return CalibrationApi(
-        open_stratum=open_stratum,
-        default_artifact_path=default_artifact_path,
-        active_checks_hash=active_checks_hash,
-        require_calibrated=lambda s: calibration_settings(s).require_calibrated_artifact,
-        score_clip=score_clip,
-        error=CalibrationError,
-        unusable_error=UnusableStratumError,
-    )
 
 
 @dataclass(frozen=True)

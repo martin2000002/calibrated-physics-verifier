@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import ClassVar, Protocol, runtime_checkable
 
+from physverify.config.plugin_context import PluginKind
 from physverify.schema.contacts import ContactTable
 from physverify.schema.scene import SceneSpec
 from physverify.schema.states import ObjectStateTable
@@ -41,3 +42,6 @@ def measure_truth(
         check_id: plugin().measure(scene, states, contacts, tol, cuts)
         for check_id, plugin in registry.items()
     }
+
+
+TRUTH_MEASURES = PluginKind[type[TruthMeasure]]("truth_measures")

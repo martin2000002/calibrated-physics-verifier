@@ -12,8 +12,9 @@ from physverify.human_agreement.clip_decision import ClipDecision, ProvisionalAn
 from physverify.human_agreement.comparison_items import ComparisonItem, build_items, decide_all
 from physverify.human_agreement.undecided_policy import AS_IMPLAUSIBLE, AS_PLAUSIBLE
 from physverify.human_agreement.verify_run_reader import VerifyRun, load_run
+from physverify.verification.thresholding import ThresholdTable
 
-THRESHOLDS = {"status": "provisional", "checks": {"R1": {"tau": 0.05}, "R3a": {"tau": 0.05}}}
+THRESHOLDS = ThresholdTable.provisional({"R1": 0.05, "R3a": 0.05})
 
 
 def _run(world) -> VerifyRun:

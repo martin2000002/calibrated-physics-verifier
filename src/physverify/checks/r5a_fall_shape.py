@@ -66,6 +66,7 @@ class FallShapeCheck:
 
     check_id: ClassVar[str] = "R5a"
     requires: ClassVar[frozenset[str]] = frozenset({"contacts"})
+    time_dependent: ClassVar[bool] = False
     magnitude_unit: ClassVar[str] = "accel_rel_diff"
     Params: ClassVar[type[BaseModel]] = FallShapeParams
 

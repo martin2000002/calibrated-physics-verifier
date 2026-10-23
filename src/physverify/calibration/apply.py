@@ -1,7 +1,7 @@
 """Calibrated verdicts, violation probabilities and the clip score.
 
 What abstention, the human-agreement study and preference fine-tuning import. The verdict rule is
-``ThresholdPolicy.judge`` (no copy of k sigma); p_c is an estimate conditional on the calib design
+``ThresholdRule.judge`` (no copy of k sigma); p_c is an estimate conditional on the calib design
 and S inherits that label."""
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ from physverify.calibration.artifact import CheckCalibration
 from physverify.calibration.artifact_io import KSigmaMismatchError, Stratum
 from physverify.calibration.verdict import DECIDED, Outcome, Rule, clip_verdict
 from physverify.schema.checks import AbstainReason, CheckResult, Verdict
-from physverify.verification.policies.threshold import ThresholdParams, ThresholdPolicy
+from physverify.verification.thresholding import ThresholdParams, ThresholdRule
 
 NO_DECIDED = "no_decided_check"
 NO_INFORMATIVE = "no_informative_check"
@@ -48,11 +48,11 @@ def stratum_k_sigma(stratum: Stratum, k_sigma: float | None = None) -> float:
     return fitted
 
 
-def policy_for(stratum: Stratum, k_sigma: float | None = None) -> ThresholdPolicy:
+def policy_for(stratum: Stratum, k_sigma: float | None = None) -> ThresholdRule:
     params = ThresholdParams(
         k_sigma=stratum_k_sigma(stratum, k_sigma), on_unknown_sigma=stratum.model.on_unknown_sigma
     )
-    return ThresholdPolicy(params)
+    return ThresholdRule(params)
 
 
 def violation_probability(check: CheckCalibration, magnitude: float) -> float | None:
@@ -64,7 +64,7 @@ def violation_probability(check: CheckCalibration, magnitude: float) -> float | 
     return float(expit(prob.a + prob.b * u))
 
 
-def rule_for(stratum: Stratum, check_id: str, policy: ThresholdPolicy) -> Rule:
+def rule_for(stratum: Stratum, check_id: str, policy: ThresholdRule) -> Rule:
     """The stratum's bias and sigma factor of ``check_id`` (0 and unmeasured when unknown)."""
     check = stratum.check(check_id)
     if check is None:
@@ -79,7 +79,7 @@ def calibrated_result(
 
 
 def _calibrated(
-    check_id: str, results: Sequence[CheckResult], stratum: Stratum, policy: ThresholdPolicy
+    check_id: str, results: Sequence[CheckResult], stratum: Stratum, policy: ThresholdRule
 ) -> CalibratedResult:
     tau = stratum.tau(check_id)
     outcome = clip_verdict(results, rule_for(stratum, check_id, policy), tau)
@@ -129,7 +129,7 @@ class _Decided:
 
 
 def check_outcome(
-    results: Sequence[CheckResult], stratum: Stratum, policy: ThresholdPolicy
+    results: Sequence[CheckResult], stratum: Stratum, policy: ThresholdRule
 ) -> CalibratedResult | None:
     """The check's clip outcome (``clip_verdict``, the rule ``fit`` measured); None when it has
     no event."""
@@ -164,7 +164,7 @@ def score_clip(
 
 
 def _split(
-    by_check: Mapping[str, Sequence[CheckResult]], stratum: Stratum, policy: ThresholdPolicy
+    by_check: Mapping[str, Sequence[CheckResult]], stratum: Stratum, policy: ThresholdRule
 ) -> tuple[list[_Decided], list[str]]:
     decided: list[_Decided] = []
     abstained: list[str] = []

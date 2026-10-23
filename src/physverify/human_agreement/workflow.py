@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from physverify.calibration.api import CalibrationStratum
 from physverify.checks._base import Check
 from physverify.core.digests import sha256_if_file
 from physverify.core.errors import UsageError
@@ -17,10 +18,7 @@ from physverify.core.log import get_logger
 from physverify.core.output import Echo
 from physverify.datasets._videophy_review import load_review
 from physverify.datasets._videophy_tables import SECTION as VIDEOPHY_SECTION
-from physverify.human_agreement.clip_decision import (
-    CALIBRATED_NAME,
-    CalibrationStratum,
-)
+from physverify.human_agreement.clip_decision import CALIBRATED_NAME
 from physverify.human_agreement.comparison import (
     Comparison,
     ComparisonInputs,

@@ -38,6 +38,7 @@ class GravityValueCheck:
 
     check_id: ClassVar[str] = "R5b"
     requires: ClassVar[frozenset[str]] = frozenset({"contacts"})
+    time_dependent: ClassVar[bool] = True
     magnitude_unit: ClassVar[str] = "g_rel_error"
     Params: ClassVar[type[BaseModel]] = GravityValueParams
 
