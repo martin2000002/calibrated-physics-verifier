@@ -11,7 +11,7 @@ from typing import Any, Literal
 
 from pydantic import Field, ValidationInfo, model_validator
 
-from physverify.diagnosis.report import ReportModel
+from physverify.core.models import ReportModel
 from physverify.schema.checks import InputLevel
 
 CALIBRATION_SCHEMA = "physverify.calibration"

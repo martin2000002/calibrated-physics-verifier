@@ -6,7 +6,6 @@ null, so a fixed clock and run id give byte-identical files.
 
 from __future__ import annotations
 
-import json
 import math
 from collections.abc import Iterable, Mapping, Sequence
 from enum import Enum
@@ -19,13 +18,12 @@ from numpy.typing import ArrayLike
 from pydantic import Field
 
 from physverify.core.markdown import number, table
-from physverify.core.models import FrozenModel
+from physverify.core.models import ReportModel
 from physverify.datasets._base import DatasetSource
 from physverify.runtime.runs import RunContext
 from physverify.schema.checks import AbstainReason, Verdict
 from physverify.schema.clip import ClipManifest, Split
 from physverify.schema.error_profile import ErrorProfile, no_profile_hash
-from physverify.schema.io import json_ready
 from physverify.schema.stages import Stage
 
 REPORT_DIR = "diagnosis"
@@ -46,12 +44,6 @@ def profile_hash(profile: ErrorProfile | None) -> str:
     if profile is None:
         return no_profile_hash()
     return profile.entries_hash(entry.key for entry in profile.entries)
-
-
-class ReportModel(FrozenModel):
-    def to_json(self) -> str:
-        payload = json_ready(self.model_dump(mode="json"))
-        return json.dumps(payload, sort_keys=True, indent=2, allow_nan=False) + "\n"
 
 
 class Coverage(ReportModel):
