@@ -13,7 +13,6 @@ from physverify.timing.stats import (
     per_clip,
     quantile,
     stat_rows,
-    sum_of_medians,
     summarize,
 )
 
@@ -92,10 +91,3 @@ def test_stat_rows_list_clips_first_then_across() -> None:
         (ACROSS_CLIPS, "y.wall_s"),
     ]
     assert not rows[0].unstable
-
-
-def test_sum_of_medians_with_and_without_missing_measures() -> None:
-    samples = [sample("a", 2.0), sample("a", 0.5, measure="y.wall_s")]
-    rows = stat_rows(samples, MAX_IQR_REL)
-    assert sum_of_medians(rows, ["x.wall_s", "y.wall_s"]) == 2.5
-    assert sum_of_medians(rows, ["x.wall_s", "z.wall_s"]) is None

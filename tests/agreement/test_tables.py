@@ -14,7 +14,6 @@ from physverify.datasets._videophy_tables import (
     FilterSettings,
     VideophySettings,
     clip_id_of,
-    copied_human_agreement,
     generator_of,
     has_term,
     lexical_reason,
@@ -94,12 +93,6 @@ def test_below_the_published_cut_is_implausible_and_nan_has_no_label() -> None:
     assert implausible(1.0, 1.0) is False
     assert implausible(3.0, 4.0) is True
     assert implausible(math.nan, 4.0) is None
-
-
-def test_copied_human_agreement_is_the_share_of_repeated_values() -> None:
-    labels = [{"video_url": "a", "pc": "1"}, {"video_url": "b", "pc": "0"}]
-    reference = [{"video_url": "a", "pc": "1"}, {"video_url": "b", "pc": "1"}]
-    assert copied_human_agreement(labels, reference, "pc") == 0.5
 
 
 def test_unknown_subsets_are_usage_errors(settings: Settings) -> None:

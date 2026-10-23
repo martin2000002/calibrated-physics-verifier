@@ -14,7 +14,7 @@ from synthetic_clip import manifest
 from physverify.cli.context import PLUGIN_KINDS
 from physverify.diagnosis.cases import MetricCase, MetricOutcome
 from physverify.diagnosis.error_profile_writer import PROFILE_QUANTITIES
-from physverify.diagnosis.metrics.lift_gravity import LiftGravityAngleMetric, angle_summary
+from physverify.diagnosis.metrics.lift_gravity import LiftGravityAngleMetric
 from physverify.diagnosis.settings import MetricSettings
 from physverify.schema.states import CoordFrame, LengthUnit, ObjectStateTable
 from physverify.synth.layout import camera_axes
@@ -100,15 +100,6 @@ def test_compute_summarizes_one_sample_per_clip() -> None:
     summary = LiftGravityAngleMetric(OPTIONS).compute(pred, truth, manifest())
     assert summary["level_angle_deg.mean"] == pytest.approx(20.0, abs=TOL)
     assert summary["level_angle_deg.n"] == 1.0
-
-
-def test_angle_summary_reports_median_p90_and_n() -> None:
-    angles = np.array([*np.arange(1.0, 11.0), np.nan])
-    assert angle_summary(angles) == pytest.approx({"median": 5.5, "p90": 9.1, "n": 10.0})
-    empty = angle_summary(np.zeros(0))
-    assert empty["n"] == 0.0
-    assert math.isnan(empty["median"])
-    assert math.isnan(empty["p90"])
 
 
 def test_registered_and_kept_out_of_the_error_profile() -> None:

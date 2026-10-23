@@ -12,7 +12,6 @@ from physverify.synth.perturbations._ballistics import (
     energy_scale,
     impact_velocity,
     integrate_sphere,
-    propagate_quaternion,
     rolling_angular_velocity,
     time_to_height,
 )
@@ -55,12 +54,9 @@ def test_impact_velocity_extrapolates_ballistically() -> None:
     np.testing.assert_allclose(impact_velocity((0, 0, -1.0), 0.0, 0.1, G), (0, 0, -1.981))
 
 
-def test_rolling_and_quaternion_propagation() -> None:
+def test_rolling_angular_velocity() -> None:
     omega = rolling_angular_velocity((1.0, 0.0, 0.0), 0.5)
     np.testing.assert_allclose(omega, (0.0, 2.0, 0.0))
-    q = propagate_quaternion((1.0, 0.0, 0.0, 0.0), (0.0, 0.0, math.pi), 1.0)
-    np.testing.assert_allclose(q, (0.0, 0.0, 0.0, 1.0), atol=1e-12)
-    assert np.linalg.norm(propagate_quaternion(q, omega, 0.3)) == pytest.approx(1.0)
 
 
 def test_energy_scale_reaches_the_requested_gain() -> None:

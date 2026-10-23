@@ -209,10 +209,6 @@ class FreezeInputs:
     stop_rule: StopRuleState
 
 
-def ft_tag(selection: Selection) -> str | None:
-    return None if selection.selected is None else selection.selected.model_tag
-
-
 def adapter_identity(selection: Selection) -> tuple[str | None, str | None]:
     """The adapter path and the tag of its current bytes (a changed file changes the tag)."""
     if selection.selected is None:

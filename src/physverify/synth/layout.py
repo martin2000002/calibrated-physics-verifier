@@ -89,31 +89,6 @@ def footprint_radius(kind: PrimitiveKind, extents: Sequence[float]) -> float:
     return float(extents[0]) / 2.0
 
 
-def footprint_clear(
-    xy: ArrayLike, radius: float, placed: Sequence[tuple[Vec, float]], clearance: float
-) -> bool:
-    point = np.asarray(xy, dtype=np.float64)
-    return all(
-        float(np.linalg.norm(point - other)) >= radius + r + clearance for other, r in placed
-    )
-
-
-def place_on_floor(
-    rng: np.random.Generator,
-    radius: float,
-    placed: Sequence[tuple[Vec, float]],
-    half_size: float,
-    clearance: float,
-    tries: int = 200,
-) -> Vec | None:
-    """A random xy in [-half_size, half_size]^2 that keeps ``clearance`` to ``placed``."""
-    for _ in range(tries):
-        xy = rng.uniform(-half_size, half_size, size=2)
-        if footprint_clear(xy, radius, placed, clearance):
-            return xy
-    return None
-
-
 def object_spec(
     object_id: str,
     label: str,

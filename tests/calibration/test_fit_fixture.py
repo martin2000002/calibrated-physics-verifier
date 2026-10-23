@@ -130,7 +130,7 @@ def test_evaluation_refuses_another_profile(artifact: CalibrationArtifact) -> No
 
 
 def test_evaluation_refuses_another_row_step(artifact: CalibrationArtifact) -> None:
-    """1.15: the same check as ``usable_stratum`` rejects real clips with another time step."""
+    """1.15: the same check as ``open_stratum`` rejects real clips with another time step."""
     item = held_out_inputs()
     real = item.real["real_fixture"]
     slower = LevelData(real.level, tuple(replace(r, row_step=2) for r in real.rows), real.results)

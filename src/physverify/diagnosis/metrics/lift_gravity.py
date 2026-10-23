@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import math
 from collections.abc import Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
@@ -20,23 +19,12 @@ from physverify.schema.outputs import StageOutput
 from physverify.schema.stages import Stage
 from physverify.schema.states import ObjectStateTable
 
-QUANTILES = (0.5, 0.9)
-
 
 def gravity_angles(assumed: FloatArray, truth: FloatArray) -> FloatArray:
     """[angle in degrees], or empty when either direction is unknown (non-finite)."""
     if not (np.isfinite(assumed).all() and np.isfinite(truth).all()):
         return np.zeros(0)
     return np.array([angle_deg(assumed, truth)])
-
-
-def angle_summary(angles: FloatArray) -> dict[str, float]:
-    """Median, p90 and n of the finite angles; the median and p90 are NaN when n is 0."""
-    finite = angles[np.isfinite(angles)]
-    if finite.size == 0:
-        return {"median": math.nan, "p90": math.nan, "n": 0.0}
-    median, p90 = np.quantile(finite, QUANTILES)
-    return {"median": float(median), "p90": float(p90), "n": float(finite.size)}
 
 
 @dataclass(frozen=True)

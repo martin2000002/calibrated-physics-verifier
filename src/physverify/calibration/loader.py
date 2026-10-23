@@ -269,17 +269,6 @@ def open_stratum(
     return stratum
 
 
-def usable_stratum(
-    path: Path, level: InputLevel, profile: str, *, checks_hash: str, row_step: int
-) -> str | None:
-    """``open_stratum`` as a message: the problem, None when the stratum is usable."""
-    try:
-        open_stratum(path, level, profile, checks_hash=checks_hash, row_step=row_step)
-    except CalibrationError as exc:
-        return str(exc)
-    return None
-
-
 def unique_row_step(steps: Iterable[int]) -> int:
     """The single time base of a run; ``UNKNOWN_ROW_STEP`` entries (no time axis) are ignored,
     and a run with none of them known is ``UNKNOWN_ROW_STEP``."""

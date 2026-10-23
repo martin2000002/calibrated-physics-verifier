@@ -180,32 +180,6 @@ def rolling_angular_velocity(velocity: ArrayLike, radius: float) -> Vec:
     return out
 
 
-def propagate_quaternion(q0: ArrayLike, omega: ArrayLike, dt: float) -> Vec:
-    """q(t) = exp(omega dt / 2) (x) q0 for a constant world angular velocity (wxyz)."""
-    w = np.asarray(omega, dtype=np.float64)
-    angle = float(np.linalg.norm(w)) * dt
-    q = np.asarray(q0, dtype=np.float64)
-    if angle < 1e-15:
-        return q.copy()
-    axis = w / np.linalg.norm(w)
-    half = 0.5 * angle
-    r = np.concatenate([[math.cos(half)], math.sin(half) * axis])
-    return _quat_mul(r, q)
-
-
-def _quat_mul(a: Vec, b: Vec) -> Vec:
-    w1, x1, y1, z1 = a
-    w2, x2, y2, z2 = b
-    return np.array(
-        [
-            w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2,
-            w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
-            w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
-            w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2,
-        ]
-    )
-
-
 def energy_scale(
     masses: Sequence[float], v_minus: Sequence[Vec], v_plus: Sequence[Vec], gain: float
 ) -> float:

@@ -107,11 +107,3 @@ def stat_rows(samples: Iterable[Sample], max_iqr_rel: float) -> list[MeasureStat
 
 def across_medians(rows: Iterable[MeasureStats]) -> dict[str, float]:
     return {row.measure: row.median for row in rows if row.clip_id == ACROSS_CLIPS}
-
-
-def sum_of_medians(rows: Sequence[MeasureStats], measures: Sequence[str]) -> float | None:
-    """Sum of the across-clip medians of ``measures``, or None when one of them is missing."""
-    medians = across_medians(rows)
-    if any(measure not in medians for measure in measures):
-        return None
-    return math.fsum(medians[measure] for measure in measures)

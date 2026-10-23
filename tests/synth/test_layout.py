@@ -14,12 +14,10 @@ from physverify.synth.layout import (
     UnreachableTargetError,
     camera_axes,
     extents_for,
-    footprint_clear,
     footprint_radius,
     frame_camera,
     lognormal_params,
     mass_for,
-    place_on_floor,
     project,
     solve_offset,
     spec_intrinsics,
@@ -46,18 +44,6 @@ def test_mass_uses_the_primitive_volume() -> None:
     )
     assert mass_for(PrimitiveKind.BOX, (0.1, 0.2, 0.3), 10.0) == pytest.approx(0.06)
     assert footprint_radius(PrimitiveKind.BOX, (0.3, 0.4, 1.0)) == pytest.approx(0.25)
-
-
-def test_placement_keeps_clearance() -> None:
-    rng = np.random.default_rng(1)
-    placed: list[tuple[np.ndarray, float]] = []
-    for _ in range(5):
-        xy = place_on_floor(rng, 0.05, placed, 0.5, 0.02)
-        assert xy is not None
-        placed.append((xy, 0.05))
-    for n, (xy, r) in enumerate(placed):
-        assert footprint_clear(xy, r, placed[:n] + placed[n + 1 :], 0.02)
-    assert place_on_floor(rng, 1.0, placed, 0.01, 0.0, tries=5) is None
 
 
 def test_camera_axes_are_a_right_handed_rotation() -> None:

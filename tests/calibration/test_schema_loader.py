@@ -19,7 +19,6 @@ from physverify.calibration.loader import (
     parse_calibration,
     projection_name,
     unique_row_step,
-    usable_stratum,
 )
 from physverify.calibration.schema import CALIBRATION_VERSION, CheckCalibration
 from physverify.schema.checks import InputLevel
@@ -143,9 +142,12 @@ def test_the_stratum_carries_the_checks_hash(text: str) -> None:
 def usable(
     path: Path, *, checks_hash: str = "checks", row_step: int = 1, profile: str = "fast"
 ) -> str | None:
-    return usable_stratum(
-        path, InputLevel.ORACLE, profile, checks_hash=checks_hash, row_step=row_step
-    )
+    """The problem that makes the oracle stratum unusable, None when it opens."""
+    try:
+        open_stratum(path, InputLevel.ORACLE, profile, checks_hash=checks_hash, row_step=row_step)
+    except CalibrationError as exc:
+        return str(exc)
+    return None
 
 
 def test_a_stratum_with_one_ok_check_is_usable(tmp_path: Path, text: str) -> None:
@@ -244,16 +246,6 @@ def test_require_calibrated_turns_an_insufficient_artifact_unusable(tmp_path: Pa
         opened(path, require_calibrated=True)
     calibrated = write_artifact(tmp_path / "d.json", status="calibrated")
     assert opened(calibrated, require_calibrated=True) is not None
-
-
-def test_usable_stratum_is_the_message_of_open_stratum(tmp_path: Path) -> None:
-    path = write_artifact(tmp_path / "c.json", ready=False)
-    with pytest.raises(UnusableStratumError) as caught:
-        opened(path)
-    message = usable_stratum(
-        path, InputLevel.PERCEIVED, "fast", checks_hash=FIXTURE_CHECKS_HASH, row_step=1
-    )
-    assert message == str(caught.value)
 
 
 def test_unique_row_step_ignores_unknown_and_refuses_a_mix() -> None:

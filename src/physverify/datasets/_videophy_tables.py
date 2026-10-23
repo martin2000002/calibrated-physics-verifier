@@ -203,19 +203,6 @@ def reference_scores(records: Iterable[Mapping[str, str]], column: str) -> dict[
     return {r["video_url"]: to_float(r.get(column)) for r in records}
 
 
-def copied_human_agreement(
-    labels: Iterable[Mapping[str, str]], reference: Iterable[Mapping[str, str]], column: str
-) -> float:
-    """Share of joined rows whose AutoEval table repeats the human value (ADR 0011 D4)."""
-    human = {r["video_url"]: to_float(r.get(column)) for r in labels}
-    pairs = [
-        (human[r["video_url"]], to_float(r.get(column)))
-        for r in reference
-        if r["video_url"] in human
-    ]
-    return sum(a == b for a, b in pairs) / len(pairs) if pairs else math.nan
-
-
 def url_member(video_url: str, prefix: str) -> str:
     return prefix + urllib.parse.urlsplit(video_url).path.lstrip("/")
 
