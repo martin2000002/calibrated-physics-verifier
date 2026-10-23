@@ -1,4 +1,4 @@
-"""How many training prompts and preference pairs fit in a GPU-hour budget (ADR 0008, section 5).
+"""How many training prompts and preference pairs fit in a GPU-hour budget.
 
 Symbols: ``g_B`` generation per video with batch ``B``, ``e`` and ``v`` the other per-clip
 components of ``timing.total_measures``, ``L_x`` the first-cell extraction overhead amortized over

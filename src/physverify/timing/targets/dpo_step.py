@@ -1,4 +1,4 @@
-"""Seconds per preference pair of the Flow-DPO step on the H200 (ADR 0012, 3.9 and Juicio 10).
+"""Seconds per preference pair of the Flow-DPO step on the H200.
 
 One call is one pair: learner forward + backward and reference forward (adapter off) for winner
 and loser, on synthetic latents with the generator's shape. It reuses ``finetune.dpo`` and

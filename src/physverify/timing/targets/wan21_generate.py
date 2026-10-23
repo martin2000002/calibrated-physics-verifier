@@ -1,4 +1,4 @@
-"""Per-video cost of the thesis generator, Wan2.1-T2V-1.3B, on the H200 (ADR 0008, D7-D9).
+"""Per-video cost of the thesis generator, Wan2.1-T2V-1.3B, on the H200.
 
 Each configured prompt is one clip. A call generates it once per batch size B and reports, as
 ``generate.b{B}.*``: ``wall_s`` (device sync to device sync), ``per_video_s = wall_s / B``,
