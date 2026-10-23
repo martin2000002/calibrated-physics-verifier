@@ -70,7 +70,7 @@ PHASE="$1"
 DEV_SUBSET=h2_dev
 TEST_SUBSET=h2_test
 H2_LINK=h2-latest
-A8V2_STEPS=9
+CHAIN_STEPS=9
 CALIBRATED=calibrated
 PROVISIONAL=provisional_any_fail
 
@@ -126,7 +126,7 @@ export CUDA_VISIBLE_DEVICES=""
 unset PHYSVERIFY_LOCK_HELD
 PV_DEVICE=cpu
 CAL="$PHYSVERIFY__PATHS__CALIBRATION_DIR"
-A8V2="${PHYSVERIFY_AGREEMENT_CHAIN_DIR:-$CHAIN_ROOT}"
+CHAIN_DIR="${PHYSVERIFY_AGREEMENT_CHAIN_DIR:-$CHAIN_ROOT}"
 FREEZE="${PHYSVERIFY_AGREEMENT_FREEZE:-}"
 FROZEN_BY="the calibration chain"
 [[ -z "$FREEZE" ]] || FROZEN_BY="the freeze"
@@ -147,26 +147,26 @@ if [[ -f "$STATE" ]]; then
     source "$STATE"
 fi
 
-# a8v2_state KEY: KEY of the calibration chain's state.env, read in a subshell so nothing here is
+# chain_state KEY: KEY of the calibration chain's state.env, read in a subshell so nothing here is
 # overwritten.
-a8v2_state() {
+chain_state() {
     (
         # shellcheck disable=SC1091
-        [[ -f "$A8V2/state.env" ]] && source "$A8V2/state.env"
+        [[ -f "$CHAIN_DIR/state.env" ]] && source "$CHAIN_DIR/state.env"
         printf '%s' "${!1:-}"
     )
 }
 
-require_a8v2() {
+require_chain() {
     local device k code name
-    device="$(a8v2_state CHAIN_DEVICE)"
-    [[ "$device" == cpu ]] || die "$A8V2 is not the calibration's cpu chain (CHAIN_DEVICE '$device')"
-    A8V2_RECORD_SHA="$(a8v2_state RECORD_SHA)"
-    [[ -n "$A8V2_RECORD_SHA" ]] || die "$A8V2/state.env has no RECORD_SHA: its step 9 is not done"
-    for ((k = 0; k <= A8V2_STEPS; k++)); do
-        code="$(last_exit "$k" "$A8V2/steps.tsv")"
+    device="$(chain_state CHAIN_DEVICE)"
+    [[ "$device" == cpu ]] || die "$CHAIN_DIR is not the calibration's cpu chain (CHAIN_DEVICE '$device')"
+    CHAIN_RECORD_SHA="$(chain_state RECORD_SHA)"
+    [[ -n "$CHAIN_RECORD_SHA" ]] || die "$CHAIN_DIR/state.env has no RECORD_SHA: its step 9 is not done"
+    for ((k = 0; k <= CHAIN_STEPS; k++)); do
+        code="$(last_exit "$k" "$CHAIN_DIR/steps.tsv")"
         [[ "$code" == 0 ]] \
-            || die "calibration chain step $k has not completed (last exit '${code:-none}' in $A8V2/steps.tsv)"
+            || die "calibration chain step $k has not completed (last exit '${code:-none}' in $CHAIN_DIR/steps.tsv)"
     done
     for name in calibration.json exclusions.json stage_errors.precise.json; do
         [[ -f "$CAL/$name" ]] || die "no $CAL/$name: the calibration chain has not published it"
@@ -186,7 +186,7 @@ require_freeze() {
     same_path "$(freeze_field calibration_dir)" "$CAL" \
         || die "$FREEZE froze $(freeze_field calibration_dir), not $CAL" \
             "(set PHYSVERIFY_AGREEMENT_CALIBRATION_DIR to it)"
-    A8V2_RECORD_SHA="$(freeze_field record_sha)"
+    CHAIN_RECORD_SHA="$(freeze_field record_sha)"
     h200_py freeze_query.py artifacts "$FREEZE" >/dev/null \
         || die "the frozen files of $FREEZE changed (freeze_query artifacts)"
 }
@@ -264,8 +264,8 @@ prereg_problem() {
     [[ "$value" == "$CALIB_SHA" ]] \
         || { echo "calibration artifact $value, not $FROZEN_BY's $CAL/calibration.json ($CALIB_SHA)"; return; }
     value="$(prereg_field exclusion_record_sha256)"
-    [[ "$value" == "$A8V2_RECORD_SHA" ]] \
-        || { echo "decision record $value, not $FROZEN_BY's $A8V2_RECORD_SHA"; return; }
+    [[ "$value" == "$CHAIN_RECORD_SHA" ]] \
+        || { echo "decision record $value, not $FROZEN_BY's $CHAIN_RECORD_SHA"; return; }
 }
 
 # preflight STEP SUBSET CLIP: one cached clip verified; any error in its checks stops.
@@ -392,6 +392,6 @@ phase_test() {
 if [[ -n "$FREEZE" ]]; then
     require_freeze
 else
-    require_a8v2
+    require_chain
 fi
 "phase_$PHASE"
