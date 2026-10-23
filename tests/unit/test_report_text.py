@@ -10,7 +10,7 @@ import pytest
 from physverify.core.markdown import table
 from physverify.datasets.local_video import QueryEntry
 from physverify.demo.report import CheckRow, ClipBlock, RuleInfo, VideoReport, render_markdown
-from physverify.diagnosis.report import _table as diagnosis_table
+from physverify.diagnosis.markdown_cells import text_table as diagnosis_table
 from physverify.finetune.records import PromptRecord
 from physverify.reporting.numbers import Section, Value
 from physverify.reporting.render import _table as results_table
@@ -202,7 +202,7 @@ FORMATTERS: dict[str, list[tuple[Any, str]]] = {
         ((), "()"),
         (Colour.RED, "Colour.RED"),
     ],
-    "physverify.diagnosis.report:_cell": [
+    "physverify.diagnosis.markdown_cells:cell_text": [
         (None, "n/a"),
         (0.0, "0"),
         (-0.0, "-0"),

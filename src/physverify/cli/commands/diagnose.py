@@ -18,7 +18,7 @@ from physverify.app.services import check_suite
 from physverify.cli.context import app_context, echo_err
 from physverify.core.markdown import number
 from physverify.datasets._base import select_clips
-from physverify.diagnosis.attribution import run_attribution
+from physverify.diagnosis.attribution_run import run_attribution
 from physverify.diagnosis.context import DiagnosisContext
 from physverify.diagnosis.end_to_end import run_end_to_end
 from physverify.diagnosis.real_video import run_real
@@ -30,8 +30,8 @@ from physverify.diagnosis.report import (
     RealVideoReport,
     Report,
     StageErrorReport,
-    write_report,
 )
+from physverify.diagnosis.report_markdown import write_report
 from physverify.diagnosis.stage_errors import run_stage_errors
 from physverify.extraction.events import ConsoleObserver, EventRecorder, write_events
 from physverify.extraction.pipeline import ExtractionReport
