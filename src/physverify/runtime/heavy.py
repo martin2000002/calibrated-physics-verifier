@@ -89,7 +89,11 @@ class HeavyLock:
             os.close(fd)
             raise
         self._fd = fd
-        self._write_holder()
+        try:
+            self._write_holder()
+        except BaseException:
+            self.release()
+            raise
 
     def _wait(self, fd: int) -> None:
         deadline = None if self.timeout_s is None else self._clock() + self.timeout_s
@@ -114,10 +118,12 @@ class HeavyLock:
     def release(self) -> None:
         if self._fd is None:
             return
-        holder_path(self.path).unlink(missing_ok=True)
-        fcntl.flock(self._fd, fcntl.LOCK_UN)
-        os.close(self._fd)
-        self._fd = None
+        fd, self._fd = self._fd, None
+        try:
+            holder_path(self.path).unlink(missing_ok=True)
+        finally:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+            os.close(fd)
 
 
 def _try_lock(fd: int) -> bool:

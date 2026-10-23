@@ -25,6 +25,7 @@ from physverify.calibration.sealed_ledger import (
     freeze_of,
     frozen_files,
     ledger_path,
+    locked,
     look_config_hash,
     read_entries,
     require_clean,
@@ -183,22 +184,23 @@ def guard_sealed(
     path = ledger_path(sealed, home, context.settings.repo_root)
     err(f"ledger: {path}")
     look = _look(context, found, artifacts or {})
-    previous = read_entries(path)
-    repeat = check_repeat(previous, found, look.freeze, environ.get(REPEAT_ENV) == "1")
-    for entry in earlier(previous, found):
-        err(
-            f"earlier look at {','.join(entry.sets)}: {entry.utc} commit {entry.commit[:12]} "
-            f"{entry.command} freeze {entry.freeze[:12]}"
+    with locked(path):
+        previous = read_entries(path)
+        repeat = check_repeat(previous, found, look.freeze, environ.get(REPEAT_ENV) == "1")
+        for entry in earlier(previous, found):
+            err(
+                f"earlier look at {','.join(entry.sets)}: {entry.utc} commit {entry.commit[:12]} "
+                f"{entry.command} freeze {entry.freeze[:12]}"
+            )
+        entry = look.model_copy(
+            update={
+                "command": ledger_label(command),
+                "datasets": tuple(dataset_entry(s.dataset, s.subset, s.clips) for s in selections),
+                "repeat": repeat,
+                "run_dir": None if run_dir is None else str(run_dir),
+            }
         )
-    entry = look.model_copy(
-        update={
-            "command": ledger_label(command),
-            "datasets": tuple(dataset_entry(s.dataset, s.subset, s.clips) for s in selections),
-            "repeat": repeat,
-            "run_dir": None if run_dir is None else str(run_dir),
-        }
-    )
-    append_entry(path, entry)
+        append_entry(path, entry)
     err(f"sealed look: {','.join(found)} freeze {look.freeze[:12]}")
 
 

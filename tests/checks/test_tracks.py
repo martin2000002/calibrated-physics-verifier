@@ -69,13 +69,13 @@ def test_row_step() -> None:
     assert row_step(EVEN) == 2
     assert row_step(np.array([7], dtype=np.int64)) == 1
     for bad in ([0, 2, 3], [4, 4], [3, 1]):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="one uniform step >= 1"):
             row_step(np.array(bad, dtype=np.int64))
 
 
 def test_time_axis_uses_native_frames() -> None:
     check_time_axis(sc.times(24)[::2], EVEN, sc.DT)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="departs from frame_index"):
         check_time_axis(sc.times(EVEN.size), EVEN, sc.DT)
 
 
@@ -303,9 +303,9 @@ def test_poly_fit_sigma_edge_cases() -> None:
     assert unknown.cov is None
     assert float(unknown.coef[1]) == pytest.approx(-4.0)
     assert math.isnan(float(unknown.value_at(0.0)[1]))
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="degree 1 fit needs at least 2"):
         poly_fit(t[:1], y[:1], np.zeros(1), 1)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="degree 2 fit needs at least 3"):
         poly_fit(t[:2], y[:2], np.zeros(2), 2)
 
 

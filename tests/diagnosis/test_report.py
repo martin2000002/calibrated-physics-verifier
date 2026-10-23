@@ -379,7 +379,7 @@ def test_real_report_is_end_to_end_only(run_context: RunContext) -> None:
 
 
 def test_real_report_rejects_another_scope(run_context: RunContext) -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="end_to_end_only"):
         RealVideoReport(provenance=provenance(run_context), error_scope="per_stage")
 
 

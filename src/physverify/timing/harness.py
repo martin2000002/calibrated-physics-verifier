@@ -141,14 +141,14 @@ def _select(
 def _describe(hooks: TargetHooks, ctx: TimingContext) -> dict[str, str]:
     try:
         return {str(key): str(value) for key, value in hooks.describe(ctx).items()}
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - a target's description never aborts the run
         return {"describe_error": _error_text(exc)}
 
 
 def _close(hooks: TargetHooks, progress: _Progress) -> None:
     try:
         hooks.close()
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - a failing close is recorded, not raised
         _log.warning("%s: close failed: %s", progress.name, _error_text(exc))
         progress.info["close_error"] = _error_text(exc)
 
@@ -203,7 +203,7 @@ class TimingHarness:
     ) -> TargetOutcome:
         try:
             target = factory(cls)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - a target that cannot start is reported failed
             failed = TargetOutcome(
                 cls.name, cls.requires_gpu, TargetStatus.FAILED, f"init: {_error_text(exc)}", run
             )
@@ -279,7 +279,7 @@ class TimingHarness:
         try:
             values = dict(target.run(clip, ctx))
             check_measures(values)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - a failing call is recorded and the run goes on
             failure = CallFailure(progress.name, clip.clip_id, call, _error_text(exc))
             progress.failures.append(failure)
             self._sink.fail(failure)

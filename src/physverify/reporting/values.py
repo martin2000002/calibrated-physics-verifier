@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
@@ -42,7 +43,7 @@ class Section:
 
 
 def _finite(value: Any) -> Any:
-    return None if isinstance(value, float) and value != value else value
+    return None if isinstance(value, float) and math.isnan(value) else value
 
 
 def leaf(key: str, doc: Doc, where: str, **extra: Any) -> Value:

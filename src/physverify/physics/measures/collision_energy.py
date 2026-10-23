@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+
 import numpy as np
 from numpy.typing import ArrayLike
 
@@ -29,10 +31,18 @@ def kinetic_energy_gain(
     v_after_i: ArrayLike,
     v_after_j: ArrayLike,
 ) -> float:
-    """(E+ - E-) / E- with E = r |v_i|^2 + |v_j|^2 (masses in units of m_j, r = m_i / m_j)."""
-    before = mass_ratio * _sq(v_before_i) + _sq(v_before_j)
+    """(E+ - E-) / E- with E = r |v_i|^2 + |v_j|^2 (masses in units of m_j, r = m_i / m_j);
+    NaN when nothing moves before the collision (E- = 0)."""
+    before = incoming_energy(mass_ratio, v_before_i, v_before_j)
+    if before == 0.0:
+        return math.nan
     after = mass_ratio * _sq(v_after_i) + _sq(v_after_j)
     return (after - before) / before
+
+
+def incoming_energy(mass_ratio: float, v_before_i: ArrayLike, v_before_j: ArrayLike) -> float:
+    """E- = r |v_i|^2 + |v_j|^2, the kinetic energy before the collision in units of m_j / 2."""
+    return mass_ratio * _sq(v_before_i) + _sq(v_before_j)
 
 
 def _sq(values: ArrayLike) -> float:

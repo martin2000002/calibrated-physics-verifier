@@ -25,10 +25,15 @@ under_root() {
     [[ "$1" == /* ]] && printf '%s\n' "$1" || printf '%s\n' "$AUTOEVAL_ROOT/$1"
 }
 
-VENV="$(under_root "$(autoeval_value venv)")"
-CLONE="$(under_root "$(autoeval_value repo_dir)")"
-CKPT="$(under_root "$(autoeval_value checkpoint_dir)")"
-FREEZE="$(under_root "$(autoeval_value freeze_file)")"
+# Read before resolving: a failing substitution nested in another one does not stop the script.
+VENV="$(autoeval_value venv)"
+CLONE="$(autoeval_value repo_dir)"
+CKPT="$(autoeval_value checkpoint_dir)"
+FREEZE="$(autoeval_value freeze_file)"
+VENV="$(under_root "$VENV")"
+CLONE="$(under_root "$CLONE")"
+CKPT="$(under_root "$CKPT")"
+FREEZE="$(under_root "$FREEZE")"
 CODE_COMMIT="$(autoeval_value code_commit)"
 HF_REPO="$(autoeval_value hf_repo)"
 HF_REVISION="$(autoeval_value hf_revision)"

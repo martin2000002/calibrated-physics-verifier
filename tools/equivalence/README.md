@@ -19,7 +19,7 @@ the raw oracle run `repo/data/runs/raw-oracle` of
 is produced shows up in `calibrate fit/show`.
 Each side gets its own `configs/` (without `local*.toml`) plus a `local.toml` with the heavy lock
 under `run/`. Every scenario runs in a fresh process under `env -i` with
-`PYTHONPATH=<wt>/src:<wt>/tests/fixtures:<wt>/tests/calibration:<wt>/tests/reporting:<wt>/tests/checks`; `driver.py`
+`PYTHONPATH=<wt>/src` plus the test helper directories of `HELPER_DIRS`; `driver.py`
 asserts that `physverify` was imported from `<wt>/src`, adds the `synthetic_fixture`,
 calibration fixture and `scenario` (scenes) datasets to `PLUGIN_KINDS["datasets"]` (in `physverify.app.plugins` and/or
 `physverify.cli.context`, whichever exist) and calls `physverify.cli.main.run(argv, environ)`.
@@ -39,36 +39,32 @@ b.diff"` selects only those names, and `EQ_EXPECTED=` (empty) expects identical 
 change, and save those lines (without the `<`/`>` prefix of `unexpected.txt`, i.e. the matching
 lines of `diff.txt`) as a new file.
 
-- `wp1-audit-migration.diff`: WP1 (`2b34c0e`) removed `dataset audit-migration`, so its `--help`
-  page and its row in `dataset --help` are gone.
-  Its hunk headers are where `diff` aligns the deletion, so they move when other help lines on the
-  page change (same deleted lines). Since WP9 the row's deletion shares a hunk with a reworded
-  line just above it, and that hunk's header (`311,314c312`) is in `wp9-c-help-text.diff`.
-- `wp7-config-layout.diff`: WP7 moved every config file into `configs/verifier/`,
-  `configs/datasets/` and `configs/studies/` (same tables, same `config_hash`). The flat files are
+- `audit-migration.diff`: `dataset audit-migration` was removed, so its `--help` page and its row
+  in `dataset --help` are gone. Its hunk headers are where `diff` aligns the deletion, so they move
+  when other help lines on the page change (same deleted lines); the row's deletion shares a hunk
+  with a reworded line just above it, and that hunk's header (`311,314c312`) is in `help-text.diff`.
+- `config-layout.diff`: every config file moved into `configs/verifier/`, `configs/datasets/` and
+  `configs/studies/` (same tables, same `config_hash`). The flat files are
   `Only in left/repo/configs`, the subdirectories `Only in right/repo/configs`; `doctor`'s
   `source:` lines name the new paths; the `size fit` help names `configs/verifier/size_model.toml`.
   An expected diff rather than a normalization: mapping old paths to new ones in the normalizer
-  would hide a file that moved to the wrong place. It retired `wp4a-config-comments.diff` (WP4a's
-  renamed-module comments in `configs/checks.toml`, `dataset.toml` and `exclusion_rules.toml`):
-  with no file of the same path on both sides, `diff -r` no longer compares those files' lines.
-  Coverage lost: from `9eb5888` the harness no longer compares config contents path to path (a
-  comment or blank-line change in a moved file passes unseen). A changed table or value still
-  changes `config_hash`, which `doctor` prints on both sides, and
-  `tests/contracts/test_config_splits.py` pins the split files against the originals.
-- `wp8-cli-renames.diff`: WP8's command, option and script renames: the help pages, the stderr
-  hints, and the missing-input lines of `results_chain_without_agreement` (stdout, `results.json`
-  and `results.md` name `--agreement-run`).
-- `wp9-b-messages.diff`: the human-agreement `summary.md` wording (no script reads that file).
-- `wp9-c-help-text.diff`: help text (command docstrings and `help=` reach Typer's output) and the
+  would hide a file that moved to the wrong place. With no file of the same path on both sides,
+  `diff -r` does not compare the moved files' lines, so from `9eb5888` the harness does not see a
+  comment or blank-line change in a config file. A changed table or value still changes
+  `config_hash`, which `doctor` prints on both sides, and `tests/contracts/test_config_splits.py`
+  pins the split files against the originals.
+- `cli-renames.diff`: the command, option and script renames: the help pages, the stderr hints, and
+  the missing-input lines of `results_chain_without_agreement` (stdout, `results.json` and
+  `results.md` name `--agreement-run`).
+- `messages.diff`: the human-agreement `summary.md` wording (no script reads that file).
+- `help-text.diff`: help text (command docstrings and `help=` reach Typer's output) and the
   `configs/default.toml` header comment.
 
 A hunk header lives in the file that holds the hunk's lines. A help line changed by more than one
-step belongs to the latest file only, so a hunk with such a line, header included, moves to that
-file (WP8's `1093c1073` is now `1093c1076` in `wp9-c-help-text.diff`). A hunk whose lines only
-one older step explains stays in the older file, and when a later step shifts the page only its
-header numbers change there (WP8's `175c175` became `175c176`). The harness compares the sorted
-lines of all the files together, so where a header sits does not change the check.
+of these changes belongs to `help-text.diff`, so a hunk with such a line, header included, is
+there; a hunk whose lines only one other change explains stays in that change's file, with the
+header numbers of the current page. The harness compares the sorted lines of all the files
+together, so where a header sits does not change the check.
 
 ## Scenarios (each asserts its exit code and that it wrote files or printed output)
 
@@ -121,17 +117,12 @@ Outputs go to `$EQ_WORKDIR` (default `$TMPDIR/physverify-equivalence`); rerun `E
 Results recorded with the current scenario list and per-side inputs:
 
 - 9eb5888 vs 9eb5888: identical (161 files); 59 golden blobs identical.
+- 9eb5888 vs HEAD: differs only as expected (every `expected/*.diff`); 59 golden blobs identical.
 - Sensitivity proof: a throwaway commit ef966d1 on top of 6dc9f86 that multiplies the R1 measure
   (`penetration_ratio`) by 1.000001. 6dc9f86 vs ef966d1 exits 1, "normalized outputs DIFFER (208
   lines)": `checks.jsonl` and `table.csv` of the three scenes scenarios, plus `specificity.json` and
   `sweep_matrix.csv` of the sweep. Before the scenes dataset the same injection was reported
   identical.
-- 9eb5888 vs refactor/wp7-k (WP7): differs only as expected (`wp1-audit-migration.diff`,
-  `wp7-config-layout.diff`); `config_hash` and every JSON output identical; 59 golden blobs
-  identical.
-- 9eb5888 vs 0d4b15b (WP1 head plus the audit fixes): only `help` differs, by the removed
-  `dataset audit-migration` page and its row in `dataset --help` (expected); every other scenario,
-  the scenes ones included, identical; 59 golden blobs identical.
 
 ## ast_equal.py
 
@@ -142,7 +133,7 @@ For pure-move and comment/docstring commits: pairs modules by git rename detecti
 `import <old>` into `import <name> as <asname>`, written `<name> as <asname>`; a `variable` line
 renames variables and imported names but not attributes, for a module alias that shares its name
 with an attribute) and compares `ast.dump`. With `--sort-imports`
-(used for the renames of WP4a) each run of consecutive import statements and each import's names
+(for module renames) each run of consecutive import statements and each import's names
 are sorted on both sides first, so the import reordering `ruff` makes after a rename is not a
 difference. A string constant follows the module-rename map only when it names a
 paired module or a dotted descendant, and never when the old revision assigns that value at module

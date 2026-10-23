@@ -177,7 +177,7 @@ class VerificationRunner:
         try:
             found = check.evaluate(item.inputs)
             return [self._decide(result) for result in found], False
-        except Exception as exc:  # a failing check must not abort the run
+        except Exception as exc:  # noqa: BLE001 - a failing check must not abort the run
             error = f"{type(exc).__name__}: {exc}"
             return [self._missing(check, item, {"error": error})], True
 

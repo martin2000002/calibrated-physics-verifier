@@ -7,6 +7,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, replace
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import numpy as np
@@ -405,3 +406,17 @@ def test_r2_refuses_without_a_lone_top_body(
     clip = bank.of_scene(stack_scene(bank.recorded("f4_stack").scene, "refuse", boxes))
     with pytest.raises(PerturbationNotApplicableError, match="exactly one movable body"):
         perturbed(plugins["r2_unsupported_rest"], clip, "f4_stack", 1, 0.05, ds.seed)
+
+
+def test_r4_teleport_refuses_a_clip_too_short_to_jump(
+    monkeypatch: pytest.MonkeyPatch, bank: Any, plugins: dict[str, Any]
+) -> None:
+    from physverify.synth.perturbations import r4_teleport
+
+    monkeypatch.setattr(r4_teleport, "floor_resting", lambda *_: [0])
+    clip = bank.recorded("f2_bounce")
+    states = SimpleNamespace(n_frames=2)
+    with pytest.raises(PerturbationNotApplicableError, match="too short for a jump"):
+        plugins["r4_teleport"].apply(
+            clip.scene, states, clip.contacts, 1.0, np.random.default_rng(0)
+        )

@@ -70,6 +70,10 @@ def test_elastic_collision_has_no_energy_gain() -> None:
     assert kinetic_energy_gain(1.0, (1.0, 0, 0), (0, 0, 0), (0, 0, 0), (2.0, 0, 0)) == 3.0
 
 
+def test_energy_gain_without_incoming_energy_is_nan() -> None:
+    assert math.isnan(kinetic_energy_gain(2.0, (0, 0, 0), (0, 0, 0), (1.0, 0, 0), (-1.0, 0, 0)))
+
+
 def test_missing_frames() -> None:
     visible = [True, False, False, False, True]
     in_frame = [True, True, True, False, True]

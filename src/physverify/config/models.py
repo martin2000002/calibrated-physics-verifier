@@ -18,6 +18,7 @@ from pydantic import (
     model_validator,
 )
 
+from physverify.config.errors import describe_errors
 from physverify.core.errors import ConfigError
 from physverify.core.models import FrozenModel
 from physverify.schema.io import stable_hash
@@ -41,12 +42,14 @@ PROFILE_CONTEXT = "profile"
 """Validation-context key of the active extraction profile, which names its error profile."""
 
 
-def validated[T: BaseModel](model: type[T], data: object, section: str) -> T:
+def validated[T: BaseModel](
+    model: type[T], data: object, section: str, context: Mapping[str, object] | None = None
+) -> T:
     """``model`` validated from ``data``; a failure names the configuration ``section``."""
     try:
-        return model.model_validate(data)
+        return model.model_validate(data, context=context)
     except ValidationError as exc:
-        raise ConfigError(f"[{section}] is invalid:\n{exc}") from exc
+        raise ConfigError(f"[{section}] is invalid:\n{describe_errors(section, exc)}") from exc
 
 
 class PathsSettings(FrozenModel):

@@ -304,6 +304,11 @@ def test_first_max_prefers_the_earliest_tie() -> None:
     assert first_max(np.array([2.0, 1.0])) == 0
 
 
+def test_first_max_without_a_finite_value_fails_clearly() -> None:
+    with pytest.raises(ValueError, match="finite"):
+        first_max(np.array([math.nan, math.nan]))
+
+
 def test_third_difference_coefficients() -> None:
     steps = np.eye(5)
     assert np.array_equal(third_difference(steps), [[-1, 3, -3, 1, 0], [0, -1, 3, -3, 1]])

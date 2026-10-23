@@ -36,9 +36,12 @@ def container_env(threads: int) -> list[tuple[str, str]]:
 
 
 def image_present(image: str, run: Runner = subprocess.run) -> bool:
-    return (
-        run(["docker", "image", "inspect", image], capture_output=True, check=False).returncode == 0
-    )
+    """Whether Docker has ``image``; False also when the docker binary cannot be run."""
+    try:
+        result = run(["docker", "image", "inspect", image], capture_output=True, check=False)
+    except OSError:
+        return False
+    return result.returncode == 0
 
 
 def worker_command(task: str, jobs_container_path: str, threads: int) -> list[str]:

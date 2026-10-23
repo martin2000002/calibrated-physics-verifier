@@ -289,12 +289,22 @@ raw_dir_of() {
     printf '%s/%s\n' "$(doctor_value paths.raw_dir)" "$1"
 }
 
-# check_fetched SET: the downloaded files are those of fetch's manifest.
+# fetched_files DIR: the downloaded files under DIR, NUL-separated and sorted, without the
+# partial downloads a fetch leaves behind.
+fetched_files() {
+    (cd "$1" && find . -type f ! -name '*.tmp' ! -name '*.part' -print0 | sort -z)
+}
+
+# check_fetched SET: the downloaded files are those of fetch's manifest, no more and no fewer.
 check_fetched() {
-    local manifest="$RUN/fetch-$1.sha256"
+    local manifest="$RUN/fetch-$1.sha256" raw on_disk
     [[ -f "$manifest" ]] || stop "no $manifest: run fetch $1 first"
-    (cd "$(raw_dir_of "$1")" && sha256sum --quiet -c "$manifest") \
+    raw="$(raw_dir_of "$1")"
+    (cd "$raw" && sha256sum --quiet -c "$manifest") \
         || stop "the files of $1 are not those of $manifest"
+    on_disk="$(fetched_files "$raw" | grep -zc .)"
+    [[ "$on_disk" == "$(grep -c . "$manifest")" ]] \
+        || stop "$raw holds $on_disk files, not the $(grep -c . "$manifest") of $manifest"
 }
 
 cmd_seed() {
@@ -352,8 +362,7 @@ cmd_fetch() {
     local raw manifest="$RUN/fetch-$SET.sha256"
     raw="$(raw_dir_of "$SET")"
     [[ -d "$raw" ]] || stop "fetch left no $raw"
-    (cd "$raw" && find . -type f ! -name '*.tmp' -print0 | sort -z | xargs -0 -r sha256sum) \
-        >"$manifest.tmp"
+    fetched_files "$raw" | (cd "$raw" && xargs -0 -r sha256sum) >"$manifest.tmp"
     mv "$manifest.tmp" "$manifest"
     note "fetched $SET: $(grep -c . "$manifest") files under $raw, manifest $manifest sha256" \
         "$(sha_of "$manifest")"

@@ -46,7 +46,12 @@ def container(
     docker = shutil.which("docker")
     if docker is None:
         pytest.skip("docker is not installed")
-    if subprocess.run([docker, "image", "inspect", image], capture_output=True).returncode != 0:
+    if (
+        subprocess.run(
+            [docker, "image", "inspect", image], capture_output=True, check=False
+        ).returncode
+        != 0
+    ):
         pytest.skip(f"image {image} is not pulled")
     data_dir = tmp_path / "data"
     runner = DockerRunner(

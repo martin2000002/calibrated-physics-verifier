@@ -22,6 +22,7 @@ from numpy.typing import NDArray
 from physverify.config.models import Settings
 from physverify.core.atomic import write_bytes_atomic
 from physverify.core.errors import TimingError
+from physverify.core.video import write_mp4
 from physverify.datasets.local_video import (
     MANIFEST_FILE,
     ClipEntry,
@@ -29,7 +30,7 @@ from physverify.datasets.local_video import (
     LocalVideoDataset,
     to_queries,
 )
-from physverify.generation.mp4_writer import VIDEO_SUFFIX, to_uint8, write_mp4
+from physverify.generation.mp4_writer import VIDEO_SUFFIX, to_uint8
 from physverify.generation.settings import GenerationSettings, PromptSpec
 from physverify.generation.wan21 import (
     StepTimer,

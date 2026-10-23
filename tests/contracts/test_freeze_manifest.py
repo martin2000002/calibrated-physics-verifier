@@ -3,6 +3,7 @@ by the final looks: its schema, version, key paths and bytes."""
 
 from __future__ import annotations
 
+import ast
 import hashlib
 import json
 import subprocess
@@ -26,8 +27,27 @@ DIFF_SOURCES = {
     "j3": tuple(f"src/physverify/{package}/" for package in J3_PACKAGES),
     "j13": ("src/physverify/extraction/", "configs/extraction.toml"),
 }
+# Pre-refactor files whose definitions were split out to files git does not see as renames.
+SPLIT_DESTINATIONS = {
+    "src/physverify/verification/selective_risk.py": tuple(
+        f"src/physverify/selective_risk/{module}.py" for module in ("curve", "fit", "settings")
+    ),
+    "src/physverify/verification/sweep.py": ("src/physverify/stats/rank.py",),
+    "src/physverify/extraction/plan.py": ("src/physverify/verification/check_set.py",),
+    "src/physverify/extraction/providers/_common.py": ("src/physverify/sizing/priors.py",),
+    "src/physverify/extraction/weights.py": ("src/physverify/core/digests.py",),
+}
+# Definitions whose new home is deliberately outside the diff paths, with the reason.
+UNCOVERED = {
+    ("src/physverify/extraction/providers/scale_size_prior.py", "SIZE_PRIORS_SECTION"): (
+        "a section name, now in config.models; section names are pinned by test_config_hashes"
+    ),
+    ("src/physverify/verification/runner.py", "_validated"): (
+        "became the generic config.models.validated; the name at HEAD is synth's own helper"
+    ),
+}
 HEAD = "c" * 40
-FREEZE_SHA256 = "9a3741804997cdb56c3c1282fabc5ba579086afc7eb1dd77aab8effc0521c23e"
+FREEZE_SHA256 = "59b96c707399bc1a585f965dfdd3094282558fbbcba0d1fe3c9d201ac9d0930d"
 MANIFEST_FIELDS = (
     "schema",
     "version",
@@ -149,7 +169,8 @@ def test_the_freeze_manifest_keeps_its_schema_and_key_paths(
 def test_the_freeze_manifest_keeps_its_bytes(
     tmp_path: Path, config_dir: Path, environ: dict[str, str]
 ) -> None:
-    """The bytes run_freeze.sh writes, with the run's paths masked, pinned before WP8 moved them."""
+    """The bytes run_freeze.sh writes, with the run's paths masked; the diff paths listed in
+    them grew deliberately to cover the code the refactor split out."""
     settings = _frozen_settings(tmp_path, config_dir, environ)
     selection = {
         "rule": J4_RULE,
@@ -163,7 +184,9 @@ def test_the_freeze_manifest_keeps_its_bytes(
 
 
 def _git_lines(*args: str) -> list[str]:
-    result = subprocess.run(["git", "-C", str(REPO), *args], capture_output=True, text=True)
+    result = subprocess.run(
+        ["git", "-C", str(REPO), *args], capture_output=True, text=True, check=False
+    )
     if result.returncode != 0:
         pytest.skip(f"git history unavailable: {result.stderr.strip()}")
     return result.stdout.splitlines()
@@ -175,17 +198,75 @@ def _destinations(sources: tuple[str, ...]) -> set[str]:
         status, *paths = line.split("\t")
         if status.startswith("R"):
             renames[paths[0]] = paths[1]
-    files = _git_lines("ls-tree", "-r", "--name-only", REFACTOR_BASE, "--", *sources)
-    return {renames.get(path, path) for path in files}
+    found = set()
+    for path in _base_files(sources):
+        found.add(renames.get(path, path))
+        found.update(SPLIT_DESTINATIONS.get(path, ()))
+    return found
+
+
+def _base_files(sources: tuple[str, ...]) -> list[str]:
+    return _git_lines("ls-tree", "-r", "--name-only", REFACTOR_BASE, "--", *sources)
+
+
+def _top_level_names(source: str) -> set[str]:
+    names: set[str] = set()
+    for node in ast.parse(source).body:
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
+            names.add(node.name)
+        elif isinstance(node, ast.Assign):
+            names.update(t.id for t in node.targets if isinstance(t, ast.Name))
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+            names.add(node.target.id)
+    return names
+
+
+def _homes_at_head() -> dict[str, set[str]]:
+    homes: dict[str, set[str]] = {}
+    for path in sorted((REPO / "src").rglob("*.py")):
+        for name in _top_level_names(path.read_text(encoding="utf-8")):
+            homes.setdefault(name, set()).add(path.relative_to(REPO).as_posix())
+    return homes
+
+
+def _covered(path: str, diff_paths: tuple[str, ...]) -> bool:
+    return any(path == p or path.startswith(f"{p}/") for p in diff_paths)
 
 
 @pytest.mark.parametrize("name", sorted(DIFF_SOURCES))
 def test_the_diff_paths_cover_exactly_where_the_pre_refactor_paths_moved(name: str) -> None:
-    """Each diff covers the moved files, as whole directories where they stayed inside one."""
+    """Each diff covers its pre-refactor paths and the moved files, as whole directories where
+    they stayed inside one."""
     sources = DIFF_SOURCES[name]
     directories = [source for source in sources if source.endswith("/")]
     expected = {
         next((d.rstrip("/") for d in directories if path.startswith(d)), path)
-        for path in _destinations(sources)
+        for path in {*_destinations(sources), *(s.rstrip("/") for s in sources)}
     }
     assert set(DIFF_PATHS[name]) == expected
+
+
+@pytest.mark.parametrize("name", sorted(DIFF_SOURCES))
+def test_every_pre_refactor_definition_is_still_under_the_diff_paths(name: str) -> None:
+    """A top-level name of a covered pre-refactor module that is still defined somewhere is
+    defined in a covered file (renamed or dropped names cannot be traced)."""
+    homes = _homes_at_head()
+    escaped = []
+    for path in _base_files(DIFF_SOURCES[name]):
+        if not path.endswith(".py"):
+            continue
+        source = "\n".join(_git_lines("show", f"{REFACTOR_BASE}:{path}"))
+        for symbol in sorted(_top_level_names(source)):
+            found = homes.get(symbol, set())
+            covered = any(_covered(home, DIFF_PATHS[name]) for home in found)
+            if found and not covered and (path, symbol) not in UNCOVERED:
+                escaped.append(f"{path}:{symbol} -> {sorted(found)}")
+    assert escaped == []
+
+
+def test_every_split_destination_holds_code_of_its_source() -> None:
+    homes = _homes_at_head()
+    for path, destinations in SPLIT_DESTINATIONS.items():
+        names = _top_level_names("\n".join(_git_lines("show", f"{REFACTOR_BASE}:{path}")))
+        for destination in destinations:
+            assert any(destination in homes.get(symbol, ()) for symbol in names), destination

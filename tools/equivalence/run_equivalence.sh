@@ -67,15 +67,17 @@ configs() { # <worktree>: the checkout's configs without the local overrides, pl
     printf '[runtime]\nheavy_lock = "%s"\n' "$RUN/locks/heavy.lock" >"$target/local.toml"
 }
 
+# Every setup step returns on failure: the caller's `|| status=1` disables set -e in here.
 run_side() { # <label> <rev>
-    local label="$1" rev="$2" commit failed=0 name
-    commit="$(git -C "$REPO" rev-parse "$rev")"
-    rm -rf "$RUN" "$OUT/$label"
-    mkdir -p "$RUN/home" "$RUN/locks"
-    worktree "$WT/side" "$commit"
-    configs "$WT/side"
-    py "$WT/side" prepare "$RUN"
-    mkdir -p "$RUN/_capture"
+    local label="$1" rev="$2" commit failed=0 name names
+    commit="$(git -C "$REPO" rev-parse "$rev")" || return 1
+    rm -rf "$RUN" "$OUT/$label" "$NORM/$label" || return 1
+    mkdir -p "$RUN/home" "$RUN/locks" "$RUN/_capture" || return 1
+    worktree "$WT/side" "$commit" || return 1
+    configs "$WT/side" || return 1
+    py "$WT/side" prepare "$RUN" || return 1
+    names="$(py "$WT/side" list)" || return 1
+    [[ -n "$names" ]] || { echo "[$label] no scenarios listed" >&2; return 1; }
     while read -r name; do
         py "$WT/side" scenario "$name" "$RUN" </dev/null \
             >"$RUN/_capture/$name.out" 2>"$RUN/_capture/$name.err" || {
@@ -83,12 +85,12 @@ run_side() { # <label> <rev>
             tail -n 5 "$RUN/_capture/$name.err" >&2
             failed=1
         }
-    done < <(py "$WT/side" list)
-    drop_worktree "$WT/side"
-    mkdir -p "$OUT"
-    mv "$RUN" "$OUT/$label"
+    done <<<"$names"
+    drop_worktree "$WT/side" || return 1
+    mkdir -p "$OUT" && mv "$RUN" "$OUT/$label" || return 1
     py "$REPO" normalize "$OUT/$label" "$NORM/$label" "$RUN" "$WT/side" \
-        "$(git -C "$REPO" rev-parse "$LEFT")" "$(git -C "$REPO" rev-parse "$RIGHT")"
+        "$(git -C "$REPO" rev-parse "$LEFT")" "$(git -C "$REPO" rev-parse "$RIGHT")" || return 1
+    [[ -d "$NORM/$label" ]] || { echo "[$label] nothing normalized" >&2; return 1; }
     return "$failed"
 }
 
