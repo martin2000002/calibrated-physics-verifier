@@ -29,6 +29,7 @@ AdapterOption = Annotated[Path | None, typer.Option(help="LoRA adapter directory
 @app.command("run", help="Verify one ad-hoc prompt: generate it (CUDA) or score --video.")
 @heavy_command
 def run(
+    ctx: typer.Context,
     prompt: Annotated[str, typer.Option(help="Prompt text.")],
     query: Annotated[
         list[str] | None, typer.Option(help="Object to detect, 'phrase' or 'phrase:N'.")
@@ -42,7 +43,7 @@ def run(
     out: OutOption = None,
 ) -> None:
     request = service.AdhocRequest(prompt, query, family, target_check, adapter, video, out)
-    service.run_adhoc(app_context(), request, echo=typer.echo)
+    service.run_adhoc(app_context(ctx), request, echo=typer.echo)
 
 
 @app.command(
@@ -51,6 +52,7 @@ def run(
 )
 @heavy_command
 def scenes(
+    ctx: typer.Context,
     from_select: Annotated[
         bool, typer.Option(help="Fine-tuned tag from 'finetune select' (demo.select_run).")
     ] = False,
@@ -58,13 +60,14 @@ def scenes(
     out: OutOption = None,
 ) -> None:
     service.scene_reports(
-        app_context(), from_select=from_select, adapter=adapter, out=out, echo=typer.echo
+        app_context(ctx), from_select=from_select, adapter=adapter, out=out, echo=typer.echo
     )
 
 
 @app.command("report", help="Rebuild a report and overlay from its stored results (CPU).")
 def report(
+    ctx: typer.Context,
     results: Annotated[Path, typer.Option(help="A report directory or its report.json.")],
     out: OutOption = None,
 ) -> None:
-    service.rebuild(app_context(), results, out, echo=typer.echo)
+    service.rebuild(app_context(ctx), results, out, echo=typer.echo)

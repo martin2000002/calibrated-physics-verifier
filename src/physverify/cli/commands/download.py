@@ -45,13 +45,14 @@ def fetch_targets(
 )
 @heavy_command
 def fetch(
+    ctx: typer.Context,
     dataset: Annotated[
         str | None,
         typer.Argument(help="A real dataset or sealed control (default: diagnosis.real.datasets)."),
     ] = None,
     subset: Annotated[str | None, typer.Option(help="local or full (default: local).")] = None,
 ) -> None:
-    context = app_context()
+    context = app_context(ctx)
     settings = context.settings
     real = diagnosis_settings(settings).real
     registry = context.registry("datasets")

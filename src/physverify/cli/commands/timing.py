@@ -33,20 +33,20 @@ app = typer.Typer(
 
 
 @app.command("list", help="Registered targets with their warm-up and repetitions.")
-def list_targets() -> None:
-    for line in service.target_lines(app_context()):
+def list_targets(ctx: typer.Context) -> None:
+    for line in service.target_lines(app_context(ctx)):
         typer.echo(line)
 
 
 @app.command("env", help="Environment of a run with the current options and its validity (JSON).")
-def env() -> None:
-    typer.echo(service.environment_report(app_context().settings, TorchCudaProbe))
+def env(ctx: typer.Context) -> None:
+    typer.echo(service.environment_report(app_context(ctx).settings, TorchCudaProbe))
 
 
 @app.command("fetch", help="Download the pinned Wan2.1 weights (about 29 GB; for the H200).")
 @heavy_command
-def fetch_weights() -> None:
-    settings = app_context().settings
+def fetch_weights(ctx: typer.Context) -> None:
+    settings = app_context(ctx).settings
     typer.echo(f"hub cache: {hub_cache(settings.paths)}")
     path = fetch_generator(load_timing(settings).generation, settings.paths, NetworkDownloader())
     typer.echo(f"verified {path}")
@@ -54,6 +54,7 @@ def fetch_weights() -> None:
 
 @app.command("run", help="Time targets; only an H200 run (cuda, precise profile) is a measurement.")
 def run(
+    ctx: typer.Context,
     target: Annotated[
         list[str] | None, typer.Option(help="Target name (repeatable); default: timing.order.")
     ] = None,
@@ -76,7 +77,9 @@ def run(
         warmup,
         repetitions,
     )
-    code = service.run_timing(app_context(), request, TorchCudaProbe, echo=typer.echo, err=echo_err)
+    code = service.run_timing(
+        app_context(ctx), request, TorchCudaProbe, echo=typer.echo, err=echo_err
+    )
     if code != EXIT_OK:
         raise typer.Exit(code=code)
 
@@ -85,14 +88,15 @@ RunOption = Annotated[Path, typer.Option("--run", help="Run directory (or its ti
 
 
 @app.command("summarize", help="Rebuild stats.csv and summary.md from samples.csv.")
-def summarize(run_dir: RunOption) -> None:
-    service.summarize(app_context().settings, run_dir, echo=typer.echo)
+def summarize(ctx: typer.Context, run_dir: RunOption) -> None:
+    service.summarize(app_context(ctx).settings, run_dir, echo=typer.echo)
 
 
 @app.command(
     "budget", help="Training prompts and pairs that fit in a GPU budget (valid runs only)."
 )
 def budget(
+    ctx: typer.Context,
     run_dir: RunOption,
     gpu_hours: Annotated[float, typer.Option(help="GPU hours available (H).")],
     candidates: Annotated[int, typer.Option(help="Candidate videos per prompt (K).")],
@@ -107,5 +111,5 @@ def budget(
     query = BudgetQuery(
         gpu_hours, candidates, eval_prompts, eval_samples, finetune_hours, extract_batch, batch_size
     )
-    for line in service.budget_report(app_context().settings, run_dir, query):
+    for line in service.budget_report(app_context(ctx).settings, run_dir, query):
         typer.echo(line)

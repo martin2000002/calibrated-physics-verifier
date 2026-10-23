@@ -27,20 +27,20 @@ app = typer.Typer(help="Object size model learned on Objectron (fetch, fit, eval
 
 
 @app.command("fetch", help="Download the box sizes of the selected Objectron videos.")
-def fetch() -> None:
-    fetch_heads(app_context().settings, echo=typer.echo)
+def fetch(ctx: typer.Context) -> None:
+    fetch_heads(app_context(ctx).settings, echo=typer.echo)
 
 
 @app.command("fit", help=f"Fit the per-class model on train; writes configs/{MODEL_FILE}.")
-def fit() -> None:
-    model, target, run_dir = fit_and_write(app_context())
+def fit(ctx: typer.Context) -> None:
+    model, target, run_dir = fit_and_write(app_context(ctx))
     typer.echo(f"model: {target} ({len(model.classes)} classes, factor {model.sigma_factor:.4f})")
     typer.echo(f"run: {run_dir}")
 
 
 @app.command("eval", help="Error on the official test split against B0 and B1.")
-def evaluate_command() -> None:
-    report, run_dir = evaluate_test_split(app_context())
+def evaluate_command(ctx: typer.Context) -> None:
+    report, run_dir = evaluate_test_split(app_context(ctx))
     for line in eval_lines(report):
         typer.echo(line)
     typer.echo(f"run: {run_dir}")
@@ -48,9 +48,10 @@ def evaluate_command() -> None:
 
 @app.command("e2e-prepare", help="Download and decode a few Objectron test videos (network).")
 def e2e_prepare(
+    ctx: typer.Context,
     videos: Annotated[int | None, typer.Option(help="Override [sizing.e2e] videos.")] = None,
 ) -> None:
-    draw, manifest = prepare_end_to_end(app_context().settings, videos)
+    draw, manifest = prepare_end_to_end(app_context(ctx).settings, videos)
     typer.echo(
         f"{len(draw.taken)} clips prepared, {len(draw.skipped)} videos skipped (> max_video_mb)"
     )
@@ -58,8 +59,8 @@ def e2e_prepare(
 
 
 @app.command("e2e-eval", help="Perceived scale against ARKit depth on the prepared clips.")
-def e2e_eval() -> None:
-    report, run_dir = evaluate_end_to_end(app_context())
+def e2e_eval(ctx: typer.Context) -> None:
+    report, run_dir = evaluate_end_to_end(app_context(ctx))
     for line in e2e_lines(report):
         typer.echo(line)
     typer.echo(f"run: {run_dir}")

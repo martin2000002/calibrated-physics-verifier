@@ -24,6 +24,7 @@ app = typer.Typer(
 @app.command("per-clip", help="Per-clip sufficient statistics of the DETECT and DEPTH metrics.")
 @heavy_command
 def per_clip(
+    ctx: typer.Context,
     label: Annotated[str, typer.Option(help="Configuration label stored in the file.")],
     out: Annotated[Path, typer.Option(help="Output JSON.")],
     dataset: DatasetOption = None,
@@ -31,7 +32,7 @@ def per_clip(
     clips: ClipsOption = None,
 ) -> None:
     rows = collect_per_clip(
-        app_context(),
+        app_context(ctx),
         f"{NAME} per-clip",
         label,
         out,

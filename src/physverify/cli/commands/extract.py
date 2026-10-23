@@ -21,6 +21,7 @@ app = typer.Typer(
 
 @app.command("run", help="Run the extraction plan over a dataset.")
 def run(
+    ctx: typer.Context,
     dataset: Annotated[str, typer.Option(help="Dataset name.")],
     clips: Annotated[list[str] | None, typer.Option(help="Clip ids (repeatable).")] = None,
     gt: Annotated[list[str] | None, typer.Option(help="Stages replaced by ground truth.")] = None,
@@ -29,7 +30,7 @@ def run(
     subset: Annotated[str | None, typer.Option(help="Dataset subset.")] = None,
 ) -> None:
     report = extraction.run_extraction(
-        app_context(),
+        app_context(ctx),
         dataset,
         clips or (),
         gt or (),
@@ -44,8 +45,8 @@ def run(
 
 @app.command("fetch-weights", help="Download the weights of the active profile's providers.")
 @heavy_command
-def fetch_weights() -> None:
-    extraction.fetch_weights(app_context(), echo=typer.echo)
+def fetch_weights(ctx: typer.Context) -> None:
+    extraction.fetch_weights(app_context(ctx), echo=typer.echo)
 
 
 @app.command(
@@ -53,6 +54,7 @@ def fetch_weights() -> None:
     help="Remove every cached stage of the clips a dataset migration re-rendered (all providers).",
 )
 def purge(
+    ctx: typer.Context,
     clips_from: Annotated[
         Path, typer.Option(help="Migration manifest (<dataset>/migrations/<name>.json).")
     ],
@@ -64,6 +66,6 @@ def purge(
     extraction.purge_rerendered(
         clips_from,
         cache_root or (),
-        default_root=lambda: app_context().settings.paths.cache_dir,
+        default_root=lambda: app_context(ctx).settings.paths.cache_dir,
         echo=typer.echo,
     )

@@ -32,13 +32,15 @@ _out = partial(typer.echo, nl=False)
 
 @app.command("r2-clips", help="The clip ids both R2 detector arms verify (rule 1.2).")
 def r2_clips(
+    ctx: typer.Context,
     out: Annotated[Path | None, typer.Option(help="Write the ids here, one per line.")] = None,
 ) -> None:
-    _out(r2_clip_listing(app_context(), out))
+    _out(r2_clip_listing(app_context(ctx), out))
 
 
 @app.command("decide", help="Apply rules 1.1, 1.2 and 1.5 and write the decision record.")
 def decide_command(
+    ctx: typer.Context,
     evaluation: Annotated[Path, typer.Option(help="evaluation.json of `calibrate evaluate`.")],
     r2_base_run: Annotated[str, typer.Option(help="Run id of the base-detector R2 arm.")],
     r2_tiny_run: Annotated[str, typer.Option(help="Run id of the tiny-detector R2 arm.")],
@@ -49,7 +51,7 @@ def decide_command(
     replace: Annotated[bool, typer.Option(help="Supersede a different record.")] = False,
 ) -> None:
     runs = (r2_base_run, r2_tiny_run)
-    context = app_context()
+    context = app_context(ctx)
     decide_exclusions(
         context, evaluation, runs, artifact, dry_run=dry_run, replace=replace, out=_out
     )
@@ -57,8 +59,9 @@ def decide_command(
 
 @app.command("show", help="Print the decision record and its sha256 (what both studies freeze on).")
 def show_command(
+    ctx: typer.Context,
     checks_hash: Annotated[
         bool, typer.Option(help="Refuse a record decided with other check parameters.")
     ] = True,
 ) -> None:
-    show_exclusions(app_context(), checks_hash=checks_hash, out=_out)
+    show_exclusions(app_context(ctx), checks_hash=checks_hash, out=_out)

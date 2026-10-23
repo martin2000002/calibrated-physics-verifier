@@ -33,18 +33,21 @@ app = typer.Typer(
 RunOption = Annotated[Path, typer.Option("--verify-run", help="A perceived verify run directory.")]
 
 
-def _dataset() -> VideophyDataset:
-    return VideophyDataset(app_context().settings)
+def _dataset(ctx: typer.Context) -> VideophyDataset:
+    return VideophyDataset(app_context(ctx).settings)
 
 
 @app.command("fetch", help="Download the label tables and the subset's videos (default: smoke).")
 @heavy_command
-def fetch(subset: Annotated[str | None, typer.Option(help="VideoPhy subset.")] = None) -> None:
-    fetch_all([VideophyDataset], app_context().settings, subset, echo=typer.echo)
+def fetch(
+    ctx: typer.Context, subset: Annotated[str | None, typer.Option(help="VideoPhy subset.")] = None
+) -> None:
+    fetch_all([VideophyDataset], app_context(ctx).settings, subset, echo=typer.echo)
 
 
 @app.command("subset", help="Write the pending caption review (--audit) or record it (--record).")
 def subset(
+    ctx: typer.Context,
     name: Annotated[str | None, typer.Option("--subset", help="Default: the test subset.")] = None,
     show: Annotated[bool, typer.Option("--audit", help="Print the captions to review.")] = False,
     freeze_review: Annotated[
@@ -54,8 +57,8 @@ def subset(
         bool, typer.Option("--check", help="Fail unless the review is recorded (no download).")
     ] = False,
 ) -> None:
-    dataset = _dataset()
-    settings = app_context().settings
+    dataset = _dataset(ctx)
+    settings = app_context(ctx).settings
     chosen = name or agreement_settings(settings).test_subset
     if check:
         check_recorded(dataset, echo=typer.echo)
@@ -68,6 +71,7 @@ def subset(
 
 @app.command("freeze", help="Pre-register the test comparison from a dev verify run.")
 def freeze_command(
+    ctx: typer.Context,
     run_dir: RunOption,
     force: Annotated[
         bool, typer.Option("--force", help="Replace an existing pre-registration (archived).")
@@ -82,11 +86,11 @@ def freeze_command(
         ),
     ] = None,
 ) -> None:
-    context = app_context()
+    context = app_context(ctx)
     path, current = freeze(
         context.settings,
         context.registry("checks"),
-        _dataset(),
+        _dataset(ctx),
         run_dir,
         import_calibration,
         dt.datetime.now(dt.UTC),
@@ -98,6 +102,7 @@ def freeze_command(
 
 @app.command("compare", help="Compare a verify run with the VLM and the human labels.")
 def compare_command(
+    ctx: typer.Context,
     run_dir: RunOption,
     name: Annotated[str | None, typer.Option("--subset", help="Default: the test subset.")] = None,
     rule: Annotated[str | None, typer.Option(help="provisional_any_fail or calibrated.")] = None,
@@ -110,11 +115,11 @@ def compare_command(
     ] = None,
 ) -> None:
     request = CompareRequest(run_dir, name, rule, preregistration)
-    context = app_context()
+    context = app_context(ctx)
     compare_and_report(
         context.settings,
         context.registry("checks"),
-        _dataset(),
+        _dataset(ctx),
         request,
         import_calibration,
         functools.partial(dt.datetime.now, dt.UTC),

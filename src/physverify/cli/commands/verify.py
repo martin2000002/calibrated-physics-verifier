@@ -24,6 +24,7 @@ app = typer.Typer(
 
 @app.callback()
 def verify(
+    ctx: typer.Context,
     dataset: Annotated[str, typer.Option(help="Dataset name.")],
     level: Annotated[str | None, typer.Option(help="oracle or perceived.")] = None,
     gt: Annotated[
@@ -36,7 +37,7 @@ def verify(
 ) -> None:
     input_level = parse_level(level, gt or (), sweep)
     failed = run_verify(
-        app_context(),
+        app_context(ctx),
         NAME,
         dataset,
         input_level,

@@ -40,6 +40,7 @@ ClipsOption = Annotated[list[str] | None, typer.Option(help="Clip ids (repeatabl
 
 @app.command("stages", help="Level 1: per-stage error against ground truth (error profile).")
 def stages(
+    ctx: typer.Context,
     dataset: DatasetOption = None,
     subset: SubsetOption = None,
     clips: ClipsOption = None,
@@ -54,7 +55,7 @@ def stages(
         ),
     ] = False,
 ) -> None:
-    context = app_context()
+    context = app_context(ctx)
     runner = stage_errors_runner(
         context,
         f"{NAME} stages",
@@ -68,18 +69,24 @@ def stages(
 
 @app.command("end-to-end", help="Level 2: check magnitudes of the perceived chain vs the oracle.")
 def end_to_end(
-    dataset: DatasetOption = None, subset: SubsetOption = None, clips: ClipsOption = None
+    ctx: typer.Context,
+    dataset: DatasetOption = None,
+    subset: SubsetOption = None,
+    clips: ClipsOption = None,
 ) -> None:
-    context = app_context()
+    context = app_context(ctx)
     runner = end_to_end_runner(context, f"{NAME} end-to-end", clips or (), err=echo_err)
     launch(context, END_TO_END, runner, echo=typer.echo, suite=True, dataset=dataset, subset=subset)
 
 
 @app.command("attribution", help="Level 3: factorial attribution of check error to stages.")
 def attribution(
-    dataset: DatasetOption = None, subset: SubsetOption = None, clips: ClipsOption = None
+    ctx: typer.Context,
+    dataset: DatasetOption = None,
+    subset: SubsetOption = None,
+    clips: ClipsOption = None,
 ) -> None:
-    context = app_context()
+    context = app_context(ctx)
     runner = attribution_runner(context, f"{NAME} attribution", clips or (), err=echo_err)
     launch(
         context, ATTRIBUTION, runner, echo=typer.echo, suite=True, dataset=dataset, subset=subset
@@ -88,12 +95,13 @@ def attribution(
 
 @app.command("real", help="Real video (end-to-end only): Physics-IQ motion, PISA falls, verdicts.")
 def real(
+    ctx: typer.Context,
     dataset: Annotated[
         str, typer.Option(help="physics_iq, pisa_real or all (diagnosis.real.datasets).")
     ] = ALL_DATASETS,
     subset: SubsetOption = None,
     clips: ClipsOption = None,
 ) -> None:
-    context = app_context()
+    context = app_context(ctx)
     runner = real_runner(context, f"{NAME} real", dataset, clips or (), err=echo_err)
     launch(context, REAL, runner, echo=typer.echo, suite=True, subset=subset)

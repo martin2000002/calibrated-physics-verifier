@@ -11,15 +11,7 @@ from typing import Annotated
 
 import typer
 
-from physverify.app.calibration import (
-    Picked,
-    evaluate_artifact,
-    fit_artifact,
-    fit_stage_sigma,
-    publish_stratum,
-    score_devscore,
-    show_artifact,
-)
+from physverify.app import calibration as service
 from physverify.cli.context import app_context, echo_err
 
 NAME = "calibrate"
@@ -42,6 +34,7 @@ NoSigmaOption = Annotated[bool, typer.Option(help="Do not recalibrate the percei
 
 @app.command("fit", help="Fit thresholds, rates and weights on split=calib.")
 def fit(
+    ctx: typer.Context,
     dataset: DatasetOption = None,
     subset: SubsetOption = None,
     level: LevelOption = None,
@@ -50,11 +43,10 @@ def fit(
     out: Annotated[Path | None, typer.Option(help="Artifact path.")] = None,
     no_sigma: NoSigmaOption = False,
 ) -> None:
-    picked = Picked(dataset, subset, clips)
-    fit_artifact(
-        app_context(),
+    service.fit_artifact(
+        app_context(ctx),
         f"{NAME} fit",
-        picked,
+        service.Picked(dataset, subset, clips),
         level,
         from_run,
         out,
@@ -68,6 +60,7 @@ def fit(
     "dev-score", help="Development metric on calib: held-out monotonicity and out-of-fold J."
 )
 def devscore(
+    ctx: typer.Context,
     dataset: DatasetOption = None,
     subset: SubsetOption = None,
     level: LevelOption = None,
@@ -76,11 +69,10 @@ def devscore(
     no_sigma: NoSigmaOption = False,
 ) -> None:
     """Writes only its run directory (and ``--out``): never calibration_dir or the thresholds."""
-    picked = Picked(dataset, subset, clips)
-    score_devscore(
-        app_context(),
+    service.score_devscore(
+        app_context(ctx),
         f"{NAME} dev-score",
-        picked,
+        service.Picked(dataset, subset, clips),
         level,
         out,
         no_sigma,
@@ -91,14 +83,20 @@ def devscore(
 
 @app.command("stage-sigma", help="Per-stage sigma factors (heavy, lazy lock; H200).")
 def stage_sigma(
-    dataset: DatasetOption = None, subset: SubsetOption = None, clips: ClipsOption = None
+    ctx: typer.Context,
+    dataset: DatasetOption = None,
+    subset: SubsetOption = None,
+    clips: ClipsOption = None,
 ) -> None:
-    picked = Picked(dataset, subset, clips)
-    fit_stage_sigma(app_context(), f"{NAME} stage-sigma", picked, echo=typer.echo, err=echo_err)
+    picked = service.Picked(dataset, subset, clips)
+    service.fit_stage_sigma(
+        app_context(ctx), f"{NAME} stage-sigma", picked, echo=typer.echo, err=echo_err
+    )
 
 
 @app.command("evaluate", help="Score held-out and real clips with the frozen artifact.")
 def evaluate_command(
+    ctx: typer.Context,
     artifact: ArtifactOption = None,
     dataset: DatasetOption = None,
     subset: SubsetOption = None,
@@ -112,11 +110,10 @@ def evaluate_command(
         ),
     ] = None,
 ) -> None:
-    picked = Picked(dataset, subset, clips)
-    evaluate_artifact(
-        app_context(),
+    service.evaluate_artifact(
+        app_context(ctx),
         f"{NAME} evaluate",
-        picked,
+        service.Picked(dataset, subset, clips),
         artifact,
         real,
         real_dataset,
@@ -127,6 +124,7 @@ def evaluate_command(
 
 @app.command("publish", help="Copy a stratum's projection to paths.thresholds (verify uses it).")
 def publish(
+    ctx: typer.Context,
     level: Annotated[str, typer.Option(help="oracle or perceived.")],
     profile: ProfileOption = None,
     artifact: ArtifactOption = None,
@@ -134,14 +132,17 @@ def publish(
         bool, typer.Option(help="Publish a stratum that is not usable yet (warns).")
     ] = False,
 ) -> None:
-    publish_stratum(app_context(), level, profile, artifact, force, echo=typer.echo, err=echo_err)
+    service.publish_stratum(
+        app_context(ctx), level, profile, artifact, force, echo=typer.echo, err=echo_err
+    )
 
 
 @app.command("show", help="Summary of the artifact per stratum and check.")
 def show(
+    ctx: typer.Context,
     artifact: ArtifactOption = None,
     level: Annotated[str | None, typer.Option()] = None,
     profile: ProfileOption = None,
 ) -> None:
-    for line in show_artifact(app_context(), artifact, level, profile):
+    for line in service.show_artifact(app_context(ctx), artifact, level, profile):
         typer.echo(line)

@@ -31,6 +31,7 @@ app = typer.Typer(
 
 @app.callback()
 def results(
+    ctx: typer.Context,
     chain_dir: Annotated[Path, typer.Option(help="The chain's output directory (state.env).")],
     calibration_evaluation: Annotated[
         Path | None,
@@ -45,7 +46,7 @@ def results(
     ] = None,
     out: Annotated[Path | None, typer.Option(help="Default: <chain-dir>/results.")] = None,
 ) -> None:
-    scope = app_context().settings.section(SCOPE_SECTION, CheckScope)
+    scope = app_context(ctx).settings.section(SCOPE_SECTION, CheckScope)
     request = Request(
         chain_dir=chain_dir,
         calibration_evaluation=calibration_evaluation,
