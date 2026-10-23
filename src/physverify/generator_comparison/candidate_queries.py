@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
+from physverify.finetune.layout import CampaignStore
 from physverify.finetune.records import CandidateRecord, CandidateScore
-from physverify.finetune.store import CampaignStore
 from physverify.generator_comparison.arms import EVAL_SPLIT
 from physverify.generator_comparison.prereg import CandidateSnapshot
 from physverify.schema.io import stable_hash

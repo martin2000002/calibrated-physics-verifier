@@ -11,7 +11,12 @@ from wiring import build_scorer, checks
 
 from physverify.config.models import Settings
 from physverify.core.errors import ConfigError, UsageError
-from physverify.finetune.scope import EXCLUDED_TAG, ScopedScorer, family_targets, scorer_exclusion
+from physverify.finetune.scorer_scope import (
+    EXCLUDED_TAG,
+    ScopedScorer,
+    family_targets,
+    scorer_exclusion,
+)
 from physverify.finetune.scorers.provisional import ProvisionalScorer
 from physverify.finetune.settings import load_finetune
 from physverify.schema.checks import CheckResult, Verdict

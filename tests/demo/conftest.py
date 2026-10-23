@@ -18,7 +18,7 @@ from physverify.config.loader import load_settings
 from physverify.config.models import Settings
 from physverify.core.video import write_mp4
 from physverify.datasets.local_video import LocalVideoDataset
-from physverify.finetune.scoring import ScoringDeps
+from physverify.finetune.candidate_scoring import ScoringDeps
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
 from physverify.schema.clip import ClipManifest
 from physverify.verification.inputs import ClipInputs

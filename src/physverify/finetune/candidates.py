@@ -18,6 +18,7 @@ from typing import Any, Final
 
 from physverify.core.atomic import write_atomic
 from physverify.core.errors import PhysverifyError, UsageError
+from physverify.finetune.layout import CampaignStore
 from physverify.finetune.records import (
     BASE_TAG,
     CandidateRecord,
@@ -27,7 +28,6 @@ from physverify.finetune.records import (
 )
 from physverify.finetune.seeds import WHOLE, Shard, candidate_id, candidate_seed
 from physverify.finetune.settings import CandidateSettings, PromptSplit
-from physverify.finetune.store import CampaignStore
 from physverify.finetune.wan_lora import load_adapter
 from physverify.schema.io import stable_hash
 from physverify.timing.generation import call_kwargs, is_out_of_memory, torch_generator

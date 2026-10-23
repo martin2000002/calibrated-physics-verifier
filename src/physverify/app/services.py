@@ -17,8 +17,8 @@ from physverify.extraction.cache import StageCache
 from physverify.extraction.error_profile import load_error_profile
 from physverify.extraction.pipeline import LazyLock, PipelineDeps, ProcRssProbe
 from physverify.extraction.plan import ResolvedPlan, resolve_plan
+from physverify.finetune.candidate_scoring import build_scorer
 from physverify.finetune.scorers._base import AggregateScorer
-from physverify.finetune.scoring import build_scorer
 from physverify.generator_comparison.judges._base import ExternalJudge, Judge
 from physverify.generator_comparison.settings import H3Settings
 from physverify.schema.stages import Stage

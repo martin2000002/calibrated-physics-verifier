@@ -12,12 +12,12 @@ from physverify.config.models import Settings
 from physverify.core.atomic import write_text_atomic
 from physverify.core.errors import UsageError
 from physverify.datasets.local_video import NAME as LOCAL_VIDEO
-from physverify.finetune.generate import CandidateGenerator
+from physverify.finetune.candidate_scoring import ScoringDeps
+from physverify.finetune.candidates import CandidateGenerator
+from physverify.finetune.layout import CampaignStore
 from physverify.finetune.scorers._base import AggregateScorer
-from physverify.finetune.scorers._status import CalibrationStatusSource
-from physverify.finetune.scoring import ScoringDeps
+from physverify.finetune.scorers._calibration_status import CalibrationStatusSource
 from physverify.finetune.settings import CandidateSettings, generator_settings, load_finetune
-from physverify.finetune.store import CampaignStore
 from physverify.runtime.heavy import NullLock
 from physverify.runtime.runs import current_commit
 from physverify.schema.checks import InputLevel

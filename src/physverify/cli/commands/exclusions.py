@@ -47,7 +47,7 @@ from physverify.cli.context import app_context
 from physverify.core.atomic import write_text_atomic
 from physverify.core.digests import text_sha256
 from physverify.core.errors import UsageError
-from physverify.finetune.scope import family_targets
+from physverify.finetune.scorer_scope import family_targets
 from physverify.finetune.settings import FinetuneSettings, load_finetune
 from physverify.runtime.runs import RUN_FILE, new_run
 from physverify.schema.clip import ClipManifest

@@ -11,8 +11,8 @@ from physverify.config.models import Settings
 from physverify.extraction._base import StageProvider
 from physverify.extraction.plan import ResolvedPlan
 from physverify.extraction.plan import resolve_plan as resolve_injected_plan
+from physverify.finetune.candidate_scoring import build_scorer as build_injected_scorer
 from physverify.finetune.scorers._base import AggregateScorer
-from physverify.finetune.scoring import build_scorer as build_injected_scorer
 from physverify.schema.stages import Stage
 from physverify.verification import check_set
 

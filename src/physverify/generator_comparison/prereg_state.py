@@ -18,7 +18,8 @@ from physverify.config.models import Settings
 from physverify.core.digests import sha256_if_file
 from physverify.core.errors import MissingInputError, PhysverifyError
 from physverify.datasets.local_video import NAME as LOCAL_VIDEO
-from physverify.finetune.generate import adapter_tag
+from physverify.finetune.candidates import adapter_tag
+from physverify.finetune.layout import CampaignStore
 from physverify.finetune.pairs import Rescore
 from physverify.finetune.records import BASE_TAG, CandidateScore, PromptRecord
 from physverify.finetune.scorers._base import AggregateScorer
@@ -26,7 +27,6 @@ from physverify.finetune.selection import Selection
 from physverify.finetune.settings import SECTION as FINETUNE_SECTION
 from physverify.finetune.settings import FinetuneSettings
 from physverify.finetune.stop_rule import StopRuleState
-from physverify.finetune.store import CampaignStore
 from physverify.generator_comparison.arms import (
     EVAL_SPLIT,
     PromptArms,

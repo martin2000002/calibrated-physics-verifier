@@ -4,9 +4,9 @@ from collections.abc import Callable, Sequence
 from typing import ClassVar
 
 from physverify.config.models import Settings
+from physverify.finetune.candidate_scoring import restamp
 from physverify.finetune.records import CandidateScore, CheckSummary
 from physverify.finetune.scorers._base import AggregateScore
-from physverify.finetune.scoring import restamp
 from physverify.schema.checks import CheckResult
 
 

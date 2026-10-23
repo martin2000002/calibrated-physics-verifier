@@ -14,7 +14,7 @@ from physverify.checks._base import Check
 from physverify.config.models import Settings
 from physverify.core.errors import UsageError
 from physverify.finetune.scorers._base import AggregateScore, AggregateScorer
-from physverify.finetune.scorers._status import CalibrationStatusSource
+from physverify.finetune.scorers._calibration_status import CalibrationStatusSource
 from physverify.finetune.settings import FinetuneSettings
 from physverify.schema.checks import CheckResult
 from physverify.verification.scope import check_scope

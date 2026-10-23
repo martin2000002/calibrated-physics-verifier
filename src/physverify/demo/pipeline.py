@@ -38,7 +38,9 @@ from physverify.demo.report import (
     write_report,
 )
 from physverify.demo.settings import OverlayStyle
-from physverify.finetune.generate import ADAPTER_HASH_CHARS, CandidateGenerator
+from physverify.finetune.candidate_scoring import ScoringDeps, score_candidates
+from physverify.finetune.candidates import ADAPTER_HASH_CHARS, CandidateGenerator
+from physverify.finetune.layout import CampaignStore
 from physverify.finetune.records import (
     BASE_TAG,
     CandidateRecord,
@@ -48,9 +50,7 @@ from physverify.finetune.records import (
     write_records,
 )
 from physverify.finetune.scorers._base import AggregateScorer
-from physverify.finetune.scoring import ScoringDeps, score_candidates
 from physverify.finetune.seeds import candidate_id
-from physverify.finetune.store import CampaignStore
 from physverify.schema.checks import CheckResult
 from physverify.schema.io import read_jsonl
 

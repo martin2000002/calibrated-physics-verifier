@@ -45,8 +45,18 @@ from physverify.finetune.budget import (
     budget_lines,
     train_prompts,
 )
+from physverify.finetune.candidate_scoring import rescorer, score_candidates, stale_scores
+from physverify.finetune.candidates import CandidateGenerator
 from physverify.finetune.dpo import SIGMA_LEVELS, ShiftedFlowNoise
-from physverify.finetune.generate import CandidateGenerator
+from physverify.finetune.layout import (
+    PAIRS_FILE,
+    PILOT_REVIEW_FILE,
+    REPORT_FILE,
+    SELECTED_FILE,
+    VAL_PAIRS_FILE,
+    VAL_REPORT_FILE,
+    CampaignStore,
+)
 from physverify.finetune.pairs import build_pairs
 from physverify.finetune.pilot import fit_and_val, pilot_prompts
 from physverify.finetune.prompts import build_prompt_set, sizing_labels
@@ -62,7 +72,6 @@ from physverify.finetune.records import (
     write_records,
 )
 from physverify.finetune.scorers._base import AggregateScorer
-from physverify.finetune.scoring import rescorer, score_candidates, stale_scores
 from physverify.finetune.seeds import parse_shard
 from physverify.finetune.selection import (
     Selection,
@@ -80,15 +89,6 @@ from physverify.finetune.settings import (
     load_finetune,
 )
 from physverify.finetune.stop_rule import PilotReview, pairs_sha256, review_sample
-from physverify.finetune.store import (
-    PAIRS_FILE,
-    PILOT_REVIEW_FILE,
-    REPORT_FILE,
-    SELECTED_FILE,
-    VAL_PAIRS_FILE,
-    VAL_REPORT_FILE,
-    CampaignStore,
-)
 from physverify.finetune.trainer import (
     ADAPTER_DIR,
     DpoTrainer,

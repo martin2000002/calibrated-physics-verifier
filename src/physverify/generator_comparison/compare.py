@@ -13,11 +13,11 @@ from pathlib import Path
 from typing import Final
 
 from physverify.core.errors import UsageError
+from physverify.finetune.layout import CampaignStore
 from physverify.finetune.pairs import Rescore, stamp_of
 from physverify.finetune.records import BASE_TAG, CandidateScore, read_record
 from physverify.finetune.settings import FinetuneSettings
 from physverify.finetune.stop_rule import fired_reason
-from physverify.finetune.store import CampaignStore
 from physverify.generator_comparison.arms import EVAL_SPLIT, analysis_prompts, build_arms
 from physverify.generator_comparison.candidate_queries import eval_ids, eval_scores
 from physverify.generator_comparison.judging import gate_problem

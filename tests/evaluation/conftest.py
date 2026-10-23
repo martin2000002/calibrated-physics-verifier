@@ -18,7 +18,8 @@ from wiring import build_scorer
 
 from physverify.config.loader import load_settings
 from physverify.config.models import Settings
-from physverify.finetune.generate import adapter_tag
+from physverify.finetune.candidates import adapter_tag
+from physverify.finetune.layout import SELECTED_FILE, CampaignStore
 from physverify.finetune.records import (
     BASE_TAG,
     DEMO_TAG,
@@ -33,7 +34,6 @@ from physverify.finetune.scorers._base import AggregateScorer
 from physverify.finetune.seeds import candidate_id
 from physverify.finetune.selection import CheckpointResult, Selection
 from physverify.finetune.settings import load_finetune
-from physverify.finetune.store import SELECTED_FILE, CampaignStore
 from physverify.generator_comparison.layout import H3Layout
 from physverify.generator_comparison.settings import H3Settings, load_h3
 from physverify.schema.checks import CheckResult, InputLevel, Verdict

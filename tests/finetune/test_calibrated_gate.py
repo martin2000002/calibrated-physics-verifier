@@ -29,9 +29,9 @@ from physverify.calibration.artifact_io import (  # noqa: E402
 from physverify.cli.commands._finetune_deps import write_calibration_status  # noqa: E402
 from physverify.config.models import Settings  # noqa: E402
 from physverify.core.errors import ConfigError, UsageError  # noqa: E402
+from physverify.finetune.layout import CampaignStore  # noqa: E402
 from physverify.finetune.records import BASE_TAG  # noqa: E402
 from physverify.finetune.scorers.calibrated import CalibratedScorer  # noqa: E402
-from physverify.finetune.store import CampaignStore  # noqa: E402
 from physverify.human_agreement.clip_decision import (  # noqa: E402
     StratumRequest,
     calibrated_rule,

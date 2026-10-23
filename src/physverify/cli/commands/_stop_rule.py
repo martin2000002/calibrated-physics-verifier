@@ -12,6 +12,14 @@ import typer
 
 from physverify.app.context import AppContext
 from physverify.core.errors import UsageError
+from physverify.finetune.candidate_scoring import same_stamp
+from physverify.finetune.layout import (
+    PAIRS_FILE,
+    PILOT_REVIEW_FILE,
+    REPORT_FILE,
+    STOP_RULE_FILE,
+    CampaignStore,
+)
 from physverify.finetune.pilot import fit_and_val
 from physverify.finetune.records import (
     BASE_TAG,
@@ -21,22 +29,14 @@ from physverify.finetune.records import (
     read_records,
     write_record,
 )
-from physverify.finetune.scope import family_targets, scorer_exclusion
+from physverify.finetune.scorer_scope import family_targets, scorer_exclusion
 from physverify.finetune.scorers._base import AggregateScorer
-from physverify.finetune.scoring import same_stamp
 from physverify.finetune.settings import FinetuneSettings
 from physverify.finetune.stop_rule import (
     PilotReview,
     StopVerdict,
     candidate_abstention,
     evaluate_stop,
-)
-from physverify.finetune.store import (
-    PAIRS_FILE,
-    PILOT_REVIEW_FILE,
-    REPORT_FILE,
-    STOP_RULE_FILE,
-    CampaignStore,
 )
 
 STOP_RULE_DEVIATION = "--stop-rule-deviation"

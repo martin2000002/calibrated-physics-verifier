@@ -14,15 +14,15 @@ from safetensors.torch import load_file
 from physverify.config.models import Settings
 from physverify.core.errors import UsageError
 from physverify.datasets.local_video import QueryEntry
-from physverify.finetune.generate import (
+from physverify.finetune.candidates import (
     CandidateGenerator,
     LatentCapture,
     adapter_tag,
     save_safetensors,
 )
+from physverify.finetune.layout import CampaignStore
 from physverify.finetune.records import BASE_TAG, CandidateRecord, PromptRecord, read_record
 from physverify.finetune.settings import FinetuneSettings, generator_settings, load_finetune
-from physverify.finetune.store import CampaignStore
 from physverify.timing.generation import call_kwargs
 from physverify.timing.settings import GenerationSettings
 

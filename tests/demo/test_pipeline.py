@@ -22,11 +22,11 @@ from physverify.demo.pipeline import (
 )
 from physverify.demo.report import PROVISIONAL_BANNER, REPORT_JSON, REPORT_MD, rule_info
 from physverify.demo.settings import OverlayStyle
+from physverify.finetune.candidate_scoring import ScoringDeps
+from physverify.finetune.layout import CampaignStore
 from physverify.finetune.records import BASE_TAG, CandidateRecord, PromptRecord, write_record
 from physverify.finetune.scorers.provisional import ProvisionalScorer
-from physverify.finetune.scoring import ScoringDeps
 from physverify.finetune.seeds import candidate_id
-from physverify.finetune.store import CampaignStore
 
 SRC = Path(pipeline.__file__).resolve().parents[1]
 Videos = Callable[..., Path]

@@ -6,7 +6,7 @@ from pathlib import Path
 
 from physverify.config.loader import load_settings
 from physverify.datasets.local_video import QueryEntry
-from physverify.finetune.generate import config_hash
+from physverify.finetune.candidates import config_hash
 from physverify.finetune.records import BASE_TAG, PromptRecord
 from physverify.finetune.seeds import candidate_id, candidate_seed
 from physverify.finetune.settings import generator_settings, load_finetune

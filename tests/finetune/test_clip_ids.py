@@ -14,11 +14,11 @@ from physverify.config.models import Settings
 from physverify.core.video import write_mp4
 from physverify.datasets.local_video import MANIFEST_FILE, LocalVideoDataset, QueryEntry
 from physverify.extraction.cache import StageCache
+from physverify.finetune.candidate_scoring import ScoringDeps, score_candidates
+from physverify.finetune.layout import CampaignStore
 from physverify.finetune.records import BASE_TAG, CandidateRecord, PromptRecord, write_record
 from physverify.finetune.scorers.provisional import ProvisionalScorer
-from physverify.finetune.scoring import ScoringDeps, score_candidates
 from physverify.finetune.seeds import candidate_id
-from physverify.finetune.store import CampaignStore
 from physverify.schema.checks import CheckResult, InputLevel, Verdict
 from physverify.schema.clip import ClipManifest
 from physverify.schema.stages import Stage

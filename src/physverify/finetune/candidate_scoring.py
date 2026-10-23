@@ -16,6 +16,7 @@ from typing import Final, Protocol
 from physverify.checks._base import Check
 from physverify.config.models import Settings
 from physverify.core.errors import UsageError
+from physverify.finetune.layout import CampaignStore
 from physverify.finetune.records import (
     CandidateRecord,
     CandidateScore,
@@ -25,12 +26,11 @@ from physverify.finetune.records import (
     write_record,
     write_records,
 )
-from physverify.finetune.scope import require_family_targets, scoped, scorer_exclusion
+from physverify.finetune.reward_hacking_signals import motion_index, objects_ok
+from physverify.finetune.scorer_scope import require_family_targets, scoped, scorer_exclusion
 from physverify.finetune.scorers._base import AggregateScore, AggregateScorer
 from physverify.finetune.seeds import WHOLE, Shard
 from physverify.finetune.settings import load_finetune
-from physverify.finetune.signals import motion_index, objects_ok
-from physverify.finetune.store import CampaignStore
 from physverify.schema.checks import CheckResult
 from physverify.schema.clip import ClipManifest
 from physverify.schema.io import read_jsonl, write_jsonl

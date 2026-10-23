@@ -14,6 +14,14 @@ from physverify.calibration.apply import ClipScore
 from physverify.config.models import Settings
 from physverify.core.errors import UsageError
 from physverify.datasets.local_video import QueryEntry
+from physverify.finetune.candidate_scoring import (
+    ScoringDeps,
+    pending,
+    rescorer,
+    score_candidates,
+    stale_scores,
+)
+from physverify.finetune.layout import CampaignStore
 from physverify.finetune.records import (
     CandidateRecord,
     CandidateScore,
@@ -23,15 +31,7 @@ from physverify.finetune.records import (
 )
 from physverify.finetune.scorers.calibrated import CalibratedScorer, to_aggregate
 from physverify.finetune.scorers.provisional import ProvisionalScorer, provisional_score
-from physverify.finetune.scoring import (
-    ScoringDeps,
-    pending,
-    rescorer,
-    score_candidates,
-    stale_scores,
-)
 from physverify.finetune.seeds import WHOLE
-from physverify.finetune.store import CampaignStore
 from physverify.schema.checks import CheckResult, Verdict
 from physverify.schema.clip import ClipManifest, Split, TimeSource
 from physverify.schema.states import ObjectStateTable
