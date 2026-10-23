@@ -15,9 +15,9 @@ from physverify.core.errors import InvalidPluginError, UsageError
 from physverify.core.registry import Registry, discover, discover_modules
 from physverify.datasets._base import DatasetSource
 from physverify.diagnosis._base import StageMetric, metric_key
-from physverify.evaluation.judges._base import Judge
 from physverify.extraction._base import StageProvider, provider_key, validate_provider
 from physverify.finetune.scorers._base import AggregateScorer
+from physverify.generator_comparison.judges._base import Judge
 from physverify.synth.families._base import SceneFamily
 from physverify.synth.perturbations._base import (
     ScenePerturbation,
@@ -57,7 +57,7 @@ PLUGIN_KINDS: Mapping[str, Callable[[], Registry[Any]]] = MappingProxyType(
         "metrics": lambda: discover("physverify.diagnosis.metrics", (StageMetric,), metric_key),
         "policies": lambda: discover("physverify.verification.policies", (VerdictPolicy,), "name"),
         "timing_targets": lambda: discover("physverify.timing.targets", (TimingTarget,), "name"),
-        "judges": lambda: discover("physverify.evaluation.judges", (Judge,), "name"),
+        "judges": lambda: discover("physverify.generator_comparison.judges", (Judge,), "name"),
         "scorers": lambda: discover("physverify.finetune.scorers", (AggregateScorer,), "name"),
     }
 )

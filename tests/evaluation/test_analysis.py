@@ -6,7 +6,10 @@ from typing import Any
 import pytest
 
 from physverify.config.models import Settings
-from physverify.evaluation.analysis import (
+from physverify.finetune.records import UNSEEN_TAG, CandidateScore, PromptRecord
+from physverify.finetune.scorers._base import AggregateScore
+from physverify.finetune.settings import load_finetune
+from physverify.generator_comparison.analysis import (
     SECONDARY_TESTS,
     AnalysisInputs,
     analyse,
@@ -16,13 +19,10 @@ from physverify.evaluation.analysis import (
     template_means,
     worst_case,
 )
-from physverify.evaluation.arms import PromptArms, analysis_prompts, build_arms
-from physverify.evaluation.bestofn import pick_best
-from physverify.evaluation.settings import H3Settings
-from physverify.evaluation.stats import TestResult
-from physverify.finetune.records import UNSEEN_TAG, CandidateScore, PromptRecord
-from physverify.finetune.scorers._base import AggregateScore
-from physverify.finetune.settings import load_finetune
+from physverify.generator_comparison.arms import PromptArms, analysis_prompts, build_arms
+from physverify.generator_comparison.bestofn import pick_best
+from physverify.generator_comparison.settings import H3Settings
+from physverify.generator_comparison.stats import TestResult
 
 Score = Callable[..., CandidateScore]
 

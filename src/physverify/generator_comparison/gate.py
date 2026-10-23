@@ -10,9 +10,9 @@ from collections.abc import Callable, Mapping, Sequence
 import numpy as np
 
 from physverify.datasets._videophy_tables import VideophyRow
-from physverify.evaluation.judges._base import JudgeScore
-from physverify.evaluation.records import GateTask, TaskUsability, Usability
-from physverify.evaluation.settings import GateSettings, UsabilitySettings
+from physverify.generator_comparison.judges._base import JudgeScore
+from physverify.generator_comparison.records import GateTask, TaskUsability, Usability
+from physverify.generator_comparison.settings import GateSettings, UsabilitySettings
 
 
 def gate_rows(

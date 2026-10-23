@@ -11,11 +11,12 @@ from physverify.app import plugins
 from physverify.app.services import external_judge
 from physverify.core.errors import ConfigError, UsageError
 from physverify.datasets._videophy_tables import VideophyRow
-from physverify.evaluation.gate import gate_rows, gate_task, task_usability, usability
-from physverify.evaluation.judges._base import JudgeInput, JudgeScore
-from physverify.evaluation.judges.verifier import VerifierJudge
-from physverify.evaluation.judges.videophy2_autoeval import Videophy2AutoevalJudge
-from physverify.evaluation.judging import (
+from physverify.finetune.records import CandidateRecord, CandidateScore
+from physverify.generator_comparison.gate import gate_rows, gate_task, task_usability, usability
+from physverify.generator_comparison.judges._base import JudgeInput, JudgeScore
+from physverify.generator_comparison.judges.verifier import VerifierJudge
+from physverify.generator_comparison.judges.videophy2_autoeval import Videophy2AutoevalJudge
+from physverify.generator_comparison.judging import (
     candidate_items,
     gate_items,
     gate_problem,
@@ -24,13 +25,12 @@ from physverify.evaluation.judging import (
     judge_output,
     reusable,
 )
-from physverify.evaluation.settings import (
+from physverify.generator_comparison.settings import (
     AutoevalSettings,
     GateSettings,
     H3Settings,
     UsabilitySettings,
 )
-from physverify.finetune.records import CandidateRecord, CandidateScore
 from physverify.schema.clip import Split
 
 SCALE = (1.0, 5.0)

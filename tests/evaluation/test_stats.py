@@ -5,8 +5,8 @@ import math
 import pytest
 from pydantic import ValidationError
 
-from physverify.evaluation.settings import H3Settings
-from physverify.evaluation.stats import (
+from physverify.generator_comparison.settings import H3Settings
+from physverify.generator_comparison.stats import (
     Diff,
     TestResult,
     hodges_lehmann,

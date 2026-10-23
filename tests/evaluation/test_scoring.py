@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from physverify.evaluation.campaign import eval_records, eval_scores
-from physverify.evaluation.prereg import H3Preregistration
-from physverify.evaluation.scoring import frozen_stamp_problem, manifest, rescore, stale
 from physverify.finetune.records import BASE_TAG, write_record
+from physverify.generator_comparison.campaign import eval_records, eval_scores
+from physverify.generator_comparison.prereg import H3Preregistration
+from physverify.generator_comparison.scoring import frozen_stamp_problem, manifest, rescore, stale
 
 SCORER = "provisional"
 

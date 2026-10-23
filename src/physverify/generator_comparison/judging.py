@@ -12,11 +12,11 @@ from pathlib import Path
 
 from physverify.core.errors import UsageError
 from physverify.datasets._videophy_tables import VideophyRow, to_float
-from physverify.evaluation.gate import gate_task
-from physverify.evaluation.judges._base import Judge, JudgeInput, JudgeScore
-from physverify.evaluation.records import GateReport, JudgeOutput, JudgeRow, JudgeSplit
-from physverify.evaluation.settings import GateSettings
 from physverify.finetune.records import CandidateRecord, PromptRecord
+from physverify.generator_comparison.gate import gate_task
+from physverify.generator_comparison.judges._base import Judge, JudgeInput, JudgeScore
+from physverify.generator_comparison.records import GateReport, JudgeOutput, JudgeRow, JudgeSplit
+from physverify.generator_comparison.settings import GateSettings
 
 
 def candidate_items(

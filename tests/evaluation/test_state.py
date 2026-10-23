@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from physverify.evaluation.layout import H3Layout
-from physverify.evaluation.records import TASKS, JudgeOutput, JudgeRow
-from physverify.evaluation.settings import H3Settings
-from physverify.evaluation.state import DEV_SPLIT, contaminated, dev_pc, dev_usability
 from physverify.finetune.records import BASE_TAG, write_record
+from physverify.generator_comparison.layout import H3Layout
+from physverify.generator_comparison.records import TASKS, JudgeOutput, JudgeRow
+from physverify.generator_comparison.settings import H3Settings
+from physverify.generator_comparison.state import DEV_SPLIT, contaminated, dev_pc, dev_usability
 
 STAMPS = {task: f"stamp-{task}" for task in TASKS}
 

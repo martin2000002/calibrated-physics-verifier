@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from physverify.core.errors import UsageError
-from physverify.evaluation.margins import generator_means, margin, truncate
+from physverify.generator_comparison.margins import generator_means, margin, truncate
 
 ROWS = [
     {"model_name": "A", "pc_pred": "3.6"},

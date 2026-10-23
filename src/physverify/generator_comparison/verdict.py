@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from typing import Final, Literal
 
 from physverify.core.models import FrozenModel
-from physverify.evaluation.stats import TestResult, significant_negative, supported
+from physverify.generator_comparison.stats import TestResult, significant_negative, supported
 
 GuardState = Literal["ok", "fail", "not_evaluated"]
 ExternalStatus = Literal["ok", "failed_gate", "unusable", "not_run"]

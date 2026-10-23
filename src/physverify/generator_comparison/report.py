@@ -8,12 +8,12 @@ from typing import Final
 from physverify.core.atomic import write_text_atomic
 from physverify.core.markdown import number, table
 from physverify.core.models import FrozenModel
-from physverify.evaluation.analysis import ArmSummary, GuardResult, H3Analysis
-from physverify.evaluation.layout import H3Layout
-from physverify.evaluation.margins import MarginDerivation
-from physverify.evaluation.prereg import Mde
-from physverify.evaluation.stats import TestResult
-from physverify.evaluation.verdict import H3Verdict
+from physverify.generator_comparison.analysis import ArmSummary, GuardResult, H3Analysis
+from physverify.generator_comparison.layout import H3Layout
+from physverify.generator_comparison.margins import MarginDerivation
+from physverify.generator_comparison.prereg import Mde
+from physverify.generator_comparison.stats import TestResult
+from physverify.generator_comparison.verdict import H3Verdict
 from physverify.human_agreement.prereg import FreezeAudit
 
 ESTIMAND: Final = (

@@ -12,8 +12,6 @@ from physverify.core.registry import satisfies
 from physverify.datasets._base import DatasetSource
 from physverify.diagnosis.chain_runner import ChainRunner
 from physverify.diagnosis.verification_adapter import A7CheckSuite
-from physverify.evaluation.judges._base import ExternalJudge, Judge
-from physverify.evaluation.settings import H3Settings
 from physverify.extraction._base import StageObserver
 from physverify.extraction.cache import StageCache
 from physverify.extraction.error_profile import load_error_profile
@@ -21,6 +19,8 @@ from physverify.extraction.pipeline import LazyLock, PipelineDeps, ProcRssProbe
 from physverify.extraction.plan import ResolvedPlan, resolve_plan
 from physverify.finetune.scorers._base import AggregateScorer
 from physverify.finetune.scoring import build_scorer
+from physverify.generator_comparison.judges._base import ExternalJudge, Judge
+from physverify.generator_comparison.settings import H3Settings
 from physverify.schema.stages import Stage
 from physverify.verification.check_set import active_checks_hash, occlusion_thresholds
 

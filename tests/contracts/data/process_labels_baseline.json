@@ -385,74 +385,6 @@
  "src/physverify/diagnosis/verification_adapter.py": {
   "comment_or_docstring": 5
  },
- "src/physverify/evaluation/__init__.py": {
-  "comment_or_docstring": 2
- },
- "src/physverify/evaluation/analysis.py": {
-  "comment_or_docstring": 4,
-  "literal": 1
- },
- "src/physverify/evaluation/arms.py": {
-  "comment_or_docstring": 3
- },
- "src/physverify/evaluation/bestofn.py": {
-  "comment_or_docstring": 2
- },
- "src/physverify/evaluation/campaign.py": {
-  "comment_or_docstring": 1
- },
- "src/physverify/evaluation/compare.py": {
-  "identifier": 2
- },
- "src/physverify/evaluation/gate.py": {
-  "comment_or_docstring": 2
- },
- "src/physverify/evaluation/judges/__init__.py": {
-  "comment_or_docstring": 1
- },
- "src/physverify/evaluation/judges/_base.py": {
-  "comment_or_docstring": 1
- },
- "src/physverify/evaluation/judges/videophy2_autoeval.py": {
-  "comment_or_docstring": 2
- },
- "src/physverify/evaluation/judging.py": {
-  "comment_or_docstring": 2
- },
- "src/physverify/evaluation/layout.py": {
-  "comment_or_docstring": 1
- },
- "src/physverify/evaluation/margins.py": {
-  "comment_or_docstring": 2
- },
- "src/physverify/evaluation/prereg.py": {
-  "comment_or_docstring": 5,
-  "literal": 5
- },
- "src/physverify/evaluation/records.py": {
-  "comment_or_docstring": 2
- },
- "src/physverify/evaluation/report.py": {
-  "comment_or_docstring": 1,
-  "literal": 1
- },
- "src/physverify/evaluation/scoring.py": {
-  "comment_or_docstring": 3
- },
- "src/physverify/evaluation/settings.py": {
-  "comment_or_docstring": 2,
-  "identifier": 1
- },
- "src/physverify/evaluation/state.py": {
-  "comment_or_docstring": 5
- },
- "src/physverify/evaluation/stats.py": {
-  "comment_or_docstring": 5
- },
- "src/physverify/evaluation/verdict.py": {
-  "comment_or_docstring": 3,
-  "identifier": 1
- },
  "src/physverify/extraction/_base.py": {
   "comment_or_docstring": 1
  },
@@ -610,6 +542,74 @@
  },
  "src/physverify/finetune/wan_lora.py": {
   "comment_or_docstring": 1
+ },
+ "src/physverify/generator_comparison/__init__.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/generator_comparison/analysis.py": {
+  "comment_or_docstring": 4,
+  "literal": 1
+ },
+ "src/physverify/generator_comparison/arms.py": {
+  "comment_or_docstring": 3
+ },
+ "src/physverify/generator_comparison/bestofn.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/generator_comparison/campaign.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/generator_comparison/compare.py": {
+  "identifier": 2
+ },
+ "src/physverify/generator_comparison/gate.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/generator_comparison/judges/__init__.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/generator_comparison/judges/_base.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/generator_comparison/judges/videophy2_autoeval.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/generator_comparison/judging.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/generator_comparison/layout.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/generator_comparison/margins.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/generator_comparison/prereg.py": {
+  "comment_or_docstring": 5,
+  "literal": 5
+ },
+ "src/physverify/generator_comparison/records.py": {
+  "comment_or_docstring": 2
+ },
+ "src/physverify/generator_comparison/report.py": {
+  "comment_or_docstring": 1,
+  "literal": 1
+ },
+ "src/physverify/generator_comparison/scoring.py": {
+  "comment_or_docstring": 3
+ },
+ "src/physverify/generator_comparison/settings.py": {
+  "comment_or_docstring": 2,
+  "identifier": 1
+ },
+ "src/physverify/generator_comparison/state.py": {
+  "comment_or_docstring": 5
+ },
+ "src/physverify/generator_comparison/stats.py": {
+  "comment_or_docstring": 5
+ },
+ "src/physverify/generator_comparison/verdict.py": {
+  "comment_or_docstring": 3,
+  "identifier": 1
  },
  "src/physverify/human_agreement/breakdown.py": {
   "comment_or_docstring": 3

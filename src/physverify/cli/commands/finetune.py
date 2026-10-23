@@ -39,7 +39,6 @@ from physverify.cli.context import app_context, heavy_command
 from physverify.core.atomic import write_text_atomic
 from physverify.core.digests import file_sha256
 from physverify.core.errors import EXIT_ERROR, UsageError
-from physverify.evaluation.arms import EVAL_SPLIT
 from physverify.finetune.budget import (
     PAIR_MEASURE,
     FinetuneBudgetQuery,
@@ -106,6 +105,7 @@ from physverify.finetune.trainer import (
     stored_pairs,
 )
 from physverify.finetune.wan_lora import load_wan_adapter_model
+from physverify.generator_comparison.arms import EVAL_SPLIT
 from physverify.runtime.runs import RUN_FILE, current_commit
 from physverify.timing.budget import BudgetError, cost_from_results
 from physverify.timing.generation import snapshot_dir, snapshot_problem

@@ -6,11 +6,11 @@ from pathlib import Path
 
 from physverify.config.loader import load_settings
 from physverify.datasets.local_video import QueryEntry
-from physverify.evaluation.settings import load_h3
 from physverify.finetune.generate import config_hash
 from physverify.finetune.records import BASE_TAG, PromptRecord
 from physverify.finetune.seeds import candidate_id, candidate_seed
 from physverify.finetune.settings import generator_settings, load_finetune
+from physverify.generator_comparison.settings import load_h3
 
 PINNED_HASH = "d7962fa12ea64a05d6beed0ba5dc45538ca22bb31059069ccc76deee0031702a"
 

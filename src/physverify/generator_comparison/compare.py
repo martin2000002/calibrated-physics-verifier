@@ -13,19 +13,24 @@ from pathlib import Path
 from typing import Final
 
 from physverify.core.errors import UsageError
-from physverify.evaluation.analysis import AnalysisInputs, analyse
-from physverify.evaluation.arms import EVAL_SPLIT, analysis_prompts, build_arms
-from physverify.evaluation.campaign import eval_ids, eval_scores
-from physverify.evaluation.judging import gate_problem
-from physverify.evaluation.layout import H3Layout
-from physverify.evaluation.prereg import (
+from physverify.finetune.pairs import Rescore, stamp_of
+from physverify.finetune.records import BASE_TAG, CandidateScore, read_record
+from physverify.finetune.settings import FinetuneSettings
+from physverify.finetune.stop_rule import fired_reason
+from physverify.finetune.store import CampaignStore
+from physverify.generator_comparison.analysis import AnalysisInputs, analyse
+from physverify.generator_comparison.arms import EVAL_SPLIT, analysis_prompts, build_arms
+from physverify.generator_comparison.campaign import eval_ids, eval_scores
+from physverify.generator_comparison.judging import gate_problem
+from physverify.generator_comparison.layout import H3Layout
+from physverify.generator_comparison.prereg import (
     H3Preregistration,
     chain,
     chain_shas,
     first_created,
     stamp_problem,
 )
-from physverify.evaluation.records import (
+from physverify.generator_comparison.records import (
     TASKS,
     GateReport,
     JudgeKey,
@@ -34,15 +39,10 @@ from physverify.evaluation.records import (
     keyed_values,
     load_judge_output,
 )
-from physverify.evaluation.report import H3Report
-from physverify.evaluation.settings import H3Settings
-from physverify.evaluation.stats import method_label
-from physverify.evaluation.verdict import ExternalStatus, VerdictInputs, h3_verdict
-from physverify.finetune.pairs import Rescore, stamp_of
-from physverify.finetune.records import BASE_TAG, CandidateScore, read_record
-from physverify.finetune.settings import FinetuneSettings
-from physverify.finetune.stop_rule import fired_reason
-from physverify.finetune.store import CampaignStore
+from physverify.generator_comparison.report import H3Report
+from physverify.generator_comparison.settings import H3Settings
+from physverify.generator_comparison.stats import method_label
+from physverify.generator_comparison.verdict import ExternalStatus, VerdictInputs, h3_verdict
 from physverify.human_agreement.prereg import (
     FreezeAudit,
     earliest_mtime,

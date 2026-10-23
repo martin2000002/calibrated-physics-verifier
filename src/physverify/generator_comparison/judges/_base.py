@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
-    from physverify.evaluation.settings import H3Settings
+    from physverify.generator_comparison.settings import H3Settings
 
 
 @dataclass(frozen=True)

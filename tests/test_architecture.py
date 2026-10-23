@@ -16,11 +16,6 @@ REPO = Path(__file__).resolve().parents[1]
 SOURCE_ROOTS = (REPO / "src", REPO)
 SCANNED_DIRS = (REPO / "src" / "physverify", REPO / "scripts")
 
-# Current package names that the contract lists under their target name.
-LEGACY_PACKAGES: Mapping[str, str] = {
-    "physverify.evaluation": "physverify.generator_comparison",
-}
-
 # Pairs "module -> imported" present when the guard was added; fixes shrink this set.
 KNOWN_VIOLATIONS: frozenset[str] = frozenset(
     {
@@ -119,13 +114,6 @@ def _all_edges() -> list[ImportEdge]:
     return [edge for path in paths for edge in _edges(path)]
 
 
-def _canonical(module: str) -> str:
-    for legacy, target in LEGACY_PACKAGES.items():
-        if _within(module, legacy):
-            return target + module[len(legacy) :]
-    return module
-
-
 def _layer_ranks(layers: Sequence[str]) -> dict[str, int]:
     return {
         package.strip(): len(layers) - index
@@ -135,8 +123,7 @@ def _layer_ranks(layers: Sequence[str]) -> dict[str, int]:
 
 
 def _package_of(module: str, ranks: Mapping[str, int]) -> str | None:
-    canonical = _canonical(module)
-    return next((package for package in ranks if _within(canonical, package)), None)
+    return next((package for package in ranks if _within(module, package)), None)
 
 
 def _breaks_layers(edge: ImportEdge, ranks: Mapping[str, int]) -> bool:
@@ -185,7 +172,7 @@ def test_every_package_is_covered_by_a_contract() -> None:
         for package in entry.split("|")
     }
     covered.update(source for c in _contract("forbidden") for source in c["source_modules"])
-    missing = sorted(p for p in _top_level_packages() if _canonical(p) not in covered)
+    missing = sorted(p for p in _top_level_packages() if p not in covered)
     assert not missing, f"packages missing from [tool.importlinter]: {missing}"
 
 

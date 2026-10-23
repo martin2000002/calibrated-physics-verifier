@@ -5,13 +5,13 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from physverify.evaluation.campaign import candidate_snapshot, eval_records, eval_scores
-from physverify.evaluation.prereg import H3Preregistration, stamp_problem
-from physverify.evaluation.records import ScoringManifest
 from physverify.finetune.records import CandidateScore, write_record, write_records
 from physverify.finetune.scorers._base import AggregateScorer
 from physverify.finetune.scoring import restamp, same_stamp
 from physverify.finetune.store import CampaignStore
+from physverify.generator_comparison.campaign import candidate_snapshot, eval_records, eval_scores
+from physverify.generator_comparison.prereg import H3Preregistration, stamp_problem
+from physverify.generator_comparison.records import ScoringManifest
 from physverify.schema.checks import CheckResult
 from physverify.schema.io import read_jsonl
 

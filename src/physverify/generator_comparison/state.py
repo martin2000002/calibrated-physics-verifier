@@ -18,31 +18,6 @@ from physverify.config.models import Settings
 from physverify.core.digests import sha256_if_file
 from physverify.core.errors import MissingInputError, PhysverifyError
 from physverify.datasets.local_video import NAME as LOCAL_VIDEO
-from physverify.evaluation.analysis import (
-    SECONDARY_TESTS,
-    JudgeValues,
-    crn_ft_vs_base,
-    judged,
-    judged_against_base,
-)
-from physverify.evaluation.arms import EVAL_SPLIT, PromptArms, analysis_prompts, build_arms
-from physverify.evaluation.campaign import all_eval_records, candidate_snapshot
-from physverify.evaluation.gate import usability
-from physverify.evaluation.judges._base import Judge
-from physverify.evaluation.layout import H3Layout
-from physverify.evaluation.margins import MarginDerivation, margin
-from physverify.evaluation.prereg import H3Preregistration, Mde
-from physverify.evaluation.records import (
-    TASKS,
-    JudgeKey,
-    Usability,
-    judge_values,
-    keyed_values,
-    load_judge_output,
-)
-from physverify.evaluation.settings import AUTOEVAL_KEY, SECTION, H3Settings
-from physverify.evaluation.stats import mde_paired, sample_sd
-from physverify.evaluation.verdict import RuleStatus
 from physverify.finetune.generate import adapter_tag
 from physverify.finetune.pairs import Rescore
 from physverify.finetune.records import BASE_TAG, CandidateScore, PromptRecord
@@ -52,6 +27,36 @@ from physverify.finetune.settings import SECTION as FINETUNE_SECTION
 from physverify.finetune.settings import FinetuneSettings
 from physverify.finetune.stop_rule import StopRuleState
 from physverify.finetune.store import CampaignStore
+from physverify.generator_comparison.analysis import (
+    SECONDARY_TESTS,
+    JudgeValues,
+    crn_ft_vs_base,
+    judged,
+    judged_against_base,
+)
+from physverify.generator_comparison.arms import (
+    EVAL_SPLIT,
+    PromptArms,
+    analysis_prompts,
+    build_arms,
+)
+from physverify.generator_comparison.campaign import all_eval_records, candidate_snapshot
+from physverify.generator_comparison.gate import usability
+from physverify.generator_comparison.judges._base import Judge
+from physverify.generator_comparison.layout import H3Layout
+from physverify.generator_comparison.margins import MarginDerivation, margin
+from physverify.generator_comparison.prereg import H3Preregistration, Mde
+from physverify.generator_comparison.records import (
+    TASKS,
+    JudgeKey,
+    Usability,
+    judge_values,
+    keyed_values,
+    load_judge_output,
+)
+from physverify.generator_comparison.settings import AUTOEVAL_KEY, SECTION, H3Settings
+from physverify.generator_comparison.stats import mde_paired, sample_sd
+from physverify.generator_comparison.verdict import RuleStatus
 from physverify.schema.io import stable_hash
 from physverify.verification.scope import check_scope, require_record_for
 

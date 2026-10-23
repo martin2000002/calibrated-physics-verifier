@@ -14,11 +14,15 @@ from dataclasses import dataclass
 import numpy as np
 
 from physverify.core.models import FrozenModel
-from physverify.evaluation.arms import PromptArms
-from physverify.evaluation.bestofn import Key, Pick, pick_best
-from physverify.evaluation.records import JudgeKey
-from physverify.evaluation.settings import H3Settings
-from physverify.evaluation.stats import (
+from physverify.finetune.pairs import Rescore, drop_reason, on_common_checks
+from physverify.finetune.records import CandidateScore
+from physverify.finetune.scorers._base import AggregateScore
+from physverify.finetune.settings import PairSettings, SelectSettings
+from physverify.generator_comparison.arms import PromptArms
+from physverify.generator_comparison.bestofn import Key, Pick, pick_best
+from physverify.generator_comparison.records import JudgeKey
+from physverify.generator_comparison.settings import H3Settings
+from physverify.generator_comparison.stats import (
     Diff,
     TestResult,
     holm,
@@ -26,11 +30,7 @@ from physverify.evaluation.stats import (
     paired_test,
     supported,
 )
-from physverify.evaluation.verdict import ExternalStatus, GuardState
-from physverify.finetune.pairs import Rescore, drop_reason, on_common_checks
-from physverify.finetune.records import CandidateScore
-from physverify.finetune.scorers._base import AggregateScore
-from physverify.finetune.settings import PairSettings, SelectSettings
+from physverify.generator_comparison.verdict import ExternalStatus, GuardState
 
 ABSENT = AggregateScore(None, None, True, "no_checks", 0, 0, 0.0)
 GUARDS = ("G1", "G2", "G3", "G4", "G5")

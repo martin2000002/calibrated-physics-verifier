@@ -6,8 +6,9 @@ from typing import Any
 
 import pytest
 
-from physverify.evaluation.stats import TestResult
-from physverify.evaluation.verdict import (
+from physverify.finetune.stop_rule import StopRuleState, fired_reason
+from physverify.generator_comparison.stats import TestResult
+from physverify.generator_comparison.verdict import (
     CONFIRMED,
     CONTRADICTED,
     HACKING,
@@ -22,7 +23,6 @@ from physverify.evaluation.verdict import (
     VerdictInputs,
     h3_verdict,
 )
-from physverify.finetune.stop_rule import StopRuleState, fired_reason
 
 MARGIN = 0.13
 

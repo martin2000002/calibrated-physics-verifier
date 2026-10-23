@@ -17,7 +17,7 @@ import numpy as np
 from scipy import stats as sps
 
 from physverify.core.models import FrozenModel
-from physverify.evaluation.settings import H3Settings
+from physverify.generator_comparison.settings import H3Settings
 from physverify.stats.bootstrap import bootstrap
 
 MEAN: Final = "mean"

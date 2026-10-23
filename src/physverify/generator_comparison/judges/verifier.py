@@ -5,8 +5,8 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import ClassVar, Final
 
-from physverify.evaluation.judges._base import JudgeInput, JudgeScore
 from physverify.finetune.records import CandidateScore
+from physverify.generator_comparison.judges._base import JudgeInput, JudgeScore
 
 SCALE: Final = (0.0, 1.0)
 

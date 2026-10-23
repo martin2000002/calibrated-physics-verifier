@@ -30,9 +30,6 @@ from physverify.demo.pipeline import (
 )
 from physverify.demo.report import RuleInfo, VideoReport, read_report, rule_info, score_text
 from physverify.demo.settings import default_out, load_demo
-from physverify.evaluation.layout import H3Layout
-from physverify.evaluation.prereg import load_prereg
-from physverify.evaluation.scoring import frozen_stamp_problem
 from physverify.finetune.generate import adapter_tag
 from physverify.finetune.prompts import check_vocabulary, fixed_record, sizing_labels
 from physverify.finetune.records import BASE_TAG, DEMO_TAG, PromptRecord, read_record
@@ -41,6 +38,9 @@ from physverify.finetune.scorers.provisional import ProvisionalScorer
 from physverify.finetune.selection import Selection
 from physverify.finetune.settings import FixedPrompt, QueryTemplate, load_finetune
 from physverify.finetune.store import FINETUNE_DIR, SELECTED_FILE, CampaignStore
+from physverify.generator_comparison.layout import H3Layout
+from physverify.generator_comparison.prereg import load_prereg
+from physverify.generator_comparison.scoring import frozen_stamp_problem
 from physverify.runtime.runs import current_commit
 from physverify.schema.io import stable_hash
 

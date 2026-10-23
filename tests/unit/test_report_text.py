@@ -82,7 +82,7 @@ FORMATTERS: dict[str, list[tuple[Any, str]]] = {
         (3, "3"),
         (-12, "-12"),
     ],
-    "physverify.evaluation.report:_num": [
+    "physverify.generator_comparison.report:_num": [
         (None, "-"),
         (0.0, "0"),
         (-0.0, "-0"),

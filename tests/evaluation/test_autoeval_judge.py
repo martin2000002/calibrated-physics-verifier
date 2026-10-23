@@ -9,8 +9,8 @@ from typing import Any
 import pytest
 
 from physverify.core.errors import MissingInputError, PhysverifyError
-from physverify.evaluation.judges._base import JudgeInput
-from physverify.evaluation.judges.videophy2_autoeval import (
+from physverify.generator_comparison.judges._base import JudgeInput
+from physverify.generator_comparison.judges.videophy2_autoeval import (
     INFERENCE,
     MISSING_ROW,
     OUT_OF_RANGE,
@@ -21,7 +21,7 @@ from physverify.evaluation.judges.videophy2_autoeval import (
     parse_output,
     parse_value,
 )
-from physverify.evaluation.settings import AutoevalSettings
+from physverify.generator_comparison.settings import AutoevalSettings
 
 REVISION = "ca38370e1dcc79c99c7017dd8755d0a087299afc"
 COMMIT = "7d8b5ca65425758d2c4fc5435015609d429d9480"

@@ -7,10 +7,11 @@ import pytest
 
 from physverify.core.digests import sha256_if_file
 from physverify.core.errors import ConfigError, PhysverifyError, UsageError
-from physverify.evaluation.analysis import SECONDARY_TESTS
-from physverify.evaluation.layout import H3Layout
-from physverify.evaluation.margins import MarginDerivation
-from physverify.evaluation.prereg import (
+from physverify.finetune.stop_rule import StopRuleState
+from physverify.generator_comparison.analysis import SECONDARY_TESTS
+from physverify.generator_comparison.layout import H3Layout
+from physverify.generator_comparison.margins import MarginDerivation
+from physverify.generator_comparison.prereg import (
     AUDIT_FIELDS,
     EVAL_DATA_DEVIATION,
     H3_FIELDS,
@@ -30,7 +31,6 @@ from physverify.evaluation.prereg import (
     stamp_problem,
     write_prereg,
 )
-from physverify.finetune.stop_rule import StopRuleState
 
 DERIVATION = MarginDerivation(
     column="pc_pred",

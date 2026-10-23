@@ -112,7 +112,7 @@ uv run --no-sync mypy
 | `physverify.sizing` | Object size model learned on Objectron: annotation download, fit and evaluation |
 | `physverify.human_agreement` | H2 comparison: verifier decisions, agreement statistics, pre-registration and report |
 | `physverify.finetune` | Preference fine-tuning of Wan2.1: prompts, generation, scoring, pairs, stop rule, Flow-DPO trainer, checkpoint selection and GPU budget |
-| `physverify.evaluation` | H3 comparison: arms, judges, pre-registration, statistics and verdict |
+| `physverify.generator_comparison` | H3 comparison: arms, judges, pre-registration, statistics and verdict |
 | `physverify.demo` | End-to-end demo: report and overlay video for one prompt or video |
 | `physverify.reporting` | Results report: reported numbers read from run outputs, each with its source |
 | `physverify.timing` | Timing harness, targets, the Wan2.1 generator call and GPU budget |

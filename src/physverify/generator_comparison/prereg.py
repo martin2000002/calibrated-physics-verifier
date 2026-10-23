@@ -15,12 +15,12 @@ from pydantic import Field, ValidationError
 
 from physverify.core.errors import ConfigError, PhysverifyError, UsageError
 from physverify.core.models import FrozenModel
-from physverify.evaluation.layout import H3Layout
-from physverify.evaluation.margins import MarginDerivation
-from physverify.evaluation.records import Usability
-from physverify.evaluation.verdict import RuleStatus
 from physverify.finetune.records import read_record, write_record
 from physverify.finetune.stop_rule import StopRuleState
+from physverify.generator_comparison.layout import H3Layout
+from physverify.generator_comparison.margins import MarginDerivation
+from physverify.generator_comparison.records import Usability
+from physverify.generator_comparison.verdict import RuleStatus
 from physverify.human_agreement.prereg import archive_replaced, changed_fields, walk_chain
 
 EVAL_DATA_DEVIATION: Final = "ran after eval data existed"

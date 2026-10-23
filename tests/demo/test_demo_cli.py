@@ -10,10 +10,10 @@ from physverify.config.models import Settings
 from physverify.datasets.local_video import QueryEntry
 from physverify.demo.overlay import OVERLAY_FILE
 from physverify.demo.report import PROVISIONAL_BANNER, REPORT_JSON, REPORT_MD, read_report
-from physverify.evaluation.prereg import H3Preregistration
 from physverify.finetune.records import PromptRecord, read_records
 from physverify.finetune.scorers.provisional import ProvisionalScorer
 from physverify.finetune.scoring import ScoringDeps
+from physverify.generator_comparison.prereg import H3Preregistration
 
 COMMANDS = "physverify.cli.commands.demo"
 ADHOC = ("demo", "run", "--prompt", "A ball falls off a table", "--query", "ball:1")
