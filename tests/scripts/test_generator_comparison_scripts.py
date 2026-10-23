@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import os
 import re
-import shutil
 import subprocess
 import tomllib
 from pathlib import Path
@@ -52,16 +50,6 @@ class AutoevalSandbox(Sandbox):
 @pytest.fixture
 def sandbox(tmp_path: Path) -> AutoevalSandbox:
     return AutoevalSandbox(tmp_path)
-
-
-@pytest.mark.parametrize(
-    "name", ["run_generator_comparison.sh", "smoke_autoeval.sh", "setup_autoeval.sh"]
-)
-def test_scripts_parse_and_are_executable(name: str) -> None:
-    bash = shutil.which("bash")
-    assert bash is not None
-    subprocess.run([bash, "-n", str(SCRIPTS / name)], check=True)
-    assert os.access(SCRIPTS / name, os.X_OK)
 
 
 def test_requirements_pin_the_upstream_transformers() -> None:

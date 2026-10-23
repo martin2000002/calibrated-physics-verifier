@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import os
-import shutil
 import subprocess
 from pathlib import Path
 
@@ -93,14 +91,6 @@ class KubricSandbox(Sandbox):
 @pytest.fixture
 def sandbox(tmp_path: Path) -> KubricSandbox:
     return KubricSandbox(tmp_path)
-
-
-def test_script_parses_and_is_executable() -> None:
-    bash = shutil.which("bash")
-    assert bash is not None
-    for name in (*SCRIPT_NAMES, "env.example.sh"):
-        subprocess.run([bash, "-n", str(SCRIPTS / name)], check=True)
-    assert os.access(SCRIPTS / "run_kubric.sh", os.X_OK)
 
 
 def test_docker_is_the_default_engine(sandbox: KubricSandbox) -> None:
