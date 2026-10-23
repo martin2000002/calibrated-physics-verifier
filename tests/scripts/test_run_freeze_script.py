@@ -1,5 +1,4 @@
-"""scripts/h200/run_freeze.sh against a fake interpreter and ``git`` (plan-congelado F7, F8:
-AC-6, AC-8, AC-18, Juicio J3, J4, J5, J12)."""
+"""scripts/h200/run_freeze.sh against a fake interpreter and ``git``."""
 
 from __future__ import annotations
 
@@ -190,7 +189,7 @@ def test_the_script_parses_and_is_executable() -> None:
 def test_the_freeze_adopts_the_chosen_iteration_and_writes_the_manifest(
     sandbox: FreezeSandbox,
 ) -> None:
-    """J4, J5, J12, AC-8: the sequence, cpu and precise, every path in $F, no look at all."""
+    """The sequence, cpu and precise, every path in $F, no look at all."""
     result = sandbox.run()
     assert result.returncode == 0, result.stderr
     assert sandbox.commands() == _expected(sandbox.final)
@@ -242,7 +241,7 @@ def test_the_freeze_adopts_the_chosen_iteration_and_writes_the_manifest(
 def test_a_startup_guard_stops_before_any_step(
     sandbox: FreezeSandbox, env: dict[str, str], message: str
 ) -> None:
-    """AC-6 for the freeze: nothing runs, nothing is adopted."""
+    """A refused freeze: nothing runs, nothing is adopted."""
     result = sandbox.run(**env)
     assert result.returncode == 2 and message in result.stderr, result.stderr
     assert sandbox.commands() in ([], ["doctor"])

@@ -1,5 +1,4 @@
-"""scripts/h200/freeze_query.py: the checks of the freeze and of the sealed final looks
-(plan-congelado F7, Juicio J1, J3, J4, J6, AC-8, AC-18)."""
+"""scripts/h200/freeze_query.py: the checks of the freeze and of the sealed final looks."""
 
 from __future__ import annotations
 
@@ -63,7 +62,6 @@ def test_the_most_n_met_wins_then_auroc_cv_at_full_precision(
     capsys: pytest.CaptureFixture[str],
     iteration_factory: Callable[..., Path],
 ) -> None:
-    """J4."""
     dirs = [
         iteration_factory(tmp_path, "it0-baseline", 1, 0.99),
         iteration_factory(tmp_path, "it1-fixes", 3, 0.5861),
@@ -213,7 +211,7 @@ def test_the_manifest_records_the_freeze(
     environ: dict[str, str],
     iteration_factory: Callable[..., Path],
 ) -> None:
-    """AC-8, AC-18: commit, configs tree, artifacts, record, seed, selection, J3/J13 diffs, v1."""
+    """Commit, configs tree, artifacts, record, seed, selection, both diffs, v1."""
     settings = _settings(config_dir, environ, tmp_path)
     files = _frozen_files(settings)
     git = FakeGit({"d" * 40: ["configs/verifier/extraction.toml"]})
@@ -250,8 +248,8 @@ def test_a_j3_change_record_mismatch_or_other_calibration_refuses_the_manifest(
     environ: dict[str, str],
     iteration_factory: Callable[..., Path],
 ) -> None:
-    """J3: a change under checks, physics, extraction or verification means refit, not adopt;
-    J12: the record sha the script parsed must be the record's."""
+    """A change under checks, physics, extraction or verification means refit, not adopt; the
+    record sha the script parsed must be the record's."""
     settings = _settings(config_dir, environ, tmp_path)
     _frozen_files(settings)
     inputs = _inputs(tmp_path, iteration_factory)
@@ -370,7 +368,7 @@ def _stored_plan(settings: Settings) -> DatasetStore:
 def test_the_plan_check_accepts_only_the_render_of_the_seed(
     tmp_path: Path, config_dir: Path, environ: dict[str, str]
 ) -> None:
-    """J1: a plan of another seed (or none) under the fresh version stops before any look."""
+    """A plan of another seed (or none) under the fresh version stops before any look."""
     overrides, settings = _render(config_dir, environ, tmp_path, "kubric_fresh")
     version = overrides[VERSION_ENV]
     with pytest.raises(QueryError, match="render first"):
@@ -425,7 +423,6 @@ def ledger_line(sets: Sequence[str], commit: str, run_dir: Path | None) -> Ledge
 
 
 def test_a_set_is_looked_at_once_with_one_retry_when_nothing_was_written(tmp_path: Path) -> None:
-    """J6."""
     spec = ("kubric_fresh",)
     other = [ledger_line(["kubric_synthetic:eval"], HEAD, tmp_path)]
     assert look_state(other, spec, retry=False) == "first"
@@ -461,7 +458,7 @@ def test_a_missing_ledger_is_refused(
     config_dir: Path,
     environ: dict[str, str],
 ) -> None:
-    """AC-6: the ledger is created by hand; without it no look starts."""
+    """The ledger is created by hand; without it no look starts."""
     settings = _settings(config_dir, environ, tmp_path)
     home = Path(environ["HOME"])
     with pytest.raises(QueryError, match="no sealed ledger"):

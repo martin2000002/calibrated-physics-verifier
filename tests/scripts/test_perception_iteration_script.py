@@ -1,5 +1,4 @@
-"""scripts/h200/run_perception_iteration.sh against a fake interpreter and ``git`` (WP-O
-AC17-AC20)."""
+"""scripts/h200/run_perception_iteration.sh against a fake interpreter and ``git``."""
 
 from __future__ import annotations
 
@@ -210,7 +209,7 @@ def test_a_startup_guard_stops_before_any_call(
 def test_an_output_near_the_chain_or_its_artifacts_is_refused(
     sandbox: IterationSandbox, target: str
 ) -> None:
-    """AC17: $OUT, $OUT/calibration and $OUT/runs stay away from A8 v2's files."""
+    """$OUT, $OUT/calibration and $OUT/runs stay away from the calibration chain's files."""
     result = sandbox.run(PHYSVERIFY_ITERATION_DIR=str(sandbox.root / target))
     assert result.returncode == 2 and "never writes there" in result.stderr, result.stderr
     assert sandbox.pv() == []
@@ -354,7 +353,7 @@ ARM_C = ["--set extraction.plan.depth=vda_large", "--set extraction.plan.contact
 
 
 def test_an_arm_swaps_providers_on_every_call_on_one_gpu(sandbox: IterationSandbox) -> None:
-    """it3: PHYSVERIFY_ITERATION_ARM passes its declared swaps to every physverify call, the run is
+    """PHYSVERIFY_ITERATION_ARM passes its declared swaps to every physverify call, the run is
     CUDA on GPU 0 only, and state.env and the summary name the arm."""
     result = sandbox.run(
         PHYSVERIFY_ITERATION_ID="it3-c",

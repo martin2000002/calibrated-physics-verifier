@@ -1,5 +1,4 @@
-"""scripts/h200/run_human_agreement.sh against a fake interpreter and ``git`` in a copied tree
-(C9, WP-N)."""
+"""scripts/h200/run_human_agreement.sh against a fake interpreter and ``git`` in a copied tree."""
 
 from __future__ import annotations
 
@@ -344,7 +343,7 @@ def test_dev_freezes_without_touching_test(sandbox: AgreementSandbox) -> None:
 
 
 def _freeze(sandbox: AgreementSandbox, **change: str) -> dict[str, str]:
-    """run_freeze.sh's manifest in place of the A8 v2 run, which is removed."""
+    """run_freeze.sh's manifest in place of the calibration chain's run, which is removed."""
     shutil.rmtree(sandbox.a8v2)
     manifest = sandbox.root / "final" / "freeze.json"
     manifest.parent.mkdir()
@@ -360,7 +359,7 @@ def _freeze(sandbox: AgreementSandbox, **change: str) -> dict[str, str]:
 
 
 def test_the_freeze_manifest_stands_for_the_a8v2_chain(sandbox: AgreementSandbox) -> None:
-    """Plan section 5 and J12: the manifest's record_sha is the one the pre-registration holds."""
+    """The manifest's record_sha is the one the pre-registration holds."""
     env = _freeze(sandbox)
     _dev_done(sandbox, **env)
     result = sandbox.run("test", **env)

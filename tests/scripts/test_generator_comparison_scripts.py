@@ -1,4 +1,4 @@
-"""scripts/h200 H3 and AutoEval scripts against fake ``uv`` and ``nvidia-smi``."""
+"""scripts/h200 generator-comparison and AutoEval scripts against fake ``uv`` and ``nvidia-smi``."""
 
 from __future__ import annotations
 
