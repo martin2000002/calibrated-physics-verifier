@@ -77,3 +77,10 @@ def test_a_plan_from_an_older_gt_revision_is_migrated_before_building(
     expected = "migrate floor-crossing: 0 applied, 0 renders discarded, 0 status changes;"
     assert expected in migrated.out
     assert cli("synth", "generate", "--subset", "smoke", env=env).code == 0
+
+
+def test_a_missing_docker_binary_means_no_image() -> None:
+    def run(args: list[str], **_: Any) -> subprocess.CompletedProcess[bytes]:
+        raise FileNotFoundError(args[0])
+
+    assert not image_present("kubricdockerhub/kubruntu:latest", run)
