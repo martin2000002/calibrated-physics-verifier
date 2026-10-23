@@ -226,7 +226,7 @@ def evaluation_markdown(report: EvaluationReport) -> str:
 def _primary_view(
     view: PrimaryScenesView, everything: Sequence[EvaluationStratum], dataset: DatasetRef
 ) -> list[str]:
-    """Side by side: the primary scenes (ADR 0015 1.4) against every scene."""
+    """Side by side: the primary scenes against every scene."""
     lines = [
         f"## H1 primary (scenes {', '.join(view.scenes)}) vs all scenes",
         "",
@@ -249,7 +249,7 @@ def _primary_view(
 
 
 def _heldout_monotonicity(checks: Sequence[HeldoutMonotonicityCheck], scope: str) -> list[str]:
-    """J7: frozen tau and sigma correction, the artifact's bootstrap; met = both lower bounds
+    """Frozen tau and sigma correction, the artifact's bootstrap; met = both lower bounds
     above 0. Every check is listed, without a multiplicity correction."""
     if not checks:
         return []
@@ -293,7 +293,7 @@ def _medians(m: Monotonicity) -> str:
 def _pooled_side_by_side(
     primary: Sequence[CheckMonotonicity], whole: Sequence[CheckMonotonicity]
 ) -> list[str]:
-    """h1_pass is the lower CI bound of tau_b above 0 (ADR 0009 change 4); the medians are
+    """h1_pass is the lower CI bound of tau_b above 0; the medians are
     descriptive and do not condition it."""
     if not primary:
         return []

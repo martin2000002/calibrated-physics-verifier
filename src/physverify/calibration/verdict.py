@@ -1,4 +1,4 @@
-"""The clip verdict of one check, shared by ``fit`` and ``apply`` (ADR 0009 D5, D11).
+"""The clip verdict of one check, shared by ``fit`` and ``apply``.
 
 A check yields one result per subject. The clip verdict is the run table's (``row_verdict``) and
 its magnitude that of the ``decisive`` subject, as in the table. Fit-time rates, weights and

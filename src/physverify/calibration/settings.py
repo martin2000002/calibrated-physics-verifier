@@ -1,4 +1,4 @@
-"""The ``[calibration]`` section (ADR 0009 §5) plus the values it reads from ``[verification]``."""
+"""The ``[calibration]`` section plus the values it reads from ``[verification]``."""
 
 from __future__ import annotations
 
@@ -31,9 +31,10 @@ class CalibrationSettings(FrozenModel):
     ci: float = Field(default=0.95, gt=0, lt=1)
     min_sigma_pairs: int = Field(default=10, ge=2)
     sigma_pair_filter: PairFilter
-    """D9 factor k_c over every usable pair ("all", before 2026-10-20) or only over the pairs with
-    a nonzero magnitude on some side ("nonzero"); the bias b_c always uses every usable pair.
-    Required: a config without it must not fall back silently to either estimator."""
+    """Per-check sigma factor k_c over every usable pair ("all", the estimator of the earlier fits)
+    or only over the pairs with a nonzero magnitude on some side ("nonzero"); the bias b_c always
+    uses every usable pair. Required: a config without it must not fall back silently to either
+    estimator."""
     platt_l2: float = Field(default=0.01, ge=0)
     ld_max_extrapolation: float = Field(default=1.0, ge=0)
     real_datasets: tuple[str, ...] = ("physics_iq", "pisa_real")

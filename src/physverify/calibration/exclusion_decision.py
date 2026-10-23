@@ -31,8 +31,6 @@ from physverify.verification.exclusion_record import (
     RuleEvidence,
 )
 
-# --- 1.1 ----------------------------------------------------------------------------------------
-
 
 def r5a_rule(inputs: DecisionInputs, rules: ExclusionRules) -> tuple[RuleEvidence, ...]:
     return tuple(_r5a(inputs.consumed, c, rules.r5a) for c in sorted(rules.r5a.check_ids))
@@ -65,9 +63,6 @@ def _r5a(consumed: ConsumedStratum, check_id: str, cfg: R5aRule) -> RuleEvidence
     else:
         reason = KEPT
     return rule_evidence(R5A_RULE_ID, check_id, reason, inputs, decided=True)
-
-
-# --- 1.5 ----------------------------------------------------------------------------------------
 
 
 def real_fpr_rule(inputs: DecisionInputs, rules: ExclusionRules) -> tuple[RuleEvidence, ...]:
@@ -152,8 +147,6 @@ def _real(
     return rule_evidence(REAL_FPR_RULE_ID, check_id, reason, evidence, decided=True)
 
 
-# --- decision -----------------------------------------------------------------------------------
-
 Apply = Callable[[DecisionInputs, ExclusionRules], tuple[RuleEvidence, ...]]
 RULES: Mapping[str, Apply] = {
     R5A_RULE_ID: r5a_rule,
@@ -184,8 +177,9 @@ def decide(
     *,
     replaces_sha256: str | None = None,
 ) -> ExclusionRecord:
-    """Applies ``rules.rules`` in order; ``families_without_target`` maps the excluded ids to
-    the H3 families left without a target check (reported, it does not change the decision)."""
+    """Applies ``rules.rules`` in order; ``families_without_target`` maps the excluded ids to the
+    generator-comparison families left without a target check (reported, it does not change the
+    decision)."""
     evidence = tuple(item for name in rules.rules for item in RULES[name](inputs, rules))
     excluded = frozenset(item.check_id for item in evidence if item.excluded)
     record = ExclusionRecord(

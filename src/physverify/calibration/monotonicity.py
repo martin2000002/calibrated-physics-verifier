@@ -1,4 +1,4 @@
-"""H1 monotonicity: Kendall tau_b between level and the change against the clean clip (D8)."""
+"""Monotonicity: Kendall tau_b between level and the change against the clean clip."""
 
 from __future__ import annotations
 

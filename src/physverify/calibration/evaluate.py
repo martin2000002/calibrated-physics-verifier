@@ -1,4 +1,5 @@
-"""``evaluate``: the frozen artifact on held-out clips and real video (D12). No fitting."""
+"""``evaluate``: the frozen artifact on held-out clips and real video, never on calib. No
+fitting."""
 
 from __future__ import annotations
 
@@ -55,7 +56,7 @@ class EvaluationInputs:
 
 @dataclass(frozen=True)
 class PrimaryScope:
-    """The H1 primary scenes (ADR 0015 1.4) and the reference of the clips they select."""
+    """The primary scenes and the reference of the clips they select."""
 
     scope: SceneScope
     dataset: DatasetRef
@@ -64,7 +65,7 @@ class PrimaryScope:
 @dataclass(frozen=True)
 class EvaluationMeta:
     """``profile`` is the sampling profile the evaluated clips were run with; ``primary`` adds
-    the H1 primary view next to the all-scenes strata."""
+    the primary-scenes view next to the all-scenes strata."""
 
     created_utc: str
     run_id: str
@@ -185,8 +186,8 @@ def pooled_monotonicity(
     check_ids: Sequence[str],
     settings: CalibrationSettings,
 ) -> tuple[CheckMonotonicity, ...]:
-    """D8's pooled tau_b over the calib rows (ADR 0015 1.4 when ``rows`` are the primary
-    scenes); checks without a (level, delta) pair are left out rather than reported as NaN."""
+    """The pooled monotonicity tau_b over the calib rows (or the primary scenes when ``rows``
+    are those); checks without a (level, delta) pair are left out rather than reported as NaN."""
     found: list[CheckMonotonicity] = []
     for check_id in check_ids:
         calib = [r for r in rows if r.check_id == check_id and r.split is Split.CALIB]

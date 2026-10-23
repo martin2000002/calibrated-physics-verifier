@@ -41,8 +41,6 @@ from physverify.verification.exclusion_record import (
     RuleEvidence,
 )
 
-# --- 1.2 ----------------------------------------------------------------------------------------
-
 
 def r2_rule(inputs: DecisionInputs, rules: ExclusionRules) -> tuple[RuleEvidence, ...]:
     return tuple(_r2(inputs, c, rules) for c in sorted(rules.r2.check_ids))

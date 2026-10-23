@@ -1,4 +1,4 @@
-"""Sigma recalibration per check (D9) and per stage (D10), both cross-fitted by scene."""
+"""Sigma recalibration per check and per stage, both cross-fitted by scene."""
 
 from __future__ import annotations
 
@@ -89,8 +89,7 @@ def usable(pairs: Sequence[SigmaPair]) -> tuple[SigmaPair, ...]:
 
 def informative(pairs: Sequence[SigmaPair]) -> tuple[SigmaPair, ...]:
     """Pairs with a nonzero magnitude on some side: a 0-against-0 pair has Delta = 0 for any
-    chain error, so it says nothing about the scale of that error (ADR 0009 D9, amendment
-    2026-10-20)."""
+    chain error, so it says nothing about the scale of that error."""
     return tuple(p for p in pairs if is_informative(p))
 
 
@@ -186,9 +185,6 @@ def cross_fitted_z(pairs: Sequence[SigmaPair], settings: CalibrationSettings) ->
             if p.scene_id in fold
         ]
     return np.asarray(z, dtype=np.float64).reshape(-1, 2)
-
-
-# --- D10: per stage -----------------------------------------------------------------------------
 
 
 def _clip_residuals(samples: MetricSamples, quantity: str) -> dict[str, FloatArray]:

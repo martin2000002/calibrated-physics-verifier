@@ -1,4 +1,5 @@
-"""Raw-policy reports per input level, read back from ``verify`` runs, and the D9 sigma pairs."""
+"""Raw-policy reports per input level, read back from ``verify`` runs, and the per-check sigma
+pairs."""
 
 from __future__ import annotations
 
@@ -97,9 +98,6 @@ def level_data(
 ) -> LevelData:
     rows = build_rows(report, checks, config.couplings, level, split=split)
     return LevelData(level=level, rows=rows, results=report.results, sigma_pairs=pairs)
-
-
-# --- --from-run ---------------------------------------------------------------------------------
 
 
 def read_run(run_dir: Path, clips: Sequence[ClipManifest]) -> VerificationReport:

@@ -1,9 +1,9 @@
-"""The campaign's development metric on calib (ADR 0015 amendment 2 section 4, WP-O).
+"""The campaign's development metric on calib.
 
-Per check: H1 of the full calib fit (rule 1.1) and the informedness J of decisions made out of
-fold, everything that decides a verdict (tau, the per-check sigma correction) refitted without
-the fold. Per stratum: the AUROC of the clip score out of fold (tau, sigma, p_c and the weights
-refitted). One scene partition serves every check, both levels and the score. Pure, no I/O.
+Per check: the monotonicity of the full calib fit (rule 1.1) and the informedness J of decisions
+made out of fold, everything that decides a verdict (tau, the per-check sigma correction) refitted
+without the fold. Per stratum: the AUROC of the clip score out of fold (tau, sigma, p_c and the
+weights refitted). One scene partition serves every check, both levels and the score. Pure, no I/O.
 """
 
 from __future__ import annotations
@@ -124,7 +124,8 @@ class DevScoreReport(ArtifactModel):
 
 @dataclass(frozen=True)
 class DevScore:
-    """The report and the full calib fit it took H1 from (``calibrate fit``'s artifact)."""
+    """The report and the full calib fit it took the monotonicity from (``calibrate fit``'s
+    artifact)."""
 
     report: DevScoreReport
     artifact: CalibrationArtifact

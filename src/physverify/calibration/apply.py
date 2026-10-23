@@ -1,8 +1,8 @@
-"""Calibrated verdicts, violation probabilities and the clip score (ADR 0009 D11, Juicio 6-8).
+"""Calibrated verdicts, violation probabilities and the clip score.
 
-What A9, A10 and A11 import. The verdict rule is ``ThresholdPolicy.judge`` (no copy of k sigma);
-p_c is an estimate conditional on the calib design and S inherits that label.
-"""
+What abstention, the human-agreement study and preference fine-tuning import. The verdict rule is
+``ThresholdPolicy.judge`` (no copy of k sigma); p_c is an estimate conditional on the calib design
+and S inherits that label."""
 
 from __future__ import annotations
 
@@ -150,9 +150,9 @@ def score_clip(
     k_sigma: float | None = None,
     only: Collection[str] | None = None,
 ) -> ClipScore:
-    """Score of one clip's results; ``only`` restricts the checks (A11 compares two videos on the
-    checks decided in both). ``k_sigma`` defaults to the stratum's; a different one raises
-    KSigmaMismatchError."""
+    """Score of one clip's results; ``only`` restricts the checks (preference fine-tuning compares
+    two videos on the checks decided in both). ``k_sigma`` defaults to the stratum's; a different
+    one raises KSigmaMismatchError."""
     policy = policy_for(stratum, k_sigma)
     by_check: dict[str, list[CheckResult]] = {}
     for result in results:

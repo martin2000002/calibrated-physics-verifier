@@ -1,4 +1,4 @@
-"""The sealed ledger (ADR 0015 amendment 2 section 5): the one-look sets of ``[sealed]`` and the
+"""The sealed ledger: the one-look sets of ``[sealed]`` and the
 line a look leaves before any number is computed. Pure except ``read_entries``/``append_entry``.
 
 A look is a frozen state, not a command: every line carries ``freeze`` (commit of a clean tree,

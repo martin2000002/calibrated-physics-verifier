@@ -1,10 +1,10 @@
-"""H1 on held-out rows (plan-congelado F4, J7): the confirmatory figure of the freeze.
+"""Held-out monotonicity: the confirmatory figure of the freeze.
 
-Per check, over the rows with ``split != calib``: D8's pooled tau_b of the bias-corrected
-deltas and the informedness J of the verdicts of the frozen tau and sigma correction. Nothing is
-refitted and there are no folds; ``settings`` must be the artifact's (``fit_settings``), so the
-bootstrap, seed and interval level are the fit's and no parameter comes from elsewhere. A check
-meets H1 when tau_b^lo > 0 and J^lo > 0. Pure, no I/O."""
+Per check, over the rows with ``split != calib``: the pooled monotonicity tau_b of the
+bias-corrected deltas and the informedness J of the verdicts of the frozen tau and sigma correction.
+Nothing is refitted and there are no folds; ``settings`` must be the artifact's (``fit_settings``),
+so the bootstrap, seed and interval level are the fit's and no parameter comes from elsewhere. A
+check meets it when tau_b^lo > 0 and J^lo > 0. Pure, no I/O."""
 
 from __future__ import annotations
 
