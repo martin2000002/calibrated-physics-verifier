@@ -8,9 +8,8 @@ from typing import ClassVar, Literal
 import numpy as np
 from pydantic import BaseModel
 
-from physverify.checks._base import CheckInputs
+from physverify.checks._base import CheckInputs, abstain, unscored
 from physverify.checks._params import OcclusionParams
-from physverify.checks._results import abstain, unscored
 from physverify.physics.measures.object_integrity import missing_frames
 from physverify.physics.tracks import FloatArray, native_span, row_step
 from physverify.schema.checks import AbstainReason, CheckResult

@@ -15,9 +15,8 @@ import pytest
 from settings_factory import SettingsFactory
 
 from physverify.app.plugins import PLUGIN_KINDS
-from physverify.checks._base import Check, CheckInputs
+from physverify.checks._base import Check, CheckInputs, abstain, unscored
 from physverify.checks._params import CommonParams
-from physverify.checks._results import abstain, unscored
 from physverify.core.errors import ConfigError
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
 from physverify.schema.clip import ClipManifest

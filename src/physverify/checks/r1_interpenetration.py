@@ -11,9 +11,8 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import BaseModel
 
-from physverify.checks._base import CheckInputs
+from physverify.checks._base import CheckInputs, abstain, unscored
 from physverify.checks._params import OcclusionParams, as_params
-from physverify.checks._results import abstain, unscored
 from physverify.physics.geometry import Body, Plane, characteristic_length
 from physverify.physics.measures.penetration import penetration_ratio
 from physverify.physics.signed_distance import signed_distance

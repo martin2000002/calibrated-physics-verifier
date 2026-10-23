@@ -10,9 +10,9 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import BaseModel
 
-from physverify.checks._base import CheckInputs
+from physverify.checks._base import CheckInputs, abstain, unscored
 from physverify.checks._params import CommonParams
-from physverify.checks._results import abstain, first_max, unscored
+from physverify.checks._results import first_max
 from physverify.physics.finite_diff import third_difference, third_difference_sigma
 from physverify.physics.geometry import characteristic_length
 from physverify.physics.measures.object_integrity import jump_ratio

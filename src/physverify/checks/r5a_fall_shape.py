@@ -18,10 +18,10 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import BaseModel, Field
 
-from physverify.checks._base import CheckInputs
+from physverify.checks._base import CheckInputs, abstain, unscored
 from physverify.checks._falls import find_falls
 from physverify.checks._params import FallParams
-from physverify.checks._results import abstain, first_max, unscored
+from physverify.checks._results import first_max
 from physverify.checks._uncertainty import check_rng, mc_sigma
 from physverify.physics.flights import Flight, fit_flight, flights_span
 from physverify.physics.measures.gravity_fit import (

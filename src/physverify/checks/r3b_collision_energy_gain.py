@@ -10,7 +10,7 @@ from typing import Any, ClassVar
 import numpy as np
 from pydantic import BaseModel, Field
 
-from physverify.checks._base import CheckInputs
+from physverify.checks._base import CheckInputs, abstain, unscored
 from physverify.checks._collision_windows import (
     CollisionParams,
     FloatArray,
@@ -21,7 +21,6 @@ from physverify.checks._collision_windows import (
     side_data,
 )
 from physverify.checks._params import as_params
-from physverify.checks._results import abstain, unscored
 from physverify.checks._uncertainty import check_rng, mc_sigma
 from physverify.physics.geometry import matrix_from_quaternion
 from physverify.physics.measures.collision_energy import (

@@ -12,9 +12,8 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import Field, model_validator
 
-from physverify.checks._base import CheckInputs
+from physverify.checks._base import CheckInputs, abstain
 from physverify.checks._params import CommonParams
-from physverify.checks._results import abstain
 from physverify.physics.tracks import (
     MOTION_DEGREE,
     FitSource,
