@@ -10,9 +10,9 @@ import cv2
 import numpy as np
 from numpy.typing import NDArray
 
+from physverify.core.video import MP4_FOURCC
 from physverify.timing.records import TimingError
 
-FOURCC: Final = "mp4v"
 VIDEO_SUFFIX: Final = ".mp4"
 RGB_CHANNELS: Final = 3
 VIDEO_NDIM: Final = 4  # (frames, height, width, channels)
@@ -42,10 +42,10 @@ def write_mp4(frames: NDArray[np.uint8], path: Path, fps: float) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     # The suffix stays .mp4 so OpenCV picks the container from the temporary name.
     partial = path.with_name(f".{path.stem}.{os.getpid()}.partial{VIDEO_SUFFIX}")
-    writer = cv2.VideoWriter(str(partial), cv2.VideoWriter.fourcc(*FOURCC), float(fps), size)
+    writer = cv2.VideoWriter(str(partial), cv2.VideoWriter.fourcc(*MP4_FOURCC), float(fps), size)
     try:
         if not writer.isOpened():
-            raise TimingError(f"OpenCV cannot write {FOURCC} video to {partial}")
+            raise TimingError(f"OpenCV cannot write {MP4_FOURCC} video to {partial}")
         for frame in frames:
             writer.write(np.ascontiguousarray(frame[..., ::-1]))  # RGB -> BGR
     except BaseException:
