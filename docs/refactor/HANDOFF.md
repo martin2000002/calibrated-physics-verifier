@@ -270,3 +270,30 @@ T0 (preparation for the parallel moves T-a and T-b):
 - `tests/contracts/data/process_labels_baseline.json` is keyed by path: each stream remaps only the
   keys of its moves, and after a merge the baseline is regenerated (`python
   tests/test_process_labels.py`) with totals no higher than before.
+
+T-a (verification, calibration and the split of `tests/unit`):
+
+- `tests/unit` is gone. By main import: `core` (hashing, digests, registry, sampling_video),
+  `config`, `cli`, `runtime` (atomic, heavy_lock, runtime, container_engines), `physics`
+  (geometry, measures, scale), `schema` (schema_roundtrip), `kubric_worker`, `datasets`
+  (synthetic_clip, JY9), `reporting/test_report_text.py`, and `tests/test_repo_hygiene.py` at the
+  root. Departure: the plan put sampling_video in `datasets`, but it imports only `core.video`,
+  `core.resample` and `schema.clip`, so it goes to `core`.
+- `tests/selective_risk/` receives `test_selective_risk.py` and `test_abstain_tables.py` (no
+  conftest needed: the latter keeps its own `calibration` insert).
+- File renames: `test_h1_by_dataset`/`test_h1_primary` -> `test_monotonicity_by_dataset`/
+  `test_monotonicity_primary`, `test_heldout_h1` -> `test_heldout_monotonicity`,
+  `d9_golden_case`/`test_d9_golden` -> `dev_score_golden_case`/`test_dev_score_golden` (the golden
+  pins the dev-score fit with `sigma_pair_filter="all"`: `golden/dev_score_all_sigma_pairs.json`),
+  `checks/test_it4_v1_unchanged` -> `checks/test_r4_jump_v1_reference`,
+  `verification/test_it1_oracle_unchanged` + `test_it2_oracle_unchanged` -> `test_oracle_golden`
+  (golden `oracle_before_it2.json` -> `oracle.json`), `test_it2_temporal_survival` ->
+  `test_temporal_filter_keeps_detections`, `test_it3_contact_survival` ->
+  `test_contact_filter_keeps_detections`, `test_it4_camera_inputs` -> `test_camera_inputs`,
+  `test_it4_oracle` -> `test_v2_checks_oracle`, `test_it4_targets` -> `test_r4_targets`. Golden
+  contents untouched; `r4_v1.json` keeps its name.
+- Departures: merging the two oracle files needs one import alias (`oracle_results as
+  golden_case_results`, since it1's local `oracle_results` has the same name); the module
+  docstrings are joined. One src comment (`extraction/providers/_temporal_smoothing.py`) names the
+  renamed test path. Test function names are untouched (JY15: deferred to WP9). The process-labels
+  baseline was regenerated: identifier total 285 -> 284 (the `d9` import), the rest equal.

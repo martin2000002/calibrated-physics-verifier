@@ -6,7 +6,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from d9_golden_case import GOLDEN, fitted
+from dev_score_golden_case import GOLDEN, fitted
 from golden import same
 
 # Fields added by it1, with the value they take under "all"; any other difference fails.

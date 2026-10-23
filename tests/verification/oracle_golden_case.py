@@ -1,5 +1,5 @@
 """Oracle check results of the analytic fixture, written once by the code before it2 (commit
-01140e2) into ``golden/oracle_before_it2.json`` and compared with the current code (it2 T14).
+01140e2) into ``golden/oracle.json`` and compared with the current code (it2 T14).
 The same module runs in both trees:
 
     PYTHONPATH=<old>/src:tests/fixtures python tests/verification/oracle_golden_case.py
@@ -27,7 +27,7 @@ from physverify.verification.inputs import OracleSource
 from physverify.verification.policies.raw import RawPolicy
 from physverify.verification.runner import VerificationRunner
 
-GOLDEN = Path(__file__).resolve().parent / "golden" / "oracle_before_it2.json"
+GOLDEN = Path(__file__).resolve().parent / "golden" / "oracle.json"
 
 
 V1_OVERRIDES: dict[str, dict[str, Any]] = {"R4_size": {"reference": "self"}}

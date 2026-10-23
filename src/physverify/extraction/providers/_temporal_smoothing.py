@@ -9,8 +9,9 @@ steps, monotone runs and plateaus of h + 1 or more rows; a real change shorter t
 Ends of a run: ``"keep"`` (LIFT's rule) leaves the first and last h rows as measured.
 ``"shifted"`` moves the window inside the run (row 0 uses rows 0..w - 1): an impulse on those rows
 is removed too, but a monotone run also loses its slope there, since such an impulse is itself
-monotone. It fails the survival test J5 (tests/verification/test_it2_temporal_survival.py) and
-exists only for the descriptive run of the J6 gate (plan-it2, judgement 2 a).
+monotone. It fails the survival test J5
+(tests/verification/test_temporal_filter_keeps_detections.py) and exists only for the descriptive
+run of the J6 gate (plan-it2, judgement 2 a).
 """
 
 from __future__ import annotations
