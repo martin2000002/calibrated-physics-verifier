@@ -1,5 +1,6 @@
-"""The A4 container modules run on the Kubric image (Python 3.9, numpy 1.21): 3.9 syntax, and at
-module level only the stdlib, numpy and the container-safe physverify packages."""
+"""The synthetic Kubric dataset's container modules run on the Kubric image (Python 3.9, numpy
+1.21): 3.9 syntax, and at module level only the stdlib, numpy and the container-safe physverify
+packages."""
 
 from __future__ import annotations
 

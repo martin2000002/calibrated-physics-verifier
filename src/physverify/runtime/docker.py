@@ -1,4 +1,4 @@
-"""Runs container tasks in the pinned Kubric image (ADR 0003, section 4)."""
+"""Runs container tasks in the pinned Kubric image."""
 
 from __future__ import annotations
 

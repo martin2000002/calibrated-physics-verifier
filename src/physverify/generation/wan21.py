@@ -1,4 +1,4 @@
-"""The thesis generator (Wan2.1-T2V-1.3B via diffusers) for the H200 benchmark (ADR 0008, D7-D9).
+"""The thesis generator (Wan2.1-T2V-1.3B via diffusers) for the H200 generator comparison.
 
 ``diffusers`` and ``torch`` are imported with importlib inside functions, so mypy and the plugin
 registry never need them; nothing here runs off the H200.

@@ -1,4 +1,4 @@
-"""Cache keys of stage artifacts (ADR 0003, section 2.8)."""
+"""Cache keys of stage artifacts."""
 
 from __future__ import annotations
 

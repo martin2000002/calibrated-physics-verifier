@@ -1,5 +1,5 @@
-"""The simulate, contacts and render tasks in the Kubric image on a small real scene (the nine
-points of ADR 0004 §4). Run with ``pytest -m docker`` under the heavy lock."""
+"""The simulate, contacts and render tasks in the Kubric image on a small real
+scene. Run with ``pytest -m docker`` under the heavy lock."""
 
 from __future__ import annotations
 

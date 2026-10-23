@@ -1,4 +1,4 @@
-"""The container engine selection point (``[container]`` section; ADR 0003, section 4).
+"""The container engine selection point (``[container]`` section).
 
 A third engine is one module with a runner class, plus its name in ``ContainerSettings.engine``,
 ``ENGINES``, ``MISSING_HINTS`` and ``describe``.

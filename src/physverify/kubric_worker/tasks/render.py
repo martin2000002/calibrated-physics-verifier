@@ -149,7 +149,7 @@ def _keyframe(
 
 def fix_render_threads(threads: int) -> int:
     """Cycles defaults to one thread per host core; with several renderers per host that
-    oversubscribes the CPU, so each process uses ``runtime.threads`` (ADR 0003, section 6)."""
+    oversubscribes the CPU, so each process uses ``runtime.threads``."""
     import bpy
 
     settings = bpy.context.scene.render

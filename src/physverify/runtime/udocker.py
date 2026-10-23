@@ -1,5 +1,5 @@
 """Runs container tasks with udocker in a named container created from the Kubric image, for
-hosts without Docker or root (the H200 server; ADR 0003, section 4).
+hosts without Docker or root (the H200 server).
 
 Unlike ``DockerRunner`` there is no ``--rm`` (the named container is reused), no ``--user`` (the
 process runs as the calling host user) and no ``:ro`` (udocker does not honour it), so the
