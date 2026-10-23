@@ -83,3 +83,15 @@ def test_lock_creates_parents_writes_holder_and_releases(tmp_path: Path) -> None
         assert lock_holder_pids(path)
     assert not holder_path(path).exists()
     assert lock_holder_pids(path) == []
+
+
+def test_a_failing_holder_write_releases_the_lock(tmp_path: Path) -> None:
+    path = tmp_path / "heavy.lock"
+    holder_path(path).mkdir(parents=True)
+    lock = HeavyLock(path, 0.0, ["x"], print)
+    with pytest.raises(OSError):
+        lock.acquire()
+    assert lock_holder_pids(path) == []
+    holder_path(path).rmdir()
+    with HeavyLock(path, 0.0, ["y"], print):
+        assert lock_holder_pids(path)
