@@ -21,7 +21,7 @@ from physverify.synth.perturb import (
 )
 from physverify.synth.perturbations._base import PerturbationTarget
 from physverify.synth.settings import DatasetSettings, perturbation_params
-from physverify.synth.truth_measures._base import measure_clip
+from physverify.synth.truth_measures._base import measure_truth
 
 DATA = Path(__file__).parent / "data"
 PINS = Path(__file__).with_name("truth_measures_pins.json")
@@ -36,7 +36,7 @@ def measures(
     tol: float,
     cuts: Sequence[int] = (),
 ) -> dict[str, str]:
-    values = measure_clip(truth, scene, states, contacts, tol, cuts)
+    values = measure_truth(truth, scene, states, contacts, tol, cuts)
     return {key: float.hex(value) for key, value in values.items()}
 
 

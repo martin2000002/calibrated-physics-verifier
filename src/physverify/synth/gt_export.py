@@ -61,7 +61,7 @@ from physverify.synth.store import (
     atomic_write_json,
     read_json,
 )
-from physverify.synth.truth_measures._base import TruthMeasure, measure_clip
+from physverify.synth.truth_measures._base import TruthMeasure, measure_truth
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -236,7 +236,7 @@ def export_clip(
             "gt_version": gt_version(ds.version, scene, record, clip_dir),
             "sim_id": variant.sim_id,
             "record": record.to_dict(),
-            "measures": measure_clip(
+            "measures": measure_truth(
                 truth, scene, states, contacts, ds.contacts.tol_m, record_cuts(record)
             ),
             **restitution_meta(clean_restitution(store, variant, ds)),

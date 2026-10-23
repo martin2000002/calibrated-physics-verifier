@@ -30,7 +30,7 @@ from physverify.synth.perturb import (
 )
 from physverify.synth.perturbations._base import PerturbationTarget
 from physverify.synth.settings import DatasetSettings, load_dataset_settings, perturbation_params
-from physverify.synth.truth_measures._base import measure_clip
+from physverify.synth.truth_measures._base import measure_truth
 
 OWN_KEY = {
     "r1_penetration": "R1",
@@ -142,7 +142,7 @@ class Sweep:
     def base(self, source: str, family: str) -> dict[str, float]:
         if (source, family) not in self._base:
             clip = self.clip(source, family)
-            self._base[source, family] = measure_clip(
+            self._base[source, family] = measure_truth(
                 self.truth, clip.scene, clip.states, clip.contacts, self.ds.contacts.tol_m
             )
         return self._base[source, family]
@@ -162,7 +162,7 @@ class Sweep:
             self.plugins[name], clip, family, level, target, self.ds.seed
         )
         tol = self.ds.contacts.tol_m
-        measures = measure_clip(self.truth, clip.scene, states, contacts, tol, record_cuts(record))
+        measures = measure_truth(self.truth, clip.scene, states, contacts, tol, record_cuts(record))
         return Edit(target, states, contacts, record, measures)
 
 
@@ -229,7 +229,7 @@ def test_gravity_scale_reaches_each_level_on_the_analytic_clip(
     assert plugin.target is PerturbationTarget.SCENE
     clean = bank.analytic(family)
     tol = ds.contacts.tol_m
-    base = measure_clip(truth_measures, clean.scene, clean.states, clean.contacts, tol)
+    base = measure_truth(truth_measures, clean.scene, clean.states, clean.contacts, tol)
     for level, target in enumerate(levels(plugin, ds), start=1):
         scene, record = perturb_scene(
             plugin, clean.scene, target, SeedKey(ds.seed, family, 0, level)
@@ -238,7 +238,7 @@ def test_gravity_scale_reaches_each_level_on_the_analytic_clip(
         clip = bank.of_scene(scene)
         magnitude = measured(plugin, clip.states, clip.contacts, record)
         assert abs(magnitude - target) <= tolerance(target), (level, magnitude)
-        after = measure_clip(truth_measures, scene, clip.states, clip.contacts, tol)
+        after = measure_truth(truth_measures, scene, clip.states, clip.contacts, tol)
         assert moved(base, after) <= {"R5b"}, report(base, after, moved(base, after))
         assert undefined(base, after) <= UNDEFINED.get((family, plugin.name), set())
 
@@ -257,8 +257,8 @@ def test_gravity_scale_is_measured_on_the_recorded_resimulation(
     target = float(record.params["target_magnitude"])
     assert abs(measured(plugin, clip.states, clip.contacts, record) - target) <= tolerance(target)
     tol = ds.contacts.tol_m
-    base = measure_clip(truth_measures, clean.scene, clean.states, clean.contacts, tol)
-    after = measure_clip(truth_measures, clip.scene, clip.states, clip.contacts, tol)
+    base = measure_truth(truth_measures, clean.scene, clean.states, clean.contacts, tol)
+    after = measure_truth(truth_measures, clip.scene, clip.states, clip.contacts, tol)
     assert moved(base, after) <= {"R5b"} | RESIMULATION_LEAKS, report(
         base, after, moved(base, after)
     )
@@ -370,7 +370,7 @@ def test_r2_shifts_the_top_of_a_three_stack_off_its_middle_support(
         others = [None, ids.index("a_base"), ids.index("d_loose")]
         gaps = [gap_to(new_states, top, o, f) for o in others for f in (0, new_states.n_frames - 1)]
         assert min(gaps) >= plugin.params.min_clearance_m
-        after = measure_clip(truth_measures, clip.scene, new_states, contacts, ds.contacts.tol_m)
+        after = measure_truth(truth_measures, clip.scene, new_states, contacts, ds.contacts.tol_m)
         assert after["R2"] == record.magnitude
 
 

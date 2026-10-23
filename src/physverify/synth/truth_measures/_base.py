@@ -28,7 +28,7 @@ class TruthMeasure(Protocol):
     ) -> float: ...
 
 
-def measure_clip(
+def measure_truth(
     registry: Mapping[str, type[TruthMeasure]],
     scene: SceneSpec,
     states: ObjectStateTable,
