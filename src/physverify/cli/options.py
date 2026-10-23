@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Annotated
 
@@ -17,6 +18,19 @@ StopRuleDeviationOption = Annotated[
         "(recorded; the generator comparison then has no verdict).",
     ),
 ]
+
+
+def require_one_of(value: str, values: Sequence[str]) -> str:
+    """``value`` when it is one of ``values``, else typer's usage error (exit 2)."""
+    if value not in values:
+        raise typer.BadParameter(f"{value!r} is not one of {', '.join(map(repr, values))}.")
+    return value
+
+
+def choices_metavar(values: Sequence[str]) -> str:
+    return f"[{'|'.join(values)}]"
+
+
 ShardOption = Annotated[str | None, typer.Option(help="Shard i/n of the candidates.")]
 
 SplitOption = Annotated[
