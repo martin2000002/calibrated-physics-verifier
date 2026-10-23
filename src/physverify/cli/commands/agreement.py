@@ -33,16 +33,18 @@ from physverify.human_agreement.prereg import (
 )
 from physverify.human_agreement.report import REPORT_DIR, write_comparison
 from physverify.human_agreement.settings import agreement_settings
-from physverify.human_agreement.workflow import (
-    CompareRequest,
+from physverify.human_agreement.subset_review import (
     audit,
     draft_queries,
-    freeze,
-    log_test_comparison,
     reviewed_candidates,
-    run_comparison,
     sized_labels_or_none,
     uncovered,
+)
+from physverify.human_agreement.workflow import (
+    CompareRequest,
+    freeze,
+    log_test_comparison,
+    run_comparison,
 )
 
 NAME = "agreement"

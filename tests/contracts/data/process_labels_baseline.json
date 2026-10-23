@@ -642,6 +642,9 @@
   "comment_or_docstring": 2,
   "literal": 5
  },
+ "src/physverify/human_agreement/rule_setup.py": {
+  "comment_or_docstring": 2
+ },
  "src/physverify/human_agreement/settings.py": {
   "comment_or_docstring": 1,
   "literal": 3
@@ -649,11 +652,14 @@
  "src/physverify/human_agreement/stats.py": {
   "comment_or_docstring": 3
  },
+ "src/physverify/human_agreement/subset_review.py": {
+  "comment_or_docstring": 2
+ },
  "src/physverify/human_agreement/undecided_policy.py": {
   "comment_or_docstring": 2
  },
  "src/physverify/human_agreement/workflow.py": {
-  "comment_or_docstring": 6
+  "comment_or_docstring": 2
  },
  "src/physverify/kubric_worker/tasks/render.py": {
   "comment_or_docstring": 1

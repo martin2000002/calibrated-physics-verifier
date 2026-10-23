@@ -17,7 +17,11 @@ from physverify.datasets._videophy_review import (
     template,
     write_review,
 )
-from physverify.human_agreement.workflow import audit, reviewed_candidates, sized_labels_or_none
+from physverify.human_agreement.subset_review import (
+    audit,
+    reviewed_candidates,
+    sized_labels_or_none,
+)
 
 
 def test_candidates_apply_scope_and_the_lexical_rule(world) -> None:

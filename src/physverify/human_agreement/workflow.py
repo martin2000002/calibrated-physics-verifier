@@ -5,32 +5,23 @@ from __future__ import annotations
 
 import datetime as dt
 import math
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from physverify.checks._base import Check
 from physverify.core.digests import sha256_if_file
-from physverify.core.errors import ConfigError, UsageError
-from physverify.datasets._queries import derive_queries
-from physverify.datasets._videophy_review import REVIEWED, SubsetReview, load_review, template
+from physverify.core.errors import UsageError
+from physverify.datasets._videophy_review import load_review
 from physverify.datasets._videophy_tables import SECTION as VIDEOPHY_SECTION
-from physverify.datasets._videophy_tables import VideophyRow
 from physverify.human_agreement.clip_decision import (
     CALIBRATED_NAME,
-    CalibrationApi,
     CalibrationStratum,
-    ClipDecisionRule,
-    ProvisionalAnyFail,
-    StratumRequest,
-    UnusableCalibrationError,
-    calibrated_rule,
 )
 from physverify.human_agreement.comparison import (
     Comparison,
     ComparisonInputs,
-    RuleScope,
     compare,
     freeze_dev,
 )
@@ -50,6 +41,7 @@ from physverify.human_agreement.prereg import (
     preregistration_chain,
     require_unchanged,
 )
+from physverify.human_agreement.rule_setup import ApiLoader, RuleSetup, build_rule, check_run
 from physverify.human_agreement.settings import (
     SECTION,
     AgreementSettings,
@@ -60,120 +52,16 @@ from physverify.human_agreement.verify_run_reader import (
     VerifyRun,
     load_run,
     run_files,
-    run_row_step,
 )
 from physverify.runtime.runs import current_commit
-from physverify.schema.checks import InputLevel
 from physverify.schema.clip import Split
 from physverify.schema.io import stable_hash
-from physverify.verification.runner import (
-    VERIFICATION_SECTION,
-    VerificationSettings,
-    load_thresholds,
-    thresholds_label,
-)
 from physverify.verification.scope import SECTION as SCOPE_SECTION
-from physverify.verification.scope import CheckScope, check_scope, require_record_for
+from physverify.verification.scope import require_record_for
 
 if TYPE_CHECKING:
     from physverify.config.models import Settings
     from physverify.datasets.videophy import VideophyDataset
-
-type ApiLoader[S: CalibrationStratum] = Callable[[], CalibrationApi[S]]
-
-
-@dataclass(frozen=True)
-class RuleSetup:
-    """``thresholds`` is the label verify must have used (provisional rule, also as the
-    fallback); ``gate`` why the calibrated stratum was not usable, and ``calibration`` its state
-    per check when it was opened."""
-
-    rule: ClipDecisionRule
-    artifact: Path | None
-    thresholds: str | None
-    scope: RuleScope = RuleScope()
-    gate: str | None = None
-    calibration: dict[str, object] | None = None
-    checks: CheckScope = CheckScope()
-    """The ``[check_scope]`` the rule excludes with, its decision record included."""
-
-    @property
-    def primary(self) -> ClipDecisionRule:
-        return self.rule.excluding(self.scope.primary_excluded)
-
-
-def rule_scope(
-    settings: Settings, checks: Mapping[str, type[Check]], agreement: AgreementSettings
-) -> tuple[CheckScope, RuleScope]:
-    """``[check_scope]`` for H2: the excluded checks and the time-dependent ones."""
-    scope = check_scope(settings, checks)
-    timed = frozenset(scope.time_dependent_checks)
-    primary = timed if agreement.exclude_time_dependent else frozenset()
-    return scope, RuleScope(timed, primary)
-
-
-def build_rule[S: CalibrationStratum](
-    settings: Settings,
-    registry: Mapping[str, type[Check]],
-    agreement: AgreementSettings,
-    run: VerifyRun,
-    api_loader: ApiLoader[S],
-) -> RuleSetup:
-    checks, scope = rule_scope(settings, registry, agreement)
-    excluded = frozenset(checks.exclude_checks)
-    if agreement.rule != CALIBRATED_NAME:
-        return _provisional(settings, checks, scope, None)
-    api = api_loader()
-    artifact = api.default_artifact_path(settings)
-    request = StratumRequest(
-        artifact=artifact,
-        profile=run.profile,
-        row_step=run_row_step(run),
-        checks_hash=api.active_checks_hash(settings, registry),
-        require_calibrated=api.require_calibrated(settings),
-    )
-    try:
-        rule = calibrated_rule(api, request, excluded)
-    except UnusableCalibrationError as exc:
-        if agreement.on_unusable_stratum == "error":
-            raise ConfigError(f"calibration {artifact}: {exc}") from exc
-        return _provisional(settings, checks, scope, str(exc), artifact)
-    return RuleSetup(rule, artifact, None, scope, calibration=dict(rule.status), checks=checks)
-
-
-def _provisional(
-    settings: Settings,
-    checks: CheckScope,
-    scope: RuleScope,
-    gate: str | None,
-    artifact: Path | None = None,
-) -> RuleSetup:
-    """The provisional rule, also the fallback of an unusable stratum (descriptive H2), which
-    keeps the artifact so the freeze binds the one whose stratum was found unusable."""
-    verification = settings.section(VERIFICATION_SECTION, VerificationSettings)
-    thresholds = load_thresholds(settings.paths.thresholds, verification.thresholds)
-    rule = ProvisionalAnyFail(thresholds, frozenset(checks.exclude_checks))
-    return RuleSetup(rule, artifact, thresholds_label(thresholds), scope, gate, checks=checks)
-
-
-def check_run(
-    run: VerifyRun, rows: Sequence[VideophyRow], setup: RuleSetup, split: Split | None
-) -> None:
-    """The run must be a perceived verify run over this subset (of ``split`` when given), with
-    the rule's thresholds."""
-    levels = {r.input_level for clip in run.results.values() for r in clip}
-    if levels - {InputLevel.PERCEIVED}:
-        raise UsageError(f"{run.path} is not a perceived run (levels {sorted(levels)})")
-    known = {row.clip_id: row for row in rows}
-    foreign = sorted(set(run.rows) - set(known))
-    if foreign:
-        raise UsageError(f"{run.path} has {len(foreign)} clips outside the subset: {foreign[:3]}")
-    wrong = sorted(c for c in run.rows if split is not None and known[c].split is not split)
-    if wrong:
-        raise UsageError(f"{len(wrong)} clips of the run are not {split}: {wrong[:3]}")
-    labels = run.thresholds_labels()
-    if setup.thresholds is not None and labels and labels != {setup.thresholds}:
-        raise ConfigError(f"verify used thresholds {sorted(labels)}, the rule {setup.thresholds}")
 
 
 def frozen_state(
@@ -358,56 +246,3 @@ def log_test_comparison(
     )
     log_comparison(path, entry)
     return path
-
-
-def reviewed_candidates(dataset: VideophyDataset, subset: str) -> dict[str, list[VideophyRow]]:
-    reviewed = dataset.settings.reviewed_subsets
-    return {p: rows for p, rows in dataset.candidates(subset).items() if p in reviewed}
-
-
-def audit(dataset: VideophyDataset, subset: str) -> SubsetReview:
-    """The pending review over the lexical rule's captions (a recorded review is kept as is)."""
-    previous = load_review(dataset.subset_path)
-    if previous is not None and previous.status == REVIEWED:
-        return previous
-    captions = {
-        p: [r.caption for r in rows] for p, rows in reviewed_candidates(dataset, subset).items()
-    }
-    return template(captions, dataset.settings.filter_version, previous)
-
-
-SUBJECT_ENDS = ("is", "are", "was", "were", "gets", "being", "and", "on", "onto", "into", "off")
-
-
-def draft_queries(
-    existing: Mapping[str, object], captions: Sequence[str], rigid_event: Sequence[str]
-) -> dict[str, object]:
-    """``{caption: [phrase]}``: the words before the first event verb or ``SUBJECT_ENDS`` word,
-    a draft for the hand review; entries already written are kept."""
-    drafts: dict[str, object] = dict(existing)
-    ends = (*rigid_event, *SUBJECT_ENDS)
-    for caption in sorted(set(captions)):
-        if caption not in drafts:
-            drafts[caption] = [q.phrase for q in derive_queries(caption, ends)]
-    return dict(sorted(drafts.items()))
-
-
-def uncovered(queries: Mapping[str, object], labels: frozenset[str]) -> list[str]:
-    """Query phrases with no size: neither the phrase nor its head noun (last word) is sized."""
-    phrases = {
-        p
-        for entries in queries.values()
-        if isinstance(entries, list)
-        for p in entries
-        if isinstance(p, str)
-    }
-    return sorted(p for p in phrases if p not in labels and p.split()[-1] not in labels)
-
-
-def sized_labels_or_none(settings: Settings) -> frozenset[str] | None:
-    """A9's sized labels, or None when A9's model is not installed yet."""
-    try:
-        from physverify.sizing.model import sized_labels
-    except ImportError:
-        return None
-    return sized_labels(settings)
