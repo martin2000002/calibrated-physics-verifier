@@ -14,11 +14,12 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Final, Protocol
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError
 
 from physverify.core.atomic import write_text_atomic
 from physverify.core.digests import sha256_if_file
 from physverify.core.errors import ConfigError, MissingInputError, UsageError
+from physverify.core.models import FrozenModel
 
 FROZEN_FIELDS = (
     "commit",
@@ -39,9 +40,7 @@ REPLACED_DIR: Final = "replaced"
 COMPARISON_LOG_SUFFIX: Final = ".test_comparisons.jsonl"
 
 
-class Preregistration(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
+class Preregistration(FrozenModel):
     created_utc: str
     commit: str
     agreement_config_sha256: str
@@ -74,12 +73,10 @@ class Preregistration(BaseModel):
     post_hoc: bool = False
 
 
-class FreezeAudit(BaseModel):
+class FreezeAudit(FrozenModel):
     """How a report is bound to its pre-registration (H2 and H3). ``blind`` compares the first
     freeze with the earliest evaluated file time and ``frozen_after_eval`` the current freeze with
     it; both are informational only (file times can be touched)."""
-
-    model_config = ConfigDict(frozen=True, extra="forbid")
 
     prereg_sha256: str
     versions: int
@@ -95,10 +92,8 @@ class FreezeAudit(BaseModel):
     deviations: list[str]
 
 
-class LoggedComparison(BaseModel):
+class LoggedComparison(FrozenModel):
     """One pre-registered comparison on test, logged so a later refreeze cannot hide it."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
 
     prereg_sha256: str
     run: str

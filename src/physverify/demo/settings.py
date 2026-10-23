@@ -5,19 +5,16 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Final
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
 
 from physverify.config.models import Settings
+from physverify.core.models import FrozenModel
 from physverify.timing.settings import SLUG_PATTERN
 
 SECTION: Final = "demo"
 
 
-class _Section(BaseModel):
-    model_config = ConfigDict(frozen=True, extra="forbid")
-
-
-class OverlayStyle(_Section):
+class OverlayStyle(FrozenModel):
     """Sizes are in pixels of a 480-pixel-high frame and scale with the frame height."""
 
     font_scale: float = Field(0.5, gt=0)
@@ -28,7 +25,7 @@ class OverlayStyle(_Section):
     reference_height: int = Field(480, ge=1)
 
 
-class DemoSettings(_Section):
+class DemoSettings(FrozenModel):
     adhoc_campaign: str = Field("demo_adhoc", pattern=SLUG_PATTERN)
     out_dir: str = "demo"
     allow_provisional: bool = True

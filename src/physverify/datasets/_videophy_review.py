@@ -12,10 +12,11 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import ValidationError
 
 from physverify.core.atomic import write_text_atomic
 from physverify.core.errors import ConfigError, MissingInputError
+from physverify.core.models import FrozenModel
 from physverify.datasets._videophy_tables import VideophyRow
 from physverify.schema.io import stable_hash
 
@@ -43,17 +44,13 @@ CRITERIA = (
 Status = Literal["pending_review", "reviewed"]
 
 
-class SubsetRecord(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
+class SubsetRecord(FrozenModel):
     n: int | None = None
     sha256: str | None = None
 
 
-class SubsetReview(BaseModel):
+class SubsetReview(FrozenModel):
     """``decisions[part][caption]`` is ``keep``, an exclusion reason, or None while pending."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
 
     status: Status
     date: str | None

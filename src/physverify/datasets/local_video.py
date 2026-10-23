@@ -13,9 +13,10 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError
 
 from physverify.core.errors import ConfigError, MissingInputError, UsageError
+from physverify.core.models import FrozenModel
 from physverify.core.video import FrameDirVideoSource, Mp4VideoSource
 from physverify.datasets._base import GroundTruthStore, VideoSource
 from physverify.schema.clip import ClipManifest, ObjectQuery, Split, TimeSource
@@ -28,9 +29,7 @@ QUERIES_SUFFIX = ".queries.json"
 DEFAULT_SUBSET = "default"
 
 
-class QueryEntry(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
+class QueryEntry(FrozenModel):
     phrase: str = Field(min_length=1)
     expected_count: int | None = Field(default=None, ge=1)
 
@@ -38,18 +37,14 @@ class QueryEntry(BaseModel):
 QueryList = list[str | QueryEntry]
 
 
-class ClipEntry(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
+class ClipEntry(FrozenModel):
     video: str = Field(min_length=1)
     clip_id: str | None = Field(default=None, min_length=1)
     real_fps: float | None = Field(default=None, gt=0)
     queries: QueryList | None = None
 
 
-class LocalManifest(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
+class LocalManifest(FrozenModel):
     clips: list[ClipEntry]
 
 
@@ -74,9 +69,7 @@ def _read_model[M: BaseModel](path: Path, model: type[M]) -> M:
         raise ConfigError(f"{path} is invalid:\n{exc}") from exc
 
 
-class _QueryFile(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
+class _QueryFile(FrozenModel):
     queries: QueryList
 
 

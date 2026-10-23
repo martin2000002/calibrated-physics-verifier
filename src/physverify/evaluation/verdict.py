@@ -11,8 +11,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Final, Literal
 
-from pydantic import BaseModel, ConfigDict
-
+from physverify.core.models import FrozenModel
 from physverify.evaluation.stats import TestResult, significant_negative, supported
 
 GuardState = Literal["ok", "fail", "not_evaluated"]
@@ -57,10 +56,8 @@ class VerdictInputs:
     stop_rule_fired: str | None = None
 
 
-class H3Verdict(BaseModel):
+class H3Verdict(FrozenModel):
     """``post_hoc``: an outcome-defining field was refrozen after eval data existed."""
-
-    model_config = ConfigDict(frozen=True, extra="forbid")
 
     verdict: str
     external_status: ExternalStatus

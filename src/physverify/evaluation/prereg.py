@@ -11,10 +11,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Final
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import Field, ValidationError
 
 from physverify.agreement.prereg import archive_replaced, changed_fields, walk_chain
 from physverify.core.errors import ConfigError, PhysverifyError, UsageError
+from physverify.core.models import FrozenModel
 from physverify.evaluation.layout import H3Layout
 from physverify.evaluation.margins import MarginDerivation
 from physverify.evaluation.records import Usability
@@ -27,11 +28,7 @@ JUDGE_STAMPS: Final = "judge_stamps"
 FREEZE_HINT: Final = "run `physverify h3 freeze`"
 
 
-class _Model(BaseModel):
-    model_config = ConfigDict(frozen=True, extra="forbid")
-
-
-class Mde(_Model):
+class Mde(FrozenModel):
     """Minimum detectable effect at the frozen n; the sd come from dev (estimated)."""
 
     n: int
@@ -44,12 +41,12 @@ class Mde(_Model):
     pc_underpowered: bool | None
 
 
-class CandidateSnapshot(_Model):
+class CandidateSnapshot(FrozenModel):
     n: int
     sha256: str
 
 
-class H3Preregistration(_Model):
+class H3Preregistration(FrozenModel):
     commit: str
     section_hashes: dict[str, str]
     prompts_sha256: str | None

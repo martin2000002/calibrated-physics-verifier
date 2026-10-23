@@ -5,19 +5,16 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Final, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
 
 from physverify.config.models import Settings
+from physverify.core.models import FrozenModel
 
 SECTION: Final = "h3"
 AUTOEVAL_KEY: Final = "autoeval"
 
 
-class _Section(BaseModel):
-    model_config = ConfigDict(frozen=True, extra="forbid")
-
-
-class GateSettings(_Section):
+class GateSettings(FrozenModel):
     """Regression gate of the external judge on published VideoPhy-2 test videos."""
 
     n: int = Field(50, ge=1)
@@ -29,14 +26,14 @@ class GateSettings(_Section):
     max_parse_fail: int = Field(2, ge=0)
 
 
-class UsabilitySettings(_Section):
+class UsabilitySettings(FrozenModel):
     """The external judge is unusable on our domain when it cannot tell the dev videos apart."""
 
     max_parse_fail_share: float = Field(0.10, ge=0, le=1)
     max_modal_share: float = Field(0.90, ge=0, le=1)
 
 
-class AutoevalSettings(_Section):
+class AutoevalSettings(FrozenModel):
     """Pinned VideoPhy-2 AutoEval. Relative paths are under ``root`` (the H200 work directory,
     ``PHYSVERIFY__H3__AUTOEVAL__ROOT``); machine-local, so the section hash leaves it out."""
 
@@ -60,7 +57,7 @@ class AutoevalSettings(_Section):
         return Path(self.root).expanduser() / candidate if self.root else None
 
 
-class H3Settings(_Section):
+class H3Settings(FrozenModel):
     exclude_tags: list[str] = Field(default_factory=lambda: ["demo"])
     selection_run: str = "main"
     alpha: float = Field(0.05, gt=0, lt=1)

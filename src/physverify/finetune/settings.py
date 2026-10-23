@@ -8,9 +8,10 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import Field, model_validator
 
 from physverify.config.models import Settings
+from physverify.core.models import FrozenModel
 from physverify.timing.settings import SLUG_PATTERN, GenerationSettings, load_timing
 
 SECTION = "finetune"
@@ -19,18 +20,14 @@ SPLITS: tuple[PromptSplit, ...] = ("train", "dev", "eval")
 TEMPLATE_ID_PATTERN = r"^[a-z0-9_]+$"
 
 
-class _Section(BaseModel):
-    model_config = ConfigDict(frozen=True, extra="forbid")
-
-
-class QueryTemplate(_Section):
+class QueryTemplate(FrozenModel):
     """A detection query whose phrase may name template slots, e.g. ``"{primitive}"``."""
 
     phrase: str = Field(min_length=1)
     expected_count: int | None = Field(None, ge=1)
 
 
-class TemplateSpec(_Section):
+class TemplateSpec(FrozenModel):
     """``holdout`` templates only ever produce ``eval`` prompts (tagged ``unseen_template``)."""
 
     id: str = Field(pattern=TEMPLATE_ID_PATTERN)
@@ -39,7 +36,7 @@ class TemplateSpec(_Section):
     holdout: bool = False
 
 
-class FamilySpec(_Section):
+class FamilySpec(FrozenModel):
     name: str = Field(pattern=SLUG_PATTERN)
     target_checks: list[str] = Field(min_length=1)
     templates: list[TemplateSpec] = Field(min_length=2)
@@ -58,7 +55,7 @@ class FamilySpec(_Section):
         return self
 
 
-class FixedPrompt(_Section):
+class FixedPrompt(FrozenModel):
     id: str = Field(pattern=r"^[a-z0-9_-]+$")
     family: str = Field(pattern=SLUG_PATTERN)
     text: str = Field(min_length=1)
@@ -66,7 +63,7 @@ class FixedPrompt(_Section):
     target_checks: list[str] = Field(min_length=1)
 
 
-class PromptSetSettings(_Section):
+class PromptSetSettings(FrozenModel):
     seed: int
     n_train: int = Field(ge=0)
     n_dev: int = Field(ge=0)
@@ -88,7 +85,7 @@ class PromptSetSettings(_Section):
         return self
 
 
-class CandidateSettings(_Section):
+class CandidateSettings(FrozenModel):
     """Candidates per prompt: ``k_train`` for pairs, ``k_eval`` (base, best-of-K baseline) and
     ``k_eval_finetuned`` with seeds k = 0..K-1 paired with the base, ``k_dev`` per checkpoint."""
 
@@ -100,7 +97,7 @@ class CandidateSettings(_Section):
     store_latents: bool = True
 
 
-class PairSettings(_Section):
+class PairSettings(FrozenModel):
     min_margin: float = Field(ge=0)
     sigma_k: float = Field(1.0, ge=0)
     max_pairs_per_prompt: int = Field(1, ge=1)
@@ -112,14 +109,14 @@ class PairSettings(_Section):
     margin_ref: float = Field(0.5, gt=0)
 
 
-class LoraSettings(_Section):
+class LoraSettings(FrozenModel):
     rank: int = Field(32, ge=1)
     alpha: int = Field(32, ge=1)
     dropout: float = Field(0.0, ge=0, lt=1)
     target_modules: list[str] = Field(min_length=1)
 
 
-class TrainSettings(_Section):
+class TrainSettings(FrozenModel):
     beta: float = Field(gt=0)
     lr: float = Field(gt=0)
     weight_decay: float = Field(ge=0)
@@ -139,14 +136,14 @@ class TrainSettings(_Section):
     beta_kl_factor: float = Field(2.0, ge=1)
 
 
-class SelectSettings(_Section):
+class SelectSettings(FrozenModel):
     checkpoints: int = Field(3, ge=1)
     max_abstention_rise: float = Field(0.10, ge=0)
     max_motion_drop: float = Field(0.20, ge=0, le=1)
     ci_z: float = Field(1.96, gt=0)
 
 
-class StopRuleSettings(_Section):
+class StopRuleSettings(FrozenModel):
     """The pilot's stop rule (ADR 0012): too few pairs, too many abstentions or too few better
     winners on inspection mean H3 is not evaluable with this verifier. ``enforce = false`` only
     reports it."""
@@ -159,7 +156,7 @@ class StopRuleSettings(_Section):
     seed: int = 0
 
 
-class FinetuneSettings(_Section):
+class FinetuneSettings(FrozenModel):
     campaign: str = Field(pattern=SLUG_PATTERN)
     scorer: str = "calibrated"
     exclude_time_dependent: bool = True

@@ -13,9 +13,9 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 
 import numpy as np
-from pydantic import BaseModel, ConfigDict
 
 from physverify.core.errors import UsageError
+from physverify.core.models import FrozenModel
 from physverify.datasets._videophy_tables import to_float
 
 DECIMALS = 2
@@ -28,9 +28,7 @@ class GeneratorMean:
     n: int
 
 
-class MarginDerivation(BaseModel):
-    model_config = ConfigDict(frozen=True, extra="forbid")
-
+class MarginDerivation(FrozenModel):
     column: str
     min_n: int
     n_generators: int

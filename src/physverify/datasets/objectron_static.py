@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
 
 from physverify.core.atomic import write_text_atomic
 from physverify.core.digests import file_sha256, text_sha256
@@ -72,17 +72,13 @@ class ObjectronStaticSettings(FrozenModel):
     split: Literal["train", "test"]
 
 
-class _Record(BaseModel):
-    model_config = ConfigDict(frozen=True, extra="forbid")
-
-
-class Candidate(_Record):
+class Candidate(FrozenModel):
     video_id: str
     status: str
     size: int | None = None
 
 
-class StaticClip(_Record):
+class StaticClip(FrozenModel):
     clip_id: str
     video_id: str
     label: str
@@ -92,7 +88,7 @@ class StaticClip(_Record):
     height: int = Field(ge=1)
 
 
-class StaticSelection(_Record):
+class StaticSelection(FrozenModel):
     """What a fetch chose and why; written once, after the whole selection."""
 
     seed: int

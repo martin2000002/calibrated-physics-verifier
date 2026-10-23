@@ -12,8 +12,8 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 
 import numpy as np
-from pydantic import BaseModel, ConfigDict
 
+from physverify.core.models import FrozenModel
 from physverify.evaluation.arms import PromptArms
 from physverify.evaluation.bestofn import Key, Pick, pick_best
 from physverify.evaluation.records import JudgeKey
@@ -49,11 +49,7 @@ SECONDARY_TESTS = (
 JudgeValues = Mapping[JudgeKey, float | None]
 
 
-class _Model(BaseModel):
-    model_config = ConfigDict(frozen=True, extra="forbid")
-
-
-class ArmSummary(_Model):
+class ArmSummary(FrozenModel):
     n: int
     n_scored: int
     abstention: float | None
@@ -64,19 +60,19 @@ class ArmSummary(_Model):
     mean_sa: float | None
 
 
-class GuardResult(_Model):
+class GuardResult(FrozenModel):
     state: GuardState
     value: float | None = None
     limit: float | None = None
     detail: str = ""
 
 
-class HolmEntry(_Model):
+class HolmEntry(FrozenModel):
     test: TestResult
     p_adjusted: float | None
 
 
-class H3Analysis(_Model):
+class H3Analysis(FrozenModel):
     n_prompts: int
     arms: dict[str, ArmSummary]
     fallbacks: dict[str, int]

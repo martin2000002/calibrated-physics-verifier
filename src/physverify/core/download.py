@@ -21,12 +21,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import IO, Any, BinaryIO, Protocol
 
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import ValidationError
 
 from physverify.core.atomic import write_text_atomic
 from physverify.core.digests import CHUNK_BYTES, file_sha256
 from physverify.core.errors import PhysverifyError
 from physverify.core.log import get_logger
+from physverify.core.models import FrozenModel
 
 PART_SUFFIX = ".part"
 MANIFEST_FILE = "manifest.json"
@@ -99,18 +100,14 @@ class FetchOutcome:
     cached: bool
 
 
-class FetchedFile(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
+class FetchedFile(FrozenModel):
     relative: str
     size: int
     md5_b64: str | None = None
     sha256: str | None = None
 
 
-class FetchManifest(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
+class FetchManifest(FrozenModel):
     dataset: str
     source: str
     revision: str

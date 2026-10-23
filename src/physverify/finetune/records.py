@@ -10,9 +10,10 @@ import math
 from collections.abc import Iterable, Sequence
 from pathlib import Path
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 from physverify.core.atomic import write_bytes_atomic
+from physverify.core.models import FrozenModel
 from physverify.datasets.local_video import QueryList
 from physverify.finetune.settings import PromptSplit
 
@@ -24,15 +25,11 @@ TEMPLATE_TAG_PREFIX = "template:"
 CLIP_HASH_CHARS = 12
 
 
-class _Record(BaseModel):
-    model_config = ConfigDict(frozen=True, extra="forbid")
-
-
 def finite_or_none(value: float | None) -> float | None:
     return None if value is None or not math.isfinite(value) else float(value)
 
 
-class PromptRecord(_Record):
+class PromptRecord(FrozenModel):
     prompt_id: str
     text: str
     queries: QueryList
@@ -43,7 +40,7 @@ class PromptRecord(_Record):
     tags: list[str] = Field(default_factory=list)
 
 
-class CandidateRecord(_Record):
+class CandidateRecord(FrozenModel):
     """``candidate_id`` names the candidate inside its model tag; ``clip_id`` names its video for
     extraction and verification, so a candidate of another tag or generation configuration never
     shares a cache entry with it (campaigns with identical settings do)."""
@@ -66,7 +63,7 @@ class CandidateRecord(_Record):
         return f"{self.candidate_id}__{self.config_hash[:CLIP_HASH_CHARS]}"
 
 
-class CheckSummary(_Record):
+class CheckSummary(FrozenModel):
     """One table row of the verifier for a candidate (``verification.runner.TableRow``)."""
 
     status: str
@@ -81,7 +78,7 @@ class CheckSummary(_Record):
         return finite_or_none(value)
 
 
-class ScorerStamp(_Record):
+class ScorerStamp(FrozenModel):
     """Which verifier produced a record; every score, pair and report carries these (D7)."""
 
     scorer: str

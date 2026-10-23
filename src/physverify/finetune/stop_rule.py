@@ -14,20 +14,17 @@ import random
 from collections.abc import Mapping, Sequence
 from typing import Final
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
 
 from physverify.core.digests import text_sha256
+from physverify.core.models import FrozenModel
 from physverify.finetune.records import CandidateScore, PairRecord, PairsReport
 from physverify.finetune.settings import StopRuleSettings
 
 ROUNDING: Final = 9  # the configured edges (0.3 pairs, 0.5 abstention, 0.6 x n) pass exactly
 
 
-class _Record(BaseModel):
-    model_config = ConfigDict(frozen=True, extra="forbid")
-
-
-class PilotReview(_Record):
+class PilotReview(FrozenModel):
     """``better`` of the ``inspected`` pair ids show a physically better winner."""
 
     pairs_sha256: str
@@ -37,7 +34,7 @@ class PilotReview(_Record):
     created_utc: str
 
 
-class StopVerdict(_Record):
+class StopVerdict(FrozenModel):
     passed: bool
     enforced: bool
     reasons: list[str]
@@ -48,7 +45,7 @@ class StopVerdict(_Record):
     deviation: str | None = None
 
 
-class StopRuleState(_Record):
+class StopRuleState(FrozenModel):
     """What H3 freezes of the verdict: recomputable from disk, so a later change is caught."""
 
     passed: bool

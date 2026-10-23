@@ -12,11 +12,12 @@ from enum import Enum, StrEnum
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, RootModel, ValidationError
+from pydantic import BaseModel, Field, RootModel, ValidationError
 
 from physverify.checks._base import Check, CheckInputs
 from physverify.checks._common import abstain, row_step_or_none
 from physverify.core.errors import ConfigError
+from physverify.core.models import FrozenModel
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
 from physverify.schema.clip import ClipManifest
 from physverify.schema.io import write_jsonl
@@ -39,9 +40,7 @@ UNKNOWN_ROW_STEP = 0
 """``row_step`` of a clip whose table has no valid time axis."""
 
 
-class VerificationSettings(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
+class VerificationSettings(FrozenModel):
     policy: str = "threshold"
     thresholds: dict[str, float] = Field(default_factory=dict)
     policies: dict[str, dict[str, Any]] = Field(default_factory=dict)
@@ -52,28 +51,22 @@ class ChecksSettings(RootModel[dict[str, dict[str, Any]]]):
     root: dict[str, dict[str, Any]] = Field(default_factory=dict)
 
 
-class ThresholdEntry(BaseModel):
+class ThresholdEntry(FrozenModel):
     """``tau`` in check units. The H1 calibration (ADR 0009) may add the measured bias of the
     magnitude and the factor of its sigma; ``sigma_factor`` None: the error was not measured."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
 
     tau: float
     bias: float = 0.0
     sigma_factor: float | None = Field(default=1.0, ge=0.0)
 
 
-class ArtifactRef(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
+class ArtifactRef(FrozenModel):
     path: str
     sha256: str
 
 
-class ThresholdTable(BaseModel):
+class ThresholdTable(FrozenModel):
     """Shape of ``paths.thresholds`` (written by the H1 calibration) and of the provisional set."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
 
     status: Literal["provisional", "calibrated"]
     source: str

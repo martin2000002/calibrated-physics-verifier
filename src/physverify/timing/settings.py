@@ -7,10 +7,11 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+from pydantic import Field, ValidationError, model_validator
 
 from physverify.config.models import Settings
 from physverify.core.errors import UsageError
+from physverify.core.models import FrozenModel
 from physverify.datasets.local_video import QueryList
 
 SECTION = "timing"
@@ -24,11 +25,7 @@ WarmupScope = Literal["target", "clip"]
 Dtype = Literal["bfloat16", "float16", "float32"]
 
 
-class _Section(BaseModel):
-    model_config = ConfigDict(frozen=True, extra="forbid")
-
-
-class TargetRunSettings(_Section):
+class TargetRunSettings(FrozenModel):
     """Repetitions of one target. ``warmup_scope="clip"`` warms every clip, ``"target"`` once."""
 
     warmup: int = Field(0, ge=0)
@@ -37,13 +34,13 @@ class TargetRunSettings(_Section):
     max_clips: int | None = Field(None, ge=1)
 
 
-class PromptSpec(_Section):
+class PromptSpec(FrozenModel):
     id: str = Field(pattern=SLUG_PATTERN)
     text: str = Field(min_length=1)
     queries: QueryList = Field(min_length=1)
 
 
-class GenerationSettings(_Section):
+class GenerationSettings(FrozenModel):
     """Generator call timed on the H200; must match what the fine-tuning cycles generate with."""
 
     model_ref: str = Field(min_length=1)
@@ -78,7 +75,7 @@ class GenerationSettings(_Section):
         return self
 
 
-class TimingSettings(_Section):
+class TimingSettings(FrozenModel):
     order: list[str] = Field(min_length=1)
     targets: dict[str, TargetRunSettings] = Field(default_factory=dict)
     valid_profile: str = "precise"

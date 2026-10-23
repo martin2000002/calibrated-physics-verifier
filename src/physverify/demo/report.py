@@ -13,9 +13,10 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Final
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
 
 from physverify.core.atomic import write_text_atomic
+from physverify.core.models import FrozenModel
 from physverify.finetune.records import CheckSummary, PromptRecord, finite_or_none
 from physverify.finetune.scorers._base import AggregateScore, AggregateScorer
 from physverify.schema.checks import CheckResult
@@ -33,11 +34,7 @@ TERM_MEANING: Final = {
 }
 
 
-class _Model(BaseModel):
-    model_config = ConfigDict(frozen=True, extra="forbid")
-
-
-class RuleInfo(_Model):
+class RuleInfo(FrozenModel):
     """The rule behind S. ``note`` says why a provisional rule stands in for the calibrated one."""
 
     scorer: str
@@ -50,7 +47,7 @@ class RuleInfo(_Model):
         return CALIBRATED if self.calibrated else PROVISIONAL
 
 
-class CheckRow(_Model):
+class CheckRow(FrozenModel):
     check_id: str
     status: str
     verdict: str
@@ -75,7 +72,7 @@ class CheckRow(_Model):
         )
 
 
-class ClipBlock(_Model):
+class ClipBlock(FrozenModel):
     score: float | None
     sigma: float | None
     coverage: float
@@ -87,7 +84,7 @@ class ClipBlock(_Model):
     objects_ok: bool | None
 
 
-class VideoReport(_Model):
+class VideoReport(FrozenModel):
     prompt: PromptRecord
     model_tag: str
     candidate_id: str
@@ -100,7 +97,7 @@ class VideoReport(_Model):
     timings: dict[str, float] = Field(default_factory=dict)
 
 
-class CandidateRef(_Model):
+class CandidateRef(FrozenModel):
     """Where a report's candidate lives; ``motion`` and ``objects_ok`` are rule-independent."""
 
     model_tag: str

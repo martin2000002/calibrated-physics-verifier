@@ -5,8 +5,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
 
+from physverify.core.models import FrozenModel
 from physverify.finetune.records import read_record
 
 JudgeSplit = Literal["dev", "eval"]
@@ -16,11 +17,7 @@ JudgeKey = tuple[str, str]
 TASKS: tuple[str, ...] = ("pc", "sa")
 
 
-class _Record(BaseModel):
-    model_config = ConfigDict(frozen=True, extra="forbid")
-
-
-class ScoringManifest(_Record):
+class ScoringManifest(FrozenModel):
     """Written by ``h3 score`` and ``h3 rescore``; binds a tag's eval scores to a freeze."""
 
     model_tag: str
@@ -32,12 +29,12 @@ class ScoringManifest(_Record):
     prereg_sha256: str
 
 
-class JudgeRow(_Record):
+class JudgeRow(FrozenModel):
     value: float | None
     reason: str | None = None
 
 
-class JudgeOutput(_Record):
+class JudgeOutput(FrozenModel):
     split: JudgeSplit
     model_tag: str
     task: str
@@ -47,7 +44,7 @@ class JudgeOutput(_Record):
     rows: dict[str, JudgeRow]
 
 
-class GateTask(_Record):
+class GateTask(FrozenModel):
     task: str
     stamp: str
     n: int
@@ -58,7 +55,7 @@ class GateTask(_Record):
     passed: bool
 
 
-class GateReport(_Record):
+class GateReport(FrozenModel):
     tasks: dict[str, GateTask]
     clip_ids: list[str]
     reference_sha256: str | None
@@ -66,7 +63,7 @@ class GateReport(_Record):
     passed: bool
 
 
-class TaskUsability(_Record):
+class TaskUsability(FrozenModel):
     n: int
     parse_fail_share: float
     modal_share: float | None
@@ -74,7 +71,7 @@ class TaskUsability(_Record):
     usable: bool
 
 
-class Usability(_Record):
+class Usability(FrozenModel):
     tasks: dict[str, TaskUsability] = Field(default_factory=dict)
     usable: bool
 

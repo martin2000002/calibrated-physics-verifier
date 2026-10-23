@@ -40,7 +40,7 @@ class EndToEndSettings(FrozenModel):
 
 
 class SizingSettings(SizeLookup):
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(extra="forbid")
 
     bucket_url: str = "https://storage.googleapis.com/objectron"
     listing_url: str = "https://storage.googleapis.com/storage/v1/b/objectron/o"

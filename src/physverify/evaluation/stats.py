@@ -14,9 +14,9 @@ from dataclasses import dataclass
 from typing import Final
 
 import numpy as np
-from pydantic import BaseModel, ConfigDict
 from scipy import stats as sps
 
+from physverify.core.models import FrozenModel
 from physverify.diagnosis.factorial import bootstrap
 from physverify.evaluation.settings import H3Settings
 
@@ -33,9 +33,7 @@ class Diff:
     value: float
 
 
-class TestResult(BaseModel):
-    model_config = ConfigDict(frozen=True, extra="forbid")
-
+class TestResult(FrozenModel):
     n: int
     dropped: int = 0
     p: float | None

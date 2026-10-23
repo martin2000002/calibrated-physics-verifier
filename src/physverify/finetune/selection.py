@@ -14,16 +14,14 @@ import math
 from collections.abc import Sequence
 
 import numpy as np
-from pydantic import BaseModel, ConfigDict
 
+from physverify.core.models import FrozenModel
 from physverify.finetune.pairs import Rescore, on_common_checks
 from physverify.finetune.records import CandidateScore
 from physverify.finetune.settings import SelectSettings
 
 
-class CheckpointResult(BaseModel):
-    model_config = ConfigDict(frozen=True, extra="forbid")
-
+class CheckpointResult(FrozenModel):
     step: int
     adapter: str
     model_tag: str
@@ -39,11 +37,9 @@ class CheckpointResult(BaseModel):
     suspected_hacking: bool
 
 
-class Selection(BaseModel):
+class Selection(FrozenModel):
     """``beats_base`` records whether the chosen checkpoint beats the base on ``dev``; a
     selection written before the field existed reads as False."""
-
-    model_config = ConfigDict(frozen=True, extra="forbid")
 
     run_id: str
     scorer: str

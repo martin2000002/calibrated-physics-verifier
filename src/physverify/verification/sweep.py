@@ -14,9 +14,10 @@ from pathlib import Path
 from statistics import median
 from typing import TYPE_CHECKING, Protocol
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
 from scipy.stats import kendalltau
 
+from physverify.core.models import FrozenModel
 from physverify.schema.checks import CheckResult
 from physverify.schema.clip import ClipManifest
 from physverify.schema.io import encode
@@ -33,9 +34,7 @@ PERFECT_ORDER = 1.0
 MIN_RANKED_LEVELS = 2
 
 
-class SpecificitySettings(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
+class SpecificitySettings(FrozenModel):
     abs_tol: float = Field(default=1e-3, ge=0.0)
     rel_tol: float = Field(default=0.02, ge=0.0)
     null_tol: float = Field(default=1e-3, ge=0.0)
