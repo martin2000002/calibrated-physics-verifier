@@ -8,28 +8,53 @@ base scores and pilot review; a ``stop_rule.json`` left from other pairs never c
 from __future__ import annotations
 
 import json
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Final
 
 from physverify.app.context import AppContext
-from physverify.app.services import dataset_for, pipeline_deps, plan_for
+from physverify.app.services import dataset_for, pipeline_deps, plan_for, scorer_for
 from physverify.config.models import Settings
 from physverify.core.atomic import write_text_atomic
+from physverify.core.digests import file_sha256
 from physverify.core.errors import UsageError
 from physverify.datasets.local_video import NAME as LOCAL_VIDEO
-from physverify.finetune.candidate_scoring import ScoringDeps
-from physverify.finetune.candidates import CandidateGenerator
-from physverify.finetune.layout import CampaignStore
+from physverify.finetune.candidate_scoring import ScoringDeps, score_candidates
+from physverify.finetune.candidates import CandidateGenerator, generate_candidates
+from physverify.finetune.layout import (
+    PAIRS_FILE,
+    REPORT_FILE,
+    VAL_PAIRS_FILE,
+    VAL_REPORT_FILE,
+    CampaignStore,
+)
+from physverify.finetune.pairs_report import check_current, pairs_of, report_lines
+from physverify.finetune.pilot import fit_and_val, pilot_prompts
+from physverify.finetune.prompts import build_prompt_set, campaign_prompts, sizing_labels
+from physverify.finetune.records import (
+    BASE_TAG,
+    CandidateScore,
+    PromptRecord,
+    write_record,
+    write_records,
+)
 from physverify.finetune.scorer_scope import family_targets, scorer_exclusion
 from physverify.finetune.scorers._base import AggregateScorer
 from physverify.finetune.scorers._calibration_status import CalibrationStatusSource
-from physverify.finetune.settings import CandidateSettings, FinetuneSettings, load_finetune
+from physverify.finetune.seeds import parse_shard
+from physverify.finetune.settings import (
+    SPLITS,
+    CandidateSettings,
+    FinetuneSettings,
+    PromptSplit,
+    load_finetune,
+)
 from physverify.finetune.stop_rule import (
     StopVerdict,
     base_abstention,
     evaluate_stop,
     pairs_on_disk,
+    review_pilot,
     stored_report,
     stored_review,
     verdict_lines,
@@ -161,3 +186,137 @@ def require_stop_rule(
             "to go on)"
         )
     return verdict
+
+
+def active_scorer(context: AppContext, name: str | None) -> AggregateScorer:
+    built = scorer_for(context, name or load_finetune(context.settings).scorer)
+    reason = built.unavailable()
+    if reason is not None:
+        raise UsageError(f"scorer {built.name} is unavailable: {reason}")
+    return built
+
+
+def score_prompts(
+    context: AppContext,
+    store: CampaignStore,
+    model_tag: str,
+    prompts: Sequence[PromptRecord],
+    scorer: AggregateScorer,
+    shard: str | None = None,
+    *,
+    echo: Callable[[str], None],
+) -> list[CandidateScore]:
+    scores = score_candidates(
+        store, model_tag, prompts, scorer, scoring_deps(context), parse_shard(shard)
+    )
+    write_calibration_status(store, model_tag, scorer)
+    wanted = {p.prompt_id for p in prompts}
+    selected = [s for s in scores if s.prompt_id in wanted]
+    abstained = sum(s.score is None for s in selected)
+    echo(f"{model_tag}/{scorer.name}: {len(selected)} scored, {abstained} abstained")
+    return selected
+
+
+def build_prompts(
+    context: AppContext, check: bool, *, echo: Callable[[str], None], err: Callable[[str], None]
+) -> bool:
+    """Writes prompts.jsonl, or with ``check`` only compares it; False when the check fails."""
+    store = CampaignStore.from_settings(context.settings)
+    cfg = load_finetune(context.settings)
+    records = build_prompt_set(cfg.prompts, sizing_labels(context.settings))
+    text = "".join(record.model_dump_json() + "\n" for record in records)
+    path = store.prompts_path
+    current = path.read_text(encoding="utf-8") if path.is_file() else None
+    if check:
+        if current != text:
+            err(f"{path} differs from the configuration")
+            return False
+    elif current != text:
+        if current is not None and store.model_tags():
+            raise UsageError(
+                f"{path} differs from the configuration and candidates exist: "
+                "use a new finetune.campaign"
+            )
+        write_records(path, records)
+    echo(f"prompts: {path} sha256 {file_sha256(path)}")
+    for split in SPLITS:
+        echo(f"  {split}: {sum(r.split == split for r in records)}")
+    return True
+
+
+def generate_split(
+    context: AppContext,
+    split: PromptSplit,
+    adapter: Path | None,
+    shard: str | None,
+    limit: int | None,
+    pilot: int | None,
+    *,
+    echo: Callable[[str], None],
+) -> None:
+    require_cuda(context.settings)
+    store = CampaignStore.from_settings(context.settings)
+    prompts = campaign_prompts(store, split)
+    if pilot is not None:
+        prompts = pilot_prompts(prompts, pilot)
+    generate_candidates(
+        candidate_generator(context, store, adapter), prompts, shard, limit, echo=echo
+    )
+
+
+def score_split(
+    context: AppContext,
+    split: PromptSplit,
+    model_tag: str,
+    scorer: str | None,
+    shard: str | None,
+    *,
+    echo: Callable[[str], None],
+) -> None:
+    require_cuda(context.settings)
+    store = CampaignStore.from_settings(context.settings)
+    prompts = campaign_prompts(store, split)
+    score_prompts(
+        context, store, model_tag, prompts, active_scorer(context, scorer), shard, echo=echo
+    )
+
+
+def write_pairs(context: AppContext, scorer: str | None, *, echo: Callable[[str], None]) -> None:
+    """Winner-loser pairs of the fit prompts and of the val prompts, then the stop-rule verdict."""
+    cfg = load_finetune(context.settings)
+    store = CampaignStore.from_settings(context.settings)
+    active = active_scorer(context, scorer)
+    train = campaign_prompts(store, "train")
+    train_ids = {p.prompt_id for p in train}
+    scores = [s for s in store.scores(BASE_TAG, active.name) if s.prompt_id in train_ids]
+    if not scores:
+        raise UsageError(
+            f"no {active.name} scores of {BASE_TAG}: run 'finetune score --split train'"
+        )
+    check_current(store, BASE_TAG, scores, active, "train")
+    fit, held = fit_and_val(train)
+    directory = store.pairs_dir(active.name)
+    outputs = (
+        (fit, PAIRS_FILE, REPORT_FILE, "train"),
+        (held, VAL_PAIRS_FILE, VAL_REPORT_FILE, "val"),
+    )
+    for prompts, pairs_file, report_file, label in outputs:
+        records, report = pairs_of(prompts, scores, cfg.pairs, active)
+        write_records(directory / pairs_file, records)
+        if report is not None:
+            write_record(directory / report_file, report)
+            for line in report_lines(label, report):
+                echo(line)
+    verdict = current_verdict(context, cfg, store, active)
+    write_verdict(store, active.name, verdict)
+    for line in verdict_lines(verdict):
+        echo(line)
+    echo(f"pairs: {directory}")
+
+
+def pilot_review_lines(
+    context: AppContext, scorer: str | None, better: int | None, note: str | None
+) -> list[str]:
+    cfg = load_finetune(context.settings)
+    store = CampaignStore.from_settings(context.settings)
+    return review_pilot(store, scorer or cfg.scorer, cfg.stop_rule, better, note)

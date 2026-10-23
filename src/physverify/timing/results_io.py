@@ -19,7 +19,7 @@ from typing import IO, Final
 from pydantic import ValidationError
 
 from physverify.core.atomic import write_bytes_atomic
-from physverify.core.errors import TimingError
+from physverify.core.errors import TimingError, UsageError
 from physverify.timing.records import (
     CallFailure,
     MeasureStats,
@@ -30,6 +30,7 @@ from physverify.timing.records import (
     unit_of,
 )
 
+TIMING_DIR: Final = "timing"
 RESULTS: Final = "results.json"
 SAMPLES: Final = "samples.csv"
 STATS: Final = "stats.csv"
@@ -210,3 +211,10 @@ def write_stats(directory: Path, rows: Iterable[MeasureStats]) -> None:
         values = row.model_dump()
         writer.writerow([_cell(values[column]) for column in STAT_COLUMNS])
     write_bytes_atomic(directory / STATS, buffer.getvalue().encode("utf-8"))
+
+
+def timing_directory(run_dir: Path) -> Path:
+    for candidate in (run_dir, run_dir / TIMING_DIR):
+        if (candidate / RESULTS).is_file():
+            return candidate
+    raise UsageError(f"{run_dir} is not a timing run (no {RESULTS} in it or in {TIMING_DIR}/)")

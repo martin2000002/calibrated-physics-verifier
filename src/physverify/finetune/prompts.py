@@ -21,6 +21,7 @@ import numpy as np
 from physverify.config.models import Settings
 from physverify.core.errors import ConfigError, UsageError
 from physverify.datasets.local_video import QueryEntry, QueryList
+from physverify.finetune.layout import CampaignStore
 from physverify.finetune.records import (
     DEMO_TAG,
     TEMPLATE_TAG_PREFIX,
@@ -254,3 +255,10 @@ def sizing_labels(settings: Settings) -> Collection[str]:
         function(settings) if inspect.signature(function).parameters else function()
     )
     return frozenset(labels)
+
+
+def campaign_prompts(store: CampaignStore, split: PromptSplit | None = None) -> list[PromptRecord]:
+    if not store.prompts_path.is_file():
+        raise UsageError(f"{store.prompts_path} does not exist: run 'finetune prompts build'")
+    prompts = store.prompts()
+    return [p for p in prompts if split is None or p.split == split]

@@ -9,6 +9,7 @@ The inspection itself stays manual: the code only requires that it is recorded, 
 
 from __future__ import annotations
 
+import datetime as dt
 import math
 import random
 from collections.abc import Mapping, Sequence
@@ -17,6 +18,7 @@ from typing import Final
 from pydantic import Field
 
 from physverify.core.digests import text_sha256
+from physverify.core.errors import UsageError
 from physverify.core.models import FrozenModel
 from physverify.finetune.candidate_scoring import same_stamp
 from physverify.finetune.layout import (
@@ -221,3 +223,35 @@ def verdict_lines(verdict: StopVerdict) -> list[str]:
     if verdict.deviation is not None:
         lines.append(f"  declared deviation: {verdict.deviation}")
     return lines
+
+
+def review_pilot(
+    store: CampaignStore,
+    scorer: str,
+    rules: StopRuleSettings,
+    better: int | None,
+    note: str | None,
+) -> list[str]:
+    """The pairs to inspect (``better`` None), or the recorded review's line."""
+    pairs_ = pairs_on_disk(store, scorer)
+    if not pairs_:
+        raise UsageError(f"there are no {scorer} pairs: run 'finetune pairs'")
+    drawn = review_sample(pairs_, rules)
+    if better is None:
+        return [
+            f"{pair.pair_id}: winner {pair.winner} ({pair.score_w:.3f}) "
+            f"loser {pair.loser} ({pair.score_l:.3f})"
+            for pair in drawn
+        ]
+    if better > len(drawn):
+        raise UsageError(f"--better {better} exceeds the {len(drawn)} inspected pairs")
+    review = PilotReview(
+        pairs_sha256=pairs_sha256(pairs_),
+        inspected=[p.pair_id for p in drawn],
+        better=better,
+        note=note,
+        created_utc=dt.datetime.now(dt.UTC).isoformat(),
+    )
+    path = store.pairs_dir(scorer) / PILOT_REVIEW_FILE
+    write_record(path, review)
+    return [f"pilot review: {better} of {len(drawn)} better ({path})"]

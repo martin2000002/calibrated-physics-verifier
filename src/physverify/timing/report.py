@@ -23,6 +23,7 @@ from physverify.timing.records import (
     unit_of,
 )
 from physverify.timing.results_io import (
+    TIMING_DIR,
     flag,
     load_failures,
     load_results,
@@ -32,7 +33,6 @@ from physverify.timing.results_io import (
 )
 from physverify.timing.stats import ACROSS_CLIPS, across_medians, stat_rows
 
-TIMING_DIR: Final = "timing"
 SUMMARY: Final = "summary.md"
 SCRATCH_DIR: Final = "scratch"
 BANNER: Final = (

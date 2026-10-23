@@ -40,7 +40,7 @@ from physverify.timing.environment import CudaProbe, TorchCudaProbe, run_environ
 from physverify.timing.harness import ClipSource, TimingHarness
 from physverify.timing.hooks import brings_own_clips
 from physverify.timing.records import ResultsFile, TargetStatus
-from physverify.timing.report import SUMMARY, TIMING_DIR, banner, rebuild, timing_dir
+from physverify.timing.report import SUMMARY, banner, rebuild, timing_dir
 from physverify.timing.results_io import (
     RESULTS,
     SAMPLES,
@@ -49,6 +49,7 @@ from physverify.timing.results_io import (
     ResultsWriter,
     load_results,
     load_samples,
+    timing_directory,
 )
 from physverify.timing.settings import (
     TargetRunSettings,
@@ -315,20 +316,13 @@ def run(
         raise typer.Exit(code=code)
 
 
-def _timing_directory(run_dir: Path) -> Path:
-    for candidate in (run_dir, run_dir / TIMING_DIR):
-        if (candidate / RESULTS).is_file():
-            return candidate
-    raise UsageError(f"{run_dir} is not a timing run (no {RESULTS} in it or in {TIMING_DIR}/)")
-
-
 RunOption = Annotated[Path, typer.Option("--run", help="Run directory (or its timing/ folder).")]
 
 
 @app.command("summarize", help="Rebuild stats.csv and summary.md from samples.csv.")
 def summarize(run_dir: RunOption) -> None:
     timing = load_timing(app_context().settings)
-    directory = _timing_directory(run_dir)
+    directory = timing_directory(run_dir)
     _report(rebuild(directory, timing.max_iqr_rel, timing.total_measures), directory)
 
 
@@ -381,7 +375,7 @@ def budget(
         gpu_hours, candidates, eval_prompts, eval_samples, finetune_hours, extract_batch, batch_size
     )
     timing = load_timing(app_context().settings)
-    directory = _timing_directory(run_dir)
+    directory = timing_directory(run_dir)
     results = load_results(directory)
     rows = stat_rows(load_samples(directory), timing.max_iqr_rel)
     cost = cost_from_results(results, rows, timing.total_measures, query.batch_size)
