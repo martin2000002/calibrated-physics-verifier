@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import subprocess
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from functools import cached_property
 from typing import Any, Protocol
 
-from physverify.config.models import Settings
+from physverify.config.plugin_context import PluginContext
 from physverify.core.errors import MissingInputError, PhysverifyError, UsageError
 from physverify.runtime.container import ContainerEngine, missing_reason
 from physverify.runtime.docker import Runner
@@ -40,20 +40,15 @@ from physverify.synth.simulate import simulate as simulate_scenes
 from physverify.synth.store import ContainerRunner, DatasetStore, Step
 
 
-class JobContext(Protocol):
+class JobContext(PluginContext, Protocol):
     """What a dataset job reads from the application context."""
-
-    @property
-    def settings(self) -> Settings: ...
-
-    def registry(self, kind: str) -> Mapping[str, Any]: ...
 
     def docker(self) -> ContainerEngine: ...
 
 
 @dataclass
 class DatasetJob:
-    """What every subcommand needs, resolved from the CLI context."""
+    """What every dataset step needs, resolved from the injected job context."""
 
     context: JobContext
     subset: str | None

@@ -130,6 +130,9 @@ class SizePrior(FrozenModel):
     rel_spread: float = Field(ge=0)
 
 
+SIZE_PRIORS_SECTION = "size_priors"
+
+
 class SizePriorTable(RootModel[dict[str, SizePrior]]):
     model_config = ConfigDict(frozen=True)
 

@@ -9,8 +9,6 @@ from pydantic import ConfigDict
 from physverify.config.models import SizePriorTable
 from physverify.core.models import FrozenModel
 
-SIZE_PRIORS_SECTION = "size_priors"
-
 
 def label_candidates(label: str) -> tuple[str, ...]:
     """The whole label first, then each of its words (a query phrase like "red ball")."""

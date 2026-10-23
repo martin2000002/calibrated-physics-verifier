@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, ClassVar
 import numpy as np
 from pydantic import Field
 
-from physverify.config.models import SizePriorTable
+from physverify.config.models import SIZE_PRIORS_SECTION, SizePriorTable
 from physverify.core.atomic import write_text_atomic
 from physverify.core.digests import file_sha256
 from physverify.core.download import (
@@ -39,7 +39,7 @@ from physverify.datasets._base import GroundTruthStore, VideoSource
 from physverify.datasets._layout import load_annotations, relative_to_data, resolve_data_path
 from physverify.datasets._queries import derive_queries
 from physverify.schema.clip import ClipManifest, ObjectQuery, Split, TimeSource
-from physverify.sizing.priors import SIZE_PRIORS_SECTION, lookup_label
+from physverify.sizing.priors import lookup_label
 
 if TYPE_CHECKING:
     from physverify.config.models import Settings

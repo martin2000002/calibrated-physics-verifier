@@ -11,14 +11,14 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import BaseModel
 
-from physverify.config.models import SizePrior, SizePriorTable
+from physverify.config.models import SIZE_PRIORS_SECTION, SizePrior, SizePriorTable
 from physverify.extraction._base import StageContext, WeightSpec
 from physverify.extraction.providers._common import expect_params
 from physverify.physics.geometry import characteristic_lengths
 from physverify.schema.scale import ScaleEstimate, ScaleSource
 from physverify.schema.stages import Stage
 from physverify.schema.states import ObjectStateTable
-from physverify.sizing.priors import SIZE_PRIORS_SECTION, SizePriorParams, lookup_label
+from physverify.sizing.priors import SizePriorParams, lookup_label
 
 Params = SizePriorParams
 

@@ -5,11 +5,11 @@ from __future__ import annotations
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Protocol
 
-from physverify.config.models import Settings
+from physverify.config.plugin_context import PluginContext
 from physverify.core.errors import ConfigError
-from physverify.core.registry import Registry, satisfies
+from physverify.core.registry import satisfies
 from physverify.datasets._base import DatasetSource, dataset_from
 from physverify.diagnosis.chain_runner import ChainRunner
 from physverify.diagnosis.verification_adapter import A7CheckSuite
@@ -23,15 +23,6 @@ from physverify.generator_comparison.judges._base import ExternalJudge, Judge
 from physverify.generator_comparison.settings import H3Settings
 from physverify.schema.stages import Stage
 from physverify.verification.check_set import active_checks_hash, occlusion_thresholds
-
-
-class PluginContext(Protocol):
-    """The settings and plugin registries of one invocation."""
-
-    @property
-    def settings(self) -> Settings: ...
-
-    def registry(self, kind: str) -> Registry[Any]: ...
 
 
 class LockingContext(PluginContext, Protocol):

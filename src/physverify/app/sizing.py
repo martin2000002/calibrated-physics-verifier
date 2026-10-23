@@ -9,7 +9,7 @@ from typing import Any
 
 from physverify.app.context import AppContext
 from physverify.app.services import chain_runner, dataset_for, pipeline_deps
-from physverify.config.models import Settings, SizePriorTable
+from physverify.config.models import SIZE_PRIORS_SECTION, Settings, SizePriorTable
 from physverify.core.atomic import write_text_atomic
 from physverify.core.errors import MissingInputError
 from physverify.core.output import Echo
@@ -37,7 +37,6 @@ from physverify.sizing.objectron_draws import (
     objectron_dir,
     selection,
 )
-from physverify.sizing.priors import SIZE_PRIORS_SECTION
 from physverify.sizing.settings import EndToEndSettings, sizing_settings
 from physverify.verification.inputs import refuse_heavy
 

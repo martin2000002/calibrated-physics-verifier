@@ -7,7 +7,7 @@ from typing import Any, Literal
 
 from pydantic import Field, ValidationError, model_validator
 
-from physverify.config.models import Settings, SizePrior, SizePriorTable
+from physverify.config.models import SIZE_PRIORS_SECTION, Settings, SizePrior, SizePriorTable
 from physverify.core.cache_keys import params_hash
 from physverify.core.errors import ConfigError
 from physverify.core.models import FrozenModel
@@ -16,7 +16,6 @@ from physverify.synth.families._base import SceneFamily
 from physverify.synth.perturbations._base import ScenePerturbation, TrajectoryPerturbation
 
 SECTION = "dataset"
-PRIORS_SECTION = "size_priors"
 MAX_LEVEL = 4
 NON_CONTENT_KEYS = ("render", "subsets", "version", "hdri_pools", "hdri_pool")
 LEGACY_HDRI_IDS = ("abandoned_parking",)
@@ -157,7 +156,7 @@ def dataset_root(settings: Settings, ds: DatasetSettings) -> Path:
 
 
 def load_size_priors(settings: Settings) -> dict[str, SizePrior]:
-    return dict(settings.section(PRIORS_SECTION, SizePriorTable).root)
+    return dict(settings.section(SIZE_PRIORS_SECTION, SizePriorTable).root)
 
 
 def scene_common(ds: DatasetSettings, priors: dict[str, SizePrior]) -> dict[str, Any]:

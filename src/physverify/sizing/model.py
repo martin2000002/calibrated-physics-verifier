@@ -12,10 +12,10 @@ from typing import Literal
 
 from pydantic import Field
 
-from physverify.config.models import Settings, SizePrior, SizePriorTable
+from physverify.config.models import SIZE_PRIORS_SECTION, Settings, SizePrior, SizePriorTable
 from physverify.core.models import FrozenModel
 from physverify.schema.io import stable_hash
-from physverify.sizing.priors import SIZE_PRIORS_SECTION, SizePriorParams, lookup_label
+from physverify.sizing.priors import SizePriorParams, lookup_label
 from physverify.sizing.settings import SECTION as SIZING_SECTION
 from physverify.sizing.settings import SizeLookup
 
