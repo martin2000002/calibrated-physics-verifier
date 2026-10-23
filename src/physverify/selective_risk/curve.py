@@ -1,4 +1,4 @@
-"""Risk-coverage of the threshold policy as k_sigma sweeps, and the choice of k* (ADR 0010 §3).
+"""Risk-coverage of the threshold policy as k_sigma sweeps, and the choice of k*.
 
 The rule is never copied: every point of the curve is ``ThresholdPolicy(k_sigma=k).decide`` on
 the same perceived results. The grid is set in alpha (one-sided miss probability of a Gaussian
@@ -58,9 +58,6 @@ def k_of(alpha: NDArray[np.float64]) -> NDArray[np.float64]:
     return np.asarray(norm.isf(alpha), dtype=np.float64)
 
 
-# --- References -------------------------------------------------------------------------------
-
-
 def point_reference(oracle: CheckResult, thresholds: Mapping[str, Any]) -> Verdict | None:
     """The oracle's point verdict against ``thresholds`` (None if it cannot be decided); callers
     pass ``raw_table`` so that the reference never carries a perceived-level correction."""
@@ -108,12 +105,9 @@ def require_taus(table: Mapping[str, Any], level: InputLevel) -> None:
 
 
 def injected_reference(role: Role) -> Verdict | None:
-    """A8's injected label of a (clip, check) as a verdict: clean PASS, injected FAIL; coupled
-    and off-target checks have no label."""
+    """The calibration chain's injected label of a (clip, check) as a verdict: clean PASS, injected
+    FAIL; coupled and off-target checks have no label."""
     return {Role.CLEAN: Verdict.PASS, Role.POSITIVE: Verdict.FAIL}.get(role)
-
-
-# --- Sweep ------------------------------------------------------------------------------------
 
 
 def decision_codes(

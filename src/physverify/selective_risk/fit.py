@@ -42,9 +42,6 @@ def _better(point: CurvePoint, k: float, other: CurvePoint, other_k: float) -> b
     return k < other_k
 
 
-# --- Bootstrap paired by clip -----------------------------------------------------------------
-
-
 def paired_aurc_difference(
     first: IntArray,
     second: IntArray,
@@ -71,9 +68,6 @@ def paired_aurc_difference(
         "ci": (None, None) if bound is None else (bound.low, bound.high),
         "n_boot_non_finite": None if bound is None else bound.non_finite,
     }
-
-
-# --- Report rows ------------------------------------------------------------------------------
 
 
 def point_row(point: CurvePoint, k: float, alpha: float, ci: float) -> dict[str, Any]:
