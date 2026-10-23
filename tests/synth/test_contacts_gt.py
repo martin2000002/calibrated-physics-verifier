@@ -254,7 +254,7 @@ def test_split_runs_cut_on_normal_area_and_drift(
 
 def test_split_runs_measure_drift_from_the_first_patch_of_the_run(clean_ds: Any) -> None:
     patches = [Patch(UP, 0.01, np.array([0.006 * k, 0.0, 0.0])) for k in range(4)]
-    assert split_runs(patches, clean_ds.contacts) == [range(0, 2), range(2, 4)]
+    assert split_runs(patches, clean_ds.contacts) == [range(2), range(2, 4)]
 
 
 def test_a_sparse_face_contact_falls_back_to_the_primitive_patch(bank: Any, clean_ds: Any) -> None:

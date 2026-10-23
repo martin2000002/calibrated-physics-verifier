@@ -70,16 +70,16 @@ def test_a_single_body_abstains_with_no_reference() -> None:
 
 def test_rows_without_a_reference_in_the_image_do_not_count() -> None:
     case = sc.resized_pair(factor=1.5, first=12, last=17)
-    gone = range(0, sc.FRAMES - 3)
+    gone = range(sc.FRAMES - 3)
     hidden = sc.with_values(case, "in_frame", "ball_1", gone, False)
     result = size(hidden)["ball_0"]
     assert result.verdict is Verdict.UNSCORED
     assert result.details["size_rows"] == 3
     assert result.details["unreferenced_rows"] == len(gone)
     assert result.magnitude == pytest.approx(0.0, abs=1e-12)
-    fewer = sc.with_values(case, "in_frame", "ball_1", range(0, sc.FRAMES - 2), False)
+    fewer = sc.with_values(case, "in_frame", "ball_1", range(sc.FRAMES - 2), False)
     assert size(fewer)["ball_0"].abstain_reason is AbstainReason.TOO_FEW_FRAMES
-    occluded = sc.with_values(case, "occlusion", "ball_1", range(0, sc.FRAMES - 2), 0.95)
+    occluded = sc.with_values(case, "occlusion", "ball_1", range(sc.FRAMES - 2), 0.95)
     assert size(occluded)["ball_0"].details["reference"] == "others"
     assert size(occluded)["ball_0"].abstain_reason is AbstainReason.TOO_FEW_FRAMES
 

@@ -177,7 +177,7 @@ def test_the_manifest_lists_the_discarded_renders_and_both_hashes(
 def test_a_completed_migration_runs_again_as_a_no_op(
     tmp_path: Path, position_ds: DatasetSettings, families: Any, perturbations: Any
 ) -> None:
-    plan, store, plugins = legacy(tmp_path, position_ds, families, perturbations)
+    _plan, store, plugins = legacy(tmp_path, position_ds, families, perturbations)
     first = reapply_velocity(store, plugins, position_ds, COMMIT, clock)
     stamps = {p: p.stat().st_mtime_ns for p in store.root.rglob("*") if p.is_file()}
     again = reapply_velocity(store, plugins, position_ds, COMMIT, clock)
@@ -188,7 +188,7 @@ def test_a_completed_migration_runs_again_as_a_no_op(
 def test_a_crashed_migration_still_lists_the_render_it_discarded(
     tmp_path: Path, position_ds: DatasetSettings, families: Any, perturbations: Any
 ) -> None:
-    plan, store, plugins = legacy(tmp_path, position_ds, families, perturbations)
+    _plan, store, plugins = legacy(tmp_path, position_ds, families, perturbations)
     report = reapply_velocity(store, plugins, position_ds, COMMIT, clock)
     manifest = read_json(report.manifest)
     del manifest[COMPLETED_KEY]
@@ -492,7 +492,7 @@ def test_the_first_fix_from_revision_zero_covers_every_fix(
 def test_the_velocity_migration_records_what_it_covers(
     tmp_path: Path, position_ds: DatasetSettings, families: Any, perturbations: Any
 ) -> None:
-    plan, store, plugins = legacy(tmp_path, position_ds, families, perturbations)
+    _plan, store, plugins = legacy(tmp_path, position_ds, families, perturbations)
     report = reapply_velocity(store, plugins, position_ds, COMMIT, clock)
     assert read_json(report.manifest)[COVERS_KEY] == []
 

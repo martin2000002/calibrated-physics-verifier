@@ -91,7 +91,7 @@ def test_the_oracle_scale_is_exact_and_bound_to_the_table() -> None:
 
 def test_a_scale_fitted_on_another_table_is_refused() -> None:
     wrong = ScaleEstimate(1.0, 0.0, ScaleSource.GROUND_TRUTH, "gt:another_clip")
-    with pytest.raises(InputsError, match="^scale_binding"):
+    with pytest.raises(InputsError, match=r"^scale_binding"):
         build_inputs(raw(sc.parabola(clip_id="p"), wrong))
 
 
@@ -114,7 +114,7 @@ def non_uniform(case: sc.Case) -> sc.Case:
 @pytest.mark.parametrize("broken", [strided_on_rows, non_uniform], ids=["t_per_row", "gap"])
 def test_a_bad_time_axis_abstains_on_every_check(broken: Any) -> None:
     case = broken(sc.parabola(clip_id="t"))
-    with pytest.raises(InputsError, match="^time_axis"):
+    with pytest.raises(InputsError, match=r"^time_axis"):
         build_inputs(raw(case))
     item = OracleSource(ScenarioDataset([case])).load([case.clip])
     report = VerificationRunner([blank_check(i) for i in range(9)], RawPolicy(), {}).run(
@@ -189,7 +189,7 @@ class FakeLoader:
 
 
 def perceived(case: sc.Case, outputs: Mapping[Stage, StageOutput]) -> ClipInputs:
-    names = {stage: "fake" for stage in STAGE_ORDER}
+    names = dict.fromkeys(STAGE_ORDER, "fake")
     loader = FakeLoader({case.clip.clip_id: StageOutputs(outputs, names)})
     source = PerceivedSource(ScenarioDataset([case]), loader, InputLevel.MIXED)
     (item,) = source.load([case.clip])

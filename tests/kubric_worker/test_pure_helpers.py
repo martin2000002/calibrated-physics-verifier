@@ -103,14 +103,12 @@ def test_raw_collisions_keeps_one_row_per_event() -> None:
 
 
 def _states(visible: list[bool], positions: np.ndarray) -> ObjectStateTable:
-    table = records.states()
-    table = dataclasses.replace(
-        table,
+    return dataclasses.replace(
+        records.states(),
         position=positions,
         quaternion=np.tile(np.array([1.0, 0.0, 0.0, 0.0]), (3, 2, 1)),
         visible=np.array([visible, [True, True], [True, True]]),
     )
-    return table
 
 
 def test_pose_keyframes_hide_unseen_objects_and_fill_unknown_values() -> None:

@@ -165,7 +165,7 @@ def test_a_penetrated_first_row_has_no_row_before(f2: Any) -> None:
 
 def test_the_bounce_case_names_the_row_the_crossing_comes_from(f2: Any) -> None:
     g = gravity_of(f2.scene)
-    twin, index, k, t_b = penetrated_twin(f2)
+    twin, index, k, _t_b = penetrated_twin(f2)
     moved = bounce_case(twin, index, float(k), g)
     assert (moved.k, moved.penetrated, moved.status) == (k, True, "previous_row")
     assert moved.depth_m < 0.0

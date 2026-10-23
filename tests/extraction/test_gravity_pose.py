@@ -71,9 +71,9 @@ def test_lift_reads_the_same_gravity_as_before(
         world_from_camera=pose,
     )
     lift = BackprojectLift(BackprojectLift.Params())
-    gravity, sigma = lift._gravity(camera, "auto")  # noqa: SLF001
+    gravity, sigma = lift._gravity(camera, "auto")
     np.testing.assert_array_equal(gravity, old_gravity(pose))
     assert sigma == pytest.approx(math.radians(2.0))
-    level, level_sigma = lift._gravity(camera, "level_camera")  # noqa: SLF001
+    level, level_sigma = lift._gravity(camera, "level_camera")
     np.testing.assert_array_equal(level, LEVEL_CAMERA_GRAVITY)
     assert level_sigma == pytest.approx(math.radians(10.0))

@@ -1,4 +1,5 @@
 import math
+from itertools import pairwise
 
 import check_scenarios as sc
 import numpy as np
@@ -83,7 +84,7 @@ def test_centre_of_mass_outside_grows_strictly_with_the_overhang() -> None:
     offsets = [0.22, 0.24, 0.26, 0.28]
     values = [residual(sc.overhang(x)) for x in offsets]
     assert values[0] > 1e-4
-    assert all(b > a for a, b in zip(values[:-1], values[1:], strict=True))
+    assert all(b > a for a, b in pairwise(values))
     for offset, value in zip(offsets, values, strict=True):
         ratio = value / lever_residual(offset)
         assert NORM_FLOOR - 1e-9 <= ratio <= 1.0 + 1e-9
