@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import fcntl
 import os
 from pathlib import Path
 
@@ -16,6 +17,8 @@ from physverify.calibration.sealed_ledger import (
     check_repeat,
     freeze_of,
     ledger_path,
+    lock_path,
+    locked,
     look_config_hash,
     read_entries,
     require_clean,
@@ -110,6 +113,21 @@ def test_lines_append_and_read_back(tmp_path: Path) -> None:
     assert [e.freeze for e in read_entries(path)] == ["f1", "f2"]
 
 
+def test_the_lock_excludes_other_looks_and_leaves_the_ledger_alone(tmp_path: Path) -> None:
+    path = tmp_path / "ledger.txt"
+    path.touch()
+    with locked(path):
+        fd = os.open(lock_path(path), os.O_RDWR)
+        try:
+            with pytest.raises(BlockingIOError):
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        finally:
+            os.close(fd)
+        append_entry(path, entry("f1"))
+    assert [e.freeze for e in read_entries(path)] == ["f1"]
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["ledger.txt", "ledger.txt.lock"]
+
+
 def test_a_missing_ledger_is_never_created(tmp_path: Path) -> None:
     """A wrong HOME or path fails closed instead of starting an empty ledger."""
     absent = tmp_path / "deep" / "ledger.txt"
@@ -117,6 +135,8 @@ def test_a_missing_ledger_is_never_created(tmp_path: Path) -> None:
         read_entries(absent)
     with pytest.raises(LedgerError, match=f"touch {absent}"):
         append_entry(absent, entry())
+    with pytest.raises(LedgerError, match="created once by hand"), locked(absent):
+        pass
     assert not absent.parent.exists()
 
 

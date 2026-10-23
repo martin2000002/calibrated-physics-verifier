@@ -1,5 +1,6 @@
 """The sealed ledger: the one-look sets of ``[sealed]`` and the
-line a look leaves before any number is computed. Pure except ``read_entries``/``append_entry``.
+line a look leaves before any number is computed. Pure except ``read_entries``/``append_entry``
+and ``locked``.
 
 A look is a frozen state, not a command: every line carries ``freeze`` (commit of a clean tree,
 the hash of the effective sections, profile and device, and the sha256 of every artifact a
@@ -9,10 +10,12 @@ another frozen state needs an explicit repeat. The ledger is created once by han
 
 from __future__ import annotations
 
+import fcntl
 import json
 import os
 import re
-from collections.abc import Collection, Mapping, Sequence
+from collections.abc import Collection, Iterator, Mapping, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -229,3 +232,23 @@ def append_entry(path: Path, entry: LedgerEntry) -> None:
             os.fsync(handle.fileno())
     except OSError as exc:
         raise LedgerError(f"cannot write the sealed ledger {path}: {exc}") from exc
+
+
+def lock_path(path: Path) -> Path:
+    return path.with_name(path.name + ".lock")
+
+
+@contextmanager
+def locked(path: Path) -> Iterator[None]:
+    """Hold an exclusive flock on a sibling of the ledger, so two looks never both read the
+    ledger before either appends; the ledger file itself is untouched."""
+    require_ledger(path)
+    try:
+        fd = os.open(lock_path(path), os.O_CREAT | os.O_RDWR, 0o644)
+    except OSError as exc:
+        raise LedgerError(f"cannot lock the sealed ledger {path}: {exc}") from exc
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        yield
+    finally:
+        os.close(fd)
