@@ -17,6 +17,8 @@ from physverify.diagnosis.measurement_cases import (
     bare_compute,
     stage_output,
 )
+from physverify.diagnosis.metrics._contacts import NOT_A_CANDIDATE, same_pair
+from physverify.diagnosis.metrics._lift import angle_deg
 from physverify.diagnosis.metrics._state_pairing import object_length
 from physverify.diagnosis.settings import MetricSettings
 from physverify.extraction.matching import hungarian
@@ -27,8 +29,6 @@ from physverify.schema.outputs import StageOutput
 from physverify.schema.stages import Stage
 from physverify.schema.states import ObjectStateTable
 
-NOT_A_CANDIDATE = -1.0
-
 
 def interval_iou(a: ContactRecord, b: ContactRecord) -> float:
     """tIoU of [t_start, t_end] in native frames, each padded to whole frames (+1), so that
@@ -36,10 +36,6 @@ def interval_iou(a: ContactRecord, b: ContactRecord) -> float:
     inter = max(0.0, min(a.t_end, b.t_end) - max(a.t_start, b.t_start) + 1.0)
     union = (a.t_end - a.t_start + 1.0) + (b.t_end - b.t_start + 1.0) - inter
     return inter / union
-
-
-def same_pair(a: ContactRecord, b: ContactRecord) -> bool:
-    return {a.object_a, a.object_b} == {b.object_a, b.object_b}
 
 
 def tiou_matrix(pred: tuple[ContactRecord, ...], truth: tuple[ContactRecord, ...]) -> FloatArray:
@@ -56,11 +52,6 @@ def truth_normal_as_pred(pred: ContactRecord, truth: ContactRecord) -> FloatArra
     """The truth normal points from b to a; flipped when the pair order is inverted."""
     normal: FloatArray = truth.normal if pred.object_a == truth.object_a else -truth.normal
     return normal
-
-
-def angle_deg(u: FloatArray, v: FloatArray) -> float:
-    """Angle via atan2(|u x v|, u . v): exact near 0, where arccos loses half the digits."""
-    return math.degrees(math.atan2(float(np.linalg.norm(np.cross(u, v))), float(np.dot(u, v))))
 
 
 def object_lengths(states: ObjectStateTable) -> dict[str, float]:

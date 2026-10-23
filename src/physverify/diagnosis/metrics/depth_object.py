@@ -10,66 +10,21 @@ from typing import ClassVar
 import numpy as np
 
 from physverify.diagnosis.measurement_cases import (
-    BoolArray,
-    FloatArray,
     MetricCase,
     MetricOutcome,
     bare_compute,
     stage_output,
 )
-from physverify.diagnosis.settings import MetricSettings
-from physverify.extraction.backprojection import (
-    SummaryOptions,
-    lift_depth,
-    object_summary,
+from physverify.diagnosis.metrics._depth import (
+    object_depths,
+    relative_object_error,
 )
-from physverify.extraction.lift_params import LiftParams
-from physverify.extraction.plan import ResolvedPlan
+from physverify.diagnosis.metrics._lift import lift_params
+from physverify.diagnosis.settings import MetricSettings
 from physverify.schema.clip import ClipManifest
 from physverify.schema.outputs import StageOutput
 from physverify.schema.perception import CameraModel, DepthMap, MaskTrack
 from physverify.schema.stages import Stage
-
-
-def lift_params(plan: ResolvedPlan | None) -> LiftParams:
-    """The plan's back-projection params, so the depth is read exactly as LIFT reads it."""
-    if plan is not None and Stage.LIFT in plan.names:
-        params = plan.step(Stage.LIFT).params
-        if isinstance(params, LiftParams):
-            return params
-    return LiftParams()
-
-
-def object_depths(
-    depth: DepthMap, track: MaskTrack, k: FloatArray, params: LiftParams
-) -> FloatArray:
-    """(T, N) median depth of each object's surface; NaN where LIFT would give no summary."""
-    z, valid, _ = lift_depth(depth, track, params.shift)
-    options = SummaryOptions(params.erode_px, params.extent_percentiles, params.min_area_px)
-    n_t, n_obj = track.masks.shape[:2]
-    out = np.full((n_t, n_obj), np.nan)
-    for t in range(n_t):
-        for n in range(n_obj):
-            summary = object_summary(track.masks[t, n], z[t], valid[t], k, options)
-            if summary is not None:
-                out[t, n] = summary.centre[2]
-    return out
-
-
-def comparable_pairs(z_pred: FloatArray, z_true: FloatArray) -> BoolArray:
-    """The object-frames ``relative_object_error`` keeps: both depths finite and positive."""
-    ok: BoolArray = np.isfinite(z_pred) & np.isfinite(z_true) & (z_pred > 0) & (z_true > 0)
-    return ok
-
-
-def relative_object_error(z_pred: FloatArray, z_true: FloatArray) -> FloatArray:
-    """s z_pred/z_true - 1 with s = exp(median log(z_true/z_pred)) over the finite pairs."""
-    ok = comparable_pairs(z_pred, z_true)
-    if not ok.any():
-        return np.zeros(0)
-    scale = float(np.exp(np.median(np.log(z_true[ok] / z_pred[ok]))))
-    residual: FloatArray = scale * z_pred[ok] / z_true[ok] - 1.0
-    return residual
 
 
 @dataclass(frozen=True)

@@ -20,7 +20,8 @@ from numpy.typing import NDArray
 from synthetic_clip import manifest
 
 from physverify.diagnosis.measurement_cases import MetricOutcome
-from physverify.diagnosis.metrics.depth_object import ObjectDepthMetric, relative_object_error
+from physverify.diagnosis.metrics._depth import relative_object_error
+from physverify.diagnosis.metrics.depth_object import ObjectDepthMetric
 from physverify.schema.clip import FrameSampling
 from physverify.schema.outputs import StageOutput
 from physverify.schema.perception import (

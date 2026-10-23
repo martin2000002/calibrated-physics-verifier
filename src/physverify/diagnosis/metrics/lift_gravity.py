@@ -10,26 +10,17 @@ from typing import ClassVar
 import numpy as np
 
 from physverify.diagnosis.measurement_cases import (
-    FloatArray,
     MetricCase,
     MetricOutcome,
     bare_compute,
 )
-from physverify.diagnosis.metrics.contacts_events import angle_deg
-from physverify.diagnosis.metrics.depth_object import lift_params
+from physverify.diagnosis.metrics._lift import gravity_angles, lift_params
 from physverify.diagnosis.settings import MetricSettings
 from physverify.extraction.gravity_pose import LEVEL_CAMERA_GRAVITY
 from physverify.schema.clip import ClipManifest
 from physverify.schema.outputs import StageOutput
 from physverify.schema.stages import Stage
 from physverify.schema.states import ObjectStateTable
-
-
-def gravity_angles(assumed: FloatArray, truth: FloatArray) -> FloatArray:
-    """[angle in degrees], or empty when either direction is unknown (non-finite)."""
-    if not (np.isfinite(assumed).all() and np.isfinite(truth).all()):
-        return np.zeros(0)
-    return np.array([angle_deg(assumed, truth)])
 
 
 @dataclass(frozen=True)

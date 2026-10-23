@@ -19,7 +19,8 @@ from numpy.typing import NDArray
 from synthetic_clip import manifest
 
 from physverify.diagnosis.measurement_cases import MetricCase, MetricOutcome
-from physverify.diagnosis.metrics.depth_object import ObjectDepthMetric, object_depths
+from physverify.diagnosis.metrics._depth import object_depths
+from physverify.diagnosis.metrics.depth_object import ObjectDepthMetric
 from physverify.diagnosis.metrics.depth_object_parts import QUANTITIES, ObjectDepthPartsMetric
 from physverify.extraction.lift_params import LiftParams
 from physverify.schema.clip import FrameSampling

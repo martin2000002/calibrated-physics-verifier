@@ -23,7 +23,7 @@ from physverify.diagnosis.measurement_cases import (
     MetricOutcome,
     bare_compute,
 )
-from physverify.diagnosis.metrics.contacts_events import NOT_A_CANDIDATE, same_pair
+from physverify.diagnosis.metrics._contacts import NOT_A_CANDIDATE, same_pair
 from physverify.diagnosis.settings import MetricSettings
 from physverify.extraction.matching import hungarian
 from physverify.schema.clip import ClipManifest

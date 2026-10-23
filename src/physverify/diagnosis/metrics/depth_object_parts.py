@@ -18,13 +18,14 @@ from physverify.diagnosis.measurement_cases import (
     bare_compute,
     stage_output,
 )
-from physverify.diagnosis.metrics.depth_absrel import aligned_depth, valid_pixels
-from physverify.diagnosis.metrics.depth_object import (
+from physverify.diagnosis.metrics._depth import (
+    aligned_depth,
     comparable_pairs,
-    lift_params,
     object_depths,
     relative_object_error,
+    valid_pixels,
 )
+from physverify.diagnosis.metrics._lift import lift_params
 from physverify.diagnosis.settings import MetricSettings
 from physverify.extraction.backprojection import DISPARITY_EPS, ShiftStrategy
 from physverify.extraction.lift_params import LiftParams
