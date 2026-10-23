@@ -6,11 +6,12 @@ import functools
 from collections.abc import Sequence
 from typing import Any
 
-from physverify.core.markdown import number
+from physverify.core.markdown import SIG3_NAN
 from physverify.diagnosis.report import (
     AttributionReport,
     EndToEndReport,
     Failure,
+    FallRow,
     RealVideoReport,
     StageErrorReport,
 )
@@ -18,8 +19,13 @@ from physverify.diagnosis.report import (
 MAX_SUMMARY_LINES = 10
 
 
-def _number(value: float | None) -> str:
-    return number(value, ".3g", "-", "nan")
+_number = SIG3_NAN
+
+
+def _gravity_text(row: FallRow) -> str:
+    """The estimated g with its measured relative sigma, never as a bare number."""
+    sigma = "sigma unknown" if row.g_rel_sigma is None else f"rel sigma {_number(row.g_rel_sigma)}"
+    return f"g [estimated] {_number(row.g_est)} m/s2 {sigma}"
 
 
 def _failure_lines(failures: Sequence[Failure]) -> list[str]:
@@ -71,7 +77,7 @@ def _real_summary(report: RealVideoReport) -> list[str]:
         for r in report.motion
     ]
     lines += [
-        f"{r.clip_id}: g [estimated] {_number(r.g_est)} m/s2 closer base {r.closer_time_base}"
+        f"{r.clip_id}: {_gravity_text(r)} closer base {r.closer_time_base}"
         + (f" abstain {r.abstain_reason.value}" if r.abstain_reason else "")
         for r in report.falls
     ]
