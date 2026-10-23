@@ -9,15 +9,15 @@ from physverify.config.models import Settings
 from physverify.finetune.records import UNSEEN_TAG, CandidateScore, PromptRecord
 from physverify.finetune.scorers._base import AggregateScore
 from physverify.finetune.settings import load_finetune
+from physverify.generator_comparison.analysis_inputs import AnalysisInputs
 from physverify.generator_comparison.arms import PromptArms, analysis_prompts, build_arms
 from physverify.generator_comparison.best_of_n import pick_best
+from physverify.generator_comparison.guards import missing_pair_guard
 from physverify.generator_comparison.preregistered_numbers import (
     SECONDARY_TESTS,
-    AnalysisInputs,
     analyse,
     ft_vs_bo8,
     judged_vs_bo8,
-    missing_pair_guard,
     template_means,
     worst_case,
 )

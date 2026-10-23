@@ -27,6 +27,7 @@ from physverify.finetune.selection import Selection
 from physverify.finetune.settings import SECTION as FINETUNE_SECTION
 from physverify.finetune.settings import FinetuneSettings
 from physverify.finetune.stop_rule import StopRuleState
+from physverify.generator_comparison.analysis_inputs import JudgeValues
 from physverify.generator_comparison.arms import (
     EVAL_SPLIT,
     PromptArms,
@@ -41,7 +42,6 @@ from physverify.generator_comparison.margins import MarginDerivation, margin
 from physverify.generator_comparison.prereg import H3Preregistration, Mde
 from physverify.generator_comparison.preregistered_numbers import (
     SECONDARY_TESTS,
-    JudgeValues,
     crn_ft_vs_base,
     judged,
     judged_against_base,

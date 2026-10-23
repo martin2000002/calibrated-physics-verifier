@@ -8,14 +8,12 @@ from typing import Final
 from physverify.core.atomic import write_text_atomic
 from physverify.core.markdown import number, table
 from physverify.core.models import FrozenModel
+from physverify.generator_comparison.analysis_inputs import ArmSummary
+from physverify.generator_comparison.guards import GuardResult
 from physverify.generator_comparison.layout import H3Layout
 from physverify.generator_comparison.margins import MarginDerivation
 from physverify.generator_comparison.prereg import Mde
-from physverify.generator_comparison.preregistered_numbers import (
-    ArmSummary,
-    GuardResult,
-    H3Analysis,
-)
+from physverify.generator_comparison.preregistered_numbers import H3Analysis
 from physverify.generator_comparison.stats import TestResult
 from physverify.generator_comparison.verdict import H3Verdict
 from physverify.human_agreement.prereg import FreezeAudit
