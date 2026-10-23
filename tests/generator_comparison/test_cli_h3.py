@@ -53,12 +53,14 @@ SUBCOMMANDS = (
     "compare",
     "status",
 )
-H3_MODULE = Path(__file__).resolve().parents[2] / "src/physverify/cli/commands/h3.py"
+H3_MODULE = (
+    Path(__file__).resolve().parents[2] / "src/physverify/cli/commands/compare_generators.py"
+)
 
 
 @pytest.mark.parametrize("name", SUBCOMMANDS)
 def test_every_subcommand_has_help(cli: CliRunner, name: str) -> None:
-    result = cli("h3", name, "--help")
+    result = cli("compare-generators", name, "--help")
     assert result.code == 0, result.err
     assert "Usage" in result.out
 
@@ -70,7 +72,7 @@ def test_every_subcommand_has_help(cli: CliRunner, name: str) -> None:
 def test_gpu_subcommands_exit_2_on_cpu(
     cli: CliRunner, h3_environ: dict[str, str], argv: tuple[str, ...]
 ) -> None:
-    result = cli("--device", "cpu", "h3", *argv, env=h3_environ)
+    result = cli("--device", "cpu", "compare-generators", *argv, env=h3_environ)
     assert result.code == 2
     assert "--device cuda" in result.err
 
@@ -82,7 +84,7 @@ def test_the_h3_command_does_not_import_the_finetune_command() -> None:
 
 
 def test_status_runs_on_an_empty_campaign(cli: CliRunner, h3_environ: dict[str, str]) -> None:
-    result = cli("h3", "status", env=h3_environ)
+    result = cli("compare-generators", "status", env=h3_environ)
     assert result.code == 0, result.err
     assert "pre-registration: none" in result.out
     assert "gate: not run" in result.out
@@ -91,14 +93,15 @@ def test_status_runs_on_an_empty_campaign(cli: CliRunner, h3_environ: dict[str, 
 @pytest.fixture
 def frozen(cli: CliRunner, campaign: Any, h3_environ: dict[str, str]) -> H3Preregistration:
     campaign.build()
-    result = cli("h3", "freeze", env=h3_environ)
+    result = cli("compare-generators", "freeze", env=h3_environ)
     assert result.code == 0, result.err
     assert "frozen:" in result.out
     return load_prereg(campaign.layout.prereg)
 
 
 def _score_eval(campaign: Any, prereg: H3Preregistration) -> str:
-    """Scores both arms on eval and writes their manifests, as `h3 score` does on the H200."""
+    """Scores both arms on eval and writes their manifests, as `compare-generators score` does on
+    the H200."""
     campaign.write_split("eval", scored=True)
     sha256 = sha256_if_file(campaign.layout.prereg)
     assert sha256 is not None
@@ -115,7 +118,7 @@ def test_freeze_records_the_state_and_is_idempotent(
     assert frozen.rule_status == "provisional"
     assert tuple(frozen.secondary_tests) == SECONDARY_TESTS
     assert frozen.margins == {"pc": 0.13, "sa": 0.05}
-    again = cli("h3", "freeze", env=h3_environ)
+    again = cli("compare-generators", "freeze", env=h3_environ)
     assert again.code == 0, again.err
     assert "unchanged" in again.out
 
@@ -124,7 +127,7 @@ def test_the_first_freeze_is_refused_after_eval_scores_exist(
     cli: CliRunner, campaign: Any, h3_environ: dict[str, str]
 ) -> None:
     campaign.build(eval_scored=True)
-    result = cli("h3", "freeze", env=h3_environ)
+    result = cli("compare-generators", "freeze", env=h3_environ)
     assert result.code == 2
     assert "not blind" in result.err
     assert not campaign.layout.prereg.exists()
@@ -134,7 +137,7 @@ def test_compare_writes_the_provisional_report_end_to_end(
     cli: CliRunner, campaign: Any, h3_environ: dict[str, str], frozen: H3Preregistration
 ) -> None:
     _score_eval(campaign, frozen)
-    result = cli("h3", "compare", env=h3_environ)
+    result = cli("compare-generators", "compare", env=h3_environ)
     assert result.code == 0, result.err
     assert f"verdict: {NO_VERDICT}" in result.out
     report = json.loads(campaign.layout.report_json.read_text(encoding="utf-8"))
@@ -155,7 +158,7 @@ def test_compare_writes_the_provisional_report_end_to_end(
     ):
         assert heading in text
     assert "code commit at the freeze" in text
-    status = cli("h3", "status", env=h3_environ)
+    status = cli("compare-generators", "status", env=h3_environ)
     assert status.code == 0, status.err
     assert "provisional" in status.out
 
@@ -165,9 +168,9 @@ def test_compare_refuses_scores_without_a_bound_manifest(
 ) -> None:
     _score_eval(campaign, frozen)
     campaign.layout.scoring(BASE_TAG, campaign.scorer.name).unlink()
-    result = cli("h3", "compare", env=h3_environ)
+    result = cli("compare-generators", "compare", env=h3_environ)
     assert result.code == 2
-    assert "h3 score" in result.err
+    assert "compare-generators score" in result.err
 
 
 @pytest.mark.parametrize(
@@ -208,7 +211,7 @@ def test_status_shows_the_gate_line_run_h3_reads(
         )
         campaign.layout.gate.parent.mkdir(parents=True, exist_ok=True)
         write_record(campaign.layout.gate, gate)
-    result = cli("h3", "status", env=h3_environ)
+    result = cli("compare-generators", "status", env=h3_environ)
     assert result.code == 0, result.err
     assert f"{GATE_LINE}{shown}" in result.out.splitlines()
     assert (f"{GATE_LINE}{GATE_PASSED}" in result.out.splitlines()) is bool(passed)
@@ -318,14 +321,14 @@ def test_a_fired_stop_rule_blocks_the_eval_arm(
 ) -> None:
     campaign.build()
     options, command = (argv[:-1], argv[-1:])
-    result = cli(*ENFORCE, *options, "h3", *command, env=h3_environ)
+    result = cli(*ENFORCE, *options, "compare-generators", *command, env=h3_environ)
     assert result.code == 2
     assert "pilot stop rule fired" in result.err and "not evaluable" in result.err
     assert not campaign.layout.prereg.exists()
     declared = cli(
         *ENFORCE,
         *options,
-        "h3",
+        "compare-generators",
         *command,
         "--stop-rule-deviation",
         "pilot accepted",
@@ -350,7 +353,8 @@ def test_a_freeze_deviation_does_not_let_a_fired_stop_rule_through(
     cli: CliRunner, campaign: Any, h3_environ: dict[str, str]
 ) -> None:
     campaign.build()
-    other = cli(*ENFORCE, "h3", "freeze", "--declare-deviation", "alpha fixed", env=h3_environ)
+    deviation = ("--declare-deviation", "alpha fixed")
+    other = cli(*ENFORCE, "compare-generators", "freeze", *deviation, env=h3_environ)
     assert other.code == 2 and "--stop-rule-deviation" in other.err
     assert not campaign.layout.prereg.exists()
 
@@ -362,7 +366,7 @@ def test_a_stop_rule_file_of_other_pairs_is_not_enough(
     path = campaign.store.pairs_dir(campaign.scorer.name) / "stop_rule.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps({"passed": True, "pairs_sha256": "other"}), "utf-8")
-    result = cli(*ENFORCE, "h3", "freeze", env=h3_environ)
+    result = cli(*ENFORCE, "compare-generators", "freeze", env=h3_environ)
     assert result.code == 2 and "pilot stop rule fired" in result.err
 
 
@@ -370,7 +374,7 @@ def test_the_stop_rule_is_off_in_the_fast_profile(
     cli: CliRunner, campaign: Any, h3_environ: dict[str, str]
 ) -> None:
     campaign.build()
-    result = cli("h3", "freeze", env=h3_environ)
+    result = cli("compare-generators", "freeze", env=h3_environ)
     assert result.code == 0, result.err
     assert "pilot stop rule: FIRED (reported only)" in result.err
 
@@ -389,7 +393,7 @@ def test_freeze_records_the_exclusion_record_sha(
 ) -> None:
     campaign.build()
     sha256 = _exclusion_record(campaign)
-    result = cli("h3", "freeze", env=h3_environ)
+    result = cli("compare-generators", "freeze", env=h3_environ)
     assert result.code == 0, result.err
     assert load_prereg(campaign.layout.prereg).exclusion_record_sha256 == sha256
 

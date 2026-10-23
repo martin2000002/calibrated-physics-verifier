@@ -135,7 +135,7 @@ def test_scenes_wait_for_the_preregistration(
 ) -> None:
     result = cli("demo", "scenes", "--from-select", env=env)
     assert result.code == 2
-    assert "h3 freeze" in result.err
+    assert "compare-generators freeze" in result.err
     assert not (tmp_path / "data" / "demo").exists()
 
 
@@ -166,7 +166,7 @@ def test_scenes_need_the_generated_videos(
     adapter = _scene_campaign(tmp_path)
     result = cli("--profile", "precise", "demo", "scenes", "--adapter", str(adapter), env=env)
     assert result.code == 2
-    assert "h3 generate" in result.err and "demo-x/base" in result.err
+    assert "compare-generators generate" in result.err and "demo-x/base" in result.err
     assert cli("demo", "scenes", env=env).code == 2
 
 

@@ -91,9 +91,9 @@ SETUP = [
     _pv("timing fetch"),
 ]
 RENDER = [
-    _pv("dataset generate --subset smoke"),
-    _pv("dataset simulate --subset smoke"),
-    _pv("dataset perturb --subset smoke"),
+    _pv("synth generate --subset smoke"),
+    _pv("synth simulate --subset smoke"),
+    _pv("synth perturb --subset smoke"),
 ]
 TIMING_RUN = _pv("timing run --dataset local_video --subset timing_wan21")
 
@@ -136,7 +136,7 @@ def test_full_sequence_with_docker_and_a_missing_image(sandbox: TimingSandbox) -
         "docker info",
         _pv("doctor"),
         f"docker image inspect {IMAGE}",
-        _pv("dataset pull-image"),
+        _pv("synth pull-image"),
         *RENDER,
         TIMING_RUN,
     ]
@@ -150,7 +150,7 @@ def test_full_sequence_with_docker_and_a_missing_image(sandbox: TimingSandbox) -
 def test_present_image_is_not_pulled(sandbox: TimingSandbox) -> None:
     sandbox.install()
     assert sandbox.run(IMAGE_EXIT="0").returncode == 0
-    assert _pv("dataset pull-image") not in sandbox.lines()
+    assert _pv("synth pull-image") not in sandbox.lines()
     assert sandbox.lines()[-4:] == [*RENDER, TIMING_RUN]
 
 

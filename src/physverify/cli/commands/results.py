@@ -40,7 +40,7 @@ def results(
     ] = None,
     abstention_run: Annotated[
         Path | None,
-        typer.Option(help="The `abstain curve` run (default: the one step 7's log names)."),
+        typer.Option(help="The `selective-risk curve` run (default: the one step 7's log names)."),
     ] = None,
     out: Annotated[Path | None, typer.Option(help="Default: <a8v2-dir>/results.")] = None,
 ) -> None:

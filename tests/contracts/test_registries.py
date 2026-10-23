@@ -130,21 +130,21 @@ PROVIDER_ORDER = (
 )
 
 COMMAND_ORDER = (
-    "abstain",
     "agreement",
     "calibrate",
-    "data",
-    "dataset",
+    "compare-generators",
     "demo",
     "diagnose",
     "doctor",
+    "download",
     "exclusions",
     "extract",
     "finetune",
-    "h3",
     "results",
     "scene-stats",
+    "selective-risk",
     "size",
+    "synth",
     "timing",
     "verify",
 )
@@ -195,7 +195,7 @@ def test_provider_keys_are_unchanged(registries: dict[str, Mapping[str, Any]]) -
     assert sorted(registries["providers"]) == sorted(PROVIDER_ORDER)
 
 
-def test_command_names_and_order_are_unchanged_until_the_cli_renames(
+def test_command_names_and_order_are_pinned(
     commands: Mapping[str, Any],
 ) -> None:
     assert tuple(commands) == COMMAND_ORDER

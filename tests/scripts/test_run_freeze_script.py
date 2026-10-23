@@ -88,7 +88,7 @@ case "$*" in
     echo "$hash" > "$RUN/checks_hash.txt" ;;
   *" exclusions decide "*) echo "decided" ;;
   *" exclusions show") echo "record: $CAL/exclusions.json sha256 ${RECORD:-}" ;;
-  *" abstain fit") echo '{}' > "$CAL/abstention.json" ;;
+  *" selective-risk fit") echo '{}' > "$CAL/abstention.json" ;;
 esac
 exit 0
 """
@@ -177,7 +177,7 @@ def _expected(final: Path) -> list[str]:
         f"exclusions decide --evaluation {runs / 'r1' / 'evaluation.json'} --r2-base-run r2 "
         "--r2-tiny-run r3",
         "exclusions show",
-        "abstain fit",
+        "selective-risk fit",
     ]
 
 

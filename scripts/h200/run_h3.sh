@@ -12,7 +12,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/_common.sh"
 cd "$REPO_ROOT"
 source_h200_env
 
-# The `h3 status` line of a passed gate (physverify.generator_comparison.status GATE_LINE + GATE_PASSED).
+# The `compare-generators status` line of a passed gate (physverify.generator_comparison.status GATE_LINE + GATE_PASSED).
 GATE_PASSED_LINE="  gate: passed"
 USAGE="usage: run_h3.sh base-eval | dev | freeze | eval | compare | status [ARGS...]"
 export PHYSVERIFY__H3__AUTOEVAL__ROOT="${PHYSVERIFY__H3__AUTOEVAL__ROOT:-$H200_ROOT}"
@@ -24,34 +24,34 @@ shift
 case "$step" in
     base-eval)
         require_cuda
-        pv h3 generate --arm base "$@"
+        pv compare-generators generate --arm base "$@"
         ;;
     dev)
         require_cuda
-        pv h3 judge --split dev "$@"
+        pv compare-generators judge --split dev "$@"
         ;;
     freeze)
-        pv h3 freeze "$@"
+        pv compare-generators freeze "$@"
         ;;
     eval)
         [[ $# -eq 0 ]] || die "$USAGE"
         require_cuda
-        pv h3 generate --arm ft
-        pv h3 score --arm base
-        pv h3 score --arm ft
-        h3_status="$(pv h3 status)"
+        pv compare-generators generate --arm ft
+        pv compare-generators score --arm base
+        pv compare-generators score --arm ft
+        h3_status="$(pv compare-generators status)"
         if grep -qx "$GATE_PASSED_LINE" <<<"$h3_status"; then
-            pv h3 judge --split eval
+            pv compare-generators judge --split eval
         else
             printf '%s\n' "the AutoEval gate has not passed: no eval judge rows" >&2
         fi
-        pv h3 compare
+        pv compare-generators compare
         ;;
     compare)
-        pv h3 compare "$@"
+        pv compare-generators compare "$@"
         ;;
     status)
-        pv h3 status "$@"
+        pv compare-generators status "$@"
         ;;
     *)
         die "$USAGE"

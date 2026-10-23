@@ -229,7 +229,7 @@ def _collected(n_scenes: int, seed: int, prefix: str) -> Collected:
 
 @functools.cache
 def _abstention_records() -> tuple[dict[str, Any], dict[str, Any]]:
-    """``abstain fit`` and ``abstain curve`` content through their own builders."""
+    """``selective-risk fit`` and ``selective-risk curve`` content through their own builders."""
     tables, calibrated = _tables(), _projection(InputLevel.PERCEIVED)
     calib = _collected(30, 11, "ab-s")
     fitted = fit_record(calib, sweep(calib, calibrated, ABSTENTION), ABSTENTION, tables)

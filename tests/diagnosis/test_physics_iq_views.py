@@ -136,12 +136,12 @@ def test_precise_full_selection_is_the_108_preregistered_ids(
 
 
 def test_a_missing_view_names_its_own_fetch_command(settings: Settings) -> None:
-    with pytest.raises(MissingInputError, match="data fetch physics_iq_views"):
+    with pytest.raises(MissingInputError, match="download fetch physics_iq_views"):
         PhysicsIQViewsDataset(settings).clips(LOCAL)
 
 
 def test_both_real_controls_are_downloadable_by_name_only(settings: Settings) -> None:
-    from physverify.cli.commands.data import fetch_targets
+    from physverify.cli.commands.download import fetch_targets
     from physverify.diagnosis.settings import diagnosis_settings
 
     real = diagnosis_settings(settings).real

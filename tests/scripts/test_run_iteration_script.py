@@ -71,7 +71,7 @@ case "$*" in
   *" diagnose stages "*)
     new_run; mkdir -p "$CAL"; echo profile > "$CAL/stage_errors.precise.json" ;;
   *" calibrate stage-sigma "*) mkdir -p "$CAL"; echo sigma > "$CAL/stage_sigma.json" ;;
-  *" calibrate devscore "*)
+  *" calibrate dev-score "*)
     [[ -z "${DEVSCORE_EXIT:-}" ]] || exit "$DEVSCORE_EXIT"
     new_run
     echo '{"strata": []}' > "$RUN/calibration.json"
@@ -139,7 +139,7 @@ def sandbox(tmp_path: Path) -> IterationSandbox:
 
 
 def _devscore(out: Path) -> str:
-    return f"calibrate devscore {KS} --level both --out {out / 'devscore.json'}"
+    return f"calibrate dev-score {KS} --level both --out {out / 'devscore.json'}"
 
 
 def test_the_script_parses_and_is_executable() -> None:

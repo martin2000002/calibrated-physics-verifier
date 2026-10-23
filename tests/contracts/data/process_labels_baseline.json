@@ -241,10 +241,6 @@
  "src/physverify/checks/r5b_gravity_value.py": {
   "comment_or_docstring": 5
  },
- "src/physverify/cli/commands/abstain.py": {
-  "comment_or_docstring": 2,
-  "literal": 3
- },
  "src/physverify/cli/commands/agreement.py": {
   "comment_or_docstring": 1,
   "literal": 2
@@ -253,18 +249,18 @@
   "comment_or_docstring": 3,
   "literal": 7
  },
- "src/physverify/cli/commands/data.py": {
-  "comment_or_docstring": 2
- },
- "src/physverify/cli/commands/dataset.py": {
+ "src/physverify/cli/commands/compare_generators.py": {
   "comment_or_docstring": 1,
-  "literal": 2
+  "literal": 4
  },
  "src/physverify/cli/commands/demo.py": {
   "comment_or_docstring": 3
  },
  "src/physverify/cli/commands/diagnose.py": {
   "comment_or_docstring": 1
+ },
+ "src/physverify/cli/commands/download.py": {
+  "comment_or_docstring": 2
  },
  "src/physverify/cli/commands/exclusions.py": {
   "comment_or_docstring": 1,
@@ -276,10 +272,6 @@
  "src/physverify/cli/commands/finetune.py": {
   "comment_or_docstring": 1
  },
- "src/physverify/cli/commands/h3.py": {
-  "comment_or_docstring": 1,
-  "literal": 4
- },
  "src/physverify/cli/commands/results.py": {
   "comment_or_docstring": 2,
   "identifier": 10,
@@ -288,8 +280,16 @@
  "src/physverify/cli/commands/scene_stats.py": {
   "comment_or_docstring": 1
  },
+ "src/physverify/cli/commands/selective_risk.py": {
+  "comment_or_docstring": 2,
+  "literal": 3
+ },
  "src/physverify/cli/commands/size.py": {
   "comment_or_docstring": 1
+ },
+ "src/physverify/cli/commands/synth.py": {
+  "comment_or_docstring": 1,
+  "literal": 2
  },
  "src/physverify/cli/commands/timing.py": {
   "comment_or_docstring": 1

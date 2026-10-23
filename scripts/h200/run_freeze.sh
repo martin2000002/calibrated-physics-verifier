@@ -18,7 +18,7 @@
 #                      a skipped real dataset, a real set 1.5 does not allow or no H1 primary view
 #    4 r2-arms         the R2 clips verified with the base and the tiny detector (rule 1.2)
 #    5 decide          exclusions decide, then exclusions show (the record's sha256)
-#    6 abstain         abstain fit (J5: always; the curve reads eval clips and is not run)
+#    6 abstain         selective-risk fit (J5: always; the curve reads eval clips and is not run)
 #    7 manifest        freeze_query manifest: $F/freeze.json (AC-8, AC-18)
 #
 # Startup (exit 2 before any physverify call): HEAD is PHYSVERIFY_FREEZE_EXPECT_COMMIT with nothing
@@ -212,7 +212,7 @@ step_5() {
 }
 
 step_6() {
-    call 0 -- abstain fit
+    call 0 -- selective-risk fit
 }
 
 step_7() {

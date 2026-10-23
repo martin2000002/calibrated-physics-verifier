@@ -1,4 +1,4 @@
-"""``physverify calibrate devscore`` over a fake calib dataset (WP-O AC7, AC8, C3)."""
+"""``physverify calibrate dev-score`` over a fake calib dataset (WP-O AC7, AC8, C3)."""
 
 from __future__ import annotations
 
@@ -87,14 +87,14 @@ def _snapshot(*paths: Path) -> dict[Path, tuple[str, int]]:
 def test_an_eval_clip_is_refused_before_any_check_runs(cli: CliRunner, calls: list[int]) -> None:
     """AC7."""
     held = HELD.clips[0].clip_id
-    result = cli(*FAST, "calibrate", "devscore", "--dataset", DATASET, "--level", "oracle",
+    result = cli(*FAST, "calibrate", "dev-score", "--dataset", DATASET, "--level", "oracle",
                  "--clips", CALIB.clips[0].clip_id, "--clips", held)  # fmt: skip
     assert result.code == EXIT_USAGE and held in result.err
     assert calls == []
 
 
 def test_bootstrap_zero_is_refused_before_any_check_runs(cli: CliRunner, calls: list[int]) -> None:
-    result = cli("--set", "calibration.bootstrap=0", "calibrate", "devscore", "--dataset", DATASET)
+    result = cli("--set", "calibration.bootstrap=0", "calibrate", "dev-score", "--dataset", DATASET)
     assert result.code == EXIT_USAGE and "bootstrap" in result.err
     assert calls == []
 
@@ -109,7 +109,7 @@ def test_devscore_writes_only_its_run_and_out(
     (paths.calibration_dir / "calibration.json").write_text("{}\n", encoding="utf-8")
     before = _snapshot(paths.calibration_dir, paths.thresholds, paths.error_profile)
     out = tmp_path / "copy" / "devscore.json"
-    result = cli(*FAST, "calibrate", "devscore", "--dataset", DATASET, "--level", "oracle",
+    result = cli(*FAST, "calibrate", "dev-score", "--dataset", DATASET, "--level", "oracle",
                  "--out", str(out))  # fmt: skip
     assert result.code == 0, result.err
     assert calls == [len(CALIB.clips)]
@@ -130,7 +130,7 @@ def test_the_runners_keep_the_development_metric_lines(
     cli: CliRunner, calls: list[int], tmp_path: Path
 ) -> None:
     """run_iteration.sh step 5: run_of finds the run and its grep keeps the metric lines."""
-    result = cli(*FAST, "calibrate", "devscore", "--dataset", DATASET, "--level", "oracle")
+    result = cli(*FAST, "calibrate", "dev-score", "--dataset", DATASET, "--level", "oracle")
     assert result.code == 0, result.err
     log = tmp_path / "devscore.log"
     log.write_text(result.out, encoding="utf-8")

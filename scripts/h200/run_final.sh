@@ -350,7 +350,7 @@ cmd_fetch() {
     [[ ! -e "$RUN/extract-$SET.started" ]] \
         || stop "the extraction of $SET started: its downloaded files are fixed (J14)"
     export PHYSVERIFY__OBJECTRON_STATIC__SEED="$SEED"
-    call 0 -- data fetch "$SET" --subset full
+    call 0 -- download fetch "$SET" --subset full
     unset PHYSVERIFY__OBJECTRON_STATIC__SEED
     local raw manifest="$RUN/fetch-$SET.sha256"
     raw="$(raw_dir_of "$SET")"

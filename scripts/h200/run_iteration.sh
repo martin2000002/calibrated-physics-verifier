@@ -11,7 +11,7 @@
 #                   profile; only calib clips are passed, so the report pass is empty
 #    3 relift       extract run again (LIFT reads the new profile)
 #    4 stage-sigma  calibrate stage-sigma (D10, calib only)
-#    5 devscore     calibrate devscore --level both: devscore.json, and the full calib fit as
+#    5 devscore     calibrate dev-score --level both: devscore.json, and the full calib fit as
 #                   <run>/calibration.json (never in a calibration directory); copied to $OUT
 #
 # Startup (exit 2 before any physverify call): PHYSVERIFY_ITER_ID; HEAD is
@@ -238,7 +238,7 @@ step_4() {
 }
 
 step_5() {
-    call 0 -- calibrate devscore "${KS[@]}" --level both --out "$OUT/devscore.json"
+    call 0 -- calibrate dev-score "${KS[@]}" --level both --out "$OUT/devscore.json"
     local run
     run="$(run_of)"
     [[ -f "$run/calibration.json" ]] || stop "no full calib fit in $run"

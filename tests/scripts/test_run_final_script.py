@@ -131,8 +131,8 @@ case "$*" in
   *" extract run "*)
     dataset="$(sed -n 's/.*--dataset \([^ ]*\).*/\1/p' <<<"$*")"
     mkdir -p "$PHYSVERIFY__PATHS__CACHE_DIR/$dataset" ;;
-  *" data fetch "*)
-    name="$(sed -n 's/.* data fetch \([^ ]*\).*/\1/p' <<<"$*")"
+  *" download fetch "*)
+    name="$(sed -n 's/.* download fetch \([^ ]*\).*/\1/p' <<<"$*")"
     echo "fetch $name seed ${PHYSVERIFY__OBJECTRON_STATIC__SEED-unset}" >> "$CALLS"
     mkdir -p "$PHYSVERIFY__PATHS__DATA_DIR/raw/$name/sub"
     echo a > "$PHYSVERIFY__PATHS__DATA_DIR/raw/$name/a.mp4"

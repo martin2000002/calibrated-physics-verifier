@@ -52,7 +52,7 @@ ARCHIVE_ROOT = "real"
 MOVIE = "movie.mp4"
 CLIP_INFO = "clip_info.json"
 INDEX_FILE = "index.json"
-FETCH_HINT = "physverify data fetch pisa_real"
+FETCH_HINT = "physverify download fetch pisa_real"
 CLIP_INFO_PATTERN = re.compile(rf"^{ARCHIVE_ROOT}/([^/]+)/{re.escape(CLIP_INFO)}$")
 
 log = get_logger("datasets.pisa_real")

@@ -175,7 +175,9 @@ def scene_reports(
     store = CampaignStore.from_settings(settings)
     prereg = H3Layout.of(store.root).prereg
     if not prereg.is_file():
-        raise UsageError(f"{prereg} does not exist: run 'h3 freeze' before scoring the scenes")
+        raise UsageError(
+            f"{prereg} does not exist: run 'compare-generators freeze' before scoring the scenes"
+        )
     if adapter is not None and not adapter.exists():
         raise UsageError(f"adapter {adapter} does not exist")
     tuned = adapter_tag(adapter) if adapter is not None else tuned_tag(store, demo.select_run)

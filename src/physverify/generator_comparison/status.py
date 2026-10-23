@@ -1,4 +1,4 @@
-"""The ``h3 status`` and ``h3 freeze`` lines of a campaign."""
+"""The ``compare-generators status`` and ``compare-generators freeze`` lines of a campaign."""
 
 from __future__ import annotations
 

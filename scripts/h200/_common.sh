@@ -39,7 +39,7 @@ ensure_kubric_image() {
     local image
     image="$("$1" doctor 2>/dev/null | sed -n 's/^docker_image: //p' || true)"
     if [[ -n "$image" && "$image" != "(unset)" ]] && ! docker image inspect "$image" >/dev/null 2>&1; then
-        "$1" dataset pull-image >&2 || return 1
+        "$1" synth pull-image >&2 || return 1
     fi
     printf '%s\n' "$image"
 }

@@ -1,4 +1,4 @@
-"""``physverify dataset``: the light subcommands end to end, the heavy ones up to Docker."""
+"""``physverify synth``: the light subcommands end to end, the heavy ones up to Docker."""
 
 from __future__ import annotations
 
@@ -16,12 +16,12 @@ def data_env(tmp_path: Path) -> dict[str, str]:
 
 def test_generate_then_list(cli: Any, tmp_path: Path) -> None:
     env = data_env(tmp_path)
-    result = cli("dataset", "generate", "--subset", "smoke", env=env)
+    result = cli("synth", "generate", "--subset", "smoke", env=env)
     assert result.code == 0, result.err
     assert "2 clips, 1 simulations; 1 specs written, 0 skipped" in result.out
-    again = cli("dataset", "generate", "--subset", "smoke", env=env)
+    again = cli("synth", "generate", "--subset", "smoke", env=env)
     assert "0 specs written" in again.out
-    listed = cli("dataset", "list", "--subset", "smoke", env=env)
+    listed = cli("synth", "list", "--subset", "smoke", env=env)
     assert listed.code == 0, listed.err
     assert listed.out.splitlines()[0].split() == [
         "generate",
@@ -36,15 +36,15 @@ def test_generate_then_list(cli: Any, tmp_path: Path) -> None:
 
 
 def test_list_needs_a_plan(cli: Any, tmp_path: Path) -> None:
-    result = cli("dataset", "list", "--subset", "smoke", env=data_env(tmp_path))
+    result = cli("synth", "list", "--subset", "smoke", env=data_env(tmp_path))
     assert result.code == 1
-    assert "dataset generate" in result.err
+    assert "synth generate" in result.err
 
 
 def test_unplanned_subset_is_a_usage_error(cli: Any, tmp_path: Path) -> None:
     env = data_env(tmp_path)
-    assert cli("dataset", "generate", "--subset", "smoke", env=env).code == 0
-    result = cli("dataset", "list", "--subset", "local", env=env)
+    assert cli("synth", "generate", "--subset", "smoke", env=env).code == 0
+    result = cli("synth", "list", "--subset", "local", env=env)
     assert result.code == 2
     assert "local" in result.err
 
@@ -61,19 +61,19 @@ def test_a_plan_from_an_older_gt_revision_is_migrated_before_building(
     cli: Any, tmp_path: Path
 ) -> None:
     env = data_env(tmp_path)
-    assert cli("dataset", "generate", "--subset", "smoke", env=env).code == 0
+    assert cli("synth", "generate", "--subset", "smoke", env=env).code == 0
     (plan_path,) = (tmp_path / "data").rglob("plan.json")
     stored = json.loads(plan_path.read_text(encoding="utf-8"))
     del stored["gt_revision"]
     plan_path.write_text(json.dumps(stored), encoding="utf-8")
-    refused = cli("dataset", "generate", "--subset", "smoke", env=env)
+    refused = cli("synth", "generate", "--subset", "smoke", env=env)
     assert refused.code == 2
-    assert "dataset migrate --name floor-crossing" in refused.err
-    assert cli("dataset", "list", "--subset", "smoke", env=env).code == 0
-    unknown = cli("dataset", "migrate", "--name", "bogus", "--commit", "c0ffee", env=env)
+    assert "synth migrate --name floor-crossing" in refused.err
+    assert cli("synth", "list", "--subset", "smoke", env=env).code == 0
+    unknown = cli("synth", "migrate", "--name", "bogus", "--commit", "c0ffee", env=env)
     assert unknown.code == 2 and "unknown migration" in unknown.err
-    migrated = cli("dataset", "migrate", "--name", "floor-crossing", "--commit", "c0ffee", env=env)
+    migrated = cli("synth", "migrate", "--name", "floor-crossing", "--commit", "c0ffee", env=env)
     assert migrated.code == 0, migrated.err
     expected = "migrate floor-crossing: 0 applied, 0 renders discarded, 0 status changes;"
     assert expected in migrated.out
-    assert cli("dataset", "generate", "--subset", "smoke", env=env).code == 0
+    assert cli("synth", "generate", "--subset", "smoke", env=env).code == 0

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # End-to-end demo (ADR 0013, D1): verifier reports and overlay videos.
-#   run_demo.sh scenes                      base vs fine-tuned fixed scenes (after `h3 freeze`)
+#   run_demo.sh scenes                      base vs fine-tuned fixed scenes (after `compare-generators freeze`)
 #   run_demo.sh run --prompt TEXT --query PHRASE [...] [--adapter DIR]   generate, then verify
 #   run_demo.sh run --prompt TEXT --query PHRASE --video FILE            verify a given video
 #                                                       (on CPU when the machine has no GPU)

@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 from cli_tree import cli_leaves
 
-from physverify.app.sealing import GUARDED
+from physverify.app.sealing import GUARDED, ledger_label
 from physverify.calibration.artifact import (
     CALIBRATION_SCHEMA,
     CALIBRATION_VERSION,
@@ -227,9 +227,9 @@ RUN_RECORD_FIELDS = (
 )
 
 LEDGER_LABELS: Mapping[str, tuple[str, str | None]] = {
-    "abstain curve": ("abstain", "curve"),
-    "abstain fit": ("abstain", "fit"),
-    "calibrate devscore": ("calibrate", "devscore"),
+    "abstain curve": ("selective-risk", "curve"),
+    "abstain fit": ("selective-risk", "fit"),
+    "calibrate devscore": ("calibrate", "dev-score"),
     "calibrate evaluate": ("calibrate", "evaluate"),
     "calibrate fit": ("calibrate", "fit"),
     "calibrate stage-sigma": ("calibrate", "stage-sigma"),
@@ -367,6 +367,6 @@ def test_sealed_ledger_command_labels_are_unchanged() -> None:
 @pytest.mark.parametrize("label", sorted(LEDGER_LABELS))
 def test_a_ledger_label_is_its_command_and_leaf(label: str) -> None:
     command, leaf = LEDGER_LABELS[label]
-    module = cli_leaves()[label]
-    assert command == module.NAME
-    assert (f"{module.NAME} {leaf}" if leaf else module.NAME) == label
+    path = f"{command} {leaf}" if leaf else command
+    assert command == cli_leaves()[path].NAME
+    assert ledger_label(path) == label

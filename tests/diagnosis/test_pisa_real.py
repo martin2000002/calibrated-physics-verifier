@@ -202,7 +202,7 @@ def test_a_corrupt_member_is_never_promoted(settings: Settings, movie: bytes) ->
 
 
 def test_clips_before_fetch_point_to_the_fetch_command(settings: Settings) -> None:
-    with pytest.raises(MissingInputError, match="data fetch pisa_real"):
+    with pytest.raises(MissingInputError, match="download fetch pisa_real"):
         PisaRealDataset(settings, opener=refuse).clips("local")
 
 

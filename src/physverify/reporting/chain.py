@@ -109,8 +109,9 @@ def last_codes(text: str) -> dict[int, str]:
 
 
 def abstain_curve_run(state: ChainState) -> Path | Missing:
-    """The run printed by step 7's ``abstain curve`` call (``abstain.py``, ``typer.echo(f"run:
-    {run_dir}")``). Exactly one candidate is accepted; nothing is inferred from dates."""
+    """The run printed by step 7's ``abstain curve`` call (the historical log name of
+    ``selective-risk curve``, ``typer.echo(f"run: {run_dir}")``). Exactly one candidate is
+    accepted; nothing is inferred from dates."""
     found: set[str] = set()
     for log in sorted((state.root / LOGS_DIR).glob(f"{ABSTAIN_STEP}-*.log")):
         lines = log.read_text(encoding="utf-8").splitlines()

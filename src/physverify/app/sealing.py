@@ -54,7 +54,27 @@ GUARDED: Final = frozenset(
         "verify",
     }
 )
-"""Run the checks or measure stage errors on the clips of a dataset."""
+"""Run the checks or measure stage errors on the clips of a dataset. These are the labels the
+ledger records, persisted in sealed ledgers: a renamed leaf keeps its label."""
+
+LEDGER_LABELS_BY_LEAF: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        "calibrate dev-score": "calibrate devscore",
+        "selective-risk curve": "abstain curve",
+        "selective-risk fit": "abstain fit",
+    }
+)
+"""CLI leaf -> the ledger label it writes, where the two differ."""
+
+
+def ledger_label(leaf: str) -> str:
+    """The label the ledger records for CLI leaf ``leaf``."""
+    return LEDGER_LABELS_BY_LEAF.get(leaf, leaf)
+
+
+_LEAVES_BY_LABEL: Final = {label: leaf for leaf, label in LEDGER_LABELS_BY_LEAF.items()}
+GUARDED_LEAVES: Final = frozenset(_LEAVES_BY_LABEL.get(label, label) for label in GUARDED)
+"""The CLI leaves whose label is in ``GUARDED``."""
 
 _DATA = "builds, fetches or lists data; computes no check or error number"
 _READS = "re-reads files a guarded command wrote (its look is already in the ledger)"
@@ -62,27 +82,25 @@ _GENERATED = "scores generated videos, not a dataset split (H3 has its own pre-r
 _TIMING = "measures wall time only"
 EXEMPT: Final[Mapping[str, str]] = MappingProxyType(
     {
-        "agreement compare": "VideoPhy h2_test keeps its own ledger (run_h2.sh, WP-N)",
+        "agreement compare": "VideoPhy h2_test keeps its own ledger (run_human_agreement.sh, WP-N)",
         "agreement fetch": _DATA,
         "agreement freeze": "reads the h2_dev verify run (development data)",
         "agreement subset": _DATA,
         "calibrate publish": _READS,
         "calibrate show": _READS,
-        "data fetch": _DATA,
-        "dataset build": _DATA,
-        "dataset export-gt": _DATA,
-        "dataset generate": _DATA,
-        "dataset list": _DATA,
-        "dataset migrate": _DATA,
-        "dataset migrate-velocity": _DATA,
-        "dataset perturb": _DATA,
-        "dataset pull-image": _DATA,
-        "dataset render": _DATA,
-        "dataset simulate": _DATA,
+        "compare-generators compare": _GENERATED,
+        "compare-generators freeze": _GENERATED,
+        "compare-generators gate-autoeval": _GENERATED,
+        "compare-generators generate": _GENERATED,
+        "compare-generators judge": _GENERATED,
+        "compare-generators rescore": _GENERATED,
+        "compare-generators score": _GENERATED,
+        "compare-generators status": _GENERATED,
         "demo report": _GENERATED,
         "demo run": _GENERATED + "; a --video path is a file, not a dataset selection",
         "demo scenes": _GENERATED,
         "doctor": _DATA,
+        "download fetch": _DATA,
         "exclusions decide": _READS,
         "exclusions r2-clips": _DATA,
         "exclusions show": _READS,
@@ -99,14 +117,6 @@ EXEMPT: Final[Mapping[str, str]] = MappingProxyType(
         "finetune select": _GENERATED,
         "finetune status": _GENERATED,
         "finetune train": _GENERATED,
-        "h3 compare": _GENERATED,
-        "h3 freeze": _GENERATED,
-        "h3 gate-autoeval": _GENERATED,
-        "h3 generate": _GENERATED,
-        "h3 judge": _GENERATED,
-        "h3 rescore": _GENERATED,
-        "h3 score": _GENERATED,
-        "h3 status": _GENERATED,
         "results": _READS,
         "scene-stats delta": _READS,
         "scene-stats table": _READS,
@@ -115,6 +125,16 @@ EXEMPT: Final[Mapping[str, str]] = MappingProxyType(
         "size eval": "Objectron through sizing/, not a DatasetSource (WP-O Juicio 7)",
         "size fetch": _DATA,
         "size fit": "fits on Objectron train (WP-O Juicio 7)",
+        "synth build": _DATA,
+        "synth export-gt": _DATA,
+        "synth generate": _DATA,
+        "synth list": _DATA,
+        "synth migrate": _DATA,
+        "synth migrate-velocity": _DATA,
+        "synth perturb": _DATA,
+        "synth pull-image": _DATA,
+        "synth render": _DATA,
+        "synth simulate": _DATA,
         "timing budget": _TIMING,
         "timing env": _TIMING,
         "timing fetch": _DATA,
@@ -146,7 +166,7 @@ def guard_sealed(
     variable, or append the ledger line before returning. ``artifacts`` (label -> sha256) are
     the files the command judges with beyond the default ones; they enter the freeze. ``err``
     prints one line on the error stream."""
-    if command not in GUARDED:
+    if command not in GUARDED_LEAVES:
         raise ValueError(f"{command!r} is not a guarded subcommand")
     sealed = sealed_settings(context.settings)
     found = tuple(
@@ -169,7 +189,7 @@ def guard_sealed(
         )
     entry = look.model_copy(
         update={
-            "command": command,
+            "command": ledger_label(command),
             "datasets": tuple(dataset_entry(s.dataset, s.subset, s.clips) for s in selections),
             "repeat": repeat,
             "run_dir": None if run_dir is None else str(run_dir),

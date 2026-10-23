@@ -8,10 +8,10 @@ from physverify.core.models import FrozenModel
 
 SECTION = "abstention"
 ABSTENTION_FILE = "abstention.json"
-"""k* fitted on calib (``abstain fit``), under ``paths.calibration_dir``."""
+"""k* fitted on calib (``selective-risk fit``), under ``paths.calibration_dir``."""
 REPORT_FILE = "abstention_report.json"
 CURVE_FILE = "curve.csv"
-"""``abstain curve`` writes both into its run directory."""
+"""``selective-risk curve`` writes both into its run directory."""
 
 
 class AbstentionSettings(FrozenModel):

@@ -8,4 +8,4 @@ source_h200_env
 
 require_cuda
 export PHYSVERIFY__H3__AUTOEVAL__ROOT="${PHYSVERIFY__H3__AUTOEVAL__ROOT:-$H200_ROOT}"
-pv h3 gate-autoeval
+pv compare-generators gate-autoeval

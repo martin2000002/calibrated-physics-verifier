@@ -107,12 +107,12 @@ class KubricRender(TargetHooks):
             return "docker is not on PATH"
         image = ctx.settings.runtime.docker_image
         if not self._image_check(image):
-            return f"docker image {image!r} not present: run `physverify dataset pull-image`"
+            return f"docker image {image!r} not present: run `physverify synth pull-image`"
         _, store, plan = self._dataset(ctx)
         if plan is None:
-            return f"no Kubric dataset plan in {store.root}: run `physverify dataset generate`"
+            return f"no Kubric dataset plan in {store.root}: run `physverify synth generate`"
         if not applied_clip_ids(plan, store):
-            return "no Kubric clip has its variant states: run `physverify dataset perturb`"
+            return "no Kubric clip has its variant states: run `physverify synth perturb`"
         return self._mount_problem(ctx)
 
     def own_clips(self, ctx: TimingContext) -> Sequence[ClipManifest]:

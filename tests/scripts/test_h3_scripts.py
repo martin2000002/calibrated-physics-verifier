@@ -18,7 +18,7 @@ TOOLS = ("bash", "dirname", "grep", "nproc")
 PV = "uv run --no-sync physverify --profile precise --device cuda --set runtime.threads=4 "
 FAKE_UV = """#!/bin/bash
 printf 'uv %s root=%s\\n' "$*" "$PHYSVERIFY__H3__AUTOEVAL__ROOT" >> "$CALLS"
-[[ "$*" == *"h3 status"* ]] && printf '%s\\n' "${FAKE_STATUS:-}"
+[[ "$*" == *"compare-generators status"* ]] && printf '%s\\n' "${FAKE_STATUS:-}"
 [[ -n "${FAIL_ON:-}" && "$*" == *"$FAIL_ON"* ]] && exit 2
 exit 0
 """
@@ -64,16 +64,23 @@ def test_base_eval_generates_the_base_arm_with_the_autoeval_root(sandbox: Autoev
     sandbox.with_gpu()
     result = sandbox.run("run_h3.sh", "base-eval", "--shard", "1/2")
     assert result.returncode == 0, result.stderr
-    assert sandbox.lines() == [f"{PV}h3 generate --arm base --shard 1/2 root={sandbox.root}"]
+    assert sandbox.lines() == [
+        f"{PV}compare-generators generate --arm base --shard 1/2 root={sandbox.root}"
+    ]
 
 
 def test_an_explicit_autoeval_root_is_kept(sandbox: AutoevalSandbox) -> None:
     result = sandbox.run("run_h3.sh", "status", PHYSVERIFY__H3__AUTOEVAL__ROOT="/elsewhere")
     assert result.returncode == 0, result.stderr
-    assert sandbox.lines() == [f"{PV}h3 status root=/elsewhere"]
+    assert sandbox.lines() == [f"{PV}compare-generators status root=/elsewhere"]
 
 
-EVAL_STEPS = ["h3 generate --arm ft", "h3 score --arm base", "h3 score --arm ft", "h3 status"]
+EVAL_STEPS = [
+    "compare-generators generate --arm ft",
+    "compare-generators score --arm base",
+    "compare-generators score --arm ft",
+    "compare-generators status",
+]
 
 
 def _steps(sandbox: AutoevalSandbox) -> list[str]:
@@ -84,7 +91,11 @@ def test_eval_runs_the_comparison_in_order(sandbox: AutoevalSandbox) -> None:
     sandbox.with_gpu()
     result = sandbox.run("run_h3.sh", "eval", FAKE_STATUS=f"{GATE_LINE}{GATE_PASSED}")
     assert result.returncode == 0, result.stderr
-    assert _steps(sandbox) == [*EVAL_STEPS, "h3 judge --split eval", "h3 compare"]
+    assert _steps(sandbox) == [
+        *EVAL_STEPS,
+        "compare-generators judge --split eval",
+        "compare-generators compare",
+    ]
 
 
 @pytest.mark.parametrize("gate", ["not run", "failed"])
@@ -93,23 +104,23 @@ def test_eval_without_a_passed_gate_still_compares(sandbox: AutoevalSandbox, gat
     result = sandbox.run("run_h3.sh", "eval", FAKE_STATUS=f"campaign c\n{GATE_LINE}{gate}")
     assert result.returncode == 0, result.stderr
     assert "gate has not passed" in result.stderr
-    assert _steps(sandbox) == [*EVAL_STEPS, "h3 compare"]
+    assert _steps(sandbox) == [*EVAL_STEPS, "compare-generators compare"]
 
 
-@pytest.mark.parametrize("fail_on", ["h3 judge", "h3 status"])
+@pytest.mark.parametrize("fail_on", ["compare-generators judge", "compare-generators status"])
 def test_other_eval_failures_stay_fatal(sandbox: AutoevalSandbox, fail_on: str) -> None:
     sandbox.with_gpu()
     status = f"{GATE_LINE}{GATE_PASSED}"
     result = sandbox.run("run_h3.sh", "eval", FAKE_STATUS=status, FAIL_ON=fail_on)
     assert result.returncode == 2
-    assert "h3 compare" not in _steps(sandbox)
+    assert "compare-generators compare" not in _steps(sandbox)
 
 
 @pytest.mark.parametrize("step", ["freeze", "compare", "status"])
 def test_cpu_steps_need_no_gpu(sandbox: AutoevalSandbox, step: str) -> None:
     result = sandbox.run("run_h3.sh", step)
     assert result.returncode == 0, result.stderr
-    assert sandbox.lines() == [f"{PV}h3 {step} root={sandbox.root}"]
+    assert sandbox.lines() == [f"{PV}compare-generators {step} root={sandbox.root}"]
 
 
 @pytest.mark.parametrize(
@@ -134,7 +145,7 @@ def test_smoke_runs_the_gate(sandbox: AutoevalSandbox) -> None:
     sandbox.with_gpu()
     result = sandbox.run("smoke_autoeval.sh")
     assert result.returncode == 0, result.stderr
-    assert sandbox.lines() == [f"{PV}h3 gate-autoeval root={sandbox.root}"]
+    assert sandbox.lines() == [f"{PV}compare-generators gate-autoeval root={sandbox.root}"]
 
 
 @pytest.mark.parametrize("args", [(), ("nonsense",), ("eval", "--limit", "2")])

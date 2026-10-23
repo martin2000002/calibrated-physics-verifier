@@ -12,7 +12,8 @@ SCALE: Final = (0.0, 1.0)
 
 
 class VerifierJudge:
-    """Reads scores already computed by ``h3 score``; it never runs the verifier itself."""
+    """Reads scores already computed by ``compare-generators score``; it never runs the verifier
+    itself."""
 
     name: ClassVar[str] = "verifier"
 
@@ -21,7 +22,9 @@ class VerifierJudge:
         self._stamp = stamp
 
     def unavailable(self) -> str | None:
-        return None if self._scores else "no stored verifier scores; run `physverify h3 score`"
+        if self._scores:
+            return None
+        return "no stored verifier scores; run `physverify compare-generators score`"
 
     def stamp(self, task: str) -> str:
         return self._stamp

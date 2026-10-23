@@ -1,4 +1,4 @@
-"""Wiring of ``abstain fit`` and ``abstain curve`` from the application context."""
+"""Wiring of ``selective-risk fit`` and ``selective-risk curve`` from the application context."""
 
 from __future__ import annotations
 
@@ -63,7 +63,7 @@ def fit_abstention(
     *,
     err: Echo,
 ) -> list[str]:
-    """``abstain fit``: k* on the calibration split, written to ``abstention.json``."""
+    """``selective-risk fit``: k* on the calibration split, written to ``abstention.json``."""
     _guard(context, command, real=False, err=err)
     session = _session(context, oracle, perceived, provisional)
     settings = session.settings
@@ -86,7 +86,8 @@ def abstention_curve(
     *,
     err: Echo,
 ) -> list[str]:
-    """``abstain curve``: the held-out curve of both tables, written into a new run directory."""
+    """``selective-risk curve``: the held-out curve of both tables, written into a new run
+    directory."""
     _guard(context, command, real=True, err=err)
     session = _session(context, oracle, perceived, provisional)
     settings = session.settings

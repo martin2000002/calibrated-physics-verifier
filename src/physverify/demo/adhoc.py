@@ -90,4 +90,6 @@ def require_videos(
     }
     missing = [f"{p.prompt_id}/{t}" for p in prompts for t in tags if (t, p.prompt_id) not in have]
     if missing:
-        raise UsageError(f"k = 0 videos missing: {missing}; run 'h3 generate' first")
+        raise UsageError(
+            f"k = 0 videos missing: {missing}; run 'compare-generators generate' first"
+        )

@@ -1,4 +1,4 @@
-"""``physverify diagnose`` and ``physverify data`` (ADR 0007 §4.3, §6)."""
+"""``physverify diagnose`` and ``physverify download`` (ADR 0007 §4.3, §6)."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from synthetic_clip import CLIP_ID, DATASET
 from physverify.app import diagnosis as app_diagnosis
 from physverify.app import plugins
 from physverify.app.diagnosis import EVENTS_FILE, execute
-from physverify.cli.commands import data, diagnose
+from physverify.cli.commands import diagnose, download
 from physverify.config.models import Settings
 from physverify.core.download import MANIFEST_FILE, FetchedFile, FetchManifest, write_manifest
 from physverify.core.errors import MissingInputError, UsageError
@@ -98,32 +98,32 @@ def test_help_lists_every_subcommand(cli: CliRunner) -> None:
     assert result.code == 0
     for name in ("stages", "end-to-end", "attribution", "real"):
         assert name in result.out
-    fetch = cli("data", "--help")
+    fetch = cli("download", "--help")
     assert fetch.code == 0 and "fetch" in fetch.out
 
 
-# --- data fetch -------------------------------------------------------------------------------
+# --- download fetch ----------------------------------------------------------------------------
 
 
 def test_only_the_real_datasets_can_be_fetched(cli: CliRunner) -> None:
-    result = cli("data", "fetch", "kubric_synthetic")
+    result = cli("download", "fetch", "kubric_synthetic")
     assert result.code == 2
     assert "cannot be downloaded" in result.err
 
 
 def test_fetch_targets() -> None:
     registry = {"physics_iq": int, "pisa_real": str, "kubric_synthetic": float}
-    assert data.fetch_targets(registry, REAL, None) == [int, str]
-    assert data.fetch_targets(registry, REAL, "pisa_real") == [str]
+    assert download.fetch_targets(registry, REAL, None) == [int, str]
+    assert download.fetch_targets(registry, REAL, "pisa_real") == [str]
     with pytest.raises(UsageError, match="not registered"):
-        data.fetch_targets({"physics_iq": int}, REAL, None)
+        download.fetch_targets({"physics_iq": int}, REAL, None)
 
 
 @pytest.mark.usefixtures("registries")
 def test_fetch_summarises_every_dataset(
     cli: CliRunner, fakes_real: Mapping[str, type[Any]]
 ) -> None:
-    result = cli("data", "fetch", "--subset", "local")
+    result = cli("download", "fetch", "--subset", "local")
     assert result.code == 0, result.err
     lines = result.out.splitlines()
     assert [line.split(" ")[0] for line in lines] == list(REAL)

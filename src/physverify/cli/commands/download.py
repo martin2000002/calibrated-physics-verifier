@@ -1,4 +1,4 @@
-"""``physverify data fetch``: download the real datasets into ``paths.raw_dir`` (ADR 0007 §4.3).
+"""``physverify download fetch``: download the real datasets into ``paths.raw_dir`` (ADR 0007 §4.3).
 
 A heavy command (network and disk). A second run with the files intact transfers nothing.
 """
@@ -15,7 +15,7 @@ from physverify.core.errors import UsageError
 from physverify.datasets._base import fetch_all
 from physverify.diagnosis.settings import diagnosis_settings
 
-NAME = "data"
+NAME = "download"
 
 app = typer.Typer(help="Download the real datasets (Physics-IQ, PISA).", no_args_is_help=True)
 

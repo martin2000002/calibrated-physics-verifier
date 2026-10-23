@@ -98,6 +98,6 @@ LOG="$DATA_DIR/runs/kubric-$SUBSET-$(date -u +%Y%m%dT%H%M%SZ).log"
 ln -sfn "$(basename "$LOG")" "$DATA_DIR/runs/kubric-latest.log"
 printf 'container_engine: %s\ncontainer_image: %s\n' "$ENGINE" "$IMAGE_USED" >"$LOG"
 rc=0
-kv dataset build --subset "$SUBSET" 2>&1 | tee -a "$LOG" || rc=$?
-kv dataset list --subset "$SUBSET" 2>&1 | tee -a "$LOG" || true
+kv synth build --subset "$SUBSET" 2>&1 | tee -a "$LOG" || rc=$?
+kv synth list --subset "$SUBSET" 2>&1 | tee -a "$LOG" || true
 exit "$rc"

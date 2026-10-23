@@ -1,4 +1,5 @@
-"""``h3 compare``: load the frozen eval data, bind it to the pre-registration and build the report.
+"""``compare-generators compare``: load the frozen eval data, bind it to the pre-registration and
+build the report.
 
 Every score manifest and eval judge output must name a pre-registration of the chain (by content
 hash), and every eval score must carry the frozen scorer version and rule label; file times are
@@ -51,7 +52,7 @@ from physverify.human_agreement.prereg import (
     frozen_before,
 )
 
-RESCORE_HINT: Final = "run `physverify h3 rescore`"
+RESCORE_HINT: Final = "run `physverify compare-generators rescore`"
 
 
 @dataclass(frozen=True)
@@ -69,7 +70,9 @@ class CompareInputs:
 
 def require_stamp(scores: Sequence[CandidateScore], prereg: H3Preregistration, tag: str) -> None:
     if not scores:
-        raise UsageError(f"no eval scores of {tag}: run `physverify h3 score --arm ...`")
+        raise UsageError(
+            f"no eval scores of {tag}: run `physverify compare-generators score --arm ...`"
+        )
     try:
         stamp = stamp_of(scores)
     except ValueError as exc:
@@ -87,7 +90,7 @@ def require_bound(sha256: str | None, known: set[str], what: str) -> None:
 def require_manifest(layout: H3Layout, tag: str, scorer: str, known: set[str]) -> ScoringManifest:
     path = layout.scoring(tag, scorer)
     if not path.is_file():
-        raise UsageError(f"{path} is missing: run `physverify h3 score`")
+        raise UsageError(f"{path} is missing: run `physverify compare-generators score`")
     manifest = read_record(path, ScoringManifest)
     require_bound(manifest.prereg_sha256, known, str(path))
     return manifest

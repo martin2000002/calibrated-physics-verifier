@@ -337,10 +337,18 @@ def guarded(
     """A guarded command whose first computation is a sentinel, by name."""
     stop = sentinel(ledger, reached)
 
-    def abstain_curve(*extra: str, env: Mapping[str, str] | None = None) -> CliResult:
-        monkeypatch.setattr(app_selective_risk, "_session", stop)
-        sets = ("--set", f"abstention.dataset={DATASET}", "--set", "abstention.real_datasets=[]")
-        return cli(*SEAL, *sets, *extra, "abstain", "curve", env=env)
+    def selective_risk(leaf: str, *own: str) -> Callable[..., CliResult]:
+        def run(*extra: str, env: Mapping[str, str] | None = None) -> CliResult:
+            monkeypatch.setattr(app_selective_risk, "_session", stop)
+            sets = (
+                "--set",
+                f"abstention.dataset={DATASET}",
+                "--set",
+                "abstention.real_datasets=[]",
+            )
+            return cli(*SEAL, *sets, *own, *extra, "selective-risk", leaf, env=env)
+
+        return run
 
     def diagnose_stages(*extra: str, env: Mapping[str, str] | None = None) -> CliResult:
         monkeypatch.setattr(app_diagnosis, "run_stage_errors", stop)
@@ -353,14 +361,16 @@ def guarded(
 
     commands = {
         "verify": _guarded_verify(cli, monkeypatch, ledger, reached),
-        "abstain curve": abstain_curve,
+        "abstain curve": selective_risk("curve"),
+        "abstain fit": selective_risk("fit", "--set", "abstention.calib_split=eval"),
         "diagnose stages": diagnose_stages,
         "scene-stats per-clip": scene_stats_per_clip,
     }
     return commands.__getitem__
 
 
-COMMANDS = ("verify", "abstain curve", "diagnose stages", "scene-stats per-clip")
+COMMANDS = ("verify", "abstain curve", "abstain fit", "diagnose stages", "scene-stats per-clip")
+"""Ledger labels; ``abstain *`` run as ``selective-risk *`` and keep their persisted label."""
 
 
 @pytest.mark.parametrize("name", COMMANDS)
@@ -572,20 +582,34 @@ def _leaf_param(node: ast.expr) -> str:
 def test_every_subcommand_is_guarded_or_exempt_with_a_reason() -> None:
     """C5: a new subcommand fails here until ``sealing`` classifies it."""
     leaves = cli_leaves()
-    assert not sealing.GUARDED & set(sealing.EXEMPT)
-    assert set(leaves) == sealing.GUARDED | set(sealing.EXEMPT)
+    assert not sealing.GUARDED_LEAVES & set(sealing.EXEMPT)
+    assert set(leaves) == sealing.GUARDED_LEAVES | set(sealing.EXEMPT)
     assert all(reason.strip() for reason in sealing.EXEMPT.values())
 
 
-@pytest.mark.parametrize("label", sorted(sealing.GUARDED))
-def test_the_guarded_leaf_guards_with_its_own_label(label: str) -> None:
-    """The label a guard writes to the ledger is ``f"{NAME} {leaf}"`` of the leaf it guards."""
-    assert label in _guard_labels(cli_leaves()[label])
+def test_guarded_leaves_and_ledger_labels_are_a_bijection() -> None:
+    """Every guarded leaf writes its own persisted label, and a renamed leaf's label is never
+    another leaf's."""
+    labels = [sealing.ledger_label(leaf) for leaf in sealing.GUARDED_LEAVES]
+    assert len(set(labels)) == len(labels) == len(sealing.GUARDED)
+    assert set(labels) == sealing.GUARDED
+    assert set(sealing.LEDGER_LABELS_BY_LEAF.values()) <= sealing.GUARDED
+    assert set(sealing.LEDGER_LABELS_BY_LEAF) <= sealing.GUARDED_LEAVES
+    assert not set(sealing.LEDGER_LABELS_BY_LEAF.values()) & set(cli_leaves())
+
+
+@pytest.mark.parametrize("leaf", sorted(sealing.GUARDED_LEAVES))
+def test_the_guarded_leaf_guards_with_its_own_label(leaf: str) -> None:
+    """The leaf a guard is called with is ``f"{NAME} {leaf}"`` of the leaf it guards; the ledger
+    records ``ledger_label`` of it."""
+    assert leaf in _guard_labels(cli_leaves()[leaf])
+    assert sealing.ledger_label(leaf) in sealing.GUARDED
 
 
 def test_every_label_a_guard_forms_is_a_guarded_leaf() -> None:
     formed = {label for module in command_modules().values() for label in _guard_labels(module)}
-    assert formed == sealing.GUARDED
+    assert formed == sealing.GUARDED_LEAVES
+    assert {sealing.ledger_label(leaf) for leaf in formed} == sealing.GUARDED
 
 
 def test_a_guard_for_an_unclassified_command_is_a_bug() -> None:

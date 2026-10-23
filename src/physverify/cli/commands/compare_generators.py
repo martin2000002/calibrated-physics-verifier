@@ -1,4 +1,4 @@
-"""``physverify h3``: fine-tuned against base against best-of-8 (ADR 0013).
+"""``physverify compare-generators``: fine-tuned against base against best-of-8 (ADR 0013).
 
 Order: ``gate-autoeval``, ``judge --split dev``, ``freeze``, ``generate``, ``score``,
 ``judge --split eval``, ``compare``. Every step resumes. The GPU subcommands exit 2 without
@@ -17,7 +17,7 @@ from physverify.cli.context import app_context, echo_err, heavy_command
 from physverify.cli.options import ShardOption, StopRuleDeviationOption
 from physverify.core.errors import EXIT_ERROR
 
-NAME = "h3"
+NAME = "compare-generators"
 
 app = typer.Typer(no_args_is_help=True, help="H3: fine-tuned vs base vs best-of-8 (ADR 0013).")
 
