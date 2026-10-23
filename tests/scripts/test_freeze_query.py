@@ -36,6 +36,7 @@ from physverify.synth.store import DatasetStore
 
 HELPER = Path(__file__).resolve().parents[2] / "scripts" / "h200" / "freeze_query.py"
 HEAD = "c" * 40
+DATASETS = PLUGIN_KINDS["datasets"]()
 V1 = "a" * 40
 
 
@@ -331,7 +332,7 @@ def _render(
     config_dir: Path, environ: Mapping[str, str], tmp_path: Path, name: str
 ) -> tuple[dict[str, str], Settings]:
     base = _settings(config_dir, environ, tmp_path)
-    overrides = render_overrides(fresh_settings(base), name, 12345)
+    overrides = render_overrides(fresh_settings(base), DATASETS, name, 12345)
     env = {**environ, **overrides, "PHYSVERIFY__PATHS__DATA_DIR": str(tmp_path / "data")}
     return overrides, load_settings(config_dir, environ=env, profile="precise", device="cpu")
 
@@ -354,7 +355,7 @@ def test_the_render_settings_are_the_fresh_sets(
     assert ood_ds.content_hash() != ds.content_hash()
     assert load_dataset_settings(blind) == ds
     with pytest.raises(QueryError, match="not a fresh Kubric set"):
-        render_overrides(section, "kubric_synthetic", 1)
+        render_overrides(section, DATASETS, "kubric_synthetic", 1)
 
 
 def _stored_plan(settings: Settings) -> DatasetStore:

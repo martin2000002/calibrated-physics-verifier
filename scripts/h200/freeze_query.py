@@ -119,10 +119,12 @@ def _write_manifest(args: argparse.Namespace) -> list[str]:
 
 
 def _render(args: argparse.Namespace) -> list[str]:
+    from physverify.app import plugins
     from physverify.datasets.kubric_fresh import fresh_settings
     from physverify.freeze.fresh_render import VERSION_ENV, plan_lines, render_overrides
 
-    overrides = render_overrides(fresh_settings(_settings()), args.dataset, args.seed)
+    datasets = plugins.PLUGIN_KINDS["datasets"]()
+    overrides = render_overrides(fresh_settings(_settings()), datasets, args.dataset, args.seed)
     if args.command == "render-env":
         return [f"{key}={value}" for key, value in overrides.items()]
     return plan_lines(_settings(overrides), overrides[VERSION_ENV], args.seed)

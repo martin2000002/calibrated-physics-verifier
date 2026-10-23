@@ -19,8 +19,8 @@ from physverify.config.loader import load_settings
 from physverify.config.models import Settings
 from physverify.core.errors import UsageError
 from physverify.datasets._base import DatasetSource
+from physverify.datasets._kubric_synthetic import KubricSynthetic
 from physverify.datasets.kubric_fresh import KubricFresh, KubricFreshBlind, KubricFreshOod
-from physverify.datasets.kubric_synthetic import KubricSynthetic
 from physverify.extraction.cache import StageCache
 from physverify.extraction.pipeline import (
     ExtractionPipeline,
