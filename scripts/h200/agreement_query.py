@@ -19,7 +19,9 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any
 
-from run_query import QueryError, query_settings
+from run_query import query_settings
+
+from physverify.freeze.errors import QueryError
 
 SHOWN_CAPTIONS = 20
 
