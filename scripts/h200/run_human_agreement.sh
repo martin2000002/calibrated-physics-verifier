@@ -1,30 +1,32 @@
 #!/usr/bin/env bash
 # H2 (ADR 0011; ADR 0015 Enmienda 1: CPU) on the H200, in two phases a person runs in turn:
 #
-#   bash scripts/h200/run_human_agreement.sh dev    pre, dev-fetch, dev-extract, dev-verify, freeze (h2_dev);
-#                                             ends with exit 0 and the frozen rule, gate and cut in
-#                                             summary.md, which a person reads before the test phase
-#   bash scripts/h200/run_human_agreement.sh test   test-pre, test-fetch, test-extract, test-verify, then the
-#                                             one pre-registered `agreement compare --rule calibrated`
+#   bash scripts/h200/run_human_agreement.sh dev
+#       pre, dev-fetch, dev-extract, dev-verify, freeze (h2_dev); ends with exit 0 and the frozen
+#       rule, gate and cut in summary.md, which a person reads before the test phase
+#   bash scripts/h200/run_human_agreement.sh test
+#       test-pre, test-fetch, test-extract, test-verify, then the one pre-registered
+#       `agreement compare --rule calibrated`
 #
 # Every call is --profile precise --device cpu (the VideoPhy cache keys are the CPU ones) through
-# $PHYSVERIFY_AGREEMENT_PYTHON, with CUDA_VISIBLE_DEVICES empty: no uv, no setup_cuda.sh, no GPU. Extract and
-# verify exit 1 when some clips fail; compare counts those clips, so that is not fatal. The `pre`
-# steps verify one cached clip and stop when its checks carry an error (an uncached heavy stage),
-# so a wrong cache stops before hours of recomputation.
+# $PHYSVERIFY_AGREEMENT_PYTHON, with CUDA_VISIBLE_DEVICES empty: no uv, no setup_cuda.sh, no GPU.
+# Extract and verify exit 1 when some clips fail; compare counts those clips, so that is not fatal.
+# The `pre` steps verify one cached clip and stop when its checks carry an error (an uncached heavy
+# stage), so a wrong cache stops before hours of recomputation.
 #
 # Startup (exit 2, before any physverify call): the phase argument; no PHYSVERIFY__* variable but
 # the ones this script exports (a foreign one would change verify or the rule without moving the
 # frozen hashes), no PHYSVERIFY_CONFIG_DIR and no configs/local.toml (git status cannot see it);
 # PHYSVERIFY_AGREEMENT_DEVICE cpu; HEAD is PHYSVERIFY_AGREEMENT_EXPECT_COMMIT with nothing
 # uncommitted or untracked under src, configs, scripts or annotations; no other instance on
-# $OUT/run.lock; the A8 v2 CPU chain in PHYSVERIFY_AGREEMENT_CHAIN_DIR completed steps 0..9 and published
-# calibration.json, exclusions.json and stage_errors.precise.json in the calibration directory, or,
-# with PHYSVERIFY_AGREEMENT_FREEZE, the freeze manifest (run_freeze.sh) stands for that chain: device cpu,
-# HEAD its commit, the calibration directory its own and its frozen files unchanged; its record_sha
-# is what A8 v2's RECORD_SHA is (plan-congelado section 5, Juicio J12).
-# Then doctor must report config_dir $REPO_ROOT/configs, device cpu, the four exported paths, the precise error profile and the
-# thresholds of that calibration directory, and the caption review must be recorded.
+# $OUT/run.lock; the A8 v2 CPU chain in PHYSVERIFY_AGREEMENT_CHAIN_DIR completed steps 0..9 and
+# published calibration.json, exclusions.json and stage_errors.precise.json in the calibration
+# directory, or, with PHYSVERIFY_AGREEMENT_FREEZE, the freeze manifest (run_freeze.sh) stands for
+# that chain: device cpu, HEAD its commit, the calibration directory its own and its frozen files
+# unchanged; its record_sha is what A8 v2's RECORD_SHA is (plan-congelado section 5, Juicio J12).
+# Then doctor must report config_dir $REPO_ROOT/configs, device cpu, the four exported paths, the
+# precise error profile and the thresholds of that calibration directory, and the caption review
+# must be recorded.
 #
 # dev refuses once a test comparison is logged (a freeze after looking at test is post hoc). After
 # the freeze the pre-registration must be calibrated (or carry a calibration gate), cpu, precise,
@@ -34,28 +36,29 @@
 #
 # test runs once: it refuses, with no physverify call, when state.env records TEST_COMPARED, the
 # comparison log has an entry, or so does any log listed in $H200_ROOT/h2-test-ledger.txt (each
-# test phase lists its log there before compare, so moving PHYSVERIFY_AGREEMENT_DIR and PHYSVERIFY_AGREEMENT_DATA
-# does not hide a spent test). No variable skips this; dev refuses on the same evidence. It requires the freeze step's last
-# exit 0 and every value dev recorded unchanged. A pre-registration with a calibration gate (the
-# stratum was not usable) makes H2 "not evaluable with the calibrated rule" whether or not test
-# runs; test then needs PHYSVERIFY_AGREEMENT_ACCEPT_NOT_EVALUABLE=1 to spend it on that result.
+# test phase lists its log there before compare, so moving PHYSVERIFY_AGREEMENT_DIR and
+# PHYSVERIFY_AGREEMENT_DATA does not hide a spent test). No variable skips this; dev refuses on the
+# same evidence. It requires the freeze step's last exit 0 and every value dev recorded unchanged.
+# A pre-registration with a calibration gate (the stratum was not usable) makes H2 "not evaluable
+# with the calibrated rule" whether or not test runs; test then needs
+# PHYSVERIFY_AGREEMENT_ACCEPT_NOT_EVALUABLE=1 to spend it on that result.
 #
-# Optional (defaults in brackets):
-#   PHYSVERIFY_AGREEMENT_EXPECT_COMMIT     required: prefix (>= 7 chars) of the HEAD this checkout is at
-#   PHYSVERIFY_AGREEMENT_PYTHON            interpreter [/home/mmonterot/dev/venv/bin/python]
-#   PHYSVERIFY_AGREEMENT_THREADS           runtime.threads [32]
-#   PHYSVERIFY_AGREEMENT_DIR               output: logs/, steps.tsv, state.env, summary.md [$H200_ROOT/h2]
-#   PHYSVERIFY_AGREEMENT_DATA              paths.data_dir: runs, agreement/ [$H200_ROOT/h2-data]
-#   PHYSVERIFY_AGREEMENT_CACHE_DIR         paths.cache_dir [$H200_ROOT/Repo/data/cache]
-#   PHYSVERIFY_AGREEMENT_RAW_DIR           paths.raw_dir, the VideoPhy videos [$H200_ROOT/Repo/data/raw]
-#   PHYSVERIFY_AGREEMENT_CALIBRATION_DIR   A8 v2 CPU artifacts, read only [$H200_ROOT/kubric-data/calibration]
-#   PHYSVERIFY_AGREEMENT_CHAIN_DIR         the A8 v2 CPU run, read only [$H200_ROOT/a8v2]
-#   PHYSVERIFY_AGREEMENT_FREEZE            the freeze's freeze.json in place of the A8 v2 run [none]; set
-#                                          PHYSVERIFY_AGREEMENT_CALIBRATION_DIR to its calibration directory
-#   PHYSVERIFY_AGREEMENT_PREFLIGHT_CLIP    dev preflight clip [v1-a8208f4dd41e]
-#   PHYSVERIFY_AGREEMENT_PREFLIGHT_TEST_CLIP  test preflight clip [the first h2_test clip with a video
-#                                          and an object query]
-#   PHYSVERIFY_AGREEMENT_ACCEPT_NOT_EVALUABLE  1 to run test on a pre-registration with a calibration gate
+# Optional (defaults in brackets), all PHYSVERIFY_AGREEMENT_*:
+#   EXPECT_COMMIT            required: prefix (>= 7 chars) of the HEAD this checkout is at
+#   PYTHON                   interpreter [/home/mmonterot/dev/venv/bin/python]
+#   THREADS                  runtime.threads [32]
+#   DIR                      output: logs/, steps.tsv, state.env, summary.md [$H200_ROOT/h2]
+#   DATA                     paths.data_dir: runs, agreement/ [$H200_ROOT/h2-data]
+#   CACHE_DIR                paths.cache_dir [$H200_ROOT/Repo/data/cache]
+#   RAW_DIR                  paths.raw_dir, the VideoPhy videos [$H200_ROOT/Repo/data/raw]
+#   CALIBRATION_DIR          A8 v2 CPU artifacts, read only [$H200_ROOT/kubric-data/calibration]
+#   CHAIN_DIR                the A8 v2 CPU run, read only [$H200_ROOT/a8v2]
+#   FREEZE                   the freeze's freeze.json in place of the A8 v2 run [none]; set
+#                            CALIBRATION_DIR to its calibration directory
+#   PREFLIGHT_CLIP           dev preflight clip [v1-a8208f4dd41e]
+#   PREFLIGHT_TEST_CLIP      test preflight clip [the first h2_test clip with a video and an object
+#                            query]
+#   ACCEPT_NOT_EVALUABLE     1 to run test on a pre-registration with a calibration gate
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/_common.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/_steps.sh"
@@ -143,10 +146,6 @@ if [[ -f "$STATE" ]]; then
     source "$STATE"
 fi
 
-query() {
-    h200_py "$@"
-}
-
 # a8v2_state KEY: KEY of the A8 v2 state.env, read in a subshell so nothing here is overwritten.
 a8v2_state() {
     (
@@ -174,7 +173,7 @@ require_a8v2() {
 
 # freeze_field KEY: one value of the freeze manifest.
 freeze_field() {
-    query freeze_query.py field "$FREEZE" "$1" || die "$FREEZE gives no $1"
+    h200_py freeze_query.py field "$FREEZE" "$1" || die "$FREEZE gives no $1"
 }
 
 require_freeze() {
@@ -186,7 +185,7 @@ require_freeze() {
         || die "$FREEZE froze $(freeze_field calibration_dir), not $CAL" \
             "(set PHYSVERIFY_AGREEMENT_CALIBRATION_DIR to it)"
     A8V2_RECORD_SHA="$(freeze_field record_sha)"
-    query freeze_query.py artifacts "$FREEZE" >/dev/null \
+    h200_py freeze_query.py artifacts "$FREEZE" >/dev/null \
         || die "the frozen files of $FREEZE changed (freeze_query artifacts)"
 }
 
@@ -207,7 +206,7 @@ artifacts_unchanged() {
 # an entry.
 untested() {
     local n log
-    n="$(query agreement_query.py tested)" || die "cannot read the test-comparison log"
+    n="$(h200_py agreement_query.py tested)" || die "cannot read the test-comparison log"
     [[ "$n" == 0 ]] || return 1
     [[ -f "$LEDGER" ]] || return 0
     while IFS= read -r log; do
@@ -218,7 +217,7 @@ untested() {
 # Lists this phase's comparison log in the ledger before compare can write to it.
 enter_ledger() {
     local log
-    log="$(query agreement_query.py log-path)" || die "cannot locate the test-comparison log"
+    log="$(h200_py agreement_query.py log-path)" || die "cannot locate the test-comparison log"
     grep -qxF -- "$log" "$LEDGER" 2>/dev/null || printf '%s\n' "$log" >>"$LEDGER"
 }
 
@@ -243,7 +242,7 @@ check_doctor() {
 }
 
 prereg_field() {
-    query agreement_query.py prereg "$PREREG" "$1" || die "cannot read $1 of $PREREG"
+    h200_py agreement_query.py prereg "$PREREG" "$1" || die "cannot read $1 of $PREREG"
 }
 
 # What makes the pre-registration unusable for H2 (nothing when it is usable).
@@ -275,7 +274,7 @@ preflight() {
     local run errors
     run="$(run_of)"
     # verify exits 0 on an uncached clip: its rows abstain with the error in checks.jsonl.
-    errors="$(query run_query.py run-errors "$run" 2>&1)" \
+    errors="$(query run-errors "$run" 2>&1)" \
         || stop "preflight: $3 failed or is not cached for --device cpu:"$'\n'"$errors"
     note "preflight: $2 $3 cached, run $run"
     row 0
@@ -297,7 +296,7 @@ pass() {
 
 note_gaps() {
     local lines
-    lines="$(query agreement_query.py gaps "$1")" || die "cannot count the input gaps of $1"
+    lines="$(h200_py agreement_query.py gaps "$1")" || die "cannot count the input gaps of $1"
     note_block "Input gaps ($1)" <<<"$lines"
 }
 
@@ -367,7 +366,7 @@ phase_test() {
     [[ "$CONFIG_HASH" == "${DEV_CONFIG_HASH:-}" ]] \
         || die "doctor's config_hash $CONFIG_HASH differs from the dev phase's ${DEV_CONFIG_HASH:-?}"
     local clip="${PHYSVERIFY_AGREEMENT_PREFLIGHT_TEST_CLIP:-}"
-    [[ -n "$clip" ]] || clip="$(query agreement_query.py ready "$TEST_SUBSET")" \
+    [[ -n "$clip" ]] || clip="$(h200_py agreement_query.py ready "$TEST_SUBSET")" \
         || die "no $TEST_SUBSET clip to preflight"
     preflight test-pre "$TEST_SUBSET" "$clip"
     pass test "$TEST_SUBSET"
