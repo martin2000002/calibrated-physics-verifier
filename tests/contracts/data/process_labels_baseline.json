@@ -1298,21 +1298,22 @@
   "identifier": 19,
   "literal": 1
  },
- "tests/scripts/human_agreement/test_h2_script.py": {
+ "tests/scripts/human_agreement/test_human_agreement_script.py": {
   "comment_or_docstring": 3,
   "identifier": 12,
   "literal": 5
- },
- "tests/scripts/test_a8v2_query.py": {
-  "identifier": 1,
-  "literal": 2
  },
  "tests/scripts/test_freeze_query.py": {
   "comment_or_docstring": 18,
   "literal": 17
  },
- "tests/scripts/test_h3_scripts.py": {
+ "tests/scripts/test_generator_comparison_scripts.py": {
   "comment_or_docstring": 1
+ },
+ "tests/scripts/test_perception_iteration_script.py": {
+  "comment_or_docstring": 3,
+  "identifier": 1,
+  "literal": 29
  },
  "tests/scripts/test_run_final_script.py": {
   "comment_or_docstring": 27,
@@ -1322,10 +1323,9 @@
   "comment_or_docstring": 14,
   "literal": 10
  },
- "tests/scripts/test_run_iteration_script.py": {
-  "comment_or_docstring": 3,
+ "tests/scripts/test_run_query.py": {
   "identifier": 1,
-  "literal": 29
+  "literal": 2
  },
  "tests/selective_risk/test_abstain_tables.py": {
   "comment_or_docstring": 6
