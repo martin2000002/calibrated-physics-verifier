@@ -1,0 +1,26 @@
+diff -r left/_capture/help.err right/_capture/help.err
+20d19
+< === dataset audit-migration
+diff -r left/_capture/help.out right/_capture/help.out
+312,314d311
+< │ audit-migration   Acceptance audit of a migration against a copy of the dataset taken before it (re-renders, frames, │
+< │                   contacts, records, labels, rest cells, stale cache, plus the checks of every ground-truth fix the  │
+< │                   run covers); JSON to --out.                                                                        │
+316,332d312
+< ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+< 
+< === dataset audit-migration
+<                                                                                                                         
+<  Usage: physverify dataset audit-migration [OPTIONS]                                                                    
+<                                                                                                                         
+<  Acceptance audit of a migration against a copy of the dataset taken before it (re-renders, frames, contacts, records,  
+<  labels, rest cells, stale cache, plus the checks of every ground-truth fix the run covers); JSON to --out.             
+<                                                                                                                         
+< ╭─ Options ────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+< │ *  --before            <path>  The dataset directory copied before migrating. [required]                             │
+< │ *  --out               <path>  Where to write the JSON report. [required]                                            │
+< │    --cache-root        <path>  Cache root (repeatable; default: paths.cache_dir).                                    │
+< │    --table             <path>  table.csv of an oracle verify run (repeatable).                                       │
+< │    --name              <str>   velocity-<convention> (WP-G 1.C, the default) or the ground-truth fix the plan needs  │
+< │                                next, in order: floor-crossing, pair-collision.                                       │
+< │    --help                      Show this message and exit.                                                           │

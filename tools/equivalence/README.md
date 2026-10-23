@@ -26,6 +26,21 @@ calibration fixture and `scenario` (scenes) datasets to `PLUGIN_KINDS["datasets"
 Old command and option names are translated when the checkout only has the new ones
 (`COMMAND_RENAMES`, `OPTION_RENAMES` in `driver.py`).
 
+## Expected differences
+
+Intended behavior changes are recorded in `expected/`, one `.diff` file per change, cumulative from
+`9eb5888`: each holds the lines that change adds to `diff.txt` (the output of `diff -r left right`
+run inside `norm/`, so paths are relative). The harness sorts `diff.txt` and the concatenation of
+the selected files and passes only when they are equal line for line; any extra or missing line is
+written to `unexpected.txt`. By default every `expected/*.diff` is selected; `EQ_EXPECTED="a.diff
+b.diff"` selects only those names, and `EQ_EXPECTED=` (empty) expects identical outputs, as for
+`9eb5888 9eb5888`. To add one, run the harness, check that `unexpected.txt` holds only the new
+change, and save those lines (without the `<`/`>` prefix of `unexpected.txt`, i.e. the matching
+lines of `diff.txt`) as a new file.
+
+- `wp1-audit-migration.diff`: WP1 (`2b34c0e`) removed `dataset audit-migration`, so its `--help`
+  page and its row in `dataset --help` are gone.
+
 ## Scenarios (J10 a: each asserts its exit code and that it wrote files or printed output)
 
 | Scenario | Command | Exit |
@@ -69,7 +84,7 @@ name, size and payload sha256 (zip entry times change on every write).
 
 ## Baseline
 
-Outputs go to `$EQ_WORKDIR` (default `$TMPDIR/physverify-equivalence`); rerun `9eb5888 9eb5888` to rebuild the base baseline (161 files, scenes scenarios included).
+Outputs go to `$EQ_WORKDIR` (default `$TMPDIR/physverify-equivalence`); rerun `EQ_EXPECTED= ... 9eb5888 9eb5888` to rebuild the base baseline (161 files, scenes scenarios included).
 Results recorded with the current scenario list and per-side inputs:
 
 - 9eb5888 vs 9eb5888: identical (161 files); 59 golden blobs identical.

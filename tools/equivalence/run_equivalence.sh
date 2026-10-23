@@ -5,7 +5,10 @@
 #   run_equivalence.sh <left-rev> <right-rev>     e.g. 9eb5888 refactor/architecture
 #
 # Output under $EQ_WORKDIR (default $TMPDIR/physverify-equivalence): out/<label>/ (raw run dirs), norm/<label>/ (normalized), diff.txt, golden.txt.
-# Exit 0 only when the normalized trees and the golden blob lists are identical.
+# EQ_EXPECTED: space-separated file names under expected/ whose concatenated lines are the expected
+# normalized diff (default: every expected/*.diff; set it empty to expect no difference).
+# Exit 0 only when the sorted normalized diff equals the sorted expected lines and the golden blob
+# lists are identical.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -18,6 +21,15 @@ OUT="$WORK/out"
 NORM="$WORK/norm"
 
 [[ $# -eq 2 ]] || { sed -n '5,6p' "$0" >&2; exit 2; }
+EXPECTED_DIR="$HERE/expected"
+if [[ -v EQ_EXPECTED ]]; then
+    read -r -a EXPECTED <<<"$EQ_EXPECTED"
+else
+    EXPECTED=()
+    for file in "$EXPECTED_DIR"/*.diff; do
+        [[ -e "$file" ]] && EXPECTED+=("$(basename "$file")")
+    done
+fi
 LEFT="$1" RIGHT="$2"
 
 worktree() { # <dir> <rev>
@@ -81,10 +93,24 @@ status=0
 run_side left "$LEFT" || status=1
 run_side right "$RIGHT" || status=1
 
-if diff -r "$NORM/left" "$NORM/right" >"$WORK/diff.txt"; then
+expected_lines() {
+    local name
+    for name in "${EXPECTED[@]}"; do
+        cat "$EXPECTED_DIR/$name"
+    done
+}
+
+diff_status=0
+(cd "$NORM" && diff -r left right) >"$WORK/diff.txt" || diff_status=$?
+if ((diff_status > 1)); then
+    echo "diff -r failed (exit $diff_status)" >&2
+    status=1
+elif [[ ! -s "$WORK/diff.txt" && ${#EXPECTED[@]} -eq 0 ]]; then
     echo "normalized outputs identical ($(find "$NORM/left" -type f | wc -l) files)"
+elif diff <(sort "$WORK/diff.txt") <(expected_lines | sort) >"$WORK/unexpected.txt"; then
+    echo "normalized outputs differ only as expected (${EXPECTED[*]}; $(wc -l <"$WORK/diff.txt") lines)"
 else
-    echo "normalized outputs DIFFER: see $WORK/diff.txt ($(wc -l <"$WORK/diff.txt") lines)"
+    echo "normalized outputs DIFFER from expected (${EXPECTED[*]:-none}): see $WORK/diff.txt and $WORK/unexpected.txt ($(wc -l <"$WORK/unexpected.txt") lines)"
     status=1
 fi
 
