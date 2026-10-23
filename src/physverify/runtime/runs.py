@@ -9,11 +9,12 @@ import subprocess
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import Final
 
 from physverify.config.models import Settings
 from physverify.core.atomic import write_text_atomic
 
-RUN_FILE = "run.json"
+RUN_FILE: Final = "run.json"
 
 
 def new_run_id(now: dt.datetime, token: str | None = None) -> str:
