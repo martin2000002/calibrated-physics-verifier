@@ -174,14 +174,21 @@ def _seed(calibration: Path, exclusions: Path) -> int:
     return int(hashlib.sha256(joined.encode("utf-8")).hexdigest()[:8], 16)
 
 
+REPO_CONFIG_FILES = {
+    "default.toml": "default\n",
+    "verifier/checks.toml": "frozen checks\n",
+    "studies/fusion.toml": "fusion\n",
+}
+
+
 class FinalSandbox(Sandbox):
     def __init__(self, root: Path) -> None:
         super().__init__(root.resolve(), SCRIPT_NAMES, TOOLS)
         self.ledger = self.root / "ledger.jsonl"
         self.ledger.touch()
-        (self.repo / "configs").mkdir()
-        (self.repo / "configs" / "checks.toml").write_text("frozen checks\n", encoding="utf-8")
-        (self.repo / "configs" / "fusion.toml").write_text("fusion\n", encoding="utf-8")
+        for name, text in REPO_CONFIG_FILES.items():
+            (self.repo / "configs" / name).parent.mkdir(parents=True, exist_ok=True)
+            (self.repo / "configs" / name).write_text(text, encoding="utf-8")
         executable(self.scripts / "run_kubric.sh", FAKE_KUBRIC)
         executable(self.fakes / "python", FAKE_PYTHON)
         executable(self.fakes / "git", FAKE_GIT)
@@ -733,3 +740,74 @@ def test_an_unchanged_checks_toml_is_not_a_foreign_config_difference(sandbox: Fi
     sandbox.ok("look", "kubric_fresh")
     sandbox.ok("v1arm", "kubric_fresh")
     assert (sandbox.final / "v1arm" / "configs.diff").read_text("utf-8") == "\n"
+
+
+def test_the_v1_arm_flattens_the_nested_configs(sandbox: FinalSandbox) -> None:
+    """The v1 checkout reads one flat directory; only checks.toml differs from the freeze."""
+    _ready(sandbox)
+    sandbox.ok("look", "kubric_fresh")
+    sandbox.ok("v1arm", "kubric_fresh")
+    arm = sandbox.final / "v1arm"
+    assert sorted(p.name for p in (arm / "configs").iterdir()) == [
+        "checks.toml",
+        "default.toml",
+        "fusion.toml",
+    ]
+    frozen = sandbox.repo / "configs" / "verifier" / "checks.toml"
+    assert (arm / "configs.diff").read_text("utf-8") == (
+        f"diff -r {frozen} {arm / 'configs' / 'checks.toml'}\n"
+        "1c1\n< frozen checks\n---\n> v1 checks\n"
+    )
+
+
+def test_two_config_files_sharing_a_name_cannot_be_flattened(sandbox: FinalSandbox) -> None:
+    (sandbox.repo / "configs" / "verifier" / "fusion.toml").write_text("other\n", encoding="utf-8")
+    _ready(sandbox)
+    sandbox.ok("look", "kubric_fresh")
+    result = sandbox.run("v1arm", "kubric_fresh")
+    assert result.returncode == 2 and "holds two files named fusion.toml" in result.stderr
+    assert not (sandbox.final / "v1arm" / "configs").exists()
+
+
+@pytest.mark.parametrize(
+    ("place", "message"),
+    [("repo", "beyond checks.toml: no extra.toml"), ("arm", "beyond checks.toml: extra files")],
+)
+def test_a_config_file_on_one_side_only_stops_the_v1_arm(
+    sandbox: FinalSandbox, place: str, message: str
+) -> None:
+    """A file the other side lacks (an untracked local.toml, say) is never ignored."""
+    _ready(sandbox)
+    sandbox.ok("look", "kubric_fresh")
+    arm = sandbox.final / "v1arm" / "configs"
+    arm.mkdir(parents=True)
+    for name, text in REPO_CONFIG_FILES.items():
+        (arm / Path(name).name).write_text(text, encoding="utf-8")
+    extra = sandbox.repo / "configs" / "studies" if place == "repo" else arm
+    (extra / "extra.toml").write_text("extra\n", encoding="utf-8")
+    result = sandbox.run("v1arm", "kubric_fresh")
+    assert result.returncode == 2 and message in result.stderr, result.stderr
+
+
+def test_a_config_file_other_than_checks_that_differs_stops_the_v1_arm(
+    sandbox: FinalSandbox,
+) -> None:
+    _ready(sandbox)
+    sandbox.ok("look", "kubric_fresh")
+    arm = sandbox.final / "v1arm" / "configs"
+    arm.mkdir(parents=True)
+    for name, text in REPO_CONFIG_FILES.items():
+        (arm / Path(name).name).write_text(text, encoding="utf-8")
+    (arm / "fusion.toml").write_text("edited fusion\n", encoding="utf-8")
+    result = sandbox.run("v1arm", "kubric_fresh")
+    assert result.returncode == 2, result.stderr
+    assert "beyond checks.toml: fusion.toml" in result.stderr, result.stderr
+
+
+def test_a_rerun_of_the_v1_arm_needs_the_same_configs_diff(sandbox: FinalSandbox) -> None:
+    _ready(sandbox)
+    sandbox.ok("look", "kubric_fresh")
+    sandbox.ok("v1arm", "kubric_fresh")
+    (sandbox.final / "v1arm" / "configs" / "checks.toml").write_text("edited\n", encoding="utf-8")
+    result = sandbox.run("v1arm", "kubric_fresh")
+    assert result.returncode == 2 and "configs changed since" in result.stderr, result.stderr

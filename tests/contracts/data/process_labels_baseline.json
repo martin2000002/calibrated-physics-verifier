@@ -1,62 +1,68 @@
 {
- "configs/abstention.toml": {
-  "config_or_script_text": 2
+ "configs/datasets/kubric_fresh.toml": {
+  "config_or_script_text": 1
  },
- "configs/agreement.toml": {
-  "config_or_script_text": 9
- },
- "configs/calibration.toml": {
-  "config_or_script_text": 11
- },
- "configs/check_scope.toml": {
-  "config_or_script_text": 5
- },
- "configs/checks.toml": {
-  "config_or_script_text": 8
- },
- "configs/dataset.toml": {
+ "configs/datasets/kubric_synthetic.toml": {
   "config_or_script_text": 7
+ },
+ "configs/datasets/pisa_real.toml": {
+  "config_or_script_text": 1
+ },
+ "configs/datasets/videophy.toml": {
+  "config_or_script_text": 2
  },
  "configs/default.toml": {
   "config_or_script_text": 1
  },
- "configs/demo.toml": {
+ "configs/studies/demo.toml": {
   "config_or_script_text": 4
  },
- "configs/diagnosis.toml": {
-  "config_or_script_text": 4
- },
- "configs/exclusion_rules.toml": {
-  "config_or_script_text": 6
- },
- "configs/extraction.toml": {
-  "config_or_script_text": 13
- },
- "configs/finetune.toml": {
-  "config_or_script_text": 4
- },
- "configs/h1_scenes.toml": {
-  "config_or_script_text": 4
- },
- "configs/h3.toml": {
-  "config_or_script_text": 4
- },
- "configs/kubric_fresh.toml": {
-  "config_or_script_text": 1
- },
- "configs/sealed.toml": {
-  "config_or_script_text": 2
- },
- "configs/size_model.toml": {
-  "config_or_script_text": 1
- },
- "configs/size_priors.toml": {
-  "config_or_script_text": 2
- },
- "configs/sizing.toml": {
+ "configs/studies/diagnosis.toml": {
   "config_or_script_text": 3
  },
- "configs/timing.toml": {
+ "configs/studies/finetune.toml": {
+  "config_or_script_text": 4
+ },
+ "configs/studies/generator_comparison.toml": {
+  "config_or_script_text": 4
+ },
+ "configs/studies/human_agreement.toml": {
+  "config_or_script_text": 7
+ },
+ "configs/studies/primary_scenes.toml": {
+  "config_or_script_text": 4
+ },
+ "configs/studies/selective_risk.toml": {
+  "config_or_script_text": 2
+ },
+ "configs/studies/timing.toml": {
+  "config_or_script_text": 3
+ },
+ "configs/verifier/calibration.toml": {
+  "config_or_script_text": 11
+ },
+ "configs/verifier/check_scope.toml": {
+  "config_or_script_text": 5
+ },
+ "configs/verifier/checks.toml": {
+  "config_or_script_text": 8
+ },
+ "configs/verifier/exclusion_rules.toml": {
+  "config_or_script_text": 6
+ },
+ "configs/verifier/extraction.toml": {
+  "config_or_script_text": 13
+ },
+ "configs/verifier/sealed.toml": {
+  "config_or_script_text": 2
+ },
+ "configs/verifier/size_model.toml": {
+  "config_or_script_text": 1
+ },
+ "configs/verifier/size_priors.toml": {
+  "config_or_script_text": 2
+ },
+ "configs/verifier/sizing.toml": {
   "config_or_script_text": 3
  },
  "scripts/h200/README.md": {

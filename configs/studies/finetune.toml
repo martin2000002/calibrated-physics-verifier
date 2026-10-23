@@ -1,6 +1,6 @@
 # Preference pairs and Flow-DPO LoRA fine-tuning of Wan2.1-T2V-1.3B (cycle A11, ADR 0012).
-# Generator parameters are NOT here: they come from [timing.generation] (configs/timing.toml),
-# so the cost measured by A3 is the cost of these videos.
+# Generator parameters are NOT here: they come from [timing.generation]
+# (configs/studies/timing.toml), so the cost measured by A3 is the cost of these videos.
 # Values marked [estimated] come from the literature or a guess and are fixed by the pilot
 # (20 train prompts x K = 4); [finetune.stop_rule] holds the pilot's stop rule.
 

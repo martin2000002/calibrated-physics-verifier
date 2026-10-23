@@ -41,7 +41,7 @@ from physverify.sizing.settings import EndToEndSettings, sizing_settings
 from physverify.verification.inputs import refuse_heavy
 
 SCALE_METHODS = ("size_prior", "size_model")
-MODEL_FILE = "size_model.toml"
+MODEL_FILE = "verifier/size_model.toml"
 
 
 def fetch_heads(settings: Settings, *, echo: Echo) -> None:
@@ -84,7 +84,7 @@ def evaluate_test_split(context: AppContext) -> tuple[dict[str, Any], Path]:
     sizing = sizing_settings(settings)
     model = settings.section(MODEL_SECTION, SizeModelTable)
     if not model.classes:
-        raise MissingInputError("configs/size_model.toml is empty; run `size fit` first")
+        raise MissingInputError(f"configs/{MODEL_FILE} is empty; run `size fit` first")
     test = load_samples(settings, sizing, TEST, objectron.UrllibPrefixReader())
     priors = settings.section(SIZE_PRIORS_SECTION, SizePriorTable).root
     report = evaluate(

@@ -1,5 +1,6 @@
 """Builders of the exclusion decision (ADR 0015 1.1/1.2/1.5) shared by the calibration tests and
-by the consumers' tests (H2, H3): the rules come from the real ``configs/exclusion_rules.toml``."""
+by the consumers' tests (H2, H3): the rules come from the real
+``configs/verifier/exclusion_rules.toml``."""
 
 from __future__ import annotations
 
@@ -35,7 +36,7 @@ from physverify.stats.intervals import Ci, Rate
 from physverify.verification.exclusion_record import ExclusionRecord, InputHashes, RuleEvidence
 
 REPO = Path(__file__).resolve().parents[2]
-RULES_TOML = REPO / "configs" / "exclusion_rules.toml"
+RULES_TOML = REPO / "configs" / "verifier" / "exclusion_rules.toml"
 FAMILY = "f4_stack"
 R2_PERT = "r2_unsupported_rest"
 PRECISE = "precise"

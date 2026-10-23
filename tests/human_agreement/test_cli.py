@@ -102,7 +102,7 @@ def test_a_changed_config_breaks_the_preregistration(cli, world) -> None:
 
 
 def test_the_committed_rule_is_calibrated_with_the_descriptive_fallback(repo_root: Path) -> None:
-    with (repo_root / "configs" / "agreement.toml").open("rb") as handle:
+    with (repo_root / "configs" / "studies" / "human_agreement.toml").open("rb") as handle:
         agreement = tomllib.load(handle)["agreement"]
     assert agreement["rule"] == "calibrated"
     assert agreement["on_unusable_stratum"] == "descriptive"

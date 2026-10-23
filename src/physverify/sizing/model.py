@@ -31,7 +31,7 @@ class ClassSize(FrozenModel):
 
 
 class SizeModelTable(FrozenModel):
-    """Shape of ``configs/size_model.toml``; empty (no classes) until ``size fit`` runs."""
+    """Shape of ``configs/verifier/size_model.toml``; empty (no classes) until ``size fit`` runs."""
 
     source: str = "empty"
     estimated: Literal[True] = True

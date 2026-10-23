@@ -206,15 +206,15 @@ belongs to `h3`: `finetune generate|score --split eval` exit 2.
 `base-eval` and `dev` accept the `physverify h3` options (`--shard I/N`, `--limit N`, `--task
 pc|sa`). Every step skips the work it finds done with the same stamp.
 
-`setup_autoeval.sh` is idempotent. It reads the pins from `[h3.autoeval]` in `configs/h3.toml`
-(upstream `code_commit`, `hf_repo` at `hf_revision`). Then it creates a Python 3.10 venv, checks the
-upstream clone out at that commit and installs `autoeval_requirements.txt`. It downloads the model,
-writes `checkpoint.sha256` and stores `uv pip freeze` in `freeze_file`, whose sha256 goes into the
-gate report and the judge stamp. The relative paths sit under `PHYSVERIFY__H3__AUTOEVAL__ROOT`
-(default `$PHYSVERIFY_H200_ROOT`). Only `transformers==4.28.1` is an upstream pin; the torch,
-peft, numpy and Python versions are our choice, and the freeze file records the rest.
-`PHYSVERIFY_AUTOEVAL_UPSTREAM` overrides the clone URL. The GPU steps exit 2 without a CUDA GPU
-before any `uv` call.
+`setup_autoeval.sh` is idempotent. It reads the pins from `[h3.autoeval]` in
+`configs/studies/generator_comparison.toml` (upstream `code_commit`, `hf_repo` at `hf_revision`).
+Then it creates a Python 3.10 venv, checks the upstream clone out at that commit and installs
+`autoeval_requirements.txt`. It downloads the model, writes `checkpoint.sha256` and stores `uv pip
+freeze` in `freeze_file`, whose sha256 goes into the gate report and the judge stamp. The relative
+paths sit under `PHYSVERIFY__H3__AUTOEVAL__ROOT` (default `$PHYSVERIFY_H200_ROOT`). Only
+`transformers==4.28.1` is an upstream pin; the torch, peft, numpy and Python versions are our
+choice, and the freeze file records the rest. `PHYSVERIFY_AUTOEVAL_UPSTREAM` overrides the clone
+URL. The GPU steps exit 2 without a CUDA GPU before any `uv` call.
 
 ## GT migrations
 
@@ -259,18 +259,17 @@ entry). `doctor` must list each swap among its sources, `state.env` records `CHA
 resume with another arm exits 2) and the summary names the arm and the GPU. Give each arm its
 own `PHYSVERIFY_ITER_ID` (e.g. `it3-c`), so it lands in `iterations/it3-c-cuda/`.
 
-The sealed ledger (`configs/sealed.toml`): `calibrate fit|stage-sigma|evaluate|devscore`, `abstain
-fit|curve`, `verify`, `diagnose *` and `scene-stats per-clip` exit 2 before computing on a sealed
-set (`kubric_synthetic:eval`, the fresh controls) unless `PHYSVERIFY_UNSEAL` names it, and then
-append a line to the ledger first. A look never creates the ledger: create it once, by hand,
-with `env.sh` sourced (`touch "$PHYSVERIFY_H200_ROOT/sealed-ledger.txt"`); a missing file (a
-wrong `HOME`, another path) stops the look, and stderr prints the path it resolved. A look needs
-a clean git checkout (nothing uncommitted under `src` or `configs`). Its frozen state is the
-commit, the configuration sections with profile and device (not paths, threads or the lock) and
-the sha256 of `calibration.json` (or the `--artifact` used), `thresholds.json`,
-`exclusions.json` and the error profile; a look under another frozen state, a refit at the same
-commit included, also needs `PHYSVERIFY_UNSEAL_REPEAT=1`. A missing `[sealed]` section fails
-closed.
+The sealed ledger (`configs/verifier/sealed.toml`): `calibrate fit|stage-sigma|evaluate|devscore`,
+`abstain fit|curve`, `verify`, `diagnose *` and `scene-stats per-clip` exit 2 before computing on a
+sealed set (`kubric_synthetic:eval`, the fresh controls) unless `PHYSVERIFY_UNSEAL` names it, and
+then append a line to the ledger first. A look never creates the ledger: create it once, by hand,
+with `env.sh` sourced (`touch "$PHYSVERIFY_H200_ROOT/sealed-ledger.txt"`); a missing file (a wrong
+`HOME`, another path) stops the look, and stderr prints the path it resolved. A look needs a clean
+git checkout (nothing uncommitted under `src` or `configs`). Its frozen state is the commit, the
+configuration sections with profile and device (not paths, threads or the lock) and the sha256 of
+`calibration.json` (or the `--artifact` used), `thresholds.json`, `exclusions.json` and the error
+profile; a look under another frozen state, a refit at the same commit included, also needs
+`PHYSVERIFY_UNSEAL_REPEAT=1`. A missing `[sealed]` section fails closed.
 
 ## Freeze and final looks (amendment 7)
 

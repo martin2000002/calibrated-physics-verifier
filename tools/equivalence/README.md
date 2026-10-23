@@ -40,9 +40,20 @@ lines of `diff.txt`) as a new file.
 
 - `wp1-audit-migration.diff`: WP1 (`2b34c0e`) removed `dataset audit-migration`, so its `--help`
   page and its row in `dataset --help` are gone.
-- `wp4a-config-comments.diff`: WP4a renamed modules that comments in `configs/checks.toml`,
-  `configs/dataset.toml` and `configs/exclusion_rules.toml` name, so those comment lines (and only
-  they) differ in each side's copy of `configs/`.
+  Its hunk headers are where `diff` aligns the deletion, which moved by two lines (same deleted
+  lines) once WP7 changed the `size fit` help further down the page.
+- `wp7-config-layout.diff`: WP7 moved every config file into `configs/verifier/`,
+  `configs/datasets/` and `configs/studies/` (same tables, same `config_hash`). The flat files are
+  `Only in left/repo/configs`, the subdirectories `Only in right/repo/configs`; `doctor`'s
+  `source:` lines name the new paths; the `size fit` help names `configs/verifier/size_model.toml`.
+  An expected diff rather than a normalization: mapping old paths to new ones in the normalizer
+  would hide a file that moved to the wrong place. It retired `wp4a-config-comments.diff` (WP4a's
+  renamed-module comments in `configs/checks.toml`, `dataset.toml` and `exclusion_rules.toml`):
+  with no file of the same path on both sides, `diff -r` no longer compares those files' lines.
+  Coverage lost: from `9eb5888` the harness no longer compares config contents path to path (a
+  comment or blank-line change in a moved file passes unseen). A changed table or value still
+  changes `config_hash`, which `doctor` prints on both sides, and
+  `tests/contracts/test_config_splits.py` pins the split files against the originals.
 
 ## Scenarios (J10 a: each asserts its exit code and that it wrote files or printed output)
 
@@ -95,6 +106,9 @@ Results recorded with the current scenario list and per-side inputs:
   (`penetration_ratio`) by 1.000001. 6dc9f86 vs ef966d1 exits 1, "normalized outputs DIFFER (208
   lines)": `checks.jsonl` and `table.csv` of the three scenes scenarios, plus `specificity.json` and
   `sweep_matrix.csv` of the sweep. Before the scenes dataset the same injection was reported
+  identical.
+- 9eb5888 vs refactor/wp7-k (WP7): differs only as expected (`wp1-audit-migration.diff`,
+  `wp7-config-layout.diff`); `config_hash` and every JSON output identical; 59 golden blobs
   identical.
 - 9eb5888 vs 0d4b15b (WP1 head plus the audit fixes): only `help` differs, by the removed
   `dataset audit-migration` page and its row in `dataset --help` (expected); every other scenario,

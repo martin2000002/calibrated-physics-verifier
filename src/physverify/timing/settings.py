@@ -1,4 +1,5 @@
-"""Settings of the per-clip cost harness: the ``[timing]`` section of ``configs/timing.toml``.
+"""Settings of the per-clip cost harness: the ``[timing]`` section of
+``configs/studies/timing.toml``.
 
 Profiles (``[timing.profiles.<name>]``) are layered by the config loader, like every section.
 """

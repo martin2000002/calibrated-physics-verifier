@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # VideoPhy-2 AutoEval in its own environment (ADR 0013 D4); idempotent, needs no GPU.
-# Pins come from [h3.autoeval] in configs/h3.toml; relative paths are under
-# PHYSVERIFY__H3__AUTOEVAL__ROOT (default $PHYSVERIFY_H200_ROOT). Steps: a Python 3.10 venv,
+# Pins come from [h3.autoeval] in configs/studies/generator_comparison.toml; relative paths are
+# under PHYSVERIFY__H3__AUTOEVAL__ROOT (default $PHYSVERIFY_H200_ROOT). Steps: a Python 3.10 venv,
 # the upstream clone checked out at code_commit, autoeval_requirements.txt, the model at
 # hf_revision, a sha256 manifest of the model files and `uv pip freeze` into freeze_file.
 set -euo pipefail
@@ -11,12 +11,13 @@ source_h200_env
 
 UPSTREAM="${PHYSVERIFY_AUTOEVAL_UPSTREAM:-https://github.com/Hritikbansal/videophy.git}"
 AUTOEVAL_ROOT="${PHYSVERIFY__H3__AUTOEVAL__ROOT:-$H200_ROOT}"
+PINS="configs/studies/generator_comparison.toml"
 
-# The string value of KEY in [h3.autoeval] of configs/h3.toml.
+# The string value of KEY in [h3.autoeval] of $PINS.
 autoeval_value() {
     local value
-    value="$(sed -n '/^\[h3\.autoeval\]/,/^\[/{s/^'"$1"' *= *"\([^"]*\)".*/\1/p}' configs/h3.toml)"
-    [[ -n "$value" ]] || die "configs/h3.toml: [h3.autoeval] $1 is not set"
+    value="$(sed -n '/^\[h3\.autoeval\]/,/^\[/{s/^'"$1"' *= *"\([^"]*\)".*/\1/p}' "$PINS")"
+    [[ -n "$value" ]] || die "$PINS: [h3.autoeval] $1 is not set"
     printf '%s\n' "$value"
 }
 

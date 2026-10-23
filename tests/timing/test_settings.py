@@ -1,4 +1,5 @@
-"""``configs/timing.toml`` under every profile, and the validators of the timing settings."""
+"""``configs/studies/timing.toml`` under every profile, and the validators of the timing
+settings."""
 
 from __future__ import annotations
 

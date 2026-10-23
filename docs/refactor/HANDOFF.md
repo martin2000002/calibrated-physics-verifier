@@ -333,3 +333,47 @@ T-b (data, study and script tests, `bd973b0`):
 - Checks: 3628 collected / 2 deselected before and after, sorted test ids (without path) equal,
   per-test fixture sets of `--setup-plan` equal (`no_network` on 1416 tests before and after);
   1552 passed over the moved directories; process-label totals unchanged (424 keys).
+
+## WP7
+
+Configuration layout (`refactor/wp7-k`, from `5c62128`; K4 has no commit of its own: the test
+consumers had to move with the files in K2 to keep the suite green).
+
+- Layout: only `default.toml` and `local.example.toml` stay in `configs/`. `verifier/`: checks,
+  check_scope, exclusion_rules, extraction, calibration, sealed, sizing, size_priors, size_model.
+  `datasets/`: `kubric_synthetic` (was `dataset.toml`), kubric_fresh, physics_iq,
+  physics_iq_views, objectron_static, pisa_real, videophy. `studies/`: diagnosis,
+  `primary_scenes` (was `h1_scenes`), `human_agreement` (was `agreement`),
+  `generator_comparison` (was `h3`), `selective_risk` (was `abstention`), finetune, timing, demo.
+  `diagnosis.toml` was split into `studies/diagnosis.toml` and the five dataset files, and
+  `agreement.toml` into `studies/human_agreement.toml` and `datasets/videophy.toml`; the blocks
+  moved verbatim, comments included (the concatenation of the pieces equals the old file modulo
+  blank separator lines; the agreement header now precedes [agreement]; pinned by
+  `tests/contracts/test_config_splits.py` against copies of the old files in
+  `tests/contracts/data/pre_split_configs.json`). Section
+  and key names are unchanged, so `config_hash` is too (`test_config_hashes.py` unchanged and
+  green; `doctor` prints the same `config_hash:` for both profiles).
+- Loader (`config/loader.py`, frozen-file departure): `configs/**/*.toml`, sorted by path, with
+  `local*.toml` skipped only at the root (a `local.toml` in a subdirectory is read). `sources`
+  stay absolute; only the duplicate-table error names the files relative to `configs/` (JY14,
+  departure from plan.md C). `config_files` is public so the test fixture reuses it.
+  `cli/main.py` is unchanged (its `configs/` default is still right).
+- `app/sizing.py`: `MODEL_FILE = "verifier/size_model.toml"`; `size fit` creates `verifier/`
+  through `core.atomic.write_atomic` (tested in `tests/sizing/test_fit_cli.py`).
+- Frozen-file departures (ADR 0017): `config/loader.py`; `configs/size_priors.toml` moved to
+  `configs/verifier/`; `tests/conftest.py` and `tests/synth/conftest.py` copy the configs through
+  the new `tests/fixtures/repo_configs.py` (`copy_repo_configs`, subdirectories kept);
+  `README.md`, `scripts/h200/README.md` and `CLAUDE.md` name the new paths.
+- Scripts: `run_final.sh` `v1_configs` (JY1) flattens the freeze's tree for the v1 checkout (which
+  reads only `configs/*.toml`), stops on two files sharing a basename, overlays the v1 checkout's
+  `checks.toml`, compares file by file (only `checks.toml` may differ; a file on one side only
+  stops) and still checks a rerun against `configs.diff`. A v1 arm directory written before WP7
+  cannot be rerun: its `configs.diff` names the old flat paths. `setup_autoeval.sh` reads the pins
+  from `configs/studies/generator_comparison.toml` (J5); `run_h2.sh` names
+  `configs/studies/human_agreement.toml`.
+- Kept verbatim and now stale (follow-up): comments inside the configs that name old paths
+  (`studies/finetune.toml` line 2, the check_scope note in `studies/human_agreement.toml`,
+  `verifier/checks.toml` line 7, `verifier/sizing.toml` line 2).
+- Harness: expected diff `tools/equivalence/expected/wp7-config-layout.diff`;
+  `wp4a-config-comments.diff` retired; `wp1-audit-migration.diff` realigned (same lines). `9eb5888`
+  vs WP7: exit 0, no `config_hash` or JSON difference, 59 golden blobs identical.

@@ -8,7 +8,7 @@ This file is the English summary that binds every cycle.
 
 - **English only** in this repository: code, identifiers, file names, docstrings, commits, docs.
 - **Typed code** (mypy strict on frozen modules), small functions, dependencies injected, no global
-  mutable state, configuration only through `configs/*.toml` + `physverify.config`.
+  mutable state, configuration only through `configs/**/*.toml` + `physverify.config`.
 - **No duplication**: a constant, schema or helper lives in exactly one module. Physics quantities
   are defined once in `physics/{geometry,finite_diff}.py` and `physics/measures/`.
 - **Minimal comments**: only formulas, axis conventions and non-obvious decisions.
@@ -41,8 +41,8 @@ uv run --no-sync mypy
 - Global options go before the subcommand: `--config-dir`, `--profile fast|precise`,
   `--device cpu|cuda|cuda:N`, `--set section.key=value` (repeatable), `--no-lock`,
   `--lock-timeout SECONDS`, `--log-level`.
-- Config precedence (lowest to highest): model defaults < `configs/*.toml` (except `local*.toml`)
-  < `[<section>.profiles.<name>]` of the active profile < `configs/local.toml` <
+- Config precedence (lowest to highest): model defaults < `configs/**/*.toml` (except the root's
+  `local*.toml`) < `[<section>.profiles.<name>]` of the active profile < `configs/local.toml` <
   `PHYSVERIFY__SECTION__KEY` < `--device` / `--profile` < `--set`.
 - Exit codes: 0 ok, 1 error, 2 usage / config / resource budget, 75 heavy lock busy.
 
@@ -91,7 +91,7 @@ Notes:
 Only the main thread changes these, between phases:
 
 - `pyproject.toml`, `uv.lock`, `.python-version`, `.gitignore`, `README.md`, `CLAUDE.md`
-- `configs/default.toml`, `configs/local.example.toml`, `configs/size_priors.toml`
+- `configs/default.toml`, `configs/local.example.toml`, `configs/verifier/size_priors.toml`
 - every `__init__.py`, `src/physverify/py.typed`, every `_base.py`
 - `src/physverify/schema/**`, `core/**`, `config/**`, `runtime/**`
 - `src/physverify/physics/{geometry,finite_diff}.py` and the scaffold's measure modules
@@ -116,16 +116,17 @@ SCHEMA CHANGE REQUEST: <what and why>
 
 | Cycle | Owns |
 |---|---|
-| A4 dataset | `kubric_worker/build_scene.py`, `kubric_worker/tasks/{simulate,contacts,render}.py`, `synth/*.py`, `synth/families/f*.py`, `synth/perturbations/` except `_base.py`, `datasets/kubric_synthetic.py`, `cli/commands/dataset.py`, `configs/dataset.toml`, `tests/synth/**`, `tests/kubric_worker/**` |
-| A5 extractor | `extraction/{settings,plan,cache,pipeline,weights,matching}.py`, `extraction/providers/*.py`, `physics/{kinematics,uncertainty}.py`, `datasets/local_video.py`, `cli/commands/extract.py`, `configs/extraction.toml`, `tests/extraction/**` |
-| A7 checks | `checks/r*.py`, `checks/_common.py`, `physics/{equilibrium,tracks}.py`, `verification/{inputs,runner,sweep,scope}.py`, `verification/policies/*.py`, `cli/commands/verify.py`, `configs/checks.toml`, `tests/checks/**`, `tests/verification/**` |
-| A6 diagnosis | `diagnosis/` except `_base.py`, `datasets/{_download,physics_iq,pisa_real}.py`, `annotations/*.json`, `cli/commands/{diagnose,data}.py`, `configs/diagnosis.toml`, `tests/diagnosis/**` |
-| A3 timing | `timing/` except `_base.py`, `cli/commands/timing.py`, `scripts/h200/**` (must not assume Docker), `configs/timing.toml`, `tests/timing/**`, `tests/scripts/**` |
-| A8 exclusion rules (WP-J) | `calibration/exclusion_rules.py`, `verification/exclusion_record.py`, `cli/commands/exclusions.py`, `configs/exclusion_rules.toml`, `tests/calibration/{exclusion_cases,test_exclusions,test_exclusions_cli}.py`, `tests/verification/test_scope_record.py` |
-| A8 H1 scope / H3 S5 (WP-J2) | `synth/scene_scope.py`, `configs/h1_scenes.toml`, the H1 primary view in `calibration/{evaluate,artifact,report}.py` and `cli/commands/calibrate.py`, `SECONDARY_TESTS` in `generator_comparison/{preregistered_numbers,prereg,prereg_state}.py`, `tests/calibration/test_monotonicity_primary.py` |
-| Campaign infrastructure (WP-O) | `calibration/{dev_score,sealed_ledger}.py`, `configs/sealed.toml`, `app/sealing.py`, the `devscore` subcommand in `cli/commands/calibrate.py`, `scripts/h200/run_iteration.sh`, `tests/calibration/{test_devscore,test_sealed,test_sealed_cli,test_cli_devscore}.py`, `tests/scripts/test_run_iteration_script.py` |
+| A4 dataset | `kubric_worker/build_scene.py`, `kubric_worker/tasks/{simulate,contacts,render}.py`, `synth/*.py`, `synth/families/f*.py`, `synth/perturbations/` except `_base.py`, `datasets/kubric_synthetic.py`, `cli/commands/dataset.py`, `configs/datasets/kubric_synthetic.toml`, `tests/synth/**`, `tests/kubric_worker/**` |
+| A5 extractor | `extraction/{settings,plan,cache,pipeline,weights,matching}.py`, `extraction/providers/*.py`, `physics/{kinematics,uncertainty}.py`, `datasets/local_video.py`, `cli/commands/extract.py`, `configs/verifier/extraction.toml`, `tests/extraction/**` |
+| A7 checks | `checks/r*.py`, `checks/_common.py`, `physics/{equilibrium,tracks}.py`, `verification/{inputs,runner,sweep,scope}.py`, `verification/policies/*.py`, `cli/commands/verify.py`, `configs/verifier/checks.toml`, `tests/checks/**`, `tests/verification/**` |
+| A6 diagnosis | `diagnosis/` except `_base.py`, `datasets/{_download,physics_iq,pisa_real}.py`, `annotations/*.json`, `cli/commands/{diagnose,data}.py`, `configs/studies/diagnosis.toml`, `configs/datasets/{physics_iq,physics_iq_views,objectron_static,pisa_real}.toml`, `tests/diagnosis/**` |
+| A3 timing | `timing/` except `_base.py`, `cli/commands/timing.py`, `scripts/h200/**` (must not assume Docker), `configs/studies/timing.toml`, `tests/timing/**`, `tests/scripts/**` |
+| A8 exclusion rules (WP-J) | `calibration/exclusion_rules.py`, `verification/exclusion_record.py`, `cli/commands/exclusions.py`, `configs/verifier/exclusion_rules.toml`, `tests/calibration/{exclusion_cases,test_exclusions,test_exclusions_cli}.py`, `tests/verification/test_scope_record.py` |
+| A8 H1 scope / H3 S5 (WP-J2) | `synth/scene_scope.py`, `configs/studies/primary_scenes.toml`, the H1 primary view in `calibration/{evaluate,artifact,report}.py` and `cli/commands/calibrate.py`, `SECONDARY_TESTS` in `generator_comparison/{preregistered_numbers,prereg,prereg_state}.py`, `tests/calibration/test_monotonicity_primary.py` |
+| Campaign infrastructure (WP-O) | `calibration/{dev_score,sealed_ledger}.py`, `configs/verifier/sealed.toml`, `app/sealing.py`, the `devscore` subcommand in `cli/commands/calibrate.py`, `scripts/h200/run_iteration.sh`, `tests/calibration/{test_devscore,test_sealed,test_sealed_cli,test_cli_devscore}.py`, `tests/scripts/test_run_iteration_script.py` |
 | A11 preference / H3 | `finetune/{scorer_scope,stop_rule}.py`, `finetune/scorers/_calibration_status.py`, `cli/commands/{_stop_rule,_finetune_deps}.py`, `tests/finetune/test_{check_scope,stop_rule}.py` |
 
-`configs/check_scope.toml` is shared by A7 (H2 rule scope) and A11 (H3 scorer scope): both read it only through `verification/scope.py`.
-`configs/size_priors.toml` belongs to no cycle: it is frozen so that A4 (sampling synthetic sizes
-and labels) and A5 (the `scale/size_prior` provider) read the same table.
+`configs/verifier/check_scope.toml` is shared by A7 (H2 rule scope) and A11 (H3 scorer scope):
+both read it only through `verification/scope.py`.
+`configs/verifier/size_priors.toml` belongs to no cycle: it is frozen so that A4 (sampling
+synthetic sizes and labels) and A5 (the `scale/size_prior` provider) read the same table.

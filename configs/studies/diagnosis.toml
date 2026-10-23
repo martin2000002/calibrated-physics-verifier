@@ -1,0 +1,42 @@
+# Extractor diagnosis (cycle A6, ADR 0007). Local values are the Entregable 1 proof of the
+# pipeline on this laptop (about 25 synthetic + 5 Physics-IQ + 5 PISA clips). Full datasets and
+# the large runs belong to the H200: `physverify --profile precise --device cuda ... --subset full`.
+# Every threshold-dependent number (verdict flips, fail rates) is provisional until A8.
+[diagnosis]
+dataset = "kubric_synthetic"
+subset = "local"
+profile_split = "calib"
+report_split = "eval"
+min_samples = 30
+
+[diagnosis.metrics]
+boundary_tol_frac = 0.008
+depth_alignment = "clip"
+depth_eps_frac = 1e-3
+contact_min_tiou = 0.3
+impact_half_window_s = 0.125
+
+[diagnosis.end_to_end]
+min_span_iou = 0.1
+z_levels = [1.0, 2.0]
+
+[diagnosis.factorial]
+fixed_ground_truth = ["detect", "camera"]
+bootstrap = 1000
+seed = 0
+ci = 0.95
+
+[diagnosis.scale]
+providers = ["size_prior", "free_fall"]
+
+[diagnosis.real]
+datasets = ["physics_iq", "pisa_real"]
+sealed_controls = ["physics_iq_views", "objectron_static"]
+motion_threshold = 127
+motion_min_frac = 1e-4
+moving_iou = 0.95
+fall_speed_drop = 0.5
+min_fall_frames = 6
+
+[diagnosis.profiles.precise]
+subset = "full"

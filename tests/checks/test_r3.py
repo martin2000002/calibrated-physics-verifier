@@ -25,7 +25,7 @@ NATIVE_SPAN = (9, 22)
 STRIDED_SPANS = {False: (2, 28), True: (4, 28)}
 SAVGOL = SavgolSpec(window=7, polyorder=2)
 POSITION_SIGMA = 0.002
-R3A_THRESHOLD = 0.05  # provisional threshold of configs/checks.toml
+R3A_THRESHOLD = 0.05  # provisional threshold of configs/verifier/checks.toml
 COVERAGE_SEEDS = 200
 
 

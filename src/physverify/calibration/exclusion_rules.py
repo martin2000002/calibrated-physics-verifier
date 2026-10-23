@@ -1,8 +1,9 @@
 """The preregistered exclusion rules 1.1, 1.2 and 1.5 of ADR 0015 (with its Enmienda 1).
 
 Pure: the CLI loads the artifact, the evaluation and the two R2 runs, this module decides. Every
-threshold comes from ``[exclusion_rules]`` (``configs/exclusion_rules.toml``): the model fields
-have no defaults, so no number of a rule lives in code. It imports no consumer (H2, H3, finetune).
+threshold comes from ``[exclusion_rules]`` (``configs/verifier/exclusion_rules.toml``): the model
+fields have no defaults, so no number of a rule lives in code. It imports no consumer (H2, H3,
+finetune).
 """
 
 from __future__ import annotations

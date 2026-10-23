@@ -1,4 +1,5 @@
-"""The ``[diagnosis]`` configuration section (ADR 0007 §4.1, values in configs/diagnosis.toml)."""
+"""The ``[diagnosis]`` configuration section (ADR 0007 §4.1, values in
+configs/studies/diagnosis.toml)."""
 
 from __future__ import annotations
 

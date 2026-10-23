@@ -1,0 +1,50 @@
+[physics_iq]
+bucket_url = "https://storage.googleapis.com/physics-iq-benchmark"
+listing_url = "https://storage.googleapis.com/storage/v1/b/physics-iq-benchmark/o"
+license = "CC-BY-4.0"
+fps_file = 16
+view = "center"
+takes = [1]
+max_clips = 5
+max_frames = 48
+local = [
+    "ball-and-block-fall",
+    "balls-collide",
+    "ball-rolls-off",
+    "unstable-block-stack",
+    "stable-blocks",
+]
+full_dynamic = [
+    "ball-and-block-fall",
+    "ball-hits-duck",
+    "ball-hits-nothing",
+    "ball-in-basket",
+    "ball-ramp",
+    "ball-rolls-off",
+    "ball-rolls-on-glass",
+    "ball-train",
+    "balls-collide",
+    "block-domino",
+    "dominos-with-space",
+    "double-cradle",
+    "duck-and-dominos",
+    "duck-falls-in-box",
+    "marble-run-x",
+    "marble-run-y",
+    "mirror-ball-fall",
+    "roll-behind-box",
+    "roll-front-box",
+    "roll-in-box",
+    "single-cradle",
+    "solid-ball-peakaboo",
+    "two-balls-pass",
+    "unstable-block-stack",
+]
+full_static = ["duck-static", "stable-blocks", "glass-stays-same"]
+retries = 3
+
+[physics_iq.profiles.precise]
+fps_file = 30
+takes = [1, 2]
+max_clips = 0
+max_frames = 0

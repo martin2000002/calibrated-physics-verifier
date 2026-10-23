@@ -10,6 +10,7 @@ from typing import Annotated
 import typer
 
 from physverify.app.sizing import (
+    MODEL_FILE,
     evaluate_end_to_end,
     evaluate_test_split,
     fetch_heads,
@@ -30,7 +31,7 @@ def fetch() -> None:
     fetch_heads(app_context().settings, echo=typer.echo)
 
 
-@app.command("fit", help="Fit the per-class model on train; writes configs/size_model.toml.")
+@app.command("fit", help=f"Fit the per-class model on train; writes configs/{MODEL_FILE}.")
 def fit() -> None:
     model, target, run_dir = fit_and_write(app_context())
     typer.echo(f"model: {target} ({len(model.classes)} classes, factor {model.sigma_factor:.4f})")

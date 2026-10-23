@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -144,3 +146,21 @@ def test_bad_usage_exits_2(sandbox: AutoevalSandbox, args: tuple[str, ...]) -> N
     assert result.returncode == 2
     assert "usage: run_h3.sh" in result.stderr
     assert sandbox.lines() == []
+
+
+def test_setup_autoeval_reads_every_pin_from_the_committed_config() -> None:
+    """The sed of setup_autoeval.sh finds each ``[h3.autoeval]`` value it uses in the repo."""
+    script = (SCRIPTS / "setup_autoeval.sh").read_text(encoding="utf-8")
+    pins = re.search(r'^PINS="(.+)"$', script, re.MULTILINE)
+    reader = re.search(r"^autoeval_value\(\) \{\n.*?^\}\n", script, re.MULTILINE | re.DOTALL)
+    assert pins is not None and reader is not None
+    keys = re.findall(r"autoeval_value (\w+)\)", script)
+    repo = SCRIPTS.parents[1]
+    with (repo / pins.group(1)).open("rb") as handle:
+        expected = tomllib.load(handle)["h3"]["autoeval"]
+    program = f'PINS="{pins.group(1)}"\n{reader.group(0)}for key; do autoeval_value "$key"; done'
+    result = subprocess.run(
+        ["bash", "-c", program, "bash", *keys], cwd=repo, capture_output=True, text=True
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.splitlines() == [expected[key] for key in keys]

@@ -3,17 +3,16 @@
 from __future__ import annotations
 
 import os
-import shutil
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 import pytest
 from cli_runner import CliResult, CliRunner
+from repo_configs import copy_repo_configs
 
 from physverify.cli.main import run
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-REPO_CONFIGS = REPO_ROOT / "configs"
 
 
 @pytest.fixture(scope="session")
@@ -29,11 +28,7 @@ def lock_path(tmp_path: Path) -> Path:
 @pytest.fixture
 def config_dir(tmp_path: Path, lock_path: Path) -> Path:
     """The committed configs plus a local.toml whose heavy lock lives in ``tmp_path``."""
-    target = tmp_path / "repo" / "configs"
-    target.mkdir(parents=True)
-    for source in REPO_CONFIGS.glob("*.toml"):
-        if not source.name.startswith("local"):
-            shutil.copy(source, target / source.name)
+    target = copy_repo_configs(tmp_path / "repo" / "configs")
     (target / "local.toml").write_text(f'[runtime]\nheavy_lock = "{lock_path}"\n', encoding="utf-8")
     return target
 

@@ -294,7 +294,7 @@ def test_a_toml_override_changes_the_plugin_params(
     config_dir: Path, environ: dict[str, str], perturbations: Any
 ) -> None:
     override = (0.3, 0.6, 1.2, 2.4)
-    with (config_dir / "dataset.toml").open("a", encoding="utf-8") as handle:
+    with (config_dir / "datasets" / "kubric_synthetic.toml").open("a", encoding="utf-8") as handle:
         handle.write(f"\n[dataset.perturbations.r4_teleport]\nlevels = {list(override)}\n")
     ds = load_dataset_settings(load_settings(config_dir, environ=environ))
     teleport = perturbations["r4_teleport"]

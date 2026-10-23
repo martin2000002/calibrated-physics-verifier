@@ -17,14 +17,14 @@ describes the architecture.
 
 Every subcommand is implemented and covered by unit tests. The checks are calibrated on the
 calibration split of the synthetic dataset only; `calibrate publish` writes the thresholds that
-`verify` uses, and the values in `configs/checks.toml` are provisional fallbacks for when none is
-published. The tag `final-freeze` marks the frozen verifier (code and configuration) under which
-the sealed sets of `configs/sealed.toml` and the H2 comparison are evaluated. A command refuses to
-compute on a sealed set unless it is unsealed explicitly, and each look is logged before any
-number is computed.
+`verify` uses, and the values in `configs/verifier/checks.toml` are provisional fallbacks for when
+none is published. The tag `final-freeze` marks the frozen verifier (code and configuration) under
+which the sealed sets of `configs/verifier/sealed.toml` and the H2 comparison are evaluated. A
+command refuses to compute on a sealed set unless it is unsealed explicitly, and each look is logged
+before any number is computed.
 
 The calibration artifact is a run output and is not versioned. The size model is
-(`configs/size_model.toml`): its coefficients are estimates and carry their measured error.
+(`configs/verifier/size_model.toml`): its coefficients are estimates and carry their measured error.
 Fine-tuning (A11) and the H3 comparison (A13) are implemented; their generation and training steps
 need a CUDA GPU. The demo (A12) generates a video on the GPU or scores a given video on the CPU.
 
@@ -77,9 +77,13 @@ uv run --no-sync physverify --set runtime.threads=2 doctor
 ```
 
 Global options go before the subcommand. Configuration is layered: model defaults,
-`configs/*.toml`, the active profile, `configs/local.toml`, `PHYSVERIFY__SECTION__KEY` environment
-variables, `--device` / `--profile`, then `--set`. `doctor` prints every effective value with its
-source.
+`configs/**/*.toml`, the active profile, `configs/local.toml`, `PHYSVERIFY__SECTION__KEY`
+environment variables, `--device` / `--profile`, then `--set`. `doctor` prints every effective value
+with its source.
+
+`configs/` holds `default.toml` and `local.example.toml`; `verifier/` the verifier's own settings
+(checks, extraction, calibration, sizing, sealed sets), `datasets/` one file per dataset and
+`studies/` one file per study. Each top-level table lives in exactly one file.
 
 Exit codes: 0 ok, 1 error, 2 usage, configuration or resource budget, 75 heavy lock busy.
 
@@ -122,9 +126,10 @@ Data, model weights and run outputs live under `data/` (ignored by git).
 
 ## Adding a check
 
-A check is one file, `src/physverify/checks/<id>_<name>.py`, that exports a `PLUGINS` tuple. Each class in it
-satisfies `physverify.checks._base.Check`: a `check_id`, the `requires` set of inputs it needs, its
-`magnitude_unit`, a pydantic `Params` model with its defaults, and `evaluate(inputs)`. Defaults can be overridden
-in a `[checks.<id>]` table of `configs/checks.toml`. The registry discovers the file on its own; no other module
-changes. Scene families, perturbations, datasets, stage providers, diagnosis metrics, verdict policies, clip
-scorers, timing targets and subcommands are added the same way, one file in their own package.
+A check is one file, `src/physverify/checks/<id>_<name>.py`, that exports a `PLUGINS` tuple. Each
+class in it satisfies `physverify.checks._base.Check`: a `check_id`, the `requires` set of inputs it
+needs, its `magnitude_unit`, a pydantic `Params` model with its defaults, and `evaluate(inputs)`.
+Defaults can be overridden in a `[checks.<id>]` table of `configs/verifier/checks.toml`. The
+registry discovers the file on its own; no other module changes. Scene families, perturbations,
+datasets, stage providers, diagnosis metrics, verdict policies, clip scorers, timing targets and
+subcommands are added the same way, one file in their own package.

@@ -254,7 +254,7 @@ prereg_problem() {
     [[ -z "$gate" || "$rule" == "$PROVISIONAL" ]] \
         || { echo "rule '$rule' with a calibration gate"; return; }
     [[ -n "$gate" || "$rule" == "$CALIBRATED" ]] \
-        || { echo "rule '$rule', not $CALIBRATED: configs/agreement.toml is not the committed one"; return; }
+        || { echo "rule '$rule', not $CALIBRATED: configs/studies/human_agreement.toml is not the committed one"; return; }
     value="$(prereg_field device)"
     [[ "$value" == cpu ]] || { echo "device '$value', not cpu"; return; }
     value="$(prereg_field profile)"

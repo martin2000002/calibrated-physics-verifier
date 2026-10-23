@@ -65,6 +65,26 @@ def test_local_files_are_not_globbed(tmp_path: Path) -> None:
     assert load_settings(tmp_path, environ={}).runtime.threads == 2
 
 
+def test_tables_are_read_from_subdirectories(tmp_path: Path) -> None:
+    _write(tmp_path, "default.toml", "[runtime]\nthreads = 2\n")
+    _write(tmp_path / "studies", "demo.toml", '[demo]\nlevel = "nested"\n')
+    settings = load_settings(tmp_path, environ={})
+    assert settings.sections["demo"]["level"] == "nested"
+    assert str(tmp_path.resolve() / "studies" / "demo.toml") in settings.sources
+
+
+def test_local_files_in_subdirectories_are_read(tmp_path: Path) -> None:
+    _write(tmp_path / "studies", "local.toml", '[demo]\nlevel = "nested"\n')
+    assert load_settings(tmp_path, environ={}).sections["demo"]["level"] == "nested"
+
+
+def test_a_table_repeated_across_subdirectories_names_both_files(tmp_path: Path) -> None:
+    _write(tmp_path / "datasets", "a.toml", "[demo]\nx = 1\n")
+    _write(tmp_path / "studies", "b.toml", "[demo]\ny = 2\n")
+    with pytest.raises(ConfigError, match=r"both datasets/a\.toml and studies/b\.toml"):
+        load_settings(tmp_path, environ={})
+
+
 @pytest.mark.parametrize(
     "bad",
     [{"PHYSVERIFY__RUNTIME__DEVICE": "tpu"}, {"PHYSVERIFY__NOKEY": "1"}],
