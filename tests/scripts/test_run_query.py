@@ -98,7 +98,7 @@ def test_run_errors_refuses_any_row_with_an_error(
     query: ModuleType, tmp_path: Path, error: str
 ) -> None:
     write_check_rows(tmp_path / "checks.jsonl", error=error)
-    with pytest.raises(query.QueryError, match="1 check rows .* failed") as raised:
+    with pytest.raises(query.QueryError, match=r"1 check rows .* failed") as raised:
         query.run_errors(tmp_path)
     assert f"clip R1: {error or '(no message)'}" in str(raised.value)
 

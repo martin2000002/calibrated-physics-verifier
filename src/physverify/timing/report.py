@@ -223,7 +223,7 @@ def _rebuilt_target(
     return target.model_copy(
         update={
             "stats": [row for row in rows if row.target == target.name],
-            "failures": own_failures if own_failures else target.failures,
+            "failures": own_failures or target.failures,
             "n_calls": max(target.n_calls, _calls_seen(samples, own_failures, target.name)),
         }
     )

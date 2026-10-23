@@ -253,16 +253,24 @@ def _clip_lines(report: VideoReport) -> list[str]:
     clip = report.clip
     rule = report.rule
     return [
-        f"- Prompt ({report.prompt.prompt_id}, family {report.prompt.family}): "
-        f"{report.prompt.text}",
+        (
+            f"- Prompt ({report.prompt.prompt_id}, family {report.prompt.family}): "
+            f"{report.prompt.text}"
+        ),
         f"- Video: `{report.video_path}`",
         f"- Rule: {rule.scorer}, status **{rule.status}**, label `{rule.label}`",
-        f"- {score_text(clip)}; coverage {clip.coverage:.2f}; "
-        f"{clip.n_decided} checks decided, {clip.n_failed} failed",
-        f"- Motion index {_num(clip.motion)}; expected objects found: "
-        f"{'-' if clip.objects_ok is None else clip.objects_ok}",
-        "- Magnitudes from perceived inputs are estimates; sigma is their propagated error "
-        "('-' when not yet measured).",
+        (
+            f"- {score_text(clip)}; coverage {clip.coverage:.2f}; "
+            f"{clip.n_decided} checks decided, {clip.n_failed} failed"
+        ),
+        (
+            f"- Motion index {_num(clip.motion)}; expected objects found: "
+            f"{'-' if clip.objects_ok is None else clip.objects_ok}"
+        ),
+        (
+            "- Magnitudes from perceived inputs are estimates; sigma is their propagated error "
+            "('-' when not yet measured)."
+        ),
         "",
     ]
 

@@ -76,7 +76,7 @@ case "$*" in
     new_run
     echo '{"strata": []}' > "$RUN/calibration.json"
     mkdir -p "$(dirname "${!#}")"; echo '{"levels": []}' > "${!#}"
-    echo "perceived/precise: 1/9 meet monotonicity and J_cv^lo > 0 (R4_jump); AUROC_cv 0.6 [0.5, 0.7]"
+    echo "perceived/precise: 1/9 meet monotonicity and J_cv^lo > 0; AUROC_cv 0.6 [0.5, 0.7]"
     echo "selection (perceived): n_met 1" ;;
 esac
 exit 0

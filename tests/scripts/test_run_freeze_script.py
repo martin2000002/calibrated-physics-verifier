@@ -174,8 +174,10 @@ def _expected(final: Path) -> list[str]:
         f"verify {KS} --level perceived --policy raw {CLIPS}",
         f"extract run {KS} {CLIPS}",
         f"verify {KS} --level perceived --policy raw {CLIPS}",
-        f"exclusions decide --evaluation {runs / 'r1' / 'evaluation.json'} --r2-base-run r2 "
-        "--r2-tiny-run r3",
+        (
+            f"exclusions decide --evaluation {runs / 'r1' / 'evaluation.json'} --r2-base-run r2 "
+            "--r2-tiny-run r3"
+        ),
         "exclusions show",
         "selective-risk fit",
     ]
@@ -290,10 +292,11 @@ def test_a_resume_needs_the_earlier_steps_and_the_same_commit(sandbox: FreezeSan
     assert moved.returncode == 2 and "belongs to FREEZE_COMMIT" in moved.stderr
     resumed = sandbox.run("4")
     assert resumed.returncode == 0, resumed.stderr
-    assert (
-        sandbox.commands()
-        == _expected(sandbox.final)[:5] + ["doctor"] + _expected(sandbox.final)[5:]
-    )
+    assert sandbox.commands() == [
+        *_expected(sandbox.final)[:5],
+        "doctor",
+        *_expected(sandbox.final)[5:],
+    ]
 
 
 @pytest.mark.parametrize(

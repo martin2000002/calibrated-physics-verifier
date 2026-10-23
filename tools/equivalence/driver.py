@@ -365,7 +365,8 @@ def _register_fixture_datasets() -> None:
         module.PLUGIN_KINDS = MappingProxyType(patched)
 
 
-def _commands() -> Mapping[str, Any]:
+def _commands() -> Any:
+    """The command registry of whichever checkout is imported; its type differs between them."""
     for module in _kinds_modules():
         if "commands" in module.PLUGIN_KINDS:
             registry: Mapping[str, Any] = module.PLUGIN_KINDS["commands"]()

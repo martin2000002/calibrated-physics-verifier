@@ -467,7 +467,7 @@ def test_test_compares_once_with_the_calibrated_rule(sandbox: AgreementSandbox) 
     ]
     assert sandbox.state()["TEST_COMPARED"] == "1"
     link = runs / "h2-latest"
-    assert link.is_symlink() and os.readlink(link) == "r6"
+    assert link.is_symlink() and link.readlink() == Path("r6")
     copied = runs / "r6" / "agreement" / "preregistration.json"
     assert copied.read_bytes() == sandbox.prereg().read_bytes()
     summary = (sandbox.out / "summary.md").read_text(encoding="utf-8")

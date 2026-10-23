@@ -172,7 +172,7 @@ def _to_camera(states: ObjectStateTable) -> ObjectStateTable:
         position=(states.position - CAMERA_POSITION) @ rotation.T,
         velocity=states.velocity @ rotation.T,
         acceleration=states.acceleration @ rotation.T,
-        quaternion=np.tile(q, states.quaternion.shape[:2] + (1,)),
+        quaternion=np.tile(q, (*states.quaternion.shape[:2], 1)),
         gravity_dir=rotation @ states.gravity_dir,
     )
 

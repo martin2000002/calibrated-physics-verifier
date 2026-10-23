@@ -180,9 +180,11 @@ def budget_lines(result: BudgetAnswer, query: BudgetQuery) -> list[str]:
         else f"{result.generator_load_s:.4g} s once per job, not in the cost per video"
     )
     return [
-        f"budget: H = {query.gpu_hours:g} GPU hours, fine-tuning {query.finetune_hours:g} h, "
-        f"K = {query.candidates}, Q = {query.eval_prompts}, K' = {query.eval_samples}, "
-        f"B = {query.batch_size}",
+        (
+            f"budget: H = {query.gpu_hours:g} GPU hours, fine-tuning {query.finetune_hours:g} h, "
+            f"K = {query.candidates}, Q = {query.eval_prompts}, K' = {query.eval_samples}, "
+            f"B = {query.batch_size}"
+        ),
         _bound_line("sequential c_seq = g_B + e + v + L_x/B_x", result.sequential),
         _bound_line("generator only c_gen = g_B", result.generator_only),
         f"extraction load L_x/B_x: {extract_load}",

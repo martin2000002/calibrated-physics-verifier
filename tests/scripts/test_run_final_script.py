@@ -333,7 +333,7 @@ def test_the_fresh_kubric_look_and_its_v1_arm(sandbox: FinalSandbox) -> None:
     envs = sandbox.envs()
     assert envs[-1] == ["", "kubric_fresh", "1", cache, *theirs]
     assert envs[-3] == ["", "kubric_fresh", "unset", cache, *mine]
-    assert all(e == ["", "unset", "unset", cache, *mine] for e in envs[:-3] + [envs[-2]])
+    assert all(e == ["", "unset", "unset", cache, *mine] for e in [*envs[:-3], envs[-2]])
     commits = [line.split("|")[:2] for line in sandbox.ledger_lines()]
     assert commits == [[HEAD, "kubric_fresh"], [V1, "kubric_fresh"]]
     assert (arm / "configs" / "checks.toml").read_text("utf-8") == "v1 checks\n"
