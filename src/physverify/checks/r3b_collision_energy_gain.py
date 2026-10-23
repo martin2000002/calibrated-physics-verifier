@@ -24,7 +24,11 @@ from physverify.checks._collision_windows import (
 from physverify.checks._results import abstain, unscored
 from physverify.checks._uncertainty import check_rng, mc_sigma
 from physverify.physics.geometry import matrix_from_quaternion
-from physverify.physics.measures.collision_energy import kinetic_energy_gain, momentum_mass_ratio
+from physverify.physics.measures.collision_energy import (
+    incoming_energy,
+    kinetic_energy_gain,
+    momentum_mass_ratio,
+)
 from physverify.physics.tracks import FitSource, MotionFit, native_span, records_of, row_step
 from physverify.schema.checks import AbstainReason, CheckResult
 from physverify.schema.constants import ENV_ID
@@ -118,13 +122,13 @@ class EnergyGainCheck:
             "t_c": t_c,
             "t_c_quantization_s": q * spf,
         }
-        if ratio is None:
+        incoming = None if ratio is None else incoming_energy(ratio, vm_i, vm_j)
+        if ratio is None or not incoming:
             reason = AbstainReason.ILL_CONDITIONED
             return abstain(type(self), inputs, subject, reason, span, details)
         velocities = {"vi_minus": vm_i, "vj_minus": vm_j, "vi_plus": vp_i, "vj_plus": vp_j}
         sigmas = {"vi_minus": sm_i, "vj_minus": sm_j, "vi_plus": sp_i, "vj_plus": sp_j}
         magnitude = kinetic_energy_gain(ratio, vm_i, vm_j, vp_i, vp_j)
-        incoming = ratio * float(vm_i @ vm_i) + float(vm_j @ vm_j)
         spin = _spin_change(inputs.states, indices, sides, ratio)
         details["rot_energy_fraction"] = None if spin is None else spin / incoming
         fixed_ratio = ratio if source == "prompt" else None

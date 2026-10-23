@@ -5,6 +5,7 @@ import check_scenarios as sc
 import numpy as np
 import pytest
 
+from physverify.checks import r3b_collision_energy_gain as r3b
 from physverify.checks._base import Check
 from physverify.checks._params import CommonParams
 from physverify.checks.r3a_bounce_restitution import PLUGINS as R3A_PLUGINS
@@ -203,6 +204,12 @@ def test_energy_gain_with_unequal_masses() -> None:
     assert result.magnitude == pytest.approx(0.2, abs=1e-6)
     assert result.details["mass_ratio"] == pytest.approx(3.0, abs=1e-9)
     assert result.details["cos_antiparallel"] == pytest.approx(1.0, abs=1e-9)
+
+
+def test_no_incoming_energy_is_ill_conditioned(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(r3b, "incoming_energy", lambda *_: 0.0)
+    result = collision_result(sc.collision())
+    assert result.abstain_reason is AbstainReason.ILL_CONDITIONED
 
 
 def test_skewed_impulses_need_the_prompt_for_the_mass_ratio() -> None:

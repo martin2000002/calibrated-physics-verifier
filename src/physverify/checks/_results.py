@@ -98,7 +98,10 @@ def row_step_or_none(inputs: CheckInputs) -> int | None:
 
 def first_max(values: FloatArray) -> int:
     """Index of the first value within TIE_RTOL of the largest finite one."""
-    peak = float(np.nanmax(values))
+    finite = values[np.isfinite(values)]
+    if finite.size == 0:
+        raise ValueError("first_max needs at least one finite value")
+    peak = float(finite.max())
     return int(np.flatnonzero(values >= peak - TIE_RTOL * abs(peak))[0])
 
 

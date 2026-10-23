@@ -62,10 +62,12 @@ class Teleport(PluginBase[Params]):
             raise PerturbationNotApplicableError(
                 f"{NAME}: no body rests on the floor alone with nothing on top"
             )
-        index = pick(rng, candidates)
         n = states.n_frames
         lo = max(1, math.ceil(n * self.params.start_range[0]))
         hi = min(n - 2, max(lo, math.floor(n * self.params.start_range[1])))
+        if hi < lo:
+            raise PerturbationNotApplicableError(f"{NAME}: the clip is too short for a jump")
+        index = pick(rng, candidates)
         first = int(rng.integers(lo, hi + 1))
         offset = (
             magnitude * length_of(states, index) * heading(float(rng.uniform(0.0, 2.0 * math.pi)))
