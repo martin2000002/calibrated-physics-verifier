@@ -12,7 +12,7 @@ import numpy as np
 import pytest
 
 from physverify.app.plugins import PLUGIN_KINDS
-from physverify.checks import r2_equilibrium
+from physverify.checks import r2_static_equilibrium
 from physverify.checks._base import Check, CheckInputs
 from physverify.physics.equilibrium import EquilibriumSolution
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
@@ -185,7 +185,7 @@ def test_r2_reaches_ill_conditioned_when_the_program_fails(
         nan = np.full(2, math.nan)
         return EquilibriumSolution(math.nan, nan, nan, 4, "numerical difficulties")
 
-    monkeypatch.setattr(r2_equilibrium, "solve_equilibrium", failing)
+    monkeypatch.setattr(r2_static_equilibrium, "solve_equilibrium", failing)
     assert R.ILL_CONDITIONED in reasons("R2", sc.stack().inputs())
 
 

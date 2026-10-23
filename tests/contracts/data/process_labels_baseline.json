@@ -228,7 +228,7 @@
  "src/physverify/checks/r1_interpenetration.py": {
   "comment_or_docstring": 1
  },
- "src/physverify/checks/r2_equilibrium.py": {
+ "src/physverify/checks/r2_static_equilibrium.py": {
   "comment_or_docstring": 1
  },
  "src/physverify/checks/r3_collision_energy.py": {
@@ -237,7 +237,7 @@
  "src/physverify/checks/r4_integrity.py": {
   "comment_or_docstring": 5
  },
- "src/physverify/checks/r4_jump_noise.py": {
+ "src/physverify/checks/r4_track_jump.py": {
   "comment_or_docstring": 9
  },
  "src/physverify/checks/r5a_fall_shape.py": {

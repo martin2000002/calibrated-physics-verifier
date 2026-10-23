@@ -28,7 +28,10 @@ from physverify.checks.r1_interpenetration import (  # noqa: E402
     InterpenetrationCheck,
     InterpenetrationParams,
 )
-from physverify.checks.r2_equilibrium import EquilibriumCheck, EquilibriumParams  # noqa: E402
+from physverify.checks.r2_static_equilibrium import (  # noqa: E402
+    EquilibriumCheck,
+    EquilibriumParams,
+)
 from physverify.checks.r3_collision_energy import (  # noqa: E402
     EnergyGainCheck,
     EnergyGainParams,

@@ -6,10 +6,10 @@ import check_scenarios as sc
 import numpy as np
 import pytest
 
-from physverify.checks import r2_equilibrium
+from physverify.checks import r2_static_equilibrium
 from physverify.checks._base import Check
 from physverify.checks._common import CommonParams
-from physverify.checks.r2_equilibrium import PLUGINS, EquilibriumCheck, EquilibriumParams
+from physverify.checks.r2_static_equilibrium import PLUGINS, EquilibriumCheck, EquilibriumParams
 from physverify.physics.equilibrium import EquilibriumSolution
 from physverify.schema.checks import AbstainReason, CheckResult, Verdict
 from physverify.schema.contacts import ManifoldKind
@@ -122,7 +122,7 @@ def test_failed_program_abstains_ill_conditioned(monkeypatch: pytest.MonkeyPatch
         nan = np.full(2, math.nan)
         return EquilibriumSolution(math.nan, nan, nan, 4, "numerical difficulties")
 
-    monkeypatch.setattr(r2_equilibrium, "solve_equilibrium", failing)
+    monkeypatch.setattr(r2_static_equilibrium, "solve_equilibrium", failing)
     result = run_one(sc.stack())
     assert result.abstain_reason is AbstainReason.ILL_CONDITIONED
     assert result.details["lp_status"] == 4

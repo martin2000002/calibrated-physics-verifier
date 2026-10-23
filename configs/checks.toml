@@ -8,7 +8,7 @@
 # Any check id (R1, R2, R3a, R3b, R4_missing, R4_size, R4_jump, R5a, R5b) accepts a
 # [checks.<id>] table overriding fields of its Params; unknown fields are a ConfigError.
 
-[checks.R2]            # plugin defaults live in checks/r2_equilibrium.py; override here
+[checks.R2]            # plugin defaults live in checks/r2_static_equilibrium.py; override here
 friction = 0.6
 mass_floor = 0.2
 
