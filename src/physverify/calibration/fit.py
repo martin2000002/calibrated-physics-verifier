@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
@@ -301,7 +302,7 @@ def auroc_of(scored: Sequence[tuple[str, float, bool]], settings: CalibrationSet
     ).get(AUROC_KEY, Ci())
     value = auroc(pos, neg)
     return Auroc(
-        value=value if value == value else None, ci=ci, n_positive=len(pos), n_negative=len(neg)
+        value=None if math.isnan(value) else value, ci=ci, n_positive=len(pos), n_negative=len(neg)
     )
 
 
