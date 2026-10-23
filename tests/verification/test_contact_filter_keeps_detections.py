@@ -94,7 +94,7 @@ def jump_of_the_ball(case: sc.Case) -> float:
 
 @pytest.mark.parametrize("flight", [False, True])
 @pytest.mark.parametrize("level", TeleportLevels().levels)
-def test_t9_i_teleport_jump_equals_the_truth(level: float, flight: bool) -> None:
+def test_teleport_jump_equals_the_truth(level: float, flight: bool) -> None:
     case = sc.teleport(delta=level * 2 * sc.BALL_RADIUS, flight=flight, pitch_deg=PITCH_DEG)
     truth, found = jump_of_the_ball(case), jump_of_the_ball(kinematic(case))
     print(f"R4_jump teleport m={level} flight={flight}: truth {truth} kinematic {found}")
@@ -106,7 +106,7 @@ def test_t9_i_teleport_jump_equals_the_truth(level: float, flight: bool) -> None
 
 
 @pytest.mark.parametrize("beta", [0.1, 0.4, 0.8])
-def test_t9_ii_clean_bounce_jump_is_excluded_like_the_truth(beta: float) -> None:
+def test_clean_bounce_jump_is_excluded_like_the_truth(beta: float) -> None:
     case = sc.bounce(impact_frame=15.0 + beta, pitch_deg=PITCH_DEG)
     truth = jump_of_the_ball(case)
     near, found = jump_of_the_ball(proximity(case)), jump_of_the_ball(kinematic(case))
@@ -119,7 +119,7 @@ def test_t9_ii_clean_bounce_jump_is_excluded_like_the_truth(beta: float) -> None
 
 
 @pytest.mark.parametrize("level", RestitutionLevels().levels)
-def test_t9_iii_restitution_gain_matches_the_truth(level: float) -> None:
+def test_restitution_gain_matches_the_truth(level: float) -> None:
     case = sc.bounce(e=1.0 + level, impact_frame=15.3, pitch_deg=PITCH_DEG)
     check = RestitutionCheck(RestitutionParams())
     truth, found = magnitudes(check, case), magnitudes(check, kinematic(case))
@@ -129,7 +129,7 @@ def test_t9_iii_restitution_gain_matches_the_truth(level: float) -> None:
 
 
 @pytest.mark.parametrize("level", EnergyLevels().levels)
-def test_t9_iii_energy_gain_matches_the_truth(level: float) -> None:
+def test_energy_gain_matches_the_truth(level: float) -> None:
     case = sc.collision(gain=level, impact_frame=15.3, pitch_deg=PITCH_DEG)
     check = EnergyGainCheck(EnergyGainParams())
     truth, found = magnitudes(check, case), magnitudes(check, kinematic(case))
@@ -142,7 +142,7 @@ def test_t9_iii_energy_gain_matches_the_truth(level: float) -> None:
 
 
 @pytest.mark.parametrize("level", SwitchLevels().levels)
-def test_t9_iv_fall_shape_is_unchanged(level: float) -> None:
+def test_fall_shape_is_unchanged(level: float) -> None:
     g = sc.STANDARD_GRAVITY
     case = sc.parabola(g=g, g_after=g * (1.0 + level), pitch_deg=PITCH_DEG)
     check = FallShapeCheck(FallShapeParams())
@@ -150,7 +150,7 @@ def test_t9_iv_fall_shape_is_unchanged(level: float) -> None:
 
 
 @pytest.mark.parametrize("level", ScaleLevels().levels)
-def test_t9_iv_gravity_value_is_unchanged(level: float) -> None:
+def test_gravity_value_is_unchanged(level: float) -> None:
     case = sc.parabola(g=sc.STANDARD_GRAVITY * (1.0 + level), pitch_deg=PITCH_DEG)
     check = GravityValueCheck(GravityValueParams())
     assert magnitudes(check, kinematic(case)) == magnitudes(check, proximity(case))
@@ -160,7 +160,7 @@ def test_t9_iv_gravity_value_is_unchanged(level: float) -> None:
 
 
 @pytest.mark.parametrize("depth", [0.01, 0.05])
-def test_t9_v_penetration_is_unchanged(depth: float) -> None:
+def test_penetration_is_unchanged(depth: float) -> None:
     check = InterpenetrationCheck(InterpenetrationParams())
     for case in (
         sc.sinking_box(depth, pitch_deg=PITCH_DEG),
@@ -171,13 +171,13 @@ def test_t9_v_penetration_is_unchanged(depth: float) -> None:
 
 
 @pytest.mark.parametrize("make", [lambda: sc.stack(pitch_deg=PITCH_DEG), lambda: sc.floating_box()])
-def test_t9_v_equilibrium_is_unchanged(make: Any) -> None:
+def test_equilibrium_is_unchanged(make: Any) -> None:
     check = EquilibriumCheck(EquilibriumParams())
     case = make()
     assert magnitudes(check, kinematic(case)) == magnitudes(check, proximity(case))
 
 
-def test_t9_v_penetration_of_a_bounce_against_the_truth() -> None:
+def test_penetration_of_a_bounce_against_the_truth() -> None:
     """The kinematic ENV record is the support plane R1 reads for a ball that never rests;
     its point lies on the ground at the impact, so R1 equals the truth's."""
     case = sc.bounce(impact_frame=15.3, pitch_deg=PITCH_DEG)
@@ -191,7 +191,7 @@ def test_t9_v_penetration_of_a_bounce_against_the_truth() -> None:
 # (vi) R4_missing and R4_size do not read contacts.
 
 
-def test_t9_vi_missing_and_size_are_unchanged() -> None:
+def test_missing_and_size_are_unchanged() -> None:
     for case, check in (
         (sc.disappearance(pitch_deg=PITCH_DEG), PermanenceCheck(PermanenceParams())),
         (sc.size_change(pitch_deg=PITCH_DEG), SizeConstancyCheck(SizeParams(reference="self"))),

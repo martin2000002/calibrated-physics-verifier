@@ -25,7 +25,7 @@ def common_factor(case: sc.Case, factors: np.ndarray) -> sc.Case:
     return replace(case, states=replace(case.states, size=sizes))
 
 
-def test_t10_a_common_factor_per_row_cancels() -> None:
+def test_a_common_factor_per_row_cancels() -> None:
     case = sc.resized_pair(factor=1.0)
     factors = 1.0 + 0.2 * np.sin(np.arange(sc.FRAMES) / 3.0)
     scaled = common_factor(case, factors)
@@ -39,7 +39,7 @@ def test_t10_a_common_factor_per_row_cancels() -> None:
 
 @pytest.mark.parametrize("balls", [2, 3, 4])
 @pytest.mark.parametrize("mu", [0.05, 0.4])
-def test_t11_a_resized_body_against_a_constant_reference_gives_mu(balls: int, mu: float) -> None:
+def test_a_resized_body_against_a_constant_reference_gives_mu(balls: int, mu: float) -> None:
     results = size(sc.resized_pair(factor=1.0 + mu, balls=balls))
     target = results["ball_0"]
     assert target.magnitude == pytest.approx(mu, rel=1e-12)
@@ -49,7 +49,7 @@ def test_t11_a_resized_body_against_a_constant_reference_gives_mu(balls: int, mu
 
 
 @pytest.mark.parametrize(("balls", "expected"), [(2, lambda m: m / (1 + m)), (3, None)])
-def test_j11_a_clean_partner_also_moves(balls: int, expected: object) -> None:
+def test_a_clean_partner_also_moves(balls: int, expected: object) -> None:
     """With two bodies the partner's ratio is 1 / (1 + mu): the clip is flagged by the larger,
     the subject stays ambiguous (the human-agreement study makes no per-subject use of it)."""
     mu = 0.4
@@ -61,14 +61,14 @@ def test_j11_a_clean_partner_also_moves(balls: int, expected: object) -> None:
     assert partner.magnitude < mu
 
 
-def test_t12_a_single_body_abstains_with_no_reference() -> None:
+def test_a_single_body_abstains_with_no_reference() -> None:
     (result,) = size(sc.size_change()).values()
     assert result.abstain_reason is AbstainReason.TOO_FEW_FRAMES
     assert result.details["reference"] == "none"
     assert result.details["size_rows"] == 0
 
 
-def test_t13_rows_without_a_reference_in_the_image_do_not_count() -> None:
+def test_rows_without_a_reference_in_the_image_do_not_count() -> None:
     case = sc.resized_pair(factor=1.5, first=12, last=17)
     gone = range(0, sc.FRAMES - 3)
     hidden = sc.with_values(case, "in_frame", "ball_1", gone, False)
@@ -109,7 +109,7 @@ def test_relative_lengths_use_each_reference_relative_to_its_median() -> None:
 
 
 @pytest.mark.parametrize("leave", [12, 16, 20])
-def test_a1_a_reference_leaving_the_image_makes_no_step(leave: int) -> None:
+def test_a_reference_leaving_the_image_makes_no_step(leave: int) -> None:
     """Audit A1: three rigid bodies of lengths 0.2, 0.2 and 0.1; the small one leaves the image
     from row ``leave`` on. With the plain geometric mean the denominator stepped (0.29 at row 16);
     with each reference relative to its median every body stays at 0."""

@@ -216,5 +216,5 @@ def test_outputs_round_trip(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("status", list(RowStatus))
-def test_row_status_values_are_the_adr_ones(status: RowStatus) -> None:
+def test_row_status_values_are_the_declared_ones(status: RowStatus) -> None:
     assert status.value in {"scored", "abstained", "no_event", "error"}

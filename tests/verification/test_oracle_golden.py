@@ -41,7 +41,7 @@ def test_the_oracle_results_do_not_move() -> None:
     assert [r.to_dict() for r in new] == [r.to_dict() for r in old]
 
 
-def test_t14_the_oracle_results_do_not_move() -> None:
+def test_the_v1_oracle_results_match_the_golden() -> None:
     golden = json.loads(GOLDEN.read_text(encoding="utf-8"))
     current = json.loads(json.dumps(golden_case_results(*v1_checks()), sort_keys=True))
     assert len(golden) == len(current) > 0

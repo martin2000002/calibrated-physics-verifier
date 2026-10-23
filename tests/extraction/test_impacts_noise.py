@@ -24,20 +24,20 @@ BOUNCE = {"e": 0.8, "speed": 5.0, "impact_frame": 15.3}
 JUMP = (1.0 + BOUNCE["e"]) * BOUNCE["speed"] * sc.DT
 
 
-def test_t5_clean_parabola_false_rate() -> None:
+def test_clean_parabola_false_rate() -> None:
     value = mc.rate(mc.clean_parabola(), mc.white(SIGMA))
     print(f"clean parabola: {value:.4f}")
     assert value <= FALSE_MAX
 
 
 @pytest.mark.parametrize(("sigmas", "least"), [(20.0, 0.80), (30.0, 0.95)])
-def test_t5_a_bounce_is_found(sigmas: float, least: float) -> None:
+def test_a_bounce_is_found(sigmas: float, least: float) -> None:
     value = mc.rate(sc.bounce(pitch_deg=25.0, **BOUNCE), mc.white(JUMP / sigmas))
     print(f"bounce dv dt = {sigmas} sigma: {value:.4f}")
     assert value >= least
 
 
-def test_t5_a_small_teleport_is_not_an_impact() -> None:
+def test_a_small_teleport_is_not_an_impact() -> None:
     length = 2 * sc.BALL_RADIUS
     case = sc.teleport(delta=0.25 * length, flight=True, pitch_deg=25.0)
     value = mc.rate(case, mc.white(0.02 * length))
@@ -57,7 +57,7 @@ def gravity_cases(level: float) -> dict[str, sc.Case]:
 
 
 @pytest.mark.parametrize("kind", ["r5a_gravity_switch", "r5a_object_gravity", "r5b_gravity_scale"])
-def test_j4_gravity_perturbations_are_not_impacts(kind: str) -> None:
+def test_gravity_perturbations_are_not_impacts(kind: str) -> None:
     levels = {
         "r5a_gravity_switch": SwitchLevels().levels,
         "r5a_object_gravity": ObjectLevels().levels,
@@ -69,7 +69,7 @@ def test_j4_gravity_perturbations_are_not_impacts(kind: str) -> None:
         assert value <= FALSE_MAX, (kind, level)
 
 
-def test_j4_the_correlated_noise_description_runs() -> None:
+def test_the_correlated_noise_description_runs() -> None:
     """The description itself (AR(1), two-row depth impulses) is printed by impact_noise.py
     with 400 replicates; here only that it runs."""
     values = mc.description(replicates=5)

@@ -124,7 +124,7 @@ def test_stencil_mask_virtual_neighbours_reach_two_steps_past_the_end(n_rows: in
     assert not bool(np.any(missed))
 
 
-def a4_flight(records: list[ContactRecord], n: int, margin: int) -> np.ndarray:
+def truth_flight(records: list[ContactRecord], n: int, margin: int) -> np.ndarray:
     mask = np.ones(n, dtype=bool)
     for r in records:
         lo, hi = max(0, math.floor(r.t_start) - margin), min(n - 1, math.ceil(r.t_end) + margin)
@@ -133,7 +133,7 @@ def a4_flight(records: list[ContactRecord], n: int, margin: int) -> np.ndarray:
     return mask
 
 
-def a4_impact_frames(records: list[ContactRecord], n: int) -> np.ndarray:
+def truth_impact_frames(records: list[ContactRecord], n: int) -> np.ndarray:
     """The synthetic ground-truth labels' rows floor(t_start) - 1 <= k <= ceil(t_end) of the
     4-row stencil, one row wider on each bound that falls on a frame (quantized)."""
     mask = np.zeros(n, dtype=bool)
@@ -158,7 +158,7 @@ def random_records(rng: np.random.Generator, n: int, count: int) -> list[Contact
     return out
 
 
-def test_native_windows_match_a4_formulas() -> None:
+def test_native_windows_match_the_truth_formulas() -> None:
     rng = np.random.default_rng(0)
     n = 40
     frame_index = np.arange(n, dtype=np.int64)
@@ -167,22 +167,22 @@ def test_native_windows_match_a4_formulas() -> None:
         for r in records:
             single = table(r)
             np.testing.assert_array_equal(
-                flight_mask("ball", single, frame_index, margin), a4_flight([r], n, margin)
+                flight_mask("ball", single, frame_index, margin), truth_flight([r], n, margin)
             )
         np.testing.assert_array_equal(
             flight_mask("ball", table(*records), frame_index, margin),
-            a4_flight(records, n, margin),
+            truth_flight(records, n, margin),
         )
     for r in records:
         np.testing.assert_array_equal(
-            impact_stencil_mask("ball", table(r), frame_index), a4_impact_frames([r], n)
+            impact_stencil_mask("ball", table(r), frame_index), truth_impact_frames([r], n)
         )
     np.testing.assert_array_equal(
-        impact_stencil_mask("ball", table(*records), frame_index), a4_impact_frames(records, n)
+        impact_stencil_mask("ball", table(*records), frame_index), truth_impact_frames(records, n)
     )
 
 
-def test_native_stencil_mask_is_a4_impact_frames_on_fractional_bounds() -> None:
+def test_native_stencil_mask_is_the_truth_impact_frames_on_fractional_bounds() -> None:
     rng = np.random.default_rng(1)
     n = 40
     frame_index = np.arange(n, dtype=np.int64)
@@ -398,7 +398,7 @@ def noisy(case: sc.Case, sigma: float, seed: int = 0) -> sc.Case:
     return replace(case, states=replace(case.states, position=case.states.position + noise))
 
 
-def test_t7_track_noise_recovers_white_noise_whatever_the_gravity() -> None:
+def test_track_noise_recovers_white_noise_whatever_the_gravity() -> None:
     sigma = 0.01
     full = noisy(sc.parabola(frames=60), sigma)
     weak = noisy(sc.parabola(g=0.25 * sc.STANDARD_GRAVITY, frames=60), sigma)
@@ -426,7 +426,7 @@ def test_noise_stencils_align_the_third_difference_with_the_impact_rows() -> Non
     np.testing.assert_array_equal(~usable, kinked)
 
 
-def test_j1_the_fall_filter_reads_the_single_stencil_minimum() -> None:
+def test_the_fall_filter_reads_the_single_stencil_minimum() -> None:
     from physverify.checks._params import FallParams
     from physverify.physics.tracks import MIN_NOISE_STENCILS
 

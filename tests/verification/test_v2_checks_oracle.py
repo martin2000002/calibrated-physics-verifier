@@ -22,7 +22,7 @@ def unchanged(results: list[Any]) -> list[Any]:
     return [r for r in results if r["check_id"] not in CHANGED]
 
 
-def test_ac1_the_seven_other_checks_do_not_move() -> None:
+def test_the_seven_other_checks_do_not_move() -> None:
     golden = json.loads(GOLDEN.read_text(encoding="utf-8"))
     current = json.loads(json.dumps(oracle_results(), sort_keys=True))
     assert len(unchanged(current)) == len(unchanged(golden)) > 0

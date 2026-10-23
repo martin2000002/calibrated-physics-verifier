@@ -51,28 +51,28 @@ def series(base: float = 2.0, rows: int = ROWS) -> np.ndarray:
 
 
 @pytest.mark.parametrize("rows", [(0,), (0, 1), (5,), (5, 6), (ROWS - 1,), (ROWS - 2, ROWS - 1)])
-def test_t9_impulses_of_one_and_two_rows_are_removed(rows: tuple[int, ...]) -> None:
+def test_impulses_of_one_and_two_rows_are_removed(rows: tuple[int, ...]) -> None:
     z = series()
     z[list(rows)] = 3.0
     np.testing.assert_array_equal(running_median(z, WINDOW, SHIFTED), series())
 
 
 @pytest.mark.parametrize("start", [0, 4, ROWS - 3])
-def test_t9_a_plateau_of_three_rows_is_kept(start: int) -> None:
+def test_a_plateau_of_three_rows_is_kept(start: int) -> None:
     z = series()
     z[start : start + 3] = 3.0
     np.testing.assert_array_equal(running_median(z, WINDOW, SHIFTED), z)
 
 
 @pytest.mark.parametrize("step_at", [3, 6, ROWS - 3])
-def test_t9_steps_with_three_rows_on_each_side_are_unchanged(step_at: int) -> None:
+def test_steps_with_three_rows_on_each_side_are_unchanged(step_at: int) -> None:
     step = series()
     step[step_at:] = 3.0
     np.testing.assert_array_equal(running_median(step, WINDOW, SHIFTED), step)
 
 
 @pytest.mark.parametrize("ramp", [np.linspace(1.0, 4.0, ROWS) ** 1.5, np.linspace(4.0, 1.0, ROWS)])
-def test_t9_monotone_series_keep_their_interior_and_flatten_two_rows_at_each_end(
+def test_monotone_series_keep_their_interior_and_flatten_two_rows_at_each_end(
     ramp: np.ndarray,
 ) -> None:
     """A border impulse of up to two rows is itself a monotone series, so the shifted window
@@ -86,18 +86,18 @@ def test_t9_monotone_series_keep_their_interior_and_flatten_two_rows_at_each_end
 @pytest.mark.parametrize(
     "ramp", [np.linspace(1.0, 4.0, ROWS) ** 1.5, np.linspace(4.0, 1.0, ROWS), np.full(ROWS, 2.0)]
 )
-def test_t9_keep_edges_leave_monotone_series_identical(ramp: np.ndarray) -> None:
+def test_keep_edges_leave_monotone_series_identical(ramp: np.ndarray) -> None:
     np.testing.assert_array_equal(running_median(ramp, WINDOW, "keep"), ramp)
 
 
-def test_t9_keep_edges_remove_interior_impulses_only() -> None:
+def test_keep_edges_remove_interior_impulses_only() -> None:
     z = series()
     z[[0, 6]] = 3.0
     out = running_median(z, WINDOW, "keep")
     assert out[0] == 3.0 and out[6] == 2.0
 
 
-def test_t10_short_series_and_non_finite_rows_are_untouched() -> None:
+def test_short_series_and_non_finite_rows_are_untouched() -> None:
     short = np.array([1.0, 5.0, 1.0, 1.0])
     np.testing.assert_array_equal(running_median(short, WINDOW, SHIFTED), short)
     z = series()
@@ -113,7 +113,7 @@ def summary(z: float, image_extent: float = 0.05) -> ObjectSummary:
     return ObjectSummary(centre, np.array([*lateral, lateral.mean()]), 6.0, 40)
 
 
-def test_t10_runs_shorter_than_the_window_and_hidden_rows_are_untouched() -> None:
+def test_runs_shorter_than_the_window_and_hidden_rows_are_untouched() -> None:
     depths = [2.0, 2.0, 2.0, 2.0, 3.0, 2.0, 2.0, 2.0]
     column: list[ObjectSummary | None] = [summary(z) for z in depths]
     column[2] = None  # runs of 2 and 5 rows; only the second one is stabilised
@@ -127,7 +127,7 @@ def test_t10_runs_shorter_than_the_window_and_hidden_rows_are_untouched() -> Non
     assert out[4].r_eq_px == column[4].r_eq_px  # type: ignore[union-attr]
 
 
-def test_t10_an_image_extent_impulse_is_removed_and_e_z_follows_the_rule() -> None:
+def test_an_image_extent_impulse_is_removed_and_e_z_follows_the_rule() -> None:
     column: list[ObjectSummary | None] = [summary(2.0 + 0.1 * t) for t in range(8)]
     column[3] = summary(2.3, image_extent=0.08)
     out = stabilize_summaries(column, WINDOW, SHIFTED)
@@ -138,7 +138,7 @@ def test_t10_an_image_extent_impulse_is_removed_and_e_z_follows_the_rule() -> No
     np.testing.assert_allclose(out[3].centre, clean.centre, rtol=TOL)
 
 
-def test_t11_a_constant_ratio_rescales_position_extents_and_sigma() -> None:
+def test_a_constant_ratio_rescales_position_extents_and_sigma() -> None:
     """With q constant, z_new = c z multiplies the centre and the extents by c, and so position
     and both sigma modes (the same draws) by c: positions and sigma come from the summaries."""
     c = 1.37
@@ -230,7 +230,7 @@ def lift_on(
     return out
 
 
-def test_t11_a_smooth_monotone_clip_is_unchanged_inside_the_run(
+def test_a_smooth_monotone_clip_is_unchanged_inside_the_run(
     fixture_clip: SyntheticClip,
 ) -> None:
     upstream = receding_disk()
@@ -248,7 +248,7 @@ def test_t11_a_smooth_monotone_clip_is_unchanged_inside_the_run(
         np.testing.assert_array_equal(getattr(median, name), getattr(none, name))
 
 
-def test_t10_the_it1_gap_columns_do_not_depend_on_the_filter(fixture_clip: SyntheticClip) -> None:
+def test_the_gap_columns_do_not_depend_on_the_filter(fixture_clip: SyntheticClip) -> None:
     case = "noisy_monte_carlo"
     new = table(fixture_clip, case, temporal_filter="median")
     old = table(fixture_clip, case, temporal_filter="none")
@@ -258,7 +258,7 @@ def test_t10_the_it1_gap_columns_do_not_depend_on_the_filter(fixture_clip: Synth
 
 
 @pytest.mark.parametrize("case", sorted(CASES))
-def test_t12_none_reproduces_the_version_two_table(fixture_clip: SyntheticClip, case: str) -> None:
+def test_none_reproduces_the_version_two_table(fixture_clip: SyntheticClip, case: str) -> None:
     golden = ObjectStateTable.load_npz(GOLDEN / f"{case}.npz")
     current = table(fixture_clip, case, temporal_filter="none")
     for name, value in golden.field_values().items():
@@ -271,7 +271,7 @@ def test_t12_none_reproduces_the_version_two_table(fixture_clip: SyntheticClip, 
             assert mine == value or (mine != mine and value != value), name
 
 
-def test_t12_the_version_and_both_parameters_enter_the_key() -> None:
+def test_the_version_and_both_parameters_enter_the_key() -> None:
     assert BackprojectLift.version == "3"
     default = BackprojectLift.Params()
     hashes = {

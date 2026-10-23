@@ -118,7 +118,7 @@ def test_helpers_find_gaps_boxes_borders_and_cover() -> None:
     assert math.isnan(covered_fraction(Box(5, 5, 5, 9), square(0, 0)))
 
 
-def test_t1_an_isolated_interior_gap_is_in_frame_and_unoccluded(
+def test_an_isolated_interior_gap_is_in_frame_and_unoccluded(
     fixture_clip: SyntheticClip,
 ) -> None:
     visible, in_frame, occlusion = visibility(moving_object())
@@ -129,7 +129,7 @@ def test_t1_an_isolated_interior_gap_is_in_frame_and_unoccluded(
     assert result.frame_span == (GAP[0], GAP[1] - 1)
 
 
-def test_t2_a_mask_covering_the_interpolated_box_explains_the_gap(
+def test_a_mask_covering_the_interpolated_box_explains_the_gap(
     fixture_clip: SyntheticClip,
 ) -> None:
     cover = np.stack([square(8, 18, 30) for _ in range(ROWS)])
@@ -155,7 +155,7 @@ def test_t2b_a_half_covered_box_is_unknown_and_the_object_abstains(
 
 
 @pytest.mark.parametrize("side", ["before", "after"])
-def test_t3_an_enclosing_mask_on_the_border_keeps_the_gap_out_of_frame(side: str) -> None:
+def test_an_enclosing_mask_on_the_border_keeps_the_gap_out_of_frame(side: str) -> None:
     masks = moving_object()
     row = GAP[0] - 1 if side == "before" else GAP[1]
     masks[row] = square(0, 20)
@@ -164,7 +164,7 @@ def test_t3_an_enclosing_mask_on_the_border_keeps_the_gap_out_of_frame(side: str
     assert bool(np.isnan(occlusion[slice(*GAP), 0]).all())
 
 
-def test_t4_gaps_at_the_ends_and_a_never_seen_object_are_out_of_frame() -> None:
+def test_gaps_at_the_ends_and_a_never_seen_object_are_out_of_frame() -> None:
     masks = moving_object()
     masks[:2] = False
     masks[-2:] = False
@@ -205,7 +205,7 @@ def lift(fixture_clip: SyntheticClip, upstream: Mapping[Stage, object], **params
     return table
 
 
-def test_t5_visible_cells_match_and_none_is_version_one(fixture_clip: SyntheticClip) -> None:
+def test_visible_cells_match_and_none_is_version_one(fixture_clip: SyntheticClip) -> None:
     upstream = gapped_track(fixture_clip)
     new = lift(fixture_clip, upstream)
     old = lift(fixture_clip, upstream, gap_visibility="none")

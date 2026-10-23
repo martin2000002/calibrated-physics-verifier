@@ -13,12 +13,12 @@ from physverify.schema.contacts import ContactTable
 
 
 @pytest.mark.parametrize("name", sorted(CASES))
-def test_t15_the_kinematic_tables_do_not_move(name: str) -> None:
+def test_the_kinematic_tables_do_not_move(name: str) -> None:
     golden = ContactTable.load_json(GOLDEN / f"{name}.json")
     assert same(plain(CASES[name]()), plain(golden))
 
 
-def test_t15_the_goldens_hold_kinematic_impacts() -> None:
+def test_the_goldens_hold_kinematic_impacts() -> None:
     sources = {
         record.source
         for name in CASES

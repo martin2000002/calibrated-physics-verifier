@@ -77,7 +77,7 @@ def test_b4_the_rule_flags_an_estimated_focal_without_a_floor(
 
 
 @pytest.mark.parametrize("dataset", ["kubric_synthetic", "physics_iq", "pisa_real"])
-def test_the_precise_profile_is_the_it2_gate_commit(
+def test_the_precise_profile_is_the_gate_commit(
     make_settings: SettingsFactory,
     real_providers: Mapping[str, type[StageProvider]],
     dataset: str,
@@ -92,7 +92,7 @@ def test_the_precise_profile_is_the_it2_gate_commit(
 
 
 @pytest.mark.parametrize("dataset", ["kubric_synthetic", "physics_iq", "pisa_real"])
-def test_the_precise_profile_is_the_it4_base(
+def test_the_precise_profile_is_the_base_chain(
     make_settings: SettingsFactory,
     real_providers: Mapping[str, type[StageProvider]],
     dataset: str,

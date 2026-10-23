@@ -90,14 +90,14 @@ def run(clip: SyntheticClip, calibrator: Calibrator, **params: Any) -> CameraMod
     return out
 
 
-def test_t3_a_level_camera_gives_the_level_gravity() -> None:
+def test_a_level_camera_gives_the_level_gravity() -> None:
     np.testing.assert_array_equal(
         to_opencv_gravity(geocalib_up(0.0, 0.0)[None])[0], LEVEL_CAMERA_GRAVITY
     )
 
 
 @pytest.mark.parametrize("tilt_deg", [5.0, 15.0, 25.0, 35.0])
-def test_t3_a_camera_tilted_down_gives_cos_and_sin(tilt_deg: float) -> None:
+def test_a_camera_tilted_down_gives_cos_and_sin(tilt_deg: float) -> None:
     tilt = math.radians(tilt_deg)
     # GeoCalib's pitch is positive looking up (latitude = asin(ray . up)).
     gravity = to_opencv_gravity(geocalib_up(0.0, -tilt)[None])[0]
@@ -105,7 +105,7 @@ def test_t3_a_camera_tilted_down_gives_cos_and_sin(tilt_deg: float) -> None:
     np.testing.assert_allclose(gravity, true_gravity(tilt_deg), atol=TOL)
 
 
-def test_t4_intrinsics_and_the_fov_sigma_invert_lifts_phi(fixture_clip: SyntheticClip) -> None:
+def test_intrinsics_and_the_fov_sigma_invert_lifts_phi(fixture_clip: SyntheticClip) -> None:
     sampling = make_context(fixture_clip).sampling
     camera = camera_model(sampling, FOCAL_PX, FOCAL_SIGMA_PX, np.eye(4))
     w, h = sampling.width, sampling.height
@@ -118,7 +118,7 @@ def test_t4_intrinsics_and_the_fov_sigma_invert_lifts_phi(fixture_clip: Syntheti
     assert camera.source is IntrinsicsSource.ESTIMATED
 
 
-def test_t4_geocalib_gets_the_sampled_frames_at_processing_size(
+def test_geocalib_gets_the_sampled_frames_at_processing_size(
     fixture_clip: SyntheticClip,
 ) -> None:
     fake = FakeCalibrator(geocalib_up(0.0, -0.4), np.array(0.01))
@@ -132,7 +132,7 @@ def test_t4_geocalib_gets_the_sampled_frames_at_processing_size(
 
 
 @pytest.mark.parametrize("sigma_f", [0.0, -1.0, math.nan, math.inf])
-def test_j8_a_missing_focal_sigma_is_unknown_never_zero(sigma_f: float) -> None:
+def test_a_missing_focal_sigma_is_unknown_never_zero(sigma_f: float) -> None:
     assert math.isnan(fov_sigma_deg(FOCAL_PX, sigma_f, 256))
 
 
@@ -141,7 +141,7 @@ def unit(v: Any) -> NDArray[np.float64]:
     return a / np.linalg.norm(a)
 
 
-def test_t5_equal_frames_give_their_direction_and_a_vague_frame_barely_counts() -> None:
+def test_equal_frames_give_their_direction_and_a_vague_frame_barely_counts() -> None:
     g = unit([0.1, 0.9, 0.4])
     np.testing.assert_allclose(combine_gravity(np.tile(g, (4, 1)), np.full(4, 0.02)), g, atol=TOL)
     other = unit([0.0, 1.0, 0.0])
@@ -161,7 +161,7 @@ def test_t5b_a_non_positive_or_unknown_sigma_gives_equal_weights(bad: float) -> 
 
 
 @pytest.mark.parametrize(("n_total", "n_frames"), [(24, 8), (24, 1), (5, 8), (8, 8), (100, 7)])
-def test_t6_frames_are_equally_spaced_and_short_clips_give_all(n_total: int, n_frames: int) -> None:
+def test_frames_are_equally_spaced_and_short_clips_give_all(n_total: int, n_frames: int) -> None:
     rows = frame_indices(n_total, n_frames)
     assert rows.size == min(n_total, n_frames)
     assert len(set(rows.tolist())) == rows.size and rows[0] == 0
@@ -171,7 +171,7 @@ def test_t6_frames_are_equally_spaced_and_short_clips_give_all(n_total: int, n_f
     assert steps.size == 0 or int(steps.max() - steps.min()) <= 1
 
 
-def test_t6_assumed_focal_is_assumed_fov_with_geocalibs_gravity(
+def test_assumed_focal_is_assumed_fov_with_geocalibs_gravity(
     fixture_clip: SyntheticClip,
 ) -> None:
     fake = FakeCalibrator(geocalib_up(0.05, -0.5), np.array(0.01))
@@ -187,7 +187,7 @@ def test_t6_assumed_focal_is_assumed_fov_with_geocalibs_gravity(
     np.testing.assert_allclose(gravity_from_pose(camera.world_from_camera), expected, atol=TOL)
 
 
-def test_t7_a_valid_camera_with_one_pose_and_a_key_per_parameter(
+def test_a_valid_camera_with_one_pose_and_a_key_per_parameter(
     fixture_clip: SyntheticClip,
 ) -> None:
     fake = FakeCalibrator(geocalib_up(0.0, -0.3), np.array(0.01))
@@ -325,7 +325,7 @@ class VaryingCalibrator(FakeCalibrator):
 
 
 @pytest.mark.parametrize("focal", ["geocalib", "assumed"])
-def test_h3_the_pose_carries_the_gravity_the_gates_evaluate(
+def test_the_pose_carries_the_gravity_the_gates_evaluate(
     fixture_clip: SyntheticClip, focal: str
 ) -> None:
     """P0's gates read clip_gravity of the call made in the adopted focal mode (the free one, or

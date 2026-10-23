@@ -50,7 +50,7 @@ def angle_deg(u: np.ndarray, v: np.ndarray) -> float:
 @pytest.mark.parametrize("pitch", [0.0, 25.0])
 @pytest.mark.parametrize("beta", [0.1, 0.3, 0.5, 0.7, 0.9])
 @pytest.mark.parametrize("e", [0.5, 0.8, 1.2, 1.5])
-def test_t2_one_environment_impact_at_the_right_time(e: float, beta: float, pitch: float) -> None:
+def test_one_environment_impact_at_the_right_time(e: float, beta: float, pitch: float) -> None:
     case = sc.bounce(e=e, impact_frame=15.0 + beta, pitch_deg=pitch)
     records = kinematic(cs.kinematic_table(case))
     assert len(records) == 1
@@ -62,7 +62,7 @@ def test_t2_one_environment_impact_at_the_right_time(e: float, beta: float, pitc
     np.testing.assert_allclose(record.normal, up, atol=1e-12)
 
 
-def test_t2_the_record_is_one_point_on_the_surfaces_with_unknown_confidence() -> None:
+def test_the_record_is_one_point_on_the_surfaces_with_unknown_confidence() -> None:
     """point_distances is an explicit zero, never None; the point is the ball's lowest
     point at the impact, i.e. the true contact point."""
     case = sc.bounce(impact_frame=15.3, pitch_deg=25.0)
@@ -78,7 +78,7 @@ def test_t2_the_record_is_one_point_on_the_surfaces_with_unknown_confidence() ->
 
 @pytest.mark.parametrize("gain", [0.0, 0.1, 0.25, 0.5, 1.0])
 @pytest.mark.parametrize("mass_ratio", [1.0, 3.0])
-def test_t3_a_collision_gives_one_pair_record_and_no_environment(
+def test_a_collision_gives_one_pair_record_and_no_environment(
     mass_ratio: float, gain: float
 ) -> None:
     case = sc.collision(mass_ratio=mass_ratio, gain=gain, impact_frame=15.3, pitch_deg=25.0)
@@ -94,7 +94,7 @@ def no_kinematic_records(case: sc.Case) -> bool:
 
 
 @pytest.mark.parametrize("pitch", [0.0, 25.0])
-def test_t4_parabola_rest_and_rolling_have_no_impact(pitch: float) -> None:
+def test_parabola_rest_and_rolling_have_no_impact(pitch: float) -> None:
     assert no_kinematic_records(sc.parabola(pitch_deg=pitch))
     assert no_kinematic_records(sc.rolling_ball(pitch_deg=pitch))
     assert no_kinematic_records(sc.stack(pitch_deg=pitch))
@@ -103,7 +103,7 @@ def test_t4_parabola_rest_and_rolling_have_no_impact(pitch: float) -> None:
 
 @pytest.mark.parametrize("change_frame", [12.3, 15.5, 16.0])
 @pytest.mark.parametrize("pitch", [0.0, 25.0])
-def test_t4_gravity_changes_and_scales_have_no_impact(pitch: float, change_frame: float) -> None:
+def test_gravity_changes_and_scales_have_no_impact(pitch: float, change_frame: float) -> None:
     """r5a_gravity_switch (g changes in flight), r5b_gravity_scale and r5a_object_gravity (a
     whole flight at another g), levels 0.05..0.4 both ways."""
     g = sc.STANDARD_GRAVITY
@@ -117,7 +117,7 @@ def test_t4_gravity_changes_and_scales_have_no_impact(pitch: float, change_frame
 
 @pytest.mark.parametrize("flight", [False, True])
 @pytest.mark.parametrize("level", [0.25, 0.5, 1.0, 2.0])
-def test_t4_a_teleport_at_any_boundary_has_no_impact(level: float, flight: bool) -> None:
+def test_a_teleport_at_any_boundary_has_no_impact(level: float, flight: bool) -> None:
     for pitch in (0.0, 25.0):
         for frame in range(1, sc.FRAMES):
             delta = level * 2 * sc.BALL_RADIUS
@@ -127,7 +127,7 @@ def test_t4_a_teleport_at_any_boundary_has_no_impact(level: float, flight: bool)
 
 
 @pytest.mark.parametrize("lengths", [1, 2, 3, 4, 5])
-def test_t4_an_isolated_error_on_one_row_has_no_impact(lengths: int) -> None:
+def test_an_isolated_error_on_one_row_has_no_impact(lengths: int) -> None:
     clean = sc.parabola(pitch_deg=25.0)
     shift = clean.view.vector([0.0, lengths * 2 * sc.BALL_RADIUS, 0.0])
     for frame in range(sc.FRAMES):
@@ -145,7 +145,7 @@ def micro_kink(px: float = 1e-3) -> sc.Case:
     return sc.with_values(case, "position", "box", range(sc.FRAMES), moved)
 
 
-def test_t6_a_kink_of_a_thousandth_of_a_pixel_is_below_the_floor() -> None:
+def test_a_kink_of_a_thousandth_of_a_pixel_is_below_the_floor() -> None:
     case = micro_kink()
     tiny = NoiseScale(np.full(3, 1e-12), known=True)
     unfloored = track_impacts(case.states.t, case.states.position[:, 0], tiny, 4, 0.05)
@@ -153,7 +153,7 @@ def test_t6_a_kink_of_a_thousandth_of_a_pixel_is_below_the_floor() -> None:
     assert no_kinematic_records(case)
 
 
-def test_t6_the_floor_is_nan_without_a_focal_or_a_depth() -> None:
+def test_the_floor_is_nan_without_a_focal_or_a_depth() -> None:
     assert pixel_floor(4.0, 500.0) == pytest.approx(4.0 / (500.0 * math.sqrt(12.0)))
     for depth, focal in ((4.0, math.nan), (math.nan, 500.0), (-1.0, 500.0), (4.0, 0.0)):
         assert math.isnan(pixel_floor(depth, focal))
@@ -184,7 +184,7 @@ def in_world(case: sc.Case) -> tuple[sc.Case, np.ndarray]:
     return replace(case, states=moved), pose
 
 
-def test_j3_world_states_use_the_camera_pose_or_get_no_floor() -> None:
+def test_world_states_use_the_camera_pose_or_get_no_floor() -> None:
     case, pose = in_world(sc.bounce(impact_frame=15.3, pitch_deg=25.0))
     with_pose = kinematic(cs.kinematic_table(case, camera=cs.scene_camera(case, pose=pose)))
     assert [(r.object_b, round(r.t_start, 6)) for r in with_pose] == [(ENV_ID, 15.3)]
@@ -193,21 +193,21 @@ def test_j3_world_states_use_the_camera_pose_or_get_no_floor() -> None:
 
 
 @pytest.mark.parametrize("step", [2, 3])
-def test_t7_a_strided_table_keeps_the_native_frame(step: int) -> None:
+def test_a_strided_table_keeps_the_native_frame(step: int) -> None:
     case = sc.strided(sc.bounce(impact_frame=15.4, pitch_deg=25.0), step, quantize=False)
     records = kinematic(cs.kinematic_table(case))
     assert len(records) == 1 and abs(records[0].t_start - 15.4) <= 1e-3
 
 
 @pytest.mark.parametrize("fps", [10.0, 60.0])
-def test_t7_the_record_frame_is_the_time_over_the_frame_period(fps: float) -> None:
+def test_the_record_frame_is_the_time_over_the_frame_period(fps: float) -> None:
     case = sc.bounce(impact_frame=15.4, pitch_deg=25.0)
     states = replace(case.states, t=case.states.frame_index / fps)
     records = kinematic(cs.kinematic_table(case, states=states, seconds_per_frame=1.0 / fps))
     assert len(records) == 1 and abs(records[0].t_start - 15.4) <= 1e-3
 
 
-def test_t7_fewer_than_eight_stencils_give_no_impact() -> None:
+def test_fewer_than_eight_stencils_give_no_impact() -> None:
     rows = MIN_NOISE_STENCILS + 2  # third differences: rows - 3 = 7 stencils
     case = sc.bounce(impact_frame=5.4, frames=rows, pitch_deg=25.0)
     assert impacts_of(case), "the detector alone sees the kink"
@@ -232,7 +232,7 @@ def two_balls(
     return sc.build("two_balls", objects, [], 25.0)
 
 
-def test_t8_a_downward_kick_in_the_air_has_no_surface() -> None:
+def test_a_downward_kick_in_the_air_has_no_surface() -> None:
     g = sc.STANDARD_GRAVITY * sc.DOWN
     t, t_c = sc.times(), 15.3 * sc.DT
     v_in, v_out = np.array([0.5, 0.0, -2.0]), np.array([0.5, 0.0, -5.0])
@@ -243,7 +243,7 @@ def test_t8_a_downward_kick_in_the_air_has_no_surface() -> None:
     assert no_kinematic_records(case)
 
 
-def test_t8_impulses_of_the_same_sign_are_not_a_pair() -> None:
+def test_impulses_of_the_same_sign_are_not_a_pair() -> None:
     """Still balls 5 cm apart (beyond the proximity tolerance, inside each other's image box)
     both kicked along +x and a little down: no pair, and no environment either."""
     case = two_balls([1.0, 0.0, -0.1], [1.0, 0.0, -0.1], gap_x=0.05, speed=0.0)
@@ -252,7 +252,7 @@ def test_t8_impulses_of_the_same_sign_are_not_a_pair() -> None:
     assert no_kinematic_records(case)
 
 
-def test_t8_boxes_apart_in_the_image_are_not_a_pair() -> None:
+def test_boxes_apart_in_the_image_are_not_a_pair() -> None:
     case = two_balls([-2.0, 0.0, -0.2], [2.0, 0.0, -0.2], gap_x=3.0)
     assert no_kinematic_records(case)
     touching = two_balls([-2.0, 0.0, -0.2], [2.0, 0.0, -0.2])
@@ -261,7 +261,7 @@ def test_t8_boxes_apart_in_the_image_are_not_a_pair() -> None:
     ]
 
 
-def test_t8_a_kinematic_impact_replaces_the_proximity_impact_of_the_pair() -> None:
+def test_a_kinematic_impact_replaces_the_proximity_impact_of_the_pair() -> None:
     case = cs.collision_over_floor(gain=0.5, impact_frame=15.0)
     table = cs.kinematic_table(case)
     pair = [r for r in table.records if {r.object_a, r.object_b} == {"ball_i", "ball_j"}]
@@ -274,7 +274,7 @@ def test_t8_a_kinematic_impact_replaces_the_proximity_impact_of_the_pair() -> No
     assert [(r.source, r.kind) for r in pair] == [(SOURCE, ContactKind.IMPACT)]
 
 
-def test_j7_a_pair_consumes_both_impacts_so_no_environment_record() -> None:
+def test_a_pair_consumes_both_impacts_so_no_environment_record() -> None:
     """ball_j alone would go to the environment (its kick points mostly up); the pair found
     from ball_i consumes it."""
     dv_i, dv_j = np.array([-2.0, 0.0, 0.5]), np.array([1.0, 0.0, 2.0])
@@ -287,7 +287,7 @@ def test_j7_a_pair_consumes_both_impacts_so_no_environment_record() -> None:
     assert [(r.object_a, r.object_b) for r in records] == [("ball_i", "ball_j")]
 
 
-def test_t10_a_rocking_box_rests_once_unless_the_point_count_splits() -> None:
+def test_a_rocking_box_rests_once_unless_the_point_count_splits() -> None:
     case = cs.rocking_case()
     by_normal = cs.kinematic_table(case).records
     by_count = cs.kinematic_table(case, impacts="none", resting_split="normal_and_count").records
@@ -295,7 +295,7 @@ def test_t10_a_rocking_box_rests_once_unless_the_point_count_splits() -> None:
     assert len(by_count) == 16 and all(r.kind is ContactKind.IMPACT for r in by_count)
 
 
-def test_t13_every_parameter_and_the_version_enter_the_key(fixture_clip: SyntheticClip) -> None:
+def test_every_parameter_and_the_version_enter_the_key(fixture_clip: SyntheticClip) -> None:
     def key(provider: Any = KinematicContacts, **params: Any) -> str:
         return key_of(fixture_clip, provider, params=params, upstream=UPSTREAM)
 
@@ -310,7 +310,7 @@ def test_t13_every_parameter_and_the_version_enter_the_key(fixture_clip: Synthet
     assert base not in changed and len(set(changed)) == len(changed)
 
 
-def test_t13_the_provider_declares_camera_and_kinematics_and_no_profile() -> None:
+def test_the_provider_declares_camera_and_kinematics_and_no_profile() -> None:
     assert KinematicContacts.requires == (Stage.CAMERA, Stage.KINEMATICS)
     assert KinematicContacts.error_profile_reads == () and not KinematicContacts.heavy
     assert KinematicContacts.version == "1"

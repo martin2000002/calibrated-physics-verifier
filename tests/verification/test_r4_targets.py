@@ -69,7 +69,7 @@ NAMES = sorted(name for name in PLUGIN_KINDS["perturbations"]() if name != "none
 
 
 @pytest.mark.parametrize("name", [None, *NAMES])
-def test_j1_every_role_is_the_v1_role(name: str | None) -> None:
+def test_every_role_is_the_v1_role(name: str | None) -> None:
     clip = manifest(name)
     for check in v2_units():
         v1 = role_of(clip, check.check_id, v1_units(), COUPLINGS)
@@ -77,7 +77,7 @@ def test_j1_every_role_is_the_v1_role(name: str | None) -> None:
         assert v1 == v2, (name, check.check_id)
 
 
-def test_j1_the_r4_family_resolves_as_before() -> None:
+def test_the_r4_family_resolves_as_before() -> None:
     targets = {name: target_check_ids(label(name), v2_units()) for name in NAMES}
     assert targets["r4_teleport"] == ("R4_jump",)
     assert targets["r4_resize"] == ("R4_size",)
@@ -124,7 +124,7 @@ def sweep(items: list[ClipInputs], values: dict[str, float]) -> list[object]:
     return [o for o in spec.outcomes if o.check_id == "R4_jump"]
 
 
-def test_j1_the_sweep_ranks_the_levels_of_each_edited_object() -> None:
+def test_the_sweep_ranks_the_levels_of_each_edited_object() -> None:
     items = [teleport(1, "a"), teleport(3, "a"), teleport(2, "b"), teleport(4, "b")]
     values = {"s0_a_L1": 3.0, "s0_a_L3": 9.0, "s0_b_L2": 1.0, "s0_b_L4": 2.0}
     outcomes = sweep(items, values)
@@ -133,14 +133,14 @@ def test_j1_the_sweep_ranks_the_levels_of_each_edited_object() -> None:
     assert all(o.passed for o in outcomes)  # type: ignore[attr-defined]
 
 
-def test_j1_a_wrong_order_within_an_object_fails() -> None:
+def test_a_wrong_order_within_an_object_fails() -> None:
     items = [teleport(1, "a"), teleport(3, "a")]
     outcomes = sweep(items, {"s0_a_L1": 9.0, "s0_a_L3": 3.0})
     (outcome,) = outcomes
     assert not outcome.passed  # type: ignore[attr-defined]
 
 
-def test_j1_one_level_per_object_has_no_order_to_keep() -> None:
+def test_one_level_per_object_has_no_order_to_keep() -> None:
     (outcome,) = sweep([teleport(2, "a")], {"s0_a_L2": 5.0})
     assert outcome.undefined  # type: ignore[attr-defined]
 

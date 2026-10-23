@@ -138,7 +138,7 @@ def resized(level: float, width: int, where: str) -> sc.Case:
 @pytest.mark.parametrize("width", [3, 8])
 @pytest.mark.parametrize("level", ResizeLevels().levels)
 @pytest.mark.parametrize("edges", EDGES)
-def test_t15_r4_resize_is_unchanged(edges: EdgeMode, level: float, width: int, where: str) -> None:
+def test_r4_resize_is_unchanged(edges: EdgeMode, level: float, width: int, where: str) -> None:
     check = SizeConstancyCheck(SizeParams(reference="self"))  # the v1 measure
     plain, filtered = both(check, resized(level, width, where), edges)
     print(f"R4_size {edges} m={level} w={width} {where}: {plain} -> {filtered}")
@@ -153,7 +153,7 @@ def test_t15_r4_resize_is_unchanged(edges: EdgeMode, level: float, width: int, w
 
 @pytest.mark.parametrize("level", TeleportLevels().levels)
 @pytest.mark.parametrize("edges", EDGES)
-def test_t15_r4_teleport_is_unchanged(edges: EdgeMode, level: float) -> None:
+def test_r4_teleport_is_unchanged(edges: EdgeMode, level: float) -> None:
     case = sc.teleport(delta=level * 2 * sc.BALL_RADIUS, pitch_deg=PITCH_DEG)
     plain, filtered = both(ContinuityCheck(CommonParams()), case, edges)
     print(f"R4_jump {edges} m={level}: {plain} -> {filtered}")
@@ -162,7 +162,7 @@ def test_t15_r4_teleport_is_unchanged(edges: EdgeMode, level: float) -> None:
 
 @pytest.mark.parametrize("rows", [int(n) for n in VanishLevels().levels])
 @pytest.mark.parametrize("edges", EDGES)
-def test_t15_r4_vanish_is_unchanged(edges: EdgeMode, rows: int) -> None:
+def test_r4_vanish_is_unchanged(edges: EdgeMode, rows: int) -> None:
     case = sc.disappearance(first=10, last=10 + rows - 1, pitch_deg=PITCH_DEG)
     plain, filtered = both(PermanenceCheck(PermanenceParams()), case, edges)
     assert plain == [rows] and filtered == plain
@@ -170,7 +170,7 @@ def test_t15_r4_vanish_is_unchanged(edges: EdgeMode, rows: int) -> None:
 
 @pytest.mark.parametrize("depth", [0.01, 0.02, 0.04, 0.08])
 @pytest.mark.parametrize("edges", EDGES)
-def test_t15_r1_constant_penetration_is_unchanged(edges: EdgeMode, depth: float) -> None:
+def test_r1_constant_penetration_is_unchanged(edges: EdgeMode, depth: float) -> None:
     for case in (
         sc.overlapping_spheres(depth, pitch_deg=PITCH_DEG),
         sc.box_sphere(depth, pitch_deg=PITCH_DEG),
@@ -181,7 +181,7 @@ def test_t15_r1_constant_penetration_is_unchanged(edges: EdgeMode, depth: float)
 
 @pytest.mark.parametrize("offset", [0.21, 0.24, 0.28])
 @pytest.mark.parametrize("edges", EDGES)
-def test_t15_r2_constant_overhang_is_unchanged(edges: EdgeMode, offset: float) -> None:
+def test_r2_constant_overhang_is_unchanged(edges: EdgeMode, offset: float) -> None:
     plain, filtered = both(
         EquilibriumCheck(EquilibriumParams()), sc.overhang(offset, pitch_deg=PITCH_DEG), edges
     )
@@ -202,7 +202,7 @@ def ladder(check: Any, make: Make, levels: tuple[float, ...], label: str, edges:
 
 
 @pytest.mark.parametrize("edges", EDGES)
-def test_t15_r3a_restitution_levels_survive(
+def test_r3a_restitution_levels_survive(
     edges: EdgeMode,
 ) -> None:
     def make(m: float) -> sc.Case:
@@ -213,7 +213,7 @@ def test_t15_r3a_restitution_levels_survive(
 
 @pytest.mark.parametrize("yaw_deg", [0.0, 60.0])
 @pytest.mark.parametrize("edges", EDGES)
-def test_t15_r3b_energy_levels_survive(edges: EdgeMode, yaw_deg: float) -> None:
+def test_r3b_energy_levels_survive(edges: EdgeMode, yaw_deg: float) -> None:
     def make(m: float) -> sc.Case:
         return turned(sc.collision(gain=m, pitch_deg=PITCH_DEG), yaw_deg)
 
@@ -227,7 +227,7 @@ def test_t15_r3b_energy_levels_survive(edges: EdgeMode, yaw_deg: float) -> None:
 
 
 @pytest.mark.parametrize("edges", EDGES)
-def test_t15_r5a_gravity_change_levels_survive(
+def test_r5a_gravity_change_levels_survive(
     edges: EdgeMode,
 ) -> None:
     def make(m: float) -> sc.Case:
@@ -242,7 +242,7 @@ KEEP_DRIFT_OVER_L1 = (0.6, 0.8)
 
 
 @pytest.mark.parametrize("edges", EDGES)
-def test_t15_the_clean_parabola_r5a_drift_is_measured(edges: EdgeMode) -> None:
+def test_the_clean_parabola_r5a_drift_is_measured(edges: EdgeMode) -> None:
     """Not part of the criteria, asserted as found: on a clean flight the median clips the depth
     apex (keep) and also flattens both ends (shifted). Without B the clean R5a is 0 and L1 is
     0.0488; with "keep" the clean scene lands at 0.0335, closer to L1 than to clean."""
@@ -261,7 +261,7 @@ def test_t15_the_clean_parabola_r5a_drift_is_measured(edges: EdgeMode) -> None:
 
 
 @pytest.mark.parametrize("edges", EDGES)
-def test_t15_r5b_gravity_scale_levels_survive(
+def test_r5b_gravity_scale_levels_survive(
     edges: EdgeMode,
 ) -> None:
     def make(m: float) -> sc.Case:
@@ -270,7 +270,7 @@ def test_t15_r5b_gravity_scale_levels_survive(
     ladder(GravityValueCheck(GravityValueParams()), make, ScaleLevels().levels, "R5b", edges)
 
 
-def test_t15_the_scenes_move_in_depth() -> None:
+def test_the_scenes_move_in_depth() -> None:
     case = sc.parabola(pitch_deg=PITCH_DEG)
     z = case.states.position[:, 0, 2]
     assert float(np.ptp(z)) > 0.1 and not math.isclose(z[0], z[-1])

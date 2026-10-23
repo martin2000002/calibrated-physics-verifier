@@ -207,7 +207,7 @@ CHECKS = [(FallShapeCheck, FallShapeParams), (GravityValueCheck, GravityValuePar
 
 
 @pytest.mark.parametrize(("check", "params"), CHECKS)
-def test_t8_a_fall_hidden_by_a_declared_absolute_sigma_is_found_on_the_track(
+def test_a_fall_hidden_by_a_declared_absolute_sigma_is_found_on_the_track(
     check: type, params: type
 ) -> None:
     case = declared_far_too_large()
@@ -227,9 +227,7 @@ def test_t9b_slow_drift_below_half_a_length_is_not_a_fall(check: type, params: t
 
 @pytest.mark.parametrize(("check", "params"), CHECKS)
 @pytest.mark.parametrize("case", [sc.parabola(), sc.bounce(), sc.parabola(g_after=1.3 * G)])
-def test_t10_exact_positions_keep_the_length_floor(
-    check: type, params: type, case: sc.Case
-) -> None:
+def test_exact_positions_keep_the_length_floor(check: type, params: type, case: sc.Case) -> None:
     assert bool(np.all(case.states.position_sigma == 0.0))
     track = run(check(params(travel_noise="track")), case)
     declared = run(check(params(travel_noise="declared")), case)
@@ -252,7 +250,7 @@ def test_without_a_known_sigma_the_track_noise_comes_before_the_length_floor(
 
 
 @pytest.mark.parametrize(("check", "params"), CHECKS)
-def test_t11_too_few_stencils_fall_back_to_the_declared_sigma(check: type, params: type) -> None:
+def test_too_few_stencils_fall_back_to_the_declared_sigma(check: type, params: type) -> None:
     case = declared_far_too_large()
     rows = case.states.n_frames - 3
     assert run(check(params(travel_noise="track", min_noise_stencils=rows + 1)), case) == []

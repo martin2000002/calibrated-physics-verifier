@@ -29,7 +29,7 @@ def directions() -> list[np.ndarray]:
 
 
 @pytest.mark.parametrize("gravity", directions())
-def test_t1_pose_from_gravity_is_a_rotation_that_gives_the_gravity_back(
+def test_pose_from_gravity_is_a_rotation_that_gives_the_gravity_back(
     gravity: np.ndarray,
 ) -> None:
     pose = pose_from_gravity(3.0 * gravity)
@@ -55,7 +55,7 @@ def old_gravity(pose: np.ndarray) -> np.ndarray:
 
 
 @pytest.mark.parametrize("per_frame", [False, True])
-def test_t2_lift_reads_the_same_gravity_as_before(
+def test_lift_reads_the_same_gravity_as_before(
     fixture_clip: SyntheticClip, per_frame: bool
 ) -> None:
     sampling = make_context(fixture_clip).sampling

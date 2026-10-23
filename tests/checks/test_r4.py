@@ -106,7 +106,7 @@ def perceived_gaps(*gaps: tuple[int, int]) -> sc.Case:
 @pytest.mark.parametrize(
     ("gaps", "runs"), [((), 1), (((4, 7),), 1), (((2, 3), (8, 8), (12, 15)), 3)]
 )
-def test_t6_perceived_sigma_has_two_uncertain_edges_per_run(
+def test_perceived_sigma_has_two_uncertain_edges_per_run(
     gaps: tuple[tuple[int, int], ...], runs: int
 ) -> None:
     result = missing(perceived_gaps(*gaps))
@@ -115,12 +115,12 @@ def test_t6_perceived_sigma_has_two_uncertain_edges_per_run(
     assert result.details["sigma_estimated"] is True
 
 
-def test_t6_perceived_sigma_scales_with_the_row_step() -> None:
+def test_perceived_sigma_scales_with_the_row_step() -> None:
     case = sc.strided(sc.with_sigma(sc.disappearance(4, 7), position=0.01), 2, quantize=True)
     assert missing(case).sigma == pytest.approx(2.0 * math.sqrt(2.0))
 
 
-def test_t6_exact_positions_keep_sigma_zero() -> None:
+def test_exact_positions_keep_sigma_zero() -> None:
     result = missing(sc.disappearance(4, 7))
     assert result.sigma == 0.0
     assert "sigma_estimated" not in result.details

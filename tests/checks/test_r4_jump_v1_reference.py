@@ -17,6 +17,6 @@ def current() -> dict[str, list[object]]:
 
 
 @pytest.mark.parametrize("scene", sorted(SCENES))
-def test_t8_t14_the_v1_results_do_not_move(current: dict[str, list[object]], scene: str) -> None:
+def test_the_v1_results_do_not_move(current: dict[str, list[object]], scene: str) -> None:
     golden = json.loads(GOLDEN.read_text(encoding="utf-8"))
     assert same(current[scene], golden[scene])

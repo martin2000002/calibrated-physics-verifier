@@ -45,7 +45,7 @@ LISTING = "https://listing.test/o"
 CLASSES = ("cup", "cereal_box")
 VIDEOS_PER_SPLIT = 12
 PER_CLASS = 2
-A9_TEST = 2
+SIZE_TEST_PER_CLASS = 2
 SMALL, LARGE = 10, 100
 FRAMES = 3
 FPS = 30.0
@@ -131,7 +131,7 @@ def make(config_dir: Path, environ: dict[str, str]) -> Callable[..., Settings]:
             f'sizing.bucket_url="{BUCKET}"',
             f'sizing.listing_url="{LISTING}"',
             f"sizing.classes={list(CLASSES)}",
-            f"sizing.per_class_test={A9_TEST}",
+            f"sizing.per_class_test={SIZE_TEST_PER_CLASS}",
             "sizing.per_class_train=2",
             'sizing.e2e.classes=["cup"]',
             "sizing.e2e.videos=1",
@@ -175,18 +175,20 @@ def fetch(settings: Settings, bucket: FakeBucket, decoder: FakeDecoder) -> Path:
     return dest
 
 
-def a9_looked_at(settings: Settings) -> set[str]:
+def size_estimator_looked_at(settings: Settings) -> set[str]:
     """The size estimator's test draw plus the first end-to-end candidate of ``cup``, by hand."""
     sizing = sizing_settings(settings)
     refs = {c: [objectron.VideoRef(v) for v in ids_of(c, "test")] for c in CLASSES}
-    drawn = {r.video_id for c in CLASSES for r in objectron.select(refs[c], c, A9_TEST, 0)}
+    drawn = {
+        r.video_id for c in CLASSES for r in objectron.select(refs[c], c, SIZE_TEST_PER_CLASS, 0)
+    }
     e2e_first = objectron.select(refs["cup"], "cup", VIDEOS_PER_SPLIT, sizing.seed)[0]
     return drawn | {e2e_first.video_id}
 
 
 def expected_order(settings: Settings, label: str) -> list[str]:
     seed = settings.section("objectron_static", ObjectronStaticSettings).seed
-    excluded = frozenset(a9_looked_at(settings))
+    excluded = frozenset(size_estimator_looked_at(settings))
     refs = [objectron.VideoRef(v) for v in ids_of(label, "test")]
     return [r.video_id for r in ordered(refs, excluded, seed)]
 
@@ -220,13 +222,13 @@ def test_the_e2e_draw_replays_size_e2e_prepare(settings: Settings) -> None:
     assert draw.examined == {r.video_id for r in (*draw.taken, order[0])}
 
 
-def test_fetch_leaves_out_every_video_a9_looked_at(
+def test_fetch_leaves_out_every_video_the_size_estimator_looked_at(
     settings: Settings, bucket: FakeBucket, decoder: FakeDecoder
 ) -> None:
     dest = fetch(settings, bucket, decoder)
     chosen = read_selection(dest / SELECTION_FILE)
     assert chosen is not None
-    assert set(chosen.excluded) == a9_looked_at(settings)
+    assert set(chosen.excluded) == size_estimator_looked_at(settings)
     assert not {c.video_id for c in chosen.clips} & set(chosen.excluded)
     assert all("/batch-1/" in c.video_id for c in chosen.clips)
 
@@ -287,8 +289,10 @@ def test_the_configured_split_is_the_one_drawn_and_recorded(
     assert all("/batch-2/" in name for name in train.gets)
     sizing = sizing_settings(settings)
     refs = {c: [objectron.VideoRef(v) for v in ids_of(c, "train")] for c in CLASSES}
-    a9_train = {r.video_id for c in CLASSES for r in objectron.select(refs[c], c, 2, sizing.seed)}
-    assert a9_train <= set(chosen.excluded)
+    size_estimator_train = {
+        r.video_id for c in CLASSES for r in objectron.select(refs[c], c, 2, sizing.seed)
+    }
+    assert size_estimator_train <= set(chosen.excluded)
     assert not {c.video_id for c in chosen.clips} & set(chosen.excluded)
     manifest = read_manifest(dest / MANIFEST_FILE)
     assert manifest is not None and "official train index" in manifest.revision

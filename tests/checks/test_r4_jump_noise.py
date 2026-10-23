@@ -55,7 +55,7 @@ def noisy_rest(sigma: float, seed: int, frames: int = 24) -> CheckInputs:
 # White noise, invariances.
 
 
-def test_t1_white_noise_peaks_like_the_maximum_of_chi3_norms() -> None:
+def test_white_noise_peaks_like_the_maximum_of_chi3_norms() -> None:
     """Median of m over 2000 noisy tracks (sigma-hat measured on each) against the median of the
     same maximum with the true sigma, within 5 %."""
     sigma, draws = 0.02, 2000
@@ -93,7 +93,7 @@ def with_gravity(inputs: CheckInputs, g: np.ndarray) -> CheckInputs:
 
 
 @pytest.mark.parametrize("factor", [0.01, 100.0])
-def test_t1_the_value_does_not_depend_on_the_scale(factor: float) -> None:
+def test_the_value_does_not_depend_on_the_scale(factor: float) -> None:
     noisy = with_positions(sc.teleport().inputs(), noisy_rest(0.01, 3, 32).states.position, 0.01)
     noisy = replace(noisy, states=replace(noisy.states, position=noisy.states.position))
     base = one(noisy)
@@ -103,7 +103,7 @@ def test_t1_the_value_does_not_depend_on_the_scale(factor: float) -> None:
 
 
 @pytest.mark.parametrize("direction", [(0.0, 9.81, 0.0), (3.0, -2.0, 7.0)])
-def test_t1_the_value_does_not_depend_on_gravity(direction: tuple[float, float, float]) -> None:
+def test_the_value_does_not_depend_on_gravity(direction: tuple[float, float, float]) -> None:
     inputs = with_positions(
         sc.teleport().inputs(),
         sc.teleport().states.position + np.random.default_rng(4).normal(0.0, 0.01, (32, 1, 3)),
@@ -123,7 +123,7 @@ def stepped(inputs: CheckInputs, row: int, offset: np.ndarray) -> CheckInputs:
     return replace(inputs, states=replace(inputs.states, position=position))
 
 
-def test_t2_a_step_is_twice_its_size_over_the_noise_of_its_stencil() -> None:
+def test_a_step_is_twice_its_size_over_the_noise_of_its_stencil() -> None:
     sigma, row = 0.01, 11
     step = 100 * sigma
     result = one(stepped(noisy_rest(sigma, 5), row, np.array([step, 0.0, 0.0])))
@@ -135,7 +135,7 @@ def test_t2_a_step_is_twice_its_size_over_the_noise_of_its_stencil() -> None:
     assert abs(result.magnitude - expected) <= 4.0
 
 
-def test_t3_exact_positions_use_the_pixel_floor_on_every_axis() -> None:
+def test_exact_positions_use_the_pixel_floor_on_every_axis() -> None:
     case = sc.rolling_ball()
     step = 5 * DEPTH / sc.FOCAL_PX
     result = one(stepped(case.inputs(), 15, np.array([step, 0.0, 0.0])))
@@ -155,7 +155,7 @@ def short_track(sigma: float) -> CheckInputs:
     return noisy_rest(sigma, 6, frames=10)
 
 
-def test_t4_too_few_stencils_abstain_without_the_declared_branch() -> None:
+def test_too_few_stencils_abstain_without_the_declared_branch() -> None:
     result = one(short_track(0.01), few_stencils="abstain")
     assert result.abstain_reason is AbstainReason.TOO_FEW_FRAMES
     assert result.details["usable_stencils"] == 7
@@ -193,7 +193,7 @@ def test_t4b_without_any_sigma_too_few_stencils_abstain() -> None:
 
 
 @pytest.mark.parametrize("step", [1, 2])
-def test_t5_the_stencils_of_a_marked_impact_do_not_count(step: int) -> None:
+def test_the_stencils_of_a_marked_impact_do_not_count(step: int) -> None:
     case = sc.strided(sc.bounce(), step, quantize=True)
     result = one(case.inputs())
     assert case.contacts is not None
@@ -207,7 +207,7 @@ def test_t5_the_stencils_of_a_marked_impact_do_not_count(step: int) -> None:
 # The camera.
 
 
-def test_t6_without_a_camera_the_runner_abstains_by_requires() -> None:
+def test_without_a_camera_the_runner_abstains_by_requires() -> None:
     inputs = replace(sc.teleport().inputs(), camera=None)
     item = ClipInputs(inputs.clip, inputs, None)
 
@@ -222,13 +222,13 @@ def test_t6_without_a_camera_the_runner_abstains_by_requires() -> None:
     assert result.details["missing"] == ["camera"]
 
 
-def test_t6_the_check_itself_refuses_a_missing_camera() -> None:
+def test_the_check_itself_refuses_a_missing_camera() -> None:
     with pytest.raises(ValueError, match="requires contacts and camera"):
         check().evaluate(replace(sc.teleport().inputs(), camera=None))
 
 
 @pytest.mark.parametrize("broken", ["focal", "depth"])
-def test_t6_no_pixel_floor_is_unknown_uncertainty(broken: str) -> None:
+def test_no_pixel_floor_is_unknown_uncertainty(broken: str) -> None:
     inputs = sc.teleport().inputs()
     if broken == "focal":
         assert inputs.camera is not None
@@ -242,14 +242,14 @@ def test_t6_no_pixel_floor_is_unknown_uncertainty(broken: str) -> None:
 # Sigma and details.
 
 
-def test_t7_sigma_is_one_unless_the_positions_are_exact() -> None:
+def test_sigma_is_one_unless_the_positions_are_exact() -> None:
     exact = one(sc.teleport().inputs())
     assert exact.sigma == 0.0
     noisy = one(sc.with_sigma(sc.teleport(), position=0.001).inputs())
     assert noisy.sigma == 1.0
 
 
-def test_t7_details_carry_the_estimated_physical_jump() -> None:
+def test_details_carry_the_estimated_physical_jump() -> None:
     inputs = sc.teleport(delta=0.3).inputs()
     result = one(inputs)
     assert result.unit == "jump_over_noise"
@@ -289,7 +289,7 @@ def test_the_peak_value_has_unit_sigma_at_a_fixed_noise_scale() -> None:
 # Registry.
 
 
-def test_t9_the_registry_holds_one_r4_jump_the_v2() -> None:
+def test_the_registry_holds_one_r4_jump_the_v2() -> None:
     registry = PLUGIN_KINDS["checks"]()
     cls = registry["R4_jump"]
     assert cls is NoiseContinuityCheck

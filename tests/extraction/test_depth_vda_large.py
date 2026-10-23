@@ -52,8 +52,8 @@ def test_the_large_model_requests_its_encoder_and_checkpoint(
 
 def test_the_encoders_are_those_of_the_pinned_checkout() -> None:
     """run.py of Video-Depth-Anything 4f5ae23, model_configs (lines 45-49)."""
-    before_it3 = {"encoder": "vits", "features": 64, "out_channels": [48, 96, 192, 384]}
-    assert SMALL_ENCODER.kwargs() == before_it3
+    pinned_small = {"encoder": "vits", "features": 64, "out_channels": [48, 96, 192, 384]}
+    assert SMALL_ENCODER.kwargs() == pinned_small
     vitl = {"encoder": "vitl", "features": 256, "out_channels": [256, 512, 1024, 1024]}
     assert LARGE_ENCODER.kwargs() == vitl
 

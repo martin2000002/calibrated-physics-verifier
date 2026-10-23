@@ -52,7 +52,7 @@ def label(name: str, targets: tuple[str, ...], unit: str) -> PerturbationRecord:
     )
 
 
-def test_the_units_are_the_a4_perturbation_units() -> None:
+def test_the_units_are_the_synthetic_perturbation_units() -> None:
     """Through ``target_unit``: R4_jump v2 measures jump_over_noise, a test statistic of the
     jump_over_size that r4_teleport injects."""
     checks = [CheckUnit.of(cls) for cls in registry().values()]
