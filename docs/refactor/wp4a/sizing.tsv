@@ -1,6 +1,0 @@
-src/physverify/cli/commands/size.py	variable	e2e	end_to_end
-src/physverify/datasets/objectron_static.py	variable	e2e	end_to_end
-tests/sizing/test_e2e.py	variable	e2e	end_to_end
-src/physverify/datasets/objectron_static.py	variable	draws	objectron_draws
-src/physverify/sizing/objectron.py	variable	wire	protobuf_wire
-tests/sizing/test_objectron.py	variable	wire	protobuf_wire

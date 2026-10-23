@@ -1,2 +1,0 @@
-tests/calibration/test_exclusions.py	name	exclusions	exclusion_rules_module
-tests/calibration/test_exclusions.py	alias	exclusions	exclusion_rules as exclusion_rules_module

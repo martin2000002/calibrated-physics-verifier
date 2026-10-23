@@ -1,5 +1,0 @@
-src/physverify/datasets/local_video.py	literal	 (see ADR 0005, 3.11)	 (it lists the clips)
-src/physverify/datasets/objectron_static.py	literal	 cannot be restored; the selection is fixed once made (J14)	 cannot be restored; the selection is fixed once made
-src/physverify/datasets/objectron_static.py	literal	; the selection is fixed once made (J14)	; the selection is fixed once made
-src/physverify/verification/summary.py	literal	--sweep needs --level oracle (A4 labels are exact only on the oracle)	--sweep needs --level oracle (synthetic labels are exact only on the oracle)
-tests/verification/test_temporal_filter_keeps_detections.py	literal	  J5 (i) fails: 	  criterion (i) fails: 

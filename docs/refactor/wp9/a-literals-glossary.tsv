@@ -1,1 +1,0 @@
-src/physverify/verification/summary.py	literal	--sweep needs --level oracle (synthetic labels are exact only on the oracle)	--sweep needs --level oracle (synthetic ground-truth labels are exact only on the oracle)

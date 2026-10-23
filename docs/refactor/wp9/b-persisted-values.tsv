@@ -1,3 +1,0 @@
-path	old	new	written_to	reader
-src/physverify/human_agreement/policy_metrics.py	pipeline test, no H2 verdict (provisional rule)	pipeline test, no human-agreement verdict (provisional rule)	metrics.json h2_verdict.reason, copied into results.json	no reader
-src/physverify/diagnosis/real_video.py	A7's check suite is unavailable: verdict distributions were not computed	the check suite is unavailable: verdict distributions were not computed	Failure.error of the real-video diagnosis	no reader
