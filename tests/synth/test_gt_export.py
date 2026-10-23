@@ -22,15 +22,13 @@ from physverify.schema.render import RenderLayers
 from physverify.schema.scene import CameraSpec, SceneSpec
 from physverify.schema.states import CoordFrame, ObjectStateTable
 from physverify.synth.generate import plan_subset, save_plan
-from physverify.synth.gt_export import (
+from physverify.synth.gt_camera import (
     OPENGL_TO_OPENCV,
-    content_sha256,
-    export_all,
-    export_clip,
     opencv_intrinsics,
     opencv_world_from_camera,
     visibility,
 )
+from physverify.synth.gt_export import content_sha256, export_all, export_clip
 from physverify.synth.perturb import (
     apply_variants,
     closest_points,
