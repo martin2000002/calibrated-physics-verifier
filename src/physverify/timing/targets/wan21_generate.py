@@ -17,11 +17,11 @@ from functools import partial
 from pathlib import Path
 from typing import Any, ClassVar, Final
 
-import numpy as np
 from numpy.typing import NDArray
 
 from physverify.config.models import Settings
 from physverify.core.atomic import write_bytes_atomic
+from physverify.core.errors import TimingError
 from physverify.datasets.local_video import (
     MANIFEST_FILE,
     ClipEntry,
@@ -29,10 +29,11 @@ from physverify.datasets.local_video import (
     LocalVideoDataset,
     to_queries,
 )
-from physverify.schema.clip import ClipManifest, Split, TimeSource
-from physverify.timing._base import TimingContext
-from physverify.timing.generation import (
+from physverify.generation.mp4_writer import VIDEO_SUFFIX, to_uint8, write_mp4
+from physverify.generation.settings import GenerationSettings, PromptSpec
+from physverify.generation.wan21 import (
     StepTimer,
+    batch_frames,
     call_kwargs,
     is_out_of_memory,
     load_wan_pipeline,
@@ -41,18 +42,13 @@ from physverify.timing.generation import (
     step_measures,
     torch_generator,
 )
+from physverify.schema.clip import ClipManifest, Split, TimeSource
+from physverify.timing._base import TimingContext
 from physverify.timing.hooks import TargetHooks
-from physverify.timing.mp4 import RGB_CHANNELS, VIDEO_SUFFIX, to_uint8, write_mp4
-from physverify.timing.records import (
-    GENERATE_LOAD_CUDA_MB,
-    GENERATE_LOAD_S,
-    TimingError,
-    generate_measure,
-)
-from physverify.timing.settings import GenerationSettings, PromptSpec, load_timing
+from physverify.timing.records import GENERATE_LOAD_CUDA_MB, GENERATE_LOAD_S, generate_measure
+from physverify.timing.settings import load_timing
 from physverify.timing.target_services import TimingServices
 
-BATCH_NDIM: Final = 5  # (videos, frames, height, width, channels)
 MISSING_DIFFUSERS: Final = "diffusers is not installed: sync the 'generation' dependency group"
 
 PipeFactory = Callable[[Path, GenerationSettings, str], Any]
@@ -82,16 +78,6 @@ def prompt_clip(prompt: PromptSpec, directory: Path, gen: GenerationSettings) ->
         object_queries=to_queries(prompt.queries),
         prompt=prompt.text,
     )
-
-
-def batch_frames(output: Any, batch_size: int) -> NDArray[Any]:
-    frames = np.asarray(output.frames)
-    if frames.ndim != BATCH_NDIM or len(frames) != batch_size or frames.shape[-1] != RGB_CHANNELS:
-        raise TimingError(
-            f"expected {batch_size} RGB videos (B, T, H, W, 3) from the pipeline, "
-            f"got {frames.shape}"
-        )
-    return frames
 
 
 class Wan21Generate(TargetHooks):

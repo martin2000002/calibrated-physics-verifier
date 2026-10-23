@@ -12,7 +12,7 @@ from pydantic import Field, model_validator
 
 from physverify.config.models import Settings
 from physverify.core.models import FrozenModel
-from physverify.timing.settings import SLUG_PATTERN, GenerationSettings, load_timing
+from physverify.generation.settings import SLUG_PATTERN
 
 SECTION = "finetune"
 PromptSplit = Literal["train", "dev", "eval"]
@@ -174,8 +174,3 @@ class FinetuneSettings(FrozenModel):
 
 def load_finetune(settings: Settings) -> FinetuneSettings:
     return settings.section(SECTION, FinetuneSettings)
-
-
-def generator_settings(settings: Settings) -> GenerationSettings:
-    """The one source of the generator parameters (D3); its prompts and subset are ignored."""
-    return load_timing(settings).generation

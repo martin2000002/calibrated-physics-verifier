@@ -14,13 +14,12 @@ from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Final
 
-from physverify.core.errors import EXIT_USAGE
+from physverify.core.errors import EXIT_USAGE, TimingError
 from physverify.timing.records import (
     EXTRACT_COLD_EXTRA_S,
     GENERATE_LOAD_S,
     MeasureStats,
     ResultsFile,
-    TimingError,
     generate_measure,
 )
 from physverify.timing.stats import across_medians

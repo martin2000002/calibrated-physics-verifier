@@ -532,7 +532,7 @@
   "comment_or_docstring": 4
  },
  "src/physverify/finetune/settings.py": {
-  "comment_or_docstring": 5
+  "comment_or_docstring": 4
  },
  "src/physverify/finetune/stop_rule.py": {
   "comment_or_docstring": 4
@@ -542,6 +542,9 @@
  },
  "src/physverify/finetune/wan_lora.py": {
   "comment_or_docstring": 1
+ },
+ "src/physverify/generation/wan21.py": {
+  "comment_or_docstring": 3
  },
  "src/physverify/generator_comparison/__init__.py": {
   "comment_or_docstring": 2
@@ -786,9 +789,6 @@
  },
  "src/physverify/timing/budget.py": {
   "comment_or_docstring": 1
- },
- "src/physverify/timing/generation.py": {
-  "comment_or_docstring": 3
  },
  "src/physverify/timing/recorder.py": {
   "comment_or_docstring": 2

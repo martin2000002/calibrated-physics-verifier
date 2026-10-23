@@ -34,6 +34,10 @@ class LockBusyError(PhysverifyError):
     exit_code = EXIT_LOCK_BUSY
 
 
+class TimingError(PhysverifyError):
+    pass
+
+
 class MissingInputError(PhysverifyError):
     """A required upstream artifact or input file is not available."""
 

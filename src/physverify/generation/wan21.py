@@ -15,18 +15,23 @@ from itertools import pairwise
 from pathlib import Path
 from typing import Any, Final
 
+import numpy as np
+from numpy.typing import NDArray
+
 from physverify.config.models import PathsSettings
 from physverify.core.digests import file_sha256
+from physverify.core.errors import TimingError
 from physverify.extraction._base import WeightKind, WeightSpec
 from physverify.extraction.weights import hub_offline, local_path, weight_file
-from physverify.timing.records import TimingError
-from physverify.timing.settings import GenerationSettings
+from physverify.generation.mp4_writer import RGB_CHANNELS
+from physverify.generation.settings import GenerationSettings
 
 SHARD_INDEX_SUFFIX: Final = ".safetensors.index.json"
 WEIGHTS_SUFFIX: Final = ".safetensors"
 MODEL_CONFIG: Final = "config.json"
 MAX_LISTED_MISSING: Final = 3
 FETCH_HINT: Final = "run `physverify timing fetch` (it resumes a cut download)"
+BATCH_NDIM: Final = 5  # (videos, frames, height, width, channels)
 
 
 def wan_weight_spec(gen: GenerationSettings) -> WeightSpec:
@@ -174,3 +179,13 @@ def is_out_of_memory(exc: BaseException) -> bool:
     """torch's OutOfMemoryError (any module) or an older "CUDA out of memory" RuntimeError."""
     names = {cls.__name__ for cls in type(exc).__mro__}
     return "OutOfMemoryError" in names or "out of memory" in str(exc).lower()
+
+
+def batch_frames(output: Any, batch_size: int) -> NDArray[Any]:
+    frames = np.asarray(output.frames)
+    if frames.ndim != BATCH_NDIM or len(frames) != batch_size or frames.shape[-1] != RGB_CHANNELS:
+        raise TimingError(
+            f"expected {batch_size} RGB videos (B, T, H, W, 3) from the pipeline, "
+            f"got {frames.shape}"
+        )
+    return frames

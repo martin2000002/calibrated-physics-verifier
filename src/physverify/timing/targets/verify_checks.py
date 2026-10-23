@@ -19,6 +19,7 @@ from typing import Any, ClassVar, Final, Protocol
 
 from physverify.checks._base import Check, CheckInputs
 from physverify.config.models import Settings
+from physverify.core.errors import TimingError
 from physverify.datasets._base import DatasetSource, dataset_from
 from physverify.extraction._base import StageObserver
 from physverify.extraction.pipeline import ExtractionPipeline, PipelineDeps
@@ -32,7 +33,6 @@ from physverify.timing.records import (
     VERIFY_CPU_S,
     VERIFY_LOAD_S,
     VERIFY_WALL_S,
-    TimingError,
     measure_name,
 )
 from physverify.timing.target_services import TimingServices

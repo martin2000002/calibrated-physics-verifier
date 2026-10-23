@@ -22,9 +22,10 @@ from physverify.finetune.candidates import (
 )
 from physverify.finetune.layout import CampaignStore
 from physverify.finetune.records import BASE_TAG, CandidateRecord, PromptRecord, read_record
-from physverify.finetune.settings import FinetuneSettings, generator_settings, load_finetune
-from physverify.timing.generation import call_kwargs
-from physverify.timing.settings import GenerationSettings
+from physverify.finetune.settings import FinetuneSettings, load_finetune
+from physverify.generation.settings import GenerationSettings
+from physverify.generation.wan21 import call_kwargs
+from physverify.timing.settings import load_timing
 
 STEPS = 3
 GENERATOR_FIELDS = (
@@ -78,7 +79,7 @@ def _prompt(i: int) -> PromptRecord:
 
 @pytest.fixture
 def gen(settings: Settings) -> GenerationSettings:
-    return generator_settings(settings).model_copy(update={"num_inference_steps": STEPS})
+    return load_timing(settings).generation.model_copy(update={"num_inference_steps": STEPS})
 
 
 @pytest.fixture

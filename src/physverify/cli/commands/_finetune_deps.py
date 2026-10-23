@@ -17,13 +17,14 @@ from physverify.finetune.candidates import CandidateGenerator
 from physverify.finetune.layout import CampaignStore
 from physverify.finetune.scorers._base import AggregateScorer
 from physverify.finetune.scorers._calibration_status import CalibrationStatusSource
-from physverify.finetune.settings import CandidateSettings, generator_settings, load_finetune
+from physverify.finetune.settings import CandidateSettings, load_finetune
+from physverify.generation.wan21 import load_wan_pipeline, snapshot_dir, snapshot_problem
 from physverify.runtime.heavy import NullLock
 from physverify.runtime.runs import current_commit
 from physverify.schema.checks import InputLevel
 from physverify.schema.io import json_ready
 from physverify.timing.envinfo import TorchCudaProbe
-from physverify.timing.generation import load_wan_pipeline, snapshot_dir, snapshot_problem
+from physverify.timing.settings import load_timing
 from physverify.verification.check_set import CHECKS_SECTION, ChecksSettings, build_checks
 from physverify.verification.inputs import PerceivedSource, PipelineOutputLoader
 from physverify.verification.runner import (
@@ -53,7 +54,7 @@ def candidate_generator(
     candidates: CandidateSettings | None = None,
 ) -> CandidateGenerator:
     settings = context.settings
-    gen = generator_settings(settings)
+    gen = load_timing(settings).generation
     problem = snapshot_problem(gen, settings.paths)
     if problem is not None:
         raise UsageError(f"Wan2.1 weights: {problem}")

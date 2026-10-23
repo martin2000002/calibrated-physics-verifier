@@ -29,11 +29,10 @@ from physverify.finetune.records import (
 from physverify.finetune.seeds import WHOLE, Shard, candidate_id, candidate_seed
 from physverify.finetune.settings import CandidateSettings, PromptSplit
 from physverify.finetune.wan_lora import load_adapter
+from physverify.generation.mp4_writer import to_uint8, write_mp4
+from physverify.generation.settings import GenerationSettings
+from physverify.generation.wan21 import batch_frames, call_kwargs, is_out_of_memory, torch_generator
 from physverify.schema.io import stable_hash
-from physverify.timing.generation import call_kwargs, is_out_of_memory, torch_generator
-from physverify.timing.mp4 import to_uint8, write_mp4
-from physverify.timing.settings import GenerationSettings
-from physverify.timing.targets.wan21_generate import batch_frames
 
 BATCH_SIZE: Final = 1
 CAPTURED: Final = ["latents", "prompt_embeds"]

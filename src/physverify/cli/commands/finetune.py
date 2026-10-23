@@ -85,7 +85,6 @@ from physverify.finetune.settings import (
     FinetuneSettings,
     PromptSplit,
     TrainSettings,
-    generator_settings,
     load_finetune,
 )
 from physverify.finetune.stop_rule import PilotReview, pairs_sha256, review_sample
@@ -105,10 +104,10 @@ from physverify.finetune.trainer import (
     stored_pairs,
 )
 from physverify.finetune.wan_lora import load_wan_adapter_model
+from physverify.generation.wan21 import snapshot_dir, snapshot_problem
 from physverify.generator_comparison.arms import EVAL_SPLIT
 from physverify.runtime.runs import RUN_FILE, current_commit
 from physverify.timing.budget import BudgetError, cost_from_results
-from physverify.timing.generation import snapshot_dir, snapshot_problem
 from physverify.timing.report import load_results, load_samples
 from physverify.timing.settings import load_timing
 from physverify.timing.stats import across_medians, stat_rows
@@ -421,7 +420,7 @@ def _sources(
 
 def _model(context: AppContext) -> Any:
     settings = context.settings
-    gen = generator_settings(settings)
+    gen = load_timing(settings).generation
     problem = snapshot_problem(gen, settings.paths)
     if problem is not None:
         raise UsageError(f"Wan2.1 weights: {problem}")
@@ -470,7 +469,7 @@ def run_record(
     max_steps: int | None,
 ) -> dict[str, Any]:
     cfg = _cfg(context)
-    gen = generator_settings(context.settings)
+    gen = load_timing(context.settings).generation
     sigma = ShiftedFlowNoise(gen.flow_shift).quantiles(SIGMA_LEVELS)
     return {
         "run_id": run_id,
@@ -587,7 +586,7 @@ def train(
     chosen, source = _beta(store, cfg, beta, pairs_sha256(pairs_))
     record = run_record(context, run_id, pairs_, len(val), chosen, source, plan, max_steps)
     _start(run_dir, record, resume)
-    gen = generator_settings(context.settings)
+    gen = load_timing(context.settings).generation
     noise = ShiftedFlowNoise(gen.flow_shift, cfg.train.seed)
     trainer = DpoTrainer(_model(context), data, cfg.train, noise, run_dir, val=val, beta=chosen)
     report = _run(trainer, resume, plan.total, force)
@@ -623,7 +622,7 @@ def beta_grid(
     data, val, _ = _sources(context, store, name)
     if len(val) == 0:
         raise UsageError("the beta grid needs val pairs (finetune.prompts.val_fraction > 0)")
-    gen = generator_settings(context.settings)
+    gen = load_timing(context.settings).generation
     results = {}
     for value in cfg.train.beta_grid:
         run_id = f"beta-{value:g}"

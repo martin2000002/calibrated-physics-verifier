@@ -14,6 +14,7 @@ from wiring import resolve_plan
 
 from physverify.app.plugins import PLUGIN_KINDS
 from physverify.config.models import Settings
+from physverify.core.errors import TimingError
 from physverify.datasets._base import DatasetSource
 from physverify.extraction._base import StageEvent
 from physverify.extraction.pipeline import ClipFailure, ExtractionReport, PipelineDeps
@@ -28,7 +29,6 @@ from physverify.timing.records import (
     EXTRACT_PEAK_RSS_MB,
     EXTRACT_SPAN_S,
     EXTRACT_WALL_S,
-    TimingError,
     check_measures,
 )
 from physverify.timing.replica import TIMED, WARM, replica_id

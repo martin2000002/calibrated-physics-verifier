@@ -12,7 +12,8 @@ from collections.abc import Iterable, Sequence
 from dataclasses import asdict, dataclass
 from typing import Final
 
-from physverify.timing.records import MeasureStats, Sample, TimingError
+from physverify.core.errors import TimingError
+from physverify.timing.records import MeasureStats, Sample
 
 ACROSS_CLIPS: Final = "*"
 

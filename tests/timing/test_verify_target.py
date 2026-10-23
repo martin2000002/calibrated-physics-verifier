@@ -15,6 +15,7 @@ from pydantic import BaseModel, ConfigDict
 
 from physverify.app import plugins
 from physverify.config.models import Settings
+from physverify.core.errors import TimingError
 from physverify.datasets._base import DatasetSource
 from physverify.extraction.pipeline import ClipFailure, ExtractionReport, PipelineDeps
 from physverify.schema.checks import InputLevel
@@ -26,7 +27,6 @@ from physverify.timing.records import (
     VERIFY_CPU_S,
     VERIFY_LOAD_S,
     VERIFY_WALL_S,
-    TimingError,
     check_measures,
 )
 from physverify.timing.target_services import TimingServices

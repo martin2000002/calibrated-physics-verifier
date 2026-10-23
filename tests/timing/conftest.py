@@ -20,12 +20,12 @@ import pytest
 
 from physverify.config.loader import load_settings
 from physverify.config.models import Settings
+from physverify.core.errors import TimingError
 from physverify.runtime.heavy import NullLock
 from physverify.schema.clip import ClipManifest, Split, TimeSource
 from physverify.synth.store import ContainerRunner
 from physverify.timing._base import TimingContext
 from physverify.timing.hooks import TargetHooks
-from physverify.timing.records import TimingError
 from physverify.timing.target_services import ClipSelection, TimingServices
 
 FAKE_DATASET = "fake_ds"

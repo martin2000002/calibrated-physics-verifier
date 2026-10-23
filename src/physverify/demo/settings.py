@@ -9,7 +9,7 @@ from pydantic import Field
 
 from physverify.config.models import Settings
 from physverify.core.models import FrozenModel
-from physverify.timing.settings import SLUG_PATTERN
+from physverify.generation.settings import SLUG_PATTERN
 
 SECTION: Final = "demo"
 

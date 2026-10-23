@@ -13,7 +13,7 @@ import pytest
 from records import perturbation, scene
 
 from physverify.config.models import Settings
-from physverify.core.errors import PhysverifyError, UsageError
+from physverify.core.errors import PhysverifyError, TimingError, UsageError
 from physverify.schema.clip import ClipManifest, Split
 from physverify.synth.generate import save_plan
 from physverify.synth.gt_export import DATASET_NAME
@@ -27,7 +27,7 @@ from physverify.synth.store import (
     DatasetStore,
 )
 from physverify.timing._base import TimingContext
-from physverify.timing.records import RENDER_PER_FRAME_S, RENDER_WALL_S, TimingError, check_measures
+from physverify.timing.records import RENDER_PER_FRAME_S, RENDER_WALL_S, check_measures
 from physverify.timing.report import SCRATCH_DIR, timing_dir
 from physverify.timing.target_services import TimingServices
 from physverify.timing.targets.kubric_render import (

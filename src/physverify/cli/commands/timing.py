@@ -30,12 +30,13 @@ from physverify.extraction.weights import (
     hf_repo_and_file,
     hub_cache,
 )
+from physverify.generation.settings import GenerationSettings
+from physverify.generation.wan21 import wan_weight_spec
 from physverify.runtime.heavy import NullLock
 from physverify.runtime.runs import RUN_FILE, RunContext, new_run
 from physverify.timing._base import TimingContext, TimingTarget
 from physverify.timing.budget import Bound, BudgetAnswer, BudgetQuery, answer, cost_from_results
 from physverify.timing.envinfo import CudaProbe, TorchCudaProbe, run_environment, validity
-from physverify.timing.generation import wan_weight_spec
 from physverify.timing.harness import ClipSource, TimingHarness
 from physverify.timing.hooks import brings_own_clips
 from physverify.timing.records import ResultsFile, TargetStatus
@@ -54,7 +55,6 @@ from physverify.timing.report import (
     timing_dir,
 )
 from physverify.timing.settings import (
-    GenerationSettings,
     TargetRunSettings,
     TimingSettings,
     load_timing,

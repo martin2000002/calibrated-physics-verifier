@@ -10,8 +10,8 @@ import cv2
 import numpy as np
 from numpy.typing import NDArray
 
+from physverify.core.errors import TimingError
 from physverify.core.video import MP4_FOURCC
-from physverify.timing.records import TimingError
 
 VIDEO_SUFFIX: Final = ".mp4"
 RGB_CHANNELS: Final = 3

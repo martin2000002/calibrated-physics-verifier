@@ -10,6 +10,7 @@ from typing import Any, cast
 import pytest
 
 from physverify.config.models import Settings
+from physverify.core.errors import TimingError
 from physverify.schema.clip import ClipManifest
 from physverify.timing._base import TimingContext
 from physverify.timing.harness import IN_PROGRESS, TimingHarness
@@ -21,7 +22,6 @@ from physverify.timing.records import (
     TargetOutcome,
     TargetResult,
     TargetStatus,
-    TimingError,
 )
 from physverify.timing.report import (
     FAILURES,

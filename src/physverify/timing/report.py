@@ -23,6 +23,7 @@ from typing import IO, Any, Final
 from pydantic import ValidationError
 
 from physverify.core.atomic import write_bytes_atomic
+from physverify.core.errors import TimingError
 from physverify.core.markdown import number, table
 from physverify.timing.records import (
     CallFailure,
@@ -31,7 +32,6 @@ from physverify.timing.records import (
     Sample,
     TargetOutcome,
     TargetResult,
-    TimingError,
     unit_of,
 )
 from physverify.timing.stats import ACROSS_CLIPS, across_medians, stat_rows
