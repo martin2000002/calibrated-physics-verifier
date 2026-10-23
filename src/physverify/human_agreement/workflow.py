@@ -273,8 +273,9 @@ def compare_and_report[S: CalibrationStratum](
     log_test_comparison(settings, comparison, request.run_dir, clock())
     out_dir = request.run_dir / REPORT_DIR
     write_comparison(out_dir, comparison)
+    lines = verdict_lines(comparison)
     echo(f"agreement: {out_dir}")
-    for line in verdict_lines(comparison):
+    for line in lines:
         echo(line)
 
 
