@@ -172,7 +172,7 @@ def clip_rows(comparison: str, paired: Paired) -> list[ClipCheckRow]:
 def require_suite(ctx: DiagnosisContext) -> CheckSuite:
     if ctx.suite is None:
         raise MissingInputError(
-            "end-to-end and attribution diagnosis need A7's check suite (verification/)"
+            "end-to-end and attribution diagnosis need the check suite (verification/)"
         )
     return ctx.suite
 

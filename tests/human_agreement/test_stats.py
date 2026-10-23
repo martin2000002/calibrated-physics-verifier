@@ -133,7 +133,9 @@ def test_h2_needs_the_calibrated_rule_and_both_conditions() -> None:
     }
     assert h2_verdict(primary, True, 0.05)["supported"] is True
     provisional = h2_verdict(primary, False, 0.05)
-    assert provisional["supported"] is None and "no H2 verdict" in provisional["reason"]
+    assert (
+        provisional["supported"] is None and "no human-agreement verdict" in provisional["reason"]
+    )
     weak = {**primary, "bootstrap": {"intervals": {"difference.kappa": [-0.01, 0.3]}}}
     assert h2_verdict(weak, True, 0.05)["supported"] is False
 

@@ -199,7 +199,7 @@ def decide(
 def record_markdown(record: ExclusionRecord) -> str:
     """The human view of a record; the JSON is the authority."""
     lines = [
-        "# Exclusion decision (ADR 0015 rules 1.1, 1.2, 1.5)",
+        "# Exclusion decision (rules 1.1, 1.2, 1.5)",
         "",
         f"- record sha256: `{record.sha256}`",
         f"- consumed stratum: {record.consumed_level}/{record.consumed_profile}",
@@ -207,7 +207,7 @@ def record_markdown(record: ExclusionRecord) -> str:
         f"- evaluation sha256: `{record.inputs.evaluation_sha256}`",
         f"- R2 runs: base `{record.inputs.r2_base_run}`, tiny `{record.inputs.r2_tiny_run}`",
         f"- exclude_checks: {', '.join(record.exclude_checks) or 'none'}",
-        "- H3 families without a target check: "
+        "- generator-comparison families without a target check: "
         + (", ".join(record.h3_families_without_target) or "none"),
         "",
         "| rule | check | excluded | decided | reason | inputs |",

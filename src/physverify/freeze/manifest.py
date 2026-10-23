@@ -82,7 +82,9 @@ def manifest(
     chosen = chosen_candidate(inputs.selection)
     j3 = diff_record(git, "j3", chosen["commit"], head)
     if not j3["empty"]:
-        raise QueryError(f"J3: {chosen['id']} -> HEAD changes {j3['changed']}; refit, not adopt")
+        raise QueryError(
+            f"j3 diff: {chosen['id']} -> HEAD changes {j3['changed']}; refit, not adopt"
+        )
     if not COMMIT.match(inputs.v1_commit):
         raise QueryError(f"the v1 commit must be 40 lowercase hex characters: {inputs.v1_commit}")
     artifacts = artifact_record(frozen_paths(settings))

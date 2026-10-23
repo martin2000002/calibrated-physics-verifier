@@ -75,7 +75,7 @@ class CalibratedScorer:
         try:
             self._load()
         except ImportError as exc:
-            return f"{APPLY_MODULE} is not available ({exc}); run A8's calibration first"
+            return f"{APPLY_MODULE} is not available ({exc}); run the calibration chain first"
         except (PhysverifyError, OSError, ValueError) as exc:
             return f"no usable calibration: {type(exc).__name__}: {exc}"
         return self._status_problem

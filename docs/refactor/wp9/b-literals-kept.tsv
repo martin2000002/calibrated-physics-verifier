@@ -1,0 +1,9 @@
+path	fragment	reader
+src/physverify/calibration/dev_score.py	(calibrate stage-sigma, D10) and H1 (Kendall 	SCOPE_NOTE is written to devscore.json (scope_note) and pinned by the golden blob tests/calibration/golden/dev_score_all_sigma_pairs.json
+src/physverify/calibration/report.py	## H1 primary (scenes 	scripts/h200/run_query.py:29 H1_HEADING = "## H1 primary" finds the section in evaluation.md
+src/physverify/freeze/selection.py	later iteration (plan-congelado J4)	J4_RULE is persisted in freeze.json (selection.rule); plan invariant 'freeze.json (j3, j13, J4_RULE)'
+src/physverify/human_agreement/workflow.py	H2: 	scripts/h200/run_human_agreement.sh:382 sed -n '/^H2: /{p;q}' on the run log (two lines, :286 and :289)
+tests/calibration/test_monotonicity_primary.py	## H1 primary (scenes s000, s011-s039) vs all scenes	asserts the kept report.py heading read by scripts/h200/run_query.py:29
+tests/calibration/test_monotonicity_primary.py	H1 primary	asserts the kept heading is absent without a primary view (run_query.py:29)
+tests/human_agreement/test_cli.py	/^H2: /{p;q}	the sed expression of scripts/h200/run_human_agreement.sh:382, run against the CLI output
+tests/human_agreement/test_cli.py	H2: 	asserts the kept workflow.py stdout line parsed by run_human_agreement.sh:382 (lines 92 and 315)

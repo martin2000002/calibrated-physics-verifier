@@ -29,7 +29,7 @@ REAL_VIDEO_SCOPE = (
     "full perceived chain and is not attributable to a single stage."
 )
 MISSING = "n/a"
-PROVISIONAL_NOTE = "provisional until the A8 threshold calibration"
+PROVISIONAL_NOTE = "provisional until the calibration chain sets the thresholds"
 
 
 def nominal_coverage(k: float) -> float:

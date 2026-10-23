@@ -292,7 +292,7 @@ def import_calibration() -> CalibrationApi[Stratum]:
         from physverify.calibration.settings import calibration_settings
         from physverify.verification.check_set import active_checks_hash
     except ImportError as exc:
-        raise ConfigError(f"the calibrated rule needs A8's calibration package: {exc}") from exc
+        raise ConfigError(f"the calibrated rule needs the calibration package: {exc}") from exc
     return CalibrationApi(
         open_stratum=open_stratum,
         default_artifact_path=default_artifact_path,

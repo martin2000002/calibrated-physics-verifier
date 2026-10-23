@@ -123,7 +123,7 @@ def test_devscore_writes_only_its_run_and_out(
     assert "not a held-out result" in data["scope_note"]
     fit = load_calibration(run_dir / "calibration.json")
     assert [lv["profile"] for lv in data["levels"]] == [s.profile for s in fit.artifact.strata]
-    assert re.search(r"oracle/fast: 1/\d+ meet H1 and J_cv\^lo > 0 \(R1\)", result.out)
+    assert re.search(r"oracle/fast: 1/\d+ meet monotonicity and J_cv\^lo > 0 \(R1\)", result.out)
 
 
 def test_the_runners_keep_the_development_metric_lines(

@@ -98,7 +98,7 @@ def require_unsealed(found: Sequence[str], allowed: Collection[str]) -> None:
     missing = [spec for spec in found if spec not in allowed]
     if missing:
         raise SealedSetError(
-            f"sealed sets {missing} are one-look sets (ADR 0015 amendment 2 section 5): set "
+            f"sealed sets {missing} are one-look sets: set "
             f"{UNSEAL_ENV}={','.join(found)} to spend the look; nothing was computed"
         )
 

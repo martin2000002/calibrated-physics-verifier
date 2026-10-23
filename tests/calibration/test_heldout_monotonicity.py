@@ -98,7 +98,7 @@ def test_only_calib_rows_give_no_heldout_h1(frozen: Calibration) -> None:
     report = _evaluate(frozen, (synthetic_report(40, prefix="fam-s"),))
     assert report.h1_primary is not None
     assert [s.heldout_h1 for s in (*report.strata, *report.h1_primary.strata)] == [(), ()]
-    assert "Held-out H1" not in evaluation_markdown(report)
+    assert "Held-out monotonicity" not in evaluation_markdown(report)
 
 
 def test_heldout_h1_is_monotonicity_and_j_of_the_frozen_rule_by_hand(
@@ -190,8 +190,8 @@ def test_the_primary_view_has_its_own_heldout_h1(frozen: Calibration) -> None:
     assert w_r1.monotonicity.n_scenes == 40
     assert p_r1.monotonicity.n_scenes == 29
     markdown = evaluation_markdown(report)
-    assert "Held-out H1 over the primary scenes (oracle)" in markdown
-    assert "Held-out H1 over every scene (secondary" in markdown
+    assert "Held-out monotonicity over the primary scenes (oracle)" in markdown
+    assert "Held-out monotonicity over every scene (secondary" in markdown
 
 
 def test_an_evaluation_without_heldout_h1_still_reads(frozen: Calibration) -> None:

@@ -39,7 +39,7 @@ from physverify.schema.stages import Stage
 from physverify.schema.states import ObjectStateTable
 
 ALL_CLIPS = "(all)"
-NO_SUITE = "A7's check suite is unavailable: verdict distributions were not computed"
+NO_SUITE = "the check suite is unavailable: verdict distributions were not computed"
 ESTIMATED_FALL = ("g_est", "real_fps")
 ESTIMATED_GRAVITY_DIR = "gravity_dir"
 PROVISIONAL_VERDICTS = "fail_rate"

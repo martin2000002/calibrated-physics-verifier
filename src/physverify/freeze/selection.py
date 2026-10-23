@@ -83,7 +83,7 @@ def candidate(directory: Path) -> Candidate:
     if state.get("CHAIN_DEVICE") != DEVICE:
         raise QueryError(
             f"{iteration} ran on {state.get('CHAIN_DEVICE')!r}: only CPU iterations are eligible "
-            "(J4, amendment 2 section 7)"
+            "under the selection rule"
         )
     missing = [s for s in ITERATION_STEPS if s not in completed_steps(directory / "steps.tsv")]
     if missing:

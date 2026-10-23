@@ -231,7 +231,7 @@ def test_the_primary_tau_uses_only_the_primary_scenes(
     assert r1_primary.monotonicity.n_scenes == len(expand(PRIMARY)) == 30
     assert r1_primary.monotonicity.n_pairs * 40 == r1_all.monotonicity.n_pairs * 30
     markdown = evaluation_markdown(report)
-    assert "Pooled Kendall tau_b of the calib clips (D8), primary vs all scenes:" in markdown
+    assert "Pooled Kendall tau_b of the calib clips, primary vs all scenes:" in markdown
     assert "median delta by level, primary (descriptive)" in markdown
 
 

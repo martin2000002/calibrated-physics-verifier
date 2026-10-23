@@ -83,14 +83,14 @@ def test_freeze_then_compare_writes_every_output_without_an_h2_verdict(cli, worl
     run = _frozen(cli, world)
     result = cli(*FAST, "agreement", "compare", "--verify-run", str(run))
     assert result.code == 0, result.err
-    assert "no H2 verdict" in result.out
+    assert "no human-agreement verdict" in result.out
     out = run / REPORT_DIR
     names = ("items.csv", "per_check.csv", "per_generator.csv", "errors.csv", "summary.md")
     assert all((out / name).is_file() for name in names)
     metrics = json.loads((out / "metrics.json").read_text(encoding="utf-8"))
     assert metrics["h2_verdict"]["applicable"] is False
     assert _h2_note(result.out) == f"H2: {metrics['h2_verdict']['reason']}"
-    assert "no H2 verdict" in (out / "summary.md").read_text(encoding="utf-8")
+    assert "no human-agreement verdict" in (out / "summary.md").read_text(encoding="utf-8")
 
 
 def test_a_changed_config_breaks_the_preregistration(cli, world) -> None:
@@ -221,7 +221,7 @@ def test_per_version_results_are_labelled_descriptive(cli, world) -> None:
     metrics = json.loads((run / REPORT_DIR / "metrics.json").read_text(encoding="utf-8"))
     assert metrics["h2_group"] == "all"
     assert metrics["descriptive_groups"] and "all" not in metrics["descriptive_groups"]
-    assert "## Group all (aggregate: decides H2)" in text
+    assert "## Group all (aggregate: decides the human-agreement verdict)" in text
     for group in metrics["descriptive_groups"]:
         assert f"## Group {group} (descriptive only" in text
 
@@ -315,7 +315,7 @@ def test_an_unusable_stratum_runs_descriptive_and_h2_is_not_evaluable(cli, world
     assert _h2_note(result.out) == f"H2: {verdict['reason']}"
     assert _metrics(run)["calibration"]["gate"] == verdict["gate"]
     text = (run / REPORT_DIR / "summary.md").read_text(encoding="utf-8")
-    assert "H2 not evaluable with the calibrated rule" in text
+    assert "Human-agreement hypothesis not evaluable with the calibrated rule" in text
 
 
 def test_a_calibrated_freeze_needs_the_decision_record_of_its_artifact(cli, world) -> None:

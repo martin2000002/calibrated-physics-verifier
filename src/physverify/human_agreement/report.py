@@ -166,8 +166,8 @@ def _bootstrap_note(block: Mapping[str, Any]) -> str:
 
 def _group_title(group: str) -> str:
     if group == AGGREGATE:
-        return f"## Group {group} (aggregate: decides H2)"
-    return f"## Group {group} (descriptive only: too few pairs to test H2 on one version)"
+        return f"## Group {group} (aggregate: decides the human-agreement verdict)"
+    return f"## Group {group} (descriptive only: too few pairs to test agreement on one version)"
 
 
 def _group_lines(group: str, policies: Mapping[str, Any]) -> list[str]:
@@ -184,7 +184,7 @@ def _difference(block: Mapping[str, Any], key: str) -> float:
 
 
 def _sign_flip_lines(groups: Mapping[str, Any], policy: str) -> list[str]:
-    """Judge Q4: say so when v1 and v2 disagree on who is ahead."""
+    """Say so when v1 and v2 disagree on who is ahead."""
     if "v1" not in groups or "v2" not in groups:
         return ["Sign flip between versions: not applicable (one version only)."]
     flips = []
@@ -203,13 +203,17 @@ def _verdict_lines(verdict: Mapping[str, Any], primary: Mapping[str, Any]) -> li
     if verdict.get("gate") is not None:
         return _not_evaluable_lines(verdict, rate)
     if not verdict["applicable"]:
-        return [f"**H2: {verdict['reason']}.** The numbers below test the pipeline only; {rate}."]
+        return [
+            f"**Human-agreement hypothesis: {verdict['reason']}.** The numbers below test the "
+            f"pipeline only; {rate}."
+        ]
     state = "supported" if verdict["supported"] else "not supported"
     if verdict.get("post_hoc"):
         state += " (POST HOC: the pre-registration was replaced after a test comparison)"
     low, high = verdict["kappa_difference_ci"]
     return [
-        f"**H2 {state}** (McNemar p = {_fmt(verdict['mcnemar_p'])}, accuracy difference "
+        f"**Human-agreement hypothesis {state}** (McNemar p = {_fmt(verdict['mcnemar_p'])}, "
+        "accuracy difference "
         f"{_fmt(verdict['accuracy_difference'])}, kappa difference CI [{_fmt(low)}, {_fmt(high)}]; "
         f"minimum detectable accuracy difference {_fmt(verdict['mde_accuracy'])}, estimated "
         f"with caption clustering {_fmt(verdict.get('mde_accuracy_clustered'))}); {rate}."
@@ -220,7 +224,8 @@ def _not_evaluable_lines(verdict: Mapping[str, Any], rate: str) -> list[str]:
     """Item 1.3: the stratum was not usable, so the provisional rule ran and the study has no
     verdict."""
     return [
-        f"**H2 not evaluable with the calibrated rule** ({verdict['gate']}). The numbers below "
+        "**Human-agreement hypothesis not evaluable with the calibrated rule** "
+        f"({verdict['gate']}). The numbers below "
         f"are descriptive, from the provisional rule; {rate}.",
         "Abstention and coverage follow; the `decided_only` policy block shows the agreement "
         "on the clips the verifier decided, which is descriptive as well.",

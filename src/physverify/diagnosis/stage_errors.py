@@ -71,7 +71,10 @@ def stage_pairs(diag: DiagnosisSettings) -> tuple[StagePair, ...]:
     pairs += [StagePair(Stage.SCALE, v, scale_truth) for v in scale_variants(diag.scale.providers)]
     for pair in pairs:
         if not truth_covers(pair.truth, pair.stage):
-            raise ValueError(f"{pair.truth.name} does not cover {pair.stage.value} (D6)")
+            raise ValueError(
+                f"{pair.truth.name} does not cover {pair.stage.value} "
+                "(a stage pair needs truth at its stage)"
+            )
     return tuple(pairs)
 
 

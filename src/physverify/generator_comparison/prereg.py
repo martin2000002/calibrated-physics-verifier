@@ -134,7 +134,9 @@ def assert_complete(current: Mapping[str, object]) -> None:
     """``changed_fields`` skips names missing from ``current``; a missing name is a bug here."""
     missing = sorted(set(H3_FIELDS) - current.keys())
     if missing:
-        raise PhysverifyError(f"the H3 state lacks pre-registered fields {missing}")
+        raise PhysverifyError(
+            f"the generator-comparison state lacks pre-registered fields {missing}"
+        )
 
 
 def require_unchanged(frozen: ComparisonPreregistration, current: Mapping[str, object]) -> None:
@@ -142,7 +144,8 @@ def require_unchanged(frozen: ComparisonPreregistration, current: Mapping[str, o
     changed = changed_fields(frozen, current, fields=H3_FIELDS)
     if changed:
         raise ConfigError(
-            f"the H3 pre-registration no longer holds ({', '.join(changed)} changed); "
+            "the generator-comparison pre-registration no longer holds "
+            f"({', '.join(changed)} changed); "
             f"{FREEZE_HINT} --force with a declared deviation, or restore the frozen state"
         )
 

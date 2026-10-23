@@ -188,7 +188,7 @@ def _evaluation_stratum(s: EvaluationStratum) -> list[str]:
             ),
         )
     if s.monotonicity:
-        lines += ["", "Pooled Kendall tau_b of the calib clips (D8):", ""]
+        lines += ["", "Pooled Kendall tau_b of the calib clips:", ""]
         lines += table(
             ("check", "tau_b", "h1_pass", "pairs", "scenes"),
             ([m.check_id, *_tau_cells(m.monotonicity)] for m in s.monotonicity),
@@ -255,7 +255,7 @@ def _heldout_monotonicity(checks: Sequence[HeldoutMonotonicityCheck], scope: str
         return []
     lines = [
         "",
-        f"Held-out H1 over {scope}: {n_met(checks)} of {len(checks)} checks meet "
+        f"Held-out monotonicity over {scope}: {n_met(checks)} of {len(checks)} checks meet "
         "tau_b^lo > 0 and J^lo > 0 (no multiplicity correction):",
         "",
     ]
@@ -298,7 +298,7 @@ def _pooled_side_by_side(
     if not primary:
         return []
     by_id = {m.check_id: m.monotonicity for m in whole}
-    lines = ["Pooled Kendall tau_b of the calib clips (D8), primary vs all scenes:", ""]
+    lines = ["Pooled Kendall tau_b of the calib clips, primary vs all scenes:", ""]
     lines += table(
         (
             "check",

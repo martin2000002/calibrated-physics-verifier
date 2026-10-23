@@ -262,7 +262,11 @@ def _status(calibrated: bool, gate: str | None) -> str:
 def _verdict_reason(calibrated: bool, gate: str | None) -> str:
     if gate is not None:
         return f"not evaluable with the calibrated rule: {gate}"
-    return "calibrated rule" if calibrated else "pipeline test, no H2 verdict (provisional rule)"
+    return (
+        "calibrated rule"
+        if calibrated
+        else "pipeline test, no human-agreement verdict (provisional rule)"
+    )
 
 
 def best_cut(y: Labels, score: Scores) -> float | None:

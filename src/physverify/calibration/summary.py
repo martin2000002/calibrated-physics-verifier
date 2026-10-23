@@ -47,14 +47,14 @@ def devscore_lines(report: DevScoreReport) -> list[str]:
 def _level_lines(level: LevelDevScore) -> list[str]:
     auroc = level.auroc_cv
     lines = [
-        f"{level.level.value}/{level.profile}: {level.n_met}/{len(level.checks)} meet H1 and "
-        f"J_cv^lo > 0 ({','.join(level.met) or 'none'}); AUROC_cv {_num(auroc.value)} "
-        f"[{_num(auroc.ci.low)}, {_num(auroc.ci.high)}]"
+        f"{level.level.value}/{level.profile}: {level.n_met}/{len(level.checks)} meet "
+        f"monotonicity and J_cv^lo > 0 ({','.join(level.met) or 'none'}); AUROC_cv "
+        f"{_num(auroc.value)} [{_num(auroc.ci.low)}, {_num(auroc.ci.high)}]"
     ]
     for check_id, c in sorted(level.checks.items()):
         lines.append(
             f"  {check_id}: tau_b {_num(c.h1.kendall_tau_b)} [{_num(c.h1.ci.low)}, "
-            f"{_num(c.h1.ci.high)}] H1 {c.meets_h1}; J_cv {_num(c.j_cv.informedness)} "
+            f"{_num(c.h1.ci.high)}] monotone {c.meets_h1}; J_cv {_num(c.j_cv.informedness)} "
             f"[{_num(c.j_cv.informedness_ci.low)}, {_num(c.j_cv.informedness_ci.high)}]"
         )
     return lines

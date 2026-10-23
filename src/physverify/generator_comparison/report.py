@@ -88,7 +88,7 @@ def _verdict(r: ComparisonReport) -> list[str]:
     v = r.verdict
     post_hoc = " POST HOC" if v.post_hoc else ""
     return [
-        f"# H3 comparison: {r.campaign}",
+        f"# Generator comparison: {r.campaign}",
         "",
         f"**Verdict: `{v.verdict}`{post_hoc}** ({'; '.join(v.reasons)})",
         "",
