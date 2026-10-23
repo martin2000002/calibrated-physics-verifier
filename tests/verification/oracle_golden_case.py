@@ -34,7 +34,7 @@ V1_OVERRIDES: dict[str, dict[str, Any]] = {"R4_size": {"reference": "self"}}
 
 def v1_checks() -> tuple[dict[str, type[Check]], dict[str, dict[str, Any]]]:
     """The registry with the v1 R4_jump, and the overrides that make R4_size v1 (it4 J4, J5)."""
-    from physverify.checks.r4_integrity import ContinuityCheck
+    from reference.r4_jump_v1 import ContinuityCheck
 
     return {**PLUGIN_KINDS["checks"](), "R4_jump": ContinuityCheck}, V1_OVERRIDES
 

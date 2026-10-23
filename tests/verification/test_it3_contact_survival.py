@@ -21,6 +21,7 @@ if EXTRACTION not in sys.path:
 
 import contact_scenes as cs  # noqa: E402
 from contacts_golden_case import proximity_table  # noqa: E402
+from reference.r4_jump_v1 import ContinuityCheck  # noqa: E402
 
 from physverify.checks._common import CommonParams  # noqa: E402
 from physverify.checks.r1_interpenetration import (  # noqa: E402
@@ -35,7 +36,6 @@ from physverify.checks.r3_collision_energy import (  # noqa: E402
     RestitutionParams,
 )
 from physverify.checks.r4_integrity import (  # noqa: E402
-    ContinuityCheck,
     PermanenceCheck,
     PermanenceParams,
     SizeConstancyCheck,

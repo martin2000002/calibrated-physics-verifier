@@ -9,9 +9,9 @@ from dataclasses import replace
 import check_scenarios as sc
 import numpy as np
 import pytest
+from reference.r4_jump_v1 import ContinuityCheck
 
 from physverify.checks._base import Check, CheckInputs
-from physverify.checks.r4_integrity import ContinuityCheck
 from physverify.cli.context import PLUGIN_KINDS
 from physverify.schema.checks import CheckResult
 from physverify.schema.constants import STANDARD_GRAVITY

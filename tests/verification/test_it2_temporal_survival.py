@@ -26,6 +26,7 @@ from typing import Any
 import check_scenarios as sc
 import numpy as np
 import pytest
+from reference.r4_jump_v1 import ContinuityCheck
 
 from physverify.checks._common import CommonParams
 from physverify.checks.r1_interpenetration import InterpenetrationCheck, InterpenetrationParams
@@ -37,7 +38,6 @@ from physverify.checks.r3_collision_energy import (
     RestitutionParams,
 )
 from physverify.checks.r4_integrity import (
-    ContinuityCheck,
     PermanenceCheck,
     PermanenceParams,
     SizeConstancyCheck,

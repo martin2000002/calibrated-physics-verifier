@@ -1,6 +1,5 @@
 """R4_jump v2: spatio-temporal continuity in units of the object's own position noise (ADR 0006
-section 3.4, it4 amendment; plan-it4 change A). The v1 statistic, ``jump_over_size``, stays in
-``r4_integrity.ContinuityCheck``, out of the registry."""
+section 3.4, it4 amendment; plan-it4 change A)."""
 
 from __future__ import annotations
 
