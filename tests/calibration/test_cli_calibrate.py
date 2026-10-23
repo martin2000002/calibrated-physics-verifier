@@ -1,4 +1,4 @@
-"""``physverify calibrate`` fit --from-run, publish and show over a fake dataset (AC1, AC11)."""
+"""``physverify calibrate`` fit --from-run, publish and show over a fake dataset."""
 
 from __future__ import annotations
 
@@ -110,7 +110,6 @@ def test_fit_from_a_raw_run_writes_the_artifact_and_projection(
 def test_two_fits_differ_only_in_time_and_run_id(
     cli: CliRunner, raw_run: str, tmp_path: Path
 ) -> None:
-    """AC2 through the command."""
     first, second = tmp_path / "a.json", tmp_path / "b.json"
     fit(cli, raw_run, first)
     fit(cli, raw_run, second)

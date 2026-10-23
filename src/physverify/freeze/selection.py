@@ -119,7 +119,7 @@ def select(candidates: Sequence[Candidate]) -> dict[str, Any]:
 
 
 def seed_of(commit: str, calibration_sha: str, exclusions_sha: str) -> int:
-    """Amendment 2 section 2: the lowercase hex strings joined without separator, in UTF-8."""
+    """The preregistered seed: the lowercase hex strings joined without separator, in UTF-8."""
     if not COMMIT.match(commit):
         raise QueryError(f"the commit must be 40 lowercase hex characters, got {commit!r}")
     for sha in (calibration_sha, exclusions_sha):

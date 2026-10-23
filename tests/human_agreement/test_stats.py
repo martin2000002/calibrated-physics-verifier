@@ -1,4 +1,4 @@
-"""Agreement statistics against hand-computed values (C4)."""
+"""Agreement statistics against hand-computed values."""
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ from physverify.human_agreement.stats import (
 
 Y = as_labels([True, True, True, False, False, False, False, False])
 P = as_labels([True, True, False, True, False, False, False, False])
-EXACT = 1e-12  # C4: closed-form quantities must match to this absolute tolerance
+EXACT = 1e-12  # Closed-form quantities must match to this absolute tolerance
 
 
 def test_classification_metrics_match_the_hand_computation() -> None:

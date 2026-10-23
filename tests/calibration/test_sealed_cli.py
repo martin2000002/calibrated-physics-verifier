@@ -205,7 +205,7 @@ def evaluate_cli(
 def test_evaluate_on_the_sealed_split_needs_the_variable(
     evaluate_cli: Callable[..., CliResult], ledger: Path, reached: list[int]
 ) -> None:
-    """AC12: exit 2, no line, nothing computed."""
+    """Exit 2, no line, nothing computed."""
     result = evaluate_cli()
     assert result.code == EXIT_USAGE and "PHYSVERIFY_UNSEAL" in result.err
     assert read_entries(ledger) == () and reached == []
@@ -214,7 +214,7 @@ def test_evaluate_on_the_sealed_split_needs_the_variable(
 def test_evaluate_leaves_one_line_before_computing(
     evaluate_cli: Callable[..., CliResult], ledger: Path, reached: list[int]
 ) -> None:
-    """AC13: one line, written before the first check runs, with the artifact's sha256."""
+    """One line, written before the first check runs, with the artifact's sha256."""
     result = evaluate_cli(env=UNSEAL)
     assert result.code == 0, result.err
     (line,) = read_entries(ledger)
@@ -231,7 +231,7 @@ def test_evaluate_leaves_one_line_before_computing(
 def test_evaluate_on_calib_clips_leaves_no_line(
     evaluate_cli: Callable[..., CliResult], ledger: Path, reached: list[int]
 ) -> None:
-    """AC15: a calib-only selection does not touch the sealed split."""
+    """A calib-only selection does not touch the sealed split."""
     result = evaluate_cli("--clips", CALIB_CLIP)
     assert result.code == 0, result.err
     assert read_entries(ledger) == () and reached
@@ -280,7 +280,6 @@ def test_named_real_datasets_and_no_real_exclude_each_other(
 def test_an_unwritable_ledger_stops_before_computing(
     evaluate_cli: Callable[..., CliResult], ledger: Path, reached: list[int]
 ) -> None:
-    """AC14."""
     ledger.chmod(0o444)
     result = evaluate_cli(env=UNSEAL)
     assert result.code == 1 and "cannot write the sealed ledger" in result.err
@@ -380,7 +379,6 @@ def test_each_guarded_command_refuses_without_the_variable(
     reached: list[int],
     name: str,
 ) -> None:
-    """AC12."""
     result = guarded(name)()
     assert result.code == EXIT_USAGE and "PHYSVERIFY_UNSEAL" in result.err
     assert read_entries(ledger) == () and reached == []
@@ -393,7 +391,7 @@ def test_each_guarded_command_writes_its_line_first(
     reached: list[int],
     name: str,
 ) -> None:
-    """AC13: exactly one line per invocation, there when the computation starts."""
+    """Exactly one line per invocation, there when the computation starts."""
     result = guarded(name)(env=UNSEAL)
     assert result.code == REACHED, result.err
     (line,) = read_entries(ledger)
@@ -403,7 +401,6 @@ def test_each_guarded_command_writes_its_line_first(
 def test_verify_on_calib_clips_leaves_no_line(
     cli: CliRunner, monkeypatch: pytest.MonkeyPatch, ledger: Path, reached: list[int]
 ) -> None:
-    """AC15."""
     run = _guarded_verify(cli, monkeypatch, ledger, reached)
     assert run("--clips", CALIB_CLIP).code == REACHED
     assert reached == [0] and read_entries(ledger) == ()
@@ -580,7 +577,7 @@ def _leaf_param(node: ast.expr) -> str:
 
 
 def test_every_subcommand_is_guarded_or_exempt_with_a_reason() -> None:
-    """C5: a new subcommand fails here until ``sealing`` classifies it."""
+    """A new subcommand fails here until ``sealing`` classifies it."""
     leaves = cli_leaves()
     assert not sealing.GUARDED_LEAVES & set(sealing.EXEMPT)
     assert set(leaves) == sealing.GUARDED_LEAVES | set(sealing.EXEMPT)

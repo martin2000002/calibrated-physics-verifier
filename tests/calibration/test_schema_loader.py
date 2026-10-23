@@ -1,4 +1,4 @@
-"""calibration.json: round trip, versioning, staleness and the threshold projection (AC5, AC11)."""
+"""calibration.json: round trip, versioning, staleness and the threshold projection."""
 
 from __future__ import annotations
 
@@ -47,7 +47,7 @@ def test_the_artifact_round_trips_byte_for_byte(text: str) -> None:
 
 
 def test_the_json_has_no_nan_or_infinity(text: str) -> None:
-    """AC5: unknown values are null, never NaN."""
+    """Unknown values are null, never NaN."""
     assert "NaN" not in text and "Infinity" not in text
     json.loads(text, parse_constant=lambda c: pytest.fail(f"non-finite constant {c}"))
 
@@ -100,7 +100,7 @@ def test_a_missing_stratum_names_the_ones_present(text: str) -> None:
 
 
 def test_the_projection_is_a_calibrated_threshold_table(tmp_path: Path, text: str) -> None:
-    """AC11: only ok checks get a tau; `verify` labels the table calibrated:<source>."""
+    """Only ok checks get a tau; `verify` labels the table calibrated:<source>."""
     calibration = load_calibration(write(tmp_path, text))
     stratum = calibration.stratum(InputLevel.ORACLE, "fast")
     projection = stratum.thresholds_projection()

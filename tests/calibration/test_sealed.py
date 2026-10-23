@@ -54,7 +54,6 @@ def entry(freeze: str = "f1", sets: tuple[str, ...] = ("kubric_synthetic:eval",)
 def test_an_invalid_spec_is_a_config_error(
     config_dir: Path, environ: dict[str, str], spec: str
 ) -> None:
-    """AC11."""
     settings = load_settings(config_dir, environ=environ, overrides=(f'sealed.sets=["{spec}"]',))
     with pytest.raises(ConfigError, match="sealed"):
         sealed_settings(settings)
@@ -67,7 +66,7 @@ def test_the_committed_sets_parse(config_dir: Path, environ: dict[str, str]) -> 
 
 
 def test_a_split_spec_touches_only_its_split() -> None:
-    """AC11: kubric_synthetic eval is touched, its calib is not, another dataset's eval is not."""
+    """kubric_synthetic eval is touched, its calib is not, another dataset's eval is not."""
     calib, held = clip("c", "s0"), clip("e", "s1", Split.EVAL)
     assert touched("kubric_synthetic", [calib, held], SPECS) == ("kubric_synthetic:eval",)
     assert touched("kubric_synthetic", [calib], SPECS) == ()
@@ -123,7 +122,6 @@ def test_a_missing_ledger_is_never_created(tmp_path: Path) -> None:
 
 @pytest.mark.skipif(os.geteuid() == 0, reason="root writes a read-only file")
 def test_an_unwritable_or_corrupt_ledger_fails_closed(tmp_path: Path) -> None:
-    """AC14."""
     locked = tmp_path / "locked.txt"
     locked.touch()
     locked.chmod(0o444)

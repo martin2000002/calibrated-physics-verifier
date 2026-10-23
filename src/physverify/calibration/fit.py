@@ -202,7 +202,7 @@ def _sigma(data: LevelData, check_id: str, settings: CalibrationSettings) -> Sig
 
 
 def check_status(tau: Tau, positives: Sequence[CalibrationRow]) -> CheckStatus:
-    """No clean scene at all (or only NaN ones), then too few for the conformal rank (AC2), then
+    """No clean scene at all (or only NaN ones), then too few for the conformal rank, then
     no positives."""
     if tau.n == 0:
         return UNRANKED_NEGATIVES if tau.n_dropped else "no_negatives"

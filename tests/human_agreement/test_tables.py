@@ -1,4 +1,4 @@
-"""VideoPhy table helpers: lexical rule (C1), URL-to-member mapping, ids and binarisation."""
+"""VideoPhy table helpers: lexical rule, URL-to-member mapping, ids and binarisation."""
 
 from __future__ import annotations
 

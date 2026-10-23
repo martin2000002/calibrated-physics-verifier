@@ -35,7 +35,7 @@ def clean_rows(values: np.ndarray) -> list:  # type: ignore[type-arg]
 
 
 def test_the_conformal_tau_keeps_the_clean_fpr_below_alpha() -> None:
-    """AC6: 1000 replicates of 100 clean scenes; FPR on fresh clean scenes <= alpha + 0.01."""
+    """1000 replicates of 100 clean scenes; FPR on fresh clean scenes <= alpha + 0.01."""
     rng = np.random.default_rng(0)
     rates = []
     for _ in range(1000):
@@ -205,14 +205,14 @@ def covers(found: list[Detection]) -> bool:
 
 
 def test_the_detection_limit_interval_covers_in_the_full_design() -> None:
-    """AC7 coverage over 60 replicates of 60 scenes, one level per scene: >= 0.85 (the profile
+    """Coverage over 60 replicates of 60 scenes, one level per scene: >= 0.85 (the profile
     interval measured 0.93, 0.985, 0.96, 0.97 at 20, 30, 50, 100 scenes over 200 replicates)."""
     rng = np.random.default_rng(0)
     assert float(np.mean([covers(cycle_design(rng, 60)) for _ in range(60)])) >= 0.85
 
 
 def test_the_detection_limit_point_is_recovered() -> None:
-    """AC7 error over 40 replicates of 60 scenes x 5 levels: median relative error <= 15 %."""
+    """Error over 40 replicates of 60 scenes x 5 levels: median relative error <= 15 %."""
     rng = np.random.default_rng(0)
     errors = []
     for _ in range(40):

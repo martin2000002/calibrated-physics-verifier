@@ -94,7 +94,7 @@ class LevelDevScore(ArtifactModel):
 
 
 class Selection(ArtifactModel):
-    """The criterion of amendment 2 section 4 on ``level``; ``oracle_evaluable`` is None without
+    """The preregistered early-freeze criterion on ``level``; ``oracle_evaluable`` is None without
     an oracle stratum."""
 
     level: InputLevel

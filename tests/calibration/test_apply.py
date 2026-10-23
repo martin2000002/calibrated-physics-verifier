@@ -36,7 +36,7 @@ def results(
 
 
 def test_sigma_s_matches_central_finite_differences() -> None:
-    """AC17: sigma_S from the delta method within 1 % of sum_c (dS/dm_c factor_c sigma_c)^2."""
+    """sigma_S from the delta method within 1 % of sum_c (dS/dm_c factor_c sigma_c)^2."""
     stratum = view(CHECKS)
     found = score_clip(results(), stratum, K_SIGMA)
     assert found.score is not None and found.sigma is not None

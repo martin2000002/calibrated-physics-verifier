@@ -1,4 +1,4 @@
-"""``physverify agreement`` end to end on the miniature tables and fake verify runs (C2, C5, C7)."""
+"""``physverify agreement`` end to end on the miniature tables and fake verify runs."""
 
 from __future__ import annotations
 
