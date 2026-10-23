@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
 
-H3_DIR: Final = "h3"
+COMPARISON_DIR: Final = "h3"
 JUDGES_DIR: Final = "judges"
 
 
@@ -26,7 +26,7 @@ class ComparisonLayout:
 
     @classmethod
     def of(cls, campaign_root: Path) -> ComparisonLayout:
-        return cls(campaign_root / H3_DIR)
+        return cls(campaign_root / COMPARISON_DIR)
 
     @property
     def prereg(self) -> Path:

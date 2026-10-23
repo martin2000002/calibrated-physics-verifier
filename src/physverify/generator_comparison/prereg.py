@@ -97,7 +97,9 @@ AUDIT_FIELDS: Final = frozenset(
     }
 )
 """Recorded and reported, never refused on: a code fix after the freeze is shown, not blocked."""
-H3_FIELDS: Final = tuple(f for f in ComparisonPreregistration.model_fields if f not in AUDIT_FIELDS)
+PREREGISTERED_FIELDS: Final = tuple(
+    f for f in ComparisonPreregistration.model_fields if f not in AUDIT_FIELDS
+)
 REFREEZE_MUTABLE: Final = frozenset(
     {
         "calibration_artifact_sha256",
@@ -115,7 +117,7 @@ REFREEZE_MUTABLE: Final = frozenset(
 
 
 def identity(record: ComparisonPreregistration) -> dict[str, object]:
-    return record.model_dump(include=set(H3_FIELDS))
+    return record.model_dump(include=set(PREREGISTERED_FIELDS))
 
 
 def stamp_problem(
@@ -132,7 +134,7 @@ def stamp_problem(
 
 def assert_complete(current: Mapping[str, object]) -> None:
     """``changed_fields`` skips names missing from ``current``; a missing name is a bug here."""
-    missing = sorted(set(H3_FIELDS) - current.keys())
+    missing = sorted(set(PREREGISTERED_FIELDS) - current.keys())
     if missing:
         raise PhysverifyError(
             f"the generator-comparison state lacks pre-registered fields {missing}"
@@ -141,7 +143,7 @@ def assert_complete(current: Mapping[str, object]) -> None:
 
 def require_unchanged(frozen: ComparisonPreregistration, current: Mapping[str, object]) -> None:
     assert_complete(current)
-    changed = changed_fields(frozen, current, fields=H3_FIELDS)
+    changed = changed_fields(frozen, current, fields=PREREGISTERED_FIELDS)
     if changed:
         raise ConfigError(
             "the generator-comparison pre-registration no longer holds "
@@ -185,7 +187,7 @@ def plan_freeze(
         if request.eval_data:
             raise UsageError("eval scores or judge rows already exist; the freeze is not blind")
         return current
-    changed = changed_fields(old, state, fields=H3_FIELDS)
+    changed = changed_fields(old, state, fields=PREREGISTERED_FIELDS)
     if not changed:
         return None
     if not request.force:

@@ -1,4 +1,4 @@
-"""The current values of every pre-registered generator-comparison field (``prereg.H3_FIELDS``),
+"""The current values of every pre-registered generator-comparison field (``prereg.PREREGISTERED_FIELDS``),
 from the configuration, the campaign store and the files they name. Nothing here decides; ``prereg``
 does."""
 

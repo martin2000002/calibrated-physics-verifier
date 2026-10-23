@@ -13,7 +13,7 @@ from physverify.generator_comparison.margins import MarginDerivation
 from physverify.generator_comparison.prereg import (
     AUDIT_FIELDS,
     EVAL_DATA_DEVIATION,
-    H3_FIELDS,
+    PREREGISTERED_FIELDS,
     REFREEZE_MUTABLE,
     CandidateSnapshot,
     ComparisonPreregistration,
@@ -94,9 +94,9 @@ def request(
 
 
 def test_identity_has_every_field_but_the_audit_ones() -> None:
-    assert set(H3_FIELDS) == set(ComparisonPreregistration.model_fields) - AUDIT_FIELDS
+    assert set(PREREGISTERED_FIELDS) == set(ComparisonPreregistration.model_fields) - AUDIT_FIELDS
     assert {"commit", "created_utc", "eval_candidates_at_freeze"} <= AUDIT_FIELDS
-    assert set(identity(record())) == set(H3_FIELDS)
+    assert set(identity(record())) == set(PREREGISTERED_FIELDS)
 
 
 def test_the_first_freeze_must_be_blind() -> None:
@@ -138,7 +138,7 @@ def test_stamp_problem_compares_version_and_label(version: str, label: str, ok: 
 
 
 def test_a_new_scorer_version_refreezes_like_a_recalibration() -> None:
-    assert "scorer_version" in H3_FIELDS
+    assert "scorer_version" in PREREGISTERED_FIELDS
     new = plan_freeze(record(), "sha0", record(scorer_version="3"), request())
     assert new is not None and new.scorer_version == "3" and not new.post_hoc
 
@@ -250,7 +250,7 @@ def test_a_new_stop_rule_state_refreezes_and_its_deviation_is_audit_only() -> No
 
 
 def test_the_secondary_tests_are_frozen() -> None:
-    assert "secondary_tests" in H3_FIELDS
+    assert "secondary_tests" in PREREGISTERED_FIELDS
     assert "secondary_tests" not in REFREEZE_MUTABLE
     old, new = record(secondary_tests=["S1"]), record(secondary_tests=["S1", "S5"])
     assert identity(old) != identity(new)

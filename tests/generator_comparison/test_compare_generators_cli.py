@@ -53,7 +53,7 @@ SUBCOMMANDS = (
     "compare",
     "status",
 )
-H3_MODULE = (
+COMPARE_GENERATORS_MODULE = (
     Path(__file__).resolve().parents[2] / "src/physverify/cli/commands/compare_generators.py"
 )
 
@@ -78,7 +78,7 @@ def test_gpu_subcommands_exit_2_on_cpu(
 
 
 def test_the_compare_generators_command_does_not_import_the_finetune_command() -> None:
-    tree = ast.parse(H3_MODULE.read_text(encoding="utf-8"))
+    tree = ast.parse(COMPARE_GENERATORS_MODULE.read_text(encoding="utf-8"))
     imported = {n.module for n in ast.walk(tree) if isinstance(n, ast.ImportFrom)}
     assert "physverify.cli.commands.finetune" not in imported
 
