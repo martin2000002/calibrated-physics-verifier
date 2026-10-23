@@ -448,17 +448,17 @@
  "src/physverify/extraction/providers/contacts_proximity.py": {
   "comment_or_docstring": 1
  },
- "src/physverify/extraction/providers/depth_vda.py": {
-  "comment_or_docstring": 1
- },
- "src/physverify/extraction/providers/depth_vda_metric.py": {
+ "src/physverify/extraction/providers/depth_vda_metric_small.py": {
   "comment_or_docstring": 2
  },
- "src/physverify/extraction/providers/detect_grounding_dino.py": {
+ "src/physverify/extraction/providers/depth_vda_small.py": {
   "comment_or_docstring": 1
  },
  "src/physverify/extraction/providers/detect_grounding_dino_base.py": {
   "comment_or_docstring": 2
+ },
+ "src/physverify/extraction/providers/detect_grounding_dino_tiny.py": {
+  "comment_or_docstring": 1
  },
  "src/physverify/extraction/providers/detect_grounding_dino_tiny_per_query.py": {
   "comment_or_docstring": 2
@@ -482,7 +482,7 @@
  "src/physverify/extraction/providers/track_edgetam.py": {
   "comment_or_docstring": 1
  },
- "src/physverify/extraction/providers/track_sam2.py": {
+ "src/physverify/extraction/providers/track_sam2_1_hiera_tiny.py": {
   "comment_or_docstring": 1
  },
  "src/physverify/extraction/settings.py": {

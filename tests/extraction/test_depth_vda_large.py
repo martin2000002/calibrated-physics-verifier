@@ -11,16 +11,16 @@ from test_depth_vda_metric import fake_loads
 from physverify.extraction._base import WeightKind
 from physverify.extraction.cache import stage_key
 from physverify.extraction.plan import StagePlan
-from physverify.extraction.providers.depth_vda import (
-    CHECKPOINT,
-    CODE,
-    SMALL_ENCODER,
-    VideoDepthAnythingSmall,
-)
 from physverify.extraction.providers.depth_vda_large import (
     LARGE_CHECKPOINT,
     LARGE_ENCODER,
     VideoDepthAnythingLarge,
+)
+from physverify.extraction.providers.depth_vda_small import (
+    CHECKPOINT,
+    CODE,
+    SMALL_ENCODER,
+    VideoDepthAnythingSmall,
 )
 from physverify.schema.error_profile import EntryFilter
 from physverify.schema.perception import DepthKind, DepthMap

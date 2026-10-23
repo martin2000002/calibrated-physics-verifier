@@ -195,12 +195,6 @@ def test_provider_keys_are_unchanged(registries: dict[str, Mapping[str, Any]]) -
     assert sorted(registries["providers"]) == sorted(PROVIDER_ORDER)
 
 
-def test_provider_order_is_unchanged_until_the_provider_files_are_renamed(
-    registries: dict[str, Mapping[str, Any]],
-) -> None:
-    assert tuple(registries["providers"]) == PROVIDER_ORDER
-
-
 def test_command_names_and_order_are_unchanged_until_the_cli_renames(
     commands: Mapping[str, Any],
 ) -> None:
