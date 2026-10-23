@@ -25,8 +25,9 @@
 # uncommitted or untracked under src, configs, scripts, annotations, pyproject.toml or uv.lock; no
 # configs/local.toml and no
 # PHYSVERIFY_CONFIG_DIR; no PHYSVERIFY__* variable but the ones exported here; no PHYSVERIFY_UNSEAL
-# or PHYSVERIFY_UNSEAL_REPEAT; $F (and its calibration/ and runs/) not inside the calibration
-# chain's directory, $H200_ROOT/iterations, $DATA/calibration* or $DATA/runs*; no other instance
+# or PHYSVERIFY_UNSEAL_REPEAT; $F (and its calibration/ and runs/) not inside $CHAIN_ROOT* (the
+# CPU calibration chain and its CUDA run, $CHAIN_ROOT-cuda), $H200_ROOT/iterations,
+# $DATA/calibration* or $DATA/runs*; no other instance
 # on its run.lock; state.env of another commit; steps 1..FROM-1 completed. Then doctor must
 # report config_dir $REPO_ROOT/configs, device cpu, profile precise, the cache, and the
 # calibration directory, runs directory, error profile and thresholds inside $F.
