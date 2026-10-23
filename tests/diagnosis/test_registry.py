@@ -2,18 +2,12 @@
 
 from __future__ import annotations
 
+from metric_cases import METRIC_OPTIONS as OPTIONS
+
 from physverify.app.plugins import PLUGIN_KINDS
 from physverify.diagnosis.error_profile_writer import PROFILE_QUANTITIES
 from physverify.diagnosis.measurement_cases import SampledMetric
-from physverify.diagnosis.settings import MetricSettings
 
-OPTIONS = MetricSettings(
-    boundary_tol_frac=0.008,
-    depth_alignment="clip",
-    depth_eps_frac=1e-3,
-    contact_min_tiou=0.3,
-    impact_half_window_s=0.125,
-)
 EXPECTED = {
     "detect/box",
     "detect/label",

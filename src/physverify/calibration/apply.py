@@ -72,12 +72,6 @@ def rule_for(stratum: Stratum, check_id: str, policy: ThresholdRule) -> Rule:
     return Rule(policy, check.sigma.bias, check.sigma.factor)
 
 
-def calibrated_result(
-    result: CheckResult, stratum: Stratum, k_sigma: float | None = None
-) -> CalibratedResult:
-    return _calibrated(result.check_id, [result], stratum, policy_for(stratum, k_sigma))
-
-
 def _calibrated(
     check_id: str, results: Sequence[CheckResult], stratum: Stratum, policy: ThresholdRule
 ) -> CalibratedResult:

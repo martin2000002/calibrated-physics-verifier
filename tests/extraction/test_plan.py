@@ -9,7 +9,7 @@ from typing import Any, ClassVar
 
 import pytest
 from pydantic import BaseModel
-from support import SettingsFactory
+from settings_factory import SettingsFactory
 from wiring import resolve_plan
 
 from physverify.config.models import SizePriorTable

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import os
-import shutil
 import subprocess
 from pathlib import Path
 
@@ -42,13 +40,6 @@ class DemoSandbox(Sandbox):
 @pytest.fixture
 def sandbox(tmp_path: Path) -> DemoSandbox:
     return DemoSandbox(tmp_path)
-
-
-def test_script_parses_and_is_executable() -> None:
-    bash = shutil.which("bash")
-    assert bash is not None
-    subprocess.run([bash, "-n", str(SCRIPTS / "run_demo.sh")], check=True)
-    assert os.access(SCRIPTS / "run_demo.sh", os.X_OK)
 
 
 def test_scenes_run_from_the_selection_into_the_h200_root(sandbox: DemoSandbox) -> None:

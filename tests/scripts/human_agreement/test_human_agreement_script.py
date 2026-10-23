@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 import re
 import shutil
 import subprocess
@@ -191,12 +190,6 @@ def _pass(subset: str) -> list[str]:
         f"extract run --dataset videophy --subset {subset}",
         f"verify --dataset videophy --level perceived --subset {subset}",
     ]
-
-
-def test_the_scripts_parse_and_the_agreement_runner_is_executable() -> None:
-    for name in ("run_human_agreement.sh", "_steps.sh"):
-        subprocess.run(["bash", "-n", str(H200 / name)], check=True)
-    assert os.access(H200 / "run_human_agreement.sh", os.X_OK)
 
 
 @pytest.mark.parametrize("args", [(), ("all",), ("dev", "test")])

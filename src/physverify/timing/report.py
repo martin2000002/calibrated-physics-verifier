@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any, Final
 
 from physverify.core.atomic import write_bytes_atomic
-from physverify.core.markdown import number, table
+from physverify.core.markdown import SIG4_NAN_TEXT, table
 from physverify.timing.records import (
     CallFailure,
     MeasureStats,
@@ -61,8 +61,7 @@ def discard_scratch(scratch: Path) -> None:
         scratch.parent.rmdir()
 
 
-def _number(value: float) -> str:
-    return number(value, ".4g", "nan", "nan")
+_number = SIG4_NAN_TEXT
 
 
 def _stat_text(row: MeasureStats) -> str:

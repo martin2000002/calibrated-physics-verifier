@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from reference.r4_jump_v1 import ContinuityCheck
 
-from physverify.checks._base import Check, CheckInputs
+from physverify.checks._base import Check
 from physverify.checks._params import CommonParams
 from physverify.checks._results import first_max
 from physverify.checks.r4_missing_permanence import PLUGINS as MISSING_PLUGINS
@@ -15,26 +15,14 @@ from physverify.checks.r4_size_constancy import PLUGINS as SIZE_PLUGINS
 from physverify.checks.r4_size_constancy import SizeConstancyCheck, SizeParams
 from physverify.physics.finite_diff import third_difference
 from physverify.physics.measures.object_integrity import size_change_ratio
-from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
+from physverify.schema.checks import AbstainReason, CheckResult, Verdict
 from physverify.schema.constants import STANDARD_GRAVITY
 
 BALL_LENGTH = 2 * sc.BALL_RADIUS
 
 
-def inputs(case: sc.Case) -> CheckInputs:
-    return CheckInputs(
-        clip=case.clip,
-        states=case.states,
-        contacts=case.contacts,
-        scale=case.scale,
-        input_level=InputLevel.ORACLE,
-        provenance={},
-        scene=case.scene,
-    )
-
-
 def run_one(check: Check, case: sc.Case) -> CheckResult:
-    results = check.evaluate(inputs(case))
+    results = check.evaluate(sc.bare_inputs(case))
     assert len(results) == 1
     result = results[0]
     if result.frame_span is not None:
@@ -296,7 +284,7 @@ def test_jump_sigma_projects_the_position_sigma_on_the_jump() -> None:
 def test_jump_requires_contacts() -> None:
     case = replace(sc.rolling_ball(), contacts=None)
     with pytest.raises(ValueError, match="requires contacts"):
-        ContinuityCheck(CommonParams()).evaluate(inputs(case))
+        ContinuityCheck(CommonParams()).evaluate(sc.bare_inputs(case))
 
 
 def test_first_max_prefers_the_earliest_tie() -> None:

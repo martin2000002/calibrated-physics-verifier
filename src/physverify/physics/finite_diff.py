@@ -1,4 +1,4 @@
-"""Finite differences on possibly non-uniform time grids, with their closed-form sigma (0002).
+"""Finite differences on possibly non-uniform time grids; closed-form sigma of the third (0002).
 
 Arrays are indexed by time on axis 0. Both difference operators are exact for quadratics in
 time and return NaN on the first and last sample, where the centred stencil does not exist.
@@ -61,16 +61,6 @@ def third_difference(x: ArrayLike) -> FloatArray:
     if values.shape[0] < 4:
         return np.empty((0, *values.shape[1:]), dtype=np.float64)
     return np.asarray(values[3:] - 3.0 * values[2:-1] + 3.0 * values[1:-2] - values[:-3])
-
-
-def central_difference_sigma(sigma_x: float, dt: float) -> float:
-    """Sigma of (x+ - x-) / (2 dt) for independent position noise sigma_x."""
-    return sigma_x / (math.sqrt(2.0) * dt)
-
-
-def second_difference_sigma(sigma_x: float, dt: float) -> float:
-    """Sigma of (x+ - 2x + x-) / dt^2 for independent position noise: sqrt(6) sigma_x / dt^2."""
-    return math.sqrt(6.0) * sigma_x / dt**2
 
 
 def third_difference_sigma(sigma_x: float, dt: float) -> float:

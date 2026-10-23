@@ -4,6 +4,7 @@ kinetic energy grows by the fraction m while momentum is conserved."""
 from __future__ import annotations
 
 import math
+from dataclasses import dataclass
 from typing import ClassVar
 
 import numpy as np
@@ -15,25 +16,22 @@ from physverify.schema.states import ObjectStateTable, PrimitiveKind
 from physverify.synth.ballistics import (
     GravitySchedule,
     energy_scale,
-    integrate_sphere,
 )
 from physverify.synth.magnitudes import collision_velocities, pair_energy_gain
 from physverify.synth.perturb import PerturbationNotApplicableError
 from physverify.synth.perturbations._base import PerturbationTarget
+from physverify.synth.perturbations._reflight import Launch, reflight
 from physverify.synth.perturbations._state_edit import (
     PluginBase,
     Vec,
     ballistic_state,
     before,
-    bounce_record,
     gravity_of,
     keep_records,
     object_mass,
     provisional_record,
     radius_of,
     require_in_image,
-    restitution_for_edit,
-    with_flight,
 )
 from physverify.synth.settings import PerturbationCommon
 
@@ -61,39 +59,17 @@ class EnergyGain(PluginBase[Params]):
         magnitude: float,
         rng: np.random.Generator,
     ) -> tuple[ObjectStateTable, ContactTable, PerturbationRecord]:
-        impact = first_ball_collision(states, contacts)
-        if impact is None:
-            raise PerturbationNotApplicableError(f"{NAME}: no collision between two balls")
-        fps = float(scene.frame_rate)
-        g = gravity_of(scene)
-        t_c = impact.t_start / fps
-        pair = (states.object_index(impact.object_a), states.object_index(impact.object_b))
-        masses = [object_mass(scene, impact.object_a), object_mass(scene, impact.object_b)]
-        tol = self.params.contact_tol_m
-        velocities = [collision_velocities(states, contacts, i, t_c, g, tol) for i in pair]
-        v_minus, v_plus = [v[0] for v in velocities], [v[1] for v in velocities]
-        scale = energy_scale(masses, v_minus, v_plus, magnitude)
+        collision = _collision(scene, states, contacts, self.params.contact_tol_m)
+        t_c, masses = collision.t_c, collision.masses
+        scale = energy_scale(masses, collision.v_minus, collision.v_plus, magnitude)
         if not math.isfinite(scale):
             raise PerturbationNotApplicableError(f"{NAME}: the energy gain cannot be reached")
-        m = np.asarray(masses)
-        cm_minus, cm_plus = m @ np.array(v_minus) / m.sum(), m @ np.array(v_plus) / m.sum()
         start = int(np.searchsorted(states.t, t_c, side="right"))
-        moved, records = states, []
-        for index, after in zip(pair, v_plus, strict=True):
-            moved, bounces = self._reflight(
-                scene,
-                moved,
-                states,
-                contacts,
-                index,
-                t_c,
-                cm_minus + scale * (after - cm_plus),
-                start,
-            )
-            records.extend(bounces)
-        self._check(scene, moved, pair, start)
-        ids = (impact.object_a, impact.object_b)
-        new_contacts = keep_records(contacts, before(ids, impact.t_start + 1e-9), records)
+        moved, records = self._reflown(scene, states, contacts, collision, scale, start)
+        self._check(scene, moved, collision.pair, start)
+        ids = (collision.impact.object_a, collision.impact.object_b)
+        kept = before(ids, collision.impact.t_start + 1e-9)
+        new_contacts = keep_records(contacts, kept, records)
         record = provisional_record(
             self,
             magnitude,
@@ -103,7 +79,7 @@ class EnergyGain(PluginBase[Params]):
                 "t_c": t_c,
                 "mass_ratio": masses[0] / masses[1],
                 "scale": scale,
-                "gravity": g.tolist(),
+                "gravity": gravity_of(scene).tolist(),
             },
         )
         return moved, new_contacts, record
@@ -120,28 +96,29 @@ class EnergyGain(PluginBase[Params]):
         return pair_energy_gain(states, contacts, pair, ratio, t_c, g, self.params.contact_tol_m)
 
     @staticmethod
-    def _reflight(
+    def _reflown(
         scene: SceneSpec,
-        moved: ObjectStateTable,
         clean: ObjectStateTable,
         contacts: ContactTable,
-        index: int,
-        t_c: float,
-        velocity: Vec,
+        collision: _Collision,
+        scale: float,
         start: int,
     ) -> tuple[ObjectStateTable, list[ContactRecord]]:
+        """Both balls re-flown from t_c with the post-collision velocities rescaled about the
+        centre of mass by ``scale``."""
         g = gravity_of(scene)
-        radius = radius_of(clean, index)
-        p_c, _ = ballistic_state(clean, index, t_c, g)
-        e_clean = restitution_for_edit(scene, clean, contacts, index)
-        flight = integrate_sphere(
-            p_c, velocity, t_c, radius, GravitySchedule.constant(g), e_clean, clean.t[start:]
-        )
-        object_id = str(clean.object_ids[index])
-        fps = float(scene.frame_rate)
-        return with_flight(moved, index, start, flight), [
-            bounce_record(object_id, b, radius, fps) for b in flight.bounces
-        ]
+        m = np.asarray(collision.masses)
+        cm_minus = m @ np.array(collision.v_minus) / m.sum()
+        cm_plus = m @ np.array(collision.v_plus) / m.sum()
+        moved, records = clean, []
+        for index, after in zip(collision.pair, collision.v_plus, strict=True):
+            p_c, _ = ballistic_state(clean, index, collision.t_c, g)
+            velocity = cm_minus + scale * (after - cm_plus)
+            launch = Launch(p_c, velocity, collision.t_c, GravitySchedule.constant(g))
+            reflown = reflight(scene, clean, contacts, index, start, launch, target=moved)
+            moved = reflown.states
+            records.extend(reflown.records)
+        return moved, records
 
     @staticmethod
     def _check(
@@ -152,6 +129,34 @@ class EnergyGain(PluginBase[Params]):
         if np.any(gaps <= radius_of(moved, a) + radius_of(moved, b)):
             raise PerturbationNotApplicableError(f"{NAME}: the balls would touch again")
         require_in_image(scene, moved.position[start:, [a, b]], f"{NAME}: a ball leaves the image")
+
+
+@dataclass(frozen=True)
+class _Collision:
+    """The first ball-ball impact, its time t_c (s), and each ball's mass and velocities."""
+
+    impact: ContactRecord
+    t_c: float
+    pair: tuple[int, int]
+    masses: list[float]
+    v_minus: list[Vec]
+    v_plus: list[Vec]
+
+
+def _collision(
+    scene: SceneSpec, states: ObjectStateTable, contacts: ContactTable, tol: float
+) -> _Collision:
+    impact = first_ball_collision(states, contacts)
+    if impact is None:
+        raise PerturbationNotApplicableError(f"{NAME}: no collision between two balls")
+    g = gravity_of(scene)
+    t_c = impact.t_start / float(scene.frame_rate)
+    pair = (states.object_index(impact.object_a), states.object_index(impact.object_b))
+    masses = [object_mass(scene, impact.object_a), object_mass(scene, impact.object_b)]
+    velocities = [collision_velocities(states, contacts, i, t_c, g, tol) for i in pair]
+    return _Collision(
+        impact, t_c, pair, masses, [v[0] for v in velocities], [v[1] for v in velocities]
+    )
 
 
 def first_ball_collision(states: ObjectStateTable, contacts: ContactTable) -> ContactRecord | None:

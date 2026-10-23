@@ -13,12 +13,12 @@
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 from typing import Any, Protocol
 
+from physverify.core import jsonio
 from physverify.core.atomic import write_atomic, write_bytes_atomic
 from physverify.core.cache_keys import params_hash
 from physverify.core.errors import PhysverifyError
@@ -142,7 +142,8 @@ def atomic_write_json(path: Path, payload: Any) -> None:
 
 
 def read_json(path: Path) -> Any:
-    return json.loads(path.read_text(encoding="utf-8"))
+    """A JSON file the container or the store wrote; its shape is the reader's contract."""
+    return jsonio.read_json(path)
 
 
 def atomic_save(record: Record, path: Path) -> None:

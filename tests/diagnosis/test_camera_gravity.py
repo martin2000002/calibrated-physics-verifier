@@ -3,30 +3,22 @@
 from __future__ import annotations
 
 import math
-from types import MappingProxyType
 
 import numpy as np
 import pytest
+from metric_cases import METRIC_OPTIONS as OPTIONS
+from metric_cases import metric_case
 from numpy.typing import NDArray
-from synthetic_clip import manifest
 
 from physverify.app.plugins import PLUGIN_KINDS
 from physverify.diagnosis.error_profile_writer import PROFILE_QUANTITIES
-from physverify.diagnosis.measurement_cases import MetricCase, MetricOutcome
+from physverify.diagnosis.measurement_cases import MetricOutcome
 from physverify.diagnosis.metrics.camera_gravity import CameraGravityMetric
-from physverify.diagnosis.settings import MetricSettings
 from physverify.extraction.gravity_pose import pose_from_gravity
 from physverify.schema.clip import FrameSampling
 from physverify.schema.perception import CameraModel, IntrinsicsSource
 from physverify.synth.placement import camera_axes
 
-OPTIONS = MetricSettings(
-    boundary_tol_frac=0.008,
-    depth_alignment="clip",
-    depth_eps_frac=1e-3,
-    contact_min_tiou=0.3,
-    impact_half_window_s=0.125,
-)
 DECLARED_POSE_SIGMA_DEG = 2.0
 TOL = 1e-9
 SAMPLING = FrameSampling(
@@ -56,15 +48,7 @@ def camera(pose: NDArray[np.float64] | None, source: IntrinsicsSource) -> Camera
 
 
 def measure(pred: CameraModel, truth_tilt_deg: float) -> MetricOutcome:
-    case = MetricCase(
-        clip=manifest(),
-        pred=pred,
-        truth=camera(tilted_pose(truth_tilt_deg), IntrinsicsSource.GROUND_TRUTH),
-        context=MappingProxyType({}),
-        gt=None,
-        options=OPTIONS,
-        plan=None,
-    )
+    case = metric_case(pred, camera(tilted_pose(truth_tilt_deg), IntrinsicsSource.GROUND_TRUTH))
     return CameraGravityMetric(OPTIONS).samples(case)
 
 

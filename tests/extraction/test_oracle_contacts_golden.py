@@ -16,7 +16,7 @@ from pathlib import Path
 
 from contacts_golden_case import plain
 from golden import same
-from support import SettingsFactory
+from settings_factory import SettingsFactory
 from truth_contacts_golden_case import GOLDEN, truth_contacts
 from wiring import resolve_plan
 

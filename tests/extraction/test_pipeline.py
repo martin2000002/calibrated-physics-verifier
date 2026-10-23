@@ -8,9 +8,9 @@ from dataclasses import replace
 
 import pytest
 from fakes import FAKE, JOURNAL
+from settings_factory import SettingsFactory
 from support import (
     CountingLock,
-    SettingsFactory,
     entry,
     load_output,
     plan_overrides,

@@ -8,8 +8,8 @@ from typing import Any
 
 import pytest
 from fakes import FakeTrack
+from settings_factory import SettingsFactory
 from support import (
-    SettingsFactory,
     chain_keys,
     entry,
     profile_of,

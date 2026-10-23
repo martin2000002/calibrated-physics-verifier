@@ -4,11 +4,11 @@ under their own name, raw directory and manifest; the ``center`` plugin is uncha
 from __future__ import annotations
 
 import json
-from collections.abc import Callable
 
 import cv2
 import numpy as np
 import pytest
+from settings_factory import SettingsFactory
 
 from physverify.app.plugins import PLUGIN_KINDS
 from physverify.config.models import Settings
@@ -28,7 +28,6 @@ from physverify.datasets.physics_iq_views import PhysicsIQViewsDataset, PhysicsI
 
 from .test_physics_iq import BUCKET, LISTING, SIZE, FakeBucket, object_name
 
-SettingsFactory = Callable[..., Settings]
 VIEWS = ("left", "right")
 ALL_VIEWS = ("center", *VIEWS)
 

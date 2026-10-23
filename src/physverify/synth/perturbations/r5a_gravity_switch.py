@@ -11,12 +11,6 @@ import numpy as np
 from physverify.schema.contacts import ContactRecord, ContactTable
 from physverify.schema.scene import MagnitudeKind, PerturbationRecord, SceneSpec
 from physverify.schema.states import ObjectStateTable
-from physverify.synth.ballistics import (
-    SWITCH_DELAY_S,
-    GravitySchedule,
-    integrate_sphere,
-    time_to_height,
-)
 from physverify.synth.frame_windows import flight_mask, rest_mask, segments
 from physverify.synth.magnitudes import (
     SIDE_FRAMES,
@@ -26,12 +20,12 @@ from physverify.synth.magnitudes import (
 )
 from physverify.synth.perturb import PerturbationNotApplicableError
 from physverify.synth.perturbations._base import PerturbationTarget
+from physverify.synth.perturbations._reflight import Launch, reflight, tilted_until_landing
 from physverify.synth.perturbations._state_edit import (
     PluginBase,
     Vec,
     ballistic_state,
     before,
-    bounce_record,
     gravity_of,
     image_plane_tilt,
     keep_records,
@@ -39,9 +33,7 @@ from physverify.synth.perturbations._state_edit import (
     provisional_record,
     radius_of,
     require_clear_flight,
-    restitution_for_edit,
     spheres,
-    with_flight,
 )
 from physverify.synth.settings import PerturbationCommon
 
@@ -114,16 +106,7 @@ class GravitySwitch(PluginBase[Params]):
             )
             records.extend(bounces)
         ids = [str(states.object_ids[i]) for i in (main, *others)]
-        for index in (main, *others):
-            require_clear_flight(
-                scene,
-                moved,
-                index,
-                range(frame, moved.n_frames),
-                moved.position[frame:, index],
-                leaves=f"{NAME}: a switched flight leaves the image",
-                hits=f"{NAME}: a switched flight hits another ball",
-            )
+        _require_clear(scene, moved, (main, *others), frame)
         new_contacts = keep_records(contacts, before(ids, t_switch * scene.frame_rate), records)
         record = provisional_record(
             self,
@@ -162,20 +145,26 @@ class GravitySwitch(PluginBase[Params]):
         t_switch: float,
         gravities: tuple[Vec, Vec],
     ) -> tuple[ObjectStateTable, list[ContactRecord]]:
-        tilted, g = gravities
-        radius = radius_of(states, index)
-        p, v = ballistic_state(states, index, t_switch, g)
-        landing = t_switch + time_to_height(float(p[2]), float(v[2]), float(tilted[2]), radius)
-        if not math.isfinite(landing):
+        p, v = ballistic_state(states, index, t_switch, gravities[1])
+        schedule = tilted_until_landing(t_switch, p, v, radius_of(states, index), gravities)
+        if schedule is None:
             raise PerturbationNotApplicableError(f"{NAME}: a ball never lands under g'")
-        schedule = GravitySchedule((landing + SWITCH_DELAY_S,), (tilted, g))
-        e_clean = restitution_for_edit(scene, states, contacts, index)
-        flight = integrate_sphere(p, v, t_switch, radius, schedule, e_clean, states.t[frame:])
-        object_id = str(states.object_ids[index])
-        fps = float(scene.frame_rate)
-        return (
-            with_flight(states, index, frame, flight),
-            [bounce_record(object_id, b, radius, fps) for b in flight.bounces],
+        reflown = reflight(scene, states, contacts, index, frame, Launch(p, v, t_switch, schedule))
+        return reflown.states, reflown.records
+
+
+def _require_clear(
+    scene: SceneSpec, moved: ObjectStateTable, indices: tuple[int, ...], frame: int
+) -> None:
+    for index in indices:
+        require_clear_flight(
+            scene,
+            moved,
+            index,
+            range(frame, moved.n_frames),
+            moved.position[frame:, index],
+            leaves=f"{NAME}: a switched flight leaves the image",
+            hits=f"{NAME}: a switched flight hits another ball",
         )
 
 

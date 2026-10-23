@@ -31,6 +31,7 @@ from scipy.stats import chi2
 from scipy.stats import f as f_dist
 
 from physverify.physics.kinematics import visible_runs
+from physverify.physics.ties import TIE_RTOL
 from physverify.physics.tracks import NoiseScale
 
 FloatArray = NDArray[np.float64]
@@ -42,8 +43,6 @@ DEGREES_OF_FREEDOM = 3
 """One extra coefficient per axis."""
 KINK_COEFFICIENTS = 4
 """Parabola plus kink, per axis."""
-TIE_RTOL = 1e-9
-"""Relative slack under which two kink gains on the same row count as equal."""
 GRID = 9
 """Points per interval of the coarse search for an acceleration change, refined at the best."""
 

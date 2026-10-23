@@ -15,7 +15,7 @@ from typing import Final
 from pydantic import Field
 
 from physverify.core.atomic import write_text_atomic
-from physverify.core.markdown import number, table
+from physverify.core.markdown import SIG3_FINITE, table
 from physverify.core.models import FrozenModel
 from physverify.finetune.records import CheckSummary, PromptRecord, finite_or_none
 from physverify.finetune.scorers._base import AggregateScore, AggregateScorer
@@ -208,8 +208,7 @@ def summaries_of(report: VideoReport) -> dict[str, CheckSummary]:
     return {row.check_id: row.summary() for row in report.checks}
 
 
-def _num(value: float | None) -> str:
-    return number(value, ".3g", "-", "nonfinite")
+_num = SIG3_FINITE
 
 
 def score_text(clip: ClipBlock) -> str:

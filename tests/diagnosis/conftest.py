@@ -21,12 +21,12 @@ import pytest
 from network import no_network as no_network
 from numpy.typing import NDArray
 from pydantic import BaseModel
+from settings_factory import SettingsFactory
 from synthetic_clip import DATASET, SyntheticFixtureDataset, build_clip, manifest
 from wiring import checks
 
 from physverify.app.plugins import PLUGIN_KINDS
 from physverify.checks._base import CheckInputs
-from physverify.config.loader import load_settings
 from physverify.config.models import RuntimeSettings, Settings
 from physverify.datasets._base import ArrayGroundTruthStore, DatasetSource
 from physverify.diagnosis.chain_runner import ChainRunner
@@ -67,7 +67,6 @@ RUN_ID = "20260924T120000Z-diagtest"
 FAKE_CHECK_ID = "fake_distance"
 FAKE_REL_SIGMA = 0.05
 
-SettingsFactory = Callable[..., Settings]
 DepsFactory = Callable[..., PipelineDeps]
 Evaluator = Callable[[CheckInputs], Sequence[CheckResult]]
 
@@ -374,14 +373,12 @@ def eval_error_providers(
 
 
 @pytest.fixture
-def make_settings(config_dir: Path, environ: dict[str, str]) -> SettingsFactory:
-    """Settings from the repo configs; the fakes are in the plan unless ``fakes=False``."""
+def make_settings(make_settings: SettingsFactory) -> SettingsFactory:
+    """The shared factory with the fakes prepended to the plan unless ``fakes=False``."""
 
     def build(*overrides: str, fakes: bool = True, profile: str | None = None) -> Settings:
         plan = FAKE_PLAN if fakes else ()
-        return load_settings(
-            config_dir, environ=environ, profile=profile, overrides=(*plan, *overrides)
-        )
+        return make_settings(*plan, *overrides, profile=profile)
 
     return build
 

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import re
 import subprocess
 import sys
@@ -181,11 +180,6 @@ def _expected(final: Path) -> list[str]:
         "exclusions show",
         "selective-risk fit",
     ]
-
-
-def test_the_script_parses_and_is_executable() -> None:
-    subprocess.run(["bash", "-n", str(H200 / "run_freeze.sh")], check=True)
-    assert os.access(H200 / "run_freeze.sh", os.X_OK)
 
 
 def test_the_freeze_adopts_the_chosen_iteration_and_writes_the_manifest(

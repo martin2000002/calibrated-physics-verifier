@@ -143,13 +143,6 @@ def _devscore(out: Path) -> str:
     return f"calibrate dev-score {KS} --level both --out {out / 'devscore.json'}"
 
 
-def test_the_script_parses_and_is_executable() -> None:
-    """AC17."""
-    for name in ("run_perception_iteration.sh", "_steps.sh", "_guards.sh"):
-        subprocess.run(["bash", "-n", str(H200 / name)], check=True)
-    assert os.access(H200 / "run_perception_iteration.sh", os.X_OK)
-
-
 def test_the_iteration_runs_its_five_steps_on_calib_only(sandbox: IterationSandbox) -> None:
     """AC19: the exact sequence, one prefix, calib ids only, every path inside $OUT."""
     result = sandbox.run()

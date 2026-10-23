@@ -288,33 +288,15 @@ def _bo8_verifier(arms: Sequence[PromptArms], picks: Mapping[str, Pick | None]) 
 
 
 def analyse(inputs: AnalysisInputs) -> ComparisonAnalysis:
-    arms, cfg, rules, n = inputs.arms, inputs.cfg, inputs.rules, inputs.cfg.min_ft_pairs_per_prompt
-    picks = {a.prompt_id: pick_best(a.base, rules, lambda s: s.score) for a in arms}
+    arms, cfg, n = inputs.arms, inputs.cfg, inputs.cfg.min_ft_pairs_per_prompt
+    picks = {a.prompt_id: pick_best(a.base, inputs.rules, lambda s: s.score) for a in arms}
     chosen = [p for p in picks.values() if p is not None]
     primary_found = ft_vs_bo8(arms, picks, inputs.k_ft, inputs.rescore, n)
     primary = _test(primary_found, cfg)
     external = _test(judged_vs_bo8(arms, picks, inputs.pc, n), cfg) if inputs.pc else None
-    summaries = {
-        "base": summarize([s for a in arms for s in a.base.values()], inputs.pc, inputs.sa),
-        "bo8": summarize([p.score for p in chosen], inputs.pc, inputs.sa),
-        "ft": summarize([s for a in arms for s in a.ft.values()], inputs.pc, inputs.sa),
-    }
+    summaries = _summaries(inputs, chosen)
     worst_values, left_out = worst_case(arms, picks, inputs.k_ft, inputs.rescore)
-    guards = (
-        {
-            **signal_guards(summaries["ft"], summaries["base"], inputs),
-            "G4": sa_guard(judged_vs_bo8(arms, picks, inputs.sa, n), inputs),
-            "G5": missing_pair_guard(primary, paired_test(as_diffs(worst_values), cfg), cfg),
-        }
-        if inputs.has_ft
-        else {g: GuardResult(state="not_evaluated", detail="no FT model") for g in GUARDS}
-    )
     holm_entries = _holm(inputs, picks)
-    ranking = holm_entries[HOLM_TESTS[2]]
-    templates = {a.prompt_id: a.prompt.template_id for a in arms}
-    s1 = ft_vs_bo8(
-        arms, picks, inputs.k_ft, inputs.rescore, n, lambda s: drop_reason(s, rules) is None
-    )
     return ComparisonAnalysis(
         n_prompts=len(arms),
         arms=summaries,
@@ -322,29 +304,70 @@ def analyse(inputs: AnalysisInputs) -> ComparisonAnalysis:
         primary=primary,
         external=external,
         holm=holm_entries,
-        ranking_claim=(
-            inputs.external_status == "ok"
-            and ranking.p_adjusted is not None
-            and ranking.p_adjusted < cfg.alpha
-            and (ranking.test.hl or 0) > 0
-        ),
+        ranking_claim=_ranking_claim(inputs, holm_entries[HOLM_TESTS[2]]),
         bo8_vs_base_verifier=paired_test(as_diffs(_bo8_verifier(arms, picks)), cfg),
-        guards=guards,
+        guards=_guards(inputs, picks, summaries, primary, worst_values),
         g5_left_out=left_out if inputs.has_ft else 0,
-        sensitivities=dict(
-            zip(
-                SECONDARY_TESTS,
-                (
-                    _test(s1, cfg),
-                    _clustered(primary_found, templates, cfg),
-                    _test(cross_ft_vs_base(arms, inputs.rescore, n), cfg),
-                    _cross_fit(inputs),
-                    _test(template_means(primary_found, templates), cfg),
-                ),
-                strict=True,
-            )
-        ),
+        sensitivities=_sensitivities(inputs, picks, primary_found),
         strata=strata(primary_found[0], arms, cfg),
+    )
+
+
+def _summaries(inputs: AnalysisInputs, chosen: Sequence[Pick]) -> dict[str, ArmSummary]:
+    arms = inputs.arms
+    return {
+        "base": summarize([s for a in arms for s in a.base.values()], inputs.pc, inputs.sa),
+        "bo8": summarize([p.score for p in chosen], inputs.pc, inputs.sa),
+        "ft": summarize([s for a in arms for s in a.ft.values()], inputs.pc, inputs.sa),
+    }
+
+
+def _guards(
+    inputs: AnalysisInputs,
+    picks: Mapping[str, Pick | None],
+    summaries: Mapping[str, ArmSummary],
+    primary: TestResult,
+    worst_values: Values,
+) -> dict[str, GuardResult]:
+    if not inputs.has_ft:
+        return {g: GuardResult(state="not_evaluated", detail="no FT model") for g in GUARDS}
+    cfg, n = inputs.cfg, inputs.cfg.min_ft_pairs_per_prompt
+    return {
+        **signal_guards(summaries["ft"], summaries["base"], inputs),
+        "G4": sa_guard(judged_vs_bo8(inputs.arms, picks, inputs.sa, n), inputs),
+        "G5": missing_pair_guard(primary, paired_test(as_diffs(worst_values), cfg), cfg),
+    }
+
+
+def _ranking_claim(inputs: AnalysisInputs, ranking: HolmEntry) -> bool:
+    return (
+        inputs.external_status == "ok"
+        and ranking.p_adjusted is not None
+        and ranking.p_adjusted < inputs.cfg.alpha
+        and (ranking.test.hl or 0) > 0
+    )
+
+
+def _sensitivities(
+    inputs: AnalysisInputs, picks: Mapping[str, Pick | None], primary_found: tuple[Values, int]
+) -> dict[str, TestResult | None]:
+    arms, cfg, n = inputs.arms, inputs.cfg, inputs.cfg.min_ft_pairs_per_prompt
+    templates = {a.prompt_id: a.prompt.template_id for a in arms}
+    s1 = ft_vs_bo8(
+        arms, picks, inputs.k_ft, inputs.rescore, n, lambda s: drop_reason(s, inputs.rules) is None
+    )
+    return dict(
+        zip(
+            SECONDARY_TESTS,
+            (
+                _test(s1, cfg),
+                _clustered(primary_found, templates, cfg),
+                _test(cross_ft_vs_base(arms, inputs.rescore, n), cfg),
+                _cross_fit(inputs),
+                _test(template_means(primary_found, templates), cfg),
+            ),
+            strict=True,
+        )
     )
 
 

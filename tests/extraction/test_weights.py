@@ -11,7 +11,8 @@ from typing import ClassVar
 
 import pytest
 from fakes import FAKE, JOURNAL, FakeTrack
-from support import CountingLock, SettingsFactory, plan_overrides, run_pipeline
+from settings_factory import SettingsFactory
+from support import CountingLock, plan_overrides, run_pipeline
 from synthetic_clip import SyntheticFixtureDataset
 
 from physverify.config.models import PathsSettings

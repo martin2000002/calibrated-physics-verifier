@@ -6,7 +6,7 @@ import math
 from collections.abc import Mapping
 
 import pytest
-from support import SettingsFactory
+from settings_factory import SettingsFactory
 from wiring import resolve_plan
 
 from physverify.extraction._base import StageProvider

@@ -16,8 +16,7 @@ from physverify.checks import r2_static_equilibrium
 from physverify.checks._base import Check, CheckInputs
 from physverify.physics.equilibrium import EquilibriumSolution
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
-from physverify.schema.constants import ENV_ID
-from physverify.schema.contacts import ContactKind, ContactRecord, ManifoldKind
+from physverify.schema.contacts import ManifoldKind
 from physverify.schema.scale import ScaleSource
 from physverify.schema.states import PrimitiveKind
 from physverify.verification.inputs import ClipInputs
@@ -76,21 +75,6 @@ def point_contact(case: sc.Case) -> sc.Case:
     return replace(case, contacts=replace(case.contacts, records=records))
 
 
-def ground_record(t_start: float, t_end: float) -> ContactRecord:
-    return ContactRecord(
-        object_a="ball_i",
-        object_b=ENV_ID,
-        t_start=t_start,
-        t_end=t_end,
-        kind=ContactKind.IMPACT,
-        normal=np.array([0.0, 0.0, 1.0]),
-        points=np.array([[-0.1, 0.0, 0.9]]),
-        manifold=ManifoldKind.POINT,
-        confidence=1.0,
-        source="test",
-    )
-
-
 def hidden_ball_b() -> sc.Case:
     case = sc.with_values(sc.overlapping_spheres(), "visible", "ball_b", ALL_FRAMES, False)
     return sc.with_values(case, "occlusion", "ball_b", ALL_FRAMES, 0.95)
@@ -115,7 +99,7 @@ REACHABLE: list[tuple[str, AbstainReason, Builder]] = [
     ("R3a", R.ILL_CONDITIONED, lambda: sc.bounce(speed=0.05)),
     ("R3a", R.OUT_OF_SCOPE, lambda: sc.bounce(kind=PrimitiveKind.BOX)),
     ("R3b", R.ILL_CONDITIONED, lambda: sc.collision(skew_deg=40.0)),
-    ("R3b", R.OUT_OF_SCOPE, lambda: sc.with_records(sc.collision(), ground_record(15.0, 15.0))),
+    ("R3b", R.OUT_OF_SCOPE, lambda: sc.with_records(sc.collision(), sc.ground_impact(15.0, 15.0))),
     ("R3b", R.TOO_FEW_FRAMES, lambda: sc.collision(impact_frame=1.4)),
     (
         "R4_missing",

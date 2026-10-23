@@ -1,4 +1,5 @@
-"""Shared statistics: exact intervals, conformal rank, scene folds, scene bootstrap, AUROC, ECE."""
+"""Calibration statistics: conformal rank, AUROC, ECE, the logistic, clustered rates, profile
+intervals and the MAD."""
 
 from __future__ import annotations
 
@@ -6,7 +7,7 @@ import math
 
 import numpy as np
 import pytest
-from scipy.stats import binomtest, mannwhitneyu
+from scipy.stats import mannwhitneyu
 
 from physverify.calibration.stats import (
     auroc,
@@ -20,24 +21,7 @@ from physverify.calibration.stats import (
     profile_interval,
 )
 from physverify.physics.uncertainty import robust_scale
-from physverify.stats.bootstrap import ClusterBlock, scene_bootstrap
-from physverify.stats.folds import grouped_folds
-from physverify.stats.intervals import clopper_pearson, clopper_pearson_lower
-
-
-@pytest.mark.parametrize(("k", "n"), [(0, 20), (3, 20), (20, 20), (1, 100), (7, 13)])
-def test_clopper_pearson_is_the_exact_binomial_interval(k: int, n: int) -> None:
-    expected = binomtest(k, n).proportion_ci(confidence_level=0.95, method="exact")
-    found = clopper_pearson(k, n, 0.95)
-    assert found.low == pytest.approx(expected.low, abs=1e-12)
-    assert found.high == pytest.approx(expected.high, abs=1e-12)
-
-
-def test_zero_out_of_twenty_has_upper_bound_0_168() -> None:
-    found = clopper_pearson(0, 20, 0.95)
-    assert found.low == 0.0
-    assert found.high == pytest.approx(0.168, abs=5e-4)
-    assert clopper_pearson(0, 0, 0.95).low is None
+from physverify.stats.intervals import clopper_pearson
 
 
 def test_conformal_rank_needs_19_scenes_at_alpha_005() -> None:
@@ -59,33 +43,6 @@ def test_conformal_counts_nan_and_ranks_infinity_as_the_largest() -> None:
     assert (with_inf.value, with_inf.sufficient, with_inf.n) == (None, False, 19)
     below = conformal_quantile([*np.arange(1.0, 40.0), math.inf], 0.05)
     assert below.value == 39.0 and below.sufficient
-
-
-@pytest.mark.parametrize(("k", "n", "low"), [(5, 5, 0.05 ** (1 / 5)), (20, 20, 0.05 ** (1 / 20))])
-def test_the_one_sided_lower_bound_of_perfect_rates(k: int, n: int, low: float) -> None:
-    assert clopper_pearson_lower(k, n, 0.95) == pytest.approx(low)
-    assert clopper_pearson_lower(0, 0, 0.95) == 0.0
-
-
-def test_folds_never_split_a_scene() -> None:
-    scenes = [f"s{i % 7}" for i in range(30)]
-    folds = grouped_folds(scenes, 5, seed=3)
-    assert len(folds) == 5
-    assert set().union(*folds) == set(scenes)
-    assert sum(len(f) for f in folds) == 7
-    assert grouped_folds(["a", "b"], 5, seed=0) == grouped_folds(["b", "a"], 5, seed=0)
-    assert len(grouped_folds(["a", "b"], 5, seed=0)) == 2
-
-
-def test_the_bootstrap_resamples_whole_scenes() -> None:
-    blocks = [
-        ClusterBlock("A", 1),
-        ClusterBlock("A", 1),
-        ClusterBlock("B", 0),
-        ClusterBlock("C", 0),
-    ]
-    ci = scene_bootstrap(blocks, lambda s: {"odd": float(sum(s) % 2)}, 300, 0, 0.95)
-    assert (ci["odd"].low, ci["odd"].high) == (0.0, 0.0)
 
 
 def test_auroc_is_mann_whitney() -> None:

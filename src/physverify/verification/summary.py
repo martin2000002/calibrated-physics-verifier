@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from physverify.core.errors import UsageError
-from physverify.core.markdown import number
+from physverify.core.markdown import SIG4_NAN
 from physverify.schema.checks import InputLevel, Verdict
 from physverify.verification.runner import RowStatus, VerificationReport
 from physverify.verification.sweep import MatrixCell, Rule, RuleOutcome, SpecificityReport
@@ -71,5 +71,4 @@ def _label(outcome: RuleOutcome) -> str:
     return "UNDEFINED" if outcome.undefined else "FAILED"
 
 
-def _number(value: float | None) -> str:
-    return number(value, ".4g", "-", "nan")
+_number = SIG4_NAN

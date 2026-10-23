@@ -38,6 +38,7 @@ from physverify.diagnosis.report import (
     z_coverage,
 )
 from physverify.diagnosis.report_markdown import render_markdown, write_report
+from physverify.diagnosis.summary import summary_lines
 from physverify.runtime.runs import RunContext
 from physverify.schema.checks import AbstainReason, Verdict
 from physverify.schema.clip import Split
@@ -363,6 +364,22 @@ def test_attribution_lists_the_eight_cells_with_unit(run_context: RunContext) ->
     payload = json.loads(report.to_json())
     assert payload["lift_unit"] == "relative"
     assert sorted(payload["checks"][0]["cells"]) == sorted(CELLS)
+
+
+@pytest.mark.parametrize(
+    ("g_rel_sigma", "expected"),
+    [
+        (None, "g [estimated] 9.5 m/s2 sigma unknown"),
+        (0.04, "g [estimated] 9.5 m/s2 rel sigma 0.04"),
+    ],
+)
+def test_the_summary_gives_g_with_its_relative_sigma(
+    run_context: RunContext, g_rel_sigma: float | None, expected: str
+) -> None:
+    report = real_report(run_context)
+    fall = report.falls[0].model_copy(update={"g_rel_sigma": g_rel_sigma})
+    lines = summary_lines(report.model_copy(update={"falls": (fall,)}))
+    assert f"p1: {expected} closer base None" in lines
 
 
 def test_real_report_is_end_to_end_only(run_context: RunContext) -> None:

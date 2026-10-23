@@ -1,4 +1,4 @@
-"""Parameter models every check inherits, and the tie tolerance of per-row maxima."""
+"""Parameter models every check inherits; re-exports the tie tolerance of per-row maxima."""
 
 from __future__ import annotations
 
@@ -7,11 +7,8 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from physverify.core.models import FrozenModel
+from physverify.physics.ties import TIE_RTOL as TIE_RTOL
 from physverify.physics.tracks import MIN_NOISE_STENCILS, OCCLUDED_AT
-
-# Relative slack under which two per-row values count as the same maximum, so ties (a teleport
-# inflates two consecutive rows equally) resolve to the earliest row at any row step.
-TIE_RTOL = 1e-9
 
 
 def as_params[T: BaseModel](model: type[T], params: BaseModel) -> T:

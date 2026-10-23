@@ -11,6 +11,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 import pytest
+from settings_factory import SettingsFactory
 
 from physverify.config.models import Settings
 from physverify.core.digests import file_sha256
@@ -33,8 +34,6 @@ PROMPTS = {
     "0002": "The red cup is dropped.",
     "0003": "A white bottle tumbles and rolls.",
 }
-
-SettingsFactory = Callable[..., Settings]
 
 
 class Opener:

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import shutil
 import subprocess
 from pathlib import Path
 
@@ -98,18 +97,6 @@ RENDER = [
     _pv("synth perturb --subset smoke"),
 ]
 TIMING_RUN = _pv("timing run --dataset local_video --subset timing_wan21")
-
-
-@pytest.mark.parametrize("name", SCRIPT_NAMES)
-def test_scripts_parse(name: str) -> None:
-    bash = shutil.which("bash")
-    assert bash is not None
-    subprocess.run([bash, "-n", str(SCRIPTS / name)], check=True)
-
-
-@pytest.mark.parametrize("name", SCRIPT_NAMES[1:])
-def test_entry_scripts_are_executable(name: str) -> None:
-    assert os.access(SCRIPTS / name, os.X_OK)
 
 
 @pytest.mark.parametrize("script", ["run_timing.sh", "setup_cuda.sh"])

@@ -8,8 +8,8 @@ from dataclasses import replace
 
 import pytest
 from fakes import FAKE
+from settings_factory import SettingsFactory
 from support import (
-    SettingsFactory,
     chain_keys,
     entry,
     make_context,

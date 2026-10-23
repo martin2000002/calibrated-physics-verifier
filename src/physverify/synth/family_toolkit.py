@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Callable, Sequence
+from typing import Protocol
 
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
@@ -119,6 +120,47 @@ def make_object(
         velocity=np.asarray(velocity, dtype=np.float64).tolist(),
         angular_velocity=np.asarray(angular_velocity, dtype=np.float64).tolist(),
         quaternion=yaw_quaternion(yaw),
+    )
+
+
+class MaterialParams(Protocol):
+    """Family parameters that give every body one density, friction and restitution."""
+
+    @property
+    def density(self) -> float: ...
+
+    @property
+    def friction(self) -> float: ...
+
+    @property
+    def restitution(self) -> float: ...
+
+
+def material_object(
+    params: MaterialParams,
+    object_id: str,
+    label: str,
+    extents: Sequence[float],
+    position: ArrayLike,
+    color: Sequence[float],
+    yaw: float = 0.0,
+    *,
+    velocity: ArrayLike = (0.0, 0.0, 0.0),
+    angular_velocity: ArrayLike = (0.0, 0.0, 0.0),
+) -> ObjectSpec:
+    """``make_object`` with the family's shared material."""
+    return make_object(
+        object_id,
+        label,
+        extents,
+        position,
+        color,
+        density=params.density,
+        friction=params.friction,
+        restitution=params.restitution,
+        yaw=yaw,
+        velocity=velocity,
+        angular_velocity=angular_velocity,
     )
 
 

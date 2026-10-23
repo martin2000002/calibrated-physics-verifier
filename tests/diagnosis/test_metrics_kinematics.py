@@ -5,14 +5,14 @@ from __future__ import annotations
 import dataclasses
 import math
 from collections.abc import Mapping
-from types import MappingProxyType
 
 import numpy as np
 import pytest
+from metric_cases import metric_case
 from numpy.typing import NDArray
 from synthetic_clip import manifest
 
-from physverify.diagnosis.measurement_cases import MetricCase, MetricOutcome
+from physverify.diagnosis.measurement_cases import MetricOutcome
 from physverify.diagnosis.metrics.kinematics_derivatives import DerivativeMetric
 from physverify.diagnosis.settings import MetricSettings
 from physverify.schema.constants import ENV_ID, STANDARD_GRAVITY
@@ -110,15 +110,7 @@ def measure(
     truth_table: ObjectStateTable,
     context: Mapping[Stage, StageOutput] | None = None,
 ) -> MetricOutcome:
-    case = MetricCase(
-        clip=manifest(),
-        pred=pred,
-        truth=truth_table,
-        context=MappingProxyType(dict(context or {})),
-        gt=None,
-        options=OPTIONS,
-        plan=None,
-    )
+    case = metric_case(pred, truth_table, options=OPTIONS, context=context)
     return DerivativeMetric(OPTIONS).samples(case)
 
 

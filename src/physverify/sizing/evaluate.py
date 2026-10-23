@@ -13,7 +13,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from physverify.config.models import SizePrior
-from physverify.core.markdown import number
+from physverify.core.markdown import FIXED3
 from physverify.sizing.model import SizeModelTable, class_prior
 from physverify.sizing.samples import SizeSample, log_lengths
 from physverify.stats.bootstrap import ClusterBlock, scene_bootstrap
@@ -186,5 +186,4 @@ def interval_text(entry: dict[str, Any]) -> str:
     return f"{entry['value']:.3f} [{low}, {high}]"
 
 
-def _number(value: float | None) -> str:
-    return number(value, ".3f", "n/a")
+_number = FIXED3

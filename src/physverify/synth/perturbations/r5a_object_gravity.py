@@ -9,19 +9,19 @@ import numpy as np
 from physverify.schema.contacts import ContactTable
 from physverify.schema.scene import MagnitudeKind, PerturbationRecord, SceneSpec
 from physverify.schema.states import ObjectStateTable
-from physverify.synth.ballistics import (
-    SWITCH_DELAY_S,
-    GravitySchedule,
-    integrate_sphere,
-    time_to_height,
-)
 from physverify.synth.magnitudes import R5A_MIN_FRAMES, flight_fits, inconsistency
 from physverify.synth.perturb import PerturbationNotApplicableError
 from physverify.synth.perturbations._base import PerturbationTarget
+from physverify.synth.perturbations._reflight import (
+    Launch,
+    Reflown,
+    reflight,
+    tilted_until_landing,
+)
 from physverify.synth.perturbations._state_edit import (
     PluginBase,
+    Vec,
     before,
-    bounce_record,
     gravity_of,
     image_plane_tilt,
     keep_records,
@@ -29,14 +29,11 @@ from physverify.synth.perturbations._state_edit import (
     provisional_record,
     radius_of,
     require_clear_flight,
-    restitution_for_edit,
     spheres,
-    with_flight,
 )
 from physverify.synth.settings import PerturbationCommon
 
 NAME = "r5a_object_gravity"
-# The tilted gravity ends a hair after the first landing so the bounce itself is solved with g'.
 
 
 class Params(PerturbationCommon):
@@ -68,28 +65,10 @@ class ObjectGravity(PluginBase[Params]):
         sign = float(pick(rng, (-1.0, 1.0)))
         g = gravity_of(scene)
         tilted = image_plane_tilt(scene, magnitude, sign) @ g
-        radius = radius_of(states, index)
-        p0, v0, t0 = states.position[0, index], states.velocity[0, index], float(states.t[0])
-        landing = t0 + time_to_height(float(p0[2]), float(v0[2]), float(tilted[2]), radius)
-        if not np.isfinite(landing):
-            raise PerturbationNotApplicableError(f"{NAME}: the ball never lands under g'")
-        schedule = GravitySchedule((landing + SWITCH_DELAY_S,), (tilted, g))
-        e_clean = restitution_for_edit(scene, states, contacts, index)
-        flight = integrate_sphere(p0, v0, t0, radius, schedule, e_clean, states.t)
-        moved = with_flight(states, index, 0, flight)
-        require_clear_flight(
-            scene,
-            moved,
-            index,
-            range(moved.n_frames),
-            moved.position[:, index],
-            leaves=f"{NAME}: the tilted flight leaves the image",
-            hits=f"{NAME}: the tilted flight hits the other ball",
-        )
+        reflown = _tilted_first_flight(scene, states, contacts, index, (tilted, g))
         object_id = str(states.object_ids[index])
-        fps = float(scene.frame_rate)
-        records = [bounce_record(object_id, b, radius, fps) for b in flight.bounces]
-        new_contacts = keep_records(contacts, before([object_id], t0 * fps), records)
+        t0_frame = float(states.t[0]) * float(scene.frame_rate)
+        new_contacts = keep_records(contacts, before([object_id], t0_frame), reflown.records)
         record = provisional_record(
             self,
             magnitude,
@@ -99,10 +78,10 @@ class ObjectGravity(PluginBase[Params]):
                 "gravity": tilted.tolist(),
                 "clean_gravity": g.tolist(),
                 "tilt_sign": sign,
-                "e_clean": e_clean,
+                "e_clean": reflown.e_clean,
             },
         )
-        return moved, new_contacts, record
+        return reflown.states, new_contacts, record
 
     def measure(
         self, states: ObjectStateTable, contacts: ContactTable, record: PerturbationRecord
@@ -115,6 +94,32 @@ class ObjectGravity(PluginBase[Params]):
                 return float("nan")
             fits.append(flights[0])
         return inconsistency(fits)
+
+
+def _tilted_first_flight(
+    scene: SceneSpec,
+    states: ObjectStateTable,
+    contacts: ContactTable,
+    index: int,
+    gravities: tuple[Vec, Vec],
+) -> Reflown:
+    """Ball ``index`` re-flown from frame 0 under the tilted gravity until its first landing."""
+    p0, v0, t0 = states.position[0, index], states.velocity[0, index], float(states.t[0])
+    schedule = tilted_until_landing(t0, p0, v0, radius_of(states, index), gravities)
+    if schedule is None:
+        raise PerturbationNotApplicableError(f"{NAME}: the ball never lands under g'")
+    reflown = reflight(scene, states, contacts, index, 0, Launch(p0, v0, t0, schedule))
+    moved = reflown.states
+    require_clear_flight(
+        scene,
+        moved,
+        index,
+        range(moved.n_frames),
+        moved.position[:, index],
+        leaves=f"{NAME}: the tilted flight leaves the image",
+        hits=f"{NAME}: the tilted flight hits the other ball",
+    )
+    return reflown
 
 
 PLUGINS = (ObjectGravity,)

@@ -3,24 +3,17 @@
 from __future__ import annotations
 
 import math
-from types import MappingProxyType
 
 import numpy as np
 import pytest
+from metric_cases import METRIC_OPTIONS as OPTIONS
+from metric_cases import metric_case
 from synthetic_clip import manifest
 
-from physverify.diagnosis.measurement_cases import MetricCase, MetricOutcome
+from physverify.diagnosis.measurement_cases import MetricOutcome
 from physverify.diagnosis.metrics.scale_relative import ScaleRelativeMetric, source_key
-from physverify.diagnosis.settings import MetricSettings
 from physverify.schema.scale import ScaleEstimate, ScaleSource
 
-OPTIONS = MetricSettings(
-    boundary_tol_frac=0.008,
-    depth_alignment="clip",
-    depth_eps_frac=1e-3,
-    contact_min_tiou=0.3,
-    impact_half_window_s=0.125,
-)
 LIFT_KEY = "lift:fixture"
 
 
@@ -37,15 +30,7 @@ def estimate(meters_per_unit: float | None, source: ScaleSource) -> ScaleEstimat
 
 
 def measure(pred: ScaleEstimate) -> MetricOutcome:
-    case = MetricCase(
-        clip=manifest(),
-        pred=pred,
-        truth=truth(),
-        context=MappingProxyType({}),
-        gt=None,
-        options=OPTIONS,
-        plan=None,
-    )
+    case = metric_case(pred, truth())
     return ScaleRelativeMetric(OPTIONS).samples(case)
 
 

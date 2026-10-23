@@ -3,39 +3,23 @@
 from __future__ import annotations
 
 import math
-from types import MappingProxyType
 
 import numpy as np
 import pytest
+from metric_cases import METRIC_OPTIONS as OPTIONS
+from metric_cases import metric_case, native_sampling
 from synthetic_clip import manifest
 
-from physverify.diagnosis.measurement_cases import MetricCase, MetricOutcome
+from physverify.diagnosis.measurement_cases import MetricOutcome
 from physverify.diagnosis.metrics.camera_fov import FovMetric
-from physverify.diagnosis.settings import MetricSettings
 from physverify.schema.clip import FrameSampling
 from physverify.schema.perception import CameraModel, IntrinsicsSource
 
-OPTIONS = MetricSettings(
-    boundary_tol_frac=0.008,
-    depth_alignment="clip",
-    depth_eps_frac=1e-3,
-    contact_min_tiou=0.3,
-    impact_half_window_s=0.125,
-)
 WIDTH, HEIGHT = 96, 72
 
 
 def sampling() -> FrameSampling:
-    return FrameSampling(
-        frame_indices=np.arange(4, dtype=np.int64),
-        width=WIDTH,
-        height=HEIGHT,
-        native_width=WIDTH,
-        native_height=HEIGHT,
-        seconds_per_frame=1.0 / 24.0,
-        step=1,
-        max_side=None,
-    )
+    return native_sampling(4, WIDTH, HEIGHT)
 
 
 def camera(focal: float, fov_deg: float, sigma: float, source: IntrinsicsSource) -> CameraModel:
@@ -50,15 +34,7 @@ def truth() -> CameraModel:
 
 
 def measure(pred: CameraModel) -> MetricOutcome:
-    case = MetricCase(
-        clip=manifest(),
-        pred=pred,
-        truth=truth(),
-        context=MappingProxyType({}),
-        gt=None,
-        options=OPTIONS,
-        plan=None,
-    )
+    case = metric_case(pred, truth())
     return FovMetric(OPTIONS).samples(case)
 
 

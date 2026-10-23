@@ -19,7 +19,6 @@ from steps_sh import steps_read
 from physverify.app import calibration as app_calibration
 from physverify.app import plugins
 from physverify.calibration.artifact_io import load_calibration, projection_name
-from physverify.config.loader import load_settings
 from physverify.config.models import Settings
 from physverify.datasets._base import GroundTruthStore, VideoSource
 from physverify.schema.checks import InputLevel
@@ -62,11 +61,6 @@ def fixture_dataset(monkeypatch: pytest.MonkeyPatch) -> None:
     datasets = kinds["datasets"]
     patched = {**kinds, "datasets": lambda: {**datasets(), DATASET: CalibFixtureDataset}}
     monkeypatch.setattr(plugins, "PLUGIN_KINDS", MappingProxyType(patched))
-
-
-@pytest.fixture
-def settings(config_dir: Path, environ: dict[str, str]) -> Settings:
-    return load_settings(config_dir, environ=environ)
 
 
 @pytest.fixture

@@ -16,7 +16,6 @@ from physverify.extraction.providers.kinematics_savgol import track_derivatives
 from physverify.physics.kinematics import SavgolSpec
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
 from physverify.schema.constants import ENV_ID
-from physverify.schema.contacts import ContactKind, ContactRecord, ManifoldKind
 from physverify.schema.states import PrimitiveKind
 
 # Native frames: 6 fit rows on each side of the contact rows 15..16 of the impact at 15.4.
@@ -40,21 +39,6 @@ def collision_result(case: sc.Case) -> CheckResult:
     results = EnergyGainCheck(EnergyGainParams()).evaluate(case.inputs())
     assert [r.subject for r in results] == [("ball_i", "ball_j")]
     return results[0]
-
-
-def ground_record(t_start: float, t_end: float) -> ContactRecord:
-    return ContactRecord(
-        object_a="ball_i",
-        object_b=ENV_ID,
-        t_start=t_start,
-        t_end=t_end,
-        kind=ContactKind.IMPACT,
-        normal=np.array([0.0, 0.0, 1.0]),
-        points=np.array([[-0.1, 0.0, 0.9]]),
-        manifold=ManifoldKind.POINT,
-        confidence=1.0,
-        source="test",
-    )
 
 
 def test_plugin_contract() -> None:
@@ -224,13 +208,13 @@ def test_skewed_impulses_need_the_prompt_for_the_mass_ratio() -> None:
 
 
 def test_ground_contact_during_the_collision_is_out_of_scope() -> None:
-    result = collision_result(sc.with_records(sc.collision(), ground_record(15.0, 15.0)))
+    result = collision_result(sc.with_records(sc.collision(), sc.ground_impact(15.0, 15.0)))
     assert result.abstain_reason is AbstainReason.OUT_OF_SCOPE
     assert result.details["external_contacts"] == ["ball_i|impact|15-15"]
 
 
 def test_distant_ground_contact_is_ignored() -> None:
-    result = collision_result(sc.with_records(sc.collision(), ground_record(2.0, 3.0)))
+    result = collision_result(sc.with_records(sc.collision(), sc.ground_impact(2.0, 3.0)))
     assert result.verdict is Verdict.UNSCORED
     assert result.magnitude == pytest.approx(0.0, abs=1e-6)
 

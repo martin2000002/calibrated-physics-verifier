@@ -13,8 +13,10 @@ from typing import Any
 
 import numpy as np
 import pytest
+from data_environ import data_dir as data_dir
+from data_environ import settings_environ as settings_environ
+from settings_factory import SettingsFactory
 
-from physverify.config.loader import load_settings
 from physverify.config.models import Settings
 from physverify.core.video import write_mp4
 from physverify.datasets.local_video import LocalVideoDataset
@@ -29,20 +31,7 @@ N_FRAMES = 8
 
 
 @pytest.fixture
-def demo_environ(environ: dict[str, str], tmp_path: Path) -> dict[str, str]:
-    return {**environ, "PHYSVERIFY__PATHS__DATA_DIR": str(tmp_path / "data")}
-
-
-@pytest.fixture
-def make_settings(config_dir: Path, demo_environ: dict[str, str]) -> Callable[..., Settings]:
-    def build(*overrides: str, profile: str | None = None) -> Settings:
-        return load_settings(config_dir, environ=demo_environ, profile=profile, overrides=overrides)
-
-    return build
-
-
-@pytest.fixture
-def settings(make_settings: Callable[..., Settings]) -> Settings:
+def settings(make_settings: SettingsFactory) -> Settings:
     return make_settings(profile="fast")
 
 

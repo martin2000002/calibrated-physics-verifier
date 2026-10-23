@@ -9,13 +9,14 @@ from __future__ import annotations
 import dataclasses
 import math
 from collections.abc import Callable, Sequence
-from pathlib import Path
 from typing import Any
 
 import numpy as np
 import pytest
+from data_environ import data_dir as data_dir
+from data_environ import settings_environ as settings_environ
+from settings_factory import SettingsFactory
 
-from physverify.config.loader import load_settings
 from physverify.config.models import Settings
 from physverify.finetune.records import CandidateScore
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
@@ -44,22 +45,7 @@ def fake_labels() -> frozenset[str]:
 
 
 @pytest.fixture
-def ft_environ(environ: dict[str, str], tmp_path: Path) -> dict[str, str]:
-    return {**environ, "PHYSVERIFY__PATHS__DATA_DIR": str(tmp_path / "data")}
-
-
-@pytest.fixture
-def make_settings(config_dir: Path, ft_environ: dict[str, str]) -> Callable[..., Settings]:
-    """``make_settings("section.key=value", ..., profile=None)`` over the committed configs."""
-
-    def build(*overrides: str, profile: str | None = None) -> Settings:
-        return load_settings(config_dir, environ=ft_environ, profile=profile, overrides=overrides)
-
-    return build
-
-
-@pytest.fixture
-def settings(make_settings: Callable[..., Settings]) -> Settings:
+def settings(make_settings: SettingsFactory) -> Settings:
     return make_settings(profile="precise")
 
 

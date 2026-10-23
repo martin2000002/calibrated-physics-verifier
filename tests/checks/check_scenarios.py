@@ -128,6 +128,35 @@ class Case:
         )
 
 
+def bare_inputs(case: Case) -> CheckInputs:
+    """Oracle inputs of ``case`` without provenance or camera."""
+    return CheckInputs(
+        clip=case.clip,
+        states=case.states,
+        contacts=case.contacts,
+        scale=case.scale,
+        input_level=InputLevel.ORACLE,
+        provenance={},
+        scene=case.scene,
+    )
+
+
+def ground_impact(t_start: float, t_end: float) -> ContactRecord:
+    """A point impact of ``ball_i`` on the environment between the two times."""
+    return ContactRecord(
+        object_a="ball_i",
+        object_b=ENV_ID,
+        t_start=t_start,
+        t_end=t_end,
+        kind=ContactKind.IMPACT,
+        normal=np.array([0.0, 0.0, 1.0]),
+        points=np.array([[-0.1, 0.0, 0.9]]),
+        manifold=ManifoldKind.POINT,
+        confidence=1.0,
+        source="test",
+    )
+
+
 def pinhole(clip: ClipManifest, focal: float = FOCAL_PX, pose: Any = None) -> CameraModel:
     """Centred pinhole camera of ``focal`` pixels at the clip's native size."""
     sampling = resolve_sampling(clip, SamplingSpec())

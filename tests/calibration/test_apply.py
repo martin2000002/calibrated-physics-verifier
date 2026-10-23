@@ -11,12 +11,14 @@ from calibration_cases import check_calibration, result, view
 from physverify.calibration.apply import (
     NO_DECIDED,
     NO_INFORMATIVE,
+    CalibratedResult,
     ClipScore,
-    calibrated_result,
+    check_outcome,
+    policy_for,
     score_clip,
     violation_probability,
 )
-from physverify.calibration.artifact_io import KSigmaMismatchError
+from physverify.calibration.artifact_io import KSigmaMismatchError, Stratum
 from physverify.schema.checks import AbstainReason, CheckResult, Verdict
 
 K_SIGMA = 2.0
@@ -33,6 +35,12 @@ def results(
     magnitudes: dict[str, float] = MAGNITUDES, sigmas: dict[str, float] = SIGMAS
 ) -> list[CheckResult]:
     return [result(c, "clip", m, sigmas[c]) for c, m in magnitudes.items()]
+
+
+def calibrated(row: CheckResult, stratum: Stratum, k_sigma: float | None) -> CalibratedResult:
+    found = check_outcome([row], stratum, policy_for(stratum, k_sigma))
+    assert found is not None
+    return found
 
 
 def test_sigma_s_matches_central_finite_differences() -> None:
@@ -109,16 +117,14 @@ def test_no_informative_check_has_no_score() -> None:
 
 def test_a_check_without_calibration_stays_unscored() -> None:
     stratum = view({"A": CHECKS["A"], "B": check_calibration(tau=None, status="insufficient")})
-    assert calibrated_result(result("B", magnitude=5.0), stratum, K_SIGMA).verdict is (
-        Verdict.UNSCORED
-    )
+    assert calibrated(result("B", magnitude=5.0), stratum, K_SIGMA).verdict is (Verdict.UNSCORED)
     found = score_clip(results(), stratum, K_SIGMA)
     assert found.decided_checks == ("A",)
 
 
 def test_an_unmeasured_error_abstains() -> None:
     stratum = view({"A": check_calibration(tau=0.5, factor=None)})
-    found = calibrated_result(result("A", magnitude=0.9, sigma=0.01), stratum, K_SIGMA)
+    found = calibrated(result("A", magnitude=0.9, sigma=0.01), stratum, K_SIGMA)
     assert (found.verdict, found.abstain_reason) == (
         Verdict.ABSTAIN,
         AbstainReason.UNKNOWN_UNCERTAINTY,
@@ -162,4 +168,4 @@ def test_another_k_sigma_is_refused() -> None:
     with pytest.raises(KSigmaMismatchError, match="k_sigma"):
         score_clip(results(), view(CHECKS), K_SIGMA + 1.0)
     with pytest.raises(KSigmaMismatchError, match="k_sigma"):
-        calibrated_result(result("A", magnitude=0.3), view(CHECKS), 1.0)
+        calibrated(result("A", magnitude=0.3), view(CHECKS), 1.0)

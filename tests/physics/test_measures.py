@@ -4,12 +4,11 @@ import math
 
 import numpy as np
 import pytest
+from difference_sigma import central_difference_sigma, second_difference_sigma
 
 from physverify.physics.finite_diff import (
     central_difference,
-    central_difference_sigma,
     second_difference,
-    second_difference_sigma,
     third_difference_sigma,
 )
 from physverify.physics.measures.collision_energy import (

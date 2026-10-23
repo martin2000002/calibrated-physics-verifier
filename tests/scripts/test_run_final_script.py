@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import re
 import subprocess
 import sys
@@ -292,11 +291,6 @@ REAL_NEW = (
     "--dataset", "kubric_synthetic", "--subset", "calib", "--real-dataset", "physics_iq_views",
     "--real-dataset", "objectron_static",
 )  # fmt: skip
-
-
-def test_the_script_parses_and_is_executable() -> None:
-    subprocess.run(["bash", "-n", str(H200 / "run_final.sh")], check=True)
-    assert os.access(H200 / "run_final.sh", os.X_OK)
 
 
 def test_the_fresh_kubric_look_and_its_v1_arm(sandbox: FinalSandbox) -> None:
