@@ -18,8 +18,8 @@ from physverify.schema.contacts import ContactKind, ContactRecord, ManifoldKind,
 from physverify.schema.scene import SceneSpec
 from physverify.schema.states import ObjectStateTable
 from physverify.synth.frame_windows import solid_at
-from physverify.synth.gt_contact_records import CLOSEST_SOURCE
-from physverify.synth.gt_contacts import (
+from physverify.synth.gt.contact_records import CLOSEST_SOURCE
+from physverify.synth.gt.contacts import (
     EVENT_STEP_OFFSET,
     ClosestSamples,
     Patch,

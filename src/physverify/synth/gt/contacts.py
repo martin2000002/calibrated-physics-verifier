@@ -36,7 +36,7 @@ from physverify.schema.states import (
     ObjectStateTable,
     ground_truth_source_key,
 )
-from physverify.synth.gt_contact_records import (
+from physverify.synth.gt.contact_records import (
     CLOSEST_SOURCE,
     PairSamples,
     Vec,

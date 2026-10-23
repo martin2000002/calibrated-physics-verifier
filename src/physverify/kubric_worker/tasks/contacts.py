@@ -88,7 +88,7 @@ def _point(point: Sequence[Any]) -> tuple[Any, ...]:
 
 
 def closest_arrays(rows: Sequence[Sequence[Any]]) -> dict[str, np.ndarray]:
-    """Columns read by ``synth.gt_contacts.ClosestSamples``; the normal on b points from b to a."""
+    """Columns read by ``synth.gt.contacts.ClosestSamples``; the normal on b points from b to a."""
 
     def vectors(column: int) -> np.ndarray:
         return np.asarray([r[column] for r in rows], dtype=np.float64).reshape(len(rows), 3)

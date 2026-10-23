@@ -21,7 +21,7 @@ from physverify.schema.render import RenderLayers
 from physverify.schema.scene import SceneSpec
 from physverify.schema.states import CoordFrame, ObjectStateTable
 from physverify.synth.generate import load_plan
-from physverify.synth.gt_export import DATASET_NAME, read_index
+from physverify.synth.gt.export import DATASET_NAME, read_index
 from physverify.synth.settings import dataset_root, load_dataset_settings
 from physverify.synth.store import (
     CAMERA,

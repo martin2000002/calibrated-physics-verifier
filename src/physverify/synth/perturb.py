@@ -16,8 +16,8 @@ import numpy as np
 from physverify.schema.contacts import ContactTable, RawCollisions
 from physverify.schema.scene import PerturbationRecord, SceneSpec
 from physverify.schema.states import ObjectStateTable, ground_truth_source_key
-from physverify.synth.gt_contacts import ClosestSamples, from_closest, from_raw_events
-from physverify.synth.gt_velocity import position_consistent
+from physverify.synth.gt.contacts import ClosestSamples, from_closest, from_raw_events
+from physverify.synth.gt.velocity import position_consistent
 from physverify.synth.perturbations._base import (
     Perturbation,
     ScenePerturbation,

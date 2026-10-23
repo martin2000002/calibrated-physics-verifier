@@ -32,7 +32,7 @@ from physverify.schema.scene import ObjectSpec, PerturbationRecord, SceneSpec
 from physverify.schema.states import ObjectStateTable, PrimitiveKind
 from physverify.synth.ballistics import Flight, GravitySchedule, integrate_sphere
 from physverify.synth.frame_windows import solid_at
-from physverify.synth.gt_contacts import (
+from physverify.synth.gt.contacts import (
     ClosestSamples,
     contact_table,
     from_closest,

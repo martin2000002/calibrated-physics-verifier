@@ -21,7 +21,7 @@ from physverify.synth.generate import (
     subset_settings,
     write_specs,
 )
-from physverify.synth.gt_export import export_all
+from physverify.synth.gt.export import export_all
 from physverify.synth.perturb import (
     apply_variants,
     closest_points,

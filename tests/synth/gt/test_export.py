@@ -26,13 +26,13 @@ from physverify.synth.frame_windows import (
     solid_at,
 )
 from physverify.synth.generate import plan_subset, save_plan
-from physverify.synth.gt_camera import (
+from physverify.synth.gt.camera import (
     OPENGL_TO_OPENCV,
     opencv_intrinsics,
     opencv_world_from_camera,
     visibility,
 )
-from physverify.synth.gt_export import content_sha256, export_all, export_clip
+from physverify.synth.gt.export import content_sha256, export_all, export_clip
 from physverify.synth.perturb import (
     apply_variants,
     closest_points,
@@ -59,7 +59,7 @@ from physverify.synth.store import (
     read_json,
 )
 
-DATA = Path(__file__).parent / "data"
+DATA = Path(__file__).parents[1] / "data"
 SIM_ID = "f2_bounce-s000"
 FAR_Z = 1e5
 

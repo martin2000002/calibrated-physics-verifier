@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 
 from physverify.schema.constants import ENV_ID
-from physverify.synth.gt_velocity import (
+from physverify.synth.gt.velocity import (
     corrected_cells,
     euler_velocity_offset,
     position_consistent,

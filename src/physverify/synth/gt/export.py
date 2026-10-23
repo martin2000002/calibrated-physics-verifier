@@ -31,7 +31,7 @@ from physverify.schema.render import RenderLayers
 from physverify.schema.scene import PerturbationRecord, SceneSpec
 from physverify.schema.stages import STAGE_ORDER
 from physverify.schema.states import ObjectStateTable, PrimitiveKind
-from physverify.synth.gt_camera import (
+from physverify.synth.gt.camera import (
     camera_contacts,
     camera_states,
     opencv_intrinsics,

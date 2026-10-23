@@ -16,7 +16,7 @@ from physverify.config.models import Settings
 from physverify.core.errors import PhysverifyError, TimingError, UsageError
 from physverify.schema.clip import ClipManifest, Split
 from physverify.synth.generate import save_plan
-from physverify.synth.gt_export import DATASET_NAME
+from physverify.synth.gt.export import DATASET_NAME
 from physverify.synth.plan import DatasetPlan, ScenePlan, VariantPlan
 from physverify.synth.settings import dataset_root, load_dataset_settings
 from physverify.synth.store import (

@@ -24,7 +24,7 @@ from typing import Any
 from physverify.core.errors import ConfigError, MissingInputError, UsageError
 from physverify.runtime.runs import current_commit
 from physverify.synth.generate import load_plan
-from physverify.synth.gt_export import DATASET_NAME, write_index
+from physverify.synth.gt.export import DATASET_NAME, write_index
 from physverify.synth.jobs import DatasetJob
 from physverify.synth.perturb import apply_variants
 from physverify.synth.plan import GT_MIGRATIONS, GT_REVISION, DatasetPlan

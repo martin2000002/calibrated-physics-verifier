@@ -23,7 +23,7 @@ from physverify.schema.states import ObjectStateTable
 from physverify.synth import magnitudes, migrate
 from physverify.synth.ballistics import time_to_height
 from physverify.synth.generate import load_plan, plan_subset, save_plan
-from physverify.synth.gt_export import read_index
+from physverify.synth.gt.export import read_index
 from physverify.synth.migrate import (
     COMPLETED_KEY,
     CONVENTION_KEY,

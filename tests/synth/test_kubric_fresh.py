@@ -38,11 +38,11 @@ from physverify.verification.policies.raw import RawPolicy
 from physverify.verification.runner import VerificationRunner
 from physverify.verification.sweep import CheckUnit
 
-HERE = str(Path(__file__).parent)
+HERE = str(Path(__file__).parent / "gt")
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
-from test_gt_export import exported_smoke  # noqa: E402
+from test_export import exported_smoke  # noqa: E402
 
 from physverify.verification.thresholding import ThresholdTable  # noqa: E402
 

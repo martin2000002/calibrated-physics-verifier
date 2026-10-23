@@ -20,7 +20,7 @@ from physverify.runtime.docker import image_present
 from physverify.schema.clip import ClipManifest
 from physverify.schema.scene import PerturbationRecord, SceneSpec
 from physverify.synth.generate import load_plan
-from physverify.synth.gt_export import clip_manifest, video_path
+from physverify.synth.gt.export import clip_manifest, video_path
 from physverify.synth.plan import DatasetPlan
 from physverify.synth.render import render_job
 from physverify.synth.settings import DatasetSettings, dataset_root, load_dataset_settings
