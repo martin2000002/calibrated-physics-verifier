@@ -248,8 +248,17 @@ Fix-ups after the C and B audits (`c947fad`..HEAD):
 - `generator_comparison.context.campaign_prompts` and `available_scorer` are gone
   (`finetune.prompts.campaign_prompts`, `app.finetune.active_scorer`); `app.demo.active_scorer` is
   `demo_rule`; `choice()` is in `core/choices.py`; `STOP_RULE_DEVIATION` is `Final` in
-  `finetune/stop_rule.py`; `timing.session.report` is the formatter `timing.report.run_lines`.
+  `finetune/stop_rule.py`; `timing.session.report` is the formatter `timing.report.run_lines`. Internal order change:
+  `run_lines` reads `summary.md` (`timing/report.py:192-193`) before the first line is echoed; the
+  old `report` read it after echoing the target and path lines. The output bytes are the same; only
+  how much is printed before a failed read differs.
 - `tests/synth/test_truth_measure_pins.py` compares the `float.hex` pins within float tolerance
-  (rel 1e-9, abs 1e-12; NaN and `not_applicable` exact): the H200 and the laptop differ in the last
+  (rel 1e-9, abs 1e-14, max abs difference measured on the H200 1.45e-15; NaN and `not_applicable` exact): the H200 and the laptop differ in the last
   bits for the same commit.
+- Second round, after the audit of `cbd3f4c..6dbf119`: `extract fetch-weights` and `purge` call
+  `app.extraction.{fetch_weights,purge_rerendered}`; `scene-stats delta` echoes
+  `app.scene_stats.delta_line`; `app.diagnosis.diag_settings` is the one dataset/subset override;
+  `guarded_clips` takes `err` keyword-only; `agreement compare` computes its verdict lines before the
+  first echo (the old command read `h2_verdict` before any output); `config.models._anchor` is the
+  public `anchor` used by `calibration/sealed_ledger.py`.
 - No `src` module is over 400 lines and no command module over 150, so nothing else was split.
