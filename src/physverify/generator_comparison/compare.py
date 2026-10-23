@@ -31,7 +31,7 @@ from physverify.generator_comparison.prereg import (
     first_created,
     stamp_problem,
 )
-from physverify.generator_comparison.preregistered_numbers import analyse
+from physverify.generator_comparison.preregistered_numbers import ComparisonAnalysis, analyse
 from physverify.generator_comparison.records import (
     TASKS,
     GateReport,
@@ -45,6 +45,7 @@ from physverify.generator_comparison.report import ComparisonReport
 from physverify.generator_comparison.settings import ComparisonSettings
 from physverify.generator_comparison.stats import method_label
 from physverify.generator_comparison.verdict import (
+    ComparisonVerdict,
     ExternalStatus,
     VerdictInputs,
     comparison_verdict,
@@ -178,50 +179,14 @@ def audit(inputs: CompareInputs, tags: Sequence[str]) -> FreezeAudit:
 
 
 def build_compare(inputs: CompareInputs) -> ComparisonReport:
-    prereg, cfg, cand = inputs.prereg, inputs.cfg, inputs.finetune.candidates
+    prereg, cfg = inputs.prereg, inputs.cfg
     tag = prereg.adapter_tag
     tags = [BASE_TAG] if tag is None else [BASE_TAG, tag]
     known = chain_shas(inputs.layout, prereg, inputs.prereg_sha256)
-    scores = {t: eval_scores(inputs.store, t, inputs.scorer) for t in tags}
-    for t in tags:
-        require_manifest(inputs.layout, t, inputs.scorer, known)
-        require_stamp(scores[t], prereg, t)
+    scores = _checked_scores(inputs, tags, known)
     outputs = eval_judges(inputs.layout, tags, prereg, known)
     status = external_status(inputs.layout, prereg, outputs)
-    prompts = analysis_prompts(inputs.store.prompts(), cfg.exclude_tags)
-    arms = build_arms(
-        prompts, scores[BASE_TAG], scores.get(tag or "", []), cand.k_eval, cand.k_eval_finetuned
-    )
-    result = analyse(
-        AnalysisInputs(
-            arms=arms,
-            has_ft=tag is not None,
-            k_ft=cand.k_eval_finetuned,
-            rescore=inputs.rescore,
-            rules=inputs.finetune.pairs,
-            select=inputs.finetune.select,
-            cfg=cfg,
-            pc=task_values(outputs, "pc"),
-            sa=task_values(outputs, "sa"),
-            external_status=status,
-        )
-    )
-    verdict = comparison_verdict(
-        VerdictInputs(
-            rule_status=prereg.rule_status,
-            contaminated=prereg.contaminated,
-            label_matches=True,
-            post_hoc=prereg.post_hoc,
-            stop_rule_fired=fired_reason(prereg.stop_rule, prereg.stop_rule_deviation),
-            has_ft_model=tag is not None,
-            primary=result.primary,
-            external_status=status,
-            external=result.external,
-            margin_pc=prereg.margins["pc"],
-            alpha=cfg.alpha,
-            guards={name: g.state for name, g in result.guards.items()},
-        )
-    )
+    result = analyse(_analysis_inputs(inputs, scores, outputs, status))
     return ComparisonReport(
         campaign=inputs.store.campaign,
         rule_label=prereg.rule_label,
@@ -230,8 +195,66 @@ def build_compare(inputs: CompareInputs) -> ComparisonReport:
         scipy_version=prereg.scipy_version,
         method=method_label(cfg),
         analysis=result,
-        verdict=verdict,
+        verdict=_verdict(inputs, result, status),
         margins=prereg.margin_derivations,
         mde=prereg.mde,
         audit=audit(inputs, tags),
+    )
+
+
+def _checked_scores(
+    inputs: CompareInputs, tags: Sequence[str], known: set[str]
+) -> dict[str, list[CandidateScore]]:
+    """The eval scores of each tag, once its manifest and stamps match the frozen prereg."""
+    scores = {t: eval_scores(inputs.store, t, inputs.scorer) for t in tags}
+    for t in tags:
+        require_manifest(inputs.layout, t, inputs.scorer, known)
+        require_stamp(scores[t], inputs.prereg, t)
+    return scores
+
+
+def _analysis_inputs(
+    inputs: CompareInputs,
+    scores: Mapping[str, list[CandidateScore]],
+    outputs: Mapping[str, JudgeOutput | None],
+    status: ExternalStatus,
+) -> AnalysisInputs:
+    cfg, cand, tag = inputs.cfg, inputs.finetune.candidates, inputs.prereg.adapter_tag
+    prompts = analysis_prompts(inputs.store.prompts(), cfg.exclude_tags)
+    arms = build_arms(
+        prompts, scores[BASE_TAG], scores.get(tag or "", []), cand.k_eval, cand.k_eval_finetuned
+    )
+    return AnalysisInputs(
+        arms=arms,
+        has_ft=tag is not None,
+        k_ft=cand.k_eval_finetuned,
+        rescore=inputs.rescore,
+        rules=inputs.finetune.pairs,
+        select=inputs.finetune.select,
+        cfg=cfg,
+        pc=task_values(outputs, "pc"),
+        sa=task_values(outputs, "sa"),
+        external_status=status,
+    )
+
+
+def _verdict(
+    inputs: CompareInputs, result: ComparisonAnalysis, status: ExternalStatus
+) -> ComparisonVerdict:
+    prereg = inputs.prereg
+    return comparison_verdict(
+        VerdictInputs(
+            rule_status=prereg.rule_status,
+            contaminated=prereg.contaminated,
+            label_matches=True,
+            post_hoc=prereg.post_hoc,
+            stop_rule_fired=fired_reason(prereg.stop_rule, prereg.stop_rule_deviation),
+            has_ft_model=prereg.adapter_tag is not None,
+            primary=result.primary,
+            external_status=status,
+            external=result.external,
+            margin_pc=prereg.margins["pc"],
+            alpha=inputs.cfg.alpha,
+            guards={name: g.state for name, g in result.guards.items()},
+        )
     )
