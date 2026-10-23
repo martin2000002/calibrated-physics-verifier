@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from physverify.datasets._base import DatasetSource
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-H1_HEADING = "## H1 primary"
+PRIMARY_HEADING = "## H1 primary"
 ERROR_KEY = "error"
 SHOWN_ERRORS = 10
 
@@ -55,9 +55,9 @@ def primary_section(markdown: Path) -> list[str]:
     if not markdown.is_file():
         raise QueryError(f"no {markdown} next to the evaluation")
     lines = markdown.read_text(encoding="utf-8").splitlines()
-    start = next((i for i, line in enumerate(lines) if line.startswith(H1_HEADING)), None)
+    start = next((i for i, line in enumerate(lines) if line.startswith(PRIMARY_HEADING)), None)
     if start is None:
-        raise QueryError(f"{markdown} has no '{H1_HEADING}' section")
+        raise QueryError(f"{markdown} has no '{PRIMARY_HEADING}' section")
     return lines[start:]
 
 

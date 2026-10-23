@@ -39,8 +39,8 @@ case "$step" in
         pv compare-generators generate --arm ft
         pv compare-generators score --arm base
         pv compare-generators score --arm ft
-        h3_status="$(pv compare-generators status)"
-        if grep -qx "$GATE_PASSED_LINE" <<<"$h3_status"; then
+        comparison_status="$(pv compare-generators status)"
+        if grep -qx "$GATE_PASSED_LINE" <<<"$comparison_status"; then
             pv compare-generators judge --split eval
         else
             printf '%s\n' "the AutoEval gate has not passed: no eval judge rows" >&2

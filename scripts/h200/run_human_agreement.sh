@@ -69,7 +69,7 @@ cd "$REPO_ROOT"
 PHASE="$1"
 DEV_SUBSET=h2_dev
 TEST_SUBSET=h2_test
-H2_LINK=h2-latest
+AGREEMENT_LINK=h2-latest
 CHAIN_STEPS=9
 CALIBRATED=calibrated
 PROVISIONAL=provisional_any_fail
@@ -381,13 +381,13 @@ phase_test() {
     save TEST_COMPARED 1
     mkdir -p "$TEST_VERIFY_RUN/agreement"
     cp "$PREREG" "$TEST_VERIFY_RUN/agreement/preregistration.json"
-    ln -sfn "$(basename "$TEST_VERIFY_RUN")" "$(dirname "$TEST_VERIFY_RUN")/$H2_LINK"
+    ln -sfn "$(basename "$TEST_VERIFY_RUN")" "$(dirname "$TEST_VERIFY_RUN")/$AGREEMENT_LINK"
     note "$(sed -n '/^H2: /{p;q}' "$LAST_LOG")"
     note "report: $TEST_VERIFY_RUN/agreement/summary.md"
     note_gaps "$TEST_SUBSET"
     artifacts_unchanged
     row 0
-    echo "Agreement run: $(dirname "$TEST_VERIFY_RUN")/$H2_LINK (summary: agreement/summary.md)"
+    echo "Agreement run: $(dirname "$TEST_VERIFY_RUN")/$AGREEMENT_LINK (summary: agreement/summary.md)"
 }
 
 if [[ -n "$FREEZE" ]]; then
