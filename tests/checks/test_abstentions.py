@@ -24,6 +24,7 @@ from physverify.verification.inputs import ClipInputs
 from physverify.verification.policies.raw import RawPolicy
 from physverify.verification.policies.threshold import ThresholdPolicy
 from physverify.verification.runner import VerificationRunner
+from physverify.verification.thresholding import ThresholdTable
 
 R = AbstainReason
 RUNNER = frozenset({R.MISSING_INPUT})
@@ -212,7 +213,8 @@ class OneClip:
 
 def runner_reasons(item: ClipInputs) -> dict[str, set[AbstainReason]]:
     checks = [make(check_id) for check_id in sorted(ALLOWED)]
-    report = VerificationRunner(checks, RawPolicy(), {}).run(OneClip(item), [item.clip])
+    runner = VerificationRunner(checks, RawPolicy(), ThresholdTable.provisional({}))
+    report = runner.run(OneClip(item), [item.clip])
     found: dict[str, set[AbstainReason]] = {}
     for result in report.results:
         if result.abstain_reason is not None:
@@ -244,7 +246,7 @@ def test_the_policy_reasons_are_reachable() -> None:
             input_level=InputLevel.ORACLE,
         )
 
-    thresholds = {"status": "provisional", "source": "test", "checks": {"R1": {"tau": 0.1}}}
+    thresholds = ThresholdTable.provisional({"R1": 0.1})
     policy = ThresholdPolicy()
     assert policy.decide(result(math.nan), thresholds).abstain_reason is R.UNKNOWN_UNCERTAINTY
     crosses = policy.decide(result(0.01), thresholds).abstain_reason

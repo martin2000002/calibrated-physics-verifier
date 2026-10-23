@@ -47,6 +47,7 @@ from physverify.verification.inputs import (
 )
 from physverify.verification.policies.raw import RawPolicy
 from physverify.verification.runner import RowStatus, VerificationRunner
+from physverify.verification.thresholding import ThresholdTable
 
 
 def raw(case: sc.Case, scale: ScaleEstimate | None = None) -> RawInputs:
@@ -117,9 +118,9 @@ def test_a_bad_time_axis_abstains_on_every_check(broken: Any) -> None:
     with pytest.raises(InputsError, match=r"^time_axis"):
         build_inputs(raw(case))
     item = OracleSource(ScenarioDataset([case])).load([case.clip])
-    report = VerificationRunner([blank_check(i) for i in range(9)], RawPolicy(), {}).run(
-        ListSource(list(item)), [case.clip]
-    )
+    report = VerificationRunner(
+        [blank_check(i) for i in range(9)], RawPolicy(), ThresholdTable.provisional({})
+    ).run(ListSource(list(item)), [case.clip])
     assert [row.status for row in report.table] == [RowStatus.ABSTAINED] * 9
     assert {r.abstain_reason for r in report.results} == {AbstainReason.MISSING_INPUT}
     assert all(str(r.details["error"]).startswith("time_axis") for r in report.results)

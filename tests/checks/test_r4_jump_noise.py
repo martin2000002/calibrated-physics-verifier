@@ -21,6 +21,7 @@ from physverify.schema.checks import AbstainReason, CheckResult, Verdict
 from physverify.verification.inputs import ClipInputs
 from physverify.verification.policies.raw import RawPolicy
 from physverify.verification.runner import VerificationRunner
+from physverify.verification.thresholding import ThresholdTable
 
 DEPTH = 4.0
 """Camera depth of the rolling ball and the teleport scenes (sc.CAMERA_ORIGIN at y = -4)."""
@@ -216,7 +217,8 @@ def test_without_a_camera_the_runner_abstains_by_requires() -> None:
             return iter([item])
 
     checks: list[Check] = [check()]
-    report = VerificationRunner(checks, RawPolicy(), {}).run(One(), [inputs.clip])
+    runner = VerificationRunner(checks, RawPolicy(), ThresholdTable.provisional({}))
+    report = runner.run(One(), [inputs.clip])
     (result,) = report.results
     assert result.abstain_reason is AbstainReason.MISSING_INPUT
     assert result.details["missing"] == ["camera"]

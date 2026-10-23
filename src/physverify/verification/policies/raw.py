@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-from typing import Any, ClassVar
+from typing import ClassVar
+
+from pydantic import BaseModel
 
 from physverify.core.models import FrozenModel
 from physverify.schema.checks import CheckResult
+from physverify.verification.thresholding import ThresholdTable
 
 
 class RawParams(FrozenModel):
@@ -15,12 +17,12 @@ class RawParams(FrozenModel):
 
 class RawPolicy:
     name: ClassVar[str] = "raw"
-    Params: ClassVar[type[RawParams]] = RawParams
+    Params: ClassVar[type[BaseModel]] = RawParams
 
     def __init__(self, params: RawParams | None = None) -> None:
         self._params = params or RawParams()
 
-    def decide(self, result: CheckResult, thresholds: Mapping[str, Any]) -> CheckResult:
+    def decide(self, result: CheckResult, thresholds: ThresholdTable) -> CheckResult:
         return result
 
 

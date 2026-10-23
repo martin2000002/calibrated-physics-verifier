@@ -28,13 +28,12 @@ from physverify.verification.runner import (
     VerificationRunner,
     VerificationSettings,
     build_policy,
-    load_thresholds,
-    thresholds_label,
     write_report,
 )
 from physverify.verification.summary import matrix_lines, specificity_lines, summary_lines
 from physverify.verification.sweep import CheckUnit, matrix, write_sweep
 from physverify.verification.target_ranking import specificity
+from physverify.verification.thresholding import load_thresholds
 
 
 def run_verify(
@@ -75,7 +74,7 @@ def run_verify(
         err=err,
         run_dir=run_dir,
     )
-    echo(f"thresholds: {thresholds_label(thresholds)}")
+    echo(f"thresholds: {thresholds.label}")
     report = runner.run(inputs, selected)
     write_report(run_dir, report)
     checks_hash = checks_hash_for(context)

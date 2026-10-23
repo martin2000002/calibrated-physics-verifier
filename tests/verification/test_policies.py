@@ -11,16 +11,14 @@ import pytest
 from physverify.core.errors import ConfigError
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
 from physverify.verification.policies.raw import RawPolicy
-from physverify.verification.policies.threshold import ThresholdParams, ThresholdPolicy
-from physverify.verification.runner import (
-    VerificationSettings,
-    build_policy,
-    load_thresholds,
-    thresholds_label,
-)
+from physverify.verification.policies.threshold import ThresholdPolicy
+from physverify.verification.runner import VerificationSettings, build_policy
+from physverify.verification.thresholding import ThresholdParams, ThresholdTable, load_thresholds
 
 TAU = 1.0
-THRESHOLDS = {"status": "provisional", "source": "test", "checks": {"R1": {"tau": TAU}}}
+THRESHOLDS = ThresholdTable.model_validate(
+    {"status": "provisional", "source": "test", "checks": {"R1": {"tau": TAU}}}
+)
 REGISTRY = {"threshold": ThresholdPolicy, "raw": RawPolicy}
 
 
@@ -111,9 +109,9 @@ def test_build_policy_validates_its_params() -> None:
 
 def test_provisional_thresholds_without_a_calibration_file(tmp_path: Path) -> None:
     thresholds = load_thresholds(tmp_path / "thresholds.json", {"R1": 0.05})
-    assert thresholds["status"] == "provisional"
-    assert thresholds["checks"] == {"R1": {"tau": 0.05}}
-    assert thresholds_label(thresholds) == "provisional"
+    assert thresholds.status == "provisional"
+    assert thresholds.dump()["checks"] == {"R1": {"tau": 0.05}}
+    assert thresholds.label == "provisional"
 
 
 def test_a_calibration_file_takes_precedence(tmp_path: Path) -> None:
@@ -121,15 +119,17 @@ def test_a_calibration_file_takes_precedence(tmp_path: Path) -> None:
     table = {"status": "calibrated", "source": "h1-2026", "checks": {"R1": {"tau": 0.2}}}
     path.write_text(json.dumps(table), encoding="utf-8")
     thresholds = load_thresholds(path, {"R1": 0.05})
-    assert thresholds["checks"]["R1"]["tau"] == 0.2
-    assert thresholds_label(thresholds) == "calibrated:h1-2026"
+    assert thresholds.checks["R1"].tau == 0.2
+    assert thresholds.label == "calibrated:h1-2026"
     path.write_text(json.dumps({"status": "calibrated"}), encoding="utf-8")
     with pytest.raises(ConfigError):
         load_thresholds(path, {})
 
 
-def calibrated(entry: dict[str, object]) -> dict[str, object]:
-    return {"status": "calibrated", "source": "h1", "checks": {"R1": {"tau": TAU, **entry}}}
+def calibrated(entry: dict[str, object]) -> ThresholdTable:
+    return ThresholdTable.model_validate(
+        {"status": "calibrated", "source": "h1", "checks": {"R1": {"tau": TAU, **entry}}}
+    )
 
 
 def test_the_calibrated_bias_is_subtracted_before_the_comparison() -> None:
@@ -155,9 +155,12 @@ def test_an_unmeasured_sigma_factor_abstains() -> None:
 
 def test_a_calibrated_table_may_name_its_artifact(tmp_path: Path) -> None:
     path = tmp_path / "thresholds.json"
-    table = {**calibrated({}), "artifact": {"path": "calibration.json", "sha256": "ab"}}
+    table = {**calibrated({}).dump(), "artifact": {"path": "calibration.json", "sha256": "ab"}}
     path.write_text(json.dumps(table), encoding="utf-8")
-    assert load_thresholds(path, {})["artifact"] == {"path": "calibration.json", "sha256": "ab"}
+    assert load_thresholds(path, {}).dump()["artifact"] == {
+        "path": "calibration.json",
+        "sha256": "ab",
+    }
     path.write_text(json.dumps({**table, "artifact": {"path": "x"}}), encoding="utf-8")
     with pytest.raises(ConfigError):
         load_thresholds(path, {})

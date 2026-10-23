@@ -2,16 +2,22 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-from typing import Any, ClassVar, Protocol, runtime_checkable
+from typing import ClassVar, Protocol, runtime_checkable
+
+from pydantic import BaseModel
 
 from physverify.schema.checks import CheckResult
+from physverify.verification.thresholding import ThresholdTable
 
 
 @runtime_checkable
 class VerdictPolicy(Protocol):
-    """Registered by ``name``; ``thresholds`` is the parsed calibration file."""
+    """Registered by ``name``; constructed as ``cls(params)`` with an instance of its ``Params``
+    (from ``[verification.policies.<name>]``)."""
 
     name: ClassVar[str]
+    Params: ClassVar[type[BaseModel]]
 
-    def decide(self, result: CheckResult, thresholds: Mapping[str, Any]) -> CheckResult: ...
+    def __init__(self, params: BaseModel) -> None: ...
+
+    def decide(self, result: CheckResult, thresholds: ThresholdTable) -> CheckResult: ...

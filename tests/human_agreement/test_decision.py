@@ -33,8 +33,9 @@ from physverify.human_agreement.undecided_policy import (
 from physverify.human_agreement.verify_run_reader import VerifyRun, load_run, run_row_step
 from physverify.schema.checks import InputLevel
 from physverify.verification.runner import RowStatus
+from physverify.verification.thresholding import ThresholdTable
 
-THRESHOLDS = {"status": "provisional", "checks": {"R1": {"tau": 0.05}, "R3a": {"tau": 0.05}}}
+THRESHOLDS = ThresholdTable.provisional({"R1": 0.05, "R3a": 0.05})
 
 
 def _decide(world, rows, excluded=()):

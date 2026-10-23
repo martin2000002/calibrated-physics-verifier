@@ -35,6 +35,7 @@ from physverify.verification.sweep import (
     write_sweep,
 )
 from physverify.verification.target_ranking import specificity
+from physverify.verification.thresholding import ThresholdTable
 
 UNITS = {
     "R1": "pen_over_size",
@@ -104,7 +105,7 @@ class ListSource:
 
 
 def sweep(items: Sequence[ClipInputs], values: Values) -> VerificationReport:
-    runner = VerificationRunner(fake_checks(values), RawPolicy(), {})
+    runner = VerificationRunner(fake_checks(values), RawPolicy(), ThresholdTable.provisional({}))
     return runner.run(ListSource(items), [item.clip for item in items])
 
 

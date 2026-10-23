@@ -44,8 +44,8 @@ from physverify.core.models import SCHEMA_KEY, ArtifactModel
 from physverify.schema.checks import InputLevel
 from physverify.schema.io import stable_hash
 from physverify.stats.folds import grouped_folds
-from physverify.verification.policies.threshold import ThresholdPolicy
 from physverify.verification.sweep import CheckUnit
+from physverify.verification.thresholding import ThresholdRule
 
 DEVSCORE_SCHEMA = "physverify.devscore"
 DEVSCORE_VERSION = "1.1.0"
@@ -189,7 +189,7 @@ def fold_parts(
 
 
 def oof_flags(
-    held: Sequence[CalibrationRow], check: CheckCalibration, policy: ThresholdPolicy
+    held: Sequence[CalibrationRow], check: CheckCalibration, policy: ThresholdRule
 ) -> list[Flag]:
     """The populations of ``fit_check``'s J judged with the fold's tau and sigma correction; a
     fold without tau flags nothing."""
@@ -211,7 +211,7 @@ def check_score(
     check_id: str,
     full: CheckCalibration,
     parts: Sequence[FoldPart],
-    policy: ThresholdPolicy,
+    policy: ThresholdRule,
     settings: CalibrationSettings,
 ) -> CheckDevScore:
     """``full`` is the check of ``fit_checks`` on all of calib (weight not normalised)."""
@@ -252,7 +252,7 @@ def level_score(
     """The level's score and its full calib stratum (``fit_stratum`` of all its rows)."""
     fitted = fit_checks(data, checks, config)
     parts = fold_parts(data, checks, profile, config, folds)
-    policy, settings = ThresholdPolicy(config.policy), config.calibration
+    policy, settings = ThresholdRule(config.policy), config.calibration
     scores = {
         c.check_id: check_score(c.check_id, fitted[c.check_id], parts, policy, settings)
         for c in checks

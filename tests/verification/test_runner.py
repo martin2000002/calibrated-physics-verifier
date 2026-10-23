@@ -32,6 +32,7 @@ from physverify.verification.runner import (
     aggregate,
     write_report,
 )
+from physverify.verification.thresholding import ThresholdTable
 
 Behavior = Callable[[type[Check], CheckInputs], Sequence[CheckResult]]
 REASONS = AbstainReason
@@ -88,11 +89,7 @@ NINE = (
     make_check("F8", scored(("a", 0.5, math.nan))),
     make_check("F9", scored(("a", 0.1, 0.0), ("b", 0.9, 0.0))),
 )
-THRESHOLDS = {
-    "status": "provisional",
-    "source": "test",
-    "checks": {cid: {"tau": 1.0} for cid in ("F1", "F5", "F7", "F8")},
-}
+THRESHOLDS = ThresholdTable.provisional(dict.fromkeys(("F1", "F5", "F7", "F8"), 1.0))
 
 
 class ListSource:

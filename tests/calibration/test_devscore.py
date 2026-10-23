@@ -39,8 +39,9 @@ from physverify.calibration.thresholds import fit_tau
 from physverify.core.errors import UsageError
 from physverify.schema.checks import CheckResult, InputLevel
 from physverify.schema.clip import Split
-from physverify.verification.policies.threshold import ThresholdParams, ThresholdPolicy
+from physverify.verification.policies.threshold import ThresholdPolicy
 from physverify.verification.runner import VerificationReport
+from physverify.verification.thresholding import ThresholdParams
 
 SCENES = 18
 CONFIG = config(alpha=0.1, folds=3, bootstrap=30)

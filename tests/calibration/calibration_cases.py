@@ -27,9 +27,9 @@ from physverify.calibration.table import CalibrationRow, Role
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
 from physverify.schema.clip import ClipManifest, Split, TimeSource
 from physverify.schema.scene import MagnitudeKind, PerturbationRecord
-from physverify.verification.policies.threshold import ThresholdParams
 from physverify.verification.runner import RowStatus, TableRow, VerificationReport
 from physverify.verification.sweep import CheckUnit
+from physverify.verification.thresholding import ThresholdParams
 
 __all__ = ["DATASET", "PROFILE", "artifact_of", "check_calibration", "stratum_model", "view"]
 

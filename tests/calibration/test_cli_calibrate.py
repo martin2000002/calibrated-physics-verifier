@@ -24,7 +24,8 @@ from physverify.config.models import Settings
 from physverify.datasets._base import GroundTruthStore, VideoSource
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import ClipManifest
-from physverify.verification.runner import CALIBRATED, write_report
+from physverify.verification.runner import write_report
+from physverify.verification.thresholding import CALIBRATED
 
 EXIT_USAGE = 2
 RUN_ID = "raw-oracle"

@@ -33,13 +33,9 @@ from physverify.human_agreement.verify_run_reader import (
 )
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import Split
-from physverify.verification.runner import (
-    VERIFICATION_SECTION,
-    VerificationSettings,
-    load_thresholds,
-    thresholds_label,
-)
+from physverify.verification.runner import VERIFICATION_SECTION, VerificationSettings
 from physverify.verification.scope import CheckScope, check_scope
+from physverify.verification.thresholding import load_thresholds
 
 if TYPE_CHECKING:
     from physverify.config.models import Settings
@@ -119,7 +115,7 @@ def _provisional(
     verification = settings.section(VERIFICATION_SECTION, VerificationSettings)
     thresholds = load_thresholds(settings.paths.thresholds, verification.thresholds)
     rule = ProvisionalAnyFail(thresholds, frozenset(checks.exclude_checks))
-    return RuleSetup(rule, artifact, thresholds_label(thresholds), scope, gate, checks=checks)
+    return RuleSetup(rule, artifact, thresholds.label, scope, gate, checks=checks)
 
 
 def check_run(

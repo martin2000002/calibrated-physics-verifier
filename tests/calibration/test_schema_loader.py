@@ -22,11 +22,10 @@ from physverify.calibration.artifact_io import (
     unique_row_step,
 )
 from physverify.schema.checks import InputLevel
-from physverify.verification.runner import (
+from physverify.verification.thresholding import (
     CALIBRATED,
     ThresholdTable,
     load_thresholds,
-    thresholds_label,
 )
 
 
@@ -110,8 +109,8 @@ def test_the_projection_is_a_calibrated_threshold_table(tmp_path: Path, text: st
     out = tmp_path / projection_name(InputLevel.ORACLE, "fast")
     out.write_text(json.dumps(projection), encoding="utf-8")
     loaded = load_thresholds(out, {"R1": 9.0, "R3a": 9.0})
-    assert loaded["status"] == CALIBRATED
-    assert thresholds_label(loaded).startswith(f"{CALIBRATED}:calibration.json#oracle/fast@")
+    assert loaded.status == CALIBRATED
+    assert loaded.label.startswith(f"{CALIBRATED}:calibration.json#oracle/fast@")
 
 
 def test_non_ok_checks_have_no_tau_nor_weight() -> None:

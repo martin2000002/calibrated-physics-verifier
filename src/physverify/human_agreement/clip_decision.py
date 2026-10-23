@@ -14,7 +14,8 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 from physverify.core.errors import ConfigError, PhysverifyError
 from physverify.schema.checks import CheckResult, InputLevel, Verdict
-from physverify.verification.runner import RowStatus, TableRow, tau_of, thresholds_label
+from physverify.verification.runner import RowStatus, TableRow
+from physverify.verification.thresholding import ThresholdTable
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -80,8 +81,8 @@ class ClipDecisionRule(Protocol):
     ) -> Decision: ...
 
 
-def _ratio(row: TableRow, thresholds: Mapping[str, Any]) -> float:
-    tau = tau_of(thresholds, row.check_id)
+def _ratio(row: TableRow, thresholds: ThresholdTable) -> float:
+    tau = thresholds.tau_of(row.check_id)
     if row.magnitude is None or tau is None or tau <= 0:
         return math.nan
     return row.magnitude / tau
@@ -104,20 +105,20 @@ class ProvisionalAnyFail:
 
     name = PROVISIONAL_NAME
 
-    def __init__(self, thresholds: Mapping[str, Any], excluded: Collection[str] = ()) -> None:
+    def __init__(self, thresholds: ThresholdTable, excluded: Collection[str] = ()) -> None:
         self._thresholds = thresholds
         self._excluded = frozenset(excluded)
 
     @property
     def label(self) -> str:
-        return f"{self.name}/{thresholds_label(self._thresholds)}"
+        return f"{self.name}/{self._thresholds.label}"
 
     @property
     def kubric_threshold(self) -> float | None:
         return None
 
     def tau(self, check_id: str) -> float | None:
-        return tau_of(self._thresholds, check_id)
+        return self._thresholds.tau_of(check_id)
 
     def excluding(self, excluded: Collection[str]) -> ProvisionalAnyFail:
         return ProvisionalAnyFail(self._thresholds, self._excluded | frozenset(excluded))

@@ -16,6 +16,7 @@ from physverify.verification.runner import (
     VerificationReport,
     VerificationRunner,
 )
+from physverify.verification.thresholding import ThresholdTable
 
 BOUNDS = {
     "R1": 1e-9,
@@ -32,7 +33,8 @@ NO_EVENT = ("R3a", "R3b")
 def report() -> VerificationReport:
     dataset = SyntheticFixtureDataset()
     checks = build_checks(PLUGIN_KINDS["checks"](), ChecksSettings({}))
-    return VerificationRunner(checks, RawPolicy(), {}).run(OracleSource(dataset), dataset.clips())
+    runner = VerificationRunner(checks, RawPolicy(), ThresholdTable.provisional({}))
+    return runner.run(OracleSource(dataset), dataset.clips())
 
 
 def rows(report: VerificationReport) -> dict[str, TableRow]:

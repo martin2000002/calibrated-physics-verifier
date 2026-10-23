@@ -14,17 +14,17 @@ from dataclasses import dataclass
 
 from physverify.schema.checks import AbstainReason, CheckResult, Verdict
 from physverify.verification.decisive import decisive
-from physverify.verification.policies.threshold import ThresholdPolicy
-from physverify.verification.runner import ThresholdEntry, row_verdict
+from physverify.verification.runner import row_verdict
+from physverify.verification.thresholding import ThresholdEntry, ThresholdRule
 
 DECIDED = (Verdict.PASS, Verdict.FAIL)
 
 
 @dataclass(frozen=True)
 class Rule:
-    """The verdict rule of ``ThresholdPolicy`` with the measured bias and sigma factor."""
+    """The verdict rule of ``ThresholdRule`` with the measured bias and sigma factor."""
 
-    policy: ThresholdPolicy
+    policy: ThresholdRule
     bias: float
     factor: float | None
 

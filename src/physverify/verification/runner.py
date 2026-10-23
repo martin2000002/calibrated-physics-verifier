@@ -3,16 +3,15 @@
 from __future__ import annotations
 
 import csv
-import json
 import math
 from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, fields, replace
 from enum import Enum, StrEnum
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from physverify.checks._base import Check, CheckInputs
 from physverify.checks._results import abstain, row_step_or_none
@@ -26,15 +25,13 @@ from physverify.verification._base import VerdictPolicy
 from physverify.verification.decisive import Judged, decisive
 from physverify.verification.inputs import ClipInputs, InputSource
 from physverify.verification.sweep import SpecificitySettings
+from physverify.verification.thresholding import ThresholdTable
 
 VERIFICATION_SECTION = "verification"
 CHECKS_FILE = "checks.jsonl"
 TABLE_FILE = "table.csv"
 CHECKS_HASH_FILE = "checks_hash.txt"
 """The run's ``checks_hash`` (verification.check_set.active_checks_hash): its check parameters."""
-PROVISIONAL = "provisional"
-CALIBRATED = "calibrated"
-PROVISIONAL_SOURCE = "configs/checks.toml [verification.thresholds]"
 THRESHOLDS_KEY = "thresholds"
 UNKNOWN_ROW_STEP = 0
 """``row_step`` of a clip whose table has no valid time axis."""
@@ -47,70 +44,14 @@ class VerificationSettings(FrozenModel):
     specificity: SpecificitySettings = Field(default_factory=SpecificitySettings)
 
 
-class ThresholdEntry(FrozenModel):
-    """``tau`` in check units. The calibration chain may add the measured bias of the
-    magnitude and the factor of its sigma; ``sigma_factor`` None: the error was not measured."""
-
-    tau: float
-    bias: float = 0.0
-    sigma_factor: float | None = Field(default=1.0, ge=0.0)
-
-
-class ArtifactRef(FrozenModel):
-    path: str
-    sha256: str
-
-
-class ThresholdTable(FrozenModel):
-    """Shape of ``paths.thresholds`` (written by the calibration chain) and of the provisional
-    set."""
-
-    status: Literal["provisional", "calibrated"]
-    source: str
-    checks: dict[str, ThresholdEntry]
-    artifact: ArtifactRef | None = None
-
-
 def build_policy(
     registry: Mapping[str, type[VerdictPolicy]], settings: VerificationSettings
 ) -> VerdictPolicy:
     if settings.policy not in registry:
         raise ConfigError(f"unknown verdict policy {settings.policy!r}; known: {sorted(registry)}")
     policy = registry[settings.policy]
-    params_model: type[BaseModel] | None = getattr(policy, "Params", None)
     raw = settings.policies.get(settings.policy, {})
-    if params_model is None:
-        return policy()
-    section = f"verification.policies.{settings.policy}"
-    return policy(validated(params_model, raw, section))  # type: ignore[call-arg]
-
-
-def load_thresholds(path: Path, provisional: Mapping[str, float]) -> Mapping[str, Any]:
-    """The calibrated table at ``path`` when it exists, else the provisional thresholds."""
-    if not path.is_file():
-        checks = {check_id: {"tau": float(tau)} for check_id, tau in provisional.items()}
-        return {"status": PROVISIONAL, "source": PROVISIONAL_SOURCE, "checks": checks}
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
-        raise ConfigError(f"{path} is not valid JSON: {exc}") from exc
-    return validated(ThresholdTable, data, str(path)).model_dump()
-
-
-def tau_of(thresholds: Mapping[str, Any], check_id: str) -> float | None:
-    entry = entry_of(thresholds, check_id)
-    return None if entry is None else entry.tau
-
-
-def entry_of(thresholds: Mapping[str, Any], check_id: str) -> ThresholdEntry | None:
-    entry = thresholds.get("checks", {}).get(check_id)
-    return None if entry is None else validated(ThresholdEntry, entry, f"thresholds.{check_id}")
-
-
-def thresholds_label(thresholds: Mapping[str, Any]) -> str:
-    if thresholds.get("status") == CALIBRATED:
-        return f"{CALIBRATED}:{thresholds.get('source', '')}"
-    return PROVISIONAL
+    return policy(validated(policy.Params, raw, f"verification.policies.{settings.policy}"))
 
 
 class RowStatus(StrEnum):
@@ -146,12 +87,12 @@ class VerificationRunner:
     """Every check on every clip: 9 table rows per clip, whatever happens inside a check."""
 
     def __init__(
-        self, checks: Sequence[Check], policy: VerdictPolicy, thresholds: Mapping[str, Any]
+        self, checks: Sequence[Check], policy: VerdictPolicy, thresholds: ThresholdTable
     ) -> None:
         self._checks = tuple(checks)
         self._policy = policy
         self._thresholds = thresholds
-        self._label = thresholds_label(thresholds)
+        self._label = thresholds.label
 
     def run(self, source: InputSource, clips: Sequence[ClipManifest]) -> VerificationReport:
         results: list[CheckResult] = []
