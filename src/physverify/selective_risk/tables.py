@@ -9,7 +9,6 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
@@ -27,6 +26,7 @@ from physverify.schema.clip import ClipManifest
 from physverify.selective_risk.curve import (
     Case,
     CaseCounts,
+    IntArray,
     alpha_grid,
     curve_point,
     decision_codes,
@@ -35,11 +35,13 @@ from physverify.selective_risk.curve import (
     reference_codes,
 )
 from physverify.selective_risk.fit import choose_k, curve_rows, paired_aurc_difference
+from physverify.selective_risk.records import ComparedTables, SweptTable
 from physverify.selective_risk.settings import AbstentionSettings
-from physverify.verification.runner import load_thresholds
 from physverify.verification.sweep import CheckUnit
+from physverify.verification.thresholding import ThresholdParams, ThresholdTable, load_thresholds
 
-DEFAULT_K = 2.0
+DEFAULT_K = ThresholdParams().k_sigma
+"""The default k of ``ThresholdParams``, reported next to k* as ``k_2``."""
 
 
 @dataclass(frozen=True)
@@ -60,9 +62,9 @@ class Session:
     calibration_dir: Path
     settings: AbstentionSettings
     suite: VerificationCheckSuite
-    reference_table: dict[str, Any]
+    reference_table: ThresholdTable
     """Oracle level: the reference is the point verdict against its raw taus."""
-    thresholds: dict[str, Any]
+    thresholds: ThresholdTable
     """Perceived level: the table every swept decision uses."""
     min_span_iou: float
     checks: tuple[CheckUnit, ...]
@@ -72,11 +74,11 @@ class Session:
 def level_tables(
     artifact: Path | None,
     profile: str,
-    fallback: Mapping[str, Any],
+    fallback: ThresholdTable,
     overrides: Mapping[InputLevel, Path],
     *,
     stale_hash: str | None = None,
-) -> dict[InputLevel, dict[str, Any]]:
+) -> dict[InputLevel, ThresholdTable]:
     """Per level: an explicit table file, else the projection of the calibration chain's stratum,
     else ``fallback`` (what ``verify`` uses) when there is no artifact."""
     for level, given in overrides.items():
@@ -88,16 +90,18 @@ def level_tables(
         else None
     )
     root = None if artifact is None else artifact.parent
-    out: dict[InputLevel, dict[str, Any]] = {}
+    out: dict[InputLevel, ThresholdTable] = {}
     for level in (InputLevel.ORACLE, InputLevel.PERCEIVED):
         path = overrides.get(level)
         if path is not None:
-            out[level] = dict(load_thresholds(path, {}))
+            out[level] = load_thresholds(path, {})
         elif calibration is not None:
             stratum = calibration.stratum(level, profile)
-            out[level] = stratum.thresholds_projection(root)
+            out[level] = ThresholdTable.complete(
+                stratum.thresholds_projection(root), stratum.source
+            )
         else:
-            out[level] = dict(fallback)
+            out[level] = fallback
     return out
 
 
@@ -162,21 +166,27 @@ def require(collected: Collected, what: str) -> None:
         )
 
 
-def sweep(
-    collected: Collected, thresholds: dict[str, Any], settings: AbstentionSettings
-) -> dict[str, Any]:
+@dataclass(frozen=True)
+class Swept:
+    """A sweep's record and its decision codes, ``(len(ks), len(cases))``."""
+
+    table: SweptTable
+    codes: IntArray
+
+
+def sweep(collected: Collected, thresholds: ThresholdTable, settings: AbstentionSettings) -> Swept:
     alphas, ks = _grid(settings)
     reference = reference_codes(collected.cases)
     codes = decision_codes(collected.cases, ks, thresholds)
     points = [curve_point(row, reference) for row in codes]
     best = choose_k(points, list(ks), settings.risk_target, settings.ci)
-    return {
-        "curve": curve_rows(codes, reference, list(ks), list(alphas), settings.ci),
-        "best": best,
-        "alpha_star": None if best is None else float(alphas[best]),
-        "k_star": None if best is None else float(ks[best]),
-        "codes": codes,
-    }
+    table = SweptTable(
+        curve=tuple(curve_rows(codes, reference, list(ks), list(alphas), settings.ci)),
+        best=best,
+        alpha_star=None if best is None else float(alphas[best]),
+        k_star=None if best is None else float(ks[best]),
+    )
+    return Swept(table, codes)
 
 
 def named_ks(fitted: float | None) -> dict[str, float]:
@@ -184,23 +194,23 @@ def named_ks(fitted: float | None) -> dict[str, float]:
 
 
 def compare_tables(
-    collected: Collected, calibrated: dict[str, Any], raw: dict[str, Any], s: AbstentionSettings
-) -> dict[str, Any]:
+    collected: Collected, calibrated: ThresholdTable, raw: ThresholdTable, s: AbstentionSettings
+) -> ComparedTables:
     """Both tables swept on the same cases; AURC difference with a bootstrap paired by clip."""
-    swept = {"raw": sweep(collected, raw, s), "calibrated": sweep(collected, calibrated, s)}
+    swept_raw, swept_calibrated = sweep(collected, raw, s), sweep(collected, calibrated, s)
     reference = reference_codes(collected.cases)
     difference = paired_aurc_difference(
-        swept["raw"]["codes"],
-        swept["calibrated"]["codes"],
+        swept_raw.codes,
+        swept_calibrated.codes,
         reference,
         [c.clip_id for c in collected.cases],
         n_boot=s.bootstrap,
         seed=s.seed,
         ci=s.ci,
     )
-    out: dict[str, Any] = {
-        name: {k: v for k, v in result.items() if k != "codes"} for name, result in swept.items()
-    }
-    out["aurc_calibrated_minus_raw"] = difference
-    out["identical_tables"] = calibrated["checks"] == raw["checks"]
-    return out
+    return ComparedTables(
+        raw=swept_raw.table,
+        calibrated=swept_calibrated.table,
+        aurc_calibrated_minus_raw=difference,
+        identical_tables=calibrated.dump()["checks"] == raw.dump()["checks"],
+    )

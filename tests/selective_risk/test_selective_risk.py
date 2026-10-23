@@ -28,7 +28,6 @@ from physverify.selective_risk.curve import (
     k_of,
     paired_cases,
     point_reference,
-    raw_table,
     reference_codes,
     risk_bounds,
     row_codes,
@@ -36,6 +35,7 @@ from physverify.selective_risk.curve import (
 from physverify.selective_risk.fit import choose_k, paired_aurc_difference, z_scores
 from physverify.selective_risk.settings import AbstentionSettings
 from physverify.verification.runner import VerificationSettings, build_policy
+from physverify.verification.thresholding import ThresholdTable
 
 CODE = {Verdict.PASS: PASSED, Verdict.FAIL: FAILED}
 
@@ -62,11 +62,13 @@ def result(
     )
 
 
-def table(**entries: dict[str, Any]) -> dict[str, Any]:
-    return {"status": "calibrated", "source": "test", "checks": entries}
+def table(**entries: dict[str, Any]) -> ThresholdTable:
+    return ThresholdTable.model_validate(
+        {"status": "calibrated", "source": "test", "checks": entries}
+    )
 
 
-def random_cases(n: int, seed: int) -> tuple[list[Case], dict[str, Any]]:
+def random_cases(n: int, seed: int) -> tuple[list[Case], ThresholdTable]:
     rng = np.random.default_rng(seed)
     thresholds = table(
         R1={"tau": 0.05},
@@ -167,12 +169,12 @@ def test_the_paired_bootstrap_of_identical_tables_is_zero() -> None:
     diff = paired_aurc_difference(
         codes, codes, reference_codes(cases), clips, n_boot=30, seed=0, ci=0.95
     )
-    assert diff["value"] == 0.0 and diff["ci"] == (0.0, 0.0)
+    assert diff.value == 0.0 and diff.ci == (0.0, 0.0)
 
 
 def test_the_reference_is_the_point_verdict_of_the_oracle_without_correction() -> None:
-    reference = raw_table(table(R1={"tau": 0.05, "bias": 0.01, "sigma_factor": None}))
-    assert reference["checks"] == {"R1": {"tau": 0.05}}
+    reference = table(R1={"tau": 0.05, "bias": 0.01, "sigma_factor": None}).raw()
+    assert reference.dump()["checks"] == {"R1": {"tau": 0.05}}
     assert point_reference(result(0.055, 0.5), reference) is Verdict.FAIL
     assert point_reference(result(0.045, math.nan), reference) is Verdict.PASS
     assert point_reference(result(0.07, 0.5, check_id="R9"), reference) is None

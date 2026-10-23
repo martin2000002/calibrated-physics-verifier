@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Any
 
 import numpy as np
 from scipy.stats import norm
@@ -18,8 +17,9 @@ from physverify.selective_risk.curve import (
     reference_codes,
     risk_bounds,
 )
+from physverify.selective_risk.records import AurcDifference, PointRow
 from physverify.stats.bootstrap import ClusterBlock, scene_bootstrap
-from physverify.verification.runner import entry_of
+from physverify.verification.thresholding import ThresholdTable
 
 
 def choose_k(
@@ -51,7 +51,7 @@ def paired_aurc_difference(
     n_boot: int,
     seed: int,
     ci: float,
-) -> dict[str, Any]:
+) -> AurcDifference:
     """AURC(second) - AURC(first) with a percentile interval; each replica resamples whole
     clips once and scores both tables on that same draw."""
 
@@ -63,25 +63,25 @@ def paired_aurc_difference(
 
     blocks = [ClusterBlock(clip_id, i) for i, clip_id in enumerate(clip_ids)]
     bound = scene_bootstrap(blocks, difference, n_boot, seed, ci).get("diff")
-    return {
-        "value": curve_aurc(second, reference) - curve_aurc(first, reference),
-        "ci": (None, None) if bound is None else (bound.low, bound.high),
-        "n_boot_non_finite": None if bound is None else bound.non_finite,
-    }
+    return AurcDifference(
+        value=curve_aurc(second, reference) - curve_aurc(first, reference),
+        ci=(None, None) if bound is None else (bound.low, bound.high),
+        n_boot_non_finite=None if bound is None else bound.non_finite,
+    )
 
 
-def point_row(point: CurvePoint, k: float, alpha: float, ci: float) -> dict[str, Any]:
-    return {
-        "k_sigma": k,
-        "alpha": alpha,
-        "n": point.n,
-        "decided": point.decided,
-        "coverage": point.coverage,
-        "risk": point.risk,
-        "risk_ci": risk_bounds(point.errors, point.decided, ci),
-        "false_fail_rate": _ratio(point.false_fail, point.ref_pass_decided),
-        "missed_fail_rate": _ratio(point.missed_fail, point.ref_fail_decided),
-    }
+def point_row(point: CurvePoint, k: float, alpha: float, ci: float) -> PointRow:
+    return PointRow(
+        k_sigma=k,
+        alpha=alpha,
+        n=point.n,
+        decided=point.decided,
+        coverage=point.coverage,
+        risk=point.risk,
+        risk_ci=risk_bounds(point.errors, point.decided, ci),
+        false_fail_rate=_ratio(point.false_fail, point.ref_pass_decided),
+        missed_fail_rate=_ratio(point.missed_fail, point.ref_fail_decided),
+    )
 
 
 def _ratio(numerator: int, denominator: int) -> float:
@@ -90,7 +90,7 @@ def _ratio(numerator: int, denominator: int) -> float:
 
 def curve_rows(
     codes: IntArray, reference: IntArray, ks: Sequence[float], alphas: Sequence[float], ci: float
-) -> list[dict[str, Any]]:
+) -> list[PointRow]:
     return [
         point_row(curve_point(row, reference), k, a, ci)
         for row, k, a in zip(codes, ks, alphas, strict=True)
@@ -99,12 +99,12 @@ def curve_rows(
 
 def per_check_rows(
     cases: Sequence[Case],
-    thresholds: Mapping[str, Any],
+    thresholds: ThresholdTable,
     ks: Mapping[str, float],
     ci: float,
-) -> dict[str, dict[str, Any]]:
+) -> dict[str, dict[str, PointRow]]:
     """Risk and coverage of each check at the named k values (e.g. k* and k = 2)."""
-    out: dict[str, dict[str, Any]] = {}
+    out: dict[str, dict[str, PointRow]] = {}
     for check_id in sorted({c.check_id for c in cases}):
         mine = [c for c in cases if c.check_id == check_id]
         reference = reference_codes(mine)
@@ -116,13 +116,13 @@ def per_check_rows(
     return out
 
 
-def z_scores(cases: Sequence[Case], thresholds: Mapping[str, Any]) -> list[float]:
+def z_scores(cases: Sequence[Case], thresholds: ThresholdTable) -> list[float]:
     """(m - bias - tau) / (factor * sigma) of each perceived result (report only, never stored
     in ``details``); NaN when it is undefined."""
     out = []
     for case in cases:
         result = case.perceived
-        entry = None if result is None else entry_of(thresholds, result.check_id)
+        entry = None if result is None else thresholds.entry_of(result.check_id)
         if result is None or entry is None or result.magnitude is None:
             out.append(float("nan"))
             continue
