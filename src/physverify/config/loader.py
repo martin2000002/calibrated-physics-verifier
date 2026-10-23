@@ -38,6 +38,12 @@ MODEL_ONLY_SECTIONS = frozenset({"paths", "runtime", "container"})
 Table = dict[str, Any]
 
 
+def default_config_dir(environ: Mapping[str, str]) -> Path:
+    if environ.get(CONFIG_DIR_ENV):
+        return Path(environ[CONFIG_DIR_ENV])
+    return Path(__file__).resolve().parents[3] / "configs"
+
+
 def load_settings(
     config_dir: Path,
     *,

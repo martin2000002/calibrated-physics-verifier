@@ -25,6 +25,11 @@ from physverify.schema.io import stable_hash
 
 DEVICE_PATTERN = re.compile(r"^(cpu|cuda(:\d+)?)$")
 
+
+def is_device(value: str) -> bool:
+    return DEVICE_PATTERN.match(value) is not None
+
+
 _DERIVED_DIRS = {
     "raw_dir": "raw",
     "synthetic_dir": "synthetic",
@@ -120,7 +125,7 @@ class RuntimeSettings(FrozenModel):
 
     @model_validator(mode="after")
     def _check_device(self) -> RuntimeSettings:
-        if not DEVICE_PATTERN.match(self.device):
+        if not is_device(self.device):
             raise ValueError(f"device must be cpu, cuda or cuda:N, got {self.device!r}")
         return self
 
