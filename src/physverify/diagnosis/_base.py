@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import ClassVar, Protocol, runtime_checkable
 
+from physverify.config.plugin_context import PluginKind
 from physverify.schema.clip import ClipManifest
 from physverify.schema.outputs import StageOutput
 from physverify.schema.stages import Stage
@@ -22,3 +23,6 @@ class StageMetric(Protocol):
 
 def metric_key(metric: type[StageMetric]) -> str:
     return f"{metric.stage.value}/{metric.name}"
+
+
+METRICS = PluginKind[type[StageMetric]]("metrics")

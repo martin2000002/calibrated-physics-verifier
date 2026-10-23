@@ -10,9 +10,12 @@ from physverify.app.context import AppContext
 from physverify.app.extraction import recorded_run
 from physverify.app.sealing import Selection, guard_sealed
 from physverify.app.services import check_suite, dataset_for, pipeline_deps
+from physverify.checks._base import CHECKS
 from physverify.config.models import Settings
+from physverify.config.plugin_context import registry_of
 from physverify.core.output import Echo
 from physverify.datasets._base import select_clips
+from physverify.diagnosis._base import METRICS
 from physverify.diagnosis.attribution_run import run_attribution
 from physverify.diagnosis.context import DiagnosisContext, sampled_metrics
 from physverify.diagnosis.end_to_end import run_end_to_end
@@ -24,7 +27,7 @@ from physverify.diagnosis.settings import DiagnosisSettings, diagnosis_settings
 from physverify.diagnosis.stage_errors import run_stage_errors
 from physverify.diagnosis.summary import MAX_SUMMARY_LINES, summary_lines
 from physverify.diagnosis.verification_adapter import CheckSuite
-from physverify.extraction._base import StageObserver
+from physverify.extraction._base import PROVIDERS, StageObserver
 from physverify.extraction.events import ConsoleObserver, EventRecorder
 from physverify.extraction.pipeline import ExtractionReport
 from physverify.runtime.runs import new_run
@@ -62,9 +65,9 @@ def diagnosis_context(
         settings=settings,
         diag=diag,
         dataset_for=functools.partial(dataset_for, app),
-        providers=app.registry("providers"),
-        checks=app.registry("checks"),
-        metrics=sampled_metrics(app.registry("metrics"), diag.metrics),
+        providers=registry_of(app, PROVIDERS),
+        checks=registry_of(app, CHECKS),
+        metrics=sampled_metrics(registry_of(app, METRICS), diag.metrics),
         deps=pipeline_deps(app, observer),
         suite=suite,
         clock=clock,

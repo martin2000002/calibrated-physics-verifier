@@ -27,6 +27,8 @@ from physverify.calibration.settings import (
     calibration_config,
     calibration_settings,
 )
+from physverify.checks._base import CHECKS
+from physverify.config.plugin_context import registry_of
 from physverify.core.atomic import write_text_atomic
 from physverify.core.digests import text_sha256
 from physverify.core.errors import UsageError
@@ -127,7 +129,7 @@ def families_without_target(cfg: FinetuneSettings, scope: CheckScope) -> FamilyG
 
 
 def _rules(context: AppContext) -> ExclusionRules:
-    known = context.registry("checks")
+    known = registry_of(context, CHECKS)
     return exclusion_rules(context.settings.sections.get(SECTION, {}), known)
 
 
@@ -140,7 +142,7 @@ def _arms(context: AppContext, rules: ExclusionRules, base: str, tiny: str) -> R
     settings = context.settings
     clips = dataset_for(context, rules.r2.dataset).clips(None)
     couplings = calibration_config(settings).couplings
-    units = units_of(context.registry("checks"))
+    units = units_of(registry_of(context, CHECKS))
     runs_dir = settings.paths.runs_dir
     return R2Arms(
         *(arm_run(runs_dir / run, clips, units, couplings, rules) for run in (base, tiny))

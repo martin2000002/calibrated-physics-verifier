@@ -11,13 +11,14 @@ from types import MappingProxyType, ModuleType
 from typing import Any
 
 from physverify.checks._base import CHECKS, Check, validate_check
+from physverify.config.plugin_context import PluginKind
 from physverify.core.errors import InvalidPluginError, UsageError
 from physverify.core.registry import Registry, discover, discover_modules
-from physverify.datasets._base import DatasetSource
-from physverify.diagnosis._base import StageMetric, metric_key
-from physverify.extraction._base import StageProvider, provider_key, validate_provider
+from physverify.datasets._base import DATASETS, DatasetSource
+from physverify.diagnosis._base import METRICS, StageMetric, metric_key
+from physverify.extraction._base import PROVIDERS, StageProvider, provider_key, validate_provider
 from physverify.finetune.scorers._base import SCORERS, AggregateScorer
-from physverify.generator_comparison.judges._base import Judge
+from physverify.generator_comparison.judges._base import JUDGES, Judge
 from physverify.kubric_worker import TASKS_PACKAGE
 from physverify.synth.families._base import FAMILIES, SceneFamily
 from physverify.synth.perturbations._base import (
@@ -29,6 +30,8 @@ from physverify.synth.perturbations._base import (
 from physverify.synth.truth_measures._base import TRUTH_MEASURES, TruthMeasure
 from physverify.timing._base import TIMING_TARGETS, TimingTarget
 from physverify.verification._base import POLICIES, VerdictPolicy
+
+CONTAINER_TASKS = PluginKind[ModuleType]("container_tasks")
 
 
 def check_task(module: ModuleType) -> None:
@@ -50,17 +53,17 @@ PLUGIN_KINDS: Mapping[str, Callable[[], Registry[Any]]] = MappingProxyType(
             validate_perturbation,
         ),
         FAMILIES.name: lambda: discover("physverify.synth.families", (SceneFamily,), "name"),
-        "providers": lambda: discover(
+        PROVIDERS.name: lambda: discover(
             "physverify.extraction.providers", (StageProvider,), provider_key, validate_provider
         ),
-        "datasets": lambda: discover("physverify.datasets", (DatasetSource,), "name"),
-        "container_tasks": lambda: discover_modules(TASKS_PACKAGE, check_task, module_name),
-        "metrics": lambda: discover("physverify.diagnosis.metrics", (StageMetric,), metric_key),
+        DATASETS.name: lambda: discover("physverify.datasets", (DatasetSource,), "name"),
+        CONTAINER_TASKS.name: lambda: discover_modules(TASKS_PACKAGE, check_task, module_name),
+        METRICS.name: lambda: discover("physverify.diagnosis.metrics", (StageMetric,), metric_key),
         POLICIES.name: lambda: discover(
             "physverify.verification.policies", (VerdictPolicy,), "name"
         ),
         TIMING_TARGETS.name: lambda: discover("physverify.timing.targets", (TimingTarget,), "name"),
-        "judges": lambda: discover("physverify.generator_comparison.judges", (Judge,), "name"),
+        JUDGES.name: lambda: discover("physverify.generator_comparison.judges", (Judge,), "name"),
         SCORERS.name: lambda: discover("physverify.finetune.scorers", (AggregateScorer,), "name"),
         TRUTH_MEASURES.name: lambda: discover(
             "physverify.synth.truth_measures", (TruthMeasure,), "check_id"

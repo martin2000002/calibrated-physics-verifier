@@ -14,6 +14,7 @@ from typing import ClassVar, Protocol, runtime_checkable
 from pydantic import BaseModel
 
 from physverify.config.models import PathsSettings
+from physverify.config.plugin_context import PluginKind
 from physverify.core.errors import InvalidPluginError, MissingInputError
 from physverify.datasets._base import GroundTruthStore, VideoSource
 from physverify.schema.clip import ClipManifest, FrameSampling
@@ -117,6 +118,9 @@ class StageProvider(Protocol):
     def __init__(self, params: BaseModel) -> None: ...
 
     def run(self, ctx: StageContext) -> StageOutput: ...
+
+
+PROVIDERS = PluginKind[type[StageProvider]]("providers")
 
 
 def provider_key(provider: type[StageProvider]) -> str:

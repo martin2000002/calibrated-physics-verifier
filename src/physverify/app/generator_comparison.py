@@ -22,6 +22,8 @@ from physverify.app.services import (
     scorer_for,
 )
 from physverify.calibration.artifact_io import default_artifact_path
+from physverify.checks._base import CHECKS
+from physverify.config.plugin_context import registry_of
 from physverify.core.choices import choice
 from physverify.core.digests import sha256_if_file
 from physverify.core.errors import MissingInputError, UsageError
@@ -30,7 +32,7 @@ from physverify.datasets._base import HumanLabelSource
 from physverify.finetune.candidate_scoring import rescorer, score_candidates
 from physverify.finetune.prompts import campaign_prompts
 from physverify.finetune.records import read_record, write_record
-from physverify.finetune.scorers._base import AggregateScorer
+from physverify.finetune.scorers._base import SCORERS, AggregateScorer
 from physverify.finetune.seeds import parse_shard
 from physverify.finetune.stop_rule import frozen_state
 from physverify.generator_comparison.arms import EVAL_SPLIT, analysis_prompts, eval_prompts
@@ -109,7 +111,7 @@ def current_prereg(context: AppContext, h: ComparisonContext) -> ComparisonPrere
     settings = context.settings
     inputs = FreezeInputs(
         settings=settings,
-        checks=context.registry("checks"),
+        checks=registry_of(context, CHECKS),
         store=h.store,
         layout=h.layout,
         cfg=h.cfg,
@@ -152,7 +154,7 @@ def require_pilot_stop_rule(
 
 
 def eval_data(context: AppContext, h: ComparisonContext) -> bool:
-    scorers = list(context.registry("scorers"))
+    scorers = list(registry_of(context, SCORERS))
     return has_eval_scores(h.store, scorers) or bool(h.layout.judge_outputs(EVAL_SPLIT))
 
 
@@ -203,7 +205,7 @@ def freeze_prereg(
     current = current_prereg(context, h).model_copy(
         update={"stop_rule_deviation": None if passed else deviation}
     )
-    require_exclusion_record(context.settings, current, context.registry("checks"))
+    require_exclusion_record(context.settings, current, registry_of(context, CHECKS))
     request = FreezeRequest(
         force, declare_deviation, eval_data(context, h), h.layout.gate.is_file()
     )
@@ -340,4 +342,4 @@ def compare_arms(context: AppContext, *, echo: Echo) -> None:
 
 def campaign_status_lines(context: AppContext) -> list[str]:
     h = ComparisonContext.of(context.settings)
-    return status_lines(h, lambda: context.registry("scorers"))
+    return status_lines(h, lambda: registry_of(context, SCORERS))

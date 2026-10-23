@@ -6,9 +6,10 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 from physverify.app.context import AppContext
+from physverify.config.plugin_context import registry_of
 from physverify.core.errors import UsageError
 from physverify.core.output import Echo
-from physverify.datasets._base import fetch_all
+from physverify.datasets._base import DATASETS, fetch_all
 from physverify.diagnosis.settings import diagnosis_settings
 
 
@@ -35,6 +36,6 @@ def fetch_real(context: AppContext, dataset: str | None, subset: str | None, *, 
     ``diagnosis.real.sealed_controls`` only when named."""
     settings = context.settings
     real = diagnosis_settings(settings).real
-    registry = context.registry("datasets")
+    registry = registry_of(context, DATASETS)
     classes = fetch_targets(registry, real.datasets, dataset, real.sealed_controls)
     fetch_all(classes, settings, subset, echo=echo)

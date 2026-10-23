@@ -11,6 +11,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar, Protocol, runtime_checkable
 
+from physverify.config.plugin_context import PluginKind
+
 if TYPE_CHECKING:
     from physverify.generator_comparison.settings import ComparisonSettings
 
@@ -41,6 +43,9 @@ class Judge(Protocol):
     def stamp(self, task: str) -> str: ...
 
     def judge(self, items: Sequence[JudgeInput], task: str) -> Mapping[str, JudgeScore]: ...
+
+
+JUDGES = PluginKind[type[Judge]]("judges")
 
 
 @runtime_checkable

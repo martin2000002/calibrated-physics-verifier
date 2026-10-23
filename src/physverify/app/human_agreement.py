@@ -10,7 +10,8 @@ from pathlib import Path
 from physverify.app.context import AppContext
 from physverify.app.services import label_source_class
 from physverify.calibration.api import calibration_api
-from physverify.config.plugin_context import PluginContext
+from physverify.checks._base import CHECKS
+from physverify.config.plugin_context import PluginContext, registry_of
 from physverify.core.output import Echo
 from physverify.datasets._base import HumanLabelSource, fetch_all
 from physverify.human_agreement.settings import SECTION, agreement_settings
@@ -59,7 +60,7 @@ def preregister(
 ) -> None:
     path, current = freeze(
         context.settings,
-        context.registry("checks"),
+        registry_of(context, CHECKS),
         label_source(context),
         run_dir,
         calibration_api,
@@ -71,7 +72,7 @@ def preregister(
 def compare(context: AppContext, request: CompareRequest, *, echo: Echo) -> None:
     compare_and_report(
         context.settings,
-        context.registry("checks"),
+        registry_of(context, CHECKS),
         label_source(context),
         request,
         calibration_api,

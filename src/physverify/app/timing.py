@@ -10,13 +10,17 @@ from pathlib import Path
 from typing import Final
 
 from physverify.app.context import AppContext
+from physverify.checks._base import CHECKS
 from physverify.config.models import Settings
+from physverify.config.plugin_context import registry_of
 from physverify.core.output import Echo
+from physverify.datasets._base import DATASETS
+from physverify.extraction._base import PROVIDERS
 from physverify.extraction.weights import NetworkDownloader, hub_cache
 from physverify.generation.wan21 import fetch_generator
 from physverify.runtime.heavy import NullLock
 from physverify.runtime.runs import new_run
-from physverify.timing._base import TimingContext
+from physverify.timing._base import TIMING_TARGETS, TimingContext
 from physverify.timing.budget import BudgetQuery as BudgetQuery
 from physverify.timing.budget import answer, budget_lines, cost_from_results
 from physverify.timing.environment import CudaProbe, TorchCudaProbe, run_environment, validity
@@ -35,6 +39,7 @@ from physverify.timing.settings import load_timing, run_settings
 from physverify.timing.stats import stat_rows
 from physverify.timing.target_services import ClipSelection as ClipSelection
 from physverify.timing.target_services import TimingServices
+from physverify.verification._base import POLICIES
 
 NESTED_LOCK: Final = "held by timing run"
 
@@ -53,10 +58,10 @@ def timing_services(
     context: AppContext, selection: ClipSelection, probe: CudaProbe
 ) -> TimingServices:
     return TimingServices(
-        datasets=context.registry("datasets"),
-        providers=context.registry("providers"),
-        checks=context.registry("checks"),
-        policies=context.registry("policies"),
+        datasets=registry_of(context, DATASETS),
+        providers=registry_of(context, PROVIDERS),
+        checks=registry_of(context, CHECKS),
+        policies=registry_of(context, POLICIES),
         lock_factory=lambda: NullLock(NESTED_LOCK),
         docker=context.docker,
         cuda=probe,
@@ -66,7 +71,7 @@ def timing_services(
 
 def target_lines(context: AppContext) -> list[str]:
     timing = load_timing(context.settings)
-    registry = context.registry("timing_targets")
+    registry = registry_of(context, TIMING_TARGETS)
     lines = ["name\trequires_gpu\twarmup\tscope\trepetitions\tmax_clips"]
     for name in ordered(timing.order, registry):
         run = run_settings(timing, name)
@@ -97,7 +102,7 @@ def run_timing(
     settings = context.settings
     timing = load_timing(settings)
     plan = plan_targets(
-        context.registry("timing_targets"),
+        registry_of(context, TIMING_TARGETS),
         timing,
         request.targets,
         warmup=request.warmup,

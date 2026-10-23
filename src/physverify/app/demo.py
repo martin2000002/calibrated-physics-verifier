@@ -10,7 +10,9 @@ from pathlib import Path
 from physverify.app.context import AppContext
 from physverify.app.finetune import candidate_generator, require_cuda, scoring_deps
 from physverify.app.services import scorer_for
+from physverify.checks._base import CHECKS
 from physverify.config.models import Settings
+from physverify.config.plugin_context import registry_of
 from physverify.core.errors import UsageError
 from physverify.core.output import Echo
 from physverify.demo.adhoc import ADHOC_FAMILY as ADHOC_FAMILY
@@ -61,7 +63,7 @@ class AdhocRequest:
 
 
 def target_checks(context: AppContext, wanted: Sequence[str] | None) -> list[str]:
-    known = sorted(context.registry("checks"))
+    known = sorted(registry_of(context, CHECKS))
     unknown = sorted(set(wanted or ()) - set(known))
     if unknown:
         raise UsageError(f"unknown checks {unknown}; known: {known}")

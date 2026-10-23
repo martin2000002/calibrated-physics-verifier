@@ -50,6 +50,8 @@ from physverify.calibration.sigma_recalibration import (
     stage_factors,
 )
 from physverify.calibration.summary import devscore_lines, show_lines
+from physverify.checks._base import CHECKS
+from physverify.config.plugin_context import registry_of
 from physverify.core.atomic import write_text_atomic
 from physverify.core.errors import MissingInputError, UsageError
 from physverify.core.output import Echo
@@ -295,7 +297,7 @@ def _session(context: AppContext, echo: Echo, err: Echo) -> Session:
         config=calibration_config(settings),
         run=run,
         raw_runner=partial(_raw_runner, context),
-        check_units=lambda: units_of(context.registry("checks")),
+        check_units=lambda: units_of(registry_of(context, CHECKS)),
         input_source=partial(_input_source, context),
         subject_lookup=partial(_subject_lookup, context),
         dataset=partial(dataset_for, context),
@@ -322,7 +324,7 @@ def _guard(context: AppContext, command: str, session: Session, err: Echo) -> Gu
 
 
 def _raw_runner(context: AppContext) -> VerificationRunner:
-    registry = context.registry("checks")
+    registry = registry_of(context, CHECKS)
     overrides = context.settings.section(CHECKS_SECTION, ChecksSettings)
     return VerificationRunner(
         build_checks(registry, overrides), RawPolicy(), ThresholdTable.provisional({})

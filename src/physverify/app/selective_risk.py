@@ -9,6 +9,8 @@ from physverify.app.context import AppContext
 from physverify.app.sealing import Selection, guard_sealed
 from physverify.app.services import chain_runner, check_suite, dataset_for, pipeline_deps
 from physverify.calibration.artifact_io import default_artifact_path
+from physverify.checks._base import CHECKS
+from physverify.config.plugin_context import registry_of
 from physverify.core.atomic import write_text_atomic
 from physverify.core.digests import sha256_if_file
 from physverify.core.errors import PhysverifyError
@@ -106,7 +108,7 @@ def _session(
 ) -> Session:
     settings = context.settings
     verification = settings.section(VERIFICATION_SECTION, VerificationSettings)
-    registry = context.registry("checks")
+    registry = registry_of(context, CHECKS)
     fallback = load_thresholds(settings.paths.thresholds, verification.thresholds)
     overrides = {
         level: path

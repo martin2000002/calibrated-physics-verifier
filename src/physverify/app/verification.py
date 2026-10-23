@@ -10,12 +10,14 @@ from pathlib import Path
 from physverify.app.context import AppContext
 from physverify.app.sealing import Selection, guard_sealed
 from physverify.app.services import checks_hash_for, dataset_for, pipeline_deps, plan_for
-from physverify.checks._base import Check
+from physverify.checks._base import CHECKS, Check
+from physverify.config.plugin_context import registry_of
 from physverify.core.output import Echo
 from physverify.datasets._base import DatasetSource, select_clips
 from physverify.runtime.runs import new_run
 from physverify.schema.checks import InputLevel
 from physverify.schema.stages import Stage, parse_stages
+from physverify.verification._base import POLICIES
 from physverify.verification.inputs import (
     InputSource,
     OracleSource,
@@ -47,7 +49,7 @@ from physverify.verification.thresholding import ThresholdTable
 
 
 def policy_names(context: AppContext) -> list[str]:
-    return sorted(context.registry("policies"))
+    return sorted(registry_of(context, POLICIES))
 
 
 @dataclass(frozen=True)
@@ -61,7 +63,10 @@ class _Verifier:
 def _verifier(context: AppContext, policy: str | None) -> _Verifier:
     """The configured checks, thresholds and verdict policy (``policy`` overrides the latter)."""
     suite = configured_suite(
-        context.settings, context.registry("checks"), context.registry("policies"), policy=policy
+        context.settings,
+        registry_of(context, CHECKS),
+        registry_of(context, POLICIES),
+        policy=policy,
     )
     return _Verifier(suite.verification, suite.checks, suite.thresholds, suite.runner())
 

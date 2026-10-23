@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Final, Protocol, runtime_checka
 import numpy as np
 from numpy.typing import NDArray
 
+from physverify.config.plugin_context import PluginKind
 from physverify.core.download import BYTES_PER_MB, MANIFEST_FILE, read_manifest
 from physverify.core.errors import MissingInputError, UsageError
 from physverify.core.output import Echo
@@ -101,6 +102,9 @@ class DatasetSource(Protocol):
     def ground_truth(self, clip: ClipManifest) -> GroundTruthStore | None: ...
 
     def fetch(self, subset: str | None, dest: Path) -> None: ...
+
+
+DATASETS = PluginKind[type[DatasetSource]]("datasets")
 
 
 DEFAULT_LABEL_SOURCE: Final = "videophy"

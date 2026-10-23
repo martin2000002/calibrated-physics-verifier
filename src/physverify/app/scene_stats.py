@@ -9,9 +9,11 @@ from physverify.app.context import AppContext
 from physverify.app.diagnosis import diag_settings
 from physverify.app.sealing import Selection, guard_sealed
 from physverify.app.services import chain_runner, dataset_for, pipeline_deps
+from physverify.config.plugin_context import registry_of
 from physverify.core.output import Echo
 from physverify.datasets._base import select_clips
 from physverify.diagnosis import scene_stats
+from physverify.diagnosis._base import METRICS
 from physverify.diagnosis.context import sampled_metrics
 
 STAGES = ("detect", "depth")
@@ -40,7 +42,7 @@ def collect_per_clip(
         [Selection(source.name, diag.subset, tuple(selected))],
         err=err,
     )
-    metrics = sampled_metrics(app_ctx.registry("metrics"), diag.metrics)
+    metrics = sampled_metrics(registry_of(app_ctx, METRICS), diag.metrics)
     runner = chain_runner(app_ctx, pipeline_deps(app_ctx, None), source)
     rows = scene_stats.collect_rows(runner, selected, metrics, diag, STAGES)
     collected = scene_stats.Collected(
