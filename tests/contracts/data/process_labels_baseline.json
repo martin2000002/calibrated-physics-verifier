@@ -1178,7 +1178,7 @@
  "tests/extraction/test_oracle_contacts_golden.py": {
   "comment_or_docstring": 3
  },
- "tests/extraction/test_proximity_refactor.py": {
+ "tests/extraction/test_proximity_equivalence.py": {
   "comment_or_docstring": 2
  },
  "tests/extraction/test_scale_size_model.py": {
@@ -1228,7 +1228,7 @@
  "tests/generator_comparison/test_candidate_identity.py": {
   "comment_or_docstring": 1
  },
- "tests/generator_comparison/test_cli_h3.py": {
+ "tests/generator_comparison/test_compare_generators_cli.py": {
   "identifier": 31
  },
  "tests/generator_comparison/test_state.py": {
