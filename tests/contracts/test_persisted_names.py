@@ -7,9 +7,12 @@ import ast
 import builtins
 import datetime as dt
 import json
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from functools import cache
 from pathlib import Path
+
+import pytest
+from cli_tree import cli_leaves
 
 from physverify.calibration.devscore import DEVSCORE_FILE, DEVSCORE_SCHEMA, DEVSCORE_VERSION
 from physverify.calibration.exclusion_record import RECORD_SCHEMA, RECORD_VERSION
@@ -223,22 +226,20 @@ RUN_RECORD_FIELDS = (
     "created_utc",
 )
 
-LEDGER_LABELS = frozenset(
-    {
-        "abstain curve",
-        "abstain fit",
-        "calibrate devscore",
-        "calibrate evaluate",
-        "calibrate fit",
-        "calibrate stage-sigma",
-        "diagnose attribution",
-        "diagnose end-to-end",
-        "diagnose real",
-        "diagnose stages",
-        "scene-stats per-clip",
-        "verify",
-    }
-)
+LEDGER_LABELS: Mapping[str, tuple[str, str | None]] = {
+    "abstain curve": ("abstain", "curve"),
+    "abstain fit": ("abstain", "fit"),
+    "calibrate devscore": ("calibrate", "devscore"),
+    "calibrate evaluate": ("calibrate", "evaluate"),
+    "calibrate fit": ("calibrate", "fit"),
+    "calibrate stage-sigma": ("calibrate", "stage-sigma"),
+    "diagnose attribution": ("diagnose", "attribution"),
+    "diagnose end-to-end": ("diagnose", "end-to-end"),
+    "diagnose real": ("diagnose", "real"),
+    "diagnose stages": ("diagnose", "stages"),
+    "scene-stats per-clip": ("scene-stats", "per-clip"),
+    "verify": ("verify", None),
+}
 
 
 def _modules() -> Iterator[ast.Module]:
@@ -360,4 +361,12 @@ def test_run_json_fields_are_unchanged(tmp_path: Path) -> None:
 
 
 def test_sealed_ledger_command_labels_are_unchanged() -> None:
-    assert frozenset(GUARDED) == LEDGER_LABELS
+    assert frozenset(GUARDED) == frozenset(LEDGER_LABELS)
+
+
+@pytest.mark.parametrize("label", sorted(LEDGER_LABELS))
+def test_a_ledger_label_is_its_command_and_leaf(label: str) -> None:
+    command, leaf = LEDGER_LABELS[label]
+    module = cli_leaves()[label]
+    assert command == module.NAME
+    assert (f"{module.NAME} {leaf}" if leaf else module.NAME) == label

@@ -7,6 +7,7 @@ from collections.abc import Mapping
 from typing import Any
 
 import pytest
+from cli_tree import command_modules
 
 from physverify.cli.context import PLUGIN_KINDS
 
@@ -20,9 +21,9 @@ KINDS = (
     "metrics",
     "policies",
     "timing_targets",
-    "commands",
 )
 ADDED_KINDS = frozenset({"judges", "scorers", "truth_measures"})
+CLI_KIND = "commands"
 
 ORDER: Mapping[str, tuple[str, ...]] = {
     "checks": (
@@ -151,8 +152,14 @@ def test_every_plugin_kind_is_kept() -> None:
     assert set(KINDS) <= set(PLUGIN_KINDS)
 
 
+@pytest.fixture(scope="module")
+def commands() -> Mapping[str, Any]:
+    """The CLI discovers its own commands; every other kind is a plugin kind."""
+    return command_modules()
+
+
 def test_only_judges_scorers_and_truth_measures_are_new_kinds() -> None:
-    assert set(PLUGIN_KINDS) - set(KINDS) <= ADDED_KINDS
+    assert set(PLUGIN_KINDS) - set(KINDS) - {CLI_KIND} <= ADDED_KINDS
 
 
 @pytest.mark.parametrize("kind", sorted(ORDER))
@@ -178,9 +185,9 @@ def test_provider_order_is_unchanged_until_the_provider_files_are_renamed(
 
 
 def test_command_names_and_order_are_unchanged_until_the_cli_renames(
-    registries: dict[str, Mapping[str, Any]],
+    commands: Mapping[str, Any],
 ) -> None:
-    assert tuple(registries["commands"]) == COMMAND_ORDER
+    assert tuple(commands) == COMMAND_ORDER
 
 
 def test_check_files_are_named_after_their_check_ids_in_check_order(

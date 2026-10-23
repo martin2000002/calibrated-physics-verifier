@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import inspect
 import json
 import os
@@ -13,19 +14,16 @@ from types import MappingProxyType, ModuleType
 from typing import Any, ClassVar
 
 import pytest
-import typer.main
 from calibration_cases import DATASET, fitted_artifact, synthetic_report
 from cli_runner import CliResult, CliRunner
+from cli_tree import cli_leaves, command_modules
 
 from physverify.calibration.sealed import LedgerEntry, read_entries
 from physverify.cli import context
 from physverify.cli.commands import _sealed, abstain, calibrate, diagnose, verify
-from physverify.cli.context import COMMANDS_PACKAGE, check_command, command_name
-from physverify.cli.main import build_app
 from physverify.config.loader import load_settings
 from physverify.config.models import Settings
 from physverify.core.errors import PhysverifyError
-from physverify.core.registry import discover_modules
 from physverify.datasets._base import GroundTruthStore, VideoSource
 from physverify.diagnosis import scene_stats
 from physverify.schema.checks import InputLevel
@@ -461,26 +459,76 @@ def test_another_frozen_state_needs_the_repeat_variable(
     assert last.repeat and last.freeze != first.freeze
 
 
-def _leaves() -> dict[str, ModuleType]:
-    commands = discover_modules(COMMANDS_PACKAGE, check_command, command_name)
-    root = typer.main.get_command(build_app(commands))
-    found: dict[str, ModuleType] = {}
-    for name, module in commands.items():
-        group = root.commands[name]  # type: ignore[attr-defined]
-        children = sorted(getattr(group, "commands", {}))
-        for leaf in [f"{name} {child}" for child in children] or [name]:
-            found[leaf] = module
-    return found
+def _guard_labels(module: ModuleType) -> set[str]:
+    """The ledger labels a command module's guard calls form: ``guard_sealed(context, label)``
+    directly, or through a helper of the module that passes ``f"{NAME} {leaf}"`` on."""
+    tree = ast.parse(inspect.getsource(module))
+    labels: set[str] = set()
+    helpers: dict[str, int] = {}
+    for function in (n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)):
+        params = [arg.arg for arg in function.args.args]
+        for call in _calls(function, "guard_sealed"):
+            label = _label(call.args[1], module.NAME)
+            if label is None:
+                helpers[function.name] = params.index(_leaf_param(call.args[1]))
+            else:
+                labels.add(label)
+    for name, index in helpers.items():
+        for call in _calls(tree, name):
+            leaf = call.args[index]
+            assert isinstance(leaf, ast.Constant) and isinstance(leaf.value, str), ast.dump(leaf)
+            labels.add(f"{module.NAME} {leaf.value}")
+    return labels
+
+
+def _calls(tree: ast.AST, name: str) -> list[ast.Call]:
+    return [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == name
+    ]
+
+
+def _label(node: ast.expr, command: str) -> str | None:
+    """The literal label, NAME resolved; None when a parameter supplies the leaf."""
+    if isinstance(node, ast.Name) and node.id == "NAME":
+        return command
+    assert isinstance(node, ast.JoinedStr), ast.dump(node)
+    parts: list[str] = []
+    for part in node.values:
+        if isinstance(part, ast.Constant):
+            parts.append(str(part.value))
+        elif isinstance(part, ast.FormattedValue) and isinstance(part.value, ast.Name):
+            if part.value.id != "NAME":
+                return None
+            parts.append(command)
+    return "".join(parts)
+
+
+def _leaf_param(node: ast.expr) -> str:
+    assert isinstance(node, ast.JoinedStr)
+    last = node.values[-1]
+    assert isinstance(last, ast.FormattedValue) and isinstance(last.value, ast.Name)
+    return last.value.id
 
 
 def test_every_subcommand_is_guarded_or_exempt_with_a_reason() -> None:
     """C5: a new subcommand fails here until ``_sealed`` classifies it."""
-    leaves = _leaves()
+    leaves = cli_leaves()
     assert not _sealed.GUARDED & set(_sealed.EXEMPT)
     assert set(leaves) == _sealed.GUARDED | set(_sealed.EXEMPT)
     assert all(reason.strip() for reason in _sealed.EXEMPT.values())
-    for leaf in _sealed.GUARDED:
-        assert "guard_sealed" in inspect.getsource(leaves[leaf]), leaf
+
+
+@pytest.mark.parametrize("label", sorted(_sealed.GUARDED))
+def test_the_guarded_leaf_guards_with_its_own_label(label: str) -> None:
+    """The label a guard writes to the ledger is ``f"{NAME} {leaf}"`` of the leaf it guards."""
+    assert label in _guard_labels(cli_leaves()[label])
+
+
+def test_every_label_a_guard_forms_is_a_guarded_leaf() -> None:
+    formed = {label for module in command_modules().values() for label in _guard_labels(module)}
+    assert formed == _sealed.GUARDED
 
 
 def test_a_guard_for_an_unclassified_command_is_a_bug() -> None:
