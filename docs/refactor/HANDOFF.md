@@ -314,9 +314,10 @@ T-b (data, study and script tests, `bd973b0`):
   `test_it3_oracle_unchanged`/`test_it4_floor_refactor` -> `test_oracle_contacts_golden`/
   `test_floor_contacts` and `golden/truth_contacts_before_it3.json` -> `golden/truth_contacts.json`.
   Test functions keep their names (JY15).
-- Departure: `test_h2_query.py` and `test_h2_script.py` are in `tests/scripts/human_agreement/`,
+- Departure: `test_h2_query.py` and `test_h2_script.py` (WP8: `test_agreement_query.py` and
+  `test_human_agreement_script.py`) are in `tests/scripts/human_agreement/`,
   not flat in `tests/scripts/`: their `make_settings` (agreement, `bootstrap_n=50`) and the timing
-  one of `test_a8v2_query.py` (data dir in `tmp_path`) share a name, and the autouse
+  one of `test_a8v2_query.py` (WP8: `test_run_query.py`; data dir in `tmp_path`) share a name, and the autouse
   `provisional_by_default` must reach only them. Their `parents[2]` became `parents[3]`.
 - Frozen-file departures (ADR 0017): new `tests/fixtures/videophy_world.py` (the former agreement
   conftest, verbatim) and `tests/fixtures/timing_settings.py` (`data_dir`, `timing_environ`,
@@ -329,7 +330,8 @@ T-b (data, study and script tests, `bd973b0`):
   `tests/synth/{conftest,test_contacts_gt,test_gt_export,test_migrate,test_truth_measure_pins}.py`
   and `tests/kubric_worker/test_render_docker.py` (outside T-b's folders, one line). Nothing in
   `src/`, `tools/` or `scripts/` read these paths.
-- Repo `CLAUDE.md` names `tests/scripts/test_run_iteration_script.py`.
+- Repo `CLAUDE.md` names `tests/scripts/test_run_iteration_script.py` (WP8:
+  `test_perception_iteration_script.py`).
 - Checks: 3628 collected / 2 deselected before and after, sorted test ids (without path) equal,
   per-test fixture sets of `--setup-plan` equal (`no_network` on 1416 tests before and after);
   1552 passed over the moved directories; process-label totals unchanged (424 keys).
@@ -382,8 +384,8 @@ consumers had to move with the files in K2 to keep the suite green).
 
 Stream S (CLI and script renames, J14), branch `refactor/wp8-s`:
 
-- CLI renames: `h3` -> `compare-generators`, `abstain` -> `selective-risk`, `data` -> `synth`,
-  `dataset` -> `download`, `calibrate devscore` -> `calibrate dev-score`; `results` options
+- CLI renames: `h3` -> `compare-generators`, `abstain` -> `selective-risk`, `data` -> `download`,
+  `dataset` -> `synth`, `calibrate devscore` -> `calibrate dev-score`; `results` options
   `--a8v2-dir`/`--h1-evaluation`/`--h2-run`/`--abstention-run` -> `--chain-dir`/
   `--calibration-evaluation`/`--agreement-run`/`--selective-risk-run` (the `Request` fields keep
   their names). Persisted names (JY6) are untouched: sealed-ledger labels
@@ -398,8 +400,13 @@ Stream S (CLI and script renames, J14), branch `refactor/wp8-s`:
   `PHYSVERIFY_AGREEMENT_CHAIN_DIR`, `PHYSVERIFY_H2_*` -> `PHYSVERIFY_AGREEMENT_*`,
   `PHYSVERIFY_ITER_*` -> `PHYSVERIFY_ITERATION_*`, `PHYSVERIFY_FREEZE_P2_COMMIT` ->
   `PHYSVERIFY_FREEZE_EARLY_EXTRACTION_COMMIT`. `_common.sh` holds the only `pv` (`PV_RUNNER`,
-  `PV_PROFILE`, `PV_NICE`, `PV_EXTRA`) and `h200_py`; `run_query.py` exports `query_settings`
-  (was `_settings`) for `agreement_query.py`.
+  `PV_PROFILE`, `PV_NICE`, `PV_EXTRA`; `_steps.sh` no longer repeats `PV_PROFILE=precise`),
+  `h200_py` and `query` (`run_query.py`, formerly copied in `run_freeze.sh`, `run_final.sh` and
+  `run_perception_iteration.sh`; `run_human_agreement.sh` calls `h200_py` directly);
+  `run_query.py` exports `query_settings` (was `_settings`) for `agreement_query.py` and takes
+  `QueryError`, `read_json`, `PROFILE` and `DEVICE` from `physverify.freeze`. Declared message
+  changes of the renamed scripts: the stderr prefixes `a8v2_query:` -> `run_query:` and
+  `h2_query:` -> `agreement_query:`.
 - J14: the freeze queries live in `physverify.freeze` (`errors`, `files`, `selection`, `diffs`,
   `manifest`, `fresh_render`, `ledger`); `scripts/h200/freeze_query.py` keeps the settings, the
   parser, the dispatch and `main`. The package sits at the `finetune` layer, so it does not
