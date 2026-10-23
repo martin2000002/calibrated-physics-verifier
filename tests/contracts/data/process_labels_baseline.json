@@ -757,8 +757,11 @@
  "src/physverify/synth/family_toolkit.py": {
   "comment_or_docstring": 1
  },
+ "src/physverify/synth/gt_contact_records.py": {
+  "comment_or_docstring": 2
+ },
  "src/physverify/synth/gt_contacts.py": {
-  "comment_or_docstring": 3
+  "comment_or_docstring": 1
  },
  "src/physverify/synth/gt_export.py": {
   "comment_or_docstring": 3

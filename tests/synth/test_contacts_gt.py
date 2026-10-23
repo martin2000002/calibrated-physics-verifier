@@ -17,8 +17,8 @@ from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactKind, ContactRecord, ManifoldKind, RawCollisions
 from physverify.schema.scene import SceneSpec
 from physverify.schema.states import ObjectStateTable
+from physverify.synth.gt_contact_records import CLOSEST_SOURCE
 from physverify.synth.gt_contacts import (
-    CLOSEST_SOURCE,
     EVENT_STEP_OFFSET,
     ClosestSamples,
     Patch,
