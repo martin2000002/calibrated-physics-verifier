@@ -11,7 +11,7 @@ from numpy.typing import NDArray
 from synthetic_clip import build_clip
 
 from physverify.config.models import RuntimeSettings
-from physverify.diagnosis.real_video_metrics import (
+from physverify.diagnosis.real_video.metrics import (
     TimeBases,
     fall_diagnosis,
     fall_window,

@@ -9,7 +9,7 @@ from typing import Any
 
 from physverify.core.models import ReportModel
 from physverify.diagnosis.markdown_cells import cell_text, section, text_table
-from physverify.diagnosis.real_video_markdown import fall_section, motion_section, verdict_section
+from physverify.diagnosis.real_video.markdown import fall_section, motion_section, verdict_section
 from physverify.diagnosis.report import (
     MISSING,
     PROVISIONAL_NOTE,

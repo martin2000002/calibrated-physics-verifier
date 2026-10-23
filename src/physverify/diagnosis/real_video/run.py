@@ -23,7 +23,7 @@ from physverify.diagnosis.chain_variants import perceived_variant
 from physverify.diagnosis.context import DiagnosisContext
 from physverify.diagnosis.end_to_end import decided, track_of, variant_outputs, variant_results
 from physverify.diagnosis.measurement_cases import stage_output
-from physverify.diagnosis.real_video_metrics import TimeBases, fall_diagnosis, motion_scores
+from physverify.diagnosis.real_video.metrics import TimeBases, fall_diagnosis, motion_scores
 from physverify.diagnosis.report import (
     Failure,
     FallRow,

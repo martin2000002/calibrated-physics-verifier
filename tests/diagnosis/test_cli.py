@@ -22,7 +22,7 @@ from physverify.core.download import MANIFEST_FILE, FetchedFile, FetchManifest, 
 from physverify.core.errors import MissingInputError, UsageError
 from physverify.datasets import _base
 from physverify.diagnosis.context import DiagnosisContext
-from physverify.diagnosis.real_video import ALL_CLIPS, run_real
+from physverify.diagnosis.real_video.run import ALL_CLIPS, run_real
 from physverify.diagnosis.report import RealVideoReport, build_provenance
 from physverify.diagnosis.summary import summary_lines
 from physverify.extraction._base import StageProvider

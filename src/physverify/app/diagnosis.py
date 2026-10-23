@@ -16,8 +16,8 @@ from physverify.datasets._base import select_clips
 from physverify.diagnosis.attribution_run import run_attribution
 from physverify.diagnosis.context import DiagnosisContext, sampled_metrics
 from physverify.diagnosis.end_to_end import run_end_to_end
-from physverify.diagnosis.real_video import run_real
-from physverify.diagnosis.real_video import select_clips as real_clips
+from physverify.diagnosis.real_video.run import run_real
+from physverify.diagnosis.real_video.run import select_clips as real_clips
 from physverify.diagnosis.report import Report
 from physverify.diagnosis.report_markdown import write_report
 from physverify.diagnosis.settings import DiagnosisSettings, diagnosis_settings
