@@ -22,7 +22,10 @@ SECTION = "exclusion_rules"
 DELTA_TPR = "delta_tpr"
 KEPT = "kept"
 ARMS = ("base", "tiny")
-RULE_IDS = ("1.1", "1.2", "1.5")
+R5A_RULE_ID = "1.1"
+R2_RULE_ID = "1.2"
+REAL_FPR_RULE_ID = "1.5"
+RULE_IDS = (R5A_RULE_ID, R2_RULE_ID, REAL_FPR_RULE_ID)
 """The preregistered rule ids, in the order ``exclusion_decision.RULES`` applies them."""
 
 

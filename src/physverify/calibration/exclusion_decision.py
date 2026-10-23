@@ -15,7 +15,9 @@ from physverify.calibration.exclusion_inputs import (
 )
 from physverify.calibration.exclusion_rules import (
     KEPT,
-    RULE_IDS,
+    R2_RULE_ID,
+    R5A_RULE_ID,
+    REAL_FPR_RULE_ID,
     ExclusionRules,
     R5aRule,
     RealRule,
@@ -62,7 +64,7 @@ def _r5a(consumed: ConsumedStratum, check_id: str, cfg: R5aRule) -> RuleEvidence
         reason = "kendall_tau_b_low_not_positive"
     else:
         reason = KEPT
-    return rule_evidence("1.1", check_id, reason, inputs, decided=True)
+    return rule_evidence(R5A_RULE_ID, check_id, reason, inputs, decided=True)
 
 
 # --- 1.5 ----------------------------------------------------------------------------------------
@@ -143,17 +145,21 @@ def _real(
         if exact.low is not None:
             lows.append(exact.low)
     if not lows:
-        return rule_evidence("1.5", check_id, "no_rows", evidence, decided=False)
+        return rule_evidence(REAL_FPR_RULE_ID, check_id, "no_rows", evidence, decided=False)
     worst = max(lows)
     evidence["worst_cp_low"] = worst
     reason = "real_fpr_high" if worst > cfg.max_fpr_lower else KEPT
-    return rule_evidence("1.5", check_id, reason, evidence, decided=True)
+    return rule_evidence(REAL_FPR_RULE_ID, check_id, reason, evidence, decided=True)
 
 
 # --- decision -----------------------------------------------------------------------------------
 
 Apply = Callable[[DecisionInputs, ExclusionRules], tuple[RuleEvidence, ...]]
-RULES: Mapping[str, Apply] = dict(zip(RULE_IDS, (r5a_rule, r2_rule, real_fpr_rule), strict=True))
+RULES: Mapping[str, Apply] = {
+    R5A_RULE_ID: r5a_rule,
+    R2_RULE_ID: r2_rule,
+    REAL_FPR_RULE_ID: real_fpr_rule,
+}
 """The preregistered rules by id; a new rule is one function with this signature."""
 
 

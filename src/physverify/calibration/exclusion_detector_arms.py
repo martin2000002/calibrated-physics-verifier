@@ -20,6 +20,7 @@ from physverify.calibration.exclusion_rules import (
     ARMS,
     DELTA_TPR,
     KEPT,
+    R2_RULE_ID,
     ExclusionRules,
     R2Rule,
 )
@@ -129,7 +130,7 @@ def _r2(inputs: DecisionInputs, check_id: str, rules: ExclusionRules) -> RuleEvi
     evidence: dict[str, EvidenceValue] = {**_counts(rows), "tau": tau}
     if tau is None or inputs.consumed.problem is not None:
         evidence["stratum_problem"] = inputs.consumed.problem
-        return rule_evidence("1.2", check_id, "no_usable_tau", evidence, decided=False)
+        return rule_evidence(R2_RULE_ID, check_id, "no_usable_tau", evidence, decided=False)
     rule = rule_for(stratum, check_id, policy_for(stratum))
     evidence |= {"bias": rule.bias, "sigma_factor": rule.factor}
     flags = {label: {r.clip_id: fails(r, rule, tau) for r in arm} for label, arm in rows.items()}
@@ -211,7 +212,7 @@ def _r2_decision(
         "delta_tpr_high": ci.high,
         "delta_tpr_non_finite": ci.non_finite,
     }
-    return rule_evidence("1.2", check_id, reason, evidence, decided=decided)
+    return rule_evidence(R2_RULE_ID, check_id, reason, evidence, decided=decided)
 
 
 def _delta_tpr_ci(
