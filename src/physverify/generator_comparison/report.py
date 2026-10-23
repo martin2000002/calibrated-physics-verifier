@@ -6,7 +6,7 @@ from __future__ import annotations
 from typing import Final
 
 from physverify.core.atomic import write_text_atomic
-from physverify.core.markdown import number, table
+from physverify.core.markdown import SIG4, table
 from physverify.core.models import FrozenModel
 from physverify.generator_comparison.analysis_inputs import ArmSummary
 from physverify.generator_comparison.guards import GuardResult
@@ -50,7 +50,7 @@ class ComparisonReport(FrozenModel):
 
 
 def _num(value: float | int | None) -> str:
-    return str(value) if isinstance(value, int) else number(value, ".4g", NONE)
+    return str(value) if isinstance(value, int) else SIG4(value)
 
 
 TEST_HEADER: Final = ["test", "n", "dropped", "p", "HL", "mean", "CI of mean"]

@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from physverify.calibration.artifact import StageFactor
 from physverify.calibration.artifact_io import Calibration
 from physverify.calibration.dev_score import DevScoreReport, LevelDevScore
-from physverify.core.markdown import number
+from physverify.core.markdown import SIG4
 
 
 def show_lines(
@@ -75,5 +75,4 @@ def factor_lines(factors: Sequence[StageFactor]) -> list[str]:
     return lines
 
 
-def _num(value: float | None) -> str:
-    return number(value, ".4g", "-")
+_num = SIG4
