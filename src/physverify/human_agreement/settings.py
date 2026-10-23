@@ -1,5 +1,5 @@
-"""``[agreement]`` (configs/studies/human_agreement.toml): the pre-registered comparison of ADR
-0011."""
+"""``[agreement]`` (configs/studies/human_agreement.toml): the pre-registered comparison of the
+human-agreement study."""
 
 from __future__ import annotations
 
@@ -34,10 +34,10 @@ class AgreementSettings(FrozenModel):
     error_seed: int
     on_unusable_stratum: Literal["descriptive", "error"] = "descriptive"
     """A calibrated rule whose stratum cannot score yet: fall back to the provisional rule and
-    report H2 as not evaluable, or stop with a configuration error (item 1.3)."""
+    report the study as not evaluable, or stop with a configuration error (item 1.3)."""
     exclude_time_dependent: bool = False
-    """Leave [check_scope].time_dependent_checks out of the primary rule; ADR 0011 keeps them
-    (true is a pre-registration change, declared in ADR 0011 before the freeze)."""
+    """Leave [check_scope].time_dependent_checks out of the primary rule; the primary keeps them
+    (true is a pre-registration change, declared before the freeze)."""
     dev_subset: str
     test_subset: str
     preregistration: str

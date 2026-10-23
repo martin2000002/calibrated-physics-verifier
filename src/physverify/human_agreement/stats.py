@@ -1,4 +1,4 @@
-"""Agreement statistics (ADR 0011 D6, D8). Labels are 0/1 with 1 = implausible (positive)."""
+"""Agreement statistics. Labels are 0/1 with 1 = implausible (positive)."""
 
 from __future__ import annotations
 

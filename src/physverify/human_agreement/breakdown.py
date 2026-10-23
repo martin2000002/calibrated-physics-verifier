@@ -1,4 +1,4 @@
-"""Where the verifier's agreement comes from (ADR 0011 D9): per check, per generator."""
+"""Where the verifier's agreement comes from: per check, per generator."""
 
 from __future__ import annotations
 
@@ -12,7 +12,8 @@ from physverify.human_agreement.stats import accuracy, balanced_accuracy
 from physverify.human_agreement.undecided_policy import labels_of, policy_view
 from physverify.verification.runner import RowStatus
 
-# The pooled group H2 is decided on; each version alone is descriptive (too few pairs).
+# The pooled group the human-agreement study is decided on; each version alone is descriptive (too
+# few pairs).
 AGGREGATE = "all"
 
 Redecide = Callable[[frozenset[str]], Sequence[ComparisonItem]]

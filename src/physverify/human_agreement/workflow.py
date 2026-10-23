@@ -1,5 +1,5 @@
 """``agreement freeze`` and ``agreement compare`` as functions of injected settings, dataset and
-calibration API (ADR 0011 D10): the CLI only parses options and prints."""
+calibration API: the CLI only parses options and prints."""
 
 from __future__ import annotations
 

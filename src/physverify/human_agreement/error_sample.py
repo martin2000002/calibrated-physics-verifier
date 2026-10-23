@@ -1,4 +1,4 @@
-"""A seeded sample of the verifier's false positives and negatives for manual reading (D9).
+"""A seeded sample of the verifier's false positives and negatives for manual reading.
 
 The ``category`` column stays empty: it is filled by hand with one of ``CATEGORIES``.
 """

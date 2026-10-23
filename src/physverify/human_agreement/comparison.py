@@ -1,5 +1,5 @@
-"""The comparison itself: decisions, items, every policy and group, secondary cuts, breakdowns
-(ADR 0011 D5-D10). Pure: inputs are injected, outputs are plain data for ``report``."""
+"""The comparison itself: decisions, items, every policy and group, secondary cuts, breakdowns.
+Pure: inputs are injected, outputs are plain data for ``report``."""
 
 from __future__ import annotations
 
@@ -129,8 +129,8 @@ def _secondary(
 
 
 def _sensitivity(inputs: ComparisonInputs) -> dict[str, Any]:
-    """The primary policy with the time-dependent checks moved: out of the primary by default
-    (Juicio change 7), back in when the primary already leaves them out."""
+    """The primary policy with the time-dependent checks moved: out of the primary by default,
+    back in when the primary already leaves them out."""
     scope = inputs.scope
     in_primary = not scope.primary_excluded
     moved, _ = _items(inputs, scope.time_dependent if in_primary else frozenset())

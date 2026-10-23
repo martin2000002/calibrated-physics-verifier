@@ -1,4 +1,4 @@
-"""What an undecided verifier clip counts as (ADR 0011 D7). Each policy returns the indices of the
+"""What an undecided verifier clip counts as. Each policy returns the indices of the
 items it scores and, per item, the verifier and the VLM predictions (1 = implausible)."""
 
 from __future__ import annotations

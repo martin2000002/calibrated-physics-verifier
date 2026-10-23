@@ -72,7 +72,8 @@ def uncovered(queries: Mapping[str, object], labels: frozenset[str]) -> list[str
 
 
 def sized_labels_or_none(settings: Settings) -> frozenset[str] | None:
-    """A9's sized labels, or None when A9's model is not installed yet."""
+    """The size estimator's sized labels, or None when the size estimator's model is not installed
+    yet."""
     try:
         from physverify.sizing.model import sized_labels
     except ImportError:

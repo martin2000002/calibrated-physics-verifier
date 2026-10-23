@@ -1,4 +1,4 @@
-"""Files of one comparison under ``<verify run>/agreement/`` (ADR 0011 C5)."""
+"""Files of one comparison under ``<verify run>/agreement/``."""
 
 from __future__ import annotations
 
@@ -217,7 +217,8 @@ def _verdict_lines(verdict: Mapping[str, Any], primary: Mapping[str, Any]) -> li
 
 
 def _not_evaluable_lines(verdict: Mapping[str, Any], rate: str) -> list[str]:
-    """Item 1.3: the stratum was not usable, so the provisional rule ran and H2 has no verdict."""
+    """Item 1.3: the stratum was not usable, so the provisional rule ran and the study has no
+    verdict."""
     return [
         f"**H2 not evaluable with the calibrated rule** ({verdict['gate']}). The numbers below "
         f"are descriptive, from the provisional rule; {rate}.",

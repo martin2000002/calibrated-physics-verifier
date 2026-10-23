@@ -1,10 +1,10 @@
-"""Pre-registration of the test comparison (ADR 0011 D10, Juicio changes 2 and 8).
+"""Pre-registration of the test comparison.
 
-Written by ``agreement freeze`` from the dev run, before any test run is compared. ``compare``
-on the test subset recomputes every frozen hash and refuses to run when one changed. A refreeze
-archives the file it replaces; once a test comparison exists it needs a declared deviation and
-makes the H2 verdict post hoc. The chain and audit helpers here are shared with H3.
-"""
+Written by ``agreement freeze`` from the dev run, before any test run is compared. ``compare`` on
+the test subset recomputes every frozen hash and refuses to run when one changed. A refreeze
+archives the file it replaces; once a test comparison exists it needs a declared deviation and makes
+the study's verdict post hoc. The chain and audit helpers here are shared with the generator
+comparison."""
 
 from __future__ import annotations
 
@@ -66,7 +66,7 @@ class Preregistration(FrozenModel):
     """Estimated on h2_dev (caption ANOVA ICC of the primary discordance); the clustered MDE of
     the test comparison uses it, so the test data do not decide how it is read."""
     exclusion_record_sha256: str | None = None
-    """The ADR 0015 decision record the excluded checks came from (None: none was decided)."""
+    """The exclusion decision record the excluded checks came from (None: none was decided)."""
     secondary_tests: list[str] = Field(default_factory=list)
     replaces_sha256: str | None = None
     deviations: list[str] = Field(default_factory=list)
@@ -74,9 +74,10 @@ class Preregistration(FrozenModel):
 
 
 class FreezeAudit(FrozenModel):
-    """How a report is bound to its pre-registration (H2 and H3). ``blind`` compares the first
-    freeze with the earliest evaluated file time and ``frozen_after_eval`` the current freeze with
-    it; both are informational only (file times can be touched)."""
+    """How a report is bound to its pre-registration (human-agreement study and generator
+    comparison). ``blind`` compares the first freeze with the earliest evaluated file time and
+    ``frozen_after_eval`` the current freeze with it; both are informational only (file times can be
+    touched)."""
 
     prereg_sha256: str
     versions: int

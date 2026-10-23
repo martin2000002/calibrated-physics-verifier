@@ -1,4 +1,4 @@
-"""Paired comparison items: human label, reference VLM and verifier decision per video (D3-D5).
+"""Paired comparison items: human label, reference VLM and verifier decision per video.
 
 Positive class = implausible (what the verifier detects). Every score is oriented as an
 implausibility: the verifier's rule score, the VLM's negated plausibility score, the human's
@@ -46,9 +46,9 @@ class ComparisonItem:
 
 @dataclass(frozen=True)
 class JoinCounts:
-    """Rows of the subset and why some are not compared (D3: NaN labels are excluded, counted).
+    """Rows of the subset and why some are not compared (NaN labels are excluded, counted).
     ``not_verified`` rows have no clip in the run (video missing from the source or unreadable);
-    they are compared as ``check_error`` abstentions (D7)."""
+    they are compared as ``check_error`` abstentions."""
 
     rows: int
     human_missing: int
