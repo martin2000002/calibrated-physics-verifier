@@ -22,6 +22,7 @@ DIFF_PATHS: Mapping[str, tuple[str, ...]] = {
     "j13": (
         "src/physverify/extraction",
         "src/physverify/verification/check_set.py",
+        "src/physverify/physics/ties.py",
         *_MOVED_OUT,
         "configs/extraction.toml",
         "configs/verifier/extraction.toml",
