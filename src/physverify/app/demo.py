@@ -67,7 +67,7 @@ def target_checks(context: AppContext, wanted: Sequence[str] | None) -> list[str
     return list(wanted) if wanted else known
 
 
-def active_scorer(context: AppContext) -> Rule:
+def demo_rule(context: AppContext) -> Rule:
     """``finetune.scorer``, or the provisional rule (labelled as such) when it is unavailable."""
     settings = context.settings
     name = load_finetune(settings).scorer
@@ -155,7 +155,7 @@ def run_adhoc(context: AppContext, request: AdhocRequest, echo: Echo) -> None:
         cand = load_finetune(settings).candidates.model_copy(update={"store_latents": False})
         generator = candidate_generator(context, store, adapter, candidates=cand)
     target = request.out or default_out(settings)
-    deps = demo_deps(context, store, settings, active_scorer(context))
+    deps = demo_deps(context, store, settings, demo_rule(context))
     report = run_demo(record, deps, out=target, video=video, generator=generator)
     _echo(report, target, echo)
 
@@ -195,5 +195,5 @@ def rebuild(context: AppContext, results: Path, out: Path | None, echo: Echo) ->
     old = read_report(results)
     provenance = {"rebuilt_commit": current_commit(settings.repo_root)}
     target = out or default_out(settings)
-    deps = report_deps(settings, provenance, active_scorer(context))
+    deps = report_deps(settings, provenance, demo_rule(context))
     _echo(rebuild_report(old, deps, target), target, echo)

@@ -7,6 +7,7 @@ import datetime as dt
 
 from physverify.app.context import AppContext
 from physverify.app.finetune import (
+    active_scorer,
     candidate_generator,
     current_verdict,
     require_cuda,
@@ -21,6 +22,7 @@ from physverify.core.errors import MissingInputError, UsageError, choice
 from physverify.core.output import Echo
 from physverify.datasets.videophy import FETCH_HINT, VideophyDataset
 from physverify.finetune.candidate_scoring import rescorer, score_candidates
+from physverify.finetune.prompts import campaign_prompts
 from physverify.finetune.records import read_record, write_record
 from physverify.finetune.scorers._base import AggregateScorer
 from physverify.finetune.seeds import parse_shard
@@ -32,7 +34,6 @@ from physverify.generator_comparison.context import (
     H3Context,
     arm_of,
     arm_tags,
-    campaign_prompts,
     reference_path,
     reference_rows,
     selection,
@@ -76,14 +77,6 @@ def campaign_scorer(context: AppContext, h: H3Context) -> AggregateScorer:
     return scorer_for(context, h.finetune.scorer)
 
 
-def available_scorer(context: AppContext, h: H3Context) -> AggregateScorer:
-    scorer = campaign_scorer(context, h)
-    reason = scorer.unavailable()
-    if reason is not None:
-        raise UsageError(f"scorer {scorer.name} is unavailable: {reason}")
-    return scorer
-
-
 def campaign_judge(context: AppContext, h: H3Context) -> Judge:
     return external_judge(context, h.cfg, h.layout.runs)
 
@@ -97,7 +90,7 @@ def available_judge(context: AppContext, h: H3Context) -> Judge:
 
 
 def current_prereg(context: AppContext, h: H3Context) -> H3Preregistration:
-    campaign_prompts(h)
+    campaign_prompts(h.store)
     scorer = campaign_scorer(context, h)
     source = reference_path(h)
     settings = context.settings
@@ -168,7 +161,7 @@ def generate_arm(
     generator = candidate_generator(context, h.store, adapter, candidates=candidates)
     if generator.model_tag != tag:
         raise UsageError(f"{adapter} now hashes to {generator.model_tag}, selected was {tag}")
-    prompts = eval_prompts(campaign_prompts(h))
+    prompts = eval_prompts(campaign_prompts(h.store))
     analysed = analysis_prompts(prompts, h.cfg.exclude_tags)
     analysed_ids = {p.prompt_id for p in analysed}
     shown = [p for p in prompts if p.prompt_id not in analysed_ids]
@@ -214,7 +207,7 @@ def _frozen_scorer(
     context: AppContext, h: H3Context
 ) -> tuple[H3Preregistration, str, AggregateScorer]:
     prereg, sha256 = require_frozen(context, h)
-    scorer = available_scorer(context, h)
+    scorer = active_scorer(context, h.finetune.scorer)
     problem = frozen_stamp_problem(scorer, prereg)
     if problem is not None:
         raise UsageError(problem)
@@ -228,7 +221,7 @@ def score_arm(context: AppContext, arm: str, shard: str | None, *, echo: Echo) -
     tag, _ = arm_of(h, arm)
     if stale(eval_scores(h.store, tag, scorer.name), scorer):
         raise UsageError(f"{tag} has eval scores of another stamp: run `physverify h3 rescore`")
-    prompts = eval_prompts(campaign_prompts(h))
+    prompts = eval_prompts(campaign_prompts(h.store))
     deps = scoring_deps(context)
     score_candidates(h.store, tag, prompts, scorer, deps, parse_shard(shard))
     write_calibration_status(h.store, tag, scorer)
@@ -307,7 +300,7 @@ def run_gate(context: AppContext, *, echo: Echo) -> bool:
 def compare_arms(context: AppContext, *, echo: Echo) -> None:
     h = H3Context.of(context.settings)
     prereg, sha256 = require_frozen(context, h)
-    scorer = available_scorer(context, h)
+    scorer = active_scorer(context, h.finetune.scorer)
     inputs = CompareInputs(
         store=h.store,
         layout=h.layout,

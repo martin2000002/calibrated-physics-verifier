@@ -12,7 +12,7 @@ from physverify.core.errors import ConfigError, UsageError, choice
 from physverify.datasets._videophy_tables import LABELS_DIR, read_table
 from physverify.datasets.videophy import FETCH_HINT, VideophyDataset
 from physverify.finetune.layout import SELECTED_FILE, CampaignStore
-from physverify.finetune.records import BASE_TAG, PromptRecord, read_record
+from physverify.finetune.records import BASE_TAG, read_record
 from physverify.finetune.selection import Selection
 from physverify.finetune.settings import FinetuneSettings, load_finetune
 from physverify.generator_comparison.layout import H3Layout
@@ -37,12 +37,6 @@ class H3Context:
         return cls(
             settings, load_h3(settings), load_finetune(settings), store, H3Layout.of(store.root)
         )
-
-
-def campaign_prompts(h: H3Context) -> list[PromptRecord]:
-    if not h.store.prompts_path.is_file():
-        raise UsageError(f"{h.store.prompts_path} does not exist: run 'finetune prompts build'")
-    return h.store.prompts()
 
 
 def selection(h: H3Context) -> Selection:

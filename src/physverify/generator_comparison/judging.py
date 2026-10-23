@@ -13,10 +13,11 @@ from pathlib import Path
 from physverify.core.errors import MissingInputError, UsageError, choice
 from physverify.core.output import Echo
 from physverify.datasets._videophy_tables import VideophyRow, to_float
+from physverify.finetune.prompts import campaign_prompts
 from physverify.finetune.records import BASE_TAG, CandidateRecord, PromptRecord, write_record
 from physverify.generator_comparison.arms import analysis_prompts
 from physverify.generator_comparison.candidate_queries import eval_records
-from physverify.generator_comparison.context import H3Context, arm_tags, campaign_prompts, selection
+from physverify.generator_comparison.context import H3Context, arm_tags, selection
 from physverify.generator_comparison.judge_gate import gate_task
 from physverify.generator_comparison.judges._base import Judge, JudgeInput, JudgeScore
 from physverify.generator_comparison.prereg import H3Preregistration
@@ -131,7 +132,7 @@ def dev_items(h: H3Context) -> dict[str, list[JudgeInput]]:
     """Dev candidates of the base and of the selected checkpoint (the usability test)."""
     selected = selection(h).selected
     tags = [BASE_TAG] if selected is None else [BASE_TAG, selected.model_tag]
-    dev = {p.prompt_id: p for p in campaign_prompts(h) if p.split == DEV_SPLIT}
+    dev = {p.prompt_id: p for p in campaign_prompts(h.store) if p.split == DEV_SPLIT}
     return {
         tag: candidate_items([r for r in h.store.candidates(tag) if r.split == DEV_SPLIT], dev)
         for tag in tags
@@ -139,7 +140,7 @@ def dev_items(h: H3Context) -> dict[str, list[JudgeInput]]:
 
 
 def eval_items(h: H3Context, prereg: H3Preregistration) -> dict[str, list[JudgeInput]]:
-    analysed = analysis_prompts(campaign_prompts(h), h.cfg.exclude_tags)
+    analysed = analysis_prompts(campaign_prompts(h.store), h.cfg.exclude_tags)
     return {
         tag: candidate_items(eval_records(h.store, tag), {p.prompt_id: p for p in analysed})
         for tag in arm_tags(prereg)
