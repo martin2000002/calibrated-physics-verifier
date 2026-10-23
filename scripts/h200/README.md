@@ -2,7 +2,14 @@
 
 Runners for the university H200 server. **Generation and every cost measurement run only on the
 H200; runs on any other machine are harness checks, not measurements.** A run counts as a
-measurement only with `--device cuda` and the `precise` profile, which these scripts always pass.
+measurement only with `--device cuda` and the `precise` profile. `pv` in `_common.sh` passes both
+by default, and `run_timing.sh`, `run_preference.sh`, `run_finetune.sh`,
+`run_generator_comparison.sh` and `smoke_autoeval.sh` keep them. The other runners do not:
+`smoke_finetune.sh` uses the `fast` profile; `run_freeze.sh`, `run_final.sh` and
+`run_human_agreement.sh` run on the CPU; `run_perception_iteration.sh` takes its device from
+`PHYSVERIFY_ITERATION_DEVICE` (default `cpu`) and its profile from `PHYSVERIFY_ITERATION_PROFILE`;
+`run_kubric.sh` runs on the CPU with the profile of `PHYSVERIFY_KUBRIC_PROFILE`; and `run_demo.sh`
+scores a given video with `--device cpu` when there is no GPU.
 
 Each script's header lists its commands or steps, its startup checks (every refusal exits 2
 before any `physverify` call) and its variables with their defaults; this file gives the order of
@@ -38,9 +45,11 @@ source "$PHYSVERIFY_H200_ROOT/env.sh"   # HOME, XDG_CACHE_HOME, HF_HOME, UV_*, P
 ```
 
 It derives every path from the directory it sits in. `run_kubric.sh`, `run_demo.sh`,
-`run_generator_comparison.sh`, `setup_autoeval.sh` and `smoke_autoeval.sh` source it when present
-(`source_h200_env` in `_common.sh`); source it by hand before the other scripts. The first runs used
-the root `/tmp/mmonterot`, which the 30-day purge of `/tmp` can wipe;
+`run_generator_comparison.sh`, `setup_autoeval.sh`, `smoke_autoeval.sh`,
+`run_perception_iteration.sh`, `run_freeze.sh`, `run_final.sh` and `run_human_agreement.sh` source
+it when present (`source_h200_env` in `_common.sh`); source it by hand before the other scripts
+(`run_timing.sh`, `setup_cuda.sh`, `smoke_finetune.sh`, `run_preference.sh`, `run_finetune.sh`).
+The first runs used the root `/tmp/mmonterot`, which the 30-day purge of `/tmp` can wipe;
 `PHYSVERIFY_H200_ROOT=/tmp/mmonterot` still reproduces that layout.
 
 ## Timing
@@ -55,7 +64,7 @@ perturbed so `kubric_render` can be timed; otherwise that target is skipped with
 bash scripts/h200/run_timing.sh
 ```
 
-It runs, from `Repo/`:
+It runs, from the repository root:
 
 1. `setup_cuda.sh`: `uv sync --no-default-groups --group dev --group cu128 --group perception
    --group generation --group data`, a check that torch sees CUDA, `extract fetch-weights` for the
@@ -95,13 +104,22 @@ bash scripts/h200/run_preference.sh                              # all train and
 bash scripts/h200/run_finetune.sh                                # beta grid, training, selection
 ```
 
-1. `smoke_finetune.sh`: the `fast` profile (campaign `wan21_smoke`, 2 prompts with one kept for
-   val, K = 2) with the provisional scorer and relaxed pair rules; 5 training steps, a check that
-   the val `kl_proxy` moved off 0, and one video generated with the trained adapter.
+1. `smoke_finetune.sh`: the `fast` profile on the campaign `wan21_smoke`, with
+   `finetune.prompts.n_train=8` and `val_fraction=0.5` (two prompts per family, so the per-family
+   val split keeps one of each), `finetune.candidates.k_train=4`, the provisional scorer and
+   relaxed pair rules (`min_margin`, `min_motion`, `sigma_k` and `min_motion_ratio` at 0, no
+   object-count requirement, `max_pairs_per_prompt=2`); then 5 training steps, a check that the
+   val `kl_proxy` moved off 0, and one video generated with the trained adapter.
 2. `run_preference.sh`: `finetune prompts build`, `generate` and `score` of the train (and dev)
-   split, then `finetune pairs`. Stop after the pilot and review the calibration and the
-   abstention level if pairs per prompt are below 0.3, abstention per candidate is above 50 %, or
-   fewer than 6 of 10 inspected pairs show the better video as winner.
+   split, then `finetune pairs`. After the pilot, record the hand review of its pairs with
+   `physverify finetune pilot-review --sample` (prints the pairs to inspect) and then `--better
+   N`. The stop rule (`[finetune.stop_rule]` in `configs/studies/finetune.toml`,
+   `finetune/stop_rule.py`) fires when pairs per scored prompt are below 0.3, abstention per
+   candidate is above 50 %, no review of these pairs is recorded, or fewer than 6 of the 10
+   inspected pairs show the better video as winner. `finetune train`, `finetune beta-grid`,
+   `compare-generators generate` and `compare-generators freeze` then exit 2 unless
+   `--stop-rule-deviation TEXT` is given or `finetune.stop_rule.enforce` is false; the verdict
+   goes to `pairs/<scorer>/stop_rule.json` either way.
 3. `run_finetune.sh`: `finetune beta-grid` (4 short runs of a quarter of the main run each, chosen
    on val pairs), `finetune train` (warmup and checkpoint spacing are fractions of the run's
    steps; it exits 2 when the schedule would leave fewer checkpoints than `select` compares) and
@@ -141,8 +159,8 @@ nohup bash scripts/h200/run_kubric.sh full >/dev/null 2>&1 &
   `udocker`), plus `..._UDOCKER_BIN` (`PHYSVERIFY_UDOCKER`, default
   `$PHYSVERIFY_H200_ROOT/udocker-venv/bin/udocker`) and `..._UDOCKER_CONTAINER`
   (`PHYSVERIFY_UDOCKER_CONTAINER`, default `kub`) for udocker;
-- `PHYSVERIFY__PATHS__DATA_DIR` (default `$PHYSVERIFY_H200_ROOT/kubric-data`, outside `Repo/` so
-  the laptop's `rsync --delete` cannot touch it);
+- `PHYSVERIFY__PATHS__DATA_DIR` (default `$PHYSVERIFY_H200_ROOT/kubric-data`, outside the
+  repository root so the laptop's `rsync --delete` cannot touch it);
 - a Kubric-only heavy lock (`PHYSVERIFY_KUBRIC_LOCK`, default `$PHYSVERIFY_H200_ROOT/kubric.lock`,
   timeout 0): a second build on the same lock exits 75.
 
@@ -201,8 +219,8 @@ Everything lands in `$PHYSVERIFY_H200_ROOT/iterations/<id>-<device>/` (calibrati
 runs, heavy lock, `devscore.json`, the full calib fit `calibration.json`, `summary.md`).
 `PHYSVERIFY_ITERATION_PROFILE` (default `precise`) picks the sampling profile, which also fixes the
 dataset version the calib clips are listed from. With `PHYSVERIFY_ITERATION_DEVICE=cuda`, launch it
-through `gpu_queue.sh` with one GPU, `CUDA_VISIBLE_DEVICES` in 0-3 (anything else, a list
-included, exits 2).
+with one GPU, `CUDA_VISIBLE_DEVICES` in 0-3 (anything else, a list included, exits 2), through
+`gpu_queue.sh`, the server's GPU queue launcher (not in this repository).
 
 Declared arms: `PHYSVERIFY_ITERATION_ARM=<arm>` names a line of `perception_arms.tsv`, whose
 provider swaps (`extraction.plan.<stage>=<provider>` only) go as `--set` to every physverify call.
@@ -216,7 +234,8 @@ another arm exits 2) and the summary names the arm and the GPU. Give each arm it
 
 The sealed ledger (`configs/verifier/sealed.toml`): `calibrate fit|stage-sigma|evaluate|dev-score`,
 `selective-risk fit|curve`, `verify`, `diagnose *` and `scene-stats per-clip` exit 2 before
-computing on a sealed set (`kubric_synthetic:eval`, the fresh controls) unless `PHYSVERIFY_UNSEAL`
+computing on a sealed set (`kubric_synthetic:eval`, `kubric_fresh`, `kubric_fresh_ood`,
+`kubric_fresh_blind`, `physics_iq_views`, `objectron_static`) unless `PHYSVERIFY_UNSEAL`
 names it, and then append a line to the ledger first. A look never creates the ledger: create it
 once, by hand, with `env.sh` sourced (`touch "$PHYSVERIFY_H200_ROOT/sealed-ledger.txt"`); a missing
 file (a wrong `HOME`, another path) stops the look, and stderr prints the path it resolved. A look
@@ -264,9 +283,9 @@ set without the render of the seed, a render after a look, a second look at any 
 covers (`look SET --retry` passes once, when that look wrote no evaluation) and changed downloads.
 Bookkeeping, logs and per-command summaries land in `$F/run-final/`; commands on different sets may
 run at the same time (each holds its own locks; the heavy lock is `$F/heavy.lock`). The v1 arm runs
-at the v1 commit through `overlay_cli.py` (`PHYSVERIFY_FINAL_OVERLAY_CLI`) with the freeze's
-configs and the base `checks.toml`, the base calibration and `PHYSVERIFY_UNSEAL_REPEAT=1`, and must
-leave no `meta.json` in its overlay. `PHYSVERIFY_FINAL_DRYRUN=1` is the rehearsal: `$F`, the data,
+at the v1 commit through `overlay_cli.py` (`PHYSVERIFY_FINAL_OVERLAY_CLI`; a server-side script,
+not in this repository) with the freeze's configs and the base `checks.toml`, the base calibration
+and `PHYSVERIFY_UNSEAL_REPEAT=1`, and must leave no `meta.json` in its overlay. `PHYSVERIFY_FINAL_DRYRUN=1` is the rehearsal: `$F`, the data,
 the cache and its own ledger (`PHYSVERIFY__SEALED__LEDGER`) under `$PHYSVERIFY_H200_ROOT/scratch`,
 a seed other than the freeze's, never `kubric_synthetic_eval`, and, for the new real control,
 `PHYSVERIFY__PHYSICS_IQ_VIEWS__VIEWS='["center"]'` and `PHYSVERIFY__OBJECTRON_STATIC__SPLIT=train`.
@@ -293,10 +312,12 @@ Two phases a person runs in turn, on the CPU (`--profile precise --device cpu`, 
 the VideoPhy clips) through `$PHYSVERIFY_AGREEMENT_PYTHON`, with no `uv` and no GPU. `dev` fetches,
 extracts and verifies the dev subset and freezes the rule, gate and cut into the pre-registration;
 `test` does the same on the test subset and runs the one pre-registered `agreement compare --rule
-calibrated`. Without `PHYSVERIFY_AGREEMENT_FREEZE` it reads the CPU calibration chain in
-`PHYSVERIFY_AGREEMENT_CHAIN_DIR`. `test` refuses once any comparison is logged, also through the
-list of test logs in `$PHYSVERIFY_H200_ROOT/h2-test-ledger.txt`, and `dev` refuses on the same
-evidence. A pre-registration with a calibration gate makes the study not evaluable with the
+calibrated`. With `PHYSVERIFY_AGREEMENT_FREEZE` it reads the freeze manifest (`freeze.json` of
+`run_freeze.sh`); without it, the CPU calibration chain in `PHYSVERIFY_AGREEMENT_CHAIN_DIR`, the
+stored output directory of a calibration-chain runner that is no longer in the repository
+(default: `CHAIN_ROOT` of `_common.sh`, under `$PHYSVERIFY_H200_ROOT`). `test` refuses once any
+comparison is logged, also through the list of test logs in
+`$PHYSVERIFY_H200_ROOT/h2-test-ledger.txt`, and `dev` refuses on the same evidence. A pre-registration with a calibration gate makes the study not evaluable with the
 calibrated rule; `test` then needs `PHYSVERIFY_AGREEMENT_ACCEPT_NOT_EVALUABLE=1`. Output goes to
 `PHYSVERIFY_AGREEMENT_DIR` (default `$PHYSVERIFY_H200_ROOT/h2`). Unlike the freeze, iteration and
 final runners, this script keeps its own startup checks instead of `_guards.sh`.

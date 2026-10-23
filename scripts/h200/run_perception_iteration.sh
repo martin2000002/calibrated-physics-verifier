@@ -39,7 +39,8 @@
 #                                        PHYSVERIFY_ITERATION_ID must contain the arm name. The heavy lock is
 #                                        per output directory: run arms one at a time
 #   PHYSVERIFY_ITERATION_DEVICE          cpu or cuda [cpu]; cuda needs CUDA_VISIBLE_DEVICES in 0-3
-#                                        (launch through gpu_queue.sh)
+#                                        (launch through gpu_queue.sh, the server's GPU queue
+#                                        launcher, not in this repository)
 #   PHYSVERIFY_ITERATION_PYTHON          interpreter [/home/mmonterot/dev/venv/bin/python]
 #   PHYSVERIFY_ITERATION_THREADS         runtime.threads [16: at most 16 while a calibration chain runs]
 #   PHYSVERIFY_ITERATION_DATA            paths.data_dir, the synthetic dataset read only
