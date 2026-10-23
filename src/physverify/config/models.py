@@ -19,6 +19,7 @@ from pydantic import (
 )
 
 from physverify.core.errors import ConfigError
+from physverify.core.models import FrozenModel
 from physverify.schema.io import stable_hash
 
 M = TypeVar("M", bound=BaseModel)
@@ -40,10 +41,6 @@ UNPROFILED_ERROR_PROFILE_FILE = "stage_errors.json"
 """Error-profile file name when no extraction profile is known (direct validation only)."""
 PROFILE_CONTEXT = "profile"
 """Validation-context key of the active extraction profile, which names its error profile."""
-
-
-class FrozenModel(BaseModel):
-    model_config = ConfigDict(frozen=True, extra="forbid")
 
 
 class PathsSettings(FrozenModel):

@@ -10,8 +10,9 @@ from collections.abc import Iterable
 
 from pydantic import field_validator
 
-from physverify.config.models import FrozenModel, Settings
+from physverify.config.models import Settings
 from physverify.core.errors import ConfigError
+from physverify.core.models import FrozenModel
 
 SECTION = "h1_scope"
 _SPEC = re.compile(r"^s(\d+)(?:-s(\d+))?$")

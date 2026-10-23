@@ -19,8 +19,8 @@ from scipy.stats import norm
 
 from physverify.calibration.stats import SceneBlock, clopper_pearson, scene_bootstrap
 from physverify.calibration.table import Role
-from physverify.config.models import FrozenModel
 from physverify.core.errors import MissingInputError
+from physverify.core.models import FrozenModel
 from physverify.diagnosis.pairing import Paired
 from physverify.schema.checks import CheckResult, InputLevel, Verdict
 from physverify.verification.policies.threshold import ThresholdParams, ThresholdPolicy

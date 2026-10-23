@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any, ClassVar
 
-from physverify.config.models import FrozenModel
+from physverify.core.models import FrozenModel
 from physverify.schema.checks import CheckResult
 
 

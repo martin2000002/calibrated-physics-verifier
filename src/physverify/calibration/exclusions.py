@@ -48,8 +48,8 @@ from physverify.calibration.table import (
     unique_row_step,
 )
 from physverify.calibration.thresholds import fails
-from physverify.config.models import FrozenModel
 from physverify.core.errors import ConfigError
+from physverify.core.models import FrozenModel
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import Split
 from physverify.schema.io import stable_hash

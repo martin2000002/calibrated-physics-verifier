@@ -12,7 +12,8 @@ from typing import Literal
 
 from pydantic import Field
 
-from physverify.config.models import FrozenModel, Settings, SizePrior, SizePriorTable
+from physverify.config.models import Settings, SizePrior, SizePriorTable
+from physverify.core.models import FrozenModel
 from physverify.extraction.providers._common import lookup_label
 from physverify.extraction.providers.scale_size_prior import SIZE_PRIORS_SECTION
 from physverify.extraction.providers.scale_size_prior import Params as PriorParams

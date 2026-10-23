@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from pydantic import ConfigDict, Field
 
-from physverify.config.models import FrozenModel, Settings
+from physverify.config.models import Settings
+from physverify.core.models import FrozenModel
 
 SECTION = "sizing"
 

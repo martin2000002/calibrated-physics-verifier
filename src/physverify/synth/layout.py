@@ -11,7 +11,8 @@ import numpy as np
 from numpy.typing import ArrayLike, NDArray
 from pydantic import Field
 
-from physverify.config.models import FrozenModel, SizePrior
+from physverify.config.models import SizePrior
+from physverify.core.models import FrozenModel
 from physverify.schema.scene import AssetSource, CameraSpec, ObjectSpec
 from physverify.schema.states import PrimitiveKind
 

@@ -12,7 +12,7 @@ from typing import Any, ClassVar, Literal
 
 from pydantic import Field
 
-from physverify.config.models import FrozenModel
+from physverify.core.models import FrozenModel
 from physverify.schema.checks import AbstainReason, CheckResult, Verdict
 from physverify.verification.runner import ThresholdEntry, entry_of
 

@@ -12,7 +12,7 @@ from numpy.typing import NDArray
 from pydantic import Field
 
 from physverify.checks._base import Check, CheckInputs
-from physverify.config.models import FrozenModel
+from physverify.core.models import FrozenModel
 from physverify.physics.tracks import (
     MIN_NOISE_STENCILS,
     OCCLUDED_AT,

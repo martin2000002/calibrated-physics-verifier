@@ -18,7 +18,7 @@ import numpy as np
 from numpy.typing import ArrayLike
 from pydantic import Field
 
-from physverify.config.models import FrozenModel
+from physverify.core.models import FrozenModel
 from physverify.datasets._base import DatasetSource
 from physverify.runtime.runs import RunContext
 from physverify.schema.checks import AbstainReason, Verdict

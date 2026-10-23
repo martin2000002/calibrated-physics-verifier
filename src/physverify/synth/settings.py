@@ -7,9 +7,10 @@ from typing import Any, Literal
 
 from pydantic import Field, ValidationError, model_validator
 
-from physverify.config.models import FrozenModel, Settings, SizePrior, SizePriorTable
+from physverify.config.models import Settings, SizePrior, SizePriorTable
 from physverify.core.errors import ConfigError
 from physverify.core.hashing import params_hash
+from physverify.core.models import FrozenModel
 from physverify.schema.scene import AssetSource
 from physverify.synth.families._base import SceneFamily
 from physverify.synth.perturbations._base import ScenePerturbation, TrajectoryPerturbation

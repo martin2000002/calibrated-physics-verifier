@@ -9,7 +9,8 @@ from typing import Literal
 from pydantic import Field, NonNegativeFloat
 
 from physverify.checks._base import Check
-from physverify.config.models import FrozenModel, Settings
+from physverify.config.models import Settings
+from physverify.core.models import FrozenModel
 from physverify.core.registry import discover
 from physverify.diagnosis.settings import diagnosis_settings
 from physverify.schema.checks import InputLevel

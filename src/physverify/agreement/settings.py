@@ -8,7 +8,7 @@ from pydantic import Field, model_validator
 
 from physverify.agreement.abstention import POLICIES
 from physverify.agreement.decision import RULES
-from physverify.config.models import FrozenModel
+from physverify.core.models import FrozenModel
 
 if TYPE_CHECKING:
     from pathlib import Path

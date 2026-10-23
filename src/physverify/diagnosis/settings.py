@@ -6,7 +6,8 @@ from typing import Literal
 
 from pydantic import Field, model_validator
 
-from physverify.config.models import FrozenModel, Settings
+from physverify.config.models import Settings
+from physverify.core.models import FrozenModel
 from physverify.diagnosis.plans import FACTORS
 from physverify.schema.clip import Split
 from physverify.schema.stages import Stage

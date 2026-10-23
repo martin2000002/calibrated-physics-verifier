@@ -18,8 +18,9 @@ from pathlib import Path
 
 from pydantic import ValidationError, field_validator
 
-from physverify.config.models import FrozenModel, Settings, _anchor
+from physverify.config.models import Settings, _anchor
 from physverify.core.errors import ConfigError, PhysverifyError, UsageError
+from physverify.core.models import FrozenModel
 from physverify.schema.clip import ClipManifest, Split
 from physverify.schema.io import stable_hash
 

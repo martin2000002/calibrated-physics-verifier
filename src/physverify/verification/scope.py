@@ -13,8 +13,9 @@ from pydantic import PrivateAttr
 
 from physverify.calibration.exclusion_record import ExclusionRecord, load_record
 from physverify.calibration.settings import active_checks_hash
-from physverify.config.models import FrozenModel, Settings
+from physverify.config.models import Settings
 from physverify.core.errors import ConfigError, UsageError
+from physverify.core.models import FrozenModel
 
 SECTION = "check_scope"
 

@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, ClassVar
 import numpy as np
 from pydantic import Field
 
-from physverify.config.models import FrozenModel, SizePriorTable
+from physverify.config.models import SizePriorTable
 from physverify.core.atomic import write_text_atomic
 from physverify.core.digests import file_sha256
 from physverify.core.download import (
@@ -33,6 +33,7 @@ from physverify.core.download import (
 )
 from physverify.core.errors import MissingInputError, UsageError
 from physverify.core.log import get_logger
+from physverify.core.models import FrozenModel
 from physverify.core.video import Mp4VideoSource
 from physverify.datasets._base import GroundTruthStore, VideoSource
 from physverify.datasets._layout import load_annotations, relative_to_data, resolve_data_path

@@ -21,7 +21,6 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from physverify.config.models import FrozenModel
 from physverify.core.atomic import write_text_atomic
 from physverify.core.digests import file_sha256, text_sha256
 from physverify.core.download import (
@@ -39,6 +38,7 @@ from physverify.core.download import (
 )
 from physverify.core.errors import MissingInputError, PhysverifyError, UsageError
 from physverify.core.log import get_logger
+from physverify.core.models import FrozenModel
 from physverify.core.video import FrameDirVideoSource
 from physverify.datasets._base import GroundTruthStore, VideoSource
 from physverify.datasets._layout import relative_to_data, resolve_data_path

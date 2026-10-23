@@ -14,7 +14,8 @@ from typing import Any, Literal, Protocol
 
 from pydantic import Field
 
-from physverify.config.models import FrozenModel, Settings
+from physverify.config.models import Settings
+from physverify.core.models import FrozenModel
 from physverify.runtime.docker import DockerRunner, Runner, preflight_command
 from physverify.runtime.udocker import UdockerRunner
 

@@ -17,8 +17,8 @@ from typing import Literal
 
 from pydantic import Field
 
-from physverify.config.models import FrozenModel
 from physverify.core.errors import ConfigError, UsageError
+from physverify.core.models import FrozenModel
 from physverify.schema.clip import Split
 
 SECTION = "videophy"
