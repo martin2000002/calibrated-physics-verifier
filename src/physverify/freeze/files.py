@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -25,3 +26,14 @@ def read_json(path: Path) -> dict[str, Any]:
     if not isinstance(data, dict):
         raise QueryError(f"{path} is not a JSON object")
     return data
+
+
+def field(data: Mapping[str, Any], key: str) -> str:
+    value: Any = data
+    for part in key.split("."):
+        if not isinstance(value, Mapping) or part not in value:
+            raise QueryError(f"no {key} in the JSON")
+        value = value[part]
+    if isinstance(value, (dict, list)) or value is None:
+        raise QueryError(f"{key} is not a single value")
+    return str(value)

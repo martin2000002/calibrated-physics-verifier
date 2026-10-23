@@ -400,11 +400,15 @@ Stream S (CLI and script renames, J14), branch `refactor/wp8-s`:
   `PHYSVERIFY_FREEZE_EARLY_EXTRACTION_COMMIT`. `_common.sh` holds the only `pv` (`PV_RUNNER`,
   `PV_PROFILE`, `PV_NICE`, `PV_EXTRA`) and `h200_py`; `run_query.py` exports `query_settings`
   (was `_settings`) for `agreement_query.py`.
-- J14: the freeze queries live in `physverify.freeze` (`errors`, `files`, `selection`,
-  `manifest`, `fresh_render`, `ledger`, `arguments`); `scripts/h200/freeze_query.py` keeps only
-  the settings, the dispatch and `main`. The package sits at the `finetune` layer, so it does not
-  import `physverify.app`: the script injects `plugins.build("checks")` into `record_sha`, and
-  `manifest` takes `record` and `now`. `tests/contracts/test_freeze_manifest.py` pins the bytes of
+- J14: the freeze queries live in `physverify.freeze` (`errors`, `files`, `selection`, `diffs`,
+  `manifest`, `fresh_render`, `ledger`); `scripts/h200/freeze_query.py` keeps the settings, the
+  parser, the dispatch and `main`. The package sits at the `finetune` layer, so it does not
+  import `physverify.app`: the script hands `record_sha` a callable that builds the check
+  registry, called inside its `PhysverifyError` -> `QueryError` guard and only after the J3 and
+  v1 refusals (`manifest` takes `record` and `now`). The script imports only `errors`, `files`,
+  `selection` and `diffs` at the top; the settings, plugins, manifest, render and ledger modules
+  are imported inside the commands, so `field` runs in about 0.07 s (3.4 to 3.8 s with the eager
+  imports). `tests/contracts/test_freeze_manifest.py` pins the bytes of
   a fixture freeze.json, computed with the pre-move script.
 - Frozen-file departures (ADR 0017): `README.md` (command table), `CLAUDE.md` (owner rows:
   `cli/commands/synth.py`, `{diagnose,download}.py`, the `dev-score` subcommand,
@@ -415,8 +419,9 @@ Stream S (CLI and script renames, J14), branch `refactor/wp8-s`:
   `test_command_names_and_order_are_unchanged_until_the_cli_renames` to
   `test_command_names_and_order_are_pinned` (its name stated the WP8 deadline; an exception to
   JY15). `tests/reporting/{test_chain,reporting_cases}.py` build the historical log lines from
-  `ledger_label(...)` and `ABSTAIN_CURVE`. `physverify.freeze.files` and `.arguments` are modules
-  the plan did not list (shared readers, and the parser that keeps the script under 150 lines).
+  `ledger_label(...)` and `ABSTAIN_CURVE`. `physverify.freeze.files` and `.diffs` are modules
+  the plan did not list (shared readers, and the J3/J13 diff paths the script's parser needs
+  without importing `manifest`).
   The fixture freeze uses the iteration id `it6-chosen`, so the pin adds no process label.
 - Left to stream K: the `configs/sealed.toml` comment that still names `run_h2.sh`.
 - Equivalence: `tools/equivalence/expected/wp8-cli-renames.diff` declares the help pages, the

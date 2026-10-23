@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-import subprocess
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -14,22 +13,15 @@ from physverify.calibration.sigma_recalibration import STAGE_SIGMA_FILE
 from physverify.checks._base import Check
 from physverify.config.models import Settings
 from physverify.core.errors import PhysverifyError
+from physverify.freeze.diffs import Git, diff_record
 from physverify.freeze.errors import QueryError
 from physverify.freeze.files import readable_sha256
-from physverify.freeze.selection import COMMIT, DEVICE, PROFILE, seed_of
+from physverify.freeze.selection import COMMIT, DEVICE, PROFILE, chosen_candidate, seed_of
 from physverify.selective_risk.settings import ABSTENTION_FILE
 from physverify.verification.scope import check_scope
 
 FREEZE_SCHEMA = "physverify/freeze"
 FREEZE_VERSION = "1.0.0"
-DIFF_PATHS: Mapping[str, tuple[str, ...]] = {
-    "j3": (
-        *(f"src/physverify/{d}" for d in ("checks", "physics", "extraction", "verification")),
-        "src/physverify/selective_risk/curve.py",
-    ),
-    "j13": ("src/physverify/extraction", "configs/verifier/extraction.toml"),
-}
-Git = Callable[[Sequence[str]], str]
 
 
 @dataclass(frozen=True)
@@ -39,33 +31,6 @@ class ManifestInputs:
     p2_commit: str
     v1_commit: str
     v1_calibration: Path
-
-
-def run_git(root: Path, args: Sequence[str]) -> str:
-    result = subprocess.run(
-        ["git", "-C", str(root), *args], capture_output=True, text=True, check=False
-    )
-    if result.returncode != 0:
-        raise QueryError(f"git {' '.join(args)} failed: {result.stderr.strip()}")
-    return result.stdout
-
-
-def changed(git: Git, name: str, start: str) -> list[str]:
-    if not start:
-        raise QueryError(f"no commit to diff {name} from")
-    output = git(["diff", "--name-only", start, "HEAD", "--", *DIFF_PATHS[name]])
-    return [line for line in output.splitlines() if line]
-
-
-def diff_record(git: Git, name: str, start: str, head: str) -> dict[str, Any]:
-    files = changed(git, name, start)
-    return {
-        "from": start,
-        "to": head,
-        "paths": list(DIFF_PATHS[name]),
-        "changed": files,
-        "empty": not files,
-    }
 
 
 def frozen_paths(settings: Settings) -> dict[str, Path | None]:
@@ -89,23 +54,16 @@ def artifact_record(paths: Mapping[str, Path | None]) -> dict[str, dict[str, str
     return record
 
 
-def record_sha(settings: Settings, *, checks: Mapping[str, type[Check]]) -> str:
+def record_sha(settings: Settings, *, checks: Callable[[], Mapping[str, type[Check]]]) -> str:
     """J12: the decision record's stable hash, the one run_human_agreement.sh's prereg_problem
-    compares."""
+    compares. ``checks`` builds the registry, so a plugin that fails to load is refused too."""
     try:
-        sha = check_scope(settings, checks).record_sha256
+        sha = check_scope(settings, checks()).record_sha256
     except PhysverifyError as exc:
         raise QueryError(str(exc)) from exc
     if sha is None:
         raise QueryError("there is no decision record (exclusions decide)")
     return sha
-
-
-def chosen_candidate(selection: Mapping[str, Any]) -> Mapping[str, Any]:
-    chosen = [c for c in selection.get("candidates", []) if c.get("id") == selection.get("chosen")]
-    if len(chosen) != 1:
-        raise QueryError("the selection names no single chosen iteration")
-    return dict(chosen[0])
 
 
 def manifest(
@@ -154,17 +112,6 @@ def manifest(
             "calibration_sha256": readable_sha256(inputs.v1_calibration),
         },
     }
-
-
-def field(data: Mapping[str, Any], key: str) -> str:
-    value: Any = data
-    for part in key.split("."):
-        if not isinstance(value, Mapping) or part not in value:
-            raise QueryError(f"no {key} in the JSON")
-        value = value[part]
-    if isinstance(value, (dict, list)) or value is None:
-        raise QueryError(f"{key} is not a single value")
-    return str(value)
 
 
 def artifact_problems(frozen: Mapping[str, Any], settings: Settings) -> list[str]:

@@ -126,3 +126,10 @@ def seed_of(commit: str, calibration_sha: str, exclusions_sha: str) -> int:
         if not SHA256.match(sha):
             raise QueryError(f"a sha256 must be 64 lowercase hex characters, got {sha!r}")
     return int(text_sha256("".join([commit, calibration_sha, exclusions_sha]))[:8], 16)
+
+
+def chosen_candidate(selection: Mapping[str, Any]) -> Mapping[str, Any]:
+    chosen = [c for c in selection.get("candidates", []) if c.get("id") == selection.get("chosen")]
+    if len(chosen) != 1:
+        raise QueryError("the selection names no single chosen iteration")
+    return dict(chosen[0])

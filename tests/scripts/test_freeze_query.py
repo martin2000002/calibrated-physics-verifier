@@ -20,19 +20,15 @@ from physverify.app.plugins import PLUGIN_KINDS
 from physverify.calibration.sealed_ledger import LedgerEntry, append_entry
 from physverify.config.loader import load_settings
 from physverify.config.models import Settings
+from physverify.core.errors import InvalidPluginError
 from physverify.datasets.kubric_fresh import fresh_settings
+from physverify.freeze.diffs import DIFF_PATHS, Git
 from physverify.freeze.errors import QueryError
+from physverify.freeze.files import field
 from physverify.freeze.fresh_render import VERSION_ENV, plan_lines, render_overrides
 from physverify.freeze.ledger import ledger_entries, look_state, v1_state
 from physverify.freeze.ledger import ledger_line as summary_line
-from physverify.freeze.manifest import (
-    DIFF_PATHS,
-    Git,
-    ManifestInputs,
-    artifact_problems,
-    field,
-    manifest,
-)
+from physverify.freeze.manifest import ManifestInputs, artifact_problems, manifest
 from physverify.freeze.selection import J4_RULE, candidate, seed_of, select
 from physverify.schema.clip import Split
 from physverify.synth.generate import load_plan, plan_subset, save_plan
@@ -267,6 +263,40 @@ def test_a_j3_change_record_mismatch_or_other_calibration_refuses_the_manifest(
     (settings.paths.calibration_dir / "calibration.json").write_bytes(b"another fit")
     with pytest.raises(QueryError, match="not the full calib fit"):
         _manifest(inputs, settings, FakeGit({}))
+
+
+def test_a_plugin_that_fails_to_load_refuses_the_manifest_after_j3(
+    script: ModuleType,
+    tmp_path: Path,
+    config_dir: Path,
+    environ: dict[str, str],
+    iteration_factory: Callable[..., Path],
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The check registry is built only for the record, after the J3 and v1 refusals, and a
+    plugin that fails to load is a refusal (exit 2), not a traceback."""
+    settings = _settings(config_dir, environ, tmp_path)
+    _frozen_files(settings)
+    inputs = _inputs(tmp_path, iteration_factory)
+    selection = tmp_path / "selection.json"
+    selection.write_text(json.dumps(inputs.selection), encoding="utf-8")
+    argv = ["manifest", "--selection", str(selection), "--record-sha", "r" * 64]
+    argv += ["--p2-commit", "d" * 40, "--v1-commit", V1]
+    argv += ["--v1-calibration", str(inputs.v1_calibration), "--out", str(tmp_path / "f.json")]
+
+    def broken(kind: str) -> Any:
+        raise InvalidPluginError(f"the {kind} plugin r9 does not load")
+
+    monkeypatch.setattr("physverify.app.plugins.build", broken)
+    monkeypatch.setattr(script, "_settings", lambda extra=None: settings)
+    monkeypatch.setattr(script, "_git", FakeGit({"b" * 40: ["src/physverify/checks/r1.py"]}))
+    assert script.main(argv) == 2
+    assert capsys.readouterr().err.startswith("freeze_query: J3")
+    monkeypatch.setattr(script, "_git", FakeGit({}))
+    assert script.main(argv) == 2
+    assert capsys.readouterr().err == "freeze_query: the checks plugin r9 does not load\n"
+    assert not (tmp_path / "f.json").exists()
 
 
 def test_the_frozen_files_must_stay_as_frozen(

@@ -15,13 +15,8 @@ import pytest
 
 from physverify.config.loader import load_settings
 from physverify.config.models import Settings
-from physverify.freeze.manifest import (
-    DIFF_PATHS,
-    FREEZE_SCHEMA,
-    FREEZE_VERSION,
-    ManifestInputs,
-    manifest,
-)
+from physverify.freeze.diffs import DIFF_PATHS
+from physverify.freeze.manifest import FREEZE_SCHEMA, FREEZE_VERSION, ManifestInputs, manifest
 from physverify.freeze.selection import J4_RULE
 
 REPO = Path(__file__).resolve().parents[2]
