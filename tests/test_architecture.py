@@ -29,7 +29,6 @@ KNOWN_VIOLATIONS: frozenset[str] = frozenset(
         "physverify.datasets.pisa_real -> physverify.extraction.providers._common",
         "physverify.datasets.pisa_real -> physverify.extraction.providers.scale_size_prior",
         "physverify.demo.settings -> physverify.timing.settings",
-        "physverify.diagnosis.checks_port -> physverify.cli.context",
         "physverify.diagnosis.scene_stats -> physverify.calibration.table",
         "physverify.extraction.plan -> physverify.calibration.settings",
         "physverify.extraction.plan -> physverify.verification.runner",

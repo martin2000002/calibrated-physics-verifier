@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, ClassVar, Protocol
+from typing import Any, ClassVar, Protocol
 
 from physverify.checks._base import Check, CheckInputs
+from physverify.config.models import Settings
 from physverify.datasets._base import DatasetSource
 from physverify.schema.checks import CheckResult, InputLevel
 from physverify.schema.clip import ClipManifest
@@ -25,9 +26,6 @@ from physverify.verification.runner import (
     build_policy,
     load_thresholds,
 )
-
-if TYPE_CHECKING:
-    from physverify.cli.context import AppContext
 
 
 class CheckSuite(Protocol):
@@ -82,15 +80,17 @@ class A7CheckSuite:
         self._thresholds = thresholds
 
     @classmethod
-    def from_context(cls, app: AppContext) -> A7CheckSuite:
-        settings = app.settings
+    def build(
+        cls,
+        settings: Settings,
+        checks: Mapping[str, type[Check]],
+        policies: Mapping[str, type[VerdictPolicy]],
+    ) -> A7CheckSuite:
         verification = settings.section(VERIFICATION_SECTION, VerificationSettings)
-        checks = build_checks(
-            app.registry(CHECKS_SECTION), settings.section(CHECKS_SECTION, ChecksSettings)
-        )
-        policy = build_policy(app.registry("policies"), verification)
+        built = build_checks(checks, settings.section(CHECKS_SECTION, ChecksSettings))
+        policy = build_policy(policies, verification)
         thresholds = load_thresholds(settings.paths.thresholds, verification.thresholds)
-        return cls(checks, policy, thresholds)
+        return cls(built, policy, thresholds)
 
     @property
     def provisional(self) -> bool:

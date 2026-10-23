@@ -178,7 +178,9 @@ def _session(oracle: Path | None, perceived: Path | None, provisional: bool) -> 
     return Session(
         context=context,
         settings=settings.section(SECTION, AbstentionSettings),
-        suite=A7CheckSuite.from_context(context),
+        suite=A7CheckSuite.build(
+            settings, context.registry("checks"), context.registry("policies")
+        ),
         reference_table=tables[InputLevel.ORACLE],
         thresholds=tables[InputLevel.PERCEIVED],
         min_span_iou=diagnosis_settings(settings).end_to_end.min_span_iou,

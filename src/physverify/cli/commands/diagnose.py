@@ -155,7 +155,11 @@ def _launch(
 ) -> None:
     app = app_context()
     recorder = EventRecorder(ConsoleObserver(typer.echo))
-    checks = A7CheckSuite.from_context(app) if suite else None
+    checks = (
+        A7CheckSuite.build(app.settings, app.registry("checks"), app.registry("policies"))
+        if suite
+        else None
+    )
     ctx = diagnosis_context(app, recorder, checks, dataset=dataset, subset=subset)
     execute(ctx, recorder, name, runner)
 
