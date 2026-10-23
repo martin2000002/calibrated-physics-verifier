@@ -26,7 +26,7 @@ from physverify.schema.error_profile import EntryFilter
 from physverify.schema.perception import DepthKind, DepthMap
 from physverify.schema.stages import Stage
 
-KEYS_BEFORE_IT3 = {
+SMALL_MODEL_KEYS = {
     (280, "cpu"): "70f6c003ff50af82ae87a48aa6a2c81030761e6a0c859278fc99fd8dba78cf1c",
     (280, "cuda"): "8a1c35b03c5393f34ee9b155aed58dfdeeb34075bbd750b7e1bd2b0652630491",
     (518, "cpu"): "cef8fcd5f4036349655f0830c50e481d21148400a4fded20d1877346cd85412d",
@@ -69,7 +69,7 @@ def test_the_large_checkpoint_is_pinned_by_revision_and_sha256() -> None:
     assert LARGE_CHECKPOINT != CHECKPOINT
 
 
-@pytest.mark.parametrize(("size", "device"), sorted(KEYS_BEFORE_IT3))
+@pytest.mark.parametrize(("size", "device"), sorted(SMALL_MODEL_KEYS))
 def test_vda_small_keeps_its_keys(fixture_clip: SyntheticClip, size: int, device: str) -> None:
     assert VideoDepthAnythingSmall.version == "1"
     step = StagePlan(
@@ -87,4 +87,4 @@ def test_vda_small_keeps_its_keys(fixture_clip: SyntheticClip, size: int, device
         error_profile=None,
         device=device,
     )
-    assert key == KEYS_BEFORE_IT3[(size, device)]
+    assert key == SMALL_MODEL_KEYS[(size, device)]
