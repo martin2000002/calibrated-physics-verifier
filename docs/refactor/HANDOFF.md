@@ -349,10 +349,10 @@ consumers had to move with the files in K2 to keep the suite green).
   `generator_comparison` (was `h3`), `selective_risk` (was `abstention`), finetune, timing, demo.
   `diagnosis.toml` was split into `studies/diagnosis.toml` and the five dataset files, and
   `agreement.toml` into `studies/human_agreement.toml` and `datasets/videophy.toml`; the blocks
-  moved verbatim, comments included (the concatenation of the pieces equals the old file modulo
-  blank separator lines; the agreement header now precedes [agreement]; pinned by
-  `tests/contracts/test_config_splits.py` against copies of the old files in
-  `tests/contracts/data/pre_split_configs.json`). Section
+  moved verbatim, comments included (the concatenation of the pieces equaled the old file modulo
+  blank separator lines when WP7 merged; since WP9 phase 0 `tests/contracts/test_config_splits.py`
+  pins only the same tables and values against copies of the old files in
+  `tests/contracts/data/pre_split_configs.json`, so comment edits in the split files are allowed). Section
   and key names are unchanged, so `config_hash` is too (`test_config_hashes.py` unchanged and
   green; `doctor` prints the same `config_hash:` for both profiles).
 - Loader (`config/loader.py`, frozen-file departure): `configs/**/*.toml`, sorted by path, with
