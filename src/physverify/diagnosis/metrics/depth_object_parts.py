@@ -1,4 +1,4 @@
-"""DEPTH: the per-object depth residual of ``object_rel`` split into its parts (ADR 0014 §2.1)."""
+"""DEPTH: the per-object depth residual of ``object_rel`` split into its parts."""
 
 from __future__ import annotations
 
@@ -65,7 +65,8 @@ def between_within(residual: FloatArray) -> tuple[FloatArray, FloatArray]:
 
 
 def second_difference_error(residual: FloatArray, z_true: FloatArray) -> FloatArray:
-    """(D2(s z_pred) - D2(z_true)) / mean_t z_true on interior frames with three finite depths."""
+    """(dd(s z_pred) - dd(z_true)) / mean_t z_true on interior frames with three finite depths,
+    dd the second difference in time."""
     if residual.shape[0] < 3:
         return np.zeros(0)
     z_pred = (residual + 1.0) * z_true

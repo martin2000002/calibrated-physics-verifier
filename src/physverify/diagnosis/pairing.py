@@ -1,4 +1,4 @@
-"""Pairing of check results across input levels (Levels 2 and 3, ADR 0007 §5.3-5.4).
+"""Pairing of check results across input levels (Levels 2 and 3).
 
 A reference result (the oracle side) and another result describe the same event when they share
 the clip, the check, the subject (perceived ids mapped to ground-truth ids) and overlapping native
@@ -91,7 +91,7 @@ def merge(parts: Iterable[Paired]) -> Paired:
 
 
 def subject_map(pred_track: MaskTrack, truth_track: MaskTrack) -> IdMap:
-    """Perceived track ids to ground-truth ids by mask IoU (``match_masks``, ADR 0005)."""
+    """Perceived track ids to ground-truth ids by mask IoU (``match_masks``)."""
     return match_masks(pred_track, truth_track)
 
 

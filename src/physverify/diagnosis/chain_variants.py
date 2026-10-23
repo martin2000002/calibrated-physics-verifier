@@ -1,7 +1,7 @@
 """Chain variants: the prefix ladder V0..V8, scale variants and the 2^3 factorial cells.
 
 V_k takes ground truth for the first k stages of ``STAGE_ORDER``: stage k is measured as
-V_k (prediction) against V_{k+1} (truth), so both sides share the same true upstream (D6).
+V_k (prediction) against V_{k+1} (truth), so both sides share the same true upstream.
 """
 
 from __future__ import annotations
@@ -58,7 +58,7 @@ def oracle_variant() -> Variant:
 
 
 def truth_covers(truth: Variant, stage: Stage) -> bool:
-    """D6: stage k is measured against a truth whose ground truth covers DETECT .. stage k."""
+    """Stage k is measured against a truth whose ground truth covers DETECT .. stage k."""
     return frozenset(STAGE_ORDER[: STAGE_ORDER.index(stage) + 1]) <= truth.gt_stages
 
 

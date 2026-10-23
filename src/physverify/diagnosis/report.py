@@ -1,4 +1,4 @@
-"""Diagnosis report models and their deterministic JSON (ADR 0007 §4.1).
+"""Diagnosis report models and their deterministic JSON.
 
 Callers pass rows in a deterministic order; JSON keys are sorted and non-finite floats become
 null, so a fixed clock and run id give byte-identical files.

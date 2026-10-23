@@ -1,7 +1,7 @@
-"""Level 1: each stage measured alone, pred from V_k against truth from V_{k+1} (ADR 0007 D6).
+"""Level 1: each stage measured alone, pred from V_k against truth from V_{k+1}.
 
 The calib pass runs without an error profile and builds the new one; the eval pass reads the
-merged profile in memory, written or not (D3). Eval clips never enter the profile."""
+merged profile in memory, written or not. Eval clips never enter the profile."""
 
 from __future__ import annotations
 

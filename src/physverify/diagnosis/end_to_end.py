@@ -1,4 +1,5 @@
-"""Level 2 of ADR 0002: check magnitudes of the perceived chain against the oracle (ADR 0007 §5.3).
+"""Level 2 of the error propagation (end to end): check magnitudes of the perceived chain against
+the oracle.
 
 Two comparisons are always reported side by side: the perceived chain (V0) against V8, the all
 ground-truth chain on the sampled frames, and V8 against the simulator truth on native frames
@@ -53,9 +54,6 @@ class Decision:
     available: bool
     provisional: bool = False
     reason: str | None = None
-
-
-# --- Agreement measures -----------------------------------------------------------------------
 
 
 def _mean(values: FloatArray) -> float:
@@ -171,9 +169,6 @@ def clip_rows(comparison: str, paired: Paired) -> list[ClipCheckRow]:
     return rows
 
 
-# --- Running variants through the check suite --------------------------------------------------
-
-
 def require_suite(ctx: DiagnosisContext) -> CheckSuite:
     if ctx.suite is None:
         raise MissingInputError(
@@ -226,9 +221,6 @@ def _decision(suite: CheckSuite) -> Decision:
     if suite.decide(()) is None:
         return Decision(available=False, reason=NO_POLICY)
     return Decision(available=True, provisional=suite.provisional)
-
-
-# --- Level 2 ------------------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)

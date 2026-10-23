@@ -1,4 +1,4 @@
-"""DETECT: label accuracy over the box pairs matched by ``detect/box`` (ADR 0014 §2.1)."""
+"""DETECT: label accuracy over the box pairs matched by ``detect/box``."""
 
 from __future__ import annotations
 

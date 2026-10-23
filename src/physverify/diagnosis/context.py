@@ -1,4 +1,4 @@
-"""Injected dependencies of a diagnosis run (ADR 0007 §4.1)."""
+"""Injected dependencies of a diagnosis run."""
 
 from __future__ import annotations
 

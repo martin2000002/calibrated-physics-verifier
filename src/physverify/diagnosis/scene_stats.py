@@ -1,4 +1,4 @@
-"""Per-clip stage-error statistics, per-scene tables and scene-bootstrap deltas (ADR 0014).
+"""Per-clip stage-error statistics, per-scene tables and scene-bootstrap deltas.
 
 A collected file keeps, per clip and metric, the sufficient statistics of every sample quantity
 ([n, sum, sum of squares] over finite samples) and every rate ([numerator, denominator]), so

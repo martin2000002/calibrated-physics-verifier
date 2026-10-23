@@ -1,4 +1,4 @@
-"""Arithmetic of the 2^3 ground-truth substitution factorial (ADR 0007 §5.4). Pure, no I/O.
+"""Arithmetic of the 2^3 ground-truth substitution factorial. Pure, no I/O.
 
 A cell says, for each factor in ``FACTORS`` (TRACK, DEPTH, SCALE), whether it runs perceived
 (True, coded +1) or ground truth (False, coded -1). ``means`` maps every cell to its mean response.

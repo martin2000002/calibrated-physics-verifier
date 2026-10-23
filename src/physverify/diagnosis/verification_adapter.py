@@ -1,4 +1,4 @@
-"""Seam with cycle A7: the only diagnosis module that imports ``verification/``."""
+"""Seam with the check suite: the only diagnosis module that imports ``verification/``."""
 
 from __future__ import annotations
 
@@ -29,7 +29,8 @@ from physverify.verification.runner import (
 class CheckSuite(Protocol):
     @property
     def provisional(self) -> bool:
-        """True while the thresholds behind ``decide`` are provisional (until A8)."""
+        """True while the thresholds behind ``decide`` are provisional (until the calibration chain
+        sets them)."""
         ...
 
     def inputs(
@@ -48,7 +49,8 @@ class CheckSuite(Protocol):
 
 
 class _Undecided:
-    """Pass-through policy: A7's runner applies ``requires``; ``decide`` comes later."""
+    """Pass-through policy: the check suite's runner applies ``requires``; ``decide`` comes
+    later."""
 
     name: ClassVar[str] = "undecided"
 
@@ -65,7 +67,8 @@ class _Prepared:
 
 
 class VerificationCheckSuite:
-    """Thin adapter over ADR 0006 §3.7-3.8 (perceived_inputs, OracleSource, runner)."""
+    """Thin adapter over the verification inputs and runner (perceived_inputs, OracleSource,
+    runner)."""
 
     def __init__(
         self,

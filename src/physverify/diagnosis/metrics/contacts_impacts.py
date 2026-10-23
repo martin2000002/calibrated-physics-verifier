@@ -1,4 +1,5 @@
-"""CONTACTS: impacts alone, matched one to one by time (it3 change C; not in the profile).
+"""CONTACTS: impacts alone, matched one to one by time (a perception iteration's change; not in
+the profile).
 
 ``contacts/events`` matches every record by temporal IoU, so one long predicted rest against a
 true rest cut into pieces counts once and impacts drown among rests. Here only IMPACT records
@@ -32,7 +33,8 @@ from physverify.schema.outputs import StageOutput
 from physverify.schema.stages import Stage
 
 MAX_GAP_FRAMES = 1.0
-"""A predicted impact within one native frame of a true one, as in the AC-4 of plan-it3."""
+"""A predicted impact within one native frame of a true one, as in the acceptance of the perception
+iteration that added it."""
 
 
 def frame_gap(a: ContactRecord, b: ContactRecord) -> float:
