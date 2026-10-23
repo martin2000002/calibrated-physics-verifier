@@ -10,6 +10,7 @@ are stripped, the old side's imports are rewritten through the module-rename map
 the paired files, and the allowed substitutions are applied to the old side. allowed.tsv lines:
 
     <new path or *>\t<kind>\t<old>\t<new>        kind: name (identifiers) | literal (str constants)
+        | alias (an imported name -> "<name> as <asname>")
 
 With --sort-imports, each run of consecutive import statements and each import's names are
 sorted on both sides, so the reordering a linter makes after a rename does not count.
@@ -33,6 +34,7 @@ from pathlib import Path
 class Allowed:
     names: dict[str, dict[str, str]] = field(default_factory=dict)
     literals: dict[str, dict[str, str]] = field(default_factory=dict)
+    aliases: dict[str, dict[str, str]] = field(default_factory=dict)
 
     def for_path(self, table: Mapping[str, dict[str, str]], path: str) -> dict[str, str]:
         return {**table.get("*", {}), **table.get(path, {})}
@@ -90,9 +92,14 @@ def _rename_module(name: str, mapping: Mapping[str, str]) -> str:
 
 class _Rewrite(ast.NodeTransformer):
     def __init__(
-        self, modules: Mapping[str, str], names: Mapping[str, str], literals: Mapping[str, str]
+        self,
+        modules: Mapping[str, str],
+        names: Mapping[str, str],
+        literals: Mapping[str, str],
+        aliases: Mapping[str, str] | None = None,
     ) -> None:
         self.modules, self.names, self.literals = modules, names, literals
+        self.aliases = aliases or {}
 
     def _name(self, value: str) -> str:
         return self.names.get(value, value)
@@ -103,6 +110,9 @@ class _Rewrite(ast.NodeTransformer):
         return self.generic_visit(node)
 
     def visit_alias(self, node: ast.alias) -> ast.AST:
+        if node.asname is None and node.name in self.aliases:
+            node.name, node.asname = self.aliases[node.name].split(" as ")
+            return node
         node.name = _rename_module(self._name(node.name), self.modules)
         if node.asname:
             node.asname = self._name(node.asname)
@@ -196,7 +206,8 @@ def _load_allowed(path: Path | None) -> Allowed:
         if not line.strip() or line.startswith("#"):
             continue
         where, kind, old, new = line.split("\t")
-        table = allowed.names if kind == "name" else allowed.literals
+        tables = {"name": allowed.names, "literal": allowed.literals, "alias": allowed.aliases}
+        table = tables[kind]
         table.setdefault(where, {})[old] = new
     return allowed
 
@@ -227,6 +238,7 @@ def compare(
             modules,
             allowed.for_path(allowed.names, new_path),
             allowed.for_path(allowed.literals, new_path),
+            allowed.for_path(allowed.aliases, new_path),
         )
         left = _dump(_git(repo, "show", f"{old}:{old_path}"), rewrite, sort_imports)
         right = _dump(_git(repo, "show", f"{new}:{new_path}"), None, sort_imports)
