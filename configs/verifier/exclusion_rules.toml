@@ -1,10 +1,13 @@
-# Preregistered exclusion rules (1.1, 1.2 in its amended form, 1.5), applied by
-# `physverify exclusions decide` (calibration/exclusion_rules.py). Every threshold lives here: changing
-# one after the calibration chain has run is a declared deviation and changes the record's rules_sha256. The record is
-# written where [check_scope].decision_record points (its .md view next to it).
+# Preregistered exclusion rules, applied by `physverify exclusions decide`
+# (calibration/exclusion_rules.py). The ids in `rules` name the three tables below: 1.1 the R5a
+# usable stratum, 1.2 the R2 detector comparison, 1.5 the real false-positive rate. Every threshold
+# lives here: changing one after the calibration chain has run is a declared deviation and changes
+# the record's rules_sha256. The record is written where [check_scope].decision_record points (its
+# .md view next to it).
 [exclusion_rules]
 version = "1"
-consumed_level = "perceived"          # the stratum the human-agreement study and generator comparison consume
+# The stratum the human-agreement study and the generator comparison consume.
+consumed_level = "perceived"
 consumed_profile = "precise"
 rules = ["1.1", "1.2", "1.5"]
 

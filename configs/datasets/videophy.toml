@@ -4,7 +4,8 @@ license = "MIT (labels); videos under each generator's terms"
 retries = 3
 max_frames = 0                 # 0 = every frame of the clip
 filter_version = 2            # 2: swing verbs back in the rigid list (the review decides)
-subset_file = "videophy_subset.json"     # under paths.annotations_dir (object-object filter, hand review)
+# Under paths.annotations_dir (object-object filter, hand review).
+subset_file = "videophy_subset.json"
 queries_file = "videophy_queries.json"   # under paths.annotations_dir (object queries)
 reviewed_subsets = ["v1_test", "v2_test", "h2_test"]
 # Five fixed clips of h2_dev for the local smoke run (C6): the smallest non-empty zip members.

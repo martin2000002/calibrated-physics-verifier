@@ -37,8 +37,8 @@ track = "sam2_1_hiera_tiny"
 # focal (OOD p90 no-harm fails), so GeoCalib gives gravity only.
 camera = "geocalib"
 # A later perception iteration: G-depth passes and G-contacts fails on (c), so only the depth
-# was adopted and contacts stay proximity. The base chain finally chosen is the CPU one with
-# GeoCalib gravity, so precise keeps vda_small.
+# was adopted and contacts stay proximity. The base chain finally chosen is the earlier
+# iteration's chain on CPU, with GeoCalib gravity, so precise keeps vda_small.
 depth = "vda_small"
 
 [extraction.profiles.precise.providers.camera.geocalib]

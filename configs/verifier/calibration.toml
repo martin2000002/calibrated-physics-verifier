@@ -26,8 +26,9 @@ require_calibrated_artifact = false
 # the conformal quantile. It only bites when the clean clips are exact up to rounding (the oracle);
 # a perceived q is far above it. Chosen from the oracle clean clips of `local` + `levels`
 # about 100x the largest clean value that is rounding noise and >= 25x below the
-# smallest level-1 effect. Float32 relative noise is ~1e-7 (R5b clean 4.3e-8; R4_jump and R5a on
-# contact-free scenes ~1e-14), level-1 effects are >= 0.05 (relative units), 0.25 (R4_jump), 1 frame.
+# smallest level-1 effect. Float32 relative noise is ~1e-7 (R5b clean 4.3e-8; R4_jump and R5a
+# on contact-free scenes ~1e-14), level-1 effects are >= 0.05 (relative units), 0.25 (R4_jump),
+# 1 frame.
 [calibration.tau_tolerance]
 R1 = 1e-5            # pen_over_size; clean 0..0.046 (real contact penetration, q covers it)
 R2 = 1e-5            # residual_over_weight; clean exactly 0
