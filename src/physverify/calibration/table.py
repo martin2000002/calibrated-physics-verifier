@@ -15,6 +15,7 @@ from physverify.schema.clip import ClipManifest, Split
 from physverify.schema.scene import MagnitudeKind, PerturbationRecord
 from physverify.synth.perturbations.none import NAME as NONE
 from physverify.synth.plan import scene_id_of
+from physverify.synth.scene_scope import scene_of
 from physverify.verification.runner import RowStatus, VerificationReport
 from physverify.verification.sweep import CheckIdentity, perturbation_name, target_check_ids
 
@@ -61,10 +62,6 @@ class CalibrationRow:
     @property
     def scored(self) -> bool:
         return self.status is RowStatus.SCORED and self.magnitude is not None
-
-
-def scene_of(clip: ClipManifest) -> str:
-    return clip.scene_id or clip.clip_id
 
 
 def in_family(scene_id: str, family: str) -> bool:

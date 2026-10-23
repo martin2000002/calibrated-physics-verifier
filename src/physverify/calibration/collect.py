@@ -11,12 +11,13 @@ from pathlib import Path
 from physverify.calibration.fit import LevelData
 from physverify.calibration.settings import CalibrationConfig
 from physverify.calibration.sigma_recalibration import SigmaPair
-from physverify.calibration.table import CalibrationDataError, build_rows, scene_of
+from physverify.calibration.table import CalibrationDataError, build_rows
 from physverify.diagnosis.pairing import pair_results
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
 from physverify.schema.clip import ClipManifest, Split
 from physverify.schema.io import read_jsonl
 from physverify.schema.matching import IdMap
+from physverify.synth.scene_scope import scene_of
 from physverify.verification.runner import (
     CHECKS_FILE,
     TABLE_FILE,

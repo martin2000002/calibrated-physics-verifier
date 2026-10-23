@@ -12,9 +12,9 @@ from typing import Annotated
 import typer
 
 from physverify.app.context import AppContext
+from physverify.app.sealing import Selection, guard_sealed
 from physverify.app.services import checks_hash_for, dataset_for, pipeline_deps, plan_for
-from physverify.cli.commands._sealed import Selection, guard_sealed
-from physverify.cli.context import app_context
+from physverify.cli.context import app_context, echo_err
 from physverify.core.errors import EXIT_ERROR, UsageError
 from physverify.core.markdown import number
 from physverify.datasets._base import DatasetSource, select_clips
@@ -91,7 +91,13 @@ def verify(
     inputs = _inputs(context, source, input_level, parse_stages(gt or ()))
     run_dir = new_run(context.settings, context.invocation.argv).run_dir
     typer.echo(f"run: {run_dir}")
-    guard_sealed(context, NAME, [Selection(source.name, subset, tuple(selected))], run_dir=run_dir)
+    guard_sealed(
+        context,
+        NAME,
+        [Selection(source.name, subset, tuple(selected))],
+        err=echo_err,
+        run_dir=run_dir,
+    )
     typer.echo(f"thresholds: {thresholds_label(thresholds)}")
     report = runner.run(inputs, selected)
     write_report(run_dir, report)

@@ -18,9 +18,9 @@ from calibration_cases import DATASET, fitted_artifact, synthetic_report
 from cli_runner import CliResult, CliRunner
 from cli_tree import cli_leaves, command_modules
 
-from physverify.app import plugins
+from physverify.app import plugins, sealing
 from physverify.calibration.sealed_ledger import LedgerEntry, read_entries
-from physverify.cli.commands import _sealed, abstain, calibrate, diagnose, verify
+from physverify.cli.commands import abstain, calibrate, diagnose, verify
 from physverify.config.loader import load_settings
 from physverify.config.models import Settings
 from physverify.core.errors import PhysverifyError
@@ -513,14 +513,14 @@ def _leaf_param(node: ast.expr) -> str:
 
 
 def test_every_subcommand_is_guarded_or_exempt_with_a_reason() -> None:
-    """C5: a new subcommand fails here until ``_sealed`` classifies it."""
+    """C5: a new subcommand fails here until ``sealing`` classifies it."""
     leaves = cli_leaves()
-    assert not _sealed.GUARDED & set(_sealed.EXEMPT)
-    assert set(leaves) == _sealed.GUARDED | set(_sealed.EXEMPT)
-    assert all(reason.strip() for reason in _sealed.EXEMPT.values())
+    assert not sealing.GUARDED & set(sealing.EXEMPT)
+    assert set(leaves) == sealing.GUARDED | set(sealing.EXEMPT)
+    assert all(reason.strip() for reason in sealing.EXEMPT.values())
 
 
-@pytest.mark.parametrize("label", sorted(_sealed.GUARDED))
+@pytest.mark.parametrize("label", sorted(sealing.GUARDED))
 def test_the_guarded_leaf_guards_with_its_own_label(label: str) -> None:
     """The label a guard writes to the ledger is ``f"{NAME} {leaf}"`` of the leaf it guards."""
     assert label in _guard_labels(cli_leaves()[label])
@@ -528,13 +528,13 @@ def test_the_guarded_leaf_guards_with_its_own_label(label: str) -> None:
 
 def test_every_label_a_guard_forms_is_a_guarded_leaf() -> None:
     formed = {label for module in command_modules().values() for label in _guard_labels(module)}
-    assert formed == _sealed.GUARDED
+    assert formed == sealing.GUARDED
 
 
 def test_a_guard_for_an_unclassified_command_is_a_bug() -> None:
     """The classification is checked before the context is read."""
     with pytest.raises(ValueError, match="not a guarded"):
-        _sealed.guard_sealed(None, "calibrate show", [])  # type: ignore[arg-type]
+        sealing.guard_sealed(None, "calibrate show", [], err=print)  # type: ignore[arg-type]
 
 
 def test_fit_from_a_perceived_run_guards_before_the_oracle_runs(

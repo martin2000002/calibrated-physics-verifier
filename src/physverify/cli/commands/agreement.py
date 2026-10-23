@@ -10,12 +10,12 @@ from typing import Annotated, Any
 
 import typer
 
-from physverify.cli.commands.data import fetch_all
 from physverify.cli.context import app_context, heavy_command
 from physverify.core.atomic import write_text_atomic
 from physverify.core.digests import sha256_if_file
 from physverify.core.errors import ConfigError
 from physverify.core.log import get_logger
+from physverify.datasets._base import fetch_all
 from physverify.datasets._videophy_review import (
     REVIEWED,
     load_review,

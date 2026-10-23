@@ -6,24 +6,21 @@ has to be computed, so a fully cached diagnosis runs next to another cycle's hea
 
 from __future__ import annotations
 
-import datetime as dt
 import functools
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Sequence
 from typing import Annotated, Any
 
 import typer
 
-from physverify.app.context import AppContext
-from physverify.app.services import check_suite, dataset_for, pipeline_deps
-from physverify.cli.commands._sealed import Selection, guard_sealed
-from physverify.cli.commands.extract import ConsoleObserver, EventRecorder, write_events
-from physverify.cli.context import app_context
+from physverify.app.diagnosis import diagnosis_context
+from physverify.app.sealing import Selection, guard_sealed
+from physverify.app.services import check_suite
+from physverify.cli.context import app_context, echo_err
 from physverify.core.markdown import number
 from physverify.datasets._base import select_clips
 from physverify.diagnosis.attribution import run_attribution
 from physverify.diagnosis.context import DiagnosisContext
 from physverify.diagnosis.end_to_end import run_end_to_end
-from physverify.diagnosis.measurement_cases import SampledMetric
 from physverify.diagnosis.real_video import run_real
 from physverify.diagnosis.real_video import select_clips as real_clips
 from physverify.diagnosis.report import (
@@ -35,12 +32,9 @@ from physverify.diagnosis.report import (
     StageErrorReport,
     write_report,
 )
-from physverify.diagnosis.settings import MetricSettings, diagnosis_settings
 from physverify.diagnosis.stage_errors import run_stage_errors
-from physverify.diagnosis.verification_adapter import CheckSuite
-from physverify.extraction._base import StageObserver
+from physverify.extraction.events import ConsoleObserver, EventRecorder, write_events
 from physverify.extraction.pipeline import ExtractionReport
-from physverify.runtime.runs import new_run
 from physverify.schema.clip import ClipManifest
 
 NAME = "diagnose"
@@ -68,43 +62,6 @@ ClipsOption = Annotated[list[str] | None, typer.Option(help="Clip ids (repeatabl
 # --- Context ----------------------------------------------------------------------------------
 
 
-def sampled_metrics(
-    registry: Mapping[str, type[Any]], options: MetricSettings
-) -> dict[str, SampledMetric]:
-    """One instance per registered metric that also yields per-sample values."""
-    instances = {key: cls(options) for key, cls in registry.items()}
-    return {key: metric for key, metric in instances.items() if isinstance(metric, SampledMetric)}
-
-
-def diagnosis_context(
-    app: AppContext,
-    observer: StageObserver,
-    suite: CheckSuite | None,
-    *,
-    dataset: str | None = None,
-    subset: str | None = None,
-) -> DiagnosisContext:
-    settings = app.settings
-    overrides = {"dataset": dataset, "subset": subset}
-    diag = diagnosis_settings(settings).model_copy(
-        update={key: value for key, value in overrides.items() if value is not None}
-    )
-    clock = functools.partial(dt.datetime.now, dt.UTC)
-    run = new_run(settings, app.invocation.argv, clock())
-    return DiagnosisContext(
-        settings=settings,
-        diag=diag,
-        dataset_for=functools.partial(dataset_for, app),
-        providers=app.registry("providers"),
-        checks=app.registry("checks"),
-        metrics=sampled_metrics(app.registry("metrics"), diag.metrics),
-        deps=pipeline_deps(app, observer),
-        suite=suite,
-        clock=clock,
-        run=run,
-    )
-
-
 def dataset_clips(ctx: DiagnosisContext, wanted: Sequence[str]) -> list[ClipManifest]:
     return select_clips(ctx.dataset().clips(ctx.diag.subset), wanted)
 
@@ -113,7 +70,9 @@ def guarded_clips(ctx: DiagnosisContext, leaf: str, wanted: Sequence[str]) -> li
     """``dataset_clips`` after the sealed-ledger guard of ``diagnose <leaf>``."""
     selected = dataset_clips(ctx, wanted)
     selection = Selection(ctx.dataset().name, ctx.diag.subset, tuple(selected))
-    guard_sealed(app_context(), f"{NAME} {leaf}", [selection], run_dir=ctx.run.run_dir)
+    guard_sealed(
+        app_context(), f"{NAME} {leaf}", [selection], err=echo_err, run_dir=ctx.run.run_dir
+    )
     return selected
 
 
@@ -214,7 +173,9 @@ def real(
         names, subset = real_datasets(ctx, dataset), ctx.diag.subset
         chosen = real_clips(ctx, names, subset, clips or ())
         selections = [Selection(source.name, subset, found) for source, found in chosen]
-        guard_sealed(app_context(), f"{NAME} real", selections, run_dir=ctx.run.run_dir)
+        guard_sealed(
+            app_context(), f"{NAME} real", selections, err=echo_err, run_dir=ctx.run.run_dir
+        )
         return run_real(ctx, names, subset, clips or ())
 
     _launch(REAL, runner, suite=True, subset=subset)

@@ -20,12 +20,11 @@ import typer
 from scipy.stats import norm
 
 from physverify.app.context import AppContext
+from physverify.app.sealing import Selection, guard_sealed
 from physverify.app.services import chain_runner, check_suite, dataset_for, pipeline_deps
 from physverify.calibration.artifact_io import default_artifact_path, load_calibration
 from physverify.calibration.table import Role, role_of
-from physverify.cli.commands._runs import write_json
-from physverify.cli.commands._sealed import Selection, guard_sealed
-from physverify.cli.context import app_context
+from physverify.cli.context import app_context, echo_err
 from physverify.core.atomic import write_text_atomic
 from physverify.core.digests import sha256_if_file
 from physverify.core.errors import MissingInputError, PhysverifyError, UsageError
@@ -36,7 +35,7 @@ from physverify.diagnosis.end_to_end import track_of, variant_outputs, variant_r
 from physverify.diagnosis.pairing import pair_results, subject_map
 from physverify.diagnosis.settings import diagnosis_settings
 from physverify.diagnosis.verification_adapter import A7CheckSuite
-from physverify.runtime.runs import new_run
+from physverify.runtime.runs import new_run, write_json
 from physverify.schema.checks import InputLevel, Verdict
 from physverify.schema.clip import ClipManifest
 from physverify.schema.io import stable_hash
@@ -424,7 +423,7 @@ def _guard(context: AppContext, leaf: str, *, real: bool) -> None:
         selections.append(Selection(source.name, subset, tuple(source.clips(subset))))
     abstention = sha256_if_file(settings.paths.calibration_dir / ABSTENTION_FILE)
     shas = {} if abstention is None else {"abstention": abstention}
-    guard_sealed(context, f"{NAME} {leaf}", selections, artifacts=shas)
+    guard_sealed(context, f"{NAME} {leaf}", selections, err=echo_err, artifacts=shas)
 
 
 def _fitted_k(session: Session) -> float | None:

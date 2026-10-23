@@ -8,17 +8,13 @@ from typing import Annotated
 
 import typer
 
+from physverify.app.sealing import Selection, guard_sealed
 from physverify.app.services import chain_runner, dataset_for, pipeline_deps
-from physverify.cli.commands._sealed import Selection, guard_sealed
-from physverify.cli.commands.diagnose import (
-    ClipsOption,
-    DatasetOption,
-    SubsetOption,
-    sampled_metrics,
-)
-from physverify.cli.context import app_context, heavy_command
+from physverify.cli.commands.diagnose import ClipsOption, DatasetOption, SubsetOption
+from physverify.cli.context import app_context, echo_err, heavy_command
 from physverify.datasets._base import select_clips
 from physverify.diagnosis import scene_stats
+from physverify.diagnosis.context import sampled_metrics
 from physverify.diagnosis.settings import diagnosis_settings
 
 NAME = "scene-stats"
@@ -48,7 +44,10 @@ def per_clip(
     source = dataset_for(app_ctx, diag.dataset)
     selected = select_clips(source.clips(diag.subset), clips or ())
     guard_sealed(
-        app_ctx, f"{NAME} per-clip", [Selection(source.name, diag.subset, tuple(selected))]
+        app_ctx,
+        f"{NAME} per-clip",
+        [Selection(source.name, diag.subset, tuple(selected))],
+        err=echo_err,
     )
     metrics = sampled_metrics(app_ctx.registry("metrics"), diag.metrics)
     runner = chain_runner(app_ctx, pipeline_deps(app_ctx, None), source)

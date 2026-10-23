@@ -42,7 +42,7 @@ from physverify.calibration.settings import (
     calibration_config,
     calibration_settings,
 )
-from physverify.calibration.table import CalibrationDataError, build_rows, in_family, scene_of
+from physverify.calibration.table import CalibrationDataError, build_rows, in_family
 from physverify.cli.context import app_context
 from physverify.core.atomic import write_text_atomic
 from physverify.core.digests import text_sha256
@@ -54,6 +54,7 @@ from physverify.schema.clip import ClipManifest
 from physverify.schema.io import stable_hash
 from physverify.schema.stages import Stage
 from physverify.synth.perturbations.none import NAME as NONE
+from physverify.synth.scene_scope import scene_of
 from physverify.verification.exclusion_record import (
     ExclusionInputError,
     ExclusionRecord,

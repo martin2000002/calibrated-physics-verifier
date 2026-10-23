@@ -5,20 +5,15 @@ A heavy command (network and disk). A second run with the files intact transfers
 
 from __future__ import annotations
 
-import time
-from collections.abc import Callable, Mapping, Sequence
-from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Any
+from collections.abc import Mapping, Sequence
+from typing import Annotated, Any
 
 import typer
 
 from physverify.cli.context import app_context, heavy_command
-from physverify.core.download import BYTES_PER_MB, MANIFEST_FILE, read_manifest
 from physverify.core.errors import UsageError
+from physverify.datasets._base import fetch_all
 from physverify.diagnosis.settings import diagnosis_settings
-
-if TYPE_CHECKING:
-    from physverify.config.models import Settings
 
 NAME = "data"
 
@@ -41,31 +36,6 @@ def fetch_targets(
     if unregistered:
         raise UsageError(f"datasets {unregistered} are not registered")
     return [registry[name] for name in names]
-
-
-def fetch_summary(dest: Path, elapsed_s: float) -> str:
-    manifest = read_manifest(dest / MANIFEST_FILE)
-    if manifest is None:
-        return f"{dest.name}: no manifest written ({elapsed_s:.1f} s)"
-    size_mb = sum(f.size for f in manifest.files) / BYTES_PER_MB
-    return (
-        f"{manifest.dataset} [{manifest.subset}]: {len(manifest.clips)} clips, "
-        f"{len(manifest.files)} files, {size_mb:.1f} MB, {elapsed_s:.1f} s -> {dest}"
-    )
-
-
-def fetch_all(
-    classes: Sequence[type[Any]],
-    settings: Settings,
-    subset: str | None,
-    echo: Callable[[str], None],
-    clock: Callable[[], float] = time.monotonic,
-) -> None:
-    for cls in classes:
-        dest = settings.paths.raw_dir / cls.name
-        started = clock()
-        cls(settings).fetch(subset, dest)
-        echo(fetch_summary(dest, clock() - started))
 
 
 @app.command(

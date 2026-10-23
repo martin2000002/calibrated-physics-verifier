@@ -16,6 +16,8 @@ from typing import Annotated
 import typer
 
 from physverify.app.context import AppContext
+from physverify.app.diagnosis import diagnosis_context
+from physverify.app.sealing import Selection, guard_sealed
 from physverify.app.services import (
     chain_runner,
     checks_hash_for,
@@ -75,10 +77,7 @@ from physverify.calibration.sigma_recalibration import (
     recalibrate_profile,
     stage_factors,
 )
-from physverify.calibration.table import scene_of
-from physverify.cli.commands._sealed import Selection, guard_sealed
-from physverify.cli.commands.extract import ConsoleObserver, EventRecorder
-from physverify.cli.context import app_context
+from physverify.cli.context import app_context, echo_err
 from physverify.core.atomic import write_text_atomic
 from physverify.core.errors import MissingInputError, PhysverifyError, UsageError
 from physverify.core.markdown import number
@@ -92,12 +91,13 @@ from physverify.diagnosis.report import dataset_versions, profile_hash
 from physverify.diagnosis.settings import diagnosis_settings
 from physverify.diagnosis.stage_errors import measure, pair_variants, stage_pairs
 from physverify.extraction.error_profile import load_error_profile
+from physverify.extraction.events import ConsoleObserver, EventRecorder
 from physverify.runtime.runs import RunContext, new_run
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import ClipManifest, Split
 from physverify.schema.error_profile import ErrorProfile
 from physverify.schema.io import stable_hash
-from physverify.synth.scene_scope import SceneScope, h1_scope, in_scope
+from physverify.synth.scene_scope import SceneScope, h1_scope, in_scope, scene_of
 from physverify.verification.check_set import CHECKS_SECTION, ChecksSettings, build_checks
 from physverify.verification.inputs import (
     InputSource,
@@ -236,6 +236,7 @@ def _guard(
         session.context,
         f"{NAME} {leaf}",
         selections,
+        err=echo_err,
         artifacts=artifacts,
         run_dir=session.run.run_dir,
     )
@@ -486,8 +487,6 @@ def _level_lines(level: LevelDevScore) -> list[str]:
 def stage_sigma(
     dataset: DatasetOption = None, subset: SubsetOption = None, clips: ClipsOption = None
 ) -> None:
-    from physverify.cli.commands.diagnose import diagnosis_context
-
     session = _session()
     cal = session.config.calibration
     recorder = EventRecorder(ConsoleObserver(typer.echo))
