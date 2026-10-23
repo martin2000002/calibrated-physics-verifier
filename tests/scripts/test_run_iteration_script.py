@@ -178,7 +178,7 @@ def test_the_iteration_runs_its_five_steps_on_calib_only(sandbox: IterationSandb
         ({"PHYSVERIFY_ITER_ID": "baseline"}, "PHYSVERIFY_ITER_ID"),
         ({"PHYSVERIFY_ITER_EXPECT_COMMIT": ""}, "PHYSVERIFY_ITER_EXPECT_COMMIT"),
         ({"HEAD_SHA": "deadbeef0000"}, "expected c0ffee1"),
-        ({"DIRTY_FILES": " M configs/sealed.toml\n"}, "uncommitted or untracked"),
+        ({"DIRTY_FILES": " M configs/verifier/sealed.toml\n"}, "uncommitted or untracked"),
         ({"PHYSVERIFY__SEALED__SETS": "[]"}, "PHYSVERIFY__SEALED__SETS"),
         ({"PHYSVERIFY__PATHS__THRESHOLDS": "/t.json"}, "PHYSVERIFY__PATHS__THRESHOLDS"),
         ({"PHYSVERIFY_UNSEAL": "kubric_synthetic:eval"}, "PHYSVERIFY_UNSEAL is set"),

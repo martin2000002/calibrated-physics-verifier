@@ -189,6 +189,6 @@ def test_a_look_needs_a_clean_checkout() -> None:
     """Audit m2."""
     require_clean("abc1234", "")
     with pytest.raises(SealedSetError, match="uncommitted"):
-        require_clean("abc1234", " M configs/checks.toml\n")
+        require_clean("abc1234", " M configs/verifier/checks.toml\n")
     with pytest.raises(SealedSetError, match="git checkout"):
         require_clean("", None)
