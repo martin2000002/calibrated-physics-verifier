@@ -22,9 +22,9 @@ from physverify.config.models import Settings
 from physverify.core.atomic import write_bytes_atomic
 from physverify.core.errors import TimingError
 from physverify.core.local_manifest import MANIFEST_FILE, ClipEntry, LocalManifest, to_queries
-from physverify.core.video import write_mp4
+from physverify.core.video import VIDEO_SUFFIX, write_mp4
 from physverify.datasets.local_video import LocalVideoDataset
-from physverify.generation.mp4_writer import VIDEO_SUFFIX, to_uint8
+from physverify.generation.mp4_writer import to_uint8
 from physverify.generation.settings import GenerationSettings, PromptSpec
 from physverify.generation.wan21 import (
     StepTimer,

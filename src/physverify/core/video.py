@@ -6,6 +6,7 @@ from __future__ import annotations
 import os
 from collections.abc import Iterator, Sequence
 from pathlib import Path
+from typing import Final
 
 import cv2
 import numpy as np
@@ -17,6 +18,7 @@ from physverify.schema.clip import scaled_size
 
 Frames = NDArray[np.uint8]
 FRAME_SUFFIXES = (".png", ".jpg", ".jpeg")
+VIDEO_SUFFIX: Final = ".mp4"
 # MPEG-4 Part 2: the codec every opencv-python wheel can write (H.264 needs an external encoder).
 MP4_FOURCC = "mp4v"
 

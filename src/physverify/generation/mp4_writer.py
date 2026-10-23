@@ -9,7 +9,6 @@ from numpy.typing import NDArray
 
 from physverify.core.errors import TimingError
 
-VIDEO_SUFFIX: Final = ".mp4"
 RGB_CHANNELS: Final = 3
 UINT8_MAX: Final = 255.0
 

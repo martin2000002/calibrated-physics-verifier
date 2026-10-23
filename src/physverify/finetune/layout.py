@@ -34,6 +34,7 @@ from typing import Final
 from physverify.config.models import Settings
 from physverify.core.atomic import write_bytes_atomic
 from physverify.core.local_manifest import MANIFEST_FILE, ClipEntry, LocalManifest
+from physverify.core.video import VIDEO_SUFFIX
 from physverify.datasets.local_video import NAME as LOCAL_VIDEO
 from physverify.finetune.records import (
     CandidateRecord,
@@ -60,7 +61,6 @@ SELECTED_FILE: Final = "selected.json"
 META_SUFFIX: Final = ".meta.json"
 LATENTS_SUFFIX: Final = ".latents.safetensors"
 EMBEDS_SUFFIX: Final = ".safetensors"
-VIDEO_SUFFIX: Final = ".mp4"
 
 
 @dataclass(frozen=True)
