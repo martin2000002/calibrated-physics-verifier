@@ -15,8 +15,8 @@ from pathlib import Path
 from typing import ClassVar, Final
 
 from physverify.core.errors import MissingInputError, PhysverifyError
-from physverify.evaluation.judges._base import JudgeInput, JudgeScore
-from physverify.evaluation.settings import AutoevalSettings
+from physverify.evaluation.judges._base import Judge, JudgeInput, JudgeScore
+from physverify.evaluation.settings import AutoevalSettings, H3Settings
 
 SCALE: Final = (1.0, 5.0)
 INFERENCE: Final = "VIDEOPHY2/inference.py"
@@ -146,6 +146,10 @@ class Videophy2AutoevalJudge:
         self._cfg = cfg
         self._workdir = workdir
         self._runner = runner
+
+    @classmethod
+    def from_config(cls, cfg: H3Settings, workdir: Path) -> Judge:
+        return cls(cfg.autoeval, workdir)
 
     def unavailable(self) -> str | None:
         return missing_parts(self._cfg)

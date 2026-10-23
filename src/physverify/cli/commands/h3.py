@@ -17,7 +17,7 @@ from typing import Annotated, Final
 import typer
 
 from physverify.app.context import AppContext
-from physverify.app.services import context_checks_hash, context_scorer
+from physverify.app.services import context_checks_hash, context_scorer, external_judge
 from physverify.calibration.loader import default_artifact_path
 from physverify.cli.commands._common import choice
 from physverify.cli.commands._finetune_deps import (
@@ -40,8 +40,7 @@ from physverify.evaluation.arms import EVAL_SPLIT, analysis_prompts, eval_prompt
 from physverify.evaluation.campaign import eval_records, eval_scores, has_eval_scores
 from physverify.evaluation.compare import CompareInputs, build_compare
 from physverify.evaluation.gate import gate_rows
-from physverify.evaluation.judges._base import JudgeInput
-from physverify.evaluation.judges.videophy2_autoeval import Videophy2AutoevalJudge
+from physverify.evaluation.judges._base import Judge, JudgeInput
 from physverify.evaluation.judging import (
     candidate_items,
     gate_items,
@@ -159,11 +158,11 @@ def _active_scorer(h: H3Context) -> AggregateScorer:
     return scorer
 
 
-def _judge(h: H3Context) -> Videophy2AutoevalJudge:
-    return Videophy2AutoevalJudge(h.cfg.autoeval, h.layout.runs)
+def _judge(h: H3Context) -> Judge:
+    return external_judge(h.context, h.cfg, h.layout.runs)
 
 
-def _available_judge(h: H3Context) -> Videophy2AutoevalJudge:
+def _available_judge(h: H3Context) -> Judge:
     judge = _judge(h)
     reason = judge.unavailable()
     if reason is not None:
@@ -390,7 +389,7 @@ def _eval_items(h: H3Context, prereg: H3Preregistration) -> dict[str, list[Judge
 
 def _judge_one(
     h: H3Context,
-    judge: Videophy2AutoevalJudge,
+    judge: Judge,
     where: tuple[JudgeSplit, str, str],
     items: list[JudgeInput],
     prereg_sha256: str | None,

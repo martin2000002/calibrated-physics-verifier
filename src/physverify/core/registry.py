@@ -60,7 +60,8 @@ def protocol_members(protocol: type) -> frozenset[str]:
         members.update(
             name
             for name, value in vars(base).items()
-            if not name.startswith("_") and (callable(value) or isinstance(value, property))
+            if not name.startswith("_")
+            and (callable(value) or isinstance(value, (property, classmethod, staticmethod)))
         )
     return frozenset(members)
 

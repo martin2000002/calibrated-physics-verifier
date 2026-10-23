@@ -9,7 +9,10 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import ClassVar, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, ClassVar, Protocol, runtime_checkable
+
+if TYPE_CHECKING:
+    from physverify.evaluation.settings import H3Settings
 
 
 @dataclass(frozen=True)
@@ -38,3 +41,11 @@ class Judge(Protocol):
     def stamp(self, task: str) -> str: ...
 
     def judge(self, items: Sequence[JudgeInput], task: str) -> Mapping[str, JudgeScore]: ...
+
+
+@runtime_checkable
+class ExternalJudge(Judge, Protocol):
+    """A judge that can be selected by name in ``external_judge`` and built from its settings."""
+
+    @classmethod
+    def from_config(cls, cfg: H3Settings, workdir: Path) -> Judge: ...

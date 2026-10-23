@@ -4,12 +4,16 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from contextlib import AbstractContextManager
+from pathlib import Path
 
 from physverify.app.context import AppContext
-from physverify.core.errors import UsageError
+from physverify.core.errors import ConfigError, UsageError
+from physverify.core.registry import satisfies
 from physverify.datasets._base import DatasetSource
 from physverify.diagnosis.chain import ChainRunner
 from physverify.diagnosis.checks_port import A7CheckSuite
+from physverify.evaluation.judges._base import ExternalJudge, Judge
+from physverify.evaluation.settings import H3Settings
 from physverify.extraction._base import StageObserver
 from physverify.extraction.cache import StageCache
 from physverify.extraction.error_profile import load_error_profile
@@ -96,3 +100,17 @@ def context_scorer(context: AppContext, name: str) -> AggregateScorer:
         scorers=context.registry("scorers"),
         checks=context.registry("checks"),
     )
+
+
+def external_judge(context: AppContext, cfg: H3Settings, workdir: Path) -> Judge:
+    """The judge named by ``[h3] external_judge``, built from its own configuration."""
+    registry = context.registry("judges")
+    judge = registry.get(cfg.external_judge)
+    if judge is None:
+        raise ConfigError(
+            f"[h3] external_judge {cfg.external_judge!r} is unknown; known: {sorted(registry)}"
+        )
+    if not satisfies(judge, ExternalJudge):
+        raise ConfigError(f"[h3] external_judge {cfg.external_judge!r} cannot be built from config")
+    built: Judge = judge.from_config(cfg, workdir)
+    return built

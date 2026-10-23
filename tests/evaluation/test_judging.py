@@ -7,12 +7,14 @@ from typing import Any, ClassVar
 
 import pytest
 
-from physverify.core.errors import UsageError
-from physverify.core.registry import discover
+from physverify.app import plugins
+from physverify.app.services import external_judge
+from physverify.core.errors import ConfigError, UsageError
 from physverify.datasets._videophy_tables import VideophyRow
 from physverify.evaluation.gate import gate_rows, gate_task, task_usability, usability
-from physverify.evaluation.judges._base import Judge, JudgeInput, JudgeScore
+from physverify.evaluation.judges._base import JudgeInput, JudgeScore
 from physverify.evaluation.judges.verifier import VerifierJudge
+from physverify.evaluation.judges.videophy2_autoeval import Videophy2AutoevalJudge
 from physverify.evaluation.judging import (
     candidate_items,
     gate_items,
@@ -22,7 +24,12 @@ from physverify.evaluation.judging import (
     judge_output,
     reusable,
 )
-from physverify.evaluation.settings import GateSettings, UsabilitySettings
+from physverify.evaluation.settings import (
+    AutoevalSettings,
+    GateSettings,
+    H3Settings,
+    UsabilitySettings,
+)
 from physverify.finetune.records import CandidateRecord, CandidateScore
 from physverify.schema.clip import Split
 
@@ -71,8 +78,22 @@ class FakeJudge:
 
 
 def test_the_judge_registry_finds_both_judges() -> None:
-    registry = discover("physverify.evaluation.judges", (Judge,), "name")
+    registry = plugins.build("judges")
     assert set(registry) == {"verifier", "videophy2_autoeval"}
+
+
+class RegistryContext:
+    def registry(self, kind: str) -> Any:
+        return plugins.build(kind)
+
+
+def test_the_external_judge_is_selected_by_name(tmp_path: Path) -> None:
+    cfg = H3Settings(autoeval=AutoevalSettings(hf_revision="0" * 12, code_commit="0" * 12))
+    context: Any = RegistryContext()
+    assert isinstance(external_judge(context, cfg, tmp_path), Videophy2AutoevalJudge)
+    for name in ("verifier", "missing"):
+        with pytest.raises(ConfigError, match=name):
+            external_judge(context, cfg.model_copy(update={"external_judge": name}), tmp_path)
 
 
 def test_gate_rows_need_a_reference_and_a_video() -> None:

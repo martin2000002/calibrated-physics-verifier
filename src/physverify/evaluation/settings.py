@@ -76,6 +76,7 @@ class H3Settings(FrozenModel):
     min_ft_pairs_per_prompt: int = Field(2, ge=1)
     cross_fit_checks_a: list[str] = Field(default_factory=list)
     eval_store_latents: bool = False
+    external_judge: str = "videophy2_autoeval"
     gate: GateSettings = Field(default_factory=GateSettings)
     usability: UsabilitySettings = Field(default_factory=UsabilitySettings)
     autoeval: AutoevalSettings
