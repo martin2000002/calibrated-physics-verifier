@@ -31,12 +31,12 @@ def schema_modules() -> list[ModuleType]:
 
 
 def record_types(modules: list[ModuleType]) -> dict[str, type[Record]]:
-    found: dict[str, type[Record]] = {}
-    for module in modules:
-        for name, value in vars(module).items():
-            if isinstance(value, type) and issubclass(value, Record) and value is not Record:
-                found[name] = value
-    return found
+    return {
+        name: value
+        for module in modules
+        for name, value in vars(module).items()
+        if isinstance(value, type) and issubclass(value, Record) and value is not Record
+    }
 
 
 def compile_sources() -> list[str]:

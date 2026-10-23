@@ -11,7 +11,6 @@ import functools
 import hashlib
 import http.client
 import json
-import os
 import time
 import urllib.parse
 import urllib.request
@@ -208,7 +207,7 @@ def fetch_file(
     if not matches(part, remote):
         part.unlink()
         raise ChecksumError(f"{remote.relative}: size or md5 differs from the listing")
-    os.replace(part, target)
+    part.replace(target)
     log.info("%s: %d bytes", remote.relative, transferred[0])
     return FetchOutcome(target, transferred[0], cached=False)
 
@@ -231,7 +230,7 @@ def save_atomic(source: IO[bytes], target: Path) -> int:
     except BaseException:
         part.unlink(missing_ok=True)
         raise
-    os.replace(part, target)
+    part.replace(target)
     return written
 
 

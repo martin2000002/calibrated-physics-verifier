@@ -105,7 +105,7 @@ def sigterm_as_interrupt() -> Iterator[None]:
         yield
         return
 
-    def interrupt(signum: int, frame: FrameType | None) -> None:
+    def interrupt(signum: int, _frame: FrameType | None) -> None:
         raise KeyboardInterrupt(f"signal {signum}")
 
     previous = signal.signal(signal.SIGTERM, interrupt)

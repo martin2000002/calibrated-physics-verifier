@@ -3,7 +3,6 @@ checked against a byte budget before decoding starts (never materialise native 4
 
 from __future__ import annotations
 
-import os
 from collections.abc import Iterator, Sequence
 from pathlib import Path
 
@@ -48,7 +47,7 @@ def write_mp4(frames: Frames, path: Path, fps: float) -> None:
             writer.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
     finally:
         writer.release()
-    os.replace(partial, path)
+    partial.replace(path)
 
 
 def _selection(start: int, stop: int, step: int, n_frames: int) -> range:

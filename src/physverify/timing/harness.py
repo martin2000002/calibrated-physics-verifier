@@ -77,7 +77,7 @@ def _hook[T](label: str, action: Callable[[], T]) -> T:
         raise _HookError(f"{label}: {_error_text(exc)}") from exc
 
 
-def _ignore(outcome: TargetOutcome) -> None:
+def _ignore(_outcome: TargetOutcome) -> None:
     return None
 
 

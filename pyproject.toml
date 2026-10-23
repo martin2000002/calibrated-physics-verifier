@@ -80,7 +80,32 @@ src = ["src", "tests"]
 "src/physverify/kubric_worker/**" = "py39"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "SIM", "N", "C90"]
+select = [
+    "E", "F", "I", "UP", "B", "SIM", "N", "C90",
+    "RUF", "ERA", "PIE", "RET", "PTH", "T20", "TID", "ARG", "C4", "PERF", "FURB", "ISC", "FLY",
+]
+# RUF012: a ClassVar annotation would drop the field from a pydantic model. RUF009: a call default
+# in a dataclass is shared on purpose; default_factory would build one per instance. ARG002:
+# plugin methods implement protocol signatures whether or not they read every argument.
+ignore = ["RUF012", "RUF009", "ARG002"]
+allowed-confusables = ["’"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["ARG", "T20", "TID251"]
+"tools/**" = ["T20", "TID251"]
+"scripts/**" = ["T20", "TID251"]
+"src/physverify/cli/main.py" = ["T20"]
+"src/physverify/kubric_worker/__main__.py" = ["T20"]
+"src/physverify/synth/hdri_pools.py" = ["T20"]
+"src/physverify/cli/**" = ["TID251"]
+"src/physverify/app/**" = ["TID251"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "parents"
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"physverify.cli".msg = "only the CLI, tools and tests import physverify.cli; call physverify.app"
+"physverify.app".msg = "physverify.app is the composition root: only the CLI, scripts, tools and tests import it"
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10
@@ -91,54 +116,16 @@ known-first-party = ["physverify"]
 [tool.mypy]
 python_version = "3.12"
 strict = true
-files = ["src/physverify", "scripts/h200"]
+files = ["src/physverify", "scripts/h200", "tools/equivalence"]
 mypy_path = "src:scripts/h200"
 explicit_package_bases = true
 plugins = ["pydantic.mypy"]
+untyped_calls_exclude = ["transformers"]
+enable_error_code = ["ignore-without-code", "truthy-bool", "truthy-iterable", "possibly-undefined"]
 
 [[tool.mypy.overrides]]
 module = ["torch.*", "torchvision.*", "transformers.*", "kubric.*", "bpy.*", "pybullet.*", "scipy.*", "psutil.*"]
 ignore_missing_imports = true
-
-# Cycle-owned implementation modules are type-checked but not held to strict mode.
-[[tool.mypy.overrides]]
-module = [
-    "physverify.synth.*",
-    "physverify.extraction.*",
-    "physverify.datasets.*",
-    "physverify.checks.*",
-    "physverify.verification.*",
-    "physverify.diagnosis.*",
-    "physverify.timing.*",
-    "physverify.kubric_worker.*",
-    "physverify.cli.commands.*",
-]
-disallow_untyped_defs = false
-disallow_incomplete_defs = false
-disallow_untyped_calls = false
-disallow_any_generics = false
-warn_return_any = false
-
-# Every frozen protocol module and frozen CLI command stays strict.
-[[tool.mypy.overrides]]
-module = [
-    "physverify.synth.families._base",
-    "physverify.synth.perturbations._base",
-    "physverify.extraction._base",
-    "physverify.datasets._base",
-    "physverify.checks._base",
-    "physverify.verification._base",
-    "physverify.diagnosis._base",
-    "physverify.timing._base",
-    "physverify.kubric_worker.__main__",
-    "physverify.kubric_worker.tasks.ping",
-    "physverify.cli.commands.doctor",
-]
-disallow_untyped_defs = true
-disallow_incomplete_defs = true
-disallow_untyped_calls = true
-disallow_any_generics = true
-warn_return_any = true
 
 [tool.pytest.ini_options]
 addopts = "--import-mode=importlib -m 'not heavy and not docker and not network and not gpu'"

@@ -233,7 +233,7 @@ class FrameSampling(Record):
 
 def round_half_up(value: float) -> int:
     """Round to the nearest integer with halves going up (Python's round() is banker's)."""
-    return int(math.floor(value + 0.5))
+    return math.floor(value + 0.5)
 
 
 def scaled_size(width: int, height: int, max_side: int | None) -> tuple[int, int]:

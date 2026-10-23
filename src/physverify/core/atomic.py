@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import uuid
 from collections.abc import Callable
 from pathlib import Path
@@ -15,7 +14,7 @@ def write_atomic(path: Path, write: Callable[[Path], object]) -> None:
     temp = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
     try:
         write(temp)
-        os.replace(temp, path)
+        temp.replace(path)
     except BaseException:
         temp.unlink(missing_ok=True)
         raise
