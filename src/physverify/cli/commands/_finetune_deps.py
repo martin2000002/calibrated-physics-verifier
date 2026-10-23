@@ -23,7 +23,7 @@ from physverify.runtime.heavy import NullLock
 from physverify.runtime.runs import current_commit
 from physverify.schema.checks import InputLevel
 from physverify.schema.io import json_ready
-from physverify.timing.envinfo import TorchCudaProbe
+from physverify.timing.environment import TorchCudaProbe
 from physverify.timing.settings import load_timing
 from physverify.verification.check_set import CHECKS_SECTION, ChecksSettings, build_checks
 from physverify.verification.inputs import PerceivedSource, PipelineOutputLoader

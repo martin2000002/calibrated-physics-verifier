@@ -36,7 +36,7 @@ from physverify.runtime.heavy import NullLock
 from physverify.runtime.runs import RUN_FILE, RunContext, new_run
 from physverify.timing._base import TimingContext, TimingTarget
 from physverify.timing.budget import Bound, BudgetAnswer, BudgetQuery, answer, cost_from_results
-from physverify.timing.envinfo import CudaProbe, TorchCudaProbe, run_environment, validity
+from physverify.timing.environment import CudaProbe, TorchCudaProbe, run_environment, validity
 from physverify.timing.harness import ClipSource, TimingHarness
 from physverify.timing.hooks import brings_own_clips
 from physverify.timing.records import ResultsFile, TargetStatus

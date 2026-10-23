@@ -13,7 +13,7 @@ import pytest
 from pydantic import ValidationError
 
 from physverify.config.models import Settings
-from physverify.timing.envinfo import (
+from physverify.timing.environment import (
     DRIVER_QUERY,
     PACKAGES,
     PROCESSES_QUERY,

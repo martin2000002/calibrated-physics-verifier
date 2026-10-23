@@ -26,7 +26,7 @@ from physverify.timing.records import MIB, check_measures, generate_measure, mea
 from physverify.timing.target_services import cuda_sync
 
 HEAVY_MODULES = ("torch", "transformers", "diffusers", "kubric", "bpy")
-TIMING_MODULES = ("settings", "records", "hooks", "target_services", "envinfo", "recorder")
+TIMING_MODULES = ("settings", "records", "hooks", "target_services", "environment", "recorder")
 
 
 def event(
