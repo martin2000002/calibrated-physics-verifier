@@ -135,7 +135,8 @@ case "$*" in
     echo "fetch $name seed ${PHYSVERIFY__OBJECTRON_STATIC__SEED-unset}" >> "$CALLS"
     mkdir -p "$PHYSVERIFY__PATHS__DATA_DIR/raw/$name/sub"
     echo a > "$PHYSVERIFY__PATHS__DATA_DIR/raw/$name/a.mp4"
-    echo b > "$PHYSVERIFY__PATHS__DATA_DIR/raw/$name/sub/b.json" ;;
+    echo b > "$PHYSVERIFY__PATHS__DATA_DIR/raw/$name/sub/b.json"
+    echo partial > "$PHYSVERIFY__PATHS__DATA_DIR/raw/$name/c.mp4.part" ;;
   *" calibrate evaluate "*) evaluate "$HEAD_SHA" ;;
 esac
 exit 0
@@ -570,6 +571,16 @@ def test_changed_downloads_are_refused(sandbox: FinalSandbox) -> None:
     raw.write_text("changed", encoding="utf-8")
     result = sandbox.run("extract", "physics_iq_views")
     assert result.returncode == 2 and "not those of" in result.stderr
+    assert not any(c.startswith("extract") for c in sandbox.commands())
+
+
+def test_a_file_added_after_the_fetch_is_refused(sandbox: FinalSandbox) -> None:
+    sandbox.ok("seed")
+    sandbox.ok("fetch", "physics_iq_views")
+    extra = sandbox.root / "kubric-data" / "raw" / "physics_iq_views" / "extra.mp4"
+    extra.write_text("extra", encoding="utf-8")
+    result = sandbox.run("extract", "physics_iq_views")
+    assert result.returncode == 2 and "holds 3 files, not the 2" in result.stderr
     assert not any(c.startswith("extract") for c in sandbox.commands())
 
 
