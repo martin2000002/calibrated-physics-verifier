@@ -1,0 +1,63 @@
+# One English term per process label, used by every WP9 stream. label<TAB>context<TAB>term
+# A persisted id (config key, record field, file name, step name) keeps its label; only prose changes.
+H1	any	held-out monotonicity
+H2	any	human-agreement study
+H3	any	generator comparison
+A3	any	timing harness
+A4	any	synthetic Kubric dataset
+A4 labels	any	synthetic ground-truth labels
+A5	any	extractor
+A6	any	extractor diagnosis
+A7	any	check suite
+A8	any	calibration chain
+A8 v2	any	calibration chain
+A9	any	size estimator and abstention
+A10	any	human-agreement study
+A11	any	preference fine-tuning
+A12	any	end-to-end demo
+A13	any	generator comparison
+C_F	freeze	freeze commit
+C_V1	freeze	v1 commit
+P2	freeze	early-extraction commit
+P1	freeze	threshold and false-positive probe
+P3	freeze	pooled-tau probe
+P4	freeze	real-video false-positive probe
+P5	freeze	risk-coverage probe
+it1..it5	any	a perception iteration (the id itself only where persisted, e.g. it3-*)
+D1	calibration	calibration package
+D2	calibration	raw-magnitude inputs
+D3	calibration	row roles per (clip, check)
+D4	calibration	strata
+D5	calibration	conformal decision threshold L_C
+D6	calibration	honest false-positive rate
+D7	calibration	detection limit L_D
+D8	calibration	held-out monotonicity
+D9	calibration	per-check sigma recalibration
+D10	calibration	per-stage sigma recalibration
+D11	calibration	check weights and violation probability
+D12	calibration	calib/eval separation
+D13	calibration	calibrate command
+D14	calibration	single source of k_sigma and couplings
+D1	human_agreement	videophy dataset
+D2	human_agreement	object-object filter
+D3	human_agreement	binary human label
+D4	human_agreement	reference VLM prediction
+D5	human_agreement	per-clip verifier decision
+D6	human_agreement	agreement metrics
+D7	human_agreement	explicit abstention
+D8	human_agreement	preregistered decision rule
+D9	human_agreement	error breakdown
+D10	human_agreement	dev/test separation
+D11	human_agreement	object queries
+D1	demo, generator_comparison	end-to-end demo
+D2	generator_comparison	arms
+D3	generator_comparison	primary test
+D4	generator_comparison	external judge and fixed sequence
+D5	generator_comparison	margins
+D6	generator_comparison	Holm-corrected secondary tests
+D7	generator_comparison	guards
+D8	generator_comparison	verdict rule
+D9	generator_comparison	preregistration
+D10	generator_comparison	declared limitations
+D-n	extraction	the rule in words (one sentence), no label
+J-n, JY-n, T-n, AC-n, WP-x, ADR, section signs, dates	any	removed; the reason in one sentence when it is not obvious
