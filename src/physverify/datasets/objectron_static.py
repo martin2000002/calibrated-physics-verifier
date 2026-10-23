@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import datetime as dt
 import shutil
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Literal
@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal
 from pydantic import Field
 
 from physverify.core.atomic import write_text_atomic
-from physverify.core.digests import file_sha256, text_sha256
+from physverify.core.digests import file_sha256
 from physverify.core.download import (
     BYTES_PER_MB,
     MANIFEST_FILE,
@@ -43,6 +43,16 @@ from physverify.core.models import FrozenModel
 from physverify.core.video import FrameDirVideoSource
 from physverify.datasets._base import GroundTruthStore, VideoSource
 from physverify.datasets._layout import relative_to_data, resolve_data_path
+from physverify.datasets._objectron_selection import (
+    FAILED,
+    TAKEN,
+    TOO_LARGE,
+    Candidate,
+    StaticClip,
+    StaticSelection,
+    ordered,
+    read_selection,
+)
 from physverify.schema.clip import ClipManifest, ObjectQuery, Split, TimeSource
 from physverify.sizing import end_to_end, objectron, objectron_draws
 from physverify.sizing.settings import SizingSettings, sizing_settings
@@ -53,10 +63,8 @@ if TYPE_CHECKING:
 SECTION = "objectron_static"
 SELECTION_FILE = "selection.json"
 FRAMES_DIR = "frames"
-VIDEO_FILE = "video.MOV"
 LOCAL, FULL = "local", "full"
 SUBSETS = (LOCAL, FULL)
-TAKEN, TOO_LARGE, FAILED = "taken", "too_large", "failed"
 REVISION = "unversioned bucket, md5 per object; official {split} index"
 
 log = get_logger("datasets.objectron_static")
@@ -72,38 +80,6 @@ class ObjectronStaticSettings(FrozenModel):
     split: Literal["train", "test"]
 
 
-class Candidate(FrozenModel):
-    video_id: str
-    status: str
-    size: int | None = None
-
-
-class StaticClip(FrozenModel):
-    clip_id: str
-    video_id: str
-    label: str
-    fps: float = Field(gt=0)
-    n_frames: int = Field(ge=1)
-    width: int = Field(ge=1)
-    height: int = Field(ge=1)
-
-
-class StaticSelection(FrozenModel):
-    """What a fetch chose and why; written once, after the whole selection."""
-
-    seed: int
-    split: str
-    per_class: int
-    max_video_mb: float
-    seconds: float
-    excluded: tuple[str, ...]
-    candidates: tuple[Candidate, ...]
-    clips: tuple[StaticClip, ...]
-
-    def rule(self) -> tuple[Any, ...]:
-        return (self.seed, self.split, self.per_class, self.max_video_mb, self.seconds)
-
-
 @dataclass(frozen=True)
 class Decoded:
     fps: float
@@ -114,18 +90,6 @@ class Decoded:
 
 Decoder = Callable[[Path, Path, float, int], Decoded]
 """``(video, frame_dir, seconds, max_side)``: the decoded frames written under ``frame_dir``."""
-
-
-def order_key(seed: int, video_id: str) -> str:
-    return text_sha256(f"{seed}:{video_id}")
-
-
-def ordered(
-    refs: Iterable[objectron.VideoRef], excluded: frozenset[str], seed: int
-) -> list[objectron.VideoRef]:
-    """The candidates of one class in the preregistered order."""
-    kept = (r for r in refs if r.video_id not in excluded)
-    return sorted(kept, key=lambda r: order_key(seed, r.video_id))
 
 
 def decode_upright(video: Path, target: Path, seconds: float, max_side: int) -> Decoded:
@@ -348,7 +312,7 @@ class ObjectronStaticDataset:
         return decoded
 
     def _listed(self, client: HttpClient, ref: objectron.VideoRef) -> Mapping[str, Any] | None:
-        name = f"{objectron.video_prefix(ref)}{VIDEO_FILE}"
+        name = f"{objectron.video_prefix(ref)}{objectron.VIDEO_FILE}"
         items = list_objects(client, self._sizing.listing_url, name, self._s.retries)
         return next((item for item in items if item.get("name") == name), None)
 
@@ -400,12 +364,6 @@ def _check_subset(subset: str | None) -> str:
     if subset not in SUBSETS:
         raise UsageError(f"unknown objectron_static subset {subset!r}; known: {list(SUBSETS)}")
     return subset
-
-
-def read_selection(path: Path) -> StaticSelection | None:
-    if not path.is_file():
-        return None
-    return StaticSelection.model_validate_json(path.read_text(encoding="utf-8"))
 
 
 def _up_to_date(manifest: FetchManifest | None, chosen: StaticSelection, dest: Path) -> bool:

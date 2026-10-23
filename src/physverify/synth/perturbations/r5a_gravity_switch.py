@@ -11,21 +11,21 @@ import numpy as np
 from physverify.schema.contacts import ContactTable
 from physverify.schema.scene import MagnitudeKind, PerturbationRecord, SceneSpec
 from physverify.schema.states import ObjectStateTable
-from physverify.synth.perturb import PerturbationNotApplicableError
-from physverify.synth.perturbations._ballistics import (
+from physverify.synth.ballistics import (
     SWITCH_DELAY_S,
     GravitySchedule,
     integrate_sphere,
     time_to_height,
 )
-from physverify.synth.perturbations._base import PerturbationTarget
-from physverify.synth.perturbations._frame_windows import flight_mask, rest_mask, segments
-from physverify.synth.perturbations._measure import (
+from physverify.synth.frame_windows import flight_mask, rest_mask, segments
+from physverify.synth.magnitudes import (
     SIDE_FRAMES,
     SWITCH_FRAME,
     fit_frames,
     inconsistency,
 )
+from physverify.synth.perturb import PerturbationNotApplicableError
+from physverify.synth.perturbations._base import PerturbationTarget
 from physverify.synth.perturbations._state_edit import (
     PluginBase,
     Vec,

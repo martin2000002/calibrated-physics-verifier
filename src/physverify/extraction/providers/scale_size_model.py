@@ -14,9 +14,8 @@ from pydantic import BaseModel, Field
 
 from physverify.config.models import SizePrior, SizePriorTable
 from physverify.extraction._base import StageContext, WeightSpec
-from physverify.extraction.providers._common import ProviderParams, expect_params, lookup_label
+from physverify.extraction.providers._common import ProviderParams, expect_params
 from physverify.extraction.providers.scale_size_prior import (
-    SIZE_PRIORS_SECTION,
     ObjectScale,
     combine,
     object_scale,
@@ -26,6 +25,7 @@ from physverify.schema.stages import Stage
 from physverify.schema.states import ObjectStateTable
 from physverify.sizing.model import SECTION as SIZE_MODEL_SECTION
 from physverify.sizing.model import SizeModelTable, model_hash, prior_aliases, resolve
+from physverify.sizing.priors import SIZE_PRIORS_SECTION, lookup_label
 from physverify.sizing.settings import SECTION as SIZING_SECTION
 from physverify.sizing.settings import SizeLookup
 

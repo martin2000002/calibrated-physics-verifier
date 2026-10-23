@@ -7,14 +7,12 @@ import pytest
 from reference.r4_jump_v1 import ContinuityCheck
 
 from physverify.checks._base import Check, CheckInputs
-from physverify.checks._common import CommonParams, first_max
-from physverify.checks.r4_integrity import (
-    PLUGINS,
-    PermanenceCheck,
-    PermanenceParams,
-    SizeConstancyCheck,
-    SizeParams,
-)
+from physverify.checks._params import CommonParams
+from physverify.checks._results import first_max
+from physverify.checks.r4_missing_permanence import PLUGINS as MISSING_PLUGINS
+from physverify.checks.r4_missing_permanence import PermanenceCheck, PermanenceParams
+from physverify.checks.r4_size_constancy import PLUGINS as SIZE_PLUGINS
+from physverify.checks.r4_size_constancy import SizeConstancyCheck, SizeParams
 from physverify.physics.finite_diff import third_difference
 from physverify.physics.measures.object_integrity import size_change_ratio
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
@@ -58,9 +56,9 @@ def jump(case: sc.Case) -> CheckResult:
 
 
 def test_plugins_satisfy_the_check_protocol() -> None:
-    ids = {cls.check_id for cls in PLUGINS}
+    ids = {cls.check_id for cls in (*MISSING_PLUGINS, *SIZE_PLUGINS)}
     assert ids == {"R4_missing", "R4_size"}
-    for cls in (*PLUGINS, ContinuityCheck):
+    for cls in (*MISSING_PLUGINS, *SIZE_PLUGINS, ContinuityCheck):
         assert isinstance(cls(cls.Params()), Check)
 
 

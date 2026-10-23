@@ -19,14 +19,8 @@ from physverify.config.models import RuntimeSettings
 from physverify.core.resample import resize_frame
 from physverify.core.video import check_frame_budget
 from physverify.datasets._base import ArrayGroundTruthStore, NativeGroundTruth
-from physverify.physics.geometry import (
-    Plane,
-    Pose,
-    Primitive,
-    Solid,
-    contact_manifold,
-    quaternion_from_matrix,
-)
+from physverify.physics.contact_manifold import contact_manifold
+from physverify.physics.geometry import Plane, Pose, Primitive, Solid, quaternion_from_matrix
 from physverify.schema.clip import ClipManifest, ObjectQuery, Split, TimeSource, scaled_size
 from physverify.schema.constants import ENV_ID, STANDARD_GRAVITY
 from physverify.schema.contacts import ContactKind, ContactRecord, ContactTable, ManifoldKind

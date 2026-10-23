@@ -81,6 +81,17 @@ ORDER: Mapping[str, tuple[str, ...]] = {
         "track/mask",
     ),
     "policies": ("raw", "threshold"),
+    "truth_measures": (
+        "R1",
+        "R2",
+        "R3a",
+        "R3b",
+        "R4_missing",
+        "R4_size",
+        "R4_jump",
+        "R5a",
+        "R5b",
+    ),
     "timing_targets": (
         "dpo_step",
         "extract_pipeline",
@@ -145,7 +156,7 @@ _CHECK_ID = re.compile(r"^R(?P<number>\d+)(?P<letter>[a-z]?)")
 
 @pytest.fixture(scope="module")
 def registries() -> dict[str, Mapping[str, Any]]:
-    return {kind: PLUGIN_KINDS[kind]() for kind in KINDS}
+    return {kind: PLUGIN_KINDS[kind]() for kind in {*KINDS, *ORDER}}
 
 
 def test_every_plugin_kind_is_kept() -> None:
@@ -174,14 +185,14 @@ def test_serialized_plugin_keys_are_unchanged(
     assert sorted(registries[kind]) == sorted(ORDER[kind])
 
 
-def test_provider_keys_are_unchanged(registries: dict[str, Mapping[str, Any]]) -> None:
-    assert sorted(registries["providers"]) == sorted(PROVIDER_ORDER)
-
-
-def test_provider_order_is_unchanged_until_the_provider_files_are_renamed(
+def test_every_check_has_exactly_one_truth_measure(
     registries: dict[str, Mapping[str, Any]],
 ) -> None:
-    assert tuple(registries["providers"]) == PROVIDER_ORDER
+    assert set(registries["truth_measures"]) == set(registries["checks"])
+
+
+def test_provider_keys_are_unchanged(registries: dict[str, Mapping[str, Any]]) -> None:
+    assert sorted(registries["providers"]) == sorted(PROVIDER_ORDER)
 
 
 def test_command_names_and_order_are_unchanged_until_the_cli_renames(

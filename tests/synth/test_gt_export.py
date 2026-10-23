@@ -20,26 +20,24 @@ from physverify.schema.contacts import ContactTable
 from physverify.schema.render import RenderLayers
 from physverify.schema.scene import CameraSpec, SceneSpec
 from physverify.schema.states import CoordFrame, ObjectStateTable
+from physverify.synth.frame_windows import (
+    projected_silhouette,
+    silhouette_mask,
+    solid_at,
+)
 from physverify.synth.generate import plan_subset, save_plan
-from physverify.synth.gt_export import (
+from physverify.synth.gt_camera import (
     OPENGL_TO_OPENCV,
-    content_sha256,
-    export_all,
-    export_clip,
     opencv_intrinsics,
     opencv_world_from_camera,
     visibility,
 )
+from physverify.synth.gt_export import content_sha256, export_all, export_clip
 from physverify.synth.perturb import (
     apply_variants,
     closest_points,
     ground_truth_contacts,
     instantiate,
-)
-from physverify.synth.perturbations._frame_windows import (
-    projected_silhouette,
-    silhouette_mask,
-    solid_at,
 )
 from physverify.synth.placement import project, spec_intrinsics, spec_world_from_camera
 from physverify.synth.plan import DatasetPlan
@@ -220,7 +218,9 @@ def applied_smoke(data_settings: Settings, families: Any, perturbations: Any) ->
     return Smoke(plan, store, plugins, ds)
 
 
-def exported_smoke(data_settings: Settings, families: Any, perturbations: Any) -> Smoke:
+def exported_smoke(
+    data_settings: Settings, families: Any, perturbations: Any, truth_measures: Any
+) -> Smoke:
     """The smoke subset exported, with empty closest-point samples and a rasterized render."""
     smoke = applied_smoke(data_settings, families, perturbations)
     plan, store, ds = smoke.plan, smoke.store, smoke.ds
@@ -241,15 +241,17 @@ def exported_smoke(data_settings: Settings, families: Any, perturbations: Any) -
     scene = SceneSpec.load_json(store.scene_dir(SIM_ID) / "spec.json")
     for variant in plan.variants:
         fake_render(store, variant.clip_id, scene)
-    exported = export_all(plan, store, smoke.plugins, ds, data_settings.paths.data_dir)
+    exported = export_all(
+        plan, store, smoke.plugins, truth_measures, ds, data_settings.paths.data_dir
+    )
     assert sorted(exported) == sorted(v.clip_id for v in plan.variants)
     return smoke
 
 
 def test_exported_clips_round_trip(
-    data_settings: Settings, families: Any, perturbations: Any
+    data_settings: Settings, families: Any, perturbations: Any, truth_measures: Any
 ) -> None:
-    smoke = exported_smoke(data_settings, families, perturbations)
+    smoke = exported_smoke(data_settings, families, perturbations, truth_measures)
     plan, store, ds = smoke.plan, smoke.store, smoke.ds
     exported = [v.clip_id for v in plan.variants]
     scene = SceneSpec.load_json(store.scene_dir(SIM_ID) / "spec.json")
@@ -302,9 +304,9 @@ def test_npz_content_hash_ignores_the_zip_container(tmp_path: Path) -> None:
 
 
 def test_gt_version_follows_the_exported_contacts(
-    data_settings: Settings, families: Any, perturbations: Any
+    data_settings: Settings, families: Any, perturbations: Any, truth_measures: Any
 ) -> None:
-    smoke = exported_smoke(data_settings, families, perturbations)
+    smoke = exported_smoke(data_settings, families, perturbations, truth_measures)
     store, ds = smoke.store, smoke.ds
     clip_id = smoke.clip("none")
     variant = smoke.plan.variant(clip_id)
@@ -312,7 +314,7 @@ def test_gt_version_follows_the_exported_contacts(
     plugin = smoke.plugins[variant.perturbation]
 
     def export() -> tuple[str, dict[str, Any], str]:
-        export_clip(variant, store, plugin, ds, data_settings.paths.data_dir)
+        export_clip(variant, store, plugin, truth_measures, ds, data_settings.paths.data_dir)
         meta = read_json(clip_dir / GT_META)
         return meta["gt_version"], meta["record"], content_sha256(clip_dir / LAYERS)
 

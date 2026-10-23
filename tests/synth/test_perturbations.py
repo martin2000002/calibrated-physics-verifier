@@ -1,6 +1,6 @@
 """Every perturbation plugin on clean clips of every family, recorded (Bullet) and analytic: the
 recorded magnitude is the one measured on the edited truth, it reaches each level target and the
-edit moves only its own entry of ``measure_all`` (ADR 0004 §4 and §9.2)."""
+edit moves only its own truth measure (ADR 0004 §4 and §9.2)."""
 
 from __future__ import annotations
 
@@ -13,9 +13,12 @@ import numpy as np
 import pytest
 
 from physverify.config.loader import load_settings
-from physverify.physics.geometry import Plane, signed_distance
+from physverify.physics.geometry import Plane
+from physverify.physics.signed_distance import signed_distance
 from physverify.schema.scene import ObjectSpec, PerturbationRecord, SceneSpec
 from physverify.schema.states import ObjectStateTable, PrimitiveKind
+from physverify.synth.frame_windows import solid_at
+from physverify.synth.magnitudes import record_cuts
 from physverify.synth.perturb import (
     MeasuredPerturbation,
     PerturbationNotApplicableError,
@@ -26,9 +29,8 @@ from physverify.synth.perturb import (
     perturb_trajectory,
 )
 from physverify.synth.perturbations._base import PerturbationTarget
-from physverify.synth.perturbations._frame_windows import solid_at
-from physverify.synth.perturbations._measure import MEASURE_KEYS, measure_all, record_cuts
 from physverify.synth.settings import DatasetSettings, load_dataset_settings, perturbation_params
+from physverify.synth.truth_measures._base import measure_truth
 
 OWN_KEY = {
     "r1_penetration": "R1",
@@ -79,7 +81,7 @@ def moved(base: dict[str, float], after: dict[str, float]) -> set[str]:
     """Entries whose value changed beyond the tolerance (both defined)."""
     return {
         k
-        for k in MEASURE_KEYS
+        for k in base
         if math.isfinite(base[k])
         and math.isfinite(after[k])
         and abs(after[k] - base[k]) > tolerance(base[k])
@@ -88,7 +90,7 @@ def moved(base: dict[str, float], after: dict[str, float]) -> set[str]:
 
 def undefined(base: dict[str, float], after: dict[str, float]) -> set[str]:
     """Entries that became measurable or stopped being measurable (NaN on one side)."""
-    return {k for k in MEASURE_KEYS if math.isfinite(base[k]) != math.isfinite(after[k])}
+    return {k for k in base if math.isfinite(base[k]) != math.isfinite(after[k])}
 
 
 def report(base: dict[str, float], after: dict[str, float], keys: set[str]) -> dict[str, Any]:
@@ -129,8 +131,8 @@ class Edit:
 class Sweep:
     """Every applicable plugin at every level on the clean clips, perturbed once per session."""
 
-    def __init__(self, bank: Any, ds: DatasetSettings, plugins: dict[str, Any]) -> None:
-        self.bank, self.ds, self.plugins = bank, ds, plugins
+    def __init__(self, bank: Any, ds: DatasetSettings, plugins: dict[str, Any], truth: Any) -> None:
+        self.bank, self.ds, self.plugins, self.truth = bank, ds, plugins, truth
         self._base: dict[tuple[str, str], dict[str, float]] = {}
         self._edits: dict[tuple[str, str], dict[tuple[str, int], Edit]] = {}
 
@@ -140,8 +142,8 @@ class Sweep:
     def base(self, source: str, family: str) -> dict[str, float]:
         if (source, family) not in self._base:
             clip = self.clip(source, family)
-            self._base[source, family] = measure_all(
-                clip.scene, clip.states, clip.contacts, self.ds.contacts.tol_m
+            self._base[source, family] = measure_truth(
+                self.truth, clip.scene, clip.states, clip.contacts, self.ds.contacts.tol_m
             )
         return self._base[source, family]
 
@@ -160,13 +162,13 @@ class Sweep:
             self.plugins[name], clip, family, level, target, self.ds.seed
         )
         tol = self.ds.contacts.tol_m
-        measures = measure_all(clip.scene, states, contacts, tol, record_cuts(record))
+        measures = measure_truth(self.truth, clip.scene, states, contacts, tol, record_cuts(record))
         return Edit(target, states, contacts, record, measures)
 
 
 @pytest.fixture(scope="session")
-def sweep(bank: Any, clean_ds: DatasetSettings, perturbations: Any) -> Sweep:
-    return Sweep(bank, clean_ds, instantiate(perturbations, clean_ds))
+def sweep(bank: Any, clean_ds: DatasetSettings, perturbations: Any, truth_measures: Any) -> Sweep:
+    return Sweep(bank, clean_ds, instantiate(perturbations, clean_ds), truth_measures)
 
 
 def test_the_families_cover_every_plugin(plugins: dict[str, Any]) -> None:
@@ -217,13 +219,17 @@ def test_recorded_edits_move_only_documented_measures(family: str, sweep: Sweep)
 
 @pytest.mark.parametrize("family", GRAVITY_FAMILIES)
 def test_gravity_scale_reaches_each_level_on_the_analytic_clip(
-    family: str, bank: Any, ds: DatasetSettings, plugins: dict[str, Any]
+    family: str,
+    bank: Any,
+    ds: DatasetSettings,
+    plugins: dict[str, Any],
+    truth_measures: Any,
 ) -> None:
     plugin = plugins["r5b_gravity_scale"]
     assert plugin.target is PerturbationTarget.SCENE
     clean = bank.analytic(family)
     tol = ds.contacts.tol_m
-    base = measure_all(clean.scene, clean.states, clean.contacts, tol)
+    base = measure_truth(truth_measures, clean.scene, clean.states, clean.contacts, tol)
     for level, target in enumerate(levels(plugin, ds), start=1):
         scene, record = perturb_scene(
             plugin, clean.scene, target, SeedKey(ds.seed, family, 0, level)
@@ -232,14 +238,18 @@ def test_gravity_scale_reaches_each_level_on_the_analytic_clip(
         clip = bank.of_scene(scene)
         magnitude = measured(plugin, clip.states, clip.contacts, record)
         assert abs(magnitude - target) <= tolerance(target), (level, magnitude)
-        after = measure_all(scene, clip.states, clip.contacts, tol)
+        after = measure_truth(truth_measures, scene, clip.states, clip.contacts, tol)
         assert moved(base, after) <= {"R5b"}, report(base, after, moved(base, after))
         assert undefined(base, after) <= UNDEFINED.get((family, plugin.name), set())
 
 
 @pytest.mark.parametrize("family", GRAVITY_FAMILIES)
 def test_gravity_scale_is_measured_on_the_recorded_resimulation(
-    family: str, bank: Any, ds: DatasetSettings, plugins: dict[str, Any]
+    family: str,
+    bank: Any,
+    ds: DatasetSettings,
+    plugins: dict[str, Any],
+    truth_measures: Any,
 ) -> None:
     plugin = plugins["r5b_gravity_scale"]
     clean = bank.recorded(family)
@@ -247,8 +257,8 @@ def test_gravity_scale_is_measured_on_the_recorded_resimulation(
     target = float(record.params["target_magnitude"])
     assert abs(measured(plugin, clip.states, clip.contacts, record) - target) <= tolerance(target)
     tol = ds.contacts.tol_m
-    base = measure_all(clean.scene, clean.states, clean.contacts, tol)
-    after = measure_all(clip.scene, clip.states, clip.contacts, tol)
+    base = measure_truth(truth_measures, clean.scene, clean.states, clean.contacts, tol)
+    after = measure_truth(truth_measures, clip.scene, clip.states, clip.contacts, tol)
     assert moved(base, after) <= {"R5b"} | RESIMULATION_LEAKS, report(
         base, after, moved(base, after)
     )
@@ -337,7 +347,10 @@ def gap_to(states: ObjectStateTable, top: int, other: int | None, frame: int) ->
 
 
 def test_r2_shifts_the_top_of_a_three_stack_off_its_middle_support(
-    bank: Any, ds: DatasetSettings, plugins: dict[str, Any]
+    bank: Any,
+    ds: DatasetSettings,
+    plugins: dict[str, Any],
+    truth_measures: Any,
 ) -> None:
     plugin = plugins["r2_unsupported_rest"]
     clip = bank.of_scene(three_stack(bank.recorded("f4_stack").scene))
@@ -357,7 +370,7 @@ def test_r2_shifts_the_top_of_a_three_stack_off_its_middle_support(
         others = [None, ids.index("a_base"), ids.index("d_loose")]
         gaps = [gap_to(new_states, top, o, f) for o in others for f in (0, new_states.n_frames - 1)]
         assert min(gaps) >= plugin.params.min_clearance_m
-        after = measure_all(clip.scene, new_states, contacts, ds.contacts.tol_m)
+        after = measure_truth(truth_measures, clip.scene, new_states, contacts, ds.contacts.tol_m)
         assert after["R2"] == record.magnitude
 
 

@@ -169,6 +169,6 @@ def test_frames_are_requested_with_the_context_sampling() -> None:
             start, stop, step, max_side = node.args
             assert _is_attr(start, "s", "start") and _is_attr(step, "s", "step"), path.name
             assert _is_attr(max_side, "s", "max_side"), path.name
-            dino = path.name == "detect_grounding_dino.py"
+            dino = path.name == "detect_grounding_dino_tiny.py"
             assert _is_attr(stop, "s", "stop") or (dino and isinstance(stop, ast.Name)), path.name
     assert calls == 4

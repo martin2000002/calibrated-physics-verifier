@@ -13,9 +13,9 @@ from reference.legacy_contact_rules import bounce_case
 from physverify.physics.measures.collision_energy import restitution
 from physverify.schema.contacts import ContactTable
 from physverify.schema.states import ObjectStateTable
-from physverify.synth.perturbations._ballistics import impact_velocity, time_to_height
-from physverify.synth.perturbations._frame_windows import UP
-from physverify.synth.perturbations._measure import (
+from physverify.synth.ballistics import impact_velocity, time_to_height
+from physverify.synth.frame_windows import UP
+from physverify.synth.magnitudes import (
     bounce_crossing,
     bounce_restitution,
     floor_bounce,

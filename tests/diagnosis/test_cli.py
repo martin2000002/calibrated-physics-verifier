@@ -13,6 +13,7 @@ from cli_runner import CliRunner
 from synthetic_clip import CLIP_ID, DATASET
 
 from physverify.app import plugins
+from physverify.app.diagnosis import EVENTS_FILE, execute
 from physverify.cli.commands import data, diagnose
 from physverify.config.models import Settings
 from physverify.core.download import MANIFEST_FILE, FetchedFile, FetchManifest, write_manifest
@@ -21,6 +22,7 @@ from physverify.datasets import _base
 from physverify.diagnosis.context import DiagnosisContext
 from physverify.diagnosis.real_video import ALL_CLIPS, run_real
 from physverify.diagnosis.report import RealVideoReport, build_provenance
+from physverify.diagnosis.summary import summary_lines
 from physverify.extraction._base import StageProvider
 from physverify.extraction.events import ConsoleObserver, EventRecorder
 from physverify.schema.checks import Verdict
@@ -186,7 +188,7 @@ def test_stages_passes_its_options_and_writes_report_and_events(
     assert cli(*SET_FAKES, *argv, "--replace-mismatched").code == 0
     assert calls[-1] == ([CLIP_ID], True, True)
     run_dir = run_dir_of(result.out)
-    assert (run_dir / diagnose.EVENTS_FILE).is_file()
+    assert (run_dir / EVENTS_FILE).is_file()
     assert (run_dir / "diagnosis" / "stages.json").is_file()
     assert f"report: {run_dir / 'diagnosis' / 'stages.md'}" in result.out
 
@@ -240,7 +242,7 @@ def test_run_real_counts_verdicts_and_summarises(
     assert report.thresholds_provisional
     assert "fail_rate" in report.provenance.provisional
     assert "g_est" in report.provenance.estimated
-    lines = diagnose.summary_lines(report)
+    lines = summary_lines(report)
     assert any(line.startswith(f"{DATASET} {FAKE_CHECK_ID}: fail rate") for line in lines)
 
 
@@ -252,7 +254,7 @@ def test_run_real_without_a7_records_the_missing_suite(
     assert report.verdicts == ()
     assert [f.clip_id for f in report.failures] == [ALL_CLIPS]
     assert isinstance(report, RealVideoReport)
-    assert diagnose.summary_lines(report)[0].startswith(f"FAILED {ALL_CLIPS}")
+    assert summary_lines(report)[0].startswith(f"FAILED {ALL_CLIPS}")
 
 
 def test_an_aborted_level_still_writes_its_events(
@@ -266,8 +268,8 @@ def test_an_aborted_level_still_writes_its_events(
         raise MissingInputError("boom")
 
     with pytest.raises(MissingInputError, match="boom"):
-        diagnose.execute(ctx, recorder, diagnose.REAL, explode)
-    assert (ctx.run.run_dir / diagnose.EVENTS_FILE).is_file()
+        execute(ctx, recorder, diagnose.REAL, explode, lambda _: None)
+    assert (ctx.run.run_dir / EVENTS_FILE).is_file()
     assert not (ctx.run.run_dir / "diagnosis" / "real.json").exists()
 
 
@@ -278,5 +280,5 @@ def test_a_missing_input_exits_1_and_still_writes_the_events(cli: CliRunner) -> 
     assert result.code == 1, result.err
     assert "none of the 1 selected clips is in split eval" in result.err
     run_dir = run_dir_of(result.out)
-    assert (run_dir / diagnose.EVENTS_FILE).read_text(encoding="utf-8") == ""
+    assert (run_dir / EVENTS_FILE).read_text(encoding="utf-8") == ""
     assert not (run_dir / "diagnosis" / "end_to_end.json").exists()

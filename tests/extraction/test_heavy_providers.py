@@ -24,16 +24,16 @@ from physverify.extraction import pipeline
 from physverify.extraction._base import StageProvider
 from physverify.extraction.providers import (
     _sam_video,
-    depth_vda,
-    detect_grounding_dino,
+    depth_vda_small,
+    detect_grounding_dino_tiny,
     track_edgetam,
-    track_sam2,
+    track_sam2_1_hiera_tiny,
 )
-from physverify.extraction.providers.depth_vda import (
+from physverify.extraction.providers.depth_vda_small import (
     VENDORED_TOP_LEVEL,
     check_vendored_namespace,
 )
-from physverify.extraction.providers.detect_grounding_dino import Params, RawDetections
+from physverify.extraction.providers.detect_grounding_dino_tiny import Params, RawDetections
 from physverify.schema.clip import FrameSampling, ObjectQuery, resolve_sampling
 from physverify.schema.perception import Detections
 from physverify.schema.stages import STAGE_ORDER, Stage
@@ -141,13 +141,18 @@ def fake_heavy_models(monkeypatch: pytest.MonkeyPatch, sampling: FrameSampling) 
         return truth_masks.masks[:, rows], truth_masks.scores[:, rows]
 
     pairs = (object(), object())
-    monkeypatch.setattr(detect_grounding_dino, "load_detector", loader(Stage.DETECT, pairs))
-    monkeypatch.setattr(detect_grounding_dino, "detect", detect)
+    monkeypatch.setattr(detect_grounding_dino_tiny, "load_detector", loader(Stage.DETECT, pairs))
+    monkeypatch.setattr(detect_grounding_dino_tiny, "detect", detect)
     monkeypatch.setattr(_sam_video, "load_video_model", loader(Stage.TRACK, pairs))
     monkeypatch.setattr(_sam_video, "track_boxes", track_boxes)
     depth_model = TruthDepthModel(sampling)
-    monkeypatch.setattr(depth_vda, "load_model", loader(Stage.DEPTH, depth_model))
-    for module in (detect_grounding_dino, track_edgetam, track_sam2, depth_vda):
+    monkeypatch.setattr(depth_vda_small, "load_model", loader(Stage.DEPTH, depth_model))
+    for module in (
+        detect_grounding_dino_tiny,
+        track_edgetam,
+        track_sam2_1_hiera_tiny,
+        depth_vda_small,
+    ):
         monkeypatch.setattr(module, "set_torch_threads", lambda threads: None)
     monkeypatch.setattr(pipeline, "missing_weights", lambda providers, paths: [])
     return loads

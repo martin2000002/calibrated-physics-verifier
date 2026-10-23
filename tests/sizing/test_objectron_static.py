@@ -19,19 +19,21 @@ from physverify.config.loader import load_settings
 from physverify.config.models import Settings
 from physverify.core.download import MANIFEST_FILE, intact, read_manifest
 from physverify.core.errors import ConfigError, MissingInputError, UsageError
-from physverify.datasets.objectron_static import (
+from physverify.datasets._objectron_selection import (
     FAILED,
-    FRAMES_DIR,
-    SELECTION_FILE,
     TAKEN,
     TOO_LARGE,
+    order_key,
+    ordered,
+    read_selection,
+)
+from physverify.datasets.objectron_static import (
+    FRAMES_DIR,
+    SELECTION_FILE,
     Decoded,
     ObjectronStaticDataset,
     ObjectronStaticSettings,
     decode_upright,
-    order_key,
-    ordered,
-    read_selection,
 )
 from physverify.schema.clip import ObjectQuery, Split, TimeSource
 from physverify.sizing import objectron

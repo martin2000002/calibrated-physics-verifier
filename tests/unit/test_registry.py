@@ -93,4 +93,4 @@ def test_registries_do_not_import_heavy_modules() -> None:
     )
     report = json.loads(done.stdout)
     assert report["heavy"] == []
-    assert len(report["sizes"]) == 11
+    assert len(report["sizes"]) == 12

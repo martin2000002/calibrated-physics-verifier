@@ -6,14 +6,11 @@ import numpy as np
 import pytest
 
 from physverify.checks._base import Check
-from physverify.checks._common import CommonParams
-from physverify.checks.r3_collision_energy import (
-    PLUGINS,
-    EnergyGainCheck,
-    EnergyGainParams,
-    RestitutionCheck,
-    RestitutionParams,
-)
+from physverify.checks._params import CommonParams
+from physverify.checks.r3a_bounce_restitution import PLUGINS as R3A_PLUGINS
+from physverify.checks.r3a_bounce_restitution import RestitutionCheck, RestitutionParams
+from physverify.checks.r3b_collision_energy_gain import PLUGINS as R3B_PLUGINS
+from physverify.checks.r3b_collision_energy_gain import EnergyGainCheck, EnergyGainParams
 from physverify.extraction.providers.kinematics_savgol import track_derivatives
 from physverify.physics.kinematics import SavgolSpec
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
@@ -60,8 +57,9 @@ def ground_record(t_start: float, t_end: float) -> ContactRecord:
 
 
 def test_plugin_contract() -> None:
-    assert (RestitutionCheck, EnergyGainCheck) == PLUGINS
-    for cls in PLUGINS:
+    assert (RestitutionCheck,) == R3A_PLUGINS
+    assert (EnergyGainCheck,) == R3B_PLUGINS
+    for cls in (*R3A_PLUGINS, *R3B_PLUGINS):
         check = cls(CommonParams(seed=7))
         assert isinstance(check, Check)
         assert check.params.seed == 7

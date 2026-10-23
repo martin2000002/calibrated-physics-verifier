@@ -14,7 +14,7 @@ from wiring import checks, resolve_plan
 
 from physverify.app.plugins import PLUGIN_KINDS
 from physverify.checks._base import CheckInputs
-from physverify.checks.r4_integrity import PermanenceCheck, PermanenceParams
+from physverify.checks.r4_missing_permanence import PermanenceCheck, PermanenceParams
 from physverify.core.errors import ConfigError
 from physverify.extraction._base import GROUND_TRUTH, StageProvider
 from physverify.extraction.providers._visibility import (

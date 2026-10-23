@@ -38,6 +38,7 @@ CENTER_KEYPOINT = 0
 BOX_KEYPOINTS = 9
 SPLITS = ("train", "test")
 HEAD_SUFFIX = ".head"
+VIDEO_FILE = "video.MOV"
 _INDEX_LINE = re.compile(r"^[a-z_]+/batch-\d+/\d+$")
 _CONTENT_RANGE_TOTAL = re.compile(r"/(\d+)$")
 

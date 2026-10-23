@@ -11,8 +11,9 @@ from physverify.config.loader import load_settings
 from physverify.config.models import RuntimeSettings
 from physverify.datasets._base import DatasetSource, GroundTruthStore, VideoSource
 from physverify.extraction._base import GROUND_TRUTH, StageContext
+from physverify.physics.contact_manifold import support_polygon
 from physverify.physics.finite_diff import second_difference
-from physverify.physics.geometry import Manifold, characteristic_length, support_polygon
+from physverify.physics.geometry import Manifold, characteristic_length
 from physverify.physics.measures.gravity_fit import fall_fit, gravity_rel_error
 from physverify.physics.measures.support_overhang import overhang_fraction
 from physverify.schema.clip import SamplingSpec, resolve_sampling

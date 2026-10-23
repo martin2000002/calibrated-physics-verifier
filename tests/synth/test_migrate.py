@@ -20,7 +20,8 @@ from physverify.config.models import Settings
 from physverify.core.errors import ConfigError, MissingInputError, UsageError
 from physverify.schema.scene import PerturbationRecord
 from physverify.schema.states import ObjectStateTable
-from physverify.synth import migrate
+from physverify.synth import magnitudes, migrate
+from physverify.synth.ballistics import time_to_height
 from physverify.synth.generate import load_plan, plan_subset, save_plan
 from physverify.synth.gt_export import read_index
 from physverify.synth.migrate import (
@@ -37,8 +38,6 @@ from physverify.synth.migrate import (
     velocity_migration,
 )
 from physverify.synth.perturb import apply_variants, instantiate
-from physverify.synth.perturbations import _measure
-from physverify.synth.perturbations._ballistics import time_to_height
 from physverify.synth.plan import GT_MIGRATIONS, GT_REVISION, DatasetPlan
 from physverify.synth.settings import DatasetSettings, load_dataset_settings
 from physverify.synth.store import (
@@ -294,7 +293,7 @@ def before_floor_crossing(
     ``gt_revision`` existed."""
     simulation = penetrated_simulation(tmp_path / "sim")
     with monkeypatch.context() as patch:
-        patch.setattr(_measure, "floor_crossing", legacy_crossing)
+        patch.setattr(magnitudes, "floor_crossing", legacy_crossing)
         plan, store, plugins = build(
             tmp_path / "old", ds, ds.content_hash(), families, perturbations, simulation
         )

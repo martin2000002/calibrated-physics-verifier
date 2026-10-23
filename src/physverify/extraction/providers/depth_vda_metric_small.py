@@ -12,7 +12,11 @@ from collections.abc import Callable
 from typing import Any, ClassVar
 
 from physverify.extraction._base import StageContext, WeightKind, WeightSpec
-from physverify.extraction.providers.depth_vda import CODE, VideoDepthAnythingSmall, load_model
+from physverify.extraction.providers.depth_vda_small import (
+    CODE,
+    VideoDepthAnythingSmall,
+    load_model,
+)
 from physverify.schema.perception import DepthKind
 
 METRIC_CHECKPOINT = WeightSpec(

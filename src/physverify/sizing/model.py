@@ -14,10 +14,8 @@ from pydantic import Field
 
 from physverify.config.models import Settings, SizePrior, SizePriorTable
 from physverify.core.models import FrozenModel
-from physverify.extraction.providers._common import lookup_label
-from physverify.extraction.providers.scale_size_prior import SIZE_PRIORS_SECTION
-from physverify.extraction.providers.scale_size_prior import Params as PriorParams
 from physverify.schema.io import stable_hash
+from physverify.sizing.priors import SIZE_PRIORS_SECTION, SizePriorParams, lookup_label
 from physverify.sizing.settings import SECTION as SIZING_SECTION
 from physverify.sizing.settings import SizeLookup
 
@@ -82,7 +80,7 @@ def model_hash(model: SizeModelTable, lookup: SizeLookup) -> str:
 def prior_aliases() -> dict[str, str]:
     """Words that reach a frozen prior by alias ("box" -> "cube"); one table for both scale
     providers and for the label vocabulary."""
-    return dict(PriorParams().label_to_prior)
+    return dict(SizePriorParams().label_to_prior)
 
 
 def labels_with_size(

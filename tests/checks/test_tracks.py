@@ -5,7 +5,8 @@ import check_scenarios as sc
 import numpy as np
 import pytest
 
-from physverify.physics.geometry import signed_distance
+from physverify.physics.flights import split_at_jumps
+from physverify.physics.signed_distance import signed_distance
 from physverify.physics.tracks import (
     MotionFit,
     body_length,
@@ -20,14 +21,13 @@ from physverify.physics.tracks import (
     rest_mask,
     row_step,
     segments,
-    split_at_jumps,
     support_plane,
     track_noise,
 )
 from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactKind, ContactRecord, ContactTable, ManifoldKind
 from physverify.schema.states import CoordFrame, LengthUnit
-from physverify.synth.perturbations._frame_windows import impact_frames
+from physverify.synth.frame_windows import impact_frames
 
 NATIVE = np.arange(12, dtype=np.int64)
 EVEN = np.arange(0, 24, 2, dtype=np.int64)
@@ -427,7 +427,7 @@ def test_noise_stencils_align_the_third_difference_with_the_impact_rows() -> Non
 
 
 def test_j1_the_fall_filter_reads_the_single_stencil_minimum() -> None:
-    from physverify.checks._common import FallParams
+    from physverify.checks._params import FallParams
     from physverify.physics.tracks import MIN_NOISE_STENCILS
 
     assert FallParams().min_noise_stencils == MIN_NOISE_STENCILS == 8

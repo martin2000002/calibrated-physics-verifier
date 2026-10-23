@@ -13,6 +13,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from physverify.config.models import SizePrior
+from physverify.core.markdown import number
 from physverify.sizing.model import SizeModelTable, class_prior
 from physverify.sizing.samples import SizeSample, log_lengths
 from physverify.stats.bootstrap import ClusterBlock, scene_bootstrap
@@ -162,3 +163,27 @@ def evaluate(
         "total": summary(errors, [s.video_id for s in known], n_boot=n_boot, seed=seed, ci=ci),
         "per_class": per_class,
     }
+
+
+def eval_lines(report: dict[str, Any]) -> list[str]:
+    total = report["total"]
+    lines = [f"test: {report['n_objects']} objects, {report['n_videos']} videos (estimates)"]
+    for name in (MODEL, *(k for k in total if k != MODEL and not k.startswith("rms_log_"))):
+        m = total[name]
+        lines.append(
+            f"  {name}: median|L/L-1| {interval_text(m['median_abs_rel'])}  "
+            f"rms log {interval_text(m['rms_log'])}  "
+            f"cover 1s {interval_text(m['cover_1s'])}  2s {interval_text(m['cover_2s'])}"
+        )
+    for key in (k for k in total if k.startswith("rms_log_")):
+        lines.append(f"  {key}: {interval_text(total[key])}")
+    return lines
+
+
+def interval_text(entry: dict[str, Any]) -> str:
+    low, high = (_number(bound) for bound in entry["ci"])
+    return f"{entry['value']:.3f} [{low}, {high}]"
+
+
+def _number(value: float | None) -> str:
+    return number(value, ".3f", "n/a")

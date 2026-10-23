@@ -4,14 +4,24 @@ from __future__ import annotations
 
 import datetime as dt
 import functools
+from collections.abc import Callable
 
 from physverify.app.context import AppContext
-from physverify.app.services import dataset_for, pipeline_deps
+from physverify.app.services import check_suite, dataset_for, pipeline_deps
 from physverify.diagnosis.context import DiagnosisContext, sampled_metrics
+from physverify.diagnosis.report import Report
+from physverify.diagnosis.report_markdown import write_report
 from physverify.diagnosis.settings import diagnosis_settings
+from physverify.diagnosis.summary import MAX_SUMMARY_LINES, summary_lines
 from physverify.diagnosis.verification_adapter import CheckSuite
 from physverify.extraction._base import StageObserver
+from physverify.extraction.events import ConsoleObserver, EventRecorder, write_events
+from physverify.extraction.pipeline import ExtractionReport
 from physverify.runtime.runs import new_run
+
+EVENTS_FILE = "events.jsonl"
+
+Runner = Callable[[DiagnosisContext], Report]
 
 
 def diagnosis_context(
@@ -41,3 +51,43 @@ def diagnosis_context(
         clock=clock,
         run=run,
     )
+
+
+def execute(
+    ctx: DiagnosisContext,
+    recorder: EventRecorder,
+    name: str,
+    runner: Runner,
+    echo: Callable[[str], None],
+) -> Report:
+    """Run ``runner``, then write ``diagnosis/<name>.{json,md}`` and ``events.jsonl``."""
+    run_dir = ctx.run.run_dir
+    events = run_dir / EVENTS_FILE
+    echo(f"run: {run_dir}")
+    try:
+        report = runner(ctx)
+    except Exception as exc:
+        write_events(events, recorder.aborted_report(exc))
+        raise
+    write_events(events, ExtractionReport(tuple(recorder.finished), (), {}))
+    _, markdown = write_report(run_dir, name, report)
+    echo(f"report: {markdown}")
+    for line in summary_lines(report)[:MAX_SUMMARY_LINES]:
+        echo(line)
+    return report
+
+
+def launch(
+    app: AppContext,
+    name: str,
+    runner: Runner,
+    echo: Callable[[str], None],
+    *,
+    suite: bool,
+    dataset: str | None = None,
+    subset: str | None = None,
+) -> None:
+    recorder = EventRecorder(ConsoleObserver(echo))
+    checks = check_suite(app) if suite else None
+    ctx = diagnosis_context(app, recorder, checks, dataset=dataset, subset=subset)
+    execute(ctx, recorder, name, runner, echo)

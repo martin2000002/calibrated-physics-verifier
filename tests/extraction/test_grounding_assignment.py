@@ -15,22 +15,22 @@ from numpy.typing import NDArray
 from support import make_context, run_provider
 from synthetic_clip import SyntheticClip
 
-from physverify.extraction.providers import _grounding_per_query, detect_grounding_dino
+from physverify.extraction.providers import _grounding_per_query, detect_grounding_dino_tiny
 from physverify.extraction.providers._grounding_per_query import (
     Candidates,
     PromptedParams,
     assign,
     merge_candidates,
 )
-from physverify.extraction.providers.detect_grounding_dino import (
+from physverify.extraction.providers.detect_grounding_dino_base import (
+    BASE_WEIGHTS,
+    GroundingDinoBase,
+)
+from physverify.extraction.providers.detect_grounding_dino_tiny import (
     GroundingDinoDetector,
     Params,
     RawDetections,
     select,
-)
-from physverify.extraction.providers.detect_grounding_dino_base import (
-    BASE_WEIGHTS,
-    GroundingDinoBase,
 )
 from physverify.extraction.providers.detect_grounding_dino_tiny_per_query import (
     GroundingDinoTinyPerQuery,
@@ -114,7 +114,7 @@ def test_overlapping_boxes_from_two_prompts_merge_with_both_scores() -> None:
 def fake_detector(monkeypatch: pytest.MonkeyPatch, prompts: list[tuple[str, ...]]) -> list[Any]:
     loaded: list[Any] = []
 
-    def load(ctx: Any, spec: Any = detect_grounding_dino.WEIGHTS) -> tuple[Any, Any]:
+    def load(ctx: Any, spec: Any = detect_grounding_dino_tiny.WEIGHTS) -> tuple[Any, Any]:
         loaded.append(spec)
         return object(), object()
 
@@ -135,9 +135,9 @@ def fake_detector(monkeypatch: pytest.MonkeyPatch, prompts: list[tuple[str, ...]
         box = BOX_0 if phrases == ("ball",) else BOX_1
         return raw([box], [0.8 if phrases == ("ball",) else 0.7])
 
-    monkeypatch.setattr(detect_grounding_dino, "load_detector", load)
-    monkeypatch.setattr(detect_grounding_dino, "detect", detect)
-    monkeypatch.setattr(detect_grounding_dino, "set_torch_threads", lambda threads: None)
+    monkeypatch.setattr(detect_grounding_dino_tiny, "load_detector", load)
+    monkeypatch.setattr(detect_grounding_dino_tiny, "detect", detect)
+    monkeypatch.setattr(detect_grounding_dino_tiny, "set_torch_threads", lambda threads: None)
     return loaded
 
 
@@ -178,6 +178,6 @@ def test_base_model_loads_its_own_weights(
     loaded = fake_detector(monkeypatch, [])
     run_provider(GroundingDinoBase, make_context(fixture_clip))
     run_provider(GroundingDinoTinyPerQuery, make_context(fixture_clip))
-    assert loaded == [BASE_WEIGHTS, detect_grounding_dino.WEIGHTS]
+    assert loaded == [BASE_WEIGHTS, detect_grounding_dino_tiny.WEIGHTS]
     assert GroundingDinoBase.weights == (BASE_WEIGHTS,)
     assert _grounding_per_query.PromptedDetector.Params is PromptedParams

@@ -5,12 +5,8 @@ from __future__ import annotations
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
-from physverify.physics.geometry import (
-    characteristic_length,
-    convex_hull_indices,
-    cross_2d,
-    project_to_plane,
-)
+from physverify.physics.contact_manifold import convex_hull_indices, cross_2d
+from physverify.physics.geometry import characteristic_length, project_to_plane
 
 
 def overhang_fraction(

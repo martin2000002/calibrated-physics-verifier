@@ -18,7 +18,8 @@ from physverify.config.loader import load_settings
 from physverify.config.models import Settings
 from physverify.kubric_worker.build_scene import native_entries
 from physverify.kubric_worker.tasks.simulate import state_table
-from physverify.physics.geometry import Plane, contact_manifold
+from physverify.physics.contact_manifold import contact_manifold
+from physverify.physics.geometry import Plane
 from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import (
     ContactKind,
@@ -29,6 +30,8 @@ from physverify.schema.contacts import (
 )
 from physverify.schema.scene import ObjectSpec, PerturbationRecord, SceneSpec
 from physverify.schema.states import ObjectStateTable, PrimitiveKind
+from physverify.synth.ballistics import Flight, GravitySchedule, integrate_sphere
+from physverify.synth.frame_windows import solid_at
 from physverify.synth.gt_contacts import (
     ClosestSamples,
     contact_table,
@@ -36,8 +39,6 @@ from physverify.synth.gt_contacts import (
     from_raw_events,
 )
 from physverify.synth.perturb import instantiate, relabel
-from physverify.synth.perturbations._ballistics import Flight, GravitySchedule, integrate_sphere
-from physverify.synth.perturbations._frame_windows import solid_at
 from physverify.synth.perturbations._state_edit import ANALYTIC_SOURCE, bounce_record
 from physverify.synth.settings import (
     ContactSettings,
@@ -81,6 +82,11 @@ def families() -> Any:
 @pytest.fixture(scope="session")
 def perturbations() -> Any:
     return PLUGIN_KINDS["perturbations"]()
+
+
+@pytest.fixture(scope="session")
+def truth_measures() -> Any:
+    return PLUGIN_KINDS["truth_measures"]()
 
 
 @pytest.fixture

@@ -35,10 +35,9 @@ from physverify.diagnosis.report import (
     build_provenance,
     nominal_coverage,
     profile_hash,
-    render_markdown,
-    write_report,
     z_coverage,
 )
+from physverify.diagnosis.report_markdown import render_markdown, write_report
 from physverify.runtime.runs import RunContext
 from physverify.schema.checks import AbstainReason, Verdict
 from physverify.schema.clip import Split

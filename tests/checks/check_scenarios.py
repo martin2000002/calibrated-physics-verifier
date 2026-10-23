@@ -19,15 +19,8 @@ from numpy.typing import NDArray
 from physverify.checks._base import CheckInputs
 from physverify.extraction.matching import take_frames
 from physverify.extraction.providers._common import centred_intrinsics
-from physverify.physics.geometry import (
-    Body,
-    Plane,
-    Pose,
-    Primitive,
-    Solid,
-    contact_manifold,
-    quaternion_from_matrix,
-)
+from physverify.physics.contact_manifold import contact_manifold
+from physverify.physics.geometry import Body, Plane, Pose, Primitive, Solid, quaternion_from_matrix
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import ClipManifest, SamplingSpec, Split, TimeSource, resolve_sampling
 from physverify.schema.constants import ENV_ID, STANDARD_GRAVITY

@@ -22,8 +22,10 @@ from pathlib import Path
 from typing import Any
 
 from physverify.core.errors import ConfigError, MissingInputError, UsageError
+from physverify.runtime.runs import current_commit
 from physverify.synth.generate import load_plan
 from physverify.synth.gt_export import DATASET_NAME, write_index
+from physverify.synth.jobs import DatasetJob
 from physverify.synth.perturb import apply_variants
 from physverify.synth.plan import GT_MIGRATIONS, GT_REVISION, DatasetPlan
 from physverify.synth.settings import DatasetSettings
@@ -274,3 +276,15 @@ def _report(path: Path, applied: int, manifest: Mapping[str, Any]) -> MigrationR
 
 def _stamp(now: Clock) -> str:
     return now().astimezone(dt.UTC).isoformat(timespec="seconds")
+
+
+def run_migrate(job: DatasetJob, name: str, commit: str | None) -> None:
+    settings = job.context.settings
+    report = reapply(
+        job.store, job.plugins, job.ds, commit or current_commit(settings.repo_root), name
+    )
+    job.echo(
+        f"migrate {name}: {report.applied} applied, {len(report.rerender)} renders discarded, "
+        f"{len(report.status_changes)} status changes; manifest {report.manifest}"
+    )
+    job.echo("next: `physverify dataset build --subset <name>` for every built subset")

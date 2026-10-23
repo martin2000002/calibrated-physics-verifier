@@ -20,9 +20,9 @@ from physverify.diagnosis.attribution import (
     collect_blocks,
     fixed_label,
     lift_unit,
-    run_attribution,
     stage_metric,
 )
+from physverify.diagnosis.attribution_run import run_attribution
 from physverify.diagnosis.chain_variants import CELLS, Cell, cell_name
 from physverify.diagnosis.context import DiagnosisContext
 from physverify.diagnosis.factorial import ALL_PERCEIVED, ALL_TRUTH, shapley, yates_effects

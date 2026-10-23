@@ -9,15 +9,15 @@ import numpy as np
 from physverify.schema.contacts import ContactTable
 from physverify.schema.scene import MagnitudeKind, PerturbationRecord, SceneSpec
 from physverify.schema.states import ObjectStateTable
-from physverify.synth.perturb import PerturbationNotApplicableError
-from physverify.synth.perturbations._ballistics import (
+from physverify.synth.ballistics import (
     SWITCH_DELAY_S,
     GravitySchedule,
     integrate_sphere,
     time_to_height,
 )
+from physverify.synth.magnitudes import R5A_MIN_FRAMES, flight_fits, inconsistency
+from physverify.synth.perturb import PerturbationNotApplicableError
 from physverify.synth.perturbations._base import PerturbationTarget
-from physverify.synth.perturbations._measure import R5A_MIN_FRAMES, flight_fits, inconsistency
 from physverify.synth.perturbations._state_edit import (
     PluginBase,
     before,

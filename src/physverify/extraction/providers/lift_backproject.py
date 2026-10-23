@@ -24,7 +24,7 @@ from physverify.extraction.providers._backprojection import (
     object_position,
     object_summary,
 )
-from physverify.extraction.providers._common import ProviderParams, expect_params, lookup_label
+from physverify.extraction.providers._common import ProviderParams, expect_params
 from physverify.extraction.providers._gravity_pose import LEVEL_CAMERA_GRAVITY, gravity_from_pose
 from physverify.extraction.providers._temporal_smoothing import EdgeMode, stabilize_summaries
 from physverify.extraction.providers._visibility import gap_visibility
@@ -33,6 +33,7 @@ from physverify.schema.io import stable_hash
 from physverify.schema.perception import CameraModel, DepthMap, IntrinsicsSource, MaskTrack
 from physverify.schema.stages import Stage
 from physverify.schema.states import CoordFrame, ObjectStateTable, PrimitiveKind
+from physverify.sizing.priors import lookup_label
 
 FloatArray = NDArray[np.float64]
 SEED_HEX_DIGITS = 16

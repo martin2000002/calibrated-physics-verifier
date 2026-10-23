@@ -10,7 +10,8 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import BaseModel
 
-from physverify.physics.geometry import characteristic_length, support_polygon
+from physverify.physics.contact_manifold import support_polygon
+from physverify.physics.geometry import characteristic_length
 from physverify.physics.measures.support_overhang import overhang_fraction
 from physverify.schema.scene import ObjectSpec, SceneSpec
 from physverify.synth.family_toolkit import (
@@ -27,7 +28,7 @@ from physverify.synth.family_toolkit import (
     solid_of,
     with_retries,
 )
-from physverify.synth.perturbations._measure import overhang_on, support_manifolds
+from physverify.synth.magnitudes import overhang_on, support_manifolds
 from physverify.synth.placement import UP, footprint_radius, palette, rest_height, solve_offset
 
 NAME = "f4_stack"

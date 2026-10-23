@@ -28,21 +28,13 @@ import numpy as np
 import pytest
 from reference.r4_jump_v1 import ContinuityCheck
 
-from physverify.checks._common import CommonParams
+from physverify.checks._params import CommonParams
 from physverify.checks.r1_interpenetration import InterpenetrationCheck, InterpenetrationParams
 from physverify.checks.r2_static_equilibrium import EquilibriumCheck, EquilibriumParams
-from physverify.checks.r3_collision_energy import (
-    EnergyGainCheck,
-    EnergyGainParams,
-    RestitutionCheck,
-    RestitutionParams,
-)
-from physverify.checks.r4_integrity import (
-    PermanenceCheck,
-    PermanenceParams,
-    SizeConstancyCheck,
-    SizeParams,
-)
+from physverify.checks.r3a_bounce_restitution import RestitutionCheck, RestitutionParams
+from physverify.checks.r3b_collision_energy_gain import EnergyGainCheck, EnergyGainParams
+from physverify.checks.r4_missing_permanence import PermanenceCheck, PermanenceParams
+from physverify.checks.r4_size_constancy import SizeConstancyCheck, SizeParams
 from physverify.checks.r5a_fall_shape import FallShapeCheck, FallShapeParams
 from physverify.checks.r5b_gravity_value import GravityValueCheck, GravityValueParams
 from physverify.extraction.providers._temporal_smoothing import EdgeMode, stabilize_run

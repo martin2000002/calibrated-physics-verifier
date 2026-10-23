@@ -181,8 +181,14 @@
  "src/physverify/calibration/verdict.py": {
   "comment_or_docstring": 3
  },
- "src/physverify/checks/_common.py": {
-  "comment_or_docstring": 2
+ "src/physverify/checks/_collision_windows.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/checks/_params.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/checks/_results.py": {
+  "comment_or_docstring": 1
  },
  "src/physverify/checks/r1_interpenetration.py": {
   "comment_or_docstring": 1
@@ -190,11 +196,14 @@
  "src/physverify/checks/r2_static_equilibrium.py": {
   "comment_or_docstring": 1
  },
- "src/physverify/checks/r3_collision_energy.py": {
-  "comment_or_docstring": 2
+ "src/physverify/checks/r3a_bounce_restitution.py": {
+  "comment_or_docstring": 1
  },
- "src/physverify/checks/r4_integrity.py": {
-  "comment_or_docstring": 5
+ "src/physverify/checks/r4_missing_permanence.py": {
+  "comment_or_docstring": 4
+ },
+ "src/physverify/checks/r4_size_constancy.py": {
+  "comment_or_docstring": 1
  },
  "src/physverify/checks/r4_track_jump.py": {
   "comment_or_docstring": 9
@@ -236,7 +245,7 @@
   "comment_or_docstring": 4
  },
  "src/physverify/cli/commands/diagnose.py": {
-  "banner": 3,
+  "banner": 1,
   "comment_or_docstring": 1
  },
  "src/physverify/cli/commands/exclusions.py": {
@@ -321,7 +330,7 @@
   "comment_or_docstring": 2
  },
  "src/physverify/diagnosis/attribution.py": {
-  "banner": 2,
+  "banner": 1,
   "comment_or_docstring": 3
  },
  "src/physverify/diagnosis/chain_variants.py": {
@@ -439,17 +448,17 @@
  "src/physverify/extraction/providers/contacts_proximity.py": {
   "comment_or_docstring": 1
  },
- "src/physverify/extraction/providers/depth_vda.py": {
-  "comment_or_docstring": 1
- },
- "src/physverify/extraction/providers/depth_vda_metric.py": {
+ "src/physverify/extraction/providers/depth_vda_metric_small.py": {
   "comment_or_docstring": 2
  },
- "src/physverify/extraction/providers/detect_grounding_dino.py": {
+ "src/physverify/extraction/providers/depth_vda_small.py": {
   "comment_or_docstring": 1
  },
  "src/physverify/extraction/providers/detect_grounding_dino_base.py": {
   "comment_or_docstring": 2
+ },
+ "src/physverify/extraction/providers/detect_grounding_dino_tiny.py": {
+  "comment_or_docstring": 1
  },
  "src/physverify/extraction/providers/detect_grounding_dino_tiny_per_query.py": {
   "comment_or_docstring": 2
@@ -473,7 +482,7 @@
  "src/physverify/extraction/providers/track_edgetam.py": {
   "comment_or_docstring": 1
  },
- "src/physverify/extraction/providers/track_sam2.py": {
+ "src/physverify/extraction/providers/track_sam2_1_hiera_tiny.py": {
   "comment_or_docstring": 1
  },
  "src/physverify/extraction/settings.py": {
@@ -661,8 +670,8 @@
  "src/physverify/physics/equilibrium.py": {
   "comment_or_docstring": 1
  },
- "src/physverify/physics/geometry.py": {
-  "banner": 3
+ "src/physverify/physics/flights.py": {
+  "comment_or_docstring": 1
  },
  "src/physverify/physics/kinematics.py": {
   "comment_or_docstring": 1
@@ -676,8 +685,11 @@
  "src/physverify/physics/measures/track_jump.py": {
   "comment_or_docstring": 2
  },
+ "src/physverify/physics/signed_distance.py": {
+  "banner": 2
+ },
  "src/physverify/physics/tracks.py": {
-  "comment_or_docstring": 10
+  "comment_or_docstring": 9
  },
  "src/physverify/physics/uncertainty.py": {
   "comment_or_docstring": 1
@@ -727,6 +739,9 @@
  "src/physverify/sizing/settings.py": {
   "comment_or_docstring": 1
  },
+ "src/physverify/synth/ballistics.py": {
+  "comment_or_docstring": 2
+ },
  "src/physverify/synth/families/f1_projectile.py": {
   "comment_or_docstring": 2
  },
@@ -745,8 +760,11 @@
  "src/physverify/synth/family_toolkit.py": {
   "comment_or_docstring": 1
  },
+ "src/physverify/synth/gt_contact_records.py": {
+  "comment_or_docstring": 2
+ },
  "src/physverify/synth/gt_contacts.py": {
-  "comment_or_docstring": 3
+  "comment_or_docstring": 1
  },
  "src/physverify/synth/gt_export.py": {
   "comment_or_docstring": 3
@@ -757,17 +775,14 @@
  "src/physverify/synth/hdri_pools.py": {
   "comment_or_docstring": 2
  },
+ "src/physverify/synth/magnitudes.py": {
+  "comment_or_docstring": 4
+ },
  "src/physverify/synth/migrate.py": {
   "comment_or_docstring": 3
  },
  "src/physverify/synth/perturb.py": {
   "comment_or_docstring": 1
- },
- "src/physverify/synth/perturbations/_ballistics.py": {
-  "comment_or_docstring": 2
- },
- "src/physverify/synth/perturbations/_measure.py": {
-  "comment_or_docstring": 4
  },
  "src/physverify/synth/perturbations/_state_edit.py": {
   "comment_or_docstring": 2
