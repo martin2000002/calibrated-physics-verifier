@@ -22,8 +22,11 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
-from types import MappingProxyType
-from typing import Any
+from types import MappingProxyType, ModuleType
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from physverify.core.registry import Registry
 
 CAPTURE = "_capture"
 RUN_IDS = "run_ids.txt"
@@ -365,17 +368,15 @@ def _register_fixture_datasets() -> None:
         module.PLUGIN_KINDS = MappingProxyType(patched)
 
 
-def _commands() -> Any:
-    """The command registry of whichever checkout is imported; its type differs between them."""
+def _commands() -> Registry[ModuleType]:
     for module in _kinds_modules():
         if "commands" in module.PLUGIN_KINDS:
-            registry: Mapping[str, Any] = module.PLUGIN_KINDS["commands"]()
+            registry: Registry[ModuleType] = module.PLUGIN_KINDS["commands"]()
             return registry
     from physverify.cli.context import COMMANDS_PACKAGE, check_command, command_name
     from physverify.core.registry import discover_modules
 
-    found: Mapping[str, Any] = discover_modules(COMMANDS_PACKAGE, check_command, command_name)
-    return found
+    return discover_modules(COMMANDS_PACKAGE, check_command, command_name)
 
 
 def _click_root() -> Any:
