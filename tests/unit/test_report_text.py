@@ -12,8 +12,8 @@ from physverify.datasets.local_video import QueryEntry
 from physverify.demo.report import CheckRow, ClipBlock, RuleInfo, VideoReport, render_markdown
 from physverify.diagnosis.report import _table as diagnosis_table
 from physverify.finetune.records import PromptRecord
-from physverify.reporting.numbers import Section, Value
 from physverify.reporting.render import _table as results_table
+from physverify.reporting.values import Section, Value
 from physverify.timing.report import _table as timing_table
 
 NAN = float("nan")

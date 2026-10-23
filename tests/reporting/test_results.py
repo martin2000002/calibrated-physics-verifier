@@ -15,10 +15,12 @@ from reporting_cases import Chain, build_chain, evaluation, write, write_json, w
 
 from physverify.calibration.artifact import EvaluationReport
 from physverify.calibration.artifact_io import load_calibration
-from physverify.reporting import numbers
-from physverify.reporting.numbers import DESCRIPTIVE, NOT_PREREGISTERED
+from physverify.reporting import calibration_numbers
+from physverify.reporting.calibration_numbers import DESCRIPTIVE
+from physverify.reporting.numbers import NOT_PREREGISTERED
 from physverify.reporting.render import value_text
 from physverify.reporting.sources import Doc, Request, collect_inputs, resolve
+from physverify.reporting.values import detection_limit
 from physverify.schema.checks import InputLevel
 from physverify.verification.scope import CheckScope
 
@@ -142,7 +144,7 @@ def _doc(data: dict[str, Any]) -> Doc:
 def test_a_censored_detection_limit_is_a_bound(censored: str, text: str) -> None:
     ld = {"value": None, "ci": {"low": None, "high": None}, "censored": censored,
           "bound": 0.05, "unit": "m", "n": 9}  # fmt: skip
-    value = numbers.detection_limit("ld", _doc({"ld": ld}), "/ld")
+    value = detection_limit("ld", _doc({"ld": ld}), "/ld")
     assert value.value is None and value.bound == 0.05 and value.estimated
     assert value_text(value) == text
     assert value_text(dataclasses.replace(value, censored="none")) == "-"
@@ -160,7 +162,7 @@ def test_h1_pass_is_reported_as_fitted_and_the_medians_are_descriptive(
     tau = data["strata"][index]["checks"]["R1"]["monotonicity"]
     tau.update(monotone_medians=False, h1_pass=True)
     altered = dataclasses.replace(inputs, artifact=_doc(data))
-    by_key = {v.key: v for v in numbers.monotonicity(altered).values}
+    by_key = {v.key: v for v in calibration_numbers.monotonicity(altered).values}
     assert by_key["R1.calib_all.h1_pass"].value is True
     assert by_key["R1.calib_all.monotone_medians"].value is False
     assert by_key["R1.calib_all.monotone_medians"].note == DESCRIPTIVE

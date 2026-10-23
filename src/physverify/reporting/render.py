@@ -10,7 +10,8 @@ from typing import Any
 from physverify.calibration.report import ESTIMATE_NOTE, ci_text, number_text
 from physverify.core.atomic import write_text_atomic
 from physverify.core.markdown import table
-from physverify.reporting.numbers import Results, Section, Value
+from physverify.reporting.numbers import Results
+from physverify.reporting.values import Section, Value
 from physverify.schema.io import json_ready
 from physverify.stats.intervals import Ci
 
