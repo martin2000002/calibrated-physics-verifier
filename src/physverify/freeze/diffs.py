@@ -9,12 +9,23 @@ from typing import Any
 
 from physverify.freeze.errors import QueryError
 
+# Code moved out of these packages stays covered at its new home; the pre-refactor config path
+# keeps a diff from an older commit reporting the move.
+_MOVED_OUT = ("src/physverify/sizing/priors.py", "src/physverify/core/digests.py")
 DIFF_PATHS: Mapping[str, tuple[str, ...]] = {
     "j3": (
         *(f"src/physverify/{d}" for d in ("checks", "physics", "extraction", "verification")),
-        "src/physverify/selective_risk/curve.py",
+        *(f"src/physverify/selective_risk/{m}.py" for m in ("curve", "fit", "settings")),
+        "src/physverify/stats/rank.py",
+        *_MOVED_OUT,
     ),
-    "j13": ("src/physverify/extraction", "configs/verifier/extraction.toml"),
+    "j13": (
+        "src/physverify/extraction",
+        "src/physverify/verification/check_set.py",
+        *_MOVED_OUT,
+        "configs/extraction.toml",
+        "configs/verifier/extraction.toml",
+    ),
 }
 Git = Callable[[Sequence[str]], str]
 
