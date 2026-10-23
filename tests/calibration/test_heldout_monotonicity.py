@@ -88,7 +88,7 @@ def _evaluate(
     return evaluate(calibration, (EvaluationInputs(synthetic, {}),), _meta(primary), cfg)
 
 
-def test_only_calib_rows_give_no_heldout_h1(frozen: Calibration) -> None:
+def test_only_calib_rows_give_no_heldout_monotonicity(frozen: Calibration) -> None:
     """``evaluate --subset calib`` leaves the held-out rows empty."""
     stratum = frozen.stratum(InputLevel.ORACLE, "fast")
     calib_only = _rows(synthetic_report(10, prefix="fam-s"))
@@ -101,7 +101,7 @@ def test_only_calib_rows_give_no_heldout_h1(frozen: Calibration) -> None:
     assert "Held-out monotonicity" not in evaluation_markdown(report)
 
 
-def test_heldout_h1_is_monotonicity_and_j_of_the_frozen_rule_by_hand(
+def test_heldout_monotonicity_is_tau_and_j_of_the_frozen_rule_by_hand(
     frozen: Calibration, mixed: tuple[CalibrationRow, ...]
 ) -> None:
     """tau_b from the held-out deltas only, J = TPR - FPR of the frozen tau and sigma."""
@@ -176,7 +176,7 @@ def test_no_parameter_comes_from_outside_the_artifact(frozen: Calibration) -> No
     assert moved.strata[0].checks != shipped.strata[0].checks
 
 
-def test_the_primary_view_has_its_own_heldout_h1(frozen: Calibration) -> None:
+def test_the_primary_view_has_its_own_heldout_monotonicity(frozen: Calibration) -> None:
     reports = (
         synthetic_report(40, prefix="fam-s"),
         synthetic_report(40, seed=7, split=Split.EVAL, prefix="held-s"),
@@ -194,7 +194,7 @@ def test_the_primary_view_has_its_own_heldout_h1(frozen: Calibration) -> None:
     assert "Held-out monotonicity over every scene (secondary" in markdown
 
 
-def test_an_evaluation_without_heldout_h1_still_reads(frozen: Calibration) -> None:
+def test_an_evaluation_without_heldout_monotonicity_still_reads(frozen: Calibration) -> None:
     reports = (
         synthetic_report(20, prefix="fam-s"),
         synthetic_report(20, seed=7, split=Split.EVAL, prefix="held-s"),

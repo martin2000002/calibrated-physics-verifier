@@ -249,7 +249,7 @@ def family_run(monkeypatch: pytest.MonkeyPatch, settings: Settings) -> str:
     return "family"
 
 
-def test_evaluate_adds_the_h1_primary_view_of_the_configured_scenes(
+def test_evaluate_adds_the_primary_monotonicity_view_of_the_configured_scenes(
     cli: CliRunner, family_run: str, tmp_path: Path
 ) -> None:
     """Rule 1.4 through the command: s011-s039 of the 40 scenes (s000 is left out because it
@@ -262,7 +262,7 @@ def test_evaluate_adds_the_h1_primary_view_of_the_configured_scenes(
     assert primary["dataset"]["n_clips"] * 40 == data["dataset"]["n_clips"] * 29
 
 
-def test_evaluate_without_primary_scenes_has_no_h1_view(
+def test_evaluate_without_primary_scenes_has_no_primary_monotonicity_view(
     cli: CliRunner, family_run: str, tmp_path: Path
 ) -> None:
     data = _evaluate_cli(cli, family_run, tmp_path, "--set", "h1_scope.primary_scenes=[]")

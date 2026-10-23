@@ -123,7 +123,7 @@ def test_best_cut_maximises_balanced_accuracy_and_breaks_ties_low() -> None:
     assert predict_cut(np.array([0.3, math.nan, 0.1]), 0.2).tolist() == [1, 0, 0]
 
 
-def test_h2_needs_the_calibrated_rule_and_both_conditions() -> None:
+def test_the_agreement_verdict_needs_the_calibrated_rule_and_both_conditions() -> None:
     primary = {
         "mcnemar": {"p_value": 0.01},
         "verifier": {"accuracy": 0.8},
@@ -140,7 +140,7 @@ def test_h2_needs_the_calibrated_rule_and_both_conditions() -> None:
     assert h2_verdict(weak, True, 0.05)["supported"] is False
 
 
-def test_h2_with_a_gate_is_not_evaluable_whatever_the_numbers() -> None:
+def test_the_agreement_verdict_with_a_gate_is_not_evaluable_whatever_the_numbers() -> None:
     primary = {
         "verifier": {"accuracy": 0.9},
         "vlm": {"accuracy": 0.5},

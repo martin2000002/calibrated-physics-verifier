@@ -126,7 +126,7 @@ def test_an_unmeasured_error_abstains() -> None:
     assert math.isnan(found.sigma)
 
 
-def test_the_a11_adapter_maps_the_clip_score_field_by_field() -> None:
+def test_the_finetune_adapter_maps_the_clip_score_field_by_field() -> None:
     calibrated = pytest.importorskip("physverify.finetune.scorers.calibrated")
     found = score_clip(results(), view(CHECKS), K_SIGMA)
     aggregate = calibrated.to_aggregate(found)

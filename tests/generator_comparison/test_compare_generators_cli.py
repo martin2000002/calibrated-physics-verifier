@@ -70,30 +70,34 @@ def test_every_subcommand_has_help(cli: CliRunner, name: str) -> None:
     [("generate", "--arm", "base"), ("score", "--arm", "base"), ("judge", "--split", "dev")],
 )
 def test_gpu_subcommands_exit_2_on_cpu(
-    cli: CliRunner, h3_environ: dict[str, str], argv: tuple[str, ...]
+    cli: CliRunner, comparison_environ: dict[str, str], argv: tuple[str, ...]
 ) -> None:
-    result = cli("--device", "cpu", "compare-generators", *argv, env=h3_environ)
+    result = cli("--device", "cpu", "compare-generators", *argv, env=comparison_environ)
     assert result.code == 2
     assert "--device cuda" in result.err
 
 
-def test_the_h3_command_does_not_import_the_finetune_command() -> None:
+def test_the_compare_generators_command_does_not_import_the_finetune_command() -> None:
     tree = ast.parse(H3_MODULE.read_text(encoding="utf-8"))
     imported = {n.module for n in ast.walk(tree) if isinstance(n, ast.ImportFrom)}
     assert "physverify.cli.commands.finetune" not in imported
 
 
-def test_status_runs_on_an_empty_campaign(cli: CliRunner, h3_environ: dict[str, str]) -> None:
-    result = cli("compare-generators", "status", env=h3_environ)
+def test_status_runs_on_an_empty_campaign(
+    cli: CliRunner, comparison_environ: dict[str, str]
+) -> None:
+    result = cli("compare-generators", "status", env=comparison_environ)
     assert result.code == 0, result.err
     assert "pre-registration: none" in result.out
     assert "gate: not run" in result.out
 
 
 @pytest.fixture
-def frozen(cli: CliRunner, campaign: Any, h3_environ: dict[str, str]) -> ComparisonPreregistration:
+def frozen(
+    cli: CliRunner, campaign: Any, comparison_environ: dict[str, str]
+) -> ComparisonPreregistration:
     campaign.build()
-    result = cli("compare-generators", "freeze", env=h3_environ)
+    result = cli("compare-generators", "freeze", env=comparison_environ)
     assert result.code == 0, result.err
     assert "frozen:" in result.out
     return load_prereg(campaign.layout.prereg)
@@ -112,32 +116,38 @@ def _score_eval(campaign: Any, prereg: ComparisonPreregistration) -> str:
 
 
 def test_freeze_records_the_state_and_is_idempotent(
-    cli: CliRunner, campaign: Any, h3_environ: dict[str, str], frozen: ComparisonPreregistration
+    cli: CliRunner,
+    campaign: Any,
+    comparison_environ: dict[str, str],
+    frozen: ComparisonPreregistration,
 ) -> None:
     assert frozen.adapter_tag == campaign.ft_tag
     assert frozen.rule_status == "provisional"
     assert tuple(frozen.secondary_tests) == SECONDARY_TESTS
     assert frozen.margins == {"pc": 0.13, "sa": 0.05}
-    again = cli("compare-generators", "freeze", env=h3_environ)
+    again = cli("compare-generators", "freeze", env=comparison_environ)
     assert again.code == 0, again.err
     assert "unchanged" in again.out
 
 
 def test_the_first_freeze_is_refused_after_eval_scores_exist(
-    cli: CliRunner, campaign: Any, h3_environ: dict[str, str]
+    cli: CliRunner, campaign: Any, comparison_environ: dict[str, str]
 ) -> None:
     campaign.build(eval_scored=True)
-    result = cli("compare-generators", "freeze", env=h3_environ)
+    result = cli("compare-generators", "freeze", env=comparison_environ)
     assert result.code == 2
     assert "not blind" in result.err
     assert not campaign.layout.prereg.exists()
 
 
 def test_compare_writes_the_provisional_report_end_to_end(
-    cli: CliRunner, campaign: Any, h3_environ: dict[str, str], frozen: ComparisonPreregistration
+    cli: CliRunner,
+    campaign: Any,
+    comparison_environ: dict[str, str],
+    frozen: ComparisonPreregistration,
 ) -> None:
     _score_eval(campaign, frozen)
-    result = cli("compare-generators", "compare", env=h3_environ)
+    result = cli("compare-generators", "compare", env=comparison_environ)
     assert result.code == 0, result.err
     assert f"verdict: {NO_VERDICT}" in result.out
     report = json.loads(campaign.layout.report_json.read_text(encoding="utf-8"))
@@ -158,17 +168,20 @@ def test_compare_writes_the_provisional_report_end_to_end(
     ):
         assert heading in text
     assert "code commit at the freeze" in text
-    status = cli("compare-generators", "status", env=h3_environ)
+    status = cli("compare-generators", "status", env=comparison_environ)
     assert status.code == 0, status.err
     assert "provisional" in status.out
 
 
 def test_compare_refuses_scores_without_a_bound_manifest(
-    cli: CliRunner, campaign: Any, h3_environ: dict[str, str], frozen: ComparisonPreregistration
+    cli: CliRunner,
+    campaign: Any,
+    comparison_environ: dict[str, str],
+    frozen: ComparisonPreregistration,
 ) -> None:
     _score_eval(campaign, frozen)
     campaign.layout.scoring(BASE_TAG, campaign.scorer.name).unlink()
-    result = cli("compare-generators", "compare", env=h3_environ)
+    result = cli("compare-generators", "compare", env=comparison_environ)
     assert result.code == 2
     assert "compare-generators score" in result.err
 
@@ -203,8 +216,12 @@ def test_freeze_records_the_scorer_version(
 @pytest.mark.parametrize(
     ("passed", "shown"), [(None, "not run"), (False, "failed"), (True, "passed")]
 )
-def test_status_shows_the_gate_line_run_h3_reads(
-    cli: CliRunner, campaign: Any, h3_environ: dict[str, str], passed: bool | None, shown: str
+def test_status_shows_the_gate_line_the_comparison_script_reads(
+    cli: CliRunner,
+    campaign: Any,
+    comparison_environ: dict[str, str],
+    passed: bool | None,
+    shown: str,
 ) -> None:
     campaign.build()
     if passed is not None:
@@ -213,7 +230,7 @@ def test_status_shows_the_gate_line_run_h3_reads(
         )
         campaign.layout.gate.parent.mkdir(parents=True, exist_ok=True)
         write_record(campaign.layout.gate, gate)
-    result = cli("compare-generators", "status", env=h3_environ)
+    result = cli("compare-generators", "status", env=comparison_environ)
     assert result.code == 0, result.err
     assert f"{GATE_LINE}{shown}" in result.out.splitlines()
     assert (f"{GATE_LINE}{GATE_PASSED}" in result.out.splitlines()) is bool(passed)
@@ -319,11 +336,11 @@ ENFORCE = ("--set", "finetune.stop_rule.enforce=true")
 
 @pytest.mark.parametrize("argv", [("freeze",), ("--device", "cpu", "generate")])
 def test_a_fired_stop_rule_blocks_the_eval_arm(
-    cli: CliRunner, campaign: Any, h3_environ: dict[str, str], argv: tuple[str, ...]
+    cli: CliRunner, campaign: Any, comparison_environ: dict[str, str], argv: tuple[str, ...]
 ) -> None:
     campaign.build()
     options, command = (argv[:-1], argv[-1:])
-    result = cli(*ENFORCE, *options, "compare-generators", *command, env=h3_environ)
+    result = cli(*ENFORCE, *options, "compare-generators", *command, env=comparison_environ)
     assert result.code == 2
     assert "pilot stop rule fired" in result.err and "not evaluable" in result.err
     assert not campaign.layout.prereg.exists()
@@ -334,7 +351,7 @@ def test_a_fired_stop_rule_blocks_the_eval_arm(
         *command,
         "--stop-rule-deviation",
         "pilot accepted",
-        env=h3_environ,
+        env=comparison_environ,
     )
     verdict = json.loads(
         (campaign.store.pairs_dir(campaign.scorer.name) / "stop_rule.json").read_text("utf-8")
@@ -352,31 +369,31 @@ def test_a_fired_stop_rule_blocks_the_eval_arm(
 
 
 def test_a_freeze_deviation_does_not_let_a_fired_stop_rule_through(
-    cli: CliRunner, campaign: Any, h3_environ: dict[str, str]
+    cli: CliRunner, campaign: Any, comparison_environ: dict[str, str]
 ) -> None:
     campaign.build()
     deviation = ("--declare-deviation", "alpha fixed")
-    other = cli(*ENFORCE, "compare-generators", "freeze", *deviation, env=h3_environ)
+    other = cli(*ENFORCE, "compare-generators", "freeze", *deviation, env=comparison_environ)
     assert other.code == 2 and "--stop-rule-deviation" in other.err
     assert not campaign.layout.prereg.exists()
 
 
 def test_a_stop_rule_file_of_other_pairs_is_not_enough(
-    cli: CliRunner, campaign: Any, h3_environ: dict[str, str]
+    cli: CliRunner, campaign: Any, comparison_environ: dict[str, str]
 ) -> None:
     campaign.build()
     path = campaign.store.pairs_dir(campaign.scorer.name) / "stop_rule.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps({"passed": True, "pairs_sha256": "other"}), "utf-8")
-    result = cli(*ENFORCE, "compare-generators", "freeze", env=h3_environ)
+    result = cli(*ENFORCE, "compare-generators", "freeze", env=comparison_environ)
     assert result.code == 2 and "pilot stop rule fired" in result.err
 
 
 def test_the_stop_rule_is_off_in_the_fast_profile(
-    cli: CliRunner, campaign: Any, h3_environ: dict[str, str]
+    cli: CliRunner, campaign: Any, comparison_environ: dict[str, str]
 ) -> None:
     campaign.build()
-    result = cli("compare-generators", "freeze", env=h3_environ)
+    result = cli("compare-generators", "freeze", env=comparison_environ)
     assert result.code == 0, result.err
     assert "pilot stop rule: FIRED (reported only)" in result.err
 
@@ -391,16 +408,16 @@ def _exclusion_record(campaign: Any, artifact_sha256: str = "artifact") -> str:
 
 
 def test_freeze_records_the_exclusion_record_sha(
-    cli: CliRunner, campaign: Any, h3_environ: dict[str, str]
+    cli: CliRunner, campaign: Any, comparison_environ: dict[str, str]
 ) -> None:
     campaign.build()
     sha256 = _exclusion_record(campaign)
-    result = cli("compare-generators", "freeze", env=h3_environ)
+    result = cli("compare-generators", "freeze", env=comparison_environ)
     assert result.code == 0, result.err
     assert load_prereg(campaign.layout.prereg).exclusion_record_sha256 == sha256
 
 
-def test_a_calibrated_h3_rule_needs_the_record_of_its_artifact(
+def test_a_calibrated_comparison_rule_needs_the_record_of_its_artifact(
     campaign: Any, frozen: ComparisonPreregistration
 ) -> None:
     calibrated = frozen.model_copy(

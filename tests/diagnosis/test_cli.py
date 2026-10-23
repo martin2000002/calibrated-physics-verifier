@@ -243,7 +243,7 @@ def test_run_real_counts_verdicts_and_summarises(
     assert any(line.startswith(f"{DATASET} {FAKE_CHECK_ID}: fail rate") for line in lines)
 
 
-def test_run_real_without_a7_records_the_missing_suite(
+def test_run_real_without_the_check_suite_records_it_missing(
     make_settings: Callable[..., Settings],
     make_diagnosis_context: Callable[..., DiagnosisContext],
 ) -> None:

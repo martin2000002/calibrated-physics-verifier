@@ -109,7 +109,7 @@ def test_two_runs_differ_only_in_time_and_run_id() -> None:
     assert json.loads(first.report.to_json())["schema"] == DEVSCORE_SCHEMA
 
 
-def test_h1_and_the_in_sample_weight_are_the_fits(dev: DevScore) -> None:
+def test_monotonicity_and_the_in_sample_weight_are_the_fits(dev: DevScore) -> None:
     """AC2: the full fit inside devscore is ``calibrate fit``'s artifact."""
     fitted = fit_calibration(FitInputs(levels(), CHECKS, fit_meta()), CONFIG)
     assert dev.artifact.to_json() == fitted.to_json()

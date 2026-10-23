@@ -134,7 +134,7 @@ def censored_pairs(
     return found
 
 
-def test_t12_zero_pairs_collapse_the_old_factor_and_not_the_new_one() -> None:
+def test_zero_pairs_collapse_the_old_factor_and_not_the_new_one() -> None:
     found = censored_pairs(np.random.default_rng(4))
     old = fit_sigma(found, settings(sigma_pair_filter="all"))
     new = fit_sigma(found, settings(sigma_pair_filter="nonzero"))
@@ -147,7 +147,7 @@ def test_t12_zero_pairs_collapse_the_old_factor_and_not_the_new_one() -> None:
     assert degenerate.n == 280
 
 
-def test_t13_few_informative_pairs_leave_the_error_unmeasured() -> None:
+def test_few_informative_pairs_leave_the_error_unmeasured() -> None:
     found = censored_pairs(np.random.default_rng(5), n=100, zero_share=0.95)
     result = fit_sigma(found, settings(sigma_pair_filter="nonzero"))
     assert (result.factor, result.reason, result.n_pairs) == (None, FEW_PAIRS, 100)
@@ -164,7 +164,7 @@ def _old_bias_factor(found: list[SigmaPair]) -> tuple[float, float]:
     return bias, float(np.median(np.abs(delta - bias) / sigma)) / 0.6745
 
 
-def test_t14_the_all_filter_is_the_old_estimator() -> None:
+def test_the_all_filter_is_the_old_estimator() -> None:
     found = censored_pairs(np.random.default_rng(6), zero_share=0.3)
     assert bias_factor(found, "all") == _old_bias_factor(found)
     result = fit_sigma(found, settings(sigma_pair_filter="all"))
@@ -174,7 +174,7 @@ def test_t14_the_all_filter_is_the_old_estimator() -> None:
 
 
 @pytest.mark.parametrize("zero_share", [0.0, 0.3, 0.7])
-def test_t15_the_bias_does_not_depend_on_the_filter(zero_share: float) -> None:
+def test_the_bias_does_not_depend_on_the_filter(zero_share: float) -> None:
     found = censored_pairs(np.random.default_rng(7), zero_share=zero_share)
     old = fit_sigma(found, settings(sigma_pair_filter="all"))
     new = fit_sigma(found, settings(sigma_pair_filter="nonzero"))

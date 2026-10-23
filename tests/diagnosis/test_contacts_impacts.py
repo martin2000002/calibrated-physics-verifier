@@ -26,14 +26,14 @@ def scores(pred: list[ContactRecord], truth: list[ContactRecord]) -> dict[str, f
     return METRIC.compute(table(*pred), table(*truth), CLIP)
 
 
-def test_t12_one_native_frame_matches_and_a_hundredth_more_does_not() -> None:
+def test_one_native_frame_matches_and_a_hundredth_more_does_not() -> None:
     truth = [record(span=(10.0, 10.0))]
     assert scores([record(span=(11.0, 11.0))], truth)["recall"] == 1.0
     assert scores([record(span=(11.01, 11.01))], truth)["recall"] == 0.0
     assert scores([record(span=(8.0, 9.0))], truth)["recall"] == 1.0
 
 
-def test_t12_rests_are_ignored_and_pairs_must_agree() -> None:
+def test_rests_are_ignored_and_pairs_must_agree() -> None:
     rest = record(span=(0.0, 20.0), kind=ContactKind.RESTING)
     truth = [record(span=(10.0, 10.0)), rest]
     out = scores([rest, record(a="ball", b="other", span=(10.0, 10.0))], truth)
@@ -44,7 +44,7 @@ def test_t12_rests_are_ignored_and_pairs_must_agree() -> None:
     assert abs(out["t_err_frames.mean"] - 0.2) < 1e-12
 
 
-def test_t12_environment_and_pairs_are_counted_apart() -> None:
+def test_environment_and_pairs_are_counted_apart() -> None:
     truth = [record(b=ENV_ID, span=(5.0, 5.0)), record(span=(12.0, 12.0))]
     pred = [record(b=ENV_ID, span=(5.4, 5.4)), record(b=ENV_ID, span=(20.0, 20.0))]
     out = scores(pred, truth)
@@ -54,11 +54,11 @@ def test_t12_environment_and_pairs_are_counted_apart() -> None:
     assert (out["recall.num"], out["recall.den"], out["precision.den"]) == (1.0, 2.0, 2.0)
 
 
-def test_t12_one_to_one() -> None:
+def test_impacts_match_one_to_one() -> None:
     truth = [record(span=(10.0, 10.0))]
     out = scores([record(span=(10.0, 10.0)), record(span=(10.5, 10.5))], truth)
     assert (out["recall"], out["precision"]) == (1.0, 0.5)
 
 
-def test_t12_the_metric_is_not_in_the_profile() -> None:
+def test_the_metric_is_not_in_the_profile() -> None:
     assert "contacts/impacts" not in PROFILE_QUANTITIES

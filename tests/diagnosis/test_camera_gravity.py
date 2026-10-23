@@ -68,20 +68,20 @@ def measure(pred: CameraModel, truth_tilt_deg: float) -> MetricOutcome:
     return CameraGravityMetric(OPTIONS).samples(case)
 
 
-def test_t13_a_true_pose_has_zero_angle() -> None:
+def test_a_true_pose_has_zero_angle() -> None:
     outcome = measure(camera(tilted_pose(25.0), IntrinsicsSource.ESTIMATED), 25.0)
     assert outcome.samples["gravity_angle_deg"] == pytest.approx([0.0], abs=1e-6)
     assert outcome.samples["gravity_z"] == pytest.approx([0.0], abs=1e-6)
 
 
-def test_t13_without_a_pose_the_angle_is_empty_and_the_level_angle_is_the_tilt() -> None:
+def test_without_a_pose_the_angle_is_empty_and_the_level_angle_is_the_tilt() -> None:
     outcome = measure(camera(None, IntrinsicsSource.ASSUMED_FOV), 25.0)
     assert outcome.samples["gravity_angle_deg"].size == 0
     assert outcome.samples["gravity_z"].size == 0
     assert outcome.samples["level_angle_deg"] == pytest.approx([25.0], abs=TOL)
 
 
-def test_t13_an_estimated_pose_off_by_four_degrees_is_two_declared_sigma() -> None:
+def test_an_estimated_pose_off_by_four_degrees_is_two_declared_sigma() -> None:
     tilt = math.radians(29.0)
     pose = pose_from_gravity(np.array([0.0, math.cos(tilt), math.sin(tilt)]))
     outcome = measure(camera(pose, IntrinsicsSource.ESTIMATED), 25.0)

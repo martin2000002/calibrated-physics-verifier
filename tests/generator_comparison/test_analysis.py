@@ -91,9 +91,9 @@ def test_build_arms_keeps_only_the_eval_prompts_and_the_paired_seeds(
 
 
 def test_ft_vs_bo8_averages_pairs_and_drops_thin_prompts(
-    make_prompt: Callable[..., PromptRecord], make_score: Score, h3_settings: Settings
+    make_prompt: Callable[..., PromptRecord], make_score: Score, comparison_settings: Settings
 ) -> None:
-    rules = load_finetune(h3_settings).pairs
+    rules = load_finetune(comparison_settings).pairs
     full = arm(make_prompt("a", "eval", 0), make_score, {0: 0.5, 1: 0.7}, {0: 0.8, 1: 0.6})
     thin = arm(make_prompt("b", "eval", 1), make_score, {0: 0.5}, {0: 0.9})
     picks = {a.prompt_id: pick_best(a.base, rules) for a in (full, thin)}
@@ -103,9 +103,9 @@ def test_ft_vs_bo8_averages_pairs_and_drops_thin_prompts(
 
 
 def test_worst_case_imputes_zero_and_leaves_out_unscored_bo8(
-    make_prompt: Callable[..., PromptRecord], make_score: Score, h3_settings: Settings
+    make_prompt: Callable[..., PromptRecord], make_score: Score, comparison_settings: Settings
 ) -> None:
-    rules = load_finetune(h3_settings).pairs
+    rules = load_finetune(comparison_settings).pairs
     missing = arm(make_prompt("a", "eval", 0), make_score, {0: 0.6}, {0: 0.8, 1: None})
     unscored = arm(make_prompt("b", "eval", 1), make_score, {0: None}, {0: 0.8})
     picks = {a.prompt_id: pick_best(a.base, rules) for a in (missing, unscored)}
@@ -115,19 +115,19 @@ def test_worst_case_imputes_zero_and_leaves_out_unscored_bo8(
     assert left_out == 1
 
 
-def test_g5_runs_only_after_a_supported_primary(h3_cfg: ComparisonSettings) -> None:
+def test_g5_runs_only_after_a_supported_primary(comparison_cfg: ComparisonSettings) -> None:
     weak = TestResult(n=8, p=0.5, hl=0.1, mean=0.1, ci_lo=None, ci_hi=None, method="m")
     strong = weak.model_copy(update={"p": 0.001})
     worst = weak.model_copy(update={"hl": -0.1})
-    assert missing_pair_guard(weak, worst, h3_cfg).state == "not_evaluated"
-    assert missing_pair_guard(strong, worst, h3_cfg).state == "fail"
-    assert missing_pair_guard(strong, weak, h3_cfg).state == "ok"
+    assert missing_pair_guard(weak, worst, comparison_cfg).state == "not_evaluated"
+    assert missing_pair_guard(strong, worst, comparison_cfg).state == "fail"
+    assert missing_pair_guard(strong, weak, comparison_cfg).state == "ok"
 
 
 def test_judged_vs_bo8_needs_the_bo8_value(
-    make_prompt: Callable[..., PromptRecord], make_score: Score, h3_settings: Settings
+    make_prompt: Callable[..., PromptRecord], make_score: Score, comparison_settings: Settings
 ) -> None:
-    rules = load_finetune(h3_settings).pairs
+    rules = load_finetune(comparison_settings).pairs
     a = arm(make_prompt("a", "eval", 0), make_score, {0: 0.5}, {0: 0.8, 1: 0.7})
     picks = {"a": pick_best(a.base, rules)}
     bo8, ft = a.base[0], a.ft[1]
@@ -139,9 +139,9 @@ def test_judged_vs_bo8_needs_the_bo8_value(
 
 
 def test_a_clear_improvement_is_supported_by_the_verifier(
-    better: list[PromptArms], h3_settings: Settings, h3_cfg: ComparisonSettings
+    better: list[PromptArms], comparison_settings: Settings, comparison_cfg: ComparisonSettings
 ) -> None:
-    result = analyse(inputs(h3_settings, h3_cfg, better))
+    result = analyse(inputs(comparison_settings, comparison_cfg, better))
     assert result.n_prompts == 8
     assert result.primary.n == 8 and result.primary.hl is not None and result.primary.hl > 0
     assert result.primary.p is not None and result.primary.p < 0.05
@@ -168,19 +168,21 @@ def test_template_means_average_the_prompts_of_a_template() -> None:
 
 
 def test_without_a_fine_tuned_model_no_guard_is_evaluated(
-    better: list[PromptArms], h3_settings: Settings, h3_cfg: ComparisonSettings
+    better: list[PromptArms], comparison_settings: Settings, comparison_cfg: ComparisonSettings
 ) -> None:
-    result = analyse(inputs(h3_settings, h3_cfg, better, has_ft=False))
+    result = analyse(inputs(comparison_settings, comparison_cfg, better, has_ft=False))
     assert {g.state for g in result.guards.values()} == {"not_evaluated"}
     assert result.g5_left_out == 0
 
 
 def test_the_external_judge_enters_when_it_has_values(
-    better: list[PromptArms], h3_settings: Settings, h3_cfg: ComparisonSettings
+    better: list[PromptArms], comparison_settings: Settings, comparison_cfg: ComparisonSettings
 ) -> None:
     pc = {(s.model_tag, s.candidate_id): 4.0 for a in better for s in a.ft.values()}
     pc |= {(s.model_tag, s.candidate_id): 3.0 for a in better for s in a.base.values()}
-    result = analyse(inputs(h3_settings, h3_cfg, better, pc=pc, sa=pc, external_status="ok"))
+    result = analyse(
+        inputs(comparison_settings, comparison_cfg, better, pc=pc, sa=pc, external_status="ok")
+    )
     assert result.external is not None
     assert result.guards["G4"].state in {"ok", "not_evaluated"}
     assert result.holm["pc_ft_vs_base"].test.n == 8

@@ -21,7 +21,7 @@ def scene_rows(scene: str, clean: float, values: list[float], check_id: str = "R
     return found
 
 
-def test_increasing_changes_give_tau_one_and_pass_h1() -> None:
+def test_increasing_changes_give_tau_one_and_pass_monotonicity() -> None:
     rng = np.random.default_rng(0)
     rows = []
     for s in range(10):
@@ -35,7 +35,7 @@ def test_increasing_changes_give_tau_one_and_pass_h1() -> None:
     assert found.n_scenes == 10
 
 
-def test_random_changes_do_not_pass_h1() -> None:
+def test_random_changes_do_not_pass_monotonicity() -> None:
     rng = np.random.default_rng(1)
     rows = []
     for s in range(10):

@@ -101,7 +101,7 @@ def test_a_clip_of_another_time_base_is_refused(settings: Settings, make_result:
         scorer.score([_with_row_step(result, 1), _with_row_step(result, 2)])
 
 
-def test_h2_and_h3_give_the_same_stale_message(settings: Settings) -> None:
+def test_agreement_and_comparison_give_the_same_stale_message(settings: Settings) -> None:
     path = _artifact(settings, checks_hash=STALE)
     active = active_checks_hash(settings)
     with pytest.raises(StaleCalibrationError) as stale:
@@ -109,9 +109,9 @@ def test_h2_and_h3_give_the_same_stale_message(settings: Settings) -> None:
     message = str(stale.value)
     assert "other check parameters" in message and "refit" in message
     request = StratumRequest(path, settings.profile, UNKNOWN_ROW_STEP, active)
-    with pytest.raises(ConfigError) as h2:
+    with pytest.raises(ConfigError) as agreement_error:
         calibrated_rule(import_calibration(), request, ())
-    assert message in str(h2.value)
+    assert message in str(agreement_error.value)
     assert build_scorer("calibrated", settings).unavailable() == message
 
 

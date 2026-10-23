@@ -81,7 +81,7 @@ def test_gpu_subcommands_exit_2_on_cpu(
 
 
 @pytest.mark.parametrize("step", ["generate", "score"])
-def test_the_eval_split_is_left_to_h3(
+def test_the_eval_split_is_left_to_the_generator_comparison(
     cli: CliRunner, env: dict[str, str], tmp_path: Path, step: str
 ) -> None:
     result = cli("--device", "cuda", "finetune", step, "--split", "eval", env=env)

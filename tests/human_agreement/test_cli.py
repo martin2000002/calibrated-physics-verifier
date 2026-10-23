@@ -49,7 +49,7 @@ def _test(world, **kwargs) -> Path:
     return world.run("test", clips, **kwargs)
 
 
-def _h2_note(out: str) -> str:
+def _agreement_note(out: str) -> str:
     """The line run_human_agreement.sh notes from the compare log."""
     sed = subprocess.run(
         ["sed", "-n", "/^H2: /{p;q}"], input=out, capture_output=True, text=True, check=True
@@ -79,7 +79,7 @@ def test_compare_on_the_test_subset_is_refused_while_the_review_is_pending(cli, 
     assert result.code == 1 and "hand review" in result.err  # MissingInputError
 
 
-def test_freeze_then_compare_writes_every_output_without_an_h2_verdict(cli, world) -> None:
+def test_freeze_then_compare_writes_every_output_without_an_agreement_verdict(cli, world) -> None:
     run = _frozen(cli, world)
     result = cli(*FAST, "agreement", "compare", "--verify-run", str(run))
     assert result.code == 0, result.err
@@ -89,7 +89,7 @@ def test_freeze_then_compare_writes_every_output_without_an_h2_verdict(cli, worl
     assert all((out / name).is_file() for name in names)
     metrics = json.loads((out / "metrics.json").read_text(encoding="utf-8"))
     assert metrics["h2_verdict"]["applicable"] is False
-    assert _h2_note(result.out) == f"H2: {metrics['h2_verdict']['reason']}"
+    assert _agreement_note(result.out) == f"H2: {metrics['h2_verdict']['reason']}"
     assert "no human-agreement verdict" in (out / "summary.md").read_text(encoding="utf-8")
 
 
@@ -299,7 +299,9 @@ def _freeze(cli, world, *options: str, after: tuple[str, ...] = ()):
     return cli(*FAST, *options, "agreement", "freeze", "--verify-run", str(dev), *after)
 
 
-def test_an_unusable_stratum_runs_descriptive_and_h2_is_not_evaluable(cli, world) -> None:
+def test_an_unusable_stratum_runs_descriptive_and_the_agreement_verdict_is_not_evaluable(
+    cli, world
+) -> None:
     artifact = _artifact(world, ready=False)
     frozen = _freeze(cli, world, *CALIBRATED)
     assert frozen.code == 0, frozen.err
@@ -312,7 +314,7 @@ def test_an_unusable_stratum_runs_descriptive_and_h2_is_not_evaluable(cli, world
     assert result.code == 0, result.err
     verdict = _metrics(run)["h2_verdict"]
     assert verdict["status"] == "not_evaluable" and verdict["supported"] is None
-    assert _h2_note(result.out) == f"H2: {verdict['reason']}"
+    assert _agreement_note(result.out) == f"H2: {verdict['reason']}"
     assert _metrics(run)["calibration"]["gate"] == verdict["gate"]
     text = (run / REPORT_DIR / "summary.md").read_text(encoding="utf-8")
     assert "Human-agreement hypothesis not evaluable with the calibrated rule" in text

@@ -197,7 +197,7 @@ def test_a_post_hoc_freeze_marks_the_verdict_without_changing_its_tier() -> None
     assert late.reasons[-1].startswith("post hoc")
 
 
-def test_a_fired_stop_rule_leaves_h3_without_a_verdict() -> None:
+def test_a_fired_stop_rule_leaves_the_comparison_without_a_verdict() -> None:
     state = StopRuleState(passed=False, enforced=True, reasons=["few pairs"], pairs_sha256="p")
     reason = fired_reason(state, "pilot accepted")
     assert reason is not None and "'pilot accepted'" in reason

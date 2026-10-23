@@ -74,7 +74,7 @@ def test_scene_ids_match_by_trailing_index() -> None:
     assert not in_scope("pair-collision-s040", keep)
 
 
-def test_the_shipped_scope_is_the_adr_one(repo_root: Path) -> None:
+def test_the_shipped_scope_is_the_preregistered_one(repo_root: Path) -> None:
     settings = load_settings(repo_root / "configs", environ={})
     assert h1_scope(settings).primary_scenes == SHIPPED
 
@@ -235,7 +235,7 @@ def test_the_primary_tau_uses_only_the_primary_scenes(
     assert "median delta by level, primary (descriptive)" in markdown
 
 
-def test_h1_pass_is_the_lower_bound_only() -> None:
+def test_the_monotonicity_pass_is_the_lower_bound_only() -> None:
     """Medians that dip at one level do not condition h1_pass."""
     steps = {0: 0.0, 1: 0.2, 2: 0.1, 3: 0.5}
     pairs = [LevelDelta(f"s{i:03d}", lv, d) for i in range(20) for lv, d in steps.items()]
