@@ -51,7 +51,7 @@ from physverify.verification.runner import (
     VerificationSettings,
     load_thresholds,
 )
-from physverify.verification.sweep import CheckUnit
+from physverify.verification.sweep import units_of
 
 
 def fit_abstention(
@@ -132,7 +132,7 @@ def _session(
         reference_table=tables[InputLevel.ORACLE],
         thresholds=tables[InputLevel.PERCEIVED],
         min_span_iou=diagnosis_settings(settings).end_to_end.min_span_iou,
-        checks=tuple(CheckUnit.of(cls) for _, cls in sorted(registry.items())),
+        checks=units_of(registry),
         couplings=frozenset((p, c) for p, c in verification.specificity.couplings),
     )
 

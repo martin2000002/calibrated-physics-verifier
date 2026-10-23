@@ -41,7 +41,6 @@ from physverify.calibration.session import (
     require_calib,
     run_reports,
     with_oracle,
-    write,
     write_stage_sigma,
 )
 from physverify.calibration.settings import calibration_config
@@ -51,6 +50,7 @@ from physverify.calibration.sigma_recalibration import (
     stage_factors,
 )
 from physverify.calibration.summary import devscore_lines, show_lines
+from physverify.core.atomic import write_text_atomic
 from physverify.core.errors import MissingInputError, UsageError
 from physverify.core.output import Echo
 from physverify.datasets._base import DatasetSource, select_clips
@@ -76,7 +76,7 @@ from physverify.verification.inputs import (
 )
 from physverify.verification.policies.raw import RawPolicy
 from physverify.verification.runner import VerificationRunner
-from physverify.verification.sweep import CheckUnit
+from physverify.verification.sweep import units_of
 
 Guard = Callable[[Sequence[Selection], Mapping[str, str] | None], None]
 
@@ -157,9 +157,9 @@ def score_devscore(
     run_dir = session.run.run_dir
     text = result.report.to_json()
     for path in (run_dir / DEVSCORE_FILE, *(() if out is None else (out,))):
-        write(path, text)
+        write_text_atomic(path, text)
         echo(f"devscore: {path}")
-    write(run_dir / cal.artifact, result.artifact.to_json())
+    write_text_atomic(run_dir / cal.artifact, result.artifact.to_json())
     echo(f"calibration: {run_dir / cal.artifact} (full calib fit)")
     for line in devscore_lines(result.report):
         echo(line)
@@ -248,8 +248,8 @@ def evaluate_artifact(
         primary=primary_scope(session, source, name, chosen),
     )
     report = evaluate(calibration, inputs, meta, session.config)
-    write(session.run.run_dir / EVALUATION_FILE, report.to_json())
-    write(session.run.run_dir / EVALUATION_MD, evaluation_markdown(report))
+    write_text_atomic(session.run.run_dir / EVALUATION_FILE, report.to_json())
+    write_text_atomic(session.run.run_dir / EVALUATION_MD, evaluation_markdown(report))
     echo(f"evaluation: {session.run.run_dir / EVALUATION_FILE}")
 
 
@@ -271,7 +271,7 @@ def publish_stratum(
     stratum = publishable(session, path, InputLevel(level), profile, force=force)
     settings = context.settings
     target = settings.paths.thresholds
-    write(target, projection_text(stratum, settings.paths.calibration_dir))
+    write_text_atomic(target, projection_text(stratum, settings.paths.calibration_dir))
     echo(f"thresholds: {target} ({stratum.source})")
 
 
@@ -294,7 +294,7 @@ def _session(context: AppContext, echo: Echo, err: Echo) -> Session:
         config=calibration_config(settings),
         run=run,
         raw_runner=partial(_raw_runner, context),
-        check_units=partial(_check_units, context),
+        check_units=lambda: units_of(context.registry("checks")),
         input_source=partial(_input_source, context),
         subject_lookup=partial(_subject_lookup, context),
         dataset=partial(dataset_for, context),
@@ -324,11 +324,6 @@ def _raw_runner(context: AppContext) -> VerificationRunner:
     registry = context.registry("checks")
     overrides = context.settings.section(CHECKS_SECTION, ChecksSettings)
     return VerificationRunner(build_checks(registry, overrides), RawPolicy(), {})
-
-
-def _check_units(context: AppContext) -> tuple[CheckUnit, ...]:
-    registry = context.registry("checks")
-    return tuple(CheckUnit.of(registry[c]) for c in sorted(registry))
 
 
 def _input_source(context: AppContext, dataset: DatasetSource, level: InputLevel) -> InputSource:

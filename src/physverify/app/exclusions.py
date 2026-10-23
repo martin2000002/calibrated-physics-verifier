@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from pathlib import Path
 
 from physverify.app.context import AppContext
@@ -41,7 +41,7 @@ from physverify.verification.exclusion_record import (
 )
 from physverify.verification.scope import SECTION as SCOPE_SECTION
 from physverify.verification.scope import CheckScope, record_path
-from physverify.verification.sweep import CheckUnit
+from physverify.verification.sweep import units_of
 
 FamilyGap = Callable[[frozenset[str]], list[str]]
 RunPair = tuple[str, str]
@@ -56,7 +56,7 @@ def r2_clip_listing(context: AppContext, out: Path | None) -> str:
     text = "\n".join(ids) + "\n"
     if out is None:
         return text
-    _write((out,), text)
+    write_text_atomic(out, text)
     return f"{len(ids)} clips: {out}\n"
 
 
@@ -89,8 +89,10 @@ def decide_exclusions(
         return
     run = new_run(context.settings, context.invocation.argv)
     text, markdown = record.to_json(), record_markdown(record)
-    _write((target, run.run_dir / target.name), text)
-    _write((target.with_suffix(".md"), run.run_dir / target.with_suffix(".md").name), markdown)
+    for path in (target, run.run_dir / target.name):
+        write_text_atomic(path, text)
+    for path in (target.with_suffix(".md"), run.run_dir / target.with_suffix(".md").name):
+        write_text_atomic(path, markdown)
     out(f"record: {target} sha256 {record.sha256}\n")
 
 
@@ -134,16 +136,11 @@ def _scope(context: AppContext) -> CheckScope:
     return context.settings.section(SCOPE_SECTION, CheckScope)
 
 
-def _units(context: AppContext) -> tuple[CheckUnit, ...]:
-    registry = context.registry("checks")
-    return tuple(CheckUnit.of(registry[c]) for c in sorted(registry))
-
-
 def _arms(context: AppContext, rules: ExclusionRules, base: str, tiny: str) -> R2Arms:
     settings = context.settings
     clips = dataset_for(context, rules.r2.dataset).clips(None)
     couplings = calibration_config(settings).couplings
-    units = _units(context)
+    units = units_of(context.registry("checks"))
     runs_dir = settings.paths.runs_dir
     return R2Arms(
         *(arm_run(runs_dir / run, clips, units, couplings, rules) for run in (base, tiny))
@@ -170,12 +167,6 @@ def _inputs(
     )
     arms = _arms(context, rules, *runs)
     return DecisionInputs(calibration, consumed, report, report_sha, arms, checks_hash)
-
-
-def _write(paths: Sequence[Path], text: str) -> None:
-    for path in paths:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        write_text_atomic(path, text)
 
 
 def _artifact_note(artifact: Path, record: ExclusionRecord, out: Echo) -> None:

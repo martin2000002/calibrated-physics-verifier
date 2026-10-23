@@ -88,6 +88,11 @@ class CheckUnit:
         )
 
 
+def units_of(registry: Mapping[str, CheckIdentity]) -> tuple[CheckUnit, ...]:
+    """The identity of every registered check, in id order."""
+    return tuple(CheckUnit.of(registry[c]) for c in sorted(registry))
+
+
 @dataclass(frozen=True)
 class MatrixCell:
     perturbation: str

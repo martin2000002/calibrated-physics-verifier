@@ -81,11 +81,6 @@ class Session:
     err: Echo
 
 
-def write(path: Path, text: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    write_text_atomic(path, text)
-
-
 def levels_of(level: str | None, session: Session) -> tuple[InputLevel, ...]:
     if level is None:
         return session.config.calibration.levels
@@ -238,17 +233,17 @@ def require_calib(clips: Sequence[ClipManifest]) -> None:
 
 
 def publish_fit(session: Session, path: Path, text: str) -> None:
-    write(path, text)
+    write_text_atomic(path, text)
     calibration = load_calibration(path)
     root = session.settings.paths.calibration_dir
     for lv, profile in calibration.strata():
         stratum = calibration.stratum(lv, profile)
         projection = path.parent / projection_name(lv, profile)
-        write(projection, projection_text(stratum, root))
+        write_text_atomic(projection, projection_text(stratum, root))
     run_dir = session.run.run_dir
-    write(run_dir / path.name, text)
-    write(run_dir / CALIBRATION_MD, calibration_markdown(calibration.artifact))
-    write(run_dir / CURVES_CSV, curves_csv(calibration.artifact))
+    write_text_atomic(run_dir / path.name, text)
+    write_text_atomic(run_dir / CALIBRATION_MD, calibration_markdown(calibration.artifact))
+    write_text_atomic(run_dir / CURVES_CSV, curves_csv(calibration.artifact))
     session.echo(f"artifact: {path} ({calibration.status}, sha256 {calibration.sha256[:12]})")
     for line in show_lines(calibration):
         session.echo(line)
@@ -265,8 +260,8 @@ def write_stage_sigma(
     directory.mkdir(parents=True, exist_ok=True)
     write_profile(path, profile)
     summary = StageSigma(path=str(path), hash=profile_hash(profile), entries=tuple(factors))
-    write(directory / STAGE_SIGMA_FILE, summary.to_json())
-    write(session.run.run_dir / STAGE_SIGMA_FILE, summary.to_json())
+    write_text_atomic(directory / STAGE_SIGMA_FILE, summary.to_json())
+    write_text_atomic(session.run.run_dir / STAGE_SIGMA_FILE, summary.to_json())
     session.echo(f"profile: {path}")
     for line in factor_lines(factors):
         session.echo(line)
