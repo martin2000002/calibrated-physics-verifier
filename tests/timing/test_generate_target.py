@@ -16,10 +16,9 @@ from numpy.typing import NDArray
 from physverify.config.models import Settings
 from physverify.core.digests import file_sha256
 from physverify.core.errors import TimingError
-from physverify.core.video import Mp4VideoSource
 from physverify.datasets.local_video import MANIFEST_FILE, LocalVideoDataset, to_queries
 from physverify.extraction._base import WeightKind
-from physverify.generation.mp4_writer import to_uint8, write_mp4
+from physverify.generation.mp4_writer import to_uint8
 from physverify.generation.settings import GenerationSettings
 from physverify.generation.wan21 import (
     FETCH_HINT,
@@ -488,23 +487,6 @@ def test_to_uint8() -> None:
     assert scaled.tolist() == [0, 0, 128, 255, 255]
     with pytest.raises(TimingError):
         to_uint8(np.zeros(3, dtype=np.int16))  # type: ignore[arg-type]
-
-
-def test_write_mp4_round_trip(tmp_path: Path) -> None:
-    frames = to_uint8(_gradient((1, FRAMES, HEIGHT, WIDTH, 3))[0])
-    path = tmp_path / "videos" / "clip.mp4"
-    write_mp4(frames, path, 16)
-    video = Mp4VideoSource(path, max_frame_bytes=10**9)
-    assert (video.n_frames, video.native_size, video.real_fps) == (FRAMES, (WIDTH, HEIGHT), 16.0)
-    read = video.frames(0, FRAMES).astype(float)
-    assert np.abs(read.mean(axis=(1, 2, 3)) - frames.mean(axis=(1, 2, 3))).max() < 4
-    assert [p.name for p in path.parent.iterdir()] == ["clip.mp4"]
-
-
-def test_write_mp4_rejects_non_video_arrays(tmp_path: Path) -> None:
-    with pytest.raises(TimingError):
-        write_mp4(np.zeros((HEIGHT, WIDTH, 3), dtype=np.uint8), tmp_path / "a.mp4", 16)
-    assert not list(tmp_path.iterdir())
 
 
 class FakeModel:

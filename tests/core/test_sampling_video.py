@@ -91,19 +91,32 @@ def test_write_mp4_round_trip(tmp_path: Path) -> None:
     ramp = np.linspace(0, 255, 64).astype(np.uint8)
     image = np.broadcast_to(ramp[None, :, None], (48, 64, 3))
     frames = np.stack([image // (i + 1) for i in range(5)])
-    path = tmp_path / "clip.mp4"
+    path = tmp_path / "videos" / "clip.mp4"
     write_mp4(frames, path, fps=24.0)
     source = Mp4VideoSource(path, max_frame_bytes=RuntimeSettings().max_frame_bytes)
     assert source.n_frames == 5 and source.native_size == (64, 48)
     assert source.real_fps == pytest.approx(24.0)
     error = np.abs(source.frames(0, 5).astype(np.int16) - frames.astype(np.int16))
     assert float(error.mean()) < 8.0
-    assert [p.name for p in tmp_path.iterdir()] == ["clip.mp4"]
+    assert [p.name for p in path.parent.iterdir()] == ["clip.mp4"]
 
 
 def test_write_mp4_rejects_non_rgb_frames(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="T x H x W x 3"):
         write_mp4(np.zeros((2, 8, 8, 4), dtype=np.uint8), tmp_path / "clip.mp4", fps=24.0)
+    assert not list(tmp_path.iterdir())
+
+
+def test_write_mp4_removes_its_partial_file_on_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def fail(*_: object) -> None:
+        raise OSError("disk full")
+
+    monkeypatch.setattr(cv2, "cvtColor", fail)
+    with pytest.raises(OSError, match="disk full"):
+        write_mp4(np.zeros((2, 8, 8, 3), dtype=np.uint8), tmp_path / "clip.mp4", fps=24.0)
+    assert not list(tmp_path.iterdir())
 
 
 def test_budget_refuses_240_native_4k_frames() -> None:

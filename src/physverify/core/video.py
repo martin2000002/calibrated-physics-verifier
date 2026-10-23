@@ -3,6 +3,7 @@ checked against a byte budget before decoding starts (never materialise native 4
 
 from __future__ import annotations
 
+import os
 from collections.abc import Iterator, Sequence
 from pathlib import Path
 
@@ -10,7 +11,7 @@ import cv2
 import numpy as np
 from numpy.typing import NDArray
 
-from physverify.core.errors import MissingInputError, ResourceBudgetError
+from physverify.core.errors import MissingInputError, PhysverifyError, ResourceBudgetError
 from physverify.core.resample import resize_frame
 from physverify.schema.clip import scaled_size
 
@@ -32,21 +33,25 @@ def check_frame_budget(n_frames: int, size: tuple[int, int], max_frame_bytes: in
 
 
 def write_mp4(frames: Frames, path: Path, fps: float) -> None:
-    """Encode T x H x W x 3 RGB frames as MP4, written to a temporary file renamed into place."""
+    """Encode T x H x W x 3 RGB frames as MP4; readers never see a partial file."""
     if frames.ndim != 4 or frames.shape[-1] != 3 or len(frames) == 0:
         raise ValueError(f"expected T x H x W x 3 frames, got shape {frames.shape}")
     height, width = int(frames.shape[1]), int(frames.shape[2])
-    partial = path.with_name(f".{path.name}.partial.mp4")
-    writer = cv2.VideoWriter(
-        str(partial), cv2.VideoWriter.fourcc(*MP4_FOURCC), fps, (width, height)
-    )
-    if not writer.isOpened():
-        raise RuntimeError(f"cannot open an MP4 writer for {path}")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    # The suffix stays .mp4 so OpenCV picks the container from the temporary name.
+    partial = path.with_name(f".{path.stem}.{os.getpid()}.partial.mp4")
+    fourcc = cv2.VideoWriter.fourcc(*MP4_FOURCC)
+    writer = cv2.VideoWriter(str(partial), fourcc, float(fps), (width, height))
     try:
+        if not writer.isOpened():
+            raise PhysverifyError(f"OpenCV cannot write {MP4_FOURCC} video to {partial}")
         for frame in frames:
             writer.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
-    finally:
+    except BaseException:
         writer.release()
+        partial.unlink(missing_ok=True)
+        raise
+    writer.release()
     partial.replace(path)
 
 

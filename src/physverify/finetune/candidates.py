@@ -18,6 +18,7 @@ from typing import Any, Final
 from physverify.core.atomic import write_atomic
 from physverify.core.errors import PhysverifyError, UsageError
 from physverify.core.output import Echo
+from physverify.core.video import write_mp4
 from physverify.finetune.layout import CampaignStore
 from physverify.finetune.records import (
     BASE_TAG,
@@ -29,7 +30,7 @@ from physverify.finetune.records import (
 from physverify.finetune.seeds import WHOLE, Shard, candidate_id, candidate_seed, parse_shard
 from physverify.finetune.settings import CandidateSettings, PromptSplit
 from physverify.finetune.wan_lora import load_adapter
-from physverify.generation.mp4_writer import to_uint8, write_mp4
+from physverify.generation.mp4_writer import to_uint8
 from physverify.generation.settings import GenerationSettings
 from physverify.generation.wan21 import batch_frames, call_kwargs, is_out_of_memory, torch_generator
 from physverify.schema.io import stable_hash
