@@ -14,8 +14,8 @@ from pydantic import BaseModel, Field
 from physverify.checks._base import CheckInputs
 from physverify.checks._common import CommonParams, abstain, first_max, unscored
 from physverify.physics.geometry import characteristic_length
-from physverify.physics.measures.r4_integrity import jump_ratio
-from physverify.physics.measures.r4_jump_noise import jump_over_noise, noise_jumps
+from physverify.physics.measures.object_integrity import jump_ratio
+from physverify.physics.measures.track_jump import jump_over_noise, noise_jumps
 from physverify.physics.tracks import (
     MIN_NOISE_STENCILS,
     camera_depth,

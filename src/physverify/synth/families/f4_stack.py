@@ -11,7 +11,7 @@ from numpy.typing import NDArray
 from pydantic import BaseModel
 
 from physverify.physics.geometry import characteristic_length, support_polygon
-from physverify.physics.measures.r2_support import overhang_fraction
+from physverify.physics.measures.support_overhang import overhang_fraction
 from physverify.schema.scene import ObjectSpec, SceneSpec
 from physverify.synth.layout import UP, footprint_radius, palette, rest_height, solve_offset
 from physverify.synth.perturbations._measure import overhang_on, support_manifolds

@@ -20,7 +20,7 @@ from physverify.physics.equilibrium import (
     horizontal_norm_bias,
     solve_equilibrium,
 )
-from physverify.physics.measures.r2_support import overhang_fraction
+from physverify.physics.measures.support_overhang import overhang_fraction
 from physverify.physics.tracks import (
     body_length,
     contact_rows,

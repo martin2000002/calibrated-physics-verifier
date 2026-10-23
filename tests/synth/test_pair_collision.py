@@ -12,7 +12,7 @@ import numpy as np
 import pytest
 from reference.legacy_contact_rules import floor_reach, legacy_collision_velocities
 
-from physverify.physics.measures.r3_collision import kinetic_energy_gain
+from physverify.physics.measures.collision_energy import kinetic_energy_gain
 from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactKind, ContactRecord, ContactTable
 from physverify.schema.states import ObjectStateTable, PrimitiveKind

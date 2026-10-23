@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 
 from physverify.checks._base import CheckInputs
 from physverify.checks._common import FallParams, abstain, find_falls, unscored
-from physverify.physics.measures.r5_gravity import gravity_rel_error
+from physverify.physics.measures.gravity_fit import gravity_rel_error
 from physverify.physics.tracks import (
     MIN_FIT_ROWS,
     Flight,

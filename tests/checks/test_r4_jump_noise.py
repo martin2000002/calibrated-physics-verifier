@@ -15,7 +15,7 @@ from physverify.app.plugins import PLUGIN_KINDS
 from physverify.checks._base import Check, CheckInputs
 from physverify.checks.r4_track_jump import NoiseContinuityCheck, NoiseJumpParams
 from physverify.physics.finite_diff import third_difference
-from physverify.physics.measures.r4_jump_noise import jump_over_noise, noise_jumps
+from physverify.physics.measures.track_jump import jump_over_noise, noise_jumps
 from physverify.physics.tracks import QUANTIZATION, impact_stencil_mask
 from physverify.schema.checks import AbstainReason, CheckResult, Verdict
 from physverify.verification.inputs import ClipInputs

@@ -10,7 +10,7 @@ import numpy as np
 import pytest
 from reference.legacy_contact_rules import bounce_case
 
-from physverify.physics.measures.r3_collision import restitution
+from physverify.physics.measures.collision_energy import restitution
 from physverify.schema.contacts import ContactTable
 from physverify.schema.states import ObjectStateTable
 from physverify.synth.perturbations._ballistics import impact_velocity, time_to_height

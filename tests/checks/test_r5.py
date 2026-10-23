@@ -10,7 +10,7 @@ from physverify.checks.r5a_fall_shape import PLUGINS as R5A_PLUGINS
 from physverify.checks.r5a_fall_shape import FallShapeCheck, FallShapeParams
 from physverify.checks.r5b_gravity_value import PLUGINS as R5B_PLUGINS
 from physverify.checks.r5b_gravity_value import GravityValueCheck, GravityValueParams
-from physverify.physics.measures.r5_gravity import accel_inconsistency, fall_fit
+from physverify.physics.measures.gravity_fit import accel_inconsistency, fall_fit
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
 from physverify.schema.constants import STANDARD_GRAVITY
 from physverify.schema.scale import ScaleSource

@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field, model_validator
 from physverify.checks._base import CheckInputs
 from physverify.checks._common import CommonParams, abstain, check_rng, mc_sigma, unscored
 from physverify.physics.geometry import Plane, matrix_from_quaternion
-from physverify.physics.measures.r3_collision import (
+from physverify.physics.measures.collision_energy import (
     kinetic_energy_gain,
     momentum_mass_ratio,
     restitution,

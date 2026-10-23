@@ -18,16 +18,20 @@ from physverify.physics.geometry import (
     signed_distance,
     support_polygon,
 )
-from physverify.physics.measures.r1_penetration import penetration_ratio
-from physverify.physics.measures.r2_support import overhang_fraction
-from physverify.physics.measures.r3_collision import kinetic_energy_gain, restitution
-from physverify.physics.measures.r4_integrity import jump_ratio, missing_frames, size_change_ratio
-from physverify.physics.measures.r5_gravity import (
+from physverify.physics.measures.collision_energy import kinetic_energy_gain, restitution
+from physverify.physics.measures.gravity_fit import (
     FallFit,
     accel_inconsistency,
     fall_fit,
     gravity_rel_error,
 )
+from physverify.physics.measures.object_integrity import (
+    jump_ratio,
+    missing_frames,
+    size_change_ratio,
+)
+from physverify.physics.measures.penetration import penetration_ratio
+from physverify.physics.measures.support_overhang import overhang_fraction
 from physverify.physics.tracks import records_of
 from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactKind, ContactTable

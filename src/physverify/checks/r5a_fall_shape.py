@@ -28,7 +28,7 @@ from physverify.checks._common import (
     mc_sigma,
     unscored,
 )
-from physverify.physics.measures.r5_gravity import (
+from physverify.physics.measures.gravity_fit import (
     accel_inconsistency,
     fall_residual_ratio,
     lateral_accel_ratio,

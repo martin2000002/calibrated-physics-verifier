@@ -12,21 +12,25 @@ from physverify.physics.finite_diff import (
     second_difference_sigma,
     third_difference_sigma,
 )
-from physverify.physics.measures.r1_penetration import penetration_ratio
-from physverify.physics.measures.r2_support import overhang_fraction
-from physverify.physics.measures.r3_collision import (
+from physverify.physics.measures.collision_energy import (
     kinetic_energy_gain,
     momentum_mass_ratio,
     restitution,
 )
-from physverify.physics.measures.r4_integrity import jump_ratio, missing_frames, size_change_ratio
-from physverify.physics.measures.r5_gravity import (
+from physverify.physics.measures.gravity_fit import (
     accel_inconsistency,
     fall_fit,
     fall_residual_ratio,
     gravity_rel_error,
     lateral_accel_ratio,
 )
+from physverify.physics.measures.object_integrity import (
+    jump_ratio,
+    missing_frames,
+    size_change_ratio,
+)
+from physverify.physics.measures.penetration import penetration_ratio
+from physverify.physics.measures.support_overhang import overhang_fraction
 from physverify.schema.constants import STANDARD_GRAVITY
 
 DOWN = np.array([0.0, 0.0, -1.0])

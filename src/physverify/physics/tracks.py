@@ -27,7 +27,7 @@ from physverify.physics.geometry import (
     pose_from_quaternion,
 )
 from physverify.physics.kinematics import UNIFORM_STEP_RTOL, visible_runs
-from physverify.physics.measures.r5_gravity import FallFit, fall_fit
+from physverify.physics.measures.gravity_fit import FallFit, fall_fit
 from physverify.physics.uncertainty import robust_scale
 from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactKind, ContactRecord, ContactTable

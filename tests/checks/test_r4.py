@@ -16,7 +16,7 @@ from physverify.checks.r4_integrity import (
     SizeParams,
 )
 from physverify.physics.finite_diff import third_difference
-from physverify.physics.measures.r4_integrity import size_change_ratio
+from physverify.physics.measures.object_integrity import size_change_ratio
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
 from physverify.schema.constants import STANDARD_GRAVITY
 

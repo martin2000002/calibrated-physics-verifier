@@ -19,7 +19,7 @@ from physverify.extraction._base import StageContext, WeightSpec
 from physverify.extraction.providers._common import ProviderParams, expect_params
 from physverify.physics.geometry import characteristic_lengths
 from physverify.physics.kinematics import uniform_step, visible_runs
-from physverify.physics.measures.r5_gravity import FallFit, fall_fit, fall_residual_ratio
+from physverify.physics.measures.gravity_fit import FallFit, fall_fit, fall_residual_ratio
 from physverify.schema.constants import STANDARD_GRAVITY
 from physverify.schema.scale import ScaleEstimate, ScaleSource
 from physverify.schema.stages import Stage

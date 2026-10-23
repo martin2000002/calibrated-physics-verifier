@@ -14,7 +14,7 @@ from physverify.checks._base import CheckInputs
 from physverify.checks._common import CommonParams, abstain, first_max, unscored
 from physverify.physics.finite_diff import third_difference, third_difference_sigma
 from physverify.physics.geometry import characteristic_length
-from physverify.physics.measures.r4_integrity import jump_ratio
+from physverify.physics.measures.object_integrity import jump_ratio
 from physverify.physics.tracks import impact_stencil_mask, median_extents, native_span
 from physverify.schema.checks import AbstainReason, CheckResult
 from physverify.schema.contacts import ContactTable

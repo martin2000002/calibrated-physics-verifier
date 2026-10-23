@@ -667,14 +667,14 @@
  "src/physverify/physics/kinematics.py": {
   "comment_or_docstring": 1
  },
- "src/physverify/physics/measures/r4_integrity.py": {
+ "src/physverify/physics/measures/object_integrity.py": {
   "comment_or_docstring": 1
  },
- "src/physverify/physics/measures/r4_jump_noise.py": {
+ "src/physverify/physics/measures/relative_size.py": {
+  "comment_or_docstring": 1
+ },
+ "src/physverify/physics/measures/track_jump.py": {
   "comment_or_docstring": 2
- },
- "src/physverify/physics/measures/r4_size_relative.py": {
-  "comment_or_docstring": 1
  },
  "src/physverify/physics/tracks.py": {
   "comment_or_docstring": 10

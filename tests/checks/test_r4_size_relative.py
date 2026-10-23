@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 
 from physverify.checks.r4_integrity import SizeConstancyCheck, SizeParams
-from physverify.physics.measures.r4_size_relative import relative_lengths, relative_size_change
+from physverify.physics.measures.relative_size import relative_lengths, relative_size_change
 from physverify.schema.checks import AbstainReason, CheckResult, Verdict
 
 

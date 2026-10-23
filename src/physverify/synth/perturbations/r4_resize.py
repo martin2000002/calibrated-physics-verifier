@@ -7,7 +7,7 @@ from typing import ClassVar
 
 import numpy as np
 
-from physverify.physics.measures.r4_integrity import size_change_ratio
+from physverify.physics.measures.object_integrity import size_change_ratio
 from physverify.schema.contacts import ContactTable
 from physverify.schema.scene import MagnitudeKind, PerturbationRecord, SceneSpec
 from physverify.schema.states import ObjectStateTable
