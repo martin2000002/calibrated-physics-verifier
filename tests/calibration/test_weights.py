@@ -1,4 +1,4 @@
-"""Check weights from the informedness lower bound (AC9) and the monotone balanced Platt fit."""
+"""Check weights from the informedness lower bound and the monotone balanced Platt fit."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ def flags(rng: np.random.Generator, tpr: float, fpr: float, n: int = 20) -> list
 
 
 def test_an_uninformative_check_gets_weight_zero() -> None:
-    """AC9: TPR = FPR, weight 0 in >= 95 % of 100 replicates."""
+    """TPR = FPR, weight 0 in >= 95 % of 100 replicates."""
     rng = np.random.default_rng(0)
     config = settings(bootstrap=100)
     zeros = [raw_weight(flags(rng, 0.3, 0.3), config).value == 0.0 for _ in range(100)]

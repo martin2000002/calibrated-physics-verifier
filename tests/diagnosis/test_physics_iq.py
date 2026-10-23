@@ -1,4 +1,4 @@
-"""Physics-IQ (ADR 0007 §4.2): bucket listing, resumable verified download, local clips."""
+"""Physics-IQ: bucket listing, resumable verified download, local clips."""
 
 from __future__ import annotations
 
@@ -137,9 +137,6 @@ def local_objects(section: PhysicsIQSettings, data: bytes) -> dict[str, bytes]:
     }
 
 
-# --- Names and selection ----------------------------------------------------------------------
-
-
 def test_parse_name_reads_every_field() -> None:
     parsed = parse_name(object_name("ball-and-block-fall", MASKS, index=7, fps=30, take=2))
     assert parsed is not None
@@ -190,9 +187,6 @@ def test_listing_follows_page_tokens() -> None:
     assert [p.get("pageToken") for p in bucket.listings] == [None, "3", "6"]
 
 
-# --- Verified, resumable download -------------------------------------------------------------
-
-
 def test_a_cut_download_resumes_from_the_part_file(tmp_path: Path) -> None:
     data = bytes(range(256)) * 4
     name = object_name("ball-ramp")
@@ -238,9 +232,6 @@ def test_an_intact_file_is_not_downloaded_again(tmp_path: Path) -> None:
     outcome = fetch_file(bucket, remote(name, data), tmp_path, retries=0, sleep=no_sleep)
     assert outcome.cached and outcome.transferred == 0
     assert bucket.calls == 0
-
-
-# --- Dataset ----------------------------------------------------------------------------------
 
 
 def fetched(

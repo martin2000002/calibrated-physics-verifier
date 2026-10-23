@@ -34,15 +34,15 @@ def _write_dev(layout: ComparisonLayout, stamps: dict[str, str]) -> None:
 
 
 def test_dev_usability_needs_outputs_under_the_current_stamps(
-    tmp_path: Path, h3_cfg: ComparisonSettings
+    tmp_path: Path, comparison_cfg: ComparisonSettings
 ) -> None:
     layout = ComparisonLayout.of(tmp_path)
-    assert dev_usability(layout, [BASE_TAG], STAMPS, h3_cfg) is None
+    assert dev_usability(layout, [BASE_TAG], STAMPS, comparison_cfg) is None
     _write_dev(layout, STAMPS)
-    found = dev_usability(layout, [BASE_TAG], STAMPS, h3_cfg)
+    found = dev_usability(layout, [BASE_TAG], STAMPS, comparison_cfg)
     assert found is not None and found.usable
     _write_dev(layout, {**STAMPS, "sa": "older-judge"})
-    assert dev_usability(layout, [BASE_TAG], STAMPS, h3_cfg) is None
+    assert dev_usability(layout, [BASE_TAG], STAMPS, comparison_cfg) is None
 
 
 def test_dev_pc_skips_outputs_of_another_pc_stamp(tmp_path: Path) -> None:

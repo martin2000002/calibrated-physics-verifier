@@ -1,10 +1,9 @@
-"""Candidate generation with the timed Wan2.1 call (ADR 0012, 3.5 and 4.2).
+"""Candidate generation with the timed Wan2.1 call.
 
-Every generator parameter comes from ``[timing.generation]`` through ``call_kwargs`` (D3). One
-call per candidate (B = 1) with the seed of D5; the mp4, the final latents (float32, the dtype of
-the denoising loop) and the meta are written in that order, so an interrupted run resumes at the
-first candidate without a meta.
-"""
+Every generator parameter comes from ``[timing.generation]`` through ``call_kwargs``, so the timed
+cost is the cost of these videos. One call per candidate (B = 1) with the seed of ``seeds``; the
+mp4, the final latents (float32, the dtype of the denoising loop) and the meta are written in that
+order, so an interrupted run resumes at the first candidate without a meta."""
 
 from __future__ import annotations
 

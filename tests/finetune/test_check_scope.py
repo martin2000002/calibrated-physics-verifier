@@ -1,4 +1,5 @@
-"""``[check_scope]`` in H3: every scorer ``build_scorer`` returns leaves the excluded checks out."""
+"""``[check_scope]`` in the generator comparison: every scorer ``build_scorer`` returns leaves the
+excluded checks out."""
 
 from __future__ import annotations
 

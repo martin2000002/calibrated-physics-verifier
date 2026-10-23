@@ -1,4 +1,5 @@
-"""Fixtures of H3: settings over ``configs/`` and a synthetic campaign on disk.
+"""Fixtures of the generator comparison: settings over ``configs/`` and a synthetic campaign on
+disk.
 
 The campaign has 8 analysed eval prompts (two families, four templates, half unseen), one demo
 prompt and two dev prompts; base has K = 8 eval candidates, the selected adapter K = 4, both K = 2
@@ -63,7 +64,7 @@ REFERENCE_ROWS = (
 
 
 @pytest.fixture
-def h3_environ(environ: dict[str, str], tmp_path: Path) -> dict[str, str]:
+def comparison_environ(environ: dict[str, str], tmp_path: Path) -> dict[str, str]:
     return {
         **environ,
         "PHYSVERIFY__PATHS__DATA_DIR": str(tmp_path / "data"),
@@ -74,13 +75,13 @@ def h3_environ(environ: dict[str, str], tmp_path: Path) -> dict[str, str]:
 
 
 @pytest.fixture
-def h3_settings(config_dir: Path, h3_environ: dict[str, str]) -> Settings:
-    return load_settings(config_dir, environ=h3_environ)
+def comparison_settings(config_dir: Path, comparison_environ: dict[str, str]) -> Settings:
+    return load_settings(config_dir, environ=comparison_environ)
 
 
 @pytest.fixture
-def h3_cfg(h3_settings: Settings) -> ComparisonSettings:
-    return load_comparison(h3_settings)
+def comparison_cfg(comparison_settings: Settings) -> ComparisonSettings:
+    return load_comparison(comparison_settings)
 
 
 @pytest.fixture
@@ -301,16 +302,16 @@ class Campaign:
 
 
 @pytest.fixture
-def campaign(h3_settings: Settings, tmp_path: Path) -> Campaign:
+def campaign(comparison_settings: Settings, tmp_path: Path) -> Campaign:
     adapter = tmp_path / "adapters" / "step-100"
     adapter.mkdir(parents=True)
     (adapter / "adapter_model.safetensors").write_bytes(b"lora weights")
-    store = CampaignStore.from_settings(h3_settings)
+    store = CampaignStore.from_settings(comparison_settings)
     return Campaign(
-        settings=h3_settings,
+        settings=comparison_settings,
         store=store,
         layout=ComparisonLayout.of(store.root),
         adapter=adapter,
         ft_tag=adapter_tag(adapter),
-        scorer=build_scorer(SCORER, h3_settings),
+        scorer=build_scorer(SCORER, comparison_settings),
     )

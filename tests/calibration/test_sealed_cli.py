@@ -1,4 +1,4 @@
-"""The sealed-ledger guard through the commands (WP-O AC12-AC15, C5 and the freeze rule)."""
+"""The sealed-ledger guard through the commands and the freeze rule."""
 
 from __future__ import annotations
 
@@ -205,7 +205,7 @@ def evaluate_cli(
 def test_evaluate_on_the_sealed_split_needs_the_variable(
     evaluate_cli: Callable[..., CliResult], ledger: Path, reached: list[int]
 ) -> None:
-    """AC12: exit 2, no line, nothing computed."""
+    """Exit 2, no line, nothing computed."""
     result = evaluate_cli()
     assert result.code == EXIT_USAGE and "PHYSVERIFY_UNSEAL" in result.err
     assert read_entries(ledger) == () and reached == []
@@ -214,7 +214,7 @@ def test_evaluate_on_the_sealed_split_needs_the_variable(
 def test_evaluate_leaves_one_line_before_computing(
     evaluate_cli: Callable[..., CliResult], ledger: Path, reached: list[int]
 ) -> None:
-    """AC13: one line, written before the first check runs, with the artifact's sha256."""
+    """One line, written before the first check runs, with the artifact's sha256."""
     result = evaluate_cli(env=UNSEAL)
     assert result.code == 0, result.err
     (line,) = read_entries(ledger)
@@ -231,7 +231,7 @@ def test_evaluate_leaves_one_line_before_computing(
 def test_evaluate_on_calib_clips_leaves_no_line(
     evaluate_cli: Callable[..., CliResult], ledger: Path, reached: list[int]
 ) -> None:
-    """AC15: a calib-only selection does not touch the sealed split."""
+    """A calib-only selection does not touch the sealed split."""
     result = evaluate_cli("--clips", CALIB_CLIP)
     assert result.code == 0, result.err
     assert read_entries(ledger) == () and reached
@@ -248,7 +248,7 @@ NAMED = tuple(arg for name in NEW_REAL for arg in ("--real-dataset", name))
 def test_the_named_real_datasets_enter_the_ledger_line(
     evaluate_cli: Callable[..., CliResult], ledger: Path, settings: Settings
 ) -> None:
-    """J10 of plan-congelado: ``--real-dataset`` replaces ``calibration.real_datasets`` in the
+    """``--real-dataset`` replaces ``calibration.real_datasets`` in the
     selections, so the line names the new controls only and its config hash stays the same."""
     named = evaluate_cli(seal=REAL_SEAL, real=NAMED, env=REAL_UNSEAL)
     assert named.code == 0, named.err
@@ -280,7 +280,6 @@ def test_named_real_datasets_and_no_real_exclude_each_other(
 def test_an_unwritable_ledger_stops_before_computing(
     evaluate_cli: Callable[..., CliResult], ledger: Path, reached: list[int]
 ) -> None:
-    """AC14."""
     ledger.chmod(0o444)
     result = evaluate_cli(env=UNSEAL)
     assert result.code == 1 and "cannot write the sealed ledger" in result.err
@@ -290,7 +289,7 @@ def test_an_unwritable_ledger_stops_before_computing(
 def test_a_missing_ledger_fails_closed_and_is_not_created(
     evaluate_cli: Callable[..., CliResult], tmp_path: Path, reached: list[int]
 ) -> None:
-    """Audit M2: a wrong path (or HOME) never starts an empty ledger."""
+    """A wrong path (or HOME) never starts an empty ledger."""
     absent = tmp_path / "elsewhere" / "sealed-ledger.txt"
     result = evaluate_cli(options=("--set", f"sealed.ledger={absent}"), env=UNSEAL)
     assert result.code == 1 and f"touch {absent}" in result.err
@@ -301,7 +300,7 @@ def test_a_missing_ledger_fails_closed_and_is_not_created(
 def test_another_artifact_at_the_same_commit_is_another_freeze(
     evaluate_cli: Callable[..., CliResult], ledger: Path, tmp_path: Path, reached: list[int]
 ) -> None:
-    """Audit M1: a refit (another --artifact) needs the repeat variable."""
+    """A refit (another --artifact) needs the repeat variable."""
     assert evaluate_cli(env=UNSEAL).code == 0
     refit = tmp_path / "refit" / "calibration.json"
     refit.parent.mkdir()
@@ -380,7 +379,6 @@ def test_each_guarded_command_refuses_without_the_variable(
     reached: list[int],
     name: str,
 ) -> None:
-    """AC12."""
     result = guarded(name)()
     assert result.code == EXIT_USAGE and "PHYSVERIFY_UNSEAL" in result.err
     assert read_entries(ledger) == () and reached == []
@@ -393,7 +391,7 @@ def test_each_guarded_command_writes_its_line_first(
     reached: list[int],
     name: str,
 ) -> None:
-    """AC13: exactly one line per invocation, there when the computation starts."""
+    """Exactly one line per invocation, there when the computation starts."""
     result = guarded(name)(env=UNSEAL)
     assert result.code == REACHED, result.err
     (line,) = read_entries(ledger)
@@ -403,7 +401,6 @@ def test_each_guarded_command_writes_its_line_first(
 def test_verify_on_calib_clips_leaves_no_line(
     cli: CliRunner, monkeypatch: pytest.MonkeyPatch, ledger: Path, reached: list[int]
 ) -> None:
-    """AC15."""
     run = _guarded_verify(cli, monkeypatch, ledger, reached)
     assert run("--clips", CALIB_CLIP).code == REACHED
     assert reached == [0] and read_entries(ledger) == ()
@@ -413,7 +410,7 @@ def test_without_the_sealed_section_every_guarded_command_fails_closed(
     cli: CliRunner, monkeypatch: pytest.MonkeyPatch, ledger: Path, reached: list[int],
     config_dir: Path,
 ) -> None:  # fmt: skip
-    """Audit M3: even a calib-only selection stops when the sealed sets are unknown."""
+    """Even a calib-only selection stops when the sealed sets are unknown."""
     (config_dir / "verifier" / "sealed.toml").unlink()
     stop = sentinel(ledger, reached)
     monkeypatch.setattr(app_verification, "VerificationRunner", lambda *a: _SentinelRunner(stop))
@@ -426,7 +423,7 @@ def test_a_dirty_tree_cannot_look(
     cli: CliRunner, monkeypatch: pytest.MonkeyPatch, ledger: Path, reached: list[int],
     checkout: Path,
 ) -> None:  # fmt: skip
-    """Audit m2: the commit of the freeze must be the tree that runs."""
+    """The commit of the freeze must be the tree that runs."""
     (checkout / "src").mkdir()
     (checkout / "src" / "patch.py").write_text("x = 1\n", encoding="utf-8")
     result = _guarded_verify(cli, monkeypatch, ledger, reached)(env=UNSEAL)
@@ -438,7 +435,7 @@ def test_a_refit_of_the_default_artifact_is_another_freeze(
     cli: CliRunner, monkeypatch: pytest.MonkeyPatch, ledger: Path, reached: list[int],
     settings: Settings,
 ) -> None:  # fmt: skip
-    """Audit M1: calibration.json and exclusions.json enter the freeze."""
+    """The calibration.json and exclusions.json artifacts enter the freeze."""
     run = _guarded_verify(cli, monkeypatch, ledger, reached)
     calibration_dir = settings.paths.calibration_dir
     calibration_dir.mkdir(parents=True)
@@ -457,7 +454,7 @@ def test_a_refit_of_the_default_artifact_is_another_freeze(
 def test_another_frozen_state_needs_the_repeat_variable(
     cli: CliRunner, monkeypatch: pytest.MonkeyPatch, ledger: Path, reached: list[int]
 ) -> None:
-    """Juicio answer 4: the same freeze looks again, another one needs the repeat variable."""
+    """The same freeze looks again, another one needs the repeat variable."""
     run = _guarded_verify(cli, monkeypatch, ledger, reached)
     assert run(env=UNSEAL).code == REACHED
     assert run(env=UNSEAL).code == REACHED
@@ -580,7 +577,7 @@ def _leaf_param(node: ast.expr) -> str:
 
 
 def test_every_subcommand_is_guarded_or_exempt_with_a_reason() -> None:
-    """C5: a new subcommand fails here until ``sealing`` classifies it."""
+    """A new subcommand fails here until ``sealing`` classifies it."""
     leaves = cli_leaves()
     assert not sealing.GUARDED_LEAVES & set(sealing.EXEMPT)
     assert set(leaves) == sealing.GUARDED_LEAVES | set(sealing.EXEMPT)
@@ -622,7 +619,7 @@ def test_fit_from_a_perceived_run_guards_before_the_oracle_runs(
     cli: CliRunner, monkeypatch: pytest.MonkeyPatch, ledger: Path, reached: list[int],
     settings: Settings,
 ) -> None:  # fmt: skip
-    """Audit m3: the oracle a --from-run fit completes is computed after the guard."""
+    """The oracle a --from-run fit completes is computed after the guard."""
     perceived = synthetic_report(
         20, seed=7, split=Split.EVAL, prefix="e", level=InputLevel.PERCEIVED
     )

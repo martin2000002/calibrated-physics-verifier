@@ -1,4 +1,4 @@
-"""Diagnosis report models and their deterministic JSON (ADR 0007 §4.1).
+"""Diagnosis report models and their deterministic JSON.
 
 Callers pass rows in a deterministic order; JSON keys are sorted and non-finite floats become
 null, so a fixed clock and run id give byte-identical files.
@@ -29,7 +29,7 @@ REAL_VIDEO_SCOPE = (
     "full perceived chain and is not attributable to a single stage."
 )
 MISSING = "n/a"
-PROVISIONAL_NOTE = "provisional until the A8 threshold calibration"
+PROVISIONAL_NOTE = "provisional until the calibration chain sets the thresholds"
 
 
 def nominal_coverage(k: float) -> float:

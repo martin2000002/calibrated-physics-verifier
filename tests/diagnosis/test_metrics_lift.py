@@ -1,4 +1,4 @@
-"""lift/position: errors after the conditional scale fit, in object lengths (ADR 0007 §7)."""
+"""lift/position: errors after the conditional scale fit, in object lengths."""
 
 from __future__ import annotations
 
@@ -95,7 +95,7 @@ def test_exact_lift_has_no_error_after_the_scale_fit() -> None:
 def test_perpendicular_offset_in_object_lengths() -> None:
     depth, offset = 5.0, 0.3
     fixed = np.tile([0.0, 0.0, depth], (FRAMES, 1, 1))
-    outcome = measure(lifted(fixed + [offset, 0.0, 0.0]), truth(fixed))
+    outcome = measure(lifted(fixed + np.array([offset, 0.0, 0.0])), truth(fixed))
     fitted = depth**2 / (depth**2 + offset**2)
     centroid = outcome.samples["centroid_rel"].reshape(FRAMES, 3)
     np.testing.assert_allclose(centroid[:, 0], fitted * offset / LENGTH, atol=TOL)
@@ -121,7 +121,7 @@ def test_coverage_counts_truth_samples_the_lift_missed() -> None:
 def test_position_z_uses_the_declared_sigma() -> None:
     depth, offset, sigma = 5.0, 0.3, 0.05
     fixed = np.tile([0.0, 0.0, depth], (FRAMES, 1, 1))
-    outcome = measure(lifted(fixed + [offset, 0.0, 0.0], sigma=sigma), truth(fixed))
+    outcome = measure(lifted(fixed + np.array([offset, 0.0, 0.0]), sigma=sigma), truth(fixed))
     fitted = depth**2 / (depth**2 + offset**2)
     s = S0 * fitted
     expected_x = (offset / S0) / sigma

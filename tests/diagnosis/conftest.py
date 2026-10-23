@@ -1,7 +1,7 @@
-"""Diagnosis test fixtures (ADR 0007 §7): no network, calib/eval copies of the analytic clip,
+"""Diagnosis test fixtures: no network, calib/eval copies of the analytic clip,
 DETECT/TRACK/DEPTH fakes with known injected errors, a fake check suite and builders.
 
-The light stages (CAMERA .. CONTACTS) are A5's real providers.
+The light stages (CAMERA .. CONTACTS) are the extractor's real providers.
 """
 
 from __future__ import annotations
@@ -58,7 +58,8 @@ EVAL_C = 2.0
 FAKE_PLAN = tuple(
     f"extraction.plan.{s.value}={FAKE}" for s in (Stage.DETECT, Stage.TRACK, Stage.DEPTH)
 )
-"""``--set`` overrides that put the fakes in the plan (every other stage keeps A5's provider)."""
+"""``--set`` overrides that put the fakes in the plan (every other stage keeps the extractor's
+provider)."""
 
 FIXED_NOW = dt.datetime(2026, 9, 24, 12, 0, tzinfo=dt.UTC)
 RUN_ID = "20260924T120000Z-diagtest"
@@ -76,9 +77,6 @@ def no_collect_between_stages(monkeypatch: pytest.MonkeyPatch) -> None:
     """The pipeline's per-stage ``gc.collect`` frees real frames; on these tiny clips it only
     costs ~0.1 s per stage, most of the level-1 tests' wall time."""
     monkeypatch.setattr(extraction_pipeline, "gc", SimpleNamespace(collect=lambda: 0))
-
-
-# --- Calib and eval copies of the analytic clip ----------------------------------------------
 
 
 def calib_manifest() -> ClipManifest:
@@ -109,14 +107,12 @@ class SplitFixtureDataset:
         return None
 
 
-# --- DETECT / TRACK / DEPTH fakes: fixture truth plus a known error --------------------------
-
-
 @functools.cache
 def fixture_truth() -> ArrayGroundTruthStore:
     return build_clip(RuntimeSettings()).ground_truth
 
 
+# The detect, track and depth fakes return the fixture truth plus a known error.
 class FakeParams(ProviderParams):
     fail_clip: str = ""
 
@@ -260,9 +256,6 @@ class FakeDepth(_Fake):
 FAKES: tuple[type[StageProvider], ...] = (FakeDetect, FakeTrack, FakeDepth)
 
 
-# --- Fake check suite -------------------------------------------------------------------------
-
-
 def mean_distance(inputs: CheckInputs) -> list[CheckResult]:
     """Per object, mean distance to the origin of its frame (meters when a scale is present)."""
     states = inputs.states
@@ -337,9 +330,6 @@ class FakeCheckSuite:
         return tuple(
             threshold_decision(r, taus[r.check_id]) if r.check_id in taus else r for r in results
         )
-
-
-# --- Fixtures ---------------------------------------------------------------------------------
 
 
 class FakeRss:
@@ -465,7 +455,7 @@ def make_diagnosis_context(
     fixed_clock: Callable[[], dt.datetime],
     run_context: RunContext,
 ) -> Callable[..., DiagnosisContext]:
-    """Context over the split fixture; ``metrics`` defaults to none, ``suite`` to no A7."""
+    """Context over the split fixture; ``metrics`` defaults to none, ``suite`` to no check suite."""
 
     def build(
         settings: Settings,

@@ -1,10 +1,9 @@
-"""The preregistered exclusion rules 1.1, 1.2 and 1.5 of ADR 0015 (with its Enmienda 1).
+"""The preregistered exclusion rules 1.1, 1.2 (as amended) and 1.5.
 
 Pure: the CLI loads the artifact, the evaluation and the two R2 runs, this module decides. Every
 threshold comes from ``[exclusion_rules]`` (``configs/verifier/exclusion_rules.toml``): the model
-fields have no defaults, so no number of a rule lives in code. It imports no consumer (H2, H3,
-finetune).
-"""
+fields have no defaults, so no number of a rule lives in code. It imports no consumer
+(human_agreement, generator_comparison, finetune)."""
 
 from __future__ import annotations
 
@@ -40,7 +39,7 @@ class R5aRule(FrozenModel):
 
 
 class R2Rule(FrozenModel):
-    """1.2 (Enmienda 1): both detector arms judged at the artifact's tau of the consumed stratum
+    """1.2, as amended: both detector arms judged at the artifact's tau of the consumed stratum
     on the calib clips of ``family``, every one scored in both arms (the evaluation's
     denominators). ``rates = "total"``: a sigma abstention is no FAIL."""
 

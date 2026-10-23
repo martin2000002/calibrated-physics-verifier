@@ -1,4 +1,4 @@
-"""Every pre-registered H3 number from the arms (ADR 0013 D3-D7). Pure: no file is read here.
+"""Every pre-registered generator-comparison number from the arms. Pure: no file is read here.
 
 A verifier difference is always computed on the checks decided in both candidates
 (``pairs.on_common_checks``), as the preference pairs and the checkpoint selection are judged.
@@ -50,7 +50,8 @@ SECONDARY_TESTS = (
     "S4_check_cross_fit",
     "S5_template_mean_wilcoxon",
 )
-"""The pre-registered sensitivities, in order; S5 is ADR 0015 1.7 (template means, Wilcoxon)."""
+"""The pre-registered sensitivities, in order; S5 is preregistered rule 1.7 (template means,
+Wilcoxon)."""
 
 
 class HolmEntry(FrozenModel):

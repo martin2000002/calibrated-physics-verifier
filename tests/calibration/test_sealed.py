@@ -1,5 +1,4 @@
-"""``calibration.sealed_ledger``: one-look specs, the ledger file and the repeat rule
-(WP-O AC11, AC14)."""
+"""``calibration.sealed_ledger``: one-look specs, the ledger file and the repeat rule."""
 
 from __future__ import annotations
 
@@ -55,7 +54,6 @@ def entry(freeze: str = "f1", sets: tuple[str, ...] = ("kubric_synthetic:eval",)
 def test_an_invalid_spec_is_a_config_error(
     config_dir: Path, environ: dict[str, str], spec: str
 ) -> None:
-    """AC11."""
     settings = load_settings(config_dir, environ=environ, overrides=(f'sealed.sets=["{spec}"]',))
     with pytest.raises(ConfigError, match="sealed"):
         sealed_settings(settings)
@@ -68,7 +66,7 @@ def test_the_committed_sets_parse(config_dir: Path, environ: dict[str, str]) -> 
 
 
 def test_a_split_spec_touches_only_its_split() -> None:
-    """AC11: kubric_synthetic eval is touched, its calib is not, another dataset's eval is not."""
+    """kubric_synthetic eval is touched, its calib is not, another dataset's eval is not."""
     calib, held = clip("c", "s0"), clip("e", "s1", Split.EVAL)
     assert touched("kubric_synthetic", [calib, held], SPECS) == ("kubric_synthetic:eval",)
     assert touched("kubric_synthetic", [calib], SPECS) == ()
@@ -80,7 +78,7 @@ def test_a_split_spec_touches_only_its_split() -> None:
 def test_the_freeze_sets_are_sealed_by_their_own_names(
     config_dir: Path, environ: dict[str, str]
 ) -> None:
-    """plan-congelado AC-2: each fresh set seals only itself; the development real sets stay
+    """Each fresh set seals only itself; the development real sets stay
     open and the new real controls are sealed."""
     specs = sealed_settings(load_settings(config_dir, environ=environ)).sets
     held, calib = clip("e", "s1", Split.EVAL), clip("c", "s0")
@@ -113,7 +111,7 @@ def test_lines_append_and_read_back(tmp_path: Path) -> None:
 
 
 def test_a_missing_ledger_is_never_created(tmp_path: Path) -> None:
-    """Audit M2: a wrong HOME or path fails closed instead of starting an empty ledger."""
+    """A wrong HOME or path fails closed instead of starting an empty ledger."""
     absent = tmp_path / "deep" / "ledger.txt"
     with pytest.raises(LedgerError, match="created once by hand"):
         read_entries(absent)
@@ -124,7 +122,6 @@ def test_a_missing_ledger_is_never_created(tmp_path: Path) -> None:
 
 @pytest.mark.skipif(os.geteuid() == 0, reason="root writes a read-only file")
 def test_an_unwritable_or_corrupt_ledger_fails_closed(tmp_path: Path) -> None:
-    """AC14."""
     locked = tmp_path / "locked.txt"
     locked.touch()
     locked.chmod(0o444)
@@ -137,7 +134,7 @@ def test_an_unwritable_or_corrupt_ledger_fails_closed(tmp_path: Path) -> None:
 
 
 def test_a_repeat_under_another_freeze_needs_the_repeat_variable() -> None:
-    """Juicio answer 4: same freeze passes, another freeze needs PHYSVERIFY_UNSEAL_REPEAT."""
+    """Same freeze passes, another freeze needs PHYSVERIFY_UNSEAL_REPEAT."""
     earlier = [entry("f1"), entry("f9", sets=("kubric_fresh",))]
     found = ("kubric_synthetic:eval",)
     assert check_repeat(earlier, found, "f1", allow=False) is False
@@ -147,7 +144,7 @@ def test_a_repeat_under_another_freeze_needs_the_repeat_variable() -> None:
 
 
 def test_an_allowed_look_at_a_covered_set_is_a_repeat_under_the_same_freeze() -> None:
-    """plan-congelado J6: run_final.sh's retry sets the repeat variable and is marked a repeat."""
+    """run_final.sh's retry sets the repeat variable and is marked a repeat."""
     earlier = [entry("f1"), entry("f9", sets=("kubric_fresh",))]
     found = ("kubric_synthetic:eval",)
     assert check_repeat(earlier, found, "f1", allow=True) is True
@@ -163,7 +160,6 @@ def test_the_freeze_moves_with_each_part() -> None:
 
 
 def test_a_missing_sealed_section_fails_closed(config_dir: Path, environ: dict[str, str]) -> None:
-    """Audit M3."""
     (config_dir / "verifier" / "sealed.toml").unlink()
     with pytest.raises(ConfigError, match=r"no \[sealed\] section"):
         sealed_settings(load_settings(config_dir, environ=environ))
@@ -175,7 +171,6 @@ def test_a_missing_sealed_section_fails_closed(config_dir: Path, environ: dict[s
 def test_the_look_hash_ignores_paths_and_threads_not_sections(
     config_dir: Path, environ: dict[str, str]
 ) -> None:
-    """Audit m1."""
     base = look_config_hash(load_settings(config_dir, environ=environ))
     for same in ("runtime.threads=3", "paths.runs_dir=/elsewhere"):
         moved = load_settings(config_dir, environ=environ, overrides=(same,))
@@ -186,7 +181,6 @@ def test_the_look_hash_ignores_paths_and_threads_not_sections(
 
 
 def test_a_look_needs_a_clean_checkout() -> None:
-    """Audit m2."""
     require_clean("abc1234", "")
     with pytest.raises(SealedSetError, match="uncommitted"):
         require_clean("abc1234", " M configs/verifier/checks.toml\n")

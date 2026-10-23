@@ -1,4 +1,4 @@
-"""Margins from the published AutoEval scores (ADR 0013 D5), derived before the freeze.
+"""Margins from the published AutoEval scores, derived before the freeze.
 
 margin = trunc2((max - min) / 2) of the per-generator mean of one AutoEval column, over the
 generators with at least ``min_n`` videos: giving up less than half of the spread between the

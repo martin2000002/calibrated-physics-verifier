@@ -1,5 +1,5 @@
-"""Metrics of the verifier, the reference VLM and the constant baselines on one policy view
-(ADR 0011 D6-D8), with caption-clustered bootstrap intervals and the paired McNemar test."""
+"""Metrics of the verifier, the reference VLM and the constant baselines on one policy view,
+with caption-clustered bootstrap intervals and the paired McNemar test."""
 
 from __future__ import annotations
 
@@ -41,7 +41,7 @@ class BootstrapPlan:
 
 
 SECONDARY_TESTS: tuple[str, ...] = ("mcnemar_caption_permutation",)
-"""Pre-registered secondary tests (frozen in the H2 pre-registration); the primary stays
+"""Pre-registered secondary tests (frozen in the study's pre-registration); the primary stays
 ``mcnemar``."""
 
 
@@ -223,10 +223,11 @@ def h2_verdict(
     post_hoc: bool = False,
     gate: str | None = None,
 ) -> dict[str, Any]:
-    """H2 holds when McNemar p < alpha with the verifier more accurate AND the lower CI bound of
-    kappa_verifier - kappa_vlm is above 0. Only the calibrated rule can support or reject it.
-    ``post_hoc``: the pre-registration was replaced after a test comparison. ``gate``: the
-    calibrated stratum was not usable and the provisional rule ran instead (not evaluable)."""
+    """The human-agreement study's hypothesis holds when McNemar p < alpha with the verifier more
+    accurate AND the lower CI bound of kappa_verifier - kappa_vlm is above 0. Only the calibrated
+    rule can support or reject it. ``post_hoc``: the pre-registration was replaced after a test
+    comparison. ``gate``: the calibrated stratum was not usable and the provisional rule ran instead
+    (not evaluable)."""
     mcnemar = primary.get("mcnemar", {})
     p_value = float(mcnemar.get("p_value", math.nan))
     acc_gain = primary["verifier"]["accuracy"] - primary["vlm"]["accuracy"]
@@ -261,7 +262,11 @@ def _status(calibrated: bool, gate: str | None) -> str:
 def _verdict_reason(calibrated: bool, gate: str | None) -> str:
     if gate is not None:
         return f"not evaluable with the calibrated rule: {gate}"
-    return "calibrated rule" if calibrated else "pipeline test, no H2 verdict (provisional rule)"
+    return (
+        "calibrated rule"
+        if calibrated
+        else "pipeline test, no human-agreement verdict (provisional rule)"
+    )
 
 
 def best_cut(y: Labels, score: Scores) -> float | None:

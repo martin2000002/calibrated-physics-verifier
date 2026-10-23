@@ -1,4 +1,4 @@
-"""The pre-registration file and its frozen fields (ADR 0011 D10, C5)."""
+"""The pre-registration file and its frozen fields."""
 
 from __future__ import annotations
 

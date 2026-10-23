@@ -1,4 +1,4 @@
-"""Signals beside the score that guard the pairs against reward hacking (ADR 0012, 4.3).
+"""Signals beside the score that guard the pairs against reward hacking.
 
 ``motion_index`` is dimensionless and needs no metric scale: the largest displacement of each
 object from its first tracked position divided by its own median extent, the maximum over

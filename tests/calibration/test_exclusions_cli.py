@@ -294,8 +294,8 @@ def test_show_prints_the_record_and_its_sha(cli: CliRunner, world: Settings) -> 
 def test_the_runners_read_the_hash_check_scope_carries(
     cli: CliRunner, world: Settings, tmp_path: Path
 ) -> None:
-    """Juicio J12: record_sha_of (run_freeze.sh's RECORD_SHA, freeze.json's record_sha) on the
-    printed line is the stable hash the H2 pre-registration and run_human_agreement.sh compare."""
+    """record_sha_of (run_freeze.sh's RECORD_SHA, freeze.json's record_sha) on the printed line is
+    the stable hash the human-agreement pre-registration and run_human_agreement.sh compare."""
     _written(cli, world)
     log = tmp_path / "show.log"
     log.write_text(cli("exclusions", "show").out, encoding="utf-8")

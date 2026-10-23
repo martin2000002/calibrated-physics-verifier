@@ -1,4 +1,4 @@
-"""Decision threshold L_C (D5, Juicio 1), honest FPR (D6), TPR per level and L_D (D7, Juicio 3)."""
+"""Decision threshold L_C, honest FPR, TPR per level and the detection limit L_D."""
 
 from __future__ import annotations
 

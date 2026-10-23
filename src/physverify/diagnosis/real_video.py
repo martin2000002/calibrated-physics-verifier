@@ -1,4 +1,4 @@
-"""Real-video diagnosis (ADR 0007 §5.5): end-to-end only, since real clips have no per-stage truth.
+"""Real-video diagnosis: end-to-end only, since real clips have no per-stage truth.
 
 Physics-IQ clips are scored against their pixel-change masks, PISA drops by a free-fall fit, and
 every clip goes through the check suite to count verdicts (a FAIL on real video is a false alarm).
@@ -39,7 +39,7 @@ from physverify.schema.stages import Stage
 from physverify.schema.states import ObjectStateTable
 
 ALL_CLIPS = "(all)"
-NO_SUITE = "A7's check suite is unavailable: verdict distributions were not computed"
+NO_SUITE = "the check suite is unavailable: verdict distributions were not computed"
 ESTIMATED_FALL = ("g_est", "real_fps")
 ESTIMATED_GRAVITY_DIR = "gravity_dir"
 PROVISIONAL_VERDICTS = "fail_rate"

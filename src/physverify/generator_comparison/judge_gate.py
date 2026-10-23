@@ -1,4 +1,4 @@
-"""Whether the external judge may be used (ADR 0013 D4): the regression gate on published
+"""Whether the external judge may be used: the regression gate on published
 VideoPhy-2 test videos and the usability test on our dev videos. Pure: values in, verdicts out."""
 
 from __future__ import annotations

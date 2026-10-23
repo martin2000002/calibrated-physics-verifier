@@ -22,8 +22,10 @@ def freeze_lines(record: ComparisonPreregistration) -> list[str]:
     usability = "not judged yet" if record.usability is None else str(record.usability.usable)
     fired = fired_reason(record.stop_rule, record.stop_rule_deviation)
     return [
-        f"rule {record.rule} ({record.rule_status}, label {record.rule_label}); "
-        f"contaminated {record.contaminated}",
+        (
+            f"rule {record.rule} ({record.rule_status}, label {record.rule_label}); "
+            f"contaminated {record.contaminated}"
+        ),
         f"ft model {record.adapter_tag or 'none'}; prompts {json.dumps(record.eval_counts)}",
         f"margins {json.dumps(record.margins)}; external judge usable on dev: {usability}",
         f"MDE (estimated on dev): verifier {record.mde.verifier_mde}, PC {record.mde.pc_mde}",

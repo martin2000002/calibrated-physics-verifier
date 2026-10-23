@@ -1,4 +1,4 @@
-"""``physverify calibrate dev-score`` over a fake calib dataset (WP-O AC7, AC8, C3)."""
+"""``physverify calibrate dev-score`` over a fake calib dataset."""
 
 from __future__ import annotations
 
@@ -85,7 +85,6 @@ def _snapshot(*paths: Path) -> dict[Path, tuple[str, int]]:
 
 
 def test_an_eval_clip_is_refused_before_any_check_runs(cli: CliRunner, calls: list[int]) -> None:
-    """AC7."""
     held = HELD.clips[0].clip_id
     result = cli(*FAST, "calibrate", "dev-score", "--dataset", DATASET, "--level", "oracle",
                  "--clips", CALIB.clips[0].clip_id, "--clips", held)  # fmt: skip
@@ -102,7 +101,7 @@ def test_bootstrap_zero_is_refused_before_any_check_runs(cli: CliRunner, calls: 
 def test_devscore_writes_only_its_run_and_out(
     cli: CliRunner, calls: list[int], settings: Settings, tmp_path: Path
 ) -> None:
-    """AC8 and C3: the run holds devscore.json and the full fit; calibration_dir, the
+    """The run holds devscore.json and the full fit; calibration_dir, the
     thresholds and the error profile keep their listing (sha and mtime)."""
     paths = settings.paths
     paths.calibration_dir.mkdir(parents=True, exist_ok=True)
@@ -123,7 +122,7 @@ def test_devscore_writes_only_its_run_and_out(
     assert "not a held-out result" in data["scope_note"]
     fit = load_calibration(run_dir / "calibration.json")
     assert [lv["profile"] for lv in data["levels"]] == [s.profile for s in fit.artifact.strata]
-    assert re.search(r"oracle/fast: 1/\d+ meet H1 and J_cv\^lo > 0 \(R1\)", result.out)
+    assert re.search(r"oracle/fast: 1/\d+ meet monotonicity and J_cv\^lo > 0 \(R1\)", result.out)
 
 
 def test_the_runners_keep_the_development_metric_lines(

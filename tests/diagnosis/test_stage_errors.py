@@ -1,4 +1,4 @@
-"""Level 1 on the split fixture: pairs (D6), recovered errors, calib-only profile (D3)."""
+"""Level 1 on the split fixture: pairs, recovered errors, calib-only profile."""
 
 from __future__ import annotations
 

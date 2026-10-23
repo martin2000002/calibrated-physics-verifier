@@ -77,7 +77,7 @@ def level_tables(
     *,
     stale_hash: str | None = None,
 ) -> dict[InputLevel, dict[str, Any]]:
-    """Per level: an explicit table file, else the projection of A8's stratum (ADR 0009 §7),
+    """Per level: an explicit table file, else the projection of the calibration chain's stratum,
     else ``fallback`` (what ``verify`` uses) when there is no artifact."""
     for level, given in overrides.items():
         if not given.is_file():

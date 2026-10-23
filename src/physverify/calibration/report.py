@@ -111,11 +111,13 @@ def _stratum_lines(s: Stratum) -> list[str]:
     lines += table(CHECK_HEADERS, (_check_row(c, s.checks[c]) for c in sorted(s.checks)))
     lines += [
         "",
-        f"Score threshold s* = {number_text(agg.score_threshold)}"
-        f"{' (in-sample, optimistic)' if agg.score_threshold_in_sample else ''} "
-        f"(sufficient: {agg.sufficient}, "
-        f"{agg.n_clean_scenes} clean / {agg.n_perturbed_clips} perturbed clips); "
-        f"AUROC {number_text(agg.auroc.value)} {ci_text(agg.auroc.ci)}.",
+        (
+            f"Score threshold s* = {number_text(agg.score_threshold)}"
+            f"{' (in-sample, optimistic)' if agg.score_threshold_in_sample else ''} "
+            f"(sufficient: {agg.sufficient}, "
+            f"{agg.n_clean_scenes} clean / {agg.n_perturbed_clips} perturbed clips); "
+            f"AUROC {number_text(agg.auroc.value)} {ci_text(agg.auroc.ci)}."
+        ),
         "",
     ]
     return lines
@@ -126,9 +128,11 @@ def calibration_markdown(artifact: CalibrationArtifact) -> str:
     lines = [
         f"# Calibration {artifact.run_id} ({artifact.status})",
         "",
-        f"Dataset {d.name} {d.version} subset {d.subset} split {d.split}: {d.n_clips} clips, "
-        f"{d.n_scenes} scenes. Commit {artifact.commit}; alpha {artifact.settings.alpha}, "
-        f"beta {artifact.settings.beta}, ci {artifact.settings.ci}.",
+        (
+            f"Dataset {d.name} {d.version} subset {d.subset} split {d.split}: {d.n_clips} clips, "
+            f"{d.n_scenes} scenes. Commit {artifact.commit}; alpha {artifact.settings.alpha}, "
+            f"beta {artifact.settings.beta}, ci {artifact.settings.ci}."
+        ),
         "",
         ESTIMATE_NOTE,
         "",
@@ -188,7 +192,7 @@ def _evaluation_stratum(s: EvaluationStratum) -> list[str]:
             ),
         )
     if s.monotonicity:
-        lines += ["", "Pooled Kendall tau_b of the calib clips (D8):", ""]
+        lines += ["", "Pooled Kendall tau_b of the calib clips:", ""]
         lines += table(
             ("check", "tau_b", "h1_pass", "pairs", "scenes"),
             ([m.check_id, *_tau_cells(m.monotonicity)] for m in s.monotonicity),
@@ -209,9 +213,11 @@ def evaluation_markdown(report: EvaluationReport) -> str:
     lines = [
         f"# Evaluation {report.run_id}",
         "",
-        f"Artifact {report.artifact_path} (sha256 {report.artifact_sha256[:16]}, "
-        f"run {report.artifact_run_id}); dataset {report.dataset.name} subset "
-        f"{report.dataset.subset}: {report.dataset.n_clips} clips.",
+        (
+            f"Artifact {report.artifact_path} (sha256 {report.artifact_sha256[:16]}, "
+            f"run {report.artifact_run_id}); dataset {report.dataset.name} subset "
+            f"{report.dataset.subset}: {report.dataset.n_clips} clips."
+        ),
         "",
         ESTIMATE_NOTE,
         "",
@@ -226,12 +232,14 @@ def evaluation_markdown(report: EvaluationReport) -> str:
 def _primary_view(
     view: PrimaryScenesView, everything: Sequence[EvaluationStratum], dataset: DatasetRef
 ) -> list[str]:
-    """Side by side: the primary scenes (ADR 0015 1.4) against every scene."""
+    """Side by side: the primary scenes against every scene."""
     lines = [
         f"## H1 primary (scenes {', '.join(view.scenes)}) vs all scenes",
         "",
-        f"Primary: {view.dataset.n_clips} clips, {view.dataset.n_scenes} scenes. "
-        f"All: {dataset.n_clips} clips, {dataset.n_scenes} scenes.",
+        (
+            f"Primary: {view.dataset.n_clips} clips, {view.dataset.n_scenes} scenes. "
+            f"All: {dataset.n_clips} clips, {dataset.n_scenes} scenes."
+        ),
         "",
     ]
     for primary in view.strata:
@@ -249,14 +257,16 @@ def _primary_view(
 
 
 def _heldout_monotonicity(checks: Sequence[HeldoutMonotonicityCheck], scope: str) -> list[str]:
-    """J7: frozen tau and sigma correction, the artifact's bootstrap; met = both lower bounds
+    """Frozen tau and sigma correction, the artifact's bootstrap; met = both lower bounds
     above 0. Every check is listed, without a multiplicity correction."""
     if not checks:
         return []
     lines = [
         "",
-        f"Held-out H1 over {scope}: {n_met(checks)} of {len(checks)} checks meet "
-        "tau_b^lo > 0 and J^lo > 0 (no multiplicity correction):",
+        (
+            f"Held-out monotonicity over {scope}: {n_met(checks)} of {len(checks)} checks meet "
+            "tau_b^lo > 0 and J^lo > 0 (no multiplicity correction):"
+        ),
         "",
     ]
     lines += table(
@@ -293,12 +303,12 @@ def _medians(m: Monotonicity) -> str:
 def _pooled_side_by_side(
     primary: Sequence[CheckMonotonicity], whole: Sequence[CheckMonotonicity]
 ) -> list[str]:
-    """h1_pass is the lower CI bound of tau_b above 0 (ADR 0009 change 4); the medians are
+    """h1_pass is the lower CI bound of tau_b above 0; the medians are
     descriptive and do not condition it."""
     if not primary:
         return []
     by_id = {m.check_id: m.monotonicity for m in whole}
-    lines = ["Pooled Kendall tau_b of the calib clips (D8), primary vs all scenes:", ""]
+    lines = ["Pooled Kendall tau_b of the calib clips, primary vs all scenes:", ""]
     lines += table(
         (
             "check",

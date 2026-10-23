@@ -1,4 +1,4 @@
-"""Best-of-N under the frozen rule (ADR 0013 D2): the highest-scoring eligible base candidate.
+"""Best-of-N under the frozen rule: the highest-scoring eligible base candidate.
 
 Eligible means ``pairs.drop_reason`` is None, the same filter the preference pairs use. A tie goes
 to the smaller k. With no eligible candidate the best scored one is taken (``ineligible``); with

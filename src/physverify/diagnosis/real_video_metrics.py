@@ -1,4 +1,4 @@
-"""Pure metrics of the real-video diagnosis (ADR 0007 §5.5).
+"""Pure metrics of the real-video diagnosis.
 
 Physics-IQ masks mark pixel change, so the motion scores are agreement, not accuracy. The fall
 diagnosis fits a parabola to the falling object; g is an estimate whenever the scale is.
@@ -35,9 +35,6 @@ SCALE_ABSTAIN = {
     ScaleSource.FREE_FALL: AbstainReason.SCALE_FROM_GRAVITY,
     ScaleSource.NONE: AbstainReason.SCALE_UNAVAILABLE,
 }
-
-
-# --- Physics-IQ motion ------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
@@ -91,9 +88,6 @@ def motion_scores(track: MaskTrack, gt_motion: BoolArray, s: RealSettings) -> Mo
         recall=_ratio(hits, float(np.sum(g))),
         false_motion_rate=_ratio(float(np.sum(p)), n_frames),
     )
-
-
-# --- PISA free fall ---------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)

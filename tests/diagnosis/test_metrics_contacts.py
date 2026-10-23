@@ -1,4 +1,4 @@
-"""contacts/events: tIoU matching, normal, point and gap errors (ADR 0007 §7)."""
+"""contacts/events: tIoU matching, normal, point and gap errors."""
 
 from __future__ import annotations
 

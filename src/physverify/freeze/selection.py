@@ -83,7 +83,7 @@ def candidate(directory: Path) -> Candidate:
     if state.get("CHAIN_DEVICE") != DEVICE:
         raise QueryError(
             f"{iteration} ran on {state.get('CHAIN_DEVICE')!r}: only CPU iterations are eligible "
-            "(J4, amendment 2 section 7)"
+            "under the selection rule"
         )
     missing = [s for s in ITERATION_STEPS if s not in completed_steps(directory / "steps.tsv")]
     if missing:
@@ -119,13 +119,13 @@ def select(candidates: Sequence[Candidate]) -> dict[str, Any]:
 
 
 def seed_of(commit: str, calibration_sha: str, exclusions_sha: str) -> int:
-    """Amendment 2 section 2: the lowercase hex strings joined without separator, in UTF-8."""
+    """The preregistered seed: the lowercase hex strings joined without separator, in UTF-8."""
     if not COMMIT.match(commit):
         raise QueryError(f"the commit must be 40 lowercase hex characters, got {commit!r}")
     for sha in (calibration_sha, exclusions_sha):
         if not SHA256.match(sha):
             raise QueryError(f"a sha256 must be 64 lowercase hex characters, got {sha!r}")
-    return int(text_sha256("".join([commit, calibration_sha, exclusions_sha]))[:8], 16)
+    return int(text_sha256(f"{commit}{calibration_sha}{exclusions_sha}")[:8], 16)
 
 
 def chosen_candidate(selection: Mapping[str, Any]) -> Mapping[str, Any]:

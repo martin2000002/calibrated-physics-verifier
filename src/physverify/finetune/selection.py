@@ -1,8 +1,8 @@
-"""Checkpoint selection on ``dev`` (ADR 0012, 4.5 with Juicio 6); pure, ``eval`` never enters.
+"""Checkpoint selection on ``dev``; pure, ``eval`` never enters.
 
 Each checkpoint is compared with the base model on the same ``dev`` candidates (same seeds): the
 paired difference of the scores re-computed on the checks decided in both members of each
-(checkpoint, base) candidate pair, as the pairs are judged (ADR 0009, Juicio 7), with a normal
+(checkpoint, base) candidate pair, as the pairs are judged, with a normal
 interval. A
 checkpoint whose abstention rate rises or whose motion drops past the limits is
 ``suspected_hacking`` and is never chosen.
@@ -55,7 +55,7 @@ def spaced(steps: Sequence[int], count: int) -> list[int]:
     if len(ordered) <= count:
         return ordered
     picks = np.linspace(len(ordered) - 1, 0, count)
-    return sorted({ordered[int(round(i))] for i in picks})
+    return sorted({ordered[round(i)] for i in picks})
 
 
 def _rate(scores: Sequence[CandidateScore]) -> float:

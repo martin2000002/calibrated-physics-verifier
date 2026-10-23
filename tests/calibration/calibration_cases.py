@@ -192,9 +192,6 @@ def _one_subject(
     return (result(check_id, clip_id, magnitude, sigma, InputLevel.ORACLE),)
 
 
-# --- a synthetic raw-policy report ----------------------------------------------------------------
-
-
 def _magnitudes(rng: np.random.Generator, target: str | None, mu: float) -> dict[str, float | None]:
     found: dict[str, float | None] = {
         c: abs(float(rng.normal(0.0, s))) for c, s in CLEAN_NOISE.items()

@@ -8,7 +8,7 @@ checks (or those in ``only``) the score is their geometric mean,
 so two failing candidates still rank by how badly they fail. Linear propagation gives
 ``sigma = (score / n) sqrt(sum_j ((sigma_j / tau_j) / (1 + rho_j))^2)``; a term clamped at
 ``rho_j = 0`` contributes 0 (the clamp is flat there) and any other unknown ``sigma_j`` makes
-sigma None. It is not a calibrated probability (ADR 0012, amendment 1).
+sigma None. It is not a calibrated probability.
 """
 
 from __future__ import annotations

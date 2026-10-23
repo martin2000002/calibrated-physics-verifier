@@ -1,4 +1,4 @@
-"""Clip-level decision of the verifier from one verify run (ADR 0011 D5, Juicio change 1).
+"""Clip-level decision of the verifier from one verify run.
 
 ``score`` is always an implausibility (higher = more evidence of a violation). The provisional
 rule decides by itself; the calibrated rule only scores, and the frozen dev cut decides.
@@ -65,7 +65,8 @@ class ClipDecisionRule(Protocol):
 
     @property
     def kubric_threshold(self) -> float | None:
-        """A cut on the score fixed outside VideoPhy (A8's clean-scene quantile), if any."""
+        """A cut on the score fixed outside VideoPhy (the calibration chain's clean-scene quantile),
+        if any."""
         ...
 
     def tau(self, check_id: str) -> float | None: ...
@@ -150,7 +151,7 @@ def _provisional_outcome(rows: Sequence[TableRow], failed: bool) -> ClipDecision
 
 
 class CalibrationStratum(Protocol):
-    """What the rule reads from A8's stratum (ADR 0009 §2: per-check tau, aggregate cut, and
+    """What the rule reads from the calibration chain's stratum (per-check tau, aggregate cut, and
     the artefact#level/profile@run label)."""
 
     @property
@@ -169,7 +170,7 @@ class UnusableCalibrationError(PhysverifyError):
 
 
 class ScoredClip(Protocol):
-    """A8's clip score (ADR 0009 §3): S in [0, 1] or None when it abstains."""
+    """The calibration chain's clip score: S in [0, 1] or None when it abstains."""
 
     @property
     def score(self) -> float | None: ...
@@ -196,7 +197,7 @@ class ScoreClip[S: CalibrationStratum](Protocol):
 
 
 class OpenStratum[S: CalibrationStratum](Protocol):
-    """A8's ``open_stratum``: the one gate in front of a stratum."""
+    """The calibration chain's ``open_stratum``: the one gate in front of a stratum."""
 
     def __call__(
         self,
@@ -211,9 +212,9 @@ class OpenStratum[S: CalibrationStratum](Protocol):
 
 
 class CalibratedRule[S: CalibrationStratum]:
-    """A8's clip score S in [0, 1] (1 = no violation evidence) on the PERCEIVED stratum of the
-    run's profile; the implausibility is 1 - S, and S = None is an abstention. The interval
-    width is the stratum's own fitted k_sigma."""
+    """The calibration chain's clip score S in [0, 1] (1 = no violation evidence) on the PERCEIVED
+    stratum of the run's profile; the implausibility is 1 - S, and S = None is an abstention. The
+    interval width is the stratum's own fitted k_sigma."""
 
     name = CALIBRATED_NAME
 
@@ -264,9 +265,9 @@ class CalibratedRule[S: CalibrationStratum]:
 
 @dataclass(frozen=True)
 class CalibrationApi[S: CalibrationStratum]:
-    """The A8 entry points, injected so tests can pass a fake. ``error`` is a configuration
-    problem (missing or stale artifact, another stratum or time base); ``unusable_error``, a
-    subclass of it, a stratum that cannot score yet."""
+    """The calibration chain's entry points, injected so tests can pass a fake. ``error`` is a
+    configuration problem (missing or stale artifact, another stratum or time base);
+    ``unusable_error``, a subclass of it, a stratum that cannot score yet."""
 
     open_stratum: OpenStratum[S]
     default_artifact_path: Callable[[Settings], Path]
@@ -278,7 +279,8 @@ class CalibrationApi[S: CalibrationStratum]:
 
 
 def import_calibration() -> CalibrationApi[Stratum]:
-    """A8's loader and scorer, imported only when the calibrated rule is asked for."""
+    """The calibration chain's loader and scorer, imported only when the calibrated rule is asked
+    for."""
     try:
         from physverify.calibration.apply import score_clip
         from physverify.calibration.artifact_io import (
@@ -290,7 +292,7 @@ def import_calibration() -> CalibrationApi[Stratum]:
         from physverify.calibration.settings import calibration_settings
         from physverify.verification.check_set import active_checks_hash
     except ImportError as exc:
-        raise ConfigError(f"the calibrated rule needs A8's calibration package: {exc}") from exc
+        raise ConfigError(f"the calibrated rule needs the calibration package: {exc}") from exc
     return CalibrationApi(
         open_stratum=open_stratum,
         default_artifact_path=default_artifact_path,

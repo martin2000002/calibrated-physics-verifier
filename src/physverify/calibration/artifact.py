@@ -1,4 +1,4 @@
-"""The calibration artifact ``calibration.json`` and the evaluation report (ADR 0009 §6).
+"""The calibration artifact ``calibration.json`` and the evaluation report.
 
 Semver: a different major version is rejected; a newer minor version may only add optional
 fields, which a lenient load drops. Every non-finite number is written as null.
@@ -204,8 +204,8 @@ class SettingsSnapshot(ArtifactModel):
     min_sigma_pairs: int
     platt_l2: float
     sigma_pair_filter: str | None = None
-    """D9 factor pairs (``CalibrationSettings.sigma_pair_filter``); None in an artifact older
-    than 1.5.0, which did not record it (those fits used every pair)."""
+    """Pairs of the per-check sigma factor (``CalibrationSettings.sigma_pair_filter``); None in an
+    artifact older than 1.5.0, which did not record it (those fits used every pair)."""
 
 
 class StageFactor(ArtifactModel):
@@ -262,8 +262,8 @@ class HeldoutCheck(ArtifactModel):
 
 
 class CheckMonotonicity(ArtifactModel):
-    """The pooled tau_b of D8 recomputed on the evaluated calib clips (the fit's statistic and
-    its ``h1_pass`` rule, ADR 0009 change 4); held-out clips never enter it."""
+    """The pooled monotonicity tau_b recomputed on the evaluated calib clips (the fit's statistic
+    and its ``h1_pass`` rule); held-out clips never enter it."""
 
     check_id: str
     split: Literal["calib"] = "calib"
@@ -271,7 +271,7 @@ class CheckMonotonicity(ArtifactModel):
 
 
 class HeldoutMonotonicityCheck(ArtifactModel):
-    """H1 of one check on the held-out rows (plan-congelado J7): the pooled tau_b and the J of
+    """Held-out monotonicity of one check: the pooled tau_b and the J of
     the frozen tau and sigma correction, bootstrapped as the artifact was. No refit, no folds."""
 
     check_id: str
@@ -305,7 +305,7 @@ class EvaluationStratum(ArtifactModel):
 
 
 class PrimaryScenesView(ArtifactModel):
-    """The strata restricted to the primary scenes (ADR 0015 1.4); real video is not repeated."""
+    """The strata restricted to the primary scenes; real video is not repeated."""
 
     scenes: tuple[str, ...]
     dataset: DatasetRef
@@ -326,4 +326,4 @@ class EvaluationReport(ArtifactModel):
     real_sets: tuple[DatasetRef, ...] = ()
     """The real clip sets the evaluation scored (empty before 1.2.0): what rule 1.5 checks."""
     h1_primary: PrimaryScenesView | None = None
-    """The H1 primary view (from 1.3.0); ``strata`` stays the all-scenes view."""
+    """The primary-scenes view (from 1.3.0); ``strata`` stays the all-scenes view."""

@@ -149,8 +149,8 @@ def _row_role(session: Session, clip: ClipManifest, check_id: str) -> Role:
 
 
 def _injected(session: Session, collected: Collected, k: float | None) -> dict[str, Any]:
-    """Risk at k (default 2) of the (clip, check) rows against A8's injected label, and the rows
-    where the oracle's point verdict disagrees with that label."""
+    """Risk at k (default 2) of the (clip, check) rows against the calibration chain's injected
+    label, and the rows where the oracle's point verdict disagrees with that label."""
     cases = collected.cases
     keys = [(c.clip_id, c.check_id) for c in cases]
     labels = {
@@ -239,8 +239,7 @@ def summary_lines(report: dict[str, Any]) -> list[str]:
     tables = report["tables"]
     diff = tables["aurc_calibrated_minus_raw"]
     lines = [f"eval cases: {report['n']}", f"k* (calib): {report['k_star_from_calib']}"]
-    for name in ("raw", "calibrated"):
-        lines.append(f"  {name}: k* on eval {tables[name]['k_star']}")
+    lines.extend(f"  {name}: k* on eval {tables[name]['k_star']}" for name in ("raw", "calibrated"))
     lines.append(f"  AURC calibrated - raw: {diff['value']:.4f} {diff['ci']}")
     injected = report["injected_label"]
     if injected.get("rows"):

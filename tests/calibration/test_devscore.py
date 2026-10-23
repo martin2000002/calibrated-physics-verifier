@@ -1,5 +1,4 @@
-"""``calibration.dev_score``: the development metric of the campaign
-(WP-O AC1-AC6, AC10, C1, C4)."""
+"""``calibration.dev_score``: the development metric of the campaign."""
 
 from __future__ import annotations
 
@@ -101,7 +100,7 @@ def stable(text: str) -> dict[str, object]:
 
 
 def test_two_runs_differ_only_in_time_and_run_id() -> None:
-    """AC1 (on the oracle level of a smaller case, to stay fast)."""
+    """On the oracle level of a smaller case, to stay fast."""
     small = levels(report(20, seed=3))[:1]
     first = compute(small, CHECKS, fit_meta(run_id="a"), SMALL)
     later = fit_meta(run_id="b", created_utc="2026-10-21T00:00:00Z")
@@ -110,8 +109,8 @@ def test_two_runs_differ_only_in_time_and_run_id() -> None:
     assert json.loads(first.report.to_json())["schema"] == DEVSCORE_SCHEMA
 
 
-def test_h1_and_the_in_sample_weight_are_the_fits(dev: DevScore) -> None:
-    """AC2: the full fit inside devscore is ``calibrate fit``'s artifact."""
+def test_monotonicity_and_the_in_sample_weight_are_the_fits(dev: DevScore) -> None:
+    """The full fit inside devscore is ``calibrate fit``'s artifact."""
     fitted = fit_calibration(FitInputs(levels(), CHECKS, fit_meta()), CONFIG)
     assert dev.artifact.to_json() == fitted.to_json()
     raw = fit_checks(levels()[0], CHECKS, CONFIG)
@@ -124,7 +123,7 @@ def test_h1_and_the_in_sample_weight_are_the_fits(dev: DevScore) -> None:
 
 
 def test_the_folds_partition_the_scenes_and_refit_tau(dev: DevScore) -> None:
-    """AC3: disjoint folds covering every calib scene; tau_k is fit_tau without fold k."""
+    """Disjoint folds covering every calib scene; tau_k is fit_tau without fold k."""
     oracle = levels()[0]
     folds = scene_folds([oracle], CONFIG.calibration)
     scenes = {r.scene_id for r in oracle.rows}
@@ -172,7 +171,7 @@ def _corrupt(data: LevelData, fold: frozenset[str]) -> LevelData:
 
 
 def test_nothing_of_the_held_out_fold_reaches_its_stratum() -> None:
-    """C4 (AC4): the fold's stratum and tau are unchanged by anything inside the fold."""
+    """The fold's stratum and tau are unchanged by anything inside the fold."""
     base = levels()[1]
     data = LevelData(base.level, base.rows, base.results, _pairs(base))
     fold, other = scene_folds([data], CONFIG.calibration)[:2]
@@ -185,7 +184,7 @@ def test_nothing_of_the_held_out_fold_reaches_its_stratum() -> None:
 
 
 def test_split_keeps_no_sigma_and_drops_results_without_a_row() -> None:
-    """C1: --no-sigma stays None in every fold; a result of a clip without a row is dropped."""
+    """--no-sigma stays None in every fold; a result of a clip without a row is dropped."""
     data = levels()[1]
     orphan = replace(data.results[0], clip_id="no-row")
     data = LevelData(data.level, data.rows, (*data.results, orphan), None)
@@ -197,7 +196,7 @@ def test_split_keeps_no_sigma_and_drops_results_without_a_row() -> None:
 
 
 def test_a_fold_without_tau_flags_nothing() -> None:
-    """C1: tau_k None leaves the fold's rows as not FAIL."""
+    """tau_k None leaves the fold's rows as not FAIL."""
     rows = [r for r in levels()[0].rows if r.check_id == "R1"]
     policy = ThresholdPolicy(ThresholdParams())
     flags = oof_flags(rows, check_calibration(tau=None), policy)
@@ -207,8 +206,8 @@ def test_a_fold_without_tau_flags_nothing() -> None:
 
 
 def test_the_selection_counts_the_separable_monotone_check(dev: DevScore) -> None:
-    """AC5: R1 meets H1 and J_cv^lo > 0, the random R3a and the eventless R5b do not."""
-    oracle, perceived = dev.report.levels
+    """R1 is monotone and J_cv^lo > 0, the random R3a and the eventless R5b do not."""
+    _oracle, perceived = dev.report.levels
     assert perceived.n_met == 1 and perceived.met == ("R1",)
     assert not perceived.checks["R3a"].meets_both
     assert dev.report.selection is not None
@@ -222,7 +221,7 @@ def _met(level: LevelDevScore, *met: str) -> LevelDevScore:
 
 
 def test_the_early_freeze_needs_every_oracle_evaluable_check(dev: DevScore) -> None:
-    """AC5 the other way, and the edge cases: no oracle level, nothing evaluable."""
+    """The other way round, and the edge cases: no oracle level, nothing evaluable."""
     oracle, perceived = dev.report.levels
     wider = selection([_met(oracle, "R1", "R3a"), perceived])
     assert wider is not None and wider.all_oracle_evaluable_met is False
@@ -235,14 +234,14 @@ def test_the_early_freeze_needs_every_oracle_evaluable_check(dev: DevScore) -> N
 
 
 def test_the_score_auroc_is_out_of_fold(dev: DevScore) -> None:
-    """AC6: marked out of fold; the separable R1 clips rank perfectly once R3a weighs nothing."""
+    """Marked out of fold; the separable R1 clips rank perfectly once R3a weighs nothing."""
     for level in dev.report.levels:
         assert level.auroc_cv.in_sample is False
         assert level.auroc_cv.n_negative == SCENES
 
 
 def test_perfect_separation_out_of_fold_is_one() -> None:
-    """AC6: a report with R1 perturbations only (every perturbed clip separable) gives 1.0."""
+    """A report with R1 perturbations only (every perturbed clip separable) gives 1.0."""
     only_r1 = report(20, seed=1)
     kept = [c for c in only_r1.clips if "r3a_noise" not in c.clip_id]
     ids = {c.clip_id for c in kept}
@@ -256,7 +255,7 @@ def test_perfect_separation_out_of_fold_is_one() -> None:
 
 
 def test_bootstrap_zero_is_refused() -> None:
-    """Juicio answer 6: never bootstrap 0 (every weight would be 0)."""
+    """Never bootstrap 0 (every weight would be 0)."""
     with pytest.raises(UsageError, match="bootstrap"):
         require_bootstrap(config(bootstrap=0).calibration)
     with pytest.raises(UsageError, match="bootstrap"):
@@ -264,7 +263,7 @@ def test_bootstrap_zero_is_refused() -> None:
 
 
 def test_folds_without_a_sigma_factor_are_counted() -> None:
-    """J3 of it1: a fold whose training lacks min_sigma_pairs informative pairs has no factor
+    """A fold whose training lacks min_sigma_pairs informative pairs has no factor
     (its subjects abstain); the count is reported per check."""
     oracle, base = levels()
     data = LevelData(base.level, base.rows, base.results, _pairs(base))

@@ -1,6 +1,6 @@
-"""Settings of the preference fine-tuning cycle: the ``[finetune]`` section (ADR 0012).
+"""Settings of the preference fine-tuning cycle: the ``[finetune]`` section.
 
-Generator parameters are not here: they are read from ``[timing.generation]`` (D3), so the cost
+Generator parameters are not here: they are read from ``[timing.generation]``, so the cost
 measured by the timing harness is exactly the cost of these videos.
 """
 
@@ -144,9 +144,9 @@ class SelectSettings(FrozenModel):
 
 
 class StopRuleSettings(FrozenModel):
-    """The pilot's stop rule (ADR 0012): too few pairs, too many abstentions or too few better
-    winners on inspection mean H3 is not evaluable with this verifier. ``enforce = false`` only
-    reports it."""
+    """The pilot's stop rule: too few pairs, too many abstentions or too few better winners on
+    inspection mean the generator comparison is not evaluable with this verifier. ``enforce =
+    false`` only reports it."""
 
     enforce: bool = True
     min_pairs_per_prompt: float = Field(0.3, ge=0)

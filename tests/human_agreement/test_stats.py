@@ -1,4 +1,4 @@
-"""Agreement statistics against hand-computed values (C4)."""
+"""Agreement statistics against hand-computed values."""
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ from physverify.human_agreement.stats import (
 
 Y = as_labels([True, True, True, False, False, False, False, False])
 P = as_labels([True, True, False, True, False, False, False, False])
-EXACT = 1e-12  # C4: closed-form quantities must match to this absolute tolerance
+EXACT = 1e-12  # Closed-form quantities must match to this absolute tolerance
 
 
 def test_classification_metrics_match_the_hand_computation() -> None:
@@ -123,7 +123,7 @@ def test_best_cut_maximises_balanced_accuracy_and_breaks_ties_low() -> None:
     assert predict_cut(np.array([0.3, math.nan, 0.1]), 0.2).tolist() == [1, 0, 0]
 
 
-def test_h2_needs_the_calibrated_rule_and_both_conditions() -> None:
+def test_the_agreement_verdict_needs_the_calibrated_rule_and_both_conditions() -> None:
     primary = {
         "mcnemar": {"p_value": 0.01},
         "verifier": {"accuracy": 0.8},
@@ -133,12 +133,14 @@ def test_h2_needs_the_calibrated_rule_and_both_conditions() -> None:
     }
     assert h2_verdict(primary, True, 0.05)["supported"] is True
     provisional = h2_verdict(primary, False, 0.05)
-    assert provisional["supported"] is None and "no H2 verdict" in provisional["reason"]
+    assert (
+        provisional["supported"] is None and "no human-agreement verdict" in provisional["reason"]
+    )
     weak = {**primary, "bootstrap": {"intervals": {"difference.kappa": [-0.01, 0.3]}}}
     assert h2_verdict(weak, True, 0.05)["supported"] is False
 
 
-def test_h2_with_a_gate_is_not_evaluable_whatever_the_numbers() -> None:
+def test_the_agreement_verdict_with_a_gate_is_not_evaluable_whatever_the_numbers() -> None:
     primary = {
         "verifier": {"accuracy": 0.9},
         "vlm": {"accuracy": 0.5},

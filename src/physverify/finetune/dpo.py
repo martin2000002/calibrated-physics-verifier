@@ -1,4 +1,4 @@
-"""Flow-DPO objective and the rectified-flow noising it trains on (ADR 0012, 3.8 and 4.4).
+"""Flow-DPO objective and the rectified-flow noising it trains on.
 
 torch is imported inside the functions. Conventions match ``FlowMatchEulerDiscreteScheduler``:
 ``x_t = (1 - sigma) x0 + sigma eps``, velocity target ``v = eps - x0``, timestep ``t = 1000 sigma``,

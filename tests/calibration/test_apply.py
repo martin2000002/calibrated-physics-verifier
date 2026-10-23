@@ -1,4 +1,4 @@
-"""Calibrated verdicts, p_c and the clip score S with its delta-method sigma (D11, AC17)."""
+"""Calibrated verdicts, p_c and the clip score S with its delta-method sigma."""
 
 from __future__ import annotations
 
@@ -36,7 +36,7 @@ def results(
 
 
 def test_sigma_s_matches_central_finite_differences() -> None:
-    """AC17: sigma_S from the delta method within 1 % of sum_c (dS/dm_c factor_c sigma_c)^2."""
+    """sigma_S from the delta method within 1 % of sum_c (dS/dm_c factor_c sigma_c)^2."""
     stratum = view(CHECKS)
     found = score_clip(results(), stratum, K_SIGMA)
     assert found.score is not None and found.sigma is not None
@@ -126,7 +126,7 @@ def test_an_unmeasured_error_abstains() -> None:
     assert math.isnan(found.sigma)
 
 
-def test_the_a11_adapter_maps_the_clip_score_field_by_field() -> None:
+def test_the_finetune_adapter_maps_the_clip_score_field_by_field() -> None:
     calibrated = pytest.importorskip("physverify.finetune.scorers.calibrated")
     found = score_clip(results(), view(CHECKS), K_SIGMA)
     aggregate = calibrated.to_aggregate(found)

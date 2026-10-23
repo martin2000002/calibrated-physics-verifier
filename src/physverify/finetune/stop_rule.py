@@ -1,4 +1,4 @@
-"""The pilot's stop rule (ADR 0012, item 1.6): when it fires, H3 is not evaluable with this
+"""The pilot's stop rule: when it fires, the generator comparison is not evaluable with this
 verifier, and training or the eval arm is refused unless a deviation is declared.
 
 It fires on too few pairs per scored prompt, too many abstaining candidates, or a hand review
@@ -67,7 +67,8 @@ class StopVerdict(FrozenModel):
 
 
 class StopRuleState(FrozenModel):
-    """What H3 freezes of the verdict: recomputable from disk, so a later change is caught."""
+    """What the generator comparison freezes of the verdict: recomputable from disk, so a later
+    change is caught."""
 
     passed: bool
     enforced: bool
@@ -85,7 +86,8 @@ def frozen_state(verdict: StopVerdict) -> StopRuleState:
 
 
 def fired_reason(state: StopRuleState, deviation: str | None) -> str | None:
-    """Why H3 is not evaluable with this verifier; None when the rule passed."""
+    """Why the generator comparison is not evaluable with this verifier; None when the rule
+    passed."""
     if state.passed:
         return None
     declared = "none" if deviation is None else repr(deviation)

@@ -1,4 +1,4 @@
-"""The recorded hand review of the test captions (ADR 0011 D2b, C1)."""
+"""The recorded hand review of the test captions."""
 
 from __future__ import annotations
 

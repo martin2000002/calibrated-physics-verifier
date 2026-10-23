@@ -52,8 +52,10 @@ def render_markdown(report: Report) -> str:
 def _provenance(p: Provenance) -> list[str]:
     versions = ", ".join(f"{k} {v}" for k, v in sorted(p.dataset_versions.items())) or MISSING
     lines = [
-        f"- run `{p.run_id}`, commit `{p.commit or MISSING}`, profile `{p.profile}`, "
-        f"device `{p.device}`, created {p.created_utc}",
+        (
+            f"- run `{p.run_id}`, commit `{p.commit or MISSING}`, profile `{p.profile}`, "
+            f"device `{p.device}`, created {p.created_utc}"
+        ),
         f"- config hash `{p.config_hash}`, error profile hash `{p.error_profile_hash}`",
         f"- dataset `{p.dataset}` ({versions}), subset `{p.subset}`, {len(p.clips)} clips",
     ]
@@ -106,8 +108,10 @@ def _split_values(values: Mapping[str, float]) -> tuple[list[list[object]], list
 def _metric_row(row: StageMetricRow) -> list[str]:
     samples, ratios = _split_values(row.values)
     lines = [
-        f"### {row.metric} ({row.split.value}): `{row.provider}`, "
-        f"{row.pred_variant} vs {row.truth_variant}, {row.n_clips} clips",
+        (
+            f"### {row.metric} ({row.split.value}): `{row.provider}`, "
+            f"{row.pred_variant} vs {row.truth_variant}, {row.n_clips} clips"
+        ),
         "",
     ]
     if samples:
@@ -268,9 +272,11 @@ def _attribution(check: CheckAttribution, ci: float) -> list[str]:
     ]
     incomplete = ", ".join(f"{k} {v}" for k, v in sorted(check.incomplete.items())) or "none"
     lines = [
-        f"{check.n_blocks} complete blocks over {check.n_clips} clips, unit `{check.unit}`, "
-        f"V0 mean error {cell_text(check.v0)}. Incomplete blocks: {incomplete}. "
-        f"Dropped bootstrap replicas: {check.bootstrap_dropped}.",
+        (
+            f"{check.n_blocks} complete blocks over {check.n_clips} clips, unit `{check.unit}`, "
+            f"V0 mean error {cell_text(check.v0)}. Incomplete blocks: {incomplete}. "
+            f"Dropped bootstrap replicas: {check.bootstrap_dropped}."
+        ),
         "",
     ]
     lines += text_table(("cell", "mean abs error", *bounds), _named(check.cells, check.cells_ci))
@@ -285,9 +291,12 @@ def _attribution_body(report: AttributionReport) -> list[str]:
     lines = _header("Error attribution by stage (Level 3)", report.provenance)
     fixed = ", ".join(stage.value for stage in report.fixed_ground_truth)
     lines += [
-        f"Report split `{report.report_split.value}`. Fixed ground truth: {fixed}. "
-        f"Clip bootstrap: {report.bootstrap} replicas, seed {report.seed}, "
-        f"{cell_text(100 * report.ci)}% intervals. LIFT unit in every cell: `{report.lift_unit}`.",
+        (
+            f"Report split `{report.report_split.value}`. Fixed ground truth: {fixed}. "
+            f"Clip bootstrap: {report.bootstrap} replicas, seed {report.seed}, "
+            f"{cell_text(100 * report.ci)}% intervals. "
+            f"LIFT unit in every cell: `{report.lift_unit}`."
+        ),
         "",
     ]
     for check in report.checks:

@@ -1,4 +1,5 @@
-"""Level 3 of ADR 0002: each check's error split over TRACK, DEPTH and SCALE (ADR 0007 §5.4).
+"""Level 3 of the error propagation (attribution by ground-truth substitution): each check's error
+split over TRACK, DEPTH and SCALE.
 
 The 8 factorial cells keep ``diagnosis.factorial.fixed_ground_truth`` (DETECT, CAMERA) in ground
 truth. A block is one oracle (V8) event whose magnitude is matched by a paired magnitude in all 8
@@ -148,9 +149,6 @@ def lift_unit(units: Mapping[str, Iterable[str]]) -> str:
     if not any(present.values()):
         return MISSING
     return common_unit(Stage.LIFT.value, present)
-
-
-# --- Statistics of a set of blocks --------------------------------------------------------------
 
 
 def cell_means(blocks: Sequence[Block]) -> dict[Cell, float]:

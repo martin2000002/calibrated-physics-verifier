@@ -1,4 +1,5 @@
-"""On-disk layout of the H3 outputs, under the campaign root; paths only, no policy.
+"""On-disk layout of the generator-comparison outputs, under the campaign root; paths only, no
+policy.
 
 ```
 <data_dir>/finetune/<campaign>/h3/

@@ -1,4 +1,4 @@
-"""Store queries of H3: the eval candidates and scores of a model tag."""
+"""Store queries of the generator comparison: the eval candidates and scores of a model tag."""
 
 from __future__ import annotations
 

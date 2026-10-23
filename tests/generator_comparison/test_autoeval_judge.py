@@ -140,7 +140,7 @@ def test_missing_installation_is_named(tmp_path: Path) -> None:
 def test_a_failed_run_raises_with_its_stderr(tmp_path: Path) -> None:
     cfg = install(tmp_path / "root")
     judge = Videophy2AutoevalJudge(cfg, tmp_path / "runs", runner=FakeAutoeval({}, code=3))
-    with pytest.raises(PhysverifyError, match="exited with 3(.|\n)*boom"):
+    with pytest.raises(PhysverifyError, match=r"exited with 3(.|\n)*boom"):
         judge.judge(items(tmp_path, ["a"]), "pc")
 
 

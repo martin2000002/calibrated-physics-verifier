@@ -15,7 +15,8 @@ VERSION_ENV = "PHYSVERIFY__DATASET__VERSION"
 
 
 def render_overrides(fresh: KubricFreshSettings, dataset: str, seed: int) -> dict[str, str]:
-    """The dataset section a fresh render reads: plan-congelado section 2.2."""
+    """The dataset section a fresh render reads: its version, seed and scenes, with no calib
+    clip."""
     extra: dict[str, str]
     if dataset == "kubric_fresh_ood":
         version, scenes = fresh.ood_version, fresh.ood_scenes_per_family
@@ -34,7 +35,7 @@ def render_overrides(fresh: KubricFreshSettings, dataset: str, seed: int) -> dic
 
 
 def plan_lines(settings: Settings, version: str, seed: int) -> list[str]:
-    """J1: the stored plan is the render of ``seed`` (its content hash), with no calib clip."""
+    """The stored plan is the render of ``seed`` (its content hash), with no calib clip."""
     ds = load_dataset_settings(settings)
     if (ds.version, ds.seed) != (version, seed):
         raise QueryError(
@@ -51,6 +52,8 @@ def plan_lines(settings: Settings, version: str, seed: int) -> list[str]:
     if calib:
         raise QueryError(f"{store.plan_path} plans {len(calib)} calib scenes or clips")
     return [
-        f"plan {store.plan_path}: version {version}, seed {seed}, {len(plan.scenes)} scenes, "
-        f"{len(plan.variants)} clips, 0 calib"
+        (
+            f"plan {store.plan_path}: version {version}, seed {seed}, {len(plan.scenes)} scenes, "
+            f"{len(plan.variants)} clips, 0 calib"
+        )
     ]

@@ -1,4 +1,4 @@
-"""Wan2.1 transformer with a LoRA adapter as an ``AdapterModel`` (H200 only; ADR 0012, 3.8).
+"""Wan2.1 transformer with a LoRA adapter as an ``AdapterModel`` (H200 only).
 
 The base weights stay in the generator dtype and frozen; the LoRA weights train in float32. The
 reference model is the same transformer with the adapter disabled, so no second copy is loaded.

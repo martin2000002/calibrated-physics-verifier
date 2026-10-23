@@ -1,4 +1,4 @@
-"""camera/fov: field-of-view, focal and z-score cases (ADR 0007 §7)."""
+"""camera/fov: field-of-view, focal and z-score cases."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""On-disk records of H3: scoring manifests, judge outputs and the gate (ADR 0013)."""
+"""On-disk records of the generator comparison: scoring manifests, judge outputs and the gate."""
 
 from __future__ import annotations
 

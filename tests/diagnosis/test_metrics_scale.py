@@ -1,4 +1,4 @@
-"""scale/relative: relative scale error and coverage (ADR 0007 §7)."""
+"""scale/relative: relative scale error and coverage."""
 
 from __future__ import annotations
 

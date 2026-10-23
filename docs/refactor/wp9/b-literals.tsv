@@ -1,0 +1,35 @@
+src/physverify/calibration/exclusion_decision.py	literal	# Exclusion decision (ADR 0015 rules 1.1, 1.2, 1.5)	# Exclusion decision (rules 1.1, 1.2, 1.5)
+src/physverify/calibration/exclusion_decision.py	literal	- H3 families without a target check: 	- generator-comparison families without a target check: 
+src/physverify/calibration/report.py	literal	Pooled Kendall tau_b of the calib clips (D8):	Pooled Kendall tau_b of the calib clips:
+src/physverify/calibration/report.py	literal	Held-out H1 over 	Held-out monotonicity over 
+src/physverify/calibration/report.py	literal	Pooled Kendall tau_b of the calib clips (D8), primary vs all scenes:	Pooled Kendall tau_b of the calib clips, primary vs all scenes:
+src/physverify/calibration/sealed_ledger.py	literal	 are one-look sets (ADR 0015 amendment 2 section 5): set 	 are one-look sets: set 
+src/physverify/calibration/summary.py	literal	 meet H1 and J_cv^lo > 0 (	 meet monotonicity and J_cv^lo > 0 (
+src/physverify/calibration/summary.py	literal	] H1 	] monotone 
+src/physverify/diagnosis/end_to_end.py	literal	end-to-end and attribution diagnosis need A7's check suite (verification/)	end-to-end and attribution diagnosis need the check suite (verification/)
+src/physverify/diagnosis/real_video.py	literal	A7's check suite is unavailable: verdict distributions were not computed	the check suite is unavailable: verdict distributions were not computed
+src/physverify/diagnosis/report.py	literal	provisional until the A8 threshold calibration	provisional until the calibration chain sets the thresholds
+src/physverify/finetune/scorers/calibrated.py	literal	); run A8's calibration first	); run the calibration chain first
+src/physverify/freeze/manifest.py	literal	J3: 	j3 diff: 
+src/physverify/freeze/selection.py	literal	: only CPU iterations are eligible (J4, amendment 2 section 7)	: only CPU iterations are eligible under the selection rule
+src/physverify/generator_comparison/prereg.py	literal	the H3 state lacks pre-registered fields 	the generator-comparison state lacks pre-registered fields 
+src/physverify/generator_comparison/prereg.py	literal	the H3 pre-registration no longer holds (	the generator-comparison pre-registration no longer holds (
+src/physverify/generator_comparison/report.py	literal	# H3 comparison: 	# Generator comparison: 
+src/physverify/human_agreement/clip_decision.py	literal	the calibrated rule needs A8's calibration package: 	the calibrated rule needs the calibration package: 
+src/physverify/human_agreement/policy_metrics.py	literal	pipeline test, no H2 verdict (provisional rule)	pipeline test, no human-agreement verdict (provisional rule)
+src/physverify/human_agreement/report.py	literal	 (aggregate: decides H2)	 (aggregate: decides the human-agreement verdict)
+src/physverify/human_agreement/report.py	literal	 (descriptive only: too few pairs to test H2 on one version)	 (descriptive only: too few pairs to test agreement on one version)
+src/physverify/human_agreement/report.py	literal	**H2: 	**Human-agreement hypothesis: 
+src/physverify/human_agreement/report.py	literal	**H2 	**Human-agreement hypothesis 
+src/physverify/human_agreement/workflow.py	literal	WARNING: a test comparison already exists; H2 is now post hoc	WARNING: a test comparison already exists; the human-agreement verdict is now post hoc
+tests/calibration/test_cli_devscore.py	literal	oracle/fast: 1/\d+ meet H1 and J_cv\^lo > 0 \(R1\)	oracle/fast: 1/\d+ meet monotonicity and J_cv\^lo > 0 \(R1\)
+tests/calibration/test_heldout_monotonicity.py	literal	Held-out H1	Held-out monotonicity
+tests/calibration/test_heldout_monotonicity.py	literal	Held-out H1 over the primary scenes (oracle)	Held-out monotonicity over the primary scenes (oracle)
+tests/calibration/test_heldout_monotonicity.py	literal	Held-out H1 over every scene (secondary	Held-out monotonicity over every scene (secondary
+tests/calibration/test_monotonicity_primary.py	literal	Pooled Kendall tau_b of the calib clips (D8), primary vs all scenes:	Pooled Kendall tau_b of the calib clips, primary vs all scenes:
+tests/human_agreement/test_cli.py	literal	no H2 verdict	no human-agreement verdict
+tests/human_agreement/test_cli.py	literal	## Group all (aggregate: decides H2)	## Group all (aggregate: decides the human-agreement verdict)
+tests/human_agreement/test_cli.py	literal	H2 not evaluable with the calibrated rule	Human-agreement hypothesis not evaluable with the calibrated rule
+tests/human_agreement/test_stats.py	literal	no H2 verdict	no human-agreement verdict
+src/physverify/diagnosis/stage_errors.py	literal	 (D6)	 (a stage pair needs truth at its stage)
+src/physverify/human_agreement/report.py	literal	**H2 not evaluable with the calibrated rule** (	**Human-agreement hypothesis not evaluable with the calibrated rule** (

@@ -1,4 +1,4 @@
-"""Variant ladder, factorial cells, provider overrides and the diagnosis settings (AC4)."""
+"""Variant ladder, factorial cells, provider overrides and the diagnosis settings."""
 
 from __future__ import annotations
 

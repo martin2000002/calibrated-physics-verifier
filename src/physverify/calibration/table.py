@@ -1,4 +1,4 @@
-"""One calibration row per (clip, check) with its role (ADR 0009 D3, Juicio 1)."""
+"""One calibration row per (clip, check) with its role."""
 
 from __future__ import annotations
 
@@ -36,7 +36,8 @@ class Role(StrEnum):
 @dataclass(frozen=True)
 class CalibrationRow:
     """``magnitude`` is the clip's max over subjects (what tau is fitted on); ``subjects`` the
-    per-subject results the clip verdict judges; ``mu`` the injected magnitude (A4)."""
+    per-subject results the clip verdict judges; ``mu`` the injected magnitude (synthetic Kubric
+    dataset)."""
 
     clip_id: str
     scene_id: str
@@ -99,7 +100,8 @@ def build_rows(
     *,
     split: Split | None = None,
 ) -> tuple[CalibrationRow, ...]:
-    """Rows of ``report``; with ``split`` every clip must belong to it (D12: error, not warning)."""
+    """Rows of ``report``; with ``split`` every clip must belong to it (calib and eval never mix:
+    error, not warning)."""
     clips = {clip.clip_id: clip for clip in report.clips}
     if split is not None:
         _require_split(clips.values(), split)
@@ -150,7 +152,8 @@ def _require_split(clips: Collection[ClipManifest], split: Split) -> None:
 
 
 def unique_row_step(rows: Sequence[CalibrationRow]) -> int:
-    """D4: one time step per stratum (ADR 0006 R9); clips without a time axis are ignored."""
+    """One time step per stratum (tau depends on the time base); clips without a time axis are
+    ignored."""
     try:
         return unique_step(row.row_step for row in rows)
     except MixedRowStepError as exc:
@@ -158,7 +161,8 @@ def unique_row_step(rows: Sequence[CalibrationRow]) -> int:
 
 
 def require_one_clean_per_scene(rows: Sequence[CalibrationRow]) -> None:
-    """D5/D8 take one clean clip per scene (exchangeable scenes); two would double-count one."""
+    """The threshold and the monotonicity take one clean clip per scene (exchangeable scenes); two
+    would double-count one."""
     seen: dict[tuple[str, str], str] = {}
     for row in rows:
         if row.role is not Role.CLEAN:

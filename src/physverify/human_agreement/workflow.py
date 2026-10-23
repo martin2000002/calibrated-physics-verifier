@@ -1,5 +1,5 @@
 """``agreement freeze`` and ``agreement compare`` as functions of injected settings, dataset and
-calibration API (ADR 0011 D10): the CLI only parses options and prints."""
+calibration API: the CLI only parses options and prints."""
 
 from __future__ import annotations
 
@@ -318,7 +318,9 @@ def apply_freeze(
         log.warning("replacing pre-registration %s (sha256 %s)", path, previous)
         err(f"replacing pre-registration {path} (sha256 {previous})")
     if record_.post_hoc:
-        err("WARNING: a test comparison already exists; H2 is now post hoc")
+        err(
+            "WARNING: a test comparison already exists; the human-agreement verdict is now post hoc"
+        )
     write_preregistration(path, record_)
     echo(f"preregistration: {path}")
     echo(

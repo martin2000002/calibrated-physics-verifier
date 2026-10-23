@@ -1,4 +1,4 @@
-"""depth/object_parts: the split of the per-object depth residual (ADR 0014 §2.1)."""
+"""depth/object_parts: the split of the per-object depth residual."""
 
 from __future__ import annotations
 

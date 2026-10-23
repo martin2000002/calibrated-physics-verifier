@@ -1,4 +1,4 @@
-"""``physverify diagnose`` and ``physverify download`` (ADR 0007 §4.3, §6)."""
+"""``physverify diagnose`` and ``physverify download``."""
 
 from __future__ import annotations
 
@@ -102,9 +102,6 @@ def test_help_lists_every_subcommand(cli: CliRunner) -> None:
     assert fetch.code == 0 and "fetch" in fetch.out
 
 
-# --- download fetch ----------------------------------------------------------------------------
-
-
 def test_only_the_real_datasets_can_be_fetched(cli: CliRunner) -> None:
     result = cli("download", "fetch", "kubric_synthetic")
     assert result.code == 2
@@ -143,9 +140,6 @@ def test_fetch_all_reports_the_elapsed_time(make_settings: Callable[..., Setting
     assert _base.fetch_summary(settings.paths.raw_dir / "none", 1.0) == (
         "none: no manifest written (1.0 s)"
     )
-
-
-# --- diagnose ---------------------------------------------------------------------------------
 
 
 def empty_report(ctx: DiagnosisContext) -> RealVideoReport:
@@ -249,7 +243,7 @@ def test_run_real_counts_verdicts_and_summarises(
     assert any(line.startswith(f"{DATASET} {FAKE_CHECK_ID}: fail rate") for line in lines)
 
 
-def test_run_real_without_a7_records_the_missing_suite(
+def test_run_real_without_the_check_suite_records_it_missing(
     make_settings: Callable[..., Settings],
     make_diagnosis_context: Callable[..., DiagnosisContext],
 ) -> None:

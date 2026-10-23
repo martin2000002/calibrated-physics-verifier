@@ -1,4 +1,4 @@
-"""Records of the preference cycle (ADR 0012, 3.2): frozen pydantic models, one JSON line each.
+"""Records of the preference cycle: frozen pydantic models, one JSON line each.
 
 A score lies in [0, 1], higher is more consistent; an abstention is ``score = None``, never 0 or 1.
 NaN is never stored: an unknown sigma is ``None``.
@@ -79,7 +79,7 @@ class CheckSummary(FrozenModel):
 
 
 class ScorerStamp(FrozenModel):
-    """Which verifier produced a record; every score, pair and report carries these (D7)."""
+    """Which verifier produced a record; every score, pair and report carries these."""
 
     scorer: str
     scorer_version: str

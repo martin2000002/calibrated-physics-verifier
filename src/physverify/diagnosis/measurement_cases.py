@@ -1,4 +1,4 @@
-"""Measurement cases and sample-level metric outcomes (Level 1, ADR 0007 §4.1 and §5.1)."""
+"""Measurement cases and sample-level metric outcomes (Level 1)."""
 
 from __future__ import annotations
 

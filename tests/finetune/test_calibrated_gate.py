@@ -1,4 +1,5 @@
-"""The calibrated scorer v2 opens its stratum through A8's ``open_stratum``, like H2 does."""
+"""The calibrated scorer v2 opens its stratum through the calibration chain's ``open_stratum``, like
+the human-agreement study does."""
 
 from __future__ import annotations
 
@@ -16,7 +17,7 @@ if CALIBRATION_TESTS not in sys.path:
 
 from stratum_cases import write_artifact  # noqa: E402
 from wiring import (  # noqa: E402
-    active_checks_hash,  # noqa: E402
+    active_checks_hash,
     build_scorer,
     checks,
 )
@@ -100,7 +101,7 @@ def test_a_clip_of_another_time_base_is_refused(settings: Settings, make_result:
         scorer.score([_with_row_step(result, 1), _with_row_step(result, 2)])
 
 
-def test_h2_and_h3_give_the_same_stale_message(settings: Settings) -> None:
+def test_agreement_and_comparison_give_the_same_stale_message(settings: Settings) -> None:
     path = _artifact(settings, checks_hash=STALE)
     active = active_checks_hash(settings)
     with pytest.raises(StaleCalibrationError) as stale:
@@ -108,9 +109,9 @@ def test_h2_and_h3_give_the_same_stale_message(settings: Settings) -> None:
     message = str(stale.value)
     assert "other check parameters" in message and "refit" in message
     request = StratumRequest(path, settings.profile, UNKNOWN_ROW_STEP, active)
-    with pytest.raises(ConfigError) as h2:
+    with pytest.raises(ConfigError) as agreement_error:
         calibrated_rule(import_calibration(), request, ())
-    assert message in str(h2.value)
+    assert message in str(agreement_error.value)
     assert build_scorer("calibrated", settings).unavailable() == message
 
 

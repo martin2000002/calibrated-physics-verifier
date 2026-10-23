@@ -1,4 +1,4 @@
-"""Sigma recalibration per check (D9, AC8) and per stage (D10)."""
+"""Sigma recalibration per check and per stage."""
 
 from __future__ import annotations
 
@@ -41,7 +41,7 @@ def pairs(rng: np.random.Generator, n: int = 200, scale: float = SCALE) -> list[
 
 
 def test_the_factor_and_bias_are_recovered_and_coverage_is_restored() -> None:
-    """AC8: k within 10 % of the true scale; |z| / k <= 1 on a fresh sample covers 68.3 % +- 5 pp.
+    """k within 10 % of the true scale; |z| / k <= 1 on a fresh sample covers 68.3 % +- 5 pp.
     The bias is a median of 200 deltas with sd up to 0.1 (standard error about 0.005)."""
     rng = np.random.default_rng(0)
     found = fit_sigma(pairs(rng), settings())
@@ -115,7 +115,7 @@ def test_recalibrate_profile_keeps_bias_and_scales_sigma_and_residuals() -> None
     assert profile_hash(out) != profile_hash(profile)
 
 
-# --- it1 change C: the D9 factor over the informative pairs (T12-T15, J3) ----------------------
+# The per-check sigma factor over the informative pairs only (the sigma-pair filter).
 
 
 def censored_pairs(
@@ -134,7 +134,7 @@ def censored_pairs(
     return found
 
 
-def test_t12_zero_pairs_collapse_the_old_factor_and_not_the_new_one() -> None:
+def test_zero_pairs_collapse_the_old_factor_and_not_the_new_one() -> None:
     found = censored_pairs(np.random.default_rng(4))
     old = fit_sigma(found, settings(sigma_pair_filter="all"))
     new = fit_sigma(found, settings(sigma_pair_filter="nonzero"))
@@ -147,7 +147,7 @@ def test_t12_zero_pairs_collapse_the_old_factor_and_not_the_new_one() -> None:
     assert degenerate.n == 280
 
 
-def test_t13_few_informative_pairs_leave_the_error_unmeasured() -> None:
+def test_few_informative_pairs_leave_the_error_unmeasured() -> None:
     found = censored_pairs(np.random.default_rng(5), n=100, zero_share=0.95)
     result = fit_sigma(found, settings(sigma_pair_filter="nonzero"))
     assert (result.factor, result.reason, result.n_pairs) == (None, FEW_PAIRS, 100)
@@ -156,14 +156,15 @@ def test_t13_few_informative_pairs_leave_the_error_unmeasured() -> None:
 
 
 def _old_bias_factor(found: list[SigmaPair]) -> tuple[float, float]:
-    """D9 as it was before 2026-10-20 (the reference for T14)."""
+    """Per-check sigma recalibration as it was before the sigma-pair filter (the golden
+    reference)."""
     delta = np.asarray([p.delta for p in found])
     sigma = np.asarray([p.sigma for p in found])
     bias = float(np.median(delta))
     return bias, float(np.median(np.abs(delta - bias) / sigma)) / 0.6745
 
 
-def test_t14_the_all_filter_is_the_old_estimator() -> None:
+def test_the_all_filter_is_the_old_estimator() -> None:
     found = censored_pairs(np.random.default_rng(6), zero_share=0.3)
     assert bias_factor(found, "all") == _old_bias_factor(found)
     result = fit_sigma(found, settings(sigma_pair_filter="all"))
@@ -173,7 +174,7 @@ def test_t14_the_all_filter_is_the_old_estimator() -> None:
 
 
 @pytest.mark.parametrize("zero_share", [0.0, 0.3, 0.7])
-def test_t15_the_bias_does_not_depend_on_the_filter(zero_share: float) -> None:
+def test_the_bias_does_not_depend_on_the_filter(zero_share: float) -> None:
     found = censored_pairs(np.random.default_rng(7), zero_share=zero_share)
     old = fit_sigma(found, settings(sigma_pair_filter="all"))
     new = fit_sigma(found, settings(sigma_pair_filter="nonzero"))
@@ -203,7 +204,7 @@ def test_cross_fitting_skips_a_fold_whose_training_lacks_informative_pairs() -> 
     found += [SigmaPair("s0", "R1", 0.1, 0.1 + 0.01 * k, 0.01) for k in range(-3, 4)]
     cfg = settings(sigma_pair_filter="nonzero", folds=3)
     z = cross_fitted_z(found, cfg)
-    held_with_s0 = [p for p in found if p.scene_id in {"s0"}]
+    held_with_s0 = [p for p in found if p.scene_id == "s0"]
     assert z.shape[1] == 2
     assert z.shape[0] < len(found)
     assert z.shape[0] <= len(found) - len(held_with_s0)
@@ -211,7 +212,7 @@ def test_cross_fitting_skips_a_fold_whose_training_lacks_informative_pairs() -> 
 
 
 def test_the_pair_filter_has_no_silent_default() -> None:
-    """Audit m2: neither the settings nor ``bias_factor`` pick an estimator on their own."""
+    """Neither the settings nor ``bias_factor`` pick an estimator on their own."""
     from physverify.calibration.settings import CalibrationSettings
 
     with pytest.raises(ValueError, match="sigma_pair_filter"):

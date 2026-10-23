@@ -1,4 +1,4 @@
-"""Factorial arithmetic (ADR 0007 §5.4, AC6): Yates, Shapley, budget and the clip bootstrap."""
+"""Factorial arithmetic: Yates, Shapley, budget and the clip bootstrap."""
 
 from __future__ import annotations
 

@@ -1,9 +1,10 @@
-"""H1 monotonicity: Kendall tau_b between level and the change against the clean clip (D8)."""
+"""Monotonicity: Kendall tau_b between level and the change against the clean clip."""
 
 from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from itertools import pairwise
 
 from physverify.calibration.artifact import Monotonicity, SceneKendall
 from physverify.calibration.settings import CalibrationSettings
@@ -70,7 +71,7 @@ def monotonicity(pairs: Sequence[LevelDelta], settings: CalibrationSettings) -> 
         n_pairs=len(pairs),
         n_scenes=len({p.scene_id for p in pairs}),
         median_delta_by_level=medians,
-        monotone_medians=all(a <= b for a, b in zip(ordered, ordered[1:], strict=False)),
+        monotone_medians=all(a <= b for a, b in pairwise(ordered)),
         h1_pass=ci.low is not None and ci.low > 0.0,
     )
 

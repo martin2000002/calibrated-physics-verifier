@@ -1,4 +1,4 @@
-"""``physics_iq_views`` (plan-congelado 3.1, F2): the other views of the ``[physics_iq]`` clips
+"""``physics_iq_views``: the other views of the ``[physics_iq]`` clips
 under their own name, raw directory and manifest; the ``center`` plugin is unchanged."""
 
 from __future__ import annotations
@@ -147,14 +147,11 @@ def test_both_real_controls_are_downloadable_by_name_only(settings: Settings) ->
     real = diagnosis_settings(settings).real
     assert real.sealed_controls == ("physics_iq_views", "objectron_static")
     assert not set(real.sealed_controls) & set(real.datasets)
-    registry = {name: object for name in (*real.datasets, *real.sealed_controls)}
+    registry = dict.fromkeys((*real.datasets, *real.sealed_controls), object)
     assert len(fetch_targets(registry, real.datasets, None, real.sealed_controls)) == 2
     assert fetch_targets(registry, real.datasets, "physics_iq_views", real.sealed_controls)
 
 
 def test_raw_dirs_do_not_collide(settings: Settings) -> None:
-    roots = {
-        cls(settings)._root  # noqa: SLF001
-        for cls in (PhysicsIQDataset, PhysicsIQViewsDataset)
-    }
+    roots = {cls(settings)._root for cls in (PhysicsIQDataset, PhysicsIQViewsDataset)}
     assert roots == {settings.paths.raw_dir / n for n in ("physics_iq", "physics_iq_views")}

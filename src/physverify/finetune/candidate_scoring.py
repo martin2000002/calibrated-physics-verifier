@@ -1,4 +1,4 @@
-"""Score the candidates of one model tag: extraction + checks + clip score (ADR 0012, 3.6).
+"""Score the candidates of one model tag: extraction + checks + clip score.
 
 The perceived inputs come from the normal extraction pipeline over the campaign's ``local_video``
 subset, whose manifest is rewritten first so every candidate is read under its record's

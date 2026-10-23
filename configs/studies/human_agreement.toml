@@ -1,9 +1,9 @@
-# Verifier vs the reference VLM on VideoPhy human labels (cycle A10, ADR 0011, hypothesis H2).
+# Verifier vs the reference VLM on VideoPhy human labels (human-agreement study).
 # Every file is pinned by revision (and sha256 for the label tables). Nothing here is tuned on
 # test: the score cut is fixed on h2_dev by `agreement freeze` and frozen in preregistration.json.
 
 [agreement]
-rule = "calibrated"                    # A8 v2 published (ADR 0011 §6); provisional only as fallback
+rule = "calibrated"                    # the published calibration chain; provisional only as fallback
 primary_policy = "as_plausible"
 alpha = 0.05
 power = 0.8
@@ -15,7 +15,7 @@ error_sample_per_class = 15
 error_seed = 20261017
 # Excluded and time-dependent check ids live in [check_scope] (configs/verifier/check_scope.toml).
 on_unusable_stratum = "descriptive"    # calibrated rule, stratum not usable: provisional + "not evaluable"; "error" = exit 2
-exclude_time_dependent = false         # ADR 0011: R5b/R4_jump stay in the primary (sensitivity without them)
+exclude_time_dependent = false         # R5b/R4_jump stay in the primary analysis; a sensitivity run drops them
 dev_subset = "h2_dev"
 test_subset = "h2_test"
 preregistration = "agreement/preregistration.json"   # under paths.data_dir

@@ -1,4 +1,4 @@
-"""Winner-loser pairs per prompt (ADR 0012, 4.3, with Juicio 1, 2 and ADR 0009 Juicio 7).
+"""Winner-loser pairs per prompt.
 
 Pure: the stored scores and a ``rescore`` function come in, pairs and counts go out. A pair is
 decided on the score recomputed over the checks decided in *both* candidates, so a candidate
@@ -74,7 +74,7 @@ def _ranked(scores: Sequence[CandidateScore]) -> list[CandidateScore]:
 
 @dataclass(frozen=True)
 class CommonScores:
-    """Two candidates re-scored on the checks decided in both (ADR 0009, Juicio 7)."""
+    """Two candidates re-scored on the checks decided in both."""
 
     a: AggregateScore
     b: AggregateScore

@@ -1,4 +1,4 @@
-"""End-to-end fit and evaluation on the synthetic raw-policy report (AC1-AC4, AC10, AC12)."""
+"""End-to-end fit and evaluation on the synthetic raw-policy report."""
 
 from __future__ import annotations
 
@@ -44,12 +44,12 @@ def stable(artifact: CalibrationArtifact) -> dict[str, object]:
 
 
 def test_the_fit_is_deterministic(artifact: CalibrationArtifact) -> None:
-    """AC4: two runs differ only in created_utc and run_id."""
+    """Two runs differ only in created_utc and run_id."""
     assert stable(fitted_artifact(run_id="run-b")) == stable(artifact)
 
 
 def test_the_statuses_follow_the_data(artifact: CalibrationArtifact) -> None:
-    """AC2: R1 has clean and perturbed clips, R3a no perturbation, R5b no clean event."""
+    """R1 has clean and perturbed clips, R3a no perturbation, R5b no clean event."""
     (stratum,) = artifact.strata
     statuses = {c: check.status for c, check in stratum.checks.items()}
     assert statuses == {"R1": "ok", "R3a": "no_positives", "R5b": "no_negatives"}
@@ -102,7 +102,7 @@ def meta(profile: str = "fast") -> EvaluationMeta:
 
 
 def test_evaluation_on_held_out_scenes(artifact: CalibrationArtifact) -> None:
-    """AC10/AC12: held-out FPR and TPR are reported and the artifact is only read."""
+    """Held-out FPR and TPR are reported and the artifact is only read."""
     text = artifact.to_json()
     calibration = parse_calibration(text)
     report = evaluate(calibration, (held_out_inputs(),), meta(), config())
@@ -135,5 +135,5 @@ def test_evaluation_refuses_another_row_step(artifact: CalibrationArtifact) -> N
     real = item.real["real_fixture"]
     slower = LevelData(real.level, tuple(replace(r, row_step=2) for r in real.rows), real.results)
     inputs = EvaluationInputs(item.synthetic, {"real_fixture": slower})
-    with pytest.raises(CalibrationError, match="real_fixture clips: .*row_step"):
+    with pytest.raises(CalibrationError, match=r"real_fixture clips: .*row_step"):
         evaluate(parse_calibration(artifact.to_json()), (inputs,), meta(), config())

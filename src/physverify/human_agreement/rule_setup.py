@@ -70,7 +70,8 @@ class RuleSetup:
 def rule_scope(
     settings: Settings, checks: Mapping[str, type[Check]], agreement: AgreementSettings
 ) -> tuple[CheckScope, RuleScope]:
-    """``[check_scope]`` for H2: the excluded checks and the time-dependent ones."""
+    """``[check_scope]`` for the human-agreement study: the excluded checks and the time-dependent
+    ones."""
     scope = check_scope(settings, checks)
     timed = frozenset(scope.time_dependent_checks)
     primary = timed if agreement.exclude_time_dependent else frozenset()
@@ -113,7 +114,7 @@ def _provisional(
     gate: str | None,
     artifact: Path | None = None,
 ) -> RuleSetup:
-    """The provisional rule, also the fallback of an unusable stratum (descriptive H2), which
+    """The provisional rule, also the fallback of an unusable stratum (descriptive study), which
     keeps the artifact so the freeze binds the one whose stratum was found unusable."""
     verification = settings.section(VERIFICATION_SECTION, VerificationSettings)
     thresholds = load_thresholds(settings.paths.thresholds, verification.thresholds)

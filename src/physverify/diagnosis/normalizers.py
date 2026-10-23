@@ -1,4 +1,4 @@
-"""Scale-free normalizers for Level 1 residuals (ADR 0007 §5.1).
+"""Scale-free normalizers for Level 1 residuals.
 
 The characteristic length and g0 are defined once in ``physics.geometry`` and
 ``schema.constants``; they are re-exported here, never redefined.

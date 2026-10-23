@@ -139,7 +139,7 @@ EXTERNAL_STATUSES: tuple[ExternalStatus, ...] = ("ok", "failed_gate", "unusable"
 
 
 def _expected(v: VerdictInputs, primary: str, external: str) -> str:
-    """The ADR 0013 D8 precedence written out independently of ``verdict.py``."""
+    """The verdict precedence written out independently of ``verdict.py``."""
     if v.rule_status != "calibrated" or v.contaminated or not v.label_matches:
         return NO_VERDICT
     if not v.has_ft_model:
@@ -197,7 +197,7 @@ def test_a_post_hoc_freeze_marks_the_verdict_without_changing_its_tier() -> None
     assert late.reasons[-1].startswith("post hoc")
 
 
-def test_a_fired_stop_rule_leaves_h3_without_a_verdict() -> None:
+def test_a_fired_stop_rule_leaves_the_comparison_without_a_verdict() -> None:
     state = StopRuleState(passed=False, enforced=True, reasons=["few pairs"], pairs_sha256="p")
     reason = fired_reason(state, "pilot accepted")
     assert reason is not None and "'pilot accepted'" in reason

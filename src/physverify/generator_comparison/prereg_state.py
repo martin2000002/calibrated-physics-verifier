@@ -1,6 +1,6 @@
-"""The current values of every pre-registered H3 field (``prereg.H3_FIELDS``), from the
-configuration, the campaign store and the files they name. Nothing here decides; ``prereg`` does.
-"""
+"""The current values of every pre-registered generator-comparison field (``prereg.H3_FIELDS``),
+from the configuration, the campaign store and the files they name. Nothing here decides; ``prereg``
+does."""
 
 from __future__ import annotations
 
@@ -109,7 +109,7 @@ def calibration_dataset(path: Path) -> dict[str, Any] | None:
 
 
 def contaminated(dataset: Mapping[str, Any] | None) -> bool | None:
-    """Calibrated on our own videos or outside the calibration split (ADR 0013 D9); None when
+    """Calibrated on our own videos or outside the calibration split; None when
     the calibration dataset is unknown (missing or unreadable artefact), never assumed clean."""
     if dataset is None:
         return None
@@ -275,7 +275,8 @@ def current_record(inputs: FreezeInputs, now: dt.datetime) -> ComparisonPreregis
 def require_exclusion_record(
     settings: Settings, current: ComparisonPreregistration, checks: Mapping[str, type[Check]]
 ) -> None:
-    """A calibrated H3 rule is frozen only on the decision record of its artifact (ADR 0015)."""
+    """A calibrated generator-comparison rule is frozen only on the decision record of its
+    artifact."""
     require_record_for(
         check_scope(settings, checks),
         calibrated=current.rule_status == "calibrated",

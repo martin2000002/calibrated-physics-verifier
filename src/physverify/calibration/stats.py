@@ -1,4 +1,4 @@
-"""Small statistics shared by the calibration steps (ADR 0009 D5-D11)."""
+"""Small statistics shared by the calibration steps."""
 
 from __future__ import annotations
 

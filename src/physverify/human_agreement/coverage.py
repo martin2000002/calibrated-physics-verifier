@@ -1,5 +1,5 @@
-"""Rows of a subset the chain cannot see: no object query, or no video in the source (ADR 0011
-D7). Read from the rows, the queries and the files on disk only; labels never enter."""
+"""Rows of a subset the chain cannot see: no object query, or no video in the source (an explicit
+abstention). Read from the rows, the queries and the files on disk only; labels never enter."""
 
 from __future__ import annotations
 

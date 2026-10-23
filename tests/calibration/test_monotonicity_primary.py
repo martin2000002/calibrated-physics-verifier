@@ -1,4 +1,4 @@
-"""ADR 0015 1.4: the H1 primary scene view is a report filter next to the all-scenes strata."""
+"""Rule 1.4: the primary scene view is a report filter next to the all-scenes strata."""
 
 from __future__ import annotations
 
@@ -51,7 +51,7 @@ from physverify.verification.runner import VerificationReport
 
 PRIMARY = ("s000", "s011-s039")
 SHIPPED = ("s011-s039",)
-"""Amendment 2 section 6 (plan-congelado Q2): s000 was looked at during the campaign."""
+"""The shipped scope leaves out s000, which was looked at during the campaign."""
 
 
 def test_specs_expand_to_inclusive_indices() -> None:
@@ -74,7 +74,7 @@ def test_scene_ids_match_by_trailing_index() -> None:
     assert not in_scope("pair-collision-s040", keep)
 
 
-def test_the_shipped_scope_is_the_adr_one(repo_root: Path) -> None:
+def test_the_shipped_scope_is_the_preregistered_one(repo_root: Path) -> None:
     settings = load_settings(repo_root / "configs", environ={})
     assert h1_scope(settings).primary_scenes == SHIPPED
 
@@ -92,7 +92,7 @@ def _hashes(settings: Settings) -> tuple[str, tuple[str, ...], dict[Stage, str]]
 
 
 def test_the_scope_changes_neither_checks_hash_nor_the_error_profile_hash(repo_root: Path) -> None:
-    """A report filter only (ADR 0015 1.4): the artifact, decide and the cache keys keep."""
+    """A report filter only (rule 1.4): the artifact, decide and the cache keys keep."""
     configs = repo_root / "configs"
     shipped = load_settings(configs, environ={}, profile="precise")
     moved = load_settings(
@@ -173,7 +173,7 @@ def test_the_report_round_trips_and_renders(artifact: CalibrationArtifact) -> No
     assert "H1 primary" not in evaluation_markdown(_evaluate(artifact, None))
 
 
-# --- the pooled tau_b of D8 in both views (ADR 0015 1.4, rule of ADR 0009 change 4) -----------
+# The pooled monotonicity tau_b in both views (rule 1.4); median dips do not condition it.
 
 
 def _fit_on(report: VerificationReport) -> CalibrationArtifact:
@@ -231,12 +231,12 @@ def test_the_primary_tau_uses_only_the_primary_scenes(
     assert r1_primary.monotonicity.n_scenes == len(expand(PRIMARY)) == 30
     assert r1_primary.monotonicity.n_pairs * 40 == r1_all.monotonicity.n_pairs * 30
     markdown = evaluation_markdown(report)
-    assert "Pooled Kendall tau_b of the calib clips (D8), primary vs all scenes:" in markdown
+    assert "Pooled Kendall tau_b of the calib clips, primary vs all scenes:" in markdown
     assert "median delta by level, primary (descriptive)" in markdown
 
 
-def test_h1_pass_is_the_lower_bound_only() -> None:
-    """Medians that dip at one level do not condition h1_pass (ADR 0009 change 4)."""
+def test_the_monotonicity_pass_is_the_lower_bound_only() -> None:
+    """Medians that dip at one level do not condition h1_pass."""
     steps = {0: 0.0, 1: 0.2, 2: 0.1, 3: 0.5}
     pairs = [LevelDelta(f"s{i:03d}", lv, d) for i in range(20) for lv, d in steps.items()]
     result = monotonicity(pairs, settings())

@@ -1,6 +1,6 @@
 """The prompt set: template expansion, a deterministic stratified split, vocabulary checks (4.1).
 
-Every query noun must have a size prior (D9): it is checked against the labels the sizing model
+Every query noun must have a size prior: it is checked against the labels the sizing model
 can scale (``physverify.sizing.model.sized_labels``), except the declared ``unscaled_queries``,
 whose checks that need a scale then abstain (no scale is invented).
 """

@@ -1,4 +1,4 @@
-"""detect/label: label agreement on the box pairs matched by detect/box (ADR 0014 §2.1)."""
+"""detect/label: label agreement on the box pairs matched by detect/box."""
 
 from __future__ import annotations
 

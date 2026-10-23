@@ -1,4 +1,4 @@
-"""``physverify calibrate`` fit --from-run, publish and show over a fake dataset (AC1, AC11)."""
+"""``physverify calibrate`` fit --from-run, publish and show over a fake dataset."""
 
 from __future__ import annotations
 
@@ -110,7 +110,6 @@ def test_fit_from_a_raw_run_writes_the_artifact_and_projection(
 def test_two_fits_differ_only_in_time_and_run_id(
     cli: CliRunner, raw_run: str, tmp_path: Path
 ) -> None:
-    """AC2 through the command."""
     first, second = tmp_path / "a.json", tmp_path / "b.json"
     fit(cli, raw_run, first)
     fit(cli, raw_run, second)
@@ -157,7 +156,8 @@ def test_publish_follows_the_consumers_gate(
     cli: CliRunner, raw_run: str, tmp_path: Path, settings: Settings
 ) -> None:
     """Without require_calibrated_artifact only the stratum is required (0b.2): the fixture is
-    ``insufficient`` but its oracle stratum is usable, as H2 and H3 would see it."""
+    ``insufficient`` but its oracle stratum is usable, as the human-agreement study and the
+    generator comparison would see it."""
     out = tmp_path / "calibration.json"
     fit(cli, raw_run, out)
     assert load_calibration(out).status == "insufficient"
@@ -248,11 +248,11 @@ def family_run(monkeypatch: pytest.MonkeyPatch, settings: Settings) -> str:
     return "family"
 
 
-def test_evaluate_adds_the_h1_primary_view_of_the_configured_scenes(
+def test_evaluate_adds_the_primary_monotonicity_view_of_the_configured_scenes(
     cli: CliRunner, family_run: str, tmp_path: Path
 ) -> None:
-    """ADR 0015 1.4 through the command: s011-s039 of the 40 scenes (s000 left out by
-    plan-congelado amendment 2 section 6)."""
+    """Rule 1.4 through the command: s011-s039 of the 40 scenes (s000 is left out because it
+    was looked at during the campaign)."""
     data = _evaluate_cli(cli, family_run, tmp_path)
     primary = data["h1_primary"]
     assert primary["scenes"] == ["s011-s039"]
@@ -261,7 +261,7 @@ def test_evaluate_adds_the_h1_primary_view_of_the_configured_scenes(
     assert primary["dataset"]["n_clips"] * 40 == data["dataset"]["n_clips"] * 29
 
 
-def test_evaluate_without_primary_scenes_has_no_h1_view(
+def test_evaluate_without_primary_scenes_has_no_primary_monotonicity_view(
     cli: CliRunner, family_run: str, tmp_path: Path
 ) -> None:
     data = _evaluate_cli(cli, family_run, tmp_path, "--set", "h1_scope.primary_scenes=[]")
@@ -295,7 +295,8 @@ def _snapshot(*folders: Path) -> dict[Path, tuple[str, int]]:
 def test_evaluate_writes_only_its_run_and_repeats_the_artifacts_tau(
     cli: CliRunner, family_run: str, tmp_path: Path, settings: Settings
 ) -> None:
-    """The extra H1 evaluation (WP-M) adds a run; the artifact and calibration_dir keep."""
+    """The extra held-out monotonicity evaluation adds a run; the artifact and calibration_dir
+    keep."""
     out = tmp_path / "cal" / "calibration.json"
     fit(cli, family_run, out)
     before = _snapshot(out.parent, settings.paths.calibration_dir)

@@ -1,4 +1,4 @@
-"""Typed access to ``calibration.json``: the only reader of the artifact (ADR 0009 §7)."""
+"""Typed access to ``calibration.json``: the only reader of the artifact."""
 
 from __future__ import annotations
 
@@ -121,7 +121,7 @@ class Stratum:
 
     def time_base_problem(self, profile: str, row_step: int) -> str | None:
         """Why this stratum does not apply to a run of ``profile`` and ``row_step`` (tau and the
-        magnitudes depend on the time base, ADR 0006 R9); None when it does. A row_step of
+        magnitudes depend on the time base); None when it does. A row_step of
         ``UNKNOWN_ROW_STEP`` on either side (no time axis) is not compared."""
         if self.profile != profile:
             return f"{self.source} was fitted on profile {self.profile!r}, the run uses {profile!r}"
@@ -243,7 +243,8 @@ def open_stratum(
     row_step: int,
     require_calibrated: bool = False,
 ) -> Stratum:
-    """The one gate a consumer (H2, A11/H3, publish) applies before scoring with a stratum.
+    """The one gate a consumer (human-agreement study, preference fine-tuning, generator
+    comparison, publish) applies before scoring with a stratum.
 
     A missing or stale artifact, a missing stratum or another time base raise
     ``CalibrationError`` (a configuration error). A stratum that matches but cannot score (its

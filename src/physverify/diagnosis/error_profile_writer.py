@@ -1,4 +1,4 @@
-"""Level-1 samples turned into the ErrorProfile read by light providers (ADR 0005 §5)."""
+"""Level-1 samples turned into the ErrorProfile read by light providers."""
 
 from __future__ import annotations
 

@@ -81,7 +81,7 @@ def test_gpu_subcommands_exit_2_on_cpu(
 
 
 @pytest.mark.parametrize("step", ["generate", "score"])
-def test_the_eval_split_is_left_to_h3(
+def test_the_eval_split_is_left_to_the_generator_comparison(
     cli: CliRunner, env: dict[str, str], tmp_path: Path, step: str
 ) -> None:
     result = cli("--device", "cuda", "finetune", step, "--split", "eval", env=env)
@@ -357,7 +357,7 @@ def test_a_run_from_before_base_model_tracking_must_be_restarted(tmp_path: Path)
     path = tmp_path / RUN_FILE
     record = {"pairs_sha256": "p", "train": {"lr": 1e-4}, "commit": "c1"}
     path.write_text(json.dumps(record), encoding="utf-8")
-    with pytest.raises(UsageError, match="predates base-model tracking.*must be restarted"):
+    with pytest.raises(UsageError, match=r"predates base-model tracking.*must be restarted"):
         check_resume(path, {**record, "base_model": {"revision": "r"}})
 
 

@@ -1,9 +1,8 @@
-"""Pre-registration of H3 (ADR 0013 D9): written by ``compare-generators freeze`` before any eval
-score or judge row exists; ``score``, ``judge`` and ``compare`` recompute every identity field and
-refuse when one changed. A refreeze archives the replaced file, so the chain back to the first
-freeze is kept. Once eval data exist, any refreeze needs a declared deviation and makes the
-verdict post hoc.
-"""
+"""Pre-registration of the generator comparison: written by ``compare-generators freeze`` before any
+eval score or judge row exists; ``score``, ``judge`` and ``compare`` recompute every identity field
+and refuse when one changed. A refreeze archives the replaced file, so the chain back to the first
+freeze is kept. Once eval data exist, any refreeze needs a declared deviation and makes the verdict
+post hoc."""
 
 from __future__ import annotations
 
@@ -75,11 +74,12 @@ class ComparisonPreregistration(FrozenModel):
     stop_rule: StopRuleState
     created_utc: str
     exclusion_record_sha256: str | None = None
-    """The ADR 0015 decision record the scorer's excluded checks came from (None: none)."""
+    """The exclusion decision record the scorer's excluded checks came from (None: none)."""
     secondary_tests: list[str] = Field(default_factory=list)
     """The sensitivities ``analyse`` reports (``analysis.SECONDARY_TESTS``); frozen."""
     stop_rule_deviation: str | None = None
-    """The text that let a fired pilot stop rule through (ADR 0012): H3 then has no verdict."""
+    """The text that let a fired pilot stop rule through: the generator comparison then has no
+    verdict."""
     replaces_sha256: str | None = None
     deviations: list[str] = Field(default_factory=list)
     post_hoc: bool = False
@@ -134,7 +134,9 @@ def assert_complete(current: Mapping[str, object]) -> None:
     """``changed_fields`` skips names missing from ``current``; a missing name is a bug here."""
     missing = sorted(set(H3_FIELDS) - current.keys())
     if missing:
-        raise PhysverifyError(f"the H3 state lacks pre-registered fields {missing}")
+        raise PhysverifyError(
+            f"the generator-comparison state lacks pre-registered fields {missing}"
+        )
 
 
 def require_unchanged(frozen: ComparisonPreregistration, current: Mapping[str, object]) -> None:
@@ -142,7 +144,8 @@ def require_unchanged(frozen: ComparisonPreregistration, current: Mapping[str, o
     changed = changed_fields(frozen, current, fields=H3_FIELDS)
     if changed:
         raise ConfigError(
-            f"the H3 pre-registration no longer holds ({', '.join(changed)} changed); "
+            "the generator-comparison pre-registration no longer holds "
+            f"({', '.join(changed)} changed); "
             f"{FREEZE_HINT} --force with a declared deviation, or restore the frozen state"
         )
 
@@ -207,7 +210,7 @@ def plan_freeze(
 
 
 def _require_known_provenance(current: ComparisonPreregistration) -> None:
-    """Unknown provenance is never taken as clean (ADR 0013 D9)."""
+    """Unknown provenance is never taken as clean."""
     if current.rule_status == "calibrated" and current.contaminated is None:
         raise UsageError(
             "the calibration dataset of the calibrated rule is unknown (artefact missing or "

@@ -112,9 +112,6 @@ def artifact_at(session: Session, path: Path, *, stale_check: bool = True) -> Ca
     return load_calibration(path, checks_hash=session.checks_hash() if stale_check else None)
 
 
-# --- fit and devscore ---------------------------------------------------------------------------
-
-
 @dataclass(frozen=True)
 class Reports:
     by_level: dict[InputLevel, VerificationReport]
@@ -249,9 +246,6 @@ def publish_fit(session: Session, path: Path, text: str) -> None:
         session.echo(line)
 
 
-# --- stage-sigma --------------------------------------------------------------------------------
-
-
 def write_stage_sigma(
     session: Session, profile: ErrorProfile, factors: Sequence[StageFactor]
 ) -> None:
@@ -265,9 +259,6 @@ def write_stage_sigma(
     session.echo(f"profile: {path}")
     for line in factor_lines(factors):
         session.echo(line)
-
-
-# --- evaluate and publish -----------------------------------------------------------------------
 
 
 def primary_scope(

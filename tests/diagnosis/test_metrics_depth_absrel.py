@@ -1,4 +1,4 @@
-"""depth/absrel: alignment by depth kind and per-frame AbsRel (ADR 0007 §7)."""
+"""depth/absrel: alignment by depth kind and per-frame AbsRel."""
 
 from __future__ import annotations
 

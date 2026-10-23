@@ -1,4 +1,4 @@
-"""Check weights (informedness lower bound) and the violation probability (D11, Juicio 2)."""
+"""Check weights (informedness lower bound) and the violation probability."""
 
 from __future__ import annotations
 

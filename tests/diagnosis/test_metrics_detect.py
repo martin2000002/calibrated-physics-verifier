@@ -1,4 +1,4 @@
-"""detect/box: analytic IoU cases (ADR 0007 §7)."""
+"""detect/box: analytic IoU cases."""
 
 from __future__ import annotations
 

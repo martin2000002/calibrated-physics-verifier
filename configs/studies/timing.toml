@@ -1,6 +1,6 @@
-# Per-clip cost harness (cycle A3). Only runs on the university H200 (--device cuda --profile precise) are
+# Per-clip cost harness. Only runs on the university H200 (--device cuda --profile precise) are
 # measurements; every run elsewhere is a harness check. All video generation happens on the H200.
-# The laptop proof of Entregable 1 (about 25 synthetic clips, 5 Physics-IQ and 5 PISA) never measures cost.
+# The laptop proof of the first deliverable (about 25 synthetic clips, 5 Physics-IQ and 5 PISA) never measures cost.
 # This file holds no cost figures, from the laptop or from the literature.
 
 [timing]
@@ -34,8 +34,8 @@ warmup_scope = "target"
 repetitions = 3
 max_clips = 3
 
-# Must match what the fine-tuning cycles (A11-A13) generate with; if they change resolution,
-# frames or steps, update this table and re-run the benchmark on the H200.
+# Must match what preference fine-tuning and the generator comparison generate with; if they
+# change resolution, frames or steps, update this table and re-run the benchmark on the H200.
 [timing.generation]
 model_ref = "Wan-AI/Wan2.1-T2V-1.3B-Diffusers/model_index.json"
 revision = "0fad780a534b6463e45facd96134c9f345acfa5b"

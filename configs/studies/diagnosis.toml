@@ -1,7 +1,8 @@
-# Extractor diagnosis (cycle A6, ADR 0007). Local values are the Entregable 1 proof of the
+# Extractor diagnosis. Local values are the first-deliverable proof of the
 # pipeline on this laptop (about 25 synthetic + 5 Physics-IQ + 5 PISA clips). Full datasets and
 # the large runs belong to the H200: `physverify --profile precise --device cuda ... --subset full`.
-# Every threshold-dependent number (verdict flips, fail rates) is provisional until A8.
+# Every threshold-dependent number (verdict flips, fail rates) is provisional until the
+# calibration chain sets the thresholds.
 [diagnosis]
 dataset = "kubric_synthetic"
 subset = "local"

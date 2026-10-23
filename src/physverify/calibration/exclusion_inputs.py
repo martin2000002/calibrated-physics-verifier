@@ -53,12 +53,11 @@ from physverify.verification.runner import (
 )
 from physverify.verification.sweep import CheckUnit, perturbation_name
 
-# --- inputs -------------------------------------------------------------------------------------
-
 
 @dataclass(frozen=True)
 class ConsumedStratum:
-    """The stratum H2/H3 consume; ``problem`` says why it cannot score (None: usable)."""
+    """The stratum the human-agreement study and the generator comparison consume; ``problem`` says
+    why it cannot score (None: usable)."""
 
     stratum: Stratum
     problem: str | None
