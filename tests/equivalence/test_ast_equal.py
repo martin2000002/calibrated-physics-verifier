@@ -55,13 +55,16 @@ def _commit(repo: Path, files: Mapping[str, str | None]) -> None:
     _git(repo, "commit", "-q", "-m", "change")
 
 
-@pytest.fixture
-def repo(tmp_path: Path) -> Path:
-    root = tmp_path / "repo"
+def _new_repo(root: Path, files: Mapping[str, str | None] = BASE) -> Path:
     root.mkdir()
     _git(root, "init", "-q")
-    _commit(root, BASE)
+    _commit(root, files)
     return root
+
+
+@pytest.fixture
+def repo(tmp_path: Path) -> Path:
+    return _new_repo(tmp_path / "repo")
 
 
 def _run(repo: Path, *flags: str) -> int:
@@ -80,6 +83,10 @@ def test_docstrings_are_equal_only_when_bare_strings_are_stripped(repo: Path) ->
     _commit(repo, {"src/physverify/model.py": edited})
     assert _run(repo, "--strip-bare-strings") == 0
     assert _run(repo) == 1
+    for statement in ('f"{Model.size}"', "Model.size"):
+        _commit(repo, {"src/physverify/model.py": edited + statement + "\n"})
+        assert _run(repo, "--strip-bare-strings") == 1, statement
+        _commit(repo, {"src/physverify/model.py": edited})
 
 
 def test_changed_literal_differs(repo: Path) -> None:
@@ -88,43 +95,27 @@ def test_changed_literal_differs(repo: Path) -> None:
     assert _run(repo) == 1
 
 
-def test_schema_id_does_not_follow_a_module_rename(repo: Path) -> None:
-    moved = BASE["src/physverify/store.py"].replace('"physverify.store"', '"physverify.archive"')
-    _commit(repo, {"src/physverify/store.py": None, "src/physverify/archive.py": moved})
-    assert _run(repo) == 1
+def test_schema_id_does_not_follow_a_module_rename(tmp_path: Path) -> None:
+    for name in ("STORE_SCHEMA", "SCHEMA"):
+        store = BASE["src/physverify/store.py"].replace("STORE_SCHEMA", name)
+        repo = _new_repo(tmp_path / name, {**BASE, "src/physverify/store.py": store})
+        moved = store.replace('"physverify.store"', '"physverify.archive"')
+        _commit(repo, {"src/physverify/store.py": None, "src/physverify/archive.py": moved})
+        assert _run(repo) == 1, name
 
 
 def test_schema_id_kept_through_a_module_rename_is_equal(repo: Path) -> None:
-    kept = BASE["src/physverify/store.py"]
-    _commit(repo, {"src/physverify/store.py": None, "src/physverify/archive.py": kept})
-    assert _run(repo) == 0
-
-
-def test_bare_schema_id_does_not_follow_a_module_rename(repo: Path) -> None:
-    store = BASE["src/physverify/store.py"].replace("STORE_SCHEMA", "SCHEMA")
-    _commit(repo, {"src/physverify/store.py": store})
-    moved = store.replace('"physverify.store"', '"physverify.archive"')
-    _commit(repo, {"src/physverify/store.py": None, "src/physverify/archive.py": moved})
-    assert _run(repo) == 1
-
-
-def test_an_ordinary_module_string_follows_a_module_rename(repo: Path) -> None:
     _commit(repo, {"src/physverify/caller.py": 'ENTRY = "physverify.store.load"\n'})
+    kept = BASE["src/physverify/store.py"]
     _commit(
         repo,
         {
             "src/physverify/store.py": None,
-            "src/physverify/archive.py": BASE["src/physverify/store.py"],
+            "src/physverify/archive.py": kept,
             "src/physverify/caller.py": 'ENTRY = "physverify.archive.load"\n',
         },
     )
     assert _run(repo) == 0
-
-
-@pytest.mark.parametrize("statement", ['f"{Model.size}"', "Model.size"])
-def test_a_non_plain_string_statement_survives_stripping(repo: Path, statement: str) -> None:
-    _commit(repo, {"src/physverify/model.py": BASE["src/physverify/model.py"] + statement + "\n"})
-    assert _run(repo, "--strip-bare-strings") == 1
 
 
 def test_allowed_substitution_is_equal(repo: Path, tmp_path: Path) -> None:
