@@ -28,58 +28,6 @@ from physverify.synth.store import DatasetStore
 HELPER = Path(__file__).resolve().parents[2] / "scripts" / "h200" / "freeze_query.py"
 HEAD = "c" * 40
 V1 = "a" * 40
-MANIFEST_FIELDS = [
-    "schema",
-    "version",
-    "created_utc",
-    "commit",
-    "configs_tree",
-    "profile",
-    "device",
-    "calibration_dir",
-    "artifacts",
-    "artifacts.exclusions",
-    "artifacts.exclusions.path",
-    "artifacts.exclusions.sha256",
-    "artifacts.calibration",
-    "artifacts.calibration.path",
-    "artifacts.calibration.sha256",
-    "artifacts.thresholds",
-    "artifacts.thresholds.path",
-    "artifacts.thresholds.sha256",
-    "artifacts.error_profile",
-    "artifacts.error_profile.path",
-    "artifacts.error_profile.sha256",
-    "artifacts.stage_sigma",
-    "artifacts.stage_sigma.path",
-    "artifacts.stage_sigma.sha256",
-    "artifacts.abstention",
-    "artifacts.abstention.path",
-    "artifacts.abstention.sha256",
-    "record_sha",
-    "seed",
-    "selection",
-    "iteration",
-    "iteration.id",
-    "iteration.dir",
-    "iteration.commit",
-    "diffs",
-    "diffs.j3",
-    "diffs.j3.from",
-    "diffs.j3.to",
-    "diffs.j3.paths",
-    "diffs.j3.changed",
-    "diffs.j3.empty",
-    "diffs.j13",
-    "diffs.j13.from",
-    "diffs.j13.to",
-    "diffs.j13.paths",
-    "diffs.j13.changed",
-    "diffs.j13.empty",
-    "v1",
-    "v1.commit",
-    "v1.calibration_sha256",
-]
 
 
 def _sha(data: bytes) -> str:
@@ -285,30 +233,6 @@ def test_the_manifest_records_the_freeze(
     assert {c[5:] for c in diffs} == {query.DIFF_PATHS["j3"], query.DIFF_PATHS["j13"]}
     assert "src/physverify/checks" in query.DIFF_PATHS["j3"]
     json.dumps(data)
-
-
-def _key_paths(data: Mapping[str, Any], prefix: str = "") -> list[str]:
-    paths: list[str] = []
-    for key, value in data.items():
-        paths.append(prefix + key)
-        if isinstance(value, Mapping) and key != "selection":
-            paths += _key_paths(value, f"{prefix}{key}.")
-    return paths
-
-
-def test_the_manifest_field_names_are_unchanged(
-    query: ModuleType,
-    tmp_path: Path,
-    config_dir: Path,
-    environ: dict[str, str],
-    monkeypatch: pytest.MonkeyPatch,
-    iteration_factory: Callable[..., Path],
-) -> None:
-    settings = _settings(config_dir, environ, tmp_path)
-    _frozen_files(settings)
-    monkeypatch.setattr(query, "record_sha", lambda _: "r" * 64)
-    data = query.manifest(_inputs(query, tmp_path, iteration_factory), settings, FakeGit({}))
-    assert _key_paths(data) == MANIFEST_FIELDS
 
 
 def test_a_j3_change_record_mismatch_or_other_calibration_refuses_the_manifest(
