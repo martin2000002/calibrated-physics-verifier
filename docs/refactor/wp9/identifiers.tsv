@@ -33,7 +33,15 @@ src/physverify/reporting/sources.py	name	h1	heldout_evaluation
 src/physverify/reporting/sources.py	name	h1_report	calibration_report
 src/physverify/reporting/calibration_numbers.py	name	h1	heldout_evaluation
 src/physverify/reporting/numbers.py	name	h1	heldout_evaluation
+*	name	H3_DIR	COMPARISON_DIR
+*	name	H3_FIELDS	PREREGISTERED_FIELDS
+tests/generator_comparison/test_compare_generators_cli.py	name	H3_MODULE	COMPARE_GENERATORS_MODULE
+tests/kubric_worker/test_py39.py	name	A4_MODULES	CONTAINER_MODULES
+tests/extraction/test_depth_vda_large.py	name	KEYS_BEFORE_IT3	SMALL_MODEL_KEYS
+scripts/h200/run_query.py	name	H1_HEADING	PRIMARY_HEADING
+# Shell variables renamed the same way (outside ast_equal): H2_LINK -> AGREEMENT_LINK (run_human_agreement.sh), h3_status -> comparison_status (run_generator_comparison.sh).
 # Kept (persisted or parsed):
 #	EvaluationStratum.heldout_h1 and EvaluationReport.h1_primary (evaluation.json keys, tests/contracts/data/persisted_fields.json), CheckDevScore.h1 and meets_h1 (devscore.json),
 #	the results.json key "h1_evaluation" (reporting/numbers.py), Section key "h2_verdict", the h2/h2-latest/ledger on-disk names,
-#	the test-local Chain.h2_run (tests/reporting/reporting_cases.py, read by tools/equivalence/driver.py on both sides).
+#	the test-local Chain.h2_run (tests/reporting/reporting_cases.py, read by tools/equivalence/driver.py on both sides),
+#	the PHYSVERIFY__H3__AUTOEVAL__ROOT environment override of the persisted [h3.autoeval] section.
