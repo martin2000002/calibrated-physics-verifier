@@ -82,7 +82,8 @@ def demo_rule(context: AppContext) -> Rule:
 
 
 def frozen_scorer(context: AppContext, prereg: Path) -> Rule:
-    """``finetune.scorer`` exactly as the H3 freeze stamped it; never the provisional fallback."""
+    """``finetune.scorer`` as the generator-comparison freeze stamped it; never the provisional
+    fallback."""
     name = load_finetune(context.settings).scorer
     scorer = scorer_for(context, name)
     reason = scorer.unavailable()

@@ -1,4 +1,4 @@
-"""Settings of the end-to-end demo: the ``[demo]`` section (ADR 0013, D1)."""
+"""Settings of the end-to-end demo: the ``[demo]`` section."""
 
 from __future__ import annotations
 

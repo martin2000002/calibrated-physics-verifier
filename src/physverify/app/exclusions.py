@@ -115,8 +115,8 @@ def show_exclusions(context: AppContext, *, checks_hash: bool, out: Echo) -> Non
 
 
 def families_without_target(cfg: FinetuneSettings, scope: CheckScope) -> FamilyGap:
-    """The H3 families left with no target check by the excluded ids plus the manual
-    ``exclude_checks`` (and the time-dependent ones when ``[finetune]`` excludes them)."""
+    """The generator-comparison families left with no target check by the excluded ids plus the
+    manual ``exclude_checks`` (and the time-dependent ones when ``[finetune]`` excludes them)."""
     fixed = frozenset(scope.excluded(time_dependent=cfg.exclude_time_dependent))
 
     def gap(excluded: frozenset[str]) -> list[str]:

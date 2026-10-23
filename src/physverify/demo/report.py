@@ -1,4 +1,4 @@
-"""Per-video verifier report: what the demo shows next to the overlay (ADR 0013, D1).
+"""Per-video verifier report: what the demo shows next to the overlay.
 
 The check rows are the verifier's own table rows (``CandidateScore.per_check``) plus, per check,
 the abstain reasons, threshold and frame span of its results and whether the active rule decided

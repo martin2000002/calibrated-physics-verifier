@@ -118,7 +118,7 @@ def candidate_generator(
 
 
 def scoring_deps(context: AppContext) -> ScoringDeps:
-    """Perceived inputs from the extraction pipeline over ``local_video``, checks from A7."""
+    """Perceived inputs from the extraction pipeline over ``local_video``; checks from the suite."""
     settings = context.settings
     verification = settings.section(VERIFICATION_SECTION, VerificationSettings)
     runner = VerificationRunner(
