@@ -1,4 +1,4 @@
-"""Stage error entries as numbers and draws, and Monte Carlo propagation (ADR 0002, 0005 4.4)."""
+"""Stage error entries as numbers and draws, and Monte Carlo propagation."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Savitzky-Golay derivatives of sampled trajectories with closed-form sigma (ADR 0005, 4.8).
+"""Savitzky-Golay derivatives of sampled trajectories with closed-form sigma.
 
 Each derivative is a linear operator W applied to the positions of one visible run, so with
 independent position noise sigma_x the derivative sigma is sqrt(W^2 sigma_x^2).

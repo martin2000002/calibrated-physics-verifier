@@ -1,5 +1,5 @@
 """R4_jump v2 [jump_over_noise]: the third difference of one object's track in units of its own
-position noise (plan-it4 change A). Inputs are the time series of a single object (time on axis
+position noise. Inputs are the time series of a single object (time on axis
 0) and its per-axis noise sigma-hat."""
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ def noise_jumps(
     out = np.full(p.shape[0], math.nan)
     if p.shape[0] < 4:
         return out
-    per_unit = third_difference_sigma(1.0, 1.0)  # sqrt(20): sigma of D3 per unit position sigma
+    per_unit = third_difference_sigma(1.0, 1.0)  # sqrt(20): sigma of d3 per unit position sigma
     scale = per_unit * np.asarray(sigma_hat, dtype=np.float64).reshape(3)
     values = np.linalg.norm(third_difference(p) / scale, axis=1)
     if exclude is not None:

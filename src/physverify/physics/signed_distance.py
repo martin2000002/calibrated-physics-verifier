@@ -22,8 +22,6 @@ from physverify.physics.geometry import (
 )
 from physverify.schema.states import PrimitiveKind
 
-# --- convex polyhedra (boxes and cylinder prisms) -------------------------------------------
-
 _BOX_FACES = ((0, 2, 6, 4), (1, 3, 7, 5), (0, 1, 5, 4), (2, 3, 7, 6), (0, 1, 3, 2), (4, 5, 7, 6))
 
 
@@ -114,9 +112,6 @@ def _polyhedra(a: Solid, b: Solid) -> Separation:
         point_a=_support_point(pa.vertices, -normal),
         point_b=_support_point(pb.vertices, normal),
     )
-
-
-# --- exact pairs ------------------------------------------------------------------------------
 
 
 def _sphere_sphere(a: Solid, b: Solid) -> Separation:

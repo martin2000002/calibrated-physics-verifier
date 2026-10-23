@@ -27,7 +27,7 @@ from physverify.schema.states import ObjectStateTable
 def split_at_jumps(
     states: ObjectStateTable, index: int, seg: tuple[int, int], gate: float
 ) -> list[tuple[int, int]]:
-    """Cut the row segment where ||a_k|| > gate * median ||a|| (D12).
+    """Cut the row segment where ||a_k|| > gate * median ||a||.
 
     A jump between rows j-1 and j inflates both a_{j-1} and a_j, so each run of flagged rows is
     cut at its middle and the two rows land on opposite sides.

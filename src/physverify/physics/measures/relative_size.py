@@ -1,5 +1,5 @@
-"""R4_size v2 [rel_size_change]: an object's size relative to the other bodies of the same frame
-(plan-it4 change B). Two rigid bodies keep the ratio of their sizes, and an error of the depth
+"""R4_size v2 [rel_size_change]: an object's size relative to the other bodies of the same frame.
+Two rigid bodies keep the ratio of their sizes, and an error of the depth
 scale common to a frame multiplies every size of that frame alike, so it cancels in the ratio."""
 
 from __future__ import annotations

@@ -1,4 +1,4 @@
-"""Static equilibrium of resting bodies as a linear program (ADR 0006 section 3.1).
+"""Static equilibrium of resting bodies as a linear program.
 
 Unknowns: masses m_i, friction-cone coefficients lambda_klp >= 0 and per-body slacks. The
 equations of body i are written in the gravity basis (u, v, g) with (u, v) = plane_basis(g):

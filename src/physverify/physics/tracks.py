@@ -1,4 +1,4 @@
-"""Row-aware helpers for the checks: a table row is not a native frame (ADR 0006, D14).
+"""Row-aware helpers for the checks: a table row is not a native frame.
 
 A state table may be strided, so row k sits at native frame ``frame_index[k]`` and consecutive
 rows are ``s = row_step(frame_index)`` native frames apart. Contact times are fractional native
@@ -129,7 +129,7 @@ def row_step(frame_index: IntArray) -> int:
 
 
 def check_time_axis(t: FloatArray, frame_index: IntArray, seconds_per_frame: float) -> None:
-    """Raise unless every row time equals its native frame times the frame period (D14.2)."""
+    """Raise unless every row time equals its native frame times the frame period."""
     if not (math.isfinite(seconds_per_frame) and seconds_per_frame > 0):
         raise ValueError(f"seconds_per_frame must be finite and > 0, got {seconds_per_frame}")
     times = np.asarray(t, dtype=np.float64)
@@ -174,9 +174,10 @@ def impact_stencil_mask(object_id: str, contacts: ContactTable, frame_index: Int
 
     Row k is excluded when the closed interval [fi[k-1], fi[k+2]] meets [t_start - q, t_end + q].
     A bound on a sampled frame is treated as quantized: the event lies strictly within one step
-    beyond it (perceived contacts snap to frames). Fractional ground-truth bounds keep A4's
-    floor(t_start) - 1 <= k <= ceil(t_end) at the native rate; integer bounds exclude one more
-    row on each side. Rows past the ends use virtual neighbours one or two steps outside.
+    beyond it (perceived contacts snap to frames). Fractional ground-truth bounds keep the
+    synthetic labels' floor(t_start) - 1 <= k <= ceil(t_end) at the native rate; integer bounds
+    exclude one more row on each side. Rows past the ends use virtual neighbours one or two steps
+    outside.
     """
     fi = np.asarray(frame_index, dtype=np.int64)
     excluded = np.zeros(fi.shape, dtype=np.bool_)
@@ -195,8 +196,8 @@ def impact_stencil_mask(object_id: str, contacts: ContactTable, frame_index: Int
 def noise_stencils(
     states: ObjectStateTable, contacts: ContactTable, index: int
 ) -> tuple[FloatArray, BoolArray]:
-    """Third differences D3[j] of the object's positions (stencil rows j..j+3) and the stencils
-    usable as noise: finite and not spanning an impact. D3[j] is row k = j + 1 of
+    """Third differences d3[j] of the object's positions (stencil rows j..j+3) and the stencils
+    usable as noise: finite and not spanning an impact. d3[j] is row k = j + 1 of
     ``impact_stencil_mask``, whose stencil is rows k-1..k+2."""
     d3 = third_difference(states.position[:, index])
     if not d3.shape[0]:
@@ -210,10 +211,10 @@ def noise_stencils(
 def track_noise(
     states: ObjectStateTable, contacts: ContactTable, index: int, min_stencils: int
 ) -> FloatArray | None:
-    """Per-axis white-noise sigma of the positions, robust_scale(D3) / sqrt(20); None with fewer
+    """Per-axis white-noise sigma of the positions, robust_scale(d3) / sqrt(20); None with fewer
     than ``min_stencils`` usable stencils.
 
-    Var(D3) = (1 + 9 + 9 + 1) sigma^2 for independent noise, and D3 vanishes under any constant
+    Var(d3) = (1 + 9 + 9 + 1) sigma^2 for independent noise, and d3 vanishes under any constant
     acceleration, so the estimate does not depend on g. A drift slow enough to be quadratic over
     the stencil is invisible to it."""
     d3, usable = noise_stencils(states, contacts, index)

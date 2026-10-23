@@ -39,7 +39,7 @@ def jump_ratio(positions: ArrayLike, extents: ArrayLike, exclude: ArrayLike | No
 
     The third difference vanishes under any constant acceleration (flight, rest, uniform
     friction, any g), so no scale or gravity direction is needed. A step d between rows j and
-    j + 1 gives |D3| = d, 2d, d at k = j - 1, j, j + 1: the measure is exactly d / L."""
+    j + 1 gives |d3| = d, 2d, d at k = j - 1, j, j + 1: the measure is exactly d / L."""
     p = np.asarray(positions, dtype=np.float64).reshape(-1, 3)
     if p.shape[0] < 4:
         return math.nan
