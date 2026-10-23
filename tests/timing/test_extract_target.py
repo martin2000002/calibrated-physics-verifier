@@ -10,13 +10,14 @@ from typing import Any
 
 import pytest
 from synthetic_clip import SyntheticFixtureDataset
+from wiring import resolve_plan
 
 from physverify.app.plugins import PLUGIN_KINDS
 from physverify.config.models import Settings
 from physverify.datasets._base import DatasetSource
-from physverify.extraction._base import StageEvent, StageProvider
+from physverify.extraction._base import StageEvent
 from physverify.extraction.pipeline import ClipFailure, ExtractionReport, PipelineDeps
-from physverify.extraction.plan import ResolvedPlan, resolve_plan
+from physverify.extraction.plan import ResolvedPlan
 from physverify.runtime.heavy import NullLock
 from physverify.schema.clip import ClipManifest
 from physverify.schema.stages import STAGE_ORDER, Stage
@@ -92,14 +93,12 @@ class ScriptedFactory:
         return pipeline
 
 
-def no_plan(settings: Settings, providers: Mapping[str, type[StageProvider]], dataset: str) -> Any:
+def no_plan(settings: Settings, services: TimingServices, dataset: str) -> Any:
     return None
 
 
-def ground_truth_plan(
-    settings: Settings, providers: Mapping[str, type[StageProvider]], dataset: str
-) -> ResolvedPlan:
-    return resolve_plan(settings, providers, dataset=dataset, gt_stages=STAGE_ORDER)
+def ground_truth_plan(settings: Settings, services: TimingServices, dataset: str) -> ResolvedPlan:
+    return resolve_plan(settings, services.providers, dataset=dataset, gt_stages=STAGE_ORDER)
 
 
 def context(settings: Settings, tmp_path: Path, observer: Journal | None = None) -> TimingContext:

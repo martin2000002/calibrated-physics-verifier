@@ -10,13 +10,13 @@ import numpy as np
 import pytest
 from support import SettingsFactory, make_context, run_provider
 from synthetic_clip import SyntheticClip
+from wiring import checks, resolve_plan
 
 from physverify.app.plugins import PLUGIN_KINDS
 from physverify.checks._base import CheckInputs
 from physverify.checks.r4_integrity import PermanenceCheck, PermanenceParams
 from physverify.core.errors import ConfigError
 from physverify.extraction._base import GROUND_TRUTH, StageProvider
-from physverify.extraction.plan import occlusion_thresholds, resolve_plan
 from physverify.extraction.providers._visibility import (
     Box,
     covered_fraction,
@@ -32,7 +32,12 @@ from physverify.schema.contacts import ContactTable
 from physverify.schema.perception import MaskTrack
 from physverify.schema.stages import STAGE_ORDER, Stage
 from physverify.schema.states import CoordFrame, LengthUnit, ObjectStateTable
-from physverify.verification.runner import CHECKS_SECTION, ChecksSettings, build_checks
+from physverify.verification.check_set import (
+    CHECKS_SECTION,
+    ChecksSettings,
+    build_checks,
+    occlusion_thresholds,
+)
 
 AT = 0.9
 SIZE = 64
@@ -266,7 +271,7 @@ def test_a_split_occlusion_threshold_fails_at_plan_resolution(
 def test_one_moved_threshold_everywhere_is_accepted(
     make_settings: SettingsFactory, real_providers: Mapping[str, type[StageProvider]]
 ) -> None:
-    moved = [f"checks.{c}.occluded_at=0.8" for c in occlusion_thresholds(make_settings())]
+    moved = [f"checks.{c}.occluded_at=0.8" for c in occlusion_thresholds(make_settings(), checks())]
     settings = make_settings(*moved, "extraction.providers.lift.backproject.gap_occluded_at=0.8")
     plan = resolve_plan(settings, real_providers, dataset="kubric_synthetic")
     assert plan.step(Stage.LIFT).params.gap_occluded_at == 0.8  # type: ignore[attr-defined]

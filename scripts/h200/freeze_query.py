@@ -228,12 +228,12 @@ def artifact_record(paths: Mapping[str, Path | None]) -> dict[str, dict[str, str
 
 def record_sha(settings: Any) -> str:
     """J12: the decision record's stable hash, the one run_h2.sh's prereg_problem compares."""
-    from physverify.calibration.settings import check_registry
+    from physverify.app import plugins
     from physverify.core.errors import PhysverifyError
     from physverify.verification.scope import check_scope
 
     try:
-        sha = check_scope(settings, check_registry()).record_sha256
+        sha = check_scope(settings, plugins.build("checks")).record_sha256
     except PhysverifyError as exc:
         raise QueryError(str(exc)) from exc
     if sha is None:

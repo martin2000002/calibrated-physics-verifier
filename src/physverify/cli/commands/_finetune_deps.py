@@ -7,12 +7,11 @@ from pathlib import Path
 from typing import Final
 
 from physverify.app.context import AppContext
-from physverify.app.services import pipeline_deps, resolve_dataset
+from physverify.app.services import pipeline_deps, plan_for, resolve_dataset
 from physverify.config.models import Settings
 from physverify.core.atomic import write_text_atomic
 from physverify.core.errors import UsageError
 from physverify.datasets.local_video import NAME as LOCAL_VIDEO
-from physverify.extraction.plan import resolve_plan
 from physverify.finetune.generate import CandidateGenerator
 from physverify.finetune.scorers._base import AggregateScorer
 from physverify.finetune.scorers._status import CalibrationStatusSource
@@ -25,14 +24,12 @@ from physverify.schema.checks import InputLevel
 from physverify.schema.io import json_ready
 from physverify.timing.envinfo import TorchCudaProbe
 from physverify.timing.generation import load_wan_pipeline, snapshot_dir, snapshot_problem
+from physverify.verification.check_set import CHECKS_SECTION, ChecksSettings, build_checks
 from physverify.verification.inputs import PerceivedSource, PipelineOutputLoader
 from physverify.verification.runner import (
-    CHECKS_SECTION,
     VERIFICATION_SECTION,
-    ChecksSettings,
     VerificationRunner,
     VerificationSettings,
-    build_checks,
     build_policy,
     load_thresholds,
 )
@@ -85,7 +82,7 @@ def scoring_deps(context: AppContext) -> ScoringDeps:
         load_thresholds(settings.paths.thresholds, verification.thresholds),
     )
     dataset = resolve_dataset(context, LOCAL_VIDEO)
-    plan = resolve_plan(settings, context.registry("providers"), dataset=LOCAL_VIDEO, gt_stages=())
+    plan = plan_for(context, dataset=LOCAL_VIDEO)
     loader = PipelineOutputLoader(plan, pipeline_deps(context, None, lambda: NullLock(NESTED_LOCK)))
     return ScoringDeps(
         clips=dataset.clips,

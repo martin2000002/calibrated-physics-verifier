@@ -6,6 +6,7 @@ import dataclasses
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
+from physverify.checks._base import Check
 from physverify.config.models import Settings
 from physverify.datasets._base import DatasetSource
 from physverify.diagnosis.plans import Variant, apply_overrides
@@ -22,6 +23,7 @@ from physverify.schema.clip import ClipManifest
 from physverify.schema.error_profile import ErrorProfile
 from physverify.schema.outputs import StageOutput
 from physverify.schema.stages import Stage
+from physverify.verification.check_set import occlusion_thresholds
 
 
 @dataclass(frozen=True)
@@ -38,11 +40,13 @@ class ChainRunner:
         self,
         settings: Settings,
         providers: Mapping[str, type[StageProvider]],
+        checks: Mapping[str, type[Check]],
         deps: PipelineDeps,
         dataset: DatasetSource,
     ) -> None:
         self._settings = settings
         self._providers = providers
+        self._checks = checks
         self._deps = deps
         self._dataset = dataset
 
@@ -57,13 +61,15 @@ class ChainRunner:
     def with_error_profile(self, profile: ErrorProfile | None) -> ChainRunner:
         """Same chain reading another error profile (calib runs without one, eval with it)."""
         deps = dataclasses.replace(self._deps, error_profile=profile)
-        return ChainRunner(self._settings, self._providers, deps, self._dataset)
+        return ChainRunner(self._settings, self._providers, self._checks, deps, self._dataset)
 
     def plan(self, variant: Variant) -> ResolvedPlan:
+        settings = apply_overrides(self._settings, variant)
         return resolve_plan(
-            apply_overrides(self._settings, variant),
+            settings,
             self._providers,
             dataset=self._dataset.name,
+            occlusion=occlusion_thresholds(settings, self._checks),
             gt_stages=variant.gt_order,
         )
 

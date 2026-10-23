@@ -14,15 +14,13 @@ from physverify.schema.clip import ClipManifest
 from physverify.schema.outputs import StageOutput
 from physverify.schema.stages import Stage
 from physverify.verification._base import VerdictPolicy
+from physverify.verification.check_set import CHECKS_SECTION, ChecksSettings, build_checks
 from physverify.verification.inputs import ClipInputs, OracleSource, perceived_inputs
 from physverify.verification.runner import (
     CALIBRATED,
-    CHECKS_SECTION,
     VERIFICATION_SECTION,
-    ChecksSettings,
     VerificationRunner,
     VerificationSettings,
-    build_checks,
     build_policy,
     load_thresholds,
 )

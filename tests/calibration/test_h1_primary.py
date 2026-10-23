@@ -17,6 +17,7 @@ from calibration_cases import (
     synthetic_report,
 )
 from records import error_profile
+from wiring import active_checks_hash, resolve_plan
 
 from physverify.app.plugins import PLUGIN_KINDS
 from physverify.calibration.collect import level_data
@@ -37,14 +38,12 @@ from physverify.calibration.schema import (
     EvaluationReport,
     Monotonicity,
 )
-from physverify.calibration.settings import active_checks_hash
 from physverify.config.loader import load_settings
 from physverify.config.models import Settings
 from physverify.core.digests import text_sha256
 from physverify.core.errors import ConfigError
 from physverify.core.hashing import error_profile_hash
 from physverify.extraction.cache import plan_entry_filter, plan_params_hashes, profile_keys
-from physverify.extraction.plan import resolve_plan
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import Split
 from physverify.schema.stages import Stage

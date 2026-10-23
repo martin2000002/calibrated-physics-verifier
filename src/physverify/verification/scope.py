@@ -6,16 +6,17 @@ from the decision record ``exclusions.json`` and are merged here, so no consumer
 
 from __future__ import annotations
 
-from collections.abc import Collection
+from collections.abc import Collection, Mapping
 from pathlib import Path
 
 from pydantic import PrivateAttr
 
 from physverify.calibration.exclusion_record import ExclusionRecord, load_record
-from physverify.calibration.settings import active_checks_hash
+from physverify.checks._base import Check
 from physverify.config.models import Settings
 from physverify.core.errors import ConfigError, UsageError
 from physverify.core.models import FrozenModel
+from physverify.verification.check_set import active_checks_hash
 
 SECTION = "check_scope"
 
@@ -68,8 +69,8 @@ def record_path(scope: CheckScope, calibration_dir: Path) -> Path | None:
     return None if scope.decision_record is None else calibration_dir / scope.decision_record
 
 
-def check_scope(settings: Settings, known: Collection[str]) -> CheckScope:
-    """``[check_scope]`` with the decision record merged, its ids checked against ``known``."""
+def check_scope(settings: Settings, checks: Mapping[str, type[Check]]) -> CheckScope:
+    """``[check_scope]`` with the decision record merged, its ids checked against ``checks``."""
     scope = settings.section(SECTION, CheckScope)
     path = record_path(scope, settings.paths.calibration_dir)
     if path is None or not path.is_file():
@@ -78,12 +79,12 @@ def check_scope(settings: Settings, known: Collection[str]) -> CheckScope:
                 f"[{SECTION}] requires a decision record and there is none at {path}: "
                 "run `physverify exclusions decide`"
             )
-        return scope.checked(known)
+        return scope.checked(checks)
     try:
-        record = load_record(path, active_checks_hash(settings))
+        record = load_record(path, active_checks_hash(settings, checks))
     except UsageError as exc:
         raise ConfigError(str(exc)) from exc
-    return scope.with_record(record).checked(known)
+    return scope.with_record(record).checked(checks)
 
 
 def require_record_for(scope: CheckScope, *, calibrated: bool, artifact_sha256: str | None) -> None:

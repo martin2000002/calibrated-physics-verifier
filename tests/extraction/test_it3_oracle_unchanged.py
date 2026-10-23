@@ -18,9 +18,9 @@ from contacts_golden_case import plain
 from golden import same
 from support import SettingsFactory
 from truth_contacts_golden_case import GOLDEN, truth_contacts
+from wiring import resolve_plan
 
 from physverify.extraction._base import GROUND_TRUTH, StageProvider
-from physverify.extraction.plan import resolve_plan
 from physverify.schema.contacts import ContactTable
 from physverify.schema.stages import STAGE_ORDER, Stage
 

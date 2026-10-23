@@ -7,9 +7,10 @@ from collections.abc import Mapping
 
 import pytest
 from support import SettingsFactory
+from wiring import resolve_plan
 
 from physverify.extraction._base import StageProvider
-from physverify.extraction.plan import ResolvedPlan, resolve_plan
+from physverify.extraction.plan import ResolvedPlan
 from physverify.schema.stages import Stage
 
 

@@ -13,7 +13,7 @@ from physverify.app.plugins import PLUGIN_KINDS
 from physverify.checks._base import Check, CheckInputs
 from physverify.core.errors import ConfigError
 from physverify.schema.scene import MagnitudeKind, PerturbationRecord
-from physverify.verification.runner import ChecksSettings, build_checks
+from physverify.verification.check_set import ChecksSettings, build_checks
 from physverify.verification.sweep import CheckUnit, target_check_ids, target_unit
 
 CHECK_IDS = {"R1", "R2", "R3a", "R3b", "R4_missing", "R4_size", "R4_jump", "R5a", "R5b"}

@@ -30,8 +30,6 @@ KNOWN_VIOLATIONS: frozenset[str] = frozenset(
         "physverify.datasets.pisa_real -> physverify.extraction.providers.scale_size_prior",
         "physverify.demo.settings -> physverify.timing.settings",
         "physverify.diagnosis.scene_stats -> physverify.calibration.table",
-        "physverify.extraction.plan -> physverify.calibration.settings",
-        "physverify.extraction.plan -> physverify.verification.runner",
         "physverify.finetune.budget -> physverify.timing.budget",
         "physverify.finetune.generate -> physverify.timing.generation",
         "physverify.finetune.generate -> physverify.timing.mp4",
@@ -42,7 +40,6 @@ KNOWN_VIOLATIONS: frozenset[str] = frozenset(
         "physverify.sizing.model -> physverify.extraction.providers._common",
         "physverify.sizing.model -> physverify.extraction.providers.scale_size_prior",
         "physverify.verification.scope -> physverify.calibration.exclusion_record",
-        "physverify.verification.scope -> physverify.calibration.settings",
         "physverify.verification.selective_risk -> physverify.calibration.table",
         "physverify.verification.selective_risk -> physverify.diagnosis.pairing",
     }

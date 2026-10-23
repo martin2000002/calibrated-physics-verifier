@@ -24,6 +24,15 @@ from physverify.schema.io import stable_hash
 
 M = TypeVar("M", bound=BaseModel)
 
+
+def validated[T: BaseModel](model: type[T], data: object, section: str) -> T:
+    """``model`` validated from ``data``; a failure names the configuration ``section``."""
+    try:
+        return model.model_validate(data)
+    except ValidationError as exc:
+        raise ConfigError(f"[{section}] is invalid:\n{exc}") from exc
+
+
 DEVICE_PATTERN = re.compile(r"^(cpu|cuda(:\d+)?)$")
 
 _DERIVED_DIRS = {
@@ -142,10 +151,7 @@ class Settings:
 
     def section(self, name: str, model: type[M]) -> M:
         """Validate one configuration section with the subsystem's own model."""
-        try:
-            return model.model_validate(self.sections.get(name, {}))
-        except ValidationError as exc:
-            raise ConfigError(f"[{name}] is invalid:\n{exc}") from exc
+        return validated(model, self.sections.get(name, {}), name)
 
     def config_hash(self) -> str:
         return stable_hash(

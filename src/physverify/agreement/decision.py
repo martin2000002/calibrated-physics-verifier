@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from physverify.calibration.loader import Stratum
+    from physverify.checks._base import Check
     from physverify.config.models import Settings
 
 ERROR_REASON = "check_error"
@@ -269,7 +270,7 @@ class CalibrationApi[S: CalibrationStratum]:
 
     open_stratum: OpenStratum[S]
     default_artifact_path: Callable[[Settings], Path]
-    active_checks_hash: Callable[[Settings], str]
+    active_checks_hash: Callable[[Settings, Mapping[str, type[Check]]], str]
     require_calibrated: Callable[[Settings], bool]
     score_clip: ScoreClip[S]
     error: type[Exception]
@@ -286,7 +287,8 @@ def import_calibration() -> CalibrationApi[Stratum]:
             default_artifact_path,
             open_stratum,
         )
-        from physverify.calibration.settings import active_checks_hash, calibration_settings
+        from physverify.calibration.settings import calibration_settings
+        from physverify.verification.check_set import active_checks_hash
     except ImportError as exc:
         raise ConfigError(f"the calibrated rule needs A8's calibration package: {exc}") from exc
     return CalibrationApi(

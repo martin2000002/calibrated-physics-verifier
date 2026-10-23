@@ -194,6 +194,7 @@ def _current(h: H3Context) -> H3Preregistration:
     settings = h.context.settings
     inputs = FreezeInputs(
         settings=settings,
+        checks=h.context.registry("checks"),
         store=h.store,
         layout=h.layout,
         cfg=h.cfg,
@@ -288,7 +289,7 @@ def freeze(
     current = _current(h).model_copy(
         update={"stop_rule_deviation": None if passed else stop_rule_deviation}
     )
-    require_exclusion_record(h.context.settings, current)
+    require_exclusion_record(h.context.settings, current, h.context.registry("checks"))
     request = FreezeRequest(force, declare_deviation, _eval_data(h), h.layout.gate.is_file())
     old = optional_prereg(h.layout.prereg)
     record = plan_freeze(old, sha256_if_file(h.layout.prereg), current, request)

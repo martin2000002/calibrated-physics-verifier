@@ -13,8 +13,8 @@ if CALIBRATION_TESTS not in sys.path:
 import pytest  # noqa: E402
 from cli_runner import CliRunner  # noqa: E402
 from exclusion_cases import write_record as write_exclusions  # noqa: E402
+from wiring import active_checks_hash, checks  # noqa: E402
 
-from physverify.calibration.settings import active_checks_hash  # noqa: E402
 from physverify.cli.commands.h3 import GATE_LINE, GATE_PASSED  # noqa: E402
 from physverify.core.digests import sha256_if_file  # noqa: E402
 from physverify.core.errors import UsageError  # noqa: E402
@@ -396,11 +396,11 @@ def test_a_calibrated_h3_rule_needs_the_record_of_its_artifact(
     calibrated = frozen.model_copy(
         update={"rule_status": "calibrated", "calibration_artifact_sha256": "artifact"}
     )
-    require_exclusion_record(campaign.settings, frozen)
+    require_exclusion_record(campaign.settings, frozen, checks())
     with pytest.raises(UsageError, match="exclusions decide"):
-        require_exclusion_record(campaign.settings, calibrated)
+        require_exclusion_record(campaign.settings, calibrated, checks())
     _exclusion_record(campaign, "artifact")
-    require_exclusion_record(campaign.settings, calibrated)
+    require_exclusion_record(campaign.settings, calibrated, checks())
     _exclusion_record(campaign, "another")
     with pytest.raises(UsageError, match="decide again"):
-        require_exclusion_record(campaign.settings, calibrated)
+        require_exclusion_record(campaign.settings, calibrated, checks())

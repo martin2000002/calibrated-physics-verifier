@@ -17,11 +17,11 @@ from fakes import DISPARITY_A, affine_disparity, fixture_truth
 from numpy.typing import NDArray
 from support import SettingsFactory, plan_overrides, run_pipeline
 from synthetic_clip import SyntheticFixtureDataset
+from wiring import resolve_plan
 
 from physverify.core.errors import PluginError
 from physverify.extraction import pipeline
 from physverify.extraction._base import StageProvider
-from physverify.extraction.plan import resolve_plan
 from physverify.extraction.providers import (
     _sam_video,
     depth_vda,

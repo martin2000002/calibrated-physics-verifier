@@ -6,16 +6,19 @@ from collections.abc import Callable
 from contextlib import AbstractContextManager
 
 from physverify.app.context import AppContext
-from physverify.calibration.settings import active_checks_hash
 from physverify.core.errors import UsageError
 from physverify.datasets._base import DatasetSource
+from physverify.diagnosis.chain import ChainRunner
 from physverify.diagnosis.checks_port import A7CheckSuite
 from physverify.extraction._base import StageObserver
 from physverify.extraction.cache import StageCache
 from physverify.extraction.error_profile import load_error_profile
 from physverify.extraction.pipeline import LazyLock, PipelineDeps, ProcRssProbe
+from physverify.extraction.plan import ResolvedPlan, resolve_plan
 from physverify.finetune.scorers._base import AggregateScorer
 from physverify.finetune.scoring import build_scorer
+from physverify.schema.stages import Stage
+from physverify.verification.check_set import active_checks_hash, occlusion_thresholds
 
 
 def resolve_dataset(context: AppContext, name: str) -> DatasetSource:
@@ -43,6 +46,33 @@ def pipeline_deps(
         error_profile=load_error_profile(settings.paths.error_profile),
         observer=observer,
         rss=ProcRssProbe(),
+    )
+
+
+def plan_for(
+    context: AppContext,
+    *,
+    dataset: str,
+    gt_stages: tuple[Stage, ...] = (),
+    fps: float | None = None,
+    max_side: int | None = None,
+) -> ResolvedPlan:
+    """The extraction plan of the context's providers, checked against its checks' occlusion."""
+    return resolve_plan(
+        context.settings,
+        context.registry("providers"),
+        dataset=dataset,
+        occlusion=occlusion_thresholds(context.settings, context.registry("checks")),
+        gt_stages=gt_stages,
+        fps=fps,
+        max_side=max_side,
+    )
+
+
+def chain_runner(context: AppContext, deps: PipelineDeps, dataset: DatasetSource) -> ChainRunner:
+    """Chain variants of ``dataset`` over the context's providers and checks."""
+    return ChainRunner(
+        context.settings, context.registry("providers"), context.registry("checks"), deps, dataset
     )
 
 

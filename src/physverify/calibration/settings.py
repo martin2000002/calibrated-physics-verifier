@@ -2,29 +2,19 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Literal
 
 from pydantic import Field, NonNegativeFloat
 
-from physverify.checks._base import Check
 from physverify.config.models import Settings
 from physverify.core.models import FrozenModel
-from physverify.core.registry import discover
 from physverify.diagnosis.settings import diagnosis_settings
 from physverify.schema.checks import InputLevel
-from physverify.schema.io import stable_hash
 from physverify.verification.policies.threshold import ThresholdParams
-from physverify.verification.runner import (
-    CHECKS_SECTION,
-    VERIFICATION_SECTION,
-    ChecksSettings,
-    VerificationSettings,
-)
+from physverify.verification.runner import VERIFICATION_SECTION, VerificationSettings
 
 SECTION = "calibration"
-CHECKS_PACKAGE = "physverify.checks"
 THRESHOLD_POLICY = "threshold"
 PairFilter = Literal["all", "nonzero"]
 
@@ -78,27 +68,3 @@ def calibration_config(settings: Settings) -> CalibrationConfig:
         couplings=frozenset((p, c) for p, c in verification.specificity.couplings),
         min_span_iou=diagnosis_settings(settings).end_to_end.min_span_iou,
     )
-
-
-def checks_hash(registry: Mapping[str, type[Check]], overrides: ChecksSettings) -> str:
-    """Hash of the effective parameters of every registered check."""
-    params = {
-        check_id: check.Params.model_validate(overrides.root.get(check_id, {})).model_dump(
-            mode="json"
-        )
-        for check_id, check in sorted(registry.items())
-    }
-    return stable_hash(params)
-
-
-def check_registry() -> Mapping[str, type[Check]]:
-    return discover(CHECKS_PACKAGE, (Check,), "check_id")
-
-
-def active_checks_hash(
-    settings: Settings, registry: Mapping[str, type[Check]] | None = None
-) -> str:
-    """``checks_hash`` of the registry under the ``[checks]`` overrides of ``settings``: what a
-    consumer compares with the artifact's own hash."""
-    overrides = settings.section(CHECKS_SECTION, ChecksSettings)
-    return checks_hash(check_registry() if registry is None else registry, overrides)

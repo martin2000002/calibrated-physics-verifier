@@ -67,7 +67,7 @@ def projection_name(level: InputLevel, profile: str) -> str:
 @dataclass(frozen=True)
 class Stratum:
     """One (input level, sampling profile) of the artifact. ``checks_hash`` is the hash of the
-    check parameters it was fitted with (``calibration.settings.checks_hash`` of the registry):
+    check parameters it was fitted with (``verification.check_set.checks_hash`` of the registry):
     a consumer stamps it to tie a score to this calibration."""
 
     model: StratumModel

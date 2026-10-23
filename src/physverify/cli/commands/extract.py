@@ -11,7 +11,7 @@ from typing import Annotated, Any
 
 import typer
 
-from physverify.app.services import pipeline_deps, resolve_dataset
+from physverify.app.services import pipeline_deps, plan_for, resolve_dataset
 from physverify.cli.context import app_context, heavy_command
 from physverify.core.download import BYTES_PER_MB
 from physverify.core.errors import EXIT_ERROR, UsageError
@@ -23,7 +23,7 @@ from physverify.extraction.pipeline import (
     ExtractionPipeline,
     ExtractionReport,
 )
-from physverify.extraction.plan import ResolvedPlan, resolve_plan
+from physverify.extraction.plan import ResolvedPlan
 from physverify.extraction.weights import NetworkDownloader, fetch, hub_cache
 from physverify.runtime.runs import new_run
 from physverify.schema.stages import STAGE_ORDER, parse_stages
@@ -92,9 +92,8 @@ def run(
     settings = context.settings
     source = resolve_dataset(context, dataset)
     selected = select_clips(source.clips(subset), clips or ())
-    plan = resolve_plan(
-        settings,
-        context.registry("providers"),
+    plan = plan_for(
+        context,
         dataset=dataset,
         gt_stages=parse_stages(gt or ()),
         fps=fps,
@@ -121,7 +120,7 @@ def run(
 def fetch_weights() -> None:
     context = app_context()
     settings = context.settings
-    plan = resolve_plan(settings, context.registry("providers"), dataset="")
+    plan = plan_for(context, dataset="")
     downloader = NetworkDownloader()
     typer.echo(f"hub cache: {hub_cache(settings.paths)}")
     for provider in plan_providers(plan):

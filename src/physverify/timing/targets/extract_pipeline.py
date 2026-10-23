@@ -16,7 +16,7 @@ from typing import ClassVar, Final, Protocol
 
 from physverify.config.models import Settings
 from physverify.datasets._base import DatasetSource
-from physverify.extraction._base import StageObserver, StageProvider
+from physverify.extraction._base import StageObserver
 from physverify.extraction.cache import StageCache
 from physverify.extraction.error_profile import load_error_profile
 from physverify.extraction.pipeline import (
@@ -41,6 +41,7 @@ from physverify.timing.records import (
 from physverify.timing.replica import TIMED, WARM, replica_id, replica_source, replicas
 from physverify.timing.report import discard_scratch, scratch_dir
 from physverify.timing.services import TimingServices, dataset_source
+from physverify.verification.check_set import occlusion_thresholds
 
 PREFIX: Final = "extract"
 
@@ -50,14 +51,17 @@ class Pipeline(Protocol):
 
 
 PipelineFactory = Callable[[ResolvedPlan, PipelineDeps], Pipeline]
-PlanFactory = Callable[[Settings, Mapping[str, type[StageProvider]], str], ResolvedPlan]
+PlanFactory = Callable[[Settings, TimingServices, str], ResolvedPlan]
 
 
-def perception_plan(
-    settings: Settings, providers: Mapping[str, type[StageProvider]], dataset: str
-) -> ResolvedPlan:
+def perception_plan(settings: Settings, services: TimingServices, dataset: str) -> ResolvedPlan:
     """The active extraction profile, every stage perceived (no ground-truth substitution)."""
-    return resolve_plan(settings, providers, dataset=dataset)
+    return resolve_plan(
+        settings,
+        services.providers,
+        dataset=dataset,
+        occlusion=occlusion_thresholds(settings, services.checks),
+    )
 
 
 def pipeline_deps(
@@ -105,7 +109,7 @@ class ExtractPipeline(TargetHooks):
 
     def describe(self, ctx: TimingContext) -> Mapping[str, str]:
         dataset = self._services.selection.dataset or ""
-        plan = self._plan_factory(ctx.settings, self._services.providers, dataset)
+        plan = self._plan_factory(ctx.settings, self._services, dataset)
         stages = {f"stage.{stage.value}": provider for stage, provider in plan.names.items()}
         return {"dataset": dataset, "extraction_profile": plan.profile, **stages}
 
@@ -120,7 +124,7 @@ class ExtractPipeline(TargetHooks):
     def _extract(
         self, clip: ClipManifest, ctx: TimingContext, scratch: Path
     ) -> tuple[StageSpan, ...]:
-        plan = self._plan_factory(ctx.settings, self._services.providers, clip.dataset)
+        plan = self._plan_factory(ctx.settings, self._services, clip.dataset)
         recorder = self._services.recorder(ctx.device)
         deps = pipeline_deps(
             self._services, ctx, scratch, observer=TeeObserver(recorder, ctx.observer)

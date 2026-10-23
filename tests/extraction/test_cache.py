@@ -18,10 +18,11 @@ from support import (
     with_sigma,
 )
 from synthetic_clip import SyntheticClip
+from wiring import resolve_plan
 
 from physverify.extraction._base import GROUND_TRUTH, StageProvider
 from physverify.extraction.cache import StageCache, stage_key
-from physverify.extraction.plan import StagePlan, resolve_plan
+from physverify.extraction.plan import StagePlan
 from physverify.extraction.providers.gt_lift import GroundTruthLift
 from physverify.extraction.providers.lift_backproject import BackprojectLift
 from physverify.schema.clip import SamplingSpec

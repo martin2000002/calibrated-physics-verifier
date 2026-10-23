@@ -10,11 +10,11 @@ from typing import Any, ClassVar
 import pytest
 from pydantic import BaseModel
 from support import SettingsFactory
+from wiring import resolve_plan
 
 from physverify.config.models import SizePriorTable
 from physverify.core.errors import ConfigError
 from physverify.extraction._base import GROUND_TRUTH, StageProvider
-from physverify.extraction.plan import resolve_plan
 from physverify.extraction.providers._common import ProviderParams
 from physverify.schema.stages import STAGE_ORDER, Stage
 

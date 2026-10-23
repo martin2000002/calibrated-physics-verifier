@@ -18,11 +18,11 @@ from support import (
     run_pipeline,
 )
 from synthetic_clip import SyntheticFixtureDataset
+from wiring import resolve_plan
 
 from physverify.config.models import Settings
 from physverify.extraction._base import StageProvider
 from physverify.extraction.pipeline import ExtractionReport
-from physverify.extraction.plan import resolve_plan
 from physverify.schema.scale import ScaleEstimate
 from physverify.schema.stages import STAGE_ORDER, Stage
 from physverify.schema.states import LengthUnit, ObjectStateTable

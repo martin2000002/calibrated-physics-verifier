@@ -7,9 +7,10 @@ from synthetic_clip import SyntheticFixtureDataset
 
 from physverify.app.plugins import PLUGIN_KINDS
 from physverify.schema.checks import CheckResult
+from physverify.verification.check_set import ChecksSettings, build_checks
 from physverify.verification.inputs import OracleSource
 from physverify.verification.policies.raw import RawPolicy
-from physverify.verification.runner import ChecksSettings, VerificationRunner, build_checks
+from physverify.verification.runner import VerificationRunner
 
 OLD = {
     "R4_missing": {"sigma_model": "unknown"},

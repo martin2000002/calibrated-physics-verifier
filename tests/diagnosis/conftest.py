@@ -22,6 +22,7 @@ import pytest
 from numpy.typing import NDArray
 from pydantic import BaseModel
 from synthetic_clip import DATASET, SyntheticFixtureDataset, build_clip, manifest
+from wiring import checks
 
 from physverify.app.plugins import PLUGIN_KINDS
 from physverify.checks._base import CheckInputs
@@ -433,7 +434,9 @@ def make_chain(
     split_dataset: SplitFixtureDataset,
 ) -> Callable[..., ChainRunner]:
     def build(settings: Settings, profile: ErrorProfile | None = None) -> ChainRunner:
-        return ChainRunner(settings, providers, make_deps(settings, profile), split_dataset)
+        return ChainRunner(
+            settings, providers, checks(), make_deps(settings, profile), split_dataset
+        )
 
     return build
 
@@ -487,6 +490,7 @@ def make_diagnosis_context(
             diag=diagnosis_settings(settings),
             resolve_dataset=lambda name: registry[name](settings),
             providers=providers if stage_providers is None else stage_providers,
+            checks=checks(),
             metrics=dict(metrics or {}),
             deps=make_deps(settings, profile),
             suite=suite,

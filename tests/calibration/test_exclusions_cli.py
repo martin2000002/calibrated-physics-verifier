@@ -16,11 +16,11 @@ from cli_runner import CliRunner
 from exclusion_cases import PRECISE, R2_PERT, evaluation, r5a_check, real_fpr, record, rules
 from steps_sh import steps_read
 from stratum_cases import artifact_of, check_calibration, stratum_model
+from wiring import active_checks_hash, checks
 
 from physverify.app import plugins
 from physverify.calibration.exclusion_record import ExclusionInputError, parse_record
 from physverify.calibration.loader import default_artifact_path, parse_calibration
-from physverify.calibration.settings import active_checks_hash, check_registry
 from physverify.cli.commands import exclusions
 from physverify.cli.commands.exclusions import (
     arm_run,
@@ -248,7 +248,7 @@ def test_decide_writes_the_record_check_scope_merges(cli: CliRunner, world: Sett
     assert not target.exists()
     written = _decide(cli, world)
     assert written.code == 0, written.err
-    scope = check_scope(world, check_registry())
+    scope = check_scope(world, checks())
     assert scope.record is not None and f"sha256 {scope.record_sha256}" in written.out
     assert scope.record.inputs.r2_base_run == "base"
     r2 = [e for e in scope.record.evidence if e.rule == "1.2"]
@@ -303,7 +303,7 @@ def test_the_runners_read_the_hash_check_scope_carries(
     _written(cli, world)
     log = tmp_path / "show.log"
     log.write_text(cli("exclusions", "show").out, encoding="utf-8")
-    scope = check_scope(world, check_registry())
+    scope = check_scope(world, checks())
     assert scope.record_sha256 is not None
     assert steps_read(log, "record_sha_of", str(log)) == scope.record_sha256
 

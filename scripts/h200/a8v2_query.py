@@ -128,10 +128,10 @@ def _source(settings: Any, dataset: str) -> Source:
 
 
 def _allowed_sets(settings: Any) -> Sequence[Mapping[str, int]]:
+    from physverify.app import plugins
     from physverify.calibration.exclusions import SECTION, exclusion_rules
-    from physverify.calibration.settings import check_registry
 
-    rules = exclusion_rules(settings.sections.get(SECTION, {}), check_registry())
+    rules = exclusion_rules(settings.sections.get(SECTION, {}), plugins.build("checks"))
     return list(rules.real.allowed_sets)
 
 

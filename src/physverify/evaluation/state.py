@@ -13,7 +13,7 @@ from typing import Any, Final
 import scipy
 
 from physverify.calibration.loader import CalibrationError, load_calibration
-from physverify.calibration.settings import check_registry
+from physverify.checks._base import Check
 from physverify.config.models import Settings
 from physverify.core.digests import sha256_if_file
 from physverify.core.errors import MissingInputError, PhysverifyError
@@ -195,6 +195,7 @@ def dev_pc(layout: H3Layout, tags: Sequence[str], stamp: str) -> dict[JudgeKey, 
 @dataclass(frozen=True)
 class FreezeInputs:
     settings: Settings
+    checks: Mapping[str, type[Check]]
     store: CampaignStore
     layout: H3Layout
     cfg: H3Settings
@@ -256,15 +257,17 @@ def current_record(inputs: FreezeInputs, now: dt.datetime) -> H3Preregistration:
         eval_candidates_at_freeze=candidate_snapshot(all_eval_records(inputs.store)),
         stop_rule=inputs.stop_rule,
         created_utc=now.astimezone(dt.UTC).isoformat(timespec="seconds"),
-        exclusion_record_sha256=check_scope(inputs.settings, check_registry()).record_sha256,
+        exclusion_record_sha256=check_scope(inputs.settings, inputs.checks).record_sha256,
         secondary_tests=list(SECONDARY_TESTS),
     )
 
 
-def require_exclusion_record(settings: Settings, current: H3Preregistration) -> None:
+def require_exclusion_record(
+    settings: Settings, current: H3Preregistration, checks: Mapping[str, type[Check]]
+) -> None:
     """A calibrated H3 rule is frozen only on the decision record of its artifact (ADR 0015)."""
     require_record_for(
-        check_scope(settings, check_registry()),
+        check_scope(settings, checks),
         calibrated=current.rule_status == "calibrated",
         artifact_sha256=current.calibration_artifact_sha256,
     )

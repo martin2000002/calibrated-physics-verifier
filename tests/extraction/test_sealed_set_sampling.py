@@ -5,10 +5,10 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from wiring import resolve_plan
 
 from physverify.app.plugins import PLUGIN_KINDS
 from physverify.config.loader import known_profiles, load_settings, read_config_files
-from physverify.extraction.plan import resolve_plan
 
 SOURCE = {
     "kubric_fresh": "kubric_synthetic",

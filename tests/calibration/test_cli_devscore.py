@@ -14,10 +14,10 @@ import pytest
 from calibration_cases import DATASET, synthetic_report
 from cli_runner import CliRunner
 from steps_sh import steps_read
+from wiring import checks
 
 from physverify.app import plugins
 from physverify.calibration.loader import load_calibration
-from physverify.calibration.settings import check_registry
 from physverify.cli.commands import calibrate
 from physverify.config.loader import load_settings
 from physverify.config.models import Settings
@@ -137,5 +137,5 @@ def test_the_runners_keep_the_development_metric_lines(
     assert (Path(steps_read(log, "run_of")) / "devscore.json").is_file()
     kept = [line for line in result.out.splitlines() if DEVELOPMENT_METRIC_LINES.match(line)]
     assert kept[0].startswith("note: ") and kept[1].startswith("oracle/fast: ")
-    assert [line.split(":")[0] for line in kept[2:]] == [f"  {c}" for c in sorted(check_registry())]
+    assert [line.split(":")[0] for line in kept[2:]] == [f"  {c}" for c in sorted(checks())]
     assert InputLevel.PERCEIVED.value == "perceived"

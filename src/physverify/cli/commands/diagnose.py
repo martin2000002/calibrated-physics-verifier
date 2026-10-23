@@ -96,6 +96,7 @@ def diagnosis_context(
         diag=diag,
         resolve_dataset=functools.partial(resolve_dataset, app),
         providers=app.registry("providers"),
+        checks=app.registry("checks"),
         metrics=sampled_metrics(app.registry("metrics"), diag.metrics),
         deps=pipeline_deps(app, observer),
         suite=suite,

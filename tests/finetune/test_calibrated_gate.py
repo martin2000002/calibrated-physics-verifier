@@ -15,7 +15,11 @@ if CALIBRATION_TESTS not in sys.path:
     sys.path.insert(0, CALIBRATION_TESTS)
 
 from stratum_cases import write_artifact  # noqa: E402
-from wiring import build_scorer, checks  # noqa: E402
+from wiring import (  # noqa: E402
+    active_checks_hash,  # noqa: E402
+    build_scorer,
+    checks,
+)
 
 from physverify.agreement.decision import (  # noqa: E402
     StratumRequest,
@@ -27,7 +31,6 @@ from physverify.calibration.loader import (  # noqa: E402
     default_artifact_path,
     load_calibration,
 )
-from physverify.calibration.settings import active_checks_hash  # noqa: E402
 from physverify.cli.commands._finetune_deps import write_calibration_status  # noqa: E402
 from physverify.config.models import Settings  # noqa: E402
 from physverify.core.errors import ConfigError, UsageError  # noqa: E402

@@ -31,6 +31,7 @@ from physverify.timing.records import (
 )
 from physverify.timing.services import TimingServices
 from physverify.timing.targets.verify_checks import (
+    CHECK_SET_MODULE,
     INPUTS_MODULE,
     RUNNER_MODULE,
     Verifier,
@@ -138,7 +139,7 @@ class FakeFill:
         return ExtractionReport(events=(), failures=failures, keys={})
 
 
-def plan_of(settings: Settings, providers: Any, dataset: str) -> Any:
+def plan_of(settings: Settings, services: Any, dataset: str) -> Any:
     return PLAN
 
 
@@ -273,14 +274,19 @@ class Section(BaseModel):
     thresholds: Any = "provisional"
 
 
-def fake_a7_modules(calls: dict[str, Any]) -> tuple[types.ModuleType, types.ModuleType]:
+def fake_a7_modules(
+    calls: dict[str, Any],
+) -> tuple[types.ModuleType, types.ModuleType, types.ModuleType]:
     runner = types.ModuleType(RUNNER_MODULE)
-    vars(runner).update(
-        VERIFICATION_SECTION="verification",
+    check_set = types.ModuleType(CHECK_SET_MODULE)
+    vars(check_set).update(
         CHECKS_SECTION="checks",
-        VerificationSettings=Section,
         ChecksSettings=Section,
         build_checks=lambda registry, overrides: [CHECK],
+    )
+    vars(runner).update(
+        VERIFICATION_SECTION="verification",
+        VerificationSettings=Section,
         build_policy=lambda registry, settings: "policy",
         load_thresholds=lambda path, provisional: calls.setdefault("thresholds", path),
         VerificationRunner=lambda *args: calls.setdefault("runner", args),
@@ -290,15 +296,16 @@ def fake_a7_modules(calls: dict[str, Any]) -> tuple[types.ModuleType, types.Modu
         PipelineOutputLoader=lambda plan, deps: ("loader", plan, deps),
         PerceivedSource=lambda *args: calls.setdefault("source", args),
     )
-    return runner, inputs
+    return runner, check_set, inputs
 
 
 def test_load_a7_wires_the_adr_api(
     monkeypatch: pytest.MonkeyPatch, make_settings: Callable[..., Settings]
 ) -> None:
     calls: dict[str, Any] = {}
-    runner, inputs = fake_a7_modules(calls)
+    runner, check_set, inputs = fake_a7_modules(calls)
     monkeypatch.setitem(sys.modules, RUNNER_MODULE, runner)
+    monkeypatch.setitem(sys.modules, CHECK_SET_MODULE, check_set)
     monkeypatch.setitem(sys.modules, INPUTS_MODULE, inputs)
     settings = make_settings()
     verifier = load_a7(settings, {}, {})

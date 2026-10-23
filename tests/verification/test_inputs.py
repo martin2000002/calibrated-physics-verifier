@@ -13,6 +13,7 @@ import check_scenarios as sc
 import numpy as np
 import pytest
 from synthetic_clip import SyntheticFixtureDataset
+from wiring import resolve_plan
 
 from physverify.app.plugins import PLUGIN_KINDS
 from physverify.checks._base import Check
@@ -24,7 +25,6 @@ from physverify.extraction._base import GROUND_TRUTH
 from physverify.extraction.cache import StageCache
 from physverify.extraction.matching import take_frames
 from physverify.extraction.pipeline import LazyLock, PipelineDeps, ProcRssProbe
-from physverify.extraction.plan import resolve_plan
 from physverify.schema.checks import AbstainReason, InputLevel
 from physverify.schema.clip import ClipManifest
 from physverify.schema.outputs import StageOutput

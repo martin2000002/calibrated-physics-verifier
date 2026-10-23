@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from wiring import resolve_plan
 
 from physverify.app.plugins import PLUGIN_KINDS
 from physverify.calibration.settings import calibration_config
@@ -28,14 +29,14 @@ from physverify.extraction.pipeline import (
     PipelineDeps,
     ProcRssProbe,
 )
-from physverify.extraction.plan import resolve_plan
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import ClipManifest
 from physverify.schema.stages import STAGE_ORDER
 from physverify.synth.settings import load_dataset_settings
+from physverify.verification.check_set import ChecksSettings, build_checks
 from physverify.verification.inputs import OracleSource
 from physverify.verification.policies.raw import RawPolicy
-from physverify.verification.runner import ChecksSettings, VerificationRunner, build_checks
+from physverify.verification.runner import VerificationRunner
 from physverify.verification.sweep import CheckUnit
 
 HERE = str(Path(__file__).parent)

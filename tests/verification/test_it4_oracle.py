@@ -13,8 +13,7 @@ from golden import same
 from oracle_golden_case import GOLDEN, V1_OVERRIDES, oracle_results, v1_checks
 
 from physverify.app.plugins import PLUGIN_KINDS
-from physverify.calibration.settings import checks_hash
-from physverify.verification.runner import ChecksSettings
+from physverify.verification.check_set import ChecksSettings, checks_hash
 
 CHANGED = ("R4_jump", "R4_size")
 

@@ -8,7 +8,7 @@ from typing import Annotated
 
 import typer
 
-from physverify.app.services import pipeline_deps, resolve_dataset
+from physverify.app.services import chain_runner, pipeline_deps, resolve_dataset
 from physverify.cli.commands._sealed import Selection, guard_sealed
 from physverify.cli.commands.diagnose import (
     ClipsOption,
@@ -19,7 +19,6 @@ from physverify.cli.commands.diagnose import (
 from physverify.cli.context import app_context, heavy_command
 from physverify.datasets._base import select_clips
 from physverify.diagnosis import scene_stats
-from physverify.diagnosis.chain import ChainRunner
 from physverify.diagnosis.settings import diagnosis_settings
 
 NAME = "scene-stats"
@@ -52,9 +51,7 @@ def per_clip(
         app_ctx, f"{NAME} per-clip", [Selection(source.name, diag.subset, tuple(selected))]
     )
     metrics = sampled_metrics(app_ctx.registry("metrics"), diag.metrics)
-    runner = ChainRunner(
-        settings, app_ctx.registry("providers"), pipeline_deps(app_ctx, None), source
-    )
+    runner = chain_runner(app_ctx, pipeline_deps(app_ctx, None), source)
     rows = scene_stats.collect_rows(runner, selected, metrics, diag, STAGES)
     collected = scene_stats.Collected(
         label=label, profile=settings.profile, overrides=app_ctx.options.overrides, rows=tuple(rows)

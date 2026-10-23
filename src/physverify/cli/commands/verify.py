@@ -12,16 +12,16 @@ from typing import Annotated
 import typer
 
 from physverify.app.context import AppContext
-from physverify.app.services import context_checks_hash, pipeline_deps, resolve_dataset
+from physverify.app.services import context_checks_hash, pipeline_deps, plan_for, resolve_dataset
 from physverify.cli.commands._sealed import Selection, guard_sealed
 from physverify.cli.context import app_context
 from physverify.core.errors import EXIT_ERROR, UsageError
 from physverify.core.markdown import number
 from physverify.datasets._base import DatasetSource, select_clips
-from physverify.extraction.plan import resolve_plan
 from physverify.runtime.runs import new_run
 from physverify.schema.checks import InputLevel, Verdict
 from physverify.schema.stages import Stage, parse_stages
+from physverify.verification.check_set import CHECKS_SECTION, ChecksSettings, build_checks
 from physverify.verification.inputs import (
     InputSource,
     OracleSource,
@@ -31,14 +31,11 @@ from physverify.verification.inputs import (
 )
 from physverify.verification.runner import (
     CHECKS_HASH_FILE,
-    CHECKS_SECTION,
     VERIFICATION_SECTION,
-    ChecksSettings,
     RowStatus,
     VerificationReport,
     VerificationRunner,
     VerificationSettings,
-    build_checks,
     build_policy,
     load_thresholds,
     thresholds_label,
@@ -132,10 +129,7 @@ def _inputs(
 ) -> InputSource:
     if level is InputLevel.ORACLE:
         return OracleSource(source)
-    settings = context.settings
-    plan = resolve_plan(
-        settings, context.registry("providers"), dataset=source.name, gt_stages=tuple(gt_stages)
-    )
+    plan = plan_for(context, dataset=source.name, gt_stages=tuple(gt_stages))
     return PerceivedSource(
         source,
         PipelineOutputLoader(

@@ -11,14 +11,13 @@ from typing import Any
 
 import pytest
 import synthetic_clip
+from wiring import active_checks_hash, resolve_plan
 
 from physverify.app.plugins import PLUGIN_KINDS
 from physverify.calibration.sealed import look_config_hash
-from physverify.calibration.settings import active_checks_hash
 from physverify.config.loader import load_settings, read_config_files
 from physverify.config.models import PathsSettings, Settings
 from physverify.extraction.cache import plan_entry_filter, stage_key
-from physverify.extraction.plan import resolve_plan
 from physverify.schema.clip import resolve_sampling
 from physverify.schema.io import stable_hash
 from physverify.schema.stages import Stage

@@ -21,11 +21,12 @@ from support import (
     with_sigma,
 )
 from synthetic_clip import SyntheticClip, SyntheticFixtureDataset
+from wiring import resolve_plan
 
 from physverify.diagnosis.stage_errors import provider_ref
 from physverify.extraction._base import StageProvider
 from physverify.extraction.cache import StageCache, plan_params_hashes, profile_keys
-from physverify.extraction.plan import ResolvedPlan, resolve_plan
+from physverify.extraction.plan import ResolvedPlan
 from physverify.schema.error_profile import ErrorEntry, ErrorProfile
 from physverify.schema.io import stable_hash
 from physverify.schema.stages import STAGE_ORDER, Stage, StageArtifactMeta

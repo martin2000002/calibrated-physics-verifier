@@ -11,10 +11,10 @@ import pytest
 from support import SettingsFactory, chain_keys, make_context, run_provider
 from synthetic_clip import SyntheticClip
 from test_scale import PRIORS, truth_lift
+from wiring import resolve_plan
 
 from physverify.config.models import SizePriorTable
 from physverify.extraction._base import StageProvider
-from physverify.extraction.plan import resolve_plan
 from physverify.extraction.providers.scale_size_model import SizeModelScale
 from physverify.extraction.providers.scale_size_prior import SizePriorScale
 from physverify.physics.geometry import characteristic_lengths

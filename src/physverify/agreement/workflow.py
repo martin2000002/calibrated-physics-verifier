@@ -50,7 +50,7 @@ from physverify.agreement.settings import (
     agreement_settings,
     preregistration_path,
 )
-from physverify.calibration.settings import check_registry
+from physverify.checks._base import Check
 from physverify.core.digests import sha256_if_file
 from physverify.core.errors import ConfigError, UsageError
 from physverify.datasets._queries import derive_queries
@@ -97,9 +97,11 @@ class RuleSetup:
         return self.rule.excluding(self.scope.primary_excluded)
 
 
-def rule_scope(settings: Settings, agreement: AgreementSettings) -> tuple[CheckScope, RuleScope]:
+def rule_scope(
+    settings: Settings, checks: Mapping[str, type[Check]], agreement: AgreementSettings
+) -> tuple[CheckScope, RuleScope]:
     """``[check_scope]`` for H2: the excluded checks and the time-dependent ones."""
-    scope = check_scope(settings, check_registry())
+    scope = check_scope(settings, checks)
     timed = frozenset(scope.time_dependent_checks)
     primary = timed if agreement.exclude_time_dependent else frozenset()
     return scope, RuleScope(timed, primary)
@@ -107,11 +109,12 @@ def rule_scope(settings: Settings, agreement: AgreementSettings) -> tuple[CheckS
 
 def build_rule[S: CalibrationStratum](
     settings: Settings,
+    registry: Mapping[str, type[Check]],
     agreement: AgreementSettings,
     run: VerifyRun,
     api_loader: ApiLoader[S],
 ) -> RuleSetup:
-    checks, scope = rule_scope(settings, agreement)
+    checks, scope = rule_scope(settings, registry, agreement)
     excluded = frozenset(checks.exclude_checks)
     if agreement.rule != CALIBRATED_NAME:
         return _provisional(settings, checks, scope, None)
@@ -121,7 +124,7 @@ def build_rule[S: CalibrationStratum](
         artifact=artifact,
         profile=run.profile,
         row_step=run_row_step(run),
-        checks_hash=api.active_checks_hash(settings),
+        checks_hash=api.active_checks_hash(settings, registry),
         require_calibrated=api.require_calibrated(settings),
     )
     try:
@@ -195,6 +198,7 @@ def frozen_state(
 
 def freeze[S: CalibrationStratum](
     settings: Settings,
+    checks: Mapping[str, type[Check]],
     dataset: VideophyDataset,
     run_dir: Path,
     api_loader: ApiLoader[S],
@@ -203,7 +207,7 @@ def freeze[S: CalibrationStratum](
     agreement = agreement_settings(settings)
     run = load_run(run_dir)
     rows = dataset.rows(agreement.dev_subset)
-    setup = build_rule(settings, agreement, run, api_loader)
+    setup = build_rule(settings, checks, agreement, run, api_loader)
     require_record_for(
         setup.checks,
         calibrated=agreement.rule == CALIBRATED_NAME,
@@ -289,7 +293,11 @@ def freeze_audit(
 
 
 def run_comparison[S: CalibrationStratum](
-    settings: Settings, dataset: VideophyDataset, request: CompareRequest, api_loader: ApiLoader[S]
+    settings: Settings,
+    checks: Mapping[str, type[Check]],
+    dataset: VideophyDataset,
+    request: CompareRequest,
+    api_loader: ApiLoader[S],
 ) -> Comparison:
     agreement = agreement_settings(settings)
     if request.rule is not None:
@@ -299,7 +307,7 @@ def run_comparison[S: CalibrationStratum](
     subset = request.subset or agreement.test_subset
     run = load_run(request.run_dir)
     rows = dataset.rows(subset)
-    setup = build_rule(settings, agreement, run, api_loader)
+    setup = build_rule(settings, checks, agreement, run, api_loader)
     check_run(run, rows, setup, None)
     default_path = preregistration_path(settings, agreement)
     path = request.preregistration or default_path

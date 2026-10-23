@@ -409,8 +409,10 @@ def _scorer(settings: Settings, modules: dict[str, Any]) -> CalibratedScorer:
         return HASH
 
     modules["physverify.calibration.settings"] = SimpleNamespace(
-        active_checks_hash=active_checks_hash,
         calibration_settings=lambda s: SimpleNamespace(require_calibrated_artifact=False),
+    )
+    modules["physverify.verification.check_set"] = SimpleNamespace(
+        active_checks_hash=active_checks_hash
     )
     return CalibratedScorer(
         settings,

@@ -6,6 +6,7 @@ import datetime as dt
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 
+from physverify.checks._base import Check
 from physverify.config.models import Settings
 from physverify.datasets._base import DatasetSource
 from physverify.diagnosis.cases import SampledMetric
@@ -23,6 +24,7 @@ class DiagnosisContext:
     diag: DiagnosisSettings
     resolve_dataset: Callable[[str], DatasetSource]
     providers: Mapping[str, type[StageProvider]]
+    checks: Mapping[str, type[Check]]
     metrics: Mapping[str, SampledMetric]
     deps: PipelineDeps
     suite: CheckSuite | None
@@ -34,4 +36,4 @@ class DiagnosisContext:
         return self.resolve_dataset(name or self.diag.dataset)
 
     def chain(self, dataset: DatasetSource) -> ChainRunner:
-        return ChainRunner(self.settings, self.providers, self.deps, dataset)
+        return ChainRunner(self.settings, self.providers, self.checks, self.deps, dataset)

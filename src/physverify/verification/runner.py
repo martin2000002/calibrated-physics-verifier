@@ -12,10 +12,11 @@ from enum import Enum, StrEnum
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, RootModel, ValidationError
+from pydantic import BaseModel, Field
 
 from physverify.checks._base import Check, CheckInputs
 from physverify.checks._common import abstain, row_step_or_none
+from physverify.config.models import validated
 from physverify.core.errors import ConfigError
 from physverify.core.models import FrozenModel
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
@@ -26,12 +27,11 @@ from physverify.verification.decisive import Judged, decisive
 from physverify.verification.inputs import ClipInputs, InputSource
 from physverify.verification.sweep import SpecificitySettings
 
-CHECKS_SECTION = "checks"
 VERIFICATION_SECTION = "verification"
 CHECKS_FILE = "checks.jsonl"
 TABLE_FILE = "table.csv"
 CHECKS_HASH_FILE = "checks_hash.txt"
-"""The run's ``checks_hash`` (calibration.settings.active_checks_hash): its check parameters."""
+"""The run's ``checks_hash`` (verification.check_set.active_checks_hash): its check parameters."""
 PROVISIONAL = "provisional"
 CALIBRATED = "calibrated"
 PROVISIONAL_SOURCE = "configs/checks.toml [verification.thresholds]"
@@ -45,10 +45,6 @@ class VerificationSettings(FrozenModel):
     thresholds: dict[str, float] = Field(default_factory=dict)
     policies: dict[str, dict[str, Any]] = Field(default_factory=dict)
     specificity: SpecificitySettings = Field(default_factory=SpecificitySettings)
-
-
-class ChecksSettings(RootModel[dict[str, dict[str, Any]]]):
-    root: dict[str, dict[str, Any]] = Field(default_factory=dict)
 
 
 class ThresholdEntry(FrozenModel):
@@ -74,18 +70,6 @@ class ThresholdTable(FrozenModel):
     artifact: ArtifactRef | None = None
 
 
-def build_checks(
-    registry: Mapping[str, type[Check]], overrides: ChecksSettings
-) -> tuple[Check, ...]:
-    unknown = sorted(set(overrides.root) - set(registry))
-    if unknown:
-        raise ConfigError(f"[checks] has unknown check ids {unknown}; known: {sorted(registry)}")
-    return tuple(
-        check(_validated(check.Params, overrides.root.get(check_id, {}), f"checks.{check_id}"))
-        for check_id, check in registry.items()
-    )
-
-
 def build_policy(
     registry: Mapping[str, type[VerdictPolicy]], settings: VerificationSettings
 ) -> VerdictPolicy:
@@ -97,7 +81,7 @@ def build_policy(
     if params_model is None:
         return policy()
     section = f"verification.policies.{settings.policy}"
-    return policy(_validated(params_model, raw, section))  # type: ignore[call-arg]
+    return policy(validated(params_model, raw, section))  # type: ignore[call-arg]
 
 
 def load_thresholds(path: Path, provisional: Mapping[str, float]) -> Mapping[str, Any]:
@@ -109,7 +93,7 @@ def load_thresholds(path: Path, provisional: Mapping[str, float]) -> Mapping[str
         data = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
         raise ConfigError(f"{path} is not valid JSON: {exc}") from exc
-    return _validated(ThresholdTable, data, str(path)).model_dump()
+    return validated(ThresholdTable, data, str(path)).model_dump()
 
 
 def tau_of(thresholds: Mapping[str, Any], check_id: str) -> float | None:
@@ -119,20 +103,13 @@ def tau_of(thresholds: Mapping[str, Any], check_id: str) -> float | None:
 
 def entry_of(thresholds: Mapping[str, Any], check_id: str) -> ThresholdEntry | None:
     entry = thresholds.get("checks", {}).get(check_id)
-    return None if entry is None else _validated(ThresholdEntry, entry, f"thresholds.{check_id}")
+    return None if entry is None else validated(ThresholdEntry, entry, f"thresholds.{check_id}")
 
 
 def thresholds_label(thresholds: Mapping[str, Any]) -> str:
     if thresholds.get("status") == CALIBRATED:
         return f"{CALIBRATED}:{thresholds.get('source', '')}"
     return PROVISIONAL
-
-
-def _validated[M: BaseModel](model: type[M], data: object, section: str) -> M:
-    try:
-        return model.model_validate(data)
-    except ValidationError as exc:
-        raise ConfigError(f"[{section}] is invalid:\n{exc}") from exc
 
 
 class RowStatus(StrEnum):

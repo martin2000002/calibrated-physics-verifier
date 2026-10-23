@@ -22,9 +22,10 @@ from synthetic_clip import SyntheticFixtureDataset
 from physverify.app.plugins import PLUGIN_KINDS
 from physverify.checks._base import Check
 from physverify.schema.io import json_ready
+from physverify.verification.check_set import ChecksSettings, build_checks
 from physverify.verification.inputs import OracleSource
 from physverify.verification.policies.raw import RawPolicy
-from physverify.verification.runner import ChecksSettings, VerificationRunner, build_checks
+from physverify.verification.runner import VerificationRunner
 
 GOLDEN = Path(__file__).resolve().parent / "golden" / "oracle_before_it2.json"
 

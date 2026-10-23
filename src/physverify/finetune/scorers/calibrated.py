@@ -27,6 +27,7 @@ from physverify.verification.runner import UNKNOWN_ROW_STEP
 APPLY_MODULE: Final = "physverify.calibration.apply"
 LOADER_MODULE: Final = "physverify.calibration.loader"
 SETTINGS_MODULE: Final = "physverify.calibration.settings"
+CHECK_SET_MODULE: Final = "physverify.verification.check_set"
 HASH_SHOWN: Final = 12
 LEVEL: Final = InputLevel.PERCEIVED
 SOURCE_PREFIX: Final = "calibrated:"
@@ -117,8 +118,9 @@ class CalibratedScorer:
         apply = self._import(APPLY_MODULE)
         loader = self._import(LOADER_MODULE)
         calibration = self._import(SETTINGS_MODULE)
+        check_set = self._import(CHECK_SET_MODULE)
         path: Path = loader.default_artifact_path(self._settings)
-        active: str = calibration.active_checks_hash(self._settings, self._checks)
+        active: str = check_set.active_checks_hash(self._settings, self._checks)
         require = calibration.calibration_settings(self._settings).require_calibrated_artifact
         try:
             self._stratum = loader.open_stratum(

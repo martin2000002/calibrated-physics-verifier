@@ -16,7 +16,13 @@ from typing import Annotated
 import typer
 
 from physverify.app.context import AppContext
-from physverify.app.services import context_checks_hash, pipeline_deps, resolve_dataset
+from physverify.app.services import (
+    chain_runner,
+    context_checks_hash,
+    pipeline_deps,
+    plan_for,
+    resolve_dataset,
+)
 from physverify.calibration.collect import (
     SubjectLookup,
     Subjects,
@@ -78,7 +84,7 @@ from physverify.core.atomic import write_text_atomic
 from physverify.core.errors import MissingInputError, PhysverifyError, UsageError
 from physverify.core.markdown import number
 from physverify.datasets._base import DatasetSource, select_clips
-from physverify.diagnosis.chain import ChainRunner, warm_variants
+from physverify.diagnosis.chain import warm_variants
 from physverify.diagnosis.end_to_end import track_of
 from physverify.diagnosis.error_profile_writer import write_profile
 from physverify.diagnosis.pairing import subject_map
@@ -87,12 +93,12 @@ from physverify.diagnosis.report import dataset_versions, profile_hash
 from physverify.diagnosis.settings import diagnosis_settings
 from physverify.diagnosis.stage_errors import measure, pair_variants, stage_pairs
 from physverify.extraction.error_profile import load_error_profile
-from physverify.extraction.plan import resolve_plan
 from physverify.runtime.runs import RunContext, new_run
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import ClipManifest, Split
 from physverify.schema.error_profile import ErrorProfile
 from physverify.schema.io import stable_hash
+from physverify.verification.check_set import CHECKS_SECTION, ChecksSettings, build_checks
 from physverify.verification.inputs import (
     InputSource,
     OracleSource,
@@ -102,12 +108,9 @@ from physverify.verification.inputs import (
 )
 from physverify.verification.policies.raw import RawPolicy
 from physverify.verification.runner import (
-    CHECKS_SECTION,
     UNKNOWN_ROW_STEP,
-    ChecksSettings,
     VerificationReport,
     VerificationRunner,
-    build_checks,
 )
 from physverify.verification.sweep import CheckUnit
 
@@ -164,7 +167,7 @@ def _source(session: Session, dataset: DatasetSource, level: InputLevel) -> Inpu
     if level is InputLevel.ORACLE:
         return OracleSource(dataset)
     context = session.context
-    plan = resolve_plan(context.settings, context.registry("providers"), dataset=dataset.name)
+    plan = plan_for(context, dataset=dataset.name)
     deps = pipeline_deps(context, None, partial(refuse_heavy, dataset.name))
     return PerceivedSource(dataset, PipelineOutputLoader(plan, deps), level)
 
@@ -172,7 +175,7 @@ def _source(session: Session, dataset: DatasetSource, level: InputLevel) -> Inpu
 def _subject_lookup(session: Session, dataset: DatasetSource) -> SubjectLookup:
     context = session.context
     deps = pipeline_deps(context, None, partial(refuse_heavy, dataset.name))
-    chain = ChainRunner(context.settings, context.registry("providers"), deps, dataset)
+    chain = chain_runner(context, deps, dataset)
 
     def lookup(clip: ClipManifest) -> Subjects | None:
         oracle, perceived = (

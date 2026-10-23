@@ -148,9 +148,14 @@ def freeze_command(
         typer.Option(help="Why the freeze is redone after a test comparison (makes H2 post hoc)."),
     ] = None,
 ) -> None:
-    settings = app_context().settings
+    context = app_context()
     path, current = freeze(
-        settings, _dataset(), run_dir, import_calibration, dt.datetime.now(dt.UTC)
+        context.settings,
+        context.registry("checks"),
+        _dataset(),
+        run_dir,
+        import_calibration,
+        dt.datetime.now(dt.UTC),
     )
     previous = sha256_if_file(path)
     old = None if previous is None else load_preregistration(path)
@@ -193,7 +198,10 @@ def compare_command(
     ] = None,
 ) -> None:
     request = CompareRequest(run_dir, name, rule, preregistration)
-    comparison = run_comparison(app_context().settings, _dataset(), request, import_calibration)
+    context = app_context()
+    comparison = run_comparison(
+        context.settings, context.registry("checks"), _dataset(), request, import_calibration
+    )
     # Logged before anything is written or shown: no test report may exist without its entry.
     log_test_comparison(app_context().settings, comparison, run_dir, dt.datetime.now(dt.UTC))
     out_dir = run_dir / REPORT_DIR

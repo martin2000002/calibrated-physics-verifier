@@ -16,6 +16,7 @@ if CALIBRATION_TESTS not in sys.path:
 
 from exclusion_cases import write_record  # noqa: E402
 from stratum_cases import write_artifact  # noqa: E402
+from wiring import active_checks_hash  # noqa: E402
 
 from physverify.agreement.prereg import (  # noqa: E402
     load_preregistration,
@@ -23,7 +24,6 @@ from physverify.agreement.prereg import (  # noqa: E402
 )
 from physverify.agreement.report import REPORT_DIR, _sign_flip_lines  # noqa: E402
 from physverify.calibration.loader import default_artifact_path  # noqa: E402
-from physverify.calibration.settings import active_checks_hash  # noqa: E402
 from physverify.core.digests import sha256_if_file  # noqa: E402
 from physverify.core.errors import PhysverifyError  # noqa: E402
 from physverify.datasets._videophy_review import PENDING, load_review  # noqa: E402

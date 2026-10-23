@@ -46,6 +46,7 @@ from physverify.verification._base import VerdictPolicy
 
 PREFIX: Final = "verify"
 RUNNER_MODULE: Final = "physverify.verification.runner"
+CHECK_SET_MODULE: Final = "physverify.verification.check_set"
 INPUTS_MODULE: Final = "physverify.verification.inputs"
 _NOT_SLUG: Final = re.compile(r"[^a-z0-9_]")
 
@@ -94,10 +95,11 @@ def load_a7(
     policies: Mapping[str, type[VerdictPolicy]],
 ) -> Verifier:
     runner_api: Any = importlib.import_module(RUNNER_MODULE)
+    check_set_api: Any = importlib.import_module(CHECK_SET_MODULE)
     inputs_api: Any = importlib.import_module(INPUTS_MODULE)
     config = settings.section(runner_api.VERIFICATION_SECTION, runner_api.VerificationSettings)
-    overrides = settings.section(runner_api.CHECKS_SECTION, runner_api.ChecksSettings)
-    built = tuple(runner_api.build_checks(checks, overrides))
+    overrides = settings.section(check_set_api.CHECKS_SECTION, check_set_api.ChecksSettings)
+    built = tuple(check_set_api.build_checks(checks, overrides))
     policy = runner_api.build_policy(policies, config)
     thresholds = runner_api.load_thresholds(settings.paths.thresholds, config.thresholds)
 
@@ -210,7 +212,7 @@ class VerifyChecks(TargetHooks):
 
     def _source(self, verifier: Verifier, clip: ClipManifest, ctx: TimingContext) -> InputSource:
         dataset = dataset_source(self._services, ctx.settings, clip.dataset)
-        plan = self._plan_factory(ctx.settings, self._services.providers, clip.dataset)
+        plan = self._plan_factory(ctx.settings, self._services, clip.dataset)
         deps = self._deps(ctx, None)
         return verifier.source(dataset, plan, deps)
 
@@ -222,7 +224,7 @@ class VerifyChecks(TargetHooks):
         failures: list[str] = []
         for dataset_name in dict.fromkeys(clip.dataset for clip in clips):
             group = [clip for clip in clips if clip.dataset == dataset_name]
-            plan = self._plan_factory(ctx.settings, self._services.providers, dataset_name)
+            plan = self._plan_factory(ctx.settings, self._services, dataset_name)
             dataset = dataset_source(self._services, ctx.settings, dataset_name)
             pipeline = self._pipeline_factory(plan, self._deps(ctx, ctx.observer))
             report = pipeline.run(dataset, group)

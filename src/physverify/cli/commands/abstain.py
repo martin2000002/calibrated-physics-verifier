@@ -20,9 +20,8 @@ import typer
 from scipy.stats import norm
 
 from physverify.app.context import AppContext
-from physverify.app.services import check_suite, pipeline_deps, resolve_dataset
+from physverify.app.services import chain_runner, check_suite, pipeline_deps, resolve_dataset
 from physverify.calibration.loader import default_artifact_path, load_calibration
-from physverify.calibration.settings import checks_hash
 from physverify.calibration.table import Role, role_of
 from physverify.cli.commands._runs import write_json
 from physverify.cli.commands._sealed import Selection, guard_sealed
@@ -41,11 +40,10 @@ from physverify.runtime.runs import new_run
 from physverify.schema.checks import InputLevel, Verdict
 from physverify.schema.clip import ClipManifest
 from physverify.schema.io import stable_hash
+from physverify.verification.check_set import CHECKS_SECTION, ChecksSettings, checks_hash
 from physverify.verification.inputs import refuse_heavy
 from physverify.verification.runner import (
-    CHECKS_SECTION,
     VERIFICATION_SECTION,
-    ChecksSettings,
     VerificationSettings,
     load_thresholds,
 )
@@ -192,7 +190,7 @@ def _chain(session: Session, dataset: str) -> tuple[ChainRunner, DatasetSource]:
     context = session.context
     source = resolve_dataset(context, dataset)
     deps = pipeline_deps(context, None, partial(refuse_heavy, dataset))
-    return ChainRunner(context.settings, context.registry("providers"), deps, source), source
+    return chain_runner(context, deps, source), source
 
 
 def collect_synthetic(session: Session, subset: str) -> Collected:

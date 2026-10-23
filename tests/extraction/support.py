@@ -10,6 +10,7 @@ from typing import Any
 
 from fakes import JOURNAL
 from synthetic_clip import SyntheticClip, SyntheticFixtureDataset
+from wiring import resolve_plan
 
 from physverify.config.models import PathsSettings, Settings
 from physverify.datasets._base import GroundTruthStore
@@ -26,7 +27,7 @@ from physverify.extraction.pipeline import (
     LazyLock,
     PipelineDeps,
 )
-from physverify.extraction.plan import ResolvedPlan, resolve_plan
+from physverify.extraction.plan import ResolvedPlan
 from physverify.extraction.providers.contacts_proximity import ProximityContacts
 from physverify.extraction.providers.gt_camera import GroundTruthCamera
 from physverify.extraction.providers.gt_depth import GroundTruthDepth
