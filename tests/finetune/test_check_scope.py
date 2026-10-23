@@ -7,12 +7,12 @@ from pathlib import Path
 
 import pytest
 from cli_runner import CliRunner
+from wiring import build_scorer, checks
 
 from physverify.config.models import Settings
 from physverify.core.errors import ConfigError, UsageError
 from physverify.finetune.scope import EXCLUDED_TAG, ScopedScorer, family_targets, scorer_exclusion
 from physverify.finetune.scorers.provisional import ProvisionalScorer
-from physverify.finetune.scoring import build_scorer
 from physverify.finetune.settings import load_finetune
 from physverify.schema.checks import CheckResult, Verdict
 
@@ -33,7 +33,7 @@ def test_build_scorer_wraps_the_provisional_scorer(settings: Settings, make_resu
     scorer = build_scorer("provisional", settings)
     assert isinstance(scorer, ScopedScorer)
     assert (scorer.name, scorer.version, scorer.calibrated) == ("provisional", "2", False)
-    inner = ProvisionalScorer(settings)
+    inner = ProvisionalScorer(settings, {})
     assert scorer.thresholds() == f"{inner.thresholds()}{EXCLUDED_TAG}R4_jump,R5b"
     score = scorer.score(_results(make_result))
     assert score.decided == frozenset({"R1"}) and score.n_failed == 0
@@ -83,7 +83,7 @@ def test_an_unknown_check_id_is_a_configuration_error(
 
 def test_fall_keeps_r5a_by_default(settings: Settings) -> None:
     cfg = load_finetune(settings)
-    targets = family_targets(cfg, scorer_exclusion(settings, cfg))
+    targets = family_targets(cfg, scorer_exclusion(settings, cfg, checks()))
     assert targets["fall"] == ["R5a"]
     assert all(targets.values())
 

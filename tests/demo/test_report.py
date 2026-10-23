@@ -63,7 +63,7 @@ def _prompt() -> PromptRecord:
 def make_report(
     settings: Settings, clip_results: Results, rule: RuleInfo | None = None
 ) -> VideoReport:
-    scorer = ProvisionalScorer(settings)
+    scorer = ProvisionalScorer(settings, {})
     results = clip_results(CID)
     candidate = CandidateRef(
         model_tag="base", candidate_id=CID, video_path="v.mp4", results_path="r.jsonl"

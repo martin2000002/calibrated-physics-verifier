@@ -14,6 +14,7 @@ from typing import Annotated, Final
 import typer
 
 from physverify.app.context import AppContext
+from physverify.app.services import context_scorer
 from physverify.cli.commands._finetune_deps import candidate_generator, require_cuda, scoring_deps
 from physverify.cli.context import app_context, heavy_command
 from physverify.config.models import Settings
@@ -37,7 +38,6 @@ from physverify.finetune.prompts import check_vocabulary, fixed_record, sizing_l
 from physverify.finetune.records import BASE_TAG, DEMO_TAG, PromptRecord, read_record
 from physverify.finetune.scorers._base import AggregateScorer
 from physverify.finetune.scorers.provisional import ProvisionalScorer
-from physverify.finetune.scoring import build_scorer
 from physverify.finetune.selection import Selection
 from physverify.finetune.settings import FixedPrompt, QueryTemplate, load_finetune
 from physverify.finetune.store import FINETUNE_DIR, SELECTED_FILE, CampaignStore
@@ -105,23 +105,24 @@ def target_checks(context: AppContext, wanted: Sequence[str] | None) -> list[str
 Rule = tuple[AggregateScorer, RuleInfo]
 
 
-def active_scorer(settings: Settings) -> Rule:
+def active_scorer(context: AppContext) -> Rule:
     """``finetune.scorer``, or the provisional rule (labelled as such) when it is unavailable."""
+    settings = context.settings
     name = load_finetune(settings).scorer
-    scorer = build_scorer(name, settings)
+    scorer = context_scorer(context, name)
     reason = scorer.unavailable()
     if reason is None:
         return scorer, rule_info(scorer)
     if name == ProvisionalScorer.name or not load_demo(settings).allow_provisional:
         raise UsageError(f"scorer {name} is unavailable: {reason}")
-    fallback = build_scorer(ProvisionalScorer.name, settings)
+    fallback = context_scorer(context, ProvisionalScorer.name)
     return fallback, rule_info(fallback, note=f"The {name} rule is unavailable: {reason}.")
 
 
-def frozen_scorer(settings: Settings, prereg: Path) -> Rule:
+def frozen_scorer(context: AppContext, prereg: Path) -> Rule:
     """``finetune.scorer`` exactly as the H3 freeze stamped it; never the provisional fallback."""
-    name = load_finetune(settings).scorer
-    scorer = build_scorer(name, settings)
+    name = load_finetune(context.settings).scorer
+    scorer = context_scorer(context, name)
     reason = scorer.unavailable()
     if reason is not None:
         raise UsageError(f"scorer {name} is unavailable: {reason}")
@@ -203,7 +204,7 @@ def run(
         cand = load_finetune(settings).candidates.model_copy(update={"store_latents": False})
         generator = candidate_generator(context, store, adapter, candidates=cand)
     target = out or default_out(settings)
-    deps = demo_deps(context, store, settings, active_scorer(settings))
+    deps = demo_deps(context, store, settings, active_scorer(context))
     report = run_demo(record, deps, out=target, video=video, generator=generator)
     _echo(report, target)
 
@@ -266,7 +267,7 @@ def scenes(
     tuned = adapter_tag(adapter) if adapter is not None else tuned_tag(store, demo.select_run)
     prompts = demo_prompts(store)
     require_videos(store, prompts, (BASE_TAG, tuned))
-    deps = demo_deps(context, store, settings, frozen_scorer(settings, prereg))
+    deps = demo_deps(context, store, settings, frozen_scorer(context, prereg))
     target = out or default_out(settings)
     for base, ft in run_scenes(prompts, deps, tuned, target):
         _echo(base, target)
@@ -278,11 +279,12 @@ def report(
     results: Annotated[Path, typer.Option(help="A report directory or its report.json.")],
     out: OutOption = None,
 ) -> None:
-    settings = app_context().settings
+    context = app_context()
+    settings = context.settings
     if not results.exists():
         raise UsageError(f"{results} does not exist")
     old = read_report(results)
     provenance = {"rebuilt_commit": current_commit(settings.repo_root)}
     target = out or default_out(settings)
-    deps = report_deps(settings, provenance, active_scorer(settings))
+    deps = report_deps(settings, provenance, active_scorer(context))
     _echo(rebuild_report(old, deps, target), target)

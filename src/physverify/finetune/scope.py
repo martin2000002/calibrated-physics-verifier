@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any, ClassVar, Final
 
-from physverify.calibration.settings import check_registry
+from physverify.checks._base import Check
 from physverify.config.models import Settings
 from physverify.core.errors import UsageError
 from physverify.finetune.scorers._base import AggregateScore, AggregateScorer
@@ -22,9 +22,12 @@ from physverify.verification.scope import check_scope
 EXCLUDED_TAG: Final = "@excl:"
 
 
-def scorer_exclusion(settings: Settings, cfg: FinetuneSettings) -> frozenset[str]:
-    """``exclude_checks``, plus the time-dependent ones when ``[finetune]`` excludes them."""
-    scope = check_scope(settings, check_registry())
+def scorer_exclusion(
+    settings: Settings, cfg: FinetuneSettings, checks: Mapping[str, type[Check]]
+) -> frozenset[str]:
+    """``exclude_checks``, plus the time-dependent ones when ``[finetune]`` excludes them; the
+    ids are checked against ``checks``."""
+    scope = check_scope(settings, checks)
     return scope.excluded(time_dependent=cfg.exclude_time_dependent)
 
 

@@ -17,7 +17,7 @@ from typing import Annotated, Final
 import typer
 
 from physverify.app.context import AppContext
-from physverify.app.services import context_checks_hash
+from physverify.app.services import context_checks_hash, context_scorer
 from physverify.calibration.loader import default_artifact_path
 from physverify.cli.commands._common import choice
 from physverify.cli.commands._finetune_deps import (
@@ -81,7 +81,7 @@ from physverify.evaluation.state import (
 )
 from physverify.finetune.records import BASE_TAG, PromptRecord, read_record, write_record
 from physverify.finetune.scorers._base import AggregateScorer
-from physverify.finetune.scoring import build_scorer, rescorer, score_candidates, scorer_registry
+from physverify.finetune.scoring import rescorer, score_candidates
 from physverify.finetune.seeds import parse_shard
 from physverify.finetune.selection import Selection
 from physverify.finetune.settings import FinetuneSettings, load_finetune
@@ -148,7 +148,7 @@ def _arm(h: H3Context, arm: str) -> tuple[str, Path | None]:
 
 
 def _scorer(h: H3Context) -> AggregateScorer:
-    return build_scorer(h.finetune.scorer, h.context.settings)
+    return context_scorer(h.context, h.finetune.scorer)
 
 
 def _active_scorer(h: H3Context) -> AggregateScorer:
@@ -206,7 +206,7 @@ def _current(h: H3Context) -> H3Preregistration:
         margin_rows=_reference_rows(source),
         margin_source=source,
         commit=current_commit(settings.repo_root),
-        stop_rule=frozen_state(current_verdict(settings, h.finetune, h.store, scorer)),
+        stop_rule=frozen_state(current_verdict(h.context, h.finetune, h.store, scorer)),
     )
     try:
         return current_record(inputs, dt.datetime.now(dt.UTC))
@@ -261,11 +261,11 @@ def generate(
 
 def _require_stop_rule(h: H3Context, deviation: str | None) -> bool:
     """The eval arm runs only when the pilot showed the verifier can rank candidates."""
-    return require_stop_rule(h.context.settings, h.finetune, h.store, _scorer(h), deviation).passed
+    return require_stop_rule(h.context, h.finetune, h.store, _scorer(h), deviation).passed
 
 
 def _eval_data(h: H3Context) -> bool:
-    scorers = list(scorer_registry())
+    scorers = list(h.context.registry("scorers"))
     return has_eval_scores(h.store, scorers) or bool(h.layout.judge_outputs(EVAL_SPLIT))
 
 
@@ -495,7 +495,7 @@ def compare() -> None:
 def _tag_lines(h: H3Context, tag: str) -> list[str]:
     records = eval_records(h.store, tag)
     lines = [f"  {tag}: {len(records)} eval candidates"]
-    for name in scorer_registry():
+    for name in h.context.registry("scorers"):
         scores = eval_scores(h.store, tag, name)
         if scores:
             abstained = sum(s.score is None for s in scores)

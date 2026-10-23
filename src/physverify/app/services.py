@@ -14,6 +14,8 @@ from physverify.extraction._base import StageObserver
 from physverify.extraction.cache import StageCache
 from physverify.extraction.error_profile import load_error_profile
 from physverify.extraction.pipeline import LazyLock, PipelineDeps, ProcRssProbe
+from physverify.finetune.scorers._base import AggregateScorer
+from physverify.finetune.scoring import build_scorer
 
 
 def resolve_dataset(context: AppContext, name: str) -> DatasetSource:
@@ -53,4 +55,14 @@ def check_suite(context: AppContext) -> A7CheckSuite:
     """The diagnosis adapter over the context's checks, policy and thresholds."""
     return A7CheckSuite.build(
         context.settings, context.registry("checks"), context.registry("policies")
+    )
+
+
+def context_scorer(context: AppContext, name: str) -> AggregateScorer:
+    """Scorer ``name`` of the context's registry, over its checks, inside ``[check_scope]``."""
+    return build_scorer(
+        name,
+        context.settings,
+        scorers=context.registry("scorers"),
+        checks=context.registry("checks"),
     )

@@ -56,7 +56,7 @@ def _store(settings: Settings, campaign: str = "demo_adhoc") -> CampaignStore:
 
 
 def _deps(settings: Settings, store: CampaignStore, scoring: ScoringDeps) -> DemoDeps:
-    scorer = ProvisionalScorer(settings)
+    scorer = ProvisionalScorer(settings, {})
     report = ReportDeps(scorer, rule_info(scorer), OverlayStyle(), 10**9, {"commit": "c"})
     return DemoDeps(store, scoring, report, commit="c")
 

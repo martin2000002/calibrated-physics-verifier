@@ -18,6 +18,7 @@ from typing import Annotated, Any, Final
 import typer
 
 from physverify.app.context import AppContext
+from physverify.app.services import context_scorer
 from physverify.cli.commands._common import choice
 from physverify.cli.commands._finetune_deps import (
     candidate_generator,
@@ -62,7 +63,7 @@ from physverify.finetune.records import (
     write_records,
 )
 from physverify.finetune.scorers._base import AggregateScorer
-from physverify.finetune.scoring import build_scorer, rescorer, score_candidates, stale_scores
+from physverify.finetune.scoring import rescorer, score_candidates, stale_scores
 from physverify.finetune.seeds import parse_shard
 from physverify.finetune.selection import (
     Selection,
@@ -221,11 +222,11 @@ def generate(
 
 
 def _scorer(context: AppContext, name: str | None) -> AggregateScorer:
-    scorer = build_scorer(name or _cfg(context).scorer, context.settings)
-    reason = scorer.unavailable()
+    built = context_scorer(context, name or _cfg(context).scorer)
+    reason = built.unavailable()
     if reason is not None:
-        raise UsageError(f"scorer {scorer.name} is unavailable: {reason}")
-    return scorer
+        raise UsageError(f"scorer {built.name} is unavailable: {reason}")
+    return built
 
 
 def _score(
@@ -339,7 +340,7 @@ def pairs(scorer: ScorerOption = None) -> None:
             write_record(directory / report_file, report)
             for line in _report_lines(label, report):
                 typer.echo(line)
-    verdict = current_verdict(context.settings, _cfg(context), store, active)
+    verdict = current_verdict(context, _cfg(context), store, active)
     write_verdict(store, active.name, verdict)
     for line in verdict_lines(verdict):
         typer.echo(line)
@@ -455,8 +456,7 @@ def _beta(
 def _require_stop_rule(
     context: AppContext, store: CampaignStore, name: str, deviation: str | None
 ) -> None:
-    scorer = build_scorer(name, context.settings)
-    require_stop_rule(context.settings, _cfg(context), store, scorer, deviation)
+    require_stop_rule(context, _cfg(context), store, context_scorer(context, name), deviation)
 
 
 def run_record(

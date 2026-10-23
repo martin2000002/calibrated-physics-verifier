@@ -15,6 +15,7 @@ if CALIBRATION_TESTS not in sys.path:
     sys.path.insert(0, CALIBRATION_TESTS)
 
 from stratum_cases import write_artifact  # noqa: E402
+from wiring import build_scorer, checks  # noqa: E402
 
 from physverify.agreement.decision import (  # noqa: E402
     StratumRequest,
@@ -32,7 +33,6 @@ from physverify.config.models import Settings  # noqa: E402
 from physverify.core.errors import ConfigError, UsageError  # noqa: E402
 from physverify.finetune.records import BASE_TAG  # noqa: E402
 from physverify.finetune.scorers.calibrated import CalibratedScorer  # noqa: E402
-from physverify.finetune.scoring import build_scorer  # noqa: E402
 from physverify.finetune.store import CampaignStore  # noqa: E402
 from physverify.schema.checks import CheckResult, Verdict  # noqa: E402
 from physverify.verification.runner import UNKNOWN_ROW_STEP  # noqa: E402
@@ -58,7 +58,7 @@ def test_an_insufficient_artifact_with_a_usable_stratum_scores(
     settings: Settings, make_result: Result
 ) -> None:
     _artifact(settings)
-    scorer = CalibratedScorer(settings)
+    scorer = CalibratedScorer(settings, checks())
     assert scorer.unavailable() is None
     assert scorer.thresholds().startswith("calibrated:")
     status = scorer.calibration_status()
@@ -73,13 +73,13 @@ def test_require_calibrated_artifact_refuses_an_insufficient_one(
 ) -> None:
     settings = make_settings("calibration.require_calibrated_artifact=true", profile="precise")
     _artifact(settings)
-    reason = CalibratedScorer(settings).unavailable()
+    reason = CalibratedScorer(settings, checks()).unavailable()
     assert reason is not None and "not 'calibrated'" in reason
 
 
 def test_a_stratum_that_cannot_score_is_unavailable(settings: Settings) -> None:
     _artifact(settings, ready=False)
-    scorer = CalibratedScorer(settings)
+    scorer = CalibratedScorer(settings, checks())
     reason = scorer.unavailable()
     assert reason is not None and "insufficient" in reason
     assert scorer.thresholds().startswith("calibrated:unusable@checks:")
@@ -88,7 +88,7 @@ def test_a_stratum_that_cannot_score_is_unavailable(settings: Settings) -> None:
 
 def test_a_clip_of_another_time_base_is_refused(settings: Settings, make_result: Result) -> None:
     _artifact(settings)
-    scorer = CalibratedScorer(settings)
+    scorer = CalibratedScorer(settings, checks())
     result = make_result("R1", Verdict.PASS, 0.1, 1.0, 0.01)
     assert scorer.score([_with_row_step(result, 1)]).decided == frozenset({"R1"})
     with pytest.raises(UsageError, match="row_step"):

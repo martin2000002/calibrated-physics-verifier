@@ -13,9 +13,9 @@ from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Final, Protocol
 
+from physverify.checks._base import Check
 from physverify.config.models import Settings
 from physverify.core.errors import UsageError
-from physverify.core.registry import Registry, discover
 from physverify.finetune.records import (
     CandidateRecord,
     CandidateScore,
@@ -38,23 +38,23 @@ from physverify.schema.states import ObjectStateTable
 from physverify.verification.inputs import ClipInputs, InputSource
 from physverify.verification.runner import TableRow, VerificationReport
 
-SCORERS_PACKAGE: Final = "physverify.finetune.scorers"
 CHUNK: Final = 8
 
 
-def scorer_registry() -> Registry[type[AggregateScorer]]:
-    return discover(SCORERS_PACKAGE, (AggregateScorer,), "name")
-
-
-def build_scorer(name: str, settings: Settings) -> AggregateScorer:
+def build_scorer(
+    name: str,
+    settings: Settings,
+    *,
+    scorers: Mapping[str, type[AggregateScorer]],
+    checks: Mapping[str, type[Check]],
+) -> AggregateScorer:
     """The one scorer factory: every scorer is wrapped in ``[check_scope]`` (``ScopedScorer``)."""
-    registry = scorer_registry()
-    if name not in registry:
-        raise UsageError(f"unknown scorer {name!r}; known: {sorted(registry)}")
+    if name not in scorers:
+        raise UsageError(f"unknown scorer {name!r}; known: {sorted(scorers)}")
     cfg = load_finetune(settings)
-    excluded = scorer_exclusion(settings, cfg)
+    excluded = scorer_exclusion(settings, cfg, checks)
     require_family_targets(cfg, excluded)
-    return scoped(registry[name](settings), excluded)
+    return scoped(scorers[name](settings, checks), excluded)
 
 
 class Runner(Protocol):

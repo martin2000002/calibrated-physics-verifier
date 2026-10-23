@@ -9,6 +9,7 @@ from typing import Any
 import numpy as np
 import pytest
 
+from physverify.app import plugins
 from physverify.calibration.apply import ClipScore
 from physverify.config.models import Settings
 from physverify.core.errors import UsageError
@@ -27,7 +28,6 @@ from physverify.finetune.scoring import (
     pending,
     rescorer,
     score_candidates,
-    scorer_registry,
     stale_scores,
 )
 from physverify.finetune.seeds import WHOLE
@@ -144,7 +144,7 @@ def states(make_states: Callable[..., ObjectStateTable]) -> ObjectStateTable:
 
 
 def test_both_scorers_are_registered() -> None:
-    assert sorted(scorer_registry()) == ["calibrated", "provisional"]
+    assert sorted(plugins.build("scorers")) == ["calibrated", "provisional"]
 
 
 def test_scoring_writes_stamped_scores_and_resumes(
@@ -162,7 +162,7 @@ def test_scoring_writes_stamped_scores_and_resumes(
         source=FakeSource(states),
         runner=runner,
     )
-    scorer = ProvisionalScorer(settings)
+    scorer = ProvisionalScorer(settings, {})
     scores = score_candidates(store, "base", [prompt], scorer, deps)
     assert len(scores) == 3 and runner.runs == 1
     first = scores[0]
@@ -190,7 +190,7 @@ def _scored_store(
         source=FakeSource(states),
         runner=runner,
     )
-    scorer = ProvisionalScorer(settings)
+    scorer = ProvisionalScorer(settings, {})
     score_candidates(store, "base", [prompt], scorer, deps)
     return store, deps, scorer
 
@@ -342,7 +342,7 @@ def test_a_missing_calibration_module_makes_the_scorer_unavailable(
     def missing(name: str) -> Any:
         raise ImportError(f"No module named {name!r}")
 
-    scorer = CalibratedScorer(settings, import_module=missing)
+    scorer = CalibratedScorer(settings, {}, import_module=missing)
     assert scorer.unavailable() is not None
     store = CampaignStore(tmp_path / "ft", tmp_path / "raw", "c")
     deps = ScoringDeps(lambda s: [], FakeSource(None), FakeRunner(make_result))  # type: ignore[arg-type]
@@ -415,7 +415,7 @@ def _scorer(settings: Settings, modules: dict[str, Any]) -> CalibratedScorer:
     return CalibratedScorer(
         settings,
         import_module=modules.__getitem__,  # type: ignore[arg-type]
-        checks=lambda: {"R1": object},  # type: ignore[dict-item]
+        checks={"R1": object},  # type: ignore[dict-item]
     )
 
 

@@ -10,7 +10,7 @@ from typing import Annotated
 
 import typer
 
-from physverify.config.models import Settings
+from physverify.app.context import AppContext
 from physverify.core.errors import UsageError
 from physverify.finetune.pilot import fit_and_val
 from physverify.finetune.records import (
@@ -77,7 +77,7 @@ def _abstention(store: CampaignStore, scorer: AggregateScorer) -> float | None:
 
 
 def current_verdict(
-    settings: Settings, cfg: FinetuneSettings, store: CampaignStore, scorer: AggregateScorer
+    context: AppContext, cfg: FinetuneSettings, store: CampaignStore, scorer: AggregateScorer
 ) -> StopVerdict:
     name = scorer.name
     return evaluate_stop(
@@ -86,7 +86,7 @@ def current_verdict(
         _abstention(store, scorer),
         stored_review(store, name),
         cfg.stop_rule,
-        family_targets(cfg, scorer_exclusion(settings, cfg)),
+        family_targets(cfg, scorer_exclusion(context.settings, cfg, context.registry("checks"))),
         (scorer.version, scorer.thresholds()),
     )
 
@@ -107,7 +107,7 @@ def verdict_lines(verdict: StopVerdict) -> list[str]:
 
 
 def require_stop_rule(
-    settings: Settings,
+    context: AppContext,
     cfg: FinetuneSettings,
     store: CampaignStore,
     scorer: AggregateScorer,
@@ -116,7 +116,7 @@ def require_stop_rule(
     """Exit 2 when the rule fires, is enforced and no deviation is declared; the verdict, with
     the deviation that let it through, is written to ``stop_rule.json`` (and printed when it
     fired) either way."""
-    verdict = current_verdict(settings, cfg, store, scorer)
+    verdict = current_verdict(context, cfg, store, scorer)
     if not verdict.passed and deviation is not None:
         verdict = verdict.model_copy(update={"deviation": deviation})
     write_verdict(store, scorer.name, verdict)

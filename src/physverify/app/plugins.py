@@ -16,6 +16,7 @@ from physverify.core.registry import Registry, discover, discover_modules
 from physverify.datasets._base import DatasetSource
 from physverify.diagnosis._base import StageMetric, metric_key
 from physverify.extraction._base import StageProvider, provider_key, validate_provider
+from physverify.finetune.scorers._base import AggregateScorer
 from physverify.synth.families._base import SceneFamily
 from physverify.synth.perturbations._base import (
     ScenePerturbation,
@@ -55,6 +56,7 @@ PLUGIN_KINDS: Mapping[str, Callable[[], Registry[Any]]] = MappingProxyType(
         "metrics": lambda: discover("physverify.diagnosis.metrics", (StageMetric,), metric_key),
         "policies": lambda: discover("physverify.verification.policies", (VerdictPolicy,), "name"),
         "timing_targets": lambda: discover("physverify.timing.targets", (TimingTarget,), "name"),
+        "scorers": lambda: discover("physverify.finetune.scorers", (AggregateScorer,), "name"),
     }
 )
 """Perceived and ground-truth providers share ``providers`` (keys ``<stage>/<name>`` and

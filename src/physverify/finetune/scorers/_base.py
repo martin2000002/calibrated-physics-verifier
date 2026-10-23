@@ -11,6 +11,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import ClassVar, Protocol, runtime_checkable
 
+from physverify.checks._base import Check
 from physverify.config.models import Settings
 from physverify.schema.checks import CheckResult
 
@@ -30,13 +31,14 @@ class AggregateScore:
 
 @runtime_checkable
 class AggregateScorer(Protocol):
-    """Constructed as ``cls(settings)``; ``unavailable`` names what is missing (exit 2), or None."""
+    """Constructed as ``cls(settings, checks)`` (the check registry); ``unavailable`` names what
+    is missing (exit 2), or None."""
 
     name: ClassVar[str]
     version: ClassVar[str]
     calibrated: ClassVar[bool]
 
-    def __init__(self, settings: Settings) -> None: ...
+    def __init__(self, settings: Settings, checks: Mapping[str, type[Check]]) -> None: ...
 
     def unavailable(self) -> str | None: ...
 

@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 from cli_runner import CliRunner
+from wiring import build_scorer
 
 from physverify.cli.commands.finetune import (
     DEFAULT_RUN,
@@ -26,7 +27,6 @@ from physverify.finetune.records import (
     write_records,
 )
 from physverify.finetune.scorers.provisional import ProvisionalScorer
-from physverify.finetune.scoring import build_scorer
 from physverify.finetune.settings import load_finetune
 from physverify.finetune.store import PAIRS_FILE, REPORT_FILE, CampaignStore
 from physverify.finetune.trainer import STATE_FILE, checkpoint_name
@@ -310,7 +310,7 @@ def test_the_pilot_draws_train_prompts_only(cli: CliRunner, env: dict[str, str])
 def test_select_refuses_stale_checkpoint_scores(
     store: CampaignStore, make_score: Score, make_settings: Callable[..., Settings]
 ) -> None:
-    scorer = ProvisionalScorer(make_settings())
+    scorer = ProvisionalScorer(make_settings(), {})
     tag = "lora-abc"
     record = CandidateRecord(
         candidate_id="d__k00",

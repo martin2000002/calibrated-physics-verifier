@@ -187,14 +187,17 @@ def test_scenes_never_fall_back_from_the_frozen_rule(
     frozen_label: str | None,
 ) -> None:
     adapter = _scene_campaign(tmp_path)
-    label = frozen_label or ProvisionalScorer(make_settings(profile="precise")).thresholds()
+    label = frozen_label or ProvisionalScorer(make_settings(profile="precise"), {}).thresholds()
     frozen = H3Preregistration.model_construct(
         rule="calibrated", scorer_version=frozen_version, rule_label=label
     )
     monkeypatch.setattr(f"{COMMANDS}.require_videos", lambda store, prompts, tags: None)
     monkeypatch.setattr(f"{COMMANDS}.load_prereg", lambda path: frozen)
     if available:
-        monkeypatch.setattr(f"{COMMANDS}.build_scorer", lambda name, s: ProvisionalScorer(s))
+        monkeypatch.setattr(
+            f"{COMMANDS}.context_scorer",
+            lambda context, name: ProvisionalScorer(context.settings, {}),
+        )
     before = sorted((tmp_path / "data").rglob("*"))
     result = cli("--profile", "precise", "demo", "scenes", "--adapter", str(adapter), env=env)
     assert result.code == 2

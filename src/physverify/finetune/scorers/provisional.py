@@ -14,10 +14,11 @@ sigma None. It is not a calibrated probability (ADR 0012, amendment 1).
 from __future__ import annotations
 
 import math
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import ClassVar
 
+from physverify.checks._base import Check
 from physverify.config.models import Settings
 from physverify.finetune.scorers._base import AggregateScore
 from physverify.schema.checks import CheckResult, Verdict
@@ -123,7 +124,8 @@ class ProvisionalScorer:
     version: ClassVar[str] = "2"
     calibrated: ClassVar[bool] = False
 
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self, settings: Settings, checks: Mapping[str, type[Check]]) -> None:
+        """``checks`` is part of the scorer contract; this rule reads only ``settings``."""
         self._settings = settings
 
     def unavailable(self) -> str | None:

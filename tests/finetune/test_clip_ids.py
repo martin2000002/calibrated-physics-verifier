@@ -150,7 +150,9 @@ def test_scoring_reads_an_old_manifest_under_the_new_clip_ids(
     (store.video_dir(BASE_TAG) / MANIFEST_FILE).write_text(json.dumps({"clips": entries}))
     runner = _Runner(make_result)
     deps = ScoringDeps(LocalVideoDataset(local_settings).clips, _Source(), runner)
-    scores = score_candidates(store, BASE_TAG, [_prompt()], ProvisionalScorer(local_settings), deps)
+    scores = score_candidates(
+        store, BASE_TAG, [_prompt()], ProvisionalScorer(local_settings, {}), deps
+    )
     assert runner.clips == [r.clip_id for r in records]
     assert [s.candidate_id for s in scores] == [r.candidate_id for r in records]
     assert all(s.n_decided == 1 for s in scores)

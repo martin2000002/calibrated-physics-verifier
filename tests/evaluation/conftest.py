@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from wiring import build_scorer
 
 from physverify.config.loader import load_settings
 from physverify.config.models import Settings
@@ -31,7 +32,6 @@ from physverify.finetune.records import (
     write_records,
 )
 from physverify.finetune.scorers._base import AggregateScorer
-from physverify.finetune.scoring import build_scorer
 from physverify.finetune.seeds import candidate_id
 from physverify.finetune.selection import CheckpointResult, Selection
 from physverify.finetune.settings import load_finetune

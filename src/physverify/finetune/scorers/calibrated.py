@@ -33,7 +33,6 @@ SOURCE_PREFIX: Final = "calibrated:"
 ROW_STEP_KEY: Final = "row_step"
 
 ModuleImporter = Callable[[str], ModuleType]
-CheckRegistry = Callable[[], Mapping[str, type[Check]]]
 
 
 def to_aggregate(clip_score: Any) -> AggregateScore:
@@ -59,8 +58,8 @@ class CalibratedScorer:
     def __init__(
         self,
         settings: Settings,
+        checks: Mapping[str, type[Check]],
         import_module: ModuleImporter = importlib.import_module,
-        checks: CheckRegistry | None = None,
     ) -> None:
         self._settings = settings
         self._import = import_module
@@ -119,9 +118,7 @@ class CalibratedScorer:
         loader = self._import(LOADER_MODULE)
         calibration = self._import(SETTINGS_MODULE)
         path: Path = loader.default_artifact_path(self._settings)
-        active: str = calibration.active_checks_hash(
-            self._settings, None if self._checks is None else self._checks()
-        )
+        active: str = calibration.active_checks_hash(self._settings, self._checks)
         require = calibration.calibration_settings(self._settings).require_calibrated_artifact
         try:
             self._stratum = loader.open_stratum(
