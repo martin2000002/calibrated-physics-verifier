@@ -41,6 +41,7 @@ class ContinuityCheck:
     check_id: ClassVar[str] = "R4_jump"
     requires: ClassVar[frozenset[str]] = frozenset({"contacts"})
     magnitude_unit: ClassVar[str] = "jump_over_size"
+    time_dependent: ClassVar[bool] = True
     Params: ClassVar[type[BaseModel]] = CommonParams
 
     def __init__(self, params: BaseModel) -> None:

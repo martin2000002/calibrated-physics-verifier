@@ -16,12 +16,12 @@ from physverify.checks._collision_windows import (
     FloatArray,
     SideData,
     Window,
-    as_params,
     contact_span,
     fit_window,
     no_contacts,
     side_data,
 )
+from physverify.checks._params import as_params
 from physverify.checks._results import abstain, unscored
 from physverify.checks._uncertainty import check_rng, mc_sigma
 from physverify.physics.geometry import Plane
@@ -67,11 +67,12 @@ class RestitutionCheck:
 
     check_id: ClassVar[str] = "R3a"
     requires: ClassVar[frozenset[str]] = frozenset({"contacts"})
+    time_dependent: ClassVar[bool] = False
     magnitude_unit: ClassVar[str] = "e_minus_1"
     Params: ClassVar[type[BaseModel]] = RestitutionParams
 
     def __init__(self, params: BaseModel) -> None:
-        self.params: RestitutionParams = as_params(RestitutionParams, params)
+        self.params = as_params(RestitutionParams, params)
 
     def evaluate(self, inputs: CheckInputs) -> list[CheckResult]:
         contacts = inputs.contacts

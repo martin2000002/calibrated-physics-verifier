@@ -37,10 +37,10 @@ from physverify.checks.r4_missing_permanence import PermanenceCheck, PermanenceP
 from physverify.checks.r4_size_constancy import SizeConstancyCheck, SizeParams
 from physverify.checks.r5a_fall_shape import FallShapeCheck, FallShapeParams
 from physverify.checks.r5b_gravity_value import GravityValueCheck, GravityValueParams
-from physverify.extraction.providers._temporal_smoothing import EdgeMode, stabilize_run
+from physverify.extraction.lift_params import EdgeMode, LiftParams
+from physverify.extraction.providers._temporal_smoothing import stabilize_run
 from physverify.extraction.providers.kinematics_savgol import Params as SavgolParams
 from physverify.extraction.providers.kinematics_savgol import track_derivatives
-from physverify.extraction.providers.lift_backproject import Params as LiftParams
 from physverify.physics.geometry import matrix_from_quaternion, quaternion_from_matrix
 from physverify.physics.kinematics import SavgolSpec, visible_runs
 from physverify.schema.states import ObjectStateTable

@@ -15,7 +15,7 @@ from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from typing import ClassVar, Final, Protocol
 
-from physverify.checks._base import Check, CheckInputs
+from physverify.checks._base import Check, CheckInputs, missing_inputs
 from physverify.config.models import Settings
 from physverify.core.errors import TimingError
 from physverify.datasets._base import DatasetSource, dataset_from
@@ -34,7 +34,7 @@ from physverify.timing.records import (
     measure_name,
 )
 from physverify.timing.target_services import TimingServices
-from physverify.timing.targets.extract_pipeline import (
+from physverify.timing.targets._extract_pipeline import (
     PipelineFactory,
     PlanFactory,
     perception_plan,
@@ -217,7 +217,7 @@ class VerifyChecks(TargetHooks):
         clock = self._services.clock
         spent: dict[str, float] = {}
         for check in checks:
-            if any(getattr(inputs, name) is None for name in check.requires):
+            if missing_inputs(check, inputs):
                 continue
             started = clock()
             with contextlib.suppress(Exception):

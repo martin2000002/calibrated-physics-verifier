@@ -13,7 +13,7 @@ from typing import Any
 
 from pydantic import Field
 
-from physverify.checks._base import Check, CheckInputs
+from physverify.checks._base import Check, CheckInputs, missing_inputs
 from physverify.checks._results import abstain, row_step_or_none
 from physverify.config.models import validated
 from physverify.core.errors import ConfigError
@@ -112,7 +112,7 @@ class VerificationRunner:
         if item.inputs is None:
             error = item.error or ""
             return [self._missing(check, item, {"error": error})], False
-        missing = sorted(name for name in check.requires if getattr(item.inputs, name) is None)
+        missing = missing_inputs(check, item.inputs)
         if missing:
             return [self._missing(check, item, {"missing": missing})], False
         try:

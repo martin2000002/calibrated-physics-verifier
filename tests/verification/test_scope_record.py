@@ -17,7 +17,11 @@ from wiring import active_checks_hash, checks  # noqa: E402
 from physverify.config.loader import load_settings  # noqa: E402
 from physverify.config.models import Settings  # noqa: E402
 from physverify.core.errors import ConfigError, UsageError  # noqa: E402
-from physverify.verification.scope import check_scope, require_record_for  # noqa: E402
+from physverify.verification.scope import (  # noqa: E402
+    CheckScope,
+    check_scope,
+    require_record_for,
+)
 
 
 @pytest.fixture
@@ -48,6 +52,14 @@ def test_the_record_ids_are_merged_and_its_sha_exposed(make) -> None:  # type: i
     assert scope.exclude_checks == ("R1", "R5a")
     assert scope.record_sha256 == found.sha256
     assert scope.excluded(time_dependent=True) == {"R1", "R5a", "R5b", "R4_jump"}
+
+
+def test_the_time_dependent_checks_are_the_ones_the_checks_declare(make) -> None:  # type: ignore[no-untyped-def]
+    declared = {check_id for check_id, check in checks().items() if check.time_dependent}
+    assert set(check_scope(make(), checks()).time_dependent_checks) == declared
+    assert set(CheckScope().time_dependent_checks) == declared
+    with pytest.raises(ConfigError, match="time_dependent"):
+        check_scope(make('check_scope.time_dependent_checks=["R5b"]'), checks())
 
 
 def test_the_sha_cannot_be_set_from_the_toml(make) -> None:  # type: ignore[no-untyped-def]

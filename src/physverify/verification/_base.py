@@ -6,6 +6,7 @@ from typing import ClassVar, Protocol, runtime_checkable
 
 from pydantic import BaseModel
 
+from physverify.config.plugin_context import PluginKind
 from physverify.schema.checks import CheckResult
 from physverify.verification.thresholding import ThresholdTable
 
@@ -21,3 +22,6 @@ class VerdictPolicy(Protocol):
     def __init__(self, params: BaseModel) -> None: ...
 
     def decide(self, result: CheckResult, thresholds: ThresholdTable) -> CheckResult: ...
+
+
+POLICIES = PluginKind[type[VerdictPolicy]]("policies")

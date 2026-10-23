@@ -12,7 +12,7 @@ from numpy.typing import NDArray
 from pydantic import BaseModel, Field
 
 from physverify.checks._base import CheckInputs
-from physverify.checks._params import CommonParams
+from physverify.checks._params import CommonParams, as_params
 from physverify.checks._results import abstain, unscored
 from physverify.checks._uncertainty import check_rng, mc_sigma
 from physverify.physics.equilibrium import (
@@ -70,15 +70,12 @@ class EquilibriumCheck:
 
     check_id: ClassVar[str] = "R2"
     requires: ClassVar[frozenset[str]] = frozenset({"contacts"})
+    time_dependent: ClassVar[bool] = False
     magnitude_unit: ClassVar[str] = "residual_over_weight"
     Params: ClassVar[type[BaseModel]] = EquilibriumParams
 
     def __init__(self, params: BaseModel) -> None:
-        self.params = (
-            params
-            if isinstance(params, EquilibriumParams)
-            else EquilibriumParams.model_validate(params.model_dump(exclude_unset=True))
-        )
+        self.params = as_params(EquilibriumParams, params)
 
     @property
     def settings(self) -> EquilibriumSettings:

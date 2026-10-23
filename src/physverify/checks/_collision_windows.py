@@ -10,7 +10,7 @@ from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import BaseModel, Field, model_validator
+from pydantic import Field, model_validator
 
 from physverify.checks._base import CheckInputs
 from physverify.checks._params import CommonParams
@@ -130,11 +130,3 @@ def no_contacts(check: type[Any], inputs: CheckInputs) -> list[CheckResult]:
     subject = tuple(sorted(str(i) for i in inputs.states.object_ids))
     details = {"missing": "contacts"}
     return [abstain(check, inputs, subject, AbstainReason.MISSING_INPUT, None, details)]
-
-
-def as_params(cls: type[BaseModel], params: BaseModel) -> Any:
-    return (
-        params
-        if isinstance(params, cls)
-        else cls.model_validate(params.model_dump(exclude_unset=True))
-    )

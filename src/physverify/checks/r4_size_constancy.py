@@ -53,6 +53,7 @@ class SizeConstancyCheck:
 
     check_id: ClassVar[str] = "R4_size"
     requires: ClassVar[frozenset[str]] = frozenset()
+    time_dependent: ClassVar[bool] = False
     magnitude_unit: ClassVar[str] = "rel_size_change"
     Params: ClassVar[type[BaseModel]] = SizeParams
 
