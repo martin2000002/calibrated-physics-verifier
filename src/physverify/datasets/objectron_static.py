@@ -24,11 +24,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from physverify.config.models import FrozenModel
 from physverify.core.atomic import write_text_atomic
 from physverify.core.digests import file_sha256, text_sha256
-from physverify.core.errors import MissingInputError, PhysverifyError, UsageError
-from physverify.core.log import get_logger
-from physverify.core.video import FrameDirVideoSource
-from physverify.datasets._base import GroundTruthStore, VideoSource
-from physverify.datasets._download import (
+from physverify.core.download import (
     MANIFEST_FILE,
     FetchedFile,
     FetchManifest,
@@ -41,6 +37,10 @@ from physverify.datasets._download import (
     read_manifest,
     write_manifest,
 )
+from physverify.core.errors import MissingInputError, PhysverifyError, UsageError
+from physverify.core.log import get_logger
+from physverify.core.video import FrameDirVideoSource
+from physverify.datasets._base import GroundTruthStore, VideoSource
 from physverify.datasets._layout import relative_to_data, resolve_data_path
 from physverify.schema.clip import ClipManifest, ObjectQuery, Split, TimeSource
 from physverify.sizing import draws, e2e, objectron

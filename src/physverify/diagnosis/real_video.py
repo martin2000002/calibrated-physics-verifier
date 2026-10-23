@@ -15,9 +15,9 @@ from typing import Protocol, runtime_checkable
 import numpy as np
 from numpy.typing import NDArray
 
+from physverify.core.download import MANIFEST_FILE, read_manifest
 from physverify.core.errors import MissingInputError, PhysverifyError, UsageError
 from physverify.datasets._base import DatasetSource
-from physverify.datasets._download import MANIFEST_FILE, read_manifest
 from physverify.diagnosis.cases import stage_output
 from physverify.diagnosis.chain import ChainRunner, VariantOutputs, warm_variants
 from physverify.diagnosis.context import DiagnosisContext

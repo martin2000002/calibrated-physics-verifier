@@ -16,8 +16,8 @@ from physverify.cli import context
 from physverify.cli.commands import data, diagnose
 from physverify.cli.commands.extract import ConsoleObserver, EventRecorder
 from physverify.config.models import Settings
+from physverify.core.download import MANIFEST_FILE, FetchedFile, FetchManifest, write_manifest
 from physverify.core.errors import MissingInputError, UsageError
-from physverify.datasets._download import MANIFEST_FILE, FetchedFile, FetchManifest, write_manifest
 from physverify.diagnosis.context import DiagnosisContext
 from physverify.diagnosis.real_video import ALL_CLIPS, run_real
 from physverify.diagnosis.report import RealVideoReport, build_provenance

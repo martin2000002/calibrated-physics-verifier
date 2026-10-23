@@ -17,8 +17,8 @@ import pytest
 from physverify.cli.context import PLUGIN_KINDS
 from physverify.config.loader import load_settings
 from physverify.config.models import Settings
+from physverify.core.download import MANIFEST_FILE, intact, read_manifest
 from physverify.core.errors import ConfigError, MissingInputError, UsageError
-from physverify.datasets._download import MANIFEST_FILE, intact, read_manifest
 from physverify.datasets.objectron_static import (
     FAILED,
     FRAMES_DIR,

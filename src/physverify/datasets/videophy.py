@@ -15,11 +15,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
 from physverify.core.digests import file_sha256
-from physverify.core.errors import MissingInputError, PhysverifyError
-from physverify.core.log import get_logger
-from physverify.core.video import Mp4VideoSource
-from physverify.datasets._base import GroundTruthStore, VideoSource
-from physverify.datasets._download import (
+from physverify.core.download import (
     MANIFEST_FILE,
     ChecksumError,
     FetchedFile,
@@ -34,6 +30,10 @@ from physverify.datasets._download import (
     save_atomic,
     write_manifest,
 )
+from physverify.core.errors import MissingInputError, PhysverifyError
+from physverify.core.log import get_logger
+from physverify.core.video import Mp4VideoSource
+from physverify.datasets._base import GroundTruthStore, VideoSource
 from physverify.datasets._layout import load_annotations, relative_to_data, resolve_data_path
 from physverify.datasets._queries import derive_queries
 from physverify.datasets._videophy_review import load_review, reviewed_rows

@@ -18,11 +18,7 @@ from numpy.typing import NDArray
 from pydantic import Field
 
 from physverify.config.models import FrozenModel
-from physverify.core.errors import MissingInputError, UsageError
-from physverify.core.log import get_logger
-from physverify.core.video import Mp4VideoSource
-from physverify.datasets._base import GroundTruthStore, VideoSource
-from physverify.datasets._download import (
+from physverify.core.download import (
     MANIFEST_FILE,
     FetchedFile,
     FetchManifest,
@@ -35,6 +31,10 @@ from physverify.datasets._download import (
     read_manifest,
     write_manifest,
 )
+from physverify.core.errors import MissingInputError, UsageError
+from physverify.core.log import get_logger
+from physverify.core.video import Mp4VideoSource
+from physverify.datasets._base import GroundTruthStore, VideoSource
 from physverify.datasets._layout import load_annotations, relative_to_data, resolve_data_path
 from physverify.schema.clip import ClipManifest, FrameSampling, ObjectQuery, Split, TimeSource
 

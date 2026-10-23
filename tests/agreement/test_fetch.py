@@ -11,7 +11,7 @@ from typing import BinaryIO
 
 import pytest
 
-from physverify.datasets._download import MANIFEST_FILE, ChecksumError, ascii_url, read_manifest
+from physverify.core.download import MANIFEST_FILE, ChecksumError, ascii_url, read_manifest
 from physverify.datasets.videophy import VideophyDataset
 
 TABLE = "train.csv"

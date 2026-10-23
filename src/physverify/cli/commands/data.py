@@ -13,8 +13,8 @@ from typing import TYPE_CHECKING, Annotated, Any
 import typer
 
 from physverify.cli.context import app_context, heavy_command
+from physverify.core.download import MANIFEST_FILE, read_manifest
 from physverify.core.errors import UsageError
-from physverify.datasets._download import MANIFEST_FILE, read_manifest
 from physverify.diagnosis.settings import diagnosis_settings
 
 if TYPE_CHECKING:

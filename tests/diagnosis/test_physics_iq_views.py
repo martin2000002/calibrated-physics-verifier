@@ -12,8 +12,8 @@ import pytest
 
 from physverify.cli.context import PLUGIN_KINDS
 from physverify.config.models import Settings
+from physverify.core.download import MANIFEST_FILE, read_manifest
 from physverify.core.errors import MissingInputError
-from physverify.datasets._download import MANIFEST_FILE, read_manifest
 from physverify.datasets.physics_iq import (
     FULL,
     LOCAL,

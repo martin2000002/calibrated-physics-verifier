@@ -15,8 +15,7 @@ import numpy as np
 import pytest
 
 from physverify.config.models import Settings
-from physverify.core.errors import MissingInputError, UsageError
-from physverify.datasets._download import (
+from physverify.core.download import (
     MANIFEST_FILE,
     ChecksumError,
     RemoteFile,
@@ -24,6 +23,7 @@ from physverify.datasets._download import (
     part_path,
     read_manifest,
 )
+from physverify.core.errors import MissingInputError, UsageError
 from physverify.datasets._layout import load_annotations
 from physverify.datasets.physics_iq import (
     MASKS,

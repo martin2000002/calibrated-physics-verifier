@@ -14,8 +14,8 @@ import pytest
 
 from physverify.config.models import Settings
 from physverify.core.digests import file_sha256
+from physverify.core.download import MANIFEST_FILE, ChecksumError, part_path, read_manifest
 from physverify.core.errors import MissingInputError, UsageError
-from physverify.datasets._download import MANIFEST_FILE, ChecksumError, part_path, read_manifest
 from physverify.datasets.pisa_real import (
     INDEX_FILE,
     PisaRealDataset,
