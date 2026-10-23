@@ -1,5 +1,6 @@
 # Size estimator learned on Objectron (cycle A9, ADR 0010). Only box annotations are fetched:
-# Objectron is C-UDA 1.0, so only fitted coefficients (configs/size_model.toml) are versioned.
+# Objectron is C-UDA 1.0, so only fitted coefficients (configs/verifier/size_model.toml) are
+# versioned.
 [sizing]
 bucket_url = "https://storage.googleapis.com/objectron"
 listing_url = "https://storage.googleapis.com/storage/v1/b/objectron/o"

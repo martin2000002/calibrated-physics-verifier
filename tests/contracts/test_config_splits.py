@@ -1,5 +1,6 @@
 """The config files split out of a single file hold exactly what it held: the same tables and
-values, and the same non-blank lines, comments included."""
+values, and the same non-blank lines, comments included (with the config paths they name moved to
+the new layout)."""
 
 from __future__ import annotations
 
@@ -23,6 +24,14 @@ SPLITS = {
     ),
 }
 
+MOVED_PATHS = {"(configs/check_scope.toml)": "(configs/verifier/check_scope.toml)"}
+
+
+def _with_moved_paths(text: str) -> str:
+    for old, new in MOVED_PATHS.items():
+        text = text.replace(old, new)
+    return text
+
 
 def _non_blank_lines(text: str) -> list[str]:
     return [line for line in text.splitlines() if line.strip()]
@@ -41,5 +50,5 @@ def test_the_pieces_hold_the_same_tables(original: str) -> None:
 @pytest.mark.parametrize("original", sorted(SPLITS))
 def test_the_pieces_hold_the_same_lines(original: str) -> None:
     pieces = "\n".join((CONFIGS / piece).read_text(encoding="utf-8") for piece in SPLITS[original])
-    old = (DATA / original).read_text(encoding="utf-8")
+    old = _with_moved_paths((DATA / original).read_text(encoding="utf-8"))
     assert Counter(_non_blank_lines(pieces)) == Counter(_non_blank_lines(old))

@@ -13,7 +13,7 @@ ci = 0.95
 permutation_exact_max = 20             # caption McNemar (secondary): exact up to 20 discordant captions, else Monte Carlo
 error_sample_per_class = 15
 error_seed = 20261017
-# Excluded and time-dependent check ids live in [check_scope] (configs/check_scope.toml).
+# Excluded and time-dependent check ids live in [check_scope] (configs/verifier/check_scope.toml).
 on_unusable_stratum = "descriptive"    # calibrated rule, stratum not usable: provisional + "not evaluable"; "error" = exit 2
 exclude_time_dependent = false         # ADR 0011: R5b/R4_jump stay in the primary (sensitivity without them)
 dev_subset = "h2_dev"
