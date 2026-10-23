@@ -14,15 +14,15 @@ from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactTable
 from physverify.schema.scene import MagnitudeKind, PerturbationRecord, SceneSpec
 from physverify.schema.states import ObjectStateTable
-from physverify.synth.magnitudes import overhang_on
-from physverify.synth.perturb import PerturbationNotApplicableError
-from physverify.synth.perturbations._base import PerturbationTarget
-from physverify.synth.perturbations._frame_windows import (
+from physverify.synth.frame_windows import (
     on_top_pairs,
     solid_at,
     supports_nothing,
     touching,
 )
+from physverify.synth.magnitudes import overhang_on
+from physverify.synth.perturb import PerturbationNotApplicableError
+from physverify.synth.perturbations._base import PerturbationTarget
 from physverify.synth.perturbations._state_edit import (
     PluginBase,
     Vec,

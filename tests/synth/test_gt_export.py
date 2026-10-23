@@ -20,6 +20,11 @@ from physverify.schema.contacts import ContactTable
 from physverify.schema.render import RenderLayers
 from physverify.schema.scene import CameraSpec, SceneSpec
 from physverify.schema.states import CoordFrame, ObjectStateTable
+from physverify.synth.frame_windows import (
+    projected_silhouette,
+    silhouette_mask,
+    solid_at,
+)
 from physverify.synth.generate import plan_subset, save_plan
 from physverify.synth.gt_camera import (
     OPENGL_TO_OPENCV,
@@ -33,11 +38,6 @@ from physverify.synth.perturb import (
     closest_points,
     ground_truth_contacts,
     instantiate,
-)
-from physverify.synth.perturbations._frame_windows import (
-    projected_silhouette,
-    silhouette_mask,
-    solid_at,
 )
 from physverify.synth.placement import project, spec_intrinsics, spec_world_from_camera
 from physverify.synth.plan import DatasetPlan

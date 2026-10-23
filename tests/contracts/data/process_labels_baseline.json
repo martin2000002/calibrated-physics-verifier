@@ -739,6 +739,9 @@
  "src/physverify/sizing/settings.py": {
   "comment_or_docstring": 1
  },
+ "src/physverify/synth/ballistics.py": {
+  "comment_or_docstring": 2
+ },
  "src/physverify/synth/families/f1_projectile.py": {
   "comment_or_docstring": 2
  },
@@ -780,9 +783,6 @@
  },
  "src/physverify/synth/perturb.py": {
   "comment_or_docstring": 1
- },
- "src/physverify/synth/perturbations/_ballistics.py": {
-  "comment_or_docstring": 2
  },
  "src/physverify/synth/perturbations/_state_edit.py": {
   "comment_or_docstring": 2

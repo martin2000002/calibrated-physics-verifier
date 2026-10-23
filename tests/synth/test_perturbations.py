@@ -17,6 +17,7 @@ from physverify.physics.geometry import Plane
 from physverify.physics.signed_distance import signed_distance
 from physverify.schema.scene import ObjectSpec, PerturbationRecord, SceneSpec
 from physverify.schema.states import ObjectStateTable, PrimitiveKind
+from physverify.synth.frame_windows import solid_at
 from physverify.synth.magnitudes import record_cuts
 from physverify.synth.perturb import (
     MeasuredPerturbation,
@@ -28,7 +29,6 @@ from physverify.synth.perturb import (
     perturb_trajectory,
 )
 from physverify.synth.perturbations._base import PerturbationTarget
-from physverify.synth.perturbations._frame_windows import solid_at
 from physverify.synth.settings import DatasetSettings, load_dataset_settings, perturbation_params
 from physverify.synth.truth_measures._base import measure_clip
 

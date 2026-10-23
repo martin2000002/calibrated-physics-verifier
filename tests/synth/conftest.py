@@ -30,6 +30,8 @@ from physverify.schema.contacts import (
 )
 from physverify.schema.scene import ObjectSpec, PerturbationRecord, SceneSpec
 from physverify.schema.states import ObjectStateTable, PrimitiveKind
+from physverify.synth.ballistics import Flight, GravitySchedule, integrate_sphere
+from physverify.synth.frame_windows import solid_at
 from physverify.synth.gt_contacts import (
     ClosestSamples,
     contact_table,
@@ -37,8 +39,6 @@ from physverify.synth.gt_contacts import (
     from_raw_events,
 )
 from physverify.synth.perturb import instantiate, relabel
-from physverify.synth.perturbations._ballistics import Flight, GravitySchedule, integrate_sphere
-from physverify.synth.perturbations._frame_windows import solid_at
 from physverify.synth.perturbations._state_edit import ANALYTIC_SOURCE, bounce_record
 from physverify.synth.settings import (
     ContactSettings,

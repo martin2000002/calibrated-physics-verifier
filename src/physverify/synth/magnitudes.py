@@ -27,8 +27,8 @@ from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactTable
 from physverify.schema.scene import PerturbationRecord
 from physverify.schema.states import ObjectStateTable, PrimitiveKind
-from physverify.synth.perturbations._ballistics import EPS_T, impact_velocity, time_to_height
-from physverify.synth.perturbations._frame_windows import (
+from physverify.synth.ballistics import EPS_T, impact_velocity, time_to_height
+from physverify.synth.frame_windows import (
     UP,
     flight_mask,
     impact_frames,

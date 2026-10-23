@@ -21,6 +21,7 @@ from physverify.core.errors import ConfigError, MissingInputError, UsageError
 from physverify.schema.scene import PerturbationRecord
 from physverify.schema.states import ObjectStateTable
 from physverify.synth import magnitudes, migrate
+from physverify.synth.ballistics import time_to_height
 from physverify.synth.generate import load_plan, plan_subset, save_plan
 from physverify.synth.gt_export import read_index
 from physverify.synth.migrate import (
@@ -37,7 +38,6 @@ from physverify.synth.migrate import (
     velocity_migration,
 )
 from physverify.synth.perturb import apply_variants, instantiate
-from physverify.synth.perturbations._ballistics import time_to_height
 from physverify.synth.plan import GT_MIGRATIONS, GT_REVISION, DatasetPlan
 from physverify.synth.settings import DatasetSettings, load_dataset_settings
 from physverify.synth.store import (

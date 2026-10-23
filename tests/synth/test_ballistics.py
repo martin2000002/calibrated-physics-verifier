@@ -7,7 +7,7 @@ import math
 import numpy as np
 import pytest
 
-from physverify.synth.perturbations._ballistics import (
+from physverify.synth.ballistics import (
     GravitySchedule,
     energy_scale,
     impact_velocity,

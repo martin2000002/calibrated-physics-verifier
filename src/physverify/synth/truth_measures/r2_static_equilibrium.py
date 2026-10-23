@@ -10,8 +10,8 @@ from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactTable
 from physverify.schema.scene import SceneSpec
 from physverify.schema.states import ObjectStateTable
+from physverify.synth.frame_windows import on_top_pairs, rest_mask, solid_at
 from physverify.synth.magnitudes import nanmax, overhang_on
-from physverify.synth.perturbations._frame_windows import on_top_pairs, rest_mask, solid_at
 
 
 class OverhangTruth:

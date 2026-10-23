@@ -11,13 +11,13 @@ from physverify.physics.tracks import records_of
 from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactTable
 from physverify.schema.states import ObjectStateTable
+from physverify.synth.ballistics import impact_velocity
 from physverify.synth.magnitudes import (
     bounce_crossing,
     bounce_rows,
     collision_row,
     floor_crossing,
 )
-from physverify.synth.perturbations._ballistics import impact_velocity
 from physverify.synth.perturbations._state_edit import radius_of
 
 

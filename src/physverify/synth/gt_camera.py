@@ -18,7 +18,7 @@ from physverify.physics.geometry import matrix_from_quaternion, quaternion_from_
 from physverify.schema.contacts import ContactRecord, ContactTable
 from physverify.schema.render import RenderLayers
 from physverify.schema.states import CoordFrame, ObjectStateTable
-from physverify.synth.perturbations._frame_windows import (
+from physverify.synth.frame_windows import (
     in_image_fraction,
     projected_silhouette,
     silhouette_mask,

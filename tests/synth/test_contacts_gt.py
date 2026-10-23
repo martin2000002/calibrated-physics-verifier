@@ -17,6 +17,7 @@ from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactKind, ContactRecord, ManifoldKind, RawCollisions
 from physverify.schema.scene import SceneSpec
 from physverify.schema.states import ObjectStateTable
+from physverify.synth.frame_windows import solid_at
 from physverify.synth.gt_contact_records import CLOSEST_SOURCE
 from physverify.synth.gt_contacts import (
     EVENT_STEP_OFFSET,
@@ -30,7 +31,6 @@ from physverify.synth.gt_contacts import (
     split_intervals,
     split_runs,
 )
-from physverify.synth.perturbations._frame_windows import solid_at
 from physverify.synth.settings import ContactSettings, DatasetSettings
 
 DATA = Path(__file__).parent / "data"

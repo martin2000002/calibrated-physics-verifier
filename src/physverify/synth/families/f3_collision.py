@@ -11,6 +11,7 @@ from numpy.typing import NDArray
 from pydantic import BaseModel
 
 from physverify.schema.scene import SceneSpec
+from physverify.synth.ballistics import energy_scale
 from physverify.synth.family_toolkit import (
     FamilyCommon,
     RejectedSampleError,
@@ -27,7 +28,6 @@ from physverify.synth.family_toolkit import (
     sphere_path,
     with_retries,
 )
-from physverify.synth.perturbations._ballistics import energy_scale
 from physverify.synth.placement import palette, primitive_volume
 
 Vec = NDArray[np.float64]

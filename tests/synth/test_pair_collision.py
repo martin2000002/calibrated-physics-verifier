@@ -16,6 +16,7 @@ from physverify.physics.measures.collision_energy import kinetic_energy_gain
 from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactKind, ContactRecord, ContactTable
 from physverify.schema.states import ObjectStateTable, PrimitiveKind
+from physverify.synth.ballistics import impact_velocity
 from physverify.synth.magnitudes import (
     collision_row,
     collision_velocities,
@@ -25,7 +26,6 @@ from physverify.synth.magnitudes import (
     row_overlaps_floor,
 )
 from physverify.synth.perturb import instantiate
-from physverify.synth.perturbations._ballistics import impact_velocity
 from physverify.synth.perturbations._state_edit import edit_object, gravity_of, radius_of, spheres
 
 TOL = 1e-12

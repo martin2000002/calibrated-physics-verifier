@@ -9,9 +9,9 @@ import numpy as np
 from physverify.schema.contacts import ContactTable
 from physverify.schema.scene import MagnitudeKind, PerturbationRecord, SceneSpec
 from physverify.schema.states import ObjectStateTable
+from physverify.synth.ballistics import Bounce, GravitySchedule, integrate_sphere
 from physverify.synth.magnitudes import bounce_restitution, floor_bounce
 from physverify.synth.perturb import PerturbationNotApplicableError
-from physverify.synth.perturbations._ballistics import Bounce, GravitySchedule, integrate_sphere
 from physverify.synth.perturbations._base import PerturbationTarget
 from physverify.synth.perturbations._state_edit import (
     PluginBase,

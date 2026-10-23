@@ -15,7 +15,7 @@ from physverify.physics.signed_distance import signed_distance
 from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactKind, ContactRecord, ManifoldKind
 from physverify.schema.states import ObjectStateTable, PrimitiveKind
-from physverify.synth.perturbations._frame_windows import UP, solid_at
+from physverify.synth.frame_windows import UP, solid_at
 from physverify.synth.settings import ContactSettings
 
 Vec = NDArray[np.float64]

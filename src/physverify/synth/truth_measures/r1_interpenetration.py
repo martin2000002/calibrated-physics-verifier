@@ -8,8 +8,8 @@ from typing import ClassVar
 from physverify.schema.contacts import ContactTable
 from physverify.schema.scene import SceneSpec
 from physverify.schema.states import ObjectStateTable
+from physverify.synth.frame_windows import solid_at
 from physverify.synth.magnitudes import floor_penetration, nanmax, penetration_between
-from physverify.synth.perturbations._frame_windows import solid_at
 
 
 class PenetrationTruth:
