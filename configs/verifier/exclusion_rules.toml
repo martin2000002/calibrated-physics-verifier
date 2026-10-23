@@ -1,10 +1,10 @@
-# Preregistered exclusion rules of ADR 0015 (1.1, 1.2 as amended by Enmienda 1, 1.5), applied by
+# Preregistered exclusion rules (1.1, 1.2 in its amended form, 1.5), applied by
 # `physverify exclusions decide` (calibration/exclusion_rules.py). Every threshold lives here: changing
-# one after A8 v2 is a declared deviation and changes the record's rules_sha256. The record is
+# one after the calibration chain has run is a declared deviation and changes the record's rules_sha256. The record is
 # written where [check_scope].decision_record points (its .md view next to it).
 [exclusion_rules]
 version = "1"
-consumed_level = "perceived"          # the stratum H2 and H3 consume (0b.2)
+consumed_level = "perceived"          # the stratum the human-agreement study and generator comparison consume
 consumed_profile = "precise"
 rules = ["1.1", "1.2", "1.5"]
 
@@ -34,7 +34,7 @@ max_fpr_lower = 0.10
 ci = 0.95
 sided = "two_sided"                   # exact Clopper-Pearson over (k, n) clips, like v1's intervals
 allowed_sets = [
-    { physics_iq = 54, pisa_real = 360 },   # the A8 v1 set
+    { physics_iq = 54, pisa_real = 360 },   # the calibration chain's v1 set
     { physics_iq = 54, pisa_real = 40 },    # fallback when GPU time is short
     { physics_iq = 54, pisa_real = 361 },   # only if PISA clip 0229 comes in
 ]

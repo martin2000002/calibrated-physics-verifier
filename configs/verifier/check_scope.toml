@@ -1,9 +1,9 @@
-# Checks the consumers leave out (verification/scope.py). One list for H2 (agreement) and H3
-# (finetune scorer); each consumer says whether it also leaves out the time-dependent ones
+# Checks the consumers leave out (verification/scope.py). One list for the human-agreement study
+# and the generator comparison (finetune scorer); each consumer says whether it also leaves out the time-dependent ones
 # ([agreement].exclude_time_dependent, [finetune].exclude_time_dependent). Ids are validated
 # against the check registry: an unknown id is a configuration error.
 [check_scope]
 exclude_checks = []                          # manual only, with manual_deviation; the rules write the record
 time_dependent_checks = ["R5b", "R4_jump"]   # magnitudes depend on the fps (item 1.17)
-decision_record = "exclusions.json"          # `exclusions decide` writes it (ADR 0015 1.1/1.2/1.5)
-require_decision_record = false              # true before freezing H2 (A8 v2 runbook)
+decision_record = "exclusions.json"          # `exclusions decide` writes it
+require_decision_record = false              # true before freezing the human-agreement study

@@ -1,6 +1,6 @@
-# Checks R1-R5b and verdict policy (cycle A7). Every threshold is PROVISIONAL until the H1
-# calibration (A8) writes data/calibration/thresholds.json, which then takes precedence.
-# Entregable 1 is a local proof of the pipeline: ~25 synthetic clips (5 families x 1 seed x
+# Checks R1-R5b and verdict policy (the check suite). Every threshold is PROVISIONAL until the
+# calibration chain writes data/calibration/thresholds.json, which then takes precedence.
+# Deliverable 1 is a local proof of the pipeline: ~25 synthetic clips (5 families x 1 seed x
 # none + 1 mid level per applicable perturbation) plus 5 Physics-IQ and 5 PISA clips.
 # The full dataset and the large runs happen on the H200.
 # Frame counts (min_*_frames, fit_frames, side_frames) count table ROWS; margins
@@ -12,7 +12,7 @@
 friction = 0.6
 mass_floor = 0.2
 
-# it4 (plan-it4 change B): the size relative to the other bodies of each frame; "self" is v1.
+# The size relative to the other bodies of each frame; "self" is the v1 rule.
 [checks.R4_size]
 reference = "others"
 
@@ -30,8 +30,8 @@ R3a = 0.05
 R3b = 0.05
 R4_missing = 2
 R4_size = 0.10
-# it4 R4_jump v2 is in units of the track's own noise: sqrt of the chi-square(3) quantile at
-# 1 - 0.05 / 20 (Bonferroni over about 20 stencils), a priori (plan-it4 judgement J9).
+# R4_jump v2 is in units of the track's own noise: sqrt of the chi-square(3) quantile at
+# 1 - 0.05 / 20 (Bonferroni over about 20 stencils), fixed a priori, not tuned on data.
 R4_jump = 3.78
 R5a = 0.15
 R5b = 0.15

@@ -1,4 +1,4 @@
-# Size estimator learned on Objectron (cycle A9, ADR 0010). Only box annotations are fetched:
+# Size estimator learned on Objectron. Only box annotations are fetched:
 # Objectron is C-UDA 1.0, so only fitted coefficients (configs/verifier/size_model.toml) are
 # versioned.
 [sizing]
@@ -55,8 +55,8 @@ rel_spread = 0.05
 source = "FIBA Official Basketball Rules 2024, Equipment: circumference 74.9-78.0 cm (size 7)"
 
 [sizing.e2e]
-classes = ["cup", "bottle", "book", "shoe", "cereal_box"]   # tabletop classes A11 also renders
-videos = 10                # R2 asks for 20; 10 keeps the MOV downloads near 300 MB (each is deleted after decoding)
+classes = ["cup", "bottle", "book", "shoe", "cereal_box"]   # tabletop classes preference fine-tuning also renders
+videos = 10                # 20 were planned; 10 keeps the MOV downloads near 300 MB (each is deleted after decoding)
 seconds = 2.0
 fps = 15.0                 # native 30 fps, every second frame
 max_side = 640

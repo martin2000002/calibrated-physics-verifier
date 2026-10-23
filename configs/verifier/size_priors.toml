@@ -1,7 +1,7 @@
 # Frozen table: object label -> prior on its characteristic size (full extent, meters).
 # These are ESTIMATES, not measurements: mean_m is a typical size and rel_spread its relative
-# standard deviation. Single source of truth: cycle A4 samples synthetic object sizes from it and
-# uses its keys as labels, the size-prior scale provider (A5) reads it through settings, and
+# standard deviation. Single source of truth: the synthetic Kubric dataset samples object sizes from
+# it and uses its keys as labels, the size-prior scale provider reads it through settings, and
 # real-dataset phrases map to its keys. Only the main thread changes it (SCHEMA CHANGE REQUEST).
 
 [size_priors.cube]
