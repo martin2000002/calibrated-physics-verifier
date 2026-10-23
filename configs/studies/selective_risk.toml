@@ -1,4 +1,4 @@
-# Abstention by risk-coverage (cycle A9, ADR 0010): sweep k_sigma of the threshold policy,
+# Abstention by risk-coverage: sweep k_sigma of the threshold policy,
 # pick k* on calib. k* is reported; the main thread sets [verification.policies.threshold].
 [abstention]
 risk_target = 0.10

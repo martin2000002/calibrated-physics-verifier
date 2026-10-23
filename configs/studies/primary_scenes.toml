@@ -1,5 +1,5 @@
-# H1 primary scene scope (ADR 0015 1.4, amendment 2 section 6): the P1 probes used scenes
-# s001-s010 and the campaign looked at s000, so the primary H1 view of the seen Kubric data is
+# Primary scene scope of the held-out monotonicity: the threshold and false-positive probe used
+# scenes s001-s010 and the campaign looked at s000, so the primary view of the seen Kubric data is
 # s011-s039; every scene stays as the secondary view. A fresh render was never looked at, so its
 # primary view is every scene but s000 (by_dataset). A report filter only: no refit, the artifact
 # and checks_hash do not change. Empty list: no primary view.

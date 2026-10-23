@@ -1,5 +1,5 @@
-# End-to-end demo (cycle A12, ADR 0013, D1): one video through the whole verifier, with its
-# report and overlay. Ad-hoc prompts and given videos never touch the H3 campaign.
+# End-to-end demo: one video through the whole verifier, with its report and overlay.
+# Ad-hoc prompts and given videos never touch the generator comparison campaign.
 
 [demo]
 adhoc_campaign = "demo_adhoc"            # under paths.data_dir/finetune and raw_dir/local_video

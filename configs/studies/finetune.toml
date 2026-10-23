@@ -1,6 +1,6 @@
-# Preference pairs and Flow-DPO LoRA fine-tuning of Wan2.1-T2V-1.3B (cycle A11, ADR 0012).
+# Preference pairs and Flow-DPO LoRA fine-tuning of Wan2.1-T2V-1.3B.
 # Generator parameters are NOT here: they come from [timing.generation]
-# (configs/studies/timing.toml), so the cost measured by A3 is the cost of these videos.
+# (configs/studies/timing.toml), so the cost measured by the timing harness is the cost of these videos.
 # Values marked [estimated] come from the literature or a guess and are fixed by the pilot
 # (20 train prompts x K = 4); [finetune.stop_rule] holds the pilot's stop rule.
 
@@ -175,7 +175,7 @@ queries = [{ phrase = "cube" }, { phrase = "ball", expected_count = 1 }, { phras
 target_checks = ["R2", "R1"]
 
 [finetune.candidates]
-k_train = 4             # VideoDPO uses 4 (Juicio 6)
+k_train = 4             # VideoDPO uses 4
 k_eval = 8              # base, best-of-8 baseline
 k_eval_finetuned = 4    # seeds k = 0..3, paired with the base
 k_dev = 2               # per dev prompt and checkpoint, base included
