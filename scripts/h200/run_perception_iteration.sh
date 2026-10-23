@@ -125,7 +125,7 @@ DATA="${PHYSVERIFY_ITERATION_DATA:-$H200_ROOT/kubric-data}"
 OUT="${PHYSVERIFY_ITERATION_DIR:-$H200_ROOT/iterations/$ITER_ID-$DEVICE}"
 
 for dir in "$OUT" "$OUT/calibration" "$OUT/runs"; do
-    for base in "$H200_ROOT/a8v2" "$DATA/calibration" "$DATA/runs" \
+    for base in "$CHAIN_ROOT" "$DATA/calibration" "$DATA/runs" \
         "$H200_ROOT/kubric-data/calibration" "$H200_ROOT/kubric-data/runs"; do
         ! near "$dir" "$base" || die "$dir is inside $base*: an iteration never writes there"
     done

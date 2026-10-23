@@ -260,8 +260,8 @@ def test_a_freeze_directory_near_other_artifacts_is_refused(
 @pytest.mark.parametrize(
     ("env", "message"),
     [
-        ({"PHYSVERIFY_FREEZE_ITERATION": "it1-fixes"}, "J4 chooses it2-state"),
-        ({"J3_CHANGES": "src/physverify/checks/r1.py\n"}, "J3"),
+        ({"PHYSVERIFY_FREEZE_ITERATION": "it1-fixes"}, "the selection rule chooses it2-state"),
+        ({"J3_CHANGES": "src/physverify/checks/r1.py\n"}, "refit needed"),
     ],
 )
 def test_the_wrong_choice_or_a_j3_change_adopts_nothing(

@@ -525,8 +525,14 @@ def test_a_gate_needs_the_explicit_acceptance(sandbox: AgreementSandbox) -> None
     ("change", "message"),
     [
         (lambda s: s.prereg().write_text(s.prereg().read_text() + "x=1\n"), "changed since"),
-        (lambda s: (s.calibration / "calibration.json").write_text("v3\n"), "A8 v2 files"),
-        (lambda s: (s.calibration / "exclusions.json").write_text("v3\n"), "A8 v2 files"),
+        (
+            lambda s: (s.calibration / "calibration.json").write_text("v3\n"),
+            "the calibration chain's files",
+        ),
+        (
+            lambda s: (s.calibration / "exclusions.json").write_text("v3\n"),
+            "the calibration chain's files",
+        ),
     ],
 )
 def test_a_change_after_the_dev_phase_stops_the_test_before_any_call(

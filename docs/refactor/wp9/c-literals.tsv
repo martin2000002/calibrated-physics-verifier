@@ -35,3 +35,10 @@ src/physverify/timing/targets/verify_checks.py	literal	A7 verification runner no
 tests/reporting/test_chain.py	literal	not an A8 v2 chain directory	not a calibration chain directory
 tests/reporting/test_results.py	literal	H2 runs only on the CPU calibration	the agreement study runs only on the CPU calibration
 tests/timing/test_verify_target.py	literal	A7 verification runner not installed (	check suite runner not installed (
+tests/scripts/human_agreement/test_human_agreement_script.py	literal	A8 v2 files	the calibration chain's files
+tests/scripts/test_freeze_query.py	literal	J3	refit, not adopt
+tests/scripts/test_run_final_script.py	literal	J14	downloaded files are fixed
+tests/scripts/test_run_final_script.py	literal	is not at C_V1	is not at the v1 commit
+tests/scripts/test_run_final_script.py	literal	J6	one look per set
+tests/scripts/test_run_freeze_script.py	literal	J4 chooses it2-state	the selection rule chooses it2-state
+tests/scripts/test_run_freeze_script.py	literal	J3	refit needed

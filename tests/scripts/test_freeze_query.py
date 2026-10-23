@@ -254,7 +254,7 @@ def test_a_j3_change_record_mismatch_or_other_calibration_refuses_the_manifest(
     _frozen_files(settings)
     inputs = _inputs(tmp_path, iteration_factory)
     moved = FakeGit({"b" * 40: ["src/physverify/checks/r1.py"]})
-    with pytest.raises(QueryError, match="J3"):
+    with pytest.raises(QueryError, match="refit, not adopt"):
         _manifest(inputs, settings, moved)
     with pytest.raises(QueryError, match="exclusions show printed"):
         _manifest(dataclasses.replace(inputs, record_sha="e" * 64), settings, FakeGit({}))

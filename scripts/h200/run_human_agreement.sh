@@ -82,17 +82,17 @@ for name in $(compgen -e -X '!PHYSVERIFY__*'); do
     [[ "$OWN_VARS" == *[[:space:]]"${name#PHYSVERIFY__}"[[:space:]]* ]] || foreign+=" $name"
 done
 [[ -z "$foreign" ]] || die "the environment sets configuration run_human_agreement.sh does not own:$foreign" \
-    "(it would change H2 without moving its frozen hashes); unset it"
+    "(it would change the study without moving its frozen hashes); unset it"
 
 [[ -z "${PHYSVERIFY_CONFIG_DIR+set}" ]] \
-    || die "PHYSVERIFY_CONFIG_DIR is set: H2 reads only the committed $REPO_ROOT/configs; unset it"
+    || die "PHYSVERIFY_CONFIG_DIR is set: the study reads only the committed $REPO_ROOT/configs; unset it"
 [[ ! -e "$REPO_ROOT/configs/local.toml" ]] \
-    || die "$REPO_ROOT/configs/local.toml exists: it is not committed, so H2 would not run the" \
+    || die "$REPO_ROOT/configs/local.toml exists: it is not committed, so the study would not run the" \
         "frozen configuration; remove it (run_human_agreement.sh sets every path and the lock itself)"
 
 DEVICE="${PHYSVERIFY_AGREEMENT_DEVICE:-cpu}"
 [[ "$DEVICE" == cpu ]] \
-    || die "PHYSVERIFY_AGREEMENT_DEVICE must be cpu (ADR 0015 Enmienda 1; the VideoPhy cache is the CPU one), got '$DEVICE'"
+    || die "PHYSVERIFY_AGREEMENT_DEVICE must be cpu (the VideoPhy cache is the CPU one), got '$DEVICE'"
 EXPECT="${PHYSVERIFY_AGREEMENT_EXPECT_COMMIT:-}"
 [[ ${#EXPECT} -ge 7 ]] || die "set PHYSVERIFY_AGREEMENT_EXPECT_COMMIT to the commit this run uses"
 HEAD_COMMIT="$(git -C "$REPO_ROOT" rev-parse HEAD)" || die "$REPO_ROOT is not a git checkout"
@@ -126,9 +126,9 @@ export CUDA_VISIBLE_DEVICES=""
 unset PHYSVERIFY_LOCK_HELD
 PV_DEVICE=cpu
 CAL="$PHYSVERIFY__PATHS__CALIBRATION_DIR"
-A8V2="${PHYSVERIFY_AGREEMENT_CHAIN_DIR:-$H200_ROOT/a8v2}"
+A8V2="${PHYSVERIFY_AGREEMENT_CHAIN_DIR:-$CHAIN_ROOT}"
 FREEZE="${PHYSVERIFY_AGREEMENT_FREEZE:-}"
-FROZEN_BY="A8 v2"
+FROZEN_BY="the calibration chain"
 [[ -z "$FREEZE" ]] || FROZEN_BY="the freeze"
 LEDGER="$H200_ROOT/h2-test-ledger.txt"
 ENV_SHA="$(env | grep '^PHYSVERIFY__' | LC_ALL=C sort | sha256sum | cut -d ' ' -f 1)"
@@ -138,7 +138,7 @@ STATE="$OUT/state.env"
 STEPS="$OUT/steps.tsv"
 NOTES="$OUT/notes.md"
 SUMMARY="$OUT/summary.md"
-SUMMARY_TITLE="H2 on VideoPhy (CPU)"
+SUMMARY_TITLE="Human agreement on VideoPhy (CPU)"
 SUMMARY_INFO="commit $HEAD_COMMIT, data $PHYSVERIFY__PATHS__DATA_DIR, cache $PHYSVERIFY__PATHS__CACHE_DIR, calibration $CAL, threads $THREADS"
 mkdir -p "$LOGS"
 touch "$STEPS" "$NOTES"
@@ -160,16 +160,16 @@ a8v2_state() {
 require_a8v2() {
     local device k code name
     device="$(a8v2_state CHAIN_DEVICE)"
-    [[ "$device" == cpu ]] || die "$A8V2 is not the A8 v2 cpu chain (CHAIN_DEVICE '$device')"
+    [[ "$device" == cpu ]] || die "$A8V2 is not the calibration's cpu chain (CHAIN_DEVICE '$device')"
     A8V2_RECORD_SHA="$(a8v2_state RECORD_SHA)"
-    [[ -n "$A8V2_RECORD_SHA" ]] || die "$A8V2/state.env has no RECORD_SHA: A8 v2 step 9 is not done"
+    [[ -n "$A8V2_RECORD_SHA" ]] || die "$A8V2/state.env has no RECORD_SHA: its step 9 is not done"
     for ((k = 0; k <= A8V2_STEPS; k++)); do
         code="$(last_exit "$k" "$A8V2/steps.tsv")"
         [[ "$code" == 0 ]] \
-            || die "A8 v2 step $k has not completed (last exit '${code:-none}' in $A8V2/steps.tsv)"
+            || die "calibration chain step $k has not completed (last exit '${code:-none}' in $A8V2/steps.tsv)"
     done
     for name in calibration.json exclusions.json stage_errors.precise.json; do
-        [[ -f "$CAL/$name" ]] || die "no $CAL/$name: A8 v2 has not published it"
+        [[ -f "$CAL/$name" ]] || die "no $CAL/$name: the calibration chain has not published it"
     done
 }
 
@@ -201,7 +201,7 @@ artifacts_unchanged() {
     [[ "$(sha_of "$CAL/calibration.json")" == "${CALIB_SHA:-}" \
         && "$(sha_of "$CAL/exclusions.json")" == "${RECORD_FILE_SHA:-}" \
         && "$(sha_of "$CAL/stage_errors.precise.json")" == "${PROFILE_SHA:-}" ]] \
-        || die "the $FROZEN_BY files in $CAL changed since the dev phase: H2 must be frozen again"
+        || die "$FROZEN_BY's files in $CAL changed since the dev phase: the study must be frozen again"
 }
 
 # Neither the comparison log of the configured pre-registration nor any log in the ledger holds
@@ -319,7 +319,7 @@ phase_dev() {
     [[ -n "$PREREG" && -f "$PREREG" ]] || stop "no pre-registration in $LAST_LOG"
     local problem field
     problem="$(prereg_problem)"
-    [[ -z "$problem" ]] || stop "the pre-registration $PREREG is not H2's: $problem"
+    [[ -z "$problem" ]] || stop "the pre-registration $PREREG is not this study's: $problem"
     save PREREG "$PREREG"
     save PREREG_SHA "$(sha_of "$PREREG")"
     save FROZEN_COMMIT "$HEAD_COMMIT"
@@ -333,15 +333,15 @@ phase_dev() {
     local gate
     gate="$(prereg_field calibration_gate)"
     if [[ -n "$gate" ]]; then
-        echo "WARNING: calibration_gate not null ($gate): H2 is not evaluable with the calibrated" \
-            "rule, whether or not test runs (ADR 0015 1.3); test needs" \
+        echo "WARNING: calibration_gate not null ($gate): the study is not evaluable with the" \
+            "calibrated rule, whether or not test runs; test needs" \
             "PHYSVERIFY_AGREEMENT_ACCEPT_NOT_EVALUABLE=1" >&2
     fi
     echo "dev frozen ($PREREG); review $SUMMARY, then run_human_agreement.sh test"
 }
 
 phase_test() {
-    local spent="H2 test is spent: a test comparison is already logged (configured log or $LEDGER)"
+    local spent="the agreement test is spent: a test comparison is already logged (configured log or $LEDGER)"
     spent+=" and compare never runs twice. Its report is in <test verify run>/agreement/ if the"
     spent+=" write completed; if not, the compare step's log in $LOGS (or the ledger's run) says why"
     [[ -z "${TEST_COMPARED:-}" ]] || die "$spent (TEST_COMPARED in $STATE)"
@@ -356,11 +356,11 @@ phase_test() {
     artifacts_unchanged
     local problem gate
     problem="$(prereg_problem)"
-    [[ -z "$problem" ]] || die "the pre-registration $PREREG is not H2's: $problem"
+    [[ -z "$problem" ]] || die "the pre-registration $PREREG is not this study's: $problem"
     gate="$(prereg_field calibration_gate)"
     if [[ -n "$gate" && "${PHYSVERIFY_AGREEMENT_ACCEPT_NOT_EVALUABLE:-}" != 1 ]]; then
-        die "the calibrated stratum was not usable at the freeze ($gate): H2 is not evaluable" \
-            "with the calibrated rule (ADR 0015 1.3) whether or not test runs, and redoing A8 or" \
+        die "the calibrated stratum was not usable at the freeze ($gate): the study is not" \
+            "evaluable with the calibrated rule whether or not test runs, and redoing the chain or" \
             "the freeze to avoid that is post hoc. Set PHYSVERIFY_AGREEMENT_ACCEPT_NOT_EVALUABLE=1 to" \
             "spend test on the descriptive result."
     fi
@@ -386,7 +386,7 @@ phase_test() {
     note_gaps "$TEST_SUBSET"
     artifacts_unchanged
     row 0
-    echo "H2 run: $(dirname "$TEST_VERIFY_RUN")/$H2_LINK (summary: agreement/summary.md)"
+    echo "Agreement run: $(dirname "$TEST_VERIFY_RUN")/$H2_LINK (summary: agreement/summary.md)"
 }
 
 if [[ -n "$FREEZE" ]]; then

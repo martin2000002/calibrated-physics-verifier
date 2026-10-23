@@ -492,7 +492,7 @@ def test_a_set_is_looked_at_once(sandbox: FinalSandbox) -> None:
     sandbox.ok("look", "kubric_fresh")
     for args in (("look", "kubric_fresh"), ("look", "kubric_fresh", "--retry")):
         result = sandbox.run(*args)
-        assert result.returncode == 2 and "J6" in result.stderr, result.stderr
+        assert result.returncode == 2 and "one look per set" in result.stderr, result.stderr
     assert len(sandbox.looks()) == 1
     assert len(sandbox.ledger_lines()) == 1
 
@@ -550,7 +550,7 @@ def test_the_new_real_control_is_fetched_once_and_looked_at_together(sandbox: Fi
     for name in ("physics_iq_views", "objectron_static"):
         sandbox.ok("extract", name)
     refetch = sandbox.run("fetch", "objectron_static")
-    assert refetch.returncode == 2 and "J14" in refetch.stderr
+    assert refetch.returncode == 2 and "downloaded files are fixed" in refetch.stderr
     sandbox.ok("look", "real_new")
     assert sandbox.looks() == [_look(sandbox.final, *REAL_NEW)]
     assert sandbox.envs()[-1][1] == "physics_iq_views,objectron_static"
@@ -588,7 +588,7 @@ def test_a_skipped_real_dataset_fails_the_look(sandbox: FinalSandbox) -> None:
     ("setup", "env", "message"),
     [
         ("none", {}, "look kubric_fresh has not completed"),
-        ("look", {"CKV_SHA": "b" * 40}, "is not at C_V1"),
+        ("look", {"CKV_SHA": "b" * 40}, "is not at the v1 commit"),
         ("look", {"CKV_DIRTY": " M configs/checks.toml\n"}, "uncommitted"),
         ("look", {"META": "1"}, "recomputed stages"),
         ("base", {}, "not the freeze's v1 calibration"),

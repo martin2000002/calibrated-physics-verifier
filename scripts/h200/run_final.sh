@@ -317,7 +317,7 @@ cmd_render() {
     hold "render-$SET"
     local covered=("$SET") state planned clips exported share line renv=()
     [[ "$SET" != kubric_fresh ]] || covered+=(kubric_fresh_blind)
-    state="$(fq look-state "${covered[@]}")" || stop "a covering ledger line exists: no render after a look (J2)"
+    state="$(fq look-state "${covered[@]}")" || stop "a covering ledger line exists: no render after a look"
     note "ledger: $state look at ${covered[*]}"
     if line="$(fq plan "$SET" "$SEED" 2>&1)"; then
         note "resuming the render of seed $SEED: $line"
@@ -338,14 +338,14 @@ cmd_render() {
     clips="$(query clips "$SET" eval)" || stop "cannot list the $SET clips"
     exported="$(grep -c . <<<"$clips" || true)"
     share="$(awk -v e="$exported" -v p="$planned" 'BEGIN { printf "%.1f", 100 * e / p }')"
-    note "AC-9: $exported of $planned planned clips exported ($share %, threshold 90 %)"
+    note "exported share: $exported of $planned planned clips exported ($share %, threshold 90 %)"
 }
 
 cmd_fetch() {
     hold "fetch-$SET"
     hold "extract-$SET"
     [[ ! -e "$RUN/extract-$SET.started" ]] \
-        || stop "the extraction of $SET started: its downloaded files are fixed (J14)"
+        || stop "the extraction of $SET started: its downloaded files are fixed"
     export PHYSVERIFY__OBJECTRON_STATIC__SEED="$SEED"
     call 0 -- download fetch "$SET" --subset full
     unset PHYSVERIFY__OBJECTRON_STATIC__SEED
@@ -368,7 +368,7 @@ cmd_extract() {
     local marker="$RUN/extract-$SET.started"
     if [[ "$SET" != kubric_synthetic_eval && -e "$CACHE/$DS" && ! -e "$marker" ]]; then
         stop "$CACHE/$DS exists before the first extraction of $SET: another render or a dry run" \
-            "wrote it (J1)"
+            "wrote it"
     fi
     touch "$marker"
     local clips_file="$LOGS/clips.txt" clips=() id
@@ -432,7 +432,7 @@ cmd_look() {
     describe "$SET"
     ledger="$(fq ledger)" || stop "the sealed ledger is unreadable or missing (fail closed)"
     note "before: $ledger"
-    state="$(fq look-state ${RETRY:+--retry} ${SPECS//,/ })" || stop "J6: no look at $SPECS"
+    state="$(fq look-state ${RETRY:+--retry} ${SPECS//,/ })" || stop "one look per set: no look at $SPECS"
     export PHYSVERIFY_UNSEAL="$SPECS"
     [[ "$state" != retry ]] || export PHYSVERIFY_UNSEAL_REPEAT=1
     note "$state look at $SPECS"
@@ -499,13 +499,13 @@ cmd_v1arm() {
     completed look "$SET" || stop "look $SET has not completed: the v1 arm follows the look"
     local ckv="${PHYSVERIFY_FINAL_V1_CHECKOUT:-}" base="${PHYSVERIFY_FINAL_V1_BASE:-}"
     local overlay_cli="${PHYSVERIFY_FINAL_OVERLAY_CLI:-}" arm="${PHYSVERIFY_FINAL_V1_ARM:-$F/v1arm}"
-    [[ -d "$ckv" ]] || stop "set PHYSVERIFY_FINAL_V1_CHECKOUT to the checkout at C_V1"
+    [[ -d "$ckv" ]] || stop "set PHYSVERIFY_FINAL_V1_CHECKOUT to the checkout at the v1 commit"
     [[ -f "$base/calibration.json" ]] || stop "set PHYSVERIFY_FINAL_V1_BASE to the base iteration"
     [[ -f "$overlay_cli" ]] || stop "set PHYSVERIFY_FINAL_OVERLAY_CLI to overlay_cli.py"
     ! near "$arm" "$CAL" || stop "the v1 arm never writes in $CAL"
     local v1 dirty state file meta evaluation
     v1="$(frozen v1.commit)"
-    [[ "$(git -C "$ckv" rev-parse HEAD)" == "$v1" ]] || stop "$ckv is not at C_V1 $v1"
+    [[ "$(git -C "$ckv" rev-parse HEAD)" == "$v1" ]] || stop "$ckv is not at the v1 commit $v1"
     dirty="$(git -C "$ckv" status --porcelain -- src configs)" || stop "git status failed in $ckv"
     [[ -z "$dirty" ]] || stop "$ckv has uncommitted files: $dirty"
     [[ "$(sha_of "$base/calibration.json")" == "$(frozen v1.calibration_sha256)" ]] \
@@ -516,7 +516,7 @@ cmd_v1arm() {
     done
     v1_configs "$arm" "$ckv"
     state="$(fq v1-state "$FREEZE" ${SPECS//,/ })" || stop "the v1 arm of $SPECS cannot run"
-    note "$state of $SPECS at C_V1 $v1, the base calibration $(sha_of "$arm/calibration/calibration.json")"
+    note "$state of $SPECS at the v1 commit $v1, the base calibration $(sha_of "$arm/calibration/calibration.json")"
     run_logged 0 -- env -C "$ckv" PHYSVERIFY__PATHS__CALIBRATION_DIR="$arm/calibration" \
         PHYSVERIFY__PATHS__RUNS_DIR="$arm/runs" PHYSVERIFY__RUNTIME__HEAVY_LOCK="$arm/heavy.lock" \
         PHYSVERIFY_UNSEAL="$SPECS" PHYSVERIFY_UNSEAL_REPEAT=1 PYTHONPATH="$ckv/src" \

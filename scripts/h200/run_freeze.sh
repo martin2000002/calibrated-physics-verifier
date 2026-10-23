@@ -92,7 +92,7 @@ DATA="${PHYSVERIFY_FREEZE_DATA:-$H200_ROOT/kubric-data}"
 F="${PHYSVERIFY_FREEZE_DIR:-$H200_ROOT/final}"
 CAL="$F/calibration"
 for dir in "$F" "$CAL" "$F/runs"; do
-    for base in "$H200_ROOT/a8v2" "$DATA/calibration" "$DATA/runs" "$H200_ROOT/iterations"; do
+    for base in "$CHAIN_ROOT" "$DATA/calibration" "$DATA/runs" "$H200_ROOT/iterations"; do
         ! near "$dir" "$base" || die "$dir is inside $base*: the freeze never writes there"
     done
 done
@@ -132,22 +132,22 @@ for pair in "FREEZE_COMMIT $HEAD_COMMIT" "FREEZE_ITERATION $PHYSVERIFY_FREEZE_IT
     if [[ -z "${!key:-}" ]]; then
         save "$key" "$value"
     elif [[ "${!key}" != "$value" ]]; then
-        die "$F belongs to $key=${!key}, not $value (a moved C_F repeats the freeze in a new \$F)"
+        die "$F belongs to $key=${!key}, not $value (a moved freeze commit repeats the freeze in a new \$F)"
     fi
 done
 require_completed "$FIRST_STEP" "$FROM"
 
 step_1() {
     local selection="$F/selection.json" chosen dir commit changed file
-    fq select "${ITERATIONS[@]}" >"$selection.tmp" || stop "J4 selection failed (see above)"
+    fq select "${ITERATIONS[@]}" >"$selection.tmp" || stop "the selection failed (see above)"
     mv "$selection.tmp" "$selection"
     chosen="$(fq chosen "$selection" id)" || stop "no chosen iteration in $selection"
     [[ "$chosen" == "$PHYSVERIFY_FREEZE_ITERATION" ]] \
-        || stop "J4 chooses $chosen, not PHYSVERIFY_FREEZE_ITERATION=$PHYSVERIFY_FREEZE_ITERATION"
+        || stop "the selection rule chooses $chosen, not PHYSVERIFY_FREEZE_ITERATION=$PHYSVERIFY_FREEZE_ITERATION"
     dir="$(fq chosen "$selection" dir)" || stop "no directory of $chosen in $selection"
     commit="$(fq chosen "$selection" commit)" || stop "no commit of $chosen in $selection"
-    changed="$(fq diff j3 "$commit")" || stop "cannot diff the J3 paths from $commit"
-    [[ -z "$changed" ]] || stop "J3: $commit -> HEAD changes checks, physics, extraction or" \
+    changed="$(fq diff j3 "$commit")" || stop "cannot diff the refit paths from $commit"
+    [[ -z "$changed" ]] || stop "refit needed: $commit -> HEAD changes checks, physics, extraction or" \
         "verification ($changed): the artifacts cannot be adopted"
     mkdir -p "$CAL"
     for file in "${ADOPTED_FILES[@]}"; do
@@ -158,7 +158,7 @@ step_1() {
     save ADOPTED "$chosen"
     save CALIBRATION_SHA "$(sha_of "$CAL/calibration.json")"
     note "adopted $chosen ($dir, commit $commit): calibration.json sha256 $CALIBRATION_SHA"
-    note_block "J4 selection ($selection)" <"$selection"
+    note_block "Selection ($selection)" <"$selection"
 }
 
 step_2() {
