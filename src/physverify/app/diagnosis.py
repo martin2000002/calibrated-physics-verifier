@@ -69,6 +69,7 @@ def execute(
     recorder: EventRecorder,
     name: str,
     runner: Runner,
+    *,
     echo: Echo,
 ) -> Report:
     """Run ``runner``, then write ``diagnosis/<name>.{json,md}`` and ``events.jsonl``."""
@@ -78,7 +79,7 @@ def execute(
         recorder,
         functools.partial(runner, ctx),
         lambda _: ExtractionReport(tuple(recorder.finished), (), {}),
-        echo,
+        echo=echo,
     )
     _, markdown = write_report(ctx.run.run_dir, name, report)
     echo(f"report: {markdown}")
@@ -91,8 +92,8 @@ def launch(
     app: AppContext,
     name: str,
     runner: Runner,
-    echo: Echo,
     *,
+    echo: Echo,
     suite: bool,
     dataset: str | None = None,
     subset: str | None = None,
@@ -100,7 +101,7 @@ def launch(
     recorder = EventRecorder(ConsoleObserver(echo))
     checks = check_suite(app) if suite else None
     ctx = diagnosis_context(app, recorder, checks, dataset=dataset, subset=subset)
-    execute(ctx, recorder, name, runner, echo)
+    execute(ctx, recorder, name, runner, echo=echo)
 
 
 def dataset_clips(ctx: DiagnosisContext, wanted: Sequence[str]) -> list[ClipManifest]:

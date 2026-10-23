@@ -100,6 +100,7 @@ def write_draft_queries(
     dataset: VideophyDataset,
     settings: Settings,
     captions: list[str],
+    *,
     echo: Echo,
 ) -> None:
     path = dataset.queries_path
@@ -115,7 +116,7 @@ def write_draft_queries(
         echo(f"  no size: {phrase}")
 
 
-def record_subsets(dataset: VideophyDataset, chosen: str, echo: Echo) -> None:
+def record_subsets(dataset: VideophyDataset, chosen: str, *, echo: Echo) -> None:
     review = load_review(dataset.subset_path)
     if review is None:
         raise ConfigError(f"{dataset.subset_path} is missing; run `agreement subset --audit`")
@@ -125,7 +126,7 @@ def record_subsets(dataset: VideophyDataset, chosen: str, echo: Echo) -> None:
         echo(f"{part}: n={stored.n} sha256={stored.sha256}")
 
 
-def check_recorded(dataset: VideophyDataset, echo: Echo) -> None:
+def check_recorded(dataset: VideophyDataset, *, echo: Echo) -> None:
     require_recorded(load_review(dataset.subset_path), dataset.settings.filter_version)
     echo(f"review: {dataset.subset_path} ({REVIEWED})")
 
@@ -142,7 +143,7 @@ def review_subset(
     review = audit(dataset, chosen)
     write_review(dataset.subset_path, review)
     captions = [c for table in review.decisions.values() for c in table]
-    write_draft_queries(dataset, settings, captions, echo)
+    write_draft_queries(dataset, settings, captions, echo=echo)
     echo(f"review: {dataset.subset_path} ({review.status})")
     for part, table in review.decisions.items():
         echo(f"{part}: {len(table)} captions")

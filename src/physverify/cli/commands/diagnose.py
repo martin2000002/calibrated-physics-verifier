@@ -63,7 +63,7 @@ def stages(
         replace_mismatched=replace_mismatched,
         err=echo_err,
     )
-    launch(context, STAGES, runner, typer.echo, suite=False, dataset=dataset, subset=subset)
+    launch(context, STAGES, runner, echo=typer.echo, suite=False, dataset=dataset, subset=subset)
 
 
 @app.command("end-to-end", help="Level 2: check magnitudes of the perceived chain vs the oracle.")
@@ -72,7 +72,7 @@ def end_to_end(
 ) -> None:
     context = app_context()
     runner = end_to_end_runner(context, f"{NAME} end-to-end", clips or (), err=echo_err)
-    launch(context, END_TO_END, runner, typer.echo, suite=True, dataset=dataset, subset=subset)
+    launch(context, END_TO_END, runner, echo=typer.echo, suite=True, dataset=dataset, subset=subset)
 
 
 @app.command("attribution", help="Level 3: factorial attribution of check error to stages.")
@@ -81,7 +81,9 @@ def attribution(
 ) -> None:
     context = app_context()
     runner = attribution_runner(context, f"{NAME} attribution", clips or (), err=echo_err)
-    launch(context, ATTRIBUTION, runner, typer.echo, suite=True, dataset=dataset, subset=subset)
+    launch(
+        context, ATTRIBUTION, runner, echo=typer.echo, suite=True, dataset=dataset, subset=subset
+    )
 
 
 @app.command("real", help="Real video (end-to-end only): Physics-IQ motion, PISA falls, verdicts.")
@@ -94,4 +96,4 @@ def real(
 ) -> None:
     context = app_context()
     runner = real_runner(context, f"{NAME} real", dataset, clips or (), err=echo_err)
-    launch(context, REAL, runner, typer.echo, suite=True, subset=subset)
+    launch(context, REAL, runner, echo=typer.echo, suite=True, subset=subset)

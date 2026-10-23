@@ -135,7 +135,9 @@ def test_fetch_all_reports_the_elapsed_time(make_settings: Callable[..., Setting
     settings = make_settings(fakes=False)
     lines: list[str] = []
     ticks = iter([10.0, 12.5])
-    _base.fetch_all([fake_real("physics_iq")], settings, None, lines.append, lambda: next(ticks))
+    _base.fetch_all(
+        [fake_real("physics_iq")], settings, None, echo=lines.append, clock=lambda: next(ticks)
+    )
     dest = settings.paths.raw_dir / "physics_iq"
     assert lines == [f"physics_iq [local]: 1 clips, 1 files, 2.0 MB, 2.5 s -> {dest}"]
     assert _base.fetch_summary(settings.paths.raw_dir / "none", 1.0) == (
@@ -269,7 +271,7 @@ def test_an_aborted_level_still_writes_its_events(
         raise MissingInputError("boom")
 
     with pytest.raises(MissingInputError, match="boom"):
-        execute(ctx, recorder, diagnose.REAL, explode, lambda _: None)
+        execute(ctx, recorder, diagnose.REAL, explode, echo=lambda _: None)
     assert (ctx.run.run_dir / EVENTS_FILE).is_file()
     assert not (ctx.run.run_dir / "diagnosis" / "real.json").exists()
 

@@ -56,4 +56,4 @@ def fetch(
     real = diagnosis_settings(settings).real
     registry = context.registry("datasets")
     classes = fetch_targets(registry, real.datasets, dataset, real.sealed_controls)
-    fetch_all(classes, settings, subset, typer.echo)
+    fetch_all(classes, settings, subset, echo=typer.echo)

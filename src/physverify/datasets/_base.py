@@ -138,6 +138,7 @@ def fetch_all(
     classes: Sequence[type[Any]],
     settings: Settings,
     subset: str | None,
+    *,
     echo: Echo,
     clock: Callable[[], float] = time.monotonic,
 ) -> None:

@@ -42,7 +42,7 @@ def run(
     out: OutOption = None,
 ) -> None:
     request = service.AdhocRequest(prompt, query, family, target_check, adapter, video, out)
-    service.run_adhoc(app_context(), request, typer.echo)
+    service.run_adhoc(app_context(), request, echo=typer.echo)
 
 
 @app.command(
@@ -66,4 +66,4 @@ def report(
     results: Annotated[Path, typer.Option(help="A report directory or its report.json.")],
     out: OutOption = None,
 ) -> None:
-    service.rebuild(app_context(), results, out, typer.echo)
+    service.rebuild(app_context(), results, out, echo=typer.echo)

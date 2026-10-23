@@ -28,6 +28,7 @@ def recorded_run[T](
     recorder: EventRecorder,
     run: Callable[[], T],
     report_of: Callable[[T], ExtractionReport],
+    *,
     echo: Echo,
 ) -> T:
     """Print the run directory, call ``run`` and write its stage events to ``events_file``, also
@@ -70,7 +71,7 @@ def run_extraction(
     def run() -> ExtractionReport:
         return ExtractionPipeline(plan, pipeline_deps(context, recorder)).run(source, selected)
 
-    report = recorded_run(run_dir, EVENTS_FILE, recorder, run, _same, echo)
+    report = recorded_run(run_dir, EVENTS_FILE, recorder, run, _same, echo=echo)
     for line in summary_lines(report):
         echo(line)
     return report

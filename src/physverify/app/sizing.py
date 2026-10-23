@@ -44,7 +44,7 @@ SCALE_METHODS = ("size_prior", "size_model")
 MODEL_FILE = "size_model.toml"
 
 
-def fetch_heads(settings: Settings, echo: Echo) -> None:
+def fetch_heads(settings: Settings, *, echo: Echo) -> None:
     """Store the leading box bytes of every selected Objectron video, one line per split."""
     sizing = sizing_settings(settings)
     reader = objectron.UrllibPrefixReader()

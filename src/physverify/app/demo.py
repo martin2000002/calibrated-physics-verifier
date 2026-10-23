@@ -123,7 +123,7 @@ def demo_deps(
     )
 
 
-def _echo(report: VideoReport, out: Path, echo: Echo) -> None:
+def _echo(report: VideoReport, out: Path, *, echo: Echo) -> None:
     rule = report.rule
     echo(
         f"{report.candidate_id} ({report.model_tag}): {score_text(report.clip)}, coverage "
@@ -132,7 +132,7 @@ def _echo(report: VideoReport, out: Path, echo: Echo) -> None:
     echo(f"  {report_dir(out, report)}")
 
 
-def run_adhoc(context: AppContext, request: AdhocRequest, echo: Echo) -> None:
+def run_adhoc(context: AppContext, request: AdhocRequest, *, echo: Echo) -> None:
     settings = context.settings
     video, adapter = request.video, request.adapter
     if video is not None and adapter is not None:
@@ -157,7 +157,7 @@ def run_adhoc(context: AppContext, request: AdhocRequest, echo: Echo) -> None:
     target = request.out or default_out(settings)
     deps = demo_deps(context, store, settings, demo_rule(context))
     report = run_demo(record, deps, out=target, video=video, generator=generator)
-    _echo(report, target, echo)
+    _echo(report, target, echo=echo)
 
 
 def scene_reports(
@@ -184,11 +184,11 @@ def scene_reports(
     deps = demo_deps(context, store, settings, frozen_scorer(context, prereg))
     target = out or default_out(settings)
     for base, ft in run_scenes(prompts, deps, tuned, target):
-        _echo(base, target, echo)
-        _echo(ft, target, echo)
+        _echo(base, target, echo=echo)
+        _echo(ft, target, echo=echo)
 
 
-def rebuild(context: AppContext, results: Path, out: Path | None, echo: Echo) -> None:
+def rebuild(context: AppContext, results: Path, out: Path | None, *, echo: Echo) -> None:
     settings = context.settings
     if not results.exists():
         raise UsageError(f"{results} does not exist")
@@ -196,4 +196,4 @@ def rebuild(context: AppContext, results: Path, out: Path | None, echo: Echo) ->
     provenance = {"rebuilt_commit": current_commit(settings.repo_root)}
     target = out or default_out(settings)
     deps = report_deps(settings, provenance, demo_rule(context))
-    _echo(rebuild_report(old, deps, target), target, echo)
+    _echo(rebuild_report(old, deps, target), target, echo=echo)

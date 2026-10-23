@@ -27,7 +27,7 @@ app = typer.Typer(help="Object size model learned on Objectron (fetch, fit, eval
 
 @app.command("fetch", help="Download the box sizes of the selected Objectron videos.")
 def fetch() -> None:
-    fetch_heads(app_context().settings, typer.echo)
+    fetch_heads(app_context().settings, echo=typer.echo)
 
 
 @app.command("fit", help="Fit the per-class model on train; writes configs/size_model.toml.")

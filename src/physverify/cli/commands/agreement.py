@@ -38,7 +38,7 @@ def _dataset() -> VideophyDataset:
 @app.command("fetch", help="Download the label tables and the subset's videos (default: smoke).")
 @heavy_command
 def fetch(subset: Annotated[str | None, typer.Option(help="VideoPhy subset.")] = None) -> None:
-    fetch_all([VideophyDataset], app_context().settings, subset, typer.echo)
+    fetch_all([VideophyDataset], app_context().settings, subset, echo=typer.echo)
 
 
 @app.command("subset", help="Write the pending caption review (--audit) or record it (--record).")
@@ -56,10 +56,10 @@ def subset(
     settings = app_context().settings
     chosen = name or agreement_settings(settings).test_subset
     if check:
-        check_recorded(dataset, typer.echo)
+        check_recorded(dataset, echo=typer.echo)
         return
     if freeze_review:
-        record_subsets(dataset, chosen, typer.echo)
+        record_subsets(dataset, chosen, echo=typer.echo)
         return
     review_subset(dataset, settings, chosen, show=show, echo=typer.echo)
 
