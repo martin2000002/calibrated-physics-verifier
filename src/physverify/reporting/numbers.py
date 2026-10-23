@@ -13,7 +13,6 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
-from physverify.calibration.schema import Rate
 from physverify.reporting.chain import Missing
 from physverify.reporting.sources import (
     CONSUMED_LEVEL,
@@ -25,6 +24,7 @@ from physverify.reporting.sources import (
     stratum_index,
 )
 from physverify.schema.checks import InputLevel
+from physverify.stats.intervals import Rate
 
 Scalar = float | int | str | bool | None
 IN_SAMPLE = "in-sample, optimistic"

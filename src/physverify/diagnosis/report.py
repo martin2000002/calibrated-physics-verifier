@@ -25,6 +25,7 @@ from physverify.schema.checks import AbstainReason, Verdict
 from physverify.schema.clip import ClipManifest, Split
 from physverify.schema.error_profile import ErrorProfile, no_profile_hash
 from physverify.schema.stages import Stage
+from physverify.stats.intervals import Interval
 
 REPORT_DIR = "diagnosis"
 REAL_VIDEO_SCOPE = (
@@ -121,11 +122,6 @@ def build_provenance(
         estimated=tuple(sorted(set(estimated))),
         provisional=tuple(sorted(set(provisional))),
     )
-
-
-class Interval(ReportModel):
-    low: float
-    high: float
 
 
 class Failure(ReportModel):

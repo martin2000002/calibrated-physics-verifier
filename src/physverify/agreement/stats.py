@@ -10,7 +10,7 @@ from typing import Final
 import numpy as np
 from numpy.typing import NDArray
 
-from physverify.diagnosis.factorial import BootstrapResult, bootstrap
+from physverify.stats.bootstrap import BootstrapResult, bootstrap
 
 Labels = NDArray[np.int_]
 Scores = NDArray[np.float64]

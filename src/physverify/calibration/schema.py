@@ -12,41 +12,19 @@ from pydantic import Field
 
 from physverify.core.models import SCHEMA_KEY, ArtifactModel
 from physverify.schema.checks import InputLevel
+from physverify.stats.intervals import Ci, Rate
 
 CALIBRATION_SCHEMA = "physverify.calibration"
 CALIBRATION_VERSION = "1.6.0"
 EVALUATION_SCHEMA = "physverify.calibration.evaluation"
 
 CheckStatus = Literal["ok", "insufficient", "no_positives", "no_negatives", "unranked_negatives"]
-RateCi = Literal["clopper_pearson", "scene_bootstrap", "clopper_pearson_scenes"]
 OpenSide = Literal["low", "high"]
 ArtifactStatus = Literal["calibrated", "insufficient", "provisional"]
 Censoring = Literal["none", "below", "above"]
 OK: CheckStatus = "ok"
 UNRANKED_NEGATIVES: CheckStatus = "unranked_negatives"
 """Clean clips have an event but every magnitude is NaN: the measurement is missing, not data."""
-
-
-class Ci(ArtifactModel):
-    """Interval at the artifact's ``ci`` level; null bounds when it could not be computed."""
-
-    low: float | None = None
-    high: float | None = None
-    non_finite: int | None = None
-    """Bootstrap replicates whose statistic was not finite (counted, not silently dropped)."""
-
-
-class Rate(ArtifactModel):
-    """``k`` events out of ``n``. ``ci_method``: exact Clopper-Pearson over independent units;
-    ``scene_bootstrap`` when several clips share a scene; ``clopper_pearson_scenes`` (exact over
-    ``n_scenes``, conservative) when such a rate is 0 or 1 and the bootstrap would collapse."""
-
-    value: float | None
-    ci: Ci
-    k: int
-    n: int
-    n_scenes: int | None = None
-    ci_method: RateCi = "clopper_pearson"
 
 
 class Fpr(ArtifactModel):

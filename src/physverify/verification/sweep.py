@@ -15,13 +15,13 @@ from statistics import median
 from typing import TYPE_CHECKING, Protocol
 
 from pydantic import Field
-from scipy.stats import kendalltau
 
 from physverify.core.models import FrozenModel
 from physverify.schema.checks import CheckResult
 from physverify.schema.clip import ClipManifest
 from physverify.schema.io import encode
 from physverify.schema.scene import MagnitudeKind, PerturbationRecord
+from physverify.stats.rank import MIN_RANKED_LEVELS, kendall
 from physverify.synth.perturbations.none import NAME as NONE
 from physverify.verification.decisive import decisive, size
 
@@ -31,7 +31,6 @@ if TYPE_CHECKING:
 MATRIX_FILE = "sweep_matrix.csv"
 SPECIFICITY_FILE = "specificity.json"
 PERFECT_ORDER = 1.0
-MIN_RANKED_LEVELS = 2
 
 
 class SpecificitySettings(FrozenModel):
@@ -417,14 +416,6 @@ def _ranking(name: str, check_id: str, members: Sequence[_Clip]) -> RuleOutcome:
     return RuleOutcome(
         Rule.INJECTED_PARAMETER, name, check_id, ids, passed, PERFECT_ORDER, tau, detail
     )
-
-
-def kendall(pairs: Sequence[tuple[float, float]]) -> float:
-    """Kendall tau between injected level and measured magnitude; NaN below two levels."""
-    if len(pairs) < MIN_RANKED_LEVELS:
-        return math.nan
-    x, y = zip(*pairs, strict=True)
-    return float(kendalltau(x, y).statistic)
 
 
 def _band_outcomes(

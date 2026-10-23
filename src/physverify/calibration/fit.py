@@ -16,9 +16,7 @@ from physverify.calibration.schema import (
     CalibrationArtifact,
     CheckCalibration,
     CheckStatus,
-    Ci,
     DatasetRef,
-    Rate,
     SettingsSnapshot,
     SigmaCorrection,
     StageSigma,
@@ -27,13 +25,7 @@ from physverify.calibration.schema import (
 )
 from physverify.calibration.settings import CalibrationConfig, CalibrationSettings
 from physverify.calibration.sigma import SigmaPair, fit_sigma, oracle_correction
-from physverify.calibration.stats import (
-    SceneBlock,
-    auroc,
-    conformal_quantile,
-    rate,
-    scene_bootstrap,
-)
+from physverify.calibration.stats import auroc, conformal_quantile
 from physverify.calibration.table import (
     CalibrationRow,
     Role,
@@ -55,6 +47,8 @@ from physverify.calibration.thresholds import (
 from physverify.calibration.verdict import DECIDED, Rule, clip_verdict
 from physverify.calibration.weights import Flag, Labelled, fit_probability, normalised, raw_weight
 from physverify.schema.checks import CheckResult, InputLevel, Verdict
+from physverify.stats.bootstrap import SceneBlock, scene_bootstrap
+from physverify.stats.intervals import Ci, Rate, rate
 from physverify.verification.policies.threshold import ThresholdPolicy
 from physverify.verification.sweep import CheckUnit
 

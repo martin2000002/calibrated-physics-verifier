@@ -17,8 +17,8 @@ import numpy as np
 from scipy import stats as sps
 
 from physverify.core.models import FrozenModel
-from physverify.diagnosis.factorial import bootstrap
 from physverify.evaluation.settings import H3Settings
+from physverify.stats.bootstrap import bootstrap
 
 MEAN: Final = "mean"
 # Asymptotic relative efficiency of the signed-rank test against the t test under normality.

@@ -9,22 +9,20 @@ import pytest
 from scipy.stats import binomtest, mannwhitneyu
 
 from physverify.calibration.stats import (
-    SceneBlock,
     auroc,
     balanced_weights,
-    clopper_pearson,
-    clopper_pearson_lower,
     clustered_rate,
     conformal_index,
     conformal_quantile,
     ece,
     fit_logistic,
-    grouped_folds,
     mad,
     profile_interval,
-    scene_bootstrap,
 )
 from physverify.physics.uncertainty import robust_scale
+from physverify.stats.bootstrap import SceneBlock, scene_bootstrap
+from physverify.stats.folds import grouped_folds
+from physverify.stats.intervals import clopper_pearson, clopper_pearson_lower
 
 
 @pytest.mark.parametrize(("k", "n"), [(0, 20), (3, 20), (20, 20), (1, 100), (7, 13)])

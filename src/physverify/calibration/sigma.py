@@ -10,14 +10,9 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from physverify.calibration.schema import Ci, CoverageAt, SigmaCorrection, StageFactor
+from physverify.calibration.schema import CoverageAt, SigmaCorrection, StageFactor
 from physverify.calibration.settings import CalibrationSettings, PairFilter
-from physverify.calibration.stats import (
-    FloatArray,
-    SceneBlock,
-    grouped_folds,
-    scene_bootstrap,
-)
+from physverify.calibration.stats import FloatArray
 from physverify.diagnosis.cases import sample_stats
 from physverify.diagnosis.error_profile_writer import (
     PROFILE_QUANTITIES,
@@ -29,6 +24,9 @@ from physverify.diagnosis.error_profile_writer import (
 from physverify.diagnosis.report import nominal_coverage, z_coverage
 from physverify.physics.uncertainty import MAD_TO_SIGMA
 from physverify.schema.error_profile import ErrorEntry, ErrorProfile
+from physverify.stats.bootstrap import SceneBlock, scene_bootstrap
+from physverify.stats.folds import grouped_folds
+from physverify.stats.intervals import Ci
 
 COVERAGE_LEVELS = (1.0, 2.0)
 BIAS_KEY = "bias"

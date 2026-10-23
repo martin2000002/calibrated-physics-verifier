@@ -18,7 +18,6 @@ from physverify.calibration.schema import (
     EvaluationStratum,
     H1PrimaryView,
     HeldoutCheck,
-    Rate,
     RealFpr,
     SceneKendall,
 )
@@ -40,6 +39,7 @@ from physverify.calibration.thresholds import (
 from physverify.calibration.verdict import Rule
 from physverify.schema.checks import CheckResult
 from physverify.schema.clip import Split
+from physverify.stats.intervals import Rate
 
 SCORE_CHECK = "score"
 

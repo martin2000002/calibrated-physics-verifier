@@ -3,43 +3,22 @@
 from __future__ import annotations
 
 import math
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 from scipy.optimize import brentq
 from scipy.special import expit
-from scipy.stats import binomtest, chi2, mannwhitneyu
+from scipy.stats import chi2, mannwhitneyu
 
-from physverify.calibration.schema import Ci, Rate
-from physverify.diagnosis.factorial import bootstrap
 from physverify.physics.uncertainty import robust_scale
+from physverify.stats.bootstrap import SceneBlock, scene_bootstrap
+from physverify.stats.intervals import Ci, Rate, clopper_pearson, rate
 
 FloatArray = NDArray[np.float64]
 NEWTON_STEPS = 100
 NEWTON_TOL = 1e-10
-
-
-def clopper_pearson(k: int, n: int, ci: float) -> Ci:
-    if n <= 0:
-        return Ci()
-    interval = binomtest(k, n).proportion_ci(confidence_level=ci, method="exact")
-    return Ci(low=float(interval.low), high=float(interval.high))
-
-
-def clopper_pearson_lower(k: int, n: int, confidence: float) -> float:
-    """One-sided exact lower bound of a binomial rate at ``confidence`` (0 when n = 0)."""
-    if n <= 0:
-        return 0.0
-    interval = binomtest(k, n, alternative="greater").proportion_ci(
-        confidence_level=confidence, method="exact"
-    )
-    return float(interval.low)
-
-
-def rate(k: int, n: int, ci: float) -> Rate:
-    return Rate(value=k / n if n > 0 else None, ci=clopper_pearson(k, n, ci), k=k, n=n)
 
 
 def conformal_index(n: int, alpha: float) -> int:
@@ -72,47 +51,6 @@ def conformal_quantile(values: ArrayLike, alpha: float) -> Conformal:
     if not math.isfinite(value):
         return Conformal(None, False, n, dropped)
     return Conformal(value, sufficient, n, dropped)
-
-
-def grouped_folds(groups: Sequence[str], k: int, seed: int) -> tuple[frozenset[str], ...]:
-    """At most ``k`` disjoint sets of whole groups (scenes), shuffled by ``seed``."""
-    unique = sorted(set(groups))
-    if not unique:
-        return ()
-    order = np.random.default_rng(seed).permutation(len(unique))
-    n_folds = min(k, len(unique))
-    folds: list[set[str]] = [set() for _ in range(n_folds)]
-    for position, index in enumerate(order):
-        folds[position % n_folds].add(unique[int(index)])
-    return tuple(frozenset(fold) for fold in folds)
-
-
-@dataclass(frozen=True)
-class SceneBlock[T]:
-    """Adapter for ``diagnosis.factorial.bootstrap``: its ``clip_id`` is the scene."""
-
-    clip_id: str
-    item: T
-
-
-def scene_bootstrap[T](
-    blocks: Sequence[SceneBlock[T]],
-    statistic: Callable[[Sequence[T]], Mapping[str, float]],
-    n: int,
-    seed: int,
-    ci: float,
-) -> dict[str, Ci]:
-    """Percentile intervals from resampling whole scenes (a drawn twice scene counts twice);
-    ``non_finite`` counts the replicates whose statistic was undefined."""
-    result = bootstrap(blocks, lambda sample: statistic([b.item for b in sample]), n, seed, ci)
-    return {
-        key: Ci(
-            low=_or_none(i.low),
-            high=_or_none(i.high),
-            non_finite=result.non_finite.get(key, 0),
-        )
-        for key, i in result.intervals.items()
-    }
 
 
 RATE_KEY = "rate"
@@ -298,7 +236,3 @@ def median_or_none(values: ArrayLike) -> float | None:
 def _finite(values: ArrayLike) -> FloatArray:
     array = np.asarray(values, dtype=np.float64).ravel()
     return array[np.isfinite(array)]
-
-
-def _or_none(value: float) -> float | None:
-    return value if math.isfinite(value) else None

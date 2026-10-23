@@ -11,7 +11,6 @@ from physverify.calibration.schema import (
     CalibrationArtifact,
     CheckCalibration,
     CheckMonotonicity,
-    Ci,
     DatasetRef,
     DetectionLimit,
     EvaluationReport,
@@ -20,10 +19,10 @@ from physverify.calibration.schema import (
     HeldoutCheck,
     HeldoutH1Check,
     Monotonicity,
-    Rate,
     Stratum,
 )
 from physverify.core.markdown import number, table
+from physverify.stats.intervals import Ci, Rate
 
 CALIBRATION_MD = "calibration.md"
 CURVES_CSV = "curves.csv"

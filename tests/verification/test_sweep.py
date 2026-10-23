@@ -18,6 +18,7 @@ from physverify.checks._common import unscored
 from physverify.schema.checks import CheckResult
 from physverify.schema.clip import ClipManifest
 from physverify.schema.scene import MagnitudeKind, PerturbationRecord
+from physverify.stats.rank import kendall
 from physverify.verification.inputs import ClipInputs
 from physverify.verification.policies.raw import RawPolicy
 from physverify.verification.runner import VerificationReport, VerificationRunner
@@ -29,7 +30,6 @@ from physverify.verification.sweep import (
     RuleOutcome,
     SpecificityReport,
     SpecificitySettings,
-    kendall,
     matrix,
     specificity,
     target_check_ids,

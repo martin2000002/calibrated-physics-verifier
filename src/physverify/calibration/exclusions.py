@@ -31,14 +31,7 @@ from physverify.calibration.loader import (
     UnusableStratumError,
     open_stratum,
 )
-from physverify.calibration.schema import (
-    Ci,
-    DatasetRef,
-    EvaluationReport,
-    EvaluationStratum,
-    RealFpr,
-)
-from physverify.calibration.stats import SceneBlock, clopper_pearson, scene_bootstrap
+from physverify.calibration.schema import DatasetRef, EvaluationReport, EvaluationStratum, RealFpr
 from physverify.calibration.table import (
     CalibrationDataError,
     CalibrationRow,
@@ -53,6 +46,8 @@ from physverify.core.models import FrozenModel
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import Split
 from physverify.schema.io import stable_hash
+from physverify.stats.bootstrap import SceneBlock, scene_bootstrap
+from physverify.stats.intervals import Ci, clopper_pearson
 from physverify.verification.runner import UNKNOWN_ROW_STEP
 
 SECTION = "exclusion_rules"

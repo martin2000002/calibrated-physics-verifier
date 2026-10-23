@@ -12,11 +12,11 @@ from typing import Any
 import numpy as np
 from numpy.typing import NDArray
 
-from physverify.calibration.schema import Ci
-from physverify.calibration.stats import SceneBlock, scene_bootstrap
 from physverify.config.models import SizePrior
 from physverify.sizing.model import SizeModelTable, class_prior
 from physverify.sizing.samples import SizeSample, log_lengths
+from physverify.stats.bootstrap import SceneBlock, scene_bootstrap
+from physverify.stats.intervals import Ci
 
 FloatArray = NDArray[np.float64]
 MODEL, B0, B1 = "model", "b0_frozen_prior", "b1_unit_factor"

@@ -35,7 +35,6 @@ from physverify.calibration.schema import (
     Weight,
 )
 from physverify.calibration.settings import CalibrationConfig, CalibrationSettings
-from physverify.calibration.stats import grouped_folds
 from physverify.calibration.table import CalibrationRow, Role
 from physverify.calibration.thresholds import fails
 from physverify.calibration.verdict import Rule
@@ -44,6 +43,7 @@ from physverify.core.errors import UsageError
 from physverify.core.models import SCHEMA_KEY, ArtifactModel
 from physverify.schema.checks import InputLevel
 from physverify.schema.io import stable_hash
+from physverify.stats.folds import grouped_folds
 from physverify.verification.policies.threshold import ThresholdPolicy
 from physverify.verification.sweep import CheckUnit
 

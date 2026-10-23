@@ -8,17 +8,12 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from physverify.calibration.schema import Ci, Probability, Weight
+from physverify.calibration.schema import Probability, Weight
 from physverify.calibration.settings import CalibrationSettings
-from physverify.calibration.stats import (
-    SceneBlock,
-    balanced_weights,
-    ece,
-    fit_logistic,
-    grouped_folds,
-    mad,
-    scene_bootstrap,
-)
+from physverify.calibration.stats import balanced_weights, ece, fit_logistic, mad
+from physverify.stats.bootstrap import SceneBlock, scene_bootstrap
+from physverify.stats.folds import grouped_folds
+from physverify.stats.intervals import Ci
 
 J_KEY = "informedness"
 ECE_KEY = "ece"

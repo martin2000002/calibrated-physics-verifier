@@ -28,17 +28,16 @@ from physverify.calibration.exclusions import (
 from physverify.calibration.loader import Calibration, parse_calibration
 from physverify.calibration.schema import (
     CheckCalibration,
-    Ci,
     DatasetRef,
     EvaluationReport,
     EvaluationStratum,
     Monotonicity,
-    Rate,
     RealFpr,
     Weight,
 )
 from physverify.calibration.table import CalibrationRow, Role
 from physverify.schema.checks import InputLevel
+from physverify.stats.intervals import Ci, Rate
 
 REPO = Path(__file__).resolve().parents[2]
 RULES_TOML = REPO / "configs" / "exclusion_rules.toml"

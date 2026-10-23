@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from calibration_cases import settings
 
-from physverify.calibration.schema import Ci, Weight
+from physverify.calibration.schema import Weight
 from physverify.calibration.weights import (
     Flag,
     Labelled,
@@ -14,6 +14,7 @@ from physverify.calibration.weights import (
     normalised,
     raw_weight,
 )
+from physverify.stats.intervals import Ci
 
 
 def flags(rng: np.random.Generator, tpr: float, fpr: float, n: int = 20) -> list[Flag]:

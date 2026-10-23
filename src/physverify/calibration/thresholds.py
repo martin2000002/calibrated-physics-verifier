@@ -8,17 +8,14 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from physverify.calibration.schema import Ci, DetectionLimit, Fpr, LevelTpr, OpenSide, Rate
+from physverify.calibration.schema import DetectionLimit, Fpr, LevelTpr, OpenSide
 from physverify.calibration.settings import CalibrationSettings
 from physverify.calibration.stats import (
-    clopper_pearson_lower,
     clustered_rate,
     conformal_quantile,
     fit_logistic,
-    grouped_folds,
     median_or_none,
     profile_interval,
-    rate,
 )
 from physverify.calibration.table import (
     CalibrationRow,
@@ -28,6 +25,8 @@ from physverify.calibration.table import (
 )
 from physverify.calibration.verdict import DECIDED, Rule, clip_verdict
 from physverify.schema.checks import Verdict
+from physverify.stats.folds import grouped_folds
+from physverify.stats.intervals import Ci, Rate, clopper_pearson_lower, rate
 
 NOT_DETERMINED = "not_determined"
 """L_D is neither bounded below (too few clips bound the lowest-level rate above 1 - beta) nor

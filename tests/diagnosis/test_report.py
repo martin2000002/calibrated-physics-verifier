@@ -24,7 +24,6 @@ from physverify.diagnosis.report import (
     Failure,
     FallRow,
     FlipStats,
-    Interval,
     MotionRow,
     ProfileEntryRow,
     Provenance,
@@ -45,6 +44,7 @@ from physverify.schema.checks import AbstainReason, Verdict
 from physverify.schema.clip import Split
 from physverify.schema.error_profile import ErrorEntry, ErrorProfile, no_profile_hash
 from physverify.schema.stages import Stage
+from physverify.stats.intervals import Interval
 
 LEVELS = (1.0, 2.0)
 CELLS = ("F_ttt", "F_ttp", "F_tpt", "F_tpp", "F_ptt", "F_ptp", "F_ppt", "F_ppp")

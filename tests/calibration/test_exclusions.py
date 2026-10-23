@@ -45,8 +45,9 @@ from physverify.calibration.exclusions import (
     record_markdown,
 )
 from physverify.calibration.loader import load_calibration
-from physverify.calibration.schema import Ci, RealFpr
+from physverify.calibration.schema import RealFpr
 from physverify.core.errors import ConfigError
+from physverify.stats.intervals import Ci
 from physverify.verification.runner import RowStatus
 
 

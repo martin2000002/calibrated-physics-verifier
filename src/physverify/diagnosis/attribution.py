@@ -27,14 +27,7 @@ from physverify.diagnosis.end_to_end import (
     variant_outputs,
     variant_results,
 )
-from physverify.diagnosis.factorial import (
-    FLOOR,
-    BootstrapResult,
-    bootstrap,
-    budget,
-    shapley,
-    yates_effects,
-)
+from physverify.diagnosis.factorial import FLOOR, budget, shapley, yates_effects
 from physverify.diagnosis.pairing import Paired, Span, Subject, common_unit, merge, pair_results
 from physverify.diagnosis.pairing import subject_map as match_subjects
 from physverify.diagnosis.plans import (
@@ -53,7 +46,6 @@ from physverify.diagnosis.report import (
     BudgetRow,
     CheckAttribution,
     Failure,
-    Interval,
     Provenance,
     build_provenance,
     dataset_versions,
@@ -64,6 +56,8 @@ from physverify.schema.clip import ClipManifest
 from physverify.schema.perception import MaskTrack
 from physverify.schema.stages import STAGE_ORDER, Stage
 from physverify.schema.states import ObjectStateTable
+from physverify.stats.bootstrap import BootstrapResult, bootstrap
+from physverify.stats.intervals import Interval
 
 ORACLE = "oracle"
 TOTAL = "total"

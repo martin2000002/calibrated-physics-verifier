@@ -5,9 +5,9 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from physverify.calibration.schema import Ci, Monotonicity, SceneKendall
+from physverify.calibration.schema import Monotonicity, SceneKendall
 from physverify.calibration.settings import CalibrationSettings
-from physverify.calibration.stats import SceneBlock, median_or_none, scene_bootstrap
+from physverify.calibration.stats import median_or_none
 from physverify.calibration.table import (
     CLEAN_LEVEL,
     CalibrationRow,
@@ -15,7 +15,9 @@ from physverify.calibration.table import (
     corrected,
     require_one_clean_per_scene,
 )
-from physverify.verification.sweep import kendall
+from physverify.stats.bootstrap import SceneBlock, scene_bootstrap
+from physverify.stats.intervals import Ci
+from physverify.stats.rank import kendall
 
 TAU_KEY = "kendall_tau_b"
 

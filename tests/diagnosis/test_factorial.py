@@ -13,7 +13,6 @@ from physverify.diagnosis.factorial import (
     ALL_PERCEIVED,
     ALL_TRUTH,
     MEAN,
-    bootstrap,
     budget,
     effect_name,
     effect_terms,
@@ -21,8 +20,9 @@ from physverify.diagnosis.factorial import (
     yates_effects,
 )
 from physverify.diagnosis.plans import CELLS, FACTORS, Cell
-from physverify.diagnosis.report import Interval
 from physverify.schema.stages import Stage
+from physverify.stats.bootstrap import bootstrap
+from physverify.stats.intervals import Interval
 
 TOL = 1e-12
 INTERCEPT = 1.0

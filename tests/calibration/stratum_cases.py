@@ -14,13 +14,11 @@ from physverify.calibration.schema import (
     CalibrationArtifact,
     CheckCalibration,
     CheckStatus,
-    Ci,
     DatasetRef,
     DetectionLimit,
     Fpr,
     Monotonicity,
     Probability,
-    Rate,
     SettingsSnapshot,
     SigmaCorrection,
     StageSigma,
@@ -28,6 +26,7 @@ from physverify.calibration.schema import (
     Weight,
 )
 from physverify.schema.checks import InputLevel
+from physverify.stats.intervals import Ci, Rate
 
 DATASET = "calib_fixture"
 PROFILE = "fast"
