@@ -13,6 +13,7 @@ import typer
 
 from physverify.app import calibration as service
 from physverify.cli.context import app_context, echo_err
+from physverify.cli.options import ClipsOption
 
 NAME = "calibrate"
 
@@ -23,7 +24,6 @@ app = typer.Typer(
 
 DatasetOption = Annotated[str | None, typer.Option(help="Dataset (default: calibration.dataset).")]
 SubsetOption = Annotated[str | None, typer.Option(help="Subset (default: calibration.subset).")]
-ClipsOption = Annotated[list[str] | None, typer.Option(help="Clip ids (repeatable).")]
 ArtifactOption = Annotated[
     Path | None, typer.Option(help="Artifact (default: calibration_dir/artifact).")
 ]

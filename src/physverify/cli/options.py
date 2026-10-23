@@ -31,6 +31,14 @@ def choices_metavar(values: Sequence[str]) -> str:
     return f"[{'|'.join(values)}]"
 
 
+DiagnosisDatasetOption = Annotated[
+    str | None, typer.Option(help="Dataset name (default: diagnosis.dataset).")
+]
+DiagnosisSubsetOption = Annotated[
+    str | None, typer.Option(help="Dataset subset (default: diagnosis.subset).")
+]
+ClipsOption = Annotated[list[str] | None, typer.Option(help="Clip ids (repeatable).")]
+
 ShardOption = Annotated[str | None, typer.Option(help="Shard i/n of the candidates.")]
 
 SplitOption = Annotated[

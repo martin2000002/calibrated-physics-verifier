@@ -9,8 +9,8 @@ from typing import Annotated
 import typer
 
 from physverify.app.scene_stats import collect_per_clip, delta_line, delta_query, print_tables
-from physverify.cli.commands.diagnose import ClipsOption, DatasetOption, SubsetOption
 from physverify.cli.context import app_context, echo_err, heavy_command
+from physverify.cli.options import ClipsOption, DiagnosisDatasetOption, DiagnosisSubsetOption
 
 NAME = "scene-stats"
 
@@ -26,8 +26,8 @@ def per_clip(
     ctx: typer.Context,
     label: Annotated[str, typer.Option(help="Configuration label stored in the file.")],
     out: Annotated[Path, typer.Option(help="Output JSON.")],
-    dataset: DatasetOption = None,
-    subset: SubsetOption = None,
+    dataset: DiagnosisDatasetOption = None,
+    subset: DiagnosisSubsetOption = None,
     clips: ClipsOption = None,
 ) -> None:
     rows = collect_per_clip(

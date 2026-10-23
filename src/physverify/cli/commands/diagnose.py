@@ -19,6 +19,7 @@ from physverify.app.diagnosis import (
     stage_errors_runner,
 )
 from physverify.cli.context import app_context, echo_err
+from physverify.cli.options import ClipsOption, DiagnosisDatasetOption, DiagnosisSubsetOption
 
 NAME = "diagnose"
 STAGES, END_TO_END, ATTRIBUTION, REAL = "stages", "end_to_end", "attribution", "real"
@@ -29,20 +30,12 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
-DatasetOption = Annotated[
-    str | None, typer.Option(help="Dataset name (default: diagnosis.dataset).")
-]
-SubsetOption = Annotated[
-    str | None, typer.Option(help="Dataset subset (default: diagnosis.subset).")
-]
-ClipsOption = Annotated[list[str] | None, typer.Option(help="Clip ids (repeatable).")]
-
 
 @app.command("stages", help="Level 1: per-stage error against ground truth (error profile).")
 def stages(
     ctx: typer.Context,
-    dataset: DatasetOption = None,
-    subset: SubsetOption = None,
+    dataset: DiagnosisDatasetOption = None,
+    subset: DiagnosisSubsetOption = None,
     clips: ClipsOption = None,
     write_profile: Annotated[
         bool, typer.Option(help="Write the calib error profile to paths.error_profile.")
@@ -70,8 +63,8 @@ def stages(
 @app.command("end-to-end", help="Level 2: check magnitudes of the perceived chain vs the oracle.")
 def end_to_end(
     ctx: typer.Context,
-    dataset: DatasetOption = None,
-    subset: SubsetOption = None,
+    dataset: DiagnosisDatasetOption = None,
+    subset: DiagnosisSubsetOption = None,
     clips: ClipsOption = None,
 ) -> None:
     context = app_context(ctx)
@@ -82,8 +75,8 @@ def end_to_end(
 @app.command("attribution", help="Level 3: factorial attribution of check error to stages.")
 def attribution(
     ctx: typer.Context,
-    dataset: DatasetOption = None,
-    subset: SubsetOption = None,
+    dataset: DiagnosisDatasetOption = None,
+    subset: DiagnosisSubsetOption = None,
     clips: ClipsOption = None,
 ) -> None:
     context = app_context(ctx)
@@ -99,7 +92,7 @@ def real(
     dataset: Annotated[
         str, typer.Option(help="physics_iq, pisa_real or all (diagnosis.real.datasets).")
     ] = ALL_DATASETS,
-    subset: SubsetOption = None,
+    subset: DiagnosisSubsetOption = None,
     clips: ClipsOption = None,
 ) -> None:
     context = app_context(ctx)
