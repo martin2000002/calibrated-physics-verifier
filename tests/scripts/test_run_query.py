@@ -56,7 +56,7 @@ def test_clip_ids_filter_by_split(
     assert query.clip_ids(source, "full", "calib") == []
 
 
-def test_an_allowed_evaluation_prints_its_real_sets_and_h1_section(
+def test_an_allowed_evaluation_prints_its_real_sets_and_primary_section(
     query: ModuleType, tmp_path: Path
 ) -> None:
     lines = query.evaluation_lines(_evaluation(tmp_path, 40, {"scenes": []}), ALLOWED)

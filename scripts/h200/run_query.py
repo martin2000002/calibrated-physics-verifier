@@ -48,10 +48,10 @@ def evaluation_lines(path: Path, allowed: Sequence[Mapping[str, int]]) -> list[s
             f"{path} has no h1_primary: the evaluation predates that section, rerun from 6"
         )
     lines = ["Real sets: " + ", ".join(f"{k} {v}" for k, v in sorted(sizes.items())), ""]
-    return lines + h1_section(path.with_suffix(".md"))
+    return lines + primary_section(path.with_suffix(".md"))
 
 
-def h1_section(markdown: Path) -> list[str]:
+def primary_section(markdown: Path) -> list[str]:
     if not markdown.is_file():
         raise QueryError(f"no {markdown} next to the evaluation")
     lines = markdown.read_text(encoding="utf-8").splitlines()

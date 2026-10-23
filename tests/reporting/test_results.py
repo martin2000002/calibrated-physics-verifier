@@ -43,16 +43,18 @@ def chain(tmp_path: Path) -> Chain:
     return build_chain(tmp_path)
 
 
-def _run(cli: CliRunner, chain: Chain, *extra: str, h2: bool = True) -> tuple[int, str]:
+def _run(cli: CliRunner, chain: Chain, *extra: str, with_agreement: bool = True) -> tuple[int, str]:
     args = ["--profile", "fast", "results", "--chain-dir", str(chain.dir), *extra]
-    if h2:
-        args += ["--agreement-run", str(chain.h2_run)]
+    if with_agreement:
+        args += ["--agreement-run", str(chain.agreement_run)]
     result = cli(*args)
     return result.code, result.out + result.err
 
 
-def _results(cli: CliRunner, chain: Chain, *extra: str, h2: bool = True) -> dict[str, Any]:
-    code, output = _run(cli, chain, *extra, h2=h2)
+def _results(
+    cli: CliRunner, chain: Chain, *extra: str, with_agreement: bool = True
+) -> dict[str, Any]:
+    code, output = _run(cli, chain, *extra, with_agreement=with_agreement)
     assert code == 0, output
     data: dict[str, Any] = json.loads((chain.dir / "results" / "results.json").read_text())
     return data
@@ -104,7 +106,7 @@ def test_the_values_are_the_typed_fields(cli: CliRunner, chain: Chain) -> None:
     curve = json.loads((chain.curve_run / "abstention_report.json").read_text())
     row = next(r for r in curve["tables"]["calibrated"]["curve"] if r["k_sigma"] == fit["k_star"])
     assert values["abstention.eval_at_k_star.risk"]["ci_high"] == row["risk_ci"][1]
-    found = json.loads((chain.h2_run / "agreement" / "metrics.json").read_text())
+    found = json.loads((chain.agreement_run / "agreement" / "metrics.json").read_text())
     primary = found["groups"][found["h2_group"]][found["primary_policy"]]
     intervals = primary["bootstrap"]["intervals"]
     assert values["agreement.verifier.accuracy"]["value"] == primary["verifier"]["accuracy"]
@@ -150,7 +152,7 @@ def test_a_censored_detection_limit_is_a_bound(censored: str, text: str) -> None
     assert value_text(dataclasses.replace(value, censored="none")) == "-"
 
 
-def test_h1_pass_is_reported_as_fitted_and_the_medians_are_descriptive(
+def test_a_monotonicity_pass_is_reported_as_fitted_and_the_medians_are_descriptive(
     cli: CliRunner, chain: Chain
 ) -> None:
     """Criterion 7: medians that are not monotone leave the reported h1_pass as it is."""
@@ -173,7 +175,7 @@ def test_h1_pass_is_reported_as_fitted_and_the_medians_are_descriptive(
     assert "| R1.calib_all.tau_b |" in markdown and "| R1.calib_all.median.L1 |" in markdown
 
 
-def test_the_primary_tau_comes_from_the_h1_view(cli: CliRunner, chain: Chain) -> None:
+def test_the_primary_tau_comes_from_the_monotonicity_view(cli: CliRunner, chain: Chain) -> None:
     values = _values(_results(cli, chain))
     primary = values["monotonicity.R1.calib_primary.tau_b"]
     assert "/h1_primary/strata/" in primary["source"]
@@ -197,7 +199,7 @@ def test_a_1_3_0_evaluation_leaves_the_primary_tau_missing(
 def test_a_cuda_chain_is_a_rehearsal(cli: CliRunner, tmp_path: Path) -> None:
     """Criterion 4."""
     chain = build_chain(tmp_path, device="cuda")
-    data = _results(cli, chain, h2=False)
+    data = _results(cli, chain, with_agreement=False)
     assert data["reportable"] is False
     assert data["banner"] == "REHEARSAL (device cuda): not reportable"
     assert all(v["reportable"] is False for v in _values(data).values())
@@ -206,7 +208,9 @@ def test_a_cuda_chain_is_a_rehearsal(cli: CliRunner, tmp_path: Path) -> None:
     assert "**REHEARSAL (device cuda): not reportable**" in markdown
 
 
-def test_a_provisional_h2_rule_is_marked_not_preregistered(cli: CliRunner, chain: Chain) -> None:
+def test_a_provisional_agreement_rule_is_marked_not_preregistered(
+    cli: CliRunner, chain: Chain
+) -> None:
     write_metrics(chain, provisional=True)
     data = _results(cli, chain)
     assert data["sections"]["agreement"]["caveat"] == NOT_PREREGISTERED
@@ -249,8 +253,10 @@ def test_nothing_is_written_outside_out(cli: CliRunner, chain: Chain, tmp_path: 
 # Refusals.
 
 
-def _refused(cli: CliRunner, chain: Chain, match: str, *extra: str, h2: bool = True) -> None:
-    code, output = _run(cli, chain, *extra, h2=h2)
+def _refused(
+    cli: CliRunner, chain: Chain, match: str, *extra: str, with_agreement: bool = True
+) -> None:
+    code, output = _run(cli, chain, *extra, with_agreement=with_agreement)
     assert code == EXIT_USAGE, output
     assert match in output, output
 
@@ -266,7 +272,7 @@ def test_an_unfinished_fit_step_is_refused(cli: CliRunner, tmp_path: Path, step:
     _refused(cli, chain, f"step {step} of")
 
 
-def test_an_h2_run_of_another_artifact_is_refused(cli: CliRunner, chain: Chain) -> None:
+def test_an_agreement_run_of_another_artifact_is_refused(cli: CliRunner, chain: Chain) -> None:
     path = write_metrics(chain)
     data = json.loads(path.read_text())
     data["rule"] = data["rule"].replace("@run-a", "@run-b")
@@ -274,20 +280,20 @@ def test_an_h2_run_of_another_artifact_is_refused(cli: CliRunner, chain: Chain) 
     _refused(cli, chain, "stratum of the artifact run-a")
 
 
-def test_an_h2_run_of_another_stratum_is_refused(cli: CliRunner, chain: Chain) -> None:
+def test_an_agreement_run_of_another_stratum_is_refused(cli: CliRunner, chain: Chain) -> None:
     """The oracle stratum of the same artifact is not the one this report covers."""
     write_metrics(chain, level=InputLevel.ORACLE)
-    rule = json.loads((chain.h2_run / "agreement" / "metrics.json").read_text())["rule"]
+    rule = json.loads((chain.agreement_run / "agreement" / "metrics.json").read_text())["rule"]
     assert rule.endswith("#oracle/fast@run-a")
     _refused(cli, chain, "is not the perceived/fast stratum")
 
 
-def test_an_h2_run_with_a_cuda_chain_is_refused(cli: CliRunner, tmp_path: Path) -> None:
+def test_an_agreement_run_with_a_cuda_chain_is_refused(cli: CliRunner, tmp_path: Path) -> None:
     chain = build_chain(tmp_path, device="cuda")
     _refused(cli, chain, "the agreement study runs only on the CPU calibration")
 
 
-def test_an_h1_evaluation_of_another_artifact_is_refused(
+def test_a_calibration_evaluation_of_another_artifact_is_refused(
     cli: CliRunner, chain: Chain, tmp_path: Path
 ) -> None:
     data = json.loads(chain.evaluation.read_text())

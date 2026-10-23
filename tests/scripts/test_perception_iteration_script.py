@@ -377,7 +377,7 @@ def test_an_arm_swaps_providers_on_every_call_on_one_gpu(sandbox: IterationSandb
     assert "CUDA_VISIBLE_DEVICES=0" in summary
 
 
-def test_the_four_it3_arms_are_declared() -> None:
+def test_the_four_perception_arms_are_declared() -> None:
     table = (H200 / "perception_arms.tsv").read_text(encoding="utf-8").splitlines()
     arms = dict(line.split("\t") for line in table if line and not line.startswith("#"))
     assert arms == {

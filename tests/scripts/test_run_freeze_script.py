@@ -264,7 +264,7 @@ def test_a_freeze_directory_near_other_artifacts_is_refused(
         ({"J3_CHANGES": "src/physverify/checks/r1.py\n"}, "refit needed"),
     ],
 )
-def test_the_wrong_choice_or_a_j3_change_adopts_nothing(
+def test_the_wrong_choice_or_a_refit_change_adopts_nothing(
     sandbox: FreezeSandbox, env: dict[str, str], message: str
 ) -> None:
     result = sandbox.run(**env)

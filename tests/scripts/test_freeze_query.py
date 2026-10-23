@@ -242,7 +242,7 @@ def test_the_manifest_records_the_freeze(
     json.dumps(data)
 
 
-def test_a_j3_change_record_mismatch_or_other_calibration_refuses_the_manifest(
+def test_a_refit_change_record_mismatch_or_other_calibration_refuses_the_manifest(
     tmp_path: Path,
     config_dir: Path,
     environ: dict[str, str],

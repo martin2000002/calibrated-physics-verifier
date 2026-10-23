@@ -151,7 +151,7 @@ class Chain:
     abstention: Path
     curve_run: Path
     record: Path
-    h2_run: Path
+    agreement_run: Path
 
 
 def write(path: Path, text: str) -> Path:
@@ -179,7 +179,7 @@ def build_chain(root: Path, *, device: str = "cpu", codes: Mapping[int, str] = {
         abstention=abstention,
         curve_run=curve_run,
         record=record,
-        h2_run=runs / "h2",
+        agreement_run=runs / "h2",
     )
     write_metrics(chain)
     _chain_files(chain, device, codes)
@@ -332,8 +332,8 @@ def write_metrics(
     chain: Chain, *, level: InputLevel = InputLevel.PERCEIVED, provisional: bool = False
 ) -> Path:
     """``agreement compare``'s files through ``write_comparison``."""
-    write_comparison(chain.h2_run / REPORT_DIR, _comparison(level, provisional))
-    return chain.h2_run / REPORT_DIR / "metrics.json"
+    write_comparison(chain.agreement_run / REPORT_DIR, _comparison(level, provisional))
+    return chain.agreement_run / REPORT_DIR / "metrics.json"
 
 
 @functools.cache

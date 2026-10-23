@@ -141,7 +141,7 @@ def test_a_fragment_inside_a_line_does_not_count_as_its_start() -> None:
     assert _printed("sha256 ") and not _starts_a_line(" sha256 ")
 
 
-def test_run_h3_waits_for_the_gate_line_h3_prints() -> None:
+def test_the_comparison_runner_waits_for_the_gate_line_it_prints() -> None:
     assert h3.GATE_LINE + h3.GATE_PASSED == "  gate: passed"
 
 

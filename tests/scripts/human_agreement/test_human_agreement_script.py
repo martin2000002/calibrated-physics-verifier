@@ -122,16 +122,16 @@ class AgreementSandbox(Sandbox):
         super().__init__(root.resolve(), SCRIPT_NAMES, TOOLS)
         self.out = self.root / "h2"
         self.data = self.root / "h2-data"
-        self.a8v2 = self.root / "a8v2"
+        self.chain_dir = self.root / "a8v2"
         self.calibration = self.root / "kubric-data" / "calibration"
         executable(self.scripts / "setup_cuda.sh", FORBIDDEN)
         executable(self.fakes / "python", FAKE_PYTHON)
         executable(self.fakes / "git", FAKE_GIT)
         for name in ("uv", "nvidia-smi"):
             executable(self.fakes / name, FORBIDDEN)
-        self.a8v2.mkdir()
-        (self.a8v2 / "state.env").write_text(f"CHAIN_DEVICE=cpu\nRECORD_SHA={RECORD_SHA}\n")
-        (self.a8v2 / "steps.tsv").write_text(
+        self.chain_dir.mkdir()
+        (self.chain_dir / "state.env").write_text(f"CHAIN_DEVICE=cpu\nRECORD_SHA={RECORD_SHA}\n")
+        (self.chain_dir / "steps.tsv").write_text(
             "".join(f"{k}\tstep\t{c}\t1\t-\n" for k in range(12) for c in ("running", "0"))
         )
         self.calibration.mkdir(parents=True)
@@ -193,7 +193,7 @@ def _pass(subset: str) -> list[str]:
     ]
 
 
-def test_the_scripts_parse_and_run_h2_is_executable() -> None:
+def test_the_scripts_parse_and_the_agreement_runner_is_executable() -> None:
     for name in ("run_human_agreement.sh", "_steps.sh"):
         subprocess.run(["bash", "-n", str(H200 / name)], check=True)
     assert os.access(H200 / "run_human_agreement.sh", os.X_OK)
@@ -250,17 +250,17 @@ def _append(path: Path, text: str) -> None:
     ("change", "message"),
     [
         (
-            lambda s: (s.a8v2 / "state.env").write_text("CHAIN_DEVICE=cuda\nRECORD_SHA=r\n"),
+            lambda s: (s.chain_dir / "state.env").write_text("CHAIN_DEVICE=cuda\nRECORD_SHA=r\n"),
             "cpu chain",
         ),
-        (lambda s: (s.a8v2 / "state.env").write_text("CHAIN_DEVICE=cpu\n"), "RECORD_SHA"),
-        (lambda s: _append(s.a8v2 / "steps.tsv", "4\tstep\t1\t1\t-\n"), "step 4"),
-        (lambda s: _append(s.a8v2 / "steps.tsv", "9\tstep\trunning\t1\t-\n"), "step 9"),
+        (lambda s: (s.chain_dir / "state.env").write_text("CHAIN_DEVICE=cpu\n"), "RECORD_SHA"),
+        (lambda s: _append(s.chain_dir / "steps.tsv", "4\tstep\t1\t1\t-\n"), "step 4"),
+        (lambda s: _append(s.chain_dir / "steps.tsv", "9\tstep\trunning\t1\t-\n"), "step 9"),
         (lambda s: (s.calibration / "calibration.json").unlink(), "calibration.json"),
         (lambda s: (s.calibration / "exclusions.json").unlink(), "exclusions.json"),
     ],
 )
-def test_an_unfinished_a8v2_cpu_chain_stops_before_any_call(
+def test_an_unfinished_cpu_calibration_chain_stops_before_any_call(
     sandbox: AgreementSandbox, change, message
 ) -> None:
     change(sandbox)
@@ -344,7 +344,7 @@ def test_dev_freezes_without_touching_test(sandbox: AgreementSandbox) -> None:
 
 def _freeze(sandbox: AgreementSandbox, **change: str) -> dict[str, str]:
     """run_freeze.sh's manifest in place of the calibration chain's run, which is removed."""
-    shutil.rmtree(sandbox.a8v2)
+    shutil.rmtree(sandbox.chain_dir)
     manifest = sandbox.root / "final" / "freeze.json"
     manifest.parent.mkdir()
     data = {
@@ -358,7 +358,7 @@ def _freeze(sandbox: AgreementSandbox, **change: str) -> dict[str, str]:
     return {"PHYSVERIFY_AGREEMENT_FREEZE": str(manifest)}
 
 
-def test_the_freeze_manifest_stands_for_the_a8v2_chain(sandbox: AgreementSandbox) -> None:
+def test_the_freeze_manifest_stands_for_the_calibration_chain(sandbox: AgreementSandbox) -> None:
     """The manifest's record_sha is the one the pre-registration holds."""
     env = _freeze(sandbox)
     _dev_done(sandbox, **env)
