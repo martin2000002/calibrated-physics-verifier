@@ -27,9 +27,9 @@ from physverify.cli.commands._runs import new_run_dir, write_json
 from physverify.cli.commands._sealed import Selection, guard_sealed
 from physverify.cli.commands.extract import pipeline_deps, resolve_dataset
 from physverify.cli.context import AppContext, app_context
+from physverify.core.atomic import write_text_atomic
 from physverify.core.errors import MissingInputError, PhysverifyError, UsageError
 from physverify.datasets._base import DatasetSource
-from physverify.diagnosis.atomic_io import write_text_atomic
 from physverify.diagnosis.chain import ChainRunner
 from physverify.diagnosis.checks_port import A7CheckSuite
 from physverify.diagnosis.end_to_end import track_of, variant_outputs, variant_results

@@ -9,8 +9,8 @@ from typing import Final
 from physverify.cli.commands.extract import pipeline_deps, resolve_dataset
 from physverify.cli.context import AppContext
 from physverify.config.models import Settings
+from physverify.core.atomic import write_text_atomic
 from physverify.core.errors import UsageError
-from physverify.diagnosis.atomic_io import write_text_atomic
 from physverify.extraction.plan import resolve_plan
 from physverify.finetune.generate import CandidateGenerator
 from physverify.finetune.scorers._base import AggregateScorer

@@ -14,7 +14,7 @@ from physverify.agreement.coverage import NO_VIDEO
 from physverify.agreement.error_sample import CATEGORIES
 from physverify.agreement.items import ComparisonItem
 from physverify.agreement.pipeline import Comparison
-from physverify.diagnosis.atomic_io import write_text_atomic
+from physverify.core.atomic import write_text_atomic
 from physverify.schema.checks import AbstainReason
 from physverify.schema.io import json_ready
 

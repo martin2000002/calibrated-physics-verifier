@@ -21,9 +21,9 @@ from physverify.cli.commands._runs import new_run_dir, write_json
 from physverify.cli.commands.extract import pipeline_deps, resolve_dataset
 from physverify.cli.context import AppContext, app_context
 from physverify.config.models import Settings, SizePriorTable
+from physverify.core.atomic import write_text_atomic
 from physverify.core.errors import MissingInputError
 from physverify.datasets._base import DatasetSource
-from physverify.diagnosis.atomic_io import write_text_atomic
 from physverify.diagnosis.cases import stage_output
 from physverify.diagnosis.chain import ChainRunner
 from physverify.diagnosis.plans import Variant

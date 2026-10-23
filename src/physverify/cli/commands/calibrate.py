@@ -75,9 +75,9 @@ from physverify.cli.commands.extract import (
     select_clips,
 )
 from physverify.cli.context import AppContext, app_context
+from physverify.core.atomic import write_text_atomic
 from physverify.core.errors import MissingInputError, PhysverifyError, UsageError
 from physverify.datasets._base import DatasetSource
-from physverify.diagnosis.atomic_io import write_text_atomic
 from physverify.diagnosis.chain import ChainRunner, warm_variants
 from physverify.diagnosis.end_to_end import track_of
 from physverify.diagnosis.error_profile_writer import write_profile

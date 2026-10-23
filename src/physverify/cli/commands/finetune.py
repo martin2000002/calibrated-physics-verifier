@@ -34,8 +34,8 @@ from physverify.cli.commands._stop_rule import (
 )
 from physverify.cli.commands.timing import _timing_directory
 from physverify.cli.context import AppContext, app_context, heavy_command
+from physverify.core.atomic import write_text_atomic
 from physverify.core.errors import EXIT_ERROR, UsageError
-from physverify.diagnosis.atomic_io import write_text_atomic
 from physverify.evaluation.arms import EVAL_SPLIT
 from physverify.finetune.budget import (
     PAIR_MEASURE,

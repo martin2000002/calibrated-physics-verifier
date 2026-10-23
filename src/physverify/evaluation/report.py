@@ -9,7 +9,7 @@ from typing import Final
 from pydantic import BaseModel, ConfigDict
 
 from physverify.agreement.prereg import FreezeAudit
-from physverify.diagnosis.atomic_io import write_text_atomic
+from physverify.core.atomic import write_text_atomic
 from physverify.evaluation.analysis import ArmSummary, GuardResult, H3Analysis
 from physverify.evaluation.layout import H3Layout
 from physverify.evaluation.margins import MarginDerivation

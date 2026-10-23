@@ -52,8 +52,8 @@ from physverify.calibration.settings import (
 from physverify.calibration.table import CalibrationDataError, build_rows, in_family, scene_of
 from physverify.cli.commands.extract import resolve_dataset
 from physverify.cli.context import AppContext, app_context
+from physverify.core.atomic import write_text_atomic
 from physverify.core.errors import UsageError
-from physverify.diagnosis.atomic_io import write_text_atomic
 from physverify.finetune.scope import family_targets
 from physverify.finetune.settings import FinetuneSettings, load_finetune
 from physverify.runtime.runs import RunContext, current_commit

@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from physverify.config.models import FrozenModel
+from physverify.core.atomic import write_text_atomic
 from physverify.core.errors import MissingInputError, PhysverifyError, UsageError
 from physverify.core.log import get_logger
 from physverify.core.video import FrameDirVideoSource
@@ -42,7 +43,6 @@ from physverify.datasets._download import (
     resolve_data_path,
     write_manifest,
 )
-from physverify.diagnosis.atomic_io import write_text_atomic
 from physverify.extraction.weights import sha256_of
 from physverify.schema.clip import ClipManifest, ObjectQuery, Split, TimeSource
 from physverify.sizing import draws, e2e, objectron

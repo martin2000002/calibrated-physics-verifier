@@ -18,6 +18,7 @@ import numpy as np
 from pydantic import Field
 
 from physverify.config.models import FrozenModel, SizePriorTable
+from physverify.core.atomic import write_text_atomic
 from physverify.core.errors import MissingInputError, UsageError
 from physverify.core.log import get_logger
 from physverify.core.video import Mp4VideoSource
@@ -37,7 +38,6 @@ from physverify.datasets._download import (
     write_manifest,
 )
 from physverify.datasets._queries import derive_queries
-from physverify.diagnosis.atomic_io import write_text_atomic
 from physverify.extraction.providers._common import lookup_label
 from physverify.extraction.providers.scale_size_prior import SIZE_PRIORS_SECTION
 from physverify.extraction.weights import sha256_of

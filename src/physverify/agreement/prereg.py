@@ -16,8 +16,8 @@ from typing import Final, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from physverify.core.atomic import write_text_atomic
 from physverify.core.errors import ConfigError, MissingInputError, UsageError
-from physverify.diagnosis.atomic_io import write_text_atomic
 from physverify.extraction.weights import sha256_of
 
 FROZEN_FIELDS = (

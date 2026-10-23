@@ -23,10 +23,10 @@ from typing import IO, Any, BinaryIO, Protocol
 
 from pydantic import BaseModel, ConfigDict, RootModel, ValidationError
 
+from physverify.core.atomic import write_text_atomic
 from physverify.core.errors import ConfigError, PhysverifyError
 from physverify.core.log import get_logger
 from physverify.datasets.local_video import QueryList, to_queries
-from physverify.diagnosis.atomic_io import write_text_atomic
 from physverify.extraction.weights import sha256_of
 from physverify.schema.clip import ObjectQuery
 

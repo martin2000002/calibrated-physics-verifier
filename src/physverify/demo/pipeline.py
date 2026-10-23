@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Final
 
+from physverify.core.atomic import write_atomic, write_text_atomic
 from physverify.core.errors import UsageError
 from physverify.demo.overlay import (
     OVERLAY_FILE,
@@ -36,7 +37,6 @@ from physverify.demo.report import (
     write_report,
 )
 from physverify.demo.settings import OverlayStyle
-from physverify.diagnosis.atomic_io import write_atomic, write_text_atomic
 from physverify.extraction.weights import sha256_of
 from physverify.finetune.generate import ADAPTER_HASH_CHARS, CandidateGenerator
 from physverify.finetune.records import (

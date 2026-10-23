@@ -16,8 +16,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Final
 
+from physverify.core.atomic import write_atomic
 from physverify.core.errors import PhysverifyError, UsageError
-from physverify.diagnosis.atomic_io import write_atomic
 from physverify.finetune.records import (
     BASE_TAG,
     CandidateRecord,

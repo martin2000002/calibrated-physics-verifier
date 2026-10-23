@@ -21,9 +21,9 @@ from typing import Protocol
 
 import numpy as np
 
+from physverify.core.atomic import write_text_atomic
 from physverify.core.errors import PhysverifyError
 from physverify.datasets._download import TIMEOUT_S, retrying
-from physverify.diagnosis.atomic_io import write_text_atomic
 from physverify.sizing import wire
 
 SEQUENCE_OBJECTS = 1

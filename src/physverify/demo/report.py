@@ -15,7 +15,7 @@ from typing import Final
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from physverify.diagnosis.atomic_io import write_text_atomic
+from physverify.core.atomic import write_text_atomic
 from physverify.finetune.records import CheckSummary, PromptRecord, finite_or_none
 from physverify.finetune.scorers._base import AggregateScore, AggregateScorer
 from physverify.schema.checks import CheckResult

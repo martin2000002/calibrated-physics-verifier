@@ -33,6 +33,7 @@ from physverify.agreement.workflow import (
 )
 from physverify.cli.commands.data import fetch_all
 from physverify.cli.context import app_context, heavy_command
+from physverify.core.atomic import write_text_atomic
 from physverify.core.errors import ConfigError
 from physverify.core.log import get_logger
 from physverify.datasets._videophy_review import (
@@ -43,7 +44,6 @@ from physverify.datasets._videophy_review import (
     write_review,
 )
 from physverify.datasets.videophy import VideophyDataset
-from physverify.diagnosis.atomic_io import write_text_atomic
 
 NAME = "agreement"
 

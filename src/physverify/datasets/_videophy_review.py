@@ -14,9 +14,9 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, ValidationError
 
+from physverify.core.atomic import write_text_atomic
 from physverify.core.errors import ConfigError, MissingInputError
 from physverify.datasets._videophy_tables import VideophyRow
-from physverify.diagnosis.atomic_io import write_text_atomic
 from physverify.schema.io import stable_hash
 
 KEEP = "keep"

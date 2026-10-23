@@ -9,8 +9,8 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
+from physverify.core.atomic import write_atomic
 from physverify.core.errors import ConfigError
-from physverify.diagnosis.atomic_io import write_atomic
 from physverify.diagnosis.cases import sample_stats
 from physverify.schema.error_profile import (
     MAX_RESIDUALS,

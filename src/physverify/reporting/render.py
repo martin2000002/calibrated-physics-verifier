@@ -9,7 +9,7 @@ from typing import Any
 
 from physverify.calibration.report import ESTIMATE_NOTE, ci_text, number_text
 from physverify.calibration.schema import Ci
-from physverify.diagnosis.atomic_io import write_text_atomic
+from physverify.core.atomic import write_text_atomic
 from physverify.reporting.numbers import Results, Section, Value
 from physverify.schema.io import json_ready
 

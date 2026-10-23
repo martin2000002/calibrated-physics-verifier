@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from physverify.cli.context import AppContext
-from physverify.diagnosis.atomic_io import write_text_atomic
+from physverify.core.atomic import write_text_atomic
 from physverify.runtime.runs import RunContext, current_commit
 from physverify.schema.io import json_ready
 

@@ -17,7 +17,7 @@ import numpy as np
 
 from physverify.calibration.stats import SceneBlock, scene_bootstrap
 from physverify.calibration.table import scene_of
-from physverify.diagnosis.atomic_io import write_text_atomic
+from physverify.core.atomic import write_text_atomic
 from physverify.diagnosis.cases import MetricOutcome, SampledMetric
 from physverify.diagnosis.chain import ChainRunner
 from physverify.diagnosis.error_profile_writer import StageSamples
