@@ -1,9 +1,9 @@
 """R5a scale-free fall shape: the parabola fitted on a flight has one constant acceleration,
-shared by consecutive flights and by the objects of the clip. ADR 0006 section 3.4.
+shared by consecutive flights and by the objects of the clip.
 
 Flights are the rows outside every contact window of the object and not at rest, cut where a
-row's acceleration jumps (D12). Every fit uses the table time ``states.t``, so strided tables
-give the same accelerations as native ones (D14.2).
+row's acceleration jumps. Every fit uses the table time ``states.t``, so strided tables
+give the same accelerations as native ones.
 """
 
 from __future__ import annotations
@@ -60,7 +60,7 @@ class Candidate:
 class FallShapeCheck:
     """R5a [accel_rel_diff]: per object, the largest inconsistency between the two sides of a
     split flight or between consecutive flights; per object pair, between their first flights.
-    Does not need the gravity direction (D10): ``lateral_accel_ratio`` is null without it.
+    Does not need the gravity direction: ``lateral_accel_ratio`` is null without it.
     Under noise the maximum over candidates is biased upward and its sigma is the chosen
     candidate's own, not the sigma of the maximum (a known limitation, left to calibration)."""
 

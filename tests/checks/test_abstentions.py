@@ -1,4 +1,4 @@
-"""ADR 0006 §3.5: every (check, reason) pair is reachable and no check emits another reason."""
+"""Every (check, reason) pair is reachable and no check emits another reason."""
 
 from __future__ import annotations
 

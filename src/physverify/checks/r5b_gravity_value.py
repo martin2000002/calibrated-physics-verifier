@@ -1,5 +1,6 @@
 """R5b gravity value: the fitted free-fall acceleration in meters per second squared against
-g0, for spheres only (D11) and only with an independent scale (D6). ADR 0006 section 3.4."""
+g0, for spheres only and only with a scale that does not come from the fall itself (a scale fitted
+on g would make the test circular)."""
 
 from __future__ import annotations
 
@@ -33,7 +34,7 @@ class GravityValueParams(FallParams):
 
 class GravityValueCheck:
     """R5b [g_rel_error]: median over the clip's flights of | |a| mpu - g0 | / g0, with |a| from
-    the parabola fitted against table time, so it does not depend on the row step (D14.2)."""
+    the parabola fitted against table time, so it does not depend on the row step."""
 
     check_id: ClassVar[str] = "R5b"
     requires: ClassVar[frozenset[str]] = frozenset({"contacts"})
@@ -114,7 +115,7 @@ def _sigma(
 ) -> float:
     """First order on the mean of the central flights' errors e_f = |x_f - 1|, x_f = |a_f| mpu/g0:
     the position terms are independent per flight, the scale term (dx/x = ds/s) is shared.
-    With one flight it is x sqrt((sigma_|a| / |a|)^2 + rel_sigma^2) (ADR 0006, R5b)."""
+    With one flight it is x sqrt((sigma_|a| / |a|)^2 + rel_sigma^2)."""
     weight = 1.0 / len(flights)
     per_unit = scale.meters_per_unit / STANDARD_GRAVITY
     ratios = [per_unit * float(np.linalg.norm(a)) for a in accels]

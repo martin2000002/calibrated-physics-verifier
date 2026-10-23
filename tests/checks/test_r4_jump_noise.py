@@ -1,5 +1,5 @@
-"""it4 change A: R4_jump v2, the jump in units of the object's own noise (plan-it4 T1-T7, T9;
-judgement J2, J6, J8, J9). Analytic scenes seen by a pinhole of ``sc.FOCAL_PX`` pixels."""
+"""R4_jump v2, the jump in units of the object's own noise. Analytic scenes seen by a pinhole of
+``sc.FOCAL_PX`` pixels."""
 
 from __future__ import annotations
 
@@ -52,7 +52,7 @@ def noisy_rest(sigma: float, seed: int, frames: int = 24) -> CheckInputs:
     return with_positions(case.inputs(), case.states.position + noise, sigma)
 
 
-# --- T1: white noise, invariances ---------------------------------------------------------------
+# White noise, invariances.
 
 
 def test_t1_white_noise_peaks_like_the_maximum_of_chi3_norms() -> None:
@@ -114,7 +114,7 @@ def test_t1_the_value_does_not_depend_on_gravity(direction: tuple[float, float, 
     assert pulled.magnitude == pytest.approx(base.magnitude, rel=1e-6)
 
 
-# --- T2, T3: a step -------------------------------------------------------------------------
+# A step.
 
 
 def stepped(inputs: CheckInputs, row: int, offset: np.ndarray) -> CheckInputs:
@@ -147,7 +147,7 @@ def test_t3_exact_positions_use_the_pixel_floor_on_every_axis() -> None:
     assert sigma_hat == pytest.approx(np.full(3, FLOOR), rel=1e-12)
 
 
-# --- T4, T4b: too few stencils (judgement J2) -------------------------------------------------
+# Too few stencils.
 
 
 def short_track(sigma: float) -> CheckInputs:
@@ -189,7 +189,7 @@ def test_t4b_without_any_sigma_too_few_stencils_abstain() -> None:
     assert one(inputs).abstain_reason is AbstainReason.TOO_FEW_FRAMES
 
 
-# --- T5: impacts --------------------------------------------------------------------------------
+# Impacts.
 
 
 @pytest.mark.parametrize("step", [1, 2])
@@ -204,7 +204,7 @@ def test_t5_the_stencils_of_a_marked_impact_do_not_count(step: int) -> None:
     assert one(replace(case.inputs(), contacts=unmarked)).magnitude > 10.0
 
 
-# --- T6: the camera (judgement J6 iv) ------------------------------------------------------------
+# The camera.
 
 
 def test_t6_without_a_camera_the_runner_abstains_by_requires() -> None:
@@ -239,7 +239,7 @@ def test_t6_no_pixel_floor_is_unknown_uncertainty(broken: str) -> None:
     assert one(inputs).abstain_reason is AbstainReason.UNKNOWN_UNCERTAINTY
 
 
-# --- T7: sigma and details ----------------------------------------------------------------------
+# Sigma and details.
 
 
 def test_t7_sigma_is_one_unless_the_positions_are_exact() -> None:
@@ -274,7 +274,7 @@ def test_noise_jumps_are_nan_outside_the_stencils() -> None:
 
 
 def test_the_peak_value_has_unit_sigma_at_a_fixed_noise_scale() -> None:
-    """J8: sigma = 1 is the per-row sigma at the peak: with sigma-hat fixed, the value at a large
+    """sigma = 1 is the per-row sigma at the peak: with sigma-hat fixed, the value at a large
     step's row varies with standard deviation 1 under the noise it is measured in."""
     rng = np.random.default_rng(8)
     base = np.zeros((24, 3))
@@ -286,7 +286,7 @@ def test_the_peak_value_has_unit_sigma_at_a_fixed_noise_scale() -> None:
     assert float(np.std(values, ddof=1)) == pytest.approx(1.0, abs=0.05)
 
 
-# --- T9: registry ------------------------------------------------------------------------------
+# Registry.
 
 
 def test_t9_the_registry_holds_one_r4_jump_the_v2() -> None:

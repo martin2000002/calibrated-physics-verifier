@@ -28,7 +28,7 @@ DRAW_PARAMS: dict[str, dict[str, int]] = {"R3a": {"mc_draws": 2}}
 
 
 V1_CHECKS: Mapping[str, type[Check]] = {"R4_jump_v1": ContinuityCheck}
-"""Checks out of the registry, kept for the v1 arm (plan-it4 J4): their closed forms stay tested."""
+"""Checks out of the registry, kept for the v1 arm: their closed forms stay tested."""
 
 
 def make(check_id: str, **overrides: int) -> Check:

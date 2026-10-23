@@ -1,4 +1,4 @@
-"""Analytic scenes for the check tests (ADR 0006, section 4).
+"""Analytic scenes for the check tests.
 
 Scenes are built in a z-up world in meters and stored as a camera sees them (camera_opencv), so
 a check can only learn "down" from ``gravity_dir``. Tables always hold t = frame_index * DT.
@@ -141,7 +141,7 @@ def pinhole(clip: ClipManifest, focal: float = FOCAL_PX, pose: Any = None) -> Ca
     )
 
 
-# --- building blocks -------------------------------------------------------------------------
+# Building blocks.
 
 
 def times(frames: int = FRAMES) -> FloatArray:
@@ -321,14 +321,14 @@ def _record_in(view: View, record: ContactRecord) -> ContactRecord:
     )
 
 
-# --- edits -----------------------------------------------------------------------------------
+# Edits.
 
 
 def strided(case: Case, step: int, quantize: bool) -> Case:
     """Every ``step``-th native frame; with ``quantize`` contact times snap to sampled frames.
 
-    Snapping goes to the nearest sampled frame, ties down for t_start and up for t_end (as A5
-    emits them); without it the records keep their native bounds (as ``mixed`` inputs do).
+    Snapping goes to the nearest sampled frame, ties down for t_start and up for t_end (as the
+    extractor emits them); without it the records keep their native bounds (as ``mixed`` inputs do).
     """
     states = take_frames(case.states, case.states.frame_index[::step])
     contacts = case.contacts
@@ -382,7 +382,7 @@ def with_prompt(case: Case, prompt: str) -> Case:
     return replace(case, clip=replace(case.clip, prompt=prompt))
 
 
-# --- scenes ----------------------------------------------------------------------------------
+# Scenes.
 
 
 def overhang(

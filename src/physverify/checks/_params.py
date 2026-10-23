@@ -36,7 +36,7 @@ class FallParams(CommonParams):
     and filtering on it would drop weak-gravity flights.
 
     ``travel_noise`` = "declared": the noise is sqrt(2) |median declared position sigma| (an
-    absolute sigma, before 2026-10-20). "track": sqrt(2) |sigma_w| measured on the object's own
+    absolute sigma, the original rule). "track": sqrt(2) |sigma_w| measured on the object's own
     third differences (``physics.tracks.track_noise``), in this order: exact positions (at least
     one known sigma and every known one 0) keep the length floor only; otherwise, with
     ``min_noise_stencils`` usable stencils, the track noise, also when no sigma is known; otherwise

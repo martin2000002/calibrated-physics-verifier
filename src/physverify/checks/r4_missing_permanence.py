@@ -17,14 +17,15 @@ from physverify.schema.checks import AbstainReason, CheckResult
 
 
 class PermanenceParams(OcclusionParams):
-    # "unknown": sigma NaN unless the positions are exact (before 2026-10-20). "edges": the
-    # estimated counting sigma of ``count_sigma``, whose level the D9 factor sets.
+    # "unknown": sigma NaN unless the positions are exact (the original rule). "edges": the
+    # estimated counting sigma of ``count_sigma``, whose level the per-check sigma recalibration
+    # sets.
     sigma_model: Literal["unknown", "edges"] = "edges"
 
 
 class PermanenceCheck:
     """R4_missing [frames]: native frames in which the object is inside the image but unseen and
-    not explained by occlusion. Rows are converted to native frames (x row_step, D14.6)."""
+    not explained by occlusion. Rows are converted to native frames (x row_step)."""
 
     check_id: ClassVar[str] = "R4_missing"
     requires: ClassVar[frozenset[str]] = frozenset()
@@ -74,7 +75,8 @@ def count_sigma(rows: list[int], step: int) -> float:
     """Estimated sigma of a missing-frame count: step * sqrt(2 * max(runs, 1)).
 
     Each run of counted rows has two edges whose row is uncertain by one sampling step (a mask
-    that fades under ``min_area_px`` a row early or late). A shape only: D9 sets its level."""
+    that fades under ``min_area_px`` a row early or late). A shape only: the per-check sigma
+    recalibration sets its level."""
     runs = sum(1 for k, row in enumerate(rows) if k == 0 or row != rows[k - 1] + 1)
     return step * math.sqrt(2.0 * max(runs, 1))
 

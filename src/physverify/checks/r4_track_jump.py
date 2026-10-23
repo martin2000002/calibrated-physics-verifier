@@ -1,5 +1,4 @@
-"""R4_jump v2: spatio-temporal continuity in units of the object's own position noise (ADR 0006
-section 3.4, it4 amendment; plan-it4 change A)."""
+"""R4_jump v2: spatio-temporal continuity in units of the object's own position noise."""
 
 from __future__ import annotations
 
@@ -37,8 +36,8 @@ NoiseSource = Literal["exact", "track", "declared"]
 class NoiseJumpParams(CommonParams):
     """``few_stencils``: with fewer than ``min_noise_stencils`` usable stencils and positions that
     are not exact, "declared" takes the median declared position sigma per axis (the order of
-    ``checks._falls.find_falls``, plan-it4 judgement J2) and "abstain" gives up (the plan before
-    J2, kept to report the survival of the positives with and without that branch)."""
+    ``checks._falls.find_falls``) and "abstain" gives up (the earlier rule, kept to report the
+    survival of the positives with and without that branch)."""
 
     min_noise_stencils: int = Field(default=MIN_NOISE_STENCILS, ge=4)
     few_stencils: Literal["declared", "abstain"] = "declared"
@@ -77,15 +76,16 @@ def object_noise(
 
 
 class NoiseContinuityCheck:
-    """R4_jump [jump_over_noise]: max_k ||D3_k / (sqrt(20) sigma-hat)|| over the rows whose
-    stencil spans no impact (D13, D14.6), with sigma-hat per axis the larger of the object's own
-    noise (``track_noise``: robust scale of its third differences / sqrt(20)) and one pixel at its
-    median depth, z / (f sqrt(12)) with f the focal length of the camera LIFT used.
+    """R4_jump [jump_over_noise]: max_k ||d3_k / (sqrt(20) sigma-hat)|| over the rows whose
+    stencil spans no impact (impacts converted to native frames), with sigma-hat per axis the
+    larger of the object's own noise (``track_noise``: robust scale of its third differences /
+    sqrt(20)) and one pixel at its median depth, z / (f sqrt(12)) with f the focal length of the
+    camera LIFT used.
 
     A test statistic, not a physical size: the jump it stands for is in ``details``
     (``jump_over_size_estimated``, an estimate at the peak row). ``sigma`` is 1 in its own unit
     (the per-row sigma at the peak, as in v1) and 0 for exact positions; the error of sigma-hat
-    itself (about 30 % relative with 8 to 20 stencils) is not propagated (judgement J8). The
+    itself (about 30 % relative with 8 to 20 stencils) is not propagated, a known limitation. The
     perturbations it answers to are injected in ``jump_over_size`` (``perturbation_unit``); the
     sweep compares that estimate with the injected jump (``perturbation_estimate``)."""
 

@@ -25,7 +25,7 @@ SizeReference = Literal["self", "others"]
 
 
 class SizeParams(OcclusionParams):
-    """``reference``: "others" (v2, plan-it4 change B) measures the size relative to the other
+    """``reference``: "others" (v2) measures the size relative to the other
     bodies of each frame; "self" (v1) the size alone."""
 
     min_size_frames: int = Field(default=3, ge=2)

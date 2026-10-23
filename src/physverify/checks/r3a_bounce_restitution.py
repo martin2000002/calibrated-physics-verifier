@@ -1,4 +1,4 @@
-"""R3a restitution of ground impacts (ADR 0006 3.4)."""
+"""R3a restitution of ground impacts."""
 
 from __future__ import annotations
 

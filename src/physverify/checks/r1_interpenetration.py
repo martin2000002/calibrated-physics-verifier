@@ -1,4 +1,4 @@
-"""R1 interpenetration of object pairs and of each object with the ground (ADR 0006 3.4)."""
+"""R1 interpenetration of object pairs and of each object with the ground."""
 
 from __future__ import annotations
 

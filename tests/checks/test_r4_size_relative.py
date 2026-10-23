@@ -1,5 +1,4 @@
-"""it4 change B: R4_size v2, the size relative to the other bodies of each frame (plan-it4
-T10-T13; judgement J10, J11)."""
+"""R4_size v2, the size relative to the other bodies of each frame."""
 
 from __future__ import annotations
 
@@ -52,7 +51,7 @@ def test_t11_a_resized_body_against_a_constant_reference_gives_mu(balls: int, mu
 @pytest.mark.parametrize(("balls", "expected"), [(2, lambda m: m / (1 + m)), (3, None)])
 def test_j11_a_clean_partner_also_moves(balls: int, expected: object) -> None:
     """With two bodies the partner's ratio is 1 / (1 + mu): the clip is flagged by the larger,
-    the subject stays ambiguous (J11: no per-subject use in H2)."""
+    the subject stays ambiguous (the human-agreement study makes no per-subject use of it)."""
     mu = 0.4
     partner = size(sc.resized_pair(factor=1.0 + mu, balls=balls))["ball_1"]
     if balls == 2:

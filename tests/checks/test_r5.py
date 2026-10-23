@@ -76,7 +76,7 @@ def test_plugins_satisfy_the_check_protocol() -> None:
         assert isinstance(cls(cls.Params()), Check)
 
 
-# --- R5a --------------------------------------------------------------------------------------
+# R5a.
 
 
 @pytest.mark.parametrize("pitch", [0.0, 25.0])
@@ -190,7 +190,8 @@ def drifting_ball(amplitude: float, sigma: float = 0.01) -> sc.Case:
 
 def declared_far_too_large(length_sigmas: float = 6.0, noise_lengths: float = 0.01) -> sc.Case:
     """A real fall whose declared position sigma is ``length_sigmas`` body lengths while its
-    actual white noise is ``noise_lengths`` body lengths (the it1 defect, diagnosis section 2)."""
+    actual white noise is ``noise_lengths`` body lengths (a defect a perception iteration found
+    in the extractor diagnosis)."""
     case = sc.parabola()
     length = 2 * sc.BALL_RADIUS
     noise = np.random.default_rng(3).normal(0.0, noise_lengths * length, case.states.position.shape)
@@ -216,8 +217,8 @@ def test_t8_a_fall_hidden_by_a_declared_absolute_sigma_is_found_on_the_track(
 
 @pytest.mark.parametrize(("check", "params"), CHECKS)
 def test_t9b_slow_drift_below_half_a_length_is_not_a_fall(check: type, params: type) -> None:
-    """D3 does not see a drift that is quadratic over the stencil: only the length floor stops it
-    (J4 iii), as the run without that floor shows."""
+    """The third difference does not see a drift that is quadratic over the stencil: only the
+    length floor stops it, as the run without that floor shows."""
     case = drifting_ball(0.45 * 2 * sc.BALL_RADIUS, sigma=0.002)
     assert run(check(params(travel_noise="track")), case) == []
     no_length = params(travel_noise="track", min_travel_lengths=0.0)
@@ -240,7 +241,7 @@ def test_t10_exact_positions_keep_the_length_floor(
 def test_without_a_known_sigma_the_track_noise_comes_before_the_length_floor(
     check: type, params: type
 ) -> None:
-    """J4 (i), audit m1: no finite sigma, enough stencils -> the track noise sets the floor."""
+    """No finite sigma, enough stencils -> the track noise sets the floor."""
     case = hovering_ball()
     unknown = replace(
         case,
@@ -266,7 +267,7 @@ def test_shape_sigma_follows_position_noise() -> None:
     assert math.isnan(shape(nan).sigma)
 
 
-# --- R5b --------------------------------------------------------------------------------------
+# R5b.
 
 
 @pytest.mark.parametrize("step", [1, 2, 3])

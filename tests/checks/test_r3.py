@@ -128,8 +128,8 @@ def test_params_need_enough_rows_for_the_fit() -> None:
 
 
 def perceived(case: sc.Case, seed: int, shift: float = 0.0) -> sc.Case:
-    """Noisy positions with their sigma, velocities from Savitzky-Golay (as A5 emits them) and
-    contact records moved by ``shift`` native frames."""
+    """Noisy positions with their sigma, velocities from Savitzky-Golay (as the extractor emits
+    them) and contact records moved by ``shift`` native frames."""
     states = case.states
     rng = np.random.default_rng(seed)
     noisy = replace(

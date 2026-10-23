@@ -39,8 +39,8 @@ class CollisionParams(CommonParams):
     fit_frames: int = Field(default=6, ge=2)
     min_side_frames: int = Field(default=3, ge=2)
     # "velocity" is the line fit on the kinematics velocities, smoothed across the impact on
-    # perceived clips. The oracle sweep uses it because the A4 labels are defined on simulator
-    # velocities, which lead PyBullet positions by g*h/2.
+    # perceived clips. The oracle sweep uses it because the synthetic ground-truth labels are
+    # defined on simulator velocities, which lead PyBullet positions by g*h/2.
     fit_source: FitSource = "position"
 
     @model_validator(mode="after")

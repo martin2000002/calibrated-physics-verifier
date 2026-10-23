@@ -62,7 +62,7 @@ def test_plugins_satisfy_the_check_protocol() -> None:
         assert isinstance(cls(cls.Params()), Check)
 
 
-# --- R4_missing -------------------------------------------------------------------------------
+# R4_missing.
 
 
 @pytest.mark.parametrize("pitch", [0.0, 25.0])
@@ -134,7 +134,7 @@ def test_strided_disappearance_counts_native_frames() -> None:
     assert result.frame_span == (4, 6)
 
 
-# --- R4_size v1 (reference "self"; v2 in test_r4_size_relative.py) -------------------------
+# R4_size v1 (reference "self"; v2 in test_r4_size_relative.py).
 
 
 @pytest.mark.parametrize("step", [1, 2, 3])
@@ -221,7 +221,7 @@ def test_size_abstains_only_below_min_size_frames(whole: int) -> None:
         assert result.details["size_rows"] == whole
 
 
-# --- R4_jump v1 (ContinuityCheck, out of the registry; v2 in test_r4_jump_noise.py) ----------
+# R4_jump v1 (ContinuityCheck, out of the registry; v2 in test_r4_jump_noise.py).
 
 
 @pytest.mark.parametrize("pitch", [0.0, 25.0])

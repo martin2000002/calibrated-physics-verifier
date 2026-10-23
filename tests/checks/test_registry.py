@@ -1,4 +1,5 @@
-"""ADR 0006 §4: the nine checks are discovered, typed, match the A4 units and use the measures."""
+"""The nine checks are discovered, typed, match the perturbation units of the synthetic Kubric
+dataset and use the measures."""
 
 from __future__ import annotations
 
@@ -53,7 +54,7 @@ def label(name: str, targets: tuple[str, ...], unit: str) -> PerturbationRecord:
 
 def test_the_units_are_the_a4_perturbation_units() -> None:
     """Through ``target_unit``: R4_jump v2 measures jump_over_noise, a test statistic of the
-    jump_over_size that r4_teleport injects (plan-it4 J1)."""
+    jump_over_size that r4_teleport injects."""
     checks = [CheckUnit.of(cls) for cls in registry().values()]
     units = {c.check_id: target_unit(c) for c in checks}
     covered: set[str] = set()

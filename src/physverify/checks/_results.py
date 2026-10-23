@@ -1,4 +1,4 @@
-"""Result builders for the checks (ADR 0006 3.3)."""
+"""Result builders for the checks."""
 
 from __future__ import annotations
 

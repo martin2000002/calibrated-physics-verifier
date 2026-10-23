@@ -61,7 +61,7 @@ def frames_of(mask: np.ndarray, frame_index: np.ndarray) -> set[int]:
     return {int(f) for f in frame_index[mask]}
 
 
-# --- steps and time axis ---------------------------------------------------------------------
+# Steps and time axis.
 
 
 def test_row_step() -> None:
@@ -79,7 +79,7 @@ def test_time_axis_uses_native_frames() -> None:
         check_time_axis(sc.times(EVEN.size), EVEN, sc.DT)
 
 
-# --- contact windows -------------------------------------------------------------------------
+# Contact windows.
 
 
 @pytest.mark.parametrize(
@@ -134,8 +134,8 @@ def a4_flight(records: list[ContactRecord], n: int, margin: int) -> np.ndarray:
 
 
 def a4_impact_frames(records: list[ContactRecord], n: int) -> np.ndarray:
-    """A4's rows floor(t_start) - 1 <= k <= ceil(t_end) of the 4-row stencil, one row wider on
-    each bound that falls on a frame (quantized)."""
+    """The synthetic ground-truth labels' rows floor(t_start) - 1 <= k <= ceil(t_end) of the
+    4-row stencil, one row wider on each bound that falls on a frame (quantized)."""
     mask = np.zeros(n, dtype=bool)
     for r in records:
         lo = math.floor(r.t_start) - 1 - int(r.t_start.is_integer())
@@ -219,7 +219,7 @@ def test_segments_and_native_span() -> None:
     assert native_span(EVEN, 1, 4) == (2, 8)
 
 
-# --- per-object helpers ----------------------------------------------------------------------
+# Per-object helpers.
 
 
 @pytest.mark.parametrize(("step", "expected"), [(1, [(0, 16), (16, 32)]), (2, [(0, 8), (8, 16)])])
@@ -332,7 +332,7 @@ def test_parabola_velocity_sigma_matches_monte_carlo() -> None:
     assert spread / reported == pytest.approx(1.0, abs=0.05)
 
 
-# --- scenarios -------------------------------------------------------------------------------
+# Scenarios.
 
 
 @pytest.mark.parametrize("step", [1, 2, 3])
@@ -390,7 +390,7 @@ def test_integrity_scenes() -> None:
     assert int(np.argmax(step)) == 15
 
 
-# --- track noise (it1 change B: T7 and the D3 / impact alignment of J4) -----------------------
+# Track noise, and the alignment of the third difference with the impact rows.
 
 
 def noisy(case: sc.Case, sigma: float, seed: int = 0) -> sc.Case:
@@ -416,9 +416,9 @@ def test_track_noise_needs_enough_stencils() -> None:
 
 
 def test_noise_stencils_align_the_third_difference_with_the_impact_rows() -> None:
-    """D3[j] spans rows j..j+3, row j + 1 of impact_stencil_mask: with the impact between two
-    rows (off the middle, where one stencil cancels), the stencils left out are exactly those
-    the kink makes nonzero."""
+    """The third difference d3[j] spans rows j..j+3, row j + 1 of impact_stencil_mask: with the
+    impact between two rows (off the middle, where one stencil cancels), the stencils left out
+    are exactly those the kink makes nonzero."""
     case = sc.bounce(impact_frame=15.3)
     d3, usable = noise_stencils(case.states, case.contacts, 0)
     kinked = np.linalg.norm(d3, axis=1) > 1e-9

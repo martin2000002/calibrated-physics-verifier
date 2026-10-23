@@ -1,4 +1,4 @@
-"""R2 static equilibrium of resting bodies, one linear program per component (ADR 0006 3.4)."""
+"""R2 static equilibrium of resting bodies, one linear program per component."""
 
 from __future__ import annotations
 
