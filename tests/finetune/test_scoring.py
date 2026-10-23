@@ -10,10 +10,11 @@ import numpy as np
 import pytest
 
 from physverify.app import plugins
+from physverify.calibration.api import CalibrationApi
 from physverify.calibration.apply import ClipScore
 from physverify.config.models import Settings
-from physverify.core.errors import UsageError
-from physverify.datasets.local_video import QueryEntry
+from physverify.core.errors import ConfigError, UsageError
+from physverify.core.local_manifest import QueryEntry
 from physverify.finetune.candidate_scoring import (
     ScoringDeps,
     pending,
@@ -336,13 +337,13 @@ def test_the_provisional_scorer_is_version_two() -> None:
     assert ProvisionalScorer.version == "2"
 
 
-def test_a_missing_calibration_module_makes_the_scorer_unavailable(
+def test_a_calibration_that_cannot_load_makes_the_scorer_unavailable(
     tmp_path: Path, settings: Settings, prompt: PromptRecord, make_result: Result
 ) -> None:
-    def missing(name: str) -> Any:
-        raise ImportError(f"No module named {name!r}")
+    def missing() -> Any:
+        raise ConfigError("no calibration chain")
 
-    scorer = CalibratedScorer(settings, {}, import_module=missing)
+    scorer = CalibratedScorer(settings, {}, api_loader=missing)
     assert scorer.unavailable() is not None
     store = CampaignStore(tmp_path / "ft", tmp_path / "raw", "c")
     deps = ScoringDeps(lambda s: [], FakeSource(None), FakeRunner(make_result))  # type: ignore[arg-type]
@@ -374,7 +375,7 @@ def test_the_calibrated_scorer_wraps_score_clip(settings: Settings, make_result:
         calls.append((got, k, only))
         return _clip_score()
 
-    scorer = _scorer(settings, _calibration_modules(score_clip, stratum))
+    scorer = _scorer(settings, _calibration_api(score_clip, stratum))
     assert scorer.unavailable() is None
     assert scorer.thresholds() == (
         f"calibrated:thresholds.json#perceived/precise@run7@checks:{HASH[:12]}"
@@ -403,38 +404,33 @@ def _stratum() -> SimpleNamespace:
     )
 
 
-def _scorer(settings: Settings, modules: dict[str, Any]) -> CalibratedScorer:
-    def active_checks_hash(got: Settings, registry: Any) -> str:
-        assert got is settings and registry == {"R1": object}
-        return HASH
-
-    modules["physverify.calibration.settings"] = SimpleNamespace(
-        calibration_settings=lambda s: SimpleNamespace(require_calibrated_artifact=False),
-    )
-    modules["physverify.verification.check_set"] = SimpleNamespace(
-        active_checks_hash=active_checks_hash
-    )
+def _scorer(settings: Settings, api: CalibrationApi[Any]) -> CalibratedScorer:
     return CalibratedScorer(
         settings,
-        import_module=modules.__getitem__,  # type: ignore[arg-type]
+        api_loader=lambda: api,
         checks={"R1": object},  # type: ignore[dict-item]
     )
 
 
-def _calibration_modules(score_clip: Any, stratum: Any) -> dict[str, Any]:
+def _calibration_api(score_clip: Any, stratum: Any) -> CalibrationApi[Any]:
     def open_stratum(path: Path, level: Any, profile: str, **options: Any) -> Any:
         assert options["checks_hash"] == HASH and not options["require_calibrated"]
         return stratum
 
-    return {
-        "physverify.calibration.apply": SimpleNamespace(score_clip=score_clip),
-        "physverify.calibration.artifact_io": SimpleNamespace(
-            default_artifact_path=lambda s: Path("cal/thresholds.json"),
-            open_stratum=open_stratum,
-            unique_row_step=lambda steps: max(steps),
-            CalibrationError=FakeCalibrationError,
-        ),
-    }
+    def active_checks_hash(got: Settings, registry: Any) -> str:
+        assert registry == {"R1": object}
+        return HASH
+
+    return CalibrationApi(
+        open_stratum=open_stratum,
+        default_artifact_path=lambda s: Path("cal/thresholds.json"),
+        active_checks_hash=active_checks_hash,
+        require_calibrated=lambda s: False,
+        score_clip=score_clip,
+        unique_row_step=max,
+        error=FakeCalibrationError,
+        unusable_error=FakeCalibrationError,
+    )
 
 
 def test_all_zero_weights_map_to_an_abstention() -> None:

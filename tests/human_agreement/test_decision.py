@@ -11,10 +11,10 @@ from typing import Any
 import numpy as np
 import pytest
 
+from physverify.calibration.api import CalibrationApi
 from physverify.core.errors import ConfigError, UsageError
 from physverify.human_agreement.clip_decision import (
     CalibratedRule,
-    CalibrationApi,
     ClipDecision,
     ProvisionalAnyFail,
     StratumRequest,
@@ -121,6 +121,7 @@ def _api(score: Score, problem: Exception | None = None) -> tuple[CalibrationApi
         active_checks_hash=lambda settings, checks: "hash",
         require_calibrated=lambda settings: False,
         score_clip=score_clip,
+        unique_row_step=max,
         error=FakeError,
         unusable_error=FakeUnusableError,
     )

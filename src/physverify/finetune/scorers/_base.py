@@ -13,6 +13,7 @@ from typing import ClassVar, Protocol, runtime_checkable
 
 from physverify.checks._base import Check
 from physverify.config.models import Settings
+from physverify.config.plugin_context import PluginKind
 from physverify.schema.checks import CheckResult
 
 
@@ -47,3 +48,6 @@ class AggregateScorer(Protocol):
     def score(
         self, results: Sequence[CheckResult], only: frozenset[str] | None = None
     ) -> AggregateScore: ...
+
+
+SCORERS = PluginKind[type[AggregateScorer]]("scorers")

@@ -11,10 +11,10 @@ from typing import Annotated
 
 import typer
 
+from physverify.calibration.api import calibration_api
 from physverify.cli.context import app_context, echo_err, heavy_command
 from physverify.datasets._base import fetch_all
 from physverify.datasets.videophy import VideophyDataset
-from physverify.human_agreement.clip_decision import import_calibration
 from physverify.human_agreement.settings import agreement_settings
 from physverify.human_agreement.subset_review import check_recorded, record_subsets, review_subset
 from physverify.human_agreement.workflow import (
@@ -88,7 +88,7 @@ def freeze_command(
         context.registry("checks"),
         _dataset(),
         run_dir,
-        import_calibration,
+        calibration_api,
         dt.datetime.now(dt.UTC),
     )
     apply_freeze(
@@ -116,7 +116,7 @@ def compare_command(
         context.registry("checks"),
         _dataset(),
         request,
-        import_calibration,
+        calibration_api,
         functools.partial(dt.datetime.now, dt.UTC),
         echo=typer.echo,
     )

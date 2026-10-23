@@ -8,13 +8,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from physverify.calibration.api import CalibrationApi, CalibrationStratum
 from physverify.checks._base import Check
 from physverify.core.errors import ConfigError, UsageError
 from physverify.datasets._videophy_tables import VideophyRow
 from physverify.human_agreement.clip_decision import (
     CALIBRATED_NAME,
-    CalibrationApi,
-    CalibrationStratum,
     ClipDecisionRule,
     ProvisionalAnyFail,
     StratumRequest,
