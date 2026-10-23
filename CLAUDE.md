@@ -99,7 +99,10 @@ Only the main thread changes these, between phases:
   (a check with a new magnitude adds its own module there, owned by its cycle)
 - `src/physverify/kubric_worker/__main__.py`, `src/physverify/kubric_worker/tasks/ping.py`
 - `src/physverify/cli/main.py`, `cli/context.py`, `cli/commands/doctor.py`
-- `tests/conftest.py`, `tests/fixtures/**`, `tests/unit/**`, `tests/docker/**`
+- `tests/conftest.py`, `tests/fixtures/**`, `tests/docker/**`, and the former
+  `tests/unit` files: `tests/{core,config,cli,runtime,physics,schema}/**`,
+  `tests/kubric_worker/test_kubric_worker.py`, `tests/datasets/test_synthetic_clip.py`,
+  `tests/reporting/test_report_text.py`, `tests/test_repo_hygiene.py`
 
 A cycle that needs a contract change does **not** edit a frozen file. It finishes its report with
 
@@ -117,9 +120,9 @@ SCHEMA CHANGE REQUEST: <what and why>
 | A5 extractor | `extraction/{settings,plan,cache,pipeline,weights,matching}.py`, `extraction/providers/*.py`, `physics/{kinematics,uncertainty}.py`, `datasets/local_video.py`, `cli/commands/extract.py`, `configs/extraction.toml`, `tests/extraction/**` |
 | A7 checks | `checks/r*.py`, `checks/_common.py`, `physics/{equilibrium,tracks}.py`, `verification/{inputs,runner,sweep,scope}.py`, `verification/policies/*.py`, `cli/commands/verify.py`, `configs/checks.toml`, `tests/checks/**`, `tests/verification/**` |
 | A6 diagnosis | `diagnosis/` except `_base.py`, `datasets/{_download,physics_iq,pisa_real}.py`, `annotations/*.json`, `cli/commands/{diagnose,data}.py`, `configs/diagnosis.toml`, `tests/diagnosis/**` |
-| A3 timing | `timing/` except `_base.py`, `cli/commands/timing.py`, `scripts/h200/**` (must not assume Docker), `configs/timing.toml`, `tests/timing/**` |
+| A3 timing | `timing/` except `_base.py`, `cli/commands/timing.py`, `scripts/h200/**` (must not assume Docker), `configs/timing.toml`, `tests/timing/**`, `tests/scripts/**` |
 | A8 exclusion rules (WP-J) | `calibration/exclusion_rules.py`, `verification/exclusion_record.py`, `cli/commands/exclusions.py`, `configs/exclusion_rules.toml`, `tests/calibration/{exclusion_cases,test_exclusions,test_exclusions_cli}.py`, `tests/verification/test_scope_record.py` |
-| A8 H1 scope / H3 S5 (WP-J2) | `synth/scene_scope.py`, `configs/h1_scenes.toml`, the H1 primary view in `calibration/{evaluate,artifact,report}.py` and `cli/commands/calibrate.py`, `SECONDARY_TESTS` in `generator_comparison/{preregistered_numbers,prereg,prereg_state}.py`, `tests/calibration/test_h1_primary.py` |
+| A8 H1 scope / H3 S5 (WP-J2) | `synth/scene_scope.py`, `configs/h1_scenes.toml`, the H1 primary view in `calibration/{evaluate,artifact,report}.py` and `cli/commands/calibrate.py`, `SECONDARY_TESTS` in `generator_comparison/{preregistered_numbers,prereg,prereg_state}.py`, `tests/calibration/test_monotonicity_primary.py` |
 | Campaign infrastructure (WP-O) | `calibration/{dev_score,sealed_ledger}.py`, `configs/sealed.toml`, `app/sealing.py`, the `devscore` subcommand in `cli/commands/calibrate.py`, `scripts/h200/run_iteration.sh`, `tests/calibration/{test_devscore,test_sealed,test_sealed_cli,test_cli_devscore}.py`, `tests/scripts/test_run_iteration_script.py` |
 | A11 preference / H3 | `finetune/{scorer_scope,stop_rule}.py`, `finetune/scorers/_calibration_status.py`, `cli/commands/{_stop_rule,_finetune_deps}.py`, `tests/finetune/test_{check_scope,stop_rule}.py` |
 

@@ -271,8 +271,7 @@ T0 (preparation for the parallel moves T-a and T-b):
   `tests/fixtures/shell_sandbox.py` (`Sandbox` and `executable`, the base of the eight H200 script
   sandboxes, which keep their specifics in subclasses named after the script) and
   `tests/fixtures/network.py` (the `no_network` autouse guard, one message for all). The guard is
-  active only where a conftest imports it: `tests/{timing,agreement,diagnosis,extraction}` and
-  their WP6 destinations. It is not global, so `tests/docker` and Unix sockets are unaffected.
+  active only where a conftest imports it: `tests/{timing,human_agreement,scripts,diagnosis,extraction}`. It is not global, so `tests/docker` and Unix sockets are unaffected.
 - The harness puts every test helper directory of both layouts on `PYTHONPATH`
   (`HELPER_DIRS` in `run_equivalence.sh`, `CASES_DIRS` in `driver.py prepare`), so `9eb5888` and
   the moved tree run with the same driver.

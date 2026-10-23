@@ -1172,7 +1172,7 @@
   "comment_or_docstring": 7
  },
  "tests/extraction/test_oracle_contacts_golden.py": {
-  "comment_or_docstring": 4
+  "comment_or_docstring": 3
  },
  "tests/extraction/test_proximity_refactor.py": {
   "comment_or_docstring": 2

@@ -30,7 +30,7 @@ RUN_IDS = "run_ids.txt"
 CHAIN_FILE = "chain.json"
 RAW_RUN = "raw-oracle"
 FIXTURE_DATASET = "synthetic_fixture"
-# Where reporting_cases and calibration_cases live before and after the tests mirror src.
+# Possible helper dirs of either test layout (9eb5888 and HEAD).
 CASES_DIRS = ("reporting", "calibration", "selective_risk", "verification")
 
 COMMAND_RENAMES = {
