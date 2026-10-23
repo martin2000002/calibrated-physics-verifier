@@ -6,13 +6,13 @@ from __future__ import annotations
 import csv
 import json
 import math
-import socket
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import pytest
+from network import no_network as no_network
 
 from physverify.config.loader import load_settings
 from physverify.config.models import Settings
@@ -86,16 +86,6 @@ def write_tables(labels: Path) -> None:
     )
     v2d = ("video_url", "caption", "pc", "category", "human_violated_rules")
     _write(labels / "videophy2_training.csv", v2d, V2_DEV)
-
-
-def _refuse(*args: Any, **kwargs: Any) -> Any:
-    raise RuntimeError("agreement tests must not touch the network")
-
-
-@pytest.fixture(autouse=True)
-def no_network(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(socket.socket, "connect", _refuse)
-    monkeypatch.setattr(socket.socket, "connect_ex", _refuse)
 
 
 PROVISIONAL_ENV = {"PHYSVERIFY__AGREEMENT__RULE": "provisional_any_fail"}

@@ -8,6 +8,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
+from shell_sandbox import Sandbox, executable
 
 SCRIPTS = Path(__file__).resolve().parents[2] / "scripts" / "h200"
 SCRIPT_NAMES = ("_common.sh", "setup.sh", "run_timing.sh")
@@ -42,70 +43,39 @@ printf '%s\\n' "$GPU_LIST"
 """
 
 
-def _executable(path: Path, text: str) -> None:
-    path.write_text(text, encoding="utf-8")
-    path.chmod(0o755)
-
-
-class Sandbox:
+class TimingSandbox(Sandbox):
     """A copy of ``scripts/h200`` in a fake repository, with a PATH of fakes and basic tools."""
 
     def __init__(self, root: Path) -> None:
-        self.repo = root / "repo"
+        super().__init__(root, SCRIPT_NAMES, TOOLS)
         self.runs = self.repo / "data" / "runs"
-        self.calls = root / "calls.log"
-        scripts = self.repo / "scripts" / "h200"
-        scripts.mkdir(parents=True)
-        for name in SCRIPT_NAMES:
-            shutil.copy2(SCRIPTS / name, scripts / name)
-        self.tools = root / "tools"
-        self.tools.mkdir()
-        for tool in TOOLS:
-            found = shutil.which(tool)
-            assert found is not None, tool
-            (self.tools / tool).symlink_to(found)
-        self.fakes = root / "fakes"
-        self.fakes.mkdir()
-        self.env = {
-            "PATH": f"{self.fakes}:{self.tools}",
-            "HOME": str(root),
-            "TMPDIR": str(root),
-            "CALLS": str(self.calls),
-            "RUNS": str(self.runs),
-            "RUN_ID": RUN_ID,
-            "IMAGE": IMAGE,
-            "GPU_LIST": H200,
-            "PHYSVERIFY_TIMING_THREADS": "6",
-        }
+        self.env.update(
+            {
+                "TMPDIR": str(root),
+                "RUNS": str(self.runs),
+                "RUN_ID": RUN_ID,
+                "IMAGE": IMAGE,
+                "GPU_LIST": H200,
+                "PHYSVERIFY_TIMING_THREADS": "6",
+            }
+        )
 
     def install(self, *, nvidia_smi: bool = True) -> None:
-        _executable(self.fakes / "uv", FAKE_UV)
-        _executable(self.fakes / "docker", FAKE_DOCKER)
+        executable(self.fakes / "uv", FAKE_UV)
+        executable(self.fakes / "docker", FAKE_DOCKER)
         if nvidia_smi:
-            _executable(self.fakes / "nvidia-smi", FAKE_NVIDIA_SMI)
+            executable(self.fakes / "nvidia-smi", FAKE_NVIDIA_SMI)
 
     def run(self, script: str = "run_timing.sh", **env: str) -> subprocess.CompletedProcess[str]:
-        return subprocess.run(
-            [str(self.tools / "bash"), str(self.repo / "scripts" / "h200" / script)],
-            env={**self.env, **env},
-            capture_output=True,
-            text=True,
-            timeout=60,
-            check=False,
-        )
+        return self.call(script, **env)
 
     def uv_calls(self) -> list[str]:
         return [line for line in self.lines() if line.startswith("uv ")]
 
-    def lines(self) -> list[str]:
-        if not self.calls.exists():
-            return []
-        return self.calls.read_text(encoding="utf-8").splitlines()
-
 
 @pytest.fixture
-def sandbox(tmp_path: Path) -> Sandbox:
-    return Sandbox(tmp_path)
+def sandbox(tmp_path: Path) -> TimingSandbox:
+    return TimingSandbox(tmp_path)
 
 
 def _pv(command: str, threads: int = 6) -> str:
@@ -147,7 +117,7 @@ def test_entry_scripts_are_executable(name: str) -> None:
     ids=["no-nvidia-smi", "no-gpu-listed", "bad-threads"],
 )
 def test_refuses_without_a_usable_gpu_before_uv(
-    sandbox: Sandbox, script: str, nvidia_smi: bool, env: dict[str, str]
+    sandbox: TimingSandbox, script: str, nvidia_smi: bool, env: dict[str, str]
 ) -> None:
     sandbox.install(nvidia_smi=nvidia_smi)
     result = sandbox.run(script, **env)
@@ -156,7 +126,7 @@ def test_refuses_without_a_usable_gpu_before_uv(
     assert sandbox.uv_calls() == []
 
 
-def test_full_sequence_with_docker_and_a_missing_image(sandbox: Sandbox) -> None:
+def test_full_sequence_with_docker_and_a_missing_image(sandbox: TimingSandbox) -> None:
     sandbox.install()
     result = sandbox.run()
     assert result.returncode == 0, result.stderr
@@ -177,14 +147,14 @@ def test_full_sequence_with_docker_and_a_missing_image(sandbox: Sandbox) -> None
     assert f"run: {sandbox.runs / RUN_ID}" in result.stdout
 
 
-def test_present_image_is_not_pulled(sandbox: Sandbox) -> None:
+def test_present_image_is_not_pulled(sandbox: TimingSandbox) -> None:
     sandbox.install()
     assert sandbox.run(IMAGE_EXIT="0").returncode == 0
     assert _pv("dataset pull-image") not in sandbox.lines()
     assert sandbox.lines()[-4:] == [*RENDER, TIMING_RUN]
 
 
-def test_without_docker_only_the_timing_run_follows_setup(sandbox: Sandbox) -> None:
+def test_without_docker_only_the_timing_run_follows_setup(sandbox: TimingSandbox) -> None:
     sandbox.install()
     result = sandbox.run(DOCKER_INFO_EXIT="1")
     assert result.returncode == 0
@@ -192,7 +162,7 @@ def test_without_docker_only_the_timing_run_follows_setup(sandbox: Sandbox) -> N
     assert "kubric_render will be skipped" in result.stderr
 
 
-def test_threads_default_to_the_available_cpus(sandbox: Sandbox) -> None:
+def test_threads_default_to_the_available_cpus(sandbox: TimingSandbox) -> None:
     sandbox.install()
     env = dict(sandbox.env)
     del env["PHYSVERIFY_TIMING_THREADS"]
@@ -203,14 +173,14 @@ def test_threads_default_to_the_available_cpus(sandbox: Sandbox) -> None:
     )
 
 
-def test_timing_run_exit_code_is_kept(sandbox: Sandbox) -> None:
+def test_timing_run_exit_code_is_kept(sandbox: TimingSandbox) -> None:
     sandbox.install()
     result = sandbox.run(DOCKER_INFO_EXIT="1", TIMING_EXIT="1")
     assert result.returncode == 1
     assert (sandbox.runs / "h200-timing-latest").is_symlink()
 
 
-def test_setup_alone(sandbox: Sandbox) -> None:
+def test_setup_alone(sandbox: TimingSandbox) -> None:
     sandbox.install()
     assert sandbox.run("setup.sh").returncode == 0
     assert sandbox.lines() == SETUP

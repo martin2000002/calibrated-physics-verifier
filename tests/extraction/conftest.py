@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-import socket
 import sys
 from collections.abc import Iterator, Mapping
 from pathlib import Path
-from typing import Any
 
 import pytest
+from network import no_network as no_network
 
 # Shared helpers (fakes.py, support.py) live next to the tests; importlib mode does not add
 # this directory to sys.path by itself.
@@ -24,16 +23,6 @@ from physverify.app.plugins import PLUGIN_KINDS  # noqa: E402
 from physverify.config.loader import load_settings  # noqa: E402
 from physverify.config.models import RuntimeSettings, Settings  # noqa: E402
 from physverify.extraction._base import StageProvider, provider_key  # noqa: E402
-
-
-def _refuse(*args: Any, **kwargs: Any) -> Any:
-    raise RuntimeError("extraction tests must not touch the network")
-
-
-@pytest.fixture(autouse=True)
-def no_network(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(socket.socket, "connect", _refuse)
-    monkeypatch.setattr(socket.socket, "connect_ex", _refuse)
 
 
 @pytest.fixture(autouse=True)

@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pytest
 from check_rows import UNCACHED, write_check_rows
+from shell_sandbox import Sandbox, executable
 
 REPO = Path(__file__).resolve().parents[2]
 H200 = REPO / "scripts" / "h200"
@@ -115,36 +116,18 @@ esac
 FORBIDDEN = '#!/bin/bash\necho "forbidden $(basename "$0") $*" >> "$CALLS"\n'
 
 
-def _executable(path: Path, text: str) -> None:
-    path.write_text(text, encoding="utf-8")
-    path.chmod(0o755)
-
-
-class Sandbox:
+class AgreementSandbox(Sandbox):
     def __init__(self, root: Path) -> None:
-        self.root = root.resolve()
-        self.calls = self.root / "calls.log"
+        super().__init__(root.resolve(), SCRIPT_NAMES, TOOLS)
         self.out = self.root / "h2"
         self.data = self.root / "h2-data"
         self.a8v2 = self.root / "a8v2"
         self.calibration = self.root / "kubric-data" / "calibration"
-        scripts = self.root / "repo" / "scripts" / "h200"
-        scripts.mkdir(parents=True)
-        self.script = scripts / "run_h2.sh"
-        for name in SCRIPT_NAMES:
-            shutil.copy2(H200 / name, scripts / name)
-        _executable(scripts / "setup.sh", FORBIDDEN)
-        tools, fakes = self.root / "tools", self.root / "fakes"
-        tools.mkdir()
-        fakes.mkdir()
-        for tool in TOOLS:
-            found = shutil.which(tool)
-            assert found is not None, tool
-            (tools / tool).symlink_to(found)
-        _executable(fakes / "python", FAKE_PYTHON)
-        _executable(fakes / "git", FAKE_GIT)
+        executable(self.scripts / "setup.sh", FORBIDDEN)
+        executable(self.fakes / "python", FAKE_PYTHON)
+        executable(self.fakes / "git", FAKE_GIT)
         for name in ("uv", "nvidia-smi"):
-            _executable(fakes / name, FORBIDDEN)
+            executable(self.fakes / name, FORBIDDEN)
         self.a8v2.mkdir()
         (self.a8v2 / "state.env").write_text(f"CHAIN_DEVICE=cpu\nRECORD_SHA={RECORD_SHA}\n")
         (self.a8v2 / "steps.tsv").write_text(
@@ -153,34 +136,23 @@ class Sandbox:
         self.calibration.mkdir(parents=True)
         for name in ("calibration.json", "exclusions.json", "stage_errors.precise.json"):
             (self.calibration / name).write_text(f"{name}\n")
-        self.env = {
-            "PATH": f"{fakes}:{tools}",
-            "HOME": str(self.root),
-            "CALLS": str(self.calls),
-            "REAL_PYTHON": sys.executable,
-            "REAL_SRC": str(REPO / "src"),
-            "CLEAN_CHECKS": str(write_check_rows(self.root / "clean.jsonl")),
-            "PHYSVERIFY_H200_ROOT": str(self.root),
-            "PHYSVERIFY_H200_ENV": str(self.root / "no-env.sh"),
-            "PHYSVERIFY_H2_PYTHON": str(fakes / "python"),
-            "PHYSVERIFY_H2_EXPECT_COMMIT": "c0ffee1",
-            "PHYSVERIFY_LOCK_HELD": "1",
-            "REPO_CONFIGS": str(self.root / "repo" / "configs"),
-        }
+        self.env.update(
+            {
+                "REAL_PYTHON": sys.executable,
+                "REAL_SRC": str(REPO / "src"),
+                "CLEAN_CHECKS": str(write_check_rows(self.root / "clean.jsonl")),
+                "PHYSVERIFY_H200_ROOT": str(self.root),
+                "PHYSVERIFY_H200_ENV": str(self.root / "no-env.sh"),
+                "PHYSVERIFY_H2_PYTHON": str(self.fakes / "python"),
+                "PHYSVERIFY_H2_EXPECT_COMMIT": "c0ffee1",
+                "PHYSVERIFY_LOCK_HELD": "1",
+                "REPO_CONFIGS": str(self.repo / "configs"),
+            }
+        )
         self.uncached = write_check_rows(self.root / "uncached.jsonl", error=UNCACHED)
 
     def run(self, *args: str, **env: str) -> subprocess.CompletedProcess[str]:
-        return subprocess.run(
-            [str(self.root / "tools" / "bash"), str(self.script), *args],
-            env={**self.env, **env},
-            capture_output=True,
-            text=True,
-            timeout=60,
-            check=False,
-        )
-
-    def lines(self) -> list[str]:
-        return self.calls.read_text(encoding="utf-8").splitlines() if self.calls.exists() else []
+        return self.call("run_h2.sh", *args, **env)
 
     def commands(self) -> list[str]:
         """The pv calls without their common prefix."""
@@ -202,11 +174,11 @@ class Sandbox:
 
 
 @pytest.fixture
-def sandbox(tmp_path: Path) -> Sandbox:
-    return Sandbox(tmp_path)
+def sandbox(tmp_path: Path) -> AgreementSandbox:
+    return AgreementSandbox(tmp_path)
 
 
-def _dev_done(sandbox: Sandbox, **env: str) -> None:
+def _dev_done(sandbox: AgreementSandbox, **env: str) -> None:
     result = sandbox.run("dev", **env)
     assert result.returncode == 0, result.stderr
     sandbox.calls.unlink()
@@ -227,7 +199,7 @@ def test_the_scripts_parse_and_run_h2_is_executable() -> None:
 
 
 @pytest.mark.parametrize("args", [(), ("all",), ("dev", "test")])
-def test_a_missing_or_unknown_phase_stops_before_any_call(sandbox: Sandbox, args) -> None:
+def test_a_missing_or_unknown_phase_stops_before_any_call(sandbox: AgreementSandbox, args) -> None:
     result = sandbox.run(*args)
     assert result.returncode == 2 and "usage: run_h2.sh dev|test" in result.stderr
     assert sandbox.lines() == []
@@ -252,7 +224,7 @@ def test_a_missing_or_unknown_phase_stops_before_any_call(sandbox: Sandbox, args
     ],
 )
 def test_a_startup_guard_stops_before_any_call(
-    sandbox: Sandbox, env: dict[str, str], message: str
+    sandbox: AgreementSandbox, env: dict[str, str], message: str
 ) -> None:
     for phase in ("dev", "test"):
         result = sandbox.run(phase, **env)
@@ -260,7 +232,7 @@ def test_a_startup_guard_stops_before_any_call(
     assert sandbox.lines() == []
 
 
-def test_the_variables_the_script_exports_itself_are_allowed(sandbox: Sandbox) -> None:
+def test_the_variables_the_script_exports_itself_are_allowed(sandbox: AgreementSandbox) -> None:
     result = sandbox.run(
         "dev", PHYSVERIFY__PATHS__HF_HOME="/elsewhere", PHYSVERIFY__PATHS__DATA_DIR="/x"
     )
@@ -288,7 +260,7 @@ def _append(path: Path, text: str) -> None:
     ],
 )
 def test_an_unfinished_a8v2_cpu_chain_stops_before_any_call(
-    sandbox: Sandbox, change, message
+    sandbox: AgreementSandbox, change, message
 ) -> None:
     change(sandbox)
     result = sandbox.run("dev")
@@ -310,14 +282,14 @@ def test_an_unfinished_a8v2_cpu_chain_stops_before_any_call(
     ],
 )
 def test_doctor_must_report_the_exported_cpu_configuration(
-    sandbox: Sandbox, env: dict[str, str], message: str
+    sandbox: AgreementSandbox, env: dict[str, str], message: str
 ) -> None:
     result = sandbox.run("dev", **env)
     assert result.returncode == 2 and message in result.stderr, result.stderr
     assert sandbox.commands() == ["doctor"]
 
 
-def test_every_call_runs_on_the_cpu_through_the_interpreter(sandbox: Sandbox) -> None:
+def test_every_call_runs_on_the_cpu_through_the_interpreter(sandbox: AgreementSandbox) -> None:
     _dev_done(sandbox)
     assert sandbox.run("test").returncode == 0
     lines = sandbox.lines()
@@ -330,13 +302,13 @@ def test_every_call_runs_on_the_cpu_through_the_interpreter(sandbox: Sandbox) ->
     assert len(envs) == len(pv) and set(envs) == {expected}
 
 
-def test_the_thread_budget_can_be_set(sandbox: Sandbox) -> None:
+def test_the_thread_budget_can_be_set(sandbox: AgreementSandbox) -> None:
     assert sandbox.run("dev", PHYSVERIFY_H2_THREADS="8").returncode == 0
     pv = [line[3:] for line in sandbox.lines() if line.startswith("pv ")]
     assert {PREFIX.match(call)[1] for call in pv} == {"8"}
 
 
-def test_dev_freezes_without_touching_test(sandbox: Sandbox) -> None:
+def test_dev_freezes_without_touching_test(sandbox: AgreementSandbox) -> None:
     result = sandbox.run("dev", CLIP_EXIT="1", REAL_QUERY="1")
     assert result.returncode == 0, result.stderr
     assert "run_h2.sh test" in result.stdout
@@ -369,7 +341,7 @@ def test_dev_freezes_without_touching_test(sandbox: Sandbox) -> None:
     assert sandbox.last_rows()["freeze"] == "0"
 
 
-def _freeze(sandbox: Sandbox, **change: str) -> dict[str, str]:
+def _freeze(sandbox: AgreementSandbox, **change: str) -> dict[str, str]:
     """run_freeze.sh's manifest in place of the A8 v2 run, which is removed."""
     shutil.rmtree(sandbox.a8v2)
     manifest = sandbox.root / "final" / "freeze.json"
@@ -385,7 +357,7 @@ def _freeze(sandbox: Sandbox, **change: str) -> dict[str, str]:
     return {"PHYSVERIFY_H2_FREEZE": str(manifest)}
 
 
-def test_the_freeze_manifest_stands_for_the_a8v2_chain(sandbox: Sandbox) -> None:
+def test_the_freeze_manifest_stands_for_the_a8v2_chain(sandbox: AgreementSandbox) -> None:
     """Plan section 5 and J12: the manifest's record_sha is the one the pre-registration holds."""
     env = _freeze(sandbox)
     _dev_done(sandbox, **env)
@@ -407,20 +379,22 @@ def test_the_freeze_manifest_stands_for_the_a8v2_chain(sandbox: Sandbox) -> None
     ],
 )
 def test_a_freeze_of_another_state_stops_before_any_call(
-    sandbox: Sandbox, change: dict[str, str], env: dict[str, str], message: str
+    sandbox: AgreementSandbox, change: dict[str, str], env: dict[str, str], message: str
 ) -> None:
     result = sandbox.run("dev", **{**_freeze(sandbox, **change), **env})
     assert result.returncode == 2 and message in result.stderr, result.stderr
     assert sandbox.commands() == []
 
 
-def test_a_pre_registration_off_the_frozen_record_fails_the_freeze(sandbox: Sandbox) -> None:
+def test_a_pre_registration_off_the_frozen_record_fails_the_freeze(
+    sandbox: AgreementSandbox,
+) -> None:
     result = sandbox.run("dev", **_freeze(sandbox, record_sha="other"))
     assert result.returncode == 2 and "not the freeze's other" in result.stderr, result.stderr
     assert sandbox.last_rows()["freeze"] == "2"
 
 
-def test_dev_refuses_once_a_test_comparison_is_logged(sandbox: Sandbox) -> None:
+def test_dev_refuses_once_a_test_comparison_is_logged(sandbox: AgreementSandbox) -> None:
     sandbox.comparison_log().parent.mkdir(parents=True)
     sandbox.comparison_log().write_text('{"run": "earlier"}\n')
     result = sandbox.run("dev")
@@ -428,7 +402,7 @@ def test_dev_refuses_once_a_test_comparison_is_logged(sandbox: Sandbox) -> None:
     assert sandbox.commands() == []
 
 
-def test_an_uncached_preflight_clip_stops_before_any_extraction(sandbox: Sandbox) -> None:
+def test_an_uncached_preflight_clip_stops_before_any_extraction(sandbox: AgreementSandbox) -> None:
     result = sandbox.run("dev", PREFLIGHT_CHECKS=str(sandbox.uncached))
     assert result.returncode == 2 and "preflight" in result.stderr
     assert "heavy stage is not cached" in result.stderr
@@ -436,7 +410,7 @@ def test_an_uncached_preflight_clip_stops_before_any_extraction(sandbox: Sandbox
     assert sandbox.last_rows()["pre"] == "2"
 
 
-def test_an_unrecorded_review_stops_before_any_download(sandbox: Sandbox) -> None:
+def test_an_unrecorded_review_stops_before_any_download(sandbox: AgreementSandbox) -> None:
     result = sandbox.run("dev", CHECK_EXIT="1")
     assert result.returncode == 2 and "caption review" in result.stderr
     assert not any("fetch" in call for call in sandbox.commands())
@@ -453,7 +427,7 @@ def test_an_unrecorded_review_stops_before_any_download(sandbox: Sandbox) -> Non
     ],
 )
 def test_a_pre_registration_that_is_not_h2s_fails_the_freeze(
-    sandbox: Sandbox, env: dict[str, str], message: str
+    sandbox: AgreementSandbox, env: dict[str, str], message: str
 ) -> None:
     result = sandbox.run("dev", **env)
     assert result.returncode == 2 and message in result.stderr, result.stderr
@@ -463,20 +437,22 @@ def test_a_pre_registration_that_is_not_h2s_fails_the_freeze(
     assert sandbox.commands() == []
 
 
-def test_a_rerun_with_another_frozen_state_stops_at_the_freeze(sandbox: Sandbox) -> None:
+def test_a_rerun_with_another_frozen_state_stops_at_the_freeze(sandbox: AgreementSandbox) -> None:
     _dev_done(sandbox)
     result = sandbox.run("dev", FROZEN_STATE="b")
     assert result.returncode == 2 and "frozen state changed" in result.stdout
     assert sandbox.last_rows()["freeze"] == "2"
 
 
-def test_test_without_a_completed_dev_phase_stops_before_any_call(sandbox: Sandbox) -> None:
+def test_test_without_a_completed_dev_phase_stops_before_any_call(
+    sandbox: AgreementSandbox,
+) -> None:
     result = sandbox.run("test")
     assert result.returncode == 2 and "run run_h2.sh dev" in result.stderr
     assert sandbox.commands() == []
 
 
-def test_test_compares_once_with_the_calibrated_rule(sandbox: Sandbox) -> None:
+def test_test_compares_once_with_the_calibrated_rule(sandbox: AgreementSandbox) -> None:
     _dev_done(sandbox)
     result = sandbox.run("test", CLIP_EXIT="1")
     assert result.returncode == 0, result.stderr
@@ -497,14 +473,16 @@ def test_test_compares_once_with_the_calibrated_rule(sandbox: Sandbox) -> None:
     assert "- H2: supported" in summary and "### Input gaps (h2_test)" in summary
 
 
-def test_the_test_preflight_clip_can_be_given(sandbox: Sandbox) -> None:
+def test_the_test_preflight_clip_can_be_given(sandbox: AgreementSandbox) -> None:
     _dev_done(sandbox)
     assert sandbox.run("test", PHYSVERIFY_H2_PREFLIGHT_TEST_CLIP="v1-chosen").returncode == 0
     assert any(call.endswith("--clips v1-chosen") for call in sandbox.commands())
     assert not any("ready" in line for line in sandbox.lines())
 
 
-def test_a_second_test_run_or_a_logged_comparison_stops_before_any_call(sandbox: Sandbox) -> None:
+def test_a_second_test_run_or_a_logged_comparison_stops_before_any_call(
+    sandbox: AgreementSandbox,
+) -> None:
     _dev_done(sandbox)
     assert sandbox.run("test").returncode == 0
     sandbox.calls.unlink()
@@ -518,7 +496,7 @@ def test_a_second_test_run_or_a_logged_comparison_stops_before_any_call(sandbox:
     assert sandbox.commands() == []
 
 
-def test_a_compare_that_fails_before_logging_can_be_repeated(sandbox: Sandbox) -> None:
+def test_a_compare_that_fails_before_logging_can_be_repeated(sandbox: AgreementSandbox) -> None:
     _dev_done(sandbox)
     failed = sandbox.run("test", COMPARE_EXIT="1")
     assert failed.returncode == 1
@@ -529,7 +507,7 @@ def test_a_compare_that_fails_before_logging_can_be_repeated(sandbox: Sandbox) -
     assert sandbox.state()["TEST_COMPARED"] == "1"
 
 
-def test_a_gate_needs_the_explicit_acceptance(sandbox: Sandbox) -> None:
+def test_a_gate_needs_the_explicit_acceptance(sandbox: AgreementSandbox) -> None:
     gate = {"PREREG_RULE": "provisional_any_fail", "PREREG_GATE": "aggregate weight 0"}
     _dev_done(sandbox, **gate)
     for value in ("", "yes", "true"):
@@ -551,7 +529,7 @@ def test_a_gate_needs_the_explicit_acceptance(sandbox: Sandbox) -> None:
     ],
 )
 def test_a_change_after_the_dev_phase_stops_the_test_before_any_call(
-    sandbox: Sandbox, change, message: str
+    sandbox: AgreementSandbox, change, message: str
 ) -> None:
     _dev_done(sandbox)
     change(sandbox)
@@ -560,7 +538,9 @@ def test_a_change_after_the_dev_phase_stops_the_test_before_any_call(
     assert sandbox.commands() == []
 
 
-def test_another_environment_or_commit_stops_the_test_before_any_call(sandbox: Sandbox) -> None:
+def test_another_environment_or_commit_stops_the_test_before_any_call(
+    sandbox: AgreementSandbox,
+) -> None:
     _dev_done(sandbox)
     moved = sandbox.run("test", PHYSVERIFY_H2_RAW_DIR=str(sandbox.root / "raw2"))
     assert moved.returncode == 2 and "environment differs" in moved.stderr
@@ -569,14 +549,14 @@ def test_another_environment_or_commit_stops_the_test_before_any_call(sandbox: S
     assert sandbox.commands() == []
 
 
-def test_another_config_hash_stops_the_test_after_doctor(sandbox: Sandbox) -> None:
+def test_another_config_hash_stops_the_test_after_doctor(sandbox: AgreementSandbox) -> None:
     _dev_done(sandbox)
     result = sandbox.run("test", CONFIG_HASH="beef00000000")
     assert result.returncode == 2 and "config_hash" in result.stderr
     assert sandbox.commands() == ["doctor", "agreement subset --check"]
 
 
-def test_an_uncommitted_local_config_stops_before_any_call(sandbox: Sandbox) -> None:
+def test_an_uncommitted_local_config_stops_before_any_call(sandbox: AgreementSandbox) -> None:
     configs = sandbox.root / "repo" / "configs"
     configs.mkdir()
     (configs / "local.toml").write_text("[verification]\n")
@@ -586,7 +566,9 @@ def test_an_uncommitted_local_config_stops_before_any_call(sandbox: Sandbox) -> 
     assert sandbox.lines() == []
 
 
-def test_moving_the_output_and_data_directories_does_not_unspend_test(sandbox: Sandbox) -> None:
+def test_moving_the_output_and_data_directories_does_not_unspend_test(
+    sandbox: AgreementSandbox,
+) -> None:
     _dev_done(sandbox)
     assert sandbox.run("test").returncode == 0
     ledger = sandbox.root / "h2-test-ledger.txt"
@@ -605,7 +587,7 @@ def test_moving_the_output_and_data_directories_does_not_unspend_test(sandbox: S
     assert sandbox.commands() == []
 
 
-def test_dev_warns_when_the_calibration_gate_is_not_null(sandbox: Sandbox) -> None:
+def test_dev_warns_when_the_calibration_gate_is_not_null(sandbox: AgreementSandbox) -> None:
     result = sandbox.run("dev", PREREG_RULE="provisional_any_fail", PREREG_GATE="weights 0")
     assert result.returncode == 0, result.stderr
     assert "WARNING: calibration_gate not null (weights 0)" in result.stderr

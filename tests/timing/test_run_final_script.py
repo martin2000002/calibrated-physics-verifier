@@ -7,13 +7,13 @@ import hashlib
 import json
 import os
 import re
-import shutil
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any
 
 import pytest
+from shell_sandbox import Sandbox, executable
 
 REPO = Path(__file__).resolve().parents[2]
 H200 = REPO / "scripts" / "h200"
@@ -164,11 +164,6 @@ BASE_FILES = (
 )
 
 
-def _executable(path: Path, text: str) -> None:
-    path.write_text(text, encoding="utf-8")
-    path.chmod(0o755)
-
-
 def _sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -179,33 +174,19 @@ def _seed(calibration: Path, exclusions: Path) -> int:
     return int(hashlib.sha256(joined.encode("utf-8")).hexdigest()[:8], 16)
 
 
-class Sandbox:
+class FinalSandbox(Sandbox):
     def __init__(self, root: Path) -> None:
-        self.root = root.resolve()
-        self.calls = self.root / "calls.log"
+        super().__init__(root.resolve(), SCRIPT_NAMES, TOOLS)
         self.ledger = self.root / "ledger.jsonl"
         self.ledger.touch()
-        repo = self.root / "repo"
-        scripts = repo / "scripts" / "h200"
-        scripts.mkdir(parents=True)
-        (repo / "configs").mkdir()
-        (repo / "configs" / "checks.toml").write_text("frozen checks\n", encoding="utf-8")
-        (repo / "configs" / "fusion.toml").write_text("fusion\n", encoding="utf-8")
-        self.script = scripts / "run_final.sh"
-        for name in SCRIPT_NAMES:
-            shutil.copy2(H200 / name, scripts / name)
-        _executable(scripts / "run_kubric.sh", FAKE_KUBRIC)
-        tools, fakes = self.root / "tools", self.root / "fakes"
-        tools.mkdir()
-        fakes.mkdir()
-        for tool in TOOLS:
-            found = shutil.which(tool)
-            assert found is not None, tool
-            (tools / tool).symlink_to(found)
-        _executable(fakes / "python", FAKE_PYTHON)
-        _executable(fakes / "git", FAKE_GIT)
+        (self.repo / "configs").mkdir()
+        (self.repo / "configs" / "checks.toml").write_text("frozen checks\n", encoding="utf-8")
+        (self.repo / "configs" / "fusion.toml").write_text("fusion\n", encoding="utf-8")
+        executable(self.scripts / "run_kubric.sh", FAKE_KUBRIC)
+        executable(self.fakes / "python", FAKE_PYTHON)
+        executable(self.fakes / "git", FAKE_GIT)
         for name in ("uv", "nvidia-smi"):
-            _executable(fakes / name, FORBIDDEN)
+            executable(self.fakes / name, FORBIDDEN)
         self.ckv = self.root / "ckv"
         (self.ckv / "configs").mkdir(parents=True)
         (self.ckv / "configs" / "checks.toml").write_text("v1 checks\n", encoding="utf-8")
@@ -217,26 +198,25 @@ class Sandbox:
         overlay.write_text("", encoding="utf-8")
         self.final = self.root / "final"
         self.seed = self.freeze(self.final)
-        self.env = {
-            "PATH": f"{fakes}:{tools}",
-            "HOME": str(self.root),
-            "CALLS": str(self.calls),
-            "REAL_PYTHON": sys.executable,
-            "REPO_CONFIGS": str(repo / "configs"),
-            "PHYSVERIFY_H200_ROOT": str(self.root),
-            "PHYSVERIFY_H200_ENV": str(self.root / "no-env.sh"),
-            "HEAD_SHA": HEAD,
-            "V1_SHA": V1,
-            "CKV": str(self.ckv),
-            "LEDGER": str(self.ledger),
-            "PLANS": str(self.root / "plans"),
-            "PHYSVERIFY_FINAL_EXPECT_COMMIT": "c0ffee1",
-            "PHYSVERIFY_FINAL_SEED": str(self.seed),
-            "PHYSVERIFY_FINAL_PYTHON": str(fakes / "python"),
-            "PHYSVERIFY_FINAL_V1_CHECKOUT": str(self.ckv),
-            "PHYSVERIFY_FINAL_V1_BASE": str(self.base),
-            "PHYSVERIFY_FINAL_OVERLAY_CLI": str(overlay),
-        }
+        self.env.update(
+            {
+                "REAL_PYTHON": sys.executable,
+                "REPO_CONFIGS": str(self.repo / "configs"),
+                "PHYSVERIFY_H200_ROOT": str(self.root),
+                "PHYSVERIFY_H200_ENV": str(self.root / "no-env.sh"),
+                "HEAD_SHA": HEAD,
+                "V1_SHA": V1,
+                "CKV": str(self.ckv),
+                "LEDGER": str(self.ledger),
+                "PLANS": str(self.root / "plans"),
+                "PHYSVERIFY_FINAL_EXPECT_COMMIT": "c0ffee1",
+                "PHYSVERIFY_FINAL_SEED": str(self.seed),
+                "PHYSVERIFY_FINAL_PYTHON": str(self.fakes / "python"),
+                "PHYSVERIFY_FINAL_V1_CHECKOUT": str(self.ckv),
+                "PHYSVERIFY_FINAL_V1_BASE": str(self.base),
+                "PHYSVERIFY_FINAL_OVERLAY_CLI": str(overlay),
+            }
+        )
 
     def freeze(self, final: Path, **change: Any) -> int:
         """A frozen directory as run_freeze.sh leaves it; returns the seed of the formula."""
@@ -262,22 +242,12 @@ class Sandbox:
         return seed
 
     def run(self, *args: str, **env: str) -> subprocess.CompletedProcess[str]:
-        return subprocess.run(
-            [str(self.root / "tools" / "bash"), str(self.script), *args],
-            env={**self.env, **env},
-            capture_output=True,
-            text=True,
-            timeout=60,
-            check=False,
-        )
+        return self.call("run_final.sh", *args, **env)
 
     def ok(self, *args: str, **env: str) -> subprocess.CompletedProcess[str]:
         result = self.run(*args, **env)
         assert result.returncode == 0, result.stderr
         return result
-
-    def lines(self) -> list[str]:
-        return self.calls.read_text(encoding="utf-8").splitlines() if self.calls.exists() else []
 
     def commands(self) -> list[str]:
         return [PREFIX.sub("", line[3:]) for line in self.lines() if line.startswith("pv ")]
@@ -299,8 +269,8 @@ class Sandbox:
 
 
 @pytest.fixture
-def sandbox(tmp_path: Path) -> Sandbox:
-    return Sandbox(tmp_path)
+def sandbox(tmp_path: Path) -> FinalSandbox:
+    return FinalSandbox(tmp_path)
 
 
 def _look(final: Path, *dataset: str) -> str:
@@ -322,7 +292,7 @@ def test_the_script_parses_and_is_executable() -> None:
     assert os.access(H200 / "run_final.sh", os.X_OK)
 
 
-def test_the_fresh_kubric_look_and_its_v1_arm(sandbox: Sandbox) -> None:
+def test_the_fresh_kubric_look_and_its_v1_arm(sandbox: FinalSandbox) -> None:
     """AC-9 noted, AC-10 (one line per look plus the arm's), AC-11 (no meta.json), J11 configs."""
     for args in (
         ("seed",),
@@ -401,7 +371,7 @@ def test_the_fresh_kubric_look_and_its_v1_arm(sandbox: Sandbox) -> None:
     ],
 )
 def test_a_refused_command_runs_nothing_and_leaves_the_ledger(
-    sandbox: Sandbox, args: tuple[str, ...], env: dict[str, str], message: str
+    sandbox: FinalSandbox, args: tuple[str, ...], env: dict[str, str], message: str
 ) -> None:
     """AC-6: every refusal exits 2 before any physverify call; the ledger keeps its lines."""
     sandbox.ledger.write_text("x|kubric_synthetic:calib|r0\n", encoding="utf-8")
@@ -411,7 +381,7 @@ def test_a_refused_command_runs_nothing_and_leaves_the_ledger(
     assert sandbox.ledger_lines() == ["x|kubric_synthetic:calib|r0"]
 
 
-def test_a_local_config_is_refused(sandbox: Sandbox) -> None:
+def test_a_local_config_is_refused(sandbox: FinalSandbox) -> None:
     (sandbox.root / "repo" / "configs" / "local.toml").write_text("", encoding="utf-8")
     result = sandbox.run("seed")
     assert result.returncode == 2 and "local.toml exists" in result.stderr
@@ -428,7 +398,7 @@ def test_a_local_config_is_refused(sandbox: Sandbox) -> None:
     ],
 )
 def test_a_freeze_of_another_state_is_refused(
-    sandbox: Sandbox, change: dict[str, str], message: str
+    sandbox: FinalSandbox, change: dict[str, str], message: str
 ) -> None:
     sandbox.freeze(sandbox.final, **change)
     result = sandbox.run("seed")
@@ -436,7 +406,7 @@ def test_a_freeze_of_another_state_is_refused(
     assert sandbox.commands() == []
 
 
-def test_a_seed_off_the_formula_is_refused(sandbox: Sandbox) -> None:
+def test_a_seed_off_the_formula_is_refused(sandbox: FinalSandbox) -> None:
     sandbox.freeze(sandbox.final, seed=12345)
     result = sandbox.run("seed", PHYSVERIFY_FINAL_SEED="12345")
     assert result.returncode == 2 and "formula gives" in result.stderr, result.stderr
@@ -444,7 +414,7 @@ def test_a_seed_off_the_formula_is_refused(sandbox: Sandbox) -> None:
     assert sandbox.run("render", "kubric_fresh", PHYSVERIFY_FINAL_SEED="12345").returncode == 2
 
 
-def test_a_resumed_command_keeps_the_commit_and_the_mode(sandbox: Sandbox) -> None:
+def test_a_resumed_command_keeps_the_commit_and_the_mode(sandbox: FinalSandbox) -> None:
     sandbox.ok("seed")
     moved = sandbox.run("render", "kubric_fresh", HEAD_SHA="c0ffee1" + "9" * 33)
     assert moved.returncode == 2 and "freeze.json is of commit" in moved.stderr
@@ -456,7 +426,7 @@ def test_a_resumed_command_keeps_the_commit_and_the_mode(sandbox: Sandbox) -> No
     assert moved.returncode == 2 and "belongs to FINAL_COMMIT" in moved.stderr
 
 
-def test_extract_needs_the_render_of_the_seed(sandbox: Sandbox) -> None:
+def test_extract_needs_the_render_of_the_seed(sandbox: FinalSandbox) -> None:
     """J1: no plan.json of this seed, no extraction."""
     sandbox.ok("seed")
     result = sandbox.run("extract", "kubric_fresh")
@@ -464,7 +434,7 @@ def test_extract_needs_the_render_of_the_seed(sandbox: Sandbox) -> None:
     assert sandbox.commands() == ["doctor", "doctor"]
 
 
-def test_a_cache_written_before_the_first_extraction_is_refused(sandbox: Sandbox) -> None:
+def test_a_cache_written_before_the_first_extraction_is_refused(sandbox: FinalSandbox) -> None:
     """J1: another render or a dry run under the same name never feeds a look."""
     sandbox.ok("seed")
     sandbox.ok("render", "kubric_fresh")
@@ -474,7 +444,7 @@ def test_a_cache_written_before_the_first_extraction_is_refused(sandbox: Sandbox
     assert not any(c.startswith("extract") for c in sandbox.commands())
 
 
-def test_an_interrupted_extraction_resumes_into_its_own_cache(sandbox: Sandbox) -> None:
+def test_an_interrupted_extraction_resumes_into_its_own_cache(sandbox: FinalSandbox) -> None:
     sandbox.ok("seed")
     sandbox.ok("render", "kubric_fresh")
     sandbox.ok("extract", "kubric_fresh")
@@ -488,7 +458,7 @@ def test_an_interrupted_extraction_resumes_into_its_own_cache(sandbox: Sandbox) 
     ]
 
 
-def test_extract_shards_warm_the_cache_before_the_locked_pass(sandbox: Sandbox) -> None:
+def test_extract_shards_warm_the_cache_before_the_locked_pass(sandbox: FinalSandbox) -> None:
     sandbox.ok("seed")
     sandbox.ok("render", "kubric_fresh")
     env = {"PHYSVERIFY_FINAL_EXTRACT_LIMIT": "2", "PHYSVERIFY_FINAL_EXTRACT_SHARDS": "2"}
@@ -503,13 +473,13 @@ def test_extract_shards_warm_the_cache_before_the_locked_pass(sandbox: Sandbox) 
     )
 
 
-def _ready(sandbox: Sandbox, dataset: str = "kubric_fresh") -> None:
+def _ready(sandbox: FinalSandbox, dataset: str = "kubric_fresh") -> None:
     sandbox.ok("seed")
     sandbox.ok("render", dataset)
     sandbox.ok("extract", dataset)
 
 
-def test_a_set_is_looked_at_once(sandbox: Sandbox) -> None:
+def test_a_set_is_looked_at_once(sandbox: FinalSandbox) -> None:
     """J6: a second look and a retry after a written evaluation are both refused."""
     _ready(sandbox)
     sandbox.ok("look", "kubric_fresh")
@@ -520,7 +490,7 @@ def test_a_set_is_looked_at_once(sandbox: Sandbox) -> None:
     assert len(sandbox.ledger_lines()) == 1
 
 
-def test_one_retry_follows_a_look_that_wrote_no_evaluation(sandbox: Sandbox) -> None:
+def test_one_retry_follows_a_look_that_wrote_no_evaluation(sandbox: FinalSandbox) -> None:
     _ready(sandbox)
     failed = sandbox.run("look", "kubric_fresh", EVAL_FAIL_ONCE=str(sandbox.root / "failed"))
     assert failed.returncode == 3
@@ -533,7 +503,7 @@ def test_one_retry_follows_a_look_that_wrote_no_evaluation(sandbox: Sandbox) -> 
     assert "retry look at kubric_fresh" in sandbox.summary("look-kubric_fresh")
 
 
-def test_a_render_after_a_look_is_refused(sandbox: Sandbox) -> None:
+def test_a_render_after_a_look_is_refused(sandbox: FinalSandbox) -> None:
     """J2: no new render of a set that has been looked at."""
     _ready(sandbox)
     sandbox.ok("look", "kubric_fresh")
@@ -542,7 +512,7 @@ def test_a_render_after_a_look_is_refused(sandbox: Sandbox) -> None:
     assert len([line for line in sandbox.lines() if line.startswith("kubric ")]) == 1
 
 
-def test_a_missing_ledger_stops_the_look(sandbox: Sandbox) -> None:
+def test_a_missing_ledger_stops_the_look(sandbox: FinalSandbox) -> None:
     _ready(sandbox)
     sandbox.ledger.unlink()
     result = sandbox.run("look", "kubric_fresh")
@@ -550,7 +520,7 @@ def test_a_missing_ledger_stops_the_look(sandbox: Sandbox) -> None:
     assert sandbox.looks() == []
 
 
-def test_a_look_needs_its_extraction(sandbox: Sandbox) -> None:
+def test_a_look_needs_its_extraction(sandbox: FinalSandbox) -> None:
     sandbox.ok("seed")
     sandbox.ok("render", "kubric_fresh")
     result = sandbox.run("look", "kubric_fresh_blind")
@@ -564,7 +534,7 @@ def test_a_look_needs_its_extraction(sandbox: Sandbox) -> None:
     ]
 
 
-def test_the_new_real_control_is_fetched_once_and_looked_at_together(sandbox: Sandbox) -> None:
+def test_the_new_real_control_is_fetched_once_and_looked_at_together(sandbox: FinalSandbox) -> None:
     """J14: the downloaded files are fixed by their manifest; one look covers both sets."""
     sandbox.ok("seed")
     for name in ("physics_iq_views", "objectron_static"):
@@ -586,7 +556,7 @@ def test_the_new_real_control_is_fetched_once_and_looked_at_together(sandbox: Sa
     assert manifest.read_text("utf-8").count("\n") == 2
 
 
-def test_changed_downloads_are_refused(sandbox: Sandbox) -> None:
+def test_changed_downloads_are_refused(sandbox: FinalSandbox) -> None:
     sandbox.ok("seed")
     sandbox.ok("fetch", "physics_iq_views")
     raw = sandbox.root / "kubric-data" / "raw" / "physics_iq_views" / "a.mp4"
@@ -596,7 +566,7 @@ def test_changed_downloads_are_refused(sandbox: Sandbox) -> None:
     assert not any(c.startswith("extract") for c in sandbox.commands())
 
 
-def test_a_skipped_real_dataset_fails_the_look(sandbox: Sandbox) -> None:
+def test_a_skipped_real_dataset_fails_the_look(sandbox: FinalSandbox) -> None:
     sandbox.ok("seed")
     sandbox.ok("extract", "kubric_synthetic_eval")
     result = sandbox.run("look", "kubric_synthetic_eval", SKIPPED="1")
@@ -619,7 +589,7 @@ def test_a_skipped_real_dataset_fails_the_look(sandbox: Sandbox) -> None:
     ],
 )
 def test_the_v1_arm_is_refused_unless_it_repeats_the_look_with_the_base_state(
-    sandbox: Sandbox, setup: str, env: dict[str, str], message: str
+    sandbox: FinalSandbox, setup: str, env: dict[str, str], message: str
 ) -> None:
     """J11 and AC-11."""
     _ready(sandbox)
@@ -644,7 +614,7 @@ UNSEALED = {
 }
 
 
-def _dry_run(sandbox: Sandbox) -> tuple[Path, Path, dict[str, str]]:
+def _dry_run(sandbox: FinalSandbox) -> tuple[Path, Path, dict[str, str]]:
     """A rehearsal freeze of seed ``DRY_SEED`` under scratch; the real freeze stays in place."""
     scratch = sandbox.root / "scratch"
     final = scratch / "final"
@@ -662,7 +632,7 @@ def _dry_run(sandbox: Sandbox) -> tuple[Path, Path, dict[str, str]]:
     return final, ledger, env
 
 
-def test_a_dry_run_writes_only_under_scratch(sandbox: Sandbox) -> None:
+def test_a_dry_run_writes_only_under_scratch(sandbox: FinalSandbox) -> None:
     """P3: its own freeze, data, cache and ledger; the seed is not the freeze's."""
     final, ledger, env = _dry_run(sandbox)
     scratch = final.parent
@@ -710,7 +680,7 @@ def test_a_dry_run_writes_only_under_scratch(sandbox: Sandbox) -> None:
     ],
 )
 def test_a_dry_run_never_reads_a_sealed_population(
-    sandbox: Sandbox, args: tuple[str, ...], env: dict[str, str], message: str
+    sandbox: FinalSandbox, args: tuple[str, ...], env: dict[str, str], message: str
 ) -> None:
     """Audit B1, M1: no frozen seed, no kubric_synthetic eval, no left/right view, no test split."""
     _, ledger, dry = _dry_run(sandbox)
@@ -722,7 +692,7 @@ def test_a_dry_run_never_reads_a_sealed_population(
     assert sandbox.ledger_lines(ledger) == []
 
 
-def test_a_dry_run_of_the_new_real_control_reads_center_and_train(sandbox: Sandbox) -> None:
+def test_a_dry_run_of_the_new_real_control_reads_center_and_train(sandbox: FinalSandbox) -> None:
     _, ledger, dry = _dry_run(sandbox)
     env = {**dry, **UNSEALED}
     sandbox.ok("seed", **env)
@@ -733,7 +703,7 @@ def test_a_dry_run_of_the_new_real_control_reads_center_and_train(sandbox: Sandb
     assert len(sandbox.ledger_lines(ledger)) == 1 and sandbox.ledger_lines() == []
 
 
-def test_a_limited_extraction_is_not_the_extraction_a_look_needs(sandbox: Sandbox) -> None:
+def test_a_limited_extraction_is_not_the_extraction_a_look_needs(sandbox: FinalSandbox) -> None:
     """Audit M2: the pace measurement is recorded as extract-limited."""
     sandbox.ok("seed")
     sandbox.ok("render", "kubric_fresh")
@@ -749,14 +719,14 @@ def test_a_limited_extraction_is_not_the_extraction_a_look_needs(sandbox: Sandbo
     assert len(sandbox.looks()) == 1
 
 
-def test_a_render_without_a_planned_clip_count_stops(sandbox: Sandbox) -> None:
+def test_a_render_without_a_planned_clip_count_stops(sandbox: FinalSandbox) -> None:
     """Audit m3: the AC-9 share is never divided by an empty or zero plan."""
     sandbox.ok("seed")
     result = sandbox.run("render", "kubric_fresh", PLAN_CLIPS="0")
     assert result.returncode == 2 and "no planned clip count" in result.stderr
 
 
-def test_an_unchanged_checks_toml_is_not_a_foreign_config_difference(sandbox: Sandbox) -> None:
+def test_an_unchanged_checks_toml_is_not_a_foreign_config_difference(sandbox: FinalSandbox) -> None:
     """Audit m1: an empty configs diff (C_V1's checks.toml is the freeze's) passes."""
     (sandbox.ckv / "configs" / "checks.toml").write_text("frozen checks\n", encoding="utf-8")
     _ready(sandbox)

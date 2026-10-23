@@ -10,7 +10,6 @@ import dataclasses
 import datetime as dt
 import functools
 import math
-import socket
 from collections.abc import Callable, Mapping, Sequence
 from contextlib import nullcontext
 from pathlib import Path
@@ -19,6 +18,7 @@ from typing import Any, ClassVar
 
 import numpy as np
 import pytest
+from network import no_network as no_network
 from numpy.typing import NDArray
 from pydantic import BaseModel
 from synthetic_clip import DATASET, SyntheticFixtureDataset, build_clip, manifest
@@ -69,16 +69,6 @@ FAKE_REL_SIGMA = 0.05
 SettingsFactory = Callable[..., Settings]
 DepsFactory = Callable[..., PipelineDeps]
 Evaluator = Callable[[CheckInputs], Sequence[CheckResult]]
-
-
-def _refuse(*args: Any, **kwargs: Any) -> Any:
-    raise RuntimeError("diagnosis tests must not touch the network")
-
-
-@pytest.fixture(autouse=True)
-def no_network(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(socket.socket, "connect", _refuse)
-    monkeypatch.setattr(socket.socket, "connect_ex", _refuse)
 
 
 @pytest.fixture(autouse=True)

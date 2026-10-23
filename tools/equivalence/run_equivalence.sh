@@ -42,12 +42,20 @@ drop_worktree() {
     git -C "$REPO" worktree prune
 }
 
+# Test helper directories (calibration_cases, reporting_cases, check_scenarios, synthetic_clip)
+# before and after the tests mirror src; a directory missing in one checkout is skipped by Python.
+HELPER_DIRS=(fixtures calibration reporting checks selective_risk verification human_agreement
+    generator_comparison scripts datasets)
+
 py() { # <worktree> <args...>
-    local tree="$1"
+    local tree="$1" path dir
     shift
+    path="$tree/src"
+    for dir in "${HELPER_DIRS[@]}"; do
+        path+=":$tree/tests/$dir"
+    done
     env -i HOME="$RUN/home" PATH="$PATH" LANG=C.UTF-8 COLUMNS=120 TERM=dumb NO_COLOR=1 \
-        PYTHONDONTWRITEBYTECODE=1 PYTHONHASHSEED=0 EQ_WORKTREE="$tree" \
-        PYTHONPATH="$tree/src:$tree/tests/fixtures:$tree/tests/calibration:$tree/tests/reporting:$tree/tests/checks" \
+        PYTHONDONTWRITEBYTECODE=1 PYTHONHASHSEED=0 EQ_WORKTREE="$tree" PYTHONPATH="$path" \
         "$PY" "$HERE/driver.py" "$@"
 }
 

@@ -262,3 +262,20 @@ Fix-ups after the C and B audits (`c947fad`..HEAD):
   first echo (the old command read `h2_verdict` before any output); `config.models._anchor` is the
   public `anchor` used by `calibration/sealed_ledger.py`.
 - No `src` module is over 400 lines and no command module over 150, so nothing else was split.
+
+## WP6
+
+T0 (preparation for the parallel moves T-a and T-b):
+
+- Frozen-file departures, accepted by the WP6 plan (to record in ADR 0017): new
+  `tests/fixtures/shell_sandbox.py` (`Sandbox` and `executable`, the base of the eight H200 script
+  sandboxes, which keep their specifics in subclasses named after the script) and
+  `tests/fixtures/network.py` (the `no_network` autouse guard, one message for all). The guard is
+  active only where a conftest imports it: `tests/{timing,agreement,diagnosis,extraction}` and
+  their WP6 destinations. It is not global, so `tests/docker` and Unix sockets are unaffected.
+- The harness puts every test helper directory of both layouts on `PYTHONPATH`
+  (`HELPER_DIRS` in `run_equivalence.sh`, `CASES_DIRS` in `driver.py prepare`), so `9eb5888` and
+  the moved tree run with the same driver.
+- `tests/contracts/data/process_labels_baseline.json` is keyed by path: each stream remaps only the
+  keys of its moves, and after a merge the baseline is regenerated (`python
+  tests/test_process_labels.py`) with totals no higher than before.

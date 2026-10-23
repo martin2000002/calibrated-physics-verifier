@@ -30,6 +30,8 @@ RUN_IDS = "run_ids.txt"
 CHAIN_FILE = "chain.json"
 RAW_RUN = "raw-oracle"
 FIXTURE_DATASET = "synthetic_fixture"
+# Where reporting_cases and calibration_cases live before and after the tests mirror src.
+CASES_DIRS = ("reporting", "calibration", "selective_risk", "verification")
 
 COMMAND_RENAMES = {
     "h3": "compare-generators",
@@ -483,7 +485,7 @@ def _read(path: Path) -> str:
 def prepare(run: Path) -> None:
     """Derived inputs (results chain, raw oracle run), built by each side with its own checkout."""
     _assert_checkout()
-    sys.path[:0] = [str(_worktree() / "tests" / d) for d in ("reporting", "calibration")]
+    sys.path[:0] = [str(_worktree() / "tests" / d) for d in CASES_DIRS]
     reporting_cases = importlib.import_module("reporting_cases")
     calibration_cases = importlib.import_module("calibration_cases")
     from physverify.verification.runner import write_report

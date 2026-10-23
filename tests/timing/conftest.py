@@ -10,13 +10,13 @@ from __future__ import annotations
 import hashlib
 import json
 import shlex
-import socket
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, ClassVar
 
 import pytest
+from network import no_network as no_network
 
 from physverify.config.loader import load_settings
 from physverify.config.models import Settings
@@ -34,16 +34,6 @@ FAKE_FPS = 16.0
 
 ScriptItem = Mapping[str, float] | BaseException
 Script = Sequence[ScriptItem] | Callable[[int, ClipManifest], ScriptItem]
-
-
-def _refuse(*args: Any, **kwargs: Any) -> Any:
-    raise RuntimeError("timing tests must not touch the network")
-
-
-@pytest.fixture(autouse=True)
-def no_network(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(socket.socket, "connect", _refuse)
-    monkeypatch.setattr(socket.socket, "connect_ex", _refuse)
 
 
 @pytest.fixture
