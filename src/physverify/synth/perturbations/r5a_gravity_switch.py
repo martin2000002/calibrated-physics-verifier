@@ -14,6 +14,7 @@ from physverify.schema.scene import MagnitudeKind, PerturbationRecord, SceneSpec
 from physverify.schema.states import ObjectStateTable
 from physverify.synth.perturb import PerturbationNotApplicableError
 from physverify.synth.perturbations._ballistics import (
+    SWITCH_DELAY_S,
     GravitySchedule,
     integrate_sphere,
     time_to_height,
@@ -47,7 +48,6 @@ from physverify.synth.perturbations._windows import flight_mask, rest_mask, segm
 from physverify.synth.settings import PerturbationCommon
 
 NAME = "r5a_gravity_switch"
-SWITCH_DELAY_S = 1e-9
 
 
 class Params(PerturbationCommon):

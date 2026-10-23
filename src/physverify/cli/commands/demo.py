@@ -17,6 +17,7 @@ from physverify.cli.commands._finetune_deps import candidate_generator, require_
 from physverify.cli.context import AppContext, app_context, heavy_command
 from physverify.config.models import Settings
 from physverify.core.errors import UsageError
+from physverify.datasets.local_video import NAME as LOCAL_VIDEO
 from physverify.demo.pipeline import (
     DemoDeps,
     ReportDeps,
@@ -38,7 +39,7 @@ from physverify.finetune.scorers.provisional import ProvisionalScorer
 from physverify.finetune.scoring import build_scorer
 from physverify.finetune.selection import Selection
 from physverify.finetune.settings import FixedPrompt, QueryTemplate, load_finetune
-from physverify.finetune.store import FINETUNE_DIR, LOCAL_VIDEO, SELECTED_FILE, CampaignStore
+from physverify.finetune.store import FINETUNE_DIR, SELECTED_FILE, CampaignStore
 from physverify.runtime.runs import current_commit
 from physverify.schema.io import stable_hash
 

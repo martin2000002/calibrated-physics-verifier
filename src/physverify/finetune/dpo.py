@@ -15,6 +15,7 @@ from typing import Any, Final
 import numpy as np
 
 TIMESTEP_SCALE: Final = 1000.0
+SIGMA_LEVELS: Final = (0.1, 0.25, 0.5, 0.75, 0.9)
 
 
 def _torch() -> Any:

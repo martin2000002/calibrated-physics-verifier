@@ -24,6 +24,7 @@ from pydantic import Field
 from physverify.core.atomic import write_text_atomic
 from physverify.core.digests import file_sha256, text_sha256
 from physverify.core.download import (
+    BYTES_PER_MB,
     MANIFEST_FILE,
     FetchedFile,
     FetchManifest,
@@ -56,7 +57,6 @@ VIDEO_FILE = "video.MOV"
 LOCAL, FULL = "local", "full"
 SUBSETS = (LOCAL, FULL)
 TAKEN, TOO_LARGE, FAILED = "taken", "too_large", "failed"
-BYTES_PER_MB = 1_000_000
 REVISION = "unversioned bucket, md5 per object; official {split} index"
 
 log = get_logger("datasets.objectron_static")

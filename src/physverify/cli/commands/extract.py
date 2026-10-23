@@ -13,6 +13,7 @@ from typing import Annotated, Any
 import typer
 
 from physverify.cli.context import AppContext, app_context, heavy_command
+from physverify.core.download import BYTES_PER_MB
 from physverify.core.errors import EXIT_ERROR, UsageError
 from physverify.datasets._base import DatasetSource
 from physverify.extraction._base import StageEvent, StageObserver, StageProvider
@@ -35,7 +36,6 @@ from physverify.synth.migrate import manifest_dataset, rerender_clip_ids
 
 NAME = "extract"
 EVENTS_FILE = "extraction.jsonl"
-BYTES_PER_MB = 1_000_000
 
 app = typer.Typer(
     help="Perception pipeline: from video to states and contacts.",

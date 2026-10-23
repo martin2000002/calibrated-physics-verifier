@@ -16,6 +16,7 @@ from numpy.typing import ArrayLike, NDArray
 
 Vec = NDArray[np.float64]
 EPS_T = 1e-12
+SWITCH_DELAY_S = 1e-9
 _MAX_EVENTS = 256
 
 

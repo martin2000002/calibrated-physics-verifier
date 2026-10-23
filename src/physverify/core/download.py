@@ -31,6 +31,7 @@ from physverify.core.models import FrozenModel
 
 PART_SUFFIX = ".part"
 MANIFEST_FILE = "manifest.json"
+BYTES_PER_MB = 1_000_000
 HTTP_OK = 200
 HTTP_PARTIAL = 206
 TIMEOUT_S = 60.0

@@ -34,6 +34,7 @@ from typing import Final
 from physverify.config.models import Settings
 from physverify.core.atomic import write_bytes_atomic
 from physverify.datasets.local_video import MANIFEST_FILE, ClipEntry, LocalManifest
+from physverify.datasets.local_video import NAME as LOCAL_VIDEO
 from physverify.finetune.records import (
     CandidateRecord,
     CandidateScore,
@@ -45,7 +46,6 @@ from physverify.finetune.seeds import candidate_id
 from physverify.finetune.settings import load_finetune
 
 FINETUNE_DIR: Final = "finetune"
-LOCAL_VIDEO: Final = "local_video"
 PROMPTS_FILE: Final = "prompts.jsonl"
 SCORES_FILE: Final = "scores.jsonl"
 PAIRS_FILE: Final = "pairs.jsonl"

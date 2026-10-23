@@ -43,7 +43,7 @@ from physverify.finetune.budget import (
     budget_lines,
     train_prompts,
 )
-from physverify.finetune.dpo import ShiftedFlowNoise
+from physverify.finetune.dpo import SIGMA_LEVELS, ShiftedFlowNoise
 from physverify.finetune.generate import CandidateGenerator
 from physverify.finetune.pairs import build_pairs
 from physverify.finetune.pilot import fit_and_val, pilot_prompts
@@ -112,7 +112,6 @@ from physverify.timing.stats import across_medians, stat_rows
 
 NAME = "finetune"
 DEFAULT_RUN: Final = "main"
-SIGMA_LEVELS: Final = (0.1, 0.25, 0.5, 0.75, 0.9)
 PILOT_PROMPTS: Final = 20
 RESUME_IGNORED: Final = frozenset({"commit", "beta_source"})
 SHOWN_STALE: Final = 5

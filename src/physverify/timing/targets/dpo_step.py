@@ -13,7 +13,7 @@ import importlib
 from collections.abc import Callable, Mapping, Sequence
 from typing import ClassVar, Final
 
-from physverify.finetune.dpo import ShiftedFlowNoise
+from physverify.finetune.dpo import SIGMA_LEVELS, ShiftedFlowNoise
 from physverify.finetune.settings import load_finetune
 from physverify.finetune.trainer import AdapterModel, PairBatch, pair_loss
 from physverify.finetune.wan_lora import load_wan_adapter_model
@@ -31,7 +31,6 @@ VAE_SPATIAL: Final = 8
 TEXT_TOKENS: Final = 512
 TEXT_DIM: Final = 4096
 CALLS: Final = 5
-SIGMA_LEVELS: Final = (0.1, 0.25, 0.5, 0.75, 0.9)
 DATASET: Final = "synthetic_pair"
 
 ModelFactory = Callable[[TimingContext], AdapterModel]

@@ -25,6 +25,8 @@ from physverify.core.atomic import write_text_atomic
 from physverify.core.errors import MissingInputError
 from physverify.core.markdown import number
 from physverify.datasets._base import DatasetSource
+from physverify.datasets.local_video import NAME as LOCAL_VIDEO
+from physverify.datasets.objectron_static import VIDEO_FILE
 from physverify.diagnosis.cases import stage_output
 from physverify.diagnosis.chain import ChainRunner
 from physverify.diagnosis.plans import Variant
@@ -47,9 +49,7 @@ from physverify.verification.inputs import refuse_heavy
 
 NAME = "size"
 MODEL_FILE = "size_model.toml"
-LOCAL_VIDEO = "local_video"
 SCALE_METHODS = ("size_prior", "size_model")
-VIDEO_FILE = "video.MOV"
 
 app = typer.Typer(help="Object size model learned on Objectron (fetch, fit, eval).")
 

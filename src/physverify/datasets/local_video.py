@@ -27,6 +27,7 @@ if TYPE_CHECKING:
 MANIFEST_FILE = "manifest.json"
 QUERIES_SUFFIX = ".queries.json"
 DEFAULT_SUBSET = "default"
+NAME = "local_video"
 
 
 class QueryEntry(FrozenModel):
@@ -74,7 +75,7 @@ class _QueryFile(FrozenModel):
 
 
 class LocalVideoDataset:
-    name: ClassVar[str] = "local_video"
+    name: ClassVar[str] = NAME
 
     def __init__(self, settings: Settings) -> None:
         self._root = settings.paths.raw_dir / self.name

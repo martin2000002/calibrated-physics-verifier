@@ -21,11 +21,10 @@ from physverify.finetune.records import CheckSummary, PromptRecord, finite_or_no
 from physverify.finetune.scorers._base import AggregateScore, AggregateScorer
 from physverify.schema.checks import CheckResult
 from physverify.verification.decisive import decisive
+from physverify.verification.runner import CALIBRATED, PROVISIONAL
 
 REPORT_JSON: Final = "report.json"
 REPORT_MD: Final = "report.md"
-CALIBRATED: Final = "calibrated"
-PROVISIONAL: Final = "provisional"
 PROVISIONAL_BANNER: Final = "PROVISIONAL RULE: not a calibrated verdict"
 NO_VERDICT: Final = "NO_EVENT"
 CHECK_COLUMNS: Final = (

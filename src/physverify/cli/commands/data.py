@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Annotated, Any
 import typer
 
 from physverify.cli.context import app_context, heavy_command
-from physverify.core.download import MANIFEST_FILE, read_manifest
+from physverify.core.download import BYTES_PER_MB, MANIFEST_FILE, read_manifest
 from physverify.core.errors import UsageError
 from physverify.diagnosis.settings import diagnosis_settings
 
@@ -21,7 +21,6 @@ if TYPE_CHECKING:
     from physverify.config.models import Settings
 
 NAME = "data"
-BYTES_PER_MB = 1_000_000
 
 app = typer.Typer(help="Download the real datasets (Physics-IQ, PISA).", no_args_is_help=True)
 

@@ -17,6 +17,7 @@ from physverify.calibration.settings import check_registry
 from physverify.config.models import Settings
 from physverify.core.digests import sha256_if_file
 from physverify.core.errors import MissingInputError, PhysverifyError
+from physverify.datasets.local_video import NAME as LOCAL_VIDEO
 from physverify.evaluation.analysis import (
     SECONDARY_TESTS,
     JudgeValues,
@@ -56,7 +57,7 @@ from physverify.verification.scope import check_scope, require_record_for
 
 PLAIN_SECTIONS: Final = (FINETUNE_SECTION, "checks", "verification", "extraction")
 TIMING: Final = ("timing", "generation")
-CONTAMINATED_DATASET: Final = "local_video"
+CONTAMINATED_DATASET: Final = LOCAL_VIDEO
 CALIB_SPLIT: Final = "calib"
 DEV_SPLIT: Final = "dev"
 MARGIN_KEYS: Final = {"pc": "noninferiority_margin_pc", "sa": "sa_guard_margin"}

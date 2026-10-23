@@ -11,6 +11,7 @@ from physverify.cli.context import AppContext
 from physverify.config.models import Settings
 from physverify.core.atomic import write_text_atomic
 from physverify.core.errors import UsageError
+from physverify.datasets.local_video import NAME as LOCAL_VIDEO
 from physverify.extraction.plan import resolve_plan
 from physverify.finetune.generate import CandidateGenerator
 from physverify.finetune.scorers._base import AggregateScorer
@@ -36,7 +37,6 @@ from physverify.verification.runner import (
     load_thresholds,
 )
 
-DATASET: Final = "local_video"
 NESTED_LOCK: Final = "held by finetune"
 
 
@@ -84,8 +84,8 @@ def scoring_deps(context: AppContext) -> ScoringDeps:
         build_policy(context.registry("policies"), verification),
         load_thresholds(settings.paths.thresholds, verification.thresholds),
     )
-    dataset = resolve_dataset(context, DATASET)
-    plan = resolve_plan(settings, context.registry("providers"), dataset=DATASET, gt_stages=())
+    dataset = resolve_dataset(context, LOCAL_VIDEO)
+    plan = resolve_plan(settings, context.registry("providers"), dataset=LOCAL_VIDEO, gt_stages=())
     loader = PipelineOutputLoader(plan, pipeline_deps(context, None, lambda: NullLock(NESTED_LOCK)))
     return ScoringDeps(
         clips=dataset.clips,
