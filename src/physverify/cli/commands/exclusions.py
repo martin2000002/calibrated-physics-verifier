@@ -14,7 +14,7 @@ from typing import Annotated
 
 import typer
 
-from physverify.app.calibration import decide_exclusions, r2_clip_listing, show_exclusions
+from physverify.app.exclusions import decide_exclusions, r2_clip_listing, show_exclusions
 from physverify.cli.context import app_context
 
 NAME = "exclusions"

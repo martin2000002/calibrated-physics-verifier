@@ -25,7 +25,7 @@ class Colour(Enum):
 
 
 FORMATTERS: dict[str, list[tuple[Any, str]]] = {
-    "physverify.cli.commands.calibrate:_num": [
+    "physverify.calibration.summary:_num": [
         (None, "-"),
         (0.0, "0"),
         (-0.0, "-0"),

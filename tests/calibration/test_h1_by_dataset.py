@@ -9,7 +9,7 @@ from typing import Any, cast
 import pytest
 from calibration_cases import clip
 
-from physverify.cli.commands.calibrate import _primary_scope
+from physverify.calibration.session import primary_scope
 from physverify.config.loader import load_settings
 from physverify.core.errors import ConfigError
 from physverify.schema.clip import Split
@@ -59,9 +59,9 @@ def test_the_evaluated_dataset_picks_the_scope(
     repo_root: Path, dataset: str, kept: set[str]
 ) -> None:
     settings = load_settings(repo_root / "configs", environ={})
-    session = cast(Any, SimpleNamespace(context=SimpleNamespace(settings=settings)))
+    session = cast(Any, SimpleNamespace(settings=settings))
     clips = [clip(f"c{i}", f"a-s{i:03d}", Split.EVAL) for i in (0, 1, 11, 39)]
-    primary = _primary_scope(session, cast(Any, _Source(dataset)), "eval", clips)
+    primary = primary_scope(session, cast(Any, _Source(dataset)), "eval", clips)
     assert primary is not None
     assert primary.scope.primary_scenes == h1_scope(settings).scenes_for(dataset)
     assert primary.dataset.name == dataset

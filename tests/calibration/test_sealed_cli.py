@@ -18,10 +18,12 @@ from calibration_cases import DATASET, fitted_artifact, synthetic_report
 from cli_runner import CliResult, CliRunner
 from cli_tree import cli_leaves, command_modules
 
+from physverify.app import calibration as app_calibration
 from physverify.app import plugins, sealing
 from physverify.app import selective_risk as app_selective_risk
+from physverify.calibration import session as calibration_session
 from physverify.calibration.sealed_ledger import LedgerEntry, read_entries
-from physverify.cli.commands import calibrate, diagnose, verify
+from physverify.cli.commands import diagnose, verify
 from physverify.config.loader import load_settings
 from physverify.config.models import Settings
 from physverify.core.errors import PhysverifyError
@@ -171,16 +173,16 @@ def evaluate_cli(
     artifact_text: str,
 ) -> Callable[..., CliResult]:
     """``calibrate evaluate`` on the fixture; the first check run records the ledger size."""
-    monkeypatch.setattr(calibrate, "checks_hash_for", lambda context: "checks")
-    monkeypatch.setattr(calibrate, "_raw_runner", lambda session: _ReportRunner())
-    monkeypatch.setattr(calibrate, "_input_source", lambda session, dataset, level: None)
-    real = calibrate._eval_data
+    monkeypatch.setattr(app_calibration, "checks_hash_for", lambda context: "checks")
+    monkeypatch.setattr(app_calibration, "_raw_runner", lambda session: _ReportRunner())
+    monkeypatch.setattr(app_calibration, "_input_source", lambda session, dataset, level: None)
+    real = calibration_session._eval_data
 
     def counted(*args: Any) -> Any:
         reached.append(len(read_entries(ledger)))
         return real(*args)
 
-    monkeypatch.setattr(calibrate, "_eval_data", counted)
+    monkeypatch.setattr(calibration_session, "_eval_data", counted)
     path = tmp_path / "artifact" / "calibration.json"
     path.parent.mkdir(parents=True)
     path.write_text(artifact_text, encoding="utf-8")
@@ -599,7 +601,7 @@ def test_fit_from_a_perceived_run_guards_before_the_oracle_runs(
     folder.mkdir(parents=True)
     write_report(folder, perceived)
     stop = sentinel(ledger, reached)
-    monkeypatch.setattr(calibrate, "_raw_runner", lambda session: _SentinelRunner(stop))
+    monkeypatch.setattr(app_calibration, "_raw_runner", lambda session: _SentinelRunner(stop))
     refused = cli(*SEAL, "calibrate", "fit", "--dataset", DATASET, "--from-run", "perceived")
     assert refused.code == EXIT_USAGE and "PHYSVERIFY_UNSEAL" in refused.err
     assert reached == []
