@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import datetime as dt
 import json
 import math
 from collections.abc import Callable, Sequence
@@ -28,7 +27,7 @@ from physverify.extraction.pipeline import (
 )
 from physverify.extraction.plan import ResolvedPlan, resolve_plan
 from physverify.extraction.weights import NetworkDownloader, fetch, hub_cache
-from physverify.runtime.runs import RunContext, current_commit
+from physverify.runtime.runs import new_run
 from physverify.schema.clip import ClipManifest
 from physverify.schema.error_profile import ErrorProfile
 from physverify.schema.stages import STAGE_ORDER, parse_stages
@@ -106,15 +105,7 @@ def run(
         fps=fps,
         max_side=max_side,
     )
-    run_context = RunContext.create(
-        settings.paths.runs_dir,
-        argv=context.invocation.argv,
-        device=settings.runtime.device,
-        profile=settings.profile,
-        config_hash=settings.config_hash(),
-        commit=current_commit(settings.repo_root),
-        now=dt.datetime.now(dt.UTC),
-    )
+    run_context = new_run(settings, context.invocation.argv)
     events_path = run_context.run_dir / EVENTS_FILE
     typer.echo(f"run: {run_context.run_dir}")
     recorder = EventRecorder(ConsoleObserver(typer.echo))

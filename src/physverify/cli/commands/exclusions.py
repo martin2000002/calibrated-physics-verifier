@@ -8,7 +8,6 @@ here runs a model.
 
 from __future__ import annotations
 
-import datetime as dt
 import json
 from collections.abc import Callable, Collection, Sequence
 from dataclasses import dataclass
@@ -56,7 +55,7 @@ from physverify.core.digests import text_sha256
 from physverify.core.errors import UsageError
 from physverify.finetune.scope import family_targets
 from physverify.finetune.settings import FinetuneSettings, load_finetune
-from physverify.runtime.runs import RunContext, current_commit
+from physverify.runtime.runs import RUN_FILE, new_run
 from physverify.schema.clip import ClipManifest
 from physverify.schema.io import stable_hash
 from physverify.schema.stages import Stage
@@ -75,7 +74,6 @@ FamilyGap = Callable[[frozenset[str]], list[str]]
 RunPair = tuple[str, str]
 
 NAME = "exclusions"
-RUN_FILE = "run.json"
 
 app = typer.Typer(
     help="ADR 0015: the preregistered check exclusions H2 and H3 consume.",
@@ -264,19 +262,6 @@ def _write(paths: Sequence[Path], text: str) -> None:
         write_text_atomic(path, text)
 
 
-def _run(context: AppContext) -> RunContext:
-    settings = context.settings
-    return RunContext.create(
-        settings.paths.runs_dir,
-        argv=context.invocation.argv,
-        device=settings.runtime.device,
-        profile=settings.profile,
-        config_hash=settings.config_hash(),
-        commit=current_commit(settings.repo_root),
-        now=dt.datetime.now(dt.UTC),
-    )
-
-
 # --- commands ----------------------------------------------------------------------------------
 
 
@@ -326,7 +311,7 @@ def decide_command(
     if record is None:
         typer.echo(f"{target}: unchanged")
         return
-    run = _run(context)
+    run = new_run(context.settings, context.invocation.argv)
     text, markdown = record.to_json(), record_markdown(record)
     _write((target, run.run_dir / target.name), text)
     _write((target.with_suffix(".md"), run.run_dir / target.with_suffix(".md").name), markdown)

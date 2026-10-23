@@ -28,8 +28,9 @@ from physverify.finetune.records import (
 from physverify.finetune.scorers.provisional import ProvisionalScorer
 from physverify.finetune.scoring import build_scorer
 from physverify.finetune.settings import load_finetune
-from physverify.finetune.store import PAIRS_FILE, REPORT_FILE, RUN_FILE, CampaignStore
+from physverify.finetune.store import PAIRS_FILE, REPORT_FILE, CampaignStore
 from physverify.finetune.trainer import STATE_FILE, checkpoint_name
+from physverify.runtime.runs import RUN_FILE
 from physverify.schema.checks import CheckResult, Verdict
 from physverify.schema.io import write_jsonl
 

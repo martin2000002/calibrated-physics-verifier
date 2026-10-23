@@ -7,7 +7,6 @@ a harness check, and then no timing is printed to the terminal.
 from __future__ import annotations
 
 import contextlib
-import datetime as dt
 import json
 import signal
 import threading
@@ -30,7 +29,7 @@ from physverify.extraction.weights import (
     hub_cache,
 )
 from physverify.runtime.heavy import NullLock
-from physverify.runtime.runs import RunContext, current_commit
+from physverify.runtime.runs import RUN_FILE, RunContext, new_run
 from physverify.timing._base import TimingContext, TimingTarget
 from physverify.timing.budget import Bound, BudgetAnswer, BudgetQuery, answer, cost_from_results
 from physverify.timing.envinfo import CudaProbe, TorchCudaProbe, run_environment, validity
@@ -69,7 +68,6 @@ from physverify.timing.settings import (
 from physverify.timing.stats import stat_rows
 
 NAME = "timing"
-RUN_FILE = "run.json"
 NESTED_LOCK = "held by timing run"
 FAILING = frozenset({TargetStatus.FAILED, TargetStatus.PARTIAL})
 
@@ -220,19 +218,6 @@ def sigterm_as_interrupt() -> Iterator[None]:
         signal.signal(signal.SIGTERM, previous)
 
 
-def _new_run(context: AppContext) -> RunContext:
-    settings = context.settings
-    return RunContext.create(
-        settings.paths.runs_dir,
-        argv=context.invocation.argv,
-        device=settings.runtime.device,
-        profile=settings.profile,
-        config_hash=settings.config_hash(),
-        commit=current_commit(settings.repo_root),
-        now=dt.datetime.now(dt.UTC),
-    )
-
-
 def _start_results(
     run_context: RunContext, settings: Settings, timing: TimingSettings, probe: CudaProbe
 ) -> ResultsWriter:
@@ -319,7 +304,7 @@ def run(
     services = _services(context, selection, probe)
     chosen = clip_source(plan, services, settings)
     with context.heavy_lock():
-        run_context = _new_run(context)
+        run_context = new_run(context.settings, context.invocation.argv)
         typer.echo(f"run: {run_context.run_dir}")
         writer = _start_results(run_context, settings, timing, probe)
         runtime = settings.runtime

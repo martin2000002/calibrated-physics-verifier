@@ -10,6 +10,11 @@ from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+from physverify.config.models import Settings
+from physverify.core.atomic import write_text_atomic
+
+RUN_FILE = "run.json"
+
 
 def new_run_id(now: dt.datetime, token: str | None = None) -> str:
     suffix = token if token is not None else secrets.token_hex(3)
@@ -72,4 +77,17 @@ class RunContext:
         record = asdict(self)
         record["run_dir"] = str(self.run_dir)
         record["argv"] = list(self.argv)
-        (self.run_dir / "run.json").write_text(json.dumps(record, indent=2), encoding="utf-8")
+        write_text_atomic(self.run_dir / RUN_FILE, json.dumps(record, indent=2))
+
+
+def new_run(settings: Settings, argv: Sequence[str], now: dt.datetime | None = None) -> RunContext:
+    """A fresh run directory under ``paths.runs_dir`` with its ``run.json`` written."""
+    return RunContext.create(
+        settings.paths.runs_dir,
+        argv=argv,
+        device=settings.runtime.device,
+        profile=settings.profile,
+        config_hash=settings.config_hash(),
+        commit=current_commit(settings.repo_root),
+        now=now if now is not None else dt.datetime.now(dt.UTC),
+    )

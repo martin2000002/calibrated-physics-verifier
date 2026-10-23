@@ -44,7 +44,7 @@ from physverify.diagnosis.settings import MetricSettings, diagnosis_settings
 from physverify.diagnosis.stage_errors import run_stage_errors
 from physverify.extraction._base import StageObserver
 from physverify.extraction.pipeline import ExtractionReport
-from physverify.runtime.runs import RunContext, current_commit
+from physverify.runtime.runs import new_run
 from physverify.schema.clip import ClipManifest
 
 NAME = "diagnose"
@@ -94,15 +94,7 @@ def diagnosis_context(
         update={key: value for key, value in overrides.items() if value is not None}
     )
     clock = functools.partial(dt.datetime.now, dt.UTC)
-    run = RunContext.create(
-        settings.paths.runs_dir,
-        argv=app.invocation.argv,
-        device=settings.runtime.device,
-        profile=settings.profile,
-        config_hash=settings.config_hash(),
-        commit=current_commit(settings.repo_root),
-        now=clock(),
-    )
+    run = new_run(settings, app.invocation.argv, clock())
     return DiagnosisContext(
         settings=settings,
         diag=diag,

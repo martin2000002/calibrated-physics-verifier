@@ -17,7 +17,7 @@ from typing import Annotated, Any
 
 import typer
 
-from physverify.cli.commands._runs import new_run_dir, write_json
+from physverify.cli.commands._runs import write_json
 from physverify.cli.commands.extract import pipeline_deps, resolve_dataset
 from physverify.cli.context import AppContext, app_context
 from physverify.config.models import Settings, SizePriorTable
@@ -29,6 +29,7 @@ from physverify.diagnosis.cases import stage_output
 from physverify.diagnosis.chain import ChainRunner
 from physverify.diagnosis.plans import Variant
 from physverify.extraction.providers.scale_size_prior import SIZE_PRIORS_SECTION
+from physverify.runtime.runs import new_run
 from physverify.schema.clip import ClipManifest
 from physverify.schema.perception import MaskTrack
 from physverify.schema.scale import ScaleEstimate
@@ -101,7 +102,7 @@ def fit() -> None:
     )
     target = settings.config_dir / MODEL_FILE
     write_text_atomic(target, render_toml(model))
-    run_dir = new_run_dir(context)
+    run_dir = new_run(context.settings, context.invocation.argv).run_dir
     write_json(run_dir / "fit.json", _fit_record(model, train, sizing))
     typer.echo(f"model: {target} ({len(model.classes)} classes, factor {model.sigma_factor:.4f})")
     typer.echo(f"run: {run_dir}")
@@ -145,7 +146,7 @@ def evaluate_command() -> None:
     )
     report["test_sigma_log"] = report["total"][MODEL]["rms_log"]
     report["truth_limit"] = "box sizes come from ARKit; their own error is not documented"
-    run_dir = new_run_dir(context)
+    run_dir = new_run(context.settings, context.invocation.argv).run_dir
     write_json(run_dir / "eval.json", report)
     for line in eval_lines(report):
         typer.echo(line)
@@ -280,7 +281,7 @@ def e2e_eval() -> None:
         "camera": "assumed FOV (the true-FOV attribution is not run)",
         "truth_limit": "ARKit depth of the box center; its own error is not documented",
     }
-    run_dir = new_run_dir(context)
+    run_dir = new_run(context.settings, context.invocation.argv).run_dir
     write_json(run_dir / "e2e.json", report)
     for method, m in total.items():
         typer.echo(

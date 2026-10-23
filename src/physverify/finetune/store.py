@@ -55,7 +55,6 @@ VAL_REPORT_FILE: Final = "val_report.json"
 PILOT_REVIEW_FILE: Final = "pilot_review.json"
 STOP_RULE_FILE: Final = "stop_rule.json"
 CALIBRATION_STATUS: Final = ("calibration", "status.json")
-RUN_FILE: Final = "run.json"
 BETA_FILE: Final = "beta_grid.json"
 SELECTED_FILE: Final = "selected.json"
 META_SUFFIX: Final = ".meta.json"

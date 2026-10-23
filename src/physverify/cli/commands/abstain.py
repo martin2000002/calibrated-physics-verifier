@@ -22,7 +22,7 @@ from scipy.stats import norm
 from physverify.calibration.loader import default_artifact_path, load_calibration
 from physverify.calibration.settings import checks_hash
 from physverify.calibration.table import Role, role_of
-from physverify.cli.commands._runs import new_run_dir, write_json
+from physverify.cli.commands._runs import write_json
 from physverify.cli.commands._sealed import Selection, guard_sealed
 from physverify.cli.commands.extract import pipeline_deps, resolve_dataset
 from physverify.cli.context import AppContext, app_context
@@ -36,6 +36,7 @@ from physverify.diagnosis.end_to_end import track_of, variant_outputs, variant_r
 from physverify.diagnosis.pairing import pair_results, subject_map
 from physverify.diagnosis.plans import oracle_variant, perceived_variant
 from physverify.diagnosis.settings import diagnosis_settings
+from physverify.runtime.runs import new_run
 from physverify.schema.checks import InputLevel, Verdict
 from physverify.schema.clip import ClipManifest
 from physverify.schema.io import stable_hash
@@ -389,7 +390,7 @@ def curve(
     evaluated = collect_synthetic(session, settings.eval_split)
     _require(evaluated, settings.eval_split)
     calibrated, raw = session.thresholds, raw_table(session.thresholds)
-    run_dir = new_run_dir(session.context)
+    run_dir = new_run(session.context.settings, session.context.invocation.argv).run_dir
     tables = compare_tables(evaluated, calibrated, raw, settings)
     parts = CurveParts(
         per_check=per_check_rows(evaluated.cases, calibrated, named_ks(fitted), settings.ci),

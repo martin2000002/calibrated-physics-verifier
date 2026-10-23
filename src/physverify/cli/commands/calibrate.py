@@ -6,7 +6,6 @@ heavy lock lazily, only when a stage has to be computed.
 
 from __future__ import annotations
 
-import datetime as dt
 import json
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -88,7 +87,7 @@ from physverify.diagnosis.report import dataset_versions, profile_hash
 from physverify.diagnosis.settings import diagnosis_settings
 from physverify.diagnosis.stage_errors import measure, pair_variants, stage_pairs
 from physverify.extraction.plan import resolve_plan
-from physverify.runtime.runs import RunContext, current_commit
+from physverify.runtime.runs import RunContext, new_run
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import ClipManifest, Split
 from physverify.schema.error_profile import ErrorProfile
@@ -143,15 +142,7 @@ class Session:
 def _session() -> Session:
     context = app_context()
     settings = context.settings
-    run = RunContext.create(
-        settings.paths.runs_dir,
-        argv=context.invocation.argv,
-        device=settings.runtime.device,
-        profile=settings.profile,
-        config_hash=settings.config_hash(),
-        commit=current_commit(settings.repo_root),
-        now=dt.datetime.now(dt.UTC),
-    )
+    run = new_run(settings, context.invocation.argv)
     typer.echo(f"run: {run.run_dir}")
     return Session(context, calibration_config(settings), run)
 

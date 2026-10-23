@@ -82,7 +82,6 @@ from physverify.finetune.store import (
     PAIRS_FILE,
     PILOT_REVIEW_FILE,
     REPORT_FILE,
-    RUN_FILE,
     SELECTED_FILE,
     VAL_PAIRS_FILE,
     VAL_REPORT_FILE,
@@ -104,7 +103,7 @@ from physverify.finetune.trainer import (
     stored_pairs,
 )
 from physverify.finetune.wan_lora import load_wan_adapter_model
-from physverify.runtime.runs import current_commit
+from physverify.runtime.runs import RUN_FILE, current_commit
 from physverify.timing.budget import BudgetError, cost_from_results
 from physverify.timing.generation import snapshot_dir, snapshot_problem
 from physverify.timing.report import load_results, load_samples

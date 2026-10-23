@@ -13,6 +13,7 @@ from typing import Any
 
 from physverify.calibration.loader import MixedRowStepError, unique_row_step
 from physverify.core.errors import MissingInputError, UsageError
+from physverify.runtime.runs import RUN_FILE
 from physverify.schema.checks import AbstainReason, CheckResult, Verdict
 from physverify.schema.io import read_jsonl
 from physverify.verification.runner import (
@@ -22,8 +23,6 @@ from physverify.verification.runner import (
     RowStatus,
     TableRow,
 )
-
-RUN_FILE = "run.json"
 
 
 @dataclass(frozen=True)

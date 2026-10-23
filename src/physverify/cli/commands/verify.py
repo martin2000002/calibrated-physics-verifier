@@ -5,10 +5,8 @@ Not a heavy command: the perceived path runs the light stages only and refuses t
 
 from __future__ import annotations
 
-import datetime as dt
 from collections.abc import Sequence
 from functools import partial
-from pathlib import Path
 from typing import Annotated
 
 import typer
@@ -21,7 +19,7 @@ from physverify.core.errors import EXIT_ERROR, UsageError
 from physverify.core.markdown import number
 from physverify.datasets._base import DatasetSource
 from physverify.extraction.plan import resolve_plan
-from physverify.runtime.runs import RunContext, current_commit
+from physverify.runtime.runs import new_run
 from physverify.schema.checks import InputLevel, Verdict
 from physverify.schema.stages import Stage, parse_stages
 from physverify.verification.inputs import (
@@ -94,7 +92,7 @@ def verify(
         checks, build_policy(context.registry("policies"), verification), thresholds
     )
     inputs = _inputs(context, source, input_level, parse_stages(gt or ()))
-    run_dir = _run_dir(context)
+    run_dir = new_run(context.settings, context.invocation.argv).run_dir
     typer.echo(f"run: {run_dir}")
     guard_sealed(context, NAME, [Selection(source.name, subset, tuple(selected))], run_dir=run_dir)
     typer.echo(f"thresholds: {thresholds_label(thresholds)}")
@@ -145,20 +143,6 @@ def _inputs(
         ),
         level,
     )
-
-
-def _run_dir(context: AppContext) -> Path:
-    settings = context.settings
-    run_context = RunContext.create(
-        settings.paths.runs_dir,
-        argv=context.invocation.argv,
-        device=settings.runtime.device,
-        profile=settings.profile,
-        config_hash=settings.config_hash(),
-        commit=current_commit(settings.repo_root),
-        now=dt.datetime.now(dt.UTC),
-    )
-    return run_context.run_dir
 
 
 def summary_lines(report: VerificationReport) -> list[str]:
