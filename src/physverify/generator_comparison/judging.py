@@ -1,4 +1,4 @@
-"""Running a judge over stored candidates or gate videos and recording what it said (ADR 0013 D4).
+"""Running a judge over stored candidates or gate videos and recording what it said.
 
 The judge is injected; nothing here knows how it scores. A stored output is reused only when it
 has the same stamp, the same pre-registration and the same videos.

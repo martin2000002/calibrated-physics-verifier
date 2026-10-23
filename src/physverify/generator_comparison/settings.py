@@ -1,4 +1,4 @@
-"""``[h3]``: the pre-registered parameters of the H3 comparison (ADR 0013)."""
+"""``[h3]``: the pre-registered parameters of the generator comparison."""
 
 from __future__ import annotations
 

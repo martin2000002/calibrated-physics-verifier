@@ -1,5 +1,5 @@
-"""Eval scores of H3 under one stamp (ADR 0013 D9): the manifest that binds them to the freeze,
-the stale-stamp check and the CPU rescore of stored check results with a new rule."""
+"""Eval scores of the generator comparison under one stamp: the manifest that binds them to the
+freeze, the stale-stamp check and the CPU rescore of stored check results with a new rule."""
 
 from __future__ import annotations
 

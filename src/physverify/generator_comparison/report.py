@@ -1,5 +1,5 @@
-"""``h3_report.json`` and ``h3_report.md``: every pre-registered number, the verdict and the audit
-(ADR 0013). Rendering only; the numbers come from ``analysis`` and ``verdict``."""
+"""``h3_report.json`` and ``h3_report.md``: every pre-registered number, the verdict and the audit.
+Rendering only; the numbers come from ``analysis`` and ``verdict``."""
 
 from __future__ import annotations
 

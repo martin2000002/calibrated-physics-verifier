@@ -1,4 +1,4 @@
-"""The H3 verdict (ADR 0013 D8): fixed precedence, the first matching tier wins. Pure.
+"""The generator-comparison verdict: fixed precedence, the first matching tier wins. Pure.
 
 The external step is tested only after a supported primary (fixed sequence). Non-inferiority and
 the interval arm of a contradiction use the bootstrap interval of the mean, on the scale of the

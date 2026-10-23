@@ -1,4 +1,4 @@
-"""VideoPhy-2 AutoEval as an external judge, run in its own pinned environment (ADR 0013 D4).
+"""VideoPhy-2 AutoEval as an external judge, run in its own pinned environment.
 
 The pinned ``VIDEOPHY2/inference.py`` reads a CSV (``videopath``, ``caption``) and writes it back
 with an added ``score`` column and pandas' unnamed index column. Its parser falls back to 0 when

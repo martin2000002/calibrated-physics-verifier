@@ -1,4 +1,4 @@
-"""Pre-registered statistics of H3 (ADR 0013 D3, D4, D6): Wilcoxon + Hodges-Lehmann, the
+"""Pre-registered statistics of the generator comparison: Wilcoxon + Hodges-Lehmann, the
 bootstrap interval of the mean, Holm and the minimum detectable effect.
 
 The unit is the prompt: each ``Diff`` is one prompt's paired difference. Wilcoxon's method is

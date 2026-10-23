@@ -1,5 +1,5 @@
-"""The three arms of H3 per analysed prompt: base (K = 8), fine-tuned (K = 4, same seeds), and
-best-of-8 picked from the base candidates (ADR 0013 D2). Pure: records in, arms out."""
+"""The three arms of the generator comparison per analysed prompt: base (K = 8), fine-tuned (K = 4,
+same seeds), and best-of-8 picked from the base candidates. Pure: records in, arms out."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Contract of a video judge: generated videos -> one score each on its own scale (ADR 0013).
+"""Contract of a video judge: generated videos -> one score each on its own scale.
 
 A judge that cannot read its own output returns ``value = None`` with a ``reason``; a missing
 score is never a point on the scale.
