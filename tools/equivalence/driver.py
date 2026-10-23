@@ -40,8 +40,10 @@ COMMAND_RENAMES = {
     "dataset": "synth",
     "devscore": "dev-score",
 }
+# The left revision's option name, mapped onto the right one's.
+LEFT_CHAIN_DIR_OPTION = "--a8v2-dir"
 OPTION_RENAMES = {
-    "--a8v2-dir": "--chain-dir",
+    LEFT_CHAIN_DIR_OPTION: "--chain-dir",
     "--h1-evaluation": "--calibration-evaluation",
     "--h2-run": "--agreement-run",
     "--abstention-run": "--selective-risk-run",
@@ -156,10 +158,10 @@ SCENARIOS: Mapping[str, Scenario] = {
             "--profile",
             "fast",
             "results",
-            "--a8v2-dir",
+            LEFT_CHAIN_DIR_OPTION,
             _chain(run)["dir"],
             "--h2-run",
-            _chain(run)["h2_run"],
+            _chain(run)["agreement_run"],
         ],
         0,
         True,
@@ -170,7 +172,7 @@ SCENARIOS: Mapping[str, Scenario] = {
             "--profile",
             "fast",
             "results",
-            "--a8v2-dir",
+            LEFT_CHAIN_DIR_OPTION,
             _chain(run)["dir"],
         ],
         0,
@@ -499,8 +501,12 @@ def prepare(run: Path) -> None:
     from physverify.verification.runner import write_report
 
     chain = reporting_cases.build_chain(run / "chain")
+    # The left revision's fixture names the agreement run h2_run.
+    agreement_run = next(
+        getattr(chain, name) for name in ("agreement_run", "h2_run") if hasattr(chain, name)
+    )
     (run / CHAIN_FILE).write_text(
-        json.dumps({"dir": str(chain.dir), "h2_run": str(chain.h2_run)}, indent=2) + "\n",
+        json.dumps({"dir": str(chain.dir), "agreement_run": str(agreement_run)}, indent=2) + "\n",
         encoding="utf-8",
     )
     folder = run / "repo" / "data" / "runs" / RAW_RUN
