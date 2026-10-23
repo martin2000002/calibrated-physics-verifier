@@ -1,4 +1,4 @@
-"""No process labels (plan items, review codes, banners) in code, comments, configs or scripts.
+"""No process labels (plan items, review codes, banners) in code, configs, scripts or docs.
 
 A label survives only where something reads it back: a persisted field or file name, a parsed
 stdout line, a directory that already exists on the H200. Each survivor is listed below with its
@@ -21,15 +21,14 @@ import pytest
 
 REPO = Path(__file__).resolve().parents[1]
 SCANNED_DIRS = ("src", "scripts", "tests", "configs", "tools")
+SCANNED_FILES = ("README.md", "CLAUDE.md")
 EXCLUDED_SUFFIXES = frozenset({".jsonl", ".npz", ".pyc"})
 EXCLUDED_NAMES = frozenset({"uv.lock", "local.toml", "py.typed"})
 EXCLUDED_PARTS = frozenset({"golden", "__pycache__", ".pytest_cache"})
-# scripts/h200/README.md is rewritten in WP11, which must delete this exclusion.
 EXCLUDED_PREFIXES = (
     "tests/synth/data/",
     "tests/contracts/data/pre_split_configs.json",
     "tools/equivalence/expected/",
-    "scripts/h200/README.md",
 )
 SELF = Path(__file__).resolve()
 
@@ -255,7 +254,8 @@ def _is_scanned(path: Path) -> bool:
 
 
 def _scanned_files() -> list[Path]:
-    paths = (path for folder in SCANNED_DIRS for path in (REPO / folder).rglob("*"))
+    paths = [path for folder in SCANNED_DIRS for path in (REPO / folder).rglob("*")]
+    paths += [REPO / name for name in SCANNED_FILES]
     return sorted(path for path in paths if _is_scanned(path))
 
 

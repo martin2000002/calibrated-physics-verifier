@@ -13,7 +13,7 @@ TEXT_SUFFIXES = {".py", ".toml", ".md", ".sh", ".txt", ".cfg", ".yml", ".yaml", 
 
 
 def _text_files(repo_root: Path) -> list[Path]:
-    roots = [repo_root / name for name in ("src", "tests", "configs")]
+    roots = [repo_root / name for name in ("src", "tests", "configs", "scripts", "tools")]
     files = [p for root in roots for p in root.rglob("*") if p.suffix in TEXT_SUFFIXES]
     return files + sorted(repo_root.glob("*.md"))
 
