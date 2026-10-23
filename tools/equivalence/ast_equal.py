@@ -39,7 +39,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 KINDS = ("name", "literal", "alias", "variable")
-PERSISTED_NAME = re.compile(r"_(SCHEMA|FILE|VERSION)$|^LEDGER_LABEL|^GUARDED$")
+PERSISTED_NAME = re.compile(r"(^|_)(SCHEMA|FILE|VERSION)$|^LEDGER_LABEL|^GUARDED$")
 
 Line = tuple[str, str, str]
 
@@ -116,13 +116,17 @@ def _rename_module(name: str, mapping: Mapping[str, str]) -> str:
     return name
 
 
-def persisted_values(sources: Iterable[str]) -> frozenset[str]:
-    values = set()
+def _persisted_values(sources: Iterable[str]) -> frozenset[str]:
+    values: set[str] = set()
     for source in sources:
         for node in ast.parse(source).body:
-            targets = node.targets if isinstance(node, ast.Assign) else []
-            if isinstance(node, ast.AnnAssign):
-                targets = [node.target]
+            targets = (
+                node.targets
+                if isinstance(node, ast.Assign)
+                else [node.target]
+                if isinstance(node, ast.AnnAssign)
+                else []
+            )
             value = getattr(node, "value", None)
             if isinstance(value, ast.Constant) and isinstance(value.value, str):
                 names = (target.id for target in targets if isinstance(target, ast.Name))
@@ -305,7 +309,7 @@ def compare(
     pairs.update({o: n for o, n in explicit.items() if o in before and n in after})
     modules = _module_map(pairs)
     sources = {path: _git(repo, "show", f"{old}:{path}") for path in sorted(pairs)}
-    persisted = persisted_values(sources.values())
+    persisted = _persisted_values(sources.values())
     used: set[Line] = set()
     problems = 0
     for path in sorted(before - set(pairs)):

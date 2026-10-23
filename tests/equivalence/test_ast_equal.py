@@ -100,6 +100,33 @@ def test_schema_id_kept_through_a_module_rename_is_equal(repo: Path) -> None:
     assert _run(repo) == 0
 
 
+def test_bare_schema_id_does_not_follow_a_module_rename(repo: Path) -> None:
+    store = BASE["src/physverify/store.py"].replace("STORE_SCHEMA", "SCHEMA")
+    _commit(repo, {"src/physverify/store.py": store})
+    moved = store.replace('"physverify.store"', '"physverify.archive"')
+    _commit(repo, {"src/physverify/store.py": None, "src/physverify/archive.py": moved})
+    assert _run(repo) == 1
+
+
+def test_an_ordinary_module_string_follows_a_module_rename(repo: Path) -> None:
+    _commit(repo, {"src/physverify/caller.py": 'ENTRY = "physverify.store.load"\n'})
+    _commit(
+        repo,
+        {
+            "src/physverify/store.py": None,
+            "src/physverify/archive.py": BASE["src/physverify/store.py"],
+            "src/physverify/caller.py": 'ENTRY = "physverify.archive.load"\n',
+        },
+    )
+    assert _run(repo) == 0
+
+
+@pytest.mark.parametrize("statement", ['f"{Model.size}"', "Model.size"])
+def test_a_non_plain_string_statement_survives_stripping(repo: Path, statement: str) -> None:
+    _commit(repo, {"src/physverify/model.py": BASE["src/physverify/model.py"] + statement + "\n"})
+    assert _run(repo, "--strip-bare-strings") == 1
+
+
 def test_allowed_substitution_is_equal(repo: Path, tmp_path: Path) -> None:
     model = BASE["src/physverify/model.py"].replace("size", "width")
     _commit(repo, {"src/physverify/model.py": model})
