@@ -22,7 +22,7 @@ from physverify.runtime.runs import RunContext
 class DiagnosisContext:
     settings: Settings
     diag: DiagnosisSettings
-    resolve_dataset: Callable[[str], DatasetSource]
+    dataset_for: Callable[[str], DatasetSource]
     providers: Mapping[str, type[StageProvider]]
     checks: Mapping[str, type[Check]]
     metrics: Mapping[str, SampledMetric]
@@ -33,7 +33,7 @@ class DiagnosisContext:
 
     def dataset(self, name: str | None = None) -> DatasetSource:
         """Instance of ``name`` (default: ``diagnosis.dataset``)."""
-        return self.resolve_dataset(name or self.diag.dataset)
+        return self.dataset_for(name or self.diag.dataset)
 
     def chain(self, dataset: DatasetSource) -> ChainRunner:
         return ChainRunner(self.settings, self.providers, self.checks, self.deps, dataset)

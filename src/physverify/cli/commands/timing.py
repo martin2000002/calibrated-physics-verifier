@@ -21,6 +21,7 @@ from physverify.app.context import AppContext
 from physverify.cli.context import app_context, heavy_command
 from physverify.config.models import PathsSettings, Settings
 from physverify.core.errors import EXIT_ERROR, EXIT_OK, UsageError
+from physverify.datasets._base import dataset_from
 from physverify.extraction.weights import (
     ALLOW_PATTERNS,
     Downloader,
@@ -64,7 +65,6 @@ from physverify.timing.stats import stat_rows
 from physverify.timing.target_services import (
     ClipSelection,
     TimingServices,
-    dataset_source,
     selected_clips,
 )
 
@@ -179,7 +179,7 @@ def clip_source(plan: Plan, services: TimingServices, settings: Settings) -> Cli
         return tuple
     if services.selection.dataset is None:
         raise UsageError(f"--dataset is required by {', '.join(needing)}")
-    dataset_source(services, settings, services.selection.dataset)
+    dataset_from(services.datasets, services.selection.dataset, settings)
     return lambda: selected_clips(services, settings)
 
 

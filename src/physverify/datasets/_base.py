@@ -111,6 +111,15 @@ def select_clips(clips: Sequence[ClipManifest], wanted: Sequence[str]) -> list[C
     return [by_id[clip_id] for clip_id in dict.fromkeys(wanted)]
 
 
+def dataset_from(
+    registry: Mapping[str, type[DatasetSource]], name: str, settings: Settings
+) -> DatasetSource:
+    """Dataset ``name`` of ``registry`` built from ``settings``."""
+    if name not in registry:
+        raise UsageError(f"unknown dataset {name!r}; known: {sorted(registry)}")
+    return registry[name](settings)
+
+
 @dataclass(frozen=True, eq=False)
 class NativeGroundTruth:
     """Ground-truth layers at native resolution for the native frames ``frame_indices``.

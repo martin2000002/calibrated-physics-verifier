@@ -18,7 +18,7 @@ from typing import Annotated, Any
 import typer
 
 from physverify.app.context import AppContext
-from physverify.app.services import chain_runner, pipeline_deps, resolve_dataset
+from physverify.app.services import chain_runner, dataset_for, pipeline_deps
 from physverify.cli.commands._runs import write_json
 from physverify.cli.context import app_context
 from physverify.config.models import Settings, SizePriorTable
@@ -259,7 +259,7 @@ def e2e_eval() -> None:
     context = app_context()
     settings = context.settings
     sizing = sizing_settings(settings)
-    source = resolve_dataset(context, LOCAL_VIDEO)
+    source = dataset_for(context, LOCAL_VIDEO)
     chain = _e2e_chain(context, source)
     rows: list[end_to_end.ScaleRow] = []
     per_clip: list[dict[str, Any]] = []

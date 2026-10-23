@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from physverify.checks._base import Check
 from physverify.config.models import Settings
 from physverify.core.errors import UsageError
-from physverify.datasets._base import DatasetSource, select_clips
+from physverify.datasets._base import DatasetSource, dataset_from, select_clips
 from physverify.extraction._base import StageProvider
 from physverify.extraction.pipeline_resources import ProcRssProbe, RssProbe
 from physverify.schema.clip import ClipManifest
@@ -65,17 +65,11 @@ class TimingServices:
         return StageRecorder(self.memory(device), self.clock, self.cpu_clock)
 
 
-def dataset_source(services: TimingServices, settings: Settings, name: str) -> DatasetSource:
-    if name not in services.datasets:
-        raise UsageError(f"unknown dataset {name!r}; known: {sorted(services.datasets)}")
-    return services.datasets[name](settings)
-
-
 def selected_clips(services: TimingServices, settings: Settings) -> list[ClipManifest]:
     """The command-line selection, for targets that do not bring their own clips."""
     selection = services.selection
     if selection.dataset is None:
         raise UsageError("--dataset is required by targets that do not bring their own clips")
-    source = dataset_source(services, settings, selection.dataset)
+    source = dataset_from(services.datasets, selection.dataset, settings)
     clips = select_clips(source.clips(selection.subset), selection.clip_ids)
     return clips if selection.limit is None else clips[: selection.limit]

@@ -11,7 +11,7 @@ from typing import Annotated, Any
 
 import typer
 
-from physverify.app.services import pipeline_deps, plan_for, resolve_dataset
+from physverify.app.services import dataset_for, pipeline_deps, plan_for
 from physverify.cli.context import app_context, heavy_command
 from physverify.core.download import BYTES_PER_MB
 from physverify.core.errors import EXIT_ERROR, UsageError
@@ -90,7 +90,7 @@ def run(
 ) -> None:
     context = app_context()
     settings = context.settings
-    source = resolve_dataset(context, dataset)
+    source = dataset_for(context, dataset)
     selected = select_clips(source.clips(subset), clips or ())
     plan = plan_for(
         context,

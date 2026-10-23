@@ -14,7 +14,7 @@ from typing import Annotated, Any
 import typer
 
 from physverify.app.context import AppContext
-from physverify.app.services import check_suite, pipeline_deps, resolve_dataset
+from physverify.app.services import check_suite, dataset_for, pipeline_deps
 from physverify.cli.commands._sealed import Selection, guard_sealed
 from physverify.cli.commands.extract import ConsoleObserver, EventRecorder, write_events
 from physverify.cli.context import app_context
@@ -94,7 +94,7 @@ def diagnosis_context(
     return DiagnosisContext(
         settings=settings,
         diag=diag,
-        resolve_dataset=functools.partial(resolve_dataset, app),
+        dataset_for=functools.partial(dataset_for, app),
         providers=app.registry("providers"),
         checks=app.registry("checks"),
         metrics=sampled_metrics(app.registry("metrics"), diag.metrics),

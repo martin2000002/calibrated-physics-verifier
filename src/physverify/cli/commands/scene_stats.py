@@ -8,7 +8,7 @@ from typing import Annotated
 
 import typer
 
-from physverify.app.services import chain_runner, pipeline_deps, resolve_dataset
+from physverify.app.services import chain_runner, dataset_for, pipeline_deps
 from physverify.cli.commands._sealed import Selection, guard_sealed
 from physverify.cli.commands.diagnose import (
     ClipsOption,
@@ -45,7 +45,7 @@ def per_clip(
     diag = diagnosis_settings(settings).model_copy(
         update={key: value for key, value in update.items() if value is not None}
     )
-    source = resolve_dataset(app_ctx, diag.dataset)
+    source = dataset_for(app_ctx, diag.dataset)
     selected = select_clips(source.clips(diag.subset), clips or ())
     guard_sealed(
         app_ctx, f"{NAME} per-clip", [Selection(source.name, diag.subset, tuple(selected))]

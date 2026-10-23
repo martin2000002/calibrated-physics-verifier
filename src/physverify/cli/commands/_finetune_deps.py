@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Final
 
 from physverify.app.context import AppContext
-from physverify.app.services import pipeline_deps, plan_for, resolve_dataset
+from physverify.app.services import dataset_for, pipeline_deps, plan_for
 from physverify.config.models import Settings
 from physverify.core.atomic import write_text_atomic
 from physverify.core.errors import UsageError
@@ -81,7 +81,7 @@ def scoring_deps(context: AppContext) -> ScoringDeps:
         build_policy(context.registry("policies"), verification),
         load_thresholds(settings.paths.thresholds, verification.thresholds),
     )
-    dataset = resolve_dataset(context, LOCAL_VIDEO)
+    dataset = dataset_for(context, LOCAL_VIDEO)
     plan = plan_for(context, dataset=LOCAL_VIDEO)
     loader = PipelineOutputLoader(plan, pipeline_deps(context, None, lambda: NullLock(NESTED_LOCK)))
     return ScoringDeps(

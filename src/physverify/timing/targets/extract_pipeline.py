@@ -14,9 +14,10 @@ from itertools import count
 from pathlib import Path
 from typing import ClassVar, Final, Protocol
 
+from physverify.checks._base import Check
 from physverify.config.models import Settings
-from physverify.datasets._base import DatasetSource
-from physverify.extraction._base import StageObserver
+from physverify.datasets._base import DatasetSource, dataset_from
+from physverify.extraction._base import StageObserver, StageProvider
 from physverify.extraction.pipeline import (
     ExtractionPipeline,
     ExtractionReport,
@@ -37,7 +38,7 @@ from physverify.timing.records import (
 )
 from physverify.timing.replica import TIMED, WARM, replica_id, replica_source, replicas
 from physverify.timing.report import discard_scratch, scratch_dir
-from physverify.timing.target_services import TimingServices, dataset_source
+from physverify.timing.target_services import TimingServices
 from physverify.verification.check_set import occlusion_thresholds
 
 PREFIX: Final = "extract"
@@ -47,11 +48,21 @@ class Pipeline(Protocol):
     def run(self, dataset: DatasetSource, clips: Sequence[ClipManifest]) -> ExtractionReport: ...
 
 
+class PlanRegistries(Protocol):
+    """The registries a plan is resolved against."""
+
+    @property
+    def providers(self) -> Mapping[str, type[StageProvider]]: ...
+
+    @property
+    def checks(self) -> Mapping[str, type[Check]]: ...
+
+
 PipelineFactory = Callable[[ResolvedPlan, PipelineDeps], Pipeline]
-PlanFactory = Callable[[Settings, TimingServices, str], ResolvedPlan]
+PlanFactory = Callable[[Settings, PlanRegistries, str], ResolvedPlan]
 
 
-def perception_plan(settings: Settings, services: TimingServices, dataset: str) -> ResolvedPlan:
+def perception_plan(settings: Settings, services: PlanRegistries, dataset: str) -> ResolvedPlan:
     """The active extraction profile, every stage perceived (no ground-truth substitution)."""
     return resolve_plan(
         settings,
@@ -125,7 +136,7 @@ class ExtractPipeline(TargetHooks):
             self._services, ctx, scratch, observer=TeeObserver(recorder, ctx.observer)
         )
         copies = replicas(clip, (WARM, TIMED))
-        source = dataset_source(self._services, ctx.settings, clip.dataset)
+        source = dataset_from(self._services.datasets, clip.dataset, ctx.settings)
         report = self._pipeline_factory(plan, deps).run(
             replica_source(source, dict.fromkeys(copies, clip)), list(copies.values())
         )

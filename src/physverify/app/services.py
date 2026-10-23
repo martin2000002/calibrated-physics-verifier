@@ -1,15 +1,16 @@
-"""Services wired from an ``AppContext``: what several commands build the same way."""
+"""Services wired from an application context: what several commands build the same way."""
 
 from __future__ import annotations
 
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from pathlib import Path
+from typing import Any, Protocol
 
-from physverify.app.context import AppContext
-from physverify.core.errors import ConfigError, UsageError
-from physverify.core.registry import satisfies
-from physverify.datasets._base import DatasetSource
+from physverify.config.models import Settings
+from physverify.core.errors import ConfigError
+from physverify.core.registry import Registry, satisfies
+from physverify.datasets._base import DatasetSource, dataset_from
 from physverify.diagnosis.chain_runner import ChainRunner
 from physverify.diagnosis.verification_adapter import A7CheckSuite
 from physverify.extraction._base import StageObserver
@@ -24,16 +25,28 @@ from physverify.schema.stages import Stage
 from physverify.verification.check_set import active_checks_hash, occlusion_thresholds
 
 
-def resolve_dataset(context: AppContext, name: str) -> DatasetSource:
-    registry = context.registry("datasets")
-    if name not in registry:
-        raise UsageError(f"unknown dataset {name!r}; known: {sorted(registry)}")
-    source: DatasetSource = registry[name](context.settings)
-    return source
+class PluginContext(Protocol):
+    """The settings and plugin registries of one invocation."""
+
+    @property
+    def settings(self) -> Settings: ...
+
+    def registry(self, kind: str) -> Registry[Any]: ...
+
+
+class LockingContext(PluginContext, Protocol):
+    """A plugin context that also hands out the machine's heavy lock."""
+
+    def heavy_lock(self) -> AbstractContextManager[object]: ...
+
+
+def dataset_for(context: PluginContext, name: str) -> DatasetSource:
+    """Dataset ``name`` of the context's registry, built from its settings."""
+    return dataset_from(context.registry("datasets"), name, context.settings)
 
 
 def pipeline_deps(
-    context: AppContext,
+    context: LockingContext,
     observer: StageObserver | None,
     heavy_lock: Callable[[], AbstractContextManager[object]] | None = None,
 ) -> PipelineDeps:
@@ -52,7 +65,7 @@ def pipeline_deps(
 
 
 def plan_for(
-    context: AppContext,
+    context: PluginContext,
     *,
     dataset: str,
     gt_stages: tuple[Stage, ...] = (),
@@ -71,26 +84,26 @@ def plan_for(
     )
 
 
-def chain_runner(context: AppContext, deps: PipelineDeps, dataset: DatasetSource) -> ChainRunner:
+def chain_runner(context: PluginContext, deps: PipelineDeps, dataset: DatasetSource) -> ChainRunner:
     """Chain variants of ``dataset`` over the context's providers and checks."""
     return ChainRunner(
         context.settings, context.registry("providers"), context.registry("checks"), deps, dataset
     )
 
 
-def context_checks_hash(context: AppContext) -> str:
+def checks_hash_for(context: PluginContext) -> str:
     """The ``checks_hash`` of the context's check registry under its ``[checks]`` overrides."""
     return active_checks_hash(context.settings, context.registry("checks"))
 
 
-def check_suite(context: AppContext) -> A7CheckSuite:
+def check_suite(context: PluginContext) -> A7CheckSuite:
     """The diagnosis adapter over the context's checks, policy and thresholds."""
     return A7CheckSuite.build(
         context.settings, context.registry("checks"), context.registry("policies")
     )
 
 
-def context_scorer(context: AppContext, name: str) -> AggregateScorer:
+def scorer_for(context: PluginContext, name: str) -> AggregateScorer:
     """Scorer ``name`` of the context's registry, over its checks, inside ``[check_scope]``."""
     return build_scorer(
         name,
@@ -100,7 +113,7 @@ def context_scorer(context: AppContext, name: str) -> AggregateScorer:
     )
 
 
-def external_judge(context: AppContext, cfg: H3Settings, workdir: Path) -> Judge:
+def external_judge(context: PluginContext, cfg: H3Settings, workdir: Path) -> Judge:
     """The judge named by ``[h3] external_judge``, built from its own configuration."""
     registry = context.registry("judges")
     judge = registry.get(cfg.external_judge)

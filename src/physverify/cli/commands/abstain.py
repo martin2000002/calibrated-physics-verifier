@@ -20,7 +20,7 @@ import typer
 from scipy.stats import norm
 
 from physverify.app.context import AppContext
-from physverify.app.services import chain_runner, check_suite, pipeline_deps, resolve_dataset
+from physverify.app.services import chain_runner, check_suite, dataset_for, pipeline_deps
 from physverify.calibration.artifact_io import default_artifact_path, load_calibration
 from physverify.calibration.table import Role, role_of
 from physverify.cli.commands._runs import write_json
@@ -188,7 +188,7 @@ def _session(oracle: Path | None, perceived: Path | None, provisional: bool) -> 
 
 def _chain(session: Session, dataset: str) -> tuple[ChainRunner, DatasetSource]:
     context = session.context
-    source = resolve_dataset(context, dataset)
+    source = dataset_for(context, dataset)
     deps = pipeline_deps(context, None, partial(refuse_heavy, dataset))
     return chain_runner(context, deps, source), source
 
@@ -418,7 +418,7 @@ def _guard(context: AppContext, leaf: str, *, real: bool) -> None:
     selections = []
     for name, subset in wanted:
         try:
-            source = resolve_dataset(context, name)
+            source = dataset_for(context, name)
         except PhysverifyError:
             continue
         selections.append(Selection(source.name, subset, tuple(source.clips(subset))))

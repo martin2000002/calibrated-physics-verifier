@@ -489,7 +489,7 @@ def make_diagnosis_context(
         return DiagnosisContext(
             settings=settings,
             diag=diagnosis_settings(settings),
-            resolve_dataset=lambda name: registry[name](settings),
+            dataset_for=lambda name: registry[name](settings),
             providers=providers if stage_providers is None else stage_providers,
             checks=checks(),
             metrics=dict(metrics or {}),
