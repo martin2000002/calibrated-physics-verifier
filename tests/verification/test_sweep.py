@@ -14,7 +14,7 @@ import check_scenarios as sc
 import pytest
 
 from physverify.checks._base import Check, CheckInputs
-from physverify.checks._common import unscored
+from physverify.checks._results import unscored
 from physverify.schema.checks import CheckResult
 from physverify.schema.clip import ClipManifest
 from physverify.schema.scene import MagnitudeKind, PerturbationRecord

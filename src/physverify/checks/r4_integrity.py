@@ -10,7 +10,8 @@ from numpy.typing import NDArray
 from pydantic import BaseModel, Field
 
 from physverify.checks._base import CheckInputs
-from physverify.checks._common import OcclusionParams, abstain, first_max, unscored
+from physverify.checks._params import OcclusionParams
+from physverify.checks._results import abstain, first_max, unscored
 from physverify.physics.geometry import characteristic_lengths
 from physverify.physics.measures.object_integrity import missing_frames, size_change_ratio
 from physverify.physics.measures.relative_size import relative_lengths, relative_size_change

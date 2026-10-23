@@ -28,7 +28,7 @@ import numpy as np
 import pytest
 from reference.r4_jump_v1 import ContinuityCheck
 
-from physverify.checks._common import CommonParams
+from physverify.checks._params import CommonParams
 from physverify.checks.r1_interpenetration import InterpenetrationCheck, InterpenetrationParams
 from physverify.checks.r2_static_equilibrium import EquilibriumCheck, EquilibriumParams
 from physverify.checks.r3_collision_energy import (

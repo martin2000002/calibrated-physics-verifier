@@ -14,7 +14,8 @@ import check_scenarios as sc
 import pytest
 
 from physverify.checks._base import Check, CheckInputs
-from physverify.checks._common import CommonParams, abstain, unscored
+from physverify.checks._params import CommonParams
+from physverify.checks._results import abstain, unscored
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
 from physverify.schema.clip import ClipManifest
 from physverify.schema.io import read_jsonl

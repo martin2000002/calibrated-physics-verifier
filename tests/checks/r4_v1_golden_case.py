@@ -20,7 +20,7 @@ from typing import Any
 import check_scenarios as sc
 from reference.r4_jump_v1 import ContinuityCheck
 
-from physverify.checks._common import CommonParams
+from physverify.checks._params import CommonParams
 from physverify.checks.r4_integrity import SizeConstancyCheck, SizeParams
 from physverify.schema.io import json_ready
 

@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from physverify.checks._base import Check
-from physverify.checks._common import CommonParams
+from physverify.checks._params import CommonParams
 from physverify.checks.r1_interpenetration import (
     PLUGINS,
     InterpenetrationCheck,

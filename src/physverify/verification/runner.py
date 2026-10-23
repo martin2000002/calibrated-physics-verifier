@@ -15,7 +15,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 from physverify.checks._base import Check, CheckInputs
-from physverify.checks._common import abstain, row_step_or_none
+from physverify.checks._results import abstain, row_step_or_none
 from physverify.config.models import validated
 from physverify.core.errors import ConfigError
 from physverify.core.models import FrozenModel

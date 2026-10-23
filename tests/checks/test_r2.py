@@ -8,7 +8,7 @@ import pytest
 
 from physverify.checks import r2_static_equilibrium
 from physverify.checks._base import Check
-from physverify.checks._common import CommonParams
+from physverify.checks._params import CommonParams
 from physverify.checks.r2_static_equilibrium import PLUGINS, EquilibriumCheck, EquilibriumParams
 from physverify.physics.equilibrium import EquilibriumSolution
 from physverify.schema.checks import AbstainReason, CheckResult, Verdict
