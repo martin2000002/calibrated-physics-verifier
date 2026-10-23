@@ -14,20 +14,15 @@ from typing import Annotated, Any
 import typer
 
 from physverify.app.context import AppContext
+from physverify.app.services import check_suite, pipeline_deps, resolve_dataset
 from physverify.cli.commands._sealed import Selection, guard_sealed
-from physverify.cli.commands.extract import (
-    ConsoleObserver,
-    EventRecorder,
-    pipeline_deps,
-    resolve_dataset,
-    write_events,
-)
+from physverify.cli.commands.extract import ConsoleObserver, EventRecorder, write_events
 from physverify.cli.context import app_context
 from physverify.core.markdown import number
 from physverify.datasets._base import select_clips
 from physverify.diagnosis.attribution import run_attribution
 from physverify.diagnosis.cases import SampledMetric
-from physverify.diagnosis.checks_port import A7CheckSuite, CheckSuite
+from physverify.diagnosis.checks_port import CheckSuite
 from physverify.diagnosis.context import DiagnosisContext
 from physverify.diagnosis.end_to_end import run_end_to_end
 from physverify.diagnosis.real_video import run_real
@@ -156,11 +151,7 @@ def _launch(
 ) -> None:
     app = app_context()
     recorder = EventRecorder(ConsoleObserver(typer.echo))
-    checks = (
-        A7CheckSuite.build(app.settings, app.registry("checks"), app.registry("policies"))
-        if suite
-        else None
-    )
+    checks = check_suite(app) if suite else None
     ctx = diagnosis_context(app, recorder, checks, dataset=dataset, subset=subset)
     execute(ctx, recorder, name, runner)
 

@@ -12,9 +12,8 @@ from typing import Annotated
 import typer
 
 from physverify.app.context import AppContext
-from physverify.cli.commands._common import context_checks_hash
+from physverify.app.services import context_checks_hash, pipeline_deps, resolve_dataset
 from physverify.cli.commands._sealed import Selection, guard_sealed
-from physverify.cli.commands.extract import pipeline_deps, resolve_dataset
 from physverify.cli.context import app_context
 from physverify.core.errors import EXIT_ERROR, UsageError
 from physverify.core.markdown import number

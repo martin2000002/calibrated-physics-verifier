@@ -8,6 +8,7 @@ from typing import Annotated
 
 import typer
 
+from physverify.app.services import pipeline_deps, resolve_dataset
 from physverify.cli.commands._sealed import Selection, guard_sealed
 from physverify.cli.commands.diagnose import (
     ClipsOption,
@@ -15,7 +16,6 @@ from physverify.cli.commands.diagnose import (
     SubsetOption,
     sampled_metrics,
 )
-from physverify.cli.commands.extract import pipeline_deps, resolve_dataset
 from physverify.cli.context import app_context, heavy_command
 from physverify.datasets._base import select_clips
 from physverify.diagnosis import scene_stats

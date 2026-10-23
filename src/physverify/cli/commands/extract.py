@@ -5,28 +5,23 @@ from __future__ import annotations
 import json
 import math
 from collections.abc import Callable
-from contextlib import AbstractContextManager
 from dataclasses import asdict
 from pathlib import Path
 from typing import Annotated, Any
 
 import typer
 
-from physverify.app.context import AppContext
+from physverify.app.services import pipeline_deps, resolve_dataset
 from physverify.cli.context import app_context, heavy_command
 from physverify.core.download import BYTES_PER_MB
 from physverify.core.errors import EXIT_ERROR, UsageError
-from physverify.datasets._base import DatasetSource, select_clips
+from physverify.datasets._base import select_clips
 from physverify.extraction._base import StageEvent, StageObserver, StageProvider
 from physverify.extraction.cache import StageCache
-from physverify.extraction.error_profile import load_error_profile
 from physverify.extraction.pipeline import (
     ClipFailure,
     ExtractionPipeline,
     ExtractionReport,
-    LazyLock,
-    PipelineDeps,
-    ProcRssProbe,
 )
 from physverify.extraction.plan import ResolvedPlan, resolve_plan
 from physverify.extraction.weights import NetworkDownloader, fetch, hub_cache
@@ -161,34 +156,6 @@ def purge(
         cache = StageCache(root)
         entries = sum(cache.purge_clip(dataset, clip_id) for clip_id in clip_ids)
         typer.echo(f"purge {root}: {entries} stage entries of {len(clip_ids)} clips removed")
-
-
-def resolve_dataset(context: AppContext, name: str) -> DatasetSource:
-    registry = context.registry("datasets")
-    if name not in registry:
-        raise UsageError(f"unknown dataset {name!r}; known: {sorted(registry)}")
-    source: DatasetSource = registry[name](context.settings)
-    return source
-
-
-def pipeline_deps(
-    context: AppContext,
-    observer: StageObserver | None,
-    heavy_lock: Callable[[], AbstractContextManager[object]] | None = None,
-) -> PipelineDeps:
-    """``heavy_lock`` replaces the machine lock, e.g. with one that refuses in commands that must
-    never run a heavy stage."""
-    settings = context.settings
-    return PipelineDeps(
-        cache=StageCache(settings.paths.cache_dir),
-        lock=LazyLock(heavy_lock or context.heavy_lock),
-        paths=settings.paths,
-        device=settings.runtime.device,
-        threads=settings.runtime.threads,
-        error_profile=load_error_profile(settings.paths.error_profile),
-        observer=observer,
-        rss=ProcRssProbe(),
-    )
 
 
 def plan_providers(plan: ResolvedPlan) -> list[type[StageProvider]]:

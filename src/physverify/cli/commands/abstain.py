@@ -20,12 +20,12 @@ import typer
 from scipy.stats import norm
 
 from physverify.app.context import AppContext
+from physverify.app.services import check_suite, pipeline_deps, resolve_dataset
 from physverify.calibration.loader import default_artifact_path, load_calibration
 from physverify.calibration.settings import checks_hash
 from physverify.calibration.table import Role, role_of
 from physverify.cli.commands._runs import write_json
 from physverify.cli.commands._sealed import Selection, guard_sealed
-from physverify.cli.commands.extract import pipeline_deps, resolve_dataset
 from physverify.cli.context import app_context
 from physverify.core.atomic import write_text_atomic
 from physverify.core.digests import sha256_if_file
@@ -179,9 +179,7 @@ def _session(oracle: Path | None, perceived: Path | None, provisional: bool) -> 
     return Session(
         context=context,
         settings=settings.section(SECTION, AbstentionSettings),
-        suite=A7CheckSuite.build(
-            settings, context.registry("checks"), context.registry("policies")
-        ),
+        suite=check_suite(context),
         reference_table=tables[InputLevel.ORACLE],
         thresholds=tables[InputLevel.PERCEIVED],
         min_span_iou=diagnosis_settings(settings).end_to_end.min_span_iou,

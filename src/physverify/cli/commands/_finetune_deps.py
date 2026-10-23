@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Final
 
 from physverify.app.context import AppContext
-from physverify.cli.commands.extract import pipeline_deps, resolve_dataset
+from physverify.app.services import pipeline_deps, resolve_dataset
 from physverify.config.models import Settings
 from physverify.core.atomic import write_text_atomic
 from physverify.core.errors import UsageError

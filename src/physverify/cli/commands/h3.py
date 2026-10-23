@@ -17,8 +17,9 @@ from typing import Annotated, Final
 import typer
 
 from physverify.app.context import AppContext
+from physverify.app.services import context_checks_hash
 from physverify.calibration.loader import default_artifact_path
-from physverify.cli.commands._common import choice, context_checks_hash
+from physverify.cli.commands._common import choice
 from physverify.cli.commands._finetune_deps import (
     candidate_generator,
     require_cuda,

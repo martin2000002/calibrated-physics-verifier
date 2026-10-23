@@ -16,6 +16,7 @@ from typing import Annotated
 import typer
 
 from physverify.app.context import AppContext
+from physverify.app.services import context_checks_hash, pipeline_deps, resolve_dataset
 from physverify.calibration.collect import (
     SubjectLookup,
     Subjects,
@@ -70,14 +71,8 @@ from physverify.calibration.sigma import (
     stage_factors,
 )
 from physverify.calibration.table import scene_of
-from physverify.cli.commands._common import context_checks_hash
 from physverify.cli.commands._sealed import Selection, guard_sealed
-from physverify.cli.commands.extract import (
-    ConsoleObserver,
-    EventRecorder,
-    pipeline_deps,
-    resolve_dataset,
-)
+from physverify.cli.commands.extract import ConsoleObserver, EventRecorder
 from physverify.cli.context import app_context
 from physverify.core.atomic import write_text_atomic
 from physverify.core.errors import MissingInputError, PhysverifyError, UsageError
