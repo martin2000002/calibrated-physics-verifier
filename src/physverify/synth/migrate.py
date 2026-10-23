@@ -268,17 +268,6 @@ def reapply(
     return _report(path, len(report.applied), manifest)
 
 
-def migrate_velocity(
-    store: DatasetStore,
-    plugins: Mapping[str, Any],
-    ds: DatasetSettings,
-    commit: str,
-    now: Clock = lambda: dt.datetime.now(dt.UTC),
-) -> MigrationReport:
-    """``reapply`` under ``ds.velocity_convention`` (WP-G 1.C)."""
-    return reapply(store, plugins, ds, commit, velocity_migration(ds), now)
-
-
 def _report(path: Path, applied: int, manifest: Mapping[str, Any]) -> MigrationReport:
     return MigrationReport(path, applied, tuple(manifest[RERENDER_KEY]), manifest["status_changes"])
 

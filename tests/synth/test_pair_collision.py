@@ -10,12 +10,12 @@ from typing import Any
 
 import numpy as np
 import pytest
+from reference.legacy_contact_rules import floor_reach, legacy_collision_velocities
 
 from physverify.physics.measures.r3_collision import kinetic_energy_gain
 from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactKind, ContactRecord, ContactTable
 from physverify.schema.states import ObjectStateTable, PrimitiveKind
-from physverify.synth.migration_audit import floor_reach, legacy_collision_velocities
 from physverify.synth.perturb import instantiate
 from physverify.synth.perturbations._ballistics import impact_velocity
 from physverify.synth.perturbations._edit import edit_object, gravity_of, radius_of, spheres

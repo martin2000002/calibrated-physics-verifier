@@ -73,7 +73,6 @@ EXEMPT: Final[Mapping[str, str]] = MappingProxyType(
         "calibrate publish": _READS,
         "calibrate show": _READS,
         "data fetch": _DATA,
-        "dataset audit-migration": _DATA,
         "dataset build": _DATA,
         "dataset export-gt": _DATA,
         "dataset generate": _DATA,

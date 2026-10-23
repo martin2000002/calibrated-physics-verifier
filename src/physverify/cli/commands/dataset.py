@@ -7,7 +7,6 @@ import subprocess
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from functools import cached_property
-from pathlib import Path
 from typing import Annotated, Any
 
 import typer
@@ -24,8 +23,7 @@ from physverify.synth.generate import (
     write_specs,
 )
 from physverify.synth.gt_export import export_all
-from physverify.synth.migrate import check_name, manifest_path, reapply, velocity_migration
-from physverify.synth.migration_audit import AuditInputs, audit
+from physverify.synth.migrate import reapply, velocity_migration
 from physverify.synth.perturb import (
     apply_variants,
     closest_points,
@@ -43,7 +41,7 @@ from physverify.synth.settings import (
 )
 from physverify.synth.simulate import StepReport
 from physverify.synth.simulate import simulate as simulate_scenes
-from physverify.synth.store import ContainerRunner, DatasetStore, Step, atomic_write_json
+from physverify.synth.store import ContainerRunner, DatasetStore, Step
 
 NAME = "dataset"
 
@@ -316,44 +314,9 @@ def migrate_command(name: NameOption = None, commit: CommitOption = None) -> Non
     help="Alias of `migrate --name velocity-<convention>` (WP-G 1.C).",
 )
 @heavy_command
-def migrate_velocity_command(commit: CommitOption = None) -> None:
+def velocity_alias(commit: CommitOption = None) -> None:
     job = _job(None)
     run_migrate(job, velocity_migration(job.ds), commit)
-
-
-@app.command(
-    "audit-migration",
-    help="Acceptance audit of a migration against a copy of the dataset taken before it "
-    "(re-renders, frames, contacts, records, labels, rest cells, stale cache, plus the checks of "
-    "every ground-truth fix the run covers); JSON to --out.",
-)
-def audit_migration(
-    before: Annotated[Path, typer.Option(help="The dataset directory copied before migrating.")],
-    out: Annotated[Path, typer.Option(help="Where to write the JSON report.")],
-    cache_root: Annotated[
-        list[Path] | None, typer.Option(help="Cache root (repeatable; default: paths.cache_dir).")
-    ] = None,
-    table: Annotated[
-        list[Path] | None, typer.Option(help="table.csv of an oracle verify run (repeatable).")
-    ] = None,
-    name: NameOption = None,
-) -> None:
-    job = _job(None)
-    migration = name or velocity_migration(job.ds)
-    check_name(migration, job.ds)
-    inputs = AuditInputs(
-        job.plan(),
-        job.store,
-        DatasetStore(before),
-        manifest_path(job.store, migration),
-        job.plugins,
-        job.ds,
-        migration,
-    )
-    roots = cache_root or [job.context.settings.paths.cache_dir]
-    report = audit(inputs, roots, table or [])
-    atomic_write_json(out, report)
-    typer.echo(f"audit-migration: {out}")
 
 
 @app.command("build", help="generate, simulate, perturb, render and export-gt under one lock.")

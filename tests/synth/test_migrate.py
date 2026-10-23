@@ -9,6 +9,7 @@ import dataclasses
 import datetime as dt
 import math
 import shutil
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -19,7 +20,7 @@ from physverify.config.models import Settings
 from physverify.core.errors import ConfigError, MissingInputError, UsageError
 from physverify.schema.scene import PerturbationRecord
 from physverify.schema.states import ObjectStateTable
-from physverify.synth import migrate, migration_audit
+from physverify.synth import migrate
 from physverify.synth.generate import load_plan, plan_subset, save_plan
 from physverify.synth.gt_export import read_index
 from physverify.synth.migrate import (
@@ -29,21 +30,14 @@ from physverify.synth.migrate import (
     FLOOR_CROSSING,
     PAIR_COLLISION,
     RERENDER_KEY,
+    MigrationReport,
     manifest_path,
-    migrate_velocity,
     reapply,
     rerender_clip_ids,
-)
-from physverify.synth.migration_audit import (
-    CLOSED_FORM_TOL,
-    RERENDER_IF_CANDIDATES_MOVE,
-    AuditInputs,
-    Prediction,
-    audit,
-    rerender_audit,
+    velocity_migration,
 )
 from physverify.synth.perturb import apply_variants, instantiate
-from physverify.synth.perturbations import _measure, r3_restitution_gain
+from physverify.synth.perturbations import _measure
 from physverify.synth.perturbations._ballistics import time_to_height
 from physverify.synth.plan import GT_MIGRATIONS, GT_REVISION, DatasetPlan
 from physverify.synth.settings import DatasetSettings, load_dataset_settings
@@ -116,6 +110,16 @@ def clip_of(plan: DatasetPlan, perturbation: str) -> str:
     return next(v.clip_id for v in plan.variants if v.perturbation == perturbation)
 
 
+def reapply_velocity(
+    store: DatasetStore,
+    plugins: Mapping[str, Any],
+    ds: DatasetSettings,
+    commit: str,
+    now: Callable[[], dt.datetime],
+) -> MigrationReport:
+    return reapply(store, plugins, ds, commit, velocity_migration(ds), now)
+
+
 @pytest.fixture
 def position_ds(data_settings: Settings) -> DatasetSettings:
     ds = load_dataset_settings(data_settings)
@@ -127,7 +131,7 @@ def test_the_migration_equals_a_fresh_build(
     tmp_path: Path, position_ds: DatasetSettings, families: Any, perturbations: Any
 ) -> None:
     plan, old, plugins = legacy(tmp_path, position_ds, families, perturbations)
-    migrate_velocity(old, plugins, position_ds, COMMIT, clock)
+    reapply_velocity(old, plugins, position_ds, COMMIT, clock)
     _, fresh, _ = build(
         tmp_path / "fresh", position_ds, position_ds.content_hash(), families, perturbations
     )
@@ -155,7 +159,7 @@ def test_the_manifest_lists_the_discarded_renders_and_both_hashes(
 ) -> None:
     plan, store, plugins = legacy(tmp_path, position_ds, families, perturbations)
     old_hash = plan.config_hash
-    report = migrate_velocity(store, plugins, position_ds, COMMIT, clock)
+    report = reapply_velocity(store, plugins, position_ds, COMMIT, clock)
     unedited, edited = clip_of(plan, "none"), clip_of(plan, "r3_restitution_gain")
     assert report.rerender == (edited,)
     assert rerender_clip_ids(report.manifest) == [edited]
@@ -175,9 +179,9 @@ def test_a_completed_migration_runs_again_as_a_no_op(
     tmp_path: Path, position_ds: DatasetSettings, families: Any, perturbations: Any
 ) -> None:
     plan, store, plugins = legacy(tmp_path, position_ds, families, perturbations)
-    first = migrate_velocity(store, plugins, position_ds, COMMIT, clock)
+    first = reapply_velocity(store, plugins, position_ds, COMMIT, clock)
     stamps = {p: p.stat().st_mtime_ns for p in store.root.rglob("*") if p.is_file()}
-    again = migrate_velocity(store, plugins, position_ds, COMMIT, clock)
+    again = reapply_velocity(store, plugins, position_ds, COMMIT, clock)
     assert (again.applied, again.rerender) == (0, first.rerender)
     assert {p: p.stat().st_mtime_ns for p in store.root.rglob("*") if p.is_file()} == stamps
 
@@ -186,13 +190,13 @@ def test_a_crashed_migration_still_lists_the_render_it_discarded(
     tmp_path: Path, position_ds: DatasetSettings, families: Any, perturbations: Any
 ) -> None:
     plan, store, plugins = legacy(tmp_path, position_ds, families, perturbations)
-    report = migrate_velocity(store, plugins, position_ds, COMMIT, clock)
+    report = reapply_velocity(store, plugins, position_ds, COMMIT, clock)
     manifest = read_json(report.manifest)
     del manifest[COMPLETED_KEY]
     atomic_write_json(report.manifest, manifest | {RERENDER_KEY: []})
     with pytest.raises(MissingInputError, match=COMPLETED_KEY):
         rerender_clip_ids(report.manifest)
-    again = migrate_velocity(store, plugins, position_ds, COMMIT, clock)
+    again = reapply_velocity(store, plugins, position_ds, COMMIT, clock)
     assert again.rerender == report.rerender
 
 
@@ -202,7 +206,7 @@ def test_a_clip_apply_never_reached_stays_pending(
     plan, store, plugins = legacy(tmp_path, position_ds, families, perturbations)
     pending = clip_of(plan, "r3_restitution_gain")
     shutil.rmtree(store.clip_dir(pending))
-    report = migrate_velocity(store, plugins, position_ds, COMMIT, clock)
+    report = reapply_velocity(store, plugins, position_ds, COMMIT, clock)
     assert report.applied == len(plan.variants) - 1
     assert not store.is_done(Step.APPLY, pending)
     assert report.status_changes == {} and report.rerender == ()
@@ -216,44 +220,8 @@ def test_a_plan_with_other_content_is_refused(
         tmp_path / "other", other, other.content_hash(), families, perturbations
     )
     with pytest.raises(ConfigError, match="migration refused"):
-        migrate_velocity(store, plugins, position_ds, COMMIT, clock)
+        reapply_velocity(store, plugins, position_ds, COMMIT, clock)
     assert not (store.root / "migrations").exists()
-
-
-def test_the_audit_compares_the_migration_with_the_copy_taken_before(
-    tmp_path: Path, position_ds: DatasetSettings, families: Any, perturbations: Any
-) -> None:
-    plan, store, plugins = legacy(tmp_path, position_ds, families, perturbations)
-    before = DatasetStore(tmp_path / "before")
-    shutil.copytree(store.root, before.root)
-    report = migrate_velocity(store, plugins, position_ds, COMMIT, clock)
-    inputs = AuditInputs(
-        plan, store, before, report.manifest, plugins, position_ds, report.manifest.stem
-    )
-    edited = clip_of(plan, "r3_restitution_gain")
-    label = PerturbationRecord.load_json(store.clip_dir(edited) / RECORD)
-    table = tmp_path / "table.csv"
-    rows = [f"{edited},{check},{label.magnitude * 1.01}" for check in label.target_checks]
-    table.write_text("\n".join(["clip_id,check_id,magnitude", *rows, "other,R3a,"]) + "\n")
-    found = audit(inputs, [tmp_path / "cache"], [table])
-    assert found["rerender"] == {
-        "observed": [edited],
-        "predicted_certain": [edited],
-        "missing_from_certain": [],
-        "predicted_possible": sorted(
-            v.clip_id for v in plan.variants if v.perturbation in RERENDER_IF_CANDIDATES_MOVE
-        ),
-        "conditional_rerendered": {},
-        "unexpected": [],
-    }
-    assert found["media"] == {"kept": 1, "frames_differ": [], "mp4_differ": []}
-    assert found["contacts"]["fixed_changed"] == []
-    assert found["labels"]["r3_off_nominal"] == {}
-    assert found["rest"]["other_cells"] == []
-    assert found["records"]["differ"] == []
-    assert found["check_labels"][0]["within"] == len(label.target_checks) > 0
-    assert found["check_labels"][0]["outside"] == {}
-    assert found["cache"]["stale_meta"] == {}
 
 
 class Refusing:
@@ -275,7 +243,7 @@ def test_a_clip_now_refused_loses_its_render_and_export(
     (clip_dir / FRAMES_DIR).mkdir()
     (clip_dir / FRAMES_DIR / "000000.png").write_bytes(b"old")
     store.manifest_path.write_text("stale\n", encoding="utf-8")
-    report = migrate_velocity(store, plugins | {"none": Refusing()}, position_ds, COMMIT, clock)
+    report = reapply_velocity(store, plugins | {"none": Refusing()}, position_ds, COMMIT, clock)
     assert sorted(p.name for p in clip_dir.iterdir()) == [SKIPPED_FILE]
     assert refused in report.rerender
     assert report.status_changes[refused]["before"]["state"] == "applied"
@@ -350,8 +318,6 @@ def test_the_floor_crossing_migration_rerenders_only_the_moved_flight(
     old_frame = PerturbationRecord.load_json(
         store.clip_dir(clip_of(plan, "r3_restitution_gain")) / RECORD
     )
-    before = DatasetStore(tmp_path / "before")
-    shutil.copytree(store.root, before.root)
     report = reapply(store, plugins, position_ds, COMMIT, FLOOR_CROSSING, clock)
     unedited, edited = clip_of(plan, "none"), clip_of(plan, "r3_restitution_gain")
     assert report.rerender == (edited,)
@@ -373,35 +339,6 @@ def test_the_floor_crossing_migration_rerenders_only_the_moved_flight(
     again = reapply(store, plugins, position_ds, COMMIT, FLOOR_CROSSING, clock)
     assert (again.applied, again.rerender) == (0, report.rerender)
     assert {p: p.stat().st_mtime_ns for p in store.root.rglob("*") if p.is_file()} == stamps
-
-    inputs = AuditInputs(plan, store, before, report.manifest, plugins, position_ds, FLOOR_CROSSING)
-    found = audit(inputs, [tmp_path / "cache"], [])
-    assert found["rerender"]["predicted_certain"] == [edited]
-    assert found["rerender"]["missing_from_certain"] == []
-    assert found["rerender"]["unexpected"] == []
-    assert found["rerender"]["conditional_rerendered"] == {}
-    assert set(found["rerender"]["predicted_possible"]).isdisjoint({edited, unedited})
-    assert found["impact_frames"] == {
-        "before": [edited],
-        "after": [],
-        "before_equals_certain": True,
-    }
-    assert found["floor"]["checked"] == 1
-    assert found["floor"]["rewritten_below_floor"] == {}
-    bounces = found["bounces"]
-    assert [(r["status"], r["k"], r["src"]) for r in bounces["penetrated"]] == [
-        ("previous_row", 6, 5)
-    ]
-    assert bounces["closed_form_mismatch"] == []
-    assert bounces["closed_form_max_error"] <= bounces["closed_form_tol"] == CLOSED_FORM_TOL
-    assert bounces["unresolved_now"] == [] and bounces["row_moved"] == []
-    assert found["gt_meta"]["unexplained"] == {}
-    assert found["r3b"]["unexpected"] == [] and found["r3b"]["missing"] == []
-    assert found["r3b"]["legacy_differs_from_stored"] == []
-    assert found["pair_rows"]["stops"] == []
-    labels = found["energy_labels"]
-    assert labels["off_nominal"] == {}
-    assert labels["checked_gt_meta"] + len(labels["without_gt_meta"]) == labels["checked"]
 
 
 def test_a_migration_cut_short_keeps_the_old_gt_revision(
@@ -460,27 +397,6 @@ def test_a_migration_cut_after_raising_the_revision_finishes_on_rerun(
     assert COMPLETED_KEY in read_json(manifest_path(store, FLOOR_CROSSING))
 
 
-def test_a_conditional_rerender_is_listed_with_its_penetrated_bounce(
-    tmp_path: Path, position_ds: DatasetSettings, families: Any, perturbations: Any
-) -> None:
-    plan, store, plugins = build(
-        tmp_path / "store", position_ds, position_ds.content_hash(), families, perturbations
-    )
-    manifest = tmp_path / "manifest.json"
-    atomic_write_json(manifest, {COMPLETED_KEY: "now", RERENDER_KEY: ["sure", "maybe"]})
-    bounce = {"object": "ball_0", "k": 6, "src": 5}
-    prediction = Prediction(
-        frozenset({"sure"}),
-        frozenset({"maybe", "kept"}),
-        {"maybe": [bounce], "kept": [bounce]},
-    )
-    inputs = AuditInputs(plan, store, store, manifest, plugins, position_ds, FLOOR_CROSSING)
-    found = rerender_audit(inputs, prediction)
-    assert found["predicted_possible"] == ["kept", "maybe"]
-    assert found["conditional_rerendered"] == {"maybe": [bounce]}
-    assert found["unexpected"] == [] and found["missing_from_certain"] == []
-
-
 def test_the_floor_crossing_migration_needs_the_velocity_one_first(
     tmp_path: Path, position_ds: DatasetSettings, families: Any, perturbations: Any
 ) -> None:
@@ -525,10 +441,6 @@ def test_an_unknown_migration_name_is_a_usage_error(
     )
     with pytest.raises(UsageError, match="unknown migration"):
         reapply(store, plugins, position_ds, COMMIT, "velocity-state", clock)
-
-
-def test_the_audit_predicts_from_the_impact_the_consumer_reads() -> None:
-    assert migration_audit.first_floor_impact is r3_restitution_gain.first_floor_impact
 
 
 def test_the_revision_is_the_length_of_the_migration_table(
@@ -582,12 +494,8 @@ def test_the_velocity_migration_records_what_it_covers(
     tmp_path: Path, position_ds: DatasetSettings, families: Any, perturbations: Any
 ) -> None:
     plan, store, plugins = legacy(tmp_path, position_ds, families, perturbations)
-    report = migrate_velocity(store, plugins, position_ds, COMMIT, clock)
+    report = reapply_velocity(store, plugins, position_ds, COMMIT, clock)
     assert read_json(report.manifest)[COVERS_KEY] == []
-    inputs = AuditInputs(
-        plan, store, store, report.manifest, plugins, position_ds, "velocity-position"
-    )
-    assert migration_audit.covered_migrations(inputs) == [migration_audit.VELOCITY]
 
 
 def test_a_later_fix_on_a_plan_that_lacks_an_earlier_one_is_refused(
@@ -603,10 +511,3 @@ def test_a_later_fix_on_a_plan_that_lacks_an_earlier_one_is_refused(
     with pytest.raises(ConfigError, match=f"needs `{FLOOR_CROSSING}` first"):
         reapply(store, plugins, position_ds, COMMIT, PAIR_COLLISION, clock)
     assert not (store.root / "migrations").exists()
-
-
-def test_every_migration_has_a_prediction_and_its_audits(position_ds: DatasetSettings) -> None:
-    names = {migration_audit.VELOCITY, *GT_MIGRATIONS}
-    assert set(migration_audit.PREDICTIONS) == names
-    assert set(migration_audit.EXTRA_AUDITS) == names
-    assert PAIR_COLLISION in migrate.migration_names(position_ds)
