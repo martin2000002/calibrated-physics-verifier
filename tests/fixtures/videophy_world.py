@@ -1,5 +1,6 @@
-"""A10 fixtures: miniature VideoPhy tables under the real file names, a recorded review and
-fake perceived verify runs. No network, no videos (``compare`` only reads tables and runs).
+"""Human-agreement fixtures: miniature VideoPhy tables under the real file names, a recorded
+review and fake perceived verify runs. No network, no videos (``compare`` only reads tables and
+runs).
 
 Shared by ``tests/human_agreement`` and ``tests/scripts/human_agreement``; a conftest activates
 the fixtures for its directory by importing them."""

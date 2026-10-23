@@ -1,4 +1,4 @@
-"""``physverify results`` over a fake A8 v2 chain (plan WP-M, acceptance criteria 1-7)."""
+"""``physverify results`` over a fake calibration chain."""
 
 from __future__ import annotations
 
@@ -246,7 +246,7 @@ def test_nothing_is_written_outside_out(cli: CliRunner, chain: Chain, tmp_path: 
     assert sorted(p.name for p in out.iterdir()) == ["results.json", "results.md"]
 
 
-# --- refusals (criterion 3, criterion 6) -------------------------------------------------------
+# Refusals.
 
 
 def _refused(cli: CliRunner, chain: Chain, match: str, *extra: str, h2: bool = True) -> None:

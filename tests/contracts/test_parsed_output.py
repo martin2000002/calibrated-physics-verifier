@@ -1,7 +1,7 @@
 """Output lines that scripts/h200 parses with sed, grep or awk: the scripts' patterns and the text
 the commands print must stay in step. The commands' own tests run the runners' parse functions
 (tests/fixtures/steps_sh.py) on real output: verify and devscore (run:), calibrate evaluate
-(evaluation:), exclusions show (record: ... sha256), agreement compare (H2:)."""
+(evaluation:), exclusions show (record: ... sha256), agreement compare (its summary line)."""
 
 from __future__ import annotations
 

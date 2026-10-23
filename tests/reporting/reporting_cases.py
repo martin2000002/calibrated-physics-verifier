@@ -1,4 +1,4 @@
-"""A fake A8 v2 chain directory over the calibration fixtures, for the results collector."""
+"""A fake calibration chain directory over the calibration fixtures, for the results collector."""
 
 from __future__ import annotations
 
@@ -338,7 +338,7 @@ def write_metrics(
 
 @functools.cache
 def _comparison(level: InputLevel, provisional: bool) -> Comparison:
-    """``compare`` with A8's calibrated rule on the stratum ``level`` (or the provisional rule)."""
+    """``compare`` with the calibrated rule on stratum ``level`` (or the provisional one)."""
     report = synthetic_report(8, 21, split=Split.EVAL, prefix="vp-s", level=InputLevel.PERCEIVED)
     rule: ClipDecisionRule = (
         ProvisionalAnyFail(_projection(InputLevel.PERCEIVED))
