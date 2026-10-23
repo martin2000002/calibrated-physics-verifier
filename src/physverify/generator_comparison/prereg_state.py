@@ -70,12 +70,12 @@ MARGIN_KEYS: Final = {"pc": "noninferiority_margin_pc", "sa": "sa_guard_margin"}
 
 def section_hashes(sections: Mapping[str, Any]) -> dict[str, str]:
     """``[h3]`` without its machine-local ``autoeval`` subtree (the judge is in its stamps)."""
-    h3 = {k: v for k, v in dict(sections.get(SECTION) or {}).items() if k != AUTOEVAL_KEY}
+    comparison = {k: v for k, v in dict(sections.get(SECTION) or {}).items() if k != AUTOEVAL_KEY}
     timing = dict(sections.get(TIMING[0]) or {}).get(TIMING[1])
     hashes = {name: stable_hash({name: sections.get(name)}) for name in PLAIN_SECTIONS}
     return {
         **hashes,
-        SECTION: stable_hash({SECTION: h3}),
+        SECTION: stable_hash({SECTION: comparison}),
         "timing_generation": stable_hash({"timing.generation": timing}),
     }
 

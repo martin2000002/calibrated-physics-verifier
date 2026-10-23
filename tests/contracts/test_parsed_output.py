@@ -13,7 +13,7 @@ from pathlib import Path
 from cli_runner import CliRunner
 from steps_sh import steps_read
 
-from physverify.generator_comparison import status as h3
+from physverify.generator_comparison import status as comparison_status
 
 REPO = Path(__file__).resolve().parents[2]
 SCRIPTS = REPO / "scripts" / "h200"
@@ -142,7 +142,7 @@ def test_a_fragment_inside_a_line_does_not_count_as_its_start() -> None:
 
 
 def test_the_comparison_runner_waits_for_the_gate_line_it_prints() -> None:
-    assert h3.GATE_LINE + h3.GATE_PASSED == "  gate: passed"
+    assert comparison_status.GATE_LINE + comparison_status.GATE_PASSED == "  gate: passed"
 
 
 def test_doctor_prints_the_keys_the_scripts_read(cli: CliRunner) -> None:
