@@ -1,4 +1,5 @@
-"""The review of a VideoPhy subset and the draft queries of its captions."""
+"""The hand review of a VideoPhy subset and the draft queries of its captions, behind
+``agreement subset``."""
 
 from __future__ import annotations
 
@@ -10,6 +11,7 @@ from typing import TYPE_CHECKING, Any
 from physverify.core.atomic import write_text_atomic
 from physverify.core.errors import ConfigError
 from physverify.core.output import Echo
+from physverify.datasets._base import LabelledVideo
 from physverify.datasets._queries import derive_queries
 from physverify.datasets._videophy_review import (
     REVIEWED,
@@ -20,14 +22,13 @@ from physverify.datasets._videophy_review import (
     template,
     write_review,
 )
-from physverify.datasets._videophy_tables import VideophyRow
 
 if TYPE_CHECKING:
     from physverify.config.models import Settings
     from physverify.datasets.videophy import VideophyDataset
 
 
-def reviewed_candidates(dataset: VideophyDataset, subset: str) -> dict[str, list[VideophyRow]]:
+def reviewed_candidates(dataset: VideophyDataset, subset: str) -> dict[str, list[LabelledVideo]]:
     reviewed = dataset.settings.reviewed_subsets
     return {p: rows for p, rows in dataset.candidates(subset).items() if p in reviewed}
 

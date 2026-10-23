@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 
 from physverify.checks._base import Check
 from physverify.core.errors import ConfigError, UsageError
-from physverify.datasets._videophy_tables import VideophyRow
+from physverify.datasets._base import LabelledVideo
 from physverify.human_agreement.clip_decision import (
     CALIBRATED_NAME,
     CalibrationApi,
@@ -123,7 +123,7 @@ def _provisional(
 
 
 def check_run(
-    run: VerifyRun, rows: Sequence[VideophyRow], setup: RuleSetup, split: Split | None
+    run: VerifyRun, rows: Sequence[LabelledVideo], setup: RuleSetup, split: Split | None
 ) -> None:
     """The run must be a perceived verify run over this subset (of ``split`` when given), with
     the rule's thresholds."""

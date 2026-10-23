@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import csv
-import json
 import math
 from collections.abc import Mapping, Sequence
 from pathlib import Path
@@ -14,10 +13,19 @@ from physverify.core.markdown import number, table
 from physverify.human_agreement.breakdown import AGGREGATE
 from physverify.human_agreement.comparison import Comparison
 from physverify.human_agreement.comparison_items import ComparisonItem
-from physverify.human_agreement.coverage import NO_VIDEO
+from physverify.human_agreement.coverage import NO_VIDEO, InputGaps
 from physverify.human_agreement.error_sample import CATEGORIES
+from physverify.human_agreement.metrics import (
+    METRICS_FILE,
+    SUMMARY_FILE,
+    ComparisonMetrics,
+    Coverage,
+    PrimaryVerdict,
+    Sensitivity,
+    ViewBlock,
+)
+from physverify.human_agreement.prereg import FreezeAudit
 from physverify.schema.checks import AbstainReason
-from physverify.schema.io import json_ready
 
 REPORT_DIR = "agreement"
 HONESTY = (
@@ -71,9 +79,8 @@ def write_comparison(out_dir: Path, comparison: Comparison) -> None:
         ("errors.csv", comparison.errors),
     ):
         _write_csv(out_dir / name, rows, list(rows[0]) if rows else ["clip_id"])
-    text = json.dumps(json_ready(comparison.metrics), indent=2, sort_keys=True)
-    write_text_atomic(out_dir / "metrics.json", text + "\n")
-    write_text_atomic(out_dir / "summary.md", summary(comparison.metrics))
+    write_text_atomic(out_dir / METRICS_FILE, comparison.metrics.to_json() + "\n")
+    write_text_atomic(out_dir / SUMMARY_FILE, summary(comparison.metrics))
 
 
 def _fmt(value: Any) -> str:
@@ -203,40 +210,40 @@ def _sign_flip_lines(groups: Mapping[str, Any], policy: str) -> list[str]:
     return [f"Sign flip between versions in verifier - VLM (descriptive): {'; '.join(flips)}."]
 
 
-def _verdict_lines(verdict: Mapping[str, Any], primary: Mapping[str, Any]) -> list[str]:
+def _verdict_lines(verdict: PrimaryVerdict, primary: ViewBlock) -> list[str]:
     ver, vlm = (_fmt(primary[s]["predicted_implausible_rate"]) for s in ("verifier", "vlm"))
     rate = f"verifier predicts implausible on {ver} of clips, the VLM on {vlm}"
-    if verdict.get("gate") is not None:
-        return _not_evaluable_lines(verdict, rate)
-    if not verdict["applicable"]:
+    if verdict.gate is not None:
+        return _not_evaluable_lines(verdict.gate, rate)
+    if not verdict.applicable:
         return [
             (
-                f"**Human-agreement hypothesis: {verdict['reason']}.** The numbers below test the "
+                f"**Human-agreement hypothesis: {verdict.reason}.** The numbers below test the "
                 f"pipeline only; {rate}."
             )
         ]
-    state = "supported" if verdict["supported"] else "not supported"
-    if verdict.get("post_hoc"):
+    state = "supported" if verdict.supported else "not supported"
+    if verdict.post_hoc:
         state += " (POST HOC: the pre-registration was replaced after a test comparison)"
-    low, high = verdict["kappa_difference_ci"]
+    low, high = verdict.kappa_difference_ci
     return [
         (
-            f"**Human-agreement hypothesis {state}** (McNemar p = {_fmt(verdict['mcnemar_p'])}, "
-            f"accuracy difference {_fmt(verdict['accuracy_difference'])}, "
+            f"**Human-agreement hypothesis {state}** (McNemar p = {_fmt(verdict.mcnemar_p)}, "
+            f"accuracy difference {_fmt(verdict.accuracy_difference)}, "
             f"kappa difference CI [{_fmt(low)}, {_fmt(high)}]; "
-            f"minimum detectable accuracy difference {_fmt(verdict['mde_accuracy'])}, estimated "
-            f"with caption clustering {_fmt(verdict.get('mde_accuracy_clustered'))}); {rate}."
+            f"minimum detectable accuracy difference {_fmt(verdict.mde_accuracy)}, estimated "
+            f"with caption clustering {_fmt(verdict.mde_accuracy_clustered)}); {rate}."
         )
     ]
 
 
-def _not_evaluable_lines(verdict: Mapping[str, Any], rate: str) -> list[str]:
+def _not_evaluable_lines(gate: str, rate: str) -> list[str]:
     """Item 1.3: the stratum was not usable, so the provisional rule ran and the study has no
     verdict."""
     return [
         (
             "**Human-agreement hypothesis not evaluable with the calibrated rule** "
-            f"({verdict['gate']}). The numbers below "
+            f"({gate}). The numbers below "
             f"are descriptive, from the provisional rule; {rate}."
         ),
         (
@@ -246,13 +253,14 @@ def _not_evaluable_lines(verdict: Mapping[str, Any], rate: str) -> list[str]:
     ]
 
 
-def _abstention_lines(abstention: Mapping[str, Any], coverage: Mapping[str, Any]) -> list[str]:
+def _abstention_lines(
+    abstention: Mapping[str, Mapping[str, int]], coverage: Mapping[str, Coverage]
+) -> list[str]:
     """INTERVAL_CROSSES_THRESHOLD is shown apart: the evidence exists but is too uncertain."""
     reasons = dict(abstention["reasons"])
     crossing = reasons.pop(AbstainReason.INTERVAL_CROSSES_THRESHOLD.value, 0)
     decided = ", ".join(
-        f"{g} {_fmt(c['coverage'])} ({_fmt(c['decided'])}/{_fmt(c['n'])})"
-        for g, c in coverage.items()
+        f"{g} {_fmt(c.coverage)} ({_fmt(c.decided)}/{_fmt(c.n)})" for g, c in coverage.items()
     )
     return [
         f"Verifier outcomes: {abstention['outcomes']}. Coverage (decided fraction): {decided}.",
@@ -268,89 +276,88 @@ def _breakdown_lines(title: str, columns: Sequence[str], rows: Sequence[Any]) ->
     return [f"## {title}", "", *(table(columns, body) if body else ["(none)"]), ""]
 
 
-def _sensitivity_lines(block: Mapping[str, Any]) -> list[str]:
-    moved = "without" if block["time_dependent_in_primary"] else "with"
+def _sensitivity_lines(block: Sensitivity) -> list[str]:
+    moved = "without" if block.time_dependent_in_primary else "with"
     lines = [
         f"## Sensitivity {moved} the time-dependent checks",
         "",
         (
-            f"Time-dependent: {', '.join(block['time_dependent']) or 'none'}; excluded here: "
-            f"{', '.join(block['excluded']) or 'none'}; policy {block['policy']}, no bootstrap."
+            f"Time-dependent: {', '.join(block.time_dependent) or 'none'}; excluded here: "
+            f"{', '.join(block.excluded) or 'none'}; policy {block.policy}, no bootstrap."
         ),
         "",
     ]
     columns = ["group", "system", "n", *(label for _, label in SYSTEM_COLUMNS)]
-    rows = [[g, *row] for g, view in block["groups"].items() for row in _system_rows(view)[:2]]
+    rows = [[g, *row] for g, view in block.groups.items() for row in _system_rows(view)[:2]]
     return [*lines, *table(columns, rows), ""]
 
 
-def _audit_lines(audit: Mapping[str, Any] | None) -> list[str]:
+def _audit_lines(audit: FreezeAudit | None) -> list[str]:
     if audit is None:
         return []
-    deviations = "; ".join(audit["deviations"]) or "none"
+    deviations = "; ".join(audit.deviations) or "none"
     return [
         (
-            f"Pre-registration {audit['prereg_sha256'][:12]} (created {audit['created_utc']}, "
-            f"replaces {(audit['replaces_sha256'] or 'none')[:12]}, "
-            f"{audit['versions']} version(s), "
-            f"first frozen {audit['first_created_utc']}); verify run files from "
-            f"{audit['earliest_eval_utc'] or 'n/a'}, first freeze before them: {audit['blind']}, "
-            f"current freeze after them: {audit.get('frozen_after_eval')} "
+            f"Pre-registration {audit.prereg_sha256[:12]} (created {audit.created_utc}, "
+            f"replaces {(audit.replaces_sha256 or 'none')[:12]}, "
+            f"{audit.versions} version(s), "
+            f"first frozen {audit.first_created_utc}); verify run files from "
+            f"{audit.earliest_eval_utc or 'n/a'}, first freeze before them: {audit.blind}, "
+            f"current freeze after them: {audit.frozen_after_eval} "
             "(file times are informational); post hoc: "
-            f"{'YES' if audit['post_hoc'] else 'no'}; deviations: {deviations}."
+            f"{'YES' if audit.post_hoc else 'no'}; deviations: {deviations}."
         ),
         "",
     ]
 
 
-def _gap_lines(gaps: Mapping[str, Any] | None) -> list[str]:
+def _gap_lines(gaps: InputGaps | None) -> list[str]:
     if gaps is None:
         return []
-    missing = [(g, c[NO_VIDEO]) for g, c in sorted(gaps["by_generator"].items()) if c[NO_VIDEO]]
+    missing = [(g, c[NO_VIDEO]) for g, c in sorted(gaps.by_generator.items()) if c[NO_VIDEO]]
     generators = ", ".join(f"{g} {n}" for g, n in missing) or "none"
     return [
         (
-            f"No object query: {gaps['no_query']} rows ({gaps['no_query_with_video']} with video, "
-            f"compared as abstentions); videos missing from the source: {gaps['no_video']} "
+            f"No object query: {gaps.no_query} rows ({gaps.no_query_with_video} with video, "
+            f"compared as abstentions); videos missing from the source: {gaps.no_video} "
             f"(by generator: {generators})."
         )
     ]
 
 
-def _header_lines(metrics: Mapping[str, Any]) -> list[str]:
-    counts, run = metrics["counts"], metrics["run"]
-    primary = metrics["groups"][AGGREGATE][metrics["primary_policy"]]
+def _header_lines(metrics: ComparisonMetrics) -> list[str]:
+    counts, run = metrics.counts, metrics.run
     return [
         "# Verifier vs reference VLM on VideoPhy human labels",
         "",
         (
-            f"Rule: `{metrics['rule']}`. Primary policy: `{metrics['primary_policy']}`. "
-            f"Pre-registered: {'yes' if metrics['preregistered'] else 'no (exploratory)'}. "
-            f"Run: `{run['path']}` ({run['profile']}, {run['device']})."
+            f"Rule: `{metrics.rule}`. Primary policy: `{metrics.primary_policy}`. "
+            f"Pre-registered: {'yes' if metrics.preregistered else 'no (exploratory)'}. "
+            f"Run: `{run.path}` ({run.profile}, {run.device})."
         ),
         "",
-        *_audit_lines(metrics.get("preregistration")),
-        *_verdict_lines(metrics["h2_verdict"], primary),
+        *_audit_lines(metrics.preregistration),
+        *_verdict_lines(metrics.h2_verdict, metrics.primary),
         "",
         (
-            f"Rows {counts['rows']}, compared {counts['compared']}; left out: no human label "
-            f"{counts['human_missing']}, no VLM prediction {counts['vlm_missing']}. Clips missing "
-            f"from the run: {counts['not_verified']} (compared as check_error abstentions)."
+            f"Rows {counts.rows}, compared {counts.compared}; left out: no human label "
+            f"{counts.human_missing}, no VLM prediction {counts.vlm_missing}. Clips missing "
+            f"from the run: {counts.not_verified} (compared as check_error abstentions)."
         ),
-        *_gap_lines(metrics.get("input_gaps")),
-        *_abstention_lines(metrics["abstention"], metrics["coverage"]),
-        *_sign_flip_lines(metrics["groups"], metrics["primary_policy"]),
+        *_gap_lines(metrics.input_gaps),
+        *_abstention_lines(metrics.abstention, metrics.coverage),
+        *_sign_flip_lines(metrics.groups, metrics.primary_policy),
         "",
     ]
 
 
-def summary(metrics: Mapping[str, Any]) -> str:
+def summary(metrics: ComparisonMetrics) -> str:
     lines = _header_lines(metrics)
-    for group, policies in metrics["groups"].items():
+    for group, policies in metrics.groups.items():
         lines += _group_lines(group, policies)
-    lines += _breakdown_lines("Per check", PER_CHECK_COLUMNS, metrics["per_check"])
-    lines += _breakdown_lines("Per generator", PER_GENERATOR_COLUMNS, metrics["per_generator"])
-    lines += _sensitivity_lines(metrics["sensitivity_time_dependent"])
+    lines += _breakdown_lines("Per check", PER_CHECK_COLUMNS, metrics.per_check)
+    lines += _breakdown_lines("Per generator", PER_GENERATOR_COLUMNS, metrics.per_generator)
+    lines += _sensitivity_lines(metrics.sensitivity_time_dependent)
     lines += ["Honesty notes:", "", *(f"- {note}" for note in HONESTY)]
     lines += ["", f"errors.csv categories (filled by hand): {', '.join(CATEGORIES)}.", ""]
     return "\n".join(lines)

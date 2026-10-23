@@ -1,4 +1,4 @@
-"""Human-agreement wiring: the VideoPhy label source, the subset review and the comparison
+"""Human-agreement wiring: the configured label source, its subset review and the comparison
 behind ``physverify agreement``."""
 
 from __future__ import annotations
@@ -8,36 +8,44 @@ import functools
 from pathlib import Path
 
 from physverify.app.context import AppContext
+from physverify.app.services import label_source_class
+from physverify.config.plugin_context import PluginContext
 from physverify.core.output import Echo
-from physverify.datasets._base import fetch_all
-from physverify.datasets.videophy import VideophyDataset
+from physverify.datasets._base import HumanLabelSource, fetch_all
 from physverify.human_agreement.clip_decision import import_calibration
-from physverify.human_agreement.settings import agreement_settings
-from physverify.human_agreement.subset_review import check_recorded, record_subsets, review_subset
+from physverify.human_agreement.settings import SECTION, agreement_settings
 from physverify.human_agreement.workflow import CompareRequest as CompareRequest
 from physverify.human_agreement.workflow import apply_freeze, compare_and_report, freeze
 
+LABEL_SOURCE_KEY = f"[{SECTION}] label_source"
 
-def _source(context: AppContext) -> VideophyDataset:
-    return VideophyDataset(context.settings)
+
+def label_source_type(context: PluginContext) -> type[HumanLabelSource]:
+    """The dataset plugin ``[agreement] label_source`` names."""
+    name = agreement_settings(context.settings).label_source
+    return label_source_class(context, LABEL_SOURCE_KEY, name)
+
+
+def label_source(context: PluginContext) -> HumanLabelSource:
+    return label_source_type(context)(context.settings)
 
 
 def fetch(context: AppContext, subset: str | None, *, echo: Echo) -> None:
-    fetch_all([VideophyDataset], context.settings, subset, echo=echo)
+    fetch_all([label_source_type(context)], context.settings, subset, echo=echo)
 
 
 def subset(
     context: AppContext, name: str | None, *, show: bool, record: bool, check: bool, echo: Echo
 ) -> None:
     """Check the recorded review, record it, or write (and with ``show`` print) the pending one."""
-    dataset = _source(context)
+    dataset = label_source(context)
     chosen = name or agreement_settings(context.settings).test_subset
     if check:
-        check_recorded(dataset, echo=echo)
+        dataset.check_review(echo=echo)
     elif record:
-        record_subsets(dataset, chosen, echo=echo)
+        dataset.record_review(chosen, echo=echo)
     else:
-        review_subset(dataset, context.settings, chosen, show=show, echo=echo)
+        dataset.review_subset(chosen, show=show, echo=echo)
 
 
 def preregister(
@@ -52,7 +60,7 @@ def preregister(
     path, current = freeze(
         context.settings,
         context.registry("checks"),
-        _source(context),
+        label_source(context),
         run_dir,
         import_calibration,
         dt.datetime.now(dt.UTC),
@@ -64,7 +72,7 @@ def compare(context: AppContext, request: CompareRequest, *, echo: Echo) -> None
     compare_and_report(
         context.settings,
         context.registry("checks"),
-        _source(context),
+        label_source(context),
         request,
         import_calibration,
         functools.partial(dt.datetime.now, dt.UTC),

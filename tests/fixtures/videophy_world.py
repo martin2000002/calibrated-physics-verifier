@@ -129,7 +129,7 @@ def dataset(settings: Settings) -> VideophyDataset:
 def keep_all(dataset: VideophyDataset) -> None:
     """Record a review that keeps every candidate caption of the reviewed test parts."""
     from physverify.datasets._videophy_review import record
-    from physverify.human_agreement.subset_review import audit, reviewed_candidates
+    from physverify.datasets._videophy_subset import audit, reviewed_candidates
 
     pending = audit(dataset, "h2_test")
     decisions = {p: dict.fromkeys(t, "keep") for p, t in pending.decisions.items()}

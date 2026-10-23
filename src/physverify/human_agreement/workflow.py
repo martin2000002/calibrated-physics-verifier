@@ -15,8 +15,6 @@ from physverify.core.digests import sha256_if_file
 from physverify.core.errors import UsageError
 from physverify.core.log import get_logger
 from physverify.core.output import Echo
-from physverify.datasets._videophy_review import load_review
-from physverify.datasets._videophy_tables import SECTION as VIDEOPHY_SECTION
 from physverify.human_agreement.clip_decision import (
     CALIBRATED_NAME,
     CalibrationStratum,
@@ -66,24 +64,22 @@ from physverify.verification.scope import require_record_for
 
 if TYPE_CHECKING:
     from physverify.config.models import Settings
-    from physverify.datasets.videophy import VideophyDataset
+    from physverify.datasets._base import HumanLabelSource
 
 # The command's logger name, kept so the log lines of ``agreement freeze`` do not change.
 log = get_logger("cli.agreement")
 
 
 def frozen_state(
-    settings: Settings, dataset: VideophyDataset, setup: RuleSetup, profile: str
+    settings: Settings, dataset: HumanLabelSource, setup: RuleSetup, profile: str
 ) -> dict[str, object]:
     """Current values of the pre-registered fields (``prereg.FROZEN_FIELDS``)."""
-    review = load_review(dataset.subset_path)
-    subsets = {} if review is None else {p: r.sha256 for p, r in review.subsets.items()}
-    sections = (SECTION, VIDEOPHY_SECTION, SCOPE_SECTION)
+    sections = (SECTION, dataset.config_section, SCOPE_SECTION)
     config = {name: settings.sections.get(name) for name in sections}
     return {
         "commit": current_commit(settings.repo_root),
         "agreement_config_sha256": stable_hash(config),
-        "subset_sha256": subsets,
+        "subset_sha256": dataset.recorded_subsets(),
         "queries_sha256": sha256_if_file(dataset.queries_path),
         "calibration_artifact_sha256": None
         if setup.artifact is None
@@ -100,7 +96,7 @@ def frozen_state(
 def freeze[S: CalibrationStratum](
     settings: Settings,
     checks: Mapping[str, type[Check]],
-    dataset: VideophyDataset,
+    dataset: HumanLabelSource,
     run_dir: Path,
     api_loader: ApiLoader[S],
     now: dt.datetime,
@@ -196,7 +192,7 @@ def freeze_audit(
 def run_comparison[S: CalibrationStratum](
     settings: Settings,
     checks: Mapping[str, type[Check]],
-    dataset: VideophyDataset,
+    dataset: HumanLabelSource,
     request: CompareRequest,
     api_loader: ApiLoader[S],
 ) -> Comparison:
@@ -259,7 +255,7 @@ def log_test_comparison(
 def compare_and_report[S: CalibrationStratum](
     settings: Settings,
     checks: Mapping[str, type[Check]],
-    dataset: VideophyDataset,
+    dataset: HumanLabelSource,
     request: CompareRequest,
     api_loader: ApiLoader[S],
     clock: Callable[[], dt.datetime],
@@ -280,13 +276,13 @@ def compare_and_report[S: CalibrationStratum](
 
 
 def verdict_lines(comparison: Comparison) -> list[str]:
-    verdict = comparison.metrics["h2_verdict"]
-    lines = [f"rule: {comparison.metrics['rule']}; compared {comparison.counts.compared}"]
-    if not verdict["applicable"]:
-        lines.append(f"H2: {verdict['reason']}")
+    verdict = comparison.metrics.h2_verdict
+    lines = [f"rule: {comparison.metrics.rule}; compared {comparison.counts.compared}"]
+    if not verdict.applicable:
+        lines.append(f"H2: {verdict.reason}")
     else:
-        post_hoc = " (POST HOC)" if verdict["post_hoc"] else ""
-        lines.append(f"H2: {'supported' if verdict['supported'] else 'not supported'}{post_hoc}")
+        post_hoc = " (POST HOC)" if verdict.post_hoc else ""
+        lines.append(f"H2: {'supported' if verdict.supported else 'not supported'}{post_hoc}")
     return lines
 
 

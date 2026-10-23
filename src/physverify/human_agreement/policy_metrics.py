@@ -11,6 +11,7 @@ from typing import Any
 import numpy as np
 
 from physverify.human_agreement.comparison_items import ComparisonItem
+from physverify.human_agreement.metrics import PrimaryVerdict
 from physverify.human_agreement.stats import (
     Labels,
     Scores,
@@ -222,7 +223,7 @@ def h2_verdict(
     *,
     post_hoc: bool = False,
     gate: str | None = None,
-) -> dict[str, Any]:
+) -> PrimaryVerdict:
     """The human-agreement study's hypothesis holds when McNemar p < alpha with the verifier more
     accurate AND the lower CI bound of kappa_verifier - kappa_vlm is above 0. Only the calibrated
     rule can support or reject it. ``post_hoc``: the pre-registration was replaced after a test
@@ -238,19 +239,19 @@ def h2_verdict(
     )
     holds = bool(p_value < alpha and acc_gain > 0 and interval[0] > 0)
     applicable = calibrated and gate is None
-    return {
-        "applicable": applicable,
-        "supported": holds if applicable else None,
-        "status": _status(calibrated, gate),
-        "reason": _verdict_reason(calibrated, gate),
-        "gate": gate,
-        "mcnemar_p": p_value,
-        "accuracy_difference": acc_gain,
-        "kappa_difference_ci": list(interval),
-        "mde_accuracy": primary.get("mde_accuracy", math.nan),
-        "mde_accuracy_clustered": primary.get("mde_accuracy_clustered", math.nan),
-        "post_hoc": post_hoc,
-    }
+    return PrimaryVerdict(
+        applicable=applicable,
+        supported=holds if applicable else None,
+        status=_status(calibrated, gate),
+        reason=_verdict_reason(calibrated, gate),
+        gate=gate,
+        mcnemar_p=p_value,
+        accuracy_difference=acc_gain,
+        kappa_difference_ci=tuple(interval),
+        mde_accuracy=primary.get("mde_accuracy", math.nan),
+        mde_accuracy_clustered=primary.get("mde_accuracy_clustered", math.nan),
+        post_hoc=post_hoc,
+    )
 
 
 def _status(calibrated: bool, gate: str | None) -> str:

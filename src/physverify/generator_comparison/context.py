@@ -9,9 +9,7 @@ from typing import Final
 
 from physverify.config.models import Settings
 from physverify.core.choices import choice
-from physverify.core.errors import ConfigError, UsageError
-from physverify.datasets._videophy_tables import LABELS_DIR, read_table
-from physverify.datasets.videophy import FETCH_HINT, VideophyDataset
+from physverify.core.errors import UsageError
 from physverify.finetune.layout import SELECTED_FILE, CampaignStore
 from physverify.finetune.records import BASE_TAG, read_record
 from physverify.finetune.selection import Selection
@@ -59,20 +57,6 @@ def arm_of(h: ComparisonContext, arm: str) -> tuple[str, Path | None]:
     if chosen is None:
         raise UsageError("no checkpoint passed selection, so there is no ft arm")
     return chosen.model_tag, Path(chosen.adapter)
-
-
-def reference_path(h: ComparisonContext) -> Path:
-    dataset = VideophyDataset(h.settings)
-    part = dataset.settings.parts.get(h.cfg.gate.part)
-    if part is None or part.reference is None:
-        raise ConfigError(f"[videophy.parts.{h.cfg.gate.part}] has no reference table")
-    return h.settings.paths.raw_dir / VideophyDataset.name / LABELS_DIR / part.reference.file
-
-
-def reference_rows(path: Path) -> list[dict[str, str]]:
-    if not path.is_file():
-        raise UsageError(f"{path} is missing; run `{FETCH_HINT}`")
-    return read_table(path)
 
 
 def arm_tags(prereg: ComparisonPreregistration) -> list[str]:

@@ -5,12 +5,12 @@ from __future__ import annotations
 
 import math
 from collections.abc import Sequence
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
 
-from physverify.datasets._videophy_tables import VideophyRow
+from physverify.datasets._base import LabelledVideo
 from physverify.human_agreement.breakdown import AGGREGATE, by_version, per_check, per_group
 from physverify.human_agreement.clip_decision import CALIBRATED_NAME, ClipDecisionRule
 from physverify.human_agreement.comparison_items import (
@@ -22,6 +22,15 @@ from physverify.human_agreement.comparison_items import (
 )
 from physverify.human_agreement.coverage import InputGaps, generator_key
 from physverify.human_agreement.error_sample import sample_errors
+from physverify.human_agreement.metrics import (
+    CalibrationState,
+    ComparisonMetrics,
+    Coverage,
+    PrimaryVerdict,
+    RunInfo,
+    Sensitivity,
+    ViewBlock,
+)
 from physverify.human_agreement.policy_metrics import (
     BootstrapPlan,
     best_cut,
@@ -54,7 +63,7 @@ class RuleScope:
 
 @dataclass(frozen=True)
 class ComparisonInputs:
-    rows: Sequence[VideophyRow]
+    rows: Sequence[LabelledVideo]
     run: VerifyRun
     rule: ClipDecisionRule
     agreement: AgreementSettings
@@ -76,7 +85,7 @@ class ComparisonInputs:
 class Comparison:
     items: tuple[ComparisonItem, ...]
     counts: JoinCounts
-    metrics: dict[str, Any]
+    metrics: ComparisonMetrics
     per_check: list[dict[str, object]]
     per_generator: list[dict[str, object]]
     errors: list[dict[str, object]]
@@ -92,7 +101,7 @@ def _items(
 
 def _groups(
     inputs: ComparisonInputs, items: Sequence[ComparisonItem], plan: BootstrapPlan
-) -> dict[str, Any]:
+) -> dict[str, dict[str, ViewBlock]]:
     test = (inputs.agreement.alpha, inputs.agreement.power)
     return {
         group: {
@@ -119,7 +128,7 @@ def _frozen_design_effect(inputs: ComparisonInputs, group: str, policy: str) -> 
 
 def _secondary(
     rule: ClipDecisionRule, inputs: ComparisonInputs, items: Sequence[ComparisonItem]
-) -> dict[str, Any]:
+) -> dict[str, dict[str, dict[str, float]]]:
     cuts = {"dev_tuned": inputs.dev_tuned_cut, "kubric_threshold": rule.kubric_threshold}
     return {
         name: {g: cut_metrics(m, range(len(m)), cut) for g, m in by_version(items).items()}
@@ -128,110 +137,126 @@ def _secondary(
     }
 
 
-def _sensitivity(inputs: ComparisonInputs) -> dict[str, Any]:
+def _plan(agreement: AgreementSettings, replicas: int) -> BootstrapPlan:
+    return BootstrapPlan(
+        replicas, agreement.bootstrap_seed, agreement.ci, agreement.permutation_exact_max
+    )
+
+
+def _sensitivity(inputs: ComparisonInputs) -> Sensitivity:
     """The primary policy with the time-dependent checks moved: out of the primary by default,
     back in when the primary already leaves them out."""
     scope = inputs.scope
     in_primary = not scope.primary_excluded
     moved, _ = _items(inputs, scope.time_dependent if in_primary else frozenset())
-    plan = BootstrapPlan(
-        0,
-        inputs.agreement.bootstrap_seed,
-        inputs.agreement.ci,
-        inputs.agreement.permutation_exact_max,
-    )
+    plan = _plan(inputs.agreement, 0)
     test = (inputs.agreement.alpha, inputs.agreement.power)
     policy = inputs.agreement.primary_policy
-    return {
-        "time_dependent": sorted(scope.time_dependent),
-        "time_dependent_in_primary": in_primary,
-        "excluded": sorted(scope.time_dependent) if in_primary else [],
-        "policy": policy,
-        "groups": {
+    return Sensitivity(
+        time_dependent=sorted(scope.time_dependent),
+        time_dependent_in_primary=in_primary,
+        excluded=sorted(scope.time_dependent) if in_primary else [],
+        policy=policy,
+        groups={
             g: evaluate_view(m, policy_view(m, policy), inputs.dev_majority, plan, test)
             for g, m in by_version(moved).items()
         },
-    }
+    )
 
 
-def _coverage(items: Sequence[ComparisonItem]) -> dict[str, float]:
+def _coverage(items: Sequence[ComparisonItem]) -> Coverage:
     """Fraction of compared clips the verifier decided (plausible or implausible)."""
     n_decided = len(decided(items, range(len(items))))
-    return {
-        "n": float(len(items)),
-        "decided": float(n_decided),
-        "coverage": n_decided / len(items) if items else math.nan,
-    }
-
-
-def compare(inputs: ComparisonInputs) -> Comparison:
-    agreement = inputs.agreement
-    rule = inputs.rule
-    primary_excluded = inputs.scope.primary_excluded
-    items, counts = _items(inputs, primary_excluded)
-    plan = BootstrapPlan(
-        agreement.bootstrap_n,
-        agreement.bootstrap_seed,
-        agreement.ci,
-        agreement.permutation_exact_max,
+    return Coverage(
+        n=float(len(items)),
+        decided=float(n_decided),
+        coverage=n_decided / len(items) if items else math.nan,
     )
-    groups = _groups(inputs, items, plan)
-    primary = groups[AGGREGATE][agreement.primary_policy]
-    policy = agreement.primary_policy
+
+
+def _verdict(inputs: ComparisonInputs, primary: ViewBlock) -> PrimaryVerdict:
+    audit = inputs.audit
+    return h2_verdict(
+        primary,
+        inputs.rule.name == CALIBRATED_NAME and inputs.preregistered,
+        inputs.agreement.alpha,
+        post_hoc=audit is not None and audit.post_hoc,
+        gate=inputs.gate,
+    )
+
+
+@dataclass(frozen=True)
+class _Compared:
+    items: list[ComparisonItem]
+    counts: JoinCounts
+    groups: dict[str, dict[str, ViewBlock]]
+    per_check: list[dict[str, object]]
+    per_generator: list[dict[str, object]]
+
+
+def _compared(inputs: ComparisonInputs) -> _Compared:
+    """The primary items, every policy view of every group, and the two breakdowns."""
+    primary_excluded = inputs.scope.primary_excluded
+    policy = inputs.agreement.primary_policy
+    items, counts = _items(inputs, primary_excluded)
 
     def redecide(excluded: frozenset[str]) -> list[ComparisonItem]:
         return _items(inputs, primary_excluded | excluded)[0]
 
-    checks = per_check(items, redecide, inputs.run.check_ids, policy)
-    generators = per_group(items, lambda it: generator_key(it.row), policy)
-    audit = inputs.audit
-    metrics: dict[str, Any] = {
-        "rule": rule.label,
-        "calibration": {"gate": inputs.gate, "stratum": inputs.calibration},
-        "primary_excluded": sorted(primary_excluded),
-        "preregistered": inputs.preregistered,
-        "preregistration": None if audit is None else audit.model_dump(),
-        "run": {
-            "path": str(inputs.run.path),
-            "profile": inputs.run.profile,
-            "device": inputs.run.device,
-        },
-        "primary_policy": agreement.primary_policy,
-        "counts": asdict(counts),
-        "abstention": abstention_counts(items),
-        "input_gaps": None if inputs.gaps is None else asdict(inputs.gaps),
-        "coverage": {g: _coverage(m) for g, m in by_version(items).items()},
-        "h2_group": AGGREGATE,
-        "descriptive_groups": [g for g in groups if g != AGGREGATE],
-        "groups": groups,
-        "per_check": checks,
-        "per_generator": generators,
-        "secondary_cuts": _secondary(rule, inputs, items),
-        "sensitivity_time_dependent": _sensitivity(inputs),
-        "risk_coverage_vlm": {g: risk_coverage(m) for g, m in by_version(items).items()},
-        "h2_verdict": h2_verdict(
-            primary,
-            rule.name == CALIBRATED_NAME and inputs.preregistered,
-            agreement.alpha,
-            post_hoc=audit is not None and audit.post_hoc,
-            gate=inputs.gate,
-        ),
-    }
-    return Comparison(
-        items=tuple(items),
+    return _Compared(
+        items=items,
         counts=counts,
-        metrics=metrics,
-        per_check=checks,
-        per_generator=generators,
+        groups=_groups(inputs, items, _plan(inputs.agreement, inputs.agreement.bootstrap_n)),
+        per_check=per_check(items, redecide, inputs.run.check_ids, policy),
+        per_generator=per_group(items, lambda it: generator_key(it.row), policy),
+    )
+
+
+def _metrics(inputs: ComparisonInputs, compared: _Compared) -> ComparisonMetrics:
+    items, groups = compared.items, compared.groups
+    run = inputs.run
+    return ComparisonMetrics(
+        rule=inputs.rule.label,
+        calibration=CalibrationState(gate=inputs.gate, stratum=inputs.calibration),
+        primary_excluded=sorted(inputs.scope.primary_excluded),
+        preregistered=inputs.preregistered,
+        preregistration=inputs.audit,
+        run=RunInfo(path=str(run.path), profile=run.profile, device=run.device),
+        primary_policy=inputs.agreement.primary_policy,
+        counts=compared.counts,
+        abstention=abstention_counts(items),
+        input_gaps=inputs.gaps,
+        coverage={g: _coverage(m) for g, m in by_version(items).items()},
+        h2_group=AGGREGATE,
+        descriptive_groups=[g for g in groups if g != AGGREGATE],
+        groups=groups,
+        per_check=compared.per_check,
+        per_generator=compared.per_generator,
+        secondary_cuts=_secondary(inputs.rule, inputs, items),
+        sensitivity_time_dependent=_sensitivity(inputs),
+        risk_coverage_vlm={g: risk_coverage(m) for g, m in by_version(items).items()},
+        h2_verdict=_verdict(inputs, groups[AGGREGATE][inputs.agreement.primary_policy]),
+    )
+
+
+def compare(inputs: ComparisonInputs) -> Comparison:
+    compared = _compared(inputs)
+    agreement = inputs.agreement
+    return Comparison(
+        items=tuple(compared.items),
+        counts=compared.counts,
+        metrics=_metrics(inputs, compared),
+        per_check=compared.per_check,
+        per_generator=compared.per_generator,
         errors=sample_errors(
-            items,
+            compared.items,
             agreement.error_sample_per_class,
             agreement.error_seed,
-            rule.tau,
+            inputs.rule.tau,
             inputs.run.results,
-            policy,
+            agreement.primary_policy,
         ),
-        audit=audit,
+        audit=inputs.audit,
     )
 
 
@@ -246,7 +271,7 @@ class DevFreeze:
 
 
 def freeze_dev(
-    rows: Sequence[VideophyRow], rule: ClipDecisionRule, run: VerifyRun, policy: str
+    rows: Sequence[LabelledVideo], rule: ClipDecisionRule, run: VerifyRun, policy: str
 ) -> DevFreeze:
     """On h2_dev: the majority class, the cut of maximum balanced accuracy on the score
     (primary for the calibrated rule, secondary ``dev_tuned`` for the provisional one) and the
