@@ -10,6 +10,7 @@ from typing import Any
 
 import pytest
 from cli_runner import CliResult, CliRunner
+from steps_sh import steps_read
 from synthetic_clip import SyntheticFixtureDataset
 
 from physverify.cli import context
@@ -51,6 +52,14 @@ def test_the_oracle_run_exits_zero_and_writes_the_run(cli: CliRunner, lock_path:
     assert {row["status"] for row in rows} == {RowStatus.SCORED.value, RowStatus.NO_EVENT.value}
     assert "thresholds: provisional" in result.out
     assert not holder_path(lock_path).exists()
+
+
+def test_the_runners_read_the_run_directory_verify_prints(cli: CliRunner, tmp_path: Path) -> None:
+    result = cli("verify", *DATASET, "--level", "oracle")
+    assert result.code == 0, result.err
+    log = tmp_path / "verify.log"
+    log.write_text(result.out, encoding="utf-8")
+    assert Path(steps_read(log, "run_of")) == run_dir(result)
 
 
 def test_a_perceived_run_never_takes_the_lock(cli: CliRunner, lock_path: Path) -> None:

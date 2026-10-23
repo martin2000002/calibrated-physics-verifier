@@ -13,17 +13,21 @@ from typing import Any, ClassVar
 import pytest
 from calibration_cases import DATASET, synthetic_report
 from cli_runner import CliRunner
+from steps_sh import steps_read
 
 from physverify.calibration.loader import load_calibration
+from physverify.calibration.settings import check_registry
 from physverify.cli import context
 from physverify.cli.commands import calibrate
 from physverify.config.loader import load_settings
 from physverify.config.models import Settings
 from physverify.datasets._base import GroundTruthStore, VideoSource
+from physverify.schema.checks import InputLevel
 from physverify.schema.clip import ClipManifest, Split
 from physverify.verification.runner import VerificationReport
 
 EXIT_USAGE = 2
+DEVELOPMENT_METRIC_LINES = re.compile("^(note: |oracle/|perceived/|  R|selection )")
 CALIB = synthetic_report(24)
 HELD = synthetic_report(4, seed=7, split=Split.EVAL, prefix="e")
 CLIPS = CALIB.clips + HELD.clips
@@ -120,3 +124,18 @@ def test_devscore_writes_only_its_run_and_out(
     fit = load_calibration(run_dir / "calibration.json")
     assert [lv["profile"] for lv in data["levels"]] == [s.profile for s in fit.artifact.strata]
     assert re.search(r"oracle/fast: 1/\d+ meet H1 and J_cv\^lo > 0 \(R1\)", result.out)
+
+
+def test_the_runners_keep_the_development_metric_lines(
+    cli: CliRunner, calls: list[int], tmp_path: Path
+) -> None:
+    """run_iteration.sh step 5: run_of finds the run and its grep keeps the metric lines."""
+    result = cli(*FAST, "calibrate", "devscore", "--dataset", DATASET, "--level", "oracle")
+    assert result.code == 0, result.err
+    log = tmp_path / "devscore.log"
+    log.write_text(result.out, encoding="utf-8")
+    assert (Path(steps_read(log, "run_of")) / "devscore.json").is_file()
+    kept = [line for line in result.out.splitlines() if DEVELOPMENT_METRIC_LINES.match(line)]
+    assert kept[0].startswith("note: ") and kept[1].startswith("oracle/fast: ")
+    assert [line.split(":")[0] for line in kept[2:]] == [f"  {c}" for c in sorted(check_registry())]
+    assert InputLevel.PERCEIVED.value == "perceived"

@@ -13,6 +13,7 @@ from typing import Any, ClassVar
 import pytest
 from calibration_cases import DATASET, synthetic_report
 from cli_runner import CliRunner
+from steps_sh import steps_read
 
 from physverify.calibration.loader import load_calibration, projection_name
 from physverify.cli import context
@@ -264,6 +265,20 @@ def test_evaluate_without_primary_scenes_has_no_h1_view(
 ) -> None:
     data = _evaluate_cli(cli, family_run, tmp_path, "--set", "h1_scope.primary_scenes=[]")
     assert data["h1_primary"] is None
+
+
+def test_the_runners_read_the_evaluation_calibrate_evaluate_prints(
+    cli: CliRunner, family_run: str, tmp_path: Path, settings: Settings
+) -> None:
+    out = tmp_path / "cal" / "calibration.json"
+    fit(cli, family_run, out)
+    result = cli(*FAST, "calibrate", "evaluate", "--dataset", DATASET, "--no-real",
+                 "--artifact", str(out))  # fmt: skip
+    assert result.code == 0, result.err
+    log = tmp_path / "evaluate.log"
+    log.write_text(result.out, encoding="utf-8")
+    path = Path(steps_read(log, "evaluation_of", str(log)))
+    assert path.is_file() and path.parent.parent == settings.paths.runs_dir
 
 
 def _snapshot(*folders: Path) -> dict[Path, tuple[str, int]]:

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import dataclasses
 import json
-import subprocess
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from types import MappingProxyType
@@ -15,6 +14,7 @@ from calibration_cases import CHECKS, clip, result, synthetic_report
 from calibration_cases import record as perturbation
 from cli_runner import CliRunner
 from exclusion_cases import PRECISE, R2_PERT, evaluation, r5a_check, real_fpr, record, rules
+from steps_sh import steps_read
 from stratum_cases import artifact_of, check_calibration, stratum_model
 
 from physverify.calibration.exclusion_record import ExclusionInputError, parse_record
@@ -303,16 +303,9 @@ def test_the_runners_read_the_hash_check_scope_carries(
     _written(cli, world)
     log = tmp_path / "show.log"
     log.write_text(cli("exclusions", "show").out, encoding="utf-8")
-    steps = Path(__file__).resolve().parents[2] / "scripts" / "h200" / "_steps.sh"
-    read = subprocess.run(
-        ["bash", "-c", 'source "$1" && record_sha_of "$2"', "_", str(steps), str(log)],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
     scope = check_scope(world, check_registry())
     assert scope.record_sha256 is not None
-    assert read.stdout.strip() == scope.record_sha256
+    assert steps_read(log, "record_sha_of", str(log)) == scope.record_sha256
 
 
 def test_show_without_a_record_is_a_usage_error(cli: CliRunner, world: Settings) -> None:
