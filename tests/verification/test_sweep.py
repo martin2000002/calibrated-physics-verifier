@@ -31,10 +31,10 @@ from physverify.verification.sweep import (
     SpecificityReport,
     SpecificitySettings,
     matrix,
-    specificity,
     target_check_ids,
     write_sweep,
 )
+from physverify.verification.target_ranking import specificity
 
 UNITS = {
     "R1": "pen_over_size",

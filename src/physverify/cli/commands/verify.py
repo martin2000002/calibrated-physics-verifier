@@ -48,9 +48,9 @@ from physverify.verification.sweep import (
     RuleOutcome,
     SpecificityReport,
     matrix,
-    specificity,
     write_sweep,
 )
+from physverify.verification.target_ranking import specificity
 
 NAME = "verify"
 LEVELS = (InputLevel.ORACLE.value, InputLevel.PERCEIVED.value)

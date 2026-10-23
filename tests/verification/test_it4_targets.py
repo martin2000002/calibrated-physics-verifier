@@ -29,9 +29,9 @@ from physverify.verification.sweep import (
     CheckUnit,
     Rule,
     SpecificitySettings,
-    specificity,
     target_check_ids,
 )
+from physverify.verification.target_ranking import specificity
 
 COUPLINGS = frozenset({("r5a_gravity_switch", "R5b"), ("r5a_gravity_switch", "R4_jump")})
 
