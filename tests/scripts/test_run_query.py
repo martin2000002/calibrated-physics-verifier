@@ -32,11 +32,10 @@ def _write(path: Path, data: Any) -> Path:
     return path
 
 
-def _evaluation(query: ModuleType, tmp_path: Path, pisa: int, primary: object) -> Path:
+def _evaluation(tmp_path: Path, pisa: int, primary: object) -> Path:
     sets = [{"name": "physics_iq", "n_clips": 54}, {"name": "pisa_real", "n_clips": pisa}]
     path = _write(tmp_path / "evaluation.json", {"real_sets": sets, "h1_primary": primary})
-    heading = f"{query.H1_HEADING} (scenes s000)"
-    path.with_suffix(".md").write_text(f"# Evaluation\n\n{heading}\n\n| x |\n")
+    path.with_suffix(".md").write_text("# Evaluation\n\n## H1 primary (scenes s000)\n\n| x |\n")
     return path
 
 
@@ -60,18 +59,18 @@ def test_clip_ids_filter_by_split(
 def test_an_allowed_evaluation_prints_its_real_sets_and_primary_section(
     query: ModuleType, tmp_path: Path
 ) -> None:
-    lines = query.evaluation_lines(_evaluation(query, tmp_path, 40, {"scenes": []}), ALLOWED)
+    lines = query.evaluation_lines(_evaluation(tmp_path, 40, {"scenes": []}), ALLOWED)
     assert lines[0] == "Real sets: physics_iq 54, pisa_real 40"
-    assert lines[2].startswith(query.H1_HEADING) and lines[-1] == "| x |"
+    assert lines[2].startswith("## H1 primary") and lines[-1] == "| x |"
 
 
 def test_an_evaluation_without_the_primary_view_or_with_another_set_is_refused(
     query: ModuleType, tmp_path: Path
 ) -> None:
     with pytest.raises(query.QueryError, match="rerun from 6"):
-        query.evaluation_lines(_evaluation(query, tmp_path, 40, None), ALLOWED)
+        query.evaluation_lines(_evaluation(tmp_path, 40, None), ALLOWED)
     with pytest.raises(query.QueryError, match="not in the allowed sets"):
-        query.evaluation_lines(_evaluation(query, tmp_path, 41, {"scenes": []}), ALLOWED)
+        query.evaluation_lines(_evaluation(tmp_path, 41, {"scenes": []}), ALLOWED)
 
 
 def test_the_allowed_sets_are_the_preregistered_ones(
