@@ -1039,6 +1039,9 @@
  "tests/config/test_config.py": {
   "comment_or_docstring": 2
  },
+ "tests/contracts/test_freeze_manifest.py": {
+  "comment_or_docstring": 1
+ },
  "tests/contracts/test_parsed_output.py": {
   "comment_or_docstring": 1,
   "identifier": 1,
