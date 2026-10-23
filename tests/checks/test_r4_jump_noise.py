@@ -11,9 +11,9 @@ import check_scenarios as sc
 import numpy as np
 import pytest
 
+from physverify.app.plugins import PLUGIN_KINDS
 from physverify.checks._base import Check, CheckInputs
 from physverify.checks.r4_jump_noise import NoiseContinuityCheck, NoiseJumpParams
-from physverify.cli.context import PLUGIN_KINDS
 from physverify.physics.finite_diff import third_difference
 from physverify.physics.measures.r4_jump_noise import jump_over_noise, noise_jumps
 from physverify.physics.tracks import QUANTIZATION, impact_stencil_mask

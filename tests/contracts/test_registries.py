@@ -9,7 +9,7 @@ from typing import Any
 import pytest
 from cli_tree import command_modules
 
-from physverify.cli.context import PLUGIN_KINDS
+from physverify.app.plugins import PLUGIN_KINDS
 
 KINDS = (
     "checks",

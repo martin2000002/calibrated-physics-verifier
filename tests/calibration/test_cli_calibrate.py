@@ -13,10 +13,11 @@ from typing import Any, ClassVar
 import pytest
 from calibration_cases import DATASET, synthetic_report
 from cli_runner import CliRunner
+from cli_tree import command_modules
 from steps_sh import steps_read
 
+from physverify.app import plugins
 from physverify.calibration.loader import load_calibration, projection_name
-from physverify.cli import context
 from physverify.cli.commands import calibrate
 from physverify.config.loader import load_settings
 from physverify.config.models import Settings
@@ -56,10 +57,10 @@ class CalibFixtureDataset:
 
 @pytest.fixture(autouse=True)
 def fixture_dataset(monkeypatch: pytest.MonkeyPatch) -> None:
-    kinds: Mapping[str, Any] = context.PLUGIN_KINDS
+    kinds: Mapping[str, Any] = plugins.PLUGIN_KINDS
     datasets = kinds["datasets"]
     patched = {**kinds, "datasets": lambda: {**datasets(), DATASET: CalibFixtureDataset}}
-    monkeypatch.setattr(context, "PLUGIN_KINDS", MappingProxyType(patched))
+    monkeypatch.setattr(plugins, "PLUGIN_KINDS", MappingProxyType(patched))
 
 
 @pytest.fixture
@@ -88,7 +89,7 @@ def fit(cli: CliRunner, raw_run: str, out: Path) -> None:
 
 
 def test_the_command_is_registered() -> None:
-    assert "calibrate" in context.PLUGIN_KINDS["commands"]()
+    assert "calibrate" in command_modules()
 
 
 def test_fit_from_a_raw_run_writes_the_artifact_and_projection(

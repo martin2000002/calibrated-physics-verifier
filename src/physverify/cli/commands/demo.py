@@ -13,8 +13,9 @@ from typing import Annotated, Final
 
 import typer
 
+from physverify.app.context import AppContext
 from physverify.cli.commands._finetune_deps import candidate_generator, require_cuda, scoring_deps
-from physverify.cli.context import AppContext, app_context, heavy_command
+from physverify.cli.context import app_context, heavy_command
 from physverify.config.models import Settings
 from physverify.core.errors import UsageError
 from physverify.datasets.local_video import NAME as LOCAL_VIDEO

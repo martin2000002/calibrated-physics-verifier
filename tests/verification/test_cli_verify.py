@@ -13,7 +13,7 @@ from cli_runner import CliResult, CliRunner
 from steps_sh import steps_read
 from synthetic_clip import SyntheticFixtureDataset
 
-from physverify.cli import context
+from physverify.app import plugins
 from physverify.runtime.heavy import holder_path
 from physverify.verification.runner import CHECKS_FILE, TABLE_FILE, RowStatus
 
@@ -23,13 +23,13 @@ EXIT_USAGE = 2
 
 @pytest.fixture(autouse=True)
 def fixture_dataset(monkeypatch: pytest.MonkeyPatch) -> None:
-    kinds: Mapping[str, Any] = context.PLUGIN_KINDS
+    kinds: Mapping[str, Any] = plugins.PLUGIN_KINDS
     datasets = kinds["datasets"]
     patched = {
         **kinds,
         "datasets": lambda: {**datasets(), SyntheticFixtureDataset.name: SyntheticFixtureDataset},
     }
-    monkeypatch.setattr(context, "PLUGIN_KINDS", MappingProxyType(patched))
+    monkeypatch.setattr(plugins, "PLUGIN_KINDS", MappingProxyType(patched))
 
 
 def run_dir(result: CliResult) -> Path:

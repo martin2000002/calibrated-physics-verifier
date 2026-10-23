@@ -118,9 +118,9 @@ def _settings(overrides: Sequence[str], profile: str = PROFILE) -> Any:
 
 
 def _source(settings: Any, dataset: str) -> Source:
-    from physverify.cli.context import PLUGIN_KINDS
+    from physverify.app import plugins
 
-    registry = PLUGIN_KINDS["datasets"]()
+    registry = plugins.build("datasets")
     if dataset not in registry:
         raise QueryError(f"unknown dataset {dataset!r}; known: {sorted(registry)}")
     source: Source = registry[dataset](settings)

@@ -9,8 +9,8 @@ import numpy as np
 import pytest
 from scipy.stats import binomtest, norm
 
+from physverify.app.plugins import PLUGIN_KINDS
 from physverify.calibration.table import Role
-from physverify.cli.context import PLUGIN_KINDS
 from physverify.diagnosis.pairing import Paired, ResultPair
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
 from physverify.verification.runner import VerificationSettings, build_policy

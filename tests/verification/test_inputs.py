@@ -14,8 +14,8 @@ import numpy as np
 import pytest
 from synthetic_clip import SyntheticFixtureDataset
 
+from physverify.app.plugins import PLUGIN_KINDS
 from physverify.checks._base import Check
-from physverify.cli.context import PLUGIN_KINDS
 from physverify.config.loader import load_settings
 from physverify.config.models import Settings
 from physverify.core.errors import MissingInputError

@@ -14,7 +14,7 @@ import cv2
 import numpy as np
 import pytest
 
-from physverify.cli.context import PLUGIN_KINDS
+from physverify.app.plugins import PLUGIN_KINDS
 from physverify.config.loader import load_settings
 from physverify.config.models import Settings
 from physverify.core.download import MANIFEST_FILE, intact, read_manifest

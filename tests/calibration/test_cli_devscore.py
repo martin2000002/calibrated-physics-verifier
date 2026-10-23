@@ -15,9 +15,9 @@ from calibration_cases import DATASET, synthetic_report
 from cli_runner import CliRunner
 from steps_sh import steps_read
 
+from physverify.app import plugins
 from physverify.calibration.loader import load_calibration
 from physverify.calibration.settings import check_registry
-from physverify.cli import context
 from physverify.cli.commands import calibrate
 from physverify.config.loader import load_settings
 from physverify.config.models import Settings
@@ -64,10 +64,10 @@ class _CalibRunner:
 
 @pytest.fixture
 def calls(monkeypatch: pytest.MonkeyPatch) -> list[int]:
-    kinds: Mapping[str, Any] = context.PLUGIN_KINDS
+    kinds: Mapping[str, Any] = plugins.PLUGIN_KINDS
     datasets = kinds["datasets"]
     patched = {**kinds, "datasets": lambda: {**datasets(), DATASET: DevFixtureDataset}}
-    monkeypatch.setattr(context, "PLUGIN_KINDS", MappingProxyType(patched))
+    monkeypatch.setattr(plugins, "PLUGIN_KINDS", MappingProxyType(patched))
     found: list[int] = []
     monkeypatch.setattr(calibrate, "_raw_runner", lambda session: _CalibRunner(found))
     monkeypatch.setattr(calibrate, "_source", lambda session, dataset, level: None)

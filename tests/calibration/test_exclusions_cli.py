@@ -17,10 +17,10 @@ from exclusion_cases import PRECISE, R2_PERT, evaluation, r5a_check, real_fpr, r
 from steps_sh import steps_read
 from stratum_cases import artifact_of, check_calibration, stratum_model
 
+from physverify.app import plugins
 from physverify.calibration.exclusion_record import ExclusionInputError, parse_record
 from physverify.calibration.loader import default_artifact_path, parse_calibration
 from physverify.calibration.settings import active_checks_hash, check_registry
-from physverify.cli import context
 from physverify.cli.commands import exclusions
 from physverify.cli.commands.exclusions import (
     arm_run,
@@ -203,10 +203,10 @@ def _r2_report(detector: str) -> VerificationReport:
 
 @pytest.fixture
 def world(config_dir: Path, environ: dict[str, str], monkeypatch: pytest.MonkeyPatch) -> Settings:
-    kinds: Mapping[str, Any] = context.PLUGIN_KINDS
+    kinds: Mapping[str, Any] = plugins.PLUGIN_KINDS
     datasets = kinds["datasets"]
     patched = {**kinds, "datasets": lambda: {**datasets(), R2Dataset.name: R2Dataset}}
-    monkeypatch.setattr(context, "PLUGIN_KINDS", MappingProxyType(patched))
+    monkeypatch.setattr(plugins, "PLUGIN_KINDS", MappingProxyType(patched))
     settings = load_settings(config_dir, environ=environ)
     checks = {"R2": check_calibration(tau=1.0), "R5a": r5a_check()}
     stratum = stratum_model(checks, InputLevel.PERCEIVED, 0.5, PRECISE)

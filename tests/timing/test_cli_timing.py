@@ -15,7 +15,7 @@ from typing import Any
 import pytest
 from cli_runner import CliResult, CliRunner
 
-from physverify.cli import context
+from physverify.app import plugins
 from physverify.cli.commands import timing
 from physverify.extraction.weights import ALLOW_PATTERNS, hub_cache
 from physverify.schema.clip import ClipManifest
@@ -49,14 +49,14 @@ def install(
     def register(*targets: type[Any]) -> None:
         registry = {cls.name: cls for cls in targets}
         patched: Mapping[str, Callable[[], Mapping[str, Any]]] = {
-            **context.PLUGIN_KINDS,
+            **plugins.PLUGIN_KINDS,
             "timing_targets": lambda: registry,
             "datasets": lambda: {FAKE_DATASET: dataset},
             "providers": dict,
             "checks": dict,
             "policies": dict,
         }
-        monkeypatch.setattr(context, "PLUGIN_KINDS", MappingProxyType(patched))
+        monkeypatch.setattr(plugins, "PLUGIN_KINDS", MappingProxyType(patched))
 
     return register
 
@@ -165,7 +165,7 @@ def test_the_selection_is_read_only_when_a_target_needs_it(
 ) -> None:
     """Like wan21_generate, an earlier target can create the clips that the next one selects."""
     produced: list[str] = []
-    fake = context.PLUGIN_KINDS["datasets"]()[FAKE_DATASET]
+    fake = plugins.PLUGIN_KINDS["datasets"]()[FAKE_DATASET]
 
     def late_clips(self: Any, subset: str | None = None) -> list[ClipManifest]:
         return list(fake.clips(self, subset)) if produced else []
@@ -177,8 +177,8 @@ def test_the_selection_is_read_only_when_a_target_needs_it(
     own = fake.clips(None)[:1]
     install(make_fake_target("producer", script=produce, own_clips=own), make_fake_target("cpu_a"))
     late = type("LateDataset", (fake,), {"clips": late_clips})
-    kinds = {**context.PLUGIN_KINDS, "datasets": lambda: {FAKE_DATASET: late}}
-    monkeypatch.setattr(context, "PLUGIN_KINDS", MappingProxyType(kinds))
+    kinds = {**plugins.PLUGIN_KINDS, "datasets": lambda: {FAKE_DATASET: late}}
+    monkeypatch.setattr(plugins, "PLUGIN_KINDS", MappingProxyType(kinds))
     argv = ("--target", "producer", "--target", "cpu_a", "--dataset", FAKE_DATASET, *QUICK)
     result = timing_cli("timing", "run", *argv)
     assert result.code == 0, result.out + result.err

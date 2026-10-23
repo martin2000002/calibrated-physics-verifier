@@ -18,8 +18,8 @@ from calibration_cases import DATASET, fitted_artifact, synthetic_report
 from cli_runner import CliResult, CliRunner
 from cli_tree import cli_leaves, command_modules
 
+from physverify.app import plugins
 from physverify.calibration.sealed import LedgerEntry, read_entries
-from physverify.cli import context
 from physverify.cli.commands import _sealed, abstain, calibrate, diagnose, verify
 from physverify.config.loader import load_settings
 from physverify.config.models import Settings
@@ -91,12 +91,12 @@ DEV_REAL = ("physics_iq", "pisa_real")
 
 @pytest.fixture(autouse=True)
 def fixture_dataset(monkeypatch: pytest.MonkeyPatch) -> None:
-    kinds: Mapping[str, Any] = context.PLUGIN_KINDS
+    kinds: Mapping[str, Any] = plugins.PLUGIN_KINDS
     datasets = kinds["datasets"]
     reals = {name: _real_fixture(name) for name in (*NEW_REAL, *DEV_REAL)}
     fixtures = {DATASET: SealFixtureDataset, **reals}
     patched = {**kinds, "datasets": lambda: {**datasets(), **fixtures}}
-    monkeypatch.setattr(context, "PLUGIN_KINDS", MappingProxyType(patched))
+    monkeypatch.setattr(plugins, "PLUGIN_KINDS", MappingProxyType(patched))
 
 
 @pytest.fixture

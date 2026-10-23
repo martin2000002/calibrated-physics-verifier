@@ -9,8 +9,8 @@ from pathlib import Path
 import pytest
 
 import physverify.checks
+from physverify.app.plugins import PLUGIN_KINDS
 from physverify.checks._base import Check, CheckInputs
-from physverify.cli.context import PLUGIN_KINDS
 from physverify.core.errors import ConfigError
 from physverify.schema.scene import MagnitudeKind, PerturbationRecord
 from physverify.verification.runner import ChecksSettings, build_checks

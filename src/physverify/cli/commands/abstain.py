@@ -19,13 +19,14 @@ import numpy as np
 import typer
 from scipy.stats import norm
 
+from physverify.app.context import AppContext
 from physverify.calibration.loader import default_artifact_path, load_calibration
 from physverify.calibration.settings import checks_hash
 from physverify.calibration.table import Role, role_of
 from physverify.cli.commands._runs import write_json
 from physverify.cli.commands._sealed import Selection, guard_sealed
 from physverify.cli.commands.extract import pipeline_deps, resolve_dataset
-from physverify.cli.context import AppContext, app_context
+from physverify.cli.context import app_context
 from physverify.core.atomic import write_text_atomic
 from physverify.core.digests import sha256_if_file
 from physverify.core.errors import MissingInputError, PhysverifyError, UsageError

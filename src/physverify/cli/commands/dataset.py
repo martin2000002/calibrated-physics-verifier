@@ -11,7 +11,8 @@ from typing import Annotated, Any
 
 import typer
 
-from physverify.cli.context import AppContext, app_context, heavy_command
+from physverify.app.context import AppContext
+from physverify.cli.context import app_context, heavy_command
 from physverify.core.errors import MissingInputError, PhysverifyError, UsageError
 from physverify.runtime.container import container_settings, missing_reason
 from physverify.runtime.runs import current_commit

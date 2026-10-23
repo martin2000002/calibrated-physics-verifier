@@ -11,7 +11,7 @@ from typing import Any
 import pytest
 from synthetic_clip import SyntheticFixtureDataset
 
-from physverify.cli.context import PLUGIN_KINDS
+from physverify.app.plugins import PLUGIN_KINDS
 from physverify.config.models import Settings
 from physverify.datasets._base import DatasetSource
 from physverify.extraction._base import StageEvent, StageProvider

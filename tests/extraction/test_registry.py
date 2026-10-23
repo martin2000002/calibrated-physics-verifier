@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 from cli_runner import CliRunner
 
-from physverify.cli.context import AppContext, GlobalOptions, Invocation
+from physverify.app.context import AppContext, GlobalOptions, Invocation
 from physverify.extraction._base import StageProvider, validate_provider
 from physverify.extraction.cache import reads_own_error
 from physverify.schema.stages import Stage, check_upstream_order
@@ -97,7 +97,7 @@ def test_building_the_registry_imports_no_heavy_library() -> None:
     script = (
         "import sys\n"
         f"sys.path.insert(0, {str(REPO / 'src')!r})\n"
-        "from physverify.cli.context import PLUGIN_KINDS\n"
+        "from physverify.app.plugins import PLUGIN_KINDS\n"
         "import physverify.extraction.weights, physverify.extraction.pipeline\n"
         "assert len(PLUGIN_KINDS['providers']()) == 25\n"
         f"print(sorted(m for m in {LAZY_MODULES!r} if m in sys.modules))\n"

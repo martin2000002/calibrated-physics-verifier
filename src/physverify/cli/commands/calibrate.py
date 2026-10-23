@@ -15,6 +15,7 @@ from typing import Annotated
 
 import typer
 
+from physverify.app.context import AppContext
 from physverify.calibration.collect import (
     SubjectLookup,
     Subjects,
@@ -73,7 +74,7 @@ from physverify.cli.commands.extract import (
     resolve_dataset,
     select_clips,
 )
-from physverify.cli.context import AppContext, app_context
+from physverify.cli.context import app_context
 from physverify.core.atomic import write_text_atomic
 from physverify.core.errors import MissingInputError, PhysverifyError, UsageError
 from physverify.core.markdown import number

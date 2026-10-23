@@ -10,7 +10,7 @@ import cv2
 import numpy as np
 import pytest
 
-from physverify.cli.context import PLUGIN_KINDS
+from physverify.app.plugins import PLUGIN_KINDS
 from physverify.config.models import Settings
 from physverify.core.download import MANIFEST_FILE, read_manifest
 from physverify.core.errors import MissingInputError

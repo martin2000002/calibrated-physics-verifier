@@ -17,6 +17,7 @@ from typing import Annotated, Any, Final
 
 import typer
 
+from physverify.app.context import AppContext
 from physverify.cli.commands._common import choice
 from physverify.cli.commands._finetune_deps import (
     candidate_generator,
@@ -33,7 +34,7 @@ from physverify.cli.commands._stop_rule import (
     write_verdict,
 )
 from physverify.cli.commands.timing import _timing_directory
-from physverify.cli.context import AppContext, app_context, heavy_command
+from physverify.cli.context import app_context, heavy_command
 from physverify.core.atomic import write_text_atomic
 from physverify.core.digests import file_sha256
 from physverify.core.errors import EXIT_ERROR, UsageError

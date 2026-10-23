@@ -9,7 +9,8 @@ from typing import Annotated
 
 import typer
 
-from physverify.cli.context import AppContext, app_context
+from physverify.app.context import AppContext
+from physverify.cli.context import app_context
 from physverify.core.errors import PhysverifyError
 from physverify.runtime.container import container_settings, preflight_problem
 from physverify.runtime.container import describe as describe_engine

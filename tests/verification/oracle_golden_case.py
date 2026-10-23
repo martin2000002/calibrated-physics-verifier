@@ -19,8 +19,8 @@ from typing import Any
 
 from synthetic_clip import SyntheticFixtureDataset
 
+from physverify.app.plugins import PLUGIN_KINDS
 from physverify.checks._base import Check
-from physverify.cli.context import PLUGIN_KINDS
 from physverify.schema.io import json_ready
 from physverify.verification.inputs import OracleSource
 from physverify.verification.policies.raw import RawPolicy

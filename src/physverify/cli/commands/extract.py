@@ -12,7 +12,8 @@ from typing import Annotated, Any
 
 import typer
 
-from physverify.cli.context import AppContext, app_context, heavy_command
+from physverify.app.context import AppContext
+from physverify.cli.context import app_context, heavy_command
 from physverify.core.download import BYTES_PER_MB
 from physverify.core.errors import EXIT_ERROR, UsageError
 from physverify.datasets._base import DatasetSource

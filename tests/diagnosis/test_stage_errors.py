@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 from synthetic_clip import DATASET
 
-from physverify.cli.context import PLUGIN_KINDS
+from physverify.app.plugins import PLUGIN_KINDS
 from physverify.config.models import Settings
 from physverify.diagnosis.cases import SampledMetric
 from physverify.diagnosis.chain import ChainRunner

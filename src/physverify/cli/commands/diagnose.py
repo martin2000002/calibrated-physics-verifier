@@ -13,6 +13,7 @@ from typing import Annotated, Any
 
 import typer
 
+from physverify.app.context import AppContext
 from physverify.cli.commands._sealed import Selection, guard_sealed
 from physverify.cli.commands.extract import (
     ConsoleObserver,
@@ -22,7 +23,7 @@ from physverify.cli.commands.extract import (
     select_clips,
     write_events,
 )
-from physverify.cli.context import AppContext, app_context
+from physverify.cli.context import app_context
 from physverify.core.markdown import number
 from physverify.diagnosis.attribution import run_attribution
 from physverify.diagnosis.cases import SampledMetric

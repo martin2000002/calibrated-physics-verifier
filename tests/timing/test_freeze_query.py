@@ -15,8 +15,8 @@ from typing import Any
 
 import pytest
 
+from physverify.app.plugins import PLUGIN_KINDS
 from physverify.calibration.sealed import LedgerEntry, append_entry
-from physverify.cli.context import PLUGIN_KINDS
 from physverify.config.loader import load_settings
 from physverify.config.models import Settings
 from physverify.datasets.kubric_fresh import fresh_settings

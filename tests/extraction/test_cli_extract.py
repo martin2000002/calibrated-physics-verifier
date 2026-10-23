@@ -14,7 +14,7 @@ from fakes import FAKE, FAKES, FakeDepth
 from support import plan_overrides
 from synthetic_clip import CLIP_ID, SyntheticFixtureDataset
 
-from physverify.cli import context
+from physverify.app import plugins
 from physverify.cli.commands import extract
 from physverify.core.errors import PluginError
 from physverify.extraction._base import StageContext, provider_key
@@ -30,14 +30,14 @@ RUN = ("extract", "run", "--dataset", "synthetic_fixture", "--gt", "camera")
 @pytest.fixture(autouse=True)
 def fixture_registries(monkeypatch: pytest.MonkeyPatch) -> None:
     """The real registries plus the heavy fakes and the fixture dataset."""
-    kinds: Mapping[str, Any] = context.PLUGIN_KINDS
+    kinds: Mapping[str, Any] = plugins.PLUGIN_KINDS
     providers, datasets = kinds["providers"], kinds["datasets"]
     patched = {
         **kinds,
         "providers": lambda: {**providers(), **{provider_key(f): f for f in FAKES}},
         "datasets": lambda: {**datasets(), SyntheticFixtureDataset.name: SyntheticFixtureDataset},
     }
-    monkeypatch.setattr(context, "PLUGIN_KINDS", MappingProxyType(patched))
+    monkeypatch.setattr(plugins, "PLUGIN_KINDS", MappingProxyType(patched))
 
 
 def events_of(output: str) -> list[dict[str, Any]]:

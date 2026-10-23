@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from physverify.cli.context import PLUGIN_KINDS
+from physverify.app.plugins import PLUGIN_KINDS
 from physverify.config.loader import known_profiles, load_settings, read_config_files
 from physverify.extraction.plan import resolve_plan
 

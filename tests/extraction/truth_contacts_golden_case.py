@@ -15,7 +15,7 @@ from pathlib import Path
 from support import make_context, run_provider
 from synthetic_clip import build_clip
 
-from physverify.cli.context import PLUGIN_KINDS
+from physverify.app.plugins import PLUGIN_KINDS
 from physverify.config.models import RuntimeSettings
 from physverify.extraction._base import GROUND_TRUTH
 from physverify.schema.contacts import ContactTable

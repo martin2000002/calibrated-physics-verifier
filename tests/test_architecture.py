@@ -49,7 +49,6 @@ KNOWN_VIOLATIONS: frozenset[str] = frozenset(
         "physverify.verification.scope -> physverify.calibration.settings",
         "physverify.verification.selective_risk -> physverify.calibration.table",
         "physverify.verification.selective_risk -> physverify.diagnosis.pairing",
-        "scripts.h200.a8v2_query -> physverify.cli.context",
         "scripts.h200.freeze_query -> physverify.cli.commands._sealed",
         "scripts.h200.freeze_query -> physverify.cli.commands.calibrate",
     }

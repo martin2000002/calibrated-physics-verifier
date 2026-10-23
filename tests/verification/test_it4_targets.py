@@ -14,11 +14,11 @@ import check_scenarios as sc
 import pytest
 from reference.r4_jump_v1 import ContinuityCheck
 
+from physverify.app.plugins import PLUGIN_KINDS
 from physverify.calibration.table import role_of
 from physverify.checks._base import Check, CheckInputs
 from physverify.checks._common import unscored
 from physverify.checks.r4_jump_noise import NoiseContinuityCheck
-from physverify.cli.context import PLUGIN_KINDS
 from physverify.schema.checks import CheckResult
 from physverify.schema.clip import ClipManifest
 from physverify.schema.scene import PerturbationRecord

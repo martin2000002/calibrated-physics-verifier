@@ -11,9 +11,9 @@ import check_scenarios as sc
 import numpy as np
 import pytest
 
+from physverify.app.plugins import PLUGIN_KINDS
 from physverify.checks import r2_equilibrium
 from physverify.checks._base import Check, CheckInputs
-from physverify.cli.context import PLUGIN_KINDS
 from physverify.physics.equilibrium import EquilibriumSolution
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
 from physverify.schema.constants import ENV_ID

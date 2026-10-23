@@ -366,7 +366,11 @@ def _commands() -> Mapping[str, Any]:
         if "commands" in module.PLUGIN_KINDS:
             registry: Mapping[str, Any] = module.PLUGIN_KINDS["commands"]()
             return registry
-    raise SystemExit("no commands registry found")
+    from physverify.cli.context import COMMANDS_PACKAGE, check_command, command_name
+    from physverify.core.registry import discover_modules
+
+    found: Mapping[str, Any] = discover_modules(COMMANDS_PACKAGE, check_command, command_name)
+    return found
 
 
 def _click_root() -> Any:

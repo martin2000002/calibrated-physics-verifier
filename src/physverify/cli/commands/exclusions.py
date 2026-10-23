@@ -17,6 +17,7 @@ from typing import Annotated
 import typer
 from pydantic import ValidationError
 
+from physverify.app.context import AppContext
 from physverify.calibration.collect import read_run, run_level_of
 from physverify.calibration.exclusion_record import (
     ExclusionInputError,
@@ -49,7 +50,7 @@ from physverify.calibration.settings import (
 from physverify.calibration.table import CalibrationDataError, build_rows, in_family, scene_of
 from physverify.cli.commands._common import context_checks_hash
 from physverify.cli.commands.extract import resolve_dataset
-from physverify.cli.context import AppContext, app_context
+from physverify.cli.context import app_context
 from physverify.core.atomic import write_text_atomic
 from physverify.core.digests import text_sha256
 from physverify.core.errors import UsageError

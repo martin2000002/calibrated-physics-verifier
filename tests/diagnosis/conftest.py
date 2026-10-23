@@ -23,8 +23,8 @@ from numpy.typing import NDArray
 from pydantic import BaseModel
 from synthetic_clip import DATASET, SyntheticFixtureDataset, build_clip, manifest
 
+from physverify.app.plugins import PLUGIN_KINDS
 from physverify.checks._base import CheckInputs
-from physverify.cli.context import PLUGIN_KINDS
 from physverify.config.loader import load_settings
 from physverify.config.models import RuntimeSettings, Settings
 from physverify.datasets._base import ArrayGroundTruthStore, DatasetSource

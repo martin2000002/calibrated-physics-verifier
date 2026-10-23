@@ -13,7 +13,7 @@ from typing import Any
 import pytest
 from pydantic import BaseModel, ConfigDict
 
-from physverify.cli import context
+from physverify.app import plugins
 from physverify.config.models import Settings
 from physverify.datasets._base import DatasetSource
 from physverify.extraction.pipeline import ClipFailure, ExtractionReport, PipelineDeps
@@ -316,7 +316,7 @@ def test_load_a7_builds_the_real_a7_api_when_it_is_installed(
 ) -> None:
     pytest.importorskip(RUNNER_MODULE)
     pytest.importorskip(INPUTS_MODULE)
-    checks, policies = context.PLUGIN_KINDS["checks"](), context.PLUGIN_KINDS["policies"]()
+    checks, policies = plugins.PLUGIN_KINDS["checks"](), plugins.PLUGIN_KINDS["policies"]()
     verifier = load_a7(make_settings(), checks, policies)
     assert verifier.checks
     assert {check.check_id for check in verifier.checks} <= set(checks)

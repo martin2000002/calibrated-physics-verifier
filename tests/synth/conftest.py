@@ -13,7 +13,7 @@ from typing import Any
 import numpy as np
 import pytest
 
-from physverify.cli.context import PLUGIN_KINDS
+from physverify.app.plugins import PLUGIN_KINDS
 from physverify.config.loader import load_settings
 from physverify.config.models import Settings
 from physverify.kubric_worker.build_scene import native_entries

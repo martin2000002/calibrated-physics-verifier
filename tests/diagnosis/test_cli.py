@@ -12,7 +12,7 @@ import pytest
 from cli_runner import CliRunner
 from synthetic_clip import CLIP_ID, DATASET
 
-from physverify.cli import context
+from physverify.app import plugins
 from physverify.cli.commands import data, diagnose
 from physverify.cli.commands.extract import ConsoleObserver, EventRecorder
 from physverify.config.models import Settings
@@ -70,7 +70,7 @@ def registries(
     fakes_real: Mapping[str, type[Any]],
 ) -> None:
     """The real registries with the heavy fakes, the split fixture and fake real datasets."""
-    kinds: Mapping[str, Any] = context.PLUGIN_KINDS
+    kinds: Mapping[str, Any] = plugins.PLUGIN_KINDS
     datasets = kinds["datasets"]
     patched = {
         **kinds,
@@ -81,7 +81,7 @@ def registries(
             **fakes_real,
         },
     }
-    monkeypatch.setattr(context, "PLUGIN_KINDS", MappingProxyType(patched))
+    monkeypatch.setattr(plugins, "PLUGIN_KINDS", MappingProxyType(patched))
 
 
 def run_dir_of(output: str) -> Path:

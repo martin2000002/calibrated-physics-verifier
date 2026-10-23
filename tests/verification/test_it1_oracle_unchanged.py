@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from synthetic_clip import SyntheticFixtureDataset
 
-from physverify.cli.context import PLUGIN_KINDS
+from physverify.app.plugins import PLUGIN_KINDS
 from physverify.schema.checks import CheckResult
 from physverify.verification.inputs import OracleSource
 from physverify.verification.policies.raw import RawPolicy

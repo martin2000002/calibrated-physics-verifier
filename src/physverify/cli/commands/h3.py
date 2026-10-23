@@ -16,6 +16,7 @@ from typing import Annotated, Final
 
 import typer
 
+from physverify.app.context import AppContext
 from physverify.calibration.loader import default_artifact_path
 from physverify.cli.commands._common import choice, context_checks_hash
 from physverify.cli.commands._finetune_deps import (
@@ -29,7 +30,7 @@ from physverify.cli.commands._stop_rule import (
     current_verdict,
     require_stop_rule,
 )
-from physverify.cli.context import AppContext, app_context, heavy_command
+from physverify.cli.context import app_context, heavy_command
 from physverify.core.digests import sha256_if_file
 from physverify.core.errors import EXIT_ERROR, ConfigError, MissingInputError, UsageError
 from physverify.datasets._videophy_tables import LABELS_DIR, read_table

@@ -17,9 +17,10 @@ from typing import Annotated, Any
 
 import typer
 
+from physverify.app.context import AppContext
 from physverify.cli.commands._runs import write_json
 from physverify.cli.commands.extract import pipeline_deps, resolve_dataset
-from physverify.cli.context import AppContext, app_context
+from physverify.cli.context import app_context
 from physverify.config.models import Settings, SizePriorTable
 from physverify.core.atomic import write_text_atomic
 from physverify.core.errors import MissingInputError

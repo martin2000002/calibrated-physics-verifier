@@ -17,7 +17,8 @@ from typing import Annotated, Any, cast
 
 import typer
 
-from physverify.cli.context import AppContext, app_context, heavy_command
+from physverify.app.context import AppContext
+from physverify.cli.context import app_context, heavy_command
 from physverify.config.models import PathsSettings, Settings
 from physverify.core.errors import EXIT_ERROR, EXIT_OK, UsageError
 from physverify.extraction.weights import (

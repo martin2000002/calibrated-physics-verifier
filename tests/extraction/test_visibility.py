@@ -11,9 +11,9 @@ import pytest
 from support import SettingsFactory, make_context, run_provider
 from synthetic_clip import SyntheticClip
 
+from physverify.app.plugins import PLUGIN_KINDS
 from physverify.checks._base import CheckInputs
 from physverify.checks.r4_integrity import PermanenceCheck, PermanenceParams
-from physverify.cli.context import PLUGIN_KINDS
 from physverify.core.errors import ConfigError
 from physverify.extraction._base import GROUND_TRUTH, StageProvider
 from physverify.extraction.plan import occlusion_thresholds, resolve_plan

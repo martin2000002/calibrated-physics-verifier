@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from physverify.app.context import AppContext
 from physverify.calibration.settings import active_checks_hash
-from physverify.cli.context import AppContext
 from physverify.core.errors import UsageError
 
 

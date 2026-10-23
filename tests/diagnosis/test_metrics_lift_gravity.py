@@ -11,7 +11,7 @@ import pytest
 from numpy.typing import NDArray
 from synthetic_clip import manifest
 
-from physverify.cli.context import PLUGIN_KINDS
+from physverify.app.plugins import PLUGIN_KINDS
 from physverify.diagnosis.cases import MetricCase, MetricOutcome
 from physverify.diagnosis.error_profile_writer import PROFILE_QUANTITIES
 from physverify.diagnosis.metrics.lift_gravity import LiftGravityAngleMetric

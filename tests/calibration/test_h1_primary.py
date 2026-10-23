@@ -18,6 +18,7 @@ from calibration_cases import (
 )
 from records import error_profile
 
+from physverify.app.plugins import PLUGIN_KINDS
 from physverify.calibration.collect import level_data
 from physverify.calibration.evaluate import (
     EvaluationInputs,
@@ -37,7 +38,6 @@ from physverify.calibration.schema import (
     Monotonicity,
 )
 from physverify.calibration.settings import active_checks_hash
-from physverify.cli.context import PLUGIN_KINDS
 from physverify.config.loader import load_settings
 from physverify.config.models import Settings
 from physverify.core.digests import text_sha256

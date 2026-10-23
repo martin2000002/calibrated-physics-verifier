@@ -6,9 +6,9 @@ from collections.abc import Callable
 
 from synthetic_clip import DATASET
 
+from physverify.app.plugins import PLUGIN_KINDS
 from physverify.cli.commands.diagnose import sampled_metrics
 from physverify.cli.commands.extract import load_error_profile
-from physverify.cli.context import PLUGIN_KINDS
 from physverify.config.models import Settings
 from physverify.diagnosis.context import DiagnosisContext
 from physverify.diagnosis.settings import diagnosis_settings

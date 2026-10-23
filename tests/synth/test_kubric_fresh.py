@@ -11,9 +11,9 @@ from typing import Any
 
 import pytest
 
+from physverify.app.plugins import PLUGIN_KINDS
 from physverify.calibration.settings import calibration_config
 from physverify.calibration.table import build_rows
-from physverify.cli.context import PLUGIN_KINDS
 from physverify.config.loader import load_settings
 from physverify.config.models import Settings
 from physverify.core.errors import UsageError

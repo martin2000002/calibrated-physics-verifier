@@ -15,6 +15,7 @@ from typing import Final
 
 import typer
 
+from physverify.app.context import AppContext
 from physverify.calibration.loader import default_artifact_path
 from physverify.calibration.sealed import (
     REPEAT_ENV,
@@ -34,7 +35,6 @@ from physverify.calibration.sealed import (
     touched,
     unsealed,
 )
-from physverify.cli.context import AppContext
 from physverify.config.models import Settings
 from physverify.core.digests import sha256_if_file
 from physverify.runtime.runs import current_commit

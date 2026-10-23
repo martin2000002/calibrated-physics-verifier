@@ -20,7 +20,7 @@ from fakes import FAKES, JOURNAL  # noqa: E402
 from support import SettingsFactory  # noqa: E402
 from synthetic_clip import SyntheticClip, SyntheticFixtureDataset, build_clip  # noqa: E402
 
-from physverify.cli.context import PLUGIN_KINDS  # noqa: E402
+from physverify.app.plugins import PLUGIN_KINDS  # noqa: E402
 from physverify.config.loader import load_settings  # noqa: E402
 from physverify.config.models import RuntimeSettings, Settings  # noqa: E402
 from physverify.extraction._base import StageProvider, provider_key  # noqa: E402

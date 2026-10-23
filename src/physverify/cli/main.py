@@ -16,14 +16,8 @@ import typer
 import typer.main
 from typer._click.exceptions import ClickException
 
-from physverify.cli.context import (
-    COMMANDS_PACKAGE,
-    AppContext,
-    GlobalOptions,
-    Invocation,
-    check_command,
-    command_name,
-)
+from physverify.app.context import AppContext, GlobalOptions, Invocation
+from physverify.cli.context import COMMANDS_PACKAGE, check_command, command_name
 from physverify.core.errors import EXIT_ERROR, PhysverifyError
 from physverify.core.log import LOG_LEVELS, configure_logging
 from physverify.core.registry import Registry, discover_modules

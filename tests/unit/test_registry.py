@@ -9,9 +9,10 @@ import uuid
 from pathlib import Path
 
 import pytest
+from cli_tree import command_modules
 from fx_protocol import Widget
 
-from physverify.cli.context import PLUGIN_KINDS
+from physverify.app.plugins import PLUGIN_KINDS
 from physverify.core.errors import DuplicatePluginError, InvalidPluginError, MissingPluginsError
 from physverify.core.registry import discover
 
@@ -69,7 +70,7 @@ def test_callable_key() -> None:
 
 
 def test_every_real_plugin_kind_builds() -> None:
-    commands = PLUGIN_KINDS["commands"]()
+    commands = command_modules()
     assert set(commands) >= {"doctor", "dataset", "extract", "verify", "diagnose", "data", "timing"}
     assert "ping" in PLUGIN_KINDS["container_tasks"]()
     for kind, build in PLUGIN_KINDS.items():
@@ -79,8 +80,11 @@ def test_every_real_plugin_kind_builds() -> None:
 def test_registries_do_not_import_heavy_modules() -> None:
     script = (
         "import json, sys\n"
-        "from physverify.cli.context import PLUGIN_KINDS\n"
+        "from physverify.app.plugins import PLUGIN_KINDS\n"
+        "from physverify.cli.context import COMMANDS_PACKAGE, check_command, command_name\n"
+        "from physverify.core.registry import discover_modules\n"
         "sizes = {kind: len(build()) for kind, build in PLUGIN_KINDS.items()}\n"
+        "discover_modules(COMMANDS_PACKAGE, check_command, command_name)\n"
         f"heavy = [m for m in {HEAVY_MODULES!r} if m in sys.modules]\n"
         "print(json.dumps({'sizes': sizes, 'heavy': heavy}))\n"
     )
@@ -89,4 +93,4 @@ def test_registries_do_not_import_heavy_modules() -> None:
     )
     report = json.loads(done.stdout)
     assert report["heavy"] == []
-    assert len(report["sizes"]) == 10
+    assert len(report["sizes"]) == 9

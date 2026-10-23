@@ -4,7 +4,7 @@ import json
 import subprocess
 import sys
 
-from physverify.cli.context import PLUGIN_KINDS
+from physverify.app.plugins import PLUGIN_KINDS
 
 EXPECTED = {
     "wan21_generate": True,
@@ -24,7 +24,7 @@ def test_the_registry_holds_the_four_targets() -> None:
 def test_building_the_timing_registry_imports_no_heavy_module() -> None:
     script = (
         "import json, sys\n"
-        "from physverify.cli.context import PLUGIN_KINDS\n"
+        "from physverify.app.plugins import PLUGIN_KINDS\n"
         "names = sorted(PLUGIN_KINDS['timing_targets']())\n"
         f"heavy = [m for m in {HEAVY_MODULES!r} if m in sys.modules]\n"
         "print(json.dumps({'names': names, 'heavy': heavy}))\n"
