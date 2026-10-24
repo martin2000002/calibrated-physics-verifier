@@ -21,7 +21,7 @@ import pytest
 
 REPO = Path(__file__).resolve().parents[1]
 SCANNED_DIRS = ("src", "scripts", "tests", "configs", "tools")
-SCANNED_FILES = ("README.md", "CONTRIBUTING.md")
+SCANNED_FILES = ("README.md",)
 EXCLUDED_SUFFIXES = frozenset({".jsonl", ".npz", ".pyc"})
 EXCLUDED_NAMES = frozenset({"uv.lock", "local.toml", "py.typed"})
 EXCLUDED_PARTS = frozenset({"golden", "__pycache__", ".pytest_cache"})

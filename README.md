@@ -133,7 +133,6 @@ uv run --no-sync ruff check . && uv run --no-sync ruff format --check .
 uv run --no-sync mypy
 ```
 
-`docker` is the only marker. The code lives in `src/physverify/`; `CONTRIBUTING.md` gives
-the package tree, the layer rule, how to add a plugin and the contracts that must not change.
+`docker` is the only marker. The code lives in `src/physverify/`.
 
 Data, model weights and run outputs live under `data/` (ignored by git).
