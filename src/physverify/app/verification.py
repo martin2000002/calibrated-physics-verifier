@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
 
 from physverify.app.context import AppContext
 from physverify.app.sealing import Selection, guard_sealed
 from physverify.app.services import checks_hash_for, dataset_for, pipeline_deps, plan_for
-from physverify.checks._base import CHECKS, Check
+from physverify.checks._base import CHECKS
 from physverify.config.plugin_context import registry_of
 from physverify.core.output import Echo
 from physverify.datasets._base import DatasetSource, select_clips
@@ -27,10 +26,9 @@ from physverify.verification.inputs import (
 )
 from physverify.verification.runner import (
     CHECKS_HASH_FILE,
+    ConfiguredSuite,
     RowStatus,
     VerificationReport,
-    VerificationRunner,
-    VerificationSettings,
     configured_suite,
     write_report,
 )
@@ -45,30 +43,20 @@ from physverify.verification.summary import (
 )
 from physverify.verification.sweep import CheckUnit, matrix, write_sweep
 from physverify.verification.target_ranking import specificity
-from physverify.verification.thresholding import ThresholdTable
 
 
 def policy_names(context: AppContext) -> list[str]:
     return sorted(registry_of(context, POLICIES))
 
 
-@dataclass(frozen=True)
-class _Verifier:
-    verification: VerificationSettings
-    checks: tuple[Check, ...]
-    thresholds: ThresholdTable
-    runner: VerificationRunner
-
-
-def _verifier(context: AppContext, policy: str | None) -> _Verifier:
+def _suite(context: AppContext, policy: str | None) -> ConfiguredSuite:
     """The configured checks, thresholds and verdict policy (``policy`` overrides the latter)."""
-    suite = configured_suite(
+    return configured_suite(
         context.settings,
         registry_of(context, CHECKS),
         registry_of(context, POLICIES),
         policy=policy,
     )
-    return _Verifier(suite.verification, suite.checks, suite.thresholds, suite.runner())
 
 
 def _write_run(
@@ -82,11 +70,13 @@ def _write_run(
     return any(row.status is RowStatus.ERROR for row in report.table)
 
 
-def _sweep(run_dir: Path, report: VerificationReport, verifier: _Verifier, *, echo: Echo) -> bool:
+def _sweep(
+    run_dir: Path, report: VerificationReport, suite: ConfiguredSuite, *, echo: Echo
+) -> bool:
     """Write and print the check-by-target matrix; whether the specificity gate passed."""
-    identities = [CheckUnit.of(check) for check in verifier.checks]
+    identities = [CheckUnit.of(check) for check in suite.checks]
     cells = matrix(report)
-    spec = specificity(report, verifier.verification.specificity, identities)
+    spec = specificity(report, suite.verification.specificity, identities)
     write_sweep(run_dir, cells, spec)
     for line in [*matrix_lines(cells), *specificity_lines(spec)]:
         echo(line)
@@ -111,7 +101,7 @@ def run_verify(
     input_level = parse_level(level, gt, sweep)
     source = dataset_for(context, dataset)
     selected = select_clips(source.clips(subset), clips)
-    verifier = _verifier(context, policy)
+    suite = _suite(context, policy)
     inputs = _inputs(context, source, input_level, parse_stages(gt))
     run_dir = new_run(context.settings, context.invocation.argv).run_dir
     echo(f"run: {run_dir}")
@@ -122,11 +112,11 @@ def run_verify(
         err=err,
         run_dir=run_dir,
     )
-    echo(f"thresholds: {verifier.thresholds.label}")
-    report = verifier.runner.run(inputs, selected)
+    echo(f"thresholds: {suite.thresholds.label}")
+    report = suite.runner().run(inputs, selected)
     failed = _write_run(context, run_dir, report, echo=echo)
     if sweep:
-        failed = not _sweep(run_dir, report, verifier, echo=echo) or failed
+        failed = not _sweep(run_dir, report, suite, echo=echo) or failed
     return failed
 
 
