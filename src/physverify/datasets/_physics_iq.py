@@ -33,7 +33,7 @@ from physverify.core.download import (
 from physverify.core.errors import MissingInputError, UsageError
 from physverify.core.log import get_logger
 from physverify.core.models import FrozenModel
-from physverify.core.video import Mp4VideoSource
+from physverify.core.video import VIDEO_SUFFIX, Mp4VideoSource
 from physverify.datasets._base import GroundTruthStore, VideoSource
 from physverify.datasets._layout import load_annotations, relative_to_data, resolve_data_path
 from physverify.schema.clip import ClipManifest, FrameSampling, ObjectQuery, Split, TimeSource
@@ -251,7 +251,12 @@ class PhysicsIQDataset:
 
     def _local_files(self) -> list[Path]:
         folders = (self._root / p for p in prefixes(self._s.fps_file).values())
-        return [path for folder in folders if folder.is_dir() for path in folder.glob("*.mp4")]
+        return [
+            path
+            for folder in folders
+            if folder.is_dir()
+            for path in folder.glob(f"*{VIDEO_SUFFIX}")
+        ]
 
     def _path(self, relative: str) -> Path:
         path = resolve_data_path(relative, self._data_dir)
