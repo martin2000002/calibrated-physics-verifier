@@ -1,4 +1,4 @@
-# physverify: rules for contributors and agents
+# physverify: rules for contributors
 
 Calibrated physics verifier for generated video. `README.md` describes what it does and how to
 run it; this file says how the code is organised and what must not change.
