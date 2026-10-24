@@ -18,7 +18,7 @@ from physverify.diagnosis.measurement_cases import (
     stage_output,
 )
 from physverify.diagnosis.metrics._contacts import NOT_A_CANDIDATE, same_pair
-from physverify.diagnosis.metrics._lift import angle_deg
+from physverify.diagnosis.metrics._geometry import angle_deg
 from physverify.diagnosis.metrics._state_pairing import object_length
 from physverify.diagnosis.settings import MetricSettings
 from physverify.extraction.matching import hungarian
