@@ -19,8 +19,7 @@ from physverify.diagnosis._base import METRICS
 from physverify.diagnosis.attribution_run import run_attribution
 from physverify.diagnosis.context import DiagnosisContext, sampled_metrics
 from physverify.diagnosis.end_to_end import run_end_to_end
-from physverify.diagnosis.real_video.run import run_real
-from physverify.diagnosis.real_video.run import select_clips as real_clips
+from physverify.diagnosis.real_video.run import clips_by_dataset, run_real
 from physverify.diagnosis.report import Report
 from physverify.diagnosis.report_markdown import write_report
 from physverify.diagnosis.settings import DiagnosisSettings, diagnosis_settings
@@ -170,7 +169,7 @@ def real_runner(
 ) -> Runner:
     def runner(ctx: DiagnosisContext) -> Report:
         names, subset = real_datasets(ctx, dataset), ctx.diag.subset
-        chosen = real_clips(ctx, names, subset, clips)
+        chosen = clips_by_dataset(ctx, names, subset, clips)
         selections = [Selection(source.name, subset, found) for source, found in chosen]
         guard_sealed(app, command, selections, err=err, run_dir=ctx.run.run_dir)
         return run_real(ctx, names, subset, clips)

@@ -64,7 +64,7 @@ class _Collected:
     versions: dict[str, str] = field(default_factory=dict)
 
 
-def select_clips(
+def clips_by_dataset(
     ctx: DiagnosisContext, datasets: Sequence[str], subset: str, clip_ids: Iterable[str] = ()
 ) -> list[tuple[DatasetSource, tuple[ClipManifest, ...]]]:
     """The clips of each dataset, restricted to ``clip_ids`` when given (sorted by id)."""
@@ -206,7 +206,7 @@ def run_real(
 ) -> RealVideoReport:
     """Motion, fall and verdict rows of the perceived chain (V0) over the real datasets."""
     out = _Collected()
-    for dataset, selected in select_clips(ctx, datasets, subset, clips):
+    for dataset, selected in clips_by_dataset(ctx, datasets, subset, clips):
         _run_dataset(ctx, dataset, selected, out)
     if ctx.suite is None:
         out.failures.append(Failure(clip_id=ALL_CLIPS, error=NO_SUITE))
