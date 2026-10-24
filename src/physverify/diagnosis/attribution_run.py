@@ -99,9 +99,12 @@ def _pairs(
 
 def _clip_cells(run: _Run, clip: ClipManifest) -> ClipCells:
     """Variants are loaded one at a time; only the oracle track is kept for subject matching."""
-    v8 = variant_outputs(run.chain, clip, oracle_variant())
-    oracle = _Oracle(variant_results(run.suite, clip, v8, InputLevel.ORACLE), track_of(v8))
-    del v8
+    oracle_outputs = variant_outputs(run.chain, clip, oracle_variant())
+    oracle = _Oracle(
+        variant_results(run.suite, clip, oracle_outputs, InputLevel.ORACLE),
+        track_of(oracle_outputs),
+    )
+    del oracle_outputs
     cells: dict[Cell, Paired] = {}
     units: dict[str, str] = {}
     for cell, variant in zip(CELLS, run.cells, strict=True):
