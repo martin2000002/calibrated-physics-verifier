@@ -22,8 +22,8 @@ which the sealed sets of `configs/verifier/sealed.toml` are evaluated. A command
 on a sealed set unless it is unsealed explicitly, and each look is logged before any number is
 computed.
 
-The calibration artifact is a run output and is not versioned. The size model is
-versioned (`configs/verifier/size_model.toml`): its coefficients are estimates and carry their measured
+The calibration artifact is a run output and is not versioned. The size model is versioned
+(`configs/verifier/size_model.toml`): its coefficients are estimates and carry their measured
 error. Generation, fine-tuning and the generator comparison need a CUDA GPU; the demo generates a
 video on the GPU or scores a given video on the CPU.
 

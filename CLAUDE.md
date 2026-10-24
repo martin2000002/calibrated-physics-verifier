@@ -7,9 +7,8 @@ run it; this file says how the code is organised and what must not change.
 
 - **English only** in this repository: code, identifiers, file names, docstrings, commits, docs.
 - **Typed code** (mypy strict on `src/physverify`, `scripts/h200`, `tools/equivalence` and
-  `tools/hdri_pools.py`), small
-  functions, dependencies injected, no global mutable state, configuration only through
-  `configs/**/*.toml` and `physverify.config`.
+  `tools/hdri_pools.py`), small functions, dependencies injected, no global mutable state,
+  configuration only through `configs/**/*.toml` and `physverify.config`.
 - **No duplication**: a constant, schema or helper lives in exactly one module. A physical quantity
   that both a check and its truth measure need is computed once, in `physics/measures/`.
 - **Minimal comments**: only formulas, axis conventions and non-obvious decisions. No banners, no
@@ -78,8 +77,9 @@ configs/           default.toml, local.example.toml, verifier/, datasets/, studi
 ## Layer rule
 
 `[tool.importlinter]` in `pyproject.toml` lists the layers and the forbidden imports;
-`tests/test_architecture.py` enforces every contract with `ast`, lazy imports inside functions included. A package imports only from the layers
-below it, never from a sibling (`a | b` on one line) or from above. Top to bottom:
+`tests/test_architecture.py` enforces every contract with `ast`, lazy imports inside functions
+included. A package imports only from the layers below it, never from a sibling (`a | b` on one
+line) or from above. Top to bottom:
 
 ```
 cli > app > reporting > generator_comparison | timing | demo > finetune | freeze
@@ -110,7 +110,8 @@ order, which is the output order of reports and tables.
 
 Code shared between plugin modules goes in a private sibling (`_name.py`); a public module that
 registers a shared class re-exports it in `PLUGINS` (with `__all__` when other code imports it). A
-public plugin module never imports a public sibling (`tests/core/test_plugin_imports.py`).
+public plugin module never imports a public sibling (`tests/test_plugin_imports.py`, over the
+packages of `PLUGIN_PACKAGES` in `app/plugins.py` and the CLI commands).
 
 | Kind | Add one file | Interface it implements | Registry key |
 |---|---|---|---|

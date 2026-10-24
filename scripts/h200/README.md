@@ -235,16 +235,16 @@ another arm exits 2) and the summary names the arm and the GPU. Give each arm it
 The sealed ledger (`configs/verifier/sealed.toml`): `calibrate fit|stage-sigma|evaluate|dev-score`,
 `selective-risk fit|curve`, `verify`, `diagnose *` and `scene-stats per-clip` exit 2 before
 computing on a sealed set (`kubric_synthetic:eval`, `kubric_fresh`, `kubric_fresh_ood`,
-`kubric_fresh_blind`, `physics_iq_views`, `objectron_static`) unless `PHYSVERIFY_UNSEAL`
-names it, and then append a line to the ledger first; the read and the append hold one flock on
-the sibling `<ledger>.lock`. A look never creates the ledger: create it
-once, by hand, with `env.sh` sourced (`touch "$PHYSVERIFY_H200_ROOT/sealed-ledger.txt"`); a missing
-file (a wrong `HOME`, another path) stops the look, and stderr prints the path it resolved. A look
-needs a clean git checkout (nothing uncommitted under `src` or `configs`). Its frozen state is the
-commit, the configuration sections with profile and device (not paths, threads or the lock) and
-the sha256 of `calibration.json` (or the `--artifact` used), `thresholds.json`, `exclusions.json`
-and the error profile; a look under another frozen state, a refit at the same commit included,
-also needs `PHYSVERIFY_UNSEAL_REPEAT=1`. A missing `[sealed]` table fails closed.
+`kubric_fresh_blind`, `physics_iq_views`, `objectron_static`) unless `PHYSVERIFY_UNSEAL` names it,
+and then append a line to the ledger first; the read and the append hold one flock on the sibling
+`<ledger>.lock`. A look never creates the ledger: create it once, by hand, with `env.sh` sourced
+(`touch "$PHYSVERIFY_H200_ROOT/sealed-ledger.txt"`); a missing file (a wrong `HOME`, another path)
+stops the look, and stderr prints the path it resolved. A look needs a clean git checkout (nothing
+uncommitted under `src` or `configs`). Its frozen state is the commit, the configuration sections
+with profile and device (not paths, threads or the lock) and the sha256 of `calibration.json` (or
+the `--artifact` used), `thresholds.json`, `exclusions.json` and the error profile; a look under
+another frozen state, a refit at the same commit included, also needs `PHYSVERIFY_UNSEAL_REPEAT=1`.
+A missing `[sealed]` table fails closed.
 
 ## Freeze and final looks
 
@@ -284,14 +284,15 @@ set without the render of the seed, a render after a look, a second look at any 
 covers (`look SET --retry` passes once, when that look wrote no evaluation) and changed downloads.
 Bookkeeping, logs and per-command summaries land in `$F/run-final/`; commands on different sets may
 run at the same time (each holds its own locks; the heavy lock is `$F/heavy.lock`). The v1 arm runs
-at the v1 commit through `overlay_cli.py` (`PHYSVERIFY_FINAL_OVERLAY_CLI`; a server-side script,
-not in this repository) with the freeze's configs and the base `checks.toml`, the base calibration
-and `PHYSVERIFY_UNSEAL_REPEAT=1`, and must leave no `meta.json` in its overlay. `PHYSVERIFY_FINAL_DRYRUN=1` is the rehearsal: `$F`, the data,
-the cache and its own ledger (`PHYSVERIFY__SEALED__LEDGER`) under `$PHYSVERIFY_H200_ROOT/scratch`,
-a seed other than the freeze's, never `kubric_synthetic_eval`, and, for the new real control,
+at the v1 commit through `overlay_cli.py` (`PHYSVERIFY_FINAL_OVERLAY_CLI`; a server-side script, not
+in this repository) with the freeze's configs and the base `checks.toml`, the base calibration and
+`PHYSVERIFY_UNSEAL_REPEAT=1`, and must leave no `meta.json` in its overlay.
+`PHYSVERIFY_FINAL_DRYRUN=1` is the rehearsal: `$F`, the data, the cache and its own ledger
+(`PHYSVERIFY__SEALED__LEDGER`) under `$PHYSVERIFY_H200_ROOT/scratch`, a seed other than the
+freeze's, never `kubric_synthetic_eval`, and, for the new real control,
 `PHYSVERIFY__PHYSICS_IQ_VIEWS__VIEWS='["center"]'` and `PHYSVERIFY__OBJECTRON_STATIC__SPLIT=train`.
-A run with `PHYSVERIFY_FINAL_EXTRACT_LIMIT` (the pace measurement) is recorded as
-`extract-limited`: a look still needs a full `extract`.
+A run with `PHYSVERIFY_FINAL_EXTRACT_LIMIT` (the pace measurement) is recorded as `extract-limited`:
+a look still needs a full `extract`.
 
 Look order (fixed in the study plan; the script enforces only that a v1 arm follows its look and
 that no render follows a look, so this order is kept by hand): `look kubric_synthetic_eval` (the
@@ -315,13 +316,13 @@ extracts and verifies the dev subset and freezes the rule, gate and cut into the
 `test` does the same on the test subset and runs the one pre-registered `agreement compare --rule
 calibrated`. With `PHYSVERIFY_AGREEMENT_FREEZE` it reads the freeze manifest (`freeze.json` of
 `run_freeze.sh`); without it, the CPU calibration chain in `PHYSVERIFY_AGREEMENT_CHAIN_DIR`, the
-stored output directory of a calibration-chain runner that is no longer in the repository
-(default: `CHAIN_ROOT` of `_common.sh`, under `$PHYSVERIFY_H200_ROOT`). `test` refuses once any
-comparison is logged, also through the list of test logs in
-`$PHYSVERIFY_H200_ROOT/h2-test-ledger.txt`, and `dev` refuses on the same evidence. A pre-registration with a calibration gate makes the study not evaluable with the
-calibrated rule; `test` then needs `PHYSVERIFY_AGREEMENT_ACCEPT_NOT_EVALUABLE=1`. Output goes to
-`PHYSVERIFY_AGREEMENT_DIR` (default `$PHYSVERIFY_H200_ROOT/h2`). Unlike the freeze, iteration and
-final runners, this script keeps its own startup checks instead of `_guards.sh`.
+stored output directory of a calibration-chain runner that is no longer in the repository (default:
+`CHAIN_ROOT` of `_common.sh`, under `$PHYSVERIFY_H200_ROOT`). `test` refuses once any comparison is
+logged, also through the list of test logs in `$PHYSVERIFY_H200_ROOT/h2-test-ledger.txt`, and `dev`
+refuses on the same evidence. A pre-registration with a calibration gate makes the study not
+evaluable with the calibrated rule; `test` then needs `PHYSVERIFY_AGREEMENT_ACCEPT_NOT_EVALUABLE=1`.
+Output goes to `PHYSVERIFY_AGREEMENT_DIR` (default `$PHYSVERIFY_H200_ROOT/h2`). Unlike the freeze,
+iteration and final runners, this script keeps its own startup checks instead of `_guards.sh`.
 
 ## Generator comparison
 
