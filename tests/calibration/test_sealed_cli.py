@@ -22,7 +22,6 @@ from physverify.app import calibration as app_calibration
 from physverify.app import diagnosis as app_diagnosis
 from physverify.app import plugins, sealing
 from physverify.app import selective_risk as app_selective_risk
-from physverify.app import verification as app_verification
 from physverify.calibration import session as calibration_session
 from physverify.calibration.sealed_ledger import LedgerEntry, read_entries
 from physverify.config.models import Settings
@@ -31,7 +30,7 @@ from physverify.datasets._base import GroundTruthStore, VideoSource
 from physverify.diagnosis import scene_stats
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import ClipManifest, Split
-from physverify.verification.runner import VerificationReport, write_report
+from physverify.verification.runner import ConfiguredSuite, VerificationReport, write_report
 
 EXIT_USAGE = 2
 REACHED = 9
@@ -312,7 +311,7 @@ def _guarded_verify(
     cli: CliRunner, monkeypatch: pytest.MonkeyPatch, ledger: Path, reached: list[int]
 ) -> Callable[..., CliResult]:
     stop = sentinel(ledger, reached)
-    monkeypatch.setattr(app_verification, "VerificationRunner", lambda *a: _SentinelRunner(stop))
+    monkeypatch.setattr(ConfiguredSuite, "runner", lambda self: _SentinelRunner(stop))
 
     def invoke(
         *extra: str, options: Sequence[str] = (), env: Mapping[str, str] | None = None
@@ -407,7 +406,7 @@ def test_without_the_sealed_section_every_guarded_command_fails_closed(
     """Even a calib-only selection stops when the sealed sets are unknown."""
     (config_dir / "verifier" / "sealed.toml").unlink()
     stop = sentinel(ledger, reached)
-    monkeypatch.setattr(app_verification, "VerificationRunner", lambda *a: _SentinelRunner(stop))
+    monkeypatch.setattr(ConfiguredSuite, "runner", lambda self: _SentinelRunner(stop))
     result = cli("verify", "--dataset", DATASET, "--level", "oracle", "--clips", CALIB_CLIP)
     assert result.code == EXIT_USAGE and "no [sealed] section" in result.err
     assert reached == []
