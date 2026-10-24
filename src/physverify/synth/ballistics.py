@@ -123,7 +123,7 @@ def integrate_sphere(
         g = schedule.at(t)
         if p[2] <= rest_z + 1e-9 and abs(v[2]) < rest_speed and g[2] <= 0.0:
             start = np.array([p[0], p[1], rest_z])
-            _roll(times, t, start, np.array([v[0], v[1], 0.0]), radius, roll_decel, out_p, out_v)
+            _roll(times, t, start, np.array([v[0], v[1], 0.0]), roll_decel, out_p, out_v)
             break
         segment = Segment(t, p.copy(), v.copy(), g)
         tau_hit = time_to_height(p[2], v[2], g[2], rest_z)
@@ -140,7 +140,7 @@ def integrate_sphere(
             bounces.append(Bounce(t, p.copy(), v.copy(), after))
             v = after
             if abs(after[2]) < rest_speed:
-                _roll(times, t, p, after, radius, roll_decel, out_p, out_v)
+                _roll(times, t, p, after, roll_decel, out_p, out_v)
                 break
     return Flight(out_p, out_v, bounces)
 
@@ -159,16 +159,13 @@ def _fill(
         out_v[k] = velocity(float(times[k]))
 
 
-def _roll(
-    times: Vec, t0: float, p0: Vec, v0: Vec, radius: float, decel: float, out_p: Vec, out_v: Vec
-) -> None:
+def _roll(times: Vec, t0: float, p0: Vec, v0: Vec, decel: float, out_p: Vec, out_v: Vec) -> None:
     """Rolling on the floor: horizontal speed decreases at ``decel`` until the sphere stops."""
     horizontal = np.array([v0[0], v0[1], 0.0])
     speed = float(np.linalg.norm(horizontal))
     direction = horizontal / speed if speed > 0 else np.zeros(3)
     t_stop = speed / decel if decel > 0 else math.inf
     base = np.array([p0[0], p0[1], p0[2]])
-    del radius
     for k in np.flatnonzero(times >= t0 - EPS_T):
         tau = min(float(times[k]) - t0, t_stop)
         out_p[k] = base + direction * (speed * tau - 0.5 * decel * tau * tau)
