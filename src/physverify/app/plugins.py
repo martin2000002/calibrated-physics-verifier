@@ -43,30 +43,52 @@ def module_name(module: ModuleType) -> str:
     return module.__name__.rsplit(".", 1)[-1]
 
 
+PLUGIN_PACKAGES: Mapping[str, str] = MappingProxyType(
+    {
+        CHECKS.name: "physverify.checks",
+        PERTURBATIONS.name: "physverify.synth.perturbations",
+        FAMILIES.name: "physverify.synth.families",
+        PROVIDERS.name: "physverify.extraction.providers",
+        DATASETS.name: "physverify.datasets",
+        CONTAINER_TASKS.name: TASKS_PACKAGE,
+        METRICS.name: "physverify.diagnosis.metrics",
+        POLICIES.name: "physverify.verification.policies",
+        TIMING_TARGETS.name: "physverify.timing.targets",
+        JUDGES.name: "physverify.generator_comparison.judges",
+        SCORERS.name: "physverify.finetune.scorers",
+        TRUTH_MEASURES.name: "physverify.synth.truth_measures",
+    }
+)
+"""The package each plugin kind is discovered from."""
+
 PLUGIN_KINDS: Mapping[str, Callable[[], Registry[Any]]] = MappingProxyType(
     {
-        CHECKS.name: lambda: discover("physverify.checks", (Check,), "check_id", validate_check),
+        CHECKS.name: lambda: discover(
+            PLUGIN_PACKAGES[CHECKS.name], (Check,), "check_id", validate_check
+        ),
         PERTURBATIONS.name: lambda: discover(
-            "physverify.synth.perturbations",
+            PLUGIN_PACKAGES[PERTURBATIONS.name],
             (ScenePerturbation, TrajectoryPerturbation),
             "name",
             validate_perturbation,
         ),
-        FAMILIES.name: lambda: discover("physverify.synth.families", (SceneFamily,), "name"),
+        FAMILIES.name: lambda: discover(PLUGIN_PACKAGES[FAMILIES.name], (SceneFamily,), "name"),
         PROVIDERS.name: lambda: discover(
-            "physverify.extraction.providers", (StageProvider,), provider_key, validate_provider
+            PLUGIN_PACKAGES[PROVIDERS.name], (StageProvider,), provider_key, validate_provider
         ),
-        DATASETS.name: lambda: discover("physverify.datasets", (DatasetSource,), "name"),
-        CONTAINER_TASKS.name: lambda: discover_modules(TASKS_PACKAGE, check_task, module_name),
-        METRICS.name: lambda: discover("physverify.diagnosis.metrics", (StageMetric,), metric_key),
-        POLICIES.name: lambda: discover(
-            "physverify.verification.policies", (VerdictPolicy,), "name"
+        DATASETS.name: lambda: discover(PLUGIN_PACKAGES[DATASETS.name], (DatasetSource,), "name"),
+        CONTAINER_TASKS.name: lambda: discover_modules(
+            PLUGIN_PACKAGES[CONTAINER_TASKS.name], check_task, module_name
         ),
-        TIMING_TARGETS.name: lambda: discover("physverify.timing.targets", (TimingTarget,), "name"),
-        JUDGES.name: lambda: discover("physverify.generator_comparison.judges", (Judge,), "name"),
-        SCORERS.name: lambda: discover("physverify.finetune.scorers", (AggregateScorer,), "name"),
+        METRICS.name: lambda: discover(PLUGIN_PACKAGES[METRICS.name], (StageMetric,), metric_key),
+        POLICIES.name: lambda: discover(PLUGIN_PACKAGES[POLICIES.name], (VerdictPolicy,), "name"),
+        TIMING_TARGETS.name: lambda: discover(
+            PLUGIN_PACKAGES[TIMING_TARGETS.name], (TimingTarget,), "name"
+        ),
+        JUDGES.name: lambda: discover(PLUGIN_PACKAGES[JUDGES.name], (Judge,), "name"),
+        SCORERS.name: lambda: discover(PLUGIN_PACKAGES[SCORERS.name], (AggregateScorer,), "name"),
         TRUTH_MEASURES.name: lambda: discover(
-            "physverify.synth.truth_measures", (TruthMeasure,), "check_id"
+            PLUGIN_PACKAGES[TRUTH_MEASURES.name], (TruthMeasure,), "check_id"
         ),
     }
 )

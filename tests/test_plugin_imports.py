@@ -9,22 +9,11 @@ from pathlib import Path
 
 import pytest
 
-SOURCE = Path(__file__).resolve().parents[2] / "src"
-PLUGIN_PACKAGES = (
-    "physverify.checks",
-    "physverify.synth.perturbations",
-    "physverify.synth.families",
-    "physverify.synth.truth_measures",
-    "physverify.extraction.providers",
-    "physverify.datasets",
-    "physverify.diagnosis.metrics",
-    "physverify.verification.policies",
-    "physverify.timing.targets",
-    "physverify.generator_comparison.judges",
-    "physverify.finetune.scorers",
-    "physverify.kubric_worker.tasks",
-    "physverify.cli.commands",
-)
+from physverify.app.plugins import PLUGIN_KINDS, PLUGIN_PACKAGES
+from physverify.cli.context import COMMANDS_PACKAGE
+
+SOURCE = Path(__file__).resolve().parents[1] / "src"
+PACKAGES = (*PLUGIN_PACKAGES.values(), COMMANDS_PACKAGE)
 
 
 def _public_modules(package: str) -> dict[str, Path]:
@@ -61,7 +50,11 @@ def _sibling_imports(package: str) -> list[str]:
     return found
 
 
-@pytest.mark.parametrize("package", PLUGIN_PACKAGES)
+def test_every_plugin_kind_names_its_package() -> None:
+    assert list(PLUGIN_PACKAGES) == list(PLUGIN_KINDS)
+
+
+@pytest.mark.parametrize("package", PACKAGES)
 def test_public_plugin_modules_import_no_public_sibling(package: str) -> None:
     assert _public_modules(package)
     assert _sibling_imports(package) == []
