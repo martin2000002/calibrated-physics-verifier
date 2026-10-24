@@ -228,9 +228,9 @@ KEPT_IDENTIFIERS: Mapping[str, Mapping[str, int]] = {
     "src/physverify/synth/scene_scope.py": {"h1_scope": 1},
     "src/physverify/verification/exclusion_record.py": {"h3_families_without_target": 1},
     "tests/calibration/exclusion_cases.py": {"h1_pass": 1, "h3_families_without_target": 1},
+    "tests/calibration/exclusions/test_exclusions.py": {"h3_families_without_target": 1},
     "tests/calibration/stratum_cases.py": {"h1_pass": 1},
     "tests/calibration/test_devscore.py": {"h1": 2, "meets_h1": 1, "h1_pass": 1},
-    "tests/calibration/test_exclusions.py": {"h3_families_without_target": 1},
     "tests/calibration/test_fit_fixture.py": {"h1_pass": 1},
     "tests/calibration/test_heldout_monotonicity.py": {
         "heldout_h1": 16,

@@ -33,7 +33,7 @@ from physverify.synth.gt.contacts import (
 )
 from physverify.synth.settings import ContactSettings, DatasetSettings
 
-DATA = Path(__file__).parent / "data"
+DATA = Path(__file__).parents[1] / "data"
 
 
 def load_sim(family: str) -> tuple[SceneSpec, ObjectStateTable, RawCollisions]:
