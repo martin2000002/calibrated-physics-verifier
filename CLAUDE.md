@@ -181,12 +181,9 @@ a cleanup. `tests/contracts/` pins each one.
 ## How to run
 
 Installation, the usage commands, global options, configuration precedence, exit codes and the
-development commands (tests, ruff, mypy) are in `README.md`. Container code is also linted for
-Python 3.9:
-
-```sh
-uv run --no-sync ruff check --target-version py39 src/physverify/schema src/physverify/kubric_worker
-```
+development commands (tests, ruff, mypy) are in `README.md`. Container code (`schema` and
+`kubric_worker`) must also run on Python 3.9; `[tool.ruff.per-file-target-version]` in
+`pyproject.toml` sets that target for it, so the plain `ruff check .` covers it.
 
 ### Heavy jobs and the lock
 
