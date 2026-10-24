@@ -16,14 +16,9 @@ from numpy.typing import NDArray
 from pydantic import BaseModel, Field
 
 from physverify.core.errors import MissingInputError
-from physverify.extraction._base import StageContext, WeightKind, WeightSpec
+from physverify.extraction._base import ProviderParams, StageContext, WeightKind, WeightSpec
 from physverify.extraction.matching import box_iou_matrix
-from physverify.extraction.providers._common import (
-    LazyModel,
-    ProviderParams,
-    expect_params,
-    set_torch_threads,
-)
+from physverify.extraction.providers._common import LazyModel, expect_params, set_torch_threads
 from physverify.extraction.weights import hub_offline, local_path
 from physverify.schema.clip import FrameSampling, ObjectQuery
 from physverify.schema.perception import Detections

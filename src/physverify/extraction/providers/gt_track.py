@@ -7,9 +7,9 @@ from typing import ClassVar
 import numpy as np
 from pydantic import BaseModel, Field
 
-from physverify.extraction._base import GROUND_TRUTH, StageContext, WeightSpec
+from physverify.extraction._base import GROUND_TRUTH, ProviderParams, StageContext, WeightSpec
 from physverify.extraction.matching import DEFAULT_MIN_IOU, gt_detections_at, match_boxes
-from physverify.extraction.providers._common import ProviderParams, expect_params
+from physverify.extraction.providers._common import expect_params
 from physverify.schema.perception import Detections, MaskTrack
 from physverify.schema.stages import Stage
 

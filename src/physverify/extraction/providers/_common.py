@@ -8,13 +8,8 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import BaseModel
 
-from physverify.core.models import FrozenModel
 from physverify.extraction._base import StageContext
 from physverify.schema.clip import FrameSampling
-
-
-class ProviderParams(FrozenModel):
-    """Base of every provider's parameters, which its cache key covers."""
 
 
 def expect_params[P: BaseModel](params: BaseModel, model: type[P]) -> P:

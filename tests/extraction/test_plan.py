@@ -14,8 +14,7 @@ from wiring import resolve_plan
 
 from physverify.config.models import SizePriorTable
 from physverify.core.errors import ConfigError
-from physverify.extraction._base import GROUND_TRUTH, StageProvider
-from physverify.extraction.providers._common import ProviderParams
+from physverify.extraction._base import GROUND_TRUTH, ProviderParams, StageProvider
 from physverify.schema.stages import STAGE_ORDER, Stage
 
 Providers = Mapping[str, type[StageProvider]]

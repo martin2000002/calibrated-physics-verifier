@@ -16,6 +16,7 @@ from pydantic import BaseModel
 from physverify.config.models import PathsSettings
 from physverify.config.plugin_context import PluginKind
 from physverify.core.errors import InvalidPluginError, MissingInputError
+from physverify.core.models import FrozenModel
 from physverify.datasets._base import GroundTruthStore, VideoSource
 from physverify.schema.clip import ClipManifest, FrameSampling
 from physverify.schema.error_profile import EntryFilter, ErrorEntry, ErrorProfile
@@ -25,6 +26,10 @@ from physverify.schema.stages import Stage, check_upstream_order, stage_index
 
 GROUND_TRUTH = "ground_truth"
 """Provider name of every conditional ground-truth provider."""
+
+
+class ProviderParams(FrozenModel):
+    """Base of every provider's parameters, which its cache key covers."""
 
 
 class WeightKind(StrEnum):

@@ -14,7 +14,7 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import Field
 
-from physverify.extraction.providers._common import ProviderParams
+from physverify.extraction._base import ProviderParams
 from physverify.physics.contact_manifold import contact_manifold
 from physverify.physics.geometry import (
     Body,

@@ -7,12 +7,8 @@ from typing import ClassVar
 
 from pydantic import BaseModel, Field
 
-from physverify.extraction._base import StageContext, WeightSpec
-from physverify.extraction.providers._common import (
-    ProviderParams,
-    centred_intrinsics,
-    expect_params,
-)
+from physverify.extraction._base import ProviderParams, StageContext, WeightSpec
+from physverify.extraction.providers._common import centred_intrinsics, expect_params
 from physverify.schema.perception import CameraModel, IntrinsicsSource
 from physverify.schema.stages import Stage
 

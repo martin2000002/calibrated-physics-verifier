@@ -8,8 +8,8 @@ from typing import Any, ClassVar
 import numpy as np
 from pydantic import BaseModel, Field, model_validator
 
-from physverify.extraction._base import StageContext, WeightSpec
-from physverify.extraction.providers._common import ProviderParams, expect_params
+from physverify.extraction._base import ProviderParams, StageContext, WeightSpec
+from physverify.extraction.providers._common import expect_params
 from physverify.physics.kinematics import SavgolSpec, differentiate
 from physverify.schema.stages import Stage
 from physverify.schema.states import ObjectStateTable

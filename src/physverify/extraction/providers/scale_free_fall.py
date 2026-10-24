@@ -16,8 +16,8 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import BaseModel, Field
 
-from physverify.extraction._base import StageContext, WeightSpec
-from physverify.extraction.providers._common import ProviderParams, expect_params
+from physverify.extraction._base import ProviderParams, StageContext, WeightSpec
+from physverify.extraction.providers._common import expect_params
 from physverify.physics.geometry import characteristic_lengths
 from physverify.physics.kinematics import uniform_step, visible_runs
 from physverify.physics.measures.gravity_fit import FallFit, fall_fit, fall_residual_ratio

@@ -6,9 +6,9 @@ from typing import ClassVar
 
 from pydantic import BaseModel
 
-from physverify.extraction._base import GROUND_TRUTH, StageContext, WeightSpec
+from physverify.extraction._base import GROUND_TRUTH, ProviderParams, StageContext, WeightSpec
 from physverify.extraction.matching import remap_contacts
-from physverify.extraction.providers._common import ProviderParams, expect_params
+from physverify.extraction.providers._common import expect_params
 from physverify.extraction.providers._conditional_truth import conditional_truth
 from physverify.schema.contacts import ContactTable
 from physverify.schema.stages import Stage

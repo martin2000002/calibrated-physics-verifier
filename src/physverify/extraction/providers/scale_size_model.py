@@ -13,8 +13,8 @@ from typing import ClassVar
 from pydantic import BaseModel, Field
 
 from physverify.config.models import SIZE_PRIORS_SECTION, SizePrior, SizePriorTable
-from physverify.extraction._base import StageContext, WeightSpec
-from physverify.extraction.providers._common import ProviderParams, expect_params
+from physverify.extraction._base import ProviderParams, StageContext, WeightSpec
+from physverify.extraction.providers._common import expect_params
 from physverify.extraction.providers._size_prior import (
     ObjectScale,
     combine,

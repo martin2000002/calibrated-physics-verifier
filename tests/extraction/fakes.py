@@ -19,8 +19,8 @@ from synthetic_clip import build_clip
 
 from physverify.config.models import RuntimeSettings
 from physverify.datasets._base import ArrayGroundTruthStore
-from physverify.extraction._base import StageContext, StageProvider, WeightSpec
-from physverify.extraction.providers._common import ProviderParams, expect_params
+from physverify.extraction._base import ProviderParams, StageContext, StageProvider, WeightSpec
+from physverify.extraction.providers._common import expect_params
 from physverify.schema.perception import DepthKind, DepthMap, Detections, MaskTrack
 from physverify.schema.stages import Stage
 

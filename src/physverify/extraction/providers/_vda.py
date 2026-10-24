@@ -23,13 +23,8 @@ from pydantic import BaseModel, Field
 
 from physverify.core.errors import PluginError
 from physverify.core.resample import resize_depth
-from physverify.extraction._base import StageContext, WeightKind, WeightSpec
-from physverify.extraction.providers._common import (
-    LazyModel,
-    ProviderParams,
-    expect_params,
-    set_torch_threads,
-)
+from physverify.extraction._base import ProviderParams, StageContext, WeightKind, WeightSpec
+from physverify.extraction.providers._common import LazyModel, expect_params, set_torch_threads
 from physverify.extraction.weights import local_path, vendored_import_path, weight_file
 from physverify.schema.clip import FrameSampling
 from physverify.schema.perception import DepthKind, DepthMap

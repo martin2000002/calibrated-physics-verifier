@@ -12,8 +12,8 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import Field
 
-from physverify.extraction._base import StageContext, WeightSpec
-from physverify.extraction.providers._common import LazyModel, ProviderParams
+from physverify.extraction._base import ProviderParams, StageContext, WeightSpec
+from physverify.extraction.providers._common import LazyModel
 from physverify.extraction.weights import hub_offline, local_path
 from physverify.schema.perception import Detections, MaskTrack
 from physverify.schema.stages import Stage

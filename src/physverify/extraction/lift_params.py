@@ -7,8 +7,8 @@ from typing import Literal
 
 from pydantic import Field, field_validator
 
+from physverify.extraction._base import ProviderParams
 from physverify.extraction.backprojection import ShiftStrategy
-from physverify.extraction.providers._common import ProviderParams
 from physverify.physics.tracks import OCCLUDED_AT
 from physverify.schema.states import PrimitiveKind
 

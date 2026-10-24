@@ -35,11 +35,17 @@ from physverify.diagnosis.measurement_cases import SampledMetric
 from physverify.diagnosis.settings import diagnosis_settings
 from physverify.diagnosis.verification_adapter import CheckSuite
 from physverify.extraction import pipeline as extraction_pipeline
-from physverify.extraction._base import StageContext, StageProvider, WeightSpec, provider_key
+from physverify.extraction._base import (
+    ProviderParams,
+    StageContext,
+    StageProvider,
+    WeightSpec,
+    provider_key,
+)
 from physverify.extraction.cache import StageCache
 from physverify.extraction.pipeline import PipelineDeps
 from physverify.extraction.pipeline_resources import LazyLock
-from physverify.extraction.providers._common import ProviderParams, expect_params
+from physverify.extraction.providers._common import expect_params
 from physverify.runtime.runs import RunContext
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
 from physverify.schema.clip import ClipManifest, Split
