@@ -17,11 +17,11 @@ import importlib
 import math
 from collections.abc import Callable
 from dataclasses import dataclass, replace
-from typing import Any, ClassVar, Literal, Protocol
+from typing import Annotated, Any, ClassVar, Literal, Protocol
 
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import BaseModel, Field, field_validator
+from pydantic import AfterValidator, BaseModel, Field
 
 from physverify.extraction._base import ProviderParams, StageContext, WeightKind, WeightSpec
 from physverify.extraction.gravity_pose import pose_from_gravity
@@ -58,6 +58,15 @@ CAMERA_MODEL = "pinhole"
 FocalMode = Literal["geocalib", "assumed"]
 
 
+def _nan_or_non_negative(value: float) -> float:
+    if not (math.isnan(value) or (math.isfinite(value) and value >= 0)):
+        raise ValueError("focal_sigma_floor_rel must be NaN or finite >= 0")
+    return value
+
+
+SigmaFloor = Annotated[float, AfterValidator(_nan_or_non_negative)]
+
+
 class Params(ProviderParams):
     n_frames: int = Field(default=8, ge=1)
     # "assumed": K, FOV and FOV sigma of camera/assumed_fov's defaults, and GeoCalib's gravity
@@ -65,14 +74,7 @@ class Params(ProviderParams):
     focal: FocalMode = "geocalib"
     # phi_0, the measured floor of the relative focal sigma: the 0.68
     # quantile of |focal_rel| on v1-precise-hdri-dev. NaN = no floor (GeoCalib's own sigma alone).
-    focal_sigma_floor_rel: float = math.nan
-
-    @field_validator("focal_sigma_floor_rel")
-    @classmethod
-    def _floor_nan_or_non_negative(cls, value: float) -> float:
-        if not (math.isnan(value) or (math.isfinite(value) and value >= 0)):
-            raise ValueError("focal_sigma_floor_rel must be NaN or finite >= 0")
-        return value
+    focal_sigma_floor_rel: SigmaFloor = math.nan
 
 
 @dataclass(frozen=True)
@@ -129,6 +131,16 @@ def clip_gravity(result: Calibration) -> FloatArray:
     return combine_gravity(to_opencv_gravity(result.up), result.up_sigma_rad)
 
 
+def clip_gravity_sigma_deg(result: Calibration) -> float:
+    """Median per-frame sigma of the clip's gravity; NaN when GeoCalib gave none (0 or not finite).
+
+    Not the inverse-variance standard error: the frames show one static camera, so their errors
+    are correlated and averaging them would understate the sigma."""
+    sigma = np.asarray(result.up_sigma_rad, dtype=np.float64)
+    usable = sigma[np.isfinite(sigma) & (sigma > 0)]
+    return math.degrees(float(np.median(usable))) if usable.size else math.nan
+
+
 def to_opencv_gravity(up: FloatArray) -> FloatArray:
     """GeoCalib's up vectors (B, 3) to unit gravity directions in OpenCV camera axes."""
     vectors = np.asarray(up, dtype=np.float64)
@@ -168,7 +180,7 @@ def camera_model(
     sampling: FrameSampling,
     focal_px: float,
     focal_sigma_px: float,
-    pose: FloatArray,
+    pose: FloatArray | None,
     floor_rel: float = math.nan,
 ) -> CameraModel:
     return CameraModel(

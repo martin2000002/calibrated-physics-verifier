@@ -183,6 +183,8 @@ class CameraModel(Record):
     """OpenCV intrinsics in processing pixels; ``world_from_camera`` is (4,4), (T',4,4) or None.
 
     Intrinsics use the continuous image-plane convention, so resizing scales every entry of K.
+    ``gravity_sigma_deg`` is the angular sigma of the pose's gravity when the provider estimates
+    one (NaN otherwise: the lift then uses its configured sigma).
     """
 
     sampling: FrameSampling
@@ -191,6 +193,7 @@ class CameraModel(Record):
     fov_deg: float
     fov_sigma_deg: float
     world_from_camera: NDArray[np.float64] | None = None
+    gravity_sigma_deg: float = math.nan
 
     _arrays = MappingProxyType({"K": ArraySpec("f8", (3, 3))})
 
@@ -200,6 +203,7 @@ class CameraModel(Record):
         check_enum("source", self.source, IntrinsicsSource)
         check_number("fov_deg", self.fov_deg)
         check_sigma("fov_sigma_deg", self.fov_sigma_deg)
+        check_sigma("gravity_sigma_deg", self.gravity_sigma_deg)
         if not bool(np.all(np.isfinite(self.K))):
             raise SchemaError("K must be finite")
         if self.world_from_camera is not None:
@@ -225,5 +229,6 @@ class CameraModel(Record):
             fov_deg=data["fov_deg"],
             fov_sigma_deg=data["fov_sigma_deg"],
             world_from_camera=decode_optional_array(data.get("world_from_camera")),
+            gravity_sigma_deg=data.get("gravity_sigma_deg", math.nan),
             **cls.decode_arrays(data),
         )
