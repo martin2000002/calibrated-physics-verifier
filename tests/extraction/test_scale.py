@@ -64,7 +64,7 @@ def only(lift: ObjectStateTable, object_id: str) -> ObjectStateTable:
     per_object = {
         name: getattr(lift, name)[:, [n]]
         for name, spec in lift._arrays.items()
-        if spec.shape[:2] == ("T", "N")
+        if spec.shape[:2] == ("T", "N") and getattr(lift, name) is not None
     }
     return replace(
         lift,
