@@ -278,7 +278,7 @@ def freeze_dev(
     rule: ClipDecisionRule,
     run: VerifyRun,
     policy: str,
-    min_side_fraction: float = 0.0,
+    min_side_fraction: float,
 ) -> DevFreeze:
     """On h2_dev: the majority class, the cut of maximum balanced accuracy on the score
     (primary for the calibrated rule, secondary ``dev_tuned`` for the provisional one) and the

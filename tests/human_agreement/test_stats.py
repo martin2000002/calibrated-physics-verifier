@@ -123,10 +123,10 @@ def test_the_caption_bootstrap_counts_replicas_where_kappa_is_nan() -> None:
 
 def test_best_cut_maximises_balanced_accuracy_and_breaks_ties_low() -> None:
     y = as_labels([False, False, True, True])
-    assert best_cut(y, np.array([0.1, 0.2, 0.8, 0.9])).cut == pytest.approx(0.2)
-    found = best_cut(as_labels([True, False, True]), np.array([0.3, 0.1, 0.5]))
+    assert best_cut(y, np.array([0.1, 0.2, 0.8, 0.9]), 0.0).cut == pytest.approx(0.2)
+    found = best_cut(as_labels([True, False, True]), np.array([0.3, 0.1, 0.5]), 0.0)
     assert found.cut == pytest.approx(0.1) and found.rejection is None
-    assert best_cut(y, np.full(4, math.nan)) == CutChoice(None, FEWER_THAN_TWO_SCORES)
+    assert best_cut(y, np.full(4, math.nan), 0.0) == CutChoice(None, FEWER_THAN_TWO_SCORES)
     assert predict_cut(np.array([0.3, math.nan, 0.1]), 0.2).tolist() == [1, 0, 0]
 
 
@@ -137,7 +137,7 @@ def test_best_cut_never_declares_every_decided_clip_implausible() -> None:
     y = as_labels([True, True, True, False, False, False])
     score = np.array([0.4, 0.2, 0.6, 0.5, math.nan, math.nan])
     assert balanced_accuracy(y, predict_cut(score, 0.2 - 1.0)) == pytest.approx(5 / 6)
-    cut = best_cut(y, score).cut
+    cut = best_cut(y, score, 0.0).cut
     assert cut is not None and 0.2 <= cut < 0.6
     decided = np.isfinite(score)
     implausible = predict_cut(score, cut)[decided]
@@ -146,8 +146,8 @@ def test_best_cut_never_declares_every_decided_clip_implausible() -> None:
 
 def test_best_cut_needs_two_distinct_finite_scores() -> None:
     tied = as_labels([True, False])
-    assert best_cut(tied, np.array([0.5, 0.5])).rejection == FEWER_THAN_TWO_SCORES
-    assert best_cut(tied, np.array([0.5, math.nan])).rejection == FEWER_THAN_TWO_SCORES
+    assert best_cut(tied, np.array([0.5, 0.5]), 0.0).rejection == FEWER_THAN_TWO_SCORES
+    assert best_cut(tied, np.array([0.5, math.nan]), 0.0).rejection == FEWER_THAN_TWO_SCORES
 
 
 def test_best_cut_keeps_the_min_side_fraction_of_decided_clips() -> None:
@@ -155,7 +155,7 @@ def test_best_cut_keeps_the_min_side_fraction_of_decided_clips() -> None:
     minimum it moves to the best cut leaving two clips on either side."""
     y = as_labels([False] + [True] * 9 + [False] * 4)
     score = np.array([0.1, *np.linspace(0.2, 1.0, 9), *[math.nan] * 4])
-    assert best_cut(y, score).cut == pytest.approx(0.1)
+    assert best_cut(y, score, 0.0).cut == pytest.approx(0.1)
     found = best_cut(y, score, min_side_fraction=0.2)
     assert found.cut is not None and found.cut >= 0.2 - 1e-12
     decided = predict_cut(score, found.cut)[np.isfinite(score)]

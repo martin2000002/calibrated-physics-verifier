@@ -282,7 +282,7 @@ class CutChoice:
     """Why no cut was chosen (None when one was)."""
 
 
-def best_cut(y: Labels, score: Scores, min_side_fraction: float = 0.0) -> CutChoice:
+def best_cut(y: Labels, score: Scores, min_side_fraction: float) -> CutChoice:
     """The cut on ``score`` (implausible when score > cut, NaN = plausible) with the highest
     balanced accuracy; ties go to the smaller cut.
 

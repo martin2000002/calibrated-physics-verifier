@@ -39,7 +39,7 @@ class AgreementSettings(FrozenModel):
     exclude_time_dependent: bool = False
     """Leave [check_scope].time_dependent_checks out of the primary rule; the primary keeps them
     (true is a pre-registration change, declared before the freeze)."""
-    min_cut_side_fraction: float = Field(default=0.0, ge=0, lt=0.5)
+    min_cut_side_fraction: float = Field(ge=0, lt=0.5)
     """The dev cut must leave at least this fraction of the decided dev clips on either side;
     when no observed score does, no cut is frozen and the rejection is recorded."""
     dev_subset: str
