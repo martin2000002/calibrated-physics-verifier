@@ -39,8 +39,9 @@ def select_variants(
         raise ConfigError(f"[{CHECK_VARIANTS_SECTION}] has unknown check ids {unknown}")
     missing = sorted(f"{c}/{v}" for c, v in selection.root.items() if f"{c}/{v}" not in variants)
     if missing:
+        known = sorted(variants)
         raise ConfigError(
-            f"[{CHECK_VARIANTS_SECTION}] names unknown variants {missing}; known: {sorted(variants)}"
+            f"[{CHECK_VARIANTS_SECTION}] names unknown variants {missing}; known: {known}"
         )
     return Registry(
         {

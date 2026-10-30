@@ -28,12 +28,12 @@ KEY_PATHS = Path(__file__).with_name("data") / "config_key_paths.txt"
 PINNED_ROOT = "/pinned"
 
 SECTIONS_HASH = {
-    "fast": "d773152e80be1dc3835e0984cb4afa1a88e33e68b0bc04896786c691c0a42c7f",
-    "precise": "cdbd28bb9850aa0a1a3bc3c8c8c7fa09479d1be143a814139240a44b30a42de4",
+    "fast": "d3f6def2fe6c4bf8391f743882268f54d5d8f7bc9686bc7c90fc42127401755c",
+    "precise": "ec2ca36c2045b23ffaacb8befb1ffaa17d5314d17fa5fb070895e1ae2ba8b537",
 }
 CONFIG_HASH = {
-    "fast": "f0ebfea283a87375d6224c06dc7cc73a32c089acd504ea87ef168c9231174194",
-    "precise": "a3ba239b32154cf5078de18688f568eede03d035dbd5ff3246359fb6b71faa66",
+    "fast": "f841887b80952b9e666babbfaf58c22f7d9cb951c31769f175f95209f361202c",
+    "precise": "249f0508a5706260e843f743b66d4dd8c0c151ca584130d97eab932d5c9f21e9",
 }
 LOOK_CONFIG_HASH = {
     "fast": "2ccbc506b3dc2ded5ae47963e4792281c48ea29c21af6b1d0db6e3d3b2b585f0",

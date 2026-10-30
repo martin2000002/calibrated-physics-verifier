@@ -22,8 +22,8 @@ from exclusion_cases import (
     record,
     rules,
     rules_raw,
-    toml_rules_raw,
     scene,
+    toml_rules_raw,
 )
 from stratum_cases import FIXTURE_CHECKS_HASH, check_calibration, write_artifact
 

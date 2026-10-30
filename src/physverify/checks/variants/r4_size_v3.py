@@ -6,6 +6,7 @@ from __future__ import annotations
 from typing import ClassVar, Literal
 
 import numpy as np
+from numpy.typing import NDArray
 from pydantic import BaseModel, Field
 
 from physverify.checks._base import CheckInputs, abstain, unscored
@@ -17,6 +18,8 @@ from physverify.physics.measures.relative_size import relative_lengths
 from physverify.physics.row_time import odd_rows_in, rows_in, seconds_per_row
 from physverify.physics.tracks import native_span
 from physverify.schema.checks import AbstainReason, CheckResult
+
+FloatArray = NDArray[np.float64]
 
 WINDOW_S = 17.0 / 24.0
 """The 17-row window of the 24 fps synthetic clips: wider than twice the longest r4_resize bump
