@@ -10,15 +10,30 @@ from physverify.config.models import SizePriorTable
 from physverify.core.models import FrozenModel
 
 
+PREPOSITIONS = frozenset(
+    {
+        "about", "above", "across", "against", "along", "at", "behind", "below", "beside",
+        "between", "by", "for", "from", "in", "inside", "into", "near", "off", "on",
+        "onto", "over", "through", "to", "under", "with", "without",
+    }
+)  # fmt: skip
+"""Words that end the noun phrase of a query: what follows them modifies the head noun. "of" is
+not one: in a partitive the bodies are named after it ("tower of blocks", "piece of slate")."""
+
+
 def label_candidates(label: str) -> tuple[str, ...]:
-    """The whole label first, then its words from the last one: English puts the head noun of a
-    query phrase last ("glass globe" is a globe, "red ball" a ball)."""
+    """The whole label first, then the words before its first preposition from the last one:
+    English puts the head noun of a noun phrase last ("glass globe" is a globe, "red ball" a ball)
+    and a prepositional phrase after it ("ball on book" is a ball)."""
     text = label.strip().lower()
-    return (text, *reversed(text.replace("_", " ").split()))
+    words = text.replace("_", " ").split()
+    cut = next((i for i, word in enumerate(words) if word in PREPOSITIONS), len(words))
+    return (text, *reversed(words[:cut]))
 
 
 def lookup_label[V](label: str, table: Mapping[str, V]) -> V | None:
-    """Exact match of the label, else of its last word that is a key of ``table``."""
+    """Exact match of the label, else of its last word before any preposition that is a key of
+    ``table``."""
     for candidate in label_candidates(label):
         if candidate in table:
             return table[candidate]
