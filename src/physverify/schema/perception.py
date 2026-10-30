@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from enum import Enum
 from types import MappingProxyType
@@ -124,12 +125,19 @@ class MaskTrack(Record):
 
 @dataclass(frozen=True, eq=False)
 class DepthMap(Record):
-    """Raw depth prediction (no sigma: heavy stages store raw outputs)."""
+    """Raw depth prediction (no sigma: heavy stages store raw outputs).
+
+    ``focal_px`` is the horizontal focal length in processing pixels when the depth model also
+    estimates the camera (None otherwise); ``focal_sigma_px`` is NaN when the model gives no
+    uncertainty for it.
+    """
 
     sampling: FrameSampling
     depth: NDArray[np.float32]
     kind: DepthKind
     valid: NDArray[np.bool_]
+    focal_px: float | None = None
+    focal_sigma_px: float = math.nan
 
     _arrays = MappingProxyType(
         {
@@ -143,12 +151,19 @@ class DepthMap(Record):
         check_enum("kind", self.kind, DepthKind)
         frames, height, width = self.depth.shape
         _check_sampling(self.sampling, frames, height, width)
+        if self.focal_px is not None:
+            focal = check_number("focal_px", self.focal_px)
+            if not (math.isfinite(focal) and focal > 0):
+                raise SchemaError(f"focal_px must be finite and positive, got {focal}")
+        check_sigma("focal_sigma_px", self.focal_sigma_px)
 
     @classmethod
     def from_dict(cls, data: Mapping[str, Any]) -> Self:
         return cls(
             sampling=FrameSampling.from_dict(data["sampling"]),
             kind=DepthKind(data["kind"]),
+            focal_px=data.get("focal_px"),
+            focal_sigma_px=data.get("focal_sigma_px", math.nan),
             **cls.decode_arrays(data),
         )
 
