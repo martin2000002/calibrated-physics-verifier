@@ -14,13 +14,12 @@ import pytest
 from support import entry, make_context, profile_of, run_provider
 from synthetic_clip import SyntheticClip
 
-from physverify.core.errors import MissingInputError
 from physverify.extraction._base import GROUND_TRUTH, StageContext
 from physverify.extraction.providers._geocalib import camera_model
 from physverify.extraction.providers.lift_backproject import BackprojectLift
 from physverify.extraction.providers.scale_metric_depth import MetricDepthScale
 from physverify.schema.clip import FrameSampling
-from physverify.schema.error_profile import ErrorProfile
+from physverify.schema.error_profile import FOCAL_REL, SCALE_REL, ErrorProfile
 from physverify.schema.outputs import StageOutput
 from physverify.schema.perception import DepthKind, DepthMap, MaskTrack
 from physverify.schema.scale import ScaleEstimate, ScaleSource, effective_scale
@@ -83,16 +82,22 @@ def plane_inputs(kind: DepthKind = DepthKind.METRIC_Z) -> dict[Stage, StageOutpu
 
 
 def context(
-    clip: SyntheticClip, upstream: dict[Stage, StageOutput], profile: ErrorProfile | None = None
+    clip: SyntheticClip,
+    upstream: dict[Stage, StageOutput],
+    profile: ErrorProfile | None = None,
+    plan: dict[Stage, str] = PLAN,
 ) -> StageContext:
-    ctx = make_context(clip, upstream=upstream, plan=PLAN, profile=profile)
+    ctx = make_context(clip, upstream=upstream, plan=plan, profile=profile)
     return replace(ctx, sampling=pinhole_sampling())
 
 
 def metric_scale(
-    clip: SyntheticClip, table: ObjectStateTable, profile: ErrorProfile | None = None
+    clip: SyntheticClip,
+    table: ObjectStateTable,
+    profile: ErrorProfile | None = None,
+    plan: dict[Stage, str] = PLAN,
 ) -> ScaleEstimate:
-    scale = run_provider(MetricDepthScale, context(clip, {Stage.LIFT: table}, profile))
+    scale = run_provider(MetricDepthScale, context(clip, {Stage.LIFT: table}, profile, plan))
     assert isinstance(scale, ScaleEstimate)
     return scale
 
@@ -123,17 +128,31 @@ def test_metric_depth_scale_is_one_metre_per_unit(fixture_clip: SyntheticClip) -
     assert table.size[0, 0, 0] * applied.meters_per_unit == pytest.approx(side_m, abs=TOL_M)
 
 
-def test_the_scale_sigma_is_the_measured_scale_error(fixture_clip: SyntheticClip) -> None:
+def test_the_scale_sigma_joins_the_depth_scale_and_focal_errors(
+    fixture_clip: SyntheticClip,
+) -> None:
     table = metric_lift(fixture_clip)
-    profile = profile_of(entry(Stage.SCALE, "metric_depth", "scale_rel", 0.12, bias=0.05))
+    profile = profile_of(
+        entry(Stage.DEPTH, "moge2", SCALE_REL, 0.12, bias=0.05),
+        entry(Stage.DEPTH, "moge2", FOCAL_REL, 0.04, bias=-0.03),
+    )
     applied = effective_scale(table, metric_scale(fixture_clip, table, profile))
     assert applied is not None
-    assert applied.rel_sigma == pytest.approx(math.hypot(0.05, 0.12))
+    assert applied.rel_sigma == pytest.approx(math.hypot(0.05, 0.12, 0.03, 0.04))
 
 
-def test_a_relative_lift_is_refused(fixture_clip: SyntheticClip) -> None:
+def test_on_true_depth_the_scale_is_exact(fixture_clip: SyntheticClip) -> None:
+    table = metric_lift(fixture_clip)
+    scale = metric_scale(fixture_clip, table, plan={**PLAN, Stage.DEPTH: GROUND_TRUTH})
+    assert scale.source is ScaleSource.METRIC_DEPTH
+    assert scale.sigma == 0.0
+
+
+def test_a_relative_lift_has_no_scale(fixture_clip: SyntheticClip) -> None:
     upstream = plane_inputs(DepthKind.RELATIVE_DEPTH)
     table = run_provider(BackprojectLift, context(fixture_clip, upstream), **EXACT_GEOMETRY)
     assert isinstance(table, ObjectStateTable) and table.unit is LengthUnit.RELATIVE
-    with pytest.raises(MissingInputError, match="needs a metric lift"):
-        metric_scale(fixture_clip, table)
+    scale = metric_scale(fixture_clip, table)
+    assert scale.source is ScaleSource.NONE
+    assert scale.meters_per_unit is None
+    assert effective_scale(table, scale) is None
