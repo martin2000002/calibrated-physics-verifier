@@ -30,9 +30,11 @@ FREE_FOCAL_REL = (0.80, 0.90, 1.00)
 
 @dataclass
 class FakeMoGe:
-    """Metric z constant except one masked pixel; a free focal cycles through FREE_FOCAL_REL."""
+    """Metric z constant except one masked pixel; a free focal cycles through FREE_FOCAL_REL
+    frame after frame, across batches."""
 
     calls: list[tuple[int, float | None]] = field(default_factory=list)
+    free_frames: int = 0
 
     def estimate(self, frames: NDArray[np.uint8], fov_x_deg: float | None) -> FrameEstimate:
         self.calls.append((frames.shape[0], fov_x_deg))
@@ -40,7 +42,9 @@ class FakeMoGe:
         depth = np.full((n, h, w), DEPTH_M, dtype=np.float32)
         depth[:, 0, 0] = np.inf
         if fov_x_deg is None:
-            focal = np.resize(np.array(FREE_FOCAL_REL), n)
+            cycle = np.arange(self.free_frames, self.free_frames + n) % len(FREE_FOCAL_REL)
+            focal = np.array(FREE_FOCAL_REL)[cycle]
+            self.free_frames += n
         else:
             focal = np.full(n, 0.5 / math.tan(math.radians(fov_x_deg) / 2.0))
         return FrameEstimate(depth=depth, focal_rel=focal)

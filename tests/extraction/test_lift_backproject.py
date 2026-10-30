@@ -221,9 +221,7 @@ def test_an_estimated_pose_uses_its_own_gravity_sigma_else_the_configured_one(
     upstream = truth_inputs(fixture_clip)
     truth = upstream[Stage.CAMERA]
     assert isinstance(truth, CameraModel)
-    estimated = replace(
-        truth, source=IntrinsicsSource.ESTIMATED, gravity_sigma_deg=own_sigma_deg
-    )
+    estimated = replace(truth, source=IntrinsicsSource.ESTIMATED, gravity_sigma_deg=own_sigma_deg)
     table = lift(
         fixture_clip,
         {**upstream, Stage.CAMERA: estimated},

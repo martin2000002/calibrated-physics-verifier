@@ -152,9 +152,11 @@ class TorchMoGe:
 
 
 def load_model(ctx: StageContext, resolution_level: int) -> TorchMoGe:
-    with vendored_import_path(local_path(GEOMETRY, ctx.paths)):
-        with vendored_import_path(local_path(CODE, ctx.paths)):
-            module = importlib.import_module(VENDORED_MODULE)
+    with (
+        vendored_import_path(local_path(GEOMETRY, ctx.paths)),
+        vendored_import_path(local_path(CODE, ctx.paths)),
+    ):
+        module = importlib.import_module(VENDORED_MODULE)
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         model = module.MoGeModel.from_pretrained(str(weight_file(CHECKPOINT, ctx.paths)))
