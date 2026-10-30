@@ -123,6 +123,7 @@ PROVIDER_ORDER = (
     "track/ground_truth",
     "kinematics/savgol",
     "lift/backproject",
+    "lift/backproject_unnested",
     "scale/free_fall",
     "scale/size_model",
     "scale/size_prior",
