@@ -22,7 +22,7 @@ KINDS = (
     "policies",
     "timing_targets",
 )
-ADDED_KINDS = frozenset({"judges", "scorers", "truth_measures"})
+ADDED_KINDS = frozenset({"judges", "scorers", "truth_measures", "check_variants"})
 CLI_KIND = "commands"
 
 ORDER: Mapping[str, tuple[str, ...]] = {
@@ -81,6 +81,7 @@ ORDER: Mapping[str, tuple[str, ...]] = {
         "track/mask",
     ),
     "policies": ("raw", "threshold"),
+    "check_variants": ("R4_size/v3",),
     "truth_measures": (
         "R1",
         "R2",
@@ -169,7 +170,7 @@ def commands() -> Mapping[str, Any]:
     return command_modules()
 
 
-def test_only_judges_scorers_and_truth_measures_are_new_kinds() -> None:
+def test_only_the_declared_kinds_are_new() -> None:
     assert set(PLUGIN_KINDS) - set(KINDS) - {CLI_KIND} <= ADDED_KINDS
 
 
@@ -189,6 +190,12 @@ def test_every_check_has_exactly_one_truth_measure(
     registries: dict[str, Mapping[str, Any]],
 ) -> None:
     assert set(registries["truth_measures"]) == set(registries["checks"])
+
+
+def test_every_variant_replaces_a_registered_check(
+    registries: dict[str, Mapping[str, Any]],
+) -> None:
+    assert {key.split("/")[0] for key in registries["check_variants"]} <= set(registries["checks"])
 
 
 def test_provider_keys_are_unchanged(registries: dict[str, Mapping[str, Any]]) -> None:

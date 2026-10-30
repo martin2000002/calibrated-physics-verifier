@@ -10,14 +10,46 @@ from pydantic import Field, RootModel, ValidationError
 from physverify.checks._base import Check
 from physverify.config.models import Settings, validated
 from physverify.core.errors import ConfigError
+from physverify.core.registry import Registry
 from physverify.extraction.plan import CHECK_THRESHOLD_FIELD
 from physverify.schema.io import stable_hash
 
 CHECKS_SECTION = "checks"
+CHECK_VARIANTS_SECTION = "check_variants"
 
 
 class ChecksSettings(RootModel[dict[str, dict[str, Any]]]):
     root: dict[str, dict[str, Any]] = Field(default_factory=dict)
+
+
+class CheckVariantsSettings(RootModel[dict[str, str]]):
+    """``[check_variants]``: check id -> variant name; a check left out keeps its default."""
+
+    root: dict[str, str] = Field(default_factory=dict)
+
+
+def select_variants(
+    checks: Mapping[str, type[Check]],
+    variants: Mapping[str, type[Check]],
+    selection: CheckVariantsSettings,
+) -> Registry[type[Check]]:
+    """``checks`` in its order, each selected id replaced by its ``<check_id>/<variant>``."""
+    unknown = sorted(set(selection.root) - set(checks))
+    if unknown:
+        raise ConfigError(f"[{CHECK_VARIANTS_SECTION}] has unknown check ids {unknown}")
+    missing = sorted(f"{c}/{v}" for c, v in selection.root.items() if f"{c}/{v}" not in variants)
+    if missing:
+        raise ConfigError(
+            f"[{CHECK_VARIANTS_SECTION}] names unknown variants {missing}; known: {sorted(variants)}"
+        )
+    return Registry(
+        {
+            check_id: variants[f"{check_id}/{selection.root[check_id]}"]
+            if check_id in selection.root
+            else check
+            for check_id, check in checks.items()
+        }
+    )
 
 
 def build_checks(
@@ -35,12 +67,18 @@ def build_checks(
 def checks_hash(registry: Mapping[str, type[Check]], overrides: ChecksSettings) -> str:
     """Hash of the effective parameters of every registered check."""
     params = {
-        check_id: check.Params.model_validate(overrides.root.get(check_id, {})).model_dump(
-            mode="json"
-        )
+        _hash_key(check_id, check): check.Params.model_validate(
+            overrides.root.get(check_id, {})
+        ).model_dump(mode="json")
         for check_id, check in sorted(registry.items())
     }
     return stable_hash(params)
+
+
+def _hash_key(check_id: str, check: type[Check]) -> str:
+    """A variant hashes under ``<check_id>/<variant>``, so it never shares a default's hash."""
+    variant = getattr(check, "variant", None)
+    return check_id if variant is None else f"{check_id}/{variant}"
 
 
 def active_checks_hash(settings: Settings, checks: Mapping[str, type[Check]]) -> str:

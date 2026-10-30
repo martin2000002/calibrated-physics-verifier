@@ -16,6 +16,12 @@ mass_floor = 0.2
 [checks.R4_size]
 reference = "others"
 
+# Alternative implementations (checks/variants/), check id -> variant name; a check left out runs
+# its default. R4_size "v3": persistent change against a running median, windows in seconds,
+# rows at the image border left out (e.g. --set check_variants.R4_size=v3). R4_jump "rigid":
+# v2 without the stencils where the apparent size steps (--set check_variants.R4_jump=rigid).
+[check_variants]
+
 [verification]
 policy = "threshold"
 
