@@ -12,6 +12,8 @@ import numpy as np
 from numpy.lib.stride_tricks import sliding_window_view
 from numpy.typing import ArrayLike, NDArray
 
+from physverify.physics.running_median import running_median
+
 FloatArray = NDArray[np.float64]
 
 
@@ -25,23 +27,12 @@ class PersistentChange:
     row: int
 
 
-def running_median(values: ArrayLike, window: int) -> FloatArray:
-    """Median of the finite values in ``window`` rows around each finite row; at the ends the
-    window keeps its width and shifts inside the series. NaN rows stay NaN."""
-    series = np.asarray(values, dtype=np.float64).reshape(-1)
-    width = min(window, series.size)
-    out = np.full(series.size, math.nan)
-    for row in np.flatnonzero(np.isfinite(series)):
-        start = min(max(int(row) - window // 2, 0), series.size - width)
-        out[row] = np.nanmedian(series[start : start + width])
-    return out
-
-
 def detrended_deviation(ratios: ArrayLike, window: int) -> FloatArray:
-    """d_t = r_t / runmed_W(r)_t - 1; NaN where r is unknown."""
+    """d_t = r_t / runmed_W(r)_t - 1 (the window shifted inside the series at its ends); NaN
+    where r is unknown."""
     series = np.asarray(ratios, dtype=np.float64).reshape(-1)
     with np.errstate(invalid="ignore", divide="ignore"):
-        return np.asarray(series / running_median(series, window) - 1.0, dtype=np.float64)
+        return np.asarray(series / running_median(series, window, "shifted") - 1.0, dtype=np.float64)
 
 
 def persistent_change(ratios: ArrayLike, window: int, persistence: int) -> PersistentChange | None:
