@@ -22,7 +22,6 @@ DEMO_TAG = "demo"
 VAL_TAG = "val"
 UNSEEN_TAG = "unseen_template"
 TEMPLATE_TAG_PREFIX = "template:"
-CLIP_HASH_CHARS = 12
 
 
 def finite_or_none(value: float | None) -> float | None:
@@ -42,8 +41,10 @@ class PromptRecord(FrozenModel):
 
 class CandidateRecord(FrozenModel):
     """``candidate_id`` names the candidate inside its model tag; ``clip_id`` names its video for
-    extraction and verification, so a candidate of another tag or generation configuration never
-    shares a cache entry with it (campaigns with identical settings do)."""
+    extraction and verification. The clip id never depends on ``config_hash``, so rescoring
+    reuses the extraction cache; a base candidate keeps its bare candidate id and any other tag
+    prefixes it, so a fine-tuned or given video never reads a base cache entry. Which
+    configuration a score belongs to is ``CandidateScore.candidate_config_hash``."""
 
     candidate_id: str
     prompt_id: str
@@ -60,7 +61,9 @@ class CandidateRecord(FrozenModel):
 
     @property
     def clip_id(self) -> str:
-        return f"{self.candidate_id}__{self.config_hash[:CLIP_HASH_CHARS]}"
+        if self.model_tag == BASE_TAG:
+            return self.candidate_id
+        return f"{self.model_tag}__{self.candidate_id}"
 
 
 class CheckSummary(FrozenModel):
