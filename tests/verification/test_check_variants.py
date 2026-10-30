@@ -49,3 +49,8 @@ def test_the_settings_select_the_active_checks(make_settings: SettingsFactory) -
     v3 = plugins.configured("checks", make_settings("check_variants.R4_size=v3"))
     assert v3["R4_size"] is DetrendedSizeCheck
 
+
+def test_the_rigid_jump_keeps_the_inputs_of_v2() -> None:
+    rigid = VARIANTS["R4_jump/rigid"]
+    assert rigid.requires == CHECKS["R4_jump"].requires
+    assert rigid.magnitude_unit == CHECKS["R4_jump"].magnitude_unit
