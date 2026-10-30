@@ -35,7 +35,7 @@ class RigidJumpCheck(NoiseContinuityCheck):
 
     def __init__(self, params: BaseModel) -> None:
         rigid = RigidJumpParams.model_validate(params)
-        self.params = rigid
+        super().__init__(rigid)
         self.rigid_size_step = rigid.rigid_size_step
 
     def _excluded(
