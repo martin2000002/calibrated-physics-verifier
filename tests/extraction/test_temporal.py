@@ -263,7 +263,9 @@ def test_none_reproduces_the_version_two_table(fixture_clip: SyntheticClip, case
     current = table(fixture_clip, case, temporal_filter="none")
     for name, value in golden.field_values().items():
         mine = getattr(current, name)
-        if isinstance(value, np.ndarray) and value.dtype.kind == "f":
+        if name == "border_cut":
+            assert value is None and mine is not None
+        elif isinstance(value, np.ndarray) and value.dtype.kind == "f":
             np.testing.assert_allclose(mine, value, rtol=TOL, atol=0.0, err_msg=name)
         elif isinstance(value, np.ndarray):
             np.testing.assert_array_equal(mine, value, err_msg=name)
@@ -272,7 +274,7 @@ def test_none_reproduces_the_version_two_table(fixture_clip: SyntheticClip, case
 
 
 def test_the_version_and_both_parameters_enter_the_key() -> None:
-    assert BackprojectLift.version == "3"
+    assert BackprojectLift.version == "4"
     default = BackprojectLift.Params()
     hashes = {
         params_hash(p.model_dump(mode="json"))
