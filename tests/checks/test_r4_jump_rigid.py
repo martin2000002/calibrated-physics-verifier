@@ -74,7 +74,7 @@ def test_the_size_step_is_configurable() -> None:
 def test_the_params_keep_the_size_step() -> None:
     check = RigidJumpCheck(RigidJumpParams(rigid_size_step=0.2))
     assert isinstance(check.params, RigidJumpParams)
-    assert check.params.rigid_size_step == check.rigid_size_step == 0.2
+    assert check.params.rigid_size_step == 0.2
 
 
 @pytest.mark.parametrize("step_frame", [26, 16])

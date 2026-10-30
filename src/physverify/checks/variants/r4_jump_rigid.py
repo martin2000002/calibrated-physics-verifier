@@ -32,16 +32,15 @@ class RigidJumpCheck(NoiseContinuityCheck):
 
     variant: ClassVar[str] = "rigid"
     Params: ClassVar[type[BaseModel]] = RigidJumpParams
+    params: RigidJumpParams
 
     def __init__(self, params: BaseModel) -> None:
-        rigid = RigidJumpParams.model_validate(params)
-        super().__init__(rigid)
-        self.rigid_size_step = rigid.rigid_size_step
+        super().__init__(RigidJumpParams.model_validate(params))
 
     def _excluded(
         self, inputs: CheckInputs, contacts: ContactTable, index: int
     ) -> NDArray[np.bool_]:
-        steps = size_step_stencil_mask(inputs.states.size[:, index], self.rigid_size_step)
+        steps = size_step_stencil_mask(inputs.states.size[:, index], self.params.rigid_size_step)
         return super()._excluded(inputs, contacts, index) | steps
 
 
