@@ -10,7 +10,6 @@ import pytest
 
 from physverify.checks._base import CheckInputs
 from physverify.checks.variants.r4_size_v3 import DetrendedSizeCheck, DetrendedSizeParams
-from physverify.physics.image_edges import near_image_edge
 from physverify.physics.measures.detrended_size import persistent_change, running_median
 from physverify.physics.row_time import odd_rows_in, rows_in, seconds_per_row
 from physverify.schema.checks import AbstainReason, CheckResult, Verdict
@@ -88,20 +87,20 @@ def test_a_run_that_changes_sign_holds_nothing() -> None:
     assert persistent_change(np.array([1.0, np.nan, 1.0]), 3, 2) is None
 
 
-def wide_view(case: sc.Case, side: int) -> CheckInputs:
-    clip = replace(case.clip, width=side, height=side)
-    return replace(case.inputs(), clip=clip, camera=sc.pinhole(clip))
+def with_border_cut(case: sc.Case, rows: slice, ball: int) -> CheckInputs:
+    cut = np.zeros(case.states.visible.shape, dtype=np.bool_)
+    cut[rows, ball] = True
+    return replace(sc.bare_inputs(case), states=replace(case.states, border_cut=cut))
 
 
-def test_rows_at_the_image_border_are_left_out() -> None:
+def test_rows_cut_by_the_image_border_are_left_out() -> None:
     case = bump(0.4, 5)
-    inside = wide_view(case, 400)
-    assert not near_image_edge(case.states, inside.camera, 2.0).any()  # type: ignore[arg-type]
-    clean = size(inside)["ball_0"]
+    assert case.states.border_cut is None
+    clean = size(sc.bare_inputs(case))["ball_0"]
     assert clean.magnitude == pytest.approx(0.4, rel=1e-12) and clean.details["excluded_rows"] == 0
-    cut = wide_view(case, 200)
-    edge = near_image_edge(case.states, cut.camera, 2.0)  # type: ignore[arg-type]
-    assert edge[:, 2].all() and not edge[:, 0].any()
-    found = size(cut)["ball_0"]
-    assert found.magnitude == pytest.approx(0.4, rel=1e-12)
-    assert size(cut)["ball_2"].details["excluded_rows"] == sc.FRAMES
+    cut = size(with_border_cut(case, slice(12, 17), 0))["ball_0"]
+    assert cut.details["excluded_rows"] == 5
+    assert cut.magnitude == pytest.approx(0.0, abs=1e-12)
+    reference = size(with_border_cut(case, slice(None), 2))
+    assert reference["ball_2"].details["excluded_rows"] == sc.FRAMES
+    assert reference["ball_0"].magnitude == pytest.approx(0.4, rel=1e-12)

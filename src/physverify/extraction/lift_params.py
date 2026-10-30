@@ -67,6 +67,7 @@ class LiftParams(ProviderParams):
     pose_sigma_deg: float = Field(default=2.0, ge=0.0)
     min_area_px: int = Field(default=9, ge=1)
     erode_px: int = Field(default=1, ge=0)
+    border_margin_px: int = Field(default=2, ge=1)
     extent_percentiles: tuple[float, float] = (2.0, 98.0)
     center_offset_frac: dict[PrimitiveKind, float] = {
         PrimitiveKind.SPHERE: 0.354,

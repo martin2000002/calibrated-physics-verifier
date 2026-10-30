@@ -12,7 +12,6 @@ from pydantic import BaseModel, Field
 from physverify.checks._base import CheckInputs, abstain, unscored
 from physverify.checks._params import OcclusionParams
 from physverify.checks._size import relative_sigma, whole_lengths, whole_rows
-from physverify.physics.image_edges import near_image_edge
 from physverify.physics.measures.detrended_size import persistent_change
 from physverify.physics.measures.relative_size import relative_lengths
 from physverify.physics.row_time import odd_rows_in, rows_in, seconds_per_row
@@ -23,9 +22,9 @@ FloatArray = NDArray[np.float64]
 
 WINDOW_S = 17.0 / 24.0
 """The 17-row window of the 24 fps synthetic clips: wider than twice the longest r4_resize bump
-(8 rows), so the running median does not follow a bump."""
+(8 rows), so the running median does not follow a bump. Set on simulator data (Kubric dev)."""
 PERSISTENCE_S = 3.0 / 24.0
-"""The shortest r4_resize bump (3 rows at 24 fps)."""
+"""The shortest r4_resize bump (3 rows at 24 fps). Set on simulator data (Kubric dev)."""
 
 
 class DetrendedSizeParams(OcclusionParams):
@@ -34,7 +33,6 @@ class DetrendedSizeParams(OcclusionParams):
     reference: Literal["others"] = "others"
     window_s: float = Field(default=WINDOW_S, gt=0.0)
     persistence_s: float = Field(default=PERSISTENCE_S, gt=0.0)
-    edge_margin_px: float = Field(default=2.0, ge=0.0)
 
 
 class DetrendedSizeCheck:
@@ -43,11 +41,12 @@ class DetrendedSizeCheck:
     (``relative_lengths``, as v2), W = ``window_s`` and P = ``persistence_s`` in rows.
 
     Rows are left out for the object and as a reference when out of frame, known occluded
-    (>= ``occluded_at``) or, with a camera and a CAMERA_OPENCV table, when the projected box
-    lies within ``edge_margin_px`` of the image border. Perceived tables carry no occlusion and
-    their visibility cannot see an untracked occluder, so a mask cut by such an object still
-    enters; only the border cut is caught. ABSTAIN (TOO_FEW_FRAMES) without any run of P known
-    rows; a clip with one object has no reference and abstains likewise."""
+    (>= ``occluded_at``) or cut by the image border (``border_cut``, flagged by the lift from the
+    mask). Perceived tables carry no occlusion and their visibility cannot see an untracked
+    occluder, so a mask cut by such an object still enters; only the border cut is caught.
+    ABSTAIN (TOO_FEW_FRAMES) without any run of P known rows; a clip with one object has no
+    reference and abstains likewise. The windows are seconds of the declared frame rate, so an
+    fps that is declared and not measured (PISA) shifts W and P by its own error."""
 
     check_id: ClassVar[str] = "R4_size"
     variant: ClassVar[str] = "v3"
@@ -62,8 +61,8 @@ class DetrendedSizeCheck:
     def evaluate(self, inputs: CheckInputs) -> list[CheckResult]:
         states = inputs.states
         whole = whole_rows(states.in_frame, states.occlusion, self.params.occluded_at)
-        if inputs.camera is not None:
-            whole &= ~near_image_edge(states, inputs.camera, self.params.edge_margin_px)
+        if states.border_cut is not None:
+            whole &= ~states.border_cut
         lengths = whole_lengths(states, whole)
         row_seconds = seconds_per_row(states.frame_index, inputs.clip.seconds_per_frame)
         window = odd_rows_in(self.params.window_s, row_seconds)

@@ -25,6 +25,7 @@ from physverify.extraction.backprojection import (
 from physverify.extraction.gravity_pose import LEVEL_CAMERA_GRAVITY, gravity_from_pose
 from physverify.extraction.lift_params import GravityMode
 from physverify.extraction.lift_params import LiftParams as Params
+from physverify.extraction.mask_border import border_cut
 from physverify.extraction.pipeline import PENDING_SOURCE_KEY
 from physverify.extraction.providers._common import expect_params
 from physverify.extraction.providers._temporal_smoothing import stabilize_summaries
@@ -42,7 +43,7 @@ SEED_HEX_DIGITS = 16
 class BackprojectLift:
     stage: ClassVar[Stage] = Stage.LIFT
     name: ClassVar[str] = "backproject"
-    version: ClassVar[str] = "3"
+    version: ClassVar[str] = "4"
     requires: ClassVar[tuple[Stage, ...]] = (Stage.TRACK, Stage.DEPTH, Stage.CAMERA)
     heavy: ClassVar[bool] = False
     is_ground_truth: ClassVar[bool] = False
@@ -84,7 +85,14 @@ class BackprojectLift:
             fields["in_frame"], fields["occlusion"] = gaps.in_frame, gaps.occlusion
         mode = self.params.gravity_by_dataset.get(ctx.clip.dataset, self.params.gravity)
         gravity, gravity_sigma = self._gravity(camera, mode)
-        return replace(table, **fields, gravity_dir=gravity, gravity_dir_sigma=gravity_sigma)
+        cut = border_cut(track.masks, self.params.border_margin_px)
+        return replace(
+            table,
+            **fields,
+            gravity_dir=gravity,
+            gravity_dir_sigma=gravity_sigma,
+            border_cut=cut,
+        )
 
     def _track(self, ctx: StageContext) -> MaskTrack:
         """The tracked masks this lift places."""

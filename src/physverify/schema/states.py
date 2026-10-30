@@ -81,6 +81,8 @@ class ObjectStateTable(Record):
 
     ``size`` holds full extents along the local axes (or the assumed axes when ``quaternion`` is
     NaN). ``source_key`` is the cache key of the LIFT output that fixed geometry and unit.
+    ``border_cut`` marks the rows where the object's mask reaches the image border, so its extents
+    describe the visible part only; None where no mask was observed (ground truth).
     """
 
     clip_id: str
@@ -109,6 +111,7 @@ class ObjectStateTable(Record):
     confidence: NDArray[np.float64]
     gravity_dir: NDArray[np.float64]
     gravity_dir_sigma: float
+    border_cut: NDArray[np.bool_] | None = None
 
     _arrays = MappingProxyType(
         {
@@ -125,6 +128,7 @@ class ObjectStateTable(Record):
             "occlusion": ArraySpec("f8", ("T", "N")),
             "confidence": ArraySpec("f8", ("T", "N")),
             "gravity_dir": ArraySpec("f8", (3,)),
+            "border_cut": ArraySpec("?", ("T", "N"), optional=True),
         }
     )
 
