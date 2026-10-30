@@ -117,10 +117,29 @@ def test_the_caption_bootstrap_counts_replicas_where_kappa_is_nan() -> None:
 def test_best_cut_maximises_balanced_accuracy_and_breaks_ties_low() -> None:
     y = as_labels([False, False, True, True])
     assert best_cut(y, np.array([0.1, 0.2, 0.8, 0.9])) == pytest.approx(0.2)
-    tied = as_labels([True, False])
-    assert best_cut(tied, np.array([0.5, 0.5])) == pytest.approx(-0.5)
+    assert best_cut(as_labels([True, False, True]), np.array([0.3, 0.1, 0.5])) == pytest.approx(0.1)
     assert best_cut(y, np.full(4, math.nan)) is None
     assert predict_cut(np.array([0.3, math.nan, 0.1]), 0.2).tolist() == [1, 0, 0]
+
+
+def test_best_cut_never_declares_every_decided_clip_implausible() -> None:
+    """Undecided (NaN) clips are plausible and mostly plausible in truth, so calling every decided
+    clip implausible would have the best balanced accuracy (1.0); that cut lies below the smallest
+    score and is not a candidate. Neither is one at the largest score."""
+    y = as_labels([True, True, True, False, False, False])
+    score = np.array([0.4, 0.2, 0.6, 0.5, math.nan, math.nan])
+    assert balanced_accuracy(y, predict_cut(score, 0.2 - 1.0)) == pytest.approx(5 / 6)
+    cut = best_cut(y, score)
+    assert cut is not None and 0.2 <= cut < 0.6
+    decided = np.isfinite(score)
+    implausible = predict_cut(score, cut)[decided]
+    assert 0 < int(implausible.sum()) < int(decided.sum())
+
+
+def test_best_cut_needs_two_distinct_finite_scores() -> None:
+    tied = as_labels([True, False])
+    assert best_cut(tied, np.array([0.5, 0.5])) is None
+    assert best_cut(tied, np.array([0.5, math.nan])) is None
 
 
 def test_the_agreement_verdict_needs_the_calibrated_rule_and_both_conditions() -> None:

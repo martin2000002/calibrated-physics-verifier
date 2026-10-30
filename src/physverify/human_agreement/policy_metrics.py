@@ -272,13 +272,15 @@ def _verdict_reason(calibrated: bool, gate: str | None) -> str:
 
 def best_cut(y: Labels, score: Scores) -> float | None:
     """The cut on ``score`` (implausible when score > cut, NaN = plausible) with the highest
-    balanced accuracy; ties go to the smaller cut. None without finite scores."""
+    balanced accuracy; ties go to the smaller cut.
+
+    The candidates lie between observed finite scores: every distinct finite score but the
+    largest, so each cut leaves at least one finite score on either side. A cut below the
+    smallest score (every decided clip implausible) or at the largest (none) is never chosen.
+    None with fewer than two distinct finite scores."""
     finite = np.unique(score[np.isfinite(score)])
-    if not finite.size:
-        return None
-    candidates = [float(finite[0]) - 1.0, *map(float, finite)]
     best, best_value = None, -math.inf
-    for cut in candidates:
+    for cut in map(float, finite[:-1]):
         value = balanced_accuracy(y, predict_cut(score, cut))
         if math.isfinite(value) and value > best_value:
             best, best_value = cut, value
