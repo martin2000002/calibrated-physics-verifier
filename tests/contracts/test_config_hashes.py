@@ -28,16 +28,16 @@ KEY_PATHS = Path(__file__).with_name("data") / "config_key_paths.txt"
 PINNED_ROOT = "/pinned"
 
 SECTIONS_HASH = {
-    "fast": "b2fb086c4de2d8fffea17f7f9cf9d7fdf1dfe0f3919bc38c606e8fd4e4b783f3",
-    "precise": "4eafd952007e25f2e70e3bccb531aeaf9b304097b2c6860dde9ad6b3e28b2e2a",
+    "fast": "d773152e80be1dc3835e0984cb4afa1a88e33e68b0bc04896786c691c0a42c7f",
+    "precise": "cdbd28bb9850aa0a1a3bc3c8c8c7fa09479d1be143a814139240a44b30a42de4",
 }
 CONFIG_HASH = {
-    "fast": "561ed6828c6eb0f636b31a263ba0251d1c135798881c12ed98dd0acfd3614cdd",
-    "precise": "26fe9629fa97588c4de1aa25ce94c379760843dd4f6983229ce32ef0cbd0d7f4",
+    "fast": "f0ebfea283a87375d6224c06dc7cc73a32c089acd504ea87ef168c9231174194",
+    "precise": "a3ba239b32154cf5078de18688f568eede03d035dbd5ff3246359fb6b71faa66",
 }
 LOOK_CONFIG_HASH = {
-    "fast": "51ab92a81b6009382de998d9e67a835176502e425bdd1006ed1332b47915a71b",
-    "precise": "0daf6d0bbcee1416cc6492f82828850dc380e69a6ead59a48b021d55025a3bab",
+    "fast": "2ccbc506b3dc2ded5ae47963e4792281c48ea29c21af6b1d0db6e3d3b2b585f0",
+    "precise": "407f10a2dd00944b2f9f46558c7dfa3e742bec877f96ad2d9648fe4b764abb46",
 }
 CHECKS_HASH = "c5f03bfd100bdd23fe90a5f2ad098b2767b893a75bb850fd42c4116312ca3dee"
 DATASET_CONTENT_HASH = {
@@ -47,8 +47,8 @@ DATASET_CONTENT_HASH = {
 STAGE_KEYS = {
     "camera/assumed_fov": "d0ae25696b1da8e41856f1aaf094085c01f865833bc905f253b56546f7477018",
     "camera/geocalib": "871980e0b1985e5945e7620477d9ea8b3a6781b5b215e2d70ef9c2868b17d6e1",
-    "contacts/kinematic": "5fa79bdb79bc2e1d112406b88d1c86cb8084cabe939911842fc9b94043e7f88b",
-    "contacts/proximity": "d0b01ca2029fe279052af5dff2c6912e1d7761709b4b156133bd6ada5cdf8443",
+    "contacts/kinematic": "93847e53de155b30a366d79ab7d2303989b852858ed724b8a87e67e0ba512472",
+    "contacts/proximity": "1cb0e7c20d7dda9528449aaf84d7408ec1a83aaa085c416b53ff6361ce326f27",
     "depth/vda_small": "70f6c003ff50af82ae87a48aa6a2c81030761e6a0c859278fc99fd8dba78cf1c",
     "depth/vda_large": "5f9dc8fa05d3d3be2711507ea24c8d730f337ca0d1584513c2c4677d98509b13",
     "depth/vda_metric_small": "ccc78054bf3ca5553e4bb71716289309a5b2ab609836225cf252b782f3c5b5fe",
@@ -62,18 +62,19 @@ STAGE_KEYS = {
         "c5d3b85789817de2d6b754cd0d07fe8d0bbd829118ce96a201887376f4224f6d"
     ),
     "camera/ground_truth": "dcc9f3896dfae49cd3ef2203bda5922a6d2658e10742995834a8a97e79e756e9",
-    "contacts/ground_truth": "c19862f11db0d6e64c7c3fa030a2b578544b4fbc91fe39797d3f392f48983146",
+    "contacts/ground_truth": "f77e2327c1e751179a58f641ed0468b2760591606c2715a5d7c1e0a09b88772c",
     "depth/ground_truth": "5e98a6b578a3276bec41b24e5adc10c15b4376be94b8c2cc6b60a89572a5c107",
     "detect/ground_truth": "a62f5932c2390f802e0e37c316b245d6d790dde1ef5f17326d53382a39d142fe",
-    "kinematics/ground_truth": "022f0acb3dce3d1ec694cfe18446d6f513bc856340c607c9db8dacfa17a87a40",
+    "kinematics/ground_truth": "a77c9a6982bce0734d1d8c13d1d932775dd6cab4cfd6f6bab8905928b39076f7",
     "lift/ground_truth": "fd9112fb74e8dd281c76ae277a0ee4782161166f15cee466b834c0f5eeaa79a5",
-    "scale/ground_truth": "5e7a35d2b2d8a8b0a24a1226659a370cf009dcdc46663efd464128f772ca6912",
+    "scale/ground_truth": "50077d964a23e3ebc12bb33ebb70f7b300ef1ca805da90b01ffe60d016a7e08e",
     "track/ground_truth": "7f0b4774a68b28d2fd70ac39fe6a15dabc0634cf9046983c158734a331523cd5",
-    "kinematics/savgol": "7c1bd68862faaae42d003e987af7401d0a74175e012ab1c66302984054a09f1c",
-    "lift/backproject": "56d1e0e2760b107626022203c636669d3dfe69ae93b80a2772b0709748bf6700",
-    "scale/free_fall": "bec820adaf82685969af695611b63820d111490ba005aacbb9593de29c1285be",
-    "scale/size_model": "a079f4cdd56f2719d0e17ae493f7e07e2d54f75250468d8f0c2ac65d4a71a906",
-    "scale/size_prior": "5f60ea1c1ea1da9cb356fdc44c6c616f515b18a6730e8c3039eb809f6521166b",
+    "kinematics/savgol": "f88afaef64c51146106127e4378f43734f8c8f3d5c1a7709ae8c93465d985fc8",
+    "lift/backproject": "ebfe1a1a540435ed100cf121083da7d3f7c8f1befbae65c2fc47ed185edfa82b",
+    "lift/backproject_unnested": "245f1e6635f3007505a7305cba10619b878a66c41193edd825ec43b90b9b0e05",
+    "scale/free_fall": "4f36674421ade07b33d9fc7c145e46ba83c8ec44d8aeabfb31534dcf76f7c04b",
+    "scale/size_model": "f5ac2593e44380efccbdcf72664c973719968b6035d520bf07bb8c230f3a51b9",
+    "scale/size_prior": "70a7dc1eda26d20ea6b6991b88e5f51ebf63fe2fc356b81246ddf05d4b62e96d",
     "track/edgetam": "81a150661413d4a8e45d79ab5f2dd7a3c4b2ca10db56a5bade893403801ce4d8",
     "track/sam2_1_hiera_tiny": "88cf35cd5a540158b73d940af239b84d357dd091f5b2935f884a87671d14dbee",
 }

@@ -59,6 +59,10 @@ class Preregistration(FrozenModel):
     dev_cut: float | None
     dev_tuned_cut: float | None
     kubric_threshold: float | None
+    n_dev_decided: int | None = None
+    """Labelled dev clips the primary rule decided (scored); the rest abstained."""
+    dev_cut_rejection: str | None = None
+    """Why no dev cut was frozen (``policy_metrics.best_cut``); None when one was."""
     calibration_gate: str | None = None
     """Why the calibrated stratum was not usable at freeze (the provisional rule ran)."""
     dev_icc: float | None = None

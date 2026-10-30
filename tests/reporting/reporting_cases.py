@@ -83,6 +83,7 @@ AGREEMENT = AgreementSettings(
     dev_subset="h2_dev",
     test_subset="h2_test",
     preregistration="agreement/preregistration.json",
+    min_cut_side_fraction=0.0,
 )
 
 

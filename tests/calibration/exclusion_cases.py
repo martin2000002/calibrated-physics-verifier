@@ -42,10 +42,16 @@ R2_PERT = "r2_unsupported_rest"
 PRECISE = "precise"
 
 
-def rules_raw() -> dict[str, object]:
+def toml_rules_raw() -> dict[str, object]:
     with RULES_TOML.open("rb") as handle:
         section: dict[str, object] = tomllib.load(handle)["exclusion_rules"]
     return section
+
+
+def rules_raw() -> dict[str, object]:
+    """The TOML rules with 1.1 scoped to R5a, so a test reads one check's 1.1 evidence."""
+    raw = toml_rules_raw()
+    return {**raw, "r5a": {**raw["r5a"], "check_ids": ["R5a"]}}  # type: ignore[dict-item]
 
 
 def rules() -> ExclusionRules:

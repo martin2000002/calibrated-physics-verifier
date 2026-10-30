@@ -107,7 +107,9 @@ def _write_manifest(args: argparse.Namespace) -> list[str]:
         v1_calibration=args.v1_calibration,
     )
     settings = _settings()
-    record = functools.partial(record_sha, settings, checks=lambda: plugins.build("checks"))
+    record = functools.partial(
+        record_sha, settings, checks=lambda: plugins.configured("checks", settings)
+    )
     data = manifest(inputs, settings, _git, record=record, now=lambda: datetime.now(UTC))
     args.out.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     j13 = "empty" if data["diffs"]["j13"]["empty"] else f"changes {data['diffs']['j13']['changed']}"

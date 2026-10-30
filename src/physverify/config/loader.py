@@ -32,7 +32,7 @@ CONFIG_DIR_ENV = "PHYSVERIFY_CONFIG_DIR"
 DEFAULT_PROFILE = "fast"
 PROFILES_KEY = "profiles"
 LOCAL_FILE = "local.toml"
-MODEL_ONLY_SECTIONS = frozenset({"paths", "runtime", "container"})
+MODEL_ONLY_SECTIONS = frozenset({"paths", "runtime", "container", "check_variants"})
 """Sections that may lack a configs/**/*.toml table: their defaults live in their model."""
 
 Table = dict[str, Any]

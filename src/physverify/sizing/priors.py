@@ -11,13 +11,14 @@ from physverify.core.models import FrozenModel
 
 
 def label_candidates(label: str) -> tuple[str, ...]:
-    """The whole label first, then each of its words (a query phrase like "red ball")."""
+    """The whole label first, then its words from the last one: English puts the head noun of a
+    query phrase last ("glass globe" is a globe, "red ball" a ball)."""
     text = label.strip().lower()
-    return (text, *text.replace("_", " ").split())
+    return (text, *reversed(text.replace("_", " ").split()))
 
 
 def lookup_label[V](label: str, table: Mapping[str, V]) -> V | None:
-    """Exact match of the label, else of its first word that is a key of ``table``."""
+    """Exact match of the label, else of its last word that is a key of ``table``."""
     for candidate in label_candidates(label):
         if candidate in table:
             return table[candidate]

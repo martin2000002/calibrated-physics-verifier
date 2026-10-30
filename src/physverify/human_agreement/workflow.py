@@ -109,7 +109,9 @@ def freeze[S: CalibrationStratum](
         artifact_sha256=None if setup.artifact is None else sha256_if_file(setup.artifact),
     )
     check_run(run, rows, setup, Split.CALIB)
-    dev = freeze_dev(rows, setup.primary, run, agreement.primary_policy)
+    dev = freeze_dev(
+        rows, setup.primary, run, agreement.primary_policy, agreement.min_cut_side_fraction
+    )
     if dev.n == 0:
         raise UsageError(f"{run_dir} has no labelled clip of {agreement.dev_subset}")
     state = frozen_state(settings, dataset, setup, run.profile)
@@ -125,6 +127,8 @@ def freeze[S: CalibrationStratum](
             "dev_majority": dev.majority,
             "dev_cut": dev.cut,
             "dev_tuned_cut": dev.tuned_cut,
+            "n_dev_decided": dev.n_decided,
+            "dev_cut_rejection": dev.cut_rejection,
             "kubric_threshold": setup.rule.kubric_threshold,
             "dev_icc": _finite(dev.design, "icc"),
             "dev_design_effect": _finite(dev.design, "deff"),
@@ -318,6 +322,7 @@ def apply_freeze(
     write_preregistration(path, record_)
     echo(f"preregistration: {path}")
     echo(
-        f"rule {record_.rule_label}; n_dev {record_.n_dev}; majority {record_.dev_majority}; "
-        f"cut {record_.dev_cut}; tuned cut {record_.dev_tuned_cut}"
+        f"rule {record_.rule_label}; n_dev {record_.n_dev}; decided {record_.n_dev_decided}; "
+        f"majority {record_.dev_majority}; cut {record_.dev_cut}; "
+        f"tuned cut {record_.dev_tuned_cut}; cut rejected: {record_.dev_cut_rejection}"
     )

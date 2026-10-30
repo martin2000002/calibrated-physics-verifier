@@ -127,7 +127,7 @@ class _Plugins:
     def registry(self, kind: str) -> Registry[Any]:
         from physverify.app import plugins
 
-        return plugins.build(kind)
+        return plugins.configured(kind, self.settings)
 
 
 def _labels(settings: Settings) -> HumanLabelSource:

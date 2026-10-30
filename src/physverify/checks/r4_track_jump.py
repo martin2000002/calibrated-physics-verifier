@@ -30,6 +30,7 @@ from physverify.schema.checks import AbstainReason, CheckResult
 from physverify.schema.contacts import ContactTable
 
 FloatArray = NDArray[np.float64]
+BoolArray = NDArray[np.bool_]
 NoiseSource = Literal["exact", "track", "declared"]
 
 
@@ -111,7 +112,7 @@ class NoiseContinuityCheck:
     ) -> CheckResult:
         states = inputs.states
         object_id = str(states.object_ids[index])
-        exclude = impact_stencil_mask(object_id, contacts, states.frame_index)
+        exclude = self._excluded(inputs, contacts, index)
         usable = int(noise_stencils(states, contacts, index)[1].sum())
         details: dict[str, object] = {
             "excluded_rows": int(np.count_nonzero(exclude)),
@@ -132,6 +133,11 @@ class NoiseContinuityCheck:
         span = native_span(states.frame_index, k - 1, k + 2)
         details |= {"row": k, **self._physical(inputs, index, k, noise)}
         return unscored(type(self), inputs, (object_id,), magnitude, sigma, span, details)
+
+    def _excluded(self, inputs: CheckInputs, contacts: ContactTable, index: int) -> BoolArray:
+        """Rows whose stencil spans an impact of the object."""
+        states = inputs.states
+        return impact_stencil_mask(str(states.object_ids[index]), contacts, states.frame_index)
 
     @staticmethod
     def _physical(

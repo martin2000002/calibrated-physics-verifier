@@ -90,5 +90,5 @@ class AppContext:
 
     def registry(self, kind: str) -> Registry[Any]:
         if kind not in self._registries:
-            self._registries[kind] = plugins.build(kind)
+            self._registries[kind] = plugins.configured(kind, self.settings)
         return self._registries[kind]

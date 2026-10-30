@@ -11,6 +11,13 @@ from types import MappingProxyType, ModuleType
 from typing import Any
 
 from physverify.checks._base import CHECKS, Check, validate_check
+from physverify.checks.variants._base import (
+    CHECK_VARIANTS,
+    CheckVariant,
+    validate_variant,
+    variant_key,
+)
+from physverify.config.models import Settings
 from physverify.config.plugin_context import PluginKind
 from physverify.core.errors import InvalidPluginError, UsageError
 from physverify.core.registry import Registry, discover, discover_modules
@@ -30,6 +37,11 @@ from physverify.synth.perturbations._base import (
 from physverify.synth.truth_measures._base import TRUTH_MEASURES, TruthMeasure
 from physverify.timing._base import TIMING_TARGETS, TimingTarget
 from physverify.verification._base import POLICIES, VerdictPolicy
+from physverify.verification.check_set import (
+    CHECK_VARIANTS_SECTION,
+    CheckVariantsSettings,
+    select_variants,
+)
 
 CONTAINER_TASKS = PluginKind[ModuleType]("container_tasks")
 
@@ -46,6 +58,7 @@ def module_name(module: ModuleType) -> str:
 PLUGIN_PACKAGES: Mapping[str, str] = MappingProxyType(
     {
         CHECKS.name: "physverify.checks",
+        CHECK_VARIANTS.name: "physverify.checks.variants",
         PERTURBATIONS.name: "physverify.synth.perturbations",
         FAMILIES.name: "physverify.synth.families",
         PROVIDERS.name: "physverify.extraction.providers",
@@ -65,6 +78,9 @@ PLUGIN_KINDS: Mapping[str, Callable[[], Registry[Any]]] = MappingProxyType(
     {
         CHECKS.name: lambda: discover(
             PLUGIN_PACKAGES[CHECKS.name], (Check,), "check_id", validate_check
+        ),
+        CHECK_VARIANTS.name: lambda: discover(
+            PLUGIN_PACKAGES[CHECK_VARIANTS.name], (CheckVariant,), variant_key, validate_variant
         ),
         PERTURBATIONS.name: lambda: discover(
             PLUGIN_PACKAGES[PERTURBATIONS.name],
@@ -102,3 +118,20 @@ def build(kind: str) -> Registry[Any]:
     if kind not in kinds:
         raise UsageError(f"unknown plugin kind {kind!r}; known: {sorted(kinds)}")
     return kinds[kind]()
+
+
+def _configured_checks(settings: Settings) -> Registry[Any]:
+    selection = settings.section(CHECK_VARIANTS_SECTION, CheckVariantsSettings)
+    return select_variants(build(CHECKS.name), build(CHECK_VARIANTS.name), selection)
+
+
+CONFIGURED: Mapping[str, Callable[[Settings], Registry[Any]]] = MappingProxyType(
+    {CHECKS.name: _configured_checks}
+)
+"""Kinds whose active registry depends on the settings."""
+
+
+def configured(kind: str, settings: Settings) -> Registry[Any]:
+    """The registry of one plugin kind as ``settings`` selects it ([check_variants] for checks)."""
+    select = CONFIGURED.get(kind)
+    return build(kind) if select is None else select(settings)

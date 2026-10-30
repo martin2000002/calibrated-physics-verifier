@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Mapping
+from dataclasses import replace
 
 import numpy as np
 import pytest
@@ -23,6 +24,7 @@ from physverify.extraction.backprojection import (
     resolve_disparity_shift,
 )
 from physverify.extraction.gravity_pose import LEVEL_CAMERA_GRAVITY
+from physverify.extraction.mask_border import border_cut
 from physverify.extraction.matching import align_ground_truth
 from physverify.extraction.providers._assumed_fov import AssumedFovCamera
 from physverify.extraction.providers.lift_backproject import BackprojectLift
@@ -306,3 +308,30 @@ def test_an_unknown_focal_error_is_unknown_in_both_sigma_modes(
     unknown = math.isnan(phi) or not with_profile
     for sigma in (closed[0][:2], closed[1], sampled[0][:2], sampled[1]):
         assert bool(np.isnan(sigma).all()) is unknown
+
+
+def square_at(track: MaskTrack, side: int, gap: int) -> MaskTrack:
+    """Object 0's mask replaced by a still square of ``side`` px, ``gap`` px from the left
+    border (0: cut by it), vertically centred."""
+    masks = track.masks.copy()
+    height = masks.shape[2]
+    top = (height - side) // 2
+    masks[:, 0] = False
+    masks[:, 0, top : top + side, gap : gap + side] = True
+    return replace(track, masks=masks)
+
+
+@pytest.mark.parametrize("side", [12, 24, 40])
+@pytest.mark.parametrize(("gap", "cut"), [(0, True), (6, False)])
+def test_a_mask_cut_by_the_image_border_is_flagged_on_its_rows(
+    fixture_clip: SyntheticClip, side: int, gap: int, cut: bool
+) -> None:
+    upstream = truth_inputs(fixture_clip)
+    track = upstream[Stage.TRACK]
+    assert isinstance(track, MaskTrack)
+    upstream[Stage.TRACK] = square_at(track, side, gap)
+    table = lift(fixture_clip, upstream)
+    assert table.border_cut is not None
+    assert bool(table.visible[:, 0].all())
+    assert bool((table.border_cut[:, 0] == cut).all())
+    np.testing.assert_array_equal(table.border_cut[:, 1:], border_cut(track.masks[:, 1:], 2))

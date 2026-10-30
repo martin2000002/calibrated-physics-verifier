@@ -8,7 +8,14 @@ import numpy as np
 import pytest
 from scipy.stats import binomtest
 
-from physverify.human_agreement.policy_metrics import best_cut, h2_verdict, predict_cut
+from physverify.human_agreement.policy_metrics import (
+    FEWER_THAN_TWO_SCORES,
+    NO_CUT_WITH_MIN_SIDE,
+    CutChoice,
+    best_cut,
+    h2_verdict,
+    predict_cut,
+)
 from physverify.human_agreement.stats import (
     accuracy,
     as_labels,
@@ -116,11 +123,49 @@ def test_the_caption_bootstrap_counts_replicas_where_kappa_is_nan() -> None:
 
 def test_best_cut_maximises_balanced_accuracy_and_breaks_ties_low() -> None:
     y = as_labels([False, False, True, True])
-    assert best_cut(y, np.array([0.1, 0.2, 0.8, 0.9])) == pytest.approx(0.2)
-    tied = as_labels([True, False])
-    assert best_cut(tied, np.array([0.5, 0.5])) == pytest.approx(-0.5)
-    assert best_cut(y, np.full(4, math.nan)) is None
+    assert best_cut(y, np.array([0.1, 0.2, 0.8, 0.9]), 0.0).cut == pytest.approx(0.2)
+    found = best_cut(as_labels([True, False, True]), np.array([0.3, 0.1, 0.5]), 0.0)
+    assert found.cut == pytest.approx(0.1) and found.rejection is None
+    assert best_cut(y, np.full(4, math.nan), 0.0) == CutChoice(None, FEWER_THAN_TWO_SCORES)
     assert predict_cut(np.array([0.3, math.nan, 0.1]), 0.2).tolist() == [1, 0, 0]
+
+
+def test_best_cut_never_declares_every_decided_clip_implausible() -> None:
+    """Undecided (NaN) clips are plausible and mostly plausible in truth, so calling every decided
+    clip implausible would have the best balanced accuracy (1.0); that cut lies below the smallest
+    score and is not a candidate. Neither is one at the largest score."""
+    y = as_labels([True, True, True, False, False, False])
+    score = np.array([0.4, 0.2, 0.6, 0.5, math.nan, math.nan])
+    assert balanced_accuracy(y, predict_cut(score, 0.2 - 1.0)) == pytest.approx(5 / 6)
+    cut = best_cut(y, score, 0.0).cut
+    assert cut is not None and 0.2 <= cut < 0.6
+    decided = np.isfinite(score)
+    implausible = predict_cut(score, cut)[decided]
+    assert 0 < int(implausible.sum()) < int(decided.sum())
+
+
+def test_best_cut_needs_two_distinct_finite_scores() -> None:
+    tied = as_labels([True, False])
+    assert best_cut(tied, np.array([0.5, 0.5]), 0.0).rejection == FEWER_THAN_TWO_SCORES
+    assert best_cut(tied, np.array([0.5, math.nan]), 0.0).rejection == FEWER_THAN_TWO_SCORES
+
+
+def test_best_cut_keeps_the_min_side_fraction_of_decided_clips() -> None:
+    """Ten decided scores: the best cut (0.1) leaves one clip (10 %) plausible; with a 20 %
+    minimum it moves to the best cut leaving two clips on either side."""
+    y = as_labels([False] + [True] * 9 + [False] * 4)
+    score = np.array([0.1, *np.linspace(0.2, 1.0, 9), *[math.nan] * 4])
+    assert best_cut(y, score, 0.0).cut == pytest.approx(0.1)
+    found = best_cut(y, score, min_side_fraction=0.2)
+    assert found.cut is not None and found.cut >= 0.2 - 1e-12
+    decided = predict_cut(score, found.cut)[np.isfinite(score)]
+    assert 2 <= int(decided.sum()) <= 8
+
+
+def test_best_cut_rejects_with_a_reason_when_no_cut_keeps_the_min_side() -> None:
+    y = as_labels([True, False, True])
+    found = best_cut(y, np.array([0.1, 0.5, math.nan]), min_side_fraction=0.6)
+    assert found == CutChoice(None, NO_CUT_WITH_MIN_SIDE)
 
 
 def test_the_agreement_verdict_needs_the_calibrated_rule_and_both_conditions() -> None:
