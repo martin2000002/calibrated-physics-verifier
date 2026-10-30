@@ -9,6 +9,7 @@ from physverify.config.loader import MODEL_ONLY_SECTIONS, load_settings
 from physverify.config.models import PathsSettings, SizePriorTable
 from physverify.core.errors import ConfigError
 from physverify.runtime.container import SECTION as CONTAINER_SECTION
+from physverify.verification.check_set import CHECK_VARIANTS_SECTION
 
 BASE = """
 [runtime]
@@ -144,6 +145,8 @@ def test_overrides_of_model_only_and_nested_sections_load(config_dir: Path) -> N
     assert settings.sections["h3"]["autoeval"]["root"] == "/elsewhere"
     assert settings.sections["container"] == {"engine": "udocker"}
     assert CONTAINER_SECTION in MODEL_ONLY_SECTIONS
+    assert CHECK_VARIANTS_SECTION in MODEL_ONLY_SECTIONS
+    assert CHECK_VARIANTS_SECTION not in settings.sections
 
 
 def test_repository_configs(config_dir: Path) -> None:
