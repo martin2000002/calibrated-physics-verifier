@@ -270,21 +270,44 @@ def _verdict_reason(calibrated: bool, gate: str | None) -> str:
     )
 
 
-def best_cut(y: Labels, score: Scores) -> float | None:
+FEWER_THAN_TWO_SCORES = "fewer_than_two_distinct_decided_scores"
+NO_CUT_WITH_MIN_SIDE = "no_cut_leaves_the_min_side_fraction"
+UNDEFINED_BALANCED_ACCURACY = "balanced_accuracy_undefined"
+
+
+@dataclass(frozen=True)
+class CutChoice:
+    cut: float | None
+    rejection: str | None = None
+    """Why no cut was chosen (None when one was)."""
+
+
+def best_cut(y: Labels, score: Scores, min_side_fraction: float = 0.0) -> CutChoice:
     """The cut on ``score`` (implausible when score > cut, NaN = plausible) with the highest
     balanced accuracy; ties go to the smaller cut.
 
     The candidates lie between observed finite scores: every distinct finite score but the
     largest, so each cut leaves at least one finite score on either side. A cut below the
-    smallest score (every decided clip implausible) or at the largest (none) is never chosen.
-    None with fewer than two distinct finite scores."""
-    finite = np.unique(score[np.isfinite(score)])
+    smallest score (every decided clip implausible) or at the largest (none) is never chosen,
+    nor one that leaves fewer than ``min_side_fraction`` of the decided clips on either side."""
+    decided = score[np.isfinite(score)]
+    candidates = np.unique(decided)[:-1]
+    if candidates.size == 0:
+        return CutChoice(None, FEWER_THAN_TWO_SCORES)
+    balanced = [float(c) for c in candidates if _minority_side(decided, c) >= min_side_fraction]
+    if not balanced:
+        return CutChoice(None, NO_CUT_WITH_MIN_SIDE)
     best, best_value = None, -math.inf
-    for cut in map(float, finite[:-1]):
+    for cut in balanced:
         value = balanced_accuracy(y, predict_cut(score, cut))
         if math.isfinite(value) and value > best_value:
             best, best_value = cut, value
-    return best
+    return CutChoice(best, None if best is not None else UNDEFINED_BALANCED_ACCURACY)
+
+
+def _minority_side(decided: Scores, cut: float) -> float:
+    implausible = float(np.mean(decided > cut))
+    return min(implausible, 1.0 - implausible)
 
 
 def predict_cut(score: Scores, cut: float) -> Labels:

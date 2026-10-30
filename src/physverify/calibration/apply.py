@@ -21,6 +21,8 @@ from physverify.verification.thresholding import ThresholdParams, ThresholdRule
 
 NO_DECIDED = "no_decided_check"
 NO_INFORMATIVE = "no_informative_check"
+NO_WEIGHTED = "no_weighted_check"
+"""Every decided check has weight 0: no vote, so the clip abstains instead of scoring S = 1."""
 P_MAX = 1.0 - 1e-12
 
 
@@ -187,25 +189,27 @@ def _split(
 def _score(
     clip_id: str, decided: Sequence[_Decided], abstained: Sequence[str], stratum: Stratum
 ) -> ClipScore:
-    total = sum(d.weight for d in decided) + sum(stratum.weight(c) for c in abstained)
+    voting = [d for d in decided if d.weight > 0.0]
+    silent = tuple(abstained) + tuple(d.check_id for d in decided if d.weight <= 0.0)
+    total = sum(d.weight for d in voting) + sum(stratum.weight(c) for c in abstained)
     base = ClipScore(
         clip_id=clip_id,
         score=None,
         sigma=None,
-        coverage=sum(d.weight for d in decided) / total if total > 0.0 else 0.0,
+        coverage=sum(d.weight for d in voting) / total if total > 0.0 else 0.0,
         abstained=True,
         reason=None,
-        n_failed=sum(d.failed for d in decided),
-        decided_checks=tuple(d.check_id for d in decided),
-        abstained_checks=tuple(abstained),
-        per_check=MappingProxyType({d.check_id: d.p for d in decided}),
+        n_failed=sum(d.failed for d in voting),
+        decided_checks=tuple(d.check_id for d in voting),
+        abstained_checks=silent,
+        per_check=MappingProxyType({d.check_id: d.p for d in voting}),
     )
     if stratum.max_weight() <= 0.0:
         return replace(base, reason=NO_INFORMATIVE)
-    if not decided:
-        return replace(base, reason=NO_DECIDED)
-    score = math.prod((1.0 - d.p) ** d.weight for d in decided)
-    return replace(base, score=score, sigma=score_sigma(score, decided), abstained=False)
+    if not voting:
+        return replace(base, reason=NO_WEIGHTED if decided else NO_DECIDED)
+    score = math.prod((1.0 - d.p) ** d.weight for d in voting)
+    return replace(base, score=score, sigma=score_sigma(score, voting), abstained=False)
 
 
 def score_sigma(score: float, decided: Sequence[_Decided]) -> float | None:

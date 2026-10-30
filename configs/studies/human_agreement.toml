@@ -16,6 +16,7 @@ error_seed = 20261017
 # Excluded and time-dependent check ids live in [check_scope] (configs/verifier/check_scope.toml).
 on_unusable_stratum = "descriptive"    # calibrated rule, stratum not usable: provisional + "not evaluable"; "error" = exit 2
 exclude_time_dependent = false         # R5b/R4_jump stay in the primary analysis; a sensitivity run drops them
+min_cut_side_fraction = 0.05           # the dev cut leaves >= 5 % of the decided clips on either side, else none is frozen
 dev_subset = "h2_dev"
 test_subset = "h2_test"
 preregistration = "agreement/preregistration.json"   # under paths.data_dir

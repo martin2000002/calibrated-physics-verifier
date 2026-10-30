@@ -22,10 +22,12 @@ from exclusion_cases import (
     record,
     rules,
     rules_raw,
+    toml_rules_raw,
     scene,
 )
 from stratum_cases import FIXTURE_CHECKS_HASH, check_calibration, write_artifact
 
+from physverify.app import plugins
 from physverify.calibration.artifact import RealFpr
 from physverify.calibration.artifact_io import load_calibration
 from physverify.calibration.exclusions import detector_arms
@@ -86,6 +88,12 @@ def test_unknown_rules_and_checks_are_configuration_errors() -> None:
 
 
 # Rule 1.1.
+
+
+def test_rule_1_1_v2_covers_every_registered_check() -> None:
+    loaded = ExclusionRules.model_validate(toml_rules_raw())
+    assert loaded.version == "2"
+    assert set(loaded.r5a.check_ids) == set(plugins.build("checks"))
 
 
 def test_r5a_is_kept_when_usable_weighted_and_monotone() -> None:

@@ -324,7 +324,8 @@ phase_dev() {
     save PREREG "$PREREG"
     save PREREG_SHA "$(sha_of "$PREREG")"
     save FROZEN_COMMIT "$HEAD_COMMIT"
-    for field in rule rule_label calibration_gate n_dev dev_majority dev_cut dev_tuned_cut \
+    for field in rule rule_label calibration_gate n_dev n_dev_decided dev_majority dev_cut \
+        dev_cut_rejection dev_tuned_cut \
         calibration_artifact_sha256 exclusion_record_sha256; do
         note "$field: $(prereg_field "$field")"
     done
