@@ -73,7 +73,7 @@ class GroundTruthStore(Protocol):
     def masks(self, sampling: FrameSampling) -> MaskTrack: ...
 
     def depth(self, sampling: FrameSampling) -> DepthMap:
-        """Metric z layer (``DepthKind.METRIC_Z``)."""
+        """Metric z layer (``DepthKind.METRIC_Z``) with the camera's true focal (sigma 0)."""
         ...
 
     def camera(self, sampling: FrameSampling) -> CameraModel: ...
@@ -294,10 +294,20 @@ class ArrayGroundTruthStore:
         depth, valid = resize_depth(
             np.where(valid, z, 0.0).astype(np.float32), valid, sampling.size
         )
-        return DepthMap(sampling=sampling, depth=depth, kind=DepthKind.METRIC_Z, valid=valid)
+        return DepthMap(
+            sampling=sampling,
+            depth=depth,
+            kind=DepthKind.METRIC_Z,
+            valid=valid,
+            focal_px=float(self._intrinsics(sampling)[0, 0]),
+            focal_sigma_px=0.0,
+        )
+
+    def _intrinsics(self, sampling: FrameSampling) -> NDArray[np.float64]:
+        return scale_intrinsics(self._native.K, sampling.native_size, sampling.size)
 
     def camera(self, sampling: FrameSampling) -> CameraModel:
-        K = scale_intrinsics(self._native.K, sampling.native_size, sampling.size)  # noqa: N806
+        K = self._intrinsics(sampling)  # noqa: N806
         return CameraModel(
             sampling=sampling,
             K=K,

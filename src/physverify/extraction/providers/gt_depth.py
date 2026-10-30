@@ -1,7 +1,9 @@
-"""Ground-truth depth: metric z, or relative with object median 1 (default)."""
+"""Ground-truth depth: metric z, or relative with object median 1 (default); both carry the
+camera's true focal, so a camera taken from the depth stage works on true depth."""
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import ClassVar
 
 import numpy as np
@@ -21,7 +23,7 @@ class Params(ProviderParams):
 class GroundTruthDepth:
     stage: ClassVar[Stage] = Stage.DEPTH
     name: ClassVar[str] = GROUND_TRUTH
-    version: ClassVar[str] = "1"
+    version: ClassVar[str] = "2"
     requires: ClassVar[tuple[Stage, ...]] = ()
     heavy: ClassVar[bool] = False
     is_ground_truth: ClassVar[bool] = True
@@ -41,11 +43,10 @@ class GroundTruthDepth:
         relative, _ = normalize_by_object_median(
             depth.depth.astype(np.float64), depth.valid, objects
         )
-        return DepthMap(
-            sampling=ctx.sampling,
+        return replace(
+            depth,
             depth=np.where(depth.valid, relative, 0.0).astype(np.float32),
             kind=DepthKind.RELATIVE_DEPTH,
-            valid=depth.valid,
         )
 
 

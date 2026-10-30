@@ -65,7 +65,7 @@ STAGE_KEYS = {
     ),
     "camera/ground_truth": "dcc9f3896dfae49cd3ef2203bda5922a6d2658e10742995834a8a97e79e756e9",
     "contacts/ground_truth": "c19862f11db0d6e64c7c3fa030a2b578544b4fbc91fe39797d3f392f48983146",
-    "depth/ground_truth": "5e98a6b578a3276bec41b24e5adc10c15b4376be94b8c2cc6b60a89572a5c107",
+    "depth/ground_truth": "06c3b85ad942509b944137bd664d5d865d99c6cdb7441854de17f2860afaf9be",
     "detect/ground_truth": "a62f5932c2390f802e0e37c316b245d6d790dde1ef5f17326d53382a39d142fe",
     "kinematics/ground_truth": "022f0acb3dce3d1ec694cfe18446d6f513bc856340c607c9db8dacfa17a87a40",
     "lift/ground_truth": "fd9112fb74e8dd281c76ae277a0ee4782161166f15cee466b834c0f5eeaa79a5",
