@@ -33,7 +33,7 @@ from physverify.extraction.providers._common import (
 )
 from physverify.extraction.providers._vda import to_depth_map
 from physverify.extraction.weights import local_path, vendored_import_path, weight_file
-from physverify.schema.perception import DepthKind, DepthMap
+from physverify.schema.perception import DepthKind, DepthMap, horizontal_fov_deg
 from physverify.schema.stages import Stage
 
 CODE = WeightSpec(
@@ -109,12 +109,7 @@ class MoGe2Depth:
             return None
         picked = frames[frame_indices(frames.shape[0], self.params.shared_focal_frames)]
         probe = predict(model, picked, None, self.params.batch_size)
-        return fov_x_deg(float(np.median(probe.focal_rel)))
-
-
-def fov_x_deg(focal_rel: float) -> float:
-    """Horizontal field of view of a focal given as a fraction of the image width."""
-    return math.degrees(2.0 * math.atan(0.5 / focal_rel))
+        return horizontal_fov_deg(float(np.median(probe.focal_rel)), 1.0)
 
 
 def predict(

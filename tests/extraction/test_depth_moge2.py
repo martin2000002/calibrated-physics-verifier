@@ -21,9 +21,8 @@ from physverify.extraction.providers.depth_moge2 import (
     MoGe2Depth,
     PointMapModel,
     check_load_warnings,
-    fov_x_deg,
 )
-from physverify.schema.perception import DepthKind, DepthMap
+from physverify.schema.perception import DepthKind, DepthMap, horizontal_fov_deg
 
 DEPTH_M = 3.25
 FREE_FOCAL_REL = (0.80, 0.90, 1.00)
@@ -86,7 +85,7 @@ def test_the_probe_pass_fixes_the_field_of_view(fixture_clip: SyntheticClip) -> 
     assert sum(n for n, _ in probe) == 3
     assert sum(n for n, _ in fixed) == out.sampling.n_frames
     assert all(n <= 2 for n, _ in model.calls)
-    expected_fov = fov_x_deg(float(np.median(np.resize(np.array(FREE_FOCAL_REL), 3))))
+    expected_fov = horizontal_fov_deg(float(np.median(np.resize(np.array(FREE_FOCAL_REL), 3))), 1.0)
     assert all(fov == pytest.approx(expected_fov) for _, fov in fixed)
 
 
@@ -96,13 +95,6 @@ def test_zero_probe_frames_keeps_the_per_frame_focal(fixture_clip: SyntheticClip
     assert all(fov is None for _, fov in model.calls)
     focal = np.resize(np.array(FREE_FOCAL_REL), out.sampling.n_frames)
     assert out.focal_px == pytest.approx(float(np.median(focal)) * out.sampling.width)
-
-
-@pytest.mark.parametrize(
-    ("focal_rel", "fov"), [(0.5, 90.0), (0.5 / math.tan(math.radians(30.0)), 60.0)]
-)
-def test_fov_of_a_width_relative_focal(focal_rel: float, fov: float) -> None:
-    assert fov_x_deg(focal_rel) == pytest.approx(fov)
 
 
 def test_a_checkpoint_that_does_not_match_the_model_is_refused() -> None:

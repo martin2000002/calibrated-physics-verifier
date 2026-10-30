@@ -6,7 +6,6 @@ a ``FrameSampling`` (nearest neighbour for masks and depth, K scaled by the resi
 
 from __future__ import annotations
 
-import math
 import time
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
@@ -30,6 +29,7 @@ from physverify.schema.perception import (
     Detections,
     IntrinsicsSource,
     MaskTrack,
+    horizontal_fov_deg,
 )
 from physverify.schema.scene import SceneSpec
 from physverify.schema.stages import STAGE_ORDER, Stage
@@ -302,7 +302,7 @@ class ArrayGroundTruthStore:
             sampling=sampling,
             K=K,
             source=IntrinsicsSource.GROUND_TRUTH,
-            fov_deg=math.degrees(2.0 * math.atan(sampling.width / (2.0 * K[0, 0]))),
+            fov_deg=horizontal_fov_deg(float(K[0, 0]), sampling.width),
             fov_sigma_deg=0.0,
             world_from_camera=self._native.world_from_camera,
         )

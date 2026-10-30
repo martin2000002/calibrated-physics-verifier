@@ -36,7 +36,7 @@ from physverify.extraction.providers._common import (
 )
 from physverify.extraction.weights import local_path, vendored_import_path, weight_file
 from physverify.schema.clip import FrameSampling
-from physverify.schema.perception import CameraModel, IntrinsicsSource
+from physverify.schema.perception import CameraModel, IntrinsicsSource, horizontal_fov_deg
 from physverify.schema.stages import Stage
 
 FloatArray = NDArray[np.float64]
@@ -145,10 +145,6 @@ def combine_gravity(gravity: FloatArray, sigma_rad: FloatArray) -> FloatArray:
     mean = weights @ gravity
     combined: FloatArray = mean / np.linalg.norm(mean)
     return combined
-
-
-def horizontal_fov_deg(focal_px: float, width: int) -> float:
-    return math.degrees(2.0 * math.atan(width / (2.0 * focal_px)))
 
 
 def focal_rel(focal_px: float, focal_sigma_px: float, floor_rel: float = math.nan) -> float:

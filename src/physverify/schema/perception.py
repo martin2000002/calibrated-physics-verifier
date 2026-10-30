@@ -168,6 +168,16 @@ class DepthMap(Record):
         )
 
 
+def horizontal_fov_deg(focal_px: float, width: float) -> float:
+    """Pinhole horizontal field of view: fov = 2 atan(W / 2f), W and f in the same units."""
+    return math.degrees(2.0 * math.atan(width / (2.0 * focal_px)))
+
+
+def focal_from_fov(fov_deg: float, width: float) -> float:
+    """Inverse of ``horizontal_fov_deg``: f = (W / 2) / tan(fov / 2)."""
+    return (width / 2.0) / math.tan(math.radians(fov_deg) / 2.0)
+
+
 @dataclass(frozen=True, eq=False)
 class CameraModel(Record):
     """OpenCV intrinsics in processing pixels; ``world_from_camera`` is (4,4), (T',4,4) or None.
