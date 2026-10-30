@@ -12,6 +12,7 @@ from physverify.checks._base import CheckInputs
 from physverify.checks.r4_track_jump import NoiseContinuityCheck, NoiseJumpParams
 from physverify.checks.variants.r4_jump_rigid import RigidJumpCheck, RigidJumpParams
 from physverify.physics.size_steps import size_step_stencil_mask, size_steps
+from physverify.physics.tracks import impact_stencil_mask
 from physverify.schema.checks import CheckResult
 
 FRAME = 16
@@ -68,3 +69,24 @@ def test_a_jump_with_a_size_step_is_left_out() -> None:
 def test_the_size_step_is_configurable() -> None:
     inputs = swapped_mask(1.3).inputs()
     assert rigid(inputs, rigid_size_step=0.5).magnitude == v2(inputs).magnitude
+
+
+def test_the_params_keep_the_size_step() -> None:
+    check = RigidJumpCheck(RigidJumpParams(rigid_size_step=0.2))
+    assert isinstance(check.params, RigidJumpParams)
+    assert check.params.rigid_size_step == check.rigid_size_step == 0.2
+
+
+@pytest.mark.parametrize("step_frame", [26, 16])
+def test_impacts_and_size_steps_are_both_left_out(step_frame: int) -> None:
+    bounce = sc.bounce()
+    grown = bounce.states.size[step_frame:, 0] * 1.3
+    case = sc.with_values(bounce, "size", "ball", range(step_frame, sc.FRAMES), grown)
+    states, contacts = case.states, case.contacts
+    assert contacts is not None
+    impacts = impact_stencil_mask("ball", contacts, states.frame_index)
+    steps = size_step_stencil_mask(states.size[:, 0], 0.10)
+    assert impacts.any() and steps.any()
+    found, reference = rigid(case.inputs()), v2(case.inputs())
+    assert reference.details["excluded_rows"] == np.count_nonzero(impacts)
+    assert found.details["excluded_rows"] == np.count_nonzero(impacts | steps)
