@@ -33,7 +33,8 @@ class MetricDepthScale:
     requires: ClassVar[tuple[Stage, ...]] = (Stage.LIFT,)
     heavy: ClassVar[bool] = False
     is_ground_truth: ClassVar[bool] = False
-    error_profile_reads: ClassVar[tuple[Stage, ...]] = (Stage.SCALE,)
+    error_profile_reads: ClassVar[tuple[Stage, ...]] = ()
+    reads_own_error: ClassVar[bool] = True
     weights: ClassVar[tuple[WeightSpec, ...]] = ()
     Params: ClassVar[type[BaseModel]] = Params
 

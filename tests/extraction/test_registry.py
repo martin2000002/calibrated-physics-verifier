@@ -38,16 +38,13 @@ def test_every_provider_validates_and_only_providers_with_weights_are_heavy(
     assert any(provider.heavy for provider in registry.values())
 
 
-def test_only_backproject_reads_its_own_profile_entry(
+def test_only_backproject_and_metric_scale_read_their_own_profile_entry(
     registry: dict[str, type[StageProvider]],
 ) -> None:
     lift = registry["lift/backproject"]
     assert lift.error_profile_reads == (Stage.TRACK, Stage.DEPTH)
-    assert reads_own_error(lift)
-    others = [
-        key for key, p in registry.items() if key != "lift/backproject" and reads_own_error(p)
-    ]
-    assert others == []
+    readers = sorted(key for key, p in registry.items() if reads_own_error(p))
+    assert readers == ["lift/backproject", "scale/metric_depth"]
 
 
 @pytest.mark.parametrize("command", ["run", "fetch-weights"])
