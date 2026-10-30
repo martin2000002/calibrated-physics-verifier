@@ -70,6 +70,7 @@ ORDER: Mapping[str, tuple[str, ...]] = {
         "contacts/events",
         "contacts/impacts",
         "depth/absrel",
+        "depth/metric",
         "depth/object_rel",
         "depth/object_parts",
         "detect/box",
