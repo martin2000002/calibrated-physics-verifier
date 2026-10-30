@@ -90,6 +90,13 @@ def require_cuda(settings: Settings) -> None:
         raise UsageError("this subcommand needs a CUDA device and none is available")
 
 
+def require_scoring_device(settings: Settings) -> None:
+    """Scoring runs on the configured device: cpu as is, cuda only when a device is present.
+    Generation and training keep ``require_cuda``."""
+    if settings.runtime.device.startswith("cuda"):
+        require_cuda(settings)
+
+
 def candidate_generator(
     context: AppContext,
     store: CampaignStore,
@@ -284,7 +291,7 @@ def score_split(
     echo: Echo,
 ) -> None:
     which = campaign_split(split, "score")
-    require_cuda(context.settings)
+    require_scoring_device(context.settings)
     store = CampaignStore.from_settings(context.settings)
     prompts = campaign_prompts(store, which)
     score_prompts(
