@@ -46,9 +46,11 @@ DATASET_CONTENT_HASH = {
 }
 STAGE_KEYS = {
     "camera/assumed_fov": "d0ae25696b1da8e41856f1aaf094085c01f865833bc905f253b56546f7477018",
+    "camera/from_depth": "b9aeca37d6f445c9b8e79c3ef7be886c6e96f7bd82021c2cdf2b53a7d232074c",
     "camera/geocalib": "871980e0b1985e5945e7620477d9ea8b3a6781b5b215e2d70ef9c2868b17d6e1",
     "contacts/kinematic": "5fa79bdb79bc2e1d112406b88d1c86cb8084cabe939911842fc9b94043e7f88b",
     "contacts/proximity": "d0b01ca2029fe279052af5dff2c6912e1d7761709b4b156133bd6ada5cdf8443",
+    "depth/moge2": "6cdce7a43eb0a8999a01982327df1202bc13bbda4c86c3af356092a578a18f81",
     "depth/vda_small": "70f6c003ff50af82ae87a48aa6a2c81030761e6a0c859278fc99fd8dba78cf1c",
     "depth/vda_large": "5f9dc8fa05d3d3be2711507ea24c8d730f337ca0d1584513c2c4677d98509b13",
     "depth/vda_metric_small": "ccc78054bf3ca5553e4bb71716289309a5b2ab609836225cf252b782f3c5b5fe",
@@ -72,6 +74,7 @@ STAGE_KEYS = {
     "kinematics/savgol": "7c1bd68862faaae42d003e987af7401d0a74175e012ab1c66302984054a09f1c",
     "lift/backproject": "56d1e0e2760b107626022203c636669d3dfe69ae93b80a2772b0709748bf6700",
     "scale/free_fall": "bec820adaf82685969af695611b63820d111490ba005aacbb9593de29c1285be",
+    "scale/metric_depth": "c74b4fb3e974ef14c956cae28697c484e340098bafbea7b01dcfb4748d5ed578",
     "scale/size_model": "a079f4cdd56f2719d0e17ae493f7e07e2d54f75250468d8f0c2ac65d4a71a906",
     "scale/size_prior": "5f60ea1c1ea1da9cb356fdc44c6c616f515b18a6730e8c3039eb809f6521166b",
     "track/edgetam": "81a150661413d4a8e45d79ab5f2dd7a3c4b2ca10db56a5bade893403801ce4d8",

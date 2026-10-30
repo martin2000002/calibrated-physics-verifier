@@ -851,6 +851,11 @@
       "fov_deg",
       "fov_sigma_deg"
     ],
+    "camera/from_depth": [
+      "gravity",
+      "n_frames",
+      "focal_sigma_floor_rel"
+    ],
     "camera/geocalib": [
       "n_frames",
       "focal",
@@ -878,6 +883,11 @@
     ],
     "depth/ground_truth": [
       "metric"
+    ],
+    "depth/moge2": [
+      "resolution_level",
+      "shared_focal_frames",
+      "batch_size"
     ],
     "depth/vda_large": [
       "input_size"
@@ -946,6 +956,7 @@
       "max_windows"
     ],
     "scale/ground_truth": [],
+    "scale/metric_depth": [],
     "scale/size_model": [
       "label_to_prior",
       "same_class_rho",
