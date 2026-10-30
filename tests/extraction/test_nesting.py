@@ -63,10 +63,9 @@ def test_frames_where_a_track_is_absent_do_not_count() -> None:
 
 
 def with_part(track: MaskTrack) -> MaskTrack:
-    """``track`` plus a second track on the inner part of object 0's mask."""
+    """``track`` plus a second track on every other column of object 0's mask."""
     part = track.masks[:, :1].copy()
-    part[:, :, :, : part.shape[3] // 2] = False
-    part &= track.masks[:, :1]
+    part[..., ::2] = False
     return replace(
         track,
         object_ids=np.append(track.object_ids, "part_0"),

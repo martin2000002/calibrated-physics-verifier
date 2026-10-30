@@ -36,8 +36,8 @@ CONFIG_HASH = {
     "precise": "249f0508a5706260e843f743b66d4dd8c0c151ca584130d97eab932d5c9f21e9",
 }
 LOOK_CONFIG_HASH = {
-    "fast": "2ccbc506b3dc2ded5ae47963e4792281c48ea29c21af6b1d0db6e3d3b2b585f0",
-    "precise": "407f10a2dd00944b2f9f46558c7dfa3e742bec877f96ad2d9648fe4b764abb46",
+    "fast": "4d5c435815f8925c0a0fee0d90466d428ded4f8092306cf9d4c915e379a48004",
+    "precise": "bc1836aa0cc58238355f87b62b36bc3ff152d49dc09f77a88fd3bbbbdcc3abbc",
 }
 CHECKS_HASH = "c5f03bfd100bdd23fe90a5f2ad098b2767b893a75bb850fd42c4116312ca3dee"
 DATASET_CONTENT_HASH = {
@@ -71,6 +71,7 @@ STAGE_KEYS = {
     "track/ground_truth": "7f0b4774a68b28d2fd70ac39fe6a15dabc0634cf9046983c158734a331523cd5",
     "kinematics/savgol": "7c1bd68862faaae42d003e987af7401d0a74175e012ab1c66302984054a09f1c",
     "lift/backproject": "56d1e0e2760b107626022203c636669d3dfe69ae93b80a2772b0709748bf6700",
+    "lift/backproject_unnested": "0",
     "scale/free_fall": "bec820adaf82685969af695611b63820d111490ba005aacbb9593de29c1285be",
     "scale/size_model": "a079f4cdd56f2719d0e17ae493f7e07e2d54f75250468d8f0c2ac65d4a71a906",
     "scale/size_prior": "5f60ea1c1ea1da9cb356fdc44c6c616f515b18a6730e8c3039eb809f6521166b",
