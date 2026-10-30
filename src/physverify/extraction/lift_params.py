@@ -34,12 +34,12 @@ KUBRIC_PRIMITIVES: Mapping[str, PrimitiveKind] = MappingProxyType(
         "cylinder": PrimitiveKind.CYLINDER,
     }
 )
-"""The labels of the synthetic scenes (``lookup_label``: whole phrase, then each word)."""
+"""The labels of the synthetic scenes (``lookup_label``: whole phrase, then the last known word)."""
 REAL_PRIMITIVES: Mapping[str, PrimitiveKind] = MappingProxyType(
     {
         **KUBRIC_PRIMITIVES,
         **dict.fromkeys(
-            ("marble", "globe", "orange", "apple", "volleyball", "basketball"),
+            ("marble", "globe", "apple", "volleyball", "basketball"),
             PrimitiveKind.SPHERE,
         ),
         **dict.fromkeys(
@@ -47,13 +47,14 @@ REAL_PRIMITIVES: Mapping[str, PrimitiveKind] = MappingProxyType(
             PrimitiveKind.BOX,
         ),
         **dict.fromkeys(
-            ("bottle", "cup", "mug", "glass", "candle", "coin", "tire", "wheel", "pencil"),
+            ("bottle", "cup", "mug", "candle", "coin", "tire", "wheel", "pencil"),
             PrimitiveKind.CYLINDER,
         ),
     }
 )
 """Head nouns of the real-video queries (Physics-IQ, PISA, VideoPhy) whose shape is one
-primitive; "oranges" (a bag of them) and "duck" stay unknown."""
+primitive; words that are also a material or a colour ("glass", "orange") are left out, and
+"oranges" (a bag of them) and "duck" stay unknown."""
 NESTED_OVERLAP = 0.5
 """A mask with more than half of its area inside another track's mask is a part or a duplicate
 of that object."""

@@ -115,8 +115,10 @@ def test_the_kubric_map_is_the_default_of_backproject() -> None:
         ("block", PrimitiveKind.BOX),
         ("domino", PrimitiveKind.BOX),
         ("marble", PrimitiveKind.SPHERE),
-        ("glass", PrimitiveKind.CYLINDER),
         ("white bottle", PrimitiveKind.CYLINDER),
+        ("glass globe", PrimitiveKind.SPHERE),
+        ("glass", None),
+        ("orange plastic egg", None),
         ("rubber duck", None),
         ("bag of oranges", None),
     ],
@@ -124,3 +126,29 @@ def test_the_kubric_map_is_the_default_of_backproject() -> None:
 def test_real_query_phrases_find_their_primitive(label: str, kind: PrimitiveKind | None) -> None:
     assert lookup_label(label, REAL_PRIMITIVES) is kind
     assert lookup_label(label, KUBRIC_PRIMITIVES) is None
+
+
+@pytest.mark.parametrize(
+    ("label", "kind"),
+    [("large orange ball", PrimitiveKind.SPHERE), ("ball box", PrimitiveKind.BOX)],
+)
+def test_the_last_known_word_is_the_head_noun(label: str, kind: PrimitiveKind) -> None:
+    assert lookup_label(label, KUBRIC_PRIMITIVES) is kind
+
+
+def test_without_its_own_profile_the_unnested_lift_leaves_sigma_unknown(
+    fixture_clip: SyntheticClip,
+) -> None:
+    names = {
+        **dict.fromkeys(STAGE_ORDER, GROUND_TRUTH),
+        Stage.TRACK: "edgetam",
+        Stage.DEPTH: "vda_small",
+        Stage.LIFT: UnnestedBackprojectLift.name,
+    }
+    ctx = make_context(fixture_clip, upstream=truth_inputs(fixture_clip), plan=names)
+    table = run_provider(UnnestedBackprojectLift, ctx)
+    assert isinstance(table, ObjectStateTable)
+    visible = table.visible
+    assert bool(visible.any())
+    assert bool(np.isnan(table.position_sigma[visible]).all())
+    assert bool(np.isnan(table.size_sigma[visible]).all())
