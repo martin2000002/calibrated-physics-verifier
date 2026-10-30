@@ -29,6 +29,13 @@ def centred_intrinsics(focal: float, sampling: FrameSampling) -> NDArray[np.floa
     )
 
 
+def frame_indices(n_total: int, n_frames: int) -> NDArray[np.int64]:
+    """``n_frames`` equally spaced rows from first to last (every row of a shorter clip)."""
+    if n_total <= n_frames:
+        return np.arange(n_total, dtype=np.int64)
+    return np.round(np.linspace(0.0, n_total - 1.0, n_frames)).astype(np.int64)
+
+
 def set_torch_threads(threads: int) -> None:
     """Bound torch's intra-op pool to ``runtime.threads`` (torch is imported lazily)."""
     import torch

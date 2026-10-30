@@ -20,7 +20,8 @@ from physverify.extraction.backprojection import focal_rel_sigma
 from physverify.extraction.gravity_pose import LEVEL_CAMERA_GRAVITY, gravity_from_pose
 from physverify.extraction.providers._assumed_fov import AssumedFovCamera
 from physverify.extraction.providers._assumed_fov import Params as AssumedParams
-from physverify.extraction.providers.camera_geocalib import (
+from physverify.extraction.providers._common import frame_indices
+from physverify.extraction.providers._geocalib import (
     Calibration,
     Calibrator,
     GeoCalibCamera,
@@ -29,7 +30,6 @@ from physverify.extraction.providers.camera_geocalib import (
     clip_gravity,
     combine_gravity,
     fov_sigma_deg,
-    frame_indices,
     per_frame,
     to_opencv_gravity,
 )
