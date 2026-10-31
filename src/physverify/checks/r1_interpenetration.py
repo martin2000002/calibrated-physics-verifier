@@ -13,13 +13,20 @@ from pydantic import BaseModel
 
 from physverify.checks._base import CheckInputs, abstain, unscored
 from physverify.checks._params import OcclusionParams, as_params
-from physverify.physics.geometry import Body, Plane, characteristic_length
+from physverify.physics.geometry import (
+    Body,
+    Plane,
+    axis_rotation,
+    characteristic_length,
+    matrix_from_quaternion,
+    quaternion_from_matrix,
+)
 from physverify.physics.measures.penetration import penetration_ratio
 from physverify.physics.signed_distance import signed_distance
 from physverify.physics.tracks import native_span, place_body, support_plane
 from physverify.schema.checks import AbstainReason, CheckResult
 from physverify.schema.constants import ENV_ID
-from physverify.schema.states import ObjectStateTable
+from physverify.schema.states import ObjectStateTable, PrimitiveKind
 
 FloatArray = NDArray[np.float64]
 # Horizontal axis used to orient a body whose quaternion is unknown (yaw is irrelevant for the
@@ -125,7 +132,8 @@ class InterpenetrationCheck:
         return AbstainReason.OCCLUDED
 
     def _sigma(self, states: ObjectStateTable, peak: _Peak, i: int, other: int | Plane) -> float:
-        """First-order sigma of the ratio from position and size sigmas of both bodies."""
+        """Sigma of the ratio: first order in the position and size sigmas of both bodies, plus
+        the yaw spread of each posed body; NaN when any of them is unknown."""
         bodies = [i] if isinstance(other, Plane) else [i, other]
         row = peak.row
         sigmas = np.concatenate(
@@ -134,12 +142,13 @@ class InterpenetrationCheck:
                 for b in bodies
             ]
         )
-        if not bool(np.all(np.isfinite(sigmas))):
+        yaw_spread = _yaw_spread(states, peak, i, other, bodies)
+        if not (bool(np.all(np.isfinite(sigmas))) and math.isfinite(yaw_spread)):
             return math.nan
-        if bool(np.all(sigmas == 0.0)):
+        if bool(np.all(sigmas == 0.0)) and yaw_spread == 0.0:
             return 0.0
         gradient = _distance_gradient(states, row, i, other, bodies)
-        sigma_d = float(np.sqrt(np.sum((gradient * sigmas) ** 2)))
+        sigma_d = float(np.sqrt(np.sum((gradient * sigmas) ** 2) + yaw_spread**2))
         if peak.ratio == 0.0 and peak.distance - SEPARATED_SIGMAS * sigma_d > 0.0:
             return 0.0
         lengths = [characteristic_length(states.size[row, b]) for b in bodies]
@@ -182,6 +191,44 @@ def _distance_gradient(
                 minus = _distance(_nudged(states, field, (row, body, axis), -step), row, i, other)
                 gradient.append((plus - minus) / (2.0 * step))
     return np.asarray(gradient, dtype=np.float64)
+
+
+def _yaw_spread(
+    states: ObjectStateTable, peak: _Peak, i: int, other: int | Plane, bodies: list[int]
+) -> float:
+    """Root sum of squares over posed non-sphere bodies of max |d(+-sigma) - d|, turning each by
+    its orientation sigma about up = -gravity. Sigma points, not a Jacobian: at an aligned pose
+    d is flat in yaw to first order. NaN when a posed body's sigma or the up axis is unknown."""
+    total = 0.0
+    for body in bodies:
+        sigma = _orientation_sigma(states, peak.row, body)
+        if sigma == 0.0:
+            continue
+        if not (math.isfinite(sigma) and bool(np.all(np.isfinite(states.gravity_dir)))):
+            return math.nan
+        turned = [
+            _distance(_yawed(states, peak.row, body, angle), peak.row, i, other)
+            for angle in (sigma, -sigma)
+        ]
+        total += max(abs(d - peak.distance) for d in turned) ** 2
+    return math.sqrt(total)
+
+
+def _orientation_sigma(states: ObjectStateTable, row: int, body: int) -> float:
+    """Yaw sigma of a body placed with its own quaternion; 0 when R1 assumes the orientation
+    (the assumption is reported as ``orientation_assumed``) or the body is a sphere."""
+    posed = bool(np.all(np.isfinite(states.quaternion[row, body])))
+    if not posed or PrimitiveKind(str(states.primitive[body])) is PrimitiveKind.SPHERE:
+        return 0.0
+    return float(states.orientation_sigma[row, body])
+
+
+def _yawed(states: ObjectStateTable, row: int, body: int, angle: float) -> ObjectStateTable:
+    turn = axis_rotation(-states.gravity_dir, angle)
+    quaternions = np.array(states.quaternion, copy=True)
+    rotation = turn @ matrix_from_quaternion(quaternions[row, body])
+    quaternions[row, body] = quaternion_from_matrix(rotation)
+    return replace(states, quaternion=quaternions)
 
 
 def _nudged(
