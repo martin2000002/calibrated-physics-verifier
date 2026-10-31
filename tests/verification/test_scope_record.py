@@ -51,7 +51,7 @@ def test_the_record_ids_are_merged_and_its_sha_exposed(make) -> None:  # type: i
     scope = check_scope(settings, checks())
     assert scope.exclude_checks == ("R1", "R5a")
     assert scope.record_sha256 == found.sha256
-    assert scope.excluded(time_dependent=True) == {"R1", "R5a", "R5b", "R4_jump", "R4_missing"}
+    assert scope.excluded(time_dependent=True) == {"R1", "R5a", "R5b", "R4_jump"}
 
 
 def test_the_time_dependent_checks_are_the_ones_the_checks_declare(make) -> None:  # type: ignore[no-untyped-def]
@@ -60,6 +60,17 @@ def test_the_time_dependent_checks_are_the_ones_the_checks_declare(make) -> None
     assert set(CheckScope().time_dependent_checks) == declared
     with pytest.raises(ConfigError, match="time_dependent"):
         check_scope(make('check_scope.time_dependent_checks=["R5b"]'), checks())
+
+
+def test_a_kept_time_dependent_check_is_not_excluded(make) -> None:  # type: ignore[no-untyped-def]
+    scope = check_scope(make("check_scope.kept_when_excluding_time=[]"), checks())
+    assert scope.excluded(time_dependent=True) == {"R5b", "R4_jump", "R4_missing"}
+    assert scope.excluded(time_dependent=False) == frozenset()
+
+
+def test_a_kept_check_outside_the_time_dependent_ones_is_a_config_error(make) -> None:  # type: ignore[no-untyped-def]
+    with pytest.raises(ConfigError, match="kept_when_excluding_time"):
+        check_scope(make('check_scope.kept_when_excluding_time=["R1"]'), checks())
 
 
 def test_the_sha_cannot_be_set_from_the_toml(make) -> None:  # type: ignore[no-untyped-def]

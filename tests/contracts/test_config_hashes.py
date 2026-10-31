@@ -11,7 +11,7 @@ from typing import Any
 
 import pytest
 import synthetic_clip
-from wiring import active_checks_hash, resolve_plan
+from wiring import active_checks_hash, resolve_plan, run_checks_hash
 
 from physverify.app.plugins import PLUGIN_KINDS
 from physverify.calibration.sealed_ledger import look_config_hash
@@ -28,18 +28,22 @@ KEY_PATHS = Path(__file__).with_name("data") / "config_key_paths.txt"
 PINNED_ROOT = "/pinned"
 
 SECTIONS_HASH = {
-    "fast": "1f5171a029ac148828909a808593fc911677e5e27ce260e7f9025e96b4c7767b",
-    "precise": "d3a5122b0d4238a6844d924e86fd40da4fc8af97198fad2a09b4e4e641391dac",
+    "fast": "14e97dbc49075b264097004078a5c4114498b9129742b4b3de0e5280ba97e059",
+    "precise": "f6ebdef3a03d556900beb3344469d7787a29ec42aca059fe50b66a4e6ff8792e",
 }
 CONFIG_HASH = {
-    "fast": "f124b6ee34f16e1dd956041eeb82f089311409902d317a76c96f3e6a282459a6",
-    "precise": "10acdade5a05ac6621fa9a704a44c3df7e48b0b2733ca25d9012a9f74f596d2d",
+    "fast": "2de043e7423ee2a3225abecf14b9a9b092130986b793a378768a7d25fa8d44cd",
+    "precise": "760d2fedaf6027cedfabc5af509df7a6df2e795da509db07e967be3994abf11d",
 }
 LOOK_CONFIG_HASH = {
-    "fast": "2fc848c065282fe822fd7b4153df42a2c18d477500a218ec768ac7224401291f",
-    "precise": "970f6f637d079b701821d26655f696633979d444d541e652f1b580898eddf1c0",
+    "fast": "43380727c29ee5a289b4ce6e220827df0b32b5ad70e0d97bb5f4389af881abcc",
+    "precise": "02d997c108957851bbe49b6b8c47eee5b81e19201b68e18aad6df05854406856",
 }
 CHECKS_HASH = "1bc070f3c0236c60860077d46926888188c5e86fc6c4132c0274e43ed138b4b2"
+RUN_CHECKS_HASH = {
+    "fast": "1bc070f3c0236c60860077d46926888188c5e86fc6c4132c0274e43ed138b4b2",
+    "precise": "cd37678aef95992ca6d07e0491a500a641d91a9b0a861ccfb7457fd3e2367470",
+}
 DATASET_CONTENT_HASH = {
     "fast": "7792797236e163025d89c1c518dc43ad8f90c3f511bd884e1969ca9bf1f2fa3e",
     "precise": "4a6829efdd64424d79dfc0941246de148ca50446e0f6f40738e3a02d1b8e8b4e",
@@ -152,6 +156,7 @@ def test_section_hashes_are_unchanged(configs: Path, profile: str) -> None:
     assert stable_hash(dict(settings.sections)) == SECTIONS_HASH[profile]
     assert look_config_hash(settings) == LOOK_CONFIG_HASH[profile]
     assert active_checks_hash(settings) == CHECKS_HASH
+    assert run_checks_hash(settings) == RUN_CHECKS_HASH[profile]
     assert load_dataset_settings(settings).content_hash() == DATASET_CONTENT_HASH[profile]
 
 

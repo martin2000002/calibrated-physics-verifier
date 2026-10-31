@@ -37,7 +37,7 @@ class AgreementSettings(FrozenModel):
     """A calibrated rule whose stratum cannot score yet: fall back to the provisional rule and
     report the study as not evaluable, or stop with a configuration error (item 1.3)."""
     exclude_time_dependent: bool = False
-    """Leave [check_scope].time_dependent_checks out of the primary rule; the primary keeps them
+    """Leave the [check_scope] time-dependent checks out of the primary rule; the primary keeps them
     (true is a pre-registration change, declared before the freeze)."""
     min_cut_side_fraction: float = Field(ge=0, lt=0.5)
     """The dev cut must leave at least this fraction of the decided dev clips on either side;

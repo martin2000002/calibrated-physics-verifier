@@ -39,9 +39,11 @@ FloatArray = NDArray[np.float64]
 BoolArray = NDArray[np.bool_]
 FRICTION = "friction"
 FRICTION_RANGE = (0.3, 1.0)
-"""Static friction coefficients of dry everyday pairs (wood, metal, glass, plastic, rubber on
-concrete) in published tables (Serway and Jewett, Physics for Scientists and Engineers, table of
-coefficients of friction): the verifier does not know a scene's materials, so mu is uncertain."""
+"""Estimated range of the static friction coefficient of dry everyday pairs: metals on steel
+0.53-0.74, glass on glass 0.94, rubber on concrete 1.0 and wood on wood 0.25-0.5, as in the textbook
+table of Serway and Beichner (5th ed., table 5.2); other tables put rubber on concrete at 0.6-0.85.
+The bounds are a choice: 0.3 leaves out the low end of wood on wood and is kept so the calibrated
+R2 thresholds stay valid. The verifier does not know a scene's materials, so mu is uncertain."""
 
 
 class EquilibriumParams(CommonParams):

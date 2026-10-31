@@ -66,9 +66,9 @@ def rule_scope(
     settings: Settings, checks: Mapping[str, type[Check]], agreement: AgreementSettings
 ) -> tuple[CheckScope, RuleScope]:
     """``[check_scope]`` for the human-agreement study: the excluded checks and the time-dependent
-    ones."""
+    ones it leaves out."""
     scope = check_scope(settings, checks)
-    timed = frozenset(scope.time_dependent_checks)
+    timed = scope.excluded(time_dependent=True) - scope.excluded(time_dependent=False)
     primary = timed if agreement.exclude_time_dependent else frozenset()
     return scope, RuleScope(timed, primary)
 

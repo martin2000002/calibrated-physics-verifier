@@ -28,6 +28,9 @@ class CheckScope(FrozenModel):
     time_dependent_checks: tuple[str, ...] = ("R5b", "R4_jump", "R4_missing")
     """Checks whose magnitude depends on the clip's time base (fps): those that declare
     ``time_dependent`` (``checked`` refuses any other set)."""
+    kept_when_excluding_time: tuple[str, ...] = ("R4_missing",)
+    """Time-dependent checks a consumer keeps even when it leaves the time-dependent ones out
+    (a subset of ``time_dependent_checks``)."""
     decision_record: str | None = None
     """The record of ``exclusions decide``, relative to ``paths.calibration_dir``."""
     require_decision_record: bool = False
@@ -44,14 +47,20 @@ class CheckScope(FrozenModel):
         return None if self._record is None else self._record.sha256
 
     def excluded(self, *, time_dependent: bool) -> frozenset[str]:
-        """``exclude_checks``, plus the time-dependent ones when the consumer excludes them."""
-        extra = self.time_dependent_checks if time_dependent else ()
-        return frozenset((*self.exclude_checks, *extra))
+        """``exclude_checks``, plus the time-dependent ones not kept when the consumer excludes
+        them."""
+        timed = set(self.time_dependent_checks) - set(self.kept_when_excluding_time)
+        return frozenset((*self.exclude_checks, *(timed if time_dependent else ())))
 
     def checked(self, known: Mapping[str, type[Check]]) -> CheckScope:
         unknown = sorted(set(self.exclude_checks + self.time_dependent_checks) - set(known))
         if unknown:
             raise ConfigError(f"[{SECTION}] names unknown checks {unknown}; known: {sorted(known)}")
+        stray = sorted(set(self.kept_when_excluding_time) - set(self.time_dependent_checks))
+        if stray:
+            raise ConfigError(
+                f"[{SECTION}].kept_when_excluding_time {stray} are not in time_dependent_checks"
+            )
         declared = sorted(check_id for check_id, check in known.items() if check.time_dependent)
         if sorted(self.time_dependent_checks) != declared:
             raise ConfigError(

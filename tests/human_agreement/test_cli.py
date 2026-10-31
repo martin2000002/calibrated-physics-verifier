@@ -241,7 +241,7 @@ def test_the_summary_renders_every_c5_block(cli, world) -> None:
         "## Per check",
         "## Per generator",
         "## Sensitivity without the time-dependent checks",
-        "Time-dependent: R4_jump, R4_missing, R5b",
+        "Time-dependent: R4_jump, R5b",
         "Coverage (decided fraction): all ",
         "verifier predicts implausible on",
         "Sign flip between versions",
@@ -421,7 +421,7 @@ def test_the_time_dependent_checks_can_join_the_primary_exclusion(cli, world) ->
     run = _test(world)
     assert cli(*FAST, *timed, "agreement", "compare", "--verify-run", str(run)).code == 0
     metrics = _metrics(run)
-    assert metrics["primary_excluded"] == ["R4_jump", "R4_missing", "R5b"]
+    assert metrics["primary_excluded"] == ["R4_jump", "R5b"]
     assert metrics["sensitivity_time_dependent"]["time_dependent_in_primary"] is False
     text = (run / REPORT_DIR / "summary.md").read_text(encoding="utf-8")
     assert "## Sensitivity with the time-dependent checks" in text

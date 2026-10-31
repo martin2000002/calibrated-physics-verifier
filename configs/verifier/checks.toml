@@ -9,9 +9,9 @@
 # [checks.<id>] table overriding fields of its Params; unknown fields are a ConfigError.
 
 # R2's friction is an interval (friction_range, default FRICTION_RANGE in
-# checks/r2_static_equilibrium.py) sampled in its Monte Carlo: the static coefficients of dry
-# everyday material pairs in published tables (Serway and Jewett, Physics for Scientists and
-# Engineers, table of coefficients of friction), never the simulator's floor value.
+# checks/r2_static_equilibrium.py) sampled in its Monte Carlo: an estimated range of the static
+# coefficients of dry everyday material pairs (textbook table of Serway and Beichner, 5th ed.,
+# table 5.2), never the simulator's floor value. Its bounds are a choice; see FRICTION_RANGE.
 [checks.R2]            # plugin defaults live in checks/r2_static_equilibrium.py; override here
 mass_floor = 0.2
 
