@@ -128,10 +128,11 @@ def predict(
 class TorchMoGe:
     """The vendored ``MoGeModel`` on uint8 RGB frames; intrinsics are normalised by image size."""
 
-    def __init__(self, model: Any, device: str, resolution_level: int) -> None:
+    def __init__(self, model: Any, device: str, resolution_level: int, use_fp16: bool) -> None:
         self._model = model
         self._device = device
         self._resolution_level = resolution_level
+        self._use_fp16 = use_fp16
 
     def estimate(self, frames: NDArray[np.uint8], fov_x_deg: float | None) -> FrameEstimate:
         import torch
@@ -143,7 +144,7 @@ class TorchMoGe:
                 image,
                 resolution_level=self._resolution_level,
                 fov_x=fov_x_deg,
-                use_fp16=self._device != "cpu",
+                use_fp16=self._use_fp16,
             )
         return FrameEstimate(
             depth=out["depth"].cpu().numpy().astype(np.float32),
@@ -161,7 +162,8 @@ def load_model(ctx: StageContext, resolution_level: int) -> TorchMoGe:
         warnings.simplefilter("always")
         model = module.MoGeModel.from_pretrained(str(weight_file(CHECKPOINT, ctx.paths)))
     check_load_warnings([str(w.message) for w in caught])
-    return TorchMoGe(model.to(ctx.device).eval(), ctx.device, resolution_level)
+    use_fp16 = ctx.device != "cpu"
+    return TorchMoGe(model.to(ctx.device).eval(), ctx.device, resolution_level, use_fp16)
 
 
 def check_load_warnings(messages: list[str]) -> None:
