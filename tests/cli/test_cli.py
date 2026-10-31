@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
+from pathlib import Path
 from types import ModuleType
 
 import pytest
@@ -7,6 +11,7 @@ import typer
 import typer.main
 from cli_runner import CliRunner
 
+import physverify
 from physverify.cli.context import COMMANDS_PACKAGE, check_command, command_name
 from physverify.cli.main import build_app
 from physverify.core.registry import discover_modules
@@ -154,3 +159,18 @@ def test_bad_global_option_values_are_usage_errors(
 
 def test_app_is_a_typer_instance() -> None:
     assert all(isinstance(module.app, typer.Typer) for module in COMMANDS.values())
+
+
+def test_python_dash_m_runs_the_console_script() -> None:
+    """Run from the directory holding the package under test, which ``-m`` puts first on the
+    path whatever else is installed."""
+    done = subprocess.run(
+        [sys.executable, "-m", "physverify", "--help"],
+        capture_output=True,
+        text=True,
+        cwd=Path(physverify.__file__).parents[1],
+        env={**os.environ, "COLUMNS": "200"},
+        check=False,
+    )
+    assert done.returncode == 0, done.stderr
+    assert all(name in done.stdout for name in EXPECTED)
