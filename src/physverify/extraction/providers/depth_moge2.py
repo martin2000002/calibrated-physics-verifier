@@ -38,7 +38,7 @@ from physverify.extraction.providers._vda import to_depth_map
 from physverify.schema.perception import DepthKind, DepthMap, horizontal_fov_deg
 from physverify.schema.stages import Stage
 
-OWNER = "depth/moge2"
+PROVIDER_KEY = "depth/moge2"
 
 
 class Params(ProviderParams):
@@ -65,7 +65,7 @@ class MoGe2Depth:
 
     def loader(self) -> Callable[[StageContext], PointMapModel]:
         return functools.partial(
-            load_model, resolution_level=self.params.resolution_level, owner=OWNER
+            load_model, resolution_level=self.params.resolution_level, provider_key=PROVIDER_KEY
         )
 
     def run(self, ctx: StageContext) -> DepthMap:

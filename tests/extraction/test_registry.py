@@ -38,15 +38,16 @@ def test_every_provider_validates_and_only_providers_with_weights_are_heavy(
     assert any(provider.heavy for provider in registry.values())
 
 
-def test_only_the_backproject_lifts_read_their_own_profile_entry(
+def test_only_the_backproject_lifts_and_the_moge2_focal_read_their_own_profile_entry(
     registry: dict[str, type[StageProvider]],
 ) -> None:
     lifts = ("lift/backproject", "lift/backproject_unnested")
     for key in lifts:
         assert registry[key].error_profile_reads == (Stage.TRACK, Stage.DEPTH)
         assert reads_own_error(registry[key])
+    assert registry["camera/moge2_focal"].error_profile_reads == ()
     others = [key for key, p in registry.items() if key not in lifts and reads_own_error(p)]
-    assert others == []
+    assert others == ["camera/moge2_focal"]
 
 
 @pytest.mark.parametrize("command", ["run", "fetch-weights"])
@@ -133,4 +134,4 @@ def test_frames_are_requested_with_the_context_sampling() -> None:
             assert _is_attr(max_side, "s", "max_side"), path.name
             dino = path.name == "_grounding_dino.py"
             assert _is_attr(stop, "s", "stop") or (dino and isinstance(stop, ast.Name)), path.name
-    assert calls == 6
+    assert calls == 7

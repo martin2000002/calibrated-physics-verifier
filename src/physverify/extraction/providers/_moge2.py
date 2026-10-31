@@ -93,8 +93,8 @@ class TorchMoGe:
         )
 
 
-def load_model(ctx: StageContext, resolution_level: int, owner: str) -> TorchMoGe:
-    """``owner`` (``stage/name``) labels a checkpoint mismatch."""
+def load_model(ctx: StageContext, resolution_level: int, provider_key: str) -> TorchMoGe:
+    """``provider_key`` (``stage/name``) labels a checkpoint mismatch."""
     with (
         vendored_import_path(local_path(GEOMETRY, ctx.paths)),
         vendored_import_path(local_path(CODE, ctx.paths)),
@@ -103,13 +103,13 @@ def load_model(ctx: StageContext, resolution_level: int, owner: str) -> TorchMoG
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         model = module.MoGeModel.from_pretrained(str(weight_file(CHECKPOINT, ctx.paths)))
-    check_load_warnings([str(w.message) for w in caught], owner)
+    check_load_warnings([str(w.message) for w in caught], provider_key)
     use_fp16 = ctx.device != "cpu"
     return TorchMoGe(model.to(ctx.device).eval(), ctx.device, resolution_level, use_fp16)
 
 
-def check_load_warnings(messages: list[str], owner: str) -> None:
+def check_load_warnings(messages: list[str], provider_key: str) -> None:
     """``from_pretrained`` loads with strict=False and only warns about missing or extra keys."""
     bad = [m for m in messages if any(marker in m for marker in LOAD_WARNINGS)]
     if bad:
-        raise PluginError(f"{owner}: checkpoint does not match the model: {bad[0][:300]}")
+        raise PluginError(f"{provider_key}: checkpoint does not match the model: {bad[0][:300]}")

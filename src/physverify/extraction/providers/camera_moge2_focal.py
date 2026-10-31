@@ -46,7 +46,7 @@ from physverify.schema.error_profile import FOCAL_REL
 from physverify.schema.perception import CameraModel
 from physverify.schema.stages import Stage
 
-OWNER = "camera/moge2_focal"
+PROVIDER_KEY = "camera/moge2_focal"
 MAD_TO_SIGMA = 1.4826
 """sigma = 1.4826 * MAD for a normal sample."""
 
@@ -113,7 +113,9 @@ class MoGe2FocalCamera:
 
     def moge_loader(self) -> Callable[[StageContext], PointMapModel]:
         return functools.partial(
-            _moge2.load_model, resolution_level=self.params.resolution_level, owner=OWNER
+            _moge2.load_model,
+            resolution_level=self.params.resolution_level,
+            provider_key=PROVIDER_KEY,
         )
 
     def loader(self) -> Callable[[StageContext], Calibrator]:
