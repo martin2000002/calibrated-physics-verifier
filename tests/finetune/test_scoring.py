@@ -362,6 +362,7 @@ def _clip_score(**update: Any) -> ClipScore:
         "n_failed": 1,
         "decided_checks": ("R1", "R2"),
         "abstained_checks": ("R3a",),
+        "unweighted_checks": (),
         "per_check": {"R1": 0.9, "R2": 0.4},
     }
     return ClipScore(**{**fields, **update})
