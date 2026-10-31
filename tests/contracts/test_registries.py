@@ -70,6 +70,7 @@ ORDER: Mapping[str, tuple[str, ...]] = {
         "contacts/events",
         "contacts/impacts",
         "depth/absrel",
+        "depth/metric",
         "depth/object_rel",
         "depth/object_parts",
         "detect/box",
@@ -104,9 +105,11 @@ ORDER: Mapping[str, tuple[str, ...]] = {
 
 PROVIDER_ORDER = (
     "camera/assumed_fov",
+    "camera/from_depth",
     "camera/geocalib",
     "contacts/kinematic",
     "contacts/proximity",
+    "depth/moge2",
     "depth/vda_small",
     "depth/vda_large",
     "depth/vda_metric_small",
@@ -125,6 +128,7 @@ PROVIDER_ORDER = (
     "lift/backproject",
     "lift/backproject_unnested",
     "scale/free_fall",
+    "scale/metric_depth",
     "scale/size_model",
     "scale/size_prior",
     "track/edgetam",

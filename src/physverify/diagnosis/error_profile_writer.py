@@ -13,9 +13,11 @@ from physverify.core.atomic import write_atomic
 from physverify.core.errors import ConfigError
 from physverify.diagnosis.measurement_cases import sample_stats
 from physverify.schema.error_profile import (
+    FOCAL_REL,
     MAX_RESIDUALS,
     PARAMS_HASH_CONDITION,
     PROFILE_CONDITION,
+    SCALE_REL,
     ErrorEntry,
     ErrorProfile,
 )
@@ -32,9 +34,10 @@ UPSTREAM_CONDITION = "ground_truth"
 PROFILE_QUANTITIES: Mapping[str, tuple[str, ...]] = MappingProxyType(
     {
         "track/mask": ("centroid_px_rel",),
+        "depth/metric": (FOCAL_REL, SCALE_REL),
         "depth/object_rel": ("depth_rel",),
         "lift/position": ("centroid_rel", "size_rel"),
-        "scale/relative": ("scale_rel",),
+        "scale/relative": (SCALE_REL,),
         "kinematics/derivatives": ("vel_rel", "acc_rel"),
         "contacts/events": ("gap_rel",),
     }

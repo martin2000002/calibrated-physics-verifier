@@ -167,9 +167,15 @@ class BackprojectLift:
             return LEVEL_CAMERA_GRAVITY.copy(), math.radians(self.params.level_sigma_deg)
         if mode == "none" or camera.world_from_camera is None:
             return np.full(3, np.nan), math.nan
-        exact = camera.source is IntrinsicsSource.GROUND_TRUTH
-        sigma = 0.0 if exact else math.radians(self.params.pose_sigma_deg)
-        return gravity_from_pose(camera.world_from_camera), sigma
+        return gravity_from_pose(camera.world_from_camera), self._pose_sigma_rad(camera)
+
+    def _pose_sigma_rad(self, camera: CameraModel) -> float:
+        """0 for the truth, the camera's own estimate when it gives one, else pose_sigma_deg."""
+        if camera.source is IntrinsicsSource.GROUND_TRUTH:
+            return 0.0
+        if math.isfinite(camera.gravity_sigma_deg):
+            return math.radians(camera.gravity_sigma_deg)
+        return math.radians(self.params.pose_sigma_deg)
 
 
 def _mutable_fields(table: ObjectStateTable) -> dict[str, Any]:

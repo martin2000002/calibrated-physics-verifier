@@ -17,11 +17,10 @@ from physverify.diagnosis.measurement_cases import (
 )
 from physverify.diagnosis.settings import MetricSettings
 from physverify.schema.clip import ClipManifest
+from physverify.schema.error_profile import SCALE_REL
 from physverify.schema.outputs import StageOutput
 from physverify.schema.scale import ScaleEstimate
 from physverify.schema.stages import Stage
-
-SCALE_REL = "scale_rel"
 
 
 def source_key(estimate: ScaleEstimate) -> str:

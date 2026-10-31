@@ -13,6 +13,7 @@ import numpy as np
 from physverify.diagnosis.measurement_cases import MetricCase, MetricOutcome, bare_compute
 from physverify.diagnosis.settings import MetricSettings
 from physverify.schema.clip import ClipManifest
+from physverify.schema.error_profile import FOCAL_REL
 from physverify.schema.outputs import StageOutput
 from physverify.schema.perception import CameraModel
 from physverify.schema.stages import Stage
@@ -42,7 +43,7 @@ class FovMetric:
             samples=MappingProxyType(
                 {
                     "fov_err_deg": np.array([fov_err]),
-                    "focal_rel": np.array([pred.K[0, 0] / truth.K[0, 0] - 1.0]),
+                    FOCAL_REL: np.array([pred.K[0, 0] / truth.K[0, 0] - 1.0]),
                     "fov_z": np.array(fov_z, dtype=np.float64),
                 }
             )

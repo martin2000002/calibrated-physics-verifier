@@ -46,6 +46,10 @@ UNCOVERED = {
     ("src/physverify/extraction/providers/scale_size_prior.py", "SIZE_PRIORS_SECTION"): (
         "a section name, now in config.models; section names are pinned by test_config_hashes"
     ),
+    ("src/physverify/extraction/providers/camera_geocalib.py", "horizontal_fov_deg"): (
+        "the one pinhole FOV-focal conversion, now in schema.perception next to CameraModel so "
+        "that datasets, which may not import extraction, share it"
+    ),
     ("src/physverify/verification/runner.py", "_validated"): (
         "became the generic config.models.validated; the name at HEAD is synth's own helper"
     ),

@@ -370,7 +370,7 @@ def test_an_arm_swaps_providers_on_every_call_on_one_gpu(sandbox: IterationSandb
     assert "CUDA_VISIBLE_DEVICES=0" in summary
 
 
-def test_the_four_perception_arms_are_declared() -> None:
+def test_the_perception_arms_are_declared() -> None:
     table = (H200 / "perception_arms.tsv").read_text(encoding="utf-8").splitlines()
     arms = dict(line.split("\t") for line in table if line and not line.startswith("#"))
     assert arms == {
@@ -378,6 +378,12 @@ def test_the_four_perception_arms_are_declared() -> None:
         "it3-ak": "extraction.plan.depth=vda_small extraction.plan.contacts=kinematic",
         "it3-ap": "extraction.plan.depth=vda_large extraction.plan.contacts=proximity",
         "it3-c": "extraction.plan.depth=vda_large extraction.plan.contacts=kinematic",
+        "moge2-depth": "extraction.plan.depth=moge2",
+        "moge2-focal": "extraction.plan.depth=moge2 extraction.plan.camera=from_depth",
+        "moge2-metric": (
+            "extraction.plan.depth=moge2 extraction.plan.camera=from_depth "
+            "extraction.plan.scale=metric_depth"
+        ),
     }
 
 
