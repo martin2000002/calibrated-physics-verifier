@@ -172,6 +172,14 @@ def quaternion_from_matrix(rotation: ArrayLike) -> Vec:
     return quaternion if quaternion[0] >= 0 else -quaternion
 
 
+def axis_rotation(axis: ArrayLike, angle: float) -> Vec:
+    """Right-handed rotation by ``angle`` radians about ``axis`` (Rodrigues)."""
+    k = _unit(axis)
+    cross = np.array([[0.0, -k[2], k[1]], [k[2], 0.0, -k[0]], [-k[1], k[0], 0.0]])
+    rotation: Vec = np.eye(3) + math.sin(angle) * cross + (1.0 - math.cos(angle)) * cross @ cross
+    return rotation
+
+
 def pose_from_quaternion(position: ArrayLike, quaternion: ArrayLike) -> Pose:
     return Pose(position=as_vector(position), rotation=matrix_from_quaternion(quaternion))
 

@@ -98,18 +98,21 @@ def test_a_constant_ratio_rescales_position_extents_and_sigma() -> None:
     np.testing.assert_allclose(extents[3], base.extents, rtol=TOL)
     scaled = ObjectSummary(c * base.centre, c * base.extents, base.r_eq_px, base.n_pixels)
     for s, factor in ((base, 1.0), (scaled, c)):
-        position = object_position(s.centre, s.extents, 0.354)
+        position = object_position(s.centre, 0.354 * s.extents[2])
         np.testing.assert_allclose(
-            position, factor * object_position(base.centre, base.extents, 0.354), rtol=TOL
+            position, factor * object_position(base.centre, 0.354 * base.extents[2]), rtol=TOL
         )
         closed = closed_form_sigma(position, s.extents, s.r_eq_px, k, errors)
         reference = closed_form_sigma(
-            object_position(base.centre, base.extents, 0.354), base.extents, 6.0, k, errors
+            object_position(base.centre, 0.354 * base.extents[2]), base.extents, 6.0, k, errors
         )
         for got, want in zip(closed, reference, strict=True):
             np.testing.assert_allclose(got, factor * want, rtol=1e-9)
-        sampled = monte_carlo_sigma(s, k, 0.354, errors, np.random.default_rng(3), 400)
-        ref_mc = monte_carlo_sigma(base, k, 0.354, errors, np.random.default_rng(3), 400)
+        rng, ref_rng = np.random.default_rng(3), np.random.default_rng(3)
+        sampled = monte_carlo_sigma(s, s.extents, 0.354 * s.extents[2], k, errors, rng, 400)
+        ref_mc = monte_carlo_sigma(
+            base, base.extents, 0.354 * base.extents[2], k, errors, ref_rng, 400
+        )
         for got, want in zip(sampled, ref_mc, strict=True):
             np.testing.assert_allclose(got, factor * want, rtol=1e-9)
 
@@ -195,14 +198,12 @@ def test_the_gap_columns_do_not_depend_on_the_filter(fixture_clip: SyntheticClip
 
 
 @pytest.mark.parametrize("case", sorted(CASES))
-def test_none_reproduces_the_version_two_table(fixture_clip: SyntheticClip, case: str) -> None:
+def test_none_reproduces_the_golden_table(fixture_clip: SyntheticClip, case: str) -> None:
     golden = ObjectStateTable.load_npz(GOLDEN / f"{case}.npz")
     current = table(fixture_clip, case, temporal_filter="none")
     for name, value in golden.field_values().items():
         mine = getattr(current, name)
-        if name == "border_cut":
-            assert value is None and mine is not None
-        elif isinstance(value, np.ndarray) and value.dtype.kind == "f":
+        if isinstance(value, np.ndarray) and value.dtype.kind == "f":
             np.testing.assert_allclose(mine, value, rtol=TOL, atol=0.0, err_msg=name)
         elif isinstance(value, np.ndarray):
             np.testing.assert_array_equal(mine, value, err_msg=name)
@@ -211,7 +212,7 @@ def test_none_reproduces_the_version_two_table(fixture_clip: SyntheticClip, case
 
 
 def test_the_version_and_both_parameters_enter_the_key() -> None:
-    assert BackprojectLift.version == "4"
+    assert BackprojectLift.version == "5"
     default = BackprojectLift.Params()
     hashes = {
         params_hash(p.model_dump(mode="json"))

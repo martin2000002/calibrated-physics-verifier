@@ -20,6 +20,7 @@ EXPECTED = {
     "camera/gravity",
     "lift/position",
     "lift/gravity_angle",
+    "lift/orientation",
     "scale/relative",
     "kinematics/derivatives",
     "contacts/events",
