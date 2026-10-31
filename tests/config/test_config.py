@@ -146,7 +146,7 @@ def test_overrides_of_model_only_and_nested_sections_load(config_dir: Path) -> N
     assert settings.sections["container"] == {"engine": "udocker"}
     assert CONTAINER_SECTION in MODEL_ONLY_SECTIONS
     assert CHECK_VARIANTS_SECTION in MODEL_ONLY_SECTIONS
-    assert CHECK_VARIANTS_SECTION not in settings.sections
+    assert settings.sections[CHECK_VARIANTS_SECTION] == {}
 
 
 def test_repository_configs(config_dir: Path) -> None:
@@ -165,12 +165,12 @@ def test_repository_configs(config_dir: Path) -> None:
     }  # fmt: skip
     assert fast.runtime.docker_image.startswith("kubricdockerhub/kubruntu@sha256:")
     priors = fast.section("size_priors", SizePriorTable)
-    assert set(priors.root) >= {"cube", "ball", "cylinder"}
+    assert set(priors.root) == {"primitive"}
     assert fast.config_hash() != precise.config_hash()
 
 
 def test_section_validation_error_is_a_config_error(config_dir: Path) -> None:
-    settings = load_settings(config_dir, environ={}, overrides=("size_priors.cube.mean_m=-1",))
+    settings = load_settings(config_dir, environ={}, overrides=("size_priors.primitive.mean_m=-1",))
     with pytest.raises(ConfigError, match="size_priors"):
         settings.section("size_priors", SizePriorTable)
 

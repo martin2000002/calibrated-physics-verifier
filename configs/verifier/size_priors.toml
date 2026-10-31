@@ -1,17 +1,16 @@
-# Frozen table: object label -> prior on its characteristic size (full extent, meters).
+# Frozen table: object label -> prior on its characteristic size (full extent, meters), read by the
+# verifier only (size-prior scale provider, sizing baseline, real-dataset phrase matching).
 # These are ESTIMATES, not measurements: mean_m is a typical size and rel_spread its relative
-# standard deviation. Single source of truth: the synthetic Kubric dataset samples object sizes from
-# it and uses its keys as labels, the size-prior scale provider reads it through settings, and
-# real-dataset phrases map to its keys. Only the main thread changes it (SCHEMA CHANGE REQUEST).
+# standard deviation. The synthetic generator samples sizes from its own table
+# (configs/synth/size_distribution.toml); neither side reads the other's. Only the main thread
+# changes it (SCHEMA CHANGE REQUEST).
 
-[size_priors.cube]
-mean_m = 0.10
-rel_spread = 0.5
-
-[size_priors.ball]
-mean_m = 0.10
-rel_spread = 0.5
-
-[size_priors.cylinder]
-mean_m = 0.10
-rel_spread = 0.5
+# primitive: a rigid object of unknown class (cube, ball, cylinder...). It is the equal-weight
+# mixture of the nine Objectron *train* classes fitted in size_model.toml (1541 objects, never the
+# sealed objectron_static), matched by its log moments: median exp(mean mu_c) = 0.19 m, log spread
+# sqrt(mean(sigma_c^2 + (mu_c - mu)^2)) = 0.85 (sizing.model.pooled_prior, pinned by
+# tests/sizing/test_model.py). An estimate chosen a priori, never tuned on Kubric; the spread is
+# the between-class plus within-class variation of everyday objects, not a measurement error.
+[size_priors.primitive]
+mean_m = 0.19
+rel_spread = 0.85

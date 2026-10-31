@@ -215,7 +215,7 @@ def test_auto_gravity_without_pose_assumes_a_level_camera(fixture_clip: Syntheti
     assert bool(np.isnan(by_dataset.gravity_dir).all())
 
 
-@pytest.mark.parametrize(("own_sigma_deg", "expected_deg"), [(1.5, 1.5), (math.nan, 2.0)])
+@pytest.mark.parametrize(("own_sigma_deg", "expected_deg"), [(1.5, 1.5), (math.nan, 7.0)])
 def test_an_estimated_pose_uses_its_own_gravity_sigma_else_the_configured_one(
     fixture_clip: SyntheticClip, own_sigma_deg: float, expected_deg: float
 ) -> None:
@@ -227,7 +227,7 @@ def test_an_estimated_pose_uses_its_own_gravity_sigma_else_the_configured_one(
         fixture_clip,
         {**upstream, Stage.CAMERA: estimated},
         plan={Stage.CAMERA: "from_depth"},
-        pose_sigma_deg=2.0,
+        pose_sigma_deg=7.0,
     )
     assert table.gravity_dir_sigma == pytest.approx(math.radians(expected_deg))
 
@@ -322,10 +322,11 @@ def test_an_unknown_focal_error_is_unknown_in_both_sigma_modes(
         centre=np.array([0.4, -0.2, 3.0]), extents=np.full(3, 0.3), r_eq_px=12.0, n_pixels=450
     )
     intrinsics = np.array([[120.0, 0.0, 64.0], [0.0, 120.0, 64.0], [0.0, 0.0, 1.0]])
-    position = object_position(summary.centre, summary.extents, 0.5)
+    offset = 0.5 * float(summary.extents[2])
+    position = object_position(summary.centre, offset)
     closed = closed_form_sigma(position, summary.extents, summary.r_eq_px, intrinsics, errors)
     rng = np.random.default_rng(0)
-    sampled = monte_carlo_sigma(summary, intrinsics, 0.5, errors, rng, 2000)
+    sampled = monte_carlo_sigma(summary, summary.extents, offset, intrinsics, errors, rng, 2000)
     for cf, mc in zip(closed, sampled, strict=True):
         assert bool(np.isnan(mc[np.isnan(cf)]).all())
     unknown = math.isnan(phi) or not with_profile

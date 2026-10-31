@@ -139,7 +139,7 @@ def test_metric_depth_scale_is_one_metre_per_unit(fixture_clip: SyntheticClip) -
     assert table.size[0, 0, 0] * applied.meters_per_unit == pytest.approx(side_m, abs=TOL_M)
 
 
-def test_the_scale_sigma_joins_the_depth_scale_and_focal_errors(
+def test_the_scale_sigma_is_the_depth_scale_error_alone(
     fixture_clip: SyntheticClip,
 ) -> None:
     table = metric_lift(fixture_clip)
@@ -149,7 +149,7 @@ def test_the_scale_sigma_joins_the_depth_scale_and_focal_errors(
     )
     applied = effective_scale(table, metric_scale(fixture_clip, table, profile))
     assert applied is not None
-    assert applied.rel_sigma == pytest.approx(math.hypot(0.05, 0.12, 0.03, 0.04))
+    assert applied.rel_sigma == pytest.approx(math.hypot(0.05, 0.12))
 
 
 def test_on_true_depth_the_scale_is_exact(fixture_clip: SyntheticClip) -> None:

@@ -87,6 +87,17 @@ def test_an_unknown_check_id_is_a_configuration_error(
         build_scorer("provisional", settings)
 
 
+@pytest.mark.parametrize("profile", ["fast", "precise"])
+def test_the_repo_config_leaves_out_exactly_r4_jump_and_r5b(
+    make_settings: Callable[..., Settings], profile: str
+) -> None:
+    settings = make_settings(profile=profile)
+    cfg = load_finetune(settings)
+    excluded = scorer_exclusion(settings, cfg, checks())
+    assert excluded == {"R4_jump", "R5b"}
+    assert "R4_missing" in family_targets(cfg, excluded)["slide"]
+
+
 def test_fall_keeps_r5a_by_default(settings: Settings) -> None:
     cfg = load_finetune(settings)
     targets = family_targets(cfg, scorer_exclusion(settings, cfg, checks()))

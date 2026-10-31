@@ -10,7 +10,7 @@ from physverify.extraction._base import StageContext, WeightSpec
 from physverify.extraction.providers._common import expect_params
 from physverify.extraction.providers._proximity import ContactScene
 from physverify.extraction.providers._proximity import ProximityParams as Params
-from physverify.schema.contacts import ContactTable
+from physverify.schema.contacts import ContactRecord, ContactTable
 from physverify.schema.stages import Stage
 from physverify.schema.states import ObjectStateTable
 
@@ -36,8 +36,14 @@ class ProximityContacts:
             frame=states.frame,
             unit=states.unit,
             source_key=states.source_key,
-            records=tuple(ContactScene(states, self.params, split_on_point_count=True).records()),
+            records=self.records(states, ctx.sampling.seconds_per_frame),
         )
+
+    def records(
+        self, states: ObjectStateTable, seconds_per_frame: float
+    ) -> tuple[ContactRecord, ...]:
+        scene = ContactScene(states, self.params, seconds_per_frame, split_on_point_count=True)
+        return tuple(scene.records())
 
 
 PLUGINS = (ProximityContacts,)

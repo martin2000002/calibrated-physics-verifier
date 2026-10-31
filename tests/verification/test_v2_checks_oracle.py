@@ -10,7 +10,7 @@ import json
 from typing import Any
 
 from golden import same
-from oracle_golden_case import GOLDEN, V1_OVERRIDES, oracle_results, v1_checks
+from oracle_golden_case import V1_OVERRIDES, golden_results, oracle_results, v1_checks
 
 from physverify.app.plugins import PLUGIN_KINDS
 from physverify.verification.check_set import ChecksSettings, checks_hash
@@ -23,7 +23,7 @@ def unchanged(results: list[Any]) -> list[Any]:
 
 
 def test_the_seven_other_checks_do_not_move() -> None:
-    golden = json.loads(GOLDEN.read_text(encoding="utf-8"))
+    golden = golden_results()
     current = json.loads(json.dumps(oracle_results(), sort_keys=True))
     assert len(unchanged(current)) == len(unchanged(golden)) > 0
     assert same(unchanged(current), unchanged(golden))

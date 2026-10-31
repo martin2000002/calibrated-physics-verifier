@@ -19,7 +19,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from physverify.extraction.providers._impact_attribution import object_sigma
-from physverify.extraction.providers._impacts import Bases, track_impacts
+from physverify.extraction.providers._impacts import Bases, ImpactRows, track_impacts
 from physverify.extraction.providers.contacts_kinematic import Params
 
 sc = cs.sc
@@ -69,6 +69,7 @@ def rate(case: sc.Case, noise: Noise, replicates: int = REPLICATES, seed: int = 
     rng = np.random.default_rng(seed)
     states = case.states
     bases: Bases = {}
+    rows = ImpactRows.at(DEFAULTS.side_s, sc.DT)
     focal = float(cs.scene_camera(case).K[0, 0])
     hits = 0
     for _ in range(replicates):
@@ -78,7 +79,7 @@ def rate(case: sc.Case, noise: Noise, replicates: int = REPLICATES, seed: int = 
         noisy = replace(states, position=all_positions)
         sigma = object_sigma(noisy, 0, position[:, 2], focal)
         assert sigma is not None
-        found = track_impacts(states.t, position, sigma, DEFAULTS.side_rows, DEFAULTS.alpha, bases)
+        found = track_impacts(states.t, position, sigma, rows, DEFAULTS.alpha, bases)
         hits += bool(found)
     return hits / replicates
 

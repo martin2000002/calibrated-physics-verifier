@@ -160,7 +160,7 @@ class FinetuneSettings(FrozenModel):
     campaign: str = Field(pattern=SLUG_PATTERN)
     scorer: str = "calibrated"
     exclude_time_dependent: bool = True
-    """Leave ``[check_scope].time_dependent_checks`` out of every scorer (item 1.17)."""
+    """Leave the ``[check_scope]`` time-dependent checks out of every scorer (item 1.17)."""
     on_family_without_targets: Literal["error", "keep"] = "error"
     """A family whose ``target_checks`` are all excluded: refuse, or keep it scored by others."""
     prompts: PromptSetSettings

@@ -36,7 +36,7 @@ from physverify.synth.settings import (
     DatasetSettings,
     dataset_root,
     load_dataset_settings,
-    load_size_priors,
+    load_size_distribution,
 )
 from physverify.synth.simulate import StepReport
 from physverify.synth.simulate import simulate as simulate_scenes
@@ -117,7 +117,7 @@ def run_generate(job: DatasetJob) -> DatasetPlan:
     plan = plan_subset(job.ds, registry, perturbations, job.subset_name())
     save_plan(job.store, plan)
     written = write_specs(
-        plan, job.store, registry, job.plugins, job.ds, load_size_priors(job.context.settings)
+        plan, job.store, registry, job.plugins, job.ds, load_size_distribution(job.context.settings)
     )
     skipped = sum(job.store.is_skipped(v.clip_id) for v in plan.variants)
     job.echo(

@@ -10,7 +10,7 @@ from typing import Literal
 from pydantic import Field, field_validator
 
 from physverify.extraction._base import ProviderParams
-from physverify.extraction.backprojection import ShiftStrategy
+from physverify.extraction.backprojection import ShiftStrategy, SummaryOptions
 from physverify.physics.running_median import EdgeMode
 from physverify.physics.tracks import OCCLUDED_AT
 from physverify.schema.states import PrimitiveKind
@@ -64,12 +64,13 @@ class LiftParams(ProviderParams):
     gravity: GravityMode = "auto"
     gravity_by_dataset: dict[str, GravityMode] = {}
     level_sigma_deg: float = Field(default=10.0, ge=0.0)
-    # Gravity sigma for a camera pose that carries no estimate of its own.
+    # Fallback only: the assumed (not measured) gravity sigma of an estimated pose whose camera
+    # gives no sigma of its own; GeoCalib-based cameras give theirs.
     pose_sigma_deg: float = Field(default=2.0, ge=0.0)
     min_area_px: int = Field(default=9, ge=1)
     erode_px: int = Field(default=1, ge=0)
     border_margin_px: int = Field(default=2, ge=1)
-    extent_percentiles: tuple[float, float] = (2.0, 98.0)
+    extent_percentiles: tuple[float, float] = (0.0, 100.0)
     center_offset_frac: dict[PrimitiveKind, float] = {
         PrimitiveKind.SPHERE: 0.354,
         PrimitiveKind.CYLINDER: 0.354,
@@ -88,6 +89,11 @@ class LiftParams(ProviderParams):
     temporal_filter: TemporalFilter = "none"
     temporal_window: int = Field(default=5, ge=3)
     temporal_edges: EdgeMode = "keep"
+    # Version 5: the footprint behind a box's yaw drops surface points farther from its median
+    # than this many robust sigma (``lift_geometry.footprint_yaw``).
+    footprint_trim_mads: float = Field(default=3.0, gt=0.0)
+    # Version 5: extents ignore mask parts smaller than this fraction of the largest one.
+    min_part_frac: float = Field(default=0.2, ge=0.0, le=1.0)
 
     @field_validator("temporal_window")
     @classmethod
@@ -105,3 +111,14 @@ class UnnestedLiftParams(LiftParams):
         default_factory=lambda: dict(REAL_PRIMITIVES)
     )
     nested_overlap: float = Field(default=NESTED_OVERLAP, gt=0.0, le=1.0)
+
+
+def summary_options(params: LiftParams) -> SummaryOptions:
+    """Per-object summary settings, shared by LIFT and the depth metrics that mirror it."""
+    return SummaryOptions(
+        erode_px=params.erode_px,
+        extent_percentiles=params.extent_percentiles,
+        min_area_px=params.min_area_px,
+        footprint_trim_mads=params.footprint_trim_mads,
+        min_part_frac=params.min_part_frac,
+    )

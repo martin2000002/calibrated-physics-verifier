@@ -14,6 +14,7 @@ from pydantic import Field, model_validator
 
 from physverify.checks._base import CheckInputs, abstain
 from physverify.checks._params import CommonParams
+from physverify.physics.row_time import reference_seconds, rows_in
 from physverify.physics.tracks import (
     MOTION_DEGREE,
     FitSource,
@@ -32,11 +33,12 @@ IntArray = NDArray[np.int64]
 
 
 class CollisionParams(CommonParams):
-    impact_margin_frames: int = Field(default=0, ge=0)
-    # Rows per side (4 / 6 / 8 give sigma(e) 0.034 / 0.015 / 0.009 on the noisy unit bounce and
-    # the same oracle sweep); 6 keeps each side's arc short against drag and depth drift.
-    fit_frames: int = Field(default=6, ge=2)
-    min_side_frames: int = Field(default=3, ge=2)
+    impact_margin_s: float = Field(default=0.0, ge=0.0)
+    # Time per side (4 / 6 / 8 rows at 24 fps give sigma(e) 0.034 / 0.015 / 0.009 on the noisy
+    # unit bounce and the same oracle sweep); 6 rows keep each side's arc short against drag and
+    # depth drift.
+    fit_s: float = Field(default=reference_seconds(6), gt=0.0)
+    min_side_s: float = Field(default=reference_seconds(3), gt=0.0)
     # "velocity" is the line fit on the kinematics velocities, smoothed across the impact on
     # perceived clips. The oracle sweep uses it because the synthetic ground-truth labels are
     # defined on simulator velocities, which lead PyBullet positions by g*h/2.
@@ -44,12 +46,35 @@ class CollisionParams(CommonParams):
 
     @model_validator(mode="after")
     def _check_rows(self) -> CollisionParams:
-        needed = MOTION_DEGREE[self.fit_source] + 1
-        if not needed <= self.min_side_frames <= self.fit_frames:
+        """At the reference rate; slower clips are floored to the fit's rows in ``rows``."""
+        needed = self.needed_rows
+        if rows_in(self.min_side_s, reference_seconds(1)) < needed or self.min_side_s > self.fit_s:
             raise ValueError(
-                f"need {needed} <= min_side_frames <= fit_frames for a {self.fit_source} fit"
+                f"need {needed} reference rows <= min_side_s <= fit_s for a {self.fit_source} fit"
             )
         return self
+
+    @property
+    def needed_rows(self) -> int:
+        return MOTION_DEGREE[self.fit_source] + 1
+
+    def rows(self, inputs: CheckInputs) -> CollisionRows:
+        min_side = rows_in(self.min_side_s, inputs.row_seconds, self.needed_rows)
+        return CollisionRows(
+            margin=rows_in(self.impact_margin_s, inputs.clip.seconds_per_frame, minimum=0),
+            fit=rows_in(self.fit_s, inputs.row_seconds, min_side),
+            min_side=min_side,
+        )
+
+
+@dataclass(frozen=True)
+class CollisionRows:
+    """The impact windows of one table: ``margin`` native frames, ``fit`` rows per side at most
+    and ``min_side`` at least."""
+
+    margin: int
+    fit: int
+    min_side: int
 
 
 @dataclass(frozen=True, eq=False)
@@ -85,20 +110,25 @@ class SideData:
 
 
 def fit_window(
-    states: ObjectStateTable, contacts: ContactTable, record: ContactRecord, index: int, p: Any
+    states: ObjectStateTable,
+    contacts: ContactTable,
+    record: ContactRecord,
+    index: int,
+    rows: CollisionRows,
+    source: FitSource,
 ) -> Window:
-    """Nearest ``fit_frames`` rows with a finite fitted quantity in the flight runs around the
+    """Nearest ``rows.fit`` rows with a finite fitted quantity in the flight runs around the
     record (an unknown sigma does not drop a row; it makes the fit's sigma unknown)."""
     fi = states.frame_index
-    margin = p.impact_margin_frames
+    margin = rows.margin
     contact = np.flatnonzero(contact_rows(record, fi, margin))
     if contact.size == 0:
         empty = np.zeros(0, dtype=np.int64)
         return Window(contact, empty, empty.copy())
     flight = flight_mask(str(states.object_ids[index]), contacts, fi, margin)
-    finite = np.all(np.isfinite(getattr(states, p.fit_source)[:, index]), axis=-1)
-    before = _side(flight, finite, range(int(contact[0]) - 1, -1, -1), p.fit_frames)
-    after = _side(flight, finite, range(int(contact[-1]) + 1, fi.shape[0]), p.fit_frames)
+    finite = np.all(np.isfinite(getattr(states, source)[:, index]), axis=-1)
+    before = _side(flight, finite, range(int(contact[0]) - 1, -1, -1), rows.fit)
+    after = _side(flight, finite, range(int(contact[-1]) + 1, fi.shape[0]), rows.fit)
     return Window(contact, before, after)
 
 

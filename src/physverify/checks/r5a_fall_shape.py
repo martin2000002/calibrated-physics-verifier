@@ -24,11 +24,13 @@ from physverify.checks._params import FallParams
 from physverify.checks._peaks import first_max
 from physverify.checks._uncertainty import check_rng, mc_sigma
 from physverify.physics.flights import Flight, fit_flight, flights_span
+from physverify.physics.geometry import tilted
 from physverify.physics.measures.gravity_fit import (
     accel_inconsistency,
     fall_residual_ratio,
     lateral_accel_ratio,
 )
+from physverify.physics.row_time import reference_seconds, rows_in
 from physverify.physics.tracks import MIN_FIT_ROWS, body_length, native_span
 from physverify.schema.checks import AbstainReason, CheckResult
 from physverify.schema.contacts import ContactTable
@@ -36,14 +38,41 @@ from physverify.schema.states import ObjectStateTable
 
 FloatArray = NDArray[np.float64]
 IntArray = NDArray[np.int64]
+GRAVITY_STREAM = "R5a/gravity"
 
 
 class FallShapeParams(FallParams):
-    min_flight_frames: int = Field(default=6, ge=MIN_FIT_ROWS)
-    side_frames: int = Field(default=4, ge=MIN_FIT_ROWS)
+    min_flight_s: float = Field(default=reference_seconds(6), gt=0.0)
+    side_s: float = Field(default=reference_seconds(4), gt=0.0)
     # After the shared fall filter, a flight whose fitted drop |a| T^2 / 2 stays below this many
     # body lengths has no acceleration to shape (a drift without gravity): its ratio is 0 / 0.
     min_drop_lengths: float = Field(default=1e-6, ge=0.0)
+    # lateral_accel_ratio_sigma: Monte Carlo of the detail over a gravity_dir_sigma tilt per axis.
+    sample_gravity: bool = True
+
+
+@dataclass(frozen=True)
+class _Streams:
+    """The magnitude's Monte Carlo stream and a separate one for the gravity detail, so that the
+    detail never shifts the magnitude's draws."""
+
+    magnitude: np.random.Generator
+    gravity: np.random.Generator
+
+
+@dataclass(frozen=True)
+class FlightRows:
+    """The flight windows of one table in rows: a long flight, and a split's side."""
+
+    min_flight: int
+    side: int
+
+    @classmethod
+    def of(cls, params: FallShapeParams, row_seconds: float) -> FlightRows:
+        return cls(
+            min_flight=rows_in(params.min_flight_s, row_seconds, MIN_FIT_ROWS),
+            side=rows_in(params.side_s, row_seconds, MIN_FIT_ROWS),
+        )
 
 
 @dataclass(frozen=True, eq=False)
@@ -60,7 +89,8 @@ class Candidate:
 class FallShapeCheck:
     """R5a [accel_rel_diff]: per object, the largest inconsistency between the two sides of a
     split flight or between consecutive flights; per object pair, between their first flights.
-    Does not need the gravity direction: ``lateral_accel_ratio`` is null without it.
+    Does not need the gravity direction: ``lateral_accel_ratio`` is null without it, and its
+    sigma (gravity tilt only) is null when the gravity sigma is unknown.
     Under noise the maximum over candidates is biased upward and its sigma is the chosen
     candidate's own, not the sigma of the maximum (a known limitation, left to calibration)."""
 
@@ -77,10 +107,16 @@ class FallShapeCheck:
         if inputs.contacts is None:
             raise ValueError(f"{self.check_id} requires contacts")
         states, contacts = inputs.states, inputs.contacts
-        rng = check_rng(self.params.seed, inputs.clip.clip_id, self.check_id)
+        clip_id, seed = inputs.clip.clip_id, self.params.seed
+        rng = _Streams(
+            check_rng(seed, clip_id, self.check_id), check_rng(seed, clip_id, GRAVITY_STREAM)
+        )
+        rows = FlightRows.of(self.params, inputs.row_seconds)
         falls = {i: self._falls(states, contacts, i) for i in range(states.n_objects)}
-        results = [self._object(inputs, flights, rng) for flights in falls.values() if flights]
-        firsts = [long[0] for long in (self._long(f) for f in falls.values()) if long]
+        results = [
+            self._object(inputs, flights, rows, rng) for flights in falls.values() if flights
+        ]
+        firsts = [long[0] for long in (_long(f, rows) for f in falls.values()) if long]
         for a, b in itertools.combinations(firsts, 2):
             pair = _candidate(states, (a, b), (a, b), "pair")
             if math.isfinite(pair.value):
@@ -99,15 +135,16 @@ class FallShapeCheck:
         floor = self.params.min_drop_lengths * length if math.isfinite(length) else 0.0
         return drop > floor
 
-    def _long(self, flights: Sequence[Flight]) -> list[Flight]:
-        return [f for f in flights if f.present >= self.params.min_flight_frames]
-
     def _object(
-        self, inputs: CheckInputs, flights: Sequence[Flight], rng: np.random.Generator
+        self,
+        inputs: CheckInputs,
+        flights: Sequence[Flight],
+        rows: FlightRows,
+        rng: _Streams,
     ) -> CheckResult:
         states = inputs.states
-        long = self._long(flights)
-        candidates = [c for f in long for c in self._splits(states, f)]
+        long = _long(flights, rows)
+        candidates = [c for f in long for c in _splits(states, f, rows.side)]
         candidates += [
             _candidate(states, (a, b), (a, b), "consecutive") for a, b in itertools.pairwise(long)
         ]
@@ -117,8 +154,8 @@ class FallShapeCheck:
             details = {
                 "flights": len(flights),
                 "longest_rows": max(f.present for f in flights),
-                "min_flight_frames": self.params.min_flight_frames,
-                "side_frames": self.params.side_frames,
+                "min_flight_rows": rows.min_flight,
+                "side_rows": rows.side,
             }
             span = flights_span(states.frame_index, flights)
             reason = AbstainReason.TOO_FEW_FRAMES
@@ -126,29 +163,34 @@ class FallShapeCheck:
         best = candidates[first_max(np.array([c.value for c in candidates]))]
         return self._scored(inputs, subject, best, rng)
 
-    def _splits(self, states: ObjectStateTable, flight: Flight) -> list[Candidate]:
-        """One candidate per row k leaving >= side_frames present rows on each side."""
-        side = self.params.side_frames
-        out = []
-        for k in range(flight.lo + 1, flight.hi):
-            left, right = flight.rows[flight.rows < k], flight.rows[flight.rows >= k]
-            if left.size >= side and right.size >= side:
-                windows = (_sub(flight, left, k), _sub(flight, right, flight.hi))
-                out.append(_candidate(states, windows, (flight,), "split", split_row=k))
-        return out
-
     def _scored(
         self,
         inputs: CheckInputs,
         subject: tuple[str, ...],
         best: Candidate,
-        rng: np.random.Generator,
+        rng: _Streams,
     ) -> CheckResult:
         states = inputs.states
-        sigma = _sigma(states, best.windows, self.params.mc_draws, rng)
+        sigma = _sigma(states, best.windows, self.params.mc_draws, rng.magnitude)
         span = flights_span(states.frame_index, best.flights)
-        details = _details(states, best)
+        gravity_rng = rng.gravity if self.params.sample_gravity else None
+        details = _details(states, best, self.params.mc_draws, gravity_rng)
         return unscored(type(self), inputs, subject, best.value, sigma, span, details)
+
+
+def _long(flights: Sequence[Flight], rows: FlightRows) -> list[Flight]:
+    return [f for f in flights if f.present >= rows.min_flight]
+
+
+def _splits(states: ObjectStateTable, flight: Flight, side: int) -> list[Candidate]:
+    """One candidate per row k leaving >= ``side`` present rows on each side."""
+    out = []
+    for k in range(flight.lo + 1, flight.hi):
+        left, right = flight.rows[flight.rows < k], flight.rows[flight.rows >= k]
+        if left.size >= side and right.size >= side:
+            windows = (_sub(flight, left, k), _sub(flight, right, flight.hi))
+            out.append(_candidate(states, windows, (flight,), "split", split_row=k))
+    return out
 
 
 def _sub(flight: Flight, rows: IntArray, hi: int) -> Flight:
@@ -198,7 +240,28 @@ def _sigma(
     return mc_sigma(model, sigmas, draws, rng)
 
 
-def _details(states: ObjectStateTable, best: Candidate) -> dict[str, Any]:
+def _lateral_sigma(
+    states: ObjectStateTable,
+    accelerations: Sequence[FloatArray],
+    draws: int,
+    rng: np.random.Generator,
+) -> float | None:
+    """Monte Carlo sigma of the largest lateral ratio over a gravity tilt of gravity_dir_sigma per
+    axis; None when the gravity or its sigma is unknown."""
+    gravity, sigma = states.gravity_dir, states.gravity_dir_sigma
+    if not (bool(np.all(np.isfinite(gravity))) and math.isfinite(sigma)):
+        return None
+
+    def model(noise: Mapping[str, FloatArray]) -> FloatArray:
+        turned = tilted(gravity, noise["gravity"])
+        return np.array([max(lateral_accel_ratio(a, g) for a in accelerations) for g in turned])
+
+    return mc_sigma(model, {"gravity": np.full(2, sigma)}, draws, rng)
+
+
+def _details(
+    states: ObjectStateTable, best: Candidate, draws: int, gravity_rng: np.random.Generator | None
+) -> dict[str, Any]:
     fi = states.frame_index
     fits = [fit_flight(states, f) for f in best.flights]
     residuals = [
@@ -214,6 +277,9 @@ def _details(states: ObjectStateTable, best: Candidate) -> dict[str, Any]:
         "accelerations": [fit_flight(states, w).a for w in best.windows],
         "fall_residual_ratio": max(residuals),
         "lateral_accel_ratio": max(lateral) if known_gravity else None,
+        "lateral_accel_ratio_sigma": None
+        if gravity_rng is None
+        else _lateral_sigma(states, [fit.a for fit in fits], draws, gravity_rng),
     }
 
 

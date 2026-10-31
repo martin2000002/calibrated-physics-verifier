@@ -18,7 +18,7 @@ from timing_settings import clip_factory as clip_factory
 ITERATION_FILES = {
     "DEVSCORE_SHA": "devscore.json",
     "CALIBRATION_SHA": "calibration.json",
-    "PROFILE_SHA": "calibration/stage_errors.precise.json",
+    "PROFILE_SHA": "calibration/stage_errors.{profile}.json",
     "STAGE_SIGMA_SHA": "calibration/stage_sigma.json",
 }
 
@@ -30,6 +30,7 @@ def make_iteration(
     auroc: float | None,
     *,
     device: str = "cpu",
+    profile: str = "precise",
     steps: Sequence[int] = (1, 2, 3, 4, 5),
     commit: str = "c" * 40,
 ) -> Path:
@@ -38,18 +39,19 @@ def make_iteration(
     directory = root / f"{name} {device}"
     (directory / "calibration").mkdir(parents=True)
     devscore = {"commit": commit, "selection": {"n_met": n_met, "tiebreak_auroc_cv": auroc}}
+    files = {key: relative.format(profile=profile) for key, relative in ITERATION_FILES.items()}
     contents = {
-        "devscore.json": json.dumps(devscore).encode(),
-        "calibration.json": f"calibration of {name}".encode(),
-        "calibration/stage_errors.precise.json": f"profile of {name}".encode(),
-        "calibration/stage_sigma.json": f"sigma of {name}".encode(),
+        files["DEVSCORE_SHA"]: json.dumps(devscore).encode(),
+        files["CALIBRATION_SHA"]: f"calibration of {name}".encode(),
+        files["PROFILE_SHA"]: f"profile of {name}".encode(),
+        files["STAGE_SIGMA_SHA"]: f"sigma of {name}".encode(),
     }
     for relative, data in contents.items():
         (directory / relative).write_bytes(data)
-    state = [("CHAIN_DEVICE", device), ("CHAIN_ITER_ID", name), ("CHAIN_DEVICE", device)]
+    state = [("CHAIN_DEVICE", device), ("CHAIN_PROFILE", profile), ("CHAIN_ITER_ID", name)]
+    state += [("CHAIN_DEVICE", device)]
     state += [
-        (key, hashlib.sha256(contents[relative]).hexdigest())
-        for key, relative in ITERATION_FILES.items()
+        (key, hashlib.sha256(contents[relative]).hexdigest()) for key, relative in files.items()
     ]
     (directory / "state.env").write_text("".join(f"{k}={shlex.quote(v)}\n" for k, v in state))
     rows = [f"{n}\tstep\trunning\t0\t-" for n in steps] + [f"{n}\tstep\t0\t9\t-" for n in steps]

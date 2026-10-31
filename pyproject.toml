@@ -166,6 +166,12 @@ layers = [
 ]
 
 [[tool.importlinter.contracts]]
+name = "The estimator never reads the synthetic generator (no size or physics leak, ADR 0023)"
+type = "forbidden"
+source_modules = ["physverify.extraction", "physverify.checks", "physverify.sizing"]
+forbidden_modules = ["physverify.synth"]
+
+[[tool.importlinter.contracts]]
 name = "The CLI parses arguments and calls the application layer; core gives it errors and exit codes"
 type = "forbidden"
 source_modules = ["physverify.cli"]

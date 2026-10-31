@@ -55,6 +55,56 @@ THREADS="${PHYSVERIFY_TIMING_THREADS:-$(nproc)}"
 # or after sourcing this file; an exported PV_DEVICE is kept.
 PV_DEVICE="${PV_DEVICE:-cuda}"
 
+# use_device NAME [FAIL]: the value of the variable NAME (cpu or cuda) becomes PV_DEVICE. cpu hides
+# the GPUs; cuda needs one GPU of 0-3 in CUDA_VISIBLE_DEVICES (gpu_queue.sh; 4-7 are never used).
+# FAIL (die by default) refuses anything else.
+use_device() {
+    local device="${!1:-}"
+    case "$device" in
+        cpu) export CUDA_VISIBLE_DEVICES="" ;;
+        cuda)
+            [[ "${CUDA_VISIBLE_DEVICES:-}" =~ ^[0-3]$ ]] \
+                || "${2:-die}" "$1=cuda needs CUDA_VISIBLE_DEVICES in 0-3 (gpu_queue.sh), got" \
+                    "'${CUDA_VISIBLE_DEVICES-unset}'"
+            ;;
+        *) "${2:-die}" "$1 must be cpu or cuda, got '$device'" ;;
+    esac
+    PV_DEVICE="$device"
+}
+
+# require_pair WHAT DEVICE PROFILE [FAIL]: WHAT (an adopted calibration, a freeze) was made with
+# this run's PV_DEVICE and PV_PROFILE; FAIL (die by default) refuses any other pair.
+require_pair() {
+    [[ "$2" == "$PV_DEVICE" && "$3" == "$PV_PROFILE" ]] && return 0
+    "${4:-die}" "$1 is of device $2, profile $3, this run of device $PV_DEVICE, profile" \
+        "$PV_PROFILE: calibration and evaluation never mix devices or profiles"
+}
+
+# A chain from before state.env recorded CHAIN_PROFILE ran this profile, the only one it had.
+ASSUMED_CHAIN_PROFILE=precise
+
+# state_value FILE KEY: KEY of the state.env FILE (empty when unset or when FILE is missing), read
+# in a subshell so nothing here is overwritten.
+state_value() {
+    (
+        # shellcheck disable=SC1090
+        [[ -f "$1" ]] && source "$1"
+        printf '%s' "${!2:-}"
+    )
+}
+
+# require_chain_pair DIR [FAIL]: the calibration chain in DIR (its state.env) is of this run's pair
+# (require_pair); a chain without CHAIN_PROFILE is taken as ASSUMED_CHAIN_PROFILE, and says so.
+require_chain_pair() {
+    local what="$1" profile
+    profile="$(state_value "$1/state.env" CHAIN_PROFILE)"
+    if [[ -z "$profile" ]]; then
+        profile="$ASSUMED_CHAIN_PROFILE"
+        what="$1 (no CHAIN_PROFILE: $profile assumed)"
+    fi
+    require_pair "$what" "$(state_value "$1/state.env" CHAIN_DEVICE)" "$profile" "${2:-die}"
+}
+
 # PV_RUNNER picks how pv reaches the checkout: uv (the default) or py, the interpreter $PY with
 # this checkout's src first (_steps.sh). PV_PROFILE is precise; PV_NICE prefixes and PV_EXTRA
 # extends every call. A caller changes them after sourcing; exported values are ignored.

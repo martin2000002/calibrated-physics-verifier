@@ -11,7 +11,7 @@ from typing import Any
 
 import pytest
 import synthetic_clip
-from wiring import active_checks_hash, resolve_plan
+from wiring import active_checks_hash, resolve_plan, run_checks_hash
 
 from physverify.app.plugins import PLUGIN_KINDS
 from physverify.calibration.sealed_ledger import look_config_hash
@@ -28,18 +28,22 @@ KEY_PATHS = Path(__file__).with_name("data") / "config_key_paths.txt"
 PINNED_ROOT = "/pinned"
 
 SECTIONS_HASH = {
-    "fast": "2ce716fd9db16fa7689196d61dad50d1398c6b98e77e96ca313fce718bed22fd",
-    "precise": "21ac0737f5769ed4c8a96057e806f1b6a1ae4481779516942c2abc191ebb4186",
+    "fast": "0f496b6b6c3c134833db620699a062e177149f50106563766a0f2149ef568e02",
+    "precise": "156736b52557062df340b7ed6d3a36c6af526931f1c7d110cba60703d982a5fb",
 }
 CONFIG_HASH = {
-    "fast": "9f1ff8cfcc213bd62a934c548f776536f2a99629b39e9cf70791b5e0087dbbc3",
-    "precise": "5f1bb04de44b0bcc39d3655c674bf5d082395b6c4e8f336402ded1dd6eecf1e5",
+    "fast": "5c823cad1d6520fb36db4320c0d65d4f9fab8acd842e709b4891c49116dff0c4",
+    "precise": "ca4d85e578fe778cc3b1870973206afa55630d6113513a099a59843f7d78e969",
 }
 LOOK_CONFIG_HASH = {
-    "fast": "9ddd9e96231f4ce635697762da30fa9818bbbbc61b73adf1d847fe3fa43ae977",
-    "precise": "e51ed2c454ab19d98600931e9be92e60300f9cbe67b89a94884fe1fe7a8fdb9a",
+    "fast": "264a6f208d3db9bbbe0f08e4fbd73d74c264783f9219d8cc891d8f914d289953",
+    "precise": "da0b24afc5238cbc00e13ff37c1438592b91a2b08ef4c200b16f3d98de20587a",
 }
-CHECKS_HASH = "c5f03bfd100bdd23fe90a5f2ad098b2767b893a75bb850fd42c4116312ca3dee"
+CHECKS_HASH = "891fd3580169fec8f8c70ca0b7d66b24973fd7348dbf1c98ac00be92aa41b2b8"
+RUN_CHECKS_HASH = {
+    "fast": "891fd3580169fec8f8c70ca0b7d66b24973fd7348dbf1c98ac00be92aa41b2b8",
+    "precise": "ea5ff7c226668081e5caa4784361a9e04c0484b39771a3e393791d530e207187",
+}
 DATASET_CONTENT_HASH = {
     "fast": "7792797236e163025d89c1c518dc43ad8f90c3f511bd884e1969ca9bf1f2fa3e",
     "precise": "4a6829efdd64424d79dfc0941246de148ca50446e0f6f40738e3a02d1b8e8b4e",
@@ -47,9 +51,9 @@ DATASET_CONTENT_HASH = {
 STAGE_KEYS = {
     "camera/assumed_fov": "d0ae25696b1da8e41856f1aaf094085c01f865833bc905f253b56546f7477018",
     "camera/from_depth": "71f47572478cef19abbac16c095575678d6703941e26128139ef90cac930aae0",
-    "camera/geocalib": "871980e0b1985e5945e7620477d9ea8b3a6781b5b215e2d70ef9c2868b17d6e1",
-    "contacts/kinematic": "93847e53de155b30a366d79ab7d2303989b852858ed724b8a87e67e0ba512472",
-    "contacts/proximity": "1cb0e7c20d7dda9528449aaf84d7408ec1a83aaa085c416b53ff6361ce326f27",
+    "camera/geocalib": "18892cc4e5b735d5fd4b8c45ad9dccfd98b0a95814a506b28ce11079f3bf3154",
+    "contacts/kinematic": "4637a961f2a230c25a84b686c3a69ccf911bb7b8c59c7c694f69f43acd8f2946",
+    "contacts/proximity": "c9674d131e269a5bec255e694111ce3a8fbd5def115452732578a62ee0260391",
     "depth/moge2": "6cdce7a43eb0a8999a01982327df1202bc13bbda4c86c3af356092a578a18f81",
     "depth/vda_small": "70f6c003ff50af82ae87a48aa6a2c81030761e6a0c859278fc99fd8dba78cf1c",
     "depth/vda_large": "5f9dc8fa05d3d3be2711507ea24c8d730f337ca0d1584513c2c4677d98509b13",
@@ -64,20 +68,20 @@ STAGE_KEYS = {
         "c5d3b85789817de2d6b754cd0d07fe8d0bbd829118ce96a201887376f4224f6d"
     ),
     "camera/ground_truth": "dcc9f3896dfae49cd3ef2203bda5922a6d2658e10742995834a8a97e79e756e9",
-    "contacts/ground_truth": "f77e2327c1e751179a58f641ed0468b2760591606c2715a5d7c1e0a09b88772c",
+    "contacts/ground_truth": "a675f7750e15e1b97fb61ee6a5f6a63aa6e946a4798a1314763130f86fcad4c0",
     "depth/ground_truth": "06c3b85ad942509b944137bd664d5d865d99c6cdb7441854de17f2860afaf9be",
     "detect/ground_truth": "a62f5932c2390f802e0e37c316b245d6d790dde1ef5f17326d53382a39d142fe",
-    "kinematics/ground_truth": "a77c9a6982bce0734d1d8c13d1d932775dd6cab4cfd6f6bab8905928b39076f7",
+    "kinematics/ground_truth": "96bca9a793fc4e15160bbc86de272bb6cffa9db87ad9c1e1abbce9966af49caf",
     "lift/ground_truth": "fd9112fb74e8dd281c76ae277a0ee4782161166f15cee466b834c0f5eeaa79a5",
-    "scale/ground_truth": "50077d964a23e3ebc12bb33ebb70f7b300ef1ca805da90b01ffe60d016a7e08e",
+    "scale/ground_truth": "d02718762e5635727883f267696270c9100b481d1f19149c2dd4c96431be9b38",
     "track/ground_truth": "7f0b4774a68b28d2fd70ac39fe6a15dabc0634cf9046983c158734a331523cd5",
-    "kinematics/savgol": "f88afaef64c51146106127e4378f43734f8c8f3d5c1a7709ae8c93465d985fc8",
-    "lift/backproject": "ebfe1a1a540435ed100cf121083da7d3f7c8f1befbae65c2fc47ed185edfa82b",
-    "lift/backproject_unnested": "245f1e6635f3007505a7305cba10619b878a66c41193edd825ec43b90b9b0e05",
-    "scale/free_fall": "4f36674421ade07b33d9fc7c145e46ba83c8ec44d8aeabfb31534dcf76f7c04b",
-    "scale/metric_depth": "b0ace4534e8a4a7122777165c617a461e4d7ee08ec897af5bd77681f0797b6ee",
-    "scale/size_model": "f5ac2593e44380efccbdcf72664c973719968b6035d520bf07bb8c230f3a51b9",
-    "scale/size_prior": "70a7dc1eda26d20ea6b6991b88e5f51ebf63fe2fc356b81246ddf05d4b62e96d",
+    "kinematics/savgol": "2a2e1a9916cc3efecd6ae8c9ed85c8260307543205f340f387d137685cc24900",
+    "lift/backproject": "b79574cc0403c7d55fcfb6938df2a5928196c8e09cd7f88ceb7d939858cf7445",
+    "lift/backproject_unnested": "2b203300810399325c0cabda849cd3495b44c7ba9270e2d889c94aa5eab21807",
+    "scale/free_fall": "5cf5fae25a5cca7ac5558e7f2734a5c14b9a9b3cdf1a1e4d408f74bc38e5786e",
+    "scale/metric_depth": "f7565e70da567e4b25e5e5b8226e2602787fa852321b630f556be8e45e027e86",
+    "scale/size_model": "f2eee46d6025088a682777cd62df8c131040faaca18c170be16aea2caec1bf91",
+    "scale/size_prior": "025e5884c46f3e8914cd9360896334e058104752eb86f2c1d3b30cad8f372845",
     "track/edgetam": "81a150661413d4a8e45d79ab5f2dd7a3c4b2ca10db56a5bade893403801ce4d8",
     "track/sam2_1_hiera_tiny": "88cf35cd5a540158b73d940af239b84d357dd091f5b2935f884a87671d14dbee",
 }
@@ -152,6 +156,7 @@ def test_section_hashes_are_unchanged(configs: Path, profile: str) -> None:
     assert stable_hash(dict(settings.sections)) == SECTIONS_HASH[profile]
     assert look_config_hash(settings) == LOOK_CONFIG_HASH[profile]
     assert active_checks_hash(settings) == CHECKS_HASH
+    assert run_checks_hash(settings) == RUN_CHECKS_HASH[profile]
     assert load_dataset_settings(settings).content_hash() == DATASET_CONTENT_HASH[profile]
 
 

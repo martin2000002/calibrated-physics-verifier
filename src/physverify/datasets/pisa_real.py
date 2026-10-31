@@ -39,7 +39,8 @@ from physverify.datasets._base import GroundTruthStore, VideoSource
 from physverify.datasets._layout import load_annotations, relative_to_data, resolve_data_path
 from physverify.datasets._queries import derive_queries
 from physverify.schema.clip import ClipManifest, ObjectQuery, Split, TimeSource
-from physverify.sizing.priors import lookup_label
+from physverify.sizing.model import prior_aliases
+from physverify.sizing.priors import lookup_label, prior_keys
 
 if TYPE_CHECKING:
     from physverify.config.models import Settings
@@ -114,7 +115,8 @@ class PisaRealDataset:
 
     def __init__(self, settings: Settings, opener: ArchiveOpener | None = None) -> None:
         self._s = settings.section(SECTION, PisaRealSettings)
-        self._priors = settings.section(SIZE_PRIORS_SECTION, SizePriorTable).root
+        priors = settings.section(SIZE_PRIORS_SECTION, SizePriorTable).root
+        self._prior_keys = prior_keys(priors, prior_aliases())
         paths = settings.paths
         self._root = paths.raw_dir / self.name
         self._data_dir = paths.data_dir
@@ -129,7 +131,7 @@ class PisaRealDataset:
 
     def has_prior(self, prompt: str) -> bool:
         return any(
-            lookup_label(q.phrase, self._priors) is not None
+            lookup_label(q.phrase, self._prior_keys) is not None
             for q in derive_queries(prompt, self._s.fall_verbs)
         )
 

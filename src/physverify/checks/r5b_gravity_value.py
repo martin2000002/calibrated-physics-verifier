@@ -16,6 +16,7 @@ from physverify.checks._falls import find_falls
 from physverify.checks._params import FallParams
 from physverify.physics.flights import Flight, fit_flight, flights_span
 from physverify.physics.measures.gravity_fit import gravity_rel_error
+from physverify.physics.row_time import reference_seconds, rows_in
 from physverify.physics.tracks import MIN_FIT_ROWS
 from physverify.schema.checks import AbstainReason, CheckResult
 from physverify.schema.constants import STANDARD_GRAVITY
@@ -27,7 +28,7 @@ SUBJECT: tuple[str, ...] = ()
 
 
 class GravityValueParams(FallParams):
-    min_flight_frames: int = Field(default=4, ge=MIN_FIT_ROWS)
+    min_flight_s: float = Field(default=reference_seconds(4), gt=0.0)
     primitives: tuple[PrimitiveKind, ...] = (PrimitiveKind.SPHERE,)
 
 
@@ -65,9 +66,10 @@ class GravityValueCheck:
                 else AbstainReason.SCALE_FROM_GRAVITY
             )
             return [abstain(type(self), inputs, SUBJECT, reason, span, details)]
-        long = [f for f in flights if f.present >= self.params.min_flight_frames]
+        min_rows = rows_in(self.params.min_flight_s, inputs.row_seconds, MIN_FIT_ROWS)
+        long = [f for f in flights if f.present >= min_rows]
         if not long:
-            details["min_flight_frames"] = self.params.min_flight_frames
+            details["min_flight_rows"] = min_rows
             reason = AbstainReason.TOO_FEW_FRAMES
             return [abstain(type(self), inputs, SUBJECT, reason, span, details)]
         return [self._scored(inputs, long, scale, details)]

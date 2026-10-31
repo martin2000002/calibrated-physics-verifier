@@ -2,6 +2,9 @@
 
 s = g0 / |a| assumes the clip obeys standard gravity, so R5b abstains on this scale: it
 would otherwise test the gravity it assumed.
+
+Focal convention (``_size_prior``): in the camera frame the lateral axes of the lift go as 1 / f
+and depth does not, so s goes as f^k with k = (a_x^2 + a_y^2) / |a|^2, to first order in phi.
 """
 
 from __future__ import annotations
@@ -18,13 +21,15 @@ from pydantic import BaseModel, Field
 
 from physverify.extraction._base import ProviderParams, StageContext, WeightSpec
 from physverify.extraction.providers._common import expect_params
+from physverify.extraction.providers._size_prior import clip_focal_phi, with_focal
 from physverify.physics.geometry import characteristic_lengths
 from physverify.physics.kinematics import uniform_step, visible_runs
 from physverify.physics.measures.gravity_fit import FallFit, fall_fit, fall_residual_ratio
+from physverify.physics.row_time import reference_seconds, rows_in, seconds_per_row
 from physverify.schema.constants import STANDARD_GRAVITY
 from physverify.schema.scale import ScaleEstimate, ScaleSource
 from physverify.schema.stages import Stage
-from physverify.schema.states import ObjectStateTable
+from physverify.schema.states import CoordFrame, ObjectStateTable
 
 FloatArray = NDArray[np.float64]
 FIT_PARAMETERS = 3
@@ -32,7 +37,7 @@ FIT_PARAMETERS = 3
 
 
 class Params(ProviderParams):
-    min_frames: int = Field(default=5, ge=FIT_PARAMETERS + 1)
+    min_fall_s: float = Field(default=reference_seconds(5), gt=0.0)
     max_residual_ratio: float = Field(default=0.1, gt=0.0)
     min_drop_rel: float = Field(default=1.0, ge=0.0)
     max_windows: int = Field(default=5000, ge=1)
@@ -48,8 +53,8 @@ class FallWindow:
 class FreeFallScale:
     stage: ClassVar[Stage] = Stage.SCALE
     name: ClassVar[str] = "free_fall"
-    version: ClassVar[str] = "1"
-    requires: ClassVar[tuple[Stage, ...]] = (Stage.LIFT,)
+    version: ClassVar[str] = "2"
+    requires: ClassVar[tuple[Stage, ...]] = (Stage.CAMERA, Stage.LIFT)
     heavy: ClassVar[bool] = False
     is_ground_truth: ClassVar[bool] = False
     error_profile_reads: ClassVar[tuple[Stage, ...]] = ()
@@ -61,19 +66,24 @@ class FreeFallScale:
 
     def run(self, ctx: StageContext) -> ScaleEstimate:
         lift = ctx.require(Stage.LIFT, ObjectStateTable)
-        best = self._best_window(lift)
+        row_seconds = seconds_per_row(lift.frame_index, ctx.sampling.seconds_per_frame)
+        min_rows = rows_in(self.params.min_fall_s, row_seconds, FIT_PARAMETERS + 1)
+        best = self._best_window(lift, min_rows)
         if best is None:
             return ScaleEstimate(None, math.nan, ScaleSource.NONE, lift.source_key, "no_free_fall")
         accel = float(np.linalg.norm(best.fit.a))
         scale = STANDARD_GRAVITY / accel
-        sigma = scale * acceleration_sigma(best.fit, best.times) / accel
+        fit_sigma = scale * acceleration_sigma(best.fit, best.times) / accel
+        share = focal_share(np.asarray(best.fit.a, dtype=np.float64), lift.frame)
+        sigma = with_focal(scale, fit_sigma, share * clip_focal_phi(ctx))
         detail = f"window={best.fit.n}"
         return ScaleEstimate(scale, sigma, ScaleSource.FREE_FALL, lift.source_key, detail)
 
-    def _best_window(self, lift: ObjectStateTable) -> FallWindow | None:
-        """Longest accepted window over all objects; ties go to the smaller residual ratio."""
+    def _best_window(self, lift: ObjectStateTable, min_rows: int) -> FallWindow | None:
+        """Longest accepted window of at least ``min_rows`` rows over all objects; ties go to the
+        smaller residual ratio."""
         best: FallWindow | None = None
-        candidates = islice(self._candidates(lift), self.params.max_windows)
+        candidates = islice(self._candidates(lift, min_rows), self.params.max_windows)
         for times, positions, length in candidates:
             if best is not None and times.size < best.times.size:
                 break
@@ -82,7 +92,9 @@ class FreeFallScale:
                 best = window
         return best
 
-    def _candidates(self, lift: ObjectStateTable) -> Iterator[tuple[FloatArray, FloatArray, float]]:
+    def _candidates(
+        self, lift: ObjectStateTable, min_rows: int
+    ) -> Iterator[tuple[FloatArray, FloatArray, float]]:
         """Contiguous visible windows [i, i + W) of every object, longest first."""
         runs: list[tuple[slice, int, float]] = []
         for n in range(lift.n_objects):
@@ -92,7 +104,7 @@ class FreeFallScale:
             length = float(np.median(finite)) if finite.size else 0.0
             runs.extend((run, n, length) for run in visible_runs(valid))
         longest = max((run.stop - run.start for run, _, _ in runs), default=0)
-        for width in range(longest, self.params.min_frames - 1, -1):
+        for width in range(longest, min_rows - 1, -1):
             for run, n, length in runs:
                 for start in range(run.start, run.stop - width + 1):
                     frames = slice(start, start + width)
@@ -108,6 +120,13 @@ class FreeFallScale:
         if not ratio <= self.params.max_residual_ratio:
             return None
         return FallWindow(fit=fit, times=times, residual_ratio=ratio)
+
+
+def focal_share(accel: FloatArray, frame: CoordFrame) -> float:
+    """The exponent k of s ~ f^k; 1, its upper bound, outside the camera frame."""
+    if frame is not CoordFrame.CAMERA_OPENCV:
+        return 1.0
+    return float(accel[0] ** 2 + accel[1] ** 2) / float(accel @ accel)
 
 
 def acceleration_sigma(fit: FallFit, times: FloatArray) -> float:

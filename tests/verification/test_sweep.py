@@ -41,7 +41,7 @@ UNITS = {
     "R2": "residual_over_weight",
     "R3a": "e_minus_1",
     "R3b": "dE_over_E",
-    "R4_missing": "frames",
+    "R4_missing": "seconds",
     "R4_size": "rel_size_change",
     "R4_jump": "jump_over_size",
     "R5a": "accel_rel_diff",

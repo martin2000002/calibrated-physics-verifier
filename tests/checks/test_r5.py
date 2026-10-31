@@ -315,3 +315,14 @@ def test_gravity_sigma_adds_the_scale_sigma_in_quadrature() -> None:
 @pytest.mark.parametrize("g_rel", [0.0, 0.5])
 def test_gravity_value_scores_weak_gravity(g_rel: float) -> None:
     assert gravity(sc.parabola(g=g_rel * G)).magnitude == pytest.approx(abs(g_rel - 1.0), abs=1e-9)
+
+
+def test_the_lateral_ratio_sigma_samples_the_gravity_direction() -> None:
+    case = sc.parabola()
+    exact = shape(case)
+    tilted = shape(replace(case, states=replace(case.states, gravity_dir_sigma=math.radians(5.0))))
+    unknown = shape(replace(case, states=replace(case.states, gravity_dir_sigma=math.nan)))
+    assert exact.details["lateral_accel_ratio_sigma"] == 0.0
+    assert tilted.details["lateral_accel_ratio_sigma"] > 0.0
+    assert unknown.details["lateral_accel_ratio_sigma"] is None
+    assert (tilted.magnitude, tilted.sigma) == (exact.magnitude, exact.sigma)

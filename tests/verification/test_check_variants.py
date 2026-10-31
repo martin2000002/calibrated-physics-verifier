@@ -7,6 +7,8 @@ from settings_factory import SettingsFactory
 
 from physverify.app import plugins
 from physverify.checks.r4_size_constancy import SizeConstancyCheck
+from physverify.checks.variants._base import DEFAULT_VARIANT
+from physverify.checks.variants.r4_jump_rigid import RigidJumpCheck
 from physverify.checks.variants.r4_size_v3 import DetrendedSizeCheck
 from physverify.core.errors import ConfigError
 from physverify.verification.check_set import (
@@ -48,6 +50,23 @@ def test_the_settings_select_the_active_checks(make_settings: SettingsFactory) -
     assert dict(default) == dict(CHECKS) and default["R4_size"] is SizeConstancyCheck
     v3 = plugins.configured("checks", make_settings("check_variants.R4_size=v3"))
     assert v3["R4_size"] is DetrendedSizeCheck
+
+
+def test_the_precise_profile_runs_the_adopted_variants(make_settings: SettingsFactory) -> None:
+    precise = plugins.configured("checks", make_settings(profile="precise"))
+    assert precise["R4_size"] is DetrendedSizeCheck
+    assert precise["R4_jump"] is RigidJumpCheck
+    assert all(precise[c] is CHECKS[c] for c in CHECKS if c not in {"R4_size", "R4_jump"})
+    assert dict(plugins.configured("checks", make_settings(profile="fast"))) == dict(CHECKS)
+
+
+def test_the_default_variant_restores_the_registered_check(make_settings: SettingsFactory) -> None:
+    restore = (
+        f"check_variants.R4_size={DEFAULT_VARIANT}",
+        f"check_variants.R4_jump={DEFAULT_VARIANT}",
+    )
+    restored = plugins.configured("checks", make_settings(*restore, profile="precise"))
+    assert dict(restored) == dict(CHECKS)
 
 
 def test_the_rigid_jump_keeps_the_inputs_of_v2() -> None:

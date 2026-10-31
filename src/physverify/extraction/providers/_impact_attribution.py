@@ -19,9 +19,10 @@ from dataclasses import dataclass
 import numpy as np
 from numpy.typing import NDArray
 
-from physverify.extraction.providers._impacts import Bases, Impact, track_impacts
+from physverify.extraction.providers._impacts import Bases, Impact, ImpactRows, track_impacts
 from physverify.extraction.providers._proximity import ContactScene, nan_median
 from physverify.physics.geometry import Plane, Pose, Solid, characteristic_lengths
+from physverify.physics.row_time import seconds_per_row
 from physverify.physics.signed_distance import signed_distance
 from physverify.physics.tracks import (
     MIN_NOISE_STENCILS,
@@ -89,7 +90,7 @@ class KinematicScene:
 
     @property
     def row_seconds(self) -> float:
-        return self.step * self.seconds_per_frame
+        return seconds_per_row(self.states.frame_index, self.seconds_per_frame)
 
 
 def camera_positions(states: ObjectStateTable, camera: CameraModel) -> FloatArray | None:
@@ -121,15 +122,16 @@ def object_sigma(
     return noise_scale(noise, pixel_floor(depth, focal))
 
 
-def detect(scene: KinematicScene, focal: float, side_rows: int, alpha: float) -> list[Event]:
+def detect(scene: KinematicScene, focal: float, side_s: float, alpha: float) -> list[Event]:
     states, cam = scene.states, scene.camera_positions
+    rows = ImpactRows.at(side_s, scene.row_seconds)
     bases: Bases = {}
     events: list[Event] = []
     for n in range(states.n_objects):
         noise = object_sigma(states, n, None if cam is None else cam[:, n, 2], focal)
         if noise is None:
             continue
-        found = track_impacts(states.t, states.position[:, n], noise, side_rows, alpha, bases)
+        found = track_impacts(states.t, states.position[:, n], noise, rows, alpha, bases)
         events.extend(Event(n, impact) for impact in found)
     return events
 
@@ -345,10 +347,10 @@ def merge(
 
 
 def kinematic_records(
-    scene: KinematicScene, focal: float, side_rows: int, alpha: float
+    scene: KinematicScene, focal: float, side_s: float, alpha: float
 ) -> tuple[ContactRecord, ...]:
     """Proximity records merged with the attributed kinematic impacts."""
-    choices = resolve(scene, detect(scene, focal, side_rows, alpha))
+    choices = resolve(scene, detect(scene, focal, side_s, alpha))
     records = [r for c in choices if (r := record_of(scene, c)) is not None]
     records.sort(key=lambda r: (r.object_a, r.object_b, r.t_start))
     return merge(scene.records, records, scene.step)

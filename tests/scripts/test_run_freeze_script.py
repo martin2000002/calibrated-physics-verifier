@@ -27,10 +27,11 @@ TOOLS = (
 )  # fmt: skip
 HEAD = "c0ffee1234567" + "0" * 27
 PREFIX = re.compile(
-    r"^--profile precise --device cpu --set runtime\.threads=32 "
+    r"^--profile precise --device (cpu|cuda) --set runtime\.threads=32 "
     r"(--set extraction\.plan\.detect=grounding_dino_tiny )?"
 )
 RECORD = "e" * 64
+GPU = "2"
 CLIPS = "--clips k-calib-1 --clips k-calib-2"
 KS = "--dataset kubric_synthetic --subset full"
 # freeze_query.py select and chosen run for real (they only read the iteration directories);
@@ -101,7 +102,11 @@ ADOPTED = ("calibration.json", "stage_errors.precise.json", "stage_sigma.json")
 
 
 class FreezeSandbox(Sandbox):
-    def __init__(self, root: Path, iteration_factory: Callable[..., Path]) -> None:
+    """Two iterations of ``device``, the device the caller also gives in PV_DEVICE."""
+
+    def __init__(
+        self, root: Path, iteration_factory: Callable[..., Path], device: str = "cpu"
+    ) -> None:
         super().__init__(root.resolve(), SCRIPT_NAMES, TOOLS)
         self.final = self.root / "final"
         self.out = self.final / "run-freeze"
@@ -113,7 +118,9 @@ class FreezeSandbox(Sandbox):
         # PHYSVERIFY_FREEZE_ITERATIONS is split on spaces, as run_perception_iteration.sh names
         # them.
         made = [
-            iteration_factory(self.root / "iterations", name, n_met, auroc, commit=HEAD)
+            iteration_factory(
+                self.root / "iterations", name, n_met, auroc, device=device, commit=HEAD
+            )
             for name, n_met, auroc in (("it1-fixes", 2, 0.9), ("it2-state", 3, 0.6))
         ]
         other, self.chosen = (d.rename(d.with_name(d.name.replace(" ", "-"))) for d in made)
@@ -136,6 +143,8 @@ class FreezeSandbox(Sandbox):
                 "PHYSVERIFY_FREEZE_V1_CALIBRATION": str(v1),
                 "PHYSVERIFY_FREEZE_CACHE_DIR": str(self.root / "cache"),
                 "PHYSVERIFY_FREEZE_PYTHON": str(self.fakes / "python"),
+                "PV_DEVICE": device,
+                **({"CUDA_VISIBLE_DEVICES": GPU} if device == "cuda" else {}),
             }
         )
 
@@ -182,20 +191,22 @@ def _expected(final: Path) -> list[str]:
     ]
 
 
+@pytest.mark.parametrize(("device", "visible"), [("cpu", ""), ("cuda", GPU)])
 def test_the_freeze_adopts_the_chosen_iteration_and_writes_the_manifest(
-    sandbox: FreezeSandbox,
+    tmp_path: Path, iteration_factory: Callable[..., Path], device: str, visible: str
 ) -> None:
-    """The sequence, cpu and precise, every path in $F, no look at all."""
+    """The sequence on the iterations' device, precise, every path in $F, no look at all."""
+    sandbox = FreezeSandbox(tmp_path, iteration_factory, device)
     result = sandbox.run()
     assert result.returncode == 0, result.stderr
     assert sandbox.commands() == _expected(sandbox.final)
-    assert all(PREFIX.match(line) for line in sandbox.pv())
+    assert all(f"--device {device} " in line and PREFIX.match(line) for line in sandbox.pv())
     every = " ".join(sandbox.lines())
     assert not re.search(r"--subset eval|kubric_fresh|_views|objectron|curve|forbidden", every)
     final = str(sandbox.final)
     for line in (x for x in sandbox.lines() if x.startswith("env ")):
         cuda, unseal, cache, *mine = line[4:].split("|")
-        assert (cuda, unseal, cache) == ("", "unset", str(sandbox.root / "cache"))
+        assert (cuda, unseal, cache) == (visible, "unset", str(sandbox.root / "cache"))
         assert all(path.startswith(final + "/") for path in mine)
     for name in ADOPTED:
         source = sandbox.chosen / ("" if name == "calibration.json" else "calibration") / name
@@ -209,6 +220,7 @@ def test_the_freeze_adopts_the_chosen_iteration_and_writes_the_manifest(
     state = sandbox.state()
     assert state["ADOPTED"] == "it2-state" and state["RECORD_SHA"] == RECORD
     assert state["FREEZE_COMMIT"] == HEAD and state["R2_TINY_RUN"] == "r3"
+    assert state["FREEZE_DEVICE"] == device
     summary = (sandbox.out / "summary.md").read_text(encoding="utf-8")
     assert "h1_primary present" in summary and RECORD in summary and "it2-state" in summary
 
@@ -231,6 +243,9 @@ def test_the_freeze_adopts_the_chosen_iteration_and_writes_the_manifest(
         ({"PHYSVERIFY_FREEZE_V1_CALIBRATION": "/no/such.json"}, "no v1 calibration"),
         ({"PHYSVERIFY_FREEZE_THREADS": "0"}, "PHYSVERIFY_FREEZE_THREADS"),
         ({"DOCTOR_DEVICE": "cuda:0"}, "not cpu"),
+        ({"PV_DEVICE": "gpu"}, "PV_DEVICE must be cpu or cuda"),
+        ({"PV_DEVICE": "cuda"}, "PV_DEVICE=cuda needs CUDA_VISIBLE_DEVICES in 0-3"),
+        ({"PV_DEVICE": "cuda", "CUDA_VISIBLE_DEVICES": "5"}, "got '5'"),
         ({"DOCTOR_ERROR_PROFILE": "/elsewhere/stage_errors.precise.json"}, "outside"),
     ],
 )
@@ -269,6 +284,23 @@ def test_the_wrong_choice_or_a_refit_change_adopts_nothing(
     assert not (sandbox.final / "calibration" / "calibration.json").exists()
 
 
+@pytest.mark.parametrize(
+    ("iterations", "env"),
+    [("cuda", {"PV_DEVICE": "cpu"}), ("cpu", {"PV_DEVICE": "cuda", "CUDA_VISIBLE_DEVICES": GPU})],
+)
+def test_an_iteration_of_another_device_adopts_nothing(
+    tmp_path: Path, iteration_factory: Callable[..., Path], iterations: str, env: dict[str, str]
+) -> None:
+    """A calibration of one device is never frozen for a run on another."""
+    sandbox = FreezeSandbox(tmp_path, iteration_factory, iterations)
+    result = sandbox.run(**env)
+    assert result.returncode == 2, result.stderr
+    assert f"of device {iterations}, profile precise" in result.stderr
+    assert "never mix devices or profiles" in result.stderr
+    assert sandbox.commands() == ["doctor"]
+    assert not (sandbox.final / "calibration" / "calibration.json").exists()
+
+
 def test_a_different_artifact_already_frozen_is_never_mixed(sandbox: FreezeSandbox) -> None:
     calibration = sandbox.final / "calibration"
     calibration.mkdir(parents=True)
@@ -284,6 +316,8 @@ def test_a_resume_needs_the_earlier_steps_and_the_same_commit(sandbox: FreezeSan
     assert sandbox.run("1", "3").returncode == 0
     moved = sandbox.run("4", HEAD_SHA="c0ffee1" + "9" * 33)
     assert moved.returncode == 2 and "belongs to FREEZE_COMMIT" in moved.stderr
+    other = sandbox.run("4", PV_DEVICE="cuda", CUDA_VISIBLE_DEVICES=GPU)
+    assert other.returncode == 2 and "belongs to FREEZE_DEVICE=cpu" in other.stderr
     resumed = sandbox.run("4")
     assert resumed.returncode == 0, resumed.stderr
     assert sandbox.commands() == [

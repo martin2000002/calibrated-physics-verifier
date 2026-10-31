@@ -126,7 +126,9 @@ def test_an_isolated_interior_gap_is_in_frame_and_unoccluded(
     rows = slice(*GAP)
     assert bool(in_frame[rows, 0].all()) and bool((occlusion[rows, 0] == 0.0).all())
     (result,) = r4_missing(fixture_clip, table_of(visible, in_frame, occlusion))
-    assert result.magnitude == GAP[1] - GAP[0]
+    seconds = (GAP[1] - GAP[0]) * fixture_clip.manifest.seconds_per_frame
+    assert result.magnitude == pytest.approx(seconds, rel=1e-12)
+    assert result.details["missing_frames"] == GAP[1] - GAP[0]
     assert result.frame_span == (GAP[0], GAP[1] - 1)
 
 
@@ -225,7 +227,7 @@ def test_visible_cells_match_and_none_is_version_one(fixture_clip: SyntheticClip
 
 
 def test_the_lift_version_and_params_separate_the_cache() -> None:
-    assert BackprojectLift.version == "4"
+    assert BackprojectLift.version == "5"
     params = BackprojectLift.Params()
     assert params.gap_visibility == "interpolate"  # type: ignore[attr-defined]
     assert params.temporal_filter == "none"  # type: ignore[attr-defined]

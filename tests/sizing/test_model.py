@@ -14,12 +14,14 @@ from physverify.sizing.model import (
     SizeModelTable,
     labels_with_size,
     model_hash,
+    pooled_prior,
     predict,
     prior_aliases,
     resolve,
     sized_labels,
 )
-from physverify.sizing.settings import FixedSize, SizeLookup
+from physverify.sizing.priors import GENERIC_PRIOR, PRIMITIVE_WORDS
+from physverify.sizing.settings import FixedSize, SizeLookup, sizing_settings
 
 CUP = ClassSize(mu_log=math.log(0.09), sigma_log=0.15, n_objects=10, n_videos=9)
 MODEL = SizeModelTable(sigma_factor=0.9, classes={"cup": CUP, "cereal_box": CUP})
@@ -75,3 +77,22 @@ def test_the_hash_follows_the_model() -> None:
     other = MODEL.model_copy(update={"sigma_factor": 1.0})
     assert model_hash(MODEL, LOOKUP) != model_hash(other, LOOKUP)
     assert len(model_hash(MODEL, LOOKUP)) == 8
+
+
+def test_the_pooled_prior_matches_the_log_moments_of_the_class_mixture() -> None:
+    small = ClassSize(mu_log=-2.0, sigma_log=0.1, n_objects=10, n_videos=9)
+    large = ClassSize(mu_log=0.0, sigma_log=0.3, n_objects=99, n_videos=90)
+    prior = pooled_prior(SizeModelTable(classes={"a": small, "b": large}))
+    assert prior.mean_m == pytest.approx(math.exp(-1.0))
+    assert prior.rel_spread == pytest.approx(math.sqrt((0.1**2 + 0.3**2) / 2 + 1.0))
+
+
+def test_the_generic_prior_is_the_pooled_objectron_train_model_rounded() -> None:
+    settings = load_settings(REPO_CONFIGS, environ={})
+    priors = settings.section("size_priors", SizePriorTable).root
+    pooled = pooled_prior(settings.section("size_model", SizeModelTable))
+    assert set(priors) == {GENERIC_PRIOR}
+    assert priors[GENERIC_PRIOR].mean_m == pytest.approx(pooled.mean_m, abs=0.005)
+    assert priors[GENERIC_PRIOR].rel_spread == pytest.approx(pooled.rel_spread, abs=0.005)
+    assert sizing_settings(settings).baseline_prior == GENERIC_PRIOR
+    assert all(prior_aliases()[word] == GENERIC_PRIOR for word in PRIMITIVE_WORDS)

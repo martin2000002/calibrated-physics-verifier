@@ -774,20 +774,22 @@
     "R2": [
       "mc_draws",
       "seed",
-      "friction",
+      "friction_range",
       "cone_edges",
       "mass_floor",
       "rest_speed",
-      "min_rest_frames",
+      "min_rest_s",
       "agent_labels",
-      "norm_edges"
+      "norm_edges",
+      "sample_gravity",
+      "require_support_path"
     ],
     "R3a": [
       "mc_draws",
       "seed",
-      "impact_margin_frames",
-      "fit_frames",
-      "min_side_frames",
+      "impact_margin_s",
+      "fit_s",
+      "min_side_s",
       "fit_source",
       "primitives",
       "min_normal_speed"
@@ -795,9 +797,9 @@
     "R3b": [
       "mc_draws",
       "seed",
-      "impact_margin_frames",
-      "fit_frames",
-      "min_side_frames",
+      "impact_margin_s",
+      "fit_s",
+      "min_side_s",
       "fit_source",
       "cos_min",
       "dv_min_rel",
@@ -807,7 +809,8 @@
       "mc_draws",
       "seed",
       "min_noise_stencils",
-      "few_stencils"
+      "few_stencils",
+      "reference_stencils"
     ],
     "R4_missing": [
       "mc_draws",
@@ -831,9 +834,10 @@
       "travel_sigmas",
       "travel_noise",
       "min_noise_stencils",
-      "min_flight_frames",
-      "side_frames",
-      "min_drop_lengths"
+      "min_flight_s",
+      "side_s",
+      "min_drop_lengths",
+      "sample_gravity"
     ],
     "R5b": [
       "mc_draws",
@@ -844,7 +848,7 @@
       "travel_sigmas",
       "travel_noise",
       "min_noise_stencils",
-      "min_flight_frames",
+      "min_flight_s",
       "primitives"
     ]
   },
@@ -869,18 +873,18 @@
     "contacts/kinematic": [
       "tol_rel",
       "rest_speed_rel",
-      "min_rest_frames",
+      "min_rest_s",
       "normal_split_deg",
       "ground",
       "impacts",
       "resting_split",
-      "side_rows",
+      "side_s",
       "alpha"
     ],
     "contacts/proximity": [
       "tol_rel",
       "rest_speed_rel",
-      "min_rest_frames",
+      "min_rest_s",
       "normal_split_deg",
       "ground"
     ],
@@ -929,7 +933,7 @@
     ],
     "kinematics/ground_truth": [],
     "kinematics/savgol": [
-      "window",
+      "window_s",
       "polyorder"
     ],
     "lift/backproject": [
@@ -950,7 +954,9 @@
       "gap_occluded_at",
       "temporal_filter",
       "temporal_window",
-      "temporal_edges"
+      "temporal_edges",
+      "footprint_trim_mads",
+      "min_part_frac"
     ],
     "lift/backproject_unnested": [
       "shift",
@@ -971,11 +977,13 @@
       "temporal_filter",
       "temporal_window",
       "temporal_edges",
+      "footprint_trim_mads",
+      "min_part_frac",
       "nested_overlap"
     ],
     "lift/ground_truth": [],
     "scale/free_fall": [
-      "min_frames",
+      "min_fall_s",
       "max_residual_ratio",
       "min_drop_rel",
       "max_windows"

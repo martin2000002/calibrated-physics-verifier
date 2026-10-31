@@ -15,15 +15,21 @@ from physverify.extraction.backprojection import (
     LiftErrors,
     ObjectSummary,
     SummaryOptions,
+    camera_focal_phi,
     closed_form_sigma,
-    focal_rel_sigma,
     lift_depth,
     monte_carlo_sigma,
     object_position,
     object_summary,
+    place_object,
 )
 from physverify.extraction.gravity_pose import LEVEL_CAMERA_GRAVITY, gravity_from_pose
-from physverify.extraction.lift_params import GravityMode
+from physverify.extraction.lift_geometry import (
+    GroundFrame,
+    ground_frame,
+    orientation_sigma,
+)
+from physverify.extraction.lift_params import GravityMode, summary_options
 from physverify.extraction.lift_params import LiftParams as Params
 from physverify.extraction.mask_border import border_cut
 from physverify.extraction.pipeline import PENDING_SOURCE_KEY
@@ -43,7 +49,7 @@ SEED_HEX_DIGITS = 16
 class BackprojectLift:
     stage: ClassVar[Stage] = Stage.LIFT
     name: ClassVar[str] = "backproject"
-    version: ClassVar[str] = "4"
+    version: ClassVar[str] = "5"
     requires: ClassVar[tuple[Stage, ...]] = (Stage.TRACK, Stage.DEPTH, Stage.CAMERA)
     heavy: ClassVar[bool] = False
     is_ground_truth: ClassVar[bool] = False
@@ -73,18 +79,24 @@ class BackprojectLift:
             primitive=[kind.value for kind in primitives],
         )
         fields = _mutable_fields(table)
+        mode = self.params.gravity_by_dataset.get(ctx.clip.dataset, self.params.gravity)
+        gravity, gravity_sigma = self._gravity(camera, mode)
+        frame = ground_frame(gravity)
         errors = _lift_errors(ctx, camera)
         rng = np.random.default_rng(int(stable_hash(ctx.clip.clip_id)[:SEED_HEX_DIGITS], 16))
-        summaries = self._summaries(track, z, valid, camera.K)
+        summaries = self._summaries(track, z, valid, camera.K, frame, primitives)
         for t_index, row in enumerate(summaries):
             for n_index, (summary, primitive) in enumerate(zip(row, primitives, strict=True)):
-                self._fill(fields, (t_index, n_index), summary, primitive, camera, errors, rng)
+                cell = (t_index, n_index)
+                self._fill(fields, cell, summary, primitive, camera, errors, rng, frame)
+        posed = np.isfinite(fields["quaternion"]).all(axis=-1)
+        fields["orientation_sigma"][posed] = orientation_sigma(
+            errors.orientation_rad, gravity_sigma
+        )
         fields["confidence"] = np.clip(track.scores.astype(np.float64), 0.0, 1.0)
         if self.params.gap_visibility == "interpolate":
             gaps = gap_visibility(track.masks, fields["visible"], self.params.gap_occluded_at)
             fields["in_frame"], fields["occlusion"] = gaps.in_frame, gaps.occlusion
-        mode = self.params.gravity_by_dataset.get(ctx.clip.dataset, self.params.gravity)
-        gravity, gravity_sigma = self._gravity(camera, mode)
         cut = border_cut(track.masks, self.params.border_margin_px)
         return replace(
             table,
@@ -99,15 +111,23 @@ class BackprojectLift:
         return ctx.require(Stage.TRACK, MaskTrack)
 
     def _summaries(
-        self, track: MaskTrack, z: FloatArray, valid: NDArray[np.bool_], intrinsics: FloatArray
+        self,
+        track: MaskTrack,
+        z: FloatArray,
+        valid: NDArray[np.bool_],
+        intrinsics: FloatArray,
+        frame: GroundFrame | None,
+        primitives: list[PrimitiveKind],
     ) -> list[list[ObjectSummary | None]]:
         """Rows (T) of per-object summaries; with ``"median"`` every object's visible runs are
         stabilised before positions and sigma are computed from them."""
         n_t, n_obj = track.masks.shape[:2]
         rows = [
             [
-                object_summary(track.masks[t, n], z[t], valid[t], intrinsics, self._options)
-                for n in range(n_obj)
+                object_summary(
+                    track.masks[t, n], z[t], valid[t], intrinsics, self._options, frame, kind
+                )
+                for n, kind in enumerate(primitives)
             ]
             for t in range(n_t)
         ]
@@ -121,11 +141,7 @@ class BackprojectLift:
 
     @property
     def _options(self) -> SummaryOptions:
-        return SummaryOptions(
-            erode_px=self.params.erode_px,
-            extent_percentiles=self.params.extent_percentiles,
-            min_area_px=self.params.min_area_px,
-        )
+        return summary_options(self.params)
 
     def _primitive(self, label: str) -> PrimitiveKind:
         return lookup_label(label, self.params.primitive_by_label) or PrimitiveKind.UNKNOWN
@@ -139,25 +155,28 @@ class BackprojectLift:
         camera: CameraModel,
         errors: LiftErrors,
         rng: np.random.Generator,
+        frame: GroundFrame | None,
     ) -> None:
         if summary is None:
             fields["visible"][cell] = False
             fields["in_frame"][cell] = False
             return
-        offset = self.params.center_offset_frac[primitive]
-        position = object_position(summary.centre, summary.extents, offset)
+        placed = place_object(summary, primitive, self.params.center_offset_frac[primitive], frame)
+        position = object_position(summary.centre, placed.offset)
         if self.params.sigma_mode == "monte_carlo":
             pos_sigma, size_sigma = monte_carlo_sigma(
-                summary, camera.K, offset, errors, rng, self.params.mc_draws
+                summary, placed.size, placed.offset, camera.K, errors, rng, self.params.mc_draws
             )
         else:
             pos_sigma, size_sigma = closed_form_sigma(
-                position, summary.extents, summary.r_eq_px, camera.K, errors
+                position, placed.size, summary.r_eq_px, camera.K, errors
             )
         fields["position"][cell] = position
         fields["position_sigma"][cell] = pos_sigma
-        fields["size"][cell] = summary.extents
+        fields["size"][cell] = placed.size
         fields["size_sigma"][cell] = size_sigma
+        if placed.quaternion is not None:
+            fields["quaternion"][cell] = placed.quaternion
 
     def _gravity(self, camera: CameraModel, mode: GravityMode) -> tuple[FloatArray, float]:
         """Gravity direction in camera coordinates and its angular sigma in radians (4.3)."""
@@ -184,19 +203,13 @@ def _mutable_fields(table: ObjectStateTable) -> dict[str, Any]:
         "position_sigma",
         "size",
         "size_sigma",
+        "quaternion",
+        "orientation_sigma",
         "visible",
         "in_frame",
         "occlusion",
     )
     return {name: np.array(getattr(table, name), copy=True) for name in names}
-
-
-def _focal_phi(camera: CameraModel) -> float:
-    if camera.source is IntrinsicsSource.GROUND_TRUTH:
-        return 0.0
-    if not (math.isfinite(camera.fov_deg) and math.isfinite(camera.fov_sigma_deg)):
-        return math.nan
-    return focal_rel_sigma(camera.fov_deg, camera.fov_sigma_deg)
 
 
 def _lift_errors(ctx: StageContext, camera: CameraModel) -> LiftErrors:
@@ -205,5 +218,6 @@ def _lift_errors(ctx: StageContext, camera: CameraModel) -> LiftErrors:
         centroid_px_rel=ctx.error_entry(Stage.TRACK, "centroid_px_rel"),
         centroid_rel=ctx.error_entry(Stage.LIFT, "centroid_rel"),
         size_rel=ctx.error_entry(Stage.LIFT, "size_rel"),
-        phi=_focal_phi(camera),
+        phi=camera_focal_phi(camera),
+        orientation_rad=ctx.error_entry(Stage.LIFT, "orientation_rad"),
     )

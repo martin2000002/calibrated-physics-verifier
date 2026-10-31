@@ -17,8 +17,8 @@ Exit codes: 0 ok, 2 a check failed or an input is unusable (message on stderr).
     python freeze_query.py v1-state FREEZE_JSON SPEC...   the v1 arm follows the look, once
     python freeze_query.py ledger                         the sealed ledger and its line count
 
-The checkout's settings (configs/, the environment, profile precise, device cpu) give the paths,
-so every query sees what the physverify calls of the same script see.
+The checkout's settings (configs/, the environment, profile precise) give the paths, so every
+query sees what the physverify calls of the same script see; no query depends on the device.
 """
 
 from __future__ import annotations
@@ -37,7 +37,6 @@ from physverify.freeze.diffs import DIFF_PATHS, changed, run_git
 from physverify.freeze.errors import QueryError
 from physverify.freeze.files import field, read_json, readable_sha256
 from physverify.freeze.selection import (
-    DEVICE,
     PROFILE,
     candidate,
     chosen_candidate,
@@ -56,7 +55,7 @@ def _settings(extra: dict[str, str] | None = None) -> Settings:
     from physverify.config.loader import load_settings
 
     environ = {**os.environ, **(extra or {})}
-    return load_settings(REPO_ROOT / "configs", environ=environ, profile=PROFILE, device=DEVICE)
+    return load_settings(REPO_ROOT / "configs", environ=environ, profile=PROFILE)
 
 
 def _parser() -> argparse.ArgumentParser:

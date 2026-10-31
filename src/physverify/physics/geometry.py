@@ -172,6 +172,14 @@ def quaternion_from_matrix(rotation: ArrayLike) -> Vec:
     return quaternion if quaternion[0] >= 0 else -quaternion
 
 
+def axis_rotation(axis: ArrayLike, angle: float) -> Vec:
+    """Right-handed rotation by ``angle`` radians about ``axis`` (Rodrigues)."""
+    k = _unit(axis)
+    cross = np.array([[0.0, -k[2], k[1]], [k[2], 0.0, -k[0]], [-k[1], k[0], 0.0]])
+    rotation: Vec = np.eye(3) + math.sin(angle) * cross + (1.0 - math.cos(angle)) * cross @ cross
+    return rotation
+
+
 def pose_from_quaternion(position: ArrayLike, quaternion: ArrayLike) -> Pose:
     return Pose(position=as_vector(position), rotation=matrix_from_quaternion(quaternion))
 
@@ -183,6 +191,19 @@ def plane_basis(normal: ArrayLike) -> tuple[Vec, Vec]:
     u = np.cross(n, helper)
     u /= np.linalg.norm(u)
     return u, np.cross(n, u)
+
+
+def tilted(direction: ArrayLike, tilt: ArrayLike) -> NDArray[np.float64]:
+    """Unit ``direction`` turned by the angles ``tilt`` (..., 2) [rad] about its ``plane_basis``
+    axes (exponential map: the angle is |tilt|): (..., 3) unit vectors."""
+    d = _unit(direction)
+    u, v = plane_basis(d)
+    t = np.asarray(tilt, dtype=np.float64)
+    angle = np.linalg.norm(t, axis=-1, keepdims=True)
+    toward = t[..., :1] * u + t[..., 1:] * v
+    safe = np.where(angle > 0.0, angle, 1.0)
+    turned: NDArray[np.float64] = np.cos(angle) * d + np.sin(angle) * toward / safe
+    return turned
 
 
 def project_to_plane(points: ArrayLike, normal: ArrayLike) -> NDArray[np.float64]:
