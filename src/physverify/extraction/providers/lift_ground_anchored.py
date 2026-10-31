@@ -50,8 +50,9 @@ class GroundAnchoredLift(BackprojectLift):
         normal_sigma = float(table.gravity_dir_sigma)
         r_eq = np.sqrt(track.masks.sum(axis=(2, 3)) / math.pi)
         pixel = entry_rms(ctx.error_entry(Stage.TRACK, "centroid_px_rel")) * r_eq / camera.K[1, 1]
+        visible = np.asarray(table.visible, dtype=bool)[..., None]
         result = anchor_clip(
-            np.asarray(table.position, dtype=np.float64),
+            np.where(visible, np.asarray(table.position, dtype=np.float64), np.nan),
             np.asarray(table.size, dtype=np.float64),
             np.asarray(table.quaternion, dtype=np.float64),
             np.asarray(table.primitive) == PrimitiveKind.SPHERE.value,
