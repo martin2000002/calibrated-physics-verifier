@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The human-agreement study on the H200, on the CPU, in two phases a person runs in turn:
+# The human-agreement study on the H200, in two phases a person runs in turn:
 #
 #   bash scripts/h200/run_human_agreement.sh dev
 #       pre, dev-fetch, dev-extract, dev-verify, freeze (h2_dev); ends with exit 0 and the frozen
@@ -8,8 +8,9 @@
 #       test-pre, test-fetch, test-extract, test-verify, then the one pre-registered
 #       `agreement compare --rule calibrated`
 #
-# Every call is --profile precise --device cpu (the VideoPhy cache keys are the CPU ones) through
-# $PHYSVERIFY_AGREEMENT_PYTHON, with CUDA_VISIBLE_DEVICES empty: no uv, no setup_cuda.sh, no GPU.
+# Every call is --profile precise --device $PHYSVERIFY_AGREEMENT_DEVICE through
+# $PHYSVERIFY_AGREEMENT_PYTHON: no uv, no setup_cuda.sh. cpu (the default, whose keys the VideoPhy
+# cache holds) hides the GPUs; cuda needs one GPU of 0-3 in CUDA_VISIBLE_DEVICES.
 # Extract and verify exit 1 when some clips fail; compare counts those clips, so that is not fatal.
 # The `pre` steps verify one cached clip and stop when its checks carry an error (an uncached heavy
 # stage), so a wrong cache stops before hours of recomputation.
@@ -17,22 +18,23 @@
 # Startup (exit 2, before any physverify call): the phase argument; no PHYSVERIFY__* variable but
 # the ones this script exports (a foreign one would change verify or the rule without moving the
 # frozen hashes), no PHYSVERIFY_CONFIG_DIR and no configs/local.toml (git status cannot see it);
-# PHYSVERIFY_AGREEMENT_DEVICE cpu; HEAD is PHYSVERIFY_AGREEMENT_EXPECT_COMMIT with nothing
+# PHYSVERIFY_AGREEMENT_DEVICE cpu or cuda; HEAD is PHYSVERIFY_AGREEMENT_EXPECT_COMMIT with nothing
 # uncommitted or untracked under src, configs, scripts or annotations; no other instance on
-# $OUT/run.lock; the CPU calibration chain in PHYSVERIFY_AGREEMENT_CHAIN_DIR completed steps 0..9
-# and published calibration.json, exclusions.json and stage_errors.precise.json in the calibration
-# directory, or, with PHYSVERIFY_AGREEMENT_FREEZE, the freeze manifest (run_freeze.sh) stands for
-# that chain: device cpu, HEAD its commit, the calibration directory its own and its frozen files
-# unchanged; its record_sha stands for the calibration chain's RECORD_SHA.
-# Then doctor must report config_dir $REPO_ROOT/configs, device cpu, the four exported paths, the
-# precise error profile and the thresholds of that calibration directory, and the caption review
-# must be recorded.
+# $OUT/run.lock; the calibration chain in PHYSVERIFY_AGREEMENT_CHAIN_DIR, of this run's device and
+# profile, completed steps 0..9 and published calibration.json, exclusions.json and
+# stage_errors.precise.json in the calibration directory, or, with PHYSVERIFY_AGREEMENT_FREEZE, the
+# freeze manifest (run_freeze.sh) stands for that chain: this run's device and profile, HEAD its
+# commit, the calibration directory its own and its frozen files unchanged; its record_sha stands
+# for the calibration chain's RECORD_SHA. Both pairs go through require_pair (_common.sh).
+# Then doctor must report config_dir $REPO_ROOT/configs, this run's device, the four exported
+# paths, the precise error profile and the thresholds of that calibration directory, and the
+# caption review must be recorded.
 #
 # dev refuses once a test comparison is logged (a freeze after looking at test is post hoc). After
-# the freeze the pre-registration must be calibrated (or carry a calibration gate), cpu, precise,
-# and bound to the calibration chain's calibration.json and decision record. state.env keeps what
-# test checks: the pre-registration and its sha256, the frozen commit, the sha256 of the chain
-# files, of the exported PHYSVERIFY__* environment and doctor's config_hash.
+# the freeze the pre-registration must be calibrated (or carry a calibration gate), of this run's
+# device and profile, and bound to the calibration chain's calibration.json and decision record.
+# state.env keeps what test checks: the pre-registration and its sha256, the frozen commit, the
+# sha256 of the chain files, of the exported PHYSVERIFY__* environment and doctor's config_hash.
 #
 # test runs once: it refuses, with no physverify call, when state.env records TEST_COMPARED, the
 # comparison log has an entry, or so does any log listed in $H200_ROOT/h2-test-ledger.txt (each
@@ -45,15 +47,16 @@
 #
 # Optional (defaults in brackets), all PHYSVERIFY_AGREEMENT_*:
 #   EXPECT_COMMIT            required: prefix (>= 7 chars) of the HEAD this checkout is at
+#   DEVICE                   cpu or cuda [cpu]
 #   PYTHON                   interpreter [/home/mmonterot/dev/venv/bin/python]
 #   THREADS                  runtime.threads [32]
 #   DIR                      output: logs/, steps.tsv, state.env, summary.md [$H200_ROOT/h2]
 #   DATA                     paths.data_dir: runs, agreement/ [$H200_ROOT/h2-data]
 #   CACHE_DIR                paths.cache_dir [$H200_ROOT/Repo/data/cache]
 #   RAW_DIR                  paths.raw_dir, the VideoPhy videos [$H200_ROOT/Repo/data/raw]
-#   CALIBRATION_DIR          the CPU chain's artifacts, read only
+#   CALIBRATION_DIR          the calibration chain's artifacts, read only
 #                            [$H200_ROOT/kubric-data/calibration]
-#   CHAIN_DIR                the CPU calibration chain's run, read only [the chain's directory]
+#   CHAIN_DIR                the calibration chain's run, read only [the chain's directory]
 #   FREEZE                   the freeze's freeze.json in place of the chain's run [none]; set
 #                            CALIBRATION_DIR to its calibration directory
 #   PREFLIGHT_CLIP           dev preflight clip [v1-a8208f4dd41e]
@@ -91,9 +94,8 @@ done
         "study would not run the frozen configuration; remove it (run_human_agreement.sh sets" \
         "every path and the lock itself)"
 
-DEVICE="${PHYSVERIFY_AGREEMENT_DEVICE:-cpu}"
-[[ "$DEVICE" == cpu ]] \
-    || die "PHYSVERIFY_AGREEMENT_DEVICE must be cpu (the VideoPhy cache is the CPU one), got '$DEVICE'"
+PHYSVERIFY_AGREEMENT_DEVICE="${PHYSVERIFY_AGREEMENT_DEVICE:-cpu}"
+use_device PHYSVERIFY_AGREEMENT_DEVICE
 EXPECT="${PHYSVERIFY_AGREEMENT_EXPECT_COMMIT:-}"
 [[ ${#EXPECT} -ge 7 ]] || die "set PHYSVERIFY_AGREEMENT_EXPECT_COMMIT to the commit this run uses"
 HEAD_COMMIT="$(git -C "$REPO_ROOT" rev-parse HEAD)" || die "$REPO_ROOT is not a git checkout"
@@ -119,13 +121,11 @@ export PHYSVERIFY__PATHS__CALIBRATION_DIR="${PHYSVERIFY_AGREEMENT_CALIBRATION_DI
 export PHYSVERIFY__PATHS__WEIGHTS_DIR="$H200_ROOT/Repo/data/weights"
 export PHYSVERIFY__PATHS__VENDOR_DIR="$H200_ROOT/Repo/data/vendor"
 export PHYSVERIFY__PATHS__HF_HOME="$H200_ROOT/.cache/huggingface"
-# The CPU chain's lock: no heavy step here runs while a calibration chain step does.
+# The calibration chain's lock: no heavy step here runs while a calibration chain step does.
 export PHYSVERIFY__RUNTIME__HEAVY_LOCK="$H200_ROOT/kubric.lock"
 # No step runs without the sealed exclusion record.
 export PHYSVERIFY__CHECK_SCOPE__REQUIRE_DECISION_RECORD=true
-export CUDA_VISIBLE_DEVICES=""
 unset PHYSVERIFY_LOCK_HELD
-PV_DEVICE=cpu
 CAL="$PHYSVERIFY__PATHS__CALIBRATION_DIR"
 CHAIN_DIR="${PHYSVERIFY_AGREEMENT_CHAIN_DIR:-$CHAIN_ROOT}"
 FREEZE="${PHYSVERIFY_AGREEMENT_FREEZE:-}"
@@ -139,8 +139,8 @@ STATE="$OUT/state.env"
 STEPS="$OUT/steps.tsv"
 NOTES="$OUT/notes.md"
 SUMMARY="$OUT/summary.md"
-SUMMARY_TITLE="Human-agreement study on VideoPhy (CPU)"
-SUMMARY_INFO="commit $HEAD_COMMIT, data $PHYSVERIFY__PATHS__DATA_DIR, cache $PHYSVERIFY__PATHS__CACHE_DIR, calibration $CAL, threads $THREADS"
+SUMMARY_TITLE="Human-agreement study on VideoPhy ($PV_DEVICE)"
+SUMMARY_INFO="commit $HEAD_COMMIT, device $PV_DEVICE, profile $PV_PROFILE, data $PHYSVERIFY__PATHS__DATA_DIR, cache $PHYSVERIFY__PATHS__CACHE_DIR, calibration $CAL, threads $THREADS"
 mkdir -p "$LOGS"
 touch "$STEPS" "$NOTES"
 if [[ -f "$STATE" ]]; then
@@ -159,9 +159,10 @@ chain_state() {
 }
 
 require_chain() {
-    local device k code name
-    device="$(chain_state CHAIN_DEVICE)"
-    [[ "$device" == cpu ]] || die "$CHAIN_DIR is not the cpu chain of the calibration chain (CHAIN_DEVICE '$device')"
+    local profile k code name
+    # A chain older than CHAIN_PROFILE: its profile is that of the stage_errors file required below.
+    profile="$(chain_state CHAIN_PROFILE)"
+    require_pair "$CHAIN_DIR" "$(chain_state CHAIN_DEVICE)" "${profile:-$PV_PROFILE}"
     CHAIN_RECORD_SHA="$(chain_state RECORD_SHA)"
     [[ -n "$CHAIN_RECORD_SHA" ]] || die "$CHAIN_DIR/state.env has no RECORD_SHA: its step 9 is not done"
     for ((k = 0; k <= CHAIN_STEPS; k++)); do
@@ -181,7 +182,7 @@ freeze_field() {
 
 require_freeze() {
     [[ -f "$FREEZE" ]] || die "no freeze manifest at $FREEZE (PHYSVERIFY_AGREEMENT_FREEZE)"
-    [[ "$(freeze_field device)" == cpu ]] || die "$FREEZE is not a cpu freeze"
+    require_pair "$FREEZE" "$(freeze_field device)" "$(freeze_field profile)"
     [[ "$(freeze_field commit)" == "$HEAD_COMMIT" ]] \
         || die "$FREEZE froze commit $(freeze_field commit), HEAD is $HEAD_COMMIT"
     same_path "$(freeze_field calibration_dir)" "$CAL" \
@@ -229,7 +230,8 @@ check_doctor() {
     DOCTOR="$(pv doctor)" || die "physverify doctor failed"
     same_path "$(doctor_value config_dir)" "$REPO_ROOT/configs" \
         || die "doctor reports config_dir '$(doctor_value config_dir)', not $REPO_ROOT/configs"
-    [[ "$(doctor_value device)" == cpu ]] || die "doctor reports device '$(doctor_value device)', not cpu"
+    [[ "$(doctor_value device)" == "$PV_DEVICE" ]] \
+        || die "doctor reports device '$(doctor_value device)', not $PV_DEVICE"
     for name in DATA_DIR CACHE_DIR RAW_DIR CALIBRATION_DIR; do
         var="PHYSVERIFY__PATHS__$name"
         same_path "$(doctor_value "paths.${name,,}")" "${!var}" \
@@ -258,9 +260,9 @@ prereg_problem() {
     [[ -n "$gate" || "$rule" == "$CALIBRATED" ]] \
         || { echo "rule '$rule', not $CALIBRATED: configs/studies/human_agreement.toml is not the committed one"; return; }
     value="$(prereg_field device)"
-    [[ "$value" == cpu ]] || { echo "device '$value', not cpu"; return; }
+    [[ "$value" == "$PV_DEVICE" ]] || { echo "device '$value', not $PV_DEVICE"; return; }
     value="$(prereg_field profile)"
-    [[ "$value" == precise ]] || { echo "profile '$value', not precise"; return; }
+    [[ "$value" == "$PV_PROFILE" ]] || { echo "profile '$value', not $PV_PROFILE"; return; }
     value="$(prereg_field calibration_artifact_sha256)"
     [[ "$value" == "$CALIB_SHA" ]] \
         || { echo "calibration artifact $value, not $FROZEN_BY's $CAL/calibration.json ($CALIB_SHA)"; return; }
@@ -278,7 +280,7 @@ preflight() {
     run="$(run_of)"
     # verify exits 0 on an uncached clip: its rows abstain with the error in checks.jsonl.
     errors="$(query run-errors "$run" 2>&1)" \
-        || stop "preflight: $3 failed or is not cached for --device cpu:"$'\n'"$errors"
+        || stop "preflight: $3 failed or is not cached for --device $PV_DEVICE:"$'\n'"$errors"
     note "preflight: $2 $3 cached, run $run"
     row 0
 }

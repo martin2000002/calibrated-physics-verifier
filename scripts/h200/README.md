@@ -7,10 +7,12 @@ by default, and `run_timing.sh`, `run_preference.sh`, `run_finetune.sh`,
 `run_generator_comparison.sh` and `smoke_autoeval.sh` keep them. The other runners do not:
 `smoke_finetune.sh` uses the `fast` profile; `run_freeze.sh` and `run_final.sh` run on the
 device of the adopted iteration (`PV_DEVICE`, recorded in `freeze.json`);
-`run_human_agreement.sh` runs on the CPU; `run_perception_iteration.sh` takes its device from
-`PHYSVERIFY_ITERATION_DEVICE` (default `cpu`) and its profile from `PHYSVERIFY_ITERATION_PROFILE`;
-`run_kubric.sh` runs on the CPU with the profile of `PHYSVERIFY_KUBRIC_PROFILE`; and `run_demo.sh`
-scores a given video with `--device cpu` when there is no GPU.
+`run_human_agreement.sh` takes its device from `PHYSVERIFY_AGREEMENT_DEVICE` (default `cpu`, the
+VideoPhy cache's), checked against its chain or `freeze.json`; `run_perception_iteration.sh`
+takes its device from `PHYSVERIFY_ITERATION_DEVICE` (default `cpu`) and its profile from
+`PHYSVERIFY_ITERATION_PROFILE`; `run_kubric.sh` runs on the CPU with the profile of
+`PHYSVERIFY_KUBRIC_PROFILE`; and `run_demo.sh` scores a given video with `--device cpu` when there
+is no GPU.
 
 Each script's header lists its commands or steps, its startup checks (every refusal exits 2
 before any `physverify` call) and its variables with their defaults; this file gives the order of
@@ -25,7 +27,7 @@ use and what each script leaves behind.
 | `run_perception_iteration.sh`, `perception_arms.tsv` | One iteration of the perception campaign on the calib clips |
 | `run_freeze.sh`, `freeze_query.py` | The freeze: adopted iteration, exclusion record, abstention level, `freeze.json` |
 | `run_final.sh` | The sealed final looks |
-| `run_human_agreement.sh`, `agreement_query.py` | Human-agreement study on VideoPhy (CPU) |
+| `run_human_agreement.sh`, `agreement_query.py` | Human-agreement study on VideoPhy |
 | `setup_autoeval.sh`, `smoke_autoeval.sh`, `autoeval_requirements.txt` | VideoPhy-2 AutoEval judge and its gate |
 | `run_generator_comparison.sh` | Fine-tuned vs base vs best-of-8 |
 | `run_demo.sh` | End-to-end demo |

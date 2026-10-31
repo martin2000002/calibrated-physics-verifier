@@ -24,7 +24,8 @@ TOOLS = (
     "head", "ln", "mkdir", "mv", "nproc", "realpath", "sed", "sha256sum", "sort", "tee", "touch",
     "tr",
 )  # fmt: skip
-PREFIX = re.compile(r"^--profile precise --device cpu --set runtime\.threads=(\d+) ")
+PREFIX = re.compile(r"^--profile precise --device (cpu|cuda) --set runtime\.threads=(\d+) ")
+GPU = "2"
 RECORD_SHA = "rec0123"
 # pv calls go to the case below; the helpers answer from files (agreement_query) or run for real on
 # run-errors unless the run holds the clean rows and REAL_QUERY is unset (its import costs
@@ -70,7 +71,7 @@ new_run() {
 case "$*" in
   *" doctor")
     echo "config_dir: ${DOCTOR_CONFIG_DIR:-$REPO_CONFIGS}"
-    echo "device: ${DOCTOR_DEVICE:-cpu} (--device)"
+    echo "device: ${DOCTOR_DEVICE:-$4} (--device)"
     echo "config_hash: ${CONFIG_HASH:-cafe12345678}"
     echo "paths.data_dir: ${DOCTOR_DATA_DIR:-$DATA}"
     echo "paths.cache_dir: ${DOCTOR_CACHE_DIR:-$PHYSVERIFY__PATHS__CACHE_DIR} (env)"
@@ -94,7 +95,7 @@ case "$*" in
         mkdir -p "$DATA/agreement"
         calib="$(sha256sum "$CAL/calibration.json" | cut -d ' ' -f 1)"
         printf '%s\n' "state=$state" "rule=${PREREG_RULE:-calibrated}" \
-            "calibration_gate=${PREREG_GATE:-}" "device=${PREREG_DEVICE:-cpu}" "profile=precise" \
+            "calibration_gate=${PREREG_GATE:-}" "device=${PREREG_DEVICE:-$4}" "profile=precise" \
             "rule_label=calibrated/cal-1" "n_dev=619" "dev_majority=0" "dev_cut=0.42" \
             "dev_tuned_cut=" "calibration_artifact_sha256=${PREREG_CALIB:-$calib}" \
             "exclusion_record_sha256=${PREREG_RECORD:-rec0123}" > "$PREREG"
@@ -178,6 +179,18 @@ def sandbox(tmp_path: Path) -> AgreementSandbox:
     return AgreementSandbox(tmp_path)
 
 
+def _on(device: str) -> dict[str, str]:
+    """The environment of a run on DEVICE (cuda with one GPU of 0-3)."""
+    gpu = {"CUDA_VISIBLE_DEVICES": GPU} if device == "cuda" else {}
+    return {"PHYSVERIFY_AGREEMENT_DEVICE": device, **gpu}
+
+
+def _chain_on(sandbox: AgreementSandbox, device: str) -> None:
+    (sandbox.chain_dir / "state.env").write_text(
+        f"CHAIN_DEVICE={device}\nCHAIN_PROFILE=precise\nRECORD_SHA={RECORD_SHA}\n"
+    )
+
+
 def _dev_done(sandbox: AgreementSandbox, **env: str) -> None:
     result = sandbox.run("dev", **env)
     assert result.returncode == 0, result.stderr
@@ -209,7 +222,12 @@ def test_a_missing_or_unknown_phase_stops_before_any_call(sandbox: AgreementSand
             "uncommitted or untracked",
         ),
         ({"DIRTY_FILES": "?? annotations/videophy_queries.new.json\n"}, "annotations/videophy"),
-        ({"PHYSVERIFY_AGREEMENT_DEVICE": "cuda"}, "PHYSVERIFY_AGREEMENT_DEVICE must be cpu"),
+        ({"PHYSVERIFY_AGREEMENT_DEVICE": "gpu"}, "PHYSVERIFY_AGREEMENT_DEVICE must be cpu or cuda"),
+        ({"PHYSVERIFY_AGREEMENT_DEVICE": "cuda"}, "needs CUDA_VISIBLE_DEVICES in 0-3"),
+        (
+            {"PHYSVERIFY_AGREEMENT_DEVICE": "cuda", "CUDA_VISIBLE_DEVICES": "5"},
+            "needs CUDA_VISIBLE_DEVICES in 0-3",
+        ),
         ({"PHYSVERIFY__AGREEMENT__RULE": "provisional_any_fail"}, "PHYSVERIFY__AGREEMENT__RULE"),
         ({"PHYSVERIFY__VERIFICATION__X": "1"}, "PHYSVERIFY__VERIFICATION__X"),
         ({"PHYSVERIFY__PATHS__THRESHOLDS": "/t.json"}, "PHYSVERIFY__PATHS__THRESHOLDS"),
@@ -242,9 +260,12 @@ def _append(path: Path, text: str) -> None:
 @pytest.mark.parametrize(
     ("change", "message"),
     [
+        (lambda s: _chain_on(s, "cuda"), "never mix devices or profiles"),
         (
-            lambda s: (s.chain_dir / "state.env").write_text("CHAIN_DEVICE=cuda\nRECORD_SHA=r\n"),
-            "cpu chain",
+            lambda s: (s.chain_dir / "state.env").write_text(
+                "CHAIN_DEVICE=cpu\nCHAIN_PROFILE=fast\n"
+            ),
+            "never mix devices or profiles",
         ),
         (lambda s: (s.chain_dir / "state.env").write_text("CHAIN_DEVICE=cpu\n"), "RECORD_SHA"),
         (lambda s: _append(s.chain_dir / "steps.tsv", "4\tstep\t1\t1\t-\n"), "step 4"),
@@ -253,7 +274,7 @@ def _append(path: Path, text: str) -> None:
         (lambda s: (s.calibration / "exclusions.json").unlink(), "exclusions.json"),
     ],
 )
-def test_an_unfinished_cpu_calibration_chain_stops_before_any_call(
+def test_an_unfinished_or_mixed_calibration_chain_stops_before_any_call(
     sandbox: AgreementSandbox, change, message
 ) -> None:
     change(sandbox)
@@ -283,15 +304,19 @@ def test_doctor_must_report_the_exported_cpu_configuration(
     assert sandbox.commands() == ["doctor"]
 
 
-def test_every_call_runs_on_the_cpu_through_the_interpreter(sandbox: AgreementSandbox) -> None:
-    _dev_done(sandbox)
-    assert sandbox.run("test").returncode == 0
+@pytest.mark.parametrize(("device", "gpus"), [("cpu", ""), ("cuda", GPU)])
+def test_every_call_runs_on_the_chains_device_through_the_interpreter(
+    sandbox: AgreementSandbox, device: str, gpus: str
+) -> None:
+    _chain_on(sandbox, device)
+    _dev_done(sandbox, **_on(device))
+    assert sandbox.run("test", **_on(device)).returncode == 0
     lines = sandbox.lines()
     assert not [line for line in lines if line.startswith("forbidden")]
-    pv = [line[3:] for line in lines if line.startswith("pv ")]
-    assert pv and all(PREFIX.match(call) and PREFIX.match(call)[1] == "32" for call in pv)
+    pv = [PREFIX.match(line[3:]) for line in lines if line.startswith("pv ")]
+    assert pv and all(call and call.groups() == (device, "32") for call in pv)
     paths = (sandbox.data, *(sandbox.root / "Repo" / "data" / n for n in ("cache", "raw")))
-    expected = f"env cuda=|{'|'.join(map(str, paths))}|{sandbox.calibration}|unset|unset|true"
+    expected = f"env cuda={gpus}|{'|'.join(map(str, paths))}|{sandbox.calibration}|unset|unset|true"
     envs = [line for line in lines if line.startswith("env ")]
     assert len(envs) == len(pv) and set(envs) == {expected}
 
@@ -299,7 +324,7 @@ def test_every_call_runs_on_the_cpu_through_the_interpreter(sandbox: AgreementSa
 def test_the_thread_budget_can_be_set(sandbox: AgreementSandbox) -> None:
     assert sandbox.run("dev", PHYSVERIFY_AGREEMENT_THREADS="8").returncode == 0
     pv = [line[3:] for line in sandbox.lines() if line.startswith("pv ")]
-    assert {PREFIX.match(call)[1] for call in pv} == {"8"}
+    assert {PREFIX.match(call)[2] for call in pv} == {"8"}
 
 
 def test_dev_freezes_without_touching_test(sandbox: AgreementSandbox) -> None:
@@ -343,6 +368,7 @@ def _freeze(sandbox: AgreementSandbox, **change: str) -> dict[str, str]:
     data = {
         "commit": "c0ffee1234567",
         "device": "cpu",
+        "profile": "precise",
         "calibration_dir": str(sandbox.calibration),
         "record_sha": RECORD_SHA,
         **change,
@@ -351,9 +377,12 @@ def _freeze(sandbox: AgreementSandbox, **change: str) -> dict[str, str]:
     return {"PHYSVERIFY_AGREEMENT_FREEZE": str(manifest)}
 
 
-def test_the_freeze_manifest_stands_for_the_calibration_chain(sandbox: AgreementSandbox) -> None:
-    """The manifest's record_sha is the one the pre-registration holds."""
-    env = _freeze(sandbox)
+@pytest.mark.parametrize("device", ["cpu", "cuda"])
+def test_the_freeze_manifest_stands_for_the_calibration_chain(
+    sandbox: AgreementSandbox, device: str
+) -> None:
+    """The manifest's record_sha is the one the pre-registration holds, on the frozen device."""
+    env = {**_freeze(sandbox, device=device), **_on(device)}
     _dev_done(sandbox, **env)
     result = sandbox.run("test", **env)
     assert result.returncode == 0, result.stderr
@@ -365,7 +394,9 @@ def test_the_freeze_manifest_stands_for_the_calibration_chain(sandbox: Agreement
 @pytest.mark.parametrize(
     ("change", "env", "message"),
     [
-        ({"device": "cuda"}, {}, "not a cpu freeze"),
+        ({"device": "cuda"}, {}, "never mix devices or profiles"),
+        ({}, _on("cuda"), "never mix devices or profiles"),
+        ({"profile": "fast"}, {}, "never mix devices or profiles"),
         ({"commit": "b" * 40}, {}, "froze commit"),
         ({"calibration_dir": "/elsewhere"}, {}, "froze /elsewhere"),
         ({}, {"ARTIFACTS_EXIT": "2"}, "frozen files"),
@@ -566,17 +597,20 @@ def test_an_uncommitted_local_config_stops_before_any_call(sandbox: AgreementSan
     assert sandbox.lines() == []
 
 
+@pytest.mark.parametrize("device", ["cpu", "cuda"])
 def test_moving_the_output_and_data_directories_does_not_unspend_test(
-    sandbox: AgreementSandbox,
+    sandbox: AgreementSandbox, device: str
 ) -> None:
     _dev_done(sandbox)
     assert sandbox.run("test").returncode == 0
     ledger = sandbox.root / "h2-test-ledger.txt"
     assert ledger.read_text().splitlines() == [str(sandbox.comparison_log())]
     sandbox.calls.unlink()
+    _chain_on(sandbox, device)
     moved = {
         "PHYSVERIFY_AGREEMENT_DIR": str(sandbox.root / "h2b"),
         "PHYSVERIFY_AGREEMENT_DATA": str(sandbox.root / "d2"),
+        **_on(device),
     }
     dev = sandbox.run("dev", **moved)
     assert dev.returncode == 2 and "post hoc" in dev.stderr and str(ledger) in dev.stderr
