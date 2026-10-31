@@ -9,7 +9,8 @@ The focal's relative sigma phi is the depth model's measured ``focal_rel`` (rms 
 the DEPTH entry of the error profile), at least ``focal_sigma_floor_rel``. Without that entry it is
 ``unmeasured_focal_sigma_rel``, by default the phi of camera/assumed_fov's field of view: an
 unmeasured focal counts as no better than an assumed one. It is never NaN, so LIFT always gets a
-known focal sigma from this camera.
+known focal sigma from this camera. On the true depth the focal is the true one: phi is 0 and the
+floor, which bounds a model's error, does not apply.
 """
 
 from __future__ import annotations
@@ -22,7 +23,7 @@ from typing import ClassVar, Final, Literal
 from pydantic import BaseModel, Field
 
 from physverify.core.errors import MissingInputError
-from physverify.extraction._base import ProviderParams, StageContext, WeightSpec
+from physverify.extraction._base import GROUND_TRUTH, ProviderParams, StageContext, WeightSpec
 from physverify.extraction.backprojection import focal_rel_sigma
 from physverify.extraction.gravity_pose import pose_from_gravity
 from physverify.extraction.providers._assumed_fov import Params as AssumedParams
@@ -93,6 +94,8 @@ class DepthFocalCamera:
         )
 
     def _focal_phi(self, ctx: StageContext) -> float:
+        if ctx.plan.get(Stage.DEPTH) == GROUND_TRUTH:
+            return 0.0
         measured = entry_rms(ctx.error_entry(Stage.DEPTH, FOCAL_REL))
         phi = self.params.unmeasured_focal_sigma_rel if math.isnan(measured) else measured
         return max(phi, self.params.focal_sigma_floor_rel)

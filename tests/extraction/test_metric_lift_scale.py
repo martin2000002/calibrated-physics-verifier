@@ -20,7 +20,7 @@ from physverify.extraction.providers.camera_from_depth import DepthFocalCamera
 from physverify.extraction.providers.lift_backproject import BackprojectLift
 from physverify.extraction.providers.scale_metric_depth import MetricDepthScale
 from physverify.schema.clip import FrameSampling
-from physverify.schema.error_profile import FOCAL_REL, SCALE_REL, ErrorProfile, ErrorEntry
+from physverify.schema.error_profile import FOCAL_REL, SCALE_REL, ErrorEntry, ErrorProfile
 from physverify.schema.outputs import StageOutput
 from physverify.schema.perception import DepthKind, DepthMap, MaskTrack
 from physverify.schema.scale import ScaleEstimate, ScaleSource, effective_scale
@@ -173,7 +173,9 @@ def test_a_from_depth_camera_gives_the_lift_finite_sigma(
 ) -> None:
     profile = profile_of(*lift_entries(), *focal)
     upstream = plane_inputs()
-    camera = run_provider(DepthFocalCamera, context(fixture_clip, upstream, profile), gravity="none")
+    camera = run_provider(
+        DepthFocalCamera, context(fixture_clip, upstream, profile), gravity="none"
+    )
     lift_ctx = context(fixture_clip, {**upstream, Stage.CAMERA: camera}, profile)
     table = run_provider(BackprojectLift, lift_ctx, **EXACT_GEOMETRY)
     assert isinstance(table, ObjectStateTable)

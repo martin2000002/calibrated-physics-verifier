@@ -139,16 +139,17 @@ def test_without_gravity_geocalib_never_loads(fixture_clip: SyntheticClip) -> No
     assert camera.K[0, 0] == FOCAL_PX
 
 
-def test_on_true_depth_the_focal_is_the_true_one(fixture_clip: SyntheticClip) -> None:
+def test_on_true_depth_the_focal_is_exact(fixture_clip: SyntheticClip) -> None:
     truth_ctx = make_context(fixture_clip, gt=fixture_clip.ground_truth)
     truth = run_provider(GroundTruthCamera, truth_ctx)
     depth = run_provider(GroundTruthDepth, truth_ctx)
     assert isinstance(truth, CameraModel)
     plan = {Stage.DEPTH: GROUND_TRUTH, Stage.CAMERA: "from_depth"}
     ctx = make_context(fixture_clip, upstream={Stage.DEPTH: depth}, plan=plan)
-    camera = run(ctx, refusing_loader, gravity="none")
+    camera = run(ctx, refusing_loader, gravity="none", focal_sigma_floor_rel=0.05)
     assert camera.K[0, 0] == truth.K[0, 0]
     assert camera.fov_deg == pytest.approx(truth.fov_deg)
+    assert camera.fov_sigma_deg == 0.0
 
 
 def test_a_depth_without_focal_is_an_error_not_a_fallback(fixture_clip: SyntheticClip) -> None:
