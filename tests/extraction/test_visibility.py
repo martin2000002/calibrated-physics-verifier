@@ -227,7 +227,7 @@ def test_visible_cells_match_and_none_is_version_one(fixture_clip: SyntheticClip
 
 
 def test_the_lift_version_and_params_separate_the_cache() -> None:
-    assert BackprojectLift.version == "4"
+    assert BackprojectLift.version == "5"
     params = BackprojectLift.Params()
     assert params.gap_visibility == "interpolate"  # type: ignore[attr-defined]
     assert params.temporal_filter == "none"  # type: ignore[attr-defined]

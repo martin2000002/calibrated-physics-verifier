@@ -14,8 +14,16 @@ from physverify.checks.r1_interpenetration import (
 )
 from physverify.schema.checks import AbstainReason, CheckResult, Verdict
 from physverify.schema.constants import ENV_ID
+from physverify.schema.states import PrimitiveKind
+from physverify.verification.thresholding import ThresholdEntry, ThresholdRule
 
 ALL_FRAMES = range(sc.FRAMES)
+CUBE_GAP = 0.005
+POSE_SIGMA = 0.005
+# Two 0.2 m cubes 5 mm apart with 5 mm position and size sigmas: 0.0395 without yaw; each cube
+# turned by 0.27 rad reaches -0.0181 m, so each adds |0.0181 + 0.005| = 0.0231 m in quadrature.
+SIGMA_WITHOUT_YAW = 0.0395284707532414
+SIGMA_WITH_YAW = 0.16771452761142908
 
 
 def check() -> InterpenetrationCheck:
@@ -126,3 +134,45 @@ def test_clearly_separated_bodies_have_zero_sigma_and_nan_propagates() -> None:
     assert result.sigma == 0.0
     unknown = sc.with_sigma(sc.overlapping_spheres(), position=math.nan)
     assert math.isnan(by_subject(unknown)[("ball_a", "ball_b")].sigma)
+
+
+def cube_pair(orientation_sigma: float) -> sc.Case:
+    a = sc.still("a", PrimitiveKind.BOX, sc.cube(0.2), (0.0, 0.0, 0.1))
+    b = sc.still("b", PrimitiveKind.BOX, sc.cube(0.2), (0.2 + CUBE_GAP, 0.0, 0.1))
+    case = sc.build("pair", [a, b], [sc.resting(a), sc.resting(b)])
+    return sc.with_sigma(case, position=POSE_SIGMA, size=POSE_SIGMA, orientation=orientation_sigma)
+
+
+def test_an_unprofiled_pose_makes_the_sigma_unknown_and_the_rule_abstain() -> None:
+    result = by_subject(cube_pair(math.nan))[("a", "b")]
+    assert result.details["orientation_assumed"] is False
+    assert math.isnan(result.sigma)
+    assert result.magnitude is not None
+    entry = ThresholdEntry(tau=0.05)
+    verdict, reason = ThresholdRule().judge(result.magnitude, result.sigma, entry)
+    assert (verdict, reason) == (Verdict.ABSTAIN, AbstainReason.UNKNOWN_UNCERTAINTY)
+
+
+def test_the_yaw_sigma_widens_the_ratio_sigma_by_sigma_points() -> None:
+    results = by_subject(cube_pair(0.27))
+    assert results[("a", "b")].sigma == pytest.approx(SIGMA_WITH_YAW, rel=1e-6)
+    yaw_only = math.sqrt(2.0) * (0.0181 + CUBE_GAP) / 0.2
+    assert results[("a", "b")].sigma > math.hypot(SIGMA_WITHOUT_YAW, yaw_only) * 0.99
+    exact = by_subject(cube_pair(0.0))
+    assert results[("a", ENV_ID)].sigma == exact[("a", ENV_ID)].sigma
+
+
+def test_an_exact_pose_keeps_the_sigma_bit_identical() -> None:
+    result = by_subject(cube_pair(0.0))[("a", "b")]
+    assert result.sigma == SIGMA_WITHOUT_YAW
+    oracle = by_subject(sc.with_sigma(cube_pair(0.0), position=0.0, size=0.0))
+    assert all(r.sigma == 0.0 for r in oracle.values())
+
+
+def test_a_sphere_ignores_its_orientation_sigma() -> None:
+    case = sc.with_sigma(sc.overlapping_spheres(0.05, (0.1, 0.15)), position=0.01)
+    unknown = sc.with_sigma(case, orientation=math.nan)
+    assert (
+        by_subject(unknown)[("ball_a", "ball_b")].sigma
+        == by_subject(case)[("ball_a", "ball_b")].sigma
+    )

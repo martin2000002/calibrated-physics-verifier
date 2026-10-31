@@ -322,10 +322,11 @@ def test_an_unknown_focal_error_is_unknown_in_both_sigma_modes(
         centre=np.array([0.4, -0.2, 3.0]), extents=np.full(3, 0.3), r_eq_px=12.0, n_pixels=450
     )
     intrinsics = np.array([[120.0, 0.0, 64.0], [0.0, 120.0, 64.0], [0.0, 0.0, 1.0]])
-    position = object_position(summary.centre, summary.extents, 0.5)
+    offset = 0.5 * float(summary.extents[2])
+    position = object_position(summary.centre, offset)
     closed = closed_form_sigma(position, summary.extents, summary.r_eq_px, intrinsics, errors)
     rng = np.random.default_rng(0)
-    sampled = monte_carlo_sigma(summary, intrinsics, 0.5, errors, rng, 2000)
+    sampled = monte_carlo_sigma(summary, summary.extents, offset, intrinsics, errors, rng, 2000)
     for cf, mc in zip(closed, sampled, strict=True):
         assert bool(np.isnan(mc[np.isnan(cf)]).all())
     unknown = math.isnan(phi) or not with_profile

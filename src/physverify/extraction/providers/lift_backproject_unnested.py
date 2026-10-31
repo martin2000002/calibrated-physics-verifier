@@ -20,7 +20,7 @@ class UnnestedBackprojectLift(BackprojectLift):
     ``REAL_PRIMITIVES`` as the default label map."""
 
     name: ClassVar[str] = "backproject_unnested"
-    version: ClassVar[str] = "1"
+    version: ClassVar[str] = "2"
     Params: ClassVar[type[BaseModel]] = UnnestedLiftParams
 
     def __init__(self, params: BaseModel) -> None:
