@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The sealed final evaluation on the H200, in a clean checkout at the frozen commit of
-# $F/freeze.json (run_freeze.sh). Every call is --profile precise --device cpu with the frozen
-# artifacts of $F/calibration.
+# $F/freeze.json (run_freeze.sh). Every call is --profile precise --device $PV_DEVICE, the device
+# freeze.json records, with the frozen artifacts of $F/calibration.
 #
 #   bash scripts/h200/run_final.sh seed            the preregistered seed is the freeze's
 #   bash scripts/h200/run_final.sh render SET      kubric_fresh | kubric_fresh_ood (run_kubric.sh)
@@ -24,11 +24,12 @@
 # freeze's commit, with nothing uncommitted or untracked under src, configs, scripts, annotations,
 # pyproject.toml or uv.lock; no configs/local.toml, no PHYSVERIFY_CONFIG_DIR, no PHYSVERIFY__* variable but the paths exported
 # here; no PHYSVERIFY_UNSEAL or PHYSVERIFY_UNSEAL_REPEAT from the caller (this script sets them for
-# a look and a v1 arm only); freeze.json of device cpu and profile precise with its calibration
+# a look and a v1 arm only); freeze.json of this run's PV_DEVICE and profile precise (_common.sh
+# require_pair; cuda needs CUDA_VISIBLE_DEVICES in 0-3) with its calibration
 # directory $F/calibration and its frozen files unchanged (freeze_query artifacts);
 # PHYSVERIFY_FINAL_SEED is the freeze's preregistered seed; $F/run-final/state.env of the same
 # commit and dry-run mode; for any command but seed, the seed command has run. Then doctor must
-# report the committed configs, cpu, precise, the cache and the calibration in $F.
+# report the committed configs, the device, precise, the cache and the calibration in $F.
 #
 # Fresh data: extract refuses a set whose cache directory ($CACHE/<dataset>) exists before its first
 # extraction (the marker $F/run-final/extract-SET.started tells a resume), and every Kubric command
@@ -46,6 +47,7 @@
 #                                   checkout is at
 #   PHYSVERIFY_FINAL_SEED           the preregistered seed
 # Optional (defaults in brackets):
+#   PV_DEVICE                       cpu or cuda, the device freeze.json records [cuda]
 #   PHYSVERIFY_FINAL_DIR            $F [$H200_ROOT/final]
 #   PHYSVERIFY_FINAL_FREEZE         the freeze manifest [$F/freeze.json]
 #   PHYSVERIFY_FINAL_DATA           paths.data_dir [$H200_ROOT/kubric-data]
@@ -176,8 +178,7 @@ VENV="${PHYSVERIFY_FINAL_VENV:-$(dirname "$(dirname "$PY")")}"
 THREADS="${PHYSVERIFY_FINAL_THREADS:-32}"
 [[ "$THREADS" =~ ^[1-9][0-9]*$ ]] || die "PHYSVERIFY_FINAL_THREADS must be a positive integer"
 [[ -f "$FREEZE" ]] || die "no freeze manifest at $FREEZE (run_freeze.sh writes it)"
-export CUDA_VISIBLE_DEVICES=""
-PV_DEVICE=cpu
+use_device PV_DEVICE
 
 export PHYSVERIFY__PATHS__DATA_DIR="$DATA"
 export PHYSVERIFY__PATHS__CACHE_DIR="$CACHE"
@@ -196,8 +197,7 @@ frozen() {
 
 [[ "$(frozen commit)" == "$HEAD_COMMIT" ]] \
     || die "freeze.json is of commit $(frozen commit), HEAD is $HEAD_COMMIT"
-[[ "$(frozen device)" == cpu && "$(frozen profile)" == precise ]] \
-    || die "freeze.json is of device $(frozen device), profile $(frozen profile): not cpu, precise"
+require_pair "$FREEZE" "$(frozen device)" "$(frozen profile)"
 same_path "$(frozen calibration_dir)" "$CAL" \
     || die "freeze.json froze $(frozen calibration_dir), not $CAL"
 fq artifacts "$FREEZE" >/dev/null || die "the frozen files changed (freeze_query artifacts)"
@@ -240,7 +240,7 @@ STEPS="$RUN/steps.tsv"
 NOTES="$RUN/notes-$STEP${SET:+-$SET}.md"
 SUMMARY="$RUN/summary-$STEP${SET:+-$SET}.md"
 SUMMARY_TITLE="Final: $STEP ${SET:-} ${RETRY:-}"
-SUMMARY_INFO="commit $HEAD_COMMIT, seed $SEED, dry run $DRYRUN, profile precise, device cpu, cache $CACHE, data $DATA"
+SUMMARY_INFO="commit $HEAD_COMMIT, seed $SEED, dry run $DRYRUN, profile $PV_PROFILE, device $PV_DEVICE, cache $CACHE, data $DATA"
 mkdir -p "$LOGS"
 touch "$STEPS" "$NOTES"
 

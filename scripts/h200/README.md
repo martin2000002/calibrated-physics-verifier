@@ -5,8 +5,9 @@ H200; runs on any other machine are harness checks, not measurements.** A run co
 measurement only with `--device cuda` and the `precise` profile. `pv` in `_common.sh` passes both
 by default, and `run_timing.sh`, `run_preference.sh`, `run_finetune.sh`,
 `run_generator_comparison.sh` and `smoke_autoeval.sh` keep them. The other runners do not:
-`smoke_finetune.sh` uses the `fast` profile; `run_freeze.sh`, `run_final.sh` and
-`run_human_agreement.sh` run on the CPU; `run_perception_iteration.sh` takes its device from
+`smoke_finetune.sh` uses the `fast` profile; `run_freeze.sh` and `run_final.sh` run on the
+device of the adopted iteration (`PV_DEVICE`, recorded in `freeze.json`);
+`run_human_agreement.sh` runs on the CPU; `run_perception_iteration.sh` takes its device from
 `PHYSVERIFY_ITERATION_DEVICE` (default `cpu`) and its profile from `PHYSVERIFY_ITERATION_PROFILE`;
 `run_kubric.sh` runs on the CPU with the profile of `PHYSVERIFY_KUBRIC_PROFILE`; and `run_demo.sh`
 scores a given video with `--device cpu` when there is no GPU.
@@ -248,8 +249,12 @@ A missing `[sealed]` table fails closed.
 
 ## Freeze and final looks
 
-Both run in a clean checkout at the freeze commit, on the CPU, profile `precise`, with the
-committed configs only.
+Both run in a clean checkout at the freeze commit, profile `precise`, with the committed configs
+only, on the device the caller gives in `PV_DEVICE` (`cpu`, or `cuda` with one GPU of 0-3 in
+`CUDA_VISIBLE_DEVICES`). The device and profile are a pair checked in one place
+(`require_pair` in `_common.sh`): the freeze takes those of the adopted iteration and records them
+in `freeze.json`, and the final run takes those of `freeze.json`; a calibration of one device is
+never evaluated on another.
 
 ```sh
 source "$PHYSVERIFY_H200_ROOT/env.sh"

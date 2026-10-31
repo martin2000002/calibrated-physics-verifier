@@ -23,7 +23,8 @@ TOOLS = (
 )  # fmt: skip
 HEAD = "c0ffee1234567" + "0" * 27
 V1 = "a" * 40
-PREFIX = re.compile(r"^--profile precise --device cpu --set runtime\.threads=\d+ ")
+PREFIX = re.compile(r"^--profile precise --device (cpu|cuda) --set runtime\.threads=\d+ ")
+GPU = "2"
 # freeze_query.py field and seed run for real (they only read freeze.json or hash strings); the
 # ledger is a file of commit|sets|run_dir lines that a fake look appends to before it computes,
 # as the sealed guard does, and that the fake look-state and v1-state read with the one-look rule.
@@ -221,6 +222,7 @@ class FinalSandbox(Sandbox):
                 "PHYSVERIFY_FINAL_V1_CHECKOUT": str(self.ckv),
                 "PHYSVERIFY_FINAL_V1_BASE": str(self.base),
                 "PHYSVERIFY_FINAL_OVERLAY_CLI": str(overlay),
+                "PV_DEVICE": "cpu",
             }
         )
 
@@ -394,8 +396,8 @@ def test_a_local_config_is_refused(sandbox: FinalSandbox) -> None:
     ("change", "message"),
     [
         ({"commit": "b" * 40}, "freeze.json is of commit"),
-        ({"device": "cuda"}, "not cpu, precise"),
-        ({"profile": "fast"}, "not cpu, precise"),
+        ({"device": "cuda"}, "of device cuda, profile precise, this run of device cpu"),
+        ({"profile": "fast"}, "of device cpu, profile fast, this run of device cpu"),
         ({"calibration_dir": "/elsewhere"}, "froze /elsewhere"),
     ],
 )
@@ -405,6 +407,39 @@ def test_a_freeze_of_another_state_is_refused(
     sandbox.freeze(sandbox.final, **change)
     result = sandbox.run("seed")
     assert result.returncode == 2 and message in result.stderr, result.stderr
+    assert sandbox.commands() == []
+
+
+@pytest.mark.parametrize("device", ["cpu", "cuda"])
+def test_the_final_run_takes_the_frozen_device(sandbox: FinalSandbox, device: str) -> None:
+    sandbox.freeze(sandbox.final, device=device)
+    visible = {"CUDA_VISIBLE_DEVICES": GPU} if device == "cuda" else {}
+    sandbox.ok("seed", PV_DEVICE=device, **visible)
+    sandbox.ok("render", "kubric_fresh", PV_DEVICE=device, **visible)
+    sandbox.ok("extract", "kubric_fresh", PV_DEVICE=device, **visible)
+    pv = [line[3:] for line in sandbox.lines() if line.startswith("pv ")]
+    assert len(pv) == 4 and all(
+        line.startswith(f"--profile precise --device {device} ") for line in pv
+    )
+    assert {env[0] for env in sandbox.envs()} == {visible.get("CUDA_VISIBLE_DEVICES", "")}
+    assert f"device {device}" in sandbox.summary("extract-kubric_fresh")
+
+
+@pytest.mark.parametrize(
+    ("frozen", "env"),
+    [("cuda", {"PV_DEVICE": "cpu"}), ("cpu", {"PV_DEVICE": "cuda", "CUDA_VISIBLE_DEVICES": GPU})],
+)
+def test_a_final_run_on_another_device_than_the_freeze_is_refused(
+    sandbox: FinalSandbox, frozen: str, env: dict[str, str]
+) -> None:
+    """A calibration frozen on one device is never evaluated on the other."""
+    sandbox.freeze(sandbox.final, device=frozen)
+    result = sandbox.run("seed", **env)
+    assert result.returncode == 2, result.stderr
+    assert f"of device {frozen}, profile precise, this run of device {env['PV_DEVICE']}" in (
+        result.stderr
+    )
+    assert "never mix devices or profiles" in result.stderr
     assert sandbox.commands() == []
 
 

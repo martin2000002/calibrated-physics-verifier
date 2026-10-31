@@ -55,6 +55,30 @@ THREADS="${PHYSVERIFY_TIMING_THREADS:-$(nproc)}"
 # or after sourcing this file; an exported PV_DEVICE is kept.
 PV_DEVICE="${PV_DEVICE:-cuda}"
 
+# use_device NAME: the value of the variable NAME (cpu or cuda) becomes PV_DEVICE. cpu hides the
+# GPUs; cuda needs one GPU of 0-3 in CUDA_VISIBLE_DEVICES (gpu_queue.sh; 4-7 are never used).
+use_device() {
+    local device="${!1:-}"
+    case "$device" in
+        cpu) export CUDA_VISIBLE_DEVICES="" ;;
+        cuda)
+            [[ "${CUDA_VISIBLE_DEVICES:-}" =~ ^[0-3]$ ]] \
+                || die "$1=cuda needs CUDA_VISIBLE_DEVICES in 0-3 (gpu_queue.sh), got" \
+                    "'${CUDA_VISIBLE_DEVICES-unset}'"
+            ;;
+        *) die "$1 must be cpu or cuda, got '$device'" ;;
+    esac
+    PV_DEVICE="$device"
+}
+
+# require_pair WHAT DEVICE PROFILE [FAIL]: WHAT (an adopted calibration, a freeze) was made with
+# this run's PV_DEVICE and PV_PROFILE; FAIL (die by default) refuses any other pair.
+require_pair() {
+    [[ "$2" == "$PV_DEVICE" && "$3" == "$PV_PROFILE" ]] && return 0
+    "${4:-die}" "$1 is of device $2, profile $3, this run of device $PV_DEVICE, profile" \
+        "$PV_PROFILE: calibration and evaluation never mix devices or profiles"
+}
+
 # PV_RUNNER picks how pv reaches the checkout: uv (the default) or py, the interpreter $PY with
 # this checkout's src first (_steps.sh). PV_PROFILE is precise; PV_NICE prefixes and PV_EXTRA
 # extends every call. A caller changes them after sourcing; exported values are ignored.
