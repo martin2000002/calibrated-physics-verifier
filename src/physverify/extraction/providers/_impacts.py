@@ -31,20 +31,39 @@ from scipy.stats import chi2
 from scipy.stats import f as f_dist
 
 from physverify.physics.kinematics import visible_runs
+from physverify.physics.row_time import reference_seconds, rows_in
 from physverify.physics.ties import TIE_RTOL
 from physverify.physics.tracks import NoiseScale
 
 FloatArray = NDArray[np.float64]
-EDGE_SIDE_ROWS = 3
-"""Fewest rows on one side of a boundary next to the end of a finite run."""
-LOCAL_ROWS = 3
+EDGE_SIDE_S = reference_seconds(3)
+"""Least time on one side of a boundary next to the end of a finite run."""
+LOCAL_S = reference_seconds(3)
 """One impulse per neighbourhood: an accepted boundary must hold the largest gain this close."""
+MIN_SIDE_ROWS = 3
+"""Fewest rows on one side of a boundary at any frame rate (the 24-fps edge side)."""
 DEGREES_OF_FREEDOM = 3
 """One extra coefficient per axis."""
 KINK_COEFFICIENTS = 4
 """Parabola plus kink, per axis."""
 GRID = 9
 """Points per interval of the coarse search for an acceleration change, refined at the best."""
+
+
+@dataclass(frozen=True)
+class ImpactRows:
+    """The impact windows in rows of one table: at most ``side`` rows per side of a boundary, at
+    least ``edge_side`` next to the end of a finite run, one impulse per ``local`` rows."""
+
+    side: int
+    edge_side: int
+    local: int
+
+    @classmethod
+    def at(cls, side_s: float, row_seconds: float) -> ImpactRows:
+        edge = rows_in(EDGE_SIDE_S, row_seconds, MIN_SIDE_ROWS)
+        side = max(edge, rows_in(side_s, row_seconds))
+        return cls(side=side, edge_side=edge, local=rows_in(LOCAL_S, row_seconds))
 
 
 @dataclass(frozen=True)
@@ -250,13 +269,14 @@ def finite_runs(position: FloatArray) -> tuple[slice, ...]:
     return visible_runs(np.all(np.isfinite(position), axis=-1))
 
 
-def boundaries(position: FloatArray, side_rows: int) -> Iterator[tuple[int, int, int]]:
-    """(row, lo, hi): boundary after ``row`` with window rows lo..hi-1, at most ``side_rows`` per
-    side and at least EDGE_SIDE_ROWS next to the end of a finite run."""
+def boundaries(position: FloatArray, rows: ImpactRows) -> Iterator[tuple[int, int, int]]:
+    """(row, lo, hi): boundary after ``row`` with window rows lo..hi-1, at most ``rows.side`` per
+    side and at least ``rows.edge_side`` next to the end of a finite run."""
+    side, edge = rows.side, rows.edge_side
     for run in finite_runs(position):
         for row in range(run.start, run.stop - 1):
-            lo, hi = max(run.start, row + 1 - side_rows), min(run.stop, row + 1 + side_rows)
-            if row + 1 - lo >= EDGE_SIDE_ROWS and hi - row - 1 >= EDGE_SIDE_ROWS:
+            lo, hi = max(run.start, row + 1 - side), min(run.stop, row + 1 + side)
+            if row + 1 - lo >= edge and hi - row - 1 >= edge:
                 yield row, lo, hi
 
 
@@ -298,14 +318,14 @@ def track_impacts(
     t: FloatArray,
     position: FloatArray,
     noise: NoiseScale,
-    side_rows: int,
+    rows: ImpactRows,
     alpha: float,
     bases: Bases | None = None,
 ) -> list[Impact]:
     """Impacts of one track (rows with a non-finite position split it into runs). ``bases``
     caches the window bases by row times; tracks of one clip can share it."""
     sigma = noise.sigma
-    candidates = list(boundaries(position, side_rows))
+    candidates = list(boundaries(position, rows))
     cache: Bases = {} if bases is None else bases
     groups: dict[tuple[float, ...], list[Window]] = {}
     for row, lo, hi in candidates:
@@ -322,16 +342,16 @@ def track_impacts(
             accepted.append(
                 Impact(window.row, window.origin + s * window.step, delta_v, at_kink, ratio)
             )
-    return local_maxima(sorted(accepted, key=lambda impact: impact.row))
+    return local_maxima(sorted(accepted, key=lambda impact: impact.row), rows.local)
 
 
-def local_maxima(impacts: list[Impact]) -> list[Impact]:
-    """Keep an impact only when no other one within LOCAL_ROWS rows has a larger F ratio (ties go
-    to the earlier row)."""
+def local_maxima(impacts: list[Impact], local_rows: int) -> list[Impact]:
+    """Keep an impact only when no other one within ``local_rows`` rows has a larger F ratio
+    (ties go to the earlier row)."""
 
     def beaten(impact: Impact) -> bool:
         return any(
-            abs(other.row - impact.row) <= LOCAL_ROWS
+            abs(other.row - impact.row) <= local_rows
             and (
                 other.score > impact.score
                 or (other.score == impact.score and other.row < impact.row)

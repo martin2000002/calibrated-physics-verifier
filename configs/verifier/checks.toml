@@ -3,8 +3,8 @@
 # Deliverable 1 is a local proof of the pipeline: ~25 synthetic clips (5 families x 1 seed x
 # none + 1 mid level per applicable perturbation) plus 5 Physics-IQ and 5 PISA clips.
 # The full dataset and the large runs happen on the H200.
-# Frame counts (min_*_frames, fit_frames, side_frames) count table ROWS; margins
-# (impact_margin_frames) are NATIVE frames. Perceived tables may be strided (extraction.toml).
+# Windows (*_s) are SECONDS of real time, turned into table rows at each clip's row rate
+# (physics/row_time.py); the defaults are the former row counts at 24 fps.
 # Any check id (R1, R2, R3a, R3b, R4_missing, R4_size, R4_jump, R5a, R5b) accepts a
 # [checks.<id>] table overriding fields of its Params; unknown fields are a ConfigError.
 

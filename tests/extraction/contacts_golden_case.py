@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import sys
 from collections.abc import Callable
-from dataclasses import dataclass, replace
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -24,22 +24,10 @@ from physverify.extraction.matching import align_ground_truth
 from physverify.extraction.providers.contacts_proximity import ProximityContacts
 from physverify.schema.contacts import ContactTable
 from physverify.schema.io import json_ready
-from physverify.schema.stages import Stage
 from physverify.schema.states import ObjectStateTable
 
 sc = cs.sc
 GOLDEN = Path(__file__).resolve().parent / "golden" / "contacts_proximity"
-
-
-@dataclass(frozen=True)
-class StatesOnly:
-    """The part of a StageContext that a KINEMATICS-only provider reads."""
-
-    states: ObjectStateTable
-
-    def require(self, stage: Stage, kind: type[ObjectStateTable]) -> ObjectStateTable:
-        assert stage is Stage.KINEMATICS and isinstance(self.states, kind)
-        return self.states
 
 
 def fixture_states() -> ObjectStateTable:
@@ -79,10 +67,15 @@ def plain(table: ContactTable) -> Any:
 
 
 def proximity_table(states: ObjectStateTable) -> ContactTable:
-    provider = ProximityContacts(ProximityContacts.Params())
-    table = provider.run(StatesOnly(states))  # type: ignore[arg-type]
-    assert isinstance(table, ContactTable)
-    return table
+    """Every case runs at the scenarios' 24 fps."""
+    records = ProximityContacts(ProximityContacts.Params()).records(states, sc.DT)
+    return ContactTable(
+        clip_id=states.clip_id,
+        frame=states.frame,
+        unit=states.unit,
+        source_key=states.source_key,
+        records=records,
+    )
 
 
 def main(out: Path = GOLDEN) -> None:

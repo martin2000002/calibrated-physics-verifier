@@ -29,6 +29,7 @@ from physverify.physics.measures.gravity_fit import (
     fall_residual_ratio,
     lateral_accel_ratio,
 )
+from physverify.physics.row_time import reference_seconds, rows_in
 from physverify.physics.tracks import MIN_FIT_ROWS, body_length, native_span
 from physverify.schema.checks import AbstainReason, CheckResult
 from physverify.schema.contacts import ContactTable
@@ -39,11 +40,26 @@ IntArray = NDArray[np.int64]
 
 
 class FallShapeParams(FallParams):
-    min_flight_frames: int = Field(default=6, ge=MIN_FIT_ROWS)
-    side_frames: int = Field(default=4, ge=MIN_FIT_ROWS)
+    min_flight_s: float = Field(default=reference_seconds(6), gt=0.0)
+    side_s: float = Field(default=reference_seconds(4), gt=0.0)
     # After the shared fall filter, a flight whose fitted drop |a| T^2 / 2 stays below this many
     # body lengths has no acceleration to shape (a drift without gravity): its ratio is 0 / 0.
     min_drop_lengths: float = Field(default=1e-6, ge=0.0)
+
+
+@dataclass(frozen=True)
+class FlightRows:
+    """The flight windows of one table in rows: a long flight, and a split's side."""
+
+    min_flight: int
+    side: int
+
+    @classmethod
+    def of(cls, params: FallShapeParams, row_seconds: float) -> FlightRows:
+        return cls(
+            min_flight=rows_in(params.min_flight_s, row_seconds, MIN_FIT_ROWS),
+            side=rows_in(params.side_s, row_seconds, MIN_FIT_ROWS),
+        )
 
 
 @dataclass(frozen=True, eq=False)
@@ -78,9 +94,12 @@ class FallShapeCheck:
             raise ValueError(f"{self.check_id} requires contacts")
         states, contacts = inputs.states, inputs.contacts
         rng = check_rng(self.params.seed, inputs.clip.clip_id, self.check_id)
+        rows = FlightRows.of(self.params, inputs.row_seconds)
         falls = {i: self._falls(states, contacts, i) for i in range(states.n_objects)}
-        results = [self._object(inputs, flights, rng) for flights in falls.values() if flights]
-        firsts = [long[0] for long in (self._long(f) for f in falls.values()) if long]
+        results = [
+            self._object(inputs, flights, rows, rng) for flights in falls.values() if flights
+        ]
+        firsts = [long[0] for long in (_long(f, rows) for f in falls.values()) if long]
         for a, b in itertools.combinations(firsts, 2):
             pair = _candidate(states, (a, b), (a, b), "pair")
             if math.isfinite(pair.value):
@@ -99,15 +118,16 @@ class FallShapeCheck:
         floor = self.params.min_drop_lengths * length if math.isfinite(length) else 0.0
         return drop > floor
 
-    def _long(self, flights: Sequence[Flight]) -> list[Flight]:
-        return [f for f in flights if f.present >= self.params.min_flight_frames]
-
     def _object(
-        self, inputs: CheckInputs, flights: Sequence[Flight], rng: np.random.Generator
+        self,
+        inputs: CheckInputs,
+        flights: Sequence[Flight],
+        rows: FlightRows,
+        rng: np.random.Generator,
     ) -> CheckResult:
         states = inputs.states
-        long = self._long(flights)
-        candidates = [c for f in long for c in self._splits(states, f)]
+        long = _long(flights, rows)
+        candidates = [c for f in long for c in _splits(states, f, rows.side)]
         candidates += [
             _candidate(states, (a, b), (a, b), "consecutive") for a, b in itertools.pairwise(long)
         ]
@@ -117,25 +137,14 @@ class FallShapeCheck:
             details = {
                 "flights": len(flights),
                 "longest_rows": max(f.present for f in flights),
-                "min_flight_frames": self.params.min_flight_frames,
-                "side_frames": self.params.side_frames,
+                "min_flight_rows": rows.min_flight,
+                "side_rows": rows.side,
             }
             span = flights_span(states.frame_index, flights)
             reason = AbstainReason.TOO_FEW_FRAMES
             return abstain(type(self), inputs, subject, reason, span, details)
         best = candidates[first_max(np.array([c.value for c in candidates]))]
         return self._scored(inputs, subject, best, rng)
-
-    def _splits(self, states: ObjectStateTable, flight: Flight) -> list[Candidate]:
-        """One candidate per row k leaving >= side_frames present rows on each side."""
-        side = self.params.side_frames
-        out = []
-        for k in range(flight.lo + 1, flight.hi):
-            left, right = flight.rows[flight.rows < k], flight.rows[flight.rows >= k]
-            if left.size >= side and right.size >= side:
-                windows = (_sub(flight, left, k), _sub(flight, right, flight.hi))
-                out.append(_candidate(states, windows, (flight,), "split", split_row=k))
-        return out
 
     def _scored(
         self,
@@ -149,6 +158,21 @@ class FallShapeCheck:
         span = flights_span(states.frame_index, best.flights)
         details = _details(states, best)
         return unscored(type(self), inputs, subject, best.value, sigma, span, details)
+
+
+def _long(flights: Sequence[Flight], rows: FlightRows) -> list[Flight]:
+    return [f for f in flights if f.present >= rows.min_flight]
+
+
+def _splits(states: ObjectStateTable, flight: Flight, side: int) -> list[Candidate]:
+    """One candidate per row k leaving >= ``side`` present rows on each side."""
+    out = []
+    for k in range(flight.lo + 1, flight.hi):
+        left, right = flight.rows[flight.rows < k], flight.rows[flight.rows >= k]
+        if left.size >= side and right.size >= side:
+            windows = (_sub(flight, left, k), _sub(flight, right, flight.hi))
+            out.append(_candidate(states, windows, (flight,), "split", split_row=k))
+    return out
 
 
 def _sub(flight: Flight, rows: IntArray, hi: int) -> Flight:

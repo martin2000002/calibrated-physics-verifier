@@ -22,6 +22,7 @@ from physverify.physics.equilibrium import (
     solve_equilibrium,
 )
 from physverify.physics.measures.support_overhang import overhang_fraction
+from physverify.physics.row_time import reference_seconds, rows_in
 from physverify.physics.tracks import (
     body_length,
     contact_rows,
@@ -52,7 +53,7 @@ class EquilibriumParams(CommonParams):
     cone_edges: int = Field(default=4, ge=3)
     mass_floor: float = Field(default=0.2, ge=0.0, le=1.0)
     rest_speed: float = Field(default=0.1, gt=0.0)
-    min_rest_frames: int = Field(default=3, ge=1)
+    min_rest_s: float = Field(default=reference_seconds(3), gt=0.0)
     agent_labels: tuple[str, ...] = ("person", "hand", "arm", "animal", "dog", "cat")
     norm_edges: int = Field(default=8, ge=3)
 
@@ -110,19 +111,19 @@ class EquilibriumCheck:
             return [
                 abstain(type(self), inputs, subject, AbstainReason.MISSING_INPUT, None, details)
             ]
-        resting = self._resting(states)
+        resting = self._resting(states, rows_in(self.params.min_rest_s, inputs.row_seconds))
         return [
             self._event(inputs, event)
             for start, stop in _runs(resting)
             for event in _components(states, contacts, resting, start, stop)
         ]
 
-    def _resting(self, states: ObjectStateTable) -> BoolArray:
-        """Rows x bodies at rest for at least ``min_rest_frames`` consecutive rows."""
+    def _resting(self, states: ObjectStateTable, min_rows: int) -> BoolArray:
+        """Rows x bodies at rest for at least ``min_rows`` consecutive rows."""
         resting = np.zeros(states.visible.shape, dtype=np.bool_)
         for i in range(states.n_objects):
             mask = rest_mask(states, i, self.params.rest_speed)
-            for start, stop in segments(mask, self.params.min_rest_frames):
+            for start, stop in segments(mask, min_rows):
                 resting[start:stop, i] = True
         return resting
 

@@ -11,7 +11,6 @@ from pydantic import BaseModel
 from physverify.checks._base import CheckInputs, abstain, unscored
 from physverify.checks._params import OcclusionParams
 from physverify.physics.measures.object_integrity import missing_frames
-from physverify.physics.row_time import seconds_per_row
 from physverify.physics.tracks import FloatArray, native_span, row_step
 from physverify.schema.checks import AbstainReason, CheckResult
 
@@ -63,7 +62,7 @@ class PermanenceCheck:
             if missing_frames(shown[k : k + 1], inside[k : k + 1], occlusion[k : k + 1], at)
         ]
         span = native_span(fi, rows[0], rows[-1]) if rows else None
-        row_seconds = seconds_per_row(fi, inputs.clip.seconds_per_frame)
+        row_seconds = inputs.row_seconds
         sigma, estimated = self._sigma(states.position_sigma[:, index], rows, row_seconds)
         details = {
             "missing_rows": n_rows,

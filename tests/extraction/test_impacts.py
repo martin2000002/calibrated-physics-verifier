@@ -18,7 +18,7 @@ from test_cache import UPSTREAM as CACHE_UPSTREAM
 from test_cache import key_of, versioned
 
 from physverify.extraction.providers._impact_attribution import SOURCE
-from physverify.extraction.providers._impacts import track_impacts
+from physverify.extraction.providers._impacts import ImpactRows, track_impacts
 from physverify.extraction.providers.contacts_kinematic import KinematicContacts
 from physverify.physics.tracks import MIN_NOISE_STENCILS, NoiseScale, noise_scale, pixel_floor
 from physverify.schema.constants import ENV_ID
@@ -27,7 +27,7 @@ from physverify.schema.stages import Stage
 from physverify.schema.states import CoordFrame, PrimitiveKind
 
 sc = cs.sc
-SIDE_ROWS, ALPHA = 4, 0.05
+ROWS, ALPHA = ImpactRows(side=4, edge_side=3, local=3), 0.05
 TEST_SIGMA = 4.0 / (cs.FOCAL_PX * math.sqrt(12.0))
 UPSTREAM = {**CACHE_UPSTREAM, Stage.KINEMATICS: "k-kinematics"}
 
@@ -40,7 +40,7 @@ def impacts_of(case: sc.Case, index: int = 0) -> list[Any]:
     """Detector alone on one track with the test pixel floor as its noise."""
     states = case.states
     noise = NoiseScale(np.full(3, TEST_SIGMA), known=True)
-    return track_impacts(states.t, states.position[:, index], noise, SIDE_ROWS, ALPHA)
+    return track_impacts(states.t, states.position[:, index], noise, ROWS, ALPHA)
 
 
 def angle_deg(u: np.ndarray, v: np.ndarray) -> float:
@@ -148,7 +148,7 @@ def micro_kink(px: float = 1e-3) -> sc.Case:
 def test_a_kink_of_a_thousandth_of_a_pixel_is_below_the_floor() -> None:
     case = micro_kink()
     tiny = NoiseScale(np.full(3, 1e-12), known=True)
-    unfloored = track_impacts(case.states.t, case.states.position[:, 0], tiny, 4, 0.05)
+    unfloored = track_impacts(case.states.t, case.states.position[:, 0], tiny, ROWS, ALPHA)
     assert unfloored, "without a floor the exact micro kink would be an impact"
     assert no_kinematic_records(case)
 
@@ -303,7 +303,7 @@ def test_every_parameter_and_the_version_enter_the_key(fixture_clip: SyntheticCl
     changed = [
         key(impacts="none"),
         key(resting_split="normal_and_count"),
-        key(side_rows=5),
+        key(side_s=0.25),
         key(alpha=0.01),
         key(versioned(KinematicContacts, "2")),
     ]
