@@ -75,9 +75,9 @@ STAGE_KEYS = {
     "lift/backproject": "ebfe1a1a540435ed100cf121083da7d3f7c8f1befbae65c2fc47ed185edfa82b",
     "lift/backproject_unnested": "245f1e6635f3007505a7305cba10619b878a66c41193edd825ec43b90b9b0e05",
     "scale/free_fall": "4f36674421ade07b33d9fc7c145e46ba83c8ec44d8aeabfb31534dcf76f7c04b",
-    "scale/metric_depth": "b0ace4534e8a4a7122777165c617a461e4d7ee08ec897af5bd77681f0797b6ee",
-    "scale/size_model": "35aa718afada60bc43f07afd2029215ad5ff57efab4de855f809099a74f215a0",
-    "scale/size_prior": "78502c4c7876bd248d44297a353581bc4087900a8d065d7a536bb62bad6296bc",
+    "scale/metric_depth": "385a7be7bddd6c74b0c89820732d00740cd85f4d192e1b54bc348bbf7689c3a8",
+    "scale/size_model": "1b884cd95207324b22753351a2b7b0bb040335e9d9a7e655d00fff74baa73ce3",
+    "scale/size_prior": "f22af1b73e8274993dc4678f7fd77328038a66535c895026830ad8164ee9ed28",
     "track/edgetam": "81a150661413d4a8e45d79ab5f2dd7a3c4b2ca10db56a5bade893403801ce4d8",
     "track/sam2_1_hiera_tiny": "88cf35cd5a540158b73d940af239b84d357dd091f5b2935f884a87671d14dbee",
 }

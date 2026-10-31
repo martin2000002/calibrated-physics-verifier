@@ -17,7 +17,13 @@ from scipy.ndimage import binary_erosion
 from physverify.physics.geometry import characteristic_length
 from physverify.physics.uncertainty import entry_draws, entry_rms, monte_carlo
 from physverify.schema.error_profile import ErrorEntry
-from physverify.schema.perception import DepthKind, DepthMap, MaskTrack
+from physverify.schema.perception import (
+    CameraModel,
+    DepthKind,
+    DepthMap,
+    IntrinsicsSource,
+    MaskTrack,
+)
 from physverify.schema.states import LengthUnit
 
 FloatArray = NDArray[np.float64]
@@ -216,6 +222,15 @@ def focal_rel_sigma(fov_deg: float, fov_sigma_deg: float) -> float:
 def fov_sigma_from_phi(fov_deg: float, phi: float) -> float:
     """Inverse of ``focal_rel_sigma``: the field-of-view sigma (degrees) of a focal known to phi."""
     return math.degrees(phi / _focal_rel_per_fov_rad(fov_deg))
+
+
+def camera_focal_phi(camera: CameraModel) -> float:
+    """phi of a camera: 0 for the truth, NaN when its field-of-view sigma is unknown."""
+    if camera.source is IntrinsicsSource.GROUND_TRUTH:
+        return 0.0
+    if not (math.isfinite(camera.fov_deg) and math.isfinite(camera.fov_sigma_deg)):
+        return math.nan
+    return focal_rel_sigma(camera.fov_deg, camera.fov_sigma_deg)
 
 
 def closed_form_sigma(

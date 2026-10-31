@@ -2,7 +2,8 @@
 
 Objects that resolve to the same class share the prior error with correlation ``same_class_rho``
 (compound symmetry): within a class group only the measurement term averages down, and the
-shared term rho * p^2 is added back to the group before the groups are combined."""
+shared term rho * p^2 is added back to the group before the groups are combined. The clip's focal
+error enters once, after the groups (the convention of ``_size_prior``)."""
 
 from __future__ import annotations
 
@@ -17,8 +18,10 @@ from physverify.extraction._base import ProviderParams, StageContext, WeightSpec
 from physverify.extraction.providers._common import expect_params
 from physverify.extraction.providers._size_prior import (
     ObjectScale,
+    clip_focal_phi,
     combine,
     object_scale,
+    with_focal,
 )
 from physverify.schema.scale import ScaleEstimate, ScaleSource
 from physverify.schema.stages import Stage
@@ -30,9 +33,10 @@ from physverify.sizing.settings import SECTION as SIZING_SECTION
 from physverify.sizing.settings import SizeLookup
 
 DETAIL_PREFIX = "size_model"
-SIGMA_SCOPE = "sigma=size_term_only"
-"""The sigma carries the object-size error alone: the camera intrinsics (an assumed FOV on real
-video) are not propagated, so on real video it undercovers."""
+SIGMA_SCOPE = "sigma=size_and_focal"
+"""The sigma carries the object-size error and, once per clip, the camera's relative focal sigma.
+Not in it: the focal error is anisotropic (with a size scale it moves depth, not lateral metres),
+and the sigma treats it as a factor on every axis (ADR 0023)."""
 FALLBACK_GROUP = "prior:"
 
 
@@ -48,7 +52,7 @@ class SizeModelScale:
     stage: ClassVar[Stage] = Stage.SCALE
     name: ClassVar[str] = "size_model"
     version: ClassVar[str] = "2"
-    requires: ClassVar[tuple[Stage, ...]] = (Stage.LIFT,)
+    requires: ClassVar[tuple[Stage, ...]] = (Stage.CAMERA, Stage.LIFT)
     heavy: ClassVar[bool] = False
     is_ground_truth: ClassVar[bool] = False
     error_profile_reads: ClassVar[tuple[Stage, ...]] = ()
@@ -65,7 +69,8 @@ class SizeModelScale:
 
     def run(self, ctx: StageContext) -> ScaleEstimate:
         lift = ctx.require(Stage.LIFT, ObjectStateTable)
-        groups = self._groups(lift)
+        phi = clip_focal_phi(ctx)
+        groups = self._groups(lift, phi)
         if not groups:
             return ScaleEstimate(None, math.nan, ScaleSource.NONE, lift.source_key, "no_prior")
         if self.params.same_class_rho == 0.0:
@@ -75,9 +80,12 @@ class SizeModelScale:
         detail = (
             f"{DETAIL_PREFIX}:{model_hash(self.params.model, self.params.lookup)}:{SIGMA_SCOPE}"
         )
+        sigma = with_focal(scale, sigma, phi)
         return ScaleEstimate(scale, sigma, ScaleSource.SIZE_PRIOR, lift.source_key, detail)
 
-    def _groups(self, lift: ObjectStateTable) -> dict[str, tuple[SizePrior, list[ObjectScale]]]:
+    def _groups(
+        self, lift: ObjectStateTable, phi: float
+    ) -> dict[str, tuple[SizePrior, list[ObjectScale]]]:
         """Per resolved class: its prior and each object's scale with only the unshared part
         (1 - rho) p^2 of the prior variance."""
         keep = math.sqrt(1.0 - self.params.same_class_rho)
@@ -88,7 +96,7 @@ class SizeModelScale:
                 continue
             key, prior = resolved
             unshared = SizePrior(mean_m=prior.mean_m, rel_spread=keep * prior.rel_spread)
-            estimate = object_scale(lift, n, unshared)
+            estimate = object_scale(lift, n, unshared, phi)
             if estimate is not None:
                 groups.setdefault(key, (prior, []))[1].append(estimate)
         return groups

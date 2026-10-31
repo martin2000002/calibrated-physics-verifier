@@ -1,4 +1,9 @@
-"""Scale from the known typical size of labelled objects."""
+"""Scale from the known typical size of labelled objects.
+
+Focal convention shared by every SCALE provider (ADR 0023): meters per unit goes as f^k, k = 1
+here (lift extents are z / f) and k = 0 for a metric depth. The clip's relative focal sigma phi
+is one error common to every object, so it enters the relative scale sigma once, as (k phi)^2,
+after the objects are combined; the per-object terms leave it out."""
 
 from __future__ import annotations
 
@@ -13,8 +18,10 @@ from pydantic import BaseModel
 
 from physverify.config.models import SIZE_PRIORS_SECTION, SizePrior, SizePriorTable
 from physverify.extraction._base import StageContext, WeightSpec
+from physverify.extraction.backprojection import camera_focal_phi
 from physverify.extraction.providers._common import expect_params
 from physverify.physics.geometry import characteristic_lengths
+from physverify.schema.perception import CameraModel
 from physverify.schema.scale import ScaleEstimate, ScaleSource
 from physverify.schema.stages import Stage
 from physverify.schema.states import ObjectStateTable
@@ -35,7 +42,7 @@ class SizePriorScale:
     stage: ClassVar[Stage] = Stage.SCALE
     name: ClassVar[str] = "size_prior"
     version: ClassVar[str] = "2"
-    requires: ClassVar[tuple[Stage, ...]] = (Stage.LIFT,)
+    requires: ClassVar[tuple[Stage, ...]] = (Stage.CAMERA, Stage.LIFT)
     heavy: ClassVar[bool] = False
     is_ground_truth: ClassVar[bool] = False
     error_profile_reads: ClassVar[tuple[Stage, ...]] = ()
@@ -50,16 +57,19 @@ class SizePriorScale:
 
     def run(self, ctx: StageContext) -> ScaleEstimate:
         lift = ctx.require(Stage.LIFT, ObjectStateTable)
+        phi = clip_focal_phi(ctx)
         estimates = [
             estimate
             for n, label in enumerate(lift.labels.tolist())
             if (prior := self._prior(label)) is not None
-            and (estimate := object_scale(lift, n, prior)) is not None
+            and (estimate := object_scale(lift, n, prior, phi)) is not None
         ]
         if not estimates:
             return ScaleEstimate(None, math.nan, ScaleSource.NONE, lift.source_key, "no_prior")
         scale, sigma = combine(estimates)
-        return ScaleEstimate(scale, sigma, ScaleSource.SIZE_PRIOR, lift.source_key)
+        return ScaleEstimate(
+            scale, with_focal(scale, sigma, phi), ScaleSource.SIZE_PRIOR, lift.source_key
+        )
 
     def _prior(self, label: str) -> SizePrior | None:
         priors = self.params.priors.root
@@ -67,20 +77,40 @@ class SizePriorScale:
         return None if key is None else priors[key]
 
 
-def object_scale(lift: ObjectStateTable, n: int, prior: SizePrior) -> ObjectScale | None:
-    """s_i = mean_m / median_t L and rho_i^2 = rel_spread^2 + median_t(sigma_L / L)^2."""
+def clip_focal_phi(ctx: StageContext) -> float:
+    return camera_focal_phi(ctx.require(Stage.CAMERA, CameraModel))
+
+
+def object_scale(
+    lift: ObjectStateTable, n: int, prior: SizePrior, phi: float
+) -> ObjectScale | None:
+    """s_i = mean_m / median_t L and rho_i^2 = rel_spread^2 + median_t(sigma_L / L)^2, with
+    sigma_L free of the focal error ``phi`` (``without_focal``)."""
     size = lift.size[:, n]
     known = lift.visible[:, n] & np.all(np.isfinite(size), axis=1) & np.all(size > 0, axis=1)
     if not bool(known.any()):
         return None
     lengths = characteristic_lengths(size[known])
     # sigma_L / L = (1/3) sqrt(sum_j (sigma_e_j / e_j)^2) for L = (e_x e_y e_z)^(1/3).
-    rel_sigma = np.sqrt(np.sum((lift.size_sigma[:, n][known] / size[known]) ** 2, axis=1)) / 3.0
+    rel_extent = without_focal(lift.size_sigma[:, n][known] / size[known], phi)
+    rel_sigma = np.sqrt(np.sum(rel_extent**2, axis=1)) / 3.0
     length = float(np.median(lengths))
     return ObjectScale(
         log_scale=math.log(prior.mean_m / length),
         rel_var=prior.rel_spread**2 + float(np.median(rel_sigma)) ** 2,
     )
+
+
+def without_focal(rel_sigma: NDArray[np.float64], phi: float) -> NDArray[np.float64]:
+    """Relative extent sigmas without the focal term LIFT adds in quadrature to every extent
+    (``closed_form_sigma``); NaN when phi is unknown."""
+    removed: NDArray[np.float64] = np.sqrt(np.clip(rel_sigma**2 - phi**2, 0.0, None))
+    return removed
+
+
+def with_focal(scale: float, sigma: float, phi: float) -> float:
+    """sigma of s = mean_m / L with the clip's focal error added once: s goes as f."""
+    return scale * math.hypot(sigma / scale, phi)
 
 
 def combine(estimates: list[ObjectScale]) -> tuple[float, float]:
