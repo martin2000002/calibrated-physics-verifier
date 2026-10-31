@@ -56,13 +56,9 @@ def test_relative_depth_is_aligned_by_the_median_ratio() -> None:
     np.testing.assert_allclose(outcome.samples["depth_absrel"], np.zeros(FRAMES), atol=FLOAT32_TOL)
 
 
-def test_metric_depth_against_metric_truth_is_not_rescaled() -> None:
-    outcome = measure(depth_map(1.1 * true_z(), DepthKind.METRIC_Z), metric_truth())
-    np.testing.assert_allclose(outcome.samples["depth_absrel"], np.full(FRAMES, 0.1), atol=1e-6)
-
-
-def test_metric_depth_against_relative_truth_is_rescaled() -> None:
-    truth = depth_map(true_z(), DepthKind.RELATIVE_DEPTH)
+@pytest.mark.parametrize("truth_kind", [DepthKind.METRIC_Z, DepthKind.RELATIVE_DEPTH])
+def test_metric_depth_is_rescaled_against_any_truth(truth_kind: DepthKind) -> None:
+    truth = depth_map(true_z(), truth_kind)
     outcome = measure(depth_map(1.1 * true_z(), DepthKind.METRIC_Z), truth)
     np.testing.assert_allclose(outcome.samples["depth_absrel"], np.zeros(FRAMES), atol=FLOAT32_TOL)
 

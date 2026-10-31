@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
@@ -19,6 +19,13 @@ from physverify.schema.stages import STAGE_ORDER, Stage, check_upstream_order
 SETTINGS_SECTIONS_ATTR = "settings_sections"
 """Optional provider ClassVar ``{param_field: (settings_section, model)}``: the plan fills each
 field from that configuration section, so the section enters ``params`` and the cache key."""
+
+PERCEIVED_PARAMS_ATTR = "perceived_params"
+"""Optional ground-truth provider ClassVar ``{param_field: read(perceived_provider)}``: when the
+truth stands in for the configured perceived provider, the plan fills each field from that
+provider's class, so the truth matches what it replaces (e.g. metric depth for a metric model)."""
+
+PerceivedParams = Mapping[str, Callable[[type[StageProvider]], object]]
 
 
 @dataclass(frozen=True)
@@ -54,6 +61,11 @@ def settings_sections(provider: type[StageProvider]) -> Mapping[str, tuple[str, 
         provider, SETTINGS_SECTIONS_ATTR, {}
     )
     return sections
+
+
+def perceived_params(provider: type[StageProvider]) -> PerceivedParams:
+    reads: PerceivedParams = getattr(provider, PERCEIVED_PARAMS_ATTR, {})
+    return reads
 
 
 def resolve_plan(
@@ -114,16 +126,35 @@ def _stage_plan(
         raise ConfigError(f"[extraction.plan] has no provider for stage {stage.value!r}")
     name = GROUND_TRUTH if ground_truth else config.plan[stage]
     key = f"{stage.value}/{name}"
-    if key not in providers:
-        known = sorted(k for k in providers if k.startswith(f"{stage.value}/"))
-        raise ConfigError(f"unknown provider {key!r}; available for this stage: {known}")
-    provider = providers[key]
+    provider = _provider(providers, stage, name)
     try:
         check_upstream_order(stage, provider.requires)
     except SchemaError as exc:
         raise ConfigError(f"{key}: {exc}") from exc
     raw = dict(config.providers.get(stage, {}).get(name, {}))
+    reads = perceived_params(provider)
+    if ground_truth and reads and config.plan[stage] != GROUND_TRUTH:
+        _mirror(reads, key, raw, _provider(providers, stage, config.plan[stage]))
     return StagePlan(stage, provider, _params(provider, key, raw, settings))
+
+
+def _provider(
+    providers: Mapping[str, type[StageProvider]], stage: Stage, name: str
+) -> type[StageProvider]:
+    key = f"{stage.value}/{name}"
+    if key not in providers:
+        known = sorted(k for k in providers if k.startswith(f"{stage.value}/"))
+        raise ConfigError(f"unknown provider {key!r}; available for this stage: {known}")
+    return providers[key]
+
+
+def _mirror(
+    reads: PerceivedParams, key: str, raw: dict[str, Any], perceived: type[StageProvider]
+) -> None:
+    for field, read in reads.items():
+        if field in raw:
+            raise ConfigError(f"{key}: {field!r} follows the perceived provider it replaces")
+        raw[field] = read(perceived)
 
 
 def _params(

@@ -21,14 +21,12 @@ def valid_pixels(pred: DepthMap, truth: DepthMap) -> BoolArray:
     return valid
 
 
-def align(
-    d: FloatArray, z: FloatArray, kind: DepthKind, eps_frac: float, metric_truth: bool
-) -> FloatArray:
+def align(d: FloatArray, z: FloatArray, kind: DepthKind, eps_frac: float) -> FloatArray:
     """z_hat for matching 1-D pixel samples ``d`` (prediction) and ``z`` (truth depth).
 
     Affine disparity: least squares a d + b ~ 1/z, z_hat = 1/max(a d + b, eps) with
-    eps = eps_frac * median(1/z). Relative depth (or metric depth against a relative truth):
-    z_hat = median(z/d) d."""
+    eps = eps_frac * median(1/z). Relative or metric depth: z_hat = median(z/d) d, so a metric
+    model is scored on its shape like any other; its scale error is depth/metric's scale_rel."""
     if kind is DepthKind.AFFINE_DISPARITY:
         inverse = 1.0 / z
         design = np.column_stack([d, np.ones_like(d)])
@@ -36,8 +34,6 @@ def align(
         eps = eps_frac * float(np.median(inverse))
         aligned: FloatArray = 1.0 / np.maximum(a * d + b, eps)
         return aligned
-    if kind is DepthKind.METRIC_Z and metric_truth:
-        return d
     scaled: FloatArray = float(np.median(z / d)) * d
     return scaled
 
@@ -54,14 +50,11 @@ def aligned_depth(
         raise ValueError("truth depth must be a depth, not a disparity")
     d, z = pred.depth.astype(np.float64), truth.depth.astype(np.float64)
     out = np.full(d.shape, np.nan)
-    metric_truth = truth.kind is DepthKind.METRIC_Z
     for frames in alignment_groups(d.shape[0], case.options.depth_alignment):
         group = np.zeros_like(valid)
         group[frames] = valid[frames]
         if group.any():
-            out[group] = align(
-                d[group], z[group], pred.kind, case.options.depth_eps_frac, metric_truth
-            )
+            out[group] = align(d[group], z[group], pred.kind, case.options.depth_eps_frac)
     return out
 
 

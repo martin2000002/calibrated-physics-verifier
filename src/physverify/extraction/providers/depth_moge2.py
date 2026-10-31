@@ -85,6 +85,7 @@ class MoGe2Depth:
     error_profile_reads: ClassVar[tuple[Stage, ...]] = ()
     weights: ClassVar[tuple[WeightSpec, ...]] = (CODE, GEOMETRY, CHECKPOINT)
     Params: ClassVar[type[BaseModel]] = Params
+    depth_output: ClassVar[DepthKind] = DepthKind.METRIC_Z
 
     def __init__(self, params: BaseModel) -> None:
         self.params = expect_params(params, Params)
@@ -101,7 +102,7 @@ class MoGe2Depth:
         fov_x = self._shared_fov(model, frames)
         estimate = predict(model, frames, fov_x, self.params.batch_size)
         focal_rel = float(np.median(estimate.focal_rel))
-        depth = to_depth_map(s, estimate.depth, DepthKind.METRIC_Z)
+        depth = to_depth_map(s, estimate.depth, self.depth_output)
         return replace(depth, focal_px=focal_rel * s.width, focal_sigma_px=math.nan)
 
     def _shared_fov(self, model: PointMapModel, frames: NDArray[np.uint8]) -> float | None:

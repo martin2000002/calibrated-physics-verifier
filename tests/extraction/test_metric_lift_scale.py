@@ -11,10 +11,13 @@ from dataclasses import replace
 
 import numpy as np
 import pytest
+from settings_factory import SettingsFactory
 from support import entry, make_context, profile_of, run_provider
 from synthetic_clip import SyntheticClip
+from wiring import resolve_plan
 
-from physverify.extraction._base import GROUND_TRUTH, StageContext
+from physverify.diagnosis.chain_variants import ladder
+from physverify.extraction._base import GROUND_TRUTH, StageContext, StageProvider
 from physverify.extraction.providers._geocalib import camera_model
 from physverify.extraction.providers.camera_from_depth import DepthFocalCamera
 from physverify.extraction.providers.lift_backproject import BackprojectLift
@@ -40,6 +43,13 @@ PLAN = {
     Stage.LIFT: "backproject",
     Stage.SCALE: "metric_depth",
 }
+METRIC_ARM = (
+    "extraction.plan.depth=moge2",
+    "extraction.plan.camera=from_depth",
+    "extraction.plan.lift=backproject",
+    "extraction.plan.scale=metric_depth",
+    "extraction.providers.camera.from_depth.gravity=none",
+)
 EXACT_GEOMETRY = {
     "erode_px": 0,
     "extent_percentiles": (0.0, 100.0),
@@ -181,3 +191,25 @@ def test_a_from_depth_camera_gives_the_lift_finite_sigma(
     assert isinstance(table, ObjectStateTable)
     assert np.isfinite(table.position_sigma).all()
     assert np.isfinite(table.size_sigma).all()
+
+
+def test_at_v3_a_metric_depth_arm_keeps_an_exact_metric_scale(
+    fixture_clip: SyntheticClip,
+    make_settings: SettingsFactory,
+    real_providers: dict[str, type[StageProvider]],
+) -> None:
+    v3 = ladder()[3]
+    plan = resolve_plan(
+        make_settings(*METRIC_ARM), real_providers, dataset="x", gt_stages=v3.gt_order
+    )
+    outputs: dict[Stage, StageOutput] = {}
+    for step in plan.stages[: STAGE_ORDER.index(Stage.SCALE) + 1]:
+        ctx = make_context(
+            fixture_clip, upstream=outputs, plan=plan.names, gt=fixture_clip.ground_truth
+        )
+        outputs[step.stage] = step.provider(step.params).run(ctx)
+    lift, scale = outputs[Stage.LIFT], outputs[Stage.SCALE]
+    assert isinstance(lift, ObjectStateTable) and lift.unit is LengthUnit.METER
+    assert isinstance(scale, ScaleEstimate)
+    assert scale.source is ScaleSource.METRIC_DEPTH
+    assert scale.sigma == 0.0

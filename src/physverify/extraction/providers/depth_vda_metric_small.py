@@ -32,14 +32,12 @@ class VideoDepthAnythingMetricSmall(VideoDepthAnythingSmall):
     name: ClassVar[str] = "vda_metric_small"
     version: ClassVar[str] = "1"
     weights: ClassVar[tuple[WeightSpec, ...]] = (CODE, METRIC_CHECKPOINT)
+    depth_output: ClassVar[DepthKind] = DepthKind.RELATIVE_DEPTH
 
     def loader(self) -> Callable[[StageContext], Any]:
         return functools.partial(
             load_model, checkpoint=self.checkpoint(), metric=True, provider="depth/vda_metric_small"
         )
-
-    def depth_kind(self) -> DepthKind:
-        return DepthKind.RELATIVE_DEPTH
 
 
 PLUGINS = (VideoDepthAnythingMetricSmall,)
