@@ -41,9 +41,8 @@ class PromptRecord(FrozenModel):
 
 class CandidateRecord(FrozenModel):
     """``candidate_id`` names the candidate inside its model tag; ``clip_id`` names its video for
-    extraction and verification. The clip id never depends on ``config_hash``, so rescoring
-    reuses the extraction cache; a base candidate keeps its bare candidate id and any other tag
-    prefixes it, so a fine-tuned or given video never reads a base cache entry. Which
+    extraction and verification (scheme and cache limits in ``layout``). The clip id never
+    depends on ``config_hash``, so a new scorer stamp rescores from the extraction cache. Which
     configuration a score belongs to is ``CandidateScore.candidate_config_hash``."""
 
     candidate_id: str

@@ -73,7 +73,7 @@ def test_a_given_video_is_scored_into_its_own_campaign(
     assert [p.prompt_id for p in store.prompts()] == ["adhoc-0001"]
     data = settings.paths.data_dir
     written = _files(data)
-    allowed = (store.root, store.video_dir(report.model_tag))
+    allowed = (store.root, store.video_dir(report.model_tag), settings.paths.cache_dir)
     assert all(any(p.is_relative_to(a) for a in allowed) for p in written), written
     assert set(report.timings) == {"video_s", "score_s"}
 

@@ -1,4 +1,5 @@
-"""Clip ids of candidates: stable across configurations, never shared between model tags."""
+"""Clip ids of candidates: stable across configurations, never shared between model tags, and
+claimed in the stage cache by one candidate configuration at a time."""
 
 from __future__ import annotations
 
@@ -11,14 +12,22 @@ import numpy as np
 import pytest
 from campaign_stores import campaign_store
 
+from physverify.core.errors import UsageError
 from physverify.config.models import Settings
 from physverify.core.local_manifest import MANIFEST_FILE, QueryEntry
 from physverify.core.video import write_mp4
 from physverify.datasets.local_video import LocalVideoDataset
 from physverify.extraction.cache import StageCache
+from physverify.finetune.cache_claims import PURGE_FLAG, CacheGuard
 from physverify.finetune.candidate_scoring import ScoringDeps, score_candidates
 from physverify.finetune.layout import CampaignStore
-from physverify.finetune.records import BASE_TAG, CandidateRecord, PromptRecord, write_record
+from physverify.finetune.records import (
+    BASE_TAG,
+    CandidateRecord,
+    CandidateScore,
+    PromptRecord,
+    write_record,
+)
 from physverify.finetune.scorers.provisional import ProvisionalScorer
 from physverify.finetune.seeds import candidate_id
 from physverify.schema.checks import CheckResult, InputLevel, Verdict
@@ -92,12 +101,69 @@ def test_base_and_lora_candidates_of_one_prompt_and_k_get_distinct_clip_ids(
     assert _cache_dir(cache, base.clip_id) != _cache_dir(cache, lora.clip_id)
 
 
-def test_a_base_candidate_keeps_its_candidate_id_under_any_configuration(
-    local_settings: Settings,
+def _guard(settings: Settings, generation: str = "g", purge: bool = False) -> CacheGuard:
+    return CacheGuard(StageCache(settings.paths.cache_dir), generation, purge)
+
+
+def _score(
+    store: CampaignStore, runner: _Runner, guard: CacheGuard, settings: Settings
+) -> list[CandidateScore]:
+    deps = ScoringDeps(LocalVideoDataset(settings).clips, _Source(), runner, guard)
+    return score_candidates(store, BASE_TAG, [_prompt()], ProvisionalScorer(settings, {}), deps)
+
+
+def _cached(settings: Settings, clip_id: str) -> Path:
+    entry = _cache_dir(StageCache(settings.paths.cache_dir), clip_id)
+    entry.mkdir(parents=True, exist_ok=True)
+    return entry
+
+
+def test_a_base_clip_id_extracted_for_another_campaigns_configuration_is_refused(
+    local_settings: Settings, make_result: Callable[..., CheckResult]
 ) -> None:
+    runner = _Runner(make_result)
     first = _candidate(campaign_store(local_settings, "c1"), BASE_TAG, "a" * 64)
-    second = _candidate(campaign_store(local_settings, "c2"), BASE_TAG, "c" * 64)
+    _score(campaign_store(local_settings, "c1"), runner, _guard(local_settings), local_settings)
+    entry = _cached(local_settings, first.clip_id)
+    second_store = campaign_store(local_settings, "c2")
+    second = _candidate(second_store, BASE_TAG, "c" * 64)
     assert first.clip_id == second.clip_id == first.candidate_id
+    with pytest.raises(UsageError, match=f"another candidate configuration.*{PURGE_FLAG}"):
+        _score(second_store, runner, _guard(local_settings), local_settings)
+    assert entry.is_dir() and runner.clips == [first.clip_id]
+    _score(second_store, runner, _guard(local_settings, purge=True), local_settings)
+    assert not entry.exists() and runner.clips == [first.clip_id, second.clip_id]
+
+
+def test_a_campaign_of_other_generation_settings_on_a_shared_cache_is_refused(
+    local_settings: Settings, make_result: Callable[..., CheckResult]
+) -> None:
+    runner = _Runner(make_result)
+    first_store = campaign_store(local_settings, "c1")
+    first = _candidate(first_store, BASE_TAG, "a" * 64)
+    _score(first_store, runner, _guard(local_settings, "g1"), local_settings)
+    entry = _cached(local_settings, first.clip_id)
+    second_store = campaign_store(local_settings, "c2")
+    _candidate(second_store, BASE_TAG, "a" * 64, k=1)
+    with pytest.raises(UsageError, match=r"campaigns \['c1'\] claim other generation settings"):
+        _score(second_store, runner, _guard(local_settings, "g2"), local_settings)
+    _score(second_store, runner, _guard(local_settings, "g2", purge=True), local_settings)
+    assert not entry.exists()
+    _candidate(first_store, BASE_TAG, "a" * 64, k=2)
+    with pytest.raises(UsageError, match=r"campaigns \['c2'\]"):
+        _score(first_store, runner, _guard(local_settings, "g1"), local_settings)
+
+
+def test_the_same_configuration_shares_the_cache_across_campaigns(
+    local_settings: Settings, make_result: Callable[..., CheckResult]
+) -> None:
+    runner = _Runner(make_result)
+    entry = _cached(local_settings, candidate_id(PROMPT, 0))
+    for campaign in ("c1", "c2"):
+        store = campaign_store(local_settings, campaign)
+        _candidate(store, BASE_TAG, "a" * 64)
+        _score(store, runner, _guard(local_settings), local_settings)
+    assert entry.is_dir() and runner.clips == [candidate_id(PROMPT, 0)] * 2
 
 
 def test_an_existing_candidate_stays_complete_and_its_mp4_keeps_its_name(
@@ -142,25 +208,22 @@ def test_scoring_reads_base_candidates_of_an_old_manifest_under_their_candidate_
     entries = [{"video": Path(r.video_path).name} for r in records]
     (store.video_dir(BASE_TAG) / MANIFEST_FILE).write_text(json.dumps({"clips": entries}))
     runner = _Runner(make_result)
-    deps = ScoringDeps(LocalVideoDataset(local_settings).clips, _Source(), runner)
-    scores = score_candidates(
-        store, BASE_TAG, [_prompt()], ProvisionalScorer(local_settings, {}), deps
-    )
+    scores = _score(store, runner, _guard(local_settings), local_settings)
     assert runner.clips == [r.candidate_id for r in records]
     assert [s.candidate_id for s in scores] == [r.candidate_id for r in records]
     assert all(s.n_decided == 1 for s in scores)
 
 
-def test_a_score_carries_its_configuration_and_another_one_rescores_it(
+def test_a_score_carries_its_configuration_and_another_one_rescores_it_after_a_purge(
     local_settings: Settings, make_result: Callable[..., CheckResult]
 ) -> None:
     store = campaign_store(local_settings, "c")
-    scorer = ProvisionalScorer(local_settings, {})
     runner = _Runner(make_result)
-    deps = ScoringDeps(LocalVideoDataset(local_settings).clips, _Source(), runner)
     _candidate(store, BASE_TAG, "a" * 64)
-    (first,) = score_candidates(store, BASE_TAG, [_prompt()], scorer, deps)
+    (first,) = _score(store, runner, _guard(local_settings), local_settings)
     _candidate(store, BASE_TAG, "c" * 64)
-    (second,) = score_candidates(store, BASE_TAG, [_prompt()], scorer, deps)
+    with pytest.raises(UsageError, match="another candidate configuration"):
+        _score(store, runner, _guard(local_settings), local_settings)
+    (second,) = _score(store, runner, _guard(local_settings, purge=True), local_settings)
     assert (first.candidate_config_hash, second.candidate_config_hash) == ("a" * 64, "c" * 64)
     assert runner.clips == [first.candidate_id, first.candidate_id]

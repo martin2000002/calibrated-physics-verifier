@@ -20,6 +20,7 @@ from stratum_cases import (  # noqa: E402
 )
 from wiring import active_checks_hash, checks  # noqa: E402
 
+from physverify.app.finetune import cache_guard  # noqa: E402
 from physverify.calibration.apply import NO_WEIGHTED  # noqa: E402
 from physverify.calibration.artifact_io import default_artifact_path  # noqa: E402
 from physverify.config.models import Settings  # noqa: E402
@@ -168,7 +169,8 @@ def test_a_score_sealed_by_the_previous_scorer_version_is_rescored(
     record = _candidate(store)
     scorer = CalibratedScorer(settings, checks())
     runner = _Runner(make_result)
-    deps = ScoringDeps(lambda subset: [_clip(record.clip_id)], _Source(), runner)
+    clips = [_clip(record.clip_id)]
+    deps = ScoringDeps(lambda subset: clips, _Source(), runner, cache_guard(settings, False))
     score_candidates(store, BASE_TAG, [_prompt()], scorer, deps)
     path = store.score_path(BASE_TAG, scorer.name, record.candidate_id)
     old = read_record(path, CandidateScore).model_copy(update={"scorer_version": PREVIOUS_VERSION})

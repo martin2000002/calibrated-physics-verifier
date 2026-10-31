@@ -19,10 +19,15 @@ The videos live in a ``local_video`` subset, so extraction and verification read
 other dataset. The mp4 is named by the candidate id and the manifest gives each video the
 record's ``clip_id``: the bare candidate id for the base tag, prefixed by the model tag for any
 other, so a fine-tuned or imported video never reuses a base extraction cache entry. Within a
-campaign and tag a candidate id names one video (``generate`` refuses another configuration);
-campaigns that share a data directory share the base cache entries, so a campaign that changes
-the base generation settings needs its own data directory. A candidate is complete only once its
-meta exists: the mp4 and the latents are written first, the meta last, each atomically.
+campaign and tag a candidate id names one video (``generate`` refuses another configuration).
+Across campaigns it does not: the heavy stage keys hash the clip id, never the video
+(``extraction.cache.stage_key``, ``core.cache_keys.cache_key``), so campaigns sharing
+``paths.cache_dir`` would read each other's entries. ``cache_claims.CacheGuard`` refuses to score
+into a cache claimed by another generation configuration, or a clip id extracted for another
+candidate ``config_hash``, unless ``--purge-stale-cache`` drops those entries; entries written
+before the claims existed are trusted as they are. A video digest is deliberately not in the
+stage key: it would invalidate every heavy entry already cached. A candidate is complete only
+once its meta exists: the mp4 and the latents are written first, the meta last, each atomically.
 """
 
 from __future__ import annotations

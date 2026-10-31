@@ -17,6 +17,7 @@ from data_environ import data_dir as data_dir
 from data_environ import settings_environ as settings_environ
 from settings_factory import SettingsFactory
 
+from physverify.app.finetune import cache_guard
 from physverify.config.models import Settings
 from physverify.core.video import write_mp4
 from physverify.datasets.local_video import LocalVideoDataset
@@ -131,7 +132,10 @@ def fake_scoring(
     def build(settings: Settings) -> ScoringDeps:
         runner = FakeRunner(clip_results)
         return ScoringDeps(
-            clips=LocalVideoDataset(settings).clips, source=FakeSource(), runner=runner
+            clips=LocalVideoDataset(settings).clips,
+            source=FakeSource(),
+            runner=runner,
+            guard=cache_guard(settings, False),
         )
 
     return build

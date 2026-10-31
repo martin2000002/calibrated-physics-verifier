@@ -23,8 +23,15 @@ from physverify.core.digests import file_sha256
 from physverify.core.errors import UsageError
 from physverify.core.output import Echo
 from physverify.datasets.local_video import NAME as LOCAL_VIDEO
+from physverify.extraction.cache import StageCache
+from physverify.finetune.cache_claims import PURGE_FLAG as PURGE_FLAG
+from physverify.finetune.cache_claims import CacheGuard
 from physverify.finetune.candidate_scoring import ScoringDeps, score_candidates
-from physverify.finetune.candidates import CandidateGenerator, generate_candidates
+from physverify.finetune.candidates import (
+    CandidateGenerator,
+    generate_candidates,
+    generation_hash,
+)
 from physverify.finetune.layout import (
     PAIRS_FILE,
     REPORT_FILE,
@@ -124,8 +131,15 @@ def candidate_generator(
     )
 
 
-def scoring_deps(context: AppContext) -> ScoringDeps:
-    """Perceived inputs from the extraction pipeline over ``local_video``; checks from the suite."""
+def cache_guard(settings: Settings, purge: bool) -> CacheGuard:
+    gen = load_timing(settings).generation
+    hashed = generation_hash(gen, load_finetune(settings).candidates.base_seed)
+    return CacheGuard(StageCache(settings.paths.cache_dir), hashed, purge)
+
+
+def scoring_deps(context: AppContext, purge_stale_cache: bool = False) -> ScoringDeps:
+    """Perceived inputs from the extraction pipeline over ``local_video``; checks from the suite;
+    the stage cache is ``paths.cache_dir``, the one ``pipeline_deps`` extracts into."""
     suite = configured_suite(
         context.settings, registry_of(context, CHECKS), registry_of(context, POLICIES)
     )
@@ -136,6 +150,7 @@ def scoring_deps(context: AppContext) -> ScoringDeps:
         clips=dataset.clips,
         source=PerceivedSource(dataset, loader, InputLevel.PERCEIVED),
         runner=suite.runner(),
+        guard=cache_guard(context.settings, purge_stale_cache),
     )
 
 
@@ -209,10 +224,10 @@ def score_prompts(
     shard: str | None = None,
     *,
     echo: Echo,
+    purge_stale_cache: bool = False,
 ) -> list[CandidateScore]:
-    scores = score_candidates(
-        store, model_tag, prompts, scorer, scoring_deps(context), parse_shard(shard)
-    )
+    deps = scoring_deps(context, purge_stale_cache)
+    scores = score_candidates(store, model_tag, prompts, scorer, deps, parse_shard(shard))
     write_calibration_status(store, model_tag, scorer)
     wanted = {p.prompt_id for p in prompts}
     selected = [s for s in scores if s.prompt_id in wanted]
@@ -287,6 +302,7 @@ def score_split(
     model_tag: str,
     scorer: str | None,
     shard: str | None,
+    purge_stale_cache: bool,
     *,
     echo: Echo,
 ) -> None:
@@ -294,8 +310,16 @@ def score_split(
     require_scoring_device(context.settings)
     store = CampaignStore.from_settings(context.settings)
     prompts = campaign_prompts(store, which)
+    active = active_scorer(context, scorer)
     score_prompts(
-        context, store, model_tag, prompts, active_scorer(context, scorer), shard, echo=echo
+        context,
+        store,
+        model_tag,
+        prompts,
+        active,
+        shard,
+        echo=echo,
+        purge_stale_cache=purge_stale_cache,
     )
 
 

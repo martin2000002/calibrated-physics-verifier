@@ -5,6 +5,8 @@ subset, whose manifest is rewritten first so every candidate is read under its r
 ``clip_id``; the checks and their verdicts from ``VerificationRunner``. Each candidate writes its
 check results and then its ``CandidateScore`` (the completion mark), so a rerun skips it unless
 the score is stale: another scorer stamp, or another candidate ``config_hash`` (or none recorded).
+Before any extraction ``CacheGuard`` checks that the stage cache holds no entry of another
+configuration under the same clip ids.
 """
 
 from __future__ import annotations
@@ -16,6 +18,7 @@ from typing import Final, Protocol
 from physverify.checks._base import Check
 from physverify.config.models import Settings
 from physverify.core.errors import UsageError
+from physverify.finetune.cache_claims import CacheGuard
 from physverify.finetune.layout import CampaignStore
 from physverify.finetune.records import (
     CandidateRecord,
@@ -63,11 +66,13 @@ class Runner(Protocol):
 
 @dataclass(frozen=True)
 class ScoringDeps:
-    """``clips(subset)`` lists the campaign's clips, ``source`` gives their perceived inputs."""
+    """``clips(subset)`` lists the campaign's clips, ``source`` gives their perceived inputs and
+    ``guard`` admits them into the stage cache ``source`` extracts into."""
 
     clips: Callable[[str], Sequence[ClipManifest]]
     source: InputSource
     runner: Runner
+    guard: CacheGuard
 
 
 @dataclass
@@ -213,6 +218,7 @@ def score_candidates(
     by_id = {prompt.prompt_id: prompt for prompt in prompts}
     todo = pending(store, model_tag, scorer, by_id, shard)
     if todo:
+        deps.guard.admit(store.campaign, todo)
         store.write_manifest(model_tag)
         clips = {clip.clip_id: clip for clip in deps.clips(store.subset(model_tag))}
         missing = sorted(r.candidate_id for r in todo if r.clip_id not in clips)

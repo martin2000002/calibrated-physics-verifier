@@ -8,7 +8,7 @@ from typing import Annotated
 
 import typer
 
-from physverify.app.finetune import STOP_RULE_DEVIATION
+from physverify.app.finetune import PURGE_FLAG, STOP_RULE_DEVIATION
 
 StopRuleDeviationOption = Annotated[
     str | None,
@@ -40,6 +40,12 @@ DiagnosisSubsetOption = Annotated[
 ClipsOption = Annotated[list[str] | None, typer.Option(help="Clip ids (repeatable).")]
 
 ShardOption = Annotated[str | None, typer.Option(help="Shard i/n of the candidates.")]
+PurgeStaleCacheOption = Annotated[
+    bool,
+    typer.Option(
+        PURGE_FLAG, help="Drop the cache entries of clips extracted for another configuration."
+    ),
+]
 
 SplitOption = Annotated[
     str, typer.Option(help="train or dev (eval belongs to `compare-generators`).")

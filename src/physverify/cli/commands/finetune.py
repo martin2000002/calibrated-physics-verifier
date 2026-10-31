@@ -58,8 +58,9 @@ def score(
     model_tag: Annotated[str, typer.Option(help="base or lora-<hash>.")] = campaign.BASE_TAG,
     scorer: opt.ScorerOption = None,
     shard: opt.ShardOption = None,
+    purge: opt.PurgeStaleCacheOption = False,
 ) -> None:
-    campaign.score_split(app_context(ctx), split, model_tag, scorer, shard, echo=typer.echo)
+    campaign.score_split(app_context(ctx), split, model_tag, scorer, shard, purge, echo=typer.echo)
 
 
 @app.command("pairs", help="Winner-loser pairs of the train prompts (val prompts kept apart).")
