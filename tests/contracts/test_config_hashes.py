@@ -47,7 +47,7 @@ DATASET_CONTENT_HASH = {
 STAGE_KEYS = {
     "camera/assumed_fov": "d0ae25696b1da8e41856f1aaf094085c01f865833bc905f253b56546f7477018",
     "camera/from_depth": "71f47572478cef19abbac16c095575678d6703941e26128139ef90cac930aae0",
-    "camera/geocalib": "871980e0b1985e5945e7620477d9ea8b3a6781b5b215e2d70ef9c2868b17d6e1",
+    "camera/geocalib": "18892cc4e5b735d5fd4b8c45ad9dccfd98b0a95814a506b28ce11079f3bf3154",
     "contacts/kinematic": "93847e53de155b30a366d79ab7d2303989b852858ed724b8a87e67e0ba512472",
     "contacts/proximity": "1cb0e7c20d7dda9528449aaf84d7408ec1a83aaa085c416b53ff6361ce326f27",
     "depth/moge2": "6cdce7a43eb0a8999a01982327df1202bc13bbda4c86c3af356092a578a18f81",

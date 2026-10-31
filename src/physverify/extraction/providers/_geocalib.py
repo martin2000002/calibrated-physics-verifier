@@ -97,7 +97,7 @@ class Calibrator(Protocol):
 class GeoCalibCamera:
     stage: ClassVar[Stage] = Stage.CAMERA
     name: ClassVar[str] = "geocalib"
-    version: ClassVar[str] = "1"
+    version: ClassVar[str] = "2"
     requires: ClassVar[tuple[Stage, ...]] = ()
     heavy: ClassVar[bool] = True
     is_ground_truth: ClassVar[bool] = False
@@ -121,10 +121,11 @@ class GeoCalibCamera:
         set_torch_threads(ctx.threads)
         result = self._model.get(ctx).calibrate(picked, prior)
         pose = pose_from_gravity(clip_gravity(result))
+        sigma_deg = clip_gravity_sigma_deg(result)
         if assumed is not None:
-            return replace(assumed, world_from_camera=pose)
+            return replace(assumed, world_from_camera=pose, gravity_sigma_deg=sigma_deg)
         phi = focal_rel(result.focal_px, result.focal_sigma_px, self.params.focal_sigma_floor_rel)
-        return camera_model(s, result.focal_px, phi, pose)
+        return replace(camera_model(s, result.focal_px, phi, pose), gravity_sigma_deg=sigma_deg)
 
 
 def clip_gravity(result: Calibration) -> FloatArray:
