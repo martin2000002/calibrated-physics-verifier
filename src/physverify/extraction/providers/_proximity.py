@@ -28,6 +28,7 @@ from physverify.physics.geometry import (
     pose_from_quaternion,
 )
 from physverify.physics.kinematics import visible_runs
+from physverify.physics.row_time import reference_seconds, rows_in, seconds_per_row
 from physverify.physics.signed_distance import signed_distance
 from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactKind, ContactRecord, ManifoldKind
@@ -42,7 +43,7 @@ SOURCE = "proximity"
 class ProximityParams(ProviderParams):
     tol_rel: float = Field(default=0.05, gt=0.0)
     rest_speed_rel: float = Field(default=0.5, ge=0.0)
-    min_rest_frames: int = Field(default=3, ge=1)
+    min_rest_s: float = Field(default=reference_seconds(3), gt=0.0)
     normal_split_deg: float = Field(default=20.0, gt=0.0)
     ground: Literal["lowest_rest", "none"] = "lowest_rest"
 
@@ -76,10 +77,16 @@ class ContactScene:
     """Per-clip bodies, ground plane and pair tolerances."""
 
     def __init__(
-        self, states: ObjectStateTable, params: ProximityParams, split_on_point_count: bool
+        self,
+        states: ObjectStateTable,
+        params: ProximityParams,
+        seconds_per_frame: float,
+        split_on_point_count: bool,
     ) -> None:
         self.states = states
         self.params = params
+        row_seconds = seconds_per_row(states.frame_index, seconds_per_frame)
+        self.min_rest_rows = rows_in(params.min_rest_s, row_seconds)
         self.split_on_point_count = split_on_point_count
         self.lengths = object_lengths(states)
         gravity = np.asarray(states.gravity_dir, dtype=np.float64)
@@ -146,7 +153,7 @@ class ContactScene:
             with np.errstate(invalid="ignore"):
                 rest = speed[:, n] <= limit
             for run in visible_runs(rest):
-                if run.stop - run.start >= self.params.min_rest_frames:
+                if run.stop - run.start >= self.min_rest_rows:
                     yield from ((t, n) for t in range(run.start, run.stop))
 
     def _contact(self, pair: Pair, t: int) -> FrameContact | None:
@@ -199,7 +206,7 @@ class ContactScene:
             placed.append(self.bodies[middle.frame][pair.b])
         speed = nan_median([c.normal_speed for c in interval])
         resting = (
-            len(interval) >= self.params.min_rest_frames
+            len(interval) >= self.min_rest_rows
             and speed <= self.params.rest_speed_rel * pair.length
         )
         point_only = any(p is not None and p.point_only for p in placed)

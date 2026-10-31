@@ -1,4 +1,6 @@
-"""Velocity and acceleration by Savitzky-Golay differentiation with linear sigma."""
+"""Velocity and acceleration by Savitzky-Golay differentiation with linear sigma. The window is a
+duration: at each clip's row rate it becomes the nearest odd row count above the polynomial
+order."""
 
 from __future__ import annotations
 
@@ -6,23 +8,24 @@ from dataclasses import replace
 from typing import Any, ClassVar
 
 import numpy as np
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field
 
 from physverify.extraction._base import ProviderParams, StageContext, WeightSpec
 from physverify.extraction.providers._common import expect_params
 from physverify.physics.kinematics import SavgolSpec, differentiate
+from physverify.physics.row_time import odd_rows_in, reference_seconds, seconds_per_row
 from physverify.schema.stages import Stage
 from physverify.schema.states import ObjectStateTable
 
 
 class Params(ProviderParams):
-    window: int = Field(default=7, ge=1)
+    window_s: float = Field(default=reference_seconds(7), gt=0.0)
     polyorder: int = Field(default=2, ge=0)
 
-    @model_validator(mode="after")
-    def _check_spec(self) -> Params:
-        SavgolSpec(self.window, self.polyorder)
-        return self
+    def spec(self, row_seconds: float) -> SavgolSpec:
+        """The window at ``row_seconds`` per row: odd and > polyorder at every frame rate."""
+        window = odd_rows_in(self.window_s, row_seconds, self.polyorder + 1)
+        return SavgolSpec(window, self.polyorder)
 
 
 class SavgolKinematics:
@@ -41,7 +44,8 @@ class SavgolKinematics:
 
     def run(self, ctx: StageContext) -> ObjectStateTable:
         lift = ctx.require(Stage.LIFT, ObjectStateTable)
-        return track_derivatives(lift, SavgolSpec(self.params.window, self.params.polyorder))
+        row_seconds = seconds_per_row(lift.frame_index, ctx.sampling.seconds_per_frame)
+        return track_derivatives(lift, self.params.spec(row_seconds))
 
 
 def track_derivatives(lift: ObjectStateTable, spec: SavgolSpec) -> ObjectStateTable:

@@ -17,7 +17,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-from synthetic_clip import SyntheticFixtureDataset
+from synthetic_clip import FPS, SyntheticFixtureDataset
 
 from physverify.app.plugins import PLUGIN_KINDS
 from physverify.checks._base import Check
@@ -29,6 +29,26 @@ from physverify.verification.runner import VerificationRunner
 from physverify.verification.thresholding import ThresholdTable
 
 GOLDEN = Path(__file__).resolve().parent / "golden" / "oracle.json"
+IN_SECONDS = ("R4_missing",)
+"""Checks written in frames by the golden and measured in seconds since."""
+
+
+def golden_results() -> list[Any]:
+    """The golden, with the results of ``IN_SECONDS`` restated in seconds at the fixture's fps."""
+    found: list[Any] = json.loads(GOLDEN.read_text(encoding="utf-8"))
+    return [in_seconds(r) if r["check_id"] in IN_SECONDS else r for r in found]
+
+
+def in_seconds(result: dict[str, Any]) -> dict[str, Any]:
+    details = result["details"]
+    frames = details["missing_rows"] * details["row_step"]
+    return {
+        **result,
+        "magnitude": result["magnitude"] / FPS,
+        "sigma": result["sigma"] / FPS,
+        "unit": "seconds",
+        "details": {**details, "missing_frames": frames},
+    }
 
 
 V1_OVERRIDES: dict[str, dict[str, Any]] = {"R4_size": {"reference": "self"}}

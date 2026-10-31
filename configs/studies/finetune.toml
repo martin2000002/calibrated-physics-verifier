@@ -7,7 +7,7 @@
 [finetune]
 campaign = "wan21_v1"
 scorer = "calibrated"
-exclude_time_dependent = true      # every scorer leaves [check_scope].time_dependent_checks out
+exclude_time_dependent = true      # every scorer leaves out the [check_scope] time-dependent checks not kept
 on_family_without_targets = "error"  # "keep": a family left without target checks is scored anyway
 
 # train, beta-grid, compare-generators generate and compare-generators freeze refuse when it fires

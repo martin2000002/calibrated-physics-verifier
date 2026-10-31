@@ -5,11 +5,14 @@ H200; runs on any other machine are harness checks, not measurements.** A run co
 measurement only with `--device cuda` and the `precise` profile. `pv` in `_common.sh` passes both
 by default, and `run_timing.sh`, `run_preference.sh`, `run_finetune.sh`,
 `run_generator_comparison.sh` and `smoke_autoeval.sh` keep them. The other runners do not:
-`smoke_finetune.sh` uses the `fast` profile; `run_freeze.sh`, `run_final.sh` and
-`run_human_agreement.sh` run on the CPU; `run_perception_iteration.sh` takes its device from
-`PHYSVERIFY_ITERATION_DEVICE` (default `cpu`) and its profile from `PHYSVERIFY_ITERATION_PROFILE`;
-`run_kubric.sh` runs on the CPU with the profile of `PHYSVERIFY_KUBRIC_PROFILE`; and `run_demo.sh`
-scores a given video with `--device cpu` when there is no GPU.
+`smoke_finetune.sh` uses the `fast` profile; `run_freeze.sh` and `run_final.sh` run on the
+device of the adopted iteration (`PV_DEVICE`, recorded in `freeze.json`);
+`run_human_agreement.sh` takes its device from `PHYSVERIFY_AGREEMENT_DEVICE` (default `cpu`, the
+VideoPhy cache's), checked against its chain or `freeze.json`; `run_perception_iteration.sh`
+takes its device from `PHYSVERIFY_ITERATION_DEVICE` (default `cpu`) and its profile from
+`PHYSVERIFY_ITERATION_PROFILE`; `run_kubric.sh` runs on the CPU with the profile of
+`PHYSVERIFY_KUBRIC_PROFILE`; and `run_demo.sh` scores a given video with `--device cpu` when there
+is no GPU.
 
 Each script's header lists its commands or steps, its startup checks (every refusal exits 2
 before any `physverify` call) and its variables with their defaults; this file gives the order of
@@ -24,7 +27,7 @@ use and what each script leaves behind.
 | `run_perception_iteration.sh`, `perception_arms.tsv` | One iteration of the perception campaign on the calib clips |
 | `run_freeze.sh`, `freeze_query.py` | The freeze: adopted iteration, exclusion record, abstention level, `freeze.json` |
 | `run_final.sh` | The sealed final looks |
-| `run_human_agreement.sh`, `agreement_query.py` | Human-agreement study on VideoPhy (CPU) |
+| `run_human_agreement.sh`, `agreement_query.py` | Human-agreement study on VideoPhy |
 | `setup_autoeval.sh`, `smoke_autoeval.sh`, `autoeval_requirements.txt` | VideoPhy-2 AutoEval judge and its gate |
 | `run_generator_comparison.sh` | Fine-tuned vs base vs best-of-8 |
 | `run_demo.sh` | End-to-end demo |
@@ -248,8 +251,12 @@ A missing `[sealed]` table fails closed.
 
 ## Freeze and final looks
 
-Both run in a clean checkout at the freeze commit, on the CPU, profile `precise`, with the
-committed configs only.
+Both run in a clean checkout at the freeze commit, profile `precise`, with the committed configs
+only, on the device the caller gives in `PV_DEVICE` (`cpu`, or `cuda` with one GPU of 0-3 in
+`CUDA_VISIBLE_DEVICES`). The device and profile are a pair checked in one place
+(`require_pair` in `_common.sh`): the freeze takes those of the adopted iteration and records them
+in `freeze.json`, and the final run takes those of `freeze.json`; a calibration of one device is
+never evaluated on another.
 
 ```sh
 source "$PHYSVERIFY_H200_ROOT/env.sh"
@@ -286,7 +293,10 @@ Bookkeeping, logs and per-command summaries land in `$F/run-final/`; commands on
 run at the same time (each holds its own locks; the heavy lock is `$F/heavy.lock`). The v1 arm runs
 at the v1 commit through `overlay_cli.py` (`PHYSVERIFY_FINAL_OVERLAY_CLI`; a server-side script, not
 in this repository) with the freeze's configs and the base `checks.toml`, the base calibration and
-`PHYSVERIFY_UNSEAL_REPEAT=1`, and must leave no `meta.json` in its overlay.
+`PHYSVERIFY_UNSEAL_REPEAT=1`, and must leave no `meta.json` in its overlay. It runs on the device
+its own chain was calibrated with, not on the freeze's: the base's `state.env` (`CHAIN_DEVICE`,
+`CHAIN_PROFILE`) must agree with its calibration run's `run.json`, and a base without `state.env` is
+refused.
 `PHYSVERIFY_FINAL_DRYRUN=1` is the rehearsal: `$F`, the data, the cache and its own ledger
 (`PHYSVERIFY__SEALED__LEDGER`) under `$PHYSVERIFY_H200_ROOT/scratch`, a seed other than the
 freeze's, never `kubric_synthetic_eval`, and, for the new real control,

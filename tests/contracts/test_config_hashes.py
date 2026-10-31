@@ -11,7 +11,7 @@ from typing import Any
 
 import pytest
 import synthetic_clip
-from wiring import active_checks_hash, resolve_plan
+from wiring import active_checks_hash, resolve_plan, run_checks_hash
 
 from physverify.app.plugins import PLUGIN_KINDS
 from physverify.calibration.sealed_ledger import look_config_hash
@@ -28,18 +28,22 @@ KEY_PATHS = Path(__file__).with_name("data") / "config_key_paths.txt"
 PINNED_ROOT = "/pinned"
 
 SECTIONS_HASH = {
-    "fast": "d773152e80be1dc3835e0984cb4afa1a88e33e68b0bc04896786c691c0a42c7f",
-    "precise": "cdbd28bb9850aa0a1a3bc3c8c8c7fa09479d1be143a814139240a44b30a42de4",
+    "fast": "14e97dbc49075b264097004078a5c4114498b9129742b4b3de0e5280ba97e059",
+    "precise": "f6ebdef3a03d556900beb3344469d7787a29ec42aca059fe50b66a4e6ff8792e",
 }
 CONFIG_HASH = {
-    "fast": "f0ebfea283a87375d6224c06dc7cc73a32c089acd504ea87ef168c9231174194",
-    "precise": "a3ba239b32154cf5078de18688f568eede03d035dbd5ff3246359fb6b71faa66",
+    "fast": "2de043e7423ee2a3225abecf14b9a9b092130986b793a378768a7d25fa8d44cd",
+    "precise": "760d2fedaf6027cedfabc5af509df7a6df2e795da509db07e967be3994abf11d",
 }
 LOOK_CONFIG_HASH = {
-    "fast": "2ccbc506b3dc2ded5ae47963e4792281c48ea29c21af6b1d0db6e3d3b2b585f0",
-    "precise": "407f10a2dd00944b2f9f46558c7dfa3e742bec877f96ad2d9648fe4b764abb46",
+    "fast": "43380727c29ee5a289b4ce6e220827df0b32b5ad70e0d97bb5f4389af881abcc",
+    "precise": "02d997c108957851bbe49b6b8c47eee5b81e19201b68e18aad6df05854406856",
 }
-CHECKS_HASH = "c5f03bfd100bdd23fe90a5f2ad098b2767b893a75bb850fd42c4116312ca3dee"
+CHECKS_HASH = "1bc070f3c0236c60860077d46926888188c5e86fc6c4132c0274e43ed138b4b2"
+RUN_CHECKS_HASH = {
+    "fast": "1bc070f3c0236c60860077d46926888188c5e86fc6c4132c0274e43ed138b4b2",
+    "precise": "cd37678aef95992ca6d07e0491a500a641d91a9b0a861ccfb7457fd3e2367470",
+}
 DATASET_CONTENT_HASH = {
     "fast": "7792797236e163025d89c1c518dc43ad8f90c3f511bd884e1969ca9bf1f2fa3e",
     "precise": "4a6829efdd64424d79dfc0941246de148ca50446e0f6f40738e3a02d1b8e8b4e",
@@ -48,8 +52,8 @@ STAGE_KEYS = {
     "camera/assumed_fov": "d0ae25696b1da8e41856f1aaf094085c01f865833bc905f253b56546f7477018",
     "camera/from_depth": "71f47572478cef19abbac16c095575678d6703941e26128139ef90cac930aae0",
     "camera/geocalib": "871980e0b1985e5945e7620477d9ea8b3a6781b5b215e2d70ef9c2868b17d6e1",
-    "contacts/kinematic": "4be7c44365451a4f3453f1d9c7f5222e3cb39b903512055fcd1881aed31d93d4",
-    "contacts/proximity": "80805512513c13730905d5d3461de3cb66bc8fff8a9955f72703f91679f6a3b2",
+    "contacts/kinematic": "4637a961f2a230c25a84b686c3a69ccf911bb7b8c59c7c694f69f43acd8f2946",
+    "contacts/proximity": "c9674d131e269a5bec255e694111ce3a8fbd5def115452732578a62ee0260391",
     "depth/moge2": "6cdce7a43eb0a8999a01982327df1202bc13bbda4c86c3af356092a578a18f81",
     "depth/vda_small": "70f6c003ff50af82ae87a48aa6a2c81030761e6a0c859278fc99fd8dba78cf1c",
     "depth/vda_large": "5f9dc8fa05d3d3be2711507ea24c8d730f337ca0d1584513c2c4677d98509b13",
@@ -71,10 +75,10 @@ STAGE_KEYS = {
     "lift/ground_truth": "fd9112fb74e8dd281c76ae277a0ee4782161166f15cee466b834c0f5eeaa79a5",
     "scale/ground_truth": "d02718762e5635727883f267696270c9100b481d1f19149c2dd4c96431be9b38",
     "track/ground_truth": "7f0b4774a68b28d2fd70ac39fe6a15dabc0634cf9046983c158734a331523cd5",
-    "kinematics/savgol": "b749e7b24b6e12da48e1c14fb9513d40ce059f60571d058d42fbb983b1ddcc5d",
+    "kinematics/savgol": "2a2e1a9916cc3efecd6ae8c9ed85c8260307543205f340f387d137685cc24900",
     "lift/backproject": "b79574cc0403c7d55fcfb6938df2a5928196c8e09cd7f88ceb7d939858cf7445",
     "lift/backproject_unnested": "2b203300810399325c0cabda849cd3495b44c7ba9270e2d889c94aa5eab21807",
-    "scale/free_fall": "dc4d29f8c965ca5eb17ee85952e2d61efe4534254d98759eac96bf7e7ea3aa38",
+    "scale/free_fall": "f104b2070930e8ddb30a5679208d9d9bad020cee8492f2db2426e75a72c6635b",
     "scale/metric_depth": "f05c5c101bd1c5d9b398c3c0d4b4981fd7fba388ac7377c98bfe9e2eb51a6efd",
     "scale/size_model": "6a8b94eb65880948beb7fd703a228119cb6a017e37ecec247d6ddea0e504f695",
     "scale/size_prior": "bf299851af7f355571485cea441194c2496ac32f56e8a8d0c1971c9421d7593e",
@@ -152,6 +156,7 @@ def test_section_hashes_are_unchanged(configs: Path, profile: str) -> None:
     assert stable_hash(dict(settings.sections)) == SECTIONS_HASH[profile]
     assert look_config_hash(settings) == LOOK_CONFIG_HASH[profile]
     assert active_checks_hash(settings) == CHECKS_HASH
+    assert run_checks_hash(settings) == RUN_CHECKS_HASH[profile]
     assert load_dataset_settings(settings).content_hash() == DATASET_CONTENT_HASH[profile]
 
 

@@ -85,8 +85,8 @@ class Kept:
 
 SEALED_SCOPE_NOTE = "SCOPE_NOTE is written to devscore.json (scope_note), pinned by a golden blob"
 PRIMARY_HEADING = "evaluation.md heading that scripts/h200/run_query.py:33 finds the section by"
-AGREEMENT_LINE = "workflow.py stdout line that scripts/h200/run_human_agreement.sh:385 parses"
-AGREEMENT_SED = "the sed expression of scripts/h200/run_human_agreement.sh:385"
+AGREEMENT_LINE = "workflow.py stdout line that scripts/h200/run_human_agreement.sh:376 parses"
+AGREEMENT_SED = "the sed expression of scripts/h200/run_human_agreement.sh:376"
 CHAIN_DIR = "on-disk calibration-chain directory on the H200 ($H200_ROOT/a8v2, _common.sh:9)"
 ARM_IDS = "arm ids of perception_arms.tsv: existing iteration directories and CHAIN_ARM values"
 ITERATION_IDS = "fixture: iteration directory ids as they exist on the H200"
@@ -156,10 +156,10 @@ KEPT_FRAGMENTS = (
         1,
         "the summary line the script builds from the parsed H2 line",
     ),
-    Kept("tests/scripts/test_freeze_query.py", "it1-fixes", 2, ITERATION_IDS),
-    Kept("tests/scripts/test_freeze_query.py", "it2-state", 9, ITERATION_IDS),
+    Kept("tests/scripts/test_freeze_query.py", "it1-fixes", 4, ITERATION_IDS),
+    Kept("tests/scripts/test_freeze_query.py", "it2-state", 12, ITERATION_IDS),
     Kept("tests/scripts/test_freeze_query.py", "it2-x", 1, ITERATION_IDS),
-    Kept("tests/scripts/test_freeze_query.py", "it3-arms", 1, ITERATION_IDS),
+    Kept("tests/scripts/test_freeze_query.py", "it3-arms", 2, ITERATION_IDS),
     Kept("tests/scripts/test_freeze_query.py", "it4-selfrel", 3, ITERATION_IDS),
     Kept("tests/scripts/test_perception_iteration_script.py", '"a8v2"', 1, CHAIN_DIR),
     Kept("tests/scripts/test_perception_iteration_script.py", '"a8v2-cuda/it"', 1, CHAIN_DIR),

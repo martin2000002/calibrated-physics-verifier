@@ -23,19 +23,24 @@ def mc_sigma(
     sigmas: Mapping[str, FloatArray],
     draws: int,
     rng: np.random.Generator,
+    uniform: Mapping[str, tuple[float, float]] | None = None,
 ) -> float:
-    """Std of ``model`` under N(0, sigma) noise on each input.
+    """Std of ``model`` under N(0, sigma) noise on each input and, for each ``uniform`` key, a
+    parameter drawn from U[low, high] (shape (draws,)).
 
-    ``model`` receives one (draws, *shape) noise array per key and returns (draws,) magnitudes.
-    Exact inputs give 0; any NaN sigma makes the result NaN.
+    ``model`` receives one (draws, *shape) array per key and returns (draws,) magnitudes.
+    Exact inputs and point intervals give 0; any NaN sigma makes the result NaN.
     """
     arrays = {key: np.asarray(value, dtype=np.float64) for key, value in sigmas.items()}
-    if all(bool(np.all(value == 0.0)) for value in arrays.values()):
+    intervals = dict(uniform or {})
+    exact = all(bool(np.all(value == 0.0)) for value in arrays.values())
+    if exact and all(low == high for low, high in intervals.values()):
         return 0.0
     noise = {key: _noise(value, draws, rng) for key, value in arrays.items()}
-    if all(value is None for value in noise.values()):
+    if noise and all(value is None for value in noise.values()):
         return math.nan
-    std = np.asarray(monte_carlo(model, noise).std, dtype=np.float64)
+    drawn = {key: rng.uniform(low, high, size=draws) for key, (low, high) in intervals.items()}
+    std = np.asarray(monte_carlo(model, noise | drawn).std, dtype=np.float64)
     if std.size != 1:
         raise ValueError(f"model must return one magnitude per draw, got std shape {std.shape}")
     return float(std.reshape(()))

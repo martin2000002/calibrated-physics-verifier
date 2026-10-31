@@ -14,16 +14,16 @@ from physverify.checks._params import OcclusionParams
 from physverify.checks._size import relative_sigma, whole_lengths, whole_rows
 from physverify.physics.measures.detrended_size import persistent_change
 from physverify.physics.measures.relative_size import relative_lengths
-from physverify.physics.row_time import odd_rows_in, rows_in, seconds_per_row
+from physverify.physics.row_time import odd_rows_in, reference_seconds, rows_in
 from physverify.physics.tracks import native_span
 from physverify.schema.checks import AbstainReason, CheckResult
 
 FloatArray = NDArray[np.float64]
 
-WINDOW_S = 17.0 / 24.0
+WINDOW_S = reference_seconds(17)
 """The 17-row window of the 24 fps synthetic clips: wider than twice the longest r4_resize bump
 (8 rows), so the running median does not follow a bump. Set on simulator data (Kubric dev)."""
-PERSISTENCE_S = 3.0 / 24.0
+PERSISTENCE_S = reference_seconds(3)
 """The shortest r4_resize bump (3 rows at 24 fps). Set on simulator data (Kubric dev)."""
 
 
@@ -64,7 +64,7 @@ class DetrendedSizeCheck:
         if states.border_cut is not None:
             whole &= ~states.border_cut
         lengths = whole_lengths(states, whole)
-        row_seconds = seconds_per_row(states.frame_index, inputs.clip.seconds_per_frame)
+        row_seconds = inputs.row_seconds
         window = odd_rows_in(self.params.window_s, row_seconds)
         persistence = rows_in(self.params.persistence_s, row_seconds)
         return [

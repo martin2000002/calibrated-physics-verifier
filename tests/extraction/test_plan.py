@@ -63,7 +63,7 @@ def test_gt_substitutes_the_named_stages(
     ("override", "message"),
     [
         ("extraction.plan.lift=nope", "unknown provider 'lift/nope'"),
-        ("extraction.providers.kinematics.savgol.window=4", "savgol] is invalid"),
+        ("extraction.providers.kinematics.savgol.window_s=0", "savgol] is invalid"),
         ("extraction.providers.lift.backproject.unknown_field=1", "backproject] is invalid"),
         (
             "extraction.providers.scale.size_prior.priors={ball={mean_m=1.0,rel_spread=0.1}}",
@@ -110,10 +110,10 @@ def test_provider_overrides_and_settings_sections_reach_params(
     make_settings: SettingsFactory, real_providers: Providers
 ) -> None:
     settings = make_settings(
-        "extraction.providers.kinematics.savgol.window=9", "size_priors.ball.mean_m=0.2"
+        "extraction.providers.kinematics.savgol.window_s=0.375", "size_priors.ball.mean_m=0.2"
     )
     plan = resolve_plan(settings, real_providers, dataset="x")
-    assert plan.step(Stage.KINEMATICS).params.window == 9  # type: ignore[attr-defined]
+    assert plan.step(Stage.KINEMATICS).params.window_s == 0.375  # type: ignore[attr-defined]
     priors = plan.step(Stage.SCALE).params.priors  # type: ignore[attr-defined]
     assert isinstance(priors, SizePriorTable)
     assert priors.root["ball"].mean_m == 0.2

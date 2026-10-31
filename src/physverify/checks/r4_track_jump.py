@@ -16,6 +16,7 @@ from physverify.checks._peaks import first_max
 from physverify.physics.geometry import characteristic_length
 from physverify.physics.measures.object_integrity import jump_ratio
 from physverify.physics.measures.track_jump import jump_over_noise, noise_jumps
+from physverify.physics.stencil_tail import reference_max, stencils_in
 from physverify.physics.tracks import (
     MIN_NOISE_STENCILS,
     camera_depth,
@@ -32,16 +33,21 @@ from physverify.schema.contacts import ContactTable
 FloatArray = NDArray[np.float64]
 BoolArray = NDArray[np.bool_]
 NoiseSource = Literal["exact", "track", "declared"]
+REFERENCE_STENCILS = stencils_in(24)
+"""The stencils of a 24-row Kubric calibration clip, the length the a-priori threshold (a
+Bonferroni over about 20 stencils) and the calibrated tau were set on."""
 
 
 class NoiseJumpParams(CommonParams):
     """``few_stencils``: with fewer than ``min_noise_stencils`` usable stencils and positions that
     are not exact, "declared" takes the median declared position sigma per axis (the order of
     ``checks._falls.find_falls``) and "abstain" gives up (the earlier rule, kept to report the
-    survival of the positives with and without that branch)."""
+    survival of the positives with and without that branch). ``reference_stencils``: the clip
+    length, in stencils, every magnitude is restated at (``reference_max``)."""
 
     min_noise_stencils: int = Field(default=MIN_NOISE_STENCILS, ge=4)
     few_stencils: Literal["declared", "abstain"] = "declared"
+    reference_stencils: int = Field(default=REFERENCE_STENCILS, ge=1)
 
 
 @dataclass(frozen=True)
@@ -82,7 +88,11 @@ class NoiseContinuityCheck:
     stencil spans no impact (impacts converted to native frames), with sigma-hat per axis the
     larger of the object's own noise (``track_noise``: robust scale of its third differences /
     sqrt(20), over the same rows) and one pixel at its median depth, z / (f sqrt(12)) with f the
-    focal length of the camera LIFT used.
+    focal length of the camera LIFT used. The maximum over the clip's n = T - 3 stencils is
+    restated at ``reference_stencils`` with the same family-wise tail under white noise of
+    sigma-hat (``reference_max``; chi_3 per stencil, the null of the a-priori threshold), so a
+    longer clip is not more often over tau; the identity for a 24-row clip, the raw maximum is in
+    ``details``.
 
     A test statistic, not a physical size: the jump it stands for is in ``details``
     (``jump_over_size_estimated``, an estimate at the peak row). ``sigma`` is 1 in its own unit
@@ -129,10 +139,13 @@ class NoiseContinuityCheck:
             return abstain(type(self), inputs, (object_id,), reason, None, details)
         per_row = noise_jumps(states.position[:, index], noise.sigma, exclude)
         k = first_max(per_row)
-        magnitude = jump_over_noise(states.position[:, index], noise.sigma, exclude)
+        raw = jump_over_noise(states.position[:, index], noise.sigma, exclude)
+        stencils = stencils_in(states.n_frames)
+        magnitude = reference_max(raw, stencils, self.params.reference_stencils)
         sigma = 0.0 if noise.source == "exact" else 1.0
         span = native_span(states.frame_index, k - 1, k + 2)
-        details |= {"row": k, **self._physical(inputs, index, k, noise)}
+        details |= {"row": k, "stencils": stencils, "raw_jump_over_noise": raw}
+        details |= self._physical(inputs, index, k, noise)
         return unscored(type(self), inputs, (object_id,), magnitude, sigma, span, details)
 
     def _excluded(self, inputs: CheckInputs, contacts: ContactTable, index: int) -> BoolArray:

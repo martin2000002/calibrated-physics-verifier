@@ -3,25 +3,33 @@
 # Deliverable 1 is a local proof of the pipeline: ~25 synthetic clips (5 families x 1 seed x
 # none + 1 mid level per applicable perturbation) plus 5 Physics-IQ and 5 PISA clips.
 # The full dataset and the large runs happen on the H200.
-# Frame counts (min_*_frames, fit_frames, side_frames) count table ROWS; margins
-# (impact_margin_frames) are NATIVE frames. Perceived tables may be strided (extraction.toml).
+# Windows (*_s) are SECONDS of real time, turned into table rows at each clip's row rate
+# (physics/row_time.py); the defaults are the former row counts at 24 fps.
 # Any check id (R1, R2, R3a, R3b, R4_missing, R4_size, R4_jump, R5a, R5b) accepts a
 # [checks.<id>] table overriding fields of its Params; unknown fields are a ConfigError.
 
+# R2's friction is an interval (friction_range, default FRICTION_RANGE in
+# checks/r2_static_equilibrium.py) sampled in its Monte Carlo: the static coefficients of dry
+# everyday material pairs in open tables (OpenStax, College Physics 2e, table 5.1, and the others
+# cited at FRICTION_RANGE), never the simulator's floor value.
 [checks.R2]            # plugin defaults live in checks/r2_static_equilibrium.py; override here
-friction = 0.6
 mass_floor = 0.2
 
 # The size relative to the other bodies of each frame; "self" is the v1 rule.
 [checks.R4_size]
 reference = "others"
 
-# Alternative implementations (checks/variants/) are chosen per check in a [check_variants] table,
-# check id -> variant name; with no table every check runs its default. R4_size "v3": persistent
-# change against a running median, windows in seconds, rows whose mask the lift saw cut by the
-# image border left out (--set check_variants.R4_size=v3). R4_jump "rigid2": v2 without the
-# stencils where the apparent size steps, in the statistic and in its noise estimate
-# (--set check_variants.R4_jump=rigid2).
+# Alternative implementations (checks/variants/) are chosen per check in [check_variants],
+# check id -> variant name; a check left out, or set to "default", runs its registered
+# implementation. R4_size "v3": persistent change against a running median, windows in seconds,
+# rows whose mask the lift saw cut by the image border left out. R4_jump "rigid2": v2 without the
+# stencils where the apparent size steps, in the statistic and in its noise estimate. The precise
+# profile runs both; --set check_variants.R4_size=default (or R4_jump=default) restores v2.
+[check_variants]
+
+[check_variants.profiles.precise]
+R4_size = "v3"
+R4_jump = "rigid2"
 
 [verification]
 policy = "threshold"
@@ -35,10 +43,13 @@ R1 = 0.05
 R2 = 0.01
 R3a = 0.05
 R3b = 0.05
-R4_missing = 2
+# R4_missing is in seconds: 2 frames at 24 fps.
+R4_missing = 0.08333333333333333
 R4_size = 0.10
 # R4_jump v2 is in units of the track's own noise: sqrt of the chi-square(3) quantile at
-# 1 - 0.05 / 20 (Bonferroni over about 20 stencils), fixed a priori, not tuned on data.
+# 1 - 0.05 / 20 (Bonferroni over about 20 stencils), fixed a priori, not tuned on data. Every
+# magnitude is restated at the 21 stencils of a 24-row clip (same family-wise tail), so the
+# threshold holds for clips of any length.
 R4_jump = 3.78
 R5a = 0.15
 R5b = 0.15

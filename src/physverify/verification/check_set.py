@@ -8,6 +8,7 @@ from typing import Any
 from pydantic import Field, RootModel, ValidationError
 
 from physverify.checks._base import Check
+from physverify.checks.variants._base import DEFAULT_VARIANT
 from physverify.config.models import Settings, validated
 from physverify.core.errors import ConfigError
 from physverify.core.registry import Registry
@@ -23,7 +24,8 @@ class ChecksSettings(RootModel[dict[str, dict[str, Any]]]):
 
 
 class CheckVariantsSettings(RootModel[dict[str, str]]):
-    """``[check_variants]``: check id -> variant name; a check left out keeps its default."""
+    """``[check_variants]``: check id -> variant name; a check left out or set to
+    ``DEFAULT_VARIANT`` keeps its registered implementation."""
 
     root: dict[str, str] = Field(default_factory=dict)
 
@@ -37,7 +39,8 @@ def select_variants(
     unknown = sorted(set(selection.root) - set(checks))
     if unknown:
         raise ConfigError(f"[{CHECK_VARIANTS_SECTION}] has unknown check ids {unknown}")
-    missing = sorted(f"{c}/{v}" for c, v in selection.root.items() if f"{c}/{v}" not in variants)
+    chosen = {c: v for c, v in selection.root.items() if v != DEFAULT_VARIANT}
+    missing = sorted(f"{c}/{v}" for c, v in chosen.items() if f"{c}/{v}" not in variants)
     if missing:
         known = sorted(variants)
         raise ConfigError(
@@ -45,9 +48,7 @@ def select_variants(
         )
     return Registry(
         {
-            check_id: variants[f"{check_id}/{selection.root[check_id]}"]
-            if check_id in selection.root
-            else check
+            check_id: variants[f"{check_id}/{chosen[check_id]}"] if check_id in chosen else check
             for check_id, check in checks.items()
         }
     )
