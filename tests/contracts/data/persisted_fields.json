@@ -868,6 +868,14 @@
       "focal",
       "focal_sigma_floor_rel"
     ],
+    "camera/moge2_focal": [
+      "n_frames",
+      "resolution_level",
+      "batch_size",
+      "gravity",
+      "focal_sigma_floor_rel",
+      "unmeasured_focal_sigma_rel"
+    ],
     "camera/ground_truth": [],
     "contacts/ground_truth": [],
     "contacts/kinematic": [
