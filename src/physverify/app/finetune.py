@@ -15,7 +15,7 @@ from typing import Final
 from physverify.app.context import AppContext
 from physverify.app.services import dataset_for, pipeline_deps, plan_for, scorer_for
 from physverify.checks._base import CHECKS
-from physverify.config.models import Settings
+from physverify.config.models import Settings, is_cuda_device
 from physverify.config.plugin_context import registry_of
 from physverify.core.atomic import write_text_atomic
 from physverify.core.choices import choice
@@ -91,7 +91,7 @@ NESTED_LOCK: Final = "held by finetune"
 
 def require_cuda(settings: Settings) -> None:
     device = settings.runtime.device
-    if not device.startswith("cuda"):
+    if not is_cuda_device(device):
         raise UsageError(f"this subcommand needs --device cuda (device is {device!r})")
     if not TorchCudaProbe().available():
         raise UsageError("this subcommand needs a CUDA device and none is available")
@@ -100,7 +100,7 @@ def require_cuda(settings: Settings) -> None:
 def require_scoring_device(settings: Settings) -> None:
     """Scoring runs on the configured device: cpu as is, cuda only when a device is present.
     Generation and training keep ``require_cuda``."""
-    if settings.runtime.device.startswith("cuda"):
+    if is_cuda_device(settings.runtime.device):
         require_cuda(settings)
 
 

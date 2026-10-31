@@ -9,7 +9,7 @@ from contextlib import AbstractContextManager
 from dataclasses import dataclass
 
 from physverify.checks._base import Check
-from physverify.config.models import Settings
+from physverify.config.models import Settings, is_cuda_device
 from physverify.core.errors import UsageError
 from physverify.datasets._base import DatasetSource, dataset_from, select_clips
 from physverify.extraction._base import StageProvider
@@ -24,7 +24,7 @@ from physverify.verification._base import VerdictPolicy
 def cuda_sync(device: str) -> None:
     """Wait for the kernels queued on ``device``; a no-op off CUDA or before torch is loaded."""
     torch = loaded_cuda_torch()
-    if torch is not None and device.startswith("cuda"):
+    if torch is not None and is_cuda_device(device):
         torch.cuda.synchronize(device)
 
 
