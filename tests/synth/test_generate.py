@@ -56,6 +56,23 @@ def test_full_cycles_levels_and_balances_splits(
     assert all(abs(n - 20) <= 1 for n in calib.values())
 
 
+def test_calib_f3_extra_extends_the_f3_calib_clips_of_full(
+    ds: DatasetSettings, families: Any, perturbations: Any
+) -> None:
+    full = plan_subset(ds, families, perturbations, "full")
+    extra = plan_subset(ds, families, perturbations, "calib_f3_extra")
+    shared = {
+        v.clip_id: v
+        for v in full.variants
+        if v.family == "f3_collision" and v.split.value == "calib" and v.perturbation != "r4_vanish"
+    }
+    planned = {v.clip_id: v for v in extra.variants}
+    assert {c: planned.get(c) for c in shared} == shared
+    assert len(shared) == 40 and len(planned) == 160
+    assert {v.split.value for v in extra.variants} == {"calib"}
+    assert extra.config_hash == full.config_hash
+
+
 def test_scene_perturbations_get_their_own_simulation(
     ds: DatasetSettings, families: Any, perturbations: Any
 ) -> None:

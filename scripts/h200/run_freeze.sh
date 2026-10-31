@@ -15,8 +15,9 @@
 #                      (_common.sh require_pair); its calibration.json, stage_errors.precise.json
 #                      and stage_sigma.json are copied to $F/calibration (a different file already
 #                      there stops)
-#    2 real-dev        extract run on physics_iq and pisa_real (full) and the kubric_synthetic calib
-#                      clips (LIFT reads the adopted profile; failed clips tolerated, noted)
+#    2 real-dev        extract run on physics_iq and pisa_real (full), the kubric_synthetic calib
+#                      clips and its calib_f3_extra extension (R3b only; split calib leaves it out;
+#                      LIFT reads the adopted profile; failed clips tolerated, noted)
 #    3 evaluate-calib  calibrate evaluate --dataset kubric_synthetic --subset calib --real; stops on
 #                      a skipped real dataset, a real set 1.5 does not allow or no primary view
 #    4 r2-arms         the R2 clips verified with the base and the tiny detector (rule 1.2)
@@ -177,6 +178,7 @@ step_2() {
     call 1 -- extract run --dataset physics_iq --subset full
     call 1 -- extract run --dataset pisa_real --subset full
     call 1 -- extract run --dataset kubric_synthetic --subset calib
+    call 1 -- extract run --dataset kubric_synthetic --subset calib_f3_extra
 }
 
 step_3() {

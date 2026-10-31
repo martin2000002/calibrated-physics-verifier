@@ -736,6 +736,7 @@
       "subsets.perturbations",
       "subsets.level_mode",
       "subsets.split",
+      "subsets.checks_only",
       "families",
       "perturbations"
     ],

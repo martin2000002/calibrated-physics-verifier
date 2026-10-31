@@ -99,6 +99,12 @@ dataset.subsets.calib_clean.perturbations.f4_stack
 dataset.subsets.calib_clean.perturbations.f5_contact
 dataset.subsets.calib_clean.scenes_per_family
 dataset.subsets.calib_clean.split
+dataset.subsets.calib_f3_extra.checks_only
+dataset.subsets.calib_f3_extra.level_mode
+dataset.subsets.calib_f3_extra.levels
+dataset.subsets.calib_f3_extra.perturbations.f3_collision
+dataset.subsets.calib_f3_extra.scenes_per_family
+dataset.subsets.calib_f3_extra.split
 dataset.subsets.full.level_mode
 dataset.subsets.full.levels
 dataset.subsets.full.perturbations.f1_projectile

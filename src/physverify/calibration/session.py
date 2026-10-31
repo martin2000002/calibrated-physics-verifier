@@ -25,6 +25,12 @@ from physverify.calibration.collect import (
     sigma_pairs,
 )
 from physverify.calibration.evaluate import EvaluationInputs, PrimaryScope
+from physverify.calibration.extension import (
+    Extension,
+    declared,
+    extension_of,
+    unloaded,
+)
 from physverify.calibration.fit import FitMeta, LevelData
 from physverify.calibration.report import (
     CALIBRATION_MD,
@@ -163,7 +169,10 @@ def fit_level_data(
     reports: Reports,
     levels: Sequence[InputLevel],
     no_sigma: bool,
+    extension: Extension,
 ) -> tuple[LevelData, ...]:
+    """Per level; ``extension`` clips count only for their checks and must have loaded."""
+    require_loaded(reports, extension, dataset.name)
     units, config = session.check_units(), session.config
     found: list[LevelData] = []
     for level in levels:
@@ -182,7 +191,13 @@ def fit_level_data(
             pairs = measured.pairs
         found.append(
             level_data(
-                level, reports.by_level[level], units, config, split=Split.CALIB, pairs=pairs
+                level,
+                reports.by_level[level],
+                units,
+                config,
+                split=Split.CALIB,
+                pairs=pairs,
+                scope=extension.scope,
             )
         )
     return tuple(found)
@@ -221,6 +236,39 @@ def fit_clips(source: DatasetSource, subset: str, wanted: Sequence[str]) -> list
     if not chosen:
         raise UsageError(f"subset {subset!r} of {source.name} has no split=calib clip")
     return chosen
+
+
+def calib_extension(
+    session: Session, source: DatasetSource, base: Sequence[ClipManifest], wanted: Sequence[str]
+) -> Extension:
+    """The extensions (``checks_only`` subsets) of the ``base`` calib; none with ``--clips``."""
+    subsets = () if wanted else declared(source)
+    if not subsets:
+        return Extension()
+    units = session.check_units()
+    found = extension_of(subsets, base, [u.check_id for u in units])
+    for part in found.subsets:
+        scenes = len({scene_of(c) for c in part.clips})
+        session.echo(
+            f"extension {part.name}: {len(part.clips)} clips, {scenes} scenes, "
+            f"only for {', '.join(part.checks)}"
+        )
+    return found
+
+
+def require_loaded(reports: Reports, extension: Extension, dataset: str) -> None:
+    """An extension clip without inputs would leave its checks without it, silently."""
+    for level, report in sorted(reports.by_level.items()):
+        for part in extension.subsets:
+            lost = unloaded(report, {c.clip_id for c in part.clips})
+            if lost:
+                clip, error = next(iter(lost.items()))
+                raise UsageError(
+                    f"extension {part.name}: {len(lost)} of {len(part.clips)} clips have no "
+                    f"{level.value} input ({clip}: {error}); run `physverify extract run "
+                    f"--dataset {dataset} --subset {part.name}`, or disable the extension with "
+                    f"--set dataset.subsets.{part.name}.checks_only=[]"
+                )
 
 
 def require_calib(clips: Sequence[ClipManifest]) -> None:

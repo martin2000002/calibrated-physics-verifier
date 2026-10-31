@@ -6,10 +6,11 @@
 #
 #   bash scripts/h200/run_perception_iteration.sh [FROM [TO]]   steps FROM..TO (default 1..5); FROM resumes
 #
-#    1 extract      extract run on the calib clips (failed clips tolerated, noted)
+#    1 extract      extract run on the calib clips (failed clips tolerated, noted) and on the
+#                   calib_f3_extra extension, which dev-score adds for R3b and refuses uncached
 #    2 stages       diagnose stages --clips <calib> --write-profile: the iteration's own error
 #                   profile; only calib clips are passed, so the report pass is empty
-#    3 relift       extract run again (LIFT reads the new profile)
+#    3 relift       extract run again on both (LIFT reads the new profile)
 #    4 stage-sigma  calibrate stage-sigma (per-stage sigma recalibration, calib only)
 #    5 devscore     calibrate dev-score --level both: devscore.json, and the full calib fit as
 #                   <run>/calibration.json (never in a calibration directory); copied to $OUT
@@ -63,6 +64,7 @@ PV_PROFILE="${PHYSVERIFY_ITERATION_PROFILE:-precise}"
 [[ "$PV_PROFILE" =~ ^[a-z][a-z0-9_]*$ ]] \
     || die "PHYSVERIFY_ITERATION_PROFILE must be a profile name, got '$PV_PROFILE'"
 KS=(--dataset kubric_synthetic --subset full)
+EXTENSION=(--dataset kubric_synthetic --subset calib_f3_extra)
 STEP_SAVES=([1]="CALIB_SHA" [2]="STAGES_RUN PROFILE_SHA" [4]="STAGE_SIGMA_SHA"
     [5]="DEVSCORE_SHA CALIBRATION_SHA")
 ARMS_FILE="$(dirname "${BASH_SOURCE[0]}")/perception_arms.tsv"
@@ -204,6 +206,7 @@ calib_clips() {
 
 step_1() {
     call 1 -- extract run "${KS[@]}" "${CLIP_ARGS[@]}"
+    call 1 -- extract run "${EXTENSION[@]}"
     save CALIB_SHA "$(sha_of "$OUT/calib_clips.txt")"
 }
 
@@ -219,6 +222,7 @@ step_2() {
 
 step_3() {
     call 1 -- extract run "${KS[@]}" "${CLIP_ARGS[@]}"
+    call 1 -- extract run "${EXTENSION[@]}"
 }
 
 step_4() {

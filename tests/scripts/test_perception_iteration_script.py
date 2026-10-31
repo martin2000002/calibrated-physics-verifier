@@ -33,6 +33,7 @@ PREFIX = re.compile(
 CALIB = ("k-calib-1", "k-calib-2")
 CLIPS = " ".join(f"--clips {c}" for c in CALIB)
 KS = "--dataset kubric_synthetic --subset full"
+EXTENSION = "--dataset kubric_synthetic --subset calib_f3_extra"
 # pv calls are logged with the paths they see; doctor answers from the environment unless a
 # DOCTOR_* variable overrides a line; stages, stage-sigma and devscore write what they would.
 FAKE_PYTHON = r"""#!/bin/bash
@@ -92,8 +93,10 @@ FORBIDDEN = '#!/bin/bash\necho "forbidden $(basename "$0") $*" >> "$CALLS"\n'
 EXPECTED = [
     "doctor",
     f"extract run {KS} {CLIPS}",
+    f"extract run {EXTENSION}",
     f"diagnose stages {KS} {CLIPS} --write-profile",
     f"extract run {KS} {CLIPS}",
+    f"extract run {EXTENSION}",
     f"calibrate stage-sigma {KS}",
 ]
 
@@ -254,7 +257,7 @@ def test_resume_runs_only_the_range_and_needs_the_earlier_steps(sandbox: Iterati
     sandbox.calls.unlink()
     result = sandbox.run("3")
     assert result.returncode == 0, result.stderr
-    assert sandbox.commands() == ["doctor", EXPECTED[3], EXPECTED[4], _devscore(sandbox.out)]
+    assert sandbox.commands() == ["doctor", *EXPECTED[4:], _devscore(sandbox.out)]
 
 
 @pytest.mark.parametrize(
