@@ -51,7 +51,7 @@ def test_the_record_ids_are_merged_and_its_sha_exposed(make) -> None:  # type: i
     scope = check_scope(settings, checks())
     assert scope.exclude_checks == ("R1", "R5a")
     assert scope.record_sha256 == found.sha256
-    assert scope.excluded(time_dependent=True) == {"R1", "R5a", "R5b", "R4_jump"}
+    assert scope.excluded(time_dependent=True) == {"R1", "R5a", "R5b", "R4_jump", "R4_missing"}
 
 
 def test_the_time_dependent_checks_are_the_ones_the_checks_declare(make) -> None:  # type: ignore[no-untyped-def]

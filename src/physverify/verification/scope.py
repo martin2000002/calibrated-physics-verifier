@@ -25,7 +25,7 @@ SECTION = "check_scope"
 class CheckScope(FrozenModel):
     exclude_checks: tuple[str, ...] = ()
     """Checks no consumer decides with: the record's ids plus any manual ones."""
-    time_dependent_checks: tuple[str, ...] = ("R5b", "R4_jump")
+    time_dependent_checks: tuple[str, ...] = ("R5b", "R4_jump", "R4_missing")
     """Checks whose magnitude depends on the clip's time base (fps): those that declare
     ``time_dependent`` (``checked`` refuses any other set)."""
     decision_record: str | None = None

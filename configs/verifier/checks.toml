@@ -35,10 +35,13 @@ R1 = 0.05
 R2 = 0.01
 R3a = 0.05
 R3b = 0.05
-R4_missing = 2
+# R4_missing is in seconds: 2 frames at 24 fps.
+R4_missing = 0.08333333333333333
 R4_size = 0.10
 # R4_jump v2 is in units of the track's own noise: sqrt of the chi-square(3) quantile at
-# 1 - 0.05 / 20 (Bonferroni over about 20 stencils), fixed a priori, not tuned on data.
+# 1 - 0.05 / 20 (Bonferroni over about 20 stencils), fixed a priori, not tuned on data. Every
+# magnitude is restated at the 21 stencils of a 24-row clip (same family-wise tail), so the
+# threshold holds for clips of any length.
 R4_jump = 3.78
 R5a = 0.15
 R5b = 0.15

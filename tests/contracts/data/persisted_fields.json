@@ -806,7 +806,8 @@
       "mc_draws",
       "seed",
       "min_noise_stencils",
-      "few_stencils"
+      "few_stencils",
+      "reference_stencils"
     ],
     "R4_missing": [
       "mc_draws",

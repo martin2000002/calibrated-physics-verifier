@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 
 from golden import same
-from oracle_golden_case import GOLDEN, v1_checks
+from oracle_golden_case import golden_results, v1_checks
 from oracle_golden_case import oracle_results as golden_case_results
 from synthetic_clip import SyntheticFixtureDataset
 
@@ -44,7 +44,7 @@ def test_the_oracle_results_do_not_move() -> None:
 
 
 def test_the_v1_oracle_results_match_the_golden() -> None:
-    golden = json.loads(GOLDEN.read_text(encoding="utf-8"))
+    golden = golden_results()
     current = json.loads(json.dumps(golden_case_results(*v1_checks()), sort_keys=True))
     assert len(golden) == len(current) > 0
     assert same(current, golden)

@@ -23,7 +23,7 @@ from physverify.finetune.settings import load_finetune
 from physverify.schema.checks import CheckResult, Verdict
 
 Result = Callable[..., CheckResult]
-TIME_DEPENDENT = ("R4_jump", "R5b")
+TIME_DEPENDENT = ("R4_jump", "R4_missing", "R5b")
 
 
 def _results(make_result: Result) -> list[CheckResult]:
@@ -40,7 +40,7 @@ def test_build_scorer_wraps_the_provisional_scorer(settings: Settings, make_resu
     assert isinstance(scorer, ScopedScorer)
     assert (scorer.name, scorer.version, scorer.calibrated) == ("provisional", "2", False)
     inner = ProvisionalScorer(settings, {})
-    assert scorer.thresholds() == f"{inner.thresholds()}{EXCLUDED_TAG}R4_jump,R5b"
+    assert scorer.thresholds() == f"{inner.thresholds()}{EXCLUDED_TAG}R4_jump,R4_missing,R5b"
     score = scorer.score(_results(make_result))
     assert score.decided == frozenset({"R1"}) and score.n_failed == 0
     assert set(score.per_check) == {"R1"}
@@ -76,7 +76,8 @@ def test_the_stamp_changes_with_exclude_time_dependent(
 
 def test_exclude_checks_join_the_stamp(make_settings: Callable[..., Settings]) -> None:
     settings = make_settings('check_scope.exclude_checks=["R1"]', profile="precise")
-    assert build_scorer("provisional", settings).thresholds().endswith("@excl:R1,R4_jump,R5b")
+    stamp = build_scorer("provisional", settings).thresholds()
+    assert stamp.endswith("@excl:R1,R4_jump,R4_missing,R5b")
 
 
 def test_an_unknown_check_id_is_a_configuration_error(
@@ -101,7 +102,8 @@ def test_a_family_without_target_checks_is_refused(
     with pytest.raises(UsageError, match=r"\['fall'\]"):
         build_scorer("provisional", make_settings(without, profile="precise"))
     keep = make_settings(without, "finetune.on_family_without_targets=keep", profile="precise")
-    assert build_scorer("provisional", keep).thresholds().endswith("@excl:R4_jump,R5a,R5b")
+    stamp = build_scorer("provisional", keep).thresholds()
+    assert stamp.endswith("@excl:R4_jump,R4_missing,R5a,R5b")
 
 
 def test_the_cli_exits_2_on_a_family_without_targets(cli: CliRunner, tmp_path: Path) -> None:

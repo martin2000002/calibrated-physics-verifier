@@ -126,7 +126,9 @@ def test_an_isolated_interior_gap_is_in_frame_and_unoccluded(
     rows = slice(*GAP)
     assert bool(in_frame[rows, 0].all()) and bool((occlusion[rows, 0] == 0.0).all())
     (result,) = r4_missing(fixture_clip, table_of(visible, in_frame, occlusion))
-    assert result.magnitude == GAP[1] - GAP[0]
+    seconds = (GAP[1] - GAP[0]) * fixture_clip.manifest.seconds_per_frame
+    assert result.magnitude == pytest.approx(seconds, rel=1e-12)
+    assert result.details["missing_frames"] == GAP[1] - GAP[0]
     assert result.frame_span == (GAP[0], GAP[1] - 1)
 
 

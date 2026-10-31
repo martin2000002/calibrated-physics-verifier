@@ -166,7 +166,7 @@ def test_r4_teleport_is_unchanged(edges: EdgeMode, level: float) -> None:
 def test_r4_vanish_is_unchanged(edges: EdgeMode, rows: int) -> None:
     case = sc.disappearance(first=10, last=10 + rows - 1, pitch_deg=PITCH_DEG)
     plain, filtered = both(PermanenceCheck(PermanenceParams()), case, edges)
-    assert plain == [rows] and filtered == plain
+    assert plain == pytest.approx([rows * sc.DT]) and filtered == plain
 
 
 @pytest.mark.parametrize("depth", [0.01, 0.02, 0.04, 0.08])
