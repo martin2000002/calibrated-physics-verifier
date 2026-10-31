@@ -136,6 +136,10 @@ def clip_gravity(result: Calibration) -> FloatArray:
 def clip_gravity_sigma_deg(result: Calibration) -> float:
     """Median per-frame sigma of the clip's gravity; NaN when GeoCalib gave none (0 or not finite).
 
+    GeoCalib's ``gravity_uncertainty`` is the root of the largest eigenvalue of the roll-pitch
+    covariance (``lm_optimizer.get_gravity_uncertainty``): a per-axis sigma along the worst
+    axis, not a total angle, so the checks tilt each tangent axis by it.
+
     Not the inverse-variance standard error: the frames show one static camera, so their errors
     are correlated and averaging them would understate the sigma."""
     sigma = np.asarray(result.up_sigma_rad, dtype=np.float64)
