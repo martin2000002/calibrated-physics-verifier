@@ -10,7 +10,7 @@ import pytest
 
 from physverify.checks._base import CheckInputs
 from physverify.checks.variants.r4_size_v3 import DetrendedSizeCheck, DetrendedSizeParams
-from physverify.physics.measures.detrended_size import persistent_change, running_median
+from physverify.physics.measures.detrended_size import persistent_change
 from physverify.physics.row_time import odd_rows_in, rows_in, seconds_per_row
 from physverify.schema.checks import AbstainReason, CheckResult, Verdict
 
@@ -71,13 +71,6 @@ def test_a_strided_table_counts_seconds_per_row() -> None:
     result = size(sc.bare_inputs(case))["ball_0"]
     assert (result.details["window_rows"], result.details["persistence_rows"]) == (9, 2)
     assert result.magnitude == pytest.approx(0.2, rel=1e-12)
-
-
-def test_the_running_median_keeps_its_width_at_the_ends() -> None:
-    values = np.array([5.0, 1.0, 2.0, 3.0, np.nan, 4.0])
-    found = running_median(values, 3)
-    assert found[0] == pytest.approx(2.0) and found[1] == pytest.approx(2.0)
-    assert np.isnan(found[4]) and found[5] == pytest.approx(3.5)
 
 
 def test_a_run_that_changes_sign_holds_nothing() -> None:

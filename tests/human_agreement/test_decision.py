@@ -76,6 +76,7 @@ class Score:
     score: float | None
     reason: str | None = None
     abstained_checks: tuple[str, ...] = ()
+    unweighted_checks: tuple[str, ...] = ()
     per_check: Any = field(default_factory=lambda: MappingProxyType({}))
 
 

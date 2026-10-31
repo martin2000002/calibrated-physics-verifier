@@ -16,7 +16,6 @@ comparison run.
 
 from __future__ import annotations
 
-import math
 from collections.abc import Sequence
 from dataclasses import replace
 
@@ -24,30 +23,10 @@ import numpy as np
 from numpy.typing import NDArray
 
 from physverify.extraction.backprojection import ObjectSummary, full_extents
-from physverify.extraction.lift_params import EdgeMode
 from physverify.physics.kinematics import visible_runs
+from physverify.physics.running_median import EdgeMode, running_median
 
 FloatArray = NDArray[np.float64]
-
-
-def running_median(x: FloatArray, window: int, edges: EdgeMode) -> FloatArray:
-    """Median over ``window`` rows around each row; the first and last ``window // 2`` rows use a
-    window shifted inside the series or keep their value (``edges``). Non-finite rows are skipped
-    as samples and left as they are; a series shorter than the window comes back unchanged."""
-    values = np.asarray(x, dtype=np.float64)
-    out = values.copy()
-    n = values.size
-    if n < window:
-        return out
-    half = window // 2
-    for row in range(n):
-        inside = half <= row < n - half
-        if not math.isfinite(values[row]) or (edges == "keep" and not inside):
-            continue
-        first = min(max(row - half, 0), n - window)
-        span = values[first : first + window]
-        out[row] = float(np.median(span[np.isfinite(span)]))
-    return out
 
 
 def stabilize_run(

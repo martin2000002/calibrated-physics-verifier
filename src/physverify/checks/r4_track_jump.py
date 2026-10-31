@@ -19,7 +19,7 @@ from physverify.physics.measures.track_jump import jump_over_noise, noise_jumps
 from physverify.physics.tracks import (
     MIN_NOISE_STENCILS,
     camera_depth,
-    impact_stencil_mask,
+    impact_rows,
     median_extents,
     native_span,
     noise_stencils,
@@ -60,15 +60,16 @@ def floored(noise: FloatArray, floor: float, source: NoiseSource) -> TrackNoise:
 
 
 def object_noise(
-    inputs: CheckInputs, contacts: ContactTable, index: int, floor: float, params: NoiseJumpParams
+    inputs: CheckInputs, excluded: BoolArray, index: int, floor: float, params: NoiseJumpParams
 ) -> TrackNoise | None:
     """sigma-hat of object ``index``: the floor alone for exact positions (a known sigma, all 0);
-    else its track noise; else, under "declared", its median declared sigma; else None."""
+    else its track noise over the rows not ``excluded``; else, under "declared", its median
+    declared sigma; else None."""
     declared = inputs.states.position_sigma[:, index]
     known = declared[np.all(np.isfinite(declared), axis=-1)]
     if known.shape[0] and bool(np.all(known == 0.0)):
         return TrackNoise(np.full(3, floor), "exact", 3)
-    track = track_noise(inputs.states, contacts, index, params.min_noise_stencils)
+    track = track_noise(inputs.states, index, excluded, params.min_noise_stencils)
     if track is not None:
         return floored(track, floor, "track")
     if params.few_stencils == "declared" and known.shape[0]:
@@ -80,8 +81,8 @@ class NoiseContinuityCheck:
     """R4_jump [jump_over_noise]: max_k ||d3_k / (sqrt(20) sigma-hat)|| over the rows whose
     stencil spans no impact (impacts converted to native frames), with sigma-hat per axis the
     larger of the object's own noise (``track_noise``: robust scale of its third differences /
-    sqrt(20)) and one pixel at its median depth, z / (f sqrt(12)) with f the focal length of the
-    camera LIFT used.
+    sqrt(20), over the same rows) and one pixel at its median depth, z / (f sqrt(12)) with f the
+    focal length of the camera LIFT used.
 
     A test statistic, not a physical size: the jump it stands for is in ``details``
     (``jump_over_size_estimated``, an estimate at the peak row). ``sigma`` is 1 in its own unit
@@ -113,7 +114,7 @@ class NoiseContinuityCheck:
         states = inputs.states
         object_id = str(states.object_ids[index])
         exclude = self._excluded(inputs, contacts, index)
-        usable = int(noise_stencils(states, contacts, index)[1].sum())
+        usable = int(noise_stencils(states, index, exclude)[1].sum())
         details: dict[str, object] = {
             "excluded_rows": int(np.count_nonzero(exclude)),
             "usable_stencils": usable,
@@ -122,7 +123,7 @@ class NoiseContinuityCheck:
         if usable and not math.isfinite(floor):
             reason = AbstainReason.UNKNOWN_UNCERTAINTY
             return abstain(type(self), inputs, (object_id,), reason, None, details)
-        noise = object_noise(inputs, contacts, index, floor, self.params) if usable else None
+        noise = object_noise(inputs, exclude, index, floor, self.params) if usable else None
         if noise is None:
             reason = AbstainReason.TOO_FEW_FRAMES
             return abstain(type(self), inputs, (object_id,), reason, None, details)
@@ -136,8 +137,7 @@ class NoiseContinuityCheck:
 
     def _excluded(self, inputs: CheckInputs, contacts: ContactTable, index: int) -> BoolArray:
         """Rows whose stencil spans an impact of the object."""
-        states = inputs.states
-        return impact_stencil_mask(str(states.object_ids[index]), contacts, states.frame_index)
+        return impact_rows(inputs.states, contacts, index)
 
     @staticmethod
     def _physical(

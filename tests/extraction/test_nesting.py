@@ -23,7 +23,7 @@ from physverify.extraction.providers.lift_backproject_unnested import UnnestedBa
 from physverify.schema.perception import MaskTrack
 from physverify.schema.stages import STAGE_ORDER, Stage
 from physverify.schema.states import ObjectStateTable, PrimitiveKind
-from physverify.sizing.priors import lookup_label
+from physverify.sizing.priors import label_candidates, lookup_label
 
 FRAMES, SIDE = 4, 20
 
@@ -134,6 +134,25 @@ def test_real_query_phrases_find_their_primitive(label: str, kind: PrimitiveKind
 )
 def test_the_last_known_word_is_the_head_noun(label: str, kind: PrimitiveKind) -> None:
     assert lookup_label(label, KUBRIC_PRIMITIVES) is kind
+
+
+@pytest.mark.parametrize(
+    ("label", "kind"),
+    [
+        ("ball on book", PrimitiveKind.SPHERE),
+        ("cup on book", PrimitiveKind.CYLINDER),
+        ("red cylinder on glass", PrimitiveKind.CYLINDER),
+        ("book under a ball", PrimitiveKind.BOX),
+        ("tower of jenga blocks", PrimitiveKind.BOX),
+    ],
+)
+def test_the_head_noun_comes_before_the_first_preposition(label: str, kind: PrimitiveKind) -> None:
+    assert lookup_label(label, REAL_PRIMITIVES) is kind
+
+
+def test_the_candidates_stop_at_the_first_preposition() -> None:
+    assert label_candidates("Ball on Book") == ("ball on book", "ball")
+    assert label_candidates("on book") == ("on book",)
 
 
 def test_without_its_own_profile_the_unnested_lift_leaves_sigma_unknown(

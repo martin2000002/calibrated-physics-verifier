@@ -266,10 +266,10 @@ class DevFreeze:
     majority: int | None
     cut: float | None
     tuned_cut: float | None
-    design: dict[str, float | int] | None = None
+    design: dict[str, float | int] | None
     """Estimated design effect of the primary policy's discordance on dev (frozen, item 1.3)."""
-    n_decided: int = 0
-    cut_rejection: str | None = None
+    n_decided: int
+    cut_rejection: str | None
     """Why ``best_cut`` chose no cut (None when it chose one)."""
 
 
@@ -289,12 +289,12 @@ def freeze_dev(
         for r in rows
         if r.clip_id in decisions and (label := implausible(r.human_raw, r.human_cut)) is not None
     ]
-    if not labelled:
-        return DevFreeze(0, None, None, None)
     y = np.asarray([int(label) for label, _ in labelled], dtype=np.int_)
     score = np.asarray([s for _, s in labelled], dtype=np.float64)
-    majority = int(np.mean(y) > 0.5)
     choice = best_cut(y, score, min_side_fraction)
+    if not labelled:
+        return DevFreeze(0, None, None, None, None, 0, choice.rejection)
+    majority = int(np.mean(y) > 0.5)
     calibrated = rule.name == CALIBRATED_NAME
     primary_cut = choice.cut if calibrated else None
     design = None

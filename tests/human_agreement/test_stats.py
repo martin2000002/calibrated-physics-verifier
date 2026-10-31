@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import math
+from pathlib import Path
+from typing import cast
 
 import numpy as np
 import pytest
 from scipy.stats import binomtest
 
+from physverify.human_agreement.clip_decision import ClipDecisionRule
+from physverify.human_agreement.comparison import freeze_dev
 from physverify.human_agreement.policy_metrics import (
     FEWER_THAN_TWO_SCORES,
     NO_CUT_WITH_MIN_SIDE,
@@ -29,6 +33,7 @@ from physverify.human_agreement.stats import (
     mcnemar_exact,
     mde_accuracy,
 )
+from physverify.human_agreement.verify_run_reader import VerifyRun
 
 Y = as_labels([True, True, True, False, False, False, False, False])
 P = as_labels([True, True, False, True, False, False, False, False])
@@ -148,6 +153,13 @@ def test_best_cut_needs_two_distinct_finite_scores() -> None:
     tied = as_labels([True, False])
     assert best_cut(tied, np.array([0.5, 0.5]), 0.0).rejection == FEWER_THAN_TWO_SCORES
     assert best_cut(tied, np.array([0.5, math.nan]), 0.0).rejection == FEWER_THAN_TWO_SCORES
+
+
+def test_a_dev_freeze_without_labelled_clips_records_why_it_has_no_cut() -> None:
+    empty = VerifyRun(path=Path("run"), run={}, rows={}, results={})
+    found = freeze_dev([], cast(ClipDecisionRule, None), empty, "as_plausible", 0.05)
+    assert (found.n, found.cut, found.tuned_cut) == (0, None, None)
+    assert found.cut_rejection == FEWER_THAN_TWO_SCORES
 
 
 def test_best_cut_keeps_the_min_side_fraction_of_decided_clips() -> None:

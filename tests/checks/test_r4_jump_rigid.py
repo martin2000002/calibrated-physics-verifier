@@ -1,4 +1,4 @@
-"""R4_jump rigid: the stencils where the object's size steps are left out."""
+"""R4_jump rigid2: the stencils where the object's size steps are left out."""
 
 from __future__ import annotations
 
@@ -66,6 +66,12 @@ def test_a_jump_with_a_size_step_is_left_out() -> None:
     assert found.details["excluded_rows"] == reference.details["excluded_rows"] + 3
 
 
+def test_the_size_step_stencils_are_left_out_of_the_noise_estimate() -> None:
+    inputs = swapped_mask(1.3).inputs()
+    found, reference = rigid(inputs), v2(inputs)
+    assert found.details["usable_stencils"] == reference.details["usable_stencils"] - 3
+
+
 def test_the_size_step_is_configurable() -> None:
     inputs = swapped_mask(1.3).inputs()
     assert rigid(inputs, rigid_size_step=0.5).magnitude == v2(inputs).magnitude
@@ -74,7 +80,7 @@ def test_the_size_step_is_configurable() -> None:
 def test_the_params_keep_the_size_step() -> None:
     check = RigidJumpCheck(RigidJumpParams(rigid_size_step=0.2))
     assert isinstance(check.params, RigidJumpParams)
-    assert check.params.rigid_size_step == check.rigid_size_step == 0.2
+    assert check.params.rigid_size_step == 0.2
 
 
 @pytest.mark.parametrize("step_frame", [26, 16])

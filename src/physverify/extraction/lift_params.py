@@ -11,6 +11,7 @@ from pydantic import Field, field_validator
 
 from physverify.extraction._base import ProviderParams
 from physverify.extraction.backprojection import ShiftStrategy
+from physverify.physics.running_median import EdgeMode
 from physverify.physics.tracks import OCCLUDED_AT
 from physverify.schema.states import PrimitiveKind
 
@@ -23,8 +24,6 @@ GapMode = Literal["none", "interpolate"]
 # first and last two rows stay unfiltered) is the only eligible form; "shifted" fails the survival
 # test of the detections and exists only for a descriptive comparison run.
 TemporalFilter = Literal["none", "median"]
-EdgeMode = Literal["shifted", "keep"]
-
 KUBRIC_PRIMITIVES: Mapping[str, PrimitiveKind] = MappingProxyType(
     {
         "ball": PrimitiveKind.SPHERE,
