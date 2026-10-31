@@ -692,7 +692,7 @@ def test_the_v1_arm_runs_on_its_own_chain_device_under_a_cuda_freeze(
     [
         ("missing", True, "state.env is missing: the v1 arm runs on its own chain's device"),
         ("mixed", True, "is of device cpu, profile precise, this run of device cuda"),
-        ("no-run", True, f"no {V1_RUN}/run.json"),
+        ("no-run", True, f"/runs/{V1_RUN}/run.json: the v1 calibration's device is unknown"),
         ("fast", True, "base is of device cpu, profile fast, this run of device cpu"),
         ("no-gpu", False, "CHAIN_DEVICE=cuda needs CUDA_VISIBLE_DEVICES in 0-3"),
     ],
