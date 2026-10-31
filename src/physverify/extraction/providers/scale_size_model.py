@@ -36,7 +36,7 @@ DETAIL_PREFIX = "size_model"
 SIGMA_SCOPE = "sigma=size_and_focal"
 """The sigma carries the object-size error and, once per clip, the camera's relative focal sigma.
 Not in it: the focal error is anisotropic (with a size scale it moves depth, not lateral metres),
-and the sigma treats it as a factor on every axis (ADR 0023)."""
+and the sigma treats it as a factor on every axis."""
 FALLBACK_GROUP = "prior:"
 
 

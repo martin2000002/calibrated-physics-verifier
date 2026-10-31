@@ -2,7 +2,7 @@
 
 The depth is a learned estimate, not a measurement. The sigma is the depth model's measured
 ``scale_rel`` (rms of bias and sigma); NaN until measured, 0 on true depth. Under the focal
-convention of ``_size_prior`` (ADR 0023) a metric depth has k = 0: z does not depend on f, and the
+convention of ``_size_prior`` a metric depth has k = 0: z does not depend on f, and the
 focal error of lateral metres ``(u - cx) z / f`` is LIFT's phi, never counted again here. A
 relative lift has no scale: the provider abstains (``source=none``) instead of claiming one. It
 reads no size prior, so the generator's size distribution cannot leak into the scale.
