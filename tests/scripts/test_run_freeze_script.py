@@ -177,6 +177,7 @@ def _expected(final: Path) -> list[str]:
         "extract run --dataset physics_iq --subset full",
         "extract run --dataset pisa_real --subset full",
         "extract run --dataset kubric_synthetic --subset calib",
+        "extract run --dataset kubric_synthetic --subset calib_f3_extra",
         "calibrate evaluate --dataset kubric_synthetic --subset calib --real",
         f"exclusions r2-clips --out {final / 'r2_clips.txt'}",
         f"verify {KS} --level perceived --policy raw {CLIPS}",
@@ -321,9 +322,9 @@ def test_a_resume_needs_the_earlier_steps_and_the_same_commit(sandbox: FreezeSan
     resumed = sandbox.run("4")
     assert resumed.returncode == 0, resumed.stderr
     assert sandbox.commands() == [
-        *_expected(sandbox.final)[:5],
+        *_expected(sandbox.final)[:6],
         "doctor",
-        *_expected(sandbox.final)[5:],
+        *_expected(sandbox.final)[6:],
     ]
 
 

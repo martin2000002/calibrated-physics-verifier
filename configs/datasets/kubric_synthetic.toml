@@ -112,10 +112,11 @@ f3_collision = []
 f4_stack = []
 f5_contact = []
 
-# More calib scenes of f3_collision (s000-s159, calib split only; the 20 calib scenes of `full`
-# are its prefix), with the clean clip and the cycled r3_energy_gain level of `full`. They extend
-# the clean scenes R3b's conformal threshold is fitted on (n >= 19 at alpha 0.05), and only those:
-# with them f3 would be half of calib for every other check, against a fifth in the held-out sets.
+# More calib scenes of f3_collision: the calib half of s000-s159 (80 scenes, the even indices; the
+# 20 calib scenes of `full` are among them, so 60 are new), each with the clean clip and the cycled
+# r3_energy_gain level of `full`. They extend the clean scenes R3b's conformal threshold is fitted
+# on (n >= 19 at alpha 0.05), and only those (`checks_only`): with them f3 would be half of calib
+# for every other check, against a fifth in the held-out sets.
 [dataset.subsets.calib_f3_extra]
 scenes_per_family = 160
 levels = [1, 2, 3, 4]
