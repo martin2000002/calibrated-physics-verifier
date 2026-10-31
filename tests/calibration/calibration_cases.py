@@ -264,6 +264,40 @@ def synthetic_report(
     return VerificationReport(results=tuple(results), table=tuple(table), clips=tuple(clips))
 
 
+LEAK = 5.0
+"""The other checks' magnitude on every extension clip: far above their clean noise, so any row
+of theirs that leaked would move their tau."""
+
+
+def extension_report(n_scenes: int = 20, seed: int = 1) -> VerificationReport:
+    """Calib scenes ``x###`` for an extension scoped to R5b: a clean clip with an R5b event and R5b
+    perturbed at three levels (overlapping the clean noise, so R5b stays below R1's weight); R1
+    and R3a read ``LEAK`` everywhere."""
+    rng = np.random.default_rng(seed)
+    table, results, clips = [], [], []
+    for s in range(n_scenes):
+        scene = f"x{s:03d}"
+        found = [(clip(f"{scene}__none", scene), abs(float(rng.normal(0.0, 0.01))))]
+        for lv in LEVELS:
+            mu = 0.05 * 2 ** (lv - 1)
+            pert = record("r5b_gravity_scale", ("R5b",), mu, UNITS["R5b"], lv)
+            value = mu + float(rng.normal(0.0, 0.2))
+            found.append((clip(f"{scene}__r5b_L{lv}", scene, perturbation=pert), value))
+        for manifest, value in found:
+            magnitudes: dict[str, float | None] = {"R1": LEAK, "R3a": LEAK, "R5b": value}
+            rows, found_results = _rows(manifest, magnitudes, 0.0, InputLevel.ORACLE)
+            table += rows
+            results += found_results
+            clips.append(manifest)
+    return VerificationReport(results=tuple(results), table=tuple(table), clips=tuple(clips))
+
+
+def merged(a: VerificationReport, b: VerificationReport) -> VerificationReport:
+    return VerificationReport(
+        results=a.results + b.results, table=a.table + b.table, clips=a.clips + b.clips
+    )
+
+
 def synthetic_level(report: VerificationReport, level: InputLevel) -> LevelData:
     return level_data(level, report, CHECKS, config(), split=Split.CALIB)
 

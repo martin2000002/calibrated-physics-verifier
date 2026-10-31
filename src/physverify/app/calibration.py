@@ -26,6 +26,7 @@ from physverify.calibration.report import EVALUATION_FILE, EVALUATION_MD, evalua
 from physverify.calibration.session import (
     Session,
     artifact_at,
+    calib_extension,
     dataset_ref,
     evaluation_inputs,
     fit_clips,
@@ -119,13 +120,15 @@ def fit_artifact(
         levels = tuple(
             lv for lv in (InputLevel.ORACLE, InputLevel.PERCEIVED) if lv in reports.by_level
         )
+        extension = calib_extension(session, source, name, ())
     else:
         levels = levels_of(level, session)
-        chosen = fit_clips(source, name, picked.clips or ())
+        extension = calib_extension(session, source, name, picked.clips or ())
+        chosen = [*fit_clips(source, name, picked.clips or ()), *extension.clips]
         guard([Selection(source.name, name, tuple(chosen))], None)
         reports = live_reports(session, source, chosen, levels)
-    data = fit_level_data(session, source, reports, levels, no_sigma)
-    meta = fit_meta(session, source, name, reports.clips)
+    data = fit_level_data(session, source, reports, levels, no_sigma, extension.scope)
+    meta = fit_meta(session, source, extension.label(name, reports.clips), reports.clips)
     artifact = fit_calibration(FitInputs(data, session.check_units(), meta), session.config)
     path = out or default_artifact_path(context.settings)
     publish_fit(session, path, artifact.to_json())
@@ -150,12 +153,13 @@ def score_devscore(
     source = dataset_for(context, picked.dataset or cal.dataset)
     name = picked.subset or cal.subset
     levels = levels_of(level, session)
-    chosen = fit_clips(source, name, picked.clips or ())
+    extension = calib_extension(session, source, name, picked.clips or ())
+    chosen = [*fit_clips(source, name, picked.clips or ()), *extension.clips]
     require_calib(chosen)
     guard([Selection(source.name, name, tuple(chosen))], None)
     reports = live_reports(session, source, chosen, levels)
-    data = fit_level_data(session, source, reports, levels, no_sigma)
-    meta = fit_meta(session, source, name, reports.clips)
+    data = fit_level_data(session, source, reports, levels, no_sigma, extension.scope)
+    meta = fit_meta(session, source, extension.label(name, reports.clips), reports.clips)
     result = dev_score(data, session.check_units(), meta, session.config)
     run_dir = session.run.run_dir
     text = result.report.to_json()

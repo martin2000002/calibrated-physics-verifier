@@ -11,13 +11,13 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-import numpy as np
-from calibration_cases import CHECKS, LEVELS, UNITS, _rows, clip, config, fit_meta, record
+import pytest
+from calibration_cases import CHECKS, config, extension_report, fit_meta, merged
 from calibration_cases import synthetic_report as base_report
 
 from physverify.calibration.collect import level_data
 from physverify.calibration.dev_score import dev_score, scene_folds
-from physverify.calibration.extension import ExtensionScope, restrict
+from physverify.calibration.extension import ExtensionScope, extension_of, restrict
 from physverify.calibration.fit import (
     FitInputs,
     LevelData,
@@ -27,44 +27,14 @@ from physverify.calibration.fit import (
     fit_stratum,
 )
 from physverify.calibration.sigma_recalibration import SigmaPair
+from physverify.core.errors import ConfigError
+from physverify.datasets._base import ScopedSubset
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import Split
-from physverify.verification.runner import VerificationReport
 
 CONFIG = config(alpha=0.1, folds=3, bootstrap=30)
 SCOPED = "R5b"
 OTHERS = ("R1", "R3a")
-LEAK = 5.0
-"""The other checks' magnitude on every extension clip: far above their clean noise, so any row
-of theirs that leaked would move their tau."""
-
-
-def extension_report(n_scenes: int = 20, seed: int = 1) -> VerificationReport:
-    """Per scene: a clean clip with an R5b event and R5b perturbed at three levels (overlapping
-    the clean noise, so R5b stays below R1's weight); R1 and R3a read ``LEAK`` everywhere."""
-    rng = np.random.default_rng(seed)
-    table, results, clips = [], [], []
-    for s in range(n_scenes):
-        scene = f"x{s:03d}"
-        found = [(clip(f"{scene}__none", scene), abs(float(rng.normal(0.0, 0.01))))]
-        for lv in LEVELS:
-            mu = 0.05 * 2 ** (lv - 1)
-            pert = record("r5b_gravity_scale", (SCOPED,), mu, UNITS[SCOPED], lv)
-            value = mu + float(rng.normal(0.0, 0.2))
-            found.append((clip(f"{scene}__r5b_L{lv}", scene, perturbation=pert), value))
-        for manifest, value in found:
-            magnitudes: dict[str, float | None] = {"R1": LEAK, "R3a": LEAK, SCOPED: value}
-            rows, found_results = _rows(manifest, magnitudes, 0.0, InputLevel.ORACLE)
-            table += rows
-            results += found_results
-            clips.append(manifest)
-    return VerificationReport(results=tuple(results), table=tuple(table), clips=tuple(clips))
-
-
-def merged(a: VerificationReport, b: VerificationReport) -> VerificationReport:
-    return VerificationReport(
-        results=a.results + b.results, table=a.table + b.table, clips=a.clips + b.clips
-    )
 
 
 def arms() -> tuple[LevelData, LevelData, ExtensionScope]:
@@ -140,3 +110,21 @@ def test_the_other_checks_devscore_bit_identically() -> None:
     levels = [report.levels[0].checks for report in reports]
     assert all(dumped(levels[0][c]) == dumped(levels[1][c]) for c in OTHERS)
     assert dumped(levels[0][SCOPED]) != dumped(levels[1][SCOPED])
+
+
+def test_an_extension_adds_only_the_scenes_the_base_lacks() -> None:
+    base, extra = base_report(n_scenes=4), extension_report(n_scenes=3)
+    stray = replace(extra.clips[0], clip_id="stray", scene_id=base.clips[0].scene_id)
+    subset = ScopedSubset("extra", (SCOPED,), (*base.clips[:2], stray, *extra.clips))
+    found = extension_of([subset, subset], base.clips, ("R1", SCOPED))
+    assert found.clips == extra.clips
+    assert found.scope.checks_by_scene == {c.scene_id: frozenset({SCOPED}) for c in extra.clips}
+    assert found.label("full", base.clips) == "full"
+    assert found.label("full", base.clips + extra.clips[:1]) == "full+extra"
+    assert extension_of([], base.clips, ("R1",)).clips == ()
+
+
+def test_an_extension_must_name_active_checks() -> None:
+    base, extra = base_report(n_scenes=4), extension_report(n_scenes=3)
+    with pytest.raises(ConfigError, match="checks_only=\\[\\]"):
+        extension_of([ScopedSubset("extra", ("R9",), extra.clips)], base.clips, (SCOPED,))

@@ -25,6 +25,13 @@ from physverify.calibration.collect import (
     sigma_pairs,
 )
 from physverify.calibration.evaluate import EvaluationInputs, PrimaryScope
+from physverify.calibration.extension import (
+    NO_EXTENSION,
+    Extension,
+    ExtensionScope,
+    declared,
+    extension_of,
+)
 from physverify.calibration.fit import FitMeta, LevelData
 from physverify.calibration.report import (
     CALIBRATION_MD,
@@ -163,6 +170,7 @@ def fit_level_data(
     reports: Reports,
     levels: Sequence[InputLevel],
     no_sigma: bool,
+    scope: ExtensionScope = NO_EXTENSION,
 ) -> tuple[LevelData, ...]:
     units, config = session.check_units(), session.config
     found: list[LevelData] = []
@@ -182,7 +190,13 @@ def fit_level_data(
             pairs = measured.pairs
         found.append(
             level_data(
-                level, reports.by_level[level], units, config, split=Split.CALIB, pairs=pairs
+                level,
+                reports.by_level[level],
+                units,
+                config,
+                split=Split.CALIB,
+                pairs=pairs,
+                scope=scope,
             )
         )
     return tuple(found)
@@ -221,6 +235,24 @@ def fit_clips(source: DatasetSource, subset: str, wanted: Sequence[str]) -> list
     if not chosen:
         raise UsageError(f"subset {subset!r} of {source.name} has no split=calib clip")
     return chosen
+
+
+def calib_extension(
+    session: Session, source: DatasetSource, subset: str, wanted: Sequence[str]
+) -> Extension:
+    """The extensions (``checks_only`` subsets) of the subset's calib; none with ``--clips``."""
+    subsets = () if wanted else declared(source)
+    if not subsets:
+        return Extension()
+    units = session.check_units()
+    found = extension_of(subsets, fit_clips(source, subset, ()), [u.check_id for u in units])
+    for part in found.subsets:
+        scenes = len({scene_of(c) for c in part.clips})
+        session.echo(
+            f"extension {part.name}: {len(part.clips)} clips, {scenes} scenes, "
+            f"only for {', '.join(part.checks)}"
+        )
+    return found
 
 
 def require_calib(clips: Sequence[ClipManifest]) -> None:

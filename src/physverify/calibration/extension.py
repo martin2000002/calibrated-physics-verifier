@@ -7,10 +7,14 @@ check, the aggregate's population and the base partition are therefore those of 
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 
 from physverify.calibration.fit import LevelData
+from physverify.core.errors import ConfigError
+from physverify.datasets._base import DatasetSource, ScopedSubset, ScopedSubsetSource
+from physverify.schema.clip import ClipManifest, Split
+from physverify.synth.scene_scope import scene_of
 
 
 @dataclass(frozen=True)
@@ -29,6 +33,66 @@ class ExtensionScope:
 
 
 NO_EXTENSION = ExtensionScope()
+
+
+@dataclass(frozen=True)
+class Extension:
+    """The calib clips the extensions add to a base calib, and the scope they count in."""
+
+    subsets: tuple[ScopedSubset, ...] = ()
+
+    @property
+    def clips(self) -> tuple[ClipManifest, ...]:
+        return tuple(c for subset in self.subsets for c in subset.clips)
+
+    @property
+    def scope(self) -> ExtensionScope:
+        found: dict[str, frozenset[str]] = {}
+        for subset in self.subsets:
+            for clip in subset.clips:
+                scene = scene_of(clip)
+                found[scene] = found.get(scene, frozenset()) | frozenset(subset.checks)
+        return ExtensionScope(found)
+
+    def label(self, base: str, clips: Sequence[ClipManifest]) -> str:
+        """``base`` joined with every extension that has a clip among ``clips``."""
+        ids = {c.clip_id for c in clips}
+        used = [s.name for s in self.subsets if any(c.clip_id in ids for c in s.clips)]
+        return "+".join([base, *used])
+
+
+def declared(source: DatasetSource) -> tuple[ScopedSubset, ...]:
+    """The dataset's check-scoped subsets that have a calib clip."""
+    if not isinstance(source, ScopedSubsetSource):
+        return ()
+    return tuple(
+        replace(s, clips=calib)
+        for s in source.scoped_subsets()
+        if (calib := tuple(c for c in s.clips if c.split is Split.CALIB))
+    )
+
+
+def extension_of(
+    subsets: Sequence[ScopedSubset], base: Sequence[ClipManifest], check_ids: Collection[str]
+) -> Extension:
+    """The clips of ``subsets`` in scenes ``base`` lacks (a base scene stays the base's alone),
+    scoped to active checks."""
+    base_scenes = {scene_of(c) for c in base}
+    seen: set[str] = set()
+    found: list[ScopedSubset] = []
+    for subset in subsets:
+        unknown = sorted(set(subset.checks) - set(check_ids))
+        if unknown:
+            raise ConfigError(
+                f"subset {subset.name!r}: checks_only names inactive checks {unknown} "
+                f"(disable it with --set dataset.subsets.{subset.name}.checks_only=[])"
+            )
+        added = tuple(
+            c for c in subset.clips if scene_of(c) not in base_scenes and c.clip_id not in seen
+        )
+        seen |= {c.clip_id for c in added}
+        found.append(replace(subset, clips=added))
+    return Extension(tuple(s for s in found if s.clips))
 
 
 def restrict(data: LevelData, scope: ExtensionScope, scene_by_clip: Mapping[str, str]) -> LevelData:
