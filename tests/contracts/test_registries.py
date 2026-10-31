@@ -110,6 +110,7 @@ PROVIDER_ORDER = (
     "camera/geocalib",
     "camera/moge2_focal",
     "contacts/kinematic",
+    "contacts/kinematic_scene",
     "contacts/proximity",
     "depth/moge2",
     "depth/vda_small",
