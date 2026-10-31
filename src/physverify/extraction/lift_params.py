@@ -88,6 +88,9 @@ class LiftParams(ProviderParams):
     temporal_filter: TemporalFilter = "none"
     temporal_window: int = Field(default=5, ge=3)
     temporal_edges: EdgeMode = "keep"
+    # Version 5: the footprint behind a box's yaw drops surface points farther from its median
+    # than this many robust sigma (``lift_geometry.footprint_yaw``).
+    footprint_trim_mads: float = Field(default=3.0, gt=0.0)
 
     @field_validator("temporal_window")
     @classmethod

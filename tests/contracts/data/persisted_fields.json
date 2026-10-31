@@ -949,7 +949,8 @@
       "gap_occluded_at",
       "temporal_filter",
       "temporal_window",
-      "temporal_edges"
+      "temporal_edges",
+      "footprint_trim_mads"
     ],
     "lift/backproject_unnested": [
       "shift",
@@ -970,6 +971,7 @@
       "temporal_filter",
       "temporal_window",
       "temporal_edges",
+      "footprint_trim_mads",
       "nested_overlap"
     ],
     "lift/ground_truth": [],

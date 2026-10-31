@@ -14,6 +14,7 @@ import numpy as np
 from numpy.typing import NDArray
 from scipy.ndimage import binary_erosion
 
+from physverify.extraction.lift_geometry import GroundFrame, SilhouetteView, silhouette_view
 from physverify.physics.geometry import characteristic_length
 from physverify.physics.uncertainty import entry_draws, entry_rms, monte_carlo
 from physverify.schema.error_profile import ErrorEntry
@@ -115,12 +116,14 @@ def lift_depth(
 
 @dataclass(frozen=True)
 class ObjectSummary:
-    """Median camera-frame point ``centre`` of the visible surface and full ``extents``."""
+    """Median camera-frame point ``centre`` of the visible surface, full ``extents`` along the
+    camera axes and, when gravity is known, the silhouette against the vertical."""
 
     centre: FloatArray
     extents: FloatArray
     r_eq_px: float
     n_pixels: int
+    view: SilhouetteView | None = None
 
 
 @dataclass(frozen=True)
@@ -128,6 +131,7 @@ class SummaryOptions:
     erode_px: int
     extent_percentiles: tuple[float, float]
     min_area_px: int
+    footprint_trim_mads: float
 
 
 def _surface_pixels(mask: BoolArray, valid: BoolArray, erode_px: int) -> BoolArray:
@@ -142,6 +146,7 @@ def object_summary(
     valid: BoolArray,
     intrinsics: FloatArray,
     options: SummaryOptions,
+    frame: GroundFrame | None = None,
 ) -> ObjectSummary | None:
     """Back-projects X = z K^-1 [u, v, 1] of the eroded surface for the centre s; None when fewer
     than ``min_area_px`` pixels remain.
@@ -157,14 +162,27 @@ def object_summary(
     depth = z[rows, cols]
     x = (cols + 0.5 - intrinsics[0, 2]) / intrinsics[0, 0] * depth
     y = (rows + 0.5 - intrinsics[1, 2]) / intrinsics[1, 1] * depth
-    centre = np.median(np.column_stack([x, y, depth]), axis=0)
+    surface = np.column_stack([x, y, depth])
+    centre = np.median(surface, axis=0)
     e_xy = silhouette_spread_px(mask, options.extent_percentiles) * centre[2]
     e_xy = e_xy / np.array([intrinsics[0, 0], intrinsics[1, 1]])
+    view = None
+    if frame is not None:
+        view = silhouette_view(
+            mask,
+            intrinsics,
+            centre,
+            surface,
+            frame,
+            options.extent_percentiles,
+            options.footprint_trim_mads,
+        )
     return ObjectSummary(
         centre=centre,
         extents=full_extents(e_xy),
         r_eq_px=math.sqrt(float(mask.sum()) / math.pi),
         n_pixels=n_pixels,
+        view=view,
     )
 
 
@@ -185,10 +203,10 @@ def silhouette_spread_px(mask: BoolArray, percentiles: tuple[float, float]) -> F
     return spread
 
 
-def object_position(centre: FloatArray, extents: FloatArray, offset_frac: float) -> FloatArray:
-    """p = s + k e_z s_hat: the median surface point pushed back along the viewing ray."""
+def object_position(centre: FloatArray, offset: FloatArray | float) -> FloatArray:
+    """p = s + offset s_hat: the median surface point pushed back along the viewing ray."""
     ray = centre / np.linalg.norm(centre, axis=-1, keepdims=True)
-    position: FloatArray = centre + offset_frac * extents[..., 2:3] * ray
+    position: FloatArray = centre + np.asarray(offset, dtype=np.float64)[..., None] * ray
     return position
 
 
@@ -201,6 +219,7 @@ class LiftErrors:
     centroid_rel: ErrorEntry | None
     size_rel: ErrorEntry | None
     phi: float
+    orientation_rad: ErrorEntry | None = None
 
 
 def _focal_rel_per_fov_rad(fov_deg: float) -> float:
@@ -256,13 +275,15 @@ def focal_draws(phi: float, rng: np.random.Generator, n_draws: int) -> FloatArra
 
 def monte_carlo_sigma(
     summary: ObjectSummary,
+    extents: FloatArray,
+    offset: float,
     intrinsics: FloatArray,
-    offset_frac: float,
     errors: LiftErrors,
     rng: np.random.Generator,
     n_draws: int,
 ) -> tuple[FloatArray, FloatArray]:
-    """Std of position and extents over draws of (depth, image centroid, focal, own) errors."""
+    """Std of position and ``extents`` over draws of (depth, image centroid, focal, own) errors;
+    the extents and the centre ``offset`` scale with depth / focal like the summary's."""
     focal = np.array([intrinsics[0, 0], intrinsics[1, 1]])
     principal = np.array([intrinsics[0, 2], intrinsics[1, 2]])
     z_s = float(summary.centre[2])
@@ -274,7 +295,7 @@ def monte_carlo_sigma(
         "size": entry_draws(errors.size_rel, rng, (n_draws, 3)),
         "focal": focal_draws(errors.phi, rng, n_draws),
     }
-    size = characteristic_length(summary.extents)
+    size = characteristic_length(extents)
 
     def columns(values: FloatArray, k: int) -> FloatArray:
         return np.broadcast_to(np.reshape(values, (n_draws, -1)), (n_draws, k))
@@ -285,10 +306,12 @@ def monte_carlo_sigma(
         uv = pixel + columns(d["centroid_px"], 2) * summary.r_eq_px
         xy = (z_s * depth_ratio)[:, None] * (uv - principal) / (focal * f_ratio[:, None])
         centre = np.column_stack([xy, z_s * depth_ratio])
-        extents = summary.extents * (depth_ratio / f_ratio)[:, None] * (1.0 + columns(d["size"], 3))
-        position = object_position(centre, extents, offset_frac)
+        scale = depth_ratio / f_ratio
+        size_ratio = 1.0 + columns(d["size"], 3)
+        drawn = extents * scale[:, None] * size_ratio
+        position = object_position(centre, offset * scale * size_ratio.mean(axis=1))
         position = position + columns(d["centroid"], 3) * size
-        return np.column_stack([position, extents])
+        return np.column_stack([position, drawn])
 
     if all(value is None for value in draws.values()):
         return np.full(3, np.nan), np.full(3, np.nan)

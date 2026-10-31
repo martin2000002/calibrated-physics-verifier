@@ -1,6 +1,6 @@
-"""LIFT tables of the analytic fixture, written once by LIFT version 2 (commit 34e4e6e) into
-``golden/lift_v2/<case>.npz`` and compared with version 3 under ``temporal_filter = "none"``.
-The same module runs in both trees:
+"""LIFT tables of the analytic fixture, written by LIFT version 5 into ``golden/lift_v5/<case>.npz``
+and compared under ``temporal_filter = "none"``; rewritten only when a new version changes the
+table on purpose. The same module runs in both trees:
 
     PYTHONPATH=<old>/src:tests/fixtures:tests/extraction python tests/extraction/lift_golden_case.py
 """
@@ -25,7 +25,7 @@ from physverify.schema.perception import DepthMap
 from physverify.schema.stages import STAGE_ORDER, Stage
 from physverify.schema.states import ObjectStateTable
 
-GOLDEN = Path(__file__).resolve().parent / "golden" / "lift_v2"
+GOLDEN = Path(__file__).resolve().parent / "golden" / "lift_v5"
 PERCEIVED = {Stage.TRACK: "edgetam", Stage.DEPTH: "vda_small", Stage.LIFT: "backproject"}
 CASES: dict[str, dict[str, Any]] = {
     "truth_closed_form": {"noisy": False, "params": {}},
