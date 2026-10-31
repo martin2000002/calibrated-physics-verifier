@@ -109,6 +109,7 @@ PROVIDER_ORDER = (
     "camera/from_depth",
     "camera/geocalib",
     "contacts/kinematic",
+    "contacts/kinematic_scene",
     "contacts/proximity",
     "depth/moge2",
     "depth/vda_small",

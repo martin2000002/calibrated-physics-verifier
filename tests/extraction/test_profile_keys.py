@@ -116,6 +116,54 @@ def test_light_outputs_only_depend_on_their_profile_keys(
         assert hashes[0] == hashes[1], provider.name
 
 
+SCENE = profile_of(*P0.entries, entry(Stage.KINEMATICS, "savgol", "vel_rel", 0.3))
+
+
+@pytest.mark.parametrize(
+    ("key", "moved"),
+    [
+        ((Stage.KINEMATICS, "savgol", "vel_rel"), [Stage.CONTACTS]),
+        ((Stage.LIFT, "backproject", "centroid_rel"), FROM_LIFT),
+        ((Stage.DEPTH, "vda_small", "depth_rel"), FROM_LIFT),
+    ],
+)
+def test_the_scene_contacts_key_follows_the_velocity_and_lift_entries_only(
+    make_settings: SettingsFactory,
+    real_providers: Providers,
+    fixture_clip: SyntheticClip,
+    key: tuple[Stage, str, str],
+    moved: list[Stage],
+) -> None:
+    """Beyond what the proximity plan moves, only the velocity entry moves the contacts key."""
+    scene = resolve_plan(
+        make_settings(*plan_overrides(contacts="kinematic_scene")),
+        real_providers,
+        dataset="synthetic_fixture",
+    )
+    base = resolve_plan(make_settings(), real_providers, dataset="synthetic_fixture")
+    altered = with_sigma(SCENE, key, 0.9)
+    assert changed(scene, fixture_clip, SCENE, altered) == moved
+    assert set(moved) - set(changed(base, fixture_clip, SCENE, altered)) <= {Stage.CONTACTS}
+    provider = real_providers["contacts/kinematic_scene"]
+    assert profile_keys(provider, scene.names) == (
+        (Stage.LIFT, "backproject"),
+        (Stage.KINEMATICS, "savgol"),
+    )
+
+
+def test_a_depth_entry_does_not_reach_scene_contacts_over_a_true_lift(
+    make_settings: SettingsFactory, real_providers: Providers, fixture_clip: SyntheticClip
+) -> None:
+    scene = resolve_plan(
+        make_settings(*plan_overrides(contacts="kinematic_scene")),
+        real_providers,
+        dataset="synthetic_fixture",
+        gt_stages=(Stage.LIFT,),
+    )
+    altered = with_sigma(SCENE, (Stage.DEPTH, "vda_small", "depth_rel"), 0.9)
+    assert changed(scene, fixture_clip, SCENE, altered) == []
+
+
 def test_a_pipeline_run_with_a_new_own_entry_recomputes_from_lift(
     make_settings: SettingsFactory, providers: Providers, fixture_dataset: SyntheticFixtureDataset
 ) -> None:
