@@ -16,7 +16,7 @@ from physverify.core.errors import PhysverifyError
 from physverify.freeze.diffs import Git, diff_record
 from physverify.freeze.errors import QueryError
 from physverify.freeze.files import readable_sha256
-from physverify.freeze.selection import COMMIT, DEVICE, PROFILE, chosen_candidate, seed_of
+from physverify.freeze.selection import COMMIT, chosen_candidate, seed_of
 from physverify.selective_risk.settings import ABSTENTION_FILE
 from physverify.verification.scope import check_scope
 
@@ -101,8 +101,8 @@ def manifest(
         "created_utc": now().strftime("%Y-%m-%dT%H:%M:%SZ"),
         "commit": head,
         "configs_tree": git(["rev-parse", "HEAD:configs"]).strip(),
-        "profile": PROFILE,
-        "device": DEVICE,
+        "profile": chosen["profile"],
+        "device": chosen["device"],
         "calibration_dir": str(settings.paths.calibration_dir),
         "artifacts": artifacts,
         "record_sha": computed,

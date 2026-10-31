@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -12,12 +13,16 @@ import pytest
 from cli_tree import command_modules
 from fx_protocol import Widget
 
+import physverify
 from physverify.app.plugins import PLUGIN_KINDS
 from physverify.core.errors import DuplicatePluginError, InvalidPluginError, MissingPluginsError
 from physverify.core.registry import discover
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "plugins"
 HEAVY_MODULES = ("torch", "transformers", "kubric", "bpy")
+SRC = Path(physverify.__file__).resolve().parents[1]
+"""The src directory of the package under test: a child process imports it, not whatever the
+interpreter's site-packages point at."""
 
 
 def test_discovers_listed_classes_and_skips_private_modules() -> None:
@@ -87,11 +92,19 @@ def test_registries_do_not_import_heavy_modules() -> None:
         "sizes = {kind: len(build()) for kind, build in PLUGIN_KINDS.items()}\n"
         "discover_modules(COMMANDS_PACKAGE, check_command, command_name)\n"
         f"heavy = [m for m in {HEAVY_MODULES!r} if m in sys.modules]\n"
-        "print(json.dumps({'sizes': sizes, 'heavy': heavy}))\n"
+        "import physverify\n"
+        "report = {'sizes': sizes, 'heavy': heavy, 'package': physverify.__file__}\n"
+        "print(json.dumps(report))\n"
     )
     done = subprocess.run(
-        [sys.executable, "-c", script], capture_output=True, text=True, check=True
+        [sys.executable, "-c", script],
+        capture_output=True,
+        text=True,
+        cwd=SRC,
+        env={**os.environ, "PYTHONPATH": str(SRC)},
+        check=True,
     )
     report = json.loads(done.stdout)
+    assert Path(report["package"]).resolve() == SRC / "physverify" / "__init__.py"
     assert report["heavy"] == []
-    assert len(report["sizes"]) == 12
+    assert report["sizes"] == {kind: len(build()) for kind, build in PLUGIN_KINDS.items()}

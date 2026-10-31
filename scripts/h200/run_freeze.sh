@@ -2,17 +2,19 @@
 # The freeze on the H200, in a clean checkout at the freeze commit: the chosen perception
 # iteration's artifacts adopted as they are (never refitted), the development real video
 # extracted, the rule 1.5 evaluation on the calib clips, both R2 detector arms, the exclusion
-# record, the abstention and freeze.json. Every call is --profile precise --device cpu; nothing
-# names an eval clip or a sealed set, so no look is made (and PHYSVERIFY_UNSEAL is refused).
+# record, the abstention and freeze.json. Every call is --profile precise --device $PV_DEVICE, the
+# device of the adopted iteration; nothing names an eval clip or a sealed set, so no look is made
+# (and PHYSVERIFY_UNSEAL is refused).
 #
 #   bash scripts/h200/run_freeze.sh [FROM [TO]]   steps FROM..TO (default 1..7); FROM resumes
 #
 #    1 adopt           the selection rule over PHYSVERIFY_FREEZE_ITERATIONS (freeze_query select):
 #                      the choice must be PHYSVERIFY_FREEZE_ITERATION and the diff of the refit
 #                      paths (checks, physics, extraction, verification, selective_risk/curve.py)
-#                      from its commit to HEAD empty; its
-#                      calibration.json, stage_errors.precise.json and stage_sigma.json are copied
-#                      to $F/calibration (a different file already there stops)
+#                      from its commit to HEAD empty, its device and profile this run's
+#                      (_common.sh require_pair); its calibration.json, stage_errors.precise.json
+#                      and stage_sigma.json are copied to $F/calibration (a different file already
+#                      there stops)
 #    2 real-dev        extract run on physics_iq and pisa_real (full) and the kubric_synthetic calib
 #                      clips (LIFT reads the adopted profile; failed clips tolerated, noted)
 #    3 evaluate-calib  calibrate evaluate --dataset kubric_synthetic --subset calib --real; stops on
@@ -29,9 +31,10 @@
 # or PHYSVERIFY_UNSEAL_REPEAT; $F (and its calibration/ and runs/) not inside $CHAIN_ROOT* (the
 # CPU calibration chain and its CUDA run, $CHAIN_ROOT-cuda), $H200_ROOT/iterations,
 # $DATA/calibration* or $DATA/runs*; no other instance
-# on its run.lock; state.env of another commit; steps 1..FROM-1 completed. Then doctor must
-# report config_dir $REPO_ROOT/configs, device cpu, profile precise, the cache, and the
-# calibration directory, runs directory, error profile and thresholds inside $F.
+# on its run.lock; PV_DEVICE cpu or cuda (cuda with CUDA_VISIBLE_DEVICES in 0-3); state.env of
+# another commit or device; steps 1..FROM-1 completed. Then doctor must report config_dir
+# $REPO_ROOT/configs, the device, profile precise, the cache, and the calibration directory, runs
+# directory, error profile and thresholds inside $F.
 #
 # Required:
 #   PHYSVERIFY_FREEZE_EXPECT_COMMIT  prefix (>= 7 chars) of the freeze commit, the HEAD this
@@ -47,6 +50,8 @@
 #   PHYSVERIFY_FREEZE_V1_CALIBRATION the base iteration's calibration.json (the v1 arm's)
 #   PHYSVERIFY_FREEZE_CACHE_DIR      paths.cache_dir (the shared cache)
 # Optional (defaults in brackets):
+#   PV_DEVICE                        cpu or cuda, the device of the adopted iteration, which
+#                                    freeze.json records for run_final.sh [cuda]
 #   PHYSVERIFY_FREEZE_DIR            $F [$H200_ROOT/final]
 #   PHYSVERIFY_FREEZE_PYTHON         interpreter [/home/mmonterot/dev/venv/bin/python]
 #   PHYSVERIFY_FREEZE_THREADS        runtime.threads [32]
@@ -99,8 +104,7 @@ for dir in "$F" "$CAL" "$F/runs"; do
         ! near "$dir" "$base" || die "$dir is inside $base*: the freeze never writes there"
     done
 done
-export CUDA_VISIBLE_DEVICES=""
-PV_DEVICE=cpu
+use_device PV_DEVICE
 
 OUT="$F/run-freeze"
 mkdir -p "$OUT"
@@ -123,25 +127,27 @@ STEPS="$OUT/steps.tsv"
 NOTES="$OUT/notes.md"
 SUMMARY="$OUT/summary.md"
 SUMMARY_TITLE="Freeze ($PHYSVERIFY_FREEZE_ITERATION)"
-SUMMARY_INFO="commit $HEAD_COMMIT, profile precise, device cpu, cache $CACHE, data $DATA, threads $THREADS"
+SUMMARY_INFO="commit $HEAD_COMMIT, profile $PV_PROFILE, device $PV_DEVICE, cache $CACHE, data $DATA, threads $THREADS"
 mkdir -p "$LOGS"
 touch "$STEPS" "$NOTES"
 if [[ -f "$STATE" ]]; then
     # shellcheck disable=SC1090
     source "$STATE"
 fi
-for pair in "FREEZE_COMMIT $HEAD_COMMIT" "FREEZE_ITERATION $PHYSVERIFY_FREEZE_ITERATION"; do
+for pair in "FREEZE_COMMIT $HEAD_COMMIT" "FREEZE_ITERATION $PHYSVERIFY_FREEZE_ITERATION" \
+    "FREEZE_DEVICE $PV_DEVICE"; do
     read -r key value <<<"$pair"
     if [[ -z "${!key:-}" ]]; then
         save "$key" "$value"
     elif [[ "${!key}" != "$value" ]]; then
-        die "$F belongs to $key=${!key}, not $value (a moved freeze commit repeats the freeze in a new \$F)"
+        die "$F belongs to $key=${!key}, not $value (another commit, iteration or device" \
+            "repeats the freeze in a new \$F)"
     fi
 done
 require_completed "$FIRST_STEP" "$FROM"
 
 step_1() {
-    local selection="$F/selection.json" chosen dir commit changed file
+    local selection="$F/selection.json" chosen dir commit device profile changed file
     fq select "${ITERATIONS[@]}" >"$selection.tmp" || stop "the selection failed (see above)"
     mv "$selection.tmp" "$selection"
     chosen="$(fq chosen "$selection" id)" || stop "no chosen iteration in $selection"
@@ -149,6 +155,9 @@ step_1() {
         || stop "the selection rule chooses $chosen, not PHYSVERIFY_FREEZE_ITERATION=$PHYSVERIFY_FREEZE_ITERATION"
     dir="$(fq chosen "$selection" dir)" || stop "no directory of $chosen in $selection"
     commit="$(fq chosen "$selection" commit)" || stop "no commit of $chosen in $selection"
+    device="$(fq chosen "$selection" device)" || stop "no device of $chosen in $selection"
+    profile="$(fq chosen "$selection" profile)" || stop "no profile of $chosen in $selection"
+    require_pair "the iteration $chosen" "$device" "$profile" stop
     changed="$(fq diff j3 "$commit")" || stop "cannot diff the refit paths from $commit"
     [[ -z "$changed" ]] || stop "refit needed: $commit -> HEAD changes checks, physics, extraction or" \
         "verification ($changed): the artifacts cannot be adopted"

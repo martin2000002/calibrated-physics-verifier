@@ -19,23 +19,27 @@ from physverify.freeze.errors import QueryError
 from physverify.freeze.files import read_json, readable_sha256
 
 PROFILE = "precise"
-DEVICE = "cpu"
 ITERATION_ID = re.compile(r"^it(\d+)")
 COMMIT = re.compile(r"^[0-9a-f]{40}$")
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 J4_RULE = (
-    "CPU iterations only; most n_met, then the highest AUROC_cv at full precision, then the "
-    "later iteration (plan-congelado J4)"
+    "iterations of one device and profile only; most n_met, then the highest AUROC_cv at full "
+    "precision, then the later iteration (plan-congelado J4)"
 )
 ITERATION_CALIBRATION_DIR = "calibration"
 """The calibration directory run_perception_iteration.sh gives each iteration."""
-ITERATION_FILES: Mapping[str, str] = {
-    "DEVSCORE_SHA": DEVSCORE_FILE,
-    "CALIBRATION_SHA": CalibrationSettings.model_fields["artifact"].default,
-    "PROFILE_SHA": f"{ITERATION_CALIBRATION_DIR}/{error_profile_file(PROFILE)}",
-    "STAGE_SIGMA_SHA": f"{ITERATION_CALIBRATION_DIR}/{STAGE_SIGMA_FILE}",
-}
+DEVSCORE_KEY = "DEVSCORE_SHA"
 ITERATION_STEPS = range(1, 6)
+
+
+def iteration_files(profile: str) -> dict[str, str]:
+    """The state.env sha256 keys of an iteration of ``profile`` and the files they record."""
+    return {
+        DEVSCORE_KEY: DEVSCORE_FILE,
+        "CALIBRATION_SHA": CalibrationSettings.model_fields["artifact"].default,
+        "PROFILE_SHA": f"{ITERATION_CALIBRATION_DIR}/{error_profile_file(profile)}",
+        "STAGE_SIGMA_SHA": f"{ITERATION_CALIBRATION_DIR}/{STAGE_SIGMA_FILE}",
+    }
 
 
 @dataclass(frozen=True)
@@ -46,6 +50,8 @@ class Candidate:
     n_met: int
     auroc_cv: float | None
     commit: str
+    device: str
+    profile: str
     devscore_sha256: str
     calibration_sha256: str
 
@@ -80,24 +86,23 @@ def completed_steps(path: Path) -> set[int]:
 
 
 def candidate(directory: Path) -> Candidate:
-    """One iteration of run_perception_iteration.sh, refused unless CPU, complete and unchanged."""
+    """One iteration of run_perception_iteration.sh with its device and profile, refused unless
+    complete and unchanged."""
     state = state_env(directory / "state.env")
     iteration = state.get("CHAIN_ITER_ID", "")
     match = ITERATION_ID.match(iteration)
     if match is None:
         raise QueryError(f"{directory}: state.env has no iteration id (CHAIN_ITER_ID)")
-    if state.get("CHAIN_DEVICE") != DEVICE:
-        raise QueryError(
-            f"{iteration} ran on {state.get('CHAIN_DEVICE')!r}: only CPU iterations are eligible "
-            "under the selection rule"
-        )
+    device, profile = state.get("CHAIN_DEVICE"), state.get("CHAIN_PROFILE")
+    if not device or not profile:
+        raise QueryError(f"{iteration}: state.env has no CHAIN_DEVICE or no CHAIN_PROFILE")
     missing = [s for s in ITERATION_STEPS if s not in completed_steps(directory / "steps.tsv")]
     if missing:
         raise QueryError(f"{iteration}: steps {missing} are not completed in steps.tsv")
-    for key, name in ITERATION_FILES.items():
+    for key, name in iteration_files(profile).items():
         if readable_sha256(directory / name) != state.get(key):
             raise QueryError(f"{iteration}: {name} is not the file state.env records ({key})")
-    devscore = read_json(directory / ITERATION_FILES["DEVSCORE_SHA"])
+    devscore = read_json(directory / DEVSCORE_FILE)
     selection = devscore.get("selection")
     if not isinstance(selection, dict):
         raise QueryError(f"{iteration}: devscore.json has no selection")
@@ -109,7 +114,9 @@ def candidate(directory: Path) -> Candidate:
         n_met=int(selection["n_met"]),
         auroc_cv=None if auroc is None else float(auroc),
         commit=str(devscore.get("commit", "")),
-        devscore_sha256=state["DEVSCORE_SHA"],
+        device=device,
+        profile=profile,
+        devscore_sha256=state[DEVSCORE_KEY],
         calibration_sha256=state["CALIBRATION_SHA"],
     )
 
@@ -120,6 +127,11 @@ def select(candidates: Sequence[Candidate]) -> dict[str, Any]:
     numbers = [c.number for c in candidates]
     if len(set(numbers)) != len(numbers):
         raise QueryError(f"two directories of one iteration: {[c.id for c in candidates]}")
+    pairs = sorted({(c.device, c.profile) for c in candidates})
+    if len(pairs) > 1:
+        raise QueryError(
+            f"iterations of several devices and profiles {pairs}: the rule never mixes"
+        )
     chosen = max(candidates, key=Candidate.key)
     return {"rule": J4_RULE, "candidates": [asdict(c) for c in candidates], "chosen": chosen.id}
 

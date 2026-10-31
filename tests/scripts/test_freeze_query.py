@@ -28,7 +28,7 @@ from physverify.freeze.fresh_render import VERSION_ENV, plan_lines, render_overr
 from physverify.freeze.ledger import ledger_entries, look_state, v1_state
 from physverify.freeze.ledger import ledger_line as summary_line
 from physverify.freeze.manifest import ManifestInputs, artifact_problems, manifest
-from physverify.freeze.selection import J4_RULE, candidate, seed_of, select
+from physverify.freeze.selection import J4_RULE, candidate, chosen_candidate, seed_of, select
 from physverify.schema.clip import Split
 from physverify.synth.generate import load_plan, plan_subset, save_plan
 from physverify.synth.settings import dataset_root, load_dataset_settings
@@ -92,21 +92,49 @@ def test_a_full_tie_goes_to_the_later_iteration_and_a_null_auroc_ranks_last(
     assert select([candidate(d) for d in tied])["chosen"] == "it4-selfrel"
 
 
-@pytest.mark.parametrize(
-    ("change", "message"),
-    [
-        ({"device": "cuda"}, "only CPU iterations"),
-        ({"steps": (1, 2, 3, 4)}, r"steps \[5\]"),
-    ],
-)
-def test_a_cuda_or_incomplete_iteration_is_refused(
-    tmp_path: Path,
-    change: Mapping[str, Any],
-    message: str,
-    iteration_factory: Callable[..., Path],
+def test_an_incomplete_iteration_is_refused(
+    tmp_path: Path, iteration_factory: Callable[..., Path]
 ) -> None:
-    directory = iteration_factory(tmp_path, "it3-arms", 9, 0.99, **change)
-    with pytest.raises(QueryError, match=message):
+    directory = iteration_factory(tmp_path, "it3-arms", 9, 0.99, steps=(1, 2, 3, 4))
+    with pytest.raises(QueryError, match=r"steps \[5\]"):
+        candidate(directory)
+
+
+@pytest.mark.parametrize("device", ["cpu", "cuda"])
+def test_iterations_of_one_device_are_chosen_with_their_device_and_profile(
+    tmp_path: Path, device: str, iteration_factory: Callable[..., Path]
+) -> None:
+    dirs = [
+        iteration_factory(tmp_path, "it1-fixes", 2, 0.6, device=device),
+        iteration_factory(tmp_path, "it2-state", 3, 0.6, device=device),
+    ]
+    found = select([candidate(d) for d in dirs])
+    chosen = chosen_candidate(found)
+    assert (chosen["id"], chosen["device"], chosen["profile"]) == ("it2-state", device, "precise")
+
+
+@pytest.mark.parametrize(
+    "change", [{"device": "cuda"}, {"profile": "fast"}], ids=["device", "profile"]
+)
+def test_iterations_of_mixed_devices_or_profiles_are_refused(
+    tmp_path: Path, change: Mapping[str, Any], iteration_factory: Callable[..., Path]
+) -> None:
+    dirs = [
+        iteration_factory(tmp_path, "it1-fixes", 2, 0.6),
+        iteration_factory(tmp_path, "it2-state", 3, 0.6, **change),
+    ]
+    with pytest.raises(QueryError, match="never mixes"):
+        select([candidate(d) for d in dirs])
+
+
+def test_an_iteration_without_its_device_or_profile_is_refused(
+    tmp_path: Path, iteration_factory: Callable[..., Path]
+) -> None:
+    directory = iteration_factory(tmp_path, "it3-arms", 9, 0.99)
+    state = directory / "state.env"
+    lines = state.read_text().splitlines(keepends=True)
+    state.write_text("".join(line for line in lines if not line.startswith("CHAIN_PROFILE=")))
+    with pytest.raises(QueryError, match="no CHAIN_DEVICE or no CHAIN_PROFILE"):
         candidate(directory)
 
 
@@ -186,9 +214,11 @@ class FakeGit:
 
 
 def _inputs(
-    tmp_path: Path, iteration_factory: Callable[..., Path], **change: Any
+    tmp_path: Path, iteration_factory: Callable[..., Path], device: str = "cpu", **change: Any
 ) -> ManifestInputs:
-    directory = iteration_factory(tmp_path / "iterations", "it2-state", 3, 0.6, commit="b" * 40)
+    directory = iteration_factory(
+        tmp_path / "iterations", "it2-state", 3, 0.6, device=device, commit="b" * 40
+    )
     selection = select([candidate(directory)])
     v1 = tmp_path / "v1-calibration.json"
     v1.write_bytes(b"v1")
@@ -206,19 +236,22 @@ def _manifest(inputs: ManifestInputs, settings: Settings, git: Git) -> dict[str,
     return manifest(inputs, settings, git, record=lambda: "r" * 64, now=datetime.now)
 
 
+@pytest.mark.parametrize("device", ["cpu", "cuda"])
 def test_the_manifest_records_the_freeze(
     tmp_path: Path,
     config_dir: Path,
     environ: dict[str, str],
+    device: str,
     iteration_factory: Callable[..., Path],
 ) -> None:
-    """Commit, configs tree, artifacts, record, seed, selection, both diffs, v1."""
+    """Commit, configs tree, the chosen iteration's device and profile, artifacts, record, seed,
+    selection, both diffs, v1."""
     settings = _settings(config_dir, environ, tmp_path)
     files = _frozen_files(settings)
     git = FakeGit({"d" * 40: ["configs/verifier/extraction.toml"]})
-    data = _manifest(_inputs(tmp_path, iteration_factory), settings, git)
+    data = _manifest(_inputs(tmp_path, iteration_factory, device), settings, git)
     assert (data["commit"], data["configs_tree"]) == (HEAD, "t" * 40)
-    assert (data["profile"], data["device"]) == ("precise", "cpu")
+    assert (data["profile"], data["device"]) == ("precise", device)
     artifacts = data["artifacts"]
     assert artifacts["calibration"]["sha256"] == _sha(files["calibration.json"])
     assert artifacts["exclusions"]["sha256"] == _sha(files["exclusions.json"])

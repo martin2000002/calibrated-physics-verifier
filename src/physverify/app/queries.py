@@ -13,7 +13,6 @@ from typing import TYPE_CHECKING, Any
 
 from physverify.freeze.errors import QueryError as QueryError
 from physverify.freeze.files import read_json as read_json
-from physverify.freeze.selection import DEVICE
 from physverify.freeze.selection import PROFILE as PROFILE
 
 if TYPE_CHECKING:
@@ -27,12 +26,11 @@ SHOWN_ERRORS = 10
 
 
 def query_settings(configs: Path, overrides: Sequence[str], profile: str = PROFILE) -> Settings:
-    """The checkout's settings; the profile also fixes the synthetic dataset version."""
+    """The checkout's settings; the profile also fixes the synthetic dataset version (no query
+    depends on the device)."""
     from physverify.config.loader import load_settings
 
-    return load_settings(
-        configs, environ=os.environ, profile=profile, device=DEVICE, overrides=overrides
-    )
+    return load_settings(configs, environ=os.environ, profile=profile, overrides=overrides)
 
 
 def clip_ids(source: DatasetSource, subset: str, split: str | None) -> list[str]:
