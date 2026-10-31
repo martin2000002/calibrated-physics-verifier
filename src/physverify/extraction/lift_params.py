@@ -64,6 +64,7 @@ class LiftParams(ProviderParams):
     gravity: GravityMode = "auto"
     gravity_by_dataset: dict[str, GravityMode] = {}
     level_sigma_deg: float = Field(default=10.0, ge=0.0)
+    # Gravity sigma for a camera pose that carries no estimate of its own.
     pose_sigma_deg: float = Field(default=2.0, ge=0.0)
     min_area_px: int = Field(default=9, ge=1)
     erode_px: int = Field(default=1, ge=0)

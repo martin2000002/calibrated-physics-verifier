@@ -138,3 +138,24 @@ def test_sampling_from_flags_and_per_dataset_fps(
         make_settings("extraction.sampling.stop=6"), real_providers, dataset="x"
     ).sampling
     assert stopped.stop == 6
+
+
+@pytest.mark.parametrize(
+    ("depth", "metric"), [("moge2", True), ("vda_small", False), ("vda_metric_small", False)]
+)
+def test_true_depth_follows_the_kind_of_the_depth_it_replaces(
+    make_settings: SettingsFactory, real_providers: Providers, depth: str, metric: bool
+) -> None:
+    settings = make_settings(f"extraction.plan.depth={depth}")
+    plan = resolve_plan(settings, real_providers, dataset="x", gt_stages=(Stage.DEPTH,))
+    assert plan.step(Stage.DEPTH).params.metric is metric  # type: ignore[attr-defined]
+
+
+def test_a_followed_truth_field_cannot_be_configured(
+    make_settings: SettingsFactory, real_providers: Providers
+) -> None:
+    settings = make_settings(
+        "extraction.plan.depth=moge2", "extraction.providers.depth.ground_truth.metric=false"
+    )
+    with pytest.raises(ConfigError, match="follows the perceived provider"):
+        resolve_plan(settings, real_providers, dataset="x", gt_stages=(Stage.DEPTH,))

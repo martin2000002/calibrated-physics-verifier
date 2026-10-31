@@ -13,6 +13,7 @@ EXPECTED = {
     "detect/label",
     "track/mask",
     "depth/absrel",
+    "depth/metric",
     "depth/object_rel",
     "depth/object_parts",
     "camera/fov",

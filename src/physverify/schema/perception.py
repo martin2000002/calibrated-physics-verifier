@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from enum import Enum
 from types import MappingProxyType
@@ -124,12 +125,19 @@ class MaskTrack(Record):
 
 @dataclass(frozen=True, eq=False)
 class DepthMap(Record):
-    """Raw depth prediction (no sigma: heavy stages store raw outputs)."""
+    """Raw depth prediction (no sigma: heavy stages store raw outputs).
+
+    ``focal_px`` is the horizontal focal length in processing pixels when the depth model also
+    estimates the camera (None otherwise); ``focal_sigma_px`` is NaN when the model gives no
+    uncertainty for it.
+    """
 
     sampling: FrameSampling
     depth: NDArray[np.float32]
     kind: DepthKind
     valid: NDArray[np.bool_]
+    focal_px: float | None = None
+    focal_sigma_px: float = math.nan
 
     _arrays = MappingProxyType(
         {
@@ -143,14 +151,31 @@ class DepthMap(Record):
         check_enum("kind", self.kind, DepthKind)
         frames, height, width = self.depth.shape
         _check_sampling(self.sampling, frames, height, width)
+        if self.focal_px is not None:
+            focal = check_number("focal_px", self.focal_px)
+            if not (math.isfinite(focal) and focal > 0):
+                raise SchemaError(f"focal_px must be finite and positive, got {focal}")
+        check_sigma("focal_sigma_px", self.focal_sigma_px)
 
     @classmethod
     def from_dict(cls, data: Mapping[str, Any]) -> Self:
         return cls(
             sampling=FrameSampling.from_dict(data["sampling"]),
             kind=DepthKind(data["kind"]),
+            focal_px=data.get("focal_px"),
+            focal_sigma_px=data.get("focal_sigma_px", math.nan),
             **cls.decode_arrays(data),
         )
+
+
+def horizontal_fov_deg(focal_px: float, width: float) -> float:
+    """Pinhole horizontal field of view: fov = 2 atan(W / 2f), W and f in the same units."""
+    return math.degrees(2.0 * math.atan(width / (2.0 * focal_px)))
+
+
+def focal_from_fov(fov_deg: float, width: float) -> float:
+    """Inverse of ``horizontal_fov_deg``: f = (W / 2) / tan(fov / 2)."""
+    return (width / 2.0) / math.tan(math.radians(fov_deg) / 2.0)
 
 
 @dataclass(frozen=True, eq=False)
@@ -158,6 +183,8 @@ class CameraModel(Record):
     """OpenCV intrinsics in processing pixels; ``world_from_camera`` is (4,4), (T',4,4) or None.
 
     Intrinsics use the continuous image-plane convention, so resizing scales every entry of K.
+    ``gravity_sigma_deg`` is the angular sigma of the pose's gravity when the provider estimates
+    one (NaN otherwise: the lift then uses its configured sigma).
     """
 
     sampling: FrameSampling
@@ -166,6 +193,7 @@ class CameraModel(Record):
     fov_deg: float
     fov_sigma_deg: float
     world_from_camera: NDArray[np.float64] | None = None
+    gravity_sigma_deg: float = math.nan
 
     _arrays = MappingProxyType({"K": ArraySpec("f8", (3, 3))})
 
@@ -175,6 +203,7 @@ class CameraModel(Record):
         check_enum("source", self.source, IntrinsicsSource)
         check_number("fov_deg", self.fov_deg)
         check_sigma("fov_sigma_deg", self.fov_sigma_deg)
+        check_sigma("gravity_sigma_deg", self.gravity_sigma_deg)
         if not bool(np.all(np.isfinite(self.K))):
             raise SchemaError("K must be finite")
         if self.world_from_camera is not None:
@@ -200,5 +229,6 @@ class CameraModel(Record):
             fov_deg=data["fov_deg"],
             fov_sigma_deg=data["fov_sigma_deg"],
             world_from_camera=decode_optional_array(data.get("world_from_camera")),
+            gravity_sigma_deg=data.get("gravity_sigma_deg", math.nan),
             **cls.decode_arrays(data),
         )

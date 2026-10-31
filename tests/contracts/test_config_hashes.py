@@ -46,9 +46,11 @@ DATASET_CONTENT_HASH = {
 }
 STAGE_KEYS = {
     "camera/assumed_fov": "d0ae25696b1da8e41856f1aaf094085c01f865833bc905f253b56546f7477018",
+    "camera/from_depth": "71f47572478cef19abbac16c095575678d6703941e26128139ef90cac930aae0",
     "camera/geocalib": "871980e0b1985e5945e7620477d9ea8b3a6781b5b215e2d70ef9c2868b17d6e1",
     "contacts/kinematic": "d319a6895f0622efdfae18f55811819d83ec0dbbc7071b6bf7fbfc82ea099cb0",
     "contacts/proximity": "a2167c904db6ef8bed72d48761627d915b003a0fd09d2dc4bd5df0cdff1e417b",
+    "depth/moge2": "6cdce7a43eb0a8999a01982327df1202bc13bbda4c86c3af356092a578a18f81",
     "depth/vda_small": "70f6c003ff50af82ae87a48aa6a2c81030761e6a0c859278fc99fd8dba78cf1c",
     "depth/vda_large": "5f9dc8fa05d3d3be2711507ea24c8d730f337ca0d1584513c2c4677d98509b13",
     "depth/vda_metric_small": "ccc78054bf3ca5553e4bb71716289309a5b2ab609836225cf252b782f3c5b5fe",
@@ -63,7 +65,7 @@ STAGE_KEYS = {
     ),
     "camera/ground_truth": "dcc9f3896dfae49cd3ef2203bda5922a6d2658e10742995834a8a97e79e756e9",
     "contacts/ground_truth": "f77e2327c1e751179a58f641ed0468b2760591606c2715a5d7c1e0a09b88772c",
-    "depth/ground_truth": "5e98a6b578a3276bec41b24e5adc10c15b4376be94b8c2cc6b60a89572a5c107",
+    "depth/ground_truth": "06c3b85ad942509b944137bd664d5d865d99c6cdb7441854de17f2860afaf9be",
     "detect/ground_truth": "a62f5932c2390f802e0e37c316b245d6d790dde1ef5f17326d53382a39d142fe",
     "kinematics/ground_truth": "a77c9a6982bce0734d1d8c13d1d932775dd6cab4cfd6f6bab8905928b39076f7",
     "lift/ground_truth": "fd9112fb74e8dd281c76ae277a0ee4782161166f15cee466b834c0f5eeaa79a5",
@@ -73,6 +75,7 @@ STAGE_KEYS = {
     "lift/backproject": "ebfe1a1a540435ed100cf121083da7d3f7c8f1befbae65c2fc47ed185edfa82b",
     "lift/backproject_unnested": "245f1e6635f3007505a7305cba10619b878a66c41193edd825ec43b90b9b0e05",
     "scale/free_fall": "e40cc46522510ef9ffb82c876fcd606321d2c83af34ad6b4748ce69b29d2826f",
+    "scale/metric_depth": "b0ace4534e8a4a7122777165c617a461e4d7ee08ec897af5bd77681f0797b6ee",
     "scale/size_model": "f5ac2593e44380efccbdcf72664c973719968b6035d520bf07bb8c230f3a51b9",
     "scale/size_prior": "70a7dc1eda26d20ea6b6991b88e5f51ebf63fe2fc356b81246ddf05d4b62e96d",
     "track/edgetam": "81a150661413d4a8e45d79ab5f2dd7a3c4b2ca10db56a5bade893403801ce4d8",

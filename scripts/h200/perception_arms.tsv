@@ -6,3 +6,6 @@ it3-r	extraction.plan.depth=vda_small extraction.plan.contacts=proximity
 it3-ak	extraction.plan.depth=vda_small extraction.plan.contacts=kinematic
 it3-ap	extraction.plan.depth=vda_large extraction.plan.contacts=proximity
 it3-c	extraction.plan.depth=vda_large extraction.plan.contacts=kinematic
+moge2-depth	extraction.plan.depth=moge2
+moge2-focal	extraction.plan.depth=moge2 extraction.plan.camera=from_depth
+moge2-metric	extraction.plan.depth=moge2 extraction.plan.camera=from_depth extraction.plan.scale=metric_depth

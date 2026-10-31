@@ -81,6 +81,7 @@ class VideoDepthAnythingSmall:
     weights: ClassVar[tuple[WeightSpec, ...]] = (CODE, CHECKPOINT)
     Params: ClassVar[type[BaseModel]] = Params
     encoder: ClassVar[Encoder] = SMALL_ENCODER
+    depth_output: ClassVar[DepthKind] = DepthKind.AFFINE_DISPARITY
 
     def __init__(self, params: BaseModel) -> None:
         self.params = expect_params(params, Params)
@@ -100,9 +101,6 @@ class VideoDepthAnythingSmall:
             encoder=self.encoder,
         )
 
-    def depth_kind(self) -> DepthKind:
-        return DepthKind.AFFINE_DISPARITY
-
     def run(self, ctx: StageContext) -> DepthMap:
         s = ctx.sampling
         frames = ctx.video.frames(s.start, s.stop, s.step, s.max_side)
@@ -115,7 +113,7 @@ class VideoDepthAnythingSmall:
             device=ctx.device,
             fp32=ctx.device == "cpu",
         )
-        return to_depth_map(s, np.asarray(depths, dtype=np.float32), self.depth_kind())
+        return to_depth_map(s, np.asarray(depths, dtype=np.float32), self.depth_output)
 
 
 def to_depth_map(

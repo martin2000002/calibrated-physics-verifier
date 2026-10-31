@@ -111,6 +111,16 @@ def test_truth_sigma_is_zero_except_the_scale(chain: Chain) -> None:
     assert scale.lift_key == LIFT_KEY
 
 
+@pytest.mark.parametrize("metric", [False, True])
+def test_true_depth_carries_the_true_focal(fixture_clip: SyntheticClip, metric: bool) -> None:
+    ctx = make_context(fixture_clip, gt=fixture_clip.ground_truth)
+    depth = run_provider(GroundTruthDepth, ctx, metric=metric)
+    camera = run_provider(GroundTruthCamera, ctx)
+    assert isinstance(depth, DepthMap) and isinstance(camera, CameraModel)
+    assert depth.focal_px == camera.K[0, 0]
+    assert depth.focal_sigma_px == 0.0
+
+
 def test_one_object_seen_in_one_frame_leaves_the_truth_scale_unknown(
     chain: Chain, fixture_clip: SyntheticClip
 ) -> None:

@@ -32,7 +32,13 @@ from physverify.physics.geometry import characteristic_lengths
 from physverify.schema.clip import FrameSampling
 from physverify.schema.error_profile import ErrorEntry, ErrorProfile
 from physverify.schema.outputs import StageOutput
-from physverify.schema.perception import DepthKind, DepthMap, MaskTrack
+from physverify.schema.perception import (
+    CameraModel,
+    DepthKind,
+    DepthMap,
+    IntrinsicsSource,
+    MaskTrack,
+)
 from physverify.schema.stages import STAGE_ORDER, Stage
 from physverify.schema.states import LengthUnit, ObjectStateTable
 
@@ -207,6 +213,23 @@ def test_auto_gravity_without_pose_assumes_a_level_camera(fixture_clip: Syntheti
         gravity_by_dataset={fixture_clip.manifest.dataset: "none"},
     )
     assert bool(np.isnan(by_dataset.gravity_dir).all())
+
+
+@pytest.mark.parametrize(("own_sigma_deg", "expected_deg"), [(1.5, 1.5), (math.nan, 2.0)])
+def test_an_estimated_pose_uses_its_own_gravity_sigma_else_the_configured_one(
+    fixture_clip: SyntheticClip, own_sigma_deg: float, expected_deg: float
+) -> None:
+    upstream = truth_inputs(fixture_clip)
+    truth = upstream[Stage.CAMERA]
+    assert isinstance(truth, CameraModel)
+    estimated = replace(truth, source=IntrinsicsSource.ESTIMATED, gravity_sigma_deg=own_sigma_deg)
+    table = lift(
+        fixture_clip,
+        {**upstream, Stage.CAMERA: estimated},
+        plan={Stage.CAMERA: "from_depth"},
+        pose_sigma_deg=2.0,
+    )
+    assert table.gravity_dir_sigma == pytest.approx(math.radians(expected_deg))
 
 
 def test_without_a_profile_perceived_inputs_leave_sigma_unknown(

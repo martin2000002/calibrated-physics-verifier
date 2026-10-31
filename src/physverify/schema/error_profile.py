@@ -28,6 +28,10 @@ PARAMS_HASH_CONDITION = "params_hash"
 """``conditions`` key: hash of the provider params the entry was measured with."""
 PROFILE_CONDITION = "profile"
 """``conditions`` key: extraction profile (fast, precise) the entry was measured under."""
+FOCAL_REL = "focal_rel"
+"""Quantity: relative error of a focal length, f_pred / f_true - 1."""
+SCALE_REL = "scale_rel"
+"""Quantity: relative error of a metric scale, s_pred / s_true - 1."""
 
 
 @dataclass(frozen=True, eq=False)
