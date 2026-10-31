@@ -773,7 +773,7 @@
     "R2": [
       "mc_draws",
       "seed",
-      "friction",
+      "friction_range",
       "cone_edges",
       "mass_floor",
       "rest_speed",

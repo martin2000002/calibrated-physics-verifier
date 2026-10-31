@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import math
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from physverify.checks._base import CheckInputs, abstain, unscored
 from physverify.checks._params import CommonParams, as_params
@@ -36,17 +36,38 @@ from physverify.schema.states import ObjectStateTable
 
 FloatArray = NDArray[np.float64]
 BoolArray = NDArray[np.bool_]
+FRICTION = "friction"
+FRICTION_RANGE = (0.3, 1.0)
+"""Static friction coefficients of dry everyday pairs (wood, metal, glass, plastic, rubber on
+concrete) in published tables (Serway and Jewett, Physics for Scientists and Engineers, table of
+coefficients of friction): the verifier does not know a scene's materials, so mu is uncertain."""
 
 
 class EquilibriumParams(CommonParams):
+    """``friction_range``: mu is drawn uniformly from it in the Monte Carlo of sigma; the magnitude
+    is the residual at its midpoint."""
+
     mc_draws: int = Field(default=64, ge=2)
-    friction: float = Field(default=0.6, ge=0.0)
+    friction_range: tuple[float, float] = FRICTION_RANGE
     cone_edges: int = Field(default=4, ge=3)
     mass_floor: float = Field(default=0.2, ge=0.0, le=1.0)
     rest_speed: float = Field(default=0.1, gt=0.0)
     min_rest_frames: int = Field(default=3, ge=1)
     agent_labels: tuple[str, ...] = ("person", "hand", "arm", "animal", "dog", "cat")
     norm_edges: int = Field(default=8, ge=3)
+
+    @field_validator("friction_range")
+    @classmethod
+    def _ordered(cls, value: tuple[float, float]) -> tuple[float, float]:
+        low, high = value
+        if not 0.0 <= low <= high:
+            raise ValueError(f"friction_range must satisfy 0 <= low <= high, got {value}")
+        return value
+
+    @property
+    def friction(self) -> float:
+        """The midpoint of ``friction_range``, the mu of the magnitude."""
+        return 0.5 * (self.friction_range[0] + self.friction_range[1])
 
 
 @dataclass(frozen=True)
@@ -159,7 +180,7 @@ class EquilibriumCheck:
         return None
 
     def _sigma(self, inputs: CheckInputs, event: _Event, problem: EquilibriumProblem) -> float:
-        """Monte Carlo over the centroids and the contact points (sigma of object a)."""
+        """Monte Carlo over the centroids, the contact points (sigma of object a) and mu."""
         states = inputs.states
         sigmas = {"centroids": states.position_sigma[event.row, list(event.bodies)]}
         for k, record in enumerate(event.support):
@@ -171,16 +192,19 @@ class EquilibriumCheck:
         settings = self.settings
 
         def model(noise: Mapping[str, FloatArray]) -> FloatArray:
-            draws = noise["centroids"].shape[0]
+            frictions = noise[FRICTION]
             return np.array(
                 [
-                    solve_equilibrium(_perturbed(problem, noise, d), settings).residual
-                    for d in range(draws)
+                    solve_equilibrium(
+                        _perturbed(problem, noise, d), replace(settings, friction=float(mu))
+                    ).residual
+                    for d, mu in enumerate(frictions)
                 ]
             )
 
         rng = check_rng(self.params.seed, inputs.clip.clip_id, self.check_id)
-        return mc_sigma(model, sigmas, self.params.mc_draws, rng)
+        uniform = {FRICTION: self.params.friction_range}
+        return mc_sigma(model, sigmas, self.params.mc_draws, rng, uniform)
 
 
 def _runs(resting: BoolArray) -> list[tuple[int, int]]:

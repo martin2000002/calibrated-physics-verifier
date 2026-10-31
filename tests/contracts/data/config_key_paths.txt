@@ -57,7 +57,6 @@ check_scope.decision_record
 check_scope.exclude_checks
 check_scope.require_decision_record
 check_scope.time_dependent_checks
-checks.R2.friction
 checks.R2.mass_floor
 checks.R4_size.reference
 dataset.assets

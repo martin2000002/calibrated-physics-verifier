@@ -8,8 +8,11 @@
 # Any check id (R1, R2, R3a, R3b, R4_missing, R4_size, R4_jump, R5a, R5b) accepts a
 # [checks.<id>] table overriding fields of its Params; unknown fields are a ConfigError.
 
+# R2's friction is an interval (friction_range, default FRICTION_RANGE in
+# checks/r2_static_equilibrium.py) sampled in its Monte Carlo: the static coefficients of dry
+# everyday material pairs in published tables (Serway and Jewett, Physics for Scientists and
+# Engineers, table of coefficients of friction), never the simulator's floor value.
 [checks.R2]            # plugin defaults live in checks/r2_static_equilibrium.py; override here
-friction = 0.6
 mass_floor = 0.2
 
 # The size relative to the other bodies of each frame; "self" is the v1 rule.
