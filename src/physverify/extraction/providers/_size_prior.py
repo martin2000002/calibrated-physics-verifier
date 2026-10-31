@@ -18,7 +18,7 @@ from physverify.physics.geometry import characteristic_lengths
 from physverify.schema.scale import ScaleEstimate, ScaleSource
 from physverify.schema.stages import Stage
 from physverify.schema.states import ObjectStateTable
-from physverify.sizing.priors import SizePriorParams, lookup_label
+from physverify.sizing.priors import SizePriorParams, lookup_label, prior_keys
 
 Params = SizePriorParams
 
@@ -34,7 +34,7 @@ class ObjectScale:
 class SizePriorScale:
     stage: ClassVar[Stage] = Stage.SCALE
     name: ClassVar[str] = "size_prior"
-    version: ClassVar[str] = "1"
+    version: ClassVar[str] = "2"
     requires: ClassVar[tuple[Stage, ...]] = (Stage.LIFT,)
     heavy: ClassVar[bool] = False
     is_ground_truth: ClassVar[bool] = False
@@ -63,11 +63,8 @@ class SizePriorScale:
 
     def _prior(self, label: str) -> SizePrior | None:
         priors = self.params.priors.root
-        direct = lookup_label(label, priors)
-        if direct is not None:
-            return direct
-        alias = lookup_label(label, self.params.label_to_prior)
-        return priors.get(alias) if alias is not None else None
+        key = lookup_label(label, prior_keys(priors, self.params.label_to_prior))
+        return None if key is None else priors[key]
 
 
 def object_scale(lift: ObjectStateTable, n: int, prior: SizePrior) -> ObjectScale | None:

@@ -6,6 +6,7 @@ from pydantic import ConfigDict, Field
 
 from physverify.config.models import Settings
 from physverify.core.models import FrozenModel
+from physverify.sizing.priors import GENERIC_PRIOR
 
 SECTION = "sizing"
 
@@ -52,7 +53,7 @@ class SizingSettings(SizeLookup):
     folds: int = Field(default=5, ge=2)
     min_extent_m: float = Field(default=0.01, ge=0)
     coverage_target: float = Field(default=0.683, gt=0, lt=1)
-    baseline_prior: str = "cube"
+    baseline_prior: str = GENERIC_PRIOR
     head_bytes: int = Field(default=8192, ge=64)
     workers: int = Field(default=8, ge=1)
     retries: int = Field(default=3, ge=0)

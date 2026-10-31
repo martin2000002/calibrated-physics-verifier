@@ -10,12 +10,13 @@ import math
 from collections.abc import Mapping
 from typing import Literal
 
+import numpy as np
 from pydantic import Field
 
 from physverify.config.models import SIZE_PRIORS_SECTION, Settings, SizePrior, SizePriorTable
 from physverify.core.models import FrozenModel
 from physverify.schema.io import stable_hash
-from physverify.sizing.priors import SizePriorParams, lookup_label
+from physverify.sizing.priors import SizePriorParams, lookup_label, prior_keys
 from physverify.sizing.settings import SECTION as SIZING_SECTION
 from physverify.sizing.settings import SizeLookup
 
@@ -43,6 +44,15 @@ class SizeModelTable(FrozenModel):
 def class_prior(size: ClassSize, sigma_factor: float) -> SizePrior:
     """exp(mu) is the median length; its relative spread is approximated by sigma in log space."""
     return SizePrior(mean_m=math.exp(size.mu_log), rel_spread=sigma_factor * size.sigma_log)
+
+
+def pooled_prior(model: SizeModelTable) -> SizePrior:
+    """The equal-weight mixture of the class log-normals, matched by its log moments: an object of
+    unknown class drawn from the fitted classes. Raw class spreads, not the conformal factor."""
+    sizes = list(model.classes.values())
+    mu = float(np.mean([s.mu_log for s in sizes]))
+    var = float(np.mean([s.sigma_log**2 + (s.mu_log - mu) ** 2 for s in sizes]))
+    return SizePrior(mean_m=math.exp(mu), rel_spread=math.sqrt(var))
 
 
 def size_table(model: SizeModelTable, lookup: SizeLookup) -> dict[str, tuple[str, SizePrior]]:
@@ -78,7 +88,7 @@ def model_hash(model: SizeModelTable, lookup: SizeLookup) -> str:
 
 
 def prior_aliases() -> dict[str, str]:
-    """Words that reach a frozen prior by alias ("box" -> "cube"); one table for both scale
+    """Words that reach a frozen prior by alias ("box" -> "primitive"); one table for both scale
     providers and for the label vocabulary."""
     return dict(SizePriorParams().label_to_prior)
 
@@ -90,8 +100,7 @@ def labels_with_size(
     aliases: Mapping[str, str],
 ) -> frozenset[str]:
     """Frozen prior keys, the aliases that reach one, and every phrase the size model resolves."""
-    reachable = frozenset(a for a, target in aliases.items() if target in priors.root)
-    return frozenset(priors.root) | reachable | frozenset(size_table(model, lookup))
+    return frozenset(prior_keys(priors.root, aliases)) | frozenset(size_table(model, lookup))
 
 
 def labels_in(sections: Mapping[str, object]) -> frozenset[str]:

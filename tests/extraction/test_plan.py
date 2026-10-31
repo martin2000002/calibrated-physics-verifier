@@ -110,13 +110,13 @@ def test_provider_overrides_and_settings_sections_reach_params(
     make_settings: SettingsFactory, real_providers: Providers
 ) -> None:
     settings = make_settings(
-        "extraction.providers.kinematics.savgol.window=9", "size_priors.ball.mean_m=0.2"
+        "extraction.providers.kinematics.savgol.window=9", "size_priors.primitive.mean_m=0.2"
     )
     plan = resolve_plan(settings, real_providers, dataset="x")
     assert plan.step(Stage.KINEMATICS).params.window == 9  # type: ignore[attr-defined]
     priors = plan.step(Stage.SCALE).params.priors  # type: ignore[attr-defined]
     assert isinstance(priors, SizePriorTable)
-    assert priors.root["ball"].mean_m == 0.2
+    assert priors.root["primitive"].mean_m == 0.2
 
 
 def test_sampling_from_flags_and_per_dataset_fps(

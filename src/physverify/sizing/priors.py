@@ -9,6 +9,11 @@ from pydantic import ConfigDict
 from physverify.config.models import SizePriorTable
 from physverify.core.models import FrozenModel
 
+GENERIC_PRIOR = "primitive"
+"""The verifier's prior for a generic rigid object, taken from outside the synthetic generator."""
+PRIMITIVE_WORDS = ("box", "cube", "ball", "sphere", "cylinder")
+"""Shape words that name no object class and so get the generic prior."""
+
 PREPOSITIONS = frozenset(
     {
         "about", "above", "across", "against", "along", "at", "behind", "below", "beside",
@@ -30,6 +35,12 @@ def label_candidates(label: str) -> tuple[str, ...]:
     return (text, *reversed(words[:cut]))
 
 
+def prior_keys(priors: Mapping[str, object], aliases: Mapping[str, str]) -> dict[str, str]:
+    """Phrase -> prior key: every key names itself and an alias names the key it reaches."""
+    reachable = {alias: key for alias, key in aliases.items() if key in priors}
+    return {**reachable, **{key: key for key in priors}}
+
+
 def lookup_label[V](label: str, table: Mapping[str, V]) -> V | None:
     """Exact match of the label, else of its last word before any preposition that is a key of
     ``table``."""
@@ -43,5 +54,5 @@ class SizePriorParams(FrozenModel):
     # The title keeps validation errors naming the provider's ``Params``.
     model_config = ConfigDict(title="Params")
 
-    label_to_prior: dict[str, str] = {"box": "cube", "sphere": "ball"}
+    label_to_prior: dict[str, str] = dict.fromkeys(PRIMITIVE_WORDS, GENERIC_PRIOR)
     priors: SizePriorTable = SizePriorTable({})

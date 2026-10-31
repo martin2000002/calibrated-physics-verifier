@@ -28,16 +28,16 @@ KEY_PATHS = Path(__file__).with_name("data") / "config_key_paths.txt"
 PINNED_ROOT = "/pinned"
 
 SECTIONS_HASH = {
-    "fast": "ae02a9e95f85fa507df7a65a9c1936443060709d1e053594f404f09689770e5e",
-    "precise": "3ebe5e52fd9d66e5cdccc77b1079916c5255c453472a810011f1fd547f879bd9",
+    "fast": "541d673d67d28e4f0e914e147b9bf4f15390d9e29fbc359b1aad6fcb2eed7554",
+    "precise": "8191052fd525402e7efbd6632801aca3638cc949f602cc5356734ad98a7d53e0",
 }
 CONFIG_HASH = {
-    "fast": "2b881dc9af038ae4719bfe6d61ecf32c3282e238a9a97359767dc765020010a9",
-    "precise": "f09c99a3d57c8b37e492abb12236ad21ad97d8bb68796f9394acd81aef432260",
+    "fast": "29d4090f5cf5093531e41de4397ede1bba9a62c9ed91ca2096cca806a4b549b6",
+    "precise": "9ed715958b08b2fa5a655cd6ee406cf32f6288130d449cb6f88bb6635d478a5d",
 }
 LOOK_CONFIG_HASH = {
-    "fast": "dc8a0c94e2adf8ad740c936ff3b51591e4b110ac16faf989325f16612d11365f",
-    "precise": "63dc5dd08448019184f00797279e647d48fbf39e99387b4b2d6a2740a3a831ed",
+    "fast": "b35a44b0e3073127aeeb2de382b05ab8cea0fbf0636b77b8fc0dd631af8b0205",
+    "precise": "d581c7dcc87734d7f91a9beb4239bb61a3e2cd2cb750d3a30fdca95c4ab3c257",
 }
 CHECKS_HASH = "c5f03bfd100bdd23fe90a5f2ad098b2767b893a75bb850fd42c4116312ca3dee"
 DATASET_CONTENT_HASH = {
@@ -76,8 +76,8 @@ STAGE_KEYS = {
     "lift/backproject_unnested": "245f1e6635f3007505a7305cba10619b878a66c41193edd825ec43b90b9b0e05",
     "scale/free_fall": "4f36674421ade07b33d9fc7c145e46ba83c8ec44d8aeabfb31534dcf76f7c04b",
     "scale/metric_depth": "b0ace4534e8a4a7122777165c617a461e4d7ee08ec897af5bd77681f0797b6ee",
-    "scale/size_model": "f5ac2593e44380efccbdcf72664c973719968b6035d520bf07bb8c230f3a51b9",
-    "scale/size_prior": "70a7dc1eda26d20ea6b6991b88e5f51ebf63fe2fc356b81246ddf05d4b62e96d",
+    "scale/size_model": "35aa718afada60bc43f07afd2029215ad5ff57efab4de855f809099a74f215a0",
+    "scale/size_prior": "78502c4c7876bd248d44297a353581bc4087900a8d065d7a536bb62bad6296bc",
     "track/edgetam": "81a150661413d4a8e45d79ab5f2dd7a3c4b2ca10db56a5bade893403801ce4d8",
     "track/sam2_1_hiera_tiny": "88cf35cd5a540158b73d940af239b84d357dd091f5b2935f884a87671d14dbee",
 }

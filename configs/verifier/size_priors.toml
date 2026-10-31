@@ -5,14 +5,12 @@
 # (configs/synth/size_distribution.toml); neither side reads the other's. Only the main thread
 # changes it (SCHEMA CHANGE REQUEST).
 
-[size_priors.cube]
-mean_m = 0.10
-rel_spread = 0.5
-
-[size_priors.ball]
-mean_m = 0.10
-rel_spread = 0.5
-
-[size_priors.cylinder]
-mean_m = 0.10
-rel_spread = 0.5
+# primitive: a rigid object of unknown class (cube, ball, cylinder...). It is the equal-weight
+# mixture of the nine Objectron *train* classes fitted in size_model.toml (1541 objects, never the
+# sealed objectron_static), matched by its log moments: median exp(mean mu_c) = 0.19 m, log spread
+# sqrt(mean(sigma_c^2 + (mu_c - mu)^2)) = 0.85 (sizing.model.pooled_prior, pinned by
+# tests/sizing/test_model.py). An estimate chosen a priori, never tuned on Kubric; the spread is
+# the between-class plus within-class variation of everyday objects, not a measurement error.
+[size_priors.primitive]
+mean_m = 0.19
+rel_spread = 0.85

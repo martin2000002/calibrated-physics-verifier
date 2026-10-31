@@ -11,7 +11,7 @@ import pytest
 from settings_factory import SettingsFactory
 from support import chain_keys, make_context, run_provider
 from synthetic_clip import SyntheticClip
-from test_scale import PRIORS, truth_lift
+from test_scale import ALIASES, PRIORS, truth_lift
 from wiring import resolve_plan
 
 from physverify.config.models import SizePriorTable
@@ -39,7 +39,9 @@ def run_model(clip: SyntheticClip, lift: ObjectStateTable, **params: object) -> 
 
 def run_prior(clip: SyntheticClip, lift: ObjectStateTable) -> ScaleEstimate:
     ctx = make_context(clip, upstream={Stage.LIFT: lift})
-    output = run_provider(SizePriorScale, ctx, priors=SizePriorTable(PRIORS))
+    output = run_provider(
+        SizePriorScale, ctx, priors=SizePriorTable(PRIORS), label_to_prior=ALIASES
+    )
     assert isinstance(output, ScaleEstimate)
     return output
 
@@ -61,7 +63,12 @@ def test_kubric_labels_give_exactly_the_frozen_prior_scale(
     lift = with_size_sigma(truth_lift(fixture_clip, scale=SCALE), 0.05)
     expected = run_prior(fixture_clip, lift)
     got = run_model(
-        fixture_clip, lift, priors=SizePriorTable(PRIORS), model=model, same_class_rho=0.0
+        fixture_clip,
+        lift,
+        priors=SizePriorTable(PRIORS),
+        label_to_prior=ALIASES,
+        model=model,
+        same_class_rho=0.0,
     )
     assert expected.meters_per_unit is not None and got.meters_per_unit is not None
     assert abs(got.meters_per_unit / expected.meters_per_unit - 1) < 1e-12

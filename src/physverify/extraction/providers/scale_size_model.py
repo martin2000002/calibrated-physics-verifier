@@ -25,7 +25,7 @@ from physverify.schema.stages import Stage
 from physverify.schema.states import ObjectStateTable
 from physverify.sizing.model import SECTION as SIZE_MODEL_SECTION
 from physverify.sizing.model import SizeModelTable, model_hash, prior_aliases, resolve
-from physverify.sizing.priors import lookup_label
+from physverify.sizing.priors import lookup_label, prior_keys
 from physverify.sizing.settings import SECTION as SIZING_SECTION
 from physverify.sizing.settings import SizeLookup
 
@@ -47,7 +47,7 @@ class Params(ProviderParams):
 class SizeModelScale:
     stage: ClassVar[Stage] = Stage.SCALE
     name: ClassVar[str] = "size_model"
-    version: ClassVar[str] = "1"
+    version: ClassVar[str] = "2"
     requires: ClassVar[tuple[Stage, ...]] = (Stage.LIFT,)
     heavy: ClassVar[bool] = False
     is_ground_truth: ClassVar[bool] = False
@@ -104,10 +104,7 @@ class SizeModelScale:
         if learned is not None:
             return learned
         priors = self.params.priors.root
-        key = lookup_label(label, {name: name for name in priors})
-        if key is None:
-            alias = lookup_label(label, self.params.label_to_prior)
-            key = alias if alias in priors else None
+        key = lookup_label(label, prior_keys(priors, self.params.label_to_prior))
         return None if key is None else (FALLBACK_GROUP + key, priors[key])
 
 

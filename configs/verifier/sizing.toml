@@ -12,7 +12,7 @@ seed = 0
 folds = 5                  # grouped by video
 min_extent_m = 0.01
 coverage_target = 0.683    # conformal factor: this share of |log error| / sigma is <= 1
-baseline_prior = "cube"    # B0: the frozen prior an unknown label gets today
+baseline_prior = "primitive"   # B0: the generic prior an unknown label gets (size_priors.toml)
 head_bytes = 8192          # Sequence.objects are written first; a ranged GET reads only them
 workers = 8
 retries = 3

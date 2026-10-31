@@ -29,6 +29,7 @@ PRIORS = {
     "ball": SizePrior(mean_m=0.3, rel_spread=0.2),
     "cube": SizePrior(mean_m=0.4, rel_spread=0.3),
 }
+ALIASES = {"box": "cube"}
 
 
 def truth_lift(clip: SyntheticClip, *, scale: float = 1.0) -> ObjectStateTable:
@@ -48,7 +49,9 @@ def size_prior(
     clip: SyntheticClip, lift: ObjectStateTable, priors: dict[str, SizePrior]
 ) -> ScaleEstimate:
     ctx = make_context(clip, upstream={Stage.LIFT: lift})
-    output = run_provider(SizePriorScale, ctx, priors=SizePriorTable(priors))
+    output = run_provider(
+        SizePriorScale, ctx, priors=SizePriorTable(priors), label_to_prior=ALIASES
+    )
     assert isinstance(output, ScaleEstimate)
     return output
 

@@ -428,12 +428,8 @@ size_model.coverage_target
 size_model.estimated
 size_model.sigma_factor
 size_model.source
-size_priors.ball.mean_m
-size_priors.ball.rel_spread
-size_priors.cube.mean_m
-size_priors.cube.rel_spread
-size_priors.cylinder.mean_m
-size_priors.cylinder.rel_spread
+size_priors.primitive.mean_m
+size_priors.primitive.rel_spread
 sizing.baseline_prior
 sizing.bootstrap
 sizing.bucket_url

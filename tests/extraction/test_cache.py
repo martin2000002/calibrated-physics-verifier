@@ -116,7 +116,8 @@ def test_a_size_prior_override_invalidates_only_the_scale(
 ) -> None:
     """KINEMATICS and CONTACTS read LIFT, not SCALE, so a prior edit reaches SCALE alone."""
     before = resolve_plan(make_settings(), real_providers, dataset="x")
-    after = resolve_plan(make_settings("size_priors.ball.mean_m=0.2"), real_providers, dataset="x")
+    edited = make_settings("size_priors.primitive.mean_m=0.2")
+    after = resolve_plan(edited, real_providers, dataset="x")
     keys = [
         chain_keys(plan, fixture_clip.manifest, gt_version=None, profile=None)
         for plan in (before, after)
