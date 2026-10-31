@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # The sealed final evaluation on the H200, in a clean checkout at the frozen commit of
 # $F/freeze.json (run_freeze.sh). Every call is --profile precise --device $PV_DEVICE, the device
-# freeze.json records, with the frozen artifacts of $F/calibration.
+# freeze.json records, with the frozen artifacts of $F/calibration; the v1 arm alone runs on the
+# device its own chain was calibrated with (PHYSVERIFY_FINAL_V1_BASE).
 #
 #   bash scripts/h200/run_final.sh seed            the preregistered seed is the freeze's
 #   bash scripts/h200/run_final.sh render SET      kubric_fresh | kubric_fresh_ood (run_kubric.sh)
@@ -71,7 +72,9 @@
 # v1arm (the v1 commit's checks with the base iteration's calibration, after the look):
 #   PHYSVERIFY_FINAL_V1_CHECKOUT    clean checkout at the freeze's v1.commit (the v1 commit)
 #   PHYSVERIFY_FINAL_V1_BASE        the base iteration directory (its calibration.json is the
-#                                   freeze's v1.calibration_sha256)
+#                                   freeze's v1.calibration_sha256); the arm runs on the device
+#                                   of its state.env CHAIN_DEVICE, which its calibration run's
+#                                   run.json must share, whatever PV_DEVICE the freeze has
 #   PHYSVERIFY_FINAL_OVERLAY_CLI    the overlay CLI script the v1 arm runs (kept outside the repo)
 #   PHYSVERIFY_FINAL_V1_ARM         the arm's directory [$F/v1arm]
 set -euo pipefail
@@ -503,6 +506,22 @@ v1_configs() {
         "$(sha_of "$diff")"
 }
 
+# v1_chain BASE: the v1 arm runs on the device and profile its own chain was calibrated with (the
+# base's state.env, checked against the calibration run's run.json), never on the freeze's;
+# the caller keeps PV_DEVICE and CUDA_VISIBLE_DEVICES local.
+v1_chain() {
+    local env="$1/state.env" CHAIN_DEVICE run_id run
+    [[ -f "$env" ]] || stop "$env is missing: the v1 arm runs on its own chain's device, unknown"
+    CHAIN_DEVICE="$(state_value "$env" CHAIN_DEVICE)"
+    use_device CHAIN_DEVICE stop
+    require_chain_pair "$1" stop
+    run_id="$(fq field "$1/calibration.json" run_id)" || stop "$1/calibration.json has no run_id"
+    run="$1/runs/$run_id/run.json"
+    [[ -f "$run" ]] || stop "no $run: the v1 calibration's device is unknown"
+    require_pair "the v1 calibration's run $run" "$(fq field "$run" device)" \
+        "$(fq field "$run" profile)" stop
+}
+
 cmd_v1arm() {
     hold "v1arm-$SET"
     completed look "$SET" || stop "look $SET has not completed: the v1 arm follows the look"
@@ -519,18 +538,22 @@ cmd_v1arm() {
     [[ -z "$dirty" ]] || stop "$ckv has uncommitted files: $dirty"
     [[ "$(sha_of "$base/calibration.json")" == "$(frozen v1.calibration_sha256)" ]] \
         || stop "$base/calibration.json is not the freeze's v1 calibration"
+    local PV_DEVICE="$PV_DEVICE"
+    local -x CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES-}"
+    v1_chain "$base"
     mkdir -p "$arm/calibration"
     for file in calibration.json calibration/stage_errors.precise.json calibration/stage_sigma.json; do
         copy_once "$base/$file" "$arm/calibration/$(basename "$file")"
     done
     v1_configs "$arm" "$ckv"
     state="$(fq v1-state "$FREEZE" ${SPECS//,/ })" || stop "the v1 arm of $SPECS cannot run"
-    note "$state of $SPECS at the v1 commit $v1, the base calibration $(sha_of "$arm/calibration/calibration.json")"
+    note "$state of $SPECS at the v1 commit $v1 on its chain's device $PV_DEVICE, the base" \
+        "calibration $(sha_of "$arm/calibration/calibration.json")"
     run_logged 0 -- env -C "$ckv" PHYSVERIFY__PATHS__CALIBRATION_DIR="$arm/calibration" \
         PHYSVERIFY__PATHS__RUNS_DIR="$arm/runs" PHYSVERIFY__RUNTIME__HEAVY_LOCK="$arm/heavy.lock" \
         PHYSVERIFY_UNSEAL="$SPECS" PHYSVERIFY_UNSEAL_REPEAT=1 PYTHONPATH="$ckv/src" \
-        "$PY" "$overlay_cli" "$arm/overlay" --config-dir "$arm/configs" --profile precise \
-        --device cpu --set "runtime.threads=$THREADS" \
+        "$PY" "$overlay_cli" "$arm/overlay" --config-dir "$arm/configs" --profile "$PV_PROFILE" \
+        --device "$PV_DEVICE" --set "runtime.threads=$THREADS" \
         calibrate evaluate --artifact "$arm/calibration/calibration.json" "${LOOK[@]}"
     meta="$(find "$arm/overlay" -name meta.json 2>/dev/null | grep -c . || true)"
     [[ "$meta" == 0 ]] || stop "the overlay holds $meta meta.json: the v1 arm recomputed stages"

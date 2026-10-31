@@ -293,7 +293,10 @@ Bookkeeping, logs and per-command summaries land in `$F/run-final/`; commands on
 run at the same time (each holds its own locks; the heavy lock is `$F/heavy.lock`). The v1 arm runs
 at the v1 commit through `overlay_cli.py` (`PHYSVERIFY_FINAL_OVERLAY_CLI`; a server-side script, not
 in this repository) with the freeze's configs and the base `checks.toml`, the base calibration and
-`PHYSVERIFY_UNSEAL_REPEAT=1`, and must leave no `meta.json` in its overlay.
+`PHYSVERIFY_UNSEAL_REPEAT=1`, and must leave no `meta.json` in its overlay. It runs on the device
+its own chain was calibrated with, not on the freeze's: the base's `state.env` (`CHAIN_DEVICE`,
+`CHAIN_PROFILE`) must agree with its calibration run's `run.json`, and a base without `state.env` is
+refused.
 `PHYSVERIFY_FINAL_DRYRUN=1` is the rehearsal: `$F`, the data, the cache and its own ledger
 (`PHYSVERIFY__SEALED__LEDGER`) under `$PHYSVERIFY_H200_ROOT/scratch`, a seed other than the
 freeze's, never `kubric_synthetic_eval`, and, for the new real control,

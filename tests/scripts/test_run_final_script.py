@@ -23,6 +23,7 @@ TOOLS = (
 )  # fmt: skip
 HEAD = "c0ffee1234567" + "0" * 27
 V1 = "a" * 40
+V1_RUN = "20261021-013444-17466d"
 PREFIX = re.compile(r"^--profile precise --device (cpu|cuda) --set runtime\.threads=\d+ ")
 GPU = "2"
 # freeze_query.py field and seed run for real (they only read freeze.json or hash strings); the
@@ -200,7 +201,9 @@ class FinalSandbox(Sandbox):
         self.base = self.root / "base"
         for name in BASE_FILES:
             (self.base / name).parent.mkdir(parents=True, exist_ok=True)
-            (self.base / name).write_text(f"base {name}", encoding="utf-8")
+            text = json.dumps({"run_id": V1_RUN}) if name == "calibration.json" else f"base {name}"
+            (self.base / name).write_text(text, encoding="utf-8")
+        self.v1_chain()
         overlay = self.root / "overlay_cli.py"
         overlay.write_text("", encoding="utf-8")
         self.final = self.root / "final"
@@ -225,6 +228,19 @@ class FinalSandbox(Sandbox):
                 "PV_DEVICE": "cpu",
             }
         )
+
+    def v1_chain(self, device: str = "cpu", run_device: str = "", profile: str = "precise") -> None:
+        """The base's chain record and its calibration run's run.json (run_device, else device)."""
+        state = f"CHAIN_DEVICE={device}\nCHAIN_PROFILE={profile}\nCHAIN_ITER_ID=it0\n"
+        (self.base / "state.env").write_text(state, encoding="utf-8")
+        run = self.base / "runs" / V1_RUN / "run.json"
+        run.parent.mkdir(parents=True, exist_ok=True)
+        run.write_text(json.dumps({"device": run_device or device, "profile": "precise"}), "utf-8")
+
+    def on_cuda(self) -> None:
+        """A freeze of cuda and a run on GPU 2."""
+        self.freeze(self.final, device="cuda")
+        self.env.update({"PV_DEVICE": "cuda", "CUDA_VISIBLE_DEVICES": GPU})
 
     def freeze(self, final: Path, **change: Any) -> int:
         """A frozen directory as run_freeze.sh leaves it; returns the seed of the formula."""
@@ -651,6 +667,60 @@ def test_the_v1_arm_is_refused_unless_it_repeats_the_look_with_the_base_state(
     assert result.returncode == 2 and message in result.stderr, result.stderr
     if setup != "look" or "META" not in env:
         assert not any(q.startswith("overlay_cli.py") for q in sandbox.queries())
+
+
+def test_the_v1_arm_runs_on_its_own_chain_device_under_a_cuda_freeze(
+    sandbox: FinalSandbox,
+) -> None:
+    """The look runs on the freeze's GPU, the arm of a cpu-calibrated base on cpu with no GPU."""
+    sandbox.on_cuda()
+    _ready(sandbox)
+    sandbox.ok("look", "kubric_fresh")
+    sandbox.ok("v1arm", "kubric_fresh")
+    pv = [line[3:] for line in sandbox.lines() if line.startswith("pv ")]
+    assert pv and all(line.startswith("--profile precise --device cuda ") for line in pv)
+    (overlay,) = [q for q in sandbox.queries() if q.startswith("overlay_cli.py")]
+    assert " --profile precise --device cpu --set runtime.threads=32 calibrate evaluate " in overlay
+    envs = sandbox.envs()
+    assert envs[-1][0] == "" and {env[0] for env in envs[:-1]} == {GPU}
+    assert "on its chain's device cpu" in sandbox.summary("v1arm-kubric_fresh")
+    assert [line.split("|")[0] for line in sandbox.ledger_lines()] == [HEAD, V1]
+
+
+@pytest.mark.parametrize(
+    ("chain", "cuda", "message"),
+    [
+        ("missing", True, "state.env is missing: the v1 arm runs on its own chain's device"),
+        ("mixed", True, "is of device cpu, profile precise, this run of device cuda"),
+        ("no-run", True, f"no {V1_RUN}/run.json"),
+        ("fast", True, "base is of device cpu, profile fast, this run of device cpu"),
+        ("no-gpu", False, "CHAIN_DEVICE=cuda needs CUDA_VISIBLE_DEVICES in 0-3"),
+    ],
+)
+def test_a_v1_arm_off_its_own_chain_record_is_refused_before_any_compute(
+    sandbox: FinalSandbox, chain: str, cuda: bool, message: str
+) -> None:
+    """No state.env, a state.env of cuda over a cpu calibration run, no run.json, another
+    profile, or a cuda chain on a run without a GPU: nothing adopted, no overlay call."""
+    if cuda:
+        sandbox.on_cuda()
+    if chain == "missing":
+        (sandbox.base / "state.env").unlink()
+    if chain == "mixed":
+        sandbox.v1_chain("cuda", run_device="cpu")
+    if chain == "no-run":
+        (sandbox.base / "runs" / V1_RUN / "run.json").unlink()
+    if chain == "fast":
+        sandbox.v1_chain(profile="fast")
+    if chain == "no-gpu":
+        sandbox.v1_chain("cuda")
+    _ready(sandbox)
+    sandbox.ok("look", "kubric_fresh")
+    result = sandbox.run("v1arm", "kubric_fresh")
+    assert result.returncode == 2 and message in result.stderr, result.stderr
+    assert not any(q.startswith("overlay_cli.py") for q in sandbox.queries())
+    assert not (sandbox.final / "v1arm" / "calibration").exists()
+    assert len(sandbox.ledger_lines()) == 1
 
 
 DRY_SEED = 999

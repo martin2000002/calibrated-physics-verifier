@@ -148,22 +148,10 @@ if [[ -f "$STATE" ]]; then
     source "$STATE"
 fi
 
-# chain_state KEY: KEY of the calibration chain's state.env, read in a subshell so nothing here is
-# overwritten.
-chain_state() {
-    (
-        # shellcheck disable=SC1091
-        [[ -f "$CHAIN_DIR/state.env" ]] && source "$CHAIN_DIR/state.env"
-        printf '%s' "${!1:-}"
-    )
-}
-
 require_chain() {
-    local profile k code name
-    # A chain older than CHAIN_PROFILE: its profile is that of the stage_errors file required below.
-    profile="$(chain_state CHAIN_PROFILE)"
-    require_pair "$CHAIN_DIR" "$(chain_state CHAIN_DEVICE)" "${profile:-$PV_PROFILE}"
-    CHAIN_RECORD_SHA="$(chain_state RECORD_SHA)"
+    local k code name
+    require_chain_pair "$CHAIN_DIR"
+    CHAIN_RECORD_SHA="$(state_value "$CHAIN_DIR/state.env" RECORD_SHA)"
     [[ -n "$CHAIN_RECORD_SHA" ]] || die "$CHAIN_DIR/state.env has no RECORD_SHA: its step 9 is not done"
     for ((k = 0; k <= CHAIN_STEPS; k++)); do
         code="$(last_exit "$k" "$CHAIN_DIR/steps.tsv")"

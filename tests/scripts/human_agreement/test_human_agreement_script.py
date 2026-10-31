@@ -267,6 +267,10 @@ def _append(path: Path, text: str) -> None:
             ),
             "never mix devices or profiles",
         ),
+        (
+            lambda s: (s.chain_dir / "state.env").write_text("CHAIN_DEVICE=cuda\n"),
+            "(no CHAIN_PROFILE: precise assumed) is of device cuda",
+        ),
         (lambda s: (s.chain_dir / "state.env").write_text("CHAIN_DEVICE=cpu\n"), "RECORD_SHA"),
         (lambda s: _append(s.chain_dir / "steps.tsv", "4\tstep\t1\t1\t-\n"), "step 4"),
         (lambda s: _append(s.chain_dir / "steps.tsv", "9\tstep\trunning\t1\t-\n"), "step 9"),
