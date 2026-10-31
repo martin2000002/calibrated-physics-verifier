@@ -1,7 +1,8 @@
 """Scale from the known typical size of labelled objects.
 
 Focal convention shared by every SCALE provider: meters per unit goes as f^k, k = 1
-here (lift extents are z / f) and k = 0 for a metric depth. The clip's relative focal sigma phi
+here (lift extents are z / f), k = 0 for a metric depth and, for free fall, the lateral share of
+the fitted acceleration (``scale_free_fall``). The clip's relative focal sigma phi
 is one error common to every object, so it enters the relative scale sigma once, as (k phi)^2,
 after the objects are combined; the per-object terms leave it out."""
 

@@ -78,7 +78,7 @@ STAGE_KEYS = {
     "kinematics/savgol": "5798c40f43422b238736870ad3b4b7b053d24e431694dab1f9c293badf1b463a",
     "lift/backproject": "ebfe1a1a540435ed100cf121083da7d3f7c8f1befbae65c2fc47ed185edfa82b",
     "lift/backproject_unnested": "245f1e6635f3007505a7305cba10619b878a66c41193edd825ec43b90b9b0e05",
-    "scale/free_fall": "e40cc46522510ef9ffb82c876fcd606321d2c83af34ad6b4748ce69b29d2826f",
+    "scale/free_fall": "8ca5d6987b36d4b86209600c174c65727b51e716f1fbf5550cf5ee590e1836bb",
     "scale/metric_depth": "385a7be7bddd6c74b0c89820732d00740cd85f4d192e1b54bc348bbf7689c3a8",
     "scale/size_model": "1b884cd95207324b22753351a2b7b0bb040335e9d9a7e655d00fff74baa73ce3",
     "scale/size_prior": "f22af1b73e8274993dc4678f7fd77328038a66535c895026830ad8164ee9ed28",

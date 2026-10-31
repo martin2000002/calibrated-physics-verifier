@@ -2,6 +2,9 @@
 
 s = g0 / |a| assumes the clip obeys standard gravity, so R5b abstains on this scale: it
 would otherwise test the gravity it assumed.
+
+Focal convention (``_size_prior``): in the camera frame the lateral axes of the lift go as 1 / f
+and depth does not, so s goes as f^k with k = (a_x^2 + a_y^2) / |a|^2, to first order in phi.
 """
 
 from __future__ import annotations
@@ -18,6 +21,7 @@ from pydantic import BaseModel, Field
 
 from physverify.extraction._base import ProviderParams, StageContext, WeightSpec
 from physverify.extraction.providers._common import expect_params
+from physverify.extraction.providers._size_prior import clip_focal_phi, with_focal
 from physverify.physics.geometry import characteristic_lengths
 from physverify.physics.kinematics import uniform_step, visible_runs
 from physverify.physics.measures.gravity_fit import FallFit, fall_fit, fall_residual_ratio
@@ -25,7 +29,7 @@ from physverify.physics.row_time import reference_seconds, rows_in, seconds_per_
 from physverify.schema.constants import STANDARD_GRAVITY
 from physverify.schema.scale import ScaleEstimate, ScaleSource
 from physverify.schema.stages import Stage
-from physverify.schema.states import ObjectStateTable
+from physverify.schema.states import CoordFrame, ObjectStateTable
 
 FloatArray = NDArray[np.float64]
 FIT_PARAMETERS = 3
@@ -49,8 +53,8 @@ class FallWindow:
 class FreeFallScale:
     stage: ClassVar[Stage] = Stage.SCALE
     name: ClassVar[str] = "free_fall"
-    version: ClassVar[str] = "1"
-    requires: ClassVar[tuple[Stage, ...]] = (Stage.LIFT,)
+    version: ClassVar[str] = "2"
+    requires: ClassVar[tuple[Stage, ...]] = (Stage.CAMERA, Stage.LIFT)
     heavy: ClassVar[bool] = False
     is_ground_truth: ClassVar[bool] = False
     error_profile_reads: ClassVar[tuple[Stage, ...]] = ()
@@ -69,7 +73,9 @@ class FreeFallScale:
             return ScaleEstimate(None, math.nan, ScaleSource.NONE, lift.source_key, "no_free_fall")
         accel = float(np.linalg.norm(best.fit.a))
         scale = STANDARD_GRAVITY / accel
-        sigma = scale * acceleration_sigma(best.fit, best.times) / accel
+        fit_sigma = scale * acceleration_sigma(best.fit, best.times) / accel
+        share = focal_share(np.asarray(best.fit.a, dtype=np.float64), lift.frame)
+        sigma = with_focal(scale, fit_sigma, share * clip_focal_phi(ctx))
         detail = f"window={best.fit.n}"
         return ScaleEstimate(scale, sigma, ScaleSource.FREE_FALL, lift.source_key, detail)
 
@@ -114,6 +120,13 @@ class FreeFallScale:
         if not ratio <= self.params.max_residual_ratio:
             return None
         return FallWindow(fit=fit, times=times, residual_ratio=ratio)
+
+
+def focal_share(accel: FloatArray, frame: CoordFrame) -> float:
+    """The exponent k of s ~ f^k; 1, its upper bound, outside the camera frame."""
+    if frame is not CoordFrame.CAMERA_OPENCV:
+        return 1.0
+    return float(accel[0] ** 2 + accel[1] ** 2) / float(accel @ accel)
 
 
 def acceleration_sigma(fit: FallFit, times: FloatArray) -> float:
