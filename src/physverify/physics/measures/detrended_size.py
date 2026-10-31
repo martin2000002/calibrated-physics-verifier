@@ -31,8 +31,9 @@ def detrended_deviation(ratios: ArrayLike, window: int) -> FloatArray:
     """d_t = r_t / runmed_W(r)_t - 1 (the window shifted inside the series at its ends); NaN
     where r is unknown."""
     series = np.asarray(ratios, dtype=np.float64).reshape(-1)
+    trend = running_median(series, window, "shifted")
     with np.errstate(invalid="ignore", divide="ignore"):
-        return np.asarray(series / running_median(series, window, "shifted") - 1.0, dtype=np.float64)
+        return np.asarray(series / trend - 1.0, dtype=np.float64)
 
 
 def persistent_change(ratios: ArrayLike, window: int, persistence: int) -> PersistentChange | None:

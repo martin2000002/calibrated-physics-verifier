@@ -9,7 +9,6 @@ from pydantic import ConfigDict
 from physverify.config.models import SizePriorTable
 from physverify.core.models import FrozenModel
 
-
 PREPOSITIONS = frozenset(
     {
         "about", "above", "across", "against", "along", "at", "behind", "below", "beside",

@@ -19,9 +19,7 @@ def find_falls(
     """Flights of object ``index`` that pass the fall filter of ``params``, in time order."""
     flights = find_flights(states, contacts, index, params.rest_speed, params.jump_gate)
     noise = (
-        track_noise(
-            states, index, impact_rows(states, contacts, index), params.min_noise_stencils
-        )
+        track_noise(states, index, impact_rows(states, contacts, index), params.min_noise_stencils)
         if params.travel_noise == "track"
         else None
     )

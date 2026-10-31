@@ -146,9 +146,7 @@ def test_the_last_known_word_is_the_head_noun(label: str, kind: PrimitiveKind) -
         ("tower of jenga blocks", PrimitiveKind.BOX),
     ],
 )
-def test_the_head_noun_comes_before_the_first_preposition(
-    label: str, kind: PrimitiveKind
-) -> None:
+def test_the_head_noun_comes_before_the_first_preposition(label: str, kind: PrimitiveKind) -> None:
     assert lookup_label(label, REAL_PRIMITIVES) is kind
 
 

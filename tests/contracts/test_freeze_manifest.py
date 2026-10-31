@@ -37,7 +37,9 @@ SPLIT_DESTINATIONS = {
     "src/physverify/extraction/providers/_common.py": ("src/physverify/sizing/priors.py",),
     "src/physverify/extraction/weights.py": ("src/physverify/core/digests.py",),
     "src/physverify/extraction/providers/_impacts.py": ("src/physverify/physics/ties.py",),
-    "src/physverify/extraction/providers/_temporal.py": ("src/physverify/physics/running_median.py",),
+    "src/physverify/extraction/providers/_temporal.py": (
+        "src/physverify/physics/running_median.py",
+    ),
 }
 # Definitions whose new home is deliberately outside the diff paths, with the reason.
 UNCOVERED = {
