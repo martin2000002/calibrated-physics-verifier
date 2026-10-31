@@ -21,6 +21,7 @@ from physverify.physics.equilibrium import (
     horizontal_norm_bias,
     solve_equilibrium,
 )
+from physverify.physics.geometry import tilted
 from physverify.physics.measures.support_overhang import overhang_fraction
 from physverify.physics.tracks import (
     body_length,
@@ -36,6 +37,7 @@ from physverify.schema.states import ObjectStateTable
 
 FloatArray = NDArray[np.float64]
 BoolArray = NDArray[np.bool_]
+GRAVITY = "gravity"
 
 
 class EquilibriumParams(CommonParams):
@@ -47,6 +49,8 @@ class EquilibriumParams(CommonParams):
     min_rest_frames: int = Field(default=3, ge=1)
     agent_labels: tuple[str, ...] = ("person", "hand", "arm", "animal", "dog", "cat")
     norm_edges: int = Field(default=8, ge=3)
+    # The Monte Carlo tilts gravity_dir by gravity_dir_sigma per axis; False holds it exact.
+    sample_gravity: bool = True
 
 
 @dataclass(frozen=True)
@@ -142,6 +146,9 @@ class EquilibriumCheck:
         if not bool(np.all(np.isfinite(states.gravity_dir))):
             details["missing"] = "gravity_dir"
             return AbstainReason.MISSING_INPUT
+        if self.params.sample_gravity and not math.isfinite(states.gravity_dir_sigma):
+            details["missing"] = "gravity_dir_sigma"
+            return AbstainReason.UNKNOWN_UNCERTAINTY
         centroids = states.position[event.row, list(event.bodies)]
         if not bool(np.all(np.isfinite(centroids))):
             details["missing"] = "position"
@@ -159,9 +166,12 @@ class EquilibriumCheck:
         return None
 
     def _sigma(self, inputs: CheckInputs, event: _Event, problem: EquilibriumProblem) -> float:
-        """Monte Carlo over the centroids and the contact points (sigma of object a)."""
+        """Monte Carlo over the centroids, the contact points (sigma of object a) and the gravity
+        direction (an isotropic tilt of gravity_dir_sigma per axis)."""
         states = inputs.states
         sigmas = {"centroids": states.position_sigma[event.row, list(event.bodies)]}
+        if self.params.sample_gravity:
+            sigmas[GRAVITY] = np.full(2, states.gravity_dir_sigma)
         for k, record in enumerate(event.support):
             index = states.object_index(record.object_a)
             point_sigma = states.position_sigma[event.row, index]
@@ -272,7 +282,10 @@ def _perturbed(
         for k, c in enumerate(problem.contacts)
     )
     centroids = problem.centroids + noise["centroids"][draw]
-    return EquilibriumProblem(centroids, problem.lengths, problem.gravity_dir, contacts)
+    gravity = problem.gravity_dir
+    if GRAVITY in noise:
+        gravity = tilted(gravity, noise[GRAVITY][draw])
+    return EquilibriumProblem(centroids, problem.lengths, gravity, contacts)
 
 
 def _overhangs(

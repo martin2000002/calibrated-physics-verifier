@@ -1,5 +1,6 @@
 """Oracle check results of the analytic fixture, written once by the code of commit 01140e2 into
-``golden/oracle.json`` and compared with the current code.
+``golden/oracle.json`` and compared with the current code. The only later edit adds the R5a
+detail ``lateral_accel_ratio_sigma`` (0 on the fixture, whose gravity is exact; ADR 0023).
 The same module runs in both trees:
 
     PYTHONPATH=<old>/src:tests/fixtures python tests/verification/oracle_golden_case.py

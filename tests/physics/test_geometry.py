@@ -20,6 +20,7 @@ from physverify.physics.geometry import (
     Solid,
     matrix_from_quaternion,
     quaternion_from_matrix,
+    tilted,
 )
 from physverify.physics.signed_distance import signed_distance
 from physverify.schema.states import PrimitiveKind
@@ -141,3 +142,12 @@ def test_quaternion_round_trip() -> None:
     np.testing.assert_allclose(rotation @ rotation.T, np.eye(3), atol=1e-12)
     back = quaternion_from_matrix(rotation)
     assert min(np.abs(back - q).max(), np.abs(back + q).max()) < 1e-12
+
+
+def test_tilting_turns_a_direction_by_the_norm_of_the_angles() -> None:
+    down = np.array([0.0, 0.0, -1.0])
+    turned = tilted(down, np.array([[0.0, 0.0], [0.03, 0.04], [math.pi / 2, 0.0]]))
+    np.testing.assert_allclose(np.linalg.norm(turned, axis=-1), 1.0)
+    np.testing.assert_allclose(turned[0], down)
+    angles = np.arccos(np.clip(turned @ down, -1.0, 1.0))
+    np.testing.assert_allclose(angles, [0.0, 0.05, math.pi / 2])

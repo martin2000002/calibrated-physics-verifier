@@ -148,3 +148,18 @@ def test_sigma_is_monte_carlo_over_positions() -> None:
     assert again.sigma == noisy.sigma
     unknown = run_one(sc.with_sigma(sc.overhang(0.25), position=math.nan))
     assert math.isnan(unknown.sigma)
+
+
+def test_unknown_gravity_sigma_abstains_with_unknown_uncertainty() -> None:
+    result = run_one(with_states(sc.stack(), gravity_dir_sigma=math.nan))
+    assert result.abstain_reason is AbstainReason.UNKNOWN_UNCERTAINTY
+    assert result.details["missing"] == "gravity_dir_sigma"
+
+
+def test_sigma_samples_the_gravity_direction() -> None:
+    case = with_states(sc.overhang(0.25), gravity_dir_sigma=math.radians(5.0))
+    sampled = run_one(case)
+    assert math.isfinite(sampled.sigma) and sampled.sigma > 0
+    held = EquilibriumCheck(EquilibriumParams(sample_gravity=False)).evaluate(case.inputs())
+    assert held[0].sigma == 0.0
+    assert held[0].magnitude == sampled.magnitude

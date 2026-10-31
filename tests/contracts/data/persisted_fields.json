@@ -779,7 +779,8 @@
       "rest_speed",
       "min_rest_frames",
       "agent_labels",
-      "norm_edges"
+      "norm_edges",
+      "sample_gravity"
     ],
     "R3a": [
       "mc_draws",
@@ -832,7 +833,8 @@
       "min_noise_stencils",
       "min_flight_frames",
       "side_frames",
-      "min_drop_lengths"
+      "min_drop_lengths",
+      "sample_gravity"
     ],
     "R5b": [
       "mc_draws",
