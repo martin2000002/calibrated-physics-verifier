@@ -19,8 +19,9 @@ reference = "others"
 # Alternative implementations (checks/variants/) are chosen per check in a [check_variants] table,
 # check id -> variant name; with no table every check runs its default. R4_size "v3": persistent
 # change against a running median, windows in seconds, rows whose mask the lift saw cut by the
-# image border left out (--set check_variants.R4_size=v3). R4_jump "rigid": v2 without the
-# stencils where the apparent size steps (--set check_variants.R4_jump=rigid).
+# image border left out (--set check_variants.R4_size=v3). R4_jump "rigid2": v2 without the
+# stencils where the apparent size steps, in the statistic and in its noise estimate
+# (--set check_variants.R4_jump=rigid2).
 
 [verification]
 policy = "threshold"

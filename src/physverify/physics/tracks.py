@@ -193,31 +193,34 @@ def impact_stencil_mask(object_id: str, contacts: ContactTable, frame_index: Int
     return excluded
 
 
+def impact_rows(states: ObjectStateTable, contacts: ContactTable, index: int) -> BoolArray:
+    """``impact_stencil_mask`` of object ``index``."""
+    return impact_stencil_mask(str(states.object_ids[index]), contacts, states.frame_index)
+
+
 def noise_stencils(
-    states: ObjectStateTable, contacts: ContactTable, index: int
+    states: ObjectStateTable, index: int, excluded_rows: BoolArray
 ) -> tuple[FloatArray, BoolArray]:
     """Third differences d3[j] of the object's positions (stencil rows j..j+3) and the stencils
-    usable as noise: finite and not spanning an impact. d3[j] is row k = j + 1 of
-    ``impact_stencil_mask``, whose stencil is rows k-1..k+2."""
+    usable as noise: finite and not at an excluded row. d3[j] is row k = j + 1 of a row mask such
+    as ``impact_stencil_mask``, whose stencil is rows k-1..k+2."""
     d3 = third_difference(states.position[:, index])
     if not d3.shape[0]:
         return d3, np.zeros(0, dtype=np.bool_)
-    object_id = str(states.object_ids[index])
-    impacts = impact_stencil_mask(object_id, contacts, states.frame_index)[1:-2]
-    usable = np.all(np.isfinite(d3), axis=-1) & ~impacts
+    usable = np.all(np.isfinite(d3), axis=-1) & ~excluded_rows[1:-2]
     return d3, np.asarray(usable, dtype=np.bool_)
 
 
 def track_noise(
-    states: ObjectStateTable, contacts: ContactTable, index: int, min_stencils: int
+    states: ObjectStateTable, index: int, excluded_rows: BoolArray, min_stencils: int
 ) -> FloatArray | None:
-    """Per-axis white-noise sigma of the positions, robust_scale(d3) / sqrt(20); None with fewer
-    than ``min_stencils`` usable stencils.
+    """Per-axis white-noise sigma of the positions, robust_scale(d3) / sqrt(20), over the stencils
+    of ``noise_stencils``; None with fewer than ``min_stencils`` of them.
 
     Var(d3) = (1 + 9 + 9 + 1) sigma^2 for independent noise, and d3 vanishes under any constant
     acceleration, so the estimate does not depend on g. A drift slow enough to be quadratic over
     the stencil is invisible to it."""
-    d3, usable = noise_stencils(states, contacts, index)
+    d3, usable = noise_stencils(states, index, excluded_rows)
     if int(usable.sum()) < min_stencils:
         return None
     return np.array([robust_scale(d3[usable, axis]) for axis in range(d3.shape[1])]) / math.sqrt(

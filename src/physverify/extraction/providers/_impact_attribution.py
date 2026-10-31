@@ -33,7 +33,7 @@ from physverify.physics.tracks import (
     track_noise,
 )
 from physverify.schema.constants import ENV_ID
-from physverify.schema.contacts import ContactKind, ContactRecord, ContactTable, ManifoldKind
+from physverify.schema.contacts import ContactKind, ContactRecord, ManifoldKind
 from physverify.schema.perception import CameraModel
 from physverify.schema.states import CoordFrame, ObjectStateTable
 
@@ -113,16 +113,11 @@ def object_sigma(
     states: ObjectStateTable, index: int, depths: FloatArray | None, focal: float
 ) -> NoiseScale | None:
     """sigma-hat per axis of one object: its track noise floored by one pixel at its median
-    camera depth; None without either (no impacts are then sought for it)."""
+    camera depth over every stencil (none is known to span an impact yet); None without either
+    (no impacts are then sought for it)."""
     depth = nan_median(depths.tolist()) if depths is not None else math.nan
-    empty = ContactTable(
-        clip_id=states.clip_id,
-        frame=states.frame,
-        unit=states.unit,
-        source_key=states.source_key,
-        records=(),
-    )
-    noise = track_noise(states, empty, index, MIN_NOISE_STENCILS)
+    no_rows = np.zeros(states.frame_index.shape, dtype=np.bool_)
+    noise = track_noise(states, index, no_rows, MIN_NOISE_STENCILS)
     return noise_scale(noise, pixel_floor(depth, focal))
 
 

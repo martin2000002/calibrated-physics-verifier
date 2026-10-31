@@ -13,6 +13,7 @@ from physverify.physics.tracks import (
     check_time_axis,
     contact_rows,
     flight_mask,
+    impact_rows,
     impact_stencil_mask,
     native_span,
     noise_stencils,
@@ -402,8 +403,8 @@ def test_track_noise_recovers_white_noise_whatever_the_gravity() -> None:
     sigma = 0.01
     full = noisy(sc.parabola(frames=60), sigma)
     weak = noisy(sc.parabola(g=0.25 * sc.STANDARD_GRAVITY, frames=60), sigma)
-    found = track_noise(full.states, full.contacts, 0, 8)
-    other = track_noise(weak.states, weak.contacts, 0, 8)
+    found = track_noise(full.states, 0, impact_rows(full.states, full.contacts, 0), 8)
+    other = track_noise(weak.states, 0, impact_rows(weak.states, weak.contacts, 0), 8)
     assert found is not None and other is not None
     assert float(np.linalg.norm(found)) == pytest.approx(math.sqrt(3.0) * sigma, rel=0.25)
     np.testing.assert_allclose(other, found, rtol=1e-9)
@@ -411,8 +412,9 @@ def test_track_noise_recovers_white_noise_whatever_the_gravity() -> None:
 
 def test_track_noise_needs_enough_stencils() -> None:
     case = noisy(sc.parabola(frames=10), 0.01)
-    assert track_noise(case.states, case.contacts, 0, 7) is not None
-    assert track_noise(case.states, case.contacts, 0, 8) is None
+    impacts = impact_rows(case.states, case.contacts, 0)
+    assert track_noise(case.states, 0, impacts, 7) is not None
+    assert track_noise(case.states, 0, impacts, 8) is None
 
 
 def test_noise_stencils_align_the_third_difference_with_the_impact_rows() -> None:
@@ -420,10 +422,20 @@ def test_noise_stencils_align_the_third_difference_with_the_impact_rows() -> Non
     impact between two rows (off the middle, where one stencil cancels), the stencils left out
     are exactly those the kink makes nonzero."""
     case = sc.bounce(impact_frame=15.3)
-    d3, usable = noise_stencils(case.states, case.contacts, 0)
+    d3, usable = noise_stencils(case.states, 0, impact_rows(case.states, case.contacts, 0))
     kinked = np.linalg.norm(d3, axis=1) > 1e-9
     assert int(kinked.sum()) == 3
     np.testing.assert_array_equal(~usable, kinked)
+
+
+def test_noise_stencils_leave_out_any_excluded_row() -> None:
+    case = sc.bounce(impact_frame=15.3)
+    impacts = impact_rows(case.states, case.contacts, 0)
+    excluded = impacts.copy()
+    excluded[[5, 6]] = True
+    _, usable = noise_stencils(case.states, 0, excluded)
+    _, impact_only = noise_stencils(case.states, 0, impacts)
+    assert np.flatnonzero(impact_only & ~usable).tolist() == [4, 5]
 
 
 def test_the_fall_filter_reads_the_single_stencil_minimum() -> None:

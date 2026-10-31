@@ -1,4 +1,5 @@
-"""R4_jump rigid: v2 without the stencils where the object's size steps."""
+"""R4_jump rigid2: v2 without the stencils where the object's size steps, in the statistic and in
+its noise estimate."""
 
 from __future__ import annotations
 
@@ -22,15 +23,17 @@ class RigidJumpParams(NoiseJumpParams):
 
 
 class RigidJumpCheck(NoiseContinuityCheck):
-    """R4_jump rigid [jump_over_noise]: the v2 statistic over the rows whose stencil spans
-    neither an impact nor a step |L_{j+1} / L_j - 1| > ``rigid_size_step`` of the object's
-    length L = (e_x e_y e_z)^(1/3) (``size_step_stencil_mask``).
+    """R4_jump rigid2 [jump_over_noise]: the v2 statistic and its noise estimate (``track_noise``)
+    over the rows whose stencil spans neither an impact nor a step |L_{j+1} / L_j - 1| >
+    ``rigid_size_step`` of the object's length L = (e_x e_y e_z)^(1/3)
+    (``size_step_stencil_mask``).
 
     The extents of a perceived table are the mask scaled by its depth, so a mask that swaps to
     another region or loses part of the body steps L and moves the centroid with it; a body
-    displaced in depth keeps L. The noise estimate (``track_noise``) is the v2 one."""
+    displaced in depth keeps L. Such a step is a perception error, not position noise, so it is
+    left out of sigma-hat as well ("rigid" kept it there)."""
 
-    variant: ClassVar[str] = "rigid"
+    variant: ClassVar[str] = "rigid2"
     Params: ClassVar[type[BaseModel]] = RigidJumpParams
     params: RigidJumpParams
 
