@@ -9,6 +9,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
+from physverify.calibration.extension import NO_EXTENSION, ExtensionScope, restrict
 from physverify.calibration.fit import LevelData
 from physverify.calibration.settings import CalibrationConfig
 from physverify.calibration.sigma_recalibration import SigmaPair
@@ -95,9 +96,11 @@ def level_data(
     *,
     split: Split | None,
     pairs: tuple[SigmaPair, ...] | None = (),
+    scope: ExtensionScope = NO_EXTENSION,
 ) -> LevelData:
     rows = build_rows(report, checks, config.couplings, level, split=split)
-    return LevelData(level=level, rows=rows, results=report.results, sigma_pairs=pairs)
+    data = LevelData(level=level, rows=rows, results=report.results, sigma_pairs=pairs)
+    return restrict(data, scope, {clip.clip_id: scene_of(clip) for clip in report.clips})
 
 
 def read_run(run_dir: Path, clips: Sequence[ClipManifest]) -> VerificationReport:

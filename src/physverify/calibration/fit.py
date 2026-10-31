@@ -65,12 +65,15 @@ NOT_RECALIBRATED = "not recalibrated (--no-sigma): the propagated sigma is used 
 
 @dataclass(frozen=True)
 class LevelData:
-    """Raw-policy rows and results of one input level; ``sigma_pairs`` None = not measured."""
+    """Raw-policy rows and results of one input level; ``sigma_pairs`` None = not measured.
+    ``extension_scenes`` count only for their checks (``calibration.extension``): their clips
+    are left out of the aggregate score."""
 
     level: InputLevel
     rows: tuple[CalibrationRow, ...]
     results: tuple[CheckResult, ...]
     sigma_pairs: tuple[SigmaPair, ...] | None = ()
+    extension_scenes: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -340,7 +343,8 @@ def fit_aggregate(model: Stratum, data: LevelData, settings: CalibrationSettings
 
 
 def clip_scores(model: Stratum, data: LevelData) -> list[tuple[str, float, bool]]:
-    """(scene, 1 - S, perturbed?) of every clip of ``data`` with a row, a score and a label."""
+    """(scene, 1 - S, perturbed?) of every clip of ``data`` with a row, a score and a label,
+    outside the extension scenes."""
     from physverify.calibration.apply import score_clip
 
     view = StratumView(model=model, source="fit", artifact=None)
@@ -352,8 +356,10 @@ def clip_scores(model: Stratum, data: LevelData) -> list[tuple[str, float, bool]
     for clip_id in sorted(by_clip):
         if clip_id not in info:
             continue
-        score = score_clip(by_clip[clip_id], view).score
         scene, perturbed = info[clip_id]
+        if scene in data.extension_scenes:
+            continue
+        score = score_clip(by_clip[clip_id], view).score
         if score is not None and perturbed is not None:
             scored.append((scene, 1.0 - score, perturbed))
     return scored

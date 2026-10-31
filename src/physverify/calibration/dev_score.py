@@ -9,7 +9,8 @@ weights refitted). One scene partition serves every check, both levels and the s
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from itertools import zip_longest
 
 from pydantic import Field
 
@@ -149,8 +150,13 @@ def require_bootstrap(settings: CalibrationSettings) -> None:
 def scene_folds(
     levels: Sequence[LevelData], settings: CalibrationSettings
 ) -> tuple[frozenset[str], ...]:
-    scenes = sorted({row.scene_id for level in levels for row in level.rows})
-    return grouped_folds(scenes, settings.folds, settings.seed)
+    """Base scenes partitioned as without any extension; extension scenes on their own, joined
+    fold by fold."""
+    extension = frozenset().union(*(level.extension_scenes for level in levels))
+    scenes = {row.scene_id for level in levels for row in level.rows}
+    base = grouped_folds(sorted(scenes - extension), settings.folds, settings.seed)
+    added = grouped_folds(sorted(scenes & extension), settings.folds, settings.seed)
+    return tuple(a | b for a, b in zip_longest(base, added, fillvalue=frozenset[str]()))
 
 
 def split_data(data: LevelData, fold: frozenset[str]) -> tuple[LevelData, LevelData]:
@@ -160,8 +166,8 @@ def split_data(data: LevelData, fold: frozenset[str]) -> tuple[LevelData, LevelD
 
     def part(held: bool) -> LevelData:
         pairs = data.sigma_pairs
-        return LevelData(
-            level=data.level,
+        return replace(
+            data,
             rows=tuple(r for r in data.rows if (r.scene_id in fold) is held),
             results=tuple(
                 r for r in data.results if r.clip_id in scene and (scene[r.clip_id] in fold) is held

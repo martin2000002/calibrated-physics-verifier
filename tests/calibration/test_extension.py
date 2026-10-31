@@ -1,0 +1,142 @@
+"""``calibration.extension``: scenes that count only for some checks (``checks_only``).
+
+The invariance contract: with or without an extension, the fit and the devscore of every other
+check are bit-identical, the base scenes are folded identically and the aggregate scores the same
+clips. The aggregate's value is not invariant by construction: it reads every check's calibration,
+the extended one included (here R5b turns from no_negatives into ok and joins the score). The error
+profile never reads calibration rows (``diagnose stages`` runs on the base subset only).
+"""
+
+from __future__ import annotations
+
+from dataclasses import replace
+
+import numpy as np
+from calibration_cases import CHECKS, LEVELS, UNITS, _rows, clip, config, fit_meta, record
+from calibration_cases import synthetic_report as base_report
+
+from physverify.calibration.collect import level_data
+from physverify.calibration.dev_score import dev_score, scene_folds
+from physverify.calibration.extension import ExtensionScope, restrict
+from physverify.calibration.fit import (
+    FitInputs,
+    LevelData,
+    clip_scores,
+    fit_calibration,
+    fit_checks,
+    fit_stratum,
+)
+from physverify.calibration.sigma_recalibration import SigmaPair
+from physverify.schema.checks import InputLevel
+from physverify.schema.clip import Split
+from physverify.verification.runner import VerificationReport
+
+CONFIG = config(alpha=0.1, folds=3, bootstrap=30)
+SCOPED = "R5b"
+OTHERS = ("R1", "R3a")
+LEAK = 5.0
+"""The other checks' magnitude on every extension clip: far above their clean noise, so any row
+of theirs that leaked would move their tau."""
+
+
+def extension_report(n_scenes: int = 20, seed: int = 1) -> VerificationReport:
+    """Per scene: a clean clip with an R5b event and R5b perturbed at three levels (overlapping
+    the clean noise, so R5b stays below R1's weight); R1 and R3a read ``LEAK`` everywhere."""
+    rng = np.random.default_rng(seed)
+    table, results, clips = [], [], []
+    for s in range(n_scenes):
+        scene = f"x{s:03d}"
+        found = [(clip(f"{scene}__none", scene), abs(float(rng.normal(0.0, 0.01))))]
+        for lv in LEVELS:
+            mu = 0.05 * 2 ** (lv - 1)
+            pert = record("r5b_gravity_scale", (SCOPED,), mu, UNITS[SCOPED], lv)
+            value = mu + float(rng.normal(0.0, 0.2))
+            found.append((clip(f"{scene}__r5b_L{lv}", scene, perturbation=pert), value))
+        for manifest, value in found:
+            magnitudes: dict[str, float | None] = {"R1": LEAK, "R3a": LEAK, SCOPED: value}
+            rows, found_results = _rows(manifest, magnitudes, 0.0, InputLevel.ORACLE)
+            table += rows
+            results += found_results
+            clips.append(manifest)
+    return VerificationReport(results=tuple(results), table=tuple(table), clips=tuple(clips))
+
+
+def merged(a: VerificationReport, b: VerificationReport) -> VerificationReport:
+    return VerificationReport(
+        results=a.results + b.results, table=a.table + b.table, clips=a.clips + b.clips
+    )
+
+
+def arms() -> tuple[LevelData, LevelData, ExtensionScope]:
+    base, extra = base_report(n_scenes=18), extension_report()
+    scope = ExtensionScope({c.scene_id or "": frozenset({SCOPED}) for c in extra.clips})
+    without = level_data(InputLevel.ORACLE, base, CHECKS, CONFIG, split=Split.CALIB)
+    with_ext = level_data(
+        InputLevel.ORACLE, merged(base, extra), CHECKS, CONFIG, split=Split.CALIB, scope=scope
+    )
+    return without, with_ext, scope
+
+
+def dumped(model: object) -> str:
+    return model.model_dump_json()  # type: ignore[attr-defined,no-any-return]
+
+
+def test_extension_scenes_keep_only_their_checks() -> None:
+    without, with_ext, scope = arms()
+    added = [r for r in with_ext.rows if r.scene_id in scope.scenes]
+    assert added and {r.check_id for r in added} == {SCOPED}
+    assert [r for r in with_ext.rows if r.scene_id not in scope.scenes] == list(without.rows)
+    extra_clips = {r.clip_id for r in added}
+    assert {r.check_id for r in with_ext.results if r.clip_id in extra_clips} == {SCOPED}
+    assert with_ext.extension_scenes == scope.scenes and not without.extension_scenes
+
+
+def test_sigma_pairs_of_other_checks_are_dropped_on_extension_scenes() -> None:
+    pairs = tuple(
+        SigmaPair(scene_id=scene, check_id=check, oracle=0.1, perceived=0.2, sigma=0.05)
+        for scene in ("s000", "x000")
+        for check in ("R1", SCOPED)
+    )
+    data = LevelData(level=InputLevel.PERCEIVED, rows=(), results=(), sigma_pairs=pairs)
+    kept = restrict(data, ExtensionScope({"x000": frozenset({SCOPED})}), {})
+    expected = tuple(p for p in pairs if p.scene_id == "s000" or p.check_id == SCOPED)
+    assert kept.sigma_pairs == expected
+    assert restrict(data, ExtensionScope(), {}) is data
+
+
+def test_the_other_checks_fit_bit_identically() -> None:
+    without, with_ext, _ = arms()
+    before, after = fit_checks(without, CHECKS, CONFIG), fit_checks(with_ext, CHECKS, CONFIG)
+    assert all(dumped(before[c]) == dumped(after[c]) for c in OTHERS)
+    assert before[SCOPED].status != "ok" and after[SCOPED].status == "ok"
+    assert after["R1"].weight.value >= after[SCOPED].weight.value
+    strata = [
+        fit_calibration(FitInputs((data,), CHECKS, fit_meta()), CONFIG).strata[0]
+        for data in (without, with_ext)
+    ]
+    assert all(dumped(strata[0].checks[c]) == dumped(strata[1].checks[c]) for c in OTHERS)
+
+
+def test_the_aggregate_scores_the_same_clips() -> None:
+    without, with_ext, _ = arms()
+    model = fit_stratum(with_ext, CHECKS, "fast", CONFIG)
+    assert clip_scores(model, with_ext) == clip_scores(model, without)
+    plain = replace(with_ext, extension_scenes=frozenset())
+    assert len(clip_scores(model, plain)) > len(clip_scores(model, without))
+
+
+def test_base_scenes_are_folded_as_without_the_extension() -> None:
+    without, with_ext, scope = arms()
+    settings = CONFIG.calibration
+    base, extended = scene_folds([without], settings), scene_folds([with_ext], settings)
+    assert tuple(fold - scope.scenes for fold in extended) == base
+    assert frozenset().union(*extended) & scope.scenes == scope.scenes
+
+
+def test_the_other_checks_devscore_bit_identically() -> None:
+    without, with_ext, _ = arms()
+    both = (without, with_ext)
+    reports = [dev_score((data,), CHECKS, fit_meta(), CONFIG).report for data in both]
+    levels = [report.levels[0].checks for report in reports]
+    assert all(dumped(levels[0][c]) == dumped(levels[1][c]) for c in OTHERS)
+    assert dumped(levels[0][SCOPED]) != dumped(levels[1][SCOPED])
