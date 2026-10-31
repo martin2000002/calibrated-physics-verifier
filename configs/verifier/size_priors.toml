@@ -1,8 +1,9 @@
-# Frozen table: object label -> prior on its characteristic size (full extent, meters).
+# Frozen table: object label -> prior on its characteristic size (full extent, meters), read by the
+# verifier only (size-prior scale provider, sizing baseline, real-dataset phrase matching).
 # These are ESTIMATES, not measurements: mean_m is a typical size and rel_spread its relative
-# standard deviation. Single source of truth: the synthetic Kubric dataset samples object sizes from
-# it and uses its keys as labels, the size-prior scale provider reads it through settings, and
-# real-dataset phrases map to its keys. Only the main thread changes it (SCHEMA CHANGE REQUEST).
+# standard deviation. The synthetic generator samples sizes from its own table
+# (configs/synth/size_distribution.toml); neither side reads the other's. Only the main thread
+# changes it (SCHEMA CHANGE REQUEST).
 
 [size_priors.cube]
 mean_m = 0.10

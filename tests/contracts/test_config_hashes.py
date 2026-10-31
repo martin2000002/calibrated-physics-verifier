@@ -28,16 +28,16 @@ KEY_PATHS = Path(__file__).with_name("data") / "config_key_paths.txt"
 PINNED_ROOT = "/pinned"
 
 SECTIONS_HASH = {
-    "fast": "d773152e80be1dc3835e0984cb4afa1a88e33e68b0bc04896786c691c0a42c7f",
-    "precise": "cdbd28bb9850aa0a1a3bc3c8c8c7fa09479d1be143a814139240a44b30a42de4",
+    "fast": "ae02a9e95f85fa507df7a65a9c1936443060709d1e053594f404f09689770e5e",
+    "precise": "3ebe5e52fd9d66e5cdccc77b1079916c5255c453472a810011f1fd547f879bd9",
 }
 CONFIG_HASH = {
-    "fast": "f0ebfea283a87375d6224c06dc7cc73a32c089acd504ea87ef168c9231174194",
-    "precise": "a3ba239b32154cf5078de18688f568eede03d035dbd5ff3246359fb6b71faa66",
+    "fast": "2b881dc9af038ae4719bfe6d61ecf32c3282e238a9a97359767dc765020010a9",
+    "precise": "f09c99a3d57c8b37e492abb12236ad21ad97d8bb68796f9394acd81aef432260",
 }
 LOOK_CONFIG_HASH = {
-    "fast": "2ccbc506b3dc2ded5ae47963e4792281c48ea29c21af6b1d0db6e3d3b2b585f0",
-    "precise": "407f10a2dd00944b2f9f46558c7dfa3e742bec877f96ad2d9648fe4b764abb46",
+    "fast": "dc8a0c94e2adf8ad740c936ff3b51591e4b110ac16faf989325f16612d11365f",
+    "precise": "63dc5dd08448019184f00797279e647d48fbf39e99387b4b2d6a2740a3a831ed",
 }
 CHECKS_HASH = "c5f03bfd100bdd23fe90a5f2ad098b2767b893a75bb850fd42c4116312ca3dee"
 DATASET_CONTENT_HASH = {

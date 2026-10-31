@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from collections import Counter
+from pathlib import Path
 from typing import Any
 
 import pytest
 
+from physverify.config.loader import load_settings
 from physverify.core.errors import ConfigError
 from physverify.schema.scene import SceneSpec
 from physverify.synth.generate import (
@@ -17,7 +19,7 @@ from physverify.synth.generate import (
     write_specs,
 )
 from physverify.synth.plan import NONE
-from physverify.synth.settings import DatasetSettings, SubsetSettings
+from physverify.synth.settings import DatasetSettings, SubsetSettings, load_size_distribution
 from physverify.synth.store import SPEC, DatasetStore, Step
 
 # Deliverable 1 runs `local` on the laptop; `full` is generated on the H200.
@@ -122,3 +124,13 @@ def test_write_specs_is_resumable_and_seeded(
     (store.scene_dir("f2_bounce-s000") / SPEC).unlink()
     write_specs(plan, store, families, plugins, ds, priors)
     assert SceneSpec.load_json(store.scene_dir("f2_bounce-s000") / SPEC) == first
+
+
+def test_the_generator_reads_its_own_size_table(config_dir: Path, environ: dict[str, str]) -> None:
+    base = load_size_distribution(load_settings(config_dir, environ=environ))
+    estimator = ("size_priors.cube.mean_m=0.5",)
+    own = ("size_distribution.cube.mean_m=0.5",)
+    unchanged = load_settings(config_dir, environ=environ, overrides=estimator)
+    assert load_size_distribution(unchanged) == base
+    moved = load_size_distribution(load_settings(config_dir, environ=environ, overrides=own))
+    assert moved["cube"].mean_m == 0.5
