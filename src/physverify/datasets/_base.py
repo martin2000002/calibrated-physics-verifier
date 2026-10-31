@@ -104,6 +104,24 @@ class DatasetSource(Protocol):
     def fetch(self, subset: str | None, dest: Path) -> None: ...
 
 
+@dataclass(frozen=True)
+class ScopedSubset:
+    """A configured subset whose clips count only for ``checks`` (a calibration extension)."""
+
+    name: str
+    checks: tuple[str, ...]
+    clips: tuple[ClipManifest, ...]
+
+
+@runtime_checkable
+class ScopedSubsetSource(Protocol):
+    """A dataset that declares check-scoped subsets; plain datasets declare none."""
+
+    def scoped_subsets(self) -> tuple[ScopedSubset, ...]:
+        """Every check-scoped subset by name, with its exported clips (none when unplanned)."""
+        ...
+
+
 DATASETS = PluginKind[type[DatasetSource]]("datasets")
 
 

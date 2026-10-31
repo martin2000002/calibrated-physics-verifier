@@ -57,6 +57,9 @@ class SubsetSettings(FrozenModel):
     level_mode: Literal["all", "cycle"] = "all"
     # Only the scenes of this split (same scene ids, seeds and splits as without it).
     split: Literal["calib", "eval"] | None = None
+    # Non-empty: a calibration extension. Its calib scenes outside the calibration subset count
+    # only for these check ids: never for the other checks, the aggregate score or the profile.
+    checks_only: tuple[str, ...] = ()
 
     @model_validator(mode="after")
     def _levels_in_range(self) -> SubsetSettings:

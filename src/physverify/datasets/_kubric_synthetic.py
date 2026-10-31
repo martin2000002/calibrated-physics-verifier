@@ -14,7 +14,7 @@ import numpy as np
 
 from physverify.core.errors import MissingInputError, UsageError
 from physverify.core.video import FrameDirVideoSource
-from physverify.datasets._base import ArrayGroundTruthStore, NativeGroundTruth
+from physverify.datasets._base import ArrayGroundTruthStore, NativeGroundTruth, ScopedSubset
 from physverify.schema.clip import ClipManifest, Split
 from physverify.schema.contacts import ContactTable
 from physverify.schema.render import RenderLayers
@@ -82,6 +82,7 @@ class KubricSynthetic:
         self._far_z_m = ds.render.far_z_m
         self._data_dir = settings.paths.data_dir
         self._max_frame_bytes = settings.runtime.max_frame_bytes
+        self._scoped = {k: v.checks_only for k, v in sorted(ds.subsets.items()) if v.checks_only}
 
     def clips(self, subset: str | None = None) -> Sequence[ClipManifest]:
         """Exported clips: all (None), one split ("calib"/"eval") or one planned subset."""
@@ -95,6 +96,15 @@ class KubricSynthetic:
             raise MissingInputError(f"no dataset plan in {self._store.root}: run `synth generate`")
         wanted = {v.clip_id for v in plan.subset(subset).variants}
         return [c for c in exported if c.clip_id in wanted]
+
+    def scoped_subsets(self) -> tuple[ScopedSubset, ...]:
+        plan = load_plan(self._store) if self._scoped else None
+        planned = {} if plan is None else plan.subsets
+        exported = self.clips() if planned else []
+        return tuple(
+            ScopedSubset(name, checks, _members(exported, planned.get(name, ())))
+            for name, checks in self._scoped.items()
+        )
 
     def _own(self, clip: ClipManifest) -> ClipManifest:
         """Labelled with this plugin's name, which keys the stage cache and the sealed sets."""
@@ -117,3 +127,8 @@ class KubricSynthetic:
             f"{self.name} is generated locally, not downloaded: "
             f"physverify synth build --subset {subset or 'local'}"
         )
+
+
+def _members(clips: Sequence[ClipManifest], clip_ids: Sequence[str]) -> tuple[ClipManifest, ...]:
+    wanted = set(clip_ids)
+    return tuple(c for c in clips if c.clip_id in wanted)
