@@ -178,21 +178,6 @@ def focal_from_fov(fov_deg: float, width: float) -> float:
     return (width / 2.0) / math.tan(math.radians(fov_deg) / 2.0)
 
 
-def _focal_rel_per_fov_rad(fov_deg: float) -> float:
-    """|d ln f / d fov| = 1 / sin(fov), from f = (W / 2) / tan(fov / 2)."""
-    return 1.0 / math.sin(math.radians(fov_deg))
-
-
-def focal_rel_sigma(fov_deg: float, fov_sigma_deg: float) -> float:
-    """phi = sigma_f / f of a field of view known to within ``fov_sigma_deg``."""
-    return math.radians(fov_sigma_deg) * _focal_rel_per_fov_rad(fov_deg)
-
-
-def fov_sigma_from_phi(fov_deg: float, phi: float) -> float:
-    """Inverse of ``focal_rel_sigma``: the field-of-view sigma (degrees) of a focal known to phi."""
-    return math.degrees(phi / _focal_rel_per_fov_rad(fov_deg))
-
-
 @dataclass(frozen=True, eq=False)
 class CameraModel(Record):
     """OpenCV intrinsics in processing pixels; ``world_from_camera`` is (4,4), (T',4,4) or None.

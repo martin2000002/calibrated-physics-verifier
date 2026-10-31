@@ -24,6 +24,7 @@ from numpy.typing import NDArray
 from pydantic import AfterValidator, BaseModel, Field
 
 from physverify.extraction._base import ProviderParams, StageContext, WeightKind, WeightSpec
+from physverify.extraction.backprojection import fov_sigma_from_phi
 from physverify.extraction.gravity_pose import pose_from_gravity
 from physverify.extraction.providers._assumed_fov import AssumedFovCamera
 from physverify.extraction.providers._assumed_fov import Params as AssumedParams
@@ -36,12 +37,7 @@ from physverify.extraction.providers._common import (
 )
 from physverify.extraction.weights import local_path, vendored_import_path, weight_file
 from physverify.schema.clip import FrameSampling
-from physverify.schema.perception import (
-    CameraModel,
-    IntrinsicsSource,
-    fov_sigma_from_phi,
-    horizontal_fov_deg,
-)
+from physverify.schema.perception import CameraModel, IntrinsicsSource, horizontal_fov_deg
 from physverify.schema.stages import Stage
 
 FloatArray = NDArray[np.float64]

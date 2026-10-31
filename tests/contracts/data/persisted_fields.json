@@ -854,7 +854,8 @@
     "camera/from_depth": [
       "gravity",
       "n_frames",
-      "focal_sigma_floor_rel"
+      "focal_sigma_floor_rel",
+      "unmeasured_focal_sigma_rel"
     ],
     "camera/geocalib": [
       "n_frames",

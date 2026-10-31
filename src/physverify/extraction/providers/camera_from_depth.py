@@ -24,6 +24,7 @@ from pydantic import BaseModel, Field
 
 from physverify.core.errors import MissingInputError
 from physverify.extraction._base import GROUND_TRUTH, ProviderParams, StageContext, WeightSpec
+from physverify.extraction.backprojection import focal_rel_sigma
 from physverify.extraction.gravity_pose import pose_from_gravity
 from physverify.extraction.providers._assumed_fov import Params as AssumedParams
 from physverify.extraction.providers._common import (
@@ -44,7 +45,7 @@ from physverify.extraction.providers._geocalib import (
 )
 from physverify.physics.uncertainty import entry_rms
 from physverify.schema.error_profile import FOCAL_REL
-from physverify.schema.perception import CameraModel, DepthMap, focal_rel_sigma
+from physverify.schema.perception import CameraModel, DepthMap
 from physverify.schema.stages import Stage
 
 GravitySource = Literal["geocalib", "none"]
