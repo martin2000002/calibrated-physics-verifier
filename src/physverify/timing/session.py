@@ -11,7 +11,7 @@ from collections.abc import Iterator, Mapping, Sequence
 from types import FrameType
 from typing import Any, Final
 
-from physverify.config.models import Settings
+from physverify.config.models import Settings, is_cuda_device
 from physverify.core.errors import EXIT_ERROR, EXIT_OK, UsageError
 from physverify.core.output import Echo
 from physverify.datasets._base import dataset_from
@@ -65,7 +65,7 @@ def plan_targets(
 def check_device(plan: Plan, device: str, probe: CudaProbe) -> None:
     """A GPU target needs ``--device cuda``, and ``--device cuda`` needs a CUDA host."""
     gpu_targets = [cls.name for cls, _ in plan if cls.requires_gpu]
-    on_cuda = device.startswith("cuda")
+    on_cuda = is_cuda_device(device)
     if gpu_targets and not on_cuda:
         raise UsageError(
             f"{', '.join(gpu_targets)} requires --device cuda (device is {device!r}); "

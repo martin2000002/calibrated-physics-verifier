@@ -14,6 +14,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Protocol
 
+from physverify.config.models import is_cuda_device
 from physverify.extraction._base import StageEvent, StageObserver
 from physverify.timing.records import MIB
 
@@ -62,7 +63,7 @@ class NoCudaMemory:
 
 
 def memory_for(device: str) -> CudaMemory:
-    return TorchCudaMemory(device) if device.startswith("cuda") else NoCudaMemory()
+    return TorchCudaMemory(device) if is_cuda_device(device) else NoCudaMemory()
 
 
 @dataclass(frozen=True)

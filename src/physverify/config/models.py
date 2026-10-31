@@ -23,11 +23,17 @@ from physverify.core.errors import ConfigError
 from physverify.core.models import FrozenModel
 from physverify.schema.io import stable_hash
 
-DEVICE_PATTERN = re.compile(r"^(cpu|cuda(:\d+)?)$")
+DEVICE_PATTERN = re.compile(r"^(?:cpu|(?P<cuda>cuda(?::\d+)?))$")
 
 
 def is_device(value: str) -> bool:
     return DEVICE_PATTERN.match(value) is not None
+
+
+def is_cuda_device(value: str) -> bool:
+    """``cuda`` or ``cuda:N``; ``cpu`` and malformed names are not."""
+    match = DEVICE_PATTERN.match(value)
+    return match is not None and match.group("cuda") is not None
 
 
 _DERIVED_DIRS = {

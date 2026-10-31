@@ -1,4 +1,4 @@
-"""The default config directory and the device names the CLI accepts."""
+"""The default config directory and the device names the CLI accepts (and which are cuda)."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from physverify.config.loader import CONFIG_DIR_ENV, default_config_dir
-from physverify.config.models import is_device
+from physverify.config.models import is_cuda_device, is_device
 
 REPO = Path(__file__).resolve().parents[2]
 
@@ -26,3 +26,11 @@ def test_the_environment_overrides_the_config_dir(tmp_path: Path) -> None:
 )
 def test_device_names(value: str, valid: bool) -> None:
     assert is_device(value) is valid
+
+
+@pytest.mark.parametrize(
+    ("value", "cuda"),
+    [("cuda", True), ("cuda:1", True), ("cpu", False), ("cudax", False), ("cuda:", False)],
+)
+def test_cuda_device_names(value: str, cuda: bool) -> None:
+    assert is_cuda_device(value) is cuda

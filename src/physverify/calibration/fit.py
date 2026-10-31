@@ -84,6 +84,7 @@ class FitMeta:
     profile: str
     dataset: DatasetRef
     stage_sigma: StageSigma
+    device: str
 
 
 @dataclass(frozen=True)
@@ -115,6 +116,7 @@ def build_artifact(
         settings=settings_snapshot(config),
         strata=strata,
         stage_sigma=meta.stage_sigma,
+        device=meta.device,
     )
 
 

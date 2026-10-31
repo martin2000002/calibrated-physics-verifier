@@ -5,9 +5,10 @@ No score formula lives here; the calibration's clip score maps one to one onto
 with. The chain is reached through its facade (``calibration.api``), loaded on first use. The
 stratum is opened through the calibration's one gate (``open_stratum``), the same the
 human-agreement study uses, so a missing, stale or unusable artifact is a reason (exit 2) with the
-calibration's own message, never a silent fallback to the provisional thresholds. The checks hash
-is part of the thresholds stamp, so scores of another check configuration never mix in one set of
-pairs."""
+calibration's own message, never a silent fallback to the provisional thresholds. A stratum fitted
+on another device (cpu against cuda) is unusable too: the perception errors it measured are not
+the run's. The checks hash is part of the thresholds stamp, so scores of another check
+configuration never mix in one set of pairs."""
 
 from __future__ import annotations
 
@@ -50,7 +51,7 @@ def to_aggregate(clip_score: ScoredClip) -> AggregateScore:
 
 class CalibratedScorer:
     name: ClassVar[str] = "calibrated"
-    version: ClassVar[str] = "2"
+    version: ClassVar[str] = "3"
     calibrated: ClassVar[bool] = True
 
     def __init__(
@@ -115,7 +116,7 @@ class CalibratedScorer:
         active = api.active_checks_hash(self._settings, self._checks)
         require = api.require_calibrated(self._settings)
         try:
-            self._stratum = api.open_stratum(
+            stratum = api.open_stratum(
                 path,
                 LEVEL,
                 self._settings.profile,
@@ -125,6 +126,9 @@ class CalibratedScorer:
             )
         except api.error as exc:
             self._status_problem = str(exc)
+        else:
+            self._status_problem = stratum.device_problem(self._settings.runtime.device)
+            self._stratum = None if self._status_problem else stratum
         source = "unusable" if self._stratum is None else self._stratum.source
         self._label = f"{SOURCE_PREFIX}{source}@checks:{active[:HASH_SHOWN]}"
         self._api = api

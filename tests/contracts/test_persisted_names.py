@@ -314,7 +314,7 @@ def test_schema_ids_and_versions_are_unchanged() -> None:
     assert (RECORD_SCHEMA, RECORD_VERSION) == ("physverify.exclusions", "1.0.0")
     assert (CALIBRATION_SCHEMA, CALIBRATION_VERSION, EVALUATION_SCHEMA) == (
         "physverify.calibration",
-        "1.6.0",
+        "1.7.0",
         "physverify.calibration.evaluation",
     )
     assert (RESULTS_SCHEMA, RESULTS_VERSION) == ("physverify.results", "1.0.0")

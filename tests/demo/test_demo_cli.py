@@ -60,7 +60,12 @@ def test_a_given_video_runs_on_cpu_into_the_adhoc_campaign(
     assert result.code == 0, result.err
     data = tmp_path / "data"
     written = {p for p in data.rglob("*") if p.is_file()}
-    roots = (data / "finetune" / "demo_adhoc", data / "raw" / "local_video", data / "demo")
+    roots = (
+        data / "finetune" / "demo_adhoc",
+        data / "raw" / "local_video",
+        data / "demo",
+        data / "cache",
+    )
     assert all(any(p.is_relative_to(r) for r in roots) for p in written), written
     assert all(
         p.parent.name.startswith("demo_adhoc__")

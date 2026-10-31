@@ -17,7 +17,7 @@ ADDED_AT_ALL: dict[str, Any] = {
     "coverage_after_degenerate": [],
     "sigma_pair_filter": "all",
 }
-ADDED_ANY = ("folds_without_sigma_factor",)  # devscore count, new and not tied to the filter
+ADDED_ANY = ("folds_without_sigma_factor", "device")  # added later, not tied to the filter
 
 
 def without_filter_fields(value: Any) -> Any:

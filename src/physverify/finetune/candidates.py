@@ -95,13 +95,21 @@ def adapter_tag(adapter: Path) -> str:
     return f"lora-{digest.hexdigest()[:ADAPTER_HASH_CHARS]}"
 
 
+def _generation_params(gen: GenerationSettings) -> dict[str, Any]:
+    return gen.model_dump(mode="json", exclude=set(HASH_EXCLUDED))
+
+
+def generation_hash(gen: GenerationSettings, base_seed: int) -> str:
+    """What every candidate of a campaign shares: the generator settings and the base seed."""
+    return stable_hash({"generation": _generation_params(gen), "base_seed": base_seed})
+
+
 def config_hash(
     gen: GenerationSettings, prompt: PromptRecord, seed: int, model_tag: str, store_latents: bool
 ) -> str:
-    params = gen.model_dump(mode="json", exclude=set(HASH_EXCLUDED))
     return stable_hash(
         {
-            "generation": params,
+            "generation": _generation_params(gen),
             "text": prompt.text,
             "seed": seed,
             "model_tag": model_tag,

@@ -98,6 +98,7 @@ def test_fit_from_a_raw_run_writes_the_artifact_and_projection(
     assert stratum.model.checks["R3a"].status == "no_positives"
     assert stratum.model.checks["R5b"].status == "no_negatives"
     assert calibration.artifact.dataset.n_scenes == 40
+    assert stratum.device == calibration.artifact.device == "cpu"
     projection = out.parent / projection_name(InputLevel.ORACLE, stratum.profile)
     assert set(json.loads(projection.read_text(encoding="utf-8"))["checks"]) == {"R1"}
 

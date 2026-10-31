@@ -209,6 +209,7 @@ def fit_meta(
         profile=settings.profile,
         dataset=dataset_ref(dataset, subset, Split.CALIB.value, clips),
         stage_sigma=_stage_sigma(session),
+        device=settings.runtime.device,
     )
 
 

@@ -18,7 +18,7 @@ from typing import Any, Final, Protocol
 
 import psutil
 
-from physverify.config.models import Settings
+from physverify.config.models import Settings, is_cuda_device
 from physverify.runtime.environment import package_version
 from physverify.timing.records import MIB
 
@@ -170,7 +170,7 @@ def validity(
 ) -> list[str]:
     """Why the run is not a cost measurement; empty means it is one."""
     reasons = []
-    if not device.startswith("cuda"):
+    if not is_cuda_device(device):
         reasons.append(f"device is {device!r}, not cuda")
     if profile != valid_profile:
         reasons.append(f"profile is {profile!r}, not {valid_profile!r}")

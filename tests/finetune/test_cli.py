@@ -74,10 +74,12 @@ def test_generate_exits_2_on_cpu(cli: CliRunner, env: dict[str, str]) -> None:
     assert "--device cuda" in result.err
 
 
-def test_score_passes_the_device_check_on_cpu(cli: CliRunner, env: dict[str, str]) -> None:
+def test_score_passes_the_device_check_on_cpu(
+    cli: CliRunner, env: dict[str, str], store: CampaignStore
+) -> None:
     result = cli("--device", "cpu", "finetune", "score", "--split", "train", env=env)
-    assert "--device cuda" not in result.err
-    assert "CUDA device" not in result.err
+    assert result.code == 2
+    assert f"{store.prompts_path} does not exist: run 'finetune prompts build'" in result.err
 
 
 @pytest.mark.parametrize("step", ["generate", "score"])

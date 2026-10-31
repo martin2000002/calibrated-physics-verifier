@@ -10,6 +10,7 @@ import numpy as np
 import pytest
 
 from physverify.app import plugins
+from physverify.app.finetune import cache_guard
 from physverify.calibration.api import CalibrationApi
 from physverify.calibration.apply import ClipScore
 from physverify.config.models import Settings
@@ -162,6 +163,7 @@ def test_scoring_writes_stamped_scores_and_resumes(
         clips=lambda subset: [_clip(r.clip_id) for r in store.candidates("base")],
         source=FakeSource(states),
         runner=runner,
+        guard=cache_guard(settings, False),
     )
     scorer = ProvisionalScorer(settings, {})
     scores = score_candidates(store, "base", [prompt], scorer, deps)
@@ -190,6 +192,7 @@ def _scored_store(
         clips=lambda subset: [_clip(r.clip_id) for r in store.candidates("base")],
         source=FakeSource(states),
         runner=runner,
+        guard=cache_guard(settings, False),
     )
     scorer = ProvisionalScorer(settings, {})
     score_candidates(store, "base", [prompt], scorer, deps)
@@ -346,7 +349,8 @@ def test_a_calibration_that_cannot_load_makes_the_scorer_unavailable(
     scorer = CalibratedScorer(settings, {}, api_loader=missing)
     assert scorer.unavailable() is not None
     store = CampaignStore(tmp_path / "ft", tmp_path / "raw", "c")
-    deps = ScoringDeps(lambda s: [], FakeSource(None), FakeRunner(make_result))  # type: ignore[arg-type]
+    source = FakeSource(None)  # type: ignore[arg-type]
+    deps = ScoringDeps(lambda s: [], source, FakeRunner(make_result), cache_guard(settings, False))
     with pytest.raises(UsageError, match="unavailable"):
         score_candidates(store, "base", [prompt], scorer, deps)
 
@@ -401,6 +405,7 @@ def _stratum() -> SimpleNamespace:
     return SimpleNamespace(
         source="thresholds.json#perceived/precise@run7",
         time_base_problem=lambda profile, step: None,
+        device_problem=lambda device: None,
         check_status=lambda: {"source": "thresholds.json#perceived/precise@run7"},
     )
 

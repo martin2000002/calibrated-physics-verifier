@@ -20,7 +20,7 @@ from physverify.calibration.artifact import (
 )
 from physverify.calibration.artifact import Stratum as StratumModel
 from physverify.calibration.settings import calibration_settings
-from physverify.config.models import Settings
+from physverify.config.models import Settings, is_cuda_device
 from physverify.core.digests import text_sha256
 from physverify.core.errors import PhysverifyError
 from physverify.core.models import LENIENT, SCHEMA_KEY
@@ -75,6 +75,7 @@ class Stratum:
     artifact: ArtifactRef | None
     checks_hash: str | None = None
     artifact_status: str | None = None
+    device: str | None = None
 
     @property
     def level(self) -> InputLevel:
@@ -128,6 +129,18 @@ class Stratum:
         fitted = self.model.row_step
         if UNKNOWN_ROW_STEP not in (fitted, row_step) and fitted != row_step:
             return f"{self.source} was fitted with row_step {fitted}, the run has {row_step}"
+        return None
+
+    def device_problem(self, device: str) -> str | None:
+        """Why a run on ``device`` may not score with this stratum (the perception errors it was
+        fitted on differ between cpu and cuda); None when it may. ``cuda:N`` counts as cuda."""
+        if self.device is None:
+            return f"{self.source} does not record its device (calibration < 1.7.0): refit"
+        if is_cuda_device(self.device) != is_cuda_device(device):
+            return (
+                f"{self.source} was fitted on {self.device!r}, the run uses {device!r}: "
+                "score on the calibration's device or refit, never mix them"
+            )
         return None
 
     def readiness_problem(self) -> str | None:
@@ -218,6 +231,7 @@ class Calibration:
             artifact=ref,
             checks_hash=self.artifact.checks_hash,
             artifact_status=self.artifact.status,
+            device=self.artifact.device,
         )
 
 
