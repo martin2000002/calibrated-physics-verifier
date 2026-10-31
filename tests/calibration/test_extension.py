@@ -9,10 +9,12 @@ profile never reads calibration rows (``diagnose stages`` runs on the base subse
 
 from __future__ import annotations
 
+import tomllib
 from dataclasses import replace
+from pathlib import Path
 
 import pytest
-from calibration_cases import CHECKS, config, extension_report, fit_meta, merged
+from calibration_cases import CHECKS, config, extension_report, fit_meta, merged, relabelled
 from calibration_cases import synthetic_report as base_report
 
 from physverify.calibration.collect import level_data
@@ -31,10 +33,13 @@ from physverify.core.errors import ConfigError
 from physverify.datasets._base import ScopedSubset
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import Split
+from physverify.verification.sweep import CheckUnit
 
 CONFIG = config(alpha=0.1, folds=3, bootstrap=30)
 SCOPED = "R5b"
 OTHERS = ("R1", "R3a")
+R3B_UNIT = "dE_over_E"
+KUBRIC = Path(__file__).parents[2] / "configs" / "datasets" / "kubric_synthetic.toml"
 
 
 def arms() -> tuple[LevelData, LevelData, ExtensionScope]:
@@ -128,3 +133,33 @@ def test_an_extension_must_name_active_checks() -> None:
     base, extra = base_report(n_scenes=4), extension_report(n_scenes=3)
     with pytest.raises(ConfigError, match="checks_only=\\[\\]"):
         extension_of([ScopedSubset("extra", ("R9",), extra.clips)], base.clips, (SCOPED,))
+
+
+def configured_scope() -> tuple[str, ...]:
+    subsets = tomllib.loads(KUBRIC.read_text(encoding="utf-8"))["dataset"]["subsets"]
+    return tuple(subsets["calib_f3_extra"]["checks_only"])
+
+
+@pytest.mark.parametrize("level", [InputLevel.ORACLE, InputLevel.PERCEIVED])
+def test_the_configured_r3b_extension_leaves_the_others_identical(level: InputLevel) -> None:
+    (scoped,) = configured_scope()
+    assert scoped == "R3b"
+    checks = tuple(CheckUnit(scoped, R3B_UNIT) if c.check_id == SCOPED else c for c in CHECKS)
+    base, extra = (
+        relabelled(r, SCOPED, scoped, R3B_UNIT)
+        for r in (base_report(n_scenes=18, level=level), extension_report(level=level))
+    )
+    scope = ExtensionScope({c.scene_id or "": frozenset({scoped}) for c in extra.clips})
+    without = level_data(level, base, checks, CONFIG, split=Split.CALIB)
+    both = merged(base, extra)
+    with_ext = level_data(level, both, checks, CONFIG, split=Split.CALIB, scope=scope)
+    assert {r.check_id for r in with_ext.rows if r.scene_id in scope.scenes} == {scoped}
+    before, after = fit_checks(without, checks, CONFIG), fit_checks(with_ext, checks, CONFIG)
+    assert all(dumped(before[c]) == dumped(after[c]) for c in OTHERS)
+    assert (before[scoped].status, after[scoped].status) == ("no_negatives", "ok")
+    model = fit_stratum(with_ext, checks, "fast", CONFIG)
+    assert clip_scores(model, with_ext) == clip_scores(model, without)
+    reports = [dev_score((d,), checks, fit_meta(), CONFIG).report for d in (without, with_ext)]
+    found = [report.levels[0].checks for report in reports]
+    assert all(dumped(found[0][c]) == dumped(found[1][c]) for c in OTHERS)
+    assert dumped(found[0][scoped]) != dumped(found[1][scoped])

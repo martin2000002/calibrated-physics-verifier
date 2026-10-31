@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Mapping, Sequence
+from dataclasses import replace
 
 import numpy as np
 from stratum_cases import (
@@ -269,7 +270,9 @@ LEAK = 5.0
 of theirs that leaked would move their tau."""
 
 
-def extension_report(n_scenes: int = 20, seed: int = 1) -> VerificationReport:
+def extension_report(
+    n_scenes: int = 20, seed: int = 1, level: InputLevel = InputLevel.ORACLE
+) -> VerificationReport:
     """Calib scenes ``x###`` for an extension scoped to R5b: a clean clip with an R5b event and R5b
     perturbed at three levels (overlapping the clean noise, so R5b stays below R1's weight); R1
     and R3a read ``LEAK`` everywhere."""
@@ -285,11 +288,33 @@ def extension_report(n_scenes: int = 20, seed: int = 1) -> VerificationReport:
             found.append((clip(f"{scene}__r5b_L{lv}", scene, perturbation=pert), value))
         for manifest, value in found:
             magnitudes: dict[str, float | None] = {"R1": LEAK, "R3a": LEAK, "R5b": value}
-            rows, found_results = _rows(manifest, magnitudes, 0.0, InputLevel.ORACLE)
+            rows, found_results = _rows(manifest, magnitudes, 0.0, level)
             table += rows
             results += found_results
             clips.append(manifest)
     return VerificationReport(results=tuple(results), table=tuple(table), clips=tuple(clips))
+
+
+def relabelled(report: VerificationReport, old: str, new: str, unit: str) -> VerificationReport:
+    """``report`` with check ``old`` renamed ``new``: its results, rows and perturbation targets."""
+
+    def target(manifest: ClipManifest) -> ClipManifest:
+        pert = manifest.perturbation
+        if pert is None or old not in pert.target_checks:
+            return manifest
+        targets = tuple(new if t == old else t for t in pert.target_checks)
+        moved = replace(pert, target_checks=targets, magnitude_unit=unit)
+        return replace(manifest, perturbation=moved)
+
+    return VerificationReport(
+        results=tuple(
+            replace(r, check_id=new, unit=unit) if r.check_id == old else r for r in report.results
+        ),
+        table=tuple(
+            replace(r, check_id=new, unit=unit) if r.check_id == old else r for r in report.table
+        ),
+        clips=tuple(target(c) for c in report.clips),
+    )
 
 
 def merged(a: VerificationReport, b: VerificationReport) -> VerificationReport:
