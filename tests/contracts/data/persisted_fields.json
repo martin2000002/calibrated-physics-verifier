@@ -780,7 +780,8 @@
       "min_rest_s",
       "agent_labels",
       "norm_edges",
-      "sample_gravity"
+      "sample_gravity",
+      "require_support_path"
     ],
     "R3a": [
       "mc_draws",

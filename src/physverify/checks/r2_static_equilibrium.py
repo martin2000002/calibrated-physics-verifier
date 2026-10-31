@@ -31,7 +31,7 @@ from physverify.physics.tracks import (
     rest_mask,
     segments,
 )
-from physverify.schema.checks import AbstainReason, CheckResult
+from physverify.schema.checks import AbstainReason, CheckResult, InputLevel
 from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactKind, ContactRecord, ContactTable, ManifoldKind
 from physverify.schema.states import ObjectStateTable
@@ -62,6 +62,8 @@ class EquilibriumParams(CommonParams):
     norm_edges: int = Field(default=8, ge=3)
     # The Monte Carlo tilts gravity_dir by gravity_dir_sigma per axis; False holds it exact.
     sample_gravity: bool = True
+    # Perceived components with no support on the environment abstain; False scores them.
+    require_support_path: bool = True
 
     @field_validator("friction_range")
     @classmethod
@@ -144,7 +146,7 @@ class EquilibriumCheck:
             "frame": int(fi[event.row]),
             "excluded_contacts": [_describe(r) for r in event.excluded],
         }
-        reason = self._abstain_reason(states, event, details)
+        reason = self._abstain_reason(inputs, event, details)
         if reason is not None:
             return abstain(type(self), inputs, subject, reason, span, details)
         problem = _problem(states, event)
@@ -165,8 +167,9 @@ class EquilibriumCheck:
         return unscored(type(self), inputs, subject, solution.residual, sigma, span, details)
 
     def _abstain_reason(
-        self, states: ObjectStateTable, event: _Event, details: dict[str, Any]
+        self, inputs: CheckInputs, event: _Event, details: dict[str, Any]
     ) -> AbstainReason | None:
+        states = inputs.states
         if not bool(np.all(np.isfinite(states.gravity_dir))):
             details["missing"] = "gravity_dir"
             return AbstainReason.MISSING_INPUT
@@ -185,9 +188,18 @@ class EquilibriumCheck:
         if agents:
             details["agents"] = agents
             return AbstainReason.OUT_OF_SCOPE
+        if self._unsupported(inputs, event):
+            details["missing"] = "support_path"
+            return AbstainReason.NO_SUPPORT_PATH
         if any(r.manifold is ManifoldKind.POINT for r in event.support):
             return AbstainReason.CONTACT_GEOMETRY_UNKNOWN
         return None
+
+    def _unsupported(self, inputs: CheckInputs, event: _Event) -> bool:
+        """A perceived table that never reaches the ground most likely missed a contact, which
+        the program would read as a certain violation (residual 1, sigma 0)."""
+        perceived = inputs.input_level is not InputLevel.ORACLE
+        return self.params.require_support_path and perceived and not _reaches_ground(event)
 
     def _sigma(self, inputs: CheckInputs, event: _Event, problem: EquilibriumProblem) -> float:
         """Monte Carlo over the centroids, the contact points (sigma of object a), the gravity
@@ -280,6 +292,11 @@ def _group_event(
     excluded = tuple(r for r in active if id(r) not in used and names & {r.object_a, r.object_b})
     bodies = tuple(states.object_index(name) for name in group)
     return _Event(start, stop, bodies, support, excluded)
+
+
+def _reaches_ground(event: _Event) -> bool:
+    """The component is connected, so one support on the environment links every body to it."""
+    return any(r.object_b == ENV_ID for r in event.support)
 
 
 def _problem(states: ObjectStateTable, event: _Event) -> EquilibriumProblem:

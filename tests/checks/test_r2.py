@@ -11,7 +11,8 @@ from physverify.checks._base import Check
 from physverify.checks._params import CommonParams
 from physverify.checks.r2_static_equilibrium import PLUGINS, EquilibriumCheck, EquilibriumParams
 from physverify.physics.equilibrium import EquilibriumSolution
-from physverify.schema.checks import AbstainReason, CheckResult, Verdict
+from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
+from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ManifoldKind
 
 NORM_FLOOR = math.cos(math.pi / 8)
@@ -74,6 +75,37 @@ def test_supported_stack_is_in_equilibrium(pitch: float) -> None:
 def test_floating_box_is_fully_unsupported(pitch: float) -> None:
     result = run_one(sc.floating_box(pitch_deg=pitch))
     assert result.subject == ("box",)
+    assert result.magnitude == pytest.approx(1.0, abs=1e-7)
+
+
+def without_ground(case: sc.Case) -> sc.Case:
+    """``case`` with every support on the environment dropped, as a missed detection would."""
+    assert case.contacts is not None
+    records = tuple(r for r in case.contacts.records if r.object_b != ENV_ID)
+    return replace(case, contacts=replace(case.contacts, records=records))
+
+
+@pytest.mark.parametrize(
+    "case", [sc.floating_box(), without_ground(sc.stack())], ids=["no_contact", "no_ground"]
+)
+def test_perceived_bodies_without_a_support_path_abstain(case: sc.Case) -> None:
+    (result,) = EquilibriumCheck(EquilibriumParams()).evaluate(case.inputs(InputLevel.PERCEIVED))
+    assert result.abstain_reason is AbstainReason.NO_SUPPORT_PATH
+    assert result.details["missing"] == "support_path"
+
+
+def test_a_perceived_support_path_leaves_the_result_unchanged() -> None:
+    check = EquilibriumCheck(EquilibriumParams())
+    case = sc.overhang(0.25)
+    (perceived,) = check.evaluate(case.inputs(InputLevel.PERCEIVED))
+    (oracle,) = check.evaluate(case.inputs())
+    assert perceived.abstain_reason is None
+    assert (perceived.magnitude, perceived.sigma) == (oracle.magnitude, oracle.sigma)
+
+
+def test_oracle_contacts_without_a_support_path_are_a_certain_violation() -> None:
+    result = run_one(without_ground(sc.stack()))
+    assert result.abstain_reason is None
     assert result.magnitude == pytest.approx(1.0, abs=1e-7)
 
 
@@ -210,3 +242,11 @@ def test_a_friction_interval_must_be_ordered_and_non_negative(
 def test_the_default_interval_is_from_friction_tables() -> None:
     assert EquilibriumParams().friction_range == r2_static_equilibrium.FRICTION_RANGE
     assert EquilibriumParams().friction == pytest.approx(0.65)
+
+
+def test_require_support_path_false_scores_the_gap_as_before() -> None:
+    params = EquilibriumParams(require_support_path=False)
+    inputs = sc.floating_box().inputs(InputLevel.PERCEIVED)
+    (result,) = EquilibriumCheck(params).evaluate(inputs)
+    assert result.abstain_reason is None
+    assert result.magnitude == pytest.approx(1.0, abs=1e-7)

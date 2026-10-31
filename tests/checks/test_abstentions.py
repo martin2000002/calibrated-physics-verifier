@@ -30,7 +30,14 @@ RUNNER = frozenset({R.MISSING_INPUT})
 ALLOWED: dict[str, frozenset[AbstainReason]] = {
     "R1": frozenset({R.OCCLUDED, R.MISSING_INPUT}),
     "R2": frozenset(
-        {R.MISSING_INPUT, R.CONTACT_GEOMETRY_UNKNOWN, R.OUT_OF_SCOPE, R.ILL_CONDITIONED}
+        {
+            R.MISSING_INPUT,
+            R.UNKNOWN_UNCERTAINTY,
+            R.NO_SUPPORT_PATH,
+            R.CONTACT_GEOMETRY_UNKNOWN,
+            R.OUT_OF_SCOPE,
+            R.ILL_CONDITIONED,
+        }
     ),
     "R3a": frozenset({R.TOO_FEW_FRAMES, R.ILL_CONDITIONED, R.OUT_OF_SCOPE}),
     "R3b": frozenset({R.ILL_CONDITIONED, R.OUT_OF_SCOPE, R.TOO_FEW_FRAMES}),
@@ -80,7 +87,17 @@ def hidden_ball_b() -> sc.Case:
     return sc.with_values(case, "occlusion", "ball_b", ALL_FRAMES, 0.95)
 
 
-Builder = Callable[[], sc.Case]
+Builder = Callable[[], sc.Case | CheckInputs]
+
+
+def perceived(case: sc.Case) -> CheckInputs:
+    return case.inputs(InputLevel.PERCEIVED)
+
+
+def inputs_of(built: sc.Case | CheckInputs) -> CheckInputs:
+    return built if isinstance(built, CheckInputs) else built.inputs()
+
+
 REACHABLE: list[tuple[str, AbstainReason, Builder]] = [
     ("R1", R.OCCLUDED, hidden_ball_b),
     (
@@ -93,6 +110,12 @@ REACHABLE: list[tuple[str, AbstainReason, Builder]] = [
         R.MISSING_INPUT,
         lambda: with_states(sc.stack(), gravity_dir=np.full(3, np.nan), gravity_dir_sigma=np.nan),
     ),
+    (
+        "R2",
+        R.UNKNOWN_UNCERTAINTY,
+        lambda: with_states(sc.stack(), gravity_dir_sigma=np.nan),
+    ),
+    ("R2", R.NO_SUPPORT_PATH, lambda: perceived(sc.floating_box())),
     ("R2", R.CONTACT_GEOMETRY_UNKNOWN, lambda: point_contact(sc.stack())),
     ("R2", R.OUT_OF_SCOPE, lambda: with_states(sc.stack(), labels=np.array(["box", "hand"]))),
     ("R3a", R.TOO_FEW_FRAMES, lambda: sc.bounce(impact_frame=1.4)),
@@ -160,7 +183,7 @@ def test_the_table_covers_the_nine_checks() -> None:
 @pytest.mark.parametrize("entry", REACHABLE, ids=[ids(e) for e in REACHABLE])
 def test_each_reason_is_reachable(entry: tuple[str, AbstainReason, Builder]) -> None:
     check_id, reason, build = entry
-    assert reason in reasons(check_id, build().inputs())
+    assert reason in reasons(check_id, inputs_of(build()))
 
 
 def test_r2_reaches_ill_conditioned_when_the_program_fails(
@@ -176,7 +199,7 @@ def test_r2_reaches_ill_conditioned_when_the_program_fails(
 
 @pytest.fixture(scope="module")
 def corpus() -> list[CheckInputs]:
-    return [build().inputs() for build in [*CLEAN, *(b for _, _, b in REACHABLE)]]
+    return [inputs_of(build()) for build in [*CLEAN, *(b for _, _, b in REACHABLE)]]
 
 
 @pytest.mark.parametrize("check_id", sorted(ALLOWED))
