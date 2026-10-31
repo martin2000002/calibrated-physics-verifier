@@ -203,11 +203,6 @@ class LiftErrors:
     phi: float
 
 
-def focal_rel_sigma(fov_deg: float, fov_sigma_deg: float) -> float:
-    """phi = sigma_fov / sin(fov), from f = (W/2) / tan(fov/2)."""
-    return math.radians(fov_sigma_deg) / math.sin(math.radians(fov_deg))
-
-
 def closed_form_sigma(
     position: FloatArray,
     extents: FloatArray,

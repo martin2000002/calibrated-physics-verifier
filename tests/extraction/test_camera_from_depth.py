@@ -17,7 +17,6 @@ from synthetic_clip import SyntheticClip
 
 from physverify.core.errors import MissingInputError
 from physverify.extraction._base import GROUND_TRUTH, StageContext
-from physverify.extraction.backprojection import focal_rel_sigma
 from physverify.extraction.gravity_pose import gravity_from_pose
 from physverify.extraction.providers import camera_from_depth
 from physverify.extraction.providers._assumed_fov import Params as AssumedParams
@@ -35,6 +34,7 @@ from physverify.schema.perception import (
     DepthKind,
     DepthMap,
     IntrinsicsSource,
+    focal_rel_sigma,
     horizontal_fov_deg,
 )
 from physverify.schema.stages import Stage

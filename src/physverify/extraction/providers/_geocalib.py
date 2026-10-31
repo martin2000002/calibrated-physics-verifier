@@ -36,7 +36,12 @@ from physverify.extraction.providers._common import (
 )
 from physverify.extraction.weights import local_path, vendored_import_path, weight_file
 from physverify.schema.clip import FrameSampling
-from physverify.schema.perception import CameraModel, IntrinsicsSource, horizontal_fov_deg
+from physverify.schema.perception import (
+    CameraModel,
+    IntrinsicsSource,
+    fov_sigma_from_phi,
+    horizontal_fov_deg,
+)
 from physverify.schema.stages import Stage
 
 FloatArray = NDArray[np.float64]
@@ -165,11 +170,6 @@ def focal_rel(focal_px: float, focal_sigma_px: float, floor_rel: float = math.na
     valid = math.isfinite(focal_sigma_px) and focal_sigma_px > 0
     model = focal_sigma_px / focal_px if valid else (0.0 if math.isfinite(floor_rel) else math.nan)
     return model if math.isnan(floor_rel) else max(model, floor_rel)
-
-
-def fov_sigma_from_phi(fov_deg: float, phi: float) -> float:
-    """sigma_fov = sin(fov) phi, the inverse of LIFT's phi = sigma_fov / sin(fov)."""
-    return math.degrees(math.sin(math.radians(fov_deg)) * phi)
 
 
 def camera_model(

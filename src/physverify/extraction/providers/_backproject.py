@@ -16,7 +16,6 @@ from physverify.extraction.backprojection import (
     ObjectSummary,
     SummaryOptions,
     closed_form_sigma,
-    focal_rel_sigma,
     lift_depth,
     monte_carlo_sigma,
     object_position,
@@ -31,7 +30,13 @@ from physverify.extraction.providers._common import expect_params
 from physverify.extraction.providers._temporal_smoothing import stabilize_summaries
 from physverify.extraction.providers._visibility import gap_visibility
 from physverify.schema.io import stable_hash
-from physverify.schema.perception import CameraModel, DepthMap, IntrinsicsSource, MaskTrack
+from physverify.schema.perception import (
+    CameraModel,
+    DepthMap,
+    IntrinsicsSource,
+    MaskTrack,
+    focal_rel_sigma,
+)
 from physverify.schema.stages import Stage
 from physverify.schema.states import CoordFrame, ObjectStateTable, PrimitiveKind
 from physverify.sizing.priors import lookup_label
