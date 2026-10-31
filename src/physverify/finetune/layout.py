@@ -16,12 +16,13 @@
 ```
 
 The videos live in a ``local_video`` subset, so extraction and verification read them as any
-other dataset. The mp4 is named by the candidate id, but the manifest gives each video the
-record's ``clip_id`` (candidate id plus a ``config_hash`` prefix), so the extraction cache of a
-candidate is never reused by another model tag, generation configuration or imported video. Two
-campaigns with identical settings share it, since ``config_hash`` does not include the campaign. A
-candidate is complete only once its meta exists: the mp4 and the latents are written first, the
-meta last, each atomically.
+other dataset. The mp4 is named by the candidate id and the manifest gives each video the
+record's ``clip_id``: the bare candidate id for the base tag, prefixed by the model tag for any
+other, so a fine-tuned or imported video never reuses a base extraction cache entry. Within a
+campaign and tag a candidate id names one video (``generate`` refuses another configuration);
+campaigns that share a data directory share the base cache entries, so a campaign that changes
+the base generation settings needs its own data directory. A candidate is complete only once its
+meta exists: the mp4 and the latents are written first, the meta last, each atomically.
 """
 
 from __future__ import annotations

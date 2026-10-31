@@ -1,4 +1,4 @@
-"""Clip ids of candidates: one per (candidate, configuration), never shared through the cache."""
+"""Clip ids of candidates: stable across configurations, never shared between model tags."""
 
 from __future__ import annotations
 
@@ -92,13 +92,12 @@ def test_base_and_lora_candidates_of_one_prompt_and_k_get_distinct_clip_ids(
     assert _cache_dir(cache, base.clip_id) != _cache_dir(cache, lora.clip_id)
 
 
-def test_the_same_candidate_in_another_campaign_or_configuration_gets_another_clip_id(
+def test_a_base_candidate_keeps_its_candidate_id_under_any_configuration(
     local_settings: Settings,
 ) -> None:
     first = _candidate(campaign_store(local_settings, "c1"), BASE_TAG, "a" * 64)
     second = _candidate(campaign_store(local_settings, "c2"), BASE_TAG, "c" * 64)
-    assert first.candidate_id == second.candidate_id
-    assert first.clip_id != second.clip_id
+    assert first.clip_id == second.clip_id == first.candidate_id
 
 
 def test_an_existing_candidate_stays_complete_and_its_mp4_keeps_its_name(
@@ -135,7 +134,7 @@ class _Runner:
         return VerificationReport(results, (), tuple(clips))
 
 
-def test_scoring_reads_an_old_manifest_under_the_new_clip_ids(
+def test_scoring_reads_base_candidates_of_an_old_manifest_under_their_candidate_ids(
     local_settings: Settings, make_result: Callable[..., CheckResult]
 ) -> None:
     store = campaign_store(local_settings, "c")
@@ -147,6 +146,21 @@ def test_scoring_reads_an_old_manifest_under_the_new_clip_ids(
     scores = score_candidates(
         store, BASE_TAG, [_prompt()], ProvisionalScorer(local_settings, {}), deps
     )
-    assert runner.clips == [r.clip_id for r in records]
+    assert runner.clips == [r.candidate_id for r in records]
     assert [s.candidate_id for s in scores] == [r.candidate_id for r in records]
     assert all(s.n_decided == 1 for s in scores)
+
+
+def test_a_score_carries_its_configuration_and_another_one_rescores_it(
+    local_settings: Settings, make_result: Callable[..., CheckResult]
+) -> None:
+    store = campaign_store(local_settings, "c")
+    scorer = ProvisionalScorer(local_settings, {})
+    runner = _Runner(make_result)
+    deps = ScoringDeps(LocalVideoDataset(local_settings).clips, _Source(), runner)
+    _candidate(store, BASE_TAG, "a" * 64)
+    (first,) = score_candidates(store, BASE_TAG, [_prompt()], scorer, deps)
+    _candidate(store, BASE_TAG, "c" * 64)
+    (second,) = score_candidates(store, BASE_TAG, [_prompt()], scorer, deps)
+    assert (first.candidate_config_hash, second.candidate_config_hash) == ("a" * 64, "c" * 64)
+    assert runner.clips == [first.candidate_id, first.candidate_id]
