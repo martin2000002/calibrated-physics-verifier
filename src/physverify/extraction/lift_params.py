@@ -3,6 +3,7 @@ metrics that redo its geometry read the same defaults."""
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
 from types import MappingProxyType
 from typing import Literal
@@ -11,6 +12,7 @@ from pydantic import Field, field_validator
 
 from physverify.extraction._base import ProviderParams
 from physverify.extraction.backprojection import ShiftStrategy, SummaryOptions
+from physverify.extraction.ground_anchor import GroundAnchorParams
 from physverify.physics.running_median import EdgeMode
 from physverify.physics.tracks import OCCLUDED_AT
 from physverify.schema.states import PrimitiveKind
@@ -111,6 +113,27 @@ class UnnestedLiftParams(LiftParams):
         default_factory=lambda: dict(REAL_PRIMITIVES)
     )
     nested_overlap: float = Field(default=NESTED_OVERLAP, gt=0.0, le=1.0)
+
+
+class GroundAnchoredLiftParams(LiftParams):
+    """``lift/ground_anchored``: the anchoring settings, fixed a priori (never fitted on calib)."""
+
+    normal_source: Literal["gravity", "depth_plane"] = "gravity"
+    envelope_quantile: float = Field(default=0.9, gt=0.5, lt=1.0)
+    anchor_z: float = Field(default=2.0, gt=0.0)
+    min_anchor_rows: int = Field(default=5, ge=2)
+    # Above it the whole clip keeps the network depth: at a typical elevation of 25 deg the
+    # anchor's relative error would be about 0.35.
+    max_normal_sigma_deg: float = Field(default=10.0, gt=0.0)
+
+
+def ground_anchor_params(params: GroundAnchoredLiftParams) -> GroundAnchorParams:
+    return GroundAnchorParams(
+        envelope_quantile=params.envelope_quantile,
+        anchor_z=params.anchor_z,
+        min_anchor_rows=params.min_anchor_rows,
+        max_normal_sigma_rad=math.radians(params.max_normal_sigma_deg),
+    )
 
 
 def summary_options(params: LiftParams) -> SummaryOptions:
