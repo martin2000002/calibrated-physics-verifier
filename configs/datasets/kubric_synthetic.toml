@@ -112,6 +112,18 @@ f3_collision = []
 f4_stack = []
 f5_contact = []
 
+# More calib scenes of f3_collision (s000-s159, calib split only; the 20 calib scenes of `full`
+# are its prefix), with the clean clip and the cycled r3_energy_gain level of `full`. They extend
+# the clean scenes R3b's conformal threshold is fitted on (n >= 19 at alpha 0.05).
+[dataset.subsets.calib_f3_extra]
+scenes_per_family = 160
+levels = [1, 2, 3, 4]
+level_mode = "cycle"
+split = "calib"
+
+[dataset.subsets.calib_f3_extra.perturbations]
+f3_collision = ["r3_energy_gain"]
+
 [dataset.profiles.precise]
 version = "v1-precise"
 resolution = 256
