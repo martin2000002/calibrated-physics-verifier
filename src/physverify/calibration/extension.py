@@ -13,8 +13,10 @@ from dataclasses import dataclass, field, replace
 from physverify.calibration.fit import LevelData
 from physverify.core.errors import ConfigError
 from physverify.datasets._base import DatasetSource, ScopedSubset, ScopedSubsetSource
+from physverify.schema.checks import AbstainReason, CheckResult
 from physverify.schema.clip import ClipManifest, Split
 from physverify.synth.scene_scope import scene_of
+from physverify.verification.runner import VerificationReport
 
 
 @dataclass(frozen=True)
@@ -93,6 +95,20 @@ def extension_of(
         seen |= {c.clip_id for c in added}
         found.append(replace(subset, clips=added))
     return Extension(tuple(s for s in found if s.clips))
+
+
+def unloaded(report: VerificationReport, clip_ids: Collection[str]) -> dict[str, str]:
+    """clip -> error, for the ``clip_ids`` whose every result abstains ``MISSING_INPUT``: no input
+    reached any of their checks (e.g. a heavy stage not in the cache)."""
+    by_clip: dict[str, list[CheckResult]] = {}
+    for result in report.results:
+        if result.clip_id in clip_ids:
+            by_clip.setdefault(result.clip_id, []).append(result)
+    return {
+        clip: next((str(e) for r in results if (e := r.details.get("error"))), "missing input")
+        for clip, results in sorted(by_clip.items())
+        if all(r.abstain_reason is AbstainReason.MISSING_INPUT for r in results)
+    }
 
 
 def restrict(data: LevelData, scope: ExtensionScope, scene_by_clip: Mapping[str, str]) -> LevelData:

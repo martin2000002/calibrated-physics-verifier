@@ -6,18 +6,20 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping, Sequence
+from dataclasses import replace
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any, ClassVar
 
 import pytest
-from calibration_cases import DATASET, extension_report, merged, synthetic_report
+from calibration_cases import CHECKS, DATASET, extension_report, merged, missing, synthetic_report
 from cli_runner import CliRunner
 
 from physverify.app import calibration as app_calibration
 from physverify.app import plugins
 from physverify.config.models import Settings
 from physverify.datasets._base import GroundTruthStore, ScopedSubset, VideoSource
+from physverify.schema.checks import InputLevel
 from physverify.schema.clip import ClipManifest
 from physverify.verification.runner import VerificationReport, write_report
 
@@ -64,6 +66,26 @@ class _SubsetRunner:
     def run(self, source: object, clips: Sequence[ClipManifest]) -> VerificationReport:
         self.calls.append(len(clips))
         return only(ALL, {c.clip_id for c in clips})
+
+
+class _UncachedRunner(_SubsetRunner):
+    """The extension's clips come back as the verify runner returns a clip whose heavy stage is
+    not in the cache: every check abstains MISSING_INPUT and the run goes on."""
+
+    def run(self, source: object, clips: Sequence[ClipManifest]) -> VerificationReport:
+        found = super().run(source, clips)
+        lost = {c.clip_id for c in EXTRA.clips}
+        kept = only(found, {c.clip_id for c in clips} - lost)
+        absent = tuple(
+            replace(missing(u.check_id, c.clip_id, InputLevel.ORACLE), details={"error": UNCACHED})
+            for c in clips
+            if c.clip_id in lost
+            for u in CHECKS
+        )
+        return replace(kept, results=kept.results + absent, clips=found.clips)
+
+
+UNCACHED = "a heavy stage is not cached; run `physverify extract run --dataset x` first"
 
 
 def only(report: VerificationReport, ids: set[str]) -> VerificationReport:
@@ -143,3 +165,16 @@ def test_a_fit_from_a_run_scopes_the_extension_clips_it_holds(
     before, after = plain["strata"][0]["checks"], extended["strata"][0]["checks"]
     assert {c: before[c] for c in OTHERS} == {c: after[c] for c in OTHERS}
     assert (before["R5b"]["status"], after["R5b"]["status"]) == ("no_negatives", "ok")
+
+
+def test_an_extension_missing_from_the_cache_stops_the_run(
+    cli: CliRunner, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    use(monkeypatch, ExtendedDataset)
+    monkeypatch.setattr(app_calibration, "_raw_runner", lambda session: _UncachedRunner([]))
+    monkeypatch.setattr(app_calibration, "_input_source", lambda session, dataset, level: None)
+    result = cli(*FAST, "calibrate", "dev-score", "--dataset", DATASET, "--level", "oracle")
+    assert result.code != 0
+    assert f"extension {EXTENSION}: {len(EXTRA.clips)} of {len(EXTRA.clips)} clips" in result.err
+    assert f"extract run --dataset {DATASET} --subset {EXTENSION}" in result.err
+    assert f"--set dataset.subsets.{EXTENSION}.checks_only=[]" in result.err
