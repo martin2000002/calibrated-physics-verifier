@@ -15,6 +15,7 @@ from upright_scenes import UprightView, render
 from physverify.extraction.backprojection import (
     PlacedObject,
     SummaryOptions,
+    object_position,
     object_summary,
     place_object,
 )
@@ -42,8 +43,10 @@ OPTIONS = SummaryOptions(
     min_part_frac=PARAMS.min_part_frac,
 )
 CUBE = np.full(3, 0.4)
-BOX_SIZE_REL_TOL = 0.15
+BOX_SIZE_REL_TOL = 0.12
 ROUND_SIZE_REL_TOL = 0.05
+BOX_CENTRE_REL_TOL = 0.16
+ROUND_CENTRE_REL_TOL = 0.06
 YAW_TOL_DEG = 1.0
 
 
@@ -55,6 +58,16 @@ def lifted(kind: PrimitiveKind, view: UprightView) -> PlacedObject:
     placed = place_object(summary, kind, PARAMS.center_offset_frac[kind], frame)
     assert placed.quaternion is not None
     return placed
+
+
+def centre_error_rel(kind: PrimitiveKind, view: UprightView, extents: np.ndarray) -> float:
+    """Distance from the lifted centre to the true one, relative to the largest extent."""
+    frame = ground_frame(view.gravity)
+    summary = object_summary(view.mask, view.z, view.mask, view.intrinsics, OPTIONS, frame, kind)
+    assert summary is not None
+    placed = place_object(summary, kind, PARAMS.center_offset_frac[kind], frame)
+    position = object_position(summary.centre, placed.offset)
+    return float(np.linalg.norm(position - view.centre)) / float(extents.max())
 
 
 def yaw_error_deg(geometry: PlacedObject, view: UprightView, period_deg: float) -> float:
@@ -77,7 +90,7 @@ def test_the_smallest_rectangle_of_a_turned_rectangle_is_itself() -> None:
 
 @pytest.mark.parametrize("yaw", [0.0, 20.0, 45.0, 70.0])
 @pytest.mark.parametrize("elevation", [15.0, 35.0])
-def test_a_turned_cube_gives_its_yaw_up_axis_and_size(yaw: float, elevation: float) -> None:
+def test_a_turned_cube_gives_its_yaw_up_axis_size_and_centre(yaw: float, elevation: float) -> None:
     view = render(PrimitiveKind.BOX, CUBE, yaw, elevation)
     geometry = lifted(PrimitiveKind.BOX, view)
     assert yaw_error_deg(geometry, view, 90.0) < YAW_TOL_DEG
@@ -85,6 +98,7 @@ def test_a_turned_cube_gives_its_yaw_up_axis_and_size(yaw: float, elevation: flo
     up = matrix_from_quaternion(geometry.quaternion)[:, 2]
     assert float(up @ view.rotation[:, 2]) == pytest.approx(1.0, abs=1e-9)
     np.testing.assert_allclose(geometry.size, CUBE, rtol=BOX_SIZE_REL_TOL)
+    assert centre_error_rel(PrimitiveKind.BOX, view, CUBE) < BOX_CENTRE_REL_TOL
 
 
 @pytest.mark.parametrize(
@@ -94,7 +108,7 @@ def test_a_turned_cube_gives_its_yaw_up_axis_and_size(yaw: float, elevation: flo
         (PrimitiveKind.SPHERE, np.full(3, 0.4)),
     ],
 )
-def test_round_solids_stand_upright_with_their_size(
+def test_round_solids_stand_upright_with_their_size_and_centre(
     kind: PrimitiveKind, extents: np.ndarray
 ) -> None:
     view = render(kind, extents, 0.0, 25.0)
@@ -103,6 +117,7 @@ def test_round_solids_stand_upright_with_their_size(
     up = matrix_from_quaternion(geometry.quaternion)[:, 2]
     assert float(up @ view.rotation[:, 2]) == pytest.approx(1.0, abs=1e-9)
     np.testing.assert_allclose(geometry.size, extents, rtol=ROUND_SIZE_REL_TOL)
+    assert centre_error_rel(kind, view, extents) < ROUND_CENTRE_REL_TOL
 
 
 def test_a_sphere_keeps_its_diameter_on_the_camera_axes() -> None:

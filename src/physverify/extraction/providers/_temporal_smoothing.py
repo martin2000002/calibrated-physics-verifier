@@ -3,8 +3,10 @@
 Along each visible run of an object, a running median replaces the surface depth z and the image
 extent q = (e_x, e_y) / z (pixels / f, independent of depth). The centre is rescaled along its
 viewing ray by z_new / z, so its pixel stays put; e_x, e_y = q_new z_new and e_z follows from
-them by the LIFT rule. A median of w = 2h + 1 rows removes impulses of up to h rows and keeps
-steps, monotone runs and plateaus of h + 1 or more rows; a real change shorter than that is lost.
+them by the LIFT rule. The silhouette's lengths against the vertical (normalised, so independent
+of depth) take the same median; its footprint yaw does not. A median of w = 2h + 1 rows removes
+impulses of up to h rows and keeps steps, monotone runs and plateaus of h + 1 or more rows; a real
+change shorter than that is lost.
 
 Ends of a run: ``"keep"`` (LIFT's rule) leaves the first and last h rows as measured.
 ``"shifted"`` moves the window inside the run (row 0 uses rows 0..w - 1): an impulse on those rows
@@ -23,6 +25,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from physverify.extraction.backprojection import ObjectSummary, full_extents
+from physverify.extraction.lift_geometry import SilhouetteView
 from physverify.physics.kinematics import visible_runs
 from physverify.physics.running_median import EdgeMode, running_median
 
@@ -44,6 +47,24 @@ def stabilize_run(
     return new_centres, new_extents
 
 
+def stabilize_views(
+    views: Sequence[SilhouetteView | None], window: int, edges: EdgeMode
+) -> list[SilhouetteView | None]:
+    """One run's silhouettes with the median widths and area; unchanged when any is missing."""
+    present = [view for view in views if view is not None]
+    if len(present) < len(views):
+        return list(views)
+    lengths = np.array([[view.across, view.along, view.area] for view in present])
+    smoothed = np.column_stack(
+        [running_median(lengths[:, k], window, edges) for k in range(lengths.shape[1])]
+    )
+    smoothed = np.where(np.isfinite(smoothed), smoothed, lengths)
+    return [
+        replace(view, across=float(row[0]), along=float(row[1]), area=float(row[2]))
+        for view, row in zip(present, smoothed, strict=True)
+    ]
+
+
 def stabilize_summaries(
     column: Sequence[ObjectSummary | None], window: int, edges: EdgeMode
 ) -> list[ObjectSummary | None]:
@@ -57,8 +78,9 @@ def stabilize_summaries(
         centres = np.stack([s.centre for s in summaries])
         extents = np.stack([s.extents for s in summaries])
         new_centres, new_extents = stabilize_run(centres, extents, window, edges)
+        views = stabilize_views([s.view for s in summaries], window, edges)
         out[run] = [
-            replace(s, centre=c, extents=e)
-            for s, c, e in zip(summaries, new_centres, new_extents, strict=True)
+            replace(s, centre=c, extents=e, view=v)
+            for s, c, e, v in zip(summaries, new_centres, new_extents, views, strict=True)
         ]
     return out

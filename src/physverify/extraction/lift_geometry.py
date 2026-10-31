@@ -214,10 +214,13 @@ def silhouette_view(
 
 @dataclass(frozen=True)
 class LocalGeometry:
-    """Full extents along the local axes and the local-to-camera quaternion (w, x, y, z)."""
+    """Full extents along the local axes, the local-to-camera quaternion (w, x, y, z) and the
+    horizontal depth ``offset_base`` whose fraction separates the visible surface from the
+    centre along the ray."""
 
     size: FloatArray
     quaternion: FloatArray
+    offset_base: float
 
 
 def _height(along: float, footprint_depth: float, sin_e: float, horizontal: float) -> float:
@@ -241,21 +244,27 @@ def local_geometry(
     its footprint's extent along the ray."""
     across, along = view.across * depth, view.along * depth
     if primitive is PrimitiveKind.SPHERE:
-        return _upright(np.full(3, equivalent_diameter(view.area) * depth), 0.0, frame)
+        diameter = equivalent_diameter(view.area) * depth
+        return _upright(np.full(3, diameter), 0.0, frame, diameter)
     if primitive is PrimitiveKind.CYLINDER:
         diameter = cylinder_diameter(view.area, view.along, view.sin_elevation) * depth
         height = _height(along, diameter, view.sin_elevation, diameter)
-        return _upright(np.array([diameter, diameter, height]), 0.0, frame)
+        return _upright(np.array([diameter, diameter, height]), 0.0, frame, diameter)
     if not math.isfinite(view.yaw):
         return None
     phi = view.yaw - view.ray_yaw - math.pi / 2.0
-    side = across / (abs(math.cos(phi)) + abs(math.sin(phi)))
+    c1, c2 = abs(math.cos(phi)), abs(math.sin(phi))
+    side = across / (c1 + c2)
     height = _height(along, across, view.sin_elevation, side)
-    return _upright(np.array([side, side, height]), view.yaw, frame)
+    # The two visible side faces, of image widths s c1 and s c2, have their middles s c1 / 2 and
+    # s c2 / 2 in front of the centre; their width-weighted mean is offset_base / 2.
+    base = side * (c1**2 + c2**2) / (c1 + c2)
+    return _upright(np.array([side, side, height]), view.yaw, frame, base)
 
 
-def _upright(size: FloatArray, yaw: float, frame: GroundFrame) -> LocalGeometry:
-    return LocalGeometry(size=size, quaternion=quaternion_from_matrix(frame.rotation(yaw)))
+def _upright(size: FloatArray, yaw: float, frame: GroundFrame, base: float) -> LocalGeometry:
+    rotation = frame.rotation(yaw)
+    return LocalGeometry(size=size, quaternion=quaternion_from_matrix(rotation), offset_base=base)
 
 
 def orientation_sigma(entry: ErrorEntry | None, gravity_sigma_rad: float) -> float:

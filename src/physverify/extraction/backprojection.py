@@ -236,13 +236,17 @@ def place_object(
     offset_frac: float,
     frame: GroundFrame | None,
 ) -> PlacedObject:
-    """The local size and pose when the silhouette yields them, else the camera-axis extents;
-    the centre lies ``offset_frac`` e_z behind the visible surface."""
+    """The local size and pose when the silhouette yields them, else the camera-axis extents.
+    The centre lies ``offset_frac`` of the object's horizontal depth behind the visible surface:
+    the posed geometry's ``offset_base``, else e_z (a sphere's diameter either way)."""
     geometry = None
     if frame is not None and summary.view is not None:
         geometry = local_geometry(primitive, summary.view, float(summary.centre[2]), frame)
-    surface_size = summary.extents if geometry is None else geometry.size
-    surface_offset = offset_frac * float(summary.extents[2])
+    if geometry is None:
+        surface_size, base = summary.extents, float(summary.extents[2])
+    else:
+        surface_size, base = geometry.size, geometry.offset_base
+    surface_offset = offset_frac * base
     growth = centre_depth_growth(summary.centre, surface_offset)
     return PlacedObject(
         size=surface_size * growth,
