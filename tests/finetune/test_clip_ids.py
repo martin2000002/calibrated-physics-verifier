@@ -12,8 +12,8 @@ import numpy as np
 import pytest
 from campaign_stores import campaign_store
 
-from physverify.core.errors import UsageError
 from physverify.config.models import Settings
+from physverify.core.errors import UsageError
 from physverify.core.local_manifest import MANIFEST_FILE, QueryEntry
 from physverify.core.video import write_mp4
 from physverify.datasets.local_video import LocalVideoDataset
