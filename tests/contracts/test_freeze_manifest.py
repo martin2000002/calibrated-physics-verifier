@@ -55,7 +55,7 @@ UNCOVERED = {
     ),
 }
 HEAD = "c" * 40
-FREEZE_SHA256 = "371c642bfc1adc3c752aa1e7aef1d1d2d2fe2e9ec6928eaef4ffdd9b5ba58ab5"
+FREEZE_SHA256 = "9aa8da9ebec8d5b3ab6c89bca7741f56439bbf2b02faf18b6a0b8abac7240fb3"
 MANIFEST_FIELDS = (
     "schema",
     "version",
@@ -159,6 +159,8 @@ def _chosen(tmp_path: Path, name: str) -> dict[str, str]:
         "id": name,
         "dir": str(tmp_path / name),
         "commit": HEAD,
+        "device": "cuda",
+        "profile": "precise",
         "calibration_sha256": hashlib.sha256(b"calibration.json").hexdigest(),
     }
 
@@ -178,7 +180,8 @@ def test_the_freeze_manifest_keeps_its_bytes(
     tmp_path: Path, config_dir: Path, environ: dict[str, str]
 ) -> None:
     """The bytes run_freeze.sh writes, with the run's paths masked; the diff paths listed in
-    them grew deliberately to cover the code the refactor split out."""
+    them grew deliberately to cover the code the refactor split out, and the device and profile
+    are the chosen iteration's (a cuda one here), which the selection rule now names."""
     settings = _frozen_settings(tmp_path, config_dir, environ)
     selection = {
         "rule": J4_RULE,

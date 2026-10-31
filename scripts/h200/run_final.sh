@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # The sealed final evaluation on the H200, in a clean checkout at the frozen commit of
-# $F/freeze.json (run_freeze.sh). Every call is --profile precise --device cpu with the frozen
-# artifacts of $F/calibration.
+# $F/freeze.json (run_freeze.sh). Every call is --profile precise --device $PV_DEVICE, the device
+# freeze.json records, with the frozen artifacts of $F/calibration; the v1 arm alone runs on the
+# device its own chain was calibrated with (PHYSVERIFY_FINAL_V1_BASE).
 #
 #   bash scripts/h200/run_final.sh seed            the preregistered seed is the freeze's
 #   bash scripts/h200/run_final.sh render SET      kubric_fresh | kubric_fresh_ood (run_kubric.sh)
@@ -24,11 +25,12 @@
 # freeze's commit, with nothing uncommitted or untracked under src, configs, scripts, annotations,
 # pyproject.toml or uv.lock; no configs/local.toml, no PHYSVERIFY_CONFIG_DIR, no PHYSVERIFY__* variable but the paths exported
 # here; no PHYSVERIFY_UNSEAL or PHYSVERIFY_UNSEAL_REPEAT from the caller (this script sets them for
-# a look and a v1 arm only); freeze.json of device cpu and profile precise with its calibration
+# a look and a v1 arm only); freeze.json of this run's PV_DEVICE and profile precise (_common.sh
+# require_pair; cuda needs CUDA_VISIBLE_DEVICES in 0-3) with its calibration
 # directory $F/calibration and its frozen files unchanged (freeze_query artifacts);
 # PHYSVERIFY_FINAL_SEED is the freeze's preregistered seed; $F/run-final/state.env of the same
 # commit and dry-run mode; for any command but seed, the seed command has run. Then doctor must
-# report the committed configs, cpu, precise, the cache and the calibration in $F.
+# report the committed configs, the device, precise, the cache and the calibration in $F.
 #
 # Fresh data: extract refuses a set whose cache directory ($CACHE/<dataset>) exists before its first
 # extraction (the marker $F/run-final/extract-SET.started tells a resume), and every Kubric command
@@ -46,6 +48,7 @@
 #                                   checkout is at
 #   PHYSVERIFY_FINAL_SEED           the preregistered seed
 # Optional (defaults in brackets):
+#   PV_DEVICE                       cpu or cuda, the device freeze.json records [cuda]
 #   PHYSVERIFY_FINAL_DIR            $F [$H200_ROOT/final]
 #   PHYSVERIFY_FINAL_FREEZE         the freeze manifest [$F/freeze.json]
 #   PHYSVERIFY_FINAL_DATA           paths.data_dir [$H200_ROOT/kubric-data]
@@ -69,7 +72,9 @@
 # v1arm (the v1 commit's checks with the base iteration's calibration, after the look):
 #   PHYSVERIFY_FINAL_V1_CHECKOUT    clean checkout at the freeze's v1.commit (the v1 commit)
 #   PHYSVERIFY_FINAL_V1_BASE        the base iteration directory (its calibration.json is the
-#                                   freeze's v1.calibration_sha256)
+#                                   freeze's v1.calibration_sha256); the arm runs on the device
+#                                   of its state.env CHAIN_DEVICE, which its calibration run's
+#                                   run.json must share, whatever PV_DEVICE the freeze has
 #   PHYSVERIFY_FINAL_OVERLAY_CLI    the overlay CLI script the v1 arm runs (kept outside the repo)
 #   PHYSVERIFY_FINAL_V1_ARM         the arm's directory [$F/v1arm]
 set -euo pipefail
@@ -176,8 +181,7 @@ VENV="${PHYSVERIFY_FINAL_VENV:-$(dirname "$(dirname "$PY")")}"
 THREADS="${PHYSVERIFY_FINAL_THREADS:-32}"
 [[ "$THREADS" =~ ^[1-9][0-9]*$ ]] || die "PHYSVERIFY_FINAL_THREADS must be a positive integer"
 [[ -f "$FREEZE" ]] || die "no freeze manifest at $FREEZE (run_freeze.sh writes it)"
-export CUDA_VISIBLE_DEVICES=""
-PV_DEVICE=cpu
+use_device PV_DEVICE
 
 export PHYSVERIFY__PATHS__DATA_DIR="$DATA"
 export PHYSVERIFY__PATHS__CACHE_DIR="$CACHE"
@@ -196,8 +200,7 @@ frozen() {
 
 [[ "$(frozen commit)" == "$HEAD_COMMIT" ]] \
     || die "freeze.json is of commit $(frozen commit), HEAD is $HEAD_COMMIT"
-[[ "$(frozen device)" == cpu && "$(frozen profile)" == precise ]] \
-    || die "freeze.json is of device $(frozen device), profile $(frozen profile): not cpu, precise"
+require_pair "$FREEZE" "$(frozen device)" "$(frozen profile)"
 same_path "$(frozen calibration_dir)" "$CAL" \
     || die "freeze.json froze $(frozen calibration_dir), not $CAL"
 fq artifacts "$FREEZE" >/dev/null || die "the frozen files changed (freeze_query artifacts)"
@@ -240,7 +243,7 @@ STEPS="$RUN/steps.tsv"
 NOTES="$RUN/notes-$STEP${SET:+-$SET}.md"
 SUMMARY="$RUN/summary-$STEP${SET:+-$SET}.md"
 SUMMARY_TITLE="Final: $STEP ${SET:-} ${RETRY:-}"
-SUMMARY_INFO="commit $HEAD_COMMIT, seed $SEED, dry run $DRYRUN, profile precise, device cpu, cache $CACHE, data $DATA"
+SUMMARY_INFO="commit $HEAD_COMMIT, seed $SEED, dry run $DRYRUN, profile $PV_PROFILE, device $PV_DEVICE, cache $CACHE, data $DATA"
 mkdir -p "$LOGS"
 touch "$STEPS" "$NOTES"
 
@@ -503,6 +506,22 @@ v1_configs() {
         "$(sha_of "$diff")"
 }
 
+# v1_chain BASE: the v1 arm runs on the device and profile its own chain was calibrated with (the
+# base's state.env, checked against the calibration run's run.json), never on the freeze's;
+# the caller keeps PV_DEVICE and CUDA_VISIBLE_DEVICES local.
+v1_chain() {
+    local env="$1/state.env" CHAIN_DEVICE run_id run
+    [[ -f "$env" ]] || stop "$env is missing: the v1 arm runs on its own chain's device, unknown"
+    CHAIN_DEVICE="$(state_value "$env" CHAIN_DEVICE)"
+    use_device CHAIN_DEVICE stop
+    require_chain_pair "$1" stop
+    run_id="$(fq field "$1/calibration.json" run_id)" || stop "$1/calibration.json has no run_id"
+    run="$1/runs/$run_id/run.json"
+    [[ -f "$run" ]] || stop "no $run: the v1 calibration's device is unknown"
+    require_pair "the v1 calibration's run $run" "$(fq field "$run" device)" \
+        "$(fq field "$run" profile)" stop
+}
+
 cmd_v1arm() {
     hold "v1arm-$SET"
     completed look "$SET" || stop "look $SET has not completed: the v1 arm follows the look"
@@ -519,18 +538,22 @@ cmd_v1arm() {
     [[ -z "$dirty" ]] || stop "$ckv has uncommitted files: $dirty"
     [[ "$(sha_of "$base/calibration.json")" == "$(frozen v1.calibration_sha256)" ]] \
         || stop "$base/calibration.json is not the freeze's v1 calibration"
+    local PV_DEVICE="$PV_DEVICE"
+    local -x CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES-}"
+    v1_chain "$base"
     mkdir -p "$arm/calibration"
     for file in calibration.json calibration/stage_errors.precise.json calibration/stage_sigma.json; do
         copy_once "$base/$file" "$arm/calibration/$(basename "$file")"
     done
     v1_configs "$arm" "$ckv"
     state="$(fq v1-state "$FREEZE" ${SPECS//,/ })" || stop "the v1 arm of $SPECS cannot run"
-    note "$state of $SPECS at the v1 commit $v1, the base calibration $(sha_of "$arm/calibration/calibration.json")"
+    note "$state of $SPECS at the v1 commit $v1 on its chain's device $PV_DEVICE, the base" \
+        "calibration $(sha_of "$arm/calibration/calibration.json")"
     run_logged 0 -- env -C "$ckv" PHYSVERIFY__PATHS__CALIBRATION_DIR="$arm/calibration" \
         PHYSVERIFY__PATHS__RUNS_DIR="$arm/runs" PHYSVERIFY__RUNTIME__HEAVY_LOCK="$arm/heavy.lock" \
         PHYSVERIFY_UNSEAL="$SPECS" PHYSVERIFY_UNSEAL_REPEAT=1 PYTHONPATH="$ckv/src" \
-        "$PY" "$overlay_cli" "$arm/overlay" --config-dir "$arm/configs" --profile precise \
-        --device cpu --set "runtime.threads=$THREADS" \
+        "$PY" "$overlay_cli" "$arm/overlay" --config-dir "$arm/configs" --profile "$PV_PROFILE" \
+        --device "$PV_DEVICE" --set "runtime.threads=$THREADS" \
         calibrate evaluate --artifact "$arm/calibration/calibration.json" "${LOOK[@]}"
     meta="$(find "$arm/overlay" -name meta.json 2>/dev/null | grep -c . || true)"
     [[ "$meta" == 0 ]] || stop "the overlay holds $meta meta.json: the v1 arm recomputed stages"

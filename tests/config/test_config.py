@@ -146,7 +146,7 @@ def test_overrides_of_model_only_and_nested_sections_load(config_dir: Path) -> N
     assert settings.sections["container"] == {"engine": "udocker"}
     assert CONTAINER_SECTION in MODEL_ONLY_SECTIONS
     assert CHECK_VARIANTS_SECTION in MODEL_ONLY_SECTIONS
-    assert CHECK_VARIANTS_SECTION not in settings.sections
+    assert settings.sections[CHECK_VARIANTS_SECTION] == {}
 
 
 def test_repository_configs(config_dir: Path) -> None:

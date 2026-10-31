@@ -93,8 +93,9 @@ class RestitutionCheck:
         if primitive not in self.params.primitives:
             scope = {"primitive": primitive}
             return abstain(type(self), inputs, subject, AbstainReason.OUT_OF_SCOPE, None, scope)
-        window = fit_window(states, contacts, record, index, self.params)
-        if not window.enough(self.params.min_side_frames):
+        rows = self.params.rows(inputs)
+        window = fit_window(states, contacts, record, index, rows, self.params.fit_source)
+        if not window.enough(rows.min_side):
             span = contact_span(states, window)
             reason = AbstainReason.TOO_FEW_FRAMES
             return abstain(type(self), inputs, subject, reason, span, window.counts())

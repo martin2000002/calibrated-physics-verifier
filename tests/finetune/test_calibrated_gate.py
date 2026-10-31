@@ -21,6 +21,7 @@ from wiring import (  # noqa: E402
     active_checks_hash,
     build_scorer,
     checks,
+    run_checks_hash,
 )
 
 from physverify.app.finetune import write_calibration_status  # noqa: E402
@@ -159,7 +160,7 @@ def test_finetune_score_refuses_a_calibration_of_another_device(
     fake_labels: frozenset[str],
 ) -> None:
     monkeypatch.setattr("physverify.app.finetune.sizing_labels", lambda _: fake_labels)
-    _artifact(settings, device="cuda")
+    _artifact(settings, device="cuda", checks_hash=run_checks_hash(settings))
     base = ("--profile", settings.profile, "--device", "cpu", "finetune")
     assert cli(*base, "prompts", "build", env=settings_environ).code == 0
     result = cli(*base, "score", "--split", "train", "--scorer", "calibrated", env=settings_environ)

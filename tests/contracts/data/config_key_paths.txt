@@ -55,9 +55,11 @@ calibration.tau_tolerance.R5a
 calibration.tau_tolerance.R5b
 check_scope.decision_record
 check_scope.exclude_checks
+check_scope.kept_when_excluding_time
 check_scope.require_decision_record
 check_scope.time_dependent_checks
-checks.R2.friction
+check_variants.profiles.precise.R4_jump
+check_variants.profiles.precise.R4_size
 checks.R2.mass_floor
 checks.R4_size.reference
 dataset.assets

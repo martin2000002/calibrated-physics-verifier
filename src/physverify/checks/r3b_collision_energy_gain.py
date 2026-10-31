@@ -87,12 +87,12 @@ class EnergyGainCheck:
             scope = {"external_contacts": external}
             return abstain(type(self), inputs, subject, AbstainReason.OUT_OF_SCOPE, None, scope)
         indices = (states.object_index(record.object_a), states.object_index(record.object_b))
-        windows = [fit_window(states, contacts, record, i, self.params) for i in indices]
-        if not all(w.enough(self.params.min_side_frames) for w in windows):
+        rows, source = self.params.rows(inputs), self.params.fit_source
+        windows = [fit_window(states, contacts, record, i, rows, source) for i in indices]
+        if not all(w.enough(rows.min_side) for w in windows):
             span = contact_span(states, windows[0])
             details = {name: w.counts() for name, w in zip(subject, windows, strict=True)}
             return abstain(type(self), inputs, subject, AbstainReason.TOO_FEW_FRAMES, span, details)
-        source = self.params.fit_source
         sides = [_sides(states, i, w, source) for i, w in zip(indices, windows, strict=True)]
         first = min(int(w.before[0]) for w in windows)
         last = max(int(w.after[-1]) for w in windows)

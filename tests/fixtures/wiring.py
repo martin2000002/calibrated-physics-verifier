@@ -30,6 +30,11 @@ def active_checks_hash(settings: Settings) -> str:
     return check_set.active_checks_hash(settings, checks())
 
 
+def run_checks_hash(settings: Settings) -> str:
+    """The hash a CLI run under ``settings`` stamps: its [check_variants] selection included."""
+    return check_set.active_checks_hash(settings, plugins.configured("checks", settings))
+
+
 def resolve_plan(
     settings: Settings,
     providers: Mapping[str, type[StageProvider]],

@@ -168,7 +168,7 @@ def test_publish_rejects_a_stale_artifact_even_with_force(
 ) -> None:
     out = tmp_path / "calibration.json"
     fit(cli, raw_run, out)
-    stale = ("--set", "checks.R2.friction=0.9")
+    stale = ("--set", "checks.R2.mass_floor=0.3")
     result = cli(
         *stale, "calibrate", "publish", "--level", "oracle", "--artifact", str(out), "--force"
     )

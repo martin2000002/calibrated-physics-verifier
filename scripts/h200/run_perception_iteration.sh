@@ -45,7 +45,7 @@
 #   PHYSVERIFY_ITERATION_THREADS         runtime.threads [16: at most 16 while a calibration chain runs]
 #   PHYSVERIFY_ITERATION_DATA            paths.data_dir, the synthetic dataset read only
 #                                        [$H200_ROOT/kubric-data]
-#   PHYSVERIFY_ITERATION_DIR             output [$H200_ROOT/iterations/$PHYSVERIFY_ITERATION_ID-$DEVICE]
+#   PHYSVERIFY_ITERATION_DIR             output [$H200_ROOT/iterations/$PHYSVERIFY_ITERATION_ID-<device>]
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/_common.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/_steps.sh"
@@ -95,16 +95,8 @@ done
 refuse_local_config run_perception_iteration.sh
 require_checkout PHYSVERIFY_ITERATION_EXPECT_COMMIT
 
-DEVICE="${PHYSVERIFY_ITERATION_DEVICE:-cpu}"
-case "$DEVICE" in
-    cpu) export CUDA_VISIBLE_DEVICES="" ;;
-    cuda)
-        [[ "${CUDA_VISIBLE_DEVICES:-}" =~ ^[0-3]$ ]] \
-            || die "PHYSVERIFY_ITERATION_DEVICE=cuda needs CUDA_VISIBLE_DEVICES in 0-3 (gpu_queue.sh), got '${CUDA_VISIBLE_DEVICES-unset}'"
-        ;;
-    *) die "PHYSVERIFY_ITERATION_DEVICE must be cpu or cuda, got '$DEVICE'" ;;
-esac
-PV_DEVICE="$DEVICE"
+PHYSVERIFY_ITERATION_DEVICE="${PHYSVERIFY_ITERATION_DEVICE:-cpu}"
+use_device PHYSVERIFY_ITERATION_DEVICE
 ARM="${PHYSVERIFY_ITERATION_ARM:-}"
 SWAPS=()
 if [[ -n "$ARM" ]]; then
@@ -123,7 +115,7 @@ PY="${PHYSVERIFY_ITERATION_PYTHON:-/home/mmonterot/dev/venv/bin/python}"
 THREADS="${PHYSVERIFY_ITERATION_THREADS:-16}"
 [[ "$THREADS" =~ ^[1-9][0-9]*$ ]] || die "PHYSVERIFY_ITERATION_THREADS must be a positive integer"
 DATA="${PHYSVERIFY_ITERATION_DATA:-$H200_ROOT/kubric-data}"
-OUT="${PHYSVERIFY_ITERATION_DIR:-$H200_ROOT/iterations/$ITER_ID-$DEVICE}"
+OUT="${PHYSVERIFY_ITERATION_DIR:-$H200_ROOT/iterations/$ITER_ID-$PV_DEVICE}"
 
 for dir in "$OUT" "$OUT/calibration" "$OUT/runs"; do
     for base in "$CHAIN_ROOT" "$DATA/calibration" "$DATA/runs" \
@@ -151,15 +143,15 @@ STATE="$OUT/state.env"
 STEPS="$OUT/steps.tsv"
 NOTES="$OUT/notes.md"
 SUMMARY="$OUT/summary.md"
-SUMMARY_TITLE="Iteration $ITER_ID ($DEVICE)"
-SUMMARY_INFO="commit $HEAD_COMMIT, profile $PV_PROFILE, arm ${ARM:-none} (${SWAPS[*]:-no swap}), device $DEVICE${CUDA_VISIBLE_DEVICES:+ (CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES)}, cache $CACHE, data $DATA, threads $THREADS"
+SUMMARY_TITLE="Iteration $ITER_ID ($PV_DEVICE)"
+SUMMARY_INFO="commit $HEAD_COMMIT, profile $PV_PROFILE, arm ${ARM:-none} (${SWAPS[*]:-no swap}), device $PV_DEVICE${CUDA_VISIBLE_DEVICES:+ (CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES)}, cache $CACHE, data $DATA, threads $THREADS"
 mkdir -p "$LOGS"
 touch "$STEPS" "$NOTES"
 if [[ -f "$STATE" ]]; then
     # shellcheck disable=SC1090
     source "$STATE"
 fi
-for pair in "CHAIN_DEVICE $DEVICE" "CHAIN_PROFILE $PV_PROFILE" "CHAIN_ITER_ID $ITER_ID" \
+for pair in "CHAIN_DEVICE $PV_DEVICE" "CHAIN_PROFILE $PV_PROFILE" "CHAIN_ITER_ID $ITER_ID" \
     "CHAIN_ARM ${ARM:-none}"; do
     read -r key value <<<"$pair"
     if [[ -z "${!key:-}" ]]; then
@@ -175,8 +167,8 @@ check_doctor() {
     DOCTOR="$(pv doctor)" || die "physverify doctor failed"
     same_path "$(doctor_value config_dir)" "$REPO_ROOT/configs" \
         || die "doctor reports config_dir '$(doctor_value config_dir)', not $REPO_ROOT/configs"
-    [[ "$(doctor_value device)" == "$DEVICE"* ]] \
-        || die "doctor reports device '$(doctor_value device)', not $DEVICE"
+    [[ "$(doctor_value device)" == "$PV_DEVICE"* ]] \
+        || die "doctor reports device '$(doctor_value device)', not $PV_DEVICE"
     [[ "$(doctor_value profile)" == "$PV_PROFILE" ]] \
         || die "doctor reports profile '$(doctor_value profile)', not $PV_PROFILE"
     same_path "$(doctor_value paths.cache_dir)" "$CACHE" \
