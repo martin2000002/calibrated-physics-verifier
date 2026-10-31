@@ -11,7 +11,7 @@ import pytest
 from settings_factory import SettingsFactory
 from support import chain_keys, make_context, run_provider
 from synthetic_clip import SyntheticClip
-from test_scale import PRIORS, truth_lift
+from test_scale import ALIASES, PRIORS, estimated_camera, truth_camera, truth_lift, with_lift_focal
 from wiring import resolve_plan
 
 from physverify.config.models import SizePriorTable
@@ -19,6 +19,7 @@ from physverify.extraction._base import StageProvider
 from physverify.extraction.providers._size_prior import SizePriorScale
 from physverify.extraction.providers.scale_size_model import SizeModelScale
 from physverify.physics.geometry import characteristic_lengths
+from physverify.schema.perception import CameraModel
 from physverify.schema.scale import ScaleEstimate, ScaleSource
 from physverify.schema.stages import STAGE_ORDER, Stage
 from physverify.schema.states import ObjectStateTable
@@ -30,16 +31,24 @@ CUP = ClassSize(mu_log=math.log(0.09), sigma_log=0.15, n_objects=100, n_videos=9
 FULL = SizeModelTable(source="test", sigma_factor=0.9, classes={"cup": CUP, "shoe": CUP})
 
 
-def run_model(clip: SyntheticClip, lift: ObjectStateTable, **params: object) -> ScaleEstimate:
-    ctx = make_context(clip, upstream={Stage.LIFT: lift})
+def run_model(
+    clip: SyntheticClip,
+    lift: ObjectStateTable,
+    camera: CameraModel | None = None,
+    **params: object,
+) -> ScaleEstimate:
+    upstream = {Stage.LIFT: lift, Stage.CAMERA: camera or truth_camera(clip)}
+    ctx = make_context(clip, upstream=upstream)
     output = run_provider(SizeModelScale, ctx, **params)
     assert isinstance(output, ScaleEstimate)
     return output
 
 
 def run_prior(clip: SyntheticClip, lift: ObjectStateTable) -> ScaleEstimate:
-    ctx = make_context(clip, upstream={Stage.LIFT: lift})
-    output = run_provider(SizePriorScale, ctx, priors=SizePriorTable(PRIORS))
+    ctx = make_context(clip, upstream={Stage.LIFT: lift, Stage.CAMERA: truth_camera(clip)})
+    output = run_provider(
+        SizePriorScale, ctx, priors=SizePriorTable(PRIORS), label_to_prior=ALIASES
+    )
     assert isinstance(output, ScaleEstimate)
     return output
 
@@ -61,7 +70,12 @@ def test_kubric_labels_give_exactly_the_frozen_prior_scale(
     lift = with_size_sigma(truth_lift(fixture_clip, scale=SCALE), 0.05)
     expected = run_prior(fixture_clip, lift)
     got = run_model(
-        fixture_clip, lift, priors=SizePriorTable(PRIORS), model=model, same_class_rho=0.0
+        fixture_clip,
+        lift,
+        priors=SizePriorTable(PRIORS),
+        label_to_prior=ALIASES,
+        model=model,
+        same_class_rho=0.0,
     )
     assert expected.meters_per_unit is not None and got.meters_per_unit is not None
     assert abs(got.meters_per_unit / expected.meters_per_unit - 1) < 1e-12
@@ -108,6 +122,17 @@ def test_two_objects_of_one_class_share_the_prior_term(
     assert got.meters_per_unit is not None
     assert abs(math.log(got.meters_per_unit) - logs.mean()) < 1e-12
     assert abs((got.sigma / got.meters_per_unit) ** 2 - expected_rel_var) < 1e-12
+
+
+def test_the_focal_error_enters_once_after_the_class_groups(fixture_clip: SyntheticClip) -> None:
+    camera, phi = estimated_camera(fixture_clip, 5.0)
+    lift = with_lift_focal(truth_lift(fixture_clip, scale=SCALE), 0.06, phi)
+    lookup = SizeLookup(labels={"ball": "cup", "box": "cup"})
+    got = run_model(fixture_clip, lift, camera, model=FULL, lookup=lookup)
+    expected_rel_var = (0.9 * 0.15) ** 2 + 0.06**2 / 3 / 2 + phi**2
+    assert got.meters_per_unit is not None
+    assert abs((got.sigma / got.meters_per_unit) ** 2 - expected_rel_var) < 1e-12
+    assert got.detail.endswith(":sigma=size_and_focal")
 
 
 def test_no_label_with_a_size_gives_no_scale(fixture_clip: SyntheticClip) -> None:

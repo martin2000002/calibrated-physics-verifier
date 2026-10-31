@@ -351,6 +351,7 @@
    ],
    "fall_residual_ratio": 2.5776953418390424e-16,
    "lateral_accel_ratio": 3.1533984511673915e-18,
+   "lateral_accel_ratio_sigma": 0.0,
    "mode": "split",
    "row_step": 1,
    "split_frame": 6,

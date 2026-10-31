@@ -28,21 +28,21 @@ KEY_PATHS = Path(__file__).with_name("data") / "config_key_paths.txt"
 PINNED_ROOT = "/pinned"
 
 SECTIONS_HASH = {
-    "fast": "14e97dbc49075b264097004078a5c4114498b9129742b4b3de0e5280ba97e059",
-    "precise": "f6ebdef3a03d556900beb3344469d7787a29ec42aca059fe50b66a4e6ff8792e",
+    "fast": "8b18e7aa33df27c4c45f92cbdcc7d0f13fd7dd9292694eafc62c6d6b0769c5d9",
+    "precise": "9aae743684690ba0e44813b60f3606d36f3db97fac19fe5044e68ae0aaa2c11c",
 }
 CONFIG_HASH = {
-    "fast": "2de043e7423ee2a3225abecf14b9a9b092130986b793a378768a7d25fa8d44cd",
-    "precise": "760d2fedaf6027cedfabc5af509df7a6df2e795da509db07e967be3994abf11d",
+    "fast": "6820bba02e40137056132fe8761bcaf79e8377cfd6917f34e130c7a8d389149f",
+    "precise": "047039710a67bc1023183ef546b95bd869d9ef251674212b902dce34fc795a27",
 }
 LOOK_CONFIG_HASH = {
-    "fast": "43380727c29ee5a289b4ce6e220827df0b32b5ad70e0d97bb5f4389af881abcc",
-    "precise": "02d997c108957851bbe49b6b8c47eee5b81e19201b68e18aad6df05854406856",
+    "fast": "9ab2c61f0a8ab09177d1dec7853ebd400e9a0d0c39b2162c7632b561bd19a319",
+    "precise": "1e3619f252926a160a500ecb6322f6dfae357e9c03089df0c3f0b3573539f46f",
 }
-CHECKS_HASH = "1bc070f3c0236c60860077d46926888188c5e86fc6c4132c0274e43ed138b4b2"
+CHECKS_HASH = "891fd3580169fec8f8c70ca0b7d66b24973fd7348dbf1c98ac00be92aa41b2b8"
 RUN_CHECKS_HASH = {
-    "fast": "1bc070f3c0236c60860077d46926888188c5e86fc6c4132c0274e43ed138b4b2",
-    "precise": "cd37678aef95992ca6d07e0491a500a641d91a9b0a861ccfb7457fd3e2367470",
+    "fast": "891fd3580169fec8f8c70ca0b7d66b24973fd7348dbf1c98ac00be92aa41b2b8",
+    "precise": "ea5ff7c226668081e5caa4784361a9e04c0484b39771a3e393791d530e207187",
 }
 DATASET_CONTENT_HASH = {
     "fast": "7792797236e163025d89c1c518dc43ad8f90c3f511bd884e1969ca9bf1f2fa3e",
@@ -51,7 +51,7 @@ DATASET_CONTENT_HASH = {
 STAGE_KEYS = {
     "camera/assumed_fov": "d0ae25696b1da8e41856f1aaf094085c01f865833bc905f253b56546f7477018",
     "camera/from_depth": "71f47572478cef19abbac16c095575678d6703941e26128139ef90cac930aae0",
-    "camera/geocalib": "871980e0b1985e5945e7620477d9ea8b3a6781b5b215e2d70ef9c2868b17d6e1",
+    "camera/geocalib": "18892cc4e5b735d5fd4b8c45ad9dccfd98b0a95814a506b28ce11079f3bf3154",
     "contacts/kinematic": "4637a961f2a230c25a84b686c3a69ccf911bb7b8c59c7c694f69f43acd8f2946",
     "contacts/proximity": "c9674d131e269a5bec255e694111ce3a8fbd5def115452732578a62ee0260391",
     "depth/moge2": "6cdce7a43eb0a8999a01982327df1202bc13bbda4c86c3af356092a578a18f81",
@@ -78,10 +78,10 @@ STAGE_KEYS = {
     "kinematics/savgol": "2a2e1a9916cc3efecd6ae8c9ed85c8260307543205f340f387d137685cc24900",
     "lift/backproject": "b79574cc0403c7d55fcfb6938df2a5928196c8e09cd7f88ceb7d939858cf7445",
     "lift/backproject_unnested": "2b203300810399325c0cabda849cd3495b44c7ba9270e2d889c94aa5eab21807",
-    "scale/free_fall": "f104b2070930e8ddb30a5679208d9d9bad020cee8492f2db2426e75a72c6635b",
-    "scale/metric_depth": "f05c5c101bd1c5d9b398c3c0d4b4981fd7fba388ac7377c98bfe9e2eb51a6efd",
-    "scale/size_model": "6a8b94eb65880948beb7fd703a228119cb6a017e37ecec247d6ddea0e504f695",
-    "scale/size_prior": "bf299851af7f355571485cea441194c2496ac32f56e8a8d0c1971c9421d7593e",
+    "scale/free_fall": "5cf5fae25a5cca7ac5558e7f2734a5c14b9a9b3cdf1a1e4d408f74bc38e5786e",
+    "scale/metric_depth": "f7565e70da567e4b25e5e5b8226e2602787fa852321b630f556be8e45e027e86",
+    "scale/size_model": "f2eee46d6025088a682777cd62df8c131040faaca18c170be16aea2caec1bf91",
+    "scale/size_prior": "025e5884c46f3e8914cd9360896334e058104752eb86f2c1d3b30cad8f372845",
     "track/edgetam": "81a150661413d4a8e45d79ab5f2dd7a3c4b2ca10db56a5bade893403801ce4d8",
     "track/sam2_1_hiera_tiny": "88cf35cd5a540158b73d940af239b84d357dd091f5b2935f884a87671d14dbee",
 }

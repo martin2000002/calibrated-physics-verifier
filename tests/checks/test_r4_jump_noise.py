@@ -154,6 +154,19 @@ def test_exact_positions_use_the_pixel_floor_on_every_axis() -> None:
     assert sigma_hat == pytest.approx(np.full(3, FLOOR), rel=1e-12)
 
 
+@pytest.mark.parametrize("ratio", [0.6, 1.7])
+def test_the_pixel_floor_follows_the_focal_of_the_camera_not_an_assumed_one(ratio: float) -> None:
+    """camera/from_depth carries MoGe-2's focal in K (test_camera_from_depth.py); the floor reads
+    that K, so a depth model's focal sets it."""
+    case = sc.rolling_ball()
+    focal = ratio * sc.FOCAL_PX
+    inputs = replace(case.inputs(), camera=sc.pinhole(case.clip, focal))
+    result = one(stepped(inputs, 15, np.array([5 * DEPTH / focal, 0.0, 0.0])))
+    assert result.details["noise_source"] == "exact"
+    sigma_hat = np.array(result.details["sigma_over_length"]) * 2 * sc.BALL_RADIUS
+    assert sigma_hat == pytest.approx(np.full(3, DEPTH / (focal * QUANTIZATION)), rel=1e-12)
+
+
 # Clips of 24 rows (21 stencils, the reference) keep the values written before the restatement.
 
 RECORDED_24_ROWS = {"rest": 2.960489126366044, "step": 17.547984672414515}

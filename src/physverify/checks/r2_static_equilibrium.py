@@ -21,6 +21,7 @@ from physverify.physics.equilibrium import (
     horizontal_norm_bias,
     solve_equilibrium,
 )
+from physverify.physics.geometry import tilted
 from physverify.physics.measures.support_overhang import overhang_fraction
 from physverify.physics.row_time import reference_seconds, rows_in
 from physverify.physics.tracks import (
@@ -30,13 +31,14 @@ from physverify.physics.tracks import (
     rest_mask,
     segments,
 )
-from physverify.schema.checks import AbstainReason, CheckResult
+from physverify.schema.checks import AbstainReason, CheckResult, InputLevel
 from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactKind, ContactRecord, ContactTable, ManifoldKind
 from physverify.schema.states import ObjectStateTable
 
 FloatArray = NDArray[np.float64]
 BoolArray = NDArray[np.bool_]
+GRAVITY = "gravity"
 FRICTION = "friction"
 FRICTION_RANGE = (0.3, 1.0)
 """Static friction coefficients of dry everyday pairs in open tables: rubber on concrete 1.0
@@ -58,6 +60,10 @@ class EquilibriumParams(CommonParams):
     min_rest_s: float = Field(default=reference_seconds(3), gt=0.0)
     agent_labels: tuple[str, ...] = ("person", "hand", "arm", "animal", "dog", "cat")
     norm_edges: int = Field(default=8, ge=3)
+    # The Monte Carlo tilts gravity_dir by gravity_dir_sigma per axis; False holds it exact.
+    sample_gravity: bool = True
+    # Perceived components with no support on the environment abstain; False scores them.
+    require_support_path: bool = True
 
     @field_validator("friction_range")
     @classmethod
@@ -140,7 +146,7 @@ class EquilibriumCheck:
             "frame": int(fi[event.row]),
             "excluded_contacts": [_describe(r) for r in event.excluded],
         }
-        reason = self._abstain_reason(states, event, details)
+        reason = self._abstain_reason(inputs, event, details)
         if reason is not None:
             return abstain(type(self), inputs, subject, reason, span, details)
         problem = _problem(states, event)
@@ -161,11 +167,15 @@ class EquilibriumCheck:
         return unscored(type(self), inputs, subject, solution.residual, sigma, span, details)
 
     def _abstain_reason(
-        self, states: ObjectStateTable, event: _Event, details: dict[str, Any]
+        self, inputs: CheckInputs, event: _Event, details: dict[str, Any]
     ) -> AbstainReason | None:
+        states = inputs.states
         if not bool(np.all(np.isfinite(states.gravity_dir))):
             details["missing"] = "gravity_dir"
             return AbstainReason.MISSING_INPUT
+        if self.params.sample_gravity and not math.isfinite(states.gravity_dir_sigma):
+            details["missing"] = "gravity_dir_sigma"
+            return AbstainReason.UNKNOWN_UNCERTAINTY
         centroids = states.position[event.row, list(event.bodies)]
         if not bool(np.all(np.isfinite(centroids))):
             details["missing"] = "position"
@@ -178,14 +188,26 @@ class EquilibriumCheck:
         if agents:
             details["agents"] = agents
             return AbstainReason.OUT_OF_SCOPE
+        if self._unsupported(inputs, event):
+            details["missing"] = "support_path"
+            return AbstainReason.NO_SUPPORT_PATH
         if any(r.manifold is ManifoldKind.POINT for r in event.support):
             return AbstainReason.CONTACT_GEOMETRY_UNKNOWN
         return None
 
+    def _unsupported(self, inputs: CheckInputs, event: _Event) -> bool:
+        """A perceived table that never reaches the ground most likely missed a contact, which
+        the program would read as a certain violation (residual 1, sigma 0)."""
+        perceived = inputs.input_level is not InputLevel.ORACLE
+        return self.params.require_support_path and perceived and not _reaches_ground(event)
+
     def _sigma(self, inputs: CheckInputs, event: _Event, problem: EquilibriumProblem) -> float:
-        """Monte Carlo over the centroids, the contact points (sigma of object a) and mu."""
+        """Monte Carlo over the centroids, the contact points (sigma of object a), the gravity
+        direction (an isotropic tilt of gravity_dir_sigma per axis) and mu (uniform)."""
         states = inputs.states
         sigmas = {"centroids": states.position_sigma[event.row, list(event.bodies)]}
+        if self.params.sample_gravity:
+            sigmas[GRAVITY] = np.full(2, states.gravity_dir_sigma)
         for k, record in enumerate(event.support):
             index = states.object_index(record.object_a)
             point_sigma = states.position_sigma[event.row, index]
@@ -272,6 +294,11 @@ def _group_event(
     return _Event(start, stop, bodies, support, excluded)
 
 
+def _reaches_ground(event: _Event) -> bool:
+    """The component is connected, so one support on the environment links every body to it."""
+    return any(r.object_b == ENV_ID for r in event.support)
+
+
 def _problem(states: ObjectStateTable, event: _Event) -> EquilibriumProblem:
     local = {str(states.object_ids[i]): k for k, i in enumerate(event.bodies)}
     contacts = tuple(
@@ -299,7 +326,10 @@ def _perturbed(
         for k, c in enumerate(problem.contacts)
     )
     centroids = problem.centroids + noise["centroids"][draw]
-    return EquilibriumProblem(centroids, problem.lengths, problem.gravity_dir, contacts)
+    gravity = problem.gravity_dir
+    if GRAVITY in noise:
+        gravity = tilted(gravity, noise[GRAVITY][draw])
+    return EquilibriumProblem(centroids, problem.lengths, gravity, contacts)
 
 
 def _overhangs(

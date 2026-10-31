@@ -193,6 +193,19 @@ def plane_basis(normal: ArrayLike) -> tuple[Vec, Vec]:
     return u, np.cross(n, u)
 
 
+def tilted(direction: ArrayLike, tilt: ArrayLike) -> NDArray[np.float64]:
+    """Unit ``direction`` turned by the angles ``tilt`` (..., 2) [rad] about its ``plane_basis``
+    axes (exponential map: the angle is |tilt|): (..., 3) unit vectors."""
+    d = _unit(direction)
+    u, v = plane_basis(d)
+    t = np.asarray(tilt, dtype=np.float64)
+    angle = np.linalg.norm(t, axis=-1, keepdims=True)
+    toward = t[..., :1] * u + t[..., 1:] * v
+    safe = np.where(angle > 0.0, angle, 1.0)
+    turned: NDArray[np.float64] = np.cos(angle) * d + np.sin(angle) * toward / safe
+    return turned
+
+
 def project_to_plane(points: ArrayLike, normal: ArrayLike) -> NDArray[np.float64]:
     """(n, 2) coordinates of 3D ``points`` in the ``plane_basis`` of ``normal``."""
     pts = np.asarray(points, dtype=np.float64).reshape(-1, 3)

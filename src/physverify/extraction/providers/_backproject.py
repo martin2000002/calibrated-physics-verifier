@@ -15,8 +15,8 @@ from physverify.extraction.backprojection import (
     LiftErrors,
     ObjectSummary,
     SummaryOptions,
+    camera_focal_phi,
     closed_form_sigma,
-    focal_rel_sigma,
     lift_depth,
     monte_carlo_sigma,
     object_position,
@@ -212,20 +212,12 @@ def _mutable_fields(table: ObjectStateTable) -> dict[str, Any]:
     return {name: np.array(getattr(table, name), copy=True) for name in names}
 
 
-def _focal_phi(camera: CameraModel) -> float:
-    if camera.source is IntrinsicsSource.GROUND_TRUTH:
-        return 0.0
-    if not (math.isfinite(camera.fov_deg) and math.isfinite(camera.fov_sigma_deg)):
-        return math.nan
-    return focal_rel_sigma(camera.fov_deg, camera.fov_sigma_deg)
-
-
 def _lift_errors(ctx: StageContext, camera: CameraModel) -> LiftErrors:
     return LiftErrors(
         depth_rel=ctx.error_entry(Stage.DEPTH, "depth_rel"),
         centroid_px_rel=ctx.error_entry(Stage.TRACK, "centroid_px_rel"),
         centroid_rel=ctx.error_entry(Stage.LIFT, "centroid_rel"),
         size_rel=ctx.error_entry(Stage.LIFT, "size_rel"),
-        phi=_focal_phi(camera),
+        phi=camera_focal_phi(camera),
         orientation_rad=ctx.error_entry(Stage.LIFT, "orientation_rad"),
     )

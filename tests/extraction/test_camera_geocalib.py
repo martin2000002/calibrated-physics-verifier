@@ -204,7 +204,7 @@ def test_a_valid_camera_with_one_pose_and_a_key_per_parameter(
     }
     assert len(hashes) == 4
     assert (GeoCalibCamera.version, GeoCalibCamera.requires, GeoCalibCamera.heavy) == (
-        "1",
+        "2",
         (),
         True,
     )
@@ -336,3 +336,19 @@ def test_the_pose_carries_the_gravity_the_gates_evaluate(
         gravity_from_pose(camera.world_from_camera), clip_gravity(result), atol=TOL
     )
     assert (fake.priors[0] is None) == (focal == "geocalib")
+
+
+@pytest.mark.parametrize("focal", ["geocalib", "assumed"])
+@pytest.mark.parametrize(
+    ("sigma_rad", "expected_deg"), [(0.01, math.degrees(0.01)), (0.0, math.nan)]
+)
+def test_the_pose_carries_geocalibs_gravity_sigma_or_none(
+    fixture_clip: SyntheticClip, focal: str, sigma_rad: float, expected_deg: float
+) -> None:
+    camera = run(
+        fixture_clip, FakeCalibrator(geocalib_up(0.0, -0.3), np.array(sigma_rad)), focal=focal
+    )
+    if math.isnan(expected_deg):
+        assert math.isnan(camera.gravity_sigma_deg)
+    else:
+        assert camera.gravity_sigma_deg == pytest.approx(expected_deg)

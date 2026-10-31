@@ -44,7 +44,7 @@ from physverify.synth.settings import (
     ContactSettings,
     DatasetSettings,
     load_dataset_settings,
-    load_size_priors,
+    load_size_distribution,
 )
 from physverify.synth.store import DatasetStore
 
@@ -71,7 +71,7 @@ def ds(settings: Settings) -> DatasetSettings:
 
 @pytest.fixture
 def priors(settings: Settings) -> dict[str, Any]:
-    return load_size_priors(settings)
+    return load_size_distribution(settings)
 
 
 @pytest.fixture(scope="session")
