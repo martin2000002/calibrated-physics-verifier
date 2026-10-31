@@ -8,7 +8,7 @@ import numpy as np
 
 from physverify.checks._params import FallParams
 from physverify.physics.flights import Flight, find_flights
-from physverify.physics.tracks import FloatArray, body_length, track_noise
+from physverify.physics.tracks import FloatArray, body_length, impact_rows, track_noise
 from physverify.schema.contacts import ContactTable
 from physverify.schema.states import ObjectStateTable
 
@@ -19,7 +19,7 @@ def find_falls(
     """Flights of object ``index`` that pass the fall filter of ``params``, in time order."""
     flights = find_flights(states, contacts, index, params.rest_speed, params.jump_gate)
     noise = (
-        track_noise(states, contacts, index, params.min_noise_stencils)
+        track_noise(states, index, impact_rows(states, contacts, index), params.min_noise_stencils)
         if params.travel_noise == "track"
         else None
     )

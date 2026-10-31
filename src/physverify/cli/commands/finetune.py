@@ -2,8 +2,8 @@
 
 Every step resumes: ``generate`` skips complete candidates, ``score`` the ones with a current
 score (same scorer stamp, same candidate ``config_hash``), ``train`` starts from the last
-checkpoint. The GPU subcommands exit 2 without ``--device cuda`` and a CUDA device,
-before they write anything.
+checkpoint. The GPU subcommands exit 2 without ``--device cuda`` and a CUDA device, before they
+write anything; ``score`` also runs with ``--device cpu``.
 """
 
 from __future__ import annotations

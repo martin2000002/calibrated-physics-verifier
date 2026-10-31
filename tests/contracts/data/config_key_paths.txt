@@ -17,6 +17,7 @@ agreement.dev_subset
 agreement.error_sample_per_class
 agreement.error_seed
 agreement.exclude_time_dependent
+agreement.min_cut_side_fraction
 agreement.on_unusable_stratum
 agreement.permutation_exact_max
 agreement.power

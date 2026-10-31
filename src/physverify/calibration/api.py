@@ -62,6 +62,9 @@ class ScoredClip(Protocol):
     def abstained_checks(self) -> Sequence[str]: ...
 
     @property
+    def unweighted_checks(self) -> Sequence[str]: ...
+
+    @property
     def per_check(self) -> Mapping[str, float]: ...
 
 

@@ -23,6 +23,7 @@ DIFF_PATHS: Mapping[str, tuple[str, ...]] = {
         "src/physverify/extraction",
         "src/physverify/verification/check_set.py",
         "src/physverify/physics/ties.py",
+        "src/physverify/physics/running_median.py",
         *_MOVED_OUT,
         "configs/extraction.toml",
         "configs/verifier/extraction.toml",

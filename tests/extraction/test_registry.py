@@ -38,13 +38,15 @@ def test_every_provider_validates_and_only_providers_with_weights_are_heavy(
     assert any(provider.heavy for provider in registry.values())
 
 
-def test_only_backproject_and_metric_scale_read_their_own_profile_entry(
+def test_only_the_backproject_lifts_read_their_own_profile_entry(
     registry: dict[str, type[StageProvider]],
 ) -> None:
-    lift = registry["lift/backproject"]
-    assert lift.error_profile_reads == (Stage.TRACK, Stage.DEPTH)
-    readers = sorted(key for key, p in registry.items() if reads_own_error(p))
-    assert readers == ["lift/backproject", "scale/metric_depth"]
+    lifts = ("lift/backproject", "lift/backproject_unnested")
+    for key in lifts:
+        assert registry[key].error_profile_reads == (Stage.TRACK, Stage.DEPTH)
+        assert reads_own_error(registry[key])
+    others = [key for key, p in registry.items() if key not in lifts and reads_own_error(p)]
+    assert others == []
 
 
 @pytest.mark.parametrize("command", ["run", "fetch-weights"])
@@ -59,7 +61,7 @@ def test_building_the_registry_imports_no_heavy_library() -> None:
         f"sys.path.insert(0, {str(REPO / 'src')!r})\n"
         "from physverify.app.plugins import PLUGIN_KINDS\n"
         "import physverify.extraction.weights, physverify.extraction.pipeline\n"
-        "assert len(PLUGIN_KINDS['providers']()) == 25\n"
+        "assert len(PLUGIN_KINDS['providers']()) == 26\n"
         f"print(sorted(m for m in {LAZY_MODULES!r} if m in sys.modules))\n"
     )
     done = subprocess.run(

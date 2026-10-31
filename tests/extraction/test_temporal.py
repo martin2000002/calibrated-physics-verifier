@@ -23,7 +23,6 @@ from physverify.extraction.backprojection import (
     object_position,
 )
 from physverify.extraction.providers._temporal_smoothing import (
-    running_median,
     stabilize_run,
     stabilize_summaries,
 )
@@ -42,69 +41,7 @@ from physverify.schema.states import ObjectStateTable
 
 WINDOW = 5
 SHIFTED = "shifted"
-ROWS = 12
 TOL = 1e-12
-
-
-def series(base: float = 2.0, rows: int = ROWS) -> np.ndarray:
-    return np.full(rows, base)
-
-
-@pytest.mark.parametrize("rows", [(0,), (0, 1), (5,), (5, 6), (ROWS - 1,), (ROWS - 2, ROWS - 1)])
-def test_impulses_of_one_and_two_rows_are_removed(rows: tuple[int, ...]) -> None:
-    z = series()
-    z[list(rows)] = 3.0
-    np.testing.assert_array_equal(running_median(z, WINDOW, SHIFTED), series())
-
-
-@pytest.mark.parametrize("start", [0, 4, ROWS - 3])
-def test_a_plateau_of_three_rows_is_kept(start: int) -> None:
-    z = series()
-    z[start : start + 3] = 3.0
-    np.testing.assert_array_equal(running_median(z, WINDOW, SHIFTED), z)
-
-
-@pytest.mark.parametrize("step_at", [3, 6, ROWS - 3])
-def test_steps_with_three_rows_on_each_side_are_unchanged(step_at: int) -> None:
-    step = series()
-    step[step_at:] = 3.0
-    np.testing.assert_array_equal(running_median(step, WINDOW, SHIFTED), step)
-
-
-@pytest.mark.parametrize("ramp", [np.linspace(1.0, 4.0, ROWS) ** 1.5, np.linspace(4.0, 1.0, ROWS)])
-def test_monotone_series_keep_their_interior_and_flatten_two_rows_at_each_end(
-    ramp: np.ndarray,
-) -> None:
-    """A border impulse of up to two rows is itself a monotone series, so the shifted window
-    cannot keep both: the first and last two rows take the value of the third from that end."""
-    out = running_median(ramp, WINDOW, SHIFTED)
-    np.testing.assert_array_equal(out[2:-2], ramp[2:-2])
-    np.testing.assert_array_equal(out[:2], [ramp[2], ramp[2]])
-    np.testing.assert_array_equal(out[-2:], [ramp[-3], ramp[-3]])
-
-
-@pytest.mark.parametrize(
-    "ramp", [np.linspace(1.0, 4.0, ROWS) ** 1.5, np.linspace(4.0, 1.0, ROWS), np.full(ROWS, 2.0)]
-)
-def test_keep_edges_leave_monotone_series_identical(ramp: np.ndarray) -> None:
-    np.testing.assert_array_equal(running_median(ramp, WINDOW, "keep"), ramp)
-
-
-def test_keep_edges_remove_interior_impulses_only() -> None:
-    z = series()
-    z[[0, 6]] = 3.0
-    out = running_median(z, WINDOW, "keep")
-    assert out[0] == 3.0 and out[6] == 2.0
-
-
-def test_short_series_and_non_finite_rows_are_untouched() -> None:
-    short = np.array([1.0, 5.0, 1.0, 1.0])
-    np.testing.assert_array_equal(running_median(short, WINDOW, SHIFTED), short)
-    z = series()
-    z[3], z[7] = math.nan, 9.0
-    out = running_median(z, WINDOW, SHIFTED)
-    assert math.isnan(out[3])
-    np.testing.assert_array_equal(np.delete(out, 3), np.delete(series(), 3))
 
 
 def summary(z: float, image_extent: float = 0.05) -> ObjectSummary:
@@ -263,7 +200,9 @@ def test_none_reproduces_the_version_two_table(fixture_clip: SyntheticClip, case
     current = table(fixture_clip, case, temporal_filter="none")
     for name, value in golden.field_values().items():
         mine = getattr(current, name)
-        if isinstance(value, np.ndarray) and value.dtype.kind == "f":
+        if name == "border_cut":
+            assert value is None and mine is not None
+        elif isinstance(value, np.ndarray) and value.dtype.kind == "f":
             np.testing.assert_allclose(mine, value, rtol=TOL, atol=0.0, err_msg=name)
         elif isinstance(value, np.ndarray):
             np.testing.assert_array_equal(mine, value, err_msg=name)
@@ -272,7 +211,7 @@ def test_none_reproduces_the_version_two_table(fixture_clip: SyntheticClip, case
 
 
 def test_the_version_and_both_parameters_enter_the_key() -> None:
-    assert BackprojectLift.version == "3"
+    assert BackprojectLift.version == "4"
     default = BackprojectLift.Params()
     hashes = {
         params_hash(p.model_dump(mode="json"))

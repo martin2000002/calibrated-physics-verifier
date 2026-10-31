@@ -266,12 +266,19 @@ class DevFreeze:
     majority: int | None
     cut: float | None
     tuned_cut: float | None
-    design: dict[str, float | int] | None = None
+    design: dict[str, float | int] | None
     """Estimated design effect of the primary policy's discordance on dev (frozen, item 1.3)."""
+    n_decided: int
+    cut_rejection: str | None
+    """Why ``best_cut`` chose no cut (None when it chose one)."""
 
 
 def freeze_dev(
-    rows: Sequence[LabelledVideo], rule: ClipDecisionRule, run: VerifyRun, policy: str
+    rows: Sequence[LabelledVideo],
+    rule: ClipDecisionRule,
+    run: VerifyRun,
+    policy: str,
+    min_side_fraction: float,
 ) -> DevFreeze:
     """On h2_dev: the majority class, the cut of maximum balanced accuracy on the score
     (primary for the calibrated rule, secondary ``dev_tuned`` for the provisional one) and the
@@ -282,16 +289,24 @@ def freeze_dev(
         for r in rows
         if r.clip_id in decisions and (label := implausible(r.human_raw, r.human_cut)) is not None
     ]
-    if not labelled:
-        return DevFreeze(0, None, None, None)
     y = np.asarray([int(label) for label, _ in labelled], dtype=np.int_)
     score = np.asarray([s for _, s in labelled], dtype=np.float64)
+    choice = best_cut(y, score, min_side_fraction)
+    if not labelled:
+        return DevFreeze(0, None, None, None, None, 0, choice.rejection)
     majority = int(np.mean(y) > 0.5)
-    cut = best_cut(y, score)
     calibrated = rule.name == CALIBRATED_NAME
-    primary_cut = cut if calibrated else None
+    primary_cut = choice.cut if calibrated else None
     design = None
     if primary_cut is not None or not calibrated:
         items, _ = build_items(rows, decisions, run, primary_cut)
         design = view_design_effect(items, policy_view(items, policy))
-    return DevFreeze(len(labelled), majority, primary_cut, None if calibrated else cut, design)
+    return DevFreeze(
+        n=len(labelled),
+        majority=majority,
+        cut=primary_cut,
+        tuned_cut=None if calibrated else choice.cut,
+        design=design,
+        n_decided=int(np.isfinite(score).sum()),
+        cut_rejection=choice.rejection,
+    )

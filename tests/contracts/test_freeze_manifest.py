@@ -37,6 +37,9 @@ SPLIT_DESTINATIONS = {
     "src/physverify/extraction/providers/_common.py": ("src/physverify/sizing/priors.py",),
     "src/physverify/extraction/weights.py": ("src/physverify/core/digests.py",),
     "src/physverify/extraction/providers/_impacts.py": ("src/physverify/physics/ties.py",),
+    "src/physverify/extraction/providers/_temporal.py": (
+        "src/physverify/physics/running_median.py",
+    ),
 }
 # Definitions whose new home is deliberately outside the diff paths, with the reason.
 UNCOVERED = {
@@ -52,7 +55,7 @@ UNCOVERED = {
     ),
 }
 HEAD = "c" * 40
-FREEZE_SHA256 = "892e8471d14e79265d147e2403f39221df7c60838a68a01fd30cfdd3f9cacdd1"
+FREEZE_SHA256 = "371c642bfc1adc3c752aa1e7aef1d1d2d2fe2e9ec6928eaef4ffdd9b5ba58ab5"
 MANIFEST_FIELDS = (
     "schema",
     "version",

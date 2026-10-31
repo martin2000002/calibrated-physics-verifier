@@ -68,16 +68,16 @@ def test_every_subcommand_has_help(cli: CliRunner, words: tuple[str, ...]) -> No
     assert "Usage" in result.out
 
 
-@pytest.mark.parametrize(
-    "argv",
-    [("generate", "--split", "train"), ("score", "--split", "train")],
-)
-def test_gpu_subcommands_exit_2_on_cpu(
-    cli: CliRunner, env: dict[str, str], argv: tuple[str, ...]
-) -> None:
-    result = cli("--device", "cpu", "finetune", *argv, env=env)
+def test_generate_exits_2_on_cpu(cli: CliRunner, env: dict[str, str]) -> None:
+    result = cli("--device", "cpu", "finetune", "generate", "--split", "train", env=env)
     assert result.code == 2
     assert "--device cuda" in result.err
+
+
+def test_score_passes_the_device_check_on_cpu(cli: CliRunner, env: dict[str, str]) -> None:
+    result = cli("--device", "cpu", "finetune", "score", "--split", "train", env=env)
+    assert "--device cuda" not in result.err
+    assert "CUDA device" not in result.err
 
 
 @pytest.mark.parametrize("step", ["generate", "score"])

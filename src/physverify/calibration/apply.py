@@ -21,6 +21,8 @@ from physverify.verification.thresholding import ThresholdParams, ThresholdRule
 
 NO_DECIDED = "no_decided_check"
 NO_INFORMATIVE = "no_informative_check"
+NO_WEIGHTED = "no_weighted_check"
+"""Every decided check has weight 0: no vote, so the clip abstains instead of scoring S = 1."""
 P_MAX = 1.0 - 1e-12
 
 
@@ -98,7 +100,9 @@ def _probability(check: CheckCalibration | None, outcome: Outcome) -> float | No
 @dataclass(frozen=True)
 class ClipScore:
     """S = prod_{c in D} (1 - p_c)^{w_c} (1 = no evidence of violation); ``sigma`` by the delta
-    method (0 on the oracle). ``coverage`` = sum_D w / sum_A w over checks with an event."""
+    method (0 on the oracle). ``coverage`` = sum_D w / sum_A w over checks with an event. D holds
+    the decided checks of weight > 0 (``decided_checks``); a decided check of weight 0 has no vote
+    and is listed in ``unweighted_checks``, apart from the ``abstained_checks``."""
 
     clip_id: str
     score: float | None
@@ -109,6 +113,7 @@ class ClipScore:
     n_failed: int
     decided_checks: tuple[str, ...]
     abstained_checks: tuple[str, ...]
+    unweighted_checks: tuple[str, ...]
     per_check: Mapping[str, float] = field(default_factory=lambda: MappingProxyType({}))
 
 
@@ -153,13 +158,21 @@ def score_clip(
         if stratum.tau(result.check_id) is not None and (only is None or result.check_id in only):
             by_check.setdefault(result.check_id, []).append(result)
     clip_id = results[0].clip_id if results else ""
-    decided, abstained = _split(by_check, stratum, policy)
-    return _score(clip_id, decided, abstained, stratum)
+    return _score(clip_id, _split(by_check, stratum, policy), stratum)
+
+
+@dataclass(frozen=True)
+class _Split:
+    """``voting``: decided with weight > 0; ``unweighted``: decided with weight 0."""
+
+    voting: tuple[_Decided, ...]
+    unweighted: tuple[str, ...]
+    abstained: tuple[str, ...]
 
 
 def _split(
     by_check: Mapping[str, Sequence[CheckResult]], stratum: Stratum, policy: ThresholdRule
-) -> tuple[list[_Decided], list[str]]:
+) -> _Split:
     decided: list[_Decided] = []
     abstained: list[str] = []
     for check_id in sorted(by_check):
@@ -181,36 +194,40 @@ def _split(
                 failed=outcome.verdict is Verdict.FAIL,
             )
         )
-    return decided, abstained
+    return _Split(
+        voting=tuple(d for d in decided if d.weight > 0.0),
+        unweighted=tuple(d.check_id for d in decided if d.weight <= 0.0),
+        abstained=tuple(abstained),
+    )
 
 
-def _score(
-    clip_id: str, decided: Sequence[_Decided], abstained: Sequence[str], stratum: Stratum
-) -> ClipScore:
-    total = sum(d.weight for d in decided) + sum(stratum.weight(c) for c in abstained)
+def _score(clip_id: str, split: _Split, stratum: Stratum) -> ClipScore:
+    voting = split.voting
+    total = sum(d.weight for d in voting) + sum(stratum.weight(c) for c in split.abstained)
     base = ClipScore(
         clip_id=clip_id,
         score=None,
         sigma=None,
-        coverage=sum(d.weight for d in decided) / total if total > 0.0 else 0.0,
+        coverage=sum(d.weight for d in voting) / total if total > 0.0 else 0.0,
         abstained=True,
         reason=None,
-        n_failed=sum(d.failed for d in decided),
-        decided_checks=tuple(d.check_id for d in decided),
-        abstained_checks=tuple(abstained),
-        per_check=MappingProxyType({d.check_id: d.p for d in decided}),
+        n_failed=sum(d.failed for d in voting),
+        decided_checks=tuple(d.check_id for d in voting),
+        abstained_checks=split.abstained,
+        unweighted_checks=split.unweighted,
+        per_check=MappingProxyType({d.check_id: d.p for d in voting}),
     )
     if stratum.max_weight() <= 0.0:
         return replace(base, reason=NO_INFORMATIVE)
-    if not decided:
-        return replace(base, reason=NO_DECIDED)
-    score = math.prod((1.0 - d.p) ** d.weight for d in decided)
-    return replace(base, score=score, sigma=score_sigma(score, decided), abstained=False)
+    if not voting:
+        return replace(base, reason=NO_WEIGHTED if split.unweighted else NO_DECIDED)
+    score = math.prod((1.0 - d.p) ** d.weight for d in voting)
+    return replace(base, score=score, sigma=score_sigma(score, voting), abstained=False)
 
 
-def score_sigma(score: float, decided: Sequence[_Decided]) -> float | None:
+def score_sigma(score: float, voting: Sequence[_Decided]) -> float | None:
     """sigma_S^2 = sum_c (S w_c p'_c sigma_c / (1 - p_c))^2; None when a sigma is unknown."""
-    terms = [score * d.weight * d.dp_dm * d.sigma / (1.0 - d.p) for d in decided if d.weight > 0]
+    terms = [score * d.weight * d.dp_dm * d.sigma / (1.0 - d.p) for d in voting]
     if any(not math.isfinite(t) for t in terms):
         return None
     return math.sqrt(sum(t * t for t in terms))

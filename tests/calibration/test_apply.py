@@ -11,6 +11,7 @@ from calibration_cases import check_calibration, result, view
 from physverify.calibration.apply import (
     NO_DECIDED,
     NO_INFORMATIVE,
+    NO_WEIGHTED,
     CalibratedResult,
     ClipScore,
     check_outcome,
@@ -109,6 +110,21 @@ def test_a_weight_zero_check_does_not_move_s() -> None:
     assert with_b == pytest.approx(without_b)
 
 
+def test_a_weight_zero_check_gets_no_vote() -> None:
+    zero = {**CHECKS, "B": check_calibration(tau=1.0, a=0.5, b=2.0, scale=0.5, weight=0.0)}
+    found = score_clip(results(), view(zero), K_SIGMA)
+    assert found.decided_checks == ("A", "C") and found.unweighted_checks == ("B",)
+    assert "B" not in found.abstained_checks and "B" not in found.per_check
+
+
+def test_a_clip_decided_only_by_weight_zero_abstains() -> None:
+    zero = {**CHECKS, "B": check_calibration(tau=1.0, a=0.5, b=2.0, scale=0.5, weight=0.0)}
+    found = score_clip(results(), view(zero), K_SIGMA, only={"B"})
+    assert (found.score, found.reason, found.abstained) == (None, NO_WEIGHTED, True)
+    assert found.decided_checks == () and found.n_failed == 0
+    assert (found.unweighted_checks, found.abstained_checks) == (("B",), ())
+
+
 def test_no_informative_check_has_no_score() -> None:
     flat = {c: check_calibration(tau=0.5, weight=0.0) for c in CHECKS}
     found = score_clip(results(), view(flat), K_SIGMA)
@@ -154,6 +170,7 @@ def test_the_finetune_adapter_maps_the_clip_score_field_by_field() -> None:
         "n_failed",
         "decided_checks",
         "abstained_checks",
+        "unweighted_checks",
         "per_check",
     }
 

@@ -5,14 +5,16 @@
 # the record's rules_sha256. The record is written where [check_scope].decision_record points (its
 # .md view next to it).
 [exclusion_rules]
-version = "1"
+version = "2"
 # The stratum the human-agreement study and the generator comparison consume.
 consumed_level = "perceived"
 consumed_profile = "precise"
 rules = ["1.1", "1.2", "1.5"]
 
+# 1.1-v2: the 1.1 test over every check, so no check without weight or monotonicity votes in the
+# consumed rule. The table keeps its v1 name, r5a (renaming it changes the record's schema).
 [exclusion_rules.r5a]                 # 1.1: usable stratum, weight > 0, tau_b CI low > 0
-check_ids = ["R5a"]
+check_ids = ["R1", "R2", "R3a", "R3b", "R4_jump", "R4_missing", "R4_size", "R5a", "R5b"]
 min_weight = 0.0                      # strict: weight > 0 (status ok and Youden J low > 0)
 min_tau_b_low = 0.0                   # strict: tau_b CI low > 0
 

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import math
 from typing import ClassVar, Literal
 
 import numpy as np
@@ -12,6 +11,7 @@ from pydantic import BaseModel, Field
 from physverify.checks._base import CheckInputs, abstain, unscored
 from physverify.checks._params import OcclusionParams
 from physverify.checks._peaks import first_max
+from physverify.checks._size import relative_sigma, size_sigma, whole_lengths, whole_rows
 from physverify.physics.geometry import characteristic_lengths
 from physverify.physics.measures.object_integrity import size_change_ratio
 from physverify.physics.measures.relative_size import relative_lengths, relative_size_change
@@ -70,7 +70,9 @@ class SizeConstancyCheck:
         subject = (str(states.object_ids[index]),)
         size = states.size[:, index]
         lengths = characteristic_lengths(size)
-        whole = self._whole_rows(states.in_frame[:, index], states.occlusion[:, index])
+        whole = whole_rows(
+            states.in_frame[:, index], states.occlusion[:, index], self.params.occluded_at
+        )
         known = np.flatnonzero(whole & np.isfinite(lengths))
         excluded = int(np.count_nonzero(~whole))
         if known.size < self.params.min_size_frames:
@@ -83,22 +85,17 @@ class SizeConstancyCheck:
         ratios = lengths[known] / np.median(lengths[known])
         pick = first_max(np.abs(ratios - 1.0))
         row = int(known[pick])
-        sigma = _size_sigma(float(ratios[pick]), size[row], states.size_sigma[row, index])
+        sigma = size_sigma(float(ratios[pick]), size[row], states.size_sigma[row, index])
         span = native_span(states.frame_index, row, row)
         details = {"row": row, "size_rows": int(known.size), "excluded_rows": excluded}
         magnitude = size_change_ratio(size[known])
         return unscored(type(self), inputs, subject, magnitude, sigma, span, details)
 
-    def _whole_rows(self, in_frame: NDArray[np.bool_], occlusion: FloatArray) -> NDArray[np.bool_]:
-        """In frame and not known to be occluded (NaN >= x is False, so NaN keeps the row)."""
-        return in_frame & ~(occlusion >= self.params.occluded_at)
-
     def _whole_lengths(self, inputs: CheckInputs) -> FloatArray:
-        """(T, N) lengths of every object, NaN on rows where it is not whole."""
         states = inputs.states
-        lengths = characteristic_lengths(states.size)
-        whole = self._whole_rows(states.in_frame, states.occlusion)
-        return np.where(whole, lengths, math.nan)
+        return whole_lengths(
+            states, whole_rows(states.in_frame, states.occlusion, self.params.occluded_at)
+        )
 
     def _relative(self, inputs: CheckInputs, index: int) -> CheckResult:
         states = inputs.states
@@ -120,39 +117,11 @@ class SizeConstancyCheck:
         scaled = ratios[known] / np.median(ratios[known])
         pick = first_max(np.abs(scaled - 1.0))
         row = int(known[pick])
-        sigma = _relative_sigma(inputs, lengths, index, row, float(scaled[pick]))
+        sigma = relative_sigma(inputs.states, lengths, index, row, float(scaled[pick]))
         span = native_span(states.frame_index, row, row)
         magnitude = relative_size_change(own, others)
         details["row"] = row
         return unscored(type(self), inputs, subject, magnitude, sigma, span, details)
-
-
-def _size_sigma(ratio: float, extents: FloatArray, extents_sigma: FloatArray) -> float:
-    """First order: the ratio L_t / median(L) carries ``_length_rel_sigma`` twice (independent
-    errors of both lengths)."""
-    return ratio * math.sqrt(2.0) * _length_rel_sigma(extents, extents_sigma)
-
-
-def _length_rel_sigma(extents: FloatArray, extents_sigma: FloatArray) -> float:
-    """sigma_L / L = sqrt(sum (sigma_e / e)^2) / 3 for L = (e1 e2 e3)^(1/3)."""
-    return math.sqrt(float(np.sum((extents_sigma / extents) ** 2))) / 3.0
-
-
-def _relative_sigma(
-    inputs: CheckInputs, whole: FloatArray, index: int, row: int, ratio: float
-) -> float:
-    """First order, as ``_size_sigma``, for r = L_i / ref: the relative sigma of the geometric
-    mean of n references is sqrt(mean_j (sigma_Lj / L_j)^2 / n), over the references the
-    magnitude used at that row (``whole``: the lengths of ``_whole_lengths``)."""
-    states = inputs.states
-    own = _length_rel_sigma(states.size[row, index], states.size_sigma[row, index])
-    refs = [
-        _length_rel_sigma(states.size[row, j], states.size_sigma[row, j])
-        for j in range(states.n_objects)
-        if j != index and math.isfinite(float(whole[row, j])) and whole[row, j] > 0.0
-    ]
-    reference = math.sqrt(float(np.mean(np.square(refs))) / len(refs))
-    return ratio * math.sqrt(2.0) * math.hypot(own, reference)
 
 
 PLUGINS = (SizeConstancyCheck,)
