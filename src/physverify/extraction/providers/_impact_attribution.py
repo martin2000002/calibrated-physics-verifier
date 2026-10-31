@@ -122,7 +122,9 @@ def object_sigma(
     return noise_scale(noise, pixel_floor(depth, focal))
 
 
-def detect(scene: KinematicScene, focal: float, side_s: float, alpha: float) -> list[Event]:
+def detect(
+    scene: KinematicScene, focal: float, side_s: float, alpha: float, *, bonferroni: bool = True
+) -> list[Event]:
     states, cam = scene.states, scene.camera_positions
     rows = ImpactRows.at(side_s, scene.row_seconds)
     bases: Bases = {}
@@ -131,7 +133,9 @@ def detect(scene: KinematicScene, focal: float, side_s: float, alpha: float) -> 
         noise = object_sigma(states, n, None if cam is None else cam[:, n, 2], focal)
         if noise is None:
             continue
-        found = track_impacts(states.t, states.position[:, n], noise, rows, alpha, bases)
+        found = track_impacts(
+            states.t, states.position[:, n], noise, rows, alpha, bases, bonferroni=bonferroni
+        )
         events.extend(Event(n, impact) for impact in found)
     return events
 
