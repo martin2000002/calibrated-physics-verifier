@@ -16,10 +16,11 @@ from synthetic_clip import SyntheticClip
 
 from physverify.extraction._base import GROUND_TRUTH, StageContext
 from physverify.extraction.providers._geocalib import camera_model
+from physverify.extraction.providers.camera_from_depth import DepthFocalCamera
 from physverify.extraction.providers.lift_backproject import BackprojectLift
 from physverify.extraction.providers.scale_metric_depth import MetricDepthScale
 from physverify.schema.clip import FrameSampling
-from physverify.schema.error_profile import FOCAL_REL, SCALE_REL, ErrorProfile
+from physverify.schema.error_profile import FOCAL_REL, SCALE_REL, ErrorProfile, ErrorEntry
 from physverify.schema.outputs import StageOutput
 from physverify.schema.perception import DepthKind, DepthMap, MaskTrack
 from physverify.schema.scale import ScaleEstimate, ScaleSource, effective_scale
@@ -156,3 +157,25 @@ def test_a_relative_lift_has_no_scale(fixture_clip: SyntheticClip) -> None:
     assert scale.source is ScaleSource.NONE
     assert scale.meters_per_unit is None
     assert effective_scale(table, scale) is None
+
+
+def lift_entries() -> tuple[ErrorEntry, ...]:
+    return (
+        entry(Stage.DEPTH, "moge2", "depth_rel", 0.05),
+        entry(Stage.LIFT, "backproject", "centroid_rel", 0.02),
+        entry(Stage.LIFT, "backproject", "size_rel", 0.03),
+    )
+
+
+@pytest.mark.parametrize("focal", [(entry(Stage.DEPTH, "moge2", FOCAL_REL, 0.04),), ()])
+def test_a_from_depth_camera_gives_the_lift_finite_sigma(
+    fixture_clip: SyntheticClip, focal: tuple[ErrorEntry, ...]
+) -> None:
+    profile = profile_of(*lift_entries(), *focal)
+    upstream = plane_inputs()
+    camera = run_provider(DepthFocalCamera, context(fixture_clip, upstream, profile), gravity="none")
+    lift_ctx = context(fixture_clip, {**upstream, Stage.CAMERA: camera}, profile)
+    table = run_provider(BackprojectLift, lift_ctx, **EXACT_GEOMETRY)
+    assert isinstance(table, ObjectStateTable)
+    assert np.isfinite(table.position_sigma).all()
+    assert np.isfinite(table.size_sigma).all()

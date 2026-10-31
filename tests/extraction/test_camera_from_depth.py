@@ -12,13 +12,15 @@ import numpy as np
 import pytest
 from numpy.typing import NDArray
 from pydantic import ValidationError
-from support import make_context, run_provider
+from support import entry, make_context, profile_of, run_provider
 from synthetic_clip import SyntheticClip
 
 from physverify.core.errors import MissingInputError
 from physverify.extraction._base import GROUND_TRUTH, StageContext
+from physverify.extraction.backprojection import focal_rel_sigma
 from physverify.extraction.gravity_pose import gravity_from_pose
 from physverify.extraction.providers import camera_from_depth
+from physverify.extraction.providers._assumed_fov import Params as AssumedParams
 from physverify.extraction.providers._geocalib import (
     Calibration,
     Calibrator,
@@ -27,6 +29,7 @@ from physverify.extraction.providers._geocalib import (
 from physverify.extraction.providers.camera_from_depth import DepthFocalCamera
 from physverify.extraction.providers.gt_camera import GroundTruthCamera
 from physverify.extraction.providers.gt_depth import GroundTruthDepth
+from physverify.schema.error_profile import FOCAL_REL, ErrorProfile
 from physverify.schema.perception import (
     CameraModel,
     DepthKind,
@@ -71,7 +74,9 @@ def no_torch(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(camera_from_depth, "set_torch_threads", lambda threads: None)
 
 
-def depth_context(clip: SyntheticClip, focal_px: float | None, sigma: float = math.nan) -> Any:
+def depth_context(
+    clip: SyntheticClip, focal_px: float | None, profile: ErrorProfile | None = None
+) -> Any:
     sampling = make_context(clip).sampling
     shape = (sampling.n_frames, sampling.height, sampling.width)
     depth = DepthMap(
@@ -80,10 +85,9 @@ def depth_context(clip: SyntheticClip, focal_px: float | None, sigma: float = ma
         kind=DepthKind.METRIC_Z,
         valid=np.ones(shape, dtype=bool),
         focal_px=focal_px,
-        focal_sigma_px=sigma,
     )
     plan = {Stage.DEPTH: "moge2", Stage.CAMERA: "from_depth"}
-    return make_context(clip, upstream={Stage.DEPTH: depth}, plan=plan)
+    return make_context(clip, upstream={Stage.DEPTH: depth}, plan=plan, profile=profile)
 
 
 def run(
@@ -159,15 +163,37 @@ def test_a_depth_at_another_width_is_refused(fixture_clip: SyntheticClip) -> Non
         run(replace(ctx, sampling=narrower), refusing_loader, gravity="none")
 
 
-def test_the_sigma_floor_applies_to_an_unknown_focal_sigma(fixture_clip: SyntheticClip) -> None:
-    ctx = depth_context(fixture_clip, FOCAL_PX)
-    unknown = run(ctx, refusing_loader, gravity="none")
-    floored = run(ctx, refusing_loader, gravity="none", focal_sigma_floor_rel=0.05)
-    assert math.isnan(unknown.fov_sigma_deg)
-    fov = math.radians(floored.fov_deg)
-    assert floored.fov_sigma_deg == pytest.approx(math.degrees(math.sin(fov) * 0.05))
+def lift_phi(camera: CameraModel) -> float:
+    return focal_rel_sigma(camera.fov_deg, camera.fov_sigma_deg)
 
 
-def test_a_negative_floor_is_rejected() -> None:
+def measured(fixture_clip: SyntheticClip, sigma: float, bias: float = 0.0) -> Any:
+    profile = profile_of(entry(Stage.DEPTH, "moge2", FOCAL_REL, sigma, bias=bias))
+    return depth_context(fixture_clip, FOCAL_PX, profile)
+
+
+def test_the_focal_sigma_is_the_measured_depth_focal_error(fixture_clip: SyntheticClip) -> None:
+    camera = run(measured(fixture_clip, 0.08, bias=0.02), refusing_loader, gravity="none")
+    assert lift_phi(camera) == pytest.approx(math.hypot(0.08, 0.02), rel=1e-12)
+
+
+def test_the_floor_bounds_the_measured_focal_error(fixture_clip: SyntheticClip) -> None:
+    ctx = measured(fixture_clip, 0.01)
+    camera = run(ctx, refusing_loader, gravity="none", focal_sigma_floor_rel=0.05)
+    assert lift_phi(camera) == pytest.approx(0.05, rel=1e-12)
+
+
+def test_an_unmeasured_focal_takes_the_assumed_cameras_sigma(fixture_clip: SyntheticClip) -> None:
+    camera = run(depth_context(fixture_clip, FOCAL_PX), refusing_loader, gravity="none")
+    assumed = AssumedParams()
+    expected = focal_rel_sigma(assumed.fov_deg, assumed.fov_sigma_deg)
+    assert lift_phi(camera) == pytest.approx(expected, rel=1e-12)
+    assert math.isfinite(camera.fov_sigma_deg)
+
+
+@pytest.mark.parametrize("bad", [math.nan, -0.1, math.inf])
+def test_the_floor_and_the_unmeasured_sigma_are_numbers(bad: float) -> None:
     with pytest.raises(ValidationError, match="focal_sigma_floor_rel"):
-        DepthFocalCamera.Params(focal_sigma_floor_rel=-0.1)
+        DepthFocalCamera.Params(focal_sigma_floor_rel=bad)
+    with pytest.raises(ValidationError, match="unmeasured_focal_sigma_rel"):
+        DepthFocalCamera.Params(unmeasured_focal_sigma_rel=bad)

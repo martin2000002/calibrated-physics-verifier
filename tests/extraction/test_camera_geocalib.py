@@ -29,7 +29,7 @@ from physverify.extraction.providers._geocalib import (
     camera_model,
     clip_gravity,
     combine_gravity,
-    fov_sigma_deg,
+    focal_rel,
     per_frame,
     to_opencv_gravity,
 )
@@ -107,7 +107,7 @@ def test_a_camera_tilted_down_gives_cos_and_sin(tilt_deg: float) -> None:
 
 def test_intrinsics_and_the_fov_sigma_invert_lifts_phi(fixture_clip: SyntheticClip) -> None:
     sampling = make_context(fixture_clip).sampling
-    camera = camera_model(sampling, FOCAL_PX, FOCAL_SIGMA_PX, np.eye(4))
+    camera = camera_model(sampling, FOCAL_PX, FOCAL_SIGMA_PX / FOCAL_PX, np.eye(4))
     w, h = sampling.width, sampling.height
     np.testing.assert_array_equal(
         camera.K, [[FOCAL_PX, 0.0, w / 2], [0.0, FOCAL_PX, h / 2], [0.0, 0.0, 1.0]]
@@ -133,7 +133,7 @@ def test_geocalib_gets_the_sampled_frames_at_processing_size(
 
 @pytest.mark.parametrize("sigma_f", [0.0, -1.0, math.nan, math.inf])
 def test_a_missing_focal_sigma_is_unknown_never_zero(sigma_f: float) -> None:
-    assert math.isnan(fov_sigma_deg(FOCAL_PX, sigma_f, 256))
+    assert math.isnan(focal_rel(FOCAL_PX, sigma_f))
 
 
 def unit(v: Any) -> NDArray[np.float64]:
@@ -281,9 +281,7 @@ PHI0 = 0.12
     ],
 )
 def test_t4b_the_focal_sigma_floor(sigma_f: float, floor: float, expected: float) -> None:
-    sigma_deg = fov_sigma_deg(FOCAL_PX, sigma_f, 256, floor)
-    fov = math.degrees(2 * math.atan(256 / (2 * FOCAL_PX)))
-    phi = focal_rel_sigma(fov, sigma_deg)
+    phi = focal_rel(FOCAL_PX, sigma_f, floor)
     if math.isnan(expected):
         assert math.isnan(phi)
     else:

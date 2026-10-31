@@ -122,8 +122,8 @@ class GeoCalibCamera:
         pose = pose_from_gravity(clip_gravity(result))
         if assumed is not None:
             return replace(assumed, world_from_camera=pose)
-        floor = self.params.focal_sigma_floor_rel
-        return camera_model(s, result.focal_px, result.focal_sigma_px, pose, floor)
+        phi = focal_rel(result.focal_px, result.focal_sigma_px, self.params.focal_sigma_floor_rel)
+        return camera_model(s, result.focal_px, phi, pose)
 
 
 def clip_gravity(result: Calibration) -> FloatArray:
@@ -167,28 +167,22 @@ def focal_rel(focal_px: float, focal_sigma_px: float, floor_rel: float = math.na
     return model if math.isnan(floor_rel) else max(model, floor_rel)
 
 
-def fov_sigma_deg(
-    focal_px: float, focal_sigma_px: float, width: int, floor_rel: float = math.nan
-) -> float:
+def fov_sigma_from_phi(fov_deg: float, phi: float) -> float:
     """sigma_fov = sin(fov) phi, the inverse of LIFT's phi = sigma_fov / sin(fov)."""
-    phi = focal_rel(focal_px, focal_sigma_px, floor_rel)
-    fov = math.radians(horizontal_fov_deg(focal_px, width))
-    return math.degrees(math.sin(fov) * phi)
+    return math.degrees(math.sin(math.radians(fov_deg)) * phi)
 
 
 def camera_model(
-    sampling: FrameSampling,
-    focal_px: float,
-    focal_sigma_px: float,
-    pose: FloatArray | None,
-    floor_rel: float = math.nan,
+    sampling: FrameSampling, focal_px: float, phi: float, pose: FloatArray | None
 ) -> CameraModel:
+    """An estimated pinhole camera; ``phi`` is the relative focal sigma (NaN = unknown)."""
+    fov = horizontal_fov_deg(focal_px, sampling.width)
     return CameraModel(
         sampling=sampling,
         K=centred_intrinsics(focal_px, sampling),
         source=IntrinsicsSource.ESTIMATED,
-        fov_deg=horizontal_fov_deg(focal_px, sampling.width),
-        fov_sigma_deg=fov_sigma_deg(focal_px, focal_sigma_px, sampling.width, floor_rel),
+        fov_deg=fov,
+        fov_sigma_deg=fov_sigma_from_phi(fov, phi),
         world_from_camera=pose,
     )
 
