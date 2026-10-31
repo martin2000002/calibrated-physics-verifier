@@ -17,16 +17,12 @@ from __future__ import annotations
 
 import math
 from collections.abc import Callable
-from dataclasses import replace
-from typing import ClassVar, Final, Literal
+from typing import ClassVar
 
 from pydantic import BaseModel, Field
 
 from physverify.core.errors import MissingInputError
 from physverify.extraction._base import GROUND_TRUTH, ProviderParams, StageContext, WeightSpec
-from physverify.extraction.backprojection import focal_rel_sigma
-from physverify.extraction.gravity_pose import pose_from_gravity
-from physverify.extraction.providers._assumed_fov import Params as AssumedParams
 from physverify.extraction.providers._common import (
     LazyModel,
     expect_params,
@@ -36,21 +32,18 @@ from physverify.extraction.providers._common import (
 from physverify.extraction.providers._geocalib import (
     CHECKPOINT,
     CODE,
+    UNMEASURED_FOCAL_SIGMA_REL,
     Calibration,
     Calibrator,
+    GravitySource,
     camera_model,
-    clip_gravity,
-    clip_gravity_sigma_deg,
     load_calibrator,
+    with_gravity,
 )
 from physverify.physics.uncertainty import entry_rms
 from physverify.schema.error_profile import FOCAL_REL
 from physverify.schema.perception import CameraModel, DepthMap
 from physverify.schema.stages import Stage
-
-GravitySource = Literal["geocalib", "none"]
-_ASSUMED: Final = AssumedParams()
-UNMEASURED_FOCAL_SIGMA_REL: Final = focal_rel_sigma(_ASSUMED.fov_deg, _ASSUMED.fov_sigma_deg)
 
 
 class Params(ProviderParams):
@@ -86,12 +79,7 @@ class DepthFocalCamera:
         camera = camera_model(ctx.sampling, focal, self._focal_phi(ctx), None)
         if self.params.gravity == "none":
             return camera
-        result = self._calibrate(ctx, focal)
-        return replace(
-            camera,
-            world_from_camera=pose_from_gravity(clip_gravity(result)),
-            gravity_sigma_deg=clip_gravity_sigma_deg(result),
-        )
+        return with_gravity(camera, self._calibrate(ctx, focal))
 
     def _focal_phi(self, ctx: StageContext) -> float:
         if ctx.plan.get(Stage.DEPTH) == GROUND_TRUTH:
