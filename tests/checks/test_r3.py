@@ -14,6 +14,7 @@ from physverify.checks.r3b_collision_energy_gain import PLUGINS as R3B_PLUGINS
 from physverify.checks.r3b_collision_energy_gain import EnergyGainCheck, EnergyGainParams
 from physverify.extraction.providers.kinematics_savgol import track_derivatives
 from physverify.physics.kinematics import SavgolSpec
+from physverify.physics.row_time import reference_seconds
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
 from physverify.schema.constants import ENV_ID
 from physverify.schema.states import PrimitiveKind
@@ -21,8 +22,9 @@ from physverify.schema.states import PrimitiveKind
 # Native frames: 6 fit rows on each side of the contact rows 15..16 of the impact at 15.4.
 NATIVE_SPAN = (9, 22)
 # Stride 2 widens the contact rows by q = 1 (frames 14..16); snapping the record to frame 16
-# leaves only that row in contact.
-STRIDED_SPANS = {False: (2, 28), True: (4, 28)}
+# leaves only that row in contact. The fit keeps its seconds (3 rows per side at stride 2), so the
+# span stays near the native one.
+STRIDED_SPANS = {False: (8, 22), True: (10, 22)}
 SAVGOL = SavgolSpec(window=7, polyorder=2)
 POSITION_SIGMA = 0.002
 R3A_THRESHOLD = 0.05  # provisional threshold of configs/verifier/checks.toml
@@ -105,11 +107,26 @@ def test_restitution_sigma_follows_the_position_sigma() -> None:
 
 
 def test_params_need_enough_rows_for_the_fit() -> None:
-    with pytest.raises(ValueError, match="min_side_frames <= fit_frames"):
-        RestitutionParams(min_side_frames=2)
-    with pytest.raises(ValueError, match="min_side_frames <= fit_frames"):
-        RestitutionParams(fit_frames=3, min_side_frames=4)
-    assert RestitutionParams(fit_source="velocity", min_side_frames=2).min_side_frames == 2
+    with pytest.raises(ValueError, match="min_side_s <= fit_s"):
+        RestitutionParams(min_side_s=reference_seconds(2))
+    with pytest.raises(ValueError, match="min_side_s <= fit_s"):
+        RestitutionParams(fit_s=reference_seconds(3), min_side_s=reference_seconds(4))
+    velocity = RestitutionParams(fit_source="velocity", min_side_s=reference_seconds(2))
+    assert velocity.min_side_s == reference_seconds(2)
+
+
+@pytest.mark.parametrize(
+    ("fps", "step", "rows"),
+    [(24.0, 1, (0, 6, 3)), (24.0, 2, (0, 3, 3)), (16.0, 1, (0, 4, 3)), (120.0, 1, (0, 30, 15))],
+)
+def test_collision_windows_are_seconds_floored_to_the_fit(
+    fps: float, step: int, rows: tuple[int, int, int]
+) -> None:
+    inputs = sc.bounce().inputs()
+    states = replace(inputs.states, frame_index=np.arange(inputs.states.n_frames) * step)
+    clip = replace(inputs.clip, seconds_per_frame=1.0 / fps)
+    got = RestitutionParams().rows(replace(inputs, states=states, clip=clip))
+    assert (got.margin, got.fit, got.min_side) == rows
 
 
 def perceived(case: sc.Case, seed: int, shift: float = 0.0) -> sc.Case:
@@ -147,7 +164,8 @@ def test_perceived_elastic_bounce_keeps_its_energy(shift: float) -> None:
 
 def test_smoothed_velocities_bias_the_legacy_fit() -> None:
     case = perceived(sc.bounce(e=1.0), seed=1)
-    legacy = perceived_result(case, RestitutionParams(fit_source="velocity", min_side_frames=2))
+    legacy_params = RestitutionParams(fit_source="velocity", min_side_s=reference_seconds(2))
+    legacy = perceived_result(case, legacy_params)
     assert legacy.magnitude is not None
     assert abs(legacy.magnitude) > R3A_THRESHOLD
 

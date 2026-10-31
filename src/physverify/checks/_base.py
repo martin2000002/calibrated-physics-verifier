@@ -13,6 +13,7 @@ from pydantic import BaseModel
 
 from physverify.config.plugin_context import PluginKind
 from physverify.core.errors import InvalidPluginError
+from physverify.physics.row_time import seconds_per_row
 from physverify.physics.tracks import row_step
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
 from physverify.schema.clip import ClipManifest
@@ -36,6 +37,11 @@ class CheckInputs:
     provenance: Mapping[str, str]
     scene: SceneSpec | None = None
     camera: CameraModel | None = None
+
+    @property
+    def row_seconds(self) -> float:
+        """Real time between consecutive rows of ``states``."""
+        return seconds_per_row(self.states.frame_index, self.clip.seconds_per_frame)
 
 
 @runtime_checkable

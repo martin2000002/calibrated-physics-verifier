@@ -44,7 +44,8 @@ TimingCli = Callable[..., CliResult]
 def install(
     monkeypatch: pytest.MonkeyPatch, make_services: Callable[..., TimingServices]
 ) -> Install:
-    """Registries with only the given timing targets and the fake dataset."""
+    """Registries with only the given timing targets and the fake dataset; no checks, so no
+    profile's [check_variants] selection applies."""
     dataset = make_services().datasets[FAKE_DATASET]
 
     def register(*targets: type[Any]) -> None:
@@ -58,6 +59,7 @@ def install(
             "policies": dict,
         }
         monkeypatch.setattr(plugins, "PLUGIN_KINDS", MappingProxyType(patched))
+        monkeypatch.setattr(plugins, "CONFIGURED", MappingProxyType({}))
 
     return register
 

@@ -9,6 +9,9 @@ from physverify.checks._base import Check, validate_check
 from physverify.config.plugin_context import PluginKind
 from physverify.core.errors import InvalidPluginError
 
+DEFAULT_VARIANT = "default"
+"""The variant name that keeps a check's registered implementation (undoes a profile's choice)."""
+
 
 @runtime_checkable
 class CheckVariant(Check, Protocol):
@@ -21,8 +24,10 @@ def variant_key(plugin: type[CheckVariant]) -> str:
 
 def validate_variant(plugin: type[CheckVariant]) -> None:
     validate_check(plugin)
-    if not plugin.variant or "/" in plugin.variant:
-        raise InvalidPluginError(f"{plugin.__name__}: variant must be a name without '/'")
+    if not plugin.variant or "/" in plugin.variant or plugin.variant == DEFAULT_VARIANT:
+        raise InvalidPluginError(
+            f"{plugin.__name__}: variant must be a name without '/', not {DEFAULT_VARIANT!r}"
+        )
 
 
 CHECK_VARIANTS = PluginKind[type[CheckVariant]]("check_variants")

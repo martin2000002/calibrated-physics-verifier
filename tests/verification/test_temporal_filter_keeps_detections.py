@@ -42,7 +42,7 @@ from physverify.extraction.providers._temporal_smoothing import stabilize_run
 from physverify.extraction.providers.kinematics_savgol import Params as SavgolParams
 from physverify.extraction.providers.kinematics_savgol import track_derivatives
 from physverify.physics.geometry import matrix_from_quaternion, quaternion_from_matrix
-from physverify.physics.kinematics import SavgolSpec, visible_runs
+from physverify.physics.kinematics import visible_runs
 from physverify.physics.running_median import EdgeMode
 from physverify.schema.states import ObjectStateTable
 from physverify.synth.perturbations.r3_energy_gain import Params as EnergyLevels
@@ -76,7 +76,7 @@ def stabilized(states: ObjectStateTable, edges: EdgeMode) -> ObjectStateTable:
 
 
 def kinematics(states: ObjectStateTable) -> ObjectStateTable:
-    return track_derivatives(states, SavgolSpec(SAVGOL.window, SAVGOL.polyorder))
+    return track_derivatives(states, SAVGOL.spec(sc.DT))
 
 
 def magnitudes(check: Any, case: sc.Case, edges: EdgeMode | None) -> list[float]:
@@ -166,7 +166,7 @@ def test_r4_teleport_is_unchanged(edges: EdgeMode, level: float) -> None:
 def test_r4_vanish_is_unchanged(edges: EdgeMode, rows: int) -> None:
     case = sc.disappearance(first=10, last=10 + rows - 1, pitch_deg=PITCH_DEG)
     plain, filtered = both(PermanenceCheck(PermanenceParams()), case, edges)
-    assert plain == [rows] and filtered == plain
+    assert plain == pytest.approx([rows * sc.DT]) and filtered == plain
 
 
 @pytest.mark.parametrize("depth", [0.01, 0.02, 0.04, 0.08])

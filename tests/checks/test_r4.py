@@ -54,12 +54,13 @@ def test_plugins_satisfy_the_check_protocol() -> None:
 
 
 @pytest.mark.parametrize("pitch", [0.0, 25.0])
-def test_disappearance_counts_the_unexplained_frames(pitch: float) -> None:
+def test_disappearance_measures_the_unexplained_seconds(pitch: float) -> None:
     result = missing(sc.disappearance(4, 7, pitch_deg=pitch))
-    assert result.magnitude == 4
+    assert result.magnitude == pytest.approx(4 * sc.DT)
     assert result.sigma == 0.0
     assert result.frame_span == (4, 7)
     assert result.details["missing_rows"] == 4
+    assert result.details["missing_frames"] == 4
     assert result.verdict is Verdict.UNSCORED
 
 
@@ -98,14 +99,14 @@ def test_perceived_sigma_has_two_uncertain_edges_per_run(
     gaps: tuple[tuple[int, int], ...], runs: int
 ) -> None:
     result = missing(perceived_gaps(*gaps))
-    assert result.magnitude == sum(last - first + 1 for first, last in gaps)
-    assert result.sigma == pytest.approx(math.sqrt(2.0 * runs))
+    assert result.magnitude == pytest.approx(sc.DT * sum(last - first + 1 for first, last in gaps))
+    assert result.sigma == pytest.approx(sc.DT * math.sqrt(2.0 * runs))
     assert result.details["sigma_estimated"] is True
 
 
 def test_perceived_sigma_scales_with_the_row_step() -> None:
     case = sc.strided(sc.with_sigma(sc.disappearance(4, 7), position=0.01), 2, quantize=True)
-    assert missing(case).sigma == pytest.approx(2.0 * math.sqrt(2.0))
+    assert missing(case).sigma == pytest.approx(2.0 * sc.DT * math.sqrt(2.0))
 
 
 def test_exact_positions_keep_sigma_zero() -> None:
@@ -114,10 +115,11 @@ def test_exact_positions_keep_sigma_zero() -> None:
     assert "sigma_estimated" not in result.details
 
 
-def test_strided_disappearance_counts_native_frames() -> None:
+def test_strided_disappearance_measures_the_native_seconds() -> None:
     result = missing(sc.strided(sc.disappearance(4, 7), 2, quantize=True))
-    assert result.magnitude == 4
+    assert result.magnitude == pytest.approx(4 * sc.DT)
     assert result.details["missing_rows"] == 2
+    assert result.details["missing_frames"] == 4
     assert result.details["row_step"] == 2
     assert result.frame_span == (4, 6)
 

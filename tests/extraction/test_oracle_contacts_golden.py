@@ -1,8 +1,9 @@
 """The oracle and V8 never go through the perceived CONTACTS provider.
 
 The fixture's oracle results equal the oracle golden (``tests/verification/golden/oracle.json``,
-byte-identical to what 2a762ad writes), and its V8 contacts (every stage ground truth) equal
-those written by 2a762ad, also when the plan asks for ``contacts/kinematic``. Both compare with
+byte-identical to what 2a762ad writes, R4_missing restated in seconds), and its V8 contacts
+(every stage ground truth) equal those written by 2a762ad, also when the plan asks for
+``contacts/kinematic``. Both compare with
 ``golden.same`` (relative 1e-9): the goldens were written on another CPU. R4_jump and
 R4_size run as v1 (``v1_checks``).
 """
@@ -32,7 +33,7 @@ import oracle_golden_case  # noqa: E402
 
 
 def test_the_oracle_results_do_not_move() -> None:
-    golden = json.loads(oracle_golden_case.GOLDEN.read_text(encoding="utf-8"))
+    golden = oracle_golden_case.golden_results()
     v1 = oracle_golden_case.v1_checks()
     current = json.loads(json.dumps(oracle_golden_case.oracle_results(*v1), sort_keys=True))
     assert len(golden) == len(current) > 0

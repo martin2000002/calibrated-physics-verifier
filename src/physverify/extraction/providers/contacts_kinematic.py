@@ -20,7 +20,9 @@ from physverify.extraction.providers._impact_attribution import (
     camera_positions,
     kinematic_records,
 )
+from physverify.extraction.providers._impacts import EDGE_SIDE_S
 from physverify.extraction.providers._proximity import ContactScene, ProximityParams
+from physverify.physics.row_time import reference_seconds
 from physverify.schema.contacts import ContactRecord, ContactTable
 from physverify.schema.perception import CameraModel
 from physverify.schema.stages import Stage
@@ -30,7 +32,7 @@ from physverify.schema.states import ObjectStateTable
 class Params(ProximityParams):
     impacts: Literal["kinematic", "none"] = "kinematic"
     resting_split: Literal["normal", "normal_and_count"] = "normal"
-    side_rows: int = Field(default=4, ge=3)
+    side_s: float = Field(default=reference_seconds(4), ge=EDGE_SIDE_S)
     alpha: float = Field(default=0.05, gt=0.0, lt=1.0)
 
 
@@ -64,7 +66,7 @@ class KinematicContacts:
     ) -> tuple[ContactRecord, ...]:
         p = self.params
         split = p.resting_split == "normal_and_count"
-        proximity = ContactScene(states, p, split_on_point_count=split)
+        proximity = ContactScene(states, p, seconds_per_frame, split_on_point_count=split)
         found = tuple(proximity.records())
         if p.impacts == "none":
             return found
@@ -76,7 +78,7 @@ class KinematicContacts:
             seconds_per_frame=seconds_per_frame,
             tol_rel=p.tol_rel,
         )
-        return kinematic_records(scene, float(camera.K[0, 0]), p.side_rows, p.alpha)
+        return kinematic_records(scene, float(camera.K[0, 0]), p.side_s, p.alpha)
 
 
 PLUGINS = (KinematicContacts,)

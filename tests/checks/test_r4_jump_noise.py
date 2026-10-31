@@ -14,8 +14,10 @@ import pytest
 from physverify.app.plugins import PLUGIN_KINDS
 from physverify.checks._base import Check, CheckInputs
 from physverify.checks.r4_track_jump import NoiseContinuityCheck, NoiseJumpParams
+from physverify.checks.variants.r4_jump_rigid import RigidJumpCheck
 from physverify.physics.finite_diff import third_difference
 from physverify.physics.measures.track_jump import jump_over_noise, noise_jumps
+from physverify.physics.stencil_tail import reference_max, stencils_in
 from physverify.physics.tracks import QUANTIZATION, impact_stencil_mask
 from physverify.schema.checks import AbstainReason, CheckResult, Verdict
 from physverify.verification.inputs import ClipInputs
@@ -142,10 +144,41 @@ def test_exact_positions_use_the_pixel_floor_on_every_axis() -> None:
     result = one(stepped(case.inputs(), 15, np.array([step, 0.0, 0.0])))
     assert result.details["noise_source"] == "exact"
     assert result.details["floored_axes"] == 3
-    assert result.magnitude == pytest.approx(10 * math.sqrt(12) / math.sqrt(20), rel=1e-9)
+    raw = 10 * math.sqrt(12) / math.sqrt(20)
+    assert result.details["raw_jump_over_noise"] == pytest.approx(raw, rel=1e-9)
+    stencils = stencils_in(case.states.n_frames)
+    assert result.details["stencils"] == stencils
+    assert result.magnitude == pytest.approx(reference_max(raw, stencils, 21), rel=1e-9)
     assert result.sigma == 0.0
     sigma_hat = np.array(result.details["sigma_over_length"]) * 2 * sc.BALL_RADIUS
     assert sigma_hat == pytest.approx(np.full(3, FLOOR), rel=1e-12)
+
+
+# Clips of 24 rows (21 stencils, the reference) keep the values written before the restatement.
+
+RECORDED_24_ROWS = {"rest": 2.960489126366044, "step": 17.547984672414515}
+"""Written by commit d0dd940 for the two 24-row scenes below."""
+
+
+def recorded_scenes() -> dict[str, CheckInputs]:
+    rest = noisy_rest(0.01, 5)
+    return {"rest": rest, "step": stepped(rest, 11, np.array([0.3, 0.0, 0.0]))}
+
+
+@pytest.mark.parametrize("cls", [NoiseContinuityCheck, RigidJumpCheck])
+def test_24_row_magnitudes_are_byte_identical(cls: type[NoiseContinuityCheck]) -> None:
+    for name, inputs in recorded_scenes().items():
+        (result,) = cls(cls.Params()).evaluate(inputs)
+        assert result.details["stencils"] == 21
+        assert result.magnitude == RECORDED_24_ROWS[name]
+
+
+@pytest.mark.parametrize("frames", [10, 48])
+def test_other_lengths_are_restated_at_the_reference(frames: int) -> None:
+    result = one(noisy_rest(0.01, 2, frames=frames))
+    raw = result.details["raw_jump_over_noise"]
+    assert result.details["stencils"] == frames - 3
+    assert result.magnitude == pytest.approx(reference_max(raw, frames - 3, 21), rel=1e-12)
 
 
 # Too few stencils.
@@ -170,7 +203,9 @@ def test_t4b_too_few_stencils_take_the_declared_sigma() -> None:
     sigma_hat = np.array(result.details["sigma_over_length"]) * 2 * sc.BALL_RADIUS
     assert sigma_hat == pytest.approx(np.full(3, 0.01), rel=1e-12)
     expected = jump_over_noise(inputs.states.position[:, 0], np.full(3, 0.01))
-    assert result.magnitude == pytest.approx(expected, rel=1e-12)
+    assert result.details["raw_jump_over_noise"] == pytest.approx(expected, rel=1e-12)
+    assert result.magnitude == pytest.approx(reference_max(expected, 7, 21), rel=1e-12)
+    assert result.magnitude > expected
     assert result.sigma == 1.0
 
 
@@ -200,7 +235,8 @@ def test_the_stencils_of_a_marked_impact_do_not_count(step: int) -> None:
     assert case.contacts is not None
     mask = impact_stencil_mask("ball", case.contacts, case.states.frame_index)
     assert result.details["excluded_rows"] == int(mask.sum())
-    assert result.magnitude == pytest.approx(0.0, abs=1e-9)
+    assert result.details["raw_jump_over_noise"] == pytest.approx(0.0, abs=1e-9)
+    assert result.magnitude < 1e-3
     unmarked = replace(case.contacts, records=())
     assert one(replace(case.inputs(), contacts=unmarked)).magnitude > 10.0
 
