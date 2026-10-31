@@ -405,6 +405,7 @@ def _stratum() -> SimpleNamespace:
     return SimpleNamespace(
         source="thresholds.json#perceived/precise@run7",
         time_base_problem=lambda profile, step: None,
+        device_problem=lambda device: None,
         check_status=lambda: {"source": "thresholds.json#perceived/precise@run7"},
     )
 

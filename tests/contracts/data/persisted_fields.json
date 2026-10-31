@@ -257,7 +257,8 @@
       "stage_sigma.entries.coverage_after.nominal",
       "stage_sigma.entries.coverage_after.observed",
       "stage_sigma.entries.coverage_after.n",
-      "stage_sigma.entries.estimated"
+      "stage_sigma.entries.estimated",
+      "device"
     ],
     "evaluation_report": [
       "schema",

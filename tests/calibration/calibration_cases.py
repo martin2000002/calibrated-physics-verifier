@@ -279,6 +279,7 @@ def fit_meta(run_id: str = "run-a", created_utc: str = "2026-10-17T00:00:00Z") -
         profile=PROFILE,
         dataset=dataset_ref(),
         stage_sigma=StageSigma(path=None, hash=None),
+        device="cpu",
     )
 
 

@@ -15,7 +15,7 @@ from physverify.schema.checks import InputLevel
 from physverify.stats.intervals import Ci, Rate
 
 CALIBRATION_SCHEMA = "physverify.calibration"
-CALIBRATION_VERSION = "1.6.0"
+CALIBRATION_VERSION = "1.7.0"
 EVALUATION_SCHEMA = "physverify.calibration.evaluation"
 
 CheckStatus = Literal["ok", "insufficient", "no_positives", "no_negatives", "unranked_negatives"]
@@ -239,6 +239,9 @@ class CalibrationArtifact(ArtifactModel):
     settings: SettingsSnapshot
     strata: tuple[Stratum, ...]
     stage_sigma: StageSigma
+    device: str | None = None
+    """The runtime device the stratum features were extracted on; None in an artifact older
+    than 1.7.0, which did not record it."""
 
 
 class SceneKendall(ArtifactModel):

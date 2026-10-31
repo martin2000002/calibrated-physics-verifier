@@ -10,6 +10,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 import pytest
+from cli_runner import CliRunner
 
 CALIBRATION_TESTS = str(Path(__file__).resolve().parent.parent / "calibration")
 if CALIBRATION_TESTS not in sys.path:
@@ -122,3 +123,45 @@ def test_scoring_records_the_state_of_each_check(settings: Settings) -> None:
     assert status["checks"]["R1"] == {"status": "ok", "weight": 1.0}
     assert status["checks"]["R5b"]["status"] == "no_negatives"
     assert store.scores(BASE_TAG, "calibrated") == []
+
+
+@pytest.mark.parametrize(("fitted", "run"), [("cuda", "cpu"), ("cpu", "cuda:1")])
+def test_a_stratum_of_another_device_is_refused(
+    make_settings: Callable[..., Settings], fitted: str, run: str
+) -> None:
+    settings = make_settings(f"runtime.device={run}", profile="precise")
+    _artifact(settings, device=fitted)
+    scorer = CalibratedScorer(settings, checks())
+    reason = scorer.unavailable()
+    assert reason is not None and f"fitted on {fitted!r}, the run uses {run!r}" in reason
+    assert scorer.thresholds().startswith("calibrated:unusable@checks:")
+    with pytest.raises(UsageError, match="never mix them"):
+        scorer.score([])
+
+
+def test_cuda_ordinals_are_one_device(make_settings: Callable[..., Settings]) -> None:
+    settings = make_settings("runtime.device=cuda:1", profile="precise")
+    _artifact(settings, device="cuda")
+    assert CalibratedScorer(settings, checks()).unavailable() is None
+
+
+def test_an_artifact_without_a_device_is_refused(settings: Settings) -> None:
+    _artifact(settings, device=None)
+    reason = CalibratedScorer(settings, checks()).unavailable()
+    assert reason is not None and "does not record its device" in reason
+
+
+def test_finetune_score_refuses_a_calibration_of_another_device(
+    cli: CliRunner,
+    settings: Settings,
+    settings_environ: dict[str, str],
+    monkeypatch: pytest.MonkeyPatch,
+    fake_labels: frozenset[str],
+) -> None:
+    monkeypatch.setattr("physverify.app.finetune.sizing_labels", lambda _: fake_labels)
+    _artifact(settings, device="cuda")
+    base = ("--profile", settings.profile, "--device", "cpu", "finetune")
+    assert cli(*base, "prompts", "build", env=settings_environ).code == 0
+    result = cli(*base, "score", "--split", "train", "--scorer", "calibrated", env=settings_environ)
+    assert result.code == 2
+    assert "fitted on 'cuda', the run uses 'cpu'" in result.err

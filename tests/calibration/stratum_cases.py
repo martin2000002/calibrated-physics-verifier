@@ -144,6 +144,7 @@ def artifact_of(
     *,
     status: ArtifactStatus = "insufficient",
     checks_hash: str = FIXTURE_CHECKS_HASH,
+    device: str | None = "cpu",
 ) -> CalibrationArtifact:
     return CalibrationArtifact(
         status=status,
@@ -167,6 +168,7 @@ def artifact_of(
         ),
         strata=tuple(strata),
         stage_sigma=StageSigma(path=None, hash=None),
+        device=device,
     )
 
 
@@ -177,6 +179,7 @@ def write_artifact(
     status: ArtifactStatus = "insufficient",
     profile: str = PROFILE,
     checks_hash: str = FIXTURE_CHECKS_HASH,
+    device: str | None = "cpu",
 ) -> Path:
     """A perceived stratum of ``profile`` with R1 ok (tau 1); ``ready`` = a sufficient aggregate,
     otherwise the stratum loads but cannot score (``UnusableStratumError``)."""
@@ -186,7 +189,7 @@ def write_artifact(
     }
     cut = 0.5 if ready else None
     stratum = stratum_model(checks, InputLevel.PERCEIVED, cut, profile)
-    artifact = artifact_of((stratum,), status=status, checks_hash=checks_hash)
+    artifact = artifact_of((stratum,), status=status, checks_hash=checks_hash, device=device)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(artifact.to_json(), encoding="utf-8")
     return path
