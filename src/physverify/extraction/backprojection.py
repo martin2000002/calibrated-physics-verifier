@@ -14,12 +14,20 @@ import numpy as np
 from numpy.typing import NDArray
 from scipy.ndimage import binary_erosion
 
-from physverify.extraction.lift_geometry import GroundFrame, SilhouetteView, silhouette_view
+from physverify.extraction.lift_geometry import (
+    GroundFrame,
+    SilhouetteView,
+    centre_depth_growth,
+    equivalent_diameter,
+    local_geometry,
+    main_parts,
+    silhouette_view,
+)
 from physverify.physics.geometry import characteristic_length
 from physverify.physics.uncertainty import entry_draws, entry_rms, monte_carlo
 from physverify.schema.error_profile import ErrorEntry
 from physverify.schema.perception import DepthKind, DepthMap, MaskTrack
-from physverify.schema.states import LengthUnit
+from physverify.schema.states import LengthUnit, PrimitiveKind
 
 FloatArray = NDArray[np.float64]
 BoolArray = NDArray[np.bool_]
@@ -117,7 +125,8 @@ def lift_depth(
 @dataclass(frozen=True)
 class ObjectSummary:
     """Median camera-frame point ``centre`` of the visible surface, full ``extents`` along the
-    camera axes and, when gravity is known, the silhouette against the vertical."""
+    camera axes at that point's depth and, when gravity is known, the silhouette against the
+    vertical."""
 
     centre: FloatArray
     extents: FloatArray
@@ -132,6 +141,7 @@ class SummaryOptions:
     extent_percentiles: tuple[float, float]
     min_area_px: int
     footprint_trim_mads: float
+    min_part_frac: float
 
 
 def _surface_pixels(mask: BoolArray, valid: BoolArray, erode_px: int) -> BoolArray:
@@ -147,13 +157,15 @@ def object_summary(
     intrinsics: FloatArray,
     options: SummaryOptions,
     frame: GroundFrame | None = None,
+    primitive: PrimitiveKind = PrimitiveKind.UNKNOWN,
 ) -> ObjectSummary | None:
     """Back-projects X = z K^-1 [u, v, 1] of the eroded surface for the centre s; None when fewer
     than ``min_area_px`` pixels remain.
 
-    Extents come from the whole silhouette: (P_hi - P_lo of the pixel coordinates + 1 px) z_s / f.
-    The eroded set is only for a depth median free of edge bleeding; on objects of a few dozen
-    pixels it would shrink the extents by a third."""
+    Extents come from the silhouette's main parts at the surface depth z_s: a sphere's diameter
+    from their area, else (P_hi - P_lo of the pixel coordinates + 1 px) z_s / f. The eroded set
+    is only for a depth median free of edge bleeding; on objects of a few dozen pixels it would
+    shrink the extents by a third."""
     pixels = _surface_pixels(mask, valid, options.erode_px)
     n_pixels = int(pixels.sum())
     if n_pixels < options.min_area_px:
@@ -164,12 +176,17 @@ def object_summary(
     y = (rows + 0.5 - intrinsics[1, 2]) / intrinsics[1, 1] * depth
     surface = np.column_stack([x, y, depth])
     centre = np.median(surface, axis=0)
-    e_xy = silhouette_spread_px(mask, options.extent_percentiles) * centre[2]
-    e_xy = e_xy / np.array([intrinsics[0, 0], intrinsics[1, 1]])
+    parts = main_parts(mask, options.min_part_frac)
+    focal = np.array([intrinsics[0, 0], intrinsics[1, 1]])
+    if primitive is PrimitiveKind.SPHERE:
+        e_xy = np.full(2, equivalent_diameter(float(parts.sum()) / float(focal.prod())))
+    else:
+        e_xy = silhouette_spread_px(parts, options.extent_percentiles) / focal
+    e_xy = e_xy * centre[2]
     view = None
     if frame is not None:
         view = silhouette_view(
-            mask,
+            parts,
             intrinsics,
             centre,
             surface,
@@ -201,6 +218,37 @@ def silhouette_spread_px(mask: BoolArray, percentiles: tuple[float, float]) -> F
     lo, hi = percentiles
     spread: FloatArray = np.percentile(uv, hi, axis=0) - np.percentile(uv, lo, axis=0) + 1.0
     return spread
+
+
+@dataclass(frozen=True)
+class PlacedObject:
+    """Size, centre offset along the viewing ray and, when posed, the local-to-camera
+    quaternion (w, x, y, z), all at the depth of the object's centre."""
+
+    size: FloatArray
+    offset: float
+    quaternion: FloatArray | None
+
+
+def place_object(
+    summary: ObjectSummary,
+    primitive: PrimitiveKind,
+    offset_frac: float,
+    frame: GroundFrame | None,
+) -> PlacedObject:
+    """The local size and pose when the silhouette yields them, else the camera-axis extents;
+    the centre lies ``offset_frac`` e_z behind the visible surface."""
+    geometry = None
+    if frame is not None and summary.view is not None:
+        geometry = local_geometry(primitive, summary.view, float(summary.centre[2]), frame)
+    surface_size = summary.extents if geometry is None else geometry.size
+    surface_offset = offset_frac * float(summary.extents[2])
+    growth = centre_depth_growth(summary.centre, surface_offset)
+    return PlacedObject(
+        size=surface_size * growth,
+        offset=surface_offset * growth,
+        quaternion=None if geometry is None else geometry.quaternion,
+    )
 
 
 def object_position(centre: FloatArray, offset: FloatArray | float) -> FloatArray:

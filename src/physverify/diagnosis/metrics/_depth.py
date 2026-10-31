@@ -68,6 +68,7 @@ def object_depths(
         params.extent_percentiles,
         params.min_area_px,
         params.footprint_trim_mads,
+        params.min_part_frac,
     )
     n_t, n_obj = track.masks.shape[:2]
     out = np.full((n_t, n_obj), np.nan)

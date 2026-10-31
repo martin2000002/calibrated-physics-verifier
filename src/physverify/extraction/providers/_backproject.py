@@ -21,12 +21,12 @@ from physverify.extraction.backprojection import (
     monte_carlo_sigma,
     object_position,
     object_summary,
+    place_object,
 )
 from physverify.extraction.gravity_pose import LEVEL_CAMERA_GRAVITY, gravity_from_pose
 from physverify.extraction.lift_geometry import (
     GroundFrame,
     ground_frame,
-    local_geometry,
     orientation_sigma,
 )
 from physverify.extraction.lift_params import GravityMode
@@ -84,7 +84,7 @@ class BackprojectLift:
         frame = ground_frame(gravity)
         errors = _lift_errors(ctx, camera)
         rng = np.random.default_rng(int(stable_hash(ctx.clip.clip_id)[:SEED_HEX_DIGITS], 16))
-        summaries = self._summaries(track, z, valid, camera.K, frame)
+        summaries = self._summaries(track, z, valid, camera.K, frame, primitives)
         for t_index, row in enumerate(summaries):
             for n_index, (summary, primitive) in enumerate(zip(row, primitives, strict=True)):
                 cell = (t_index, n_index)
@@ -117,14 +117,17 @@ class BackprojectLift:
         valid: NDArray[np.bool_],
         intrinsics: FloatArray,
         frame: GroundFrame | None,
+        primitives: list[PrimitiveKind],
     ) -> list[list[ObjectSummary | None]]:
         """Rows (T) of per-object summaries; with ``"median"`` every object's visible runs are
         stabilised before positions and sigma are computed from them."""
         n_t, n_obj = track.masks.shape[:2]
         rows = [
             [
-                object_summary(track.masks[t, n], z[t], valid[t], intrinsics, self._options, frame)
-                for n in range(n_obj)
+                object_summary(
+                    track.masks[t, n], z[t], valid[t], intrinsics, self._options, frame, kind
+                )
+                for n, kind in enumerate(primitives)
             ]
             for t in range(n_t)
         ]
@@ -143,6 +146,7 @@ class BackprojectLift:
             extent_percentiles=self.params.extent_percentiles,
             min_area_px=self.params.min_area_px,
             footprint_trim_mads=self.params.footprint_trim_mads,
+            min_part_frac=self.params.min_part_frac,
         )
 
     def _primitive(self, label: str) -> PrimitiveKind:
@@ -163,26 +167,22 @@ class BackprojectLift:
             fields["visible"][cell] = False
             fields["in_frame"][cell] = False
             return
-        geometry = None
-        if frame is not None and summary.view is not None:
-            geometry = local_geometry(primitive, summary.view, float(summary.centre[2]), frame)
-        size = summary.extents if geometry is None else geometry.size
-        offset = self.params.center_offset_frac[primitive] * float(summary.extents[2])
-        position = object_position(summary.centre, offset)
+        placed = place_object(summary, primitive, self.params.center_offset_frac[primitive], frame)
+        position = object_position(summary.centre, placed.offset)
         if self.params.sigma_mode == "monte_carlo":
             pos_sigma, size_sigma = monte_carlo_sigma(
-                summary, size, offset, camera.K, errors, rng, self.params.mc_draws
+                summary, placed.size, placed.offset, camera.K, errors, rng, self.params.mc_draws
             )
         else:
             pos_sigma, size_sigma = closed_form_sigma(
-                position, size, summary.r_eq_px, camera.K, errors
+                position, placed.size, summary.r_eq_px, camera.K, errors
             )
         fields["position"][cell] = position
         fields["position_sigma"][cell] = pos_sigma
-        fields["size"][cell] = size
+        fields["size"][cell] = placed.size
         fields["size_sigma"][cell] = size_sigma
-        if geometry is not None:
-            fields["quaternion"][cell] = geometry.quaternion
+        if placed.quaternion is not None:
+            fields["quaternion"][cell] = placed.quaternion
 
     def _gravity(self, camera: CameraModel, mode: GravityMode) -> tuple[FloatArray, float]:
         """Gravity direction in camera coordinates and its angular sigma in radians (4.3)."""

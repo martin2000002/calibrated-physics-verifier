@@ -9,6 +9,8 @@ camera coordinates; ``size`` is then the full extent along those local axes.
 
 Silhouette lengths are kept in normalised image units (x/z, y/z) and become metric once
 multiplied by the object's depth, so a depth or focal change rescales them like the extents.
+The silhouette spans the object's widest section, near its centre, so lengths taken at the
+visible surface's depth are rescaled to the centre's (``centre_depth_growth``).
 """
 
 from __future__ import annotations
@@ -18,6 +20,7 @@ from dataclasses import dataclass
 
 import numpy as np
 from numpy.typing import NDArray
+from scipy.ndimage import label
 
 from physverify.physics.contact_manifold import convex_hull_indices
 from physverify.physics.geometry import assumed_upright_pose, quaternion_from_matrix
@@ -37,6 +40,9 @@ MIN_HEIGHT_FRAC = 0.1
 """Height floor relative to the horizontal size, against a negative estimate from mask noise."""
 MAD_TO_SIGMA = 1.4826
 MIN_UP_IMAGE_NORM = 1e-6
+MAX_CENTRE_DEPTH_GROWTH = 2.0
+"""Bound on centre depth / surface depth, against an offset as large as the distance itself."""
+CYLINDER_CAP_AREA = 1.0 - math.pi / 4.0
 
 
 @dataclass(frozen=True)
@@ -106,6 +112,40 @@ def footprint_yaw(points: FloatArray, frame: GroundFrame, trim_mads: float) -> f
     return math.nan if rectangle is None else rectangle[0]
 
 
+def main_parts(mask: BoolArray, min_part_frac: float) -> BoolArray:
+    """The mask without connected parts smaller than ``min_part_frac`` of its largest part
+    (stray blobs that would stretch a full-range width)."""
+    labels, n_parts = label(mask)
+    if n_parts <= 1:
+        return mask
+    areas = np.bincount(labels.ravel())[1:]
+    kept = np.flatnonzero(areas >= min_part_frac * areas.max()) + 1
+    parts: BoolArray = np.isin(labels, kept)
+    return parts
+
+
+def equivalent_diameter(area: float) -> float:
+    """Diameter of the disk of ``area``: a sphere's silhouette at any view."""
+    return 2.0 * math.sqrt(area / math.pi)
+
+
+def cylinder_diameter(area: float, along: float, sin_e: float) -> float:
+    """d of an upright cylinder from its silhouette: a d x h cos(e) rectangle closed by two
+    half-ellipses of semi-axes d / 2 and d sin(e) / 2, so with along = h cos(e) + d sin(e),
+    area = d along - (1 - pi / 4) sin(e) d^2. The small root, written without cancellation."""
+    k = CYLINDER_CAP_AREA * sin_e
+    root = math.sqrt(max(along**2 - 4.0 * k * area, 0.0))
+    return 2.0 * area / (along + root) if along + root > 0.0 else 0.0
+
+
+def centre_depth_growth(centre: FloatArray, offset: float) -> float:
+    """z_c / z_s for a centre pushed ``offset`` (at the surface's scale) along the ray from the
+    surface point ``centre``. Lengths and the offset itself grow with the centre's depth, so
+    |s| + offset g = g |s|, i.e. g = |s| / (|s| - offset)."""
+    distance = float(np.linalg.norm(centre))
+    return distance / max(distance - offset, distance / MAX_CENTRE_DEPTH_GROWTH)
+
+
 @dataclass(frozen=True)
 class SilhouetteView:
     """The silhouette against the vertical, in normalised image units.
@@ -135,7 +175,8 @@ def image_up(centre: FloatArray, up: FloatArray) -> FloatArray | None:
 def percentile_width(
     coords: FloatArray, direction: FloatArray, percentiles: tuple[float, float], pixel: FloatArray
 ) -> float:
-    """Percentile spread of the pixel centres along ``direction`` plus one pixel's own extent."""
+    """Percentile spread of the pixel centres along ``direction`` plus one pixel's own extent
+    (the full range for percentiles (0, 100))."""
     values = coords @ direction
     lo, hi = np.percentile(values, list(percentiles))
     return float(hi - lo) + float(np.abs(direction) @ pixel)
@@ -193,16 +234,18 @@ def local_geometry(
 ) -> LocalGeometry | None:
     """Upright solid seen in ``view`` at ``depth``; None for a box whose yaw is unknown.
 
-    Spheres and cylinders are symmetric about up, so their yaw is 0. A box (and an unknown
+    Spheres and cylinders are symmetric about up, so their yaw is 0; their size comes from the
+    silhouette's area, which a few stray or missing edge pixels barely move. A box (and an unknown
     shape) is assumed to have a square footprint of side s: its silhouette width across the ray
     is s (|cos phi| + |sin phi|), phi being its yaw from the across-ray direction, and so is
     its footprint's extent along the ray."""
     across, along = view.across * depth, view.along * depth
     if primitive is PrimitiveKind.SPHERE:
-        return _upright(np.full(3, across), 0.0, frame)
+        return _upright(np.full(3, equivalent_diameter(view.area) * depth), 0.0, frame)
     if primitive is PrimitiveKind.CYLINDER:
-        height = _height(along, across, view.sin_elevation, across)
-        return _upright(np.array([across, across, height]), 0.0, frame)
+        diameter = cylinder_diameter(view.area, view.along, view.sin_elevation) * depth
+        height = _height(along, diameter, view.sin_elevation, diameter)
+        return _upright(np.array([diameter, diameter, height]), 0.0, frame)
     if not math.isfinite(view.yaw):
         return None
     phi = view.yaw - view.ray_yaw - math.pi / 2.0

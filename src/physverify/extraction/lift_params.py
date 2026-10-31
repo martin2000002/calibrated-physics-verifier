@@ -69,7 +69,7 @@ class LiftParams(ProviderParams):
     min_area_px: int = Field(default=9, ge=1)
     erode_px: int = Field(default=1, ge=0)
     border_margin_px: int = Field(default=2, ge=1)
-    extent_percentiles: tuple[float, float] = (2.0, 98.0)
+    extent_percentiles: tuple[float, float] = (0.0, 100.0)
     center_offset_frac: dict[PrimitiveKind, float] = {
         PrimitiveKind.SPHERE: 0.354,
         PrimitiveKind.CYLINDER: 0.354,
@@ -91,6 +91,8 @@ class LiftParams(ProviderParams):
     # Version 5: the footprint behind a box's yaw drops surface points farther from its median
     # than this many robust sigma (``lift_geometry.footprint_yaw``).
     footprint_trim_mads: float = Field(default=3.0, gt=0.0)
+    # Version 5: extents ignore mask parts smaller than this fraction of the largest one.
+    min_part_frac: float = Field(default=0.2, ge=0.0, le=1.0)
 
     @field_validator("temporal_window")
     @classmethod

@@ -12,38 +12,53 @@ from synthetic_clip import SyntheticClip
 from test_lift_backproject import lift, truth_inputs
 from upright_scenes import UprightView, render
 
-from physverify.extraction.backprojection import SummaryOptions, object_summary
+from physverify.extraction.backprojection import (
+    PlacedObject,
+    SummaryOptions,
+    object_summary,
+    place_object,
+)
 from physverify.extraction.lift_geometry import (
-    LocalGeometry,
+    centre_depth_growth,
+    cylinder_diameter,
     footprint_yaw,
     ground_frame,
     local_geometry,
+    main_parts,
     minimum_area_rectangle,
     orientation_sigma,
 )
+from physverify.extraction.lift_params import LiftParams
 from physverify.physics.geometry import matrix_from_quaternion
 from physverify.schema.stages import Stage
 from physverify.schema.states import PrimitiveKind
 
+PARAMS = LiftParams()
 OPTIONS = SummaryOptions(
-    erode_px=1, extent_percentiles=(2.0, 98.0), min_area_px=9, footprint_trim_mads=3.0
+    erode_px=PARAMS.erode_px,
+    extent_percentiles=PARAMS.extent_percentiles,
+    min_area_px=PARAMS.min_area_px,
+    footprint_trim_mads=PARAMS.footprint_trim_mads,
+    min_part_frac=PARAMS.min_part_frac,
 )
 CUBE = np.full(3, 0.4)
-SIZE_REL_TOL = 0.35
+BOX_SIZE_REL_TOL = 0.15
+ROUND_SIZE_REL_TOL = 0.05
 YAW_TOL_DEG = 1.0
 
 
-def lifted(kind: PrimitiveKind, view: UprightView) -> LocalGeometry:
+def lifted(kind: PrimitiveKind, view: UprightView) -> PlacedObject:
     frame = ground_frame(view.gravity)
     assert frame is not None
-    summary = object_summary(view.mask, view.z, view.mask, view.intrinsics, OPTIONS, frame)
+    summary = object_summary(view.mask, view.z, view.mask, view.intrinsics, OPTIONS, frame, kind)
     assert summary is not None and summary.view is not None
-    geometry = local_geometry(kind, summary.view, float(summary.centre[2]), frame)
-    assert geometry is not None
-    return geometry
+    placed = place_object(summary, kind, PARAMS.center_offset_frac[kind], frame)
+    assert placed.quaternion is not None
+    return placed
 
 
-def yaw_error_deg(geometry: LocalGeometry, view: UprightView, period_deg: float) -> float:
+def yaw_error_deg(geometry: PlacedObject, view: UprightView, period_deg: float) -> float:
+    assert geometry.quaternion is not None
     relative = view.rotation.T @ matrix_from_quaternion(geometry.quaternion)
     angle = math.degrees(math.atan2(relative[1, 0], relative[0, 0]))
     return abs((angle + period_deg / 2.0) % period_deg - period_deg / 2.0)
@@ -66,9 +81,10 @@ def test_a_turned_cube_gives_its_yaw_up_axis_and_size(yaw: float, elevation: flo
     view = render(PrimitiveKind.BOX, CUBE, yaw, elevation)
     geometry = lifted(PrimitiveKind.BOX, view)
     assert yaw_error_deg(geometry, view, 90.0) < YAW_TOL_DEG
+    assert geometry.quaternion is not None
     up = matrix_from_quaternion(geometry.quaternion)[:, 2]
     assert float(up @ view.rotation[:, 2]) == pytest.approx(1.0, abs=1e-9)
-    np.testing.assert_allclose(geometry.size, CUBE, rtol=SIZE_REL_TOL)
+    np.testing.assert_allclose(geometry.size, CUBE, rtol=BOX_SIZE_REL_TOL)
 
 
 @pytest.mark.parametrize(
@@ -83,9 +99,50 @@ def test_round_solids_stand_upright_with_their_size(
 ) -> None:
     view = render(kind, extents, 0.0, 25.0)
     geometry = lifted(kind, view)
+    assert geometry.quaternion is not None
     up = matrix_from_quaternion(geometry.quaternion)[:, 2]
     assert float(up @ view.rotation[:, 2]) == pytest.approx(1.0, abs=1e-9)
-    np.testing.assert_allclose(geometry.size, extents, rtol=SIZE_REL_TOL)
+    np.testing.assert_allclose(geometry.size, extents, rtol=ROUND_SIZE_REL_TOL)
+
+
+def test_a_sphere_keeps_its_diameter_on_the_camera_axes() -> None:
+    view = render(PrimitiveKind.SPHERE, np.full(3, 0.4), 0.0, 25.0)
+    summary = object_summary(
+        view.mask, view.z, view.mask, view.intrinsics, OPTIONS, None, PrimitiveKind.SPHERE
+    )
+    assert summary is not None and summary.view is None
+    placed = place_object(summary, PrimitiveKind.SPHERE, 0.354, None)
+    assert placed.quaternion is None
+    np.testing.assert_allclose(placed.size, 0.4, rtol=ROUND_SIZE_REL_TOL)
+
+
+def test_a_stray_blob_does_not_stretch_the_extents() -> None:
+    view = render(PrimitiveKind.BOX, CUBE, 0.0, 15.0)
+    stray = view.mask.copy()
+    stray[2:4, 2:4] = True
+    assert int(main_parts(stray, PARAMS.min_part_frac).sum()) == int(view.mask.sum())
+    clean, noisy = (
+        object_summary(mask, view.z, view.mask, view.intrinsics, OPTIONS)
+        for mask in (view.mask, stray)
+    )
+    assert clean is not None and noisy is not None
+    np.testing.assert_array_equal(noisy.extents, clean.extents)
+
+
+def test_a_cylinder_silhouette_area_gives_its_diameter() -> None:
+    d, h, e = 0.3, 0.5, math.radians(30.0)
+    along = h * math.cos(e) + d * math.sin(e)
+    area = d * h * math.cos(e) + math.pi / 4.0 * d**2 * math.sin(e)
+    assert cylinder_diameter(area, along, math.sin(e)) == pytest.approx(d, rel=1e-12)
+    assert cylinder_diameter(d * h, h, 0.0) == pytest.approx(d, rel=1e-12)
+
+
+def test_the_centre_depth_grows_with_the_offset_behind_the_surface() -> None:
+    surface = np.array([0.0, 0.0, 2.0])
+    growth = centre_depth_growth(surface, 0.5)
+    assert 2.0 + 0.5 * growth == pytest.approx(2.0 * growth)
+    assert centre_depth_growth(surface, 0.0) == 1.0
+    assert centre_depth_growth(surface, 5.0) == 2.0
 
 
 def test_without_gravity_or_box_yaw_there_is_no_pose() -> None:
