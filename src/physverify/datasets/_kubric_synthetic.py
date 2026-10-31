@@ -40,6 +40,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from physverify.config.models import Settings
+    from physverify.synth.plan import DatasetPlan
 
 SPLITS = frozenset(s.value for s in Split if s is not Split.ALL)
 
@@ -85,16 +86,18 @@ class KubricSynthetic:
         self._scoped = {k: v.checks_only for k, v in sorted(ds.subsets.items()) if v.checks_only}
 
     def clips(self, subset: str | None = None) -> Sequence[ClipManifest]:
-        """Exported clips: all (None), one split ("calib"/"eval") or one planned subset."""
+        """Exported clips: all (None), one split ("calib"/"eval") or one planned subset.
+
+        A split leaves out the clips planned only by ``checks_only`` subsets: they count for their
+        checks alone, through ``scoped_subsets``, never as plain calib or eval clips.
+        """
         exported = [self._own(c) for c in read_index(self._store)]
         if subset is None:
             return exported
         if subset in SPLITS:
-            return [c for c in exported if c.split.value == subset]
-        plan = load_plan(self._store)
-        if plan is None:
-            raise MissingInputError(f"no dataset plan in {self._store.root}: run `synth generate`")
-        wanted = {v.clip_id for v in plan.subset(subset).variants}
+            scoped = self._scoped_only()
+            return [c for c in exported if c.split.value == subset and c.clip_id not in scoped]
+        wanted = {v.clip_id for v in self._plan().subset(subset).variants}
         return [c for c in exported if c.clip_id in wanted]
 
     def scoped_subsets(self) -> tuple[ScopedSubset, ...]:
@@ -105,6 +108,21 @@ class KubricSynthetic:
             ScopedSubset(name, checks, _members(exported, planned.get(name, ())))
             for name, checks in self._scoped.items()
         )
+
+    def _plan(self) -> DatasetPlan:
+        plan = load_plan(self._store)
+        if plan is None:
+            raise MissingInputError(f"no dataset plan in {self._store.root}: run `synth generate`")
+        return plan
+
+    def _scoped_only(self) -> frozenset[str]:
+        """Clip ids planned by a ``checks_only`` subset and by no other subset."""
+        plan = load_plan(self._store) if self._scoped else None
+        if plan is None:
+            return frozenset()
+        scoped = {c for name in self._scoped for c in plan.subsets.get(name, ())}
+        plain = {c for name, ids in plan.subsets.items() if name not in self._scoped for c in ids}
+        return frozenset(scoped - plain)
 
     def _own(self, clip: ClipManifest) -> ClipManifest:
         """Labelled with this plugin's name, which keys the stage cache and the sealed sets."""

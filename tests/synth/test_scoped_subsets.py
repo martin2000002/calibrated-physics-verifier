@@ -3,12 +3,14 @@ clips; the configured ``calib_f3_extra`` adds whole calib scenes to ``full``, sc
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
+from physverify.config.loader import load_settings
 from physverify.config.models import Settings
 from physverify.datasets._base import ScopedSubset, ScopedSubsetSource
 from physverify.datasets._kubric_synthetic import KubricSynthetic
-from physverify.schema.clip import ClipManifest, TimeSource
+from physverify.schema.clip import ClipManifest, Split, TimeSource
 from physverify.schema.io import dumps, envelope
 from physverify.synth.generate import plan_subset, save_plan
 from physverify.synth.gt.export import DATASET_NAME
@@ -71,3 +73,36 @@ def test_an_unplanned_extension_has_no_clips(
     exported(data_settings, ds, [plan_subset(ds, families, perturbations, "full")])
     (scoped,) = KubricSynthetic(data_settings).scoped_subsets()
     assert scoped.clips == ()
+
+
+def test_a_split_leaves_out_the_clips_only_an_extension_plans(
+    data_settings: Settings,
+    ds: DatasetSettings,
+    families: Any,
+    perturbations: Any,
+    config_dir: Path,
+    environ: dict[str, str],
+) -> None:
+    full = plan_subset(ds, families, perturbations, "full")
+    extra = plan_subset(ds, families, perturbations, EXTENSION)
+    exported(data_settings, ds, [full, extra])
+    base = {v.clip_id for v in full.variants if v.split is Split.CALIB}
+    scenes = {v.scene_id for v in full.variants if v.split is Split.CALIB}
+    added = {v.clip_id for v in extra.variants} - {v.clip_id for v in full.variants}
+
+    # Planned counts; the v1-precise store exports 426 / 100 and, with the extension, 540 / 160.
+    calib = KubricSynthetic(data_settings).clips("calib")
+    assert {c.clip_id for c in calib} == base
+    assert {c.scene_id for c in calib} == scenes
+    assert (len(base), len(scenes)) == (460, 100)
+
+    env = environ | {"PHYSVERIFY__PATHS__DATA_DIR": str(data_settings.paths.data_dir)}
+    off = load_settings(
+        config_dir, environ=env, overrides=[f"dataset.subsets.{EXTENSION}.checks_only=[]"]
+    )
+    unscoped = KubricSynthetic(off).clips("calib")
+    assert {c.clip_id for c in unscoped} == base | added
+    assert (len(unscoped), len({c.scene_id for c in unscoped})) == (580, 160)
+    assert {c.clip_id for c in KubricSynthetic(data_settings).clips(EXTENSION)} == {
+        v.clip_id for v in extra.variants
+    }
