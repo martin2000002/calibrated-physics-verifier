@@ -1,4 +1,4 @@
-"""The calibrated scorer v2 opens its stratum through the calibration chain's ``open_stratum``, like
+"""The calibrated scorer opens its stratum through the calibration chain's ``open_stratum``, like
 the human-agreement study does."""
 
 from __future__ import annotations
@@ -51,8 +51,8 @@ def _with_row_step(result: CheckResult, step: int) -> CheckResult:
     return dataclasses.replace(result, details={**result.details, "row_step": step})
 
 
-def test_the_calibrated_scorer_is_version_two() -> None:
-    assert CalibratedScorer.version == "2"
+def test_the_calibrated_scorer_is_version_three() -> None:
+    assert CalibratedScorer.version == "3"
 
 
 def test_an_insufficient_artifact_with_a_usable_stratum_scores(

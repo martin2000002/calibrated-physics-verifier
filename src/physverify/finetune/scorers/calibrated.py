@@ -50,7 +50,7 @@ def to_aggregate(clip_score: ScoredClip) -> AggregateScore:
 
 class CalibratedScorer:
     name: ClassVar[str] = "calibrated"
-    version: ClassVar[str] = "2"
+    version: ClassVar[str] = "3"
     calibrated: ClassVar[bool] = True
 
     def __init__(
