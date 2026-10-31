@@ -7,8 +7,8 @@ from collections.abc import Sequence
 import numpy as np
 
 from physverify.diagnosis.measurement_cases import BoolArray, FloatArray, MetricCase
-from physverify.extraction.backprojection import SummaryOptions, lift_depth, object_summary
-from physverify.extraction.lift_params import LiftParams
+from physverify.extraction.backprojection import lift_depth, object_summary
+from physverify.extraction.lift_params import LiftParams, summary_options
 from physverify.schema.perception import DepthKind, DepthMap, MaskTrack
 
 
@@ -63,13 +63,7 @@ def object_depths(
 ) -> FloatArray:
     """(T, N) median depth of each object's surface; NaN where LIFT would give no summary."""
     z, valid, _ = lift_depth(depth, track, params.shift)
-    options = SummaryOptions(
-        params.erode_px,
-        params.extent_percentiles,
-        params.min_area_px,
-        params.footprint_trim_mads,
-        params.min_part_frac,
-    )
+    options = summary_options(params)
     n_t, n_obj = track.masks.shape[:2]
     out = np.full((n_t, n_obj), np.nan)
     for t in range(n_t):

@@ -10,7 +10,7 @@ from typing import Literal
 from pydantic import Field, field_validator
 
 from physverify.extraction._base import ProviderParams
-from physverify.extraction.backprojection import ShiftStrategy
+from physverify.extraction.backprojection import ShiftStrategy, SummaryOptions
 from physverify.physics.running_median import EdgeMode
 from physverify.physics.tracks import OCCLUDED_AT
 from physverify.schema.states import PrimitiveKind
@@ -110,3 +110,14 @@ class UnnestedLiftParams(LiftParams):
         default_factory=lambda: dict(REAL_PRIMITIVES)
     )
     nested_overlap: float = Field(default=NESTED_OVERLAP, gt=0.0, le=1.0)
+
+
+def summary_options(params: LiftParams) -> SummaryOptions:
+    """Per-object summary settings, shared by LIFT and the depth metrics that mirror it."""
+    return SummaryOptions(
+        erode_px=params.erode_px,
+        extent_percentiles=params.extent_percentiles,
+        min_area_px=params.min_area_px,
+        footprint_trim_mads=params.footprint_trim_mads,
+        min_part_frac=params.min_part_frac,
+    )

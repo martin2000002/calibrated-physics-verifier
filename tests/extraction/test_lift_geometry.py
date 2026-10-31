@@ -7,6 +7,7 @@ from dataclasses import replace
 
 import numpy as np
 import pytest
+from scipy.ndimage import binary_erosion
 from support import entry, profile_of
 from synthetic_clip import SyntheticClip
 from test_lift_backproject import lift, truth_inputs
@@ -29,31 +30,32 @@ from physverify.extraction.lift_geometry import (
     minimum_area_rectangle,
     orientation_sigma,
 )
-from physverify.extraction.lift_params import LiftParams
+from physverify.extraction.lift_params import LiftParams, summary_options
 from physverify.physics.geometry import matrix_from_quaternion
 from physverify.schema.stages import Stage
 from physverify.schema.states import PrimitiveKind
 
 PARAMS = LiftParams()
-OPTIONS = SummaryOptions(
-    erode_px=PARAMS.erode_px,
-    extent_percentiles=PARAMS.extent_percentiles,
-    min_area_px=PARAMS.min_area_px,
-    footprint_trim_mads=PARAMS.footprint_trim_mads,
-    min_part_frac=PARAMS.min_part_frac,
-)
+OPTIONS = summary_options(PARAMS)
 CUBE = np.full(3, 0.4)
 BOX_SIZE_REL_TOL = 0.12
 ROUND_SIZE_REL_TOL = 0.05
 BOX_CENTRE_REL_TOL = 0.16
 ROUND_CENTRE_REL_TOL = 0.06
 YAW_TOL_DEG = 1.0
+DEPTH_NOISE = 0.005
+BLEED_FRACTION = 0.3
+BLEED_DEPTH_FACTOR = 1.6
+NOISY_YAW_TOL_DEG = 2.0
+UNTRIMMED_YAW_ERROR_DEG = 4.0
 
 
-def lifted(kind: PrimitiveKind, view: UprightView) -> PlacedObject:
+def lifted(
+    kind: PrimitiveKind, view: UprightView, options: SummaryOptions = OPTIONS
+) -> PlacedObject:
     frame = ground_frame(view.gravity)
     assert frame is not None
-    summary = object_summary(view.mask, view.z, view.mask, view.intrinsics, OPTIONS, frame, kind)
+    summary = object_summary(view.mask, view.z, view.mask, view.intrinsics, options, frame, kind)
     assert summary is not None and summary.view is not None
     placed = place_object(summary, kind, PARAMS.center_offset_frac[kind], frame)
     assert placed.quaternion is not None
@@ -204,3 +206,22 @@ def test_without_gravity_the_lift_keeps_camera_axis_extents(fixture_clip: Synthe
     table = lift(fixture_clip, truth_inputs(fixture_clip), gravity="none")
     assert bool(np.isnan(table.quaternion).all())
     assert bool(np.isfinite(table.size[table.visible]).all())
+
+
+def noisy(view: UprightView, rng: np.random.Generator) -> UprightView:
+    """0.5 % depth noise, and edge pixels that bleed 60 % deeper (the background) at random."""
+    z = view.z * (1.0 + DEPTH_NOISE * rng.standard_normal(view.z.shape))
+    edge = view.mask & ~binary_erosion(view.mask, iterations=2)
+    bleed = edge & (rng.random(view.z.shape) < BLEED_FRACTION)
+    return replace(view, z=np.where(bleed, z * BLEED_DEPTH_FACTOR, z))
+
+
+def test_trimming_the_footprint_keeps_the_yaw_under_depth_noise_and_edge_bleeding() -> None:
+    rng = np.random.default_rng(0)
+    untrimmed = replace(OPTIONS, footprint_trim_mads=1e9)
+    for yaw in (10.0, 30.0, 60.0):
+        view = noisy(render(PrimitiveKind.BOX, CUBE, yaw, 25.0), rng)
+        trimmed_error = yaw_error_deg(lifted(PrimitiveKind.BOX, view), view, 90.0)
+        raw_error = yaw_error_deg(lifted(PrimitiveKind.BOX, view, untrimmed), view, 90.0)
+        assert trimmed_error < NOISY_YAW_TOL_DEG
+        assert raw_error > UNTRIMMED_YAW_ERROR_DEG

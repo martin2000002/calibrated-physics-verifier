@@ -29,7 +29,7 @@ from physverify.extraction.lift_geometry import (
     ground_frame,
     orientation_sigma,
 )
-from physverify.extraction.lift_params import GravityMode
+from physverify.extraction.lift_params import GravityMode, summary_options
 from physverify.extraction.lift_params import LiftParams as Params
 from physverify.extraction.mask_border import border_cut
 from physverify.extraction.pipeline import PENDING_SOURCE_KEY
@@ -141,13 +141,7 @@ class BackprojectLift:
 
     @property
     def _options(self) -> SummaryOptions:
-        return SummaryOptions(
-            erode_px=self.params.erode_px,
-            extent_percentiles=self.params.extent_percentiles,
-            min_area_px=self.params.min_area_px,
-            footprint_trim_mads=self.params.footprint_trim_mads,
-            min_part_frac=self.params.min_part_frac,
-        )
+        return summary_options(self.params)
 
     def _primitive(self, label: str) -> PrimitiveKind:
         return lookup_label(label, self.params.primitive_by_label) or PrimitiveKind.UNKNOWN
