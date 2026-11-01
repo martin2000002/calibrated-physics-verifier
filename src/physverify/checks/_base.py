@@ -18,16 +18,19 @@ from physverify.physics.tracks import row_step
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
 from physverify.schema.clip import ClipManifest
 from physverify.schema.contacts import ContactTable
+from physverify.schema.error_profile import ErrorEntry
 from physverify.schema.perception import CameraModel
 from physverify.schema.scale import EffectiveScale
 from physverify.schema.scene import SceneSpec
+from physverify.schema.stages import Stage
 from physverify.schema.states import ObjectStateTable
 
 
 @dataclass(frozen=True)
 class CheckInputs:
     """States and contacts in one unit and frame; ``scale`` converts that unit to meters;
-    ``camera`` is the CAMERA output the states were lifted with (ground truth for the oracle)."""
+    ``camera`` is the CAMERA output the states were lifted with (ground truth for the oracle);
+    ``errors`` are the error-profile entries the plan's providers may read (none for the oracle)."""
 
     clip: ClipManifest
     states: ObjectStateTable
@@ -37,6 +40,13 @@ class CheckInputs:
     provenance: Mapping[str, str]
     scene: SceneSpec | None = None
     camera: CameraModel | None = None
+    errors: tuple[ErrorEntry, ...] = ()
+
+    def stage_error(self, stage: Stage, quantity: str) -> ErrorEntry | None:
+        """The measured error of ``quantity`` for the provider that ran ``stage``, if any."""
+        provider = self.provenance.get(stage.value)
+        found = (e for e in self.errors if e.key == (stage, provider) and e.quantity == quantity)
+        return next(found, None)
 
     @property
     def row_seconds(self) -> float:

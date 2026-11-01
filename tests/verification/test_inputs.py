@@ -28,6 +28,7 @@ from physverify.extraction.pipeline import PipelineDeps
 from physverify.extraction.pipeline_resources import LazyLock, ProcRssProbe
 from physverify.schema.checks import AbstainReason, InputLevel
 from physverify.schema.clip import ClipManifest
+from physverify.schema.error_profile import PROFILE_CONDITION, ErrorEntry, ErrorProfile
 from physverify.schema.outputs import StageOutput
 from physverify.schema.scale import ScaleEstimate, ScaleSource
 from physverify.schema.stages import STAGE_ORDER, Stage
@@ -189,9 +190,11 @@ class FakeLoader:
         return self._found
 
 
-def perceived(case: sc.Case, outputs: Mapping[Stage, StageOutput]) -> ClipInputs:
+def perceived(
+    case: sc.Case, outputs: Mapping[Stage, StageOutput], errors: tuple[ErrorEntry, ...] = ()
+) -> ClipInputs:
     names = dict.fromkeys(STAGE_ORDER, "fake")
-    loader = FakeLoader({case.clip.clip_id: StageOutputs(outputs, names)})
+    loader = FakeLoader({case.clip.clip_id: StageOutputs(outputs, names, errors)})
     source = PerceivedSource(ScenarioDataset([case]), loader, InputLevel.MIXED)
     (item,) = source.load([case.clip])
     return item
@@ -208,6 +211,30 @@ def test_perceived_inputs_come_from_the_stage_outputs() -> None:
     assert item.inputs.scale is not None and item.inputs.scale.meters_per_unit == 2.0
     assert item.inputs.provenance[SCALE_SOURCE_KEY] == ScaleSource.SIZE_PRIOR.value
     assert item.inputs.provenance[Stage.DEPTH.value] == "fake"
+
+
+def lift_entry(provider: str, **conditions: str) -> ErrorEntry:
+    return ErrorEntry(
+        stage=Stage.LIFT,
+        provider=provider,
+        provider_version="1",
+        quantity="support_offset_rel",
+        unit="1",
+        bias=0.0,
+        sigma=0.1,
+        n=3,
+        conditions=dict(conditions),
+    )
+
+
+def test_perceived_inputs_carry_the_entries_of_their_providers() -> None:
+    case = sc.parabola(clip_id="m")
+    ours, other = lift_entry("fake"), lift_entry("ground_anchored")
+    item = perceived(case, {Stage.KINEMATICS: case.states}, (ours, other))
+    assert item.inputs is not None and item.inputs.errors == (ours, other)
+    assert item.inputs.stage_error(Stage.LIFT, "support_offset_rel") is ours
+    assert item.inputs.stage_error(Stage.LIFT, "centroid_rel") is None
+    assert item.inputs.stage_error(Stage.DEPTH, "support_offset_rel") is None
 
 
 def test_perceived_inputs_need_kinematics() -> None:
@@ -248,7 +275,10 @@ def settings(config_dir: Path, environ: dict[str, str]) -> Settings:
 
 
 def loader_for(
-    settings: Settings, gt_stages: tuple[Stage, ...], dataset: str
+    settings: Settings,
+    gt_stages: tuple[Stage, ...],
+    dataset: str,
+    error_profile: ErrorProfile | None = None,
 ) -> tuple[PipelineOutputLoader, LazyLock]:
     lock = LazyLock(partial(refuse_heavy, dataset))
     deps = PipelineDeps(
@@ -257,7 +287,7 @@ def loader_for(
         paths=settings.paths,
         device="cpu",
         threads=1,
-        error_profile=None,
+        error_profile=error_profile,
         observer=None,
         rss=ProcRssProbe(),
     )
@@ -275,6 +305,22 @@ def test_the_ground_truth_pipeline_feeds_the_checks_without_the_lock(settings: S
     assert item.inputs.scale is not None
     assert item.inputs.provenance[Stage.LIFT.value] == GROUND_TRUTH
     assert item.inputs.provenance[SCALE_SOURCE_KEY] == ScaleSource.GROUND_TRUTH.value
+
+
+def test_the_loader_passes_the_profile_entries_the_plan_admits(settings: Settings) -> None:
+    dataset = SyntheticFixtureDataset()
+    admitted = lift_entry(GROUND_TRUTH)
+    refused = lift_entry(GROUND_TRUTH, **{PROFILE_CONDITION: "another_profile"})
+    elsewhere = lift_entry("backproject")
+    profile = ErrorProfile(
+        created_utc="2026-11-01T00:00:00Z",
+        run_id="r",
+        commit="c",
+        entries=(admitted, refused, elsewhere),
+    )
+    loader, _ = loader_for(settings, STAGE_ORDER, dataset.name, profile)
+    (item,) = PerceivedSource(dataset, loader, InputLevel.MIXED).load(dataset.clips())
+    assert item.inputs is not None and item.inputs.errors == (admitted,)
 
 
 class TwoClips:

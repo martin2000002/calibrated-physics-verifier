@@ -10,12 +10,14 @@ from physverify.checks._base import CheckInputs
 from physverify.core.errors import MissingInputError
 from physverify.datasets._base import DatasetSource
 from physverify.extraction._base import GROUND_TRUTH
+from physverify.extraction.cache import plan_entry_filter
 from physverify.extraction.pipeline import DOMAIN_ERRORS, ExtractionPipeline, PipelineDeps
 from physverify.extraction.plan import ResolvedPlan
 from physverify.physics import tracks
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import ClipManifest, FrameSampling, SamplingSpec, resolve_sampling
 from physverify.schema.contacts import ContactTable
+from physverify.schema.error_profile import ErrorEntry
 from physverify.schema.errors import ScaleBindingError
 from physverify.schema.outputs import StageOutput
 from physverify.schema.perception import CameraModel
@@ -39,6 +41,7 @@ class RawInputs:
     level: InputLevel
     provenance: Mapping[str, str]
     camera: CameraModel | None = None
+    errors: tuple[ErrorEntry, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -66,10 +69,12 @@ class ClipInputs:
 
 @dataclass(frozen=True)
 class StageOutputs:
-    """Cached outputs of one clip plus the provider name of every stage of the plan."""
+    """Cached outputs of one clip, the provider name of every stage of the plan and the
+    error-profile entries those providers may read."""
 
     outputs: Mapping[Stage, StageOutput]
     names: Mapping[Stage, str]
+    errors: tuple[ErrorEntry, ...] = ()
 
 
 class InputSource(Protocol):
@@ -107,6 +112,7 @@ def build_inputs(raw: RawInputs) -> CheckInputs:
         provenance=dict(raw.provenance),
         scene=raw.scene,
         camera=raw.camera,
+        errors=raw.errors,
     )
 
 
@@ -124,10 +130,11 @@ def perceived_inputs(
     outputs: Mapping[Stage, StageOutput],
     names: Mapping[Stage, str],
     level: InputLevel,
+    errors: tuple[ErrorEntry, ...] = (),
 ) -> CheckInputs:
     """States from KINEMATICS, contacts from CONTACTS, scale from SCALE, camera from CAMERA
-    (``lift_camera``); raises ``MissingInputError`` without states and ``InputsError`` on an
-    invalid table."""
+    (``lift_camera``), ``errors`` passed through; raises ``MissingInputError`` without states
+    and ``InputsError`` on an invalid table."""
     states = _output(outputs, Stage.KINEMATICS, ObjectStateTable)
     if states is None:
         raise MissingInputError(f"no {Stage.KINEMATICS.value} output")
@@ -141,6 +148,7 @@ def perceived_inputs(
         level=level,
         provenance=provenance(names, scale),
         camera=lift_camera(outputs, names),
+        errors=errors,
     )
     return build_inputs(raw)
 
@@ -254,7 +262,14 @@ class PipelineOutputLoader:
             output = self._deps.cache.load(dataset, clip.clip_id, step.stage, step.name, key)
             if output is not None:
                 outputs[step.stage] = output
-        return StageOutputs(outputs, dict(self._plan.names))
+        return StageOutputs(outputs, dict(self._plan.names), self._errors())
+
+    def _errors(self) -> tuple[ErrorEntry, ...]:
+        profile = self._deps.error_profile
+        if profile is None:
+            return ()
+        keys = self._plan.names.items()
+        return profile.selected(keys, plan_entry_filter(self._plan))
 
 
 class PerceivedSource:
@@ -278,7 +293,9 @@ class PerceivedSource:
 
     def _one(self, clip: ClipManifest, found: StageOutputs) -> ClipInputs:
         try:
-            inputs = perceived_inputs(clip, found.outputs, found.names, self._level)
+            inputs = perceived_inputs(
+                clip, found.outputs, found.names, self._level, found.errors
+            )
         except DOMAIN_ERRORS as exc:
             return ClipInputs(clip, None, error_message(exc), self._level)
         return ClipInputs(clip, inputs, None)
