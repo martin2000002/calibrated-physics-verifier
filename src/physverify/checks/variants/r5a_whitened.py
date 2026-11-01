@@ -28,7 +28,10 @@ FloatArray = NDArray[np.float64]
 EXACT_SIGMA_LENGTHS = 1e-6
 """Body lengths: the sigma an exact (zero-sigma) position is weighted with, on the scale of
 ``min_drop_lengths``. Oracle and declared-exact tables then keep finite weights; it is fixed a
-priori, not measured."""
+priori, not measured. A perceived position always carries sigma > 0, so the floor only serves
+oracle inputs. In a window that mixes both, the exact rows weigh (sigma / floor)^2 more, fix the
+fit and its variance alone: W then measures the contrast against the floor and reads any noise
+on those rows as a change of gravity."""
 
 
 class WhitenedFallShapeParams(FallShapeParams):

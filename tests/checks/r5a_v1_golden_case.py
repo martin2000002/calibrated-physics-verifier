@@ -14,12 +14,10 @@ from __future__ import annotations
 import json
 import sys
 from collections.abc import Callable
-from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
 import check_scenarios as sc
-import numpy as np
 
 from physverify.checks.r5a_fall_shape import FallShapeCheck, FallShapeParams
 from physverify.schema.constants import STANDARD_GRAVITY
@@ -28,13 +26,6 @@ from physverify.schema.io import json_ready
 GOLDEN = Path(__file__).resolve().parent / "golden" / "r5a_v1.json"
 G = STANDARD_GRAVITY
 JITTER = 0.0002
-
-
-def jittered(case: sc.Case, seed: int) -> sc.Case:
-    """``case`` with N(0, JITTER) noise on every position."""
-    position = np.asarray(case.states.position, dtype=np.float64)
-    noise = np.random.default_rng(seed).normal(0.0, JITTER, position.shape)
-    return replace(case, states=replace(case.states, position=position + noise))
 
 
 SCENES: dict[str, Callable[[], sc.Case]] = {
@@ -49,12 +40,12 @@ SCENES: dict[str, Callable[[], sc.Case]] = {
     "teleport_flight": lambda: sc.teleport(flight=True, pitch_deg=25.0),
     "two_balls": lambda: sc.two_balls(1.2 * G),
     "two_balls_sigma": lambda: sc.with_sigma(sc.two_balls(0.8 * G), position=0.002),
-    "parabola_jittered": lambda: jittered(sc.parabola(pitch_deg=25.0), seed=0),
-    "gravity_switch_jittered": lambda: jittered(
-        sc.with_sigma(sc.parabola(g_after=1.3 * G, change_frame=18), position=0.002), seed=1
+    "parabola_jittered": lambda: sc.jittered(sc.parabola(pitch_deg=25.0), JITTER, seed=0),
+    "gravity_switch_jittered": lambda: sc.jittered(
+        sc.with_sigma(sc.parabola(g_after=1.3 * G, change_frame=18), position=0.002), JITTER, seed=1
     ),
-    "bounce_jittered": lambda: jittered(sc.bounce(e=0.7, pitch_deg=25.0), seed=2),
-    "two_balls_jittered": lambda: jittered(sc.two_balls(1.2 * G), seed=3),
+    "bounce_jittered": lambda: sc.jittered(sc.bounce(e=0.7, pitch_deg=25.0), JITTER, seed=2),
+    "two_balls_jittered": lambda: sc.jittered(sc.two_balls(1.2 * G), JITTER, seed=3),
 }
 
 

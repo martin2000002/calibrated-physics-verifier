@@ -69,6 +69,13 @@ def test_exact_positions_are_weighted_with_the_floor_and_still_score() -> None:
     assert switch.magnitude > fall.magnitude + 100 * CHI2_3_Q99
 
 
+def test_rows_labelled_exact_in_a_perceived_window_dominate_it() -> None:
+    noisy = sc.jittered(sc.with_sigma(sc.parabola(), position=0.002), 0.002, seed=0)
+    labelled = sc.with_values(noisy, "position_sigma", "ball", range(6), 0.0)
+    assert only(noisy).magnitude < CHI2_3_Q99
+    assert only(labelled).magnitude > 1e4 * CHI2_3_Q99
+
+
 def test_a_flight_row_without_sigma_abstains_as_unknown_uncertainty() -> None:
     case = sc.with_sigma(sc.parabola(), position=0.002)
     result = only(sc.with_values(case, "position_sigma", "ball", [10], np.nan))
@@ -80,6 +87,22 @@ def test_an_unknown_sigma_on_a_flight_too_short_to_score_is_not_the_reason() -> 
     short = WhitenedFallShapeParams(min_flight_s=100.0)
     result = only(sc.with_values(case, "position_sigma", "ball", [10], np.nan), short)
     assert result.abstain_reason is AbstainReason.TOO_FEW_FRAMES
+
+
+def test_an_unknown_sigma_in_one_flight_leaves_the_other_flights_candidates() -> None:
+    bounce = sc.with_sigma(sc.bounce(e=0.7), position=0.003)
+    assert only(bounce).details["mode"] == "consecutive"
+    result = only(sc.with_values(bounce, "position_sigma", "ball", [28], np.nan))
+    assert math.isfinite(result.magnitude)
+    assert result.details["mode"] == "split"
+    assert max(hi for _, hi in result.details["windows"]) < sc.EVENT_FRAME
+
+
+def test_a_pair_adds_the_variances_of_two_objects_with_different_sigma() -> None:
+    case = sc.with_sigma(sc.two_balls(1.2 * G), position=0.002)
+    equal = run(case)[("ball_i", "ball_j")].magnitude
+    wider = sc.with_values(case, "position_sigma", "ball_j", range(sc.FRAMES), 0.004)
+    assert run(wider)[("ball_i", "ball_j")].magnitude == pytest.approx(equal * 2.0 / 5.0, rel=1e-9)
 
 
 def test_the_pair_of_balls_compares_their_first_flights() -> None:

@@ -400,6 +400,13 @@ def with_sigma(case: Case, **sigmas: float) -> Case:
     return replace(case, states=replace(case.states, **changes))
 
 
+def jittered(case: Case, scale: float, seed: int) -> Case:
+    """``case`` with N(0, scale) noise on every position."""
+    position = np.asarray(case.states.position, dtype=np.float64)
+    noise = np.random.default_rng(seed).normal(0.0, scale, position.shape)
+    return replace(case, states=replace(case.states, position=position + noise))
+
+
 def with_records(case: Case, *world_records: ContactRecord) -> Case:
     """Append contact records given in world coordinates."""
     assert case.contacts is not None
