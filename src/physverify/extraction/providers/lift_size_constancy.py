@@ -1,5 +1,5 @@
 """Back-projection whose sphere tracks carry an along-ray sigma from their apparent-size
-constancy (``extraction/size_constancy.py``, ADR 0033); positions and sizes are the v5 lift's."""
+constancy (``extraction/size_constancy.py``); positions and sizes are the parent lift's."""
 
 from __future__ import annotations
 

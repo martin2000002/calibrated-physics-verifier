@@ -1,4 +1,4 @@
-"""ADR 0033: the along-ray sigma of a perceived sphere from its apparent-size constancy."""
+"""The along-ray sigma of a perceived sphere from its apparent-size constancy."""
 
 from __future__ import annotations
 

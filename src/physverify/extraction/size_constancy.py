@@ -3,7 +3,7 @@
 A rigid sphere's image diameter d scales as 1/z, so over its clean rows z * d is constant up to the
 depth error. ln(z * d / median(z * d)) is how far one row's depth departs from the object's own
 apparent-size depth; combined with the pixel noise of d it gives a relative sigma along the ray for
-that row. Positions and sizes are never changed here (ADR 0033)."""
+that row. Positions and sizes are never changed here."""
 
 from __future__ import annotations
 

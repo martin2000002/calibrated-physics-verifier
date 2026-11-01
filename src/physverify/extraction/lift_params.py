@@ -149,7 +149,7 @@ class GroundAnchoredLiftParams(LiftParams):
 
 class SizeConstancyLiftParams(LiftParams):
     """``lift/backproject_size_constancy``: the along-ray sigma settings, fixed a priori from
-    pixel arithmetic and never swept on calib (ADR 0033). Like the ground-anchoring settings they
+    pixel arithmetic and never swept on calib. Like the ground-anchoring settings they
     live here, outside the profile tables, so no section or run-config hash moves."""
 
     # A box side is off by up to a pixel at each end (sqrt(2) px together); at 12 px that is

@@ -1,4 +1,4 @@
-"""ADR 0033: ``lift/backproject_size_constancy`` is ``lift/backproject`` with the along-ray
+"""``lift/backproject_size_constancy`` is ``lift/backproject`` with the along-ray
 sigma of sphere tracks swapped; every other field is the parent's."""
 
 from __future__ import annotations
