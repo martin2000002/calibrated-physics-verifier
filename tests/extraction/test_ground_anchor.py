@@ -228,7 +228,7 @@ def test_anchored_fields_scale_by_the_factor_and_swap_the_depth_term() -> None:
         height=1.0,
         gain=np.ones((1, 2)),
     )
-    out = anchored_fields(fields, result, np.full((1, 2), 0.3), 0.1)
+    out = anchored_fields(fields, result, np.full((1, 2), 0.3), 0.1, 0.0)
     np.testing.assert_allclose(out["position"][0, 1], [0.0, 0.0, 5.0])
     np.testing.assert_allclose(out["position_sigma"][0, 1], 0.5)
     np.testing.assert_allclose(out["position_sigma"][0, 0, 2], math.sqrt(4 + 400 * 0.08))

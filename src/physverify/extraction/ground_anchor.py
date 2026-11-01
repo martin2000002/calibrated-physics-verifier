@@ -273,15 +273,18 @@ def anchored_fields(
     result: AnchorResult,
     sigma_rel: FloatArray,
     depth_rel: float,
+    phi: float,
 ) -> dict[str, FloatArray]:
     """Position, size and their sigma scaled by each cell's factor (the lift's placement and
     closed-form sigma are linear in the distance); on anchored cells the depth term p_k r_d of the
-    closed form becomes the anchor's p_k sigma_rel (variance swap)."""
+    closed form becomes the anchor's p_k sigma_rel (variance swap). The closed form already has
+    the focal term phi on x, y and the size, so there the swap takes sigma_rel without it."""
     factor = result.factor[..., None]
     out = {name: np.asarray(fields[name], dtype=np.float64) * factor for name in SCALED_FIELDS}
     swap = sigma_rel[result.anchored, None] ** 2 - depth_rel**2
+    focal_in_base = {"position": np.array([phi**2, phi**2, 0.0]), "size": np.full(3, phi**2)}
     for value, sigma in (("position", "position_sigma"), ("size", "size_sigma")):
         cells = out[sigma][result.anchored]
-        variance = cells**2 + out[value][result.anchored] ** 2 * swap
+        variance = cells**2 + out[value][result.anchored] ** 2 * (swap - focal_in_base[value])
         out[sigma][result.anchored] = np.sqrt(np.clip(variance, 0.0, None))
     return out

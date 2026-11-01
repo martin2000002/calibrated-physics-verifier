@@ -41,7 +41,7 @@ class GroundAnchoredLift(BackprojectLift):
     after the per-row summaries."""
 
     name: ClassVar[str] = "ground_anchored"
-    version: ClassVar[str] = "2"
+    version: ClassVar[str] = "3"
     Params: ClassVar[type[BaseModel]] = GroundAnchoredLiftParams
 
     def __init__(self, params: BaseModel) -> None:
@@ -73,10 +73,11 @@ class GroundAnchoredLift(BackprojectLift):
         if not math.isfinite(result.height):
             return table
         pixel = entry_rms(ctx.error_entry(Stage.TRACK, "centroid_px_rel")) * angular_radius
-        sigma_rel = anchored_sigma(result.gain, normal_sigma, camera_focal_phi(camera), pixel)
+        phi = camera_focal_phi(camera)
+        sigma_rel = anchored_sigma(result.gain, normal_sigma, phi, pixel)
         depth_rel = entry_rms(ctx.error_entry(Stage.DEPTH, "depth_rel"))
         fields = {name: getattr(table, name) for name in SCALED_FIELDS}
-        scaled = anchored_fields(fields, result, sigma_rel, depth_rel)
+        scaled = anchored_fields(fields, result, sigma_rel, depth_rel, phi)
         return replace(
             table,
             position=scaled["position"],
