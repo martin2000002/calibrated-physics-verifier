@@ -25,17 +25,27 @@ TOL = 1e-9
 # 8. Point convention
 
 
-def test_environment_points_sit_midway_so_the_plane_offset_is_the_scene_height() -> None:
-    case = cs.bounce_on_floor()
+def test_environment_points_sit_on_the_body_bottom_with_distance_zero() -> None:
+    lift = 0.05 * cases.LENGTH
+    case = cases.boxes_at([0.0, 0.0, lift])
+    up, bottom = cases.world_plane(case, lift)
     found = cases.outcome(case)
-    records = cases.env_records(found.records)
-    assert {r.kind for r in records} == {ContactKind.IMPACT, ContactKind.RESTING}
-    ids = list(case.states.object_ids)
-    for record in records:
-        plane = found.planes[ids.index(record.object_a)]
-        assert plane is not None
-        offsets = cases.midway_offsets(record)
-        assert offsets == pytest.approx(np.full(len(offsets), plane.height), abs=TOL)
+    (record,) = cases.env_records(found.records, "box2")
+    assert found.planes[2] is not None
+    assert found.planes[2].height == pytest.approx(cases.world_plane(case)[1], abs=TOL)
+    assert record.point_distances == pytest.approx(np.zeros(4), abs=TOL)
+    assert cases.midway_offsets(record) == pytest.approx(np.full(4, bottom), abs=TOL)
+    np.testing.assert_allclose(record.normal, up, atol=TOL)
+
+
+def test_an_environment_impact_is_one_point_at_the_bottom_with_distance_zero() -> None:
+    case = cs.bounce_on_floor()
+    records = cases.env_records(cases.outcome(case).records)
+    impacts = [r for r in records if r.kind is ContactKind.IMPACT]
+    assert impacts
+    for record in impacts:
+        assert record.points.shape == (1, 3)
+        assert record.point_distances == pytest.approx(np.zeros(1), abs=TOL)
         np.testing.assert_allclose(record.normal, cases.world_plane(case)[0], atol=TOL)
 
 
@@ -54,7 +64,7 @@ def test_the_provider_reads_the_lift_and_kinematics_entries_and_is_light() -> No
     assert (provider.stage, provider.name, provider.version) == (
         Stage.CONTACTS,
         "kinematic_scene",
-        "1",
+        "2",
     )
     assert provider.error_profile_reads == (Stage.LIFT, Stage.KINEMATICS)
     assert not provider.heavy and not provider.is_ground_truth

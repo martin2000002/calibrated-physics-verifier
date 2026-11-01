@@ -1,7 +1,8 @@
 """Scenes and a profiled context for ``contacts/kinematic_scene``.
 
 Boxes stand on a world floor (z up) and are seen by the check-scenario camera, so the provider
-only learns "up" from ``gravity_dir``. The error entries are the measured ones of the profile.
+only learns "up" from ``gravity_dir``. The error entries are the measured ones of the profile,
+except the gap error, a round test value.
 """
 
 from __future__ import annotations
@@ -14,9 +15,10 @@ from typing import Any
 import contact_scenes as cs
 import numpy as np
 from numpy.typing import NDArray
+from scipy.stats import norm
 from support import entry
 
-from physverify.extraction.providers._scene_plane import HeightError
+from physverify.extraction.providers._scene_plane import GapError, HeightError
 from physverify.extraction.providers._scene_records import SceneOutcome
 from physverify.extraction.providers._velocity_tests import VelocityError
 from physverify.extraction.providers.contacts_kinematic_scene import KinematicSceneContacts
@@ -24,7 +26,7 @@ from physverify.physics.geometry import characteristic_lengths
 from physverify.schema.clip import FrameSampling, SamplingSpec, resolve_sampling
 from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactRecord, ContactTable
-from physverify.schema.error_profile import ErrorEntry
+from physverify.schema.error_profile import SUPPORT_GAP_REL, ErrorEntry
 from physverify.schema.outputs import StageOutput
 from physverify.schema.stages import Stage
 from physverify.schema.states import ObjectStateTable, PrimitiveKind
@@ -34,8 +36,10 @@ FloatArray = NDArray[np.float64]
 VEL_REL = entry(Stage.KINEMATICS, "savgol", "vel_rel", 0.3157, bias=-0.0022)
 CENTROID_REL = entry(Stage.LIFT, "backproject", "centroid_rel", 0.0552, bias=0.0002)
 SIZE_REL = entry(Stage.LIFT, "backproject", "size_rel", 0.0782, bias=0.0056)
+GAP_REL = entry(Stage.LIFT, "backproject", SUPPORT_GAP_REL, 0.1)
 VELOCITY = VelocityError.of(VEL_REL)
 HEIGHTS = HeightError.of(CENTROID_REL, SIZE_REL)
+GAPS = GapError.of(GAP_REL)
 SIDE = cs.BOX_SIDE
 LENGTH = float(characteristic_lengths(sc.cube(SIDE)))
 SPACING = 2.0 * SIDE
@@ -50,6 +54,7 @@ def outcome(
     states: ObjectStateTable | None = None,
     velocity: VelocityError = VELOCITY,
     heights: HeightError = HEIGHTS,
+    gaps: GapError = GAPS,
     **params: Any,
 ) -> SceneOutcome:
     provider = KinematicSceneContacts(KinematicSceneContacts.Params(**params))
@@ -59,6 +64,7 @@ def outcome(
         sampling(case).seconds_per_frame,
         velocity,
         heights,
+        gaps,
     )
     assert found is not None
     return found
@@ -82,7 +88,7 @@ class ProfiledContext:
 
 
 def measured_entries() -> dict[tuple[Stage, str], ErrorEntry]:
-    return {(e.stage, e.quantity): e for e in (VEL_REL, CENTROID_REL, SIZE_REL)}
+    return {(e.stage, e.quantity): e for e in (VEL_REL, CENTROID_REL, SIZE_REL, GAP_REL)}
 
 
 def scene_table(
@@ -131,6 +137,11 @@ def env_records(records: Sequence[ContactRecord], object_id: str | None = None) 
 
 def pair_records(records: Sequence[ContactRecord]) -> list[ContactRecord]:
     return [r for r in records if r.object_b != ENV_ID]
+
+
+def gate(length: float = LENGTH, gaps: GapError = GAPS, alpha: float = 0.05) -> float:
+    """K sigma_gap with K = z(alpha / 2): the farthest a body may sit from its plane."""
+    return float(norm.isf(alpha / 2.0)) * gaps.sigma(length)
 
 
 def midway_offsets(record: ContactRecord) -> FloatArray:

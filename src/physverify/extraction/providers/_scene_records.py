@@ -1,11 +1,12 @@
 """Contact records of the kinematic scene provider; not a plugin.
 
 Existence is kinematic. RESTING: rest runs of both objects of a proximity pair (pair record), or
-rest rows of an object not resting on another one, on its scene plane (environment record).
+rest rows of an object not resting on another one and within K sigma_gap of its scene plane
+(environment record), K = z(alpha / 2) and sigma_gap the profile's measured gap error.
 IMPACT: a velocity kink whose shape explains its window best, attributed to a surface as in
 ``_impact_attribution.py`` and kept when its change along the surface normal is significant.
-Environment records place their points midway between the body and the scene plane, so that
-``support_plane`` returns the scene plane.
+Environment records place their points on the body's own bottom with distance 0, so that
+``support_plane`` returns where the body is, not the scene plane it was tested against.
 """
 
 from __future__ import annotations
@@ -32,6 +33,7 @@ from physverify.extraction.providers._impact_attribution import (
 )
 from physverify.extraction.providers._proximity import FrameContact, Pair, nan_median
 from physverify.extraction.providers._scene_plane import (
+    GapError,
     HeightError,
     ScenePlane,
     SupportPlane,
@@ -44,7 +46,7 @@ from physverify.extraction.providers._scene_plane import (
 )
 from physverify.extraction.providers._velocity_tests import NormalChange, long_runs, rest_mask
 from physverify.physics.contact_manifold import contact_manifold
-from physverify.physics.geometry import Solid
+from physverify.physics.geometry import Plane, Solid
 from physverify.physics.signed_distance import signed_distance
 from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactKind, ContactRecord, ManifoldKind
@@ -58,12 +60,13 @@ Interval = tuple[Pair, list[FrameContact]]
 @dataclass(frozen=True)
 class SceneInputs:
     """A clip's kinematic scene (pair proximity only), its pair intervals, sigma_v per object,
-    the lift's height error and the test settings."""
+    the lift's height and gap errors and the test settings."""
 
     scene: KinematicScene
     intervals: tuple[Interval, ...]
     sigma_v: FloatArray
     height_error: HeightError
+    gap_error: GapError
     alpha: float
     focal: float
     side_s: float
@@ -80,10 +83,14 @@ class TestedChoice:
 
 @dataclass(frozen=True)
 class SceneOutcome:
+    """Records and the tests behind them; ``gap_known`` False means no environment rest could
+    be tested (unknown gap error), not that none was found."""
+
     records: tuple[ContactRecord, ...]
     tested: tuple[TestedChoice, ...]
     planes: tuple[SupportPlane | None, ...]
     rest: BoolArray
+    gap_known: bool
 
 
 def scene_contacts(inputs: SceneInputs) -> SceneOutcome:
@@ -102,17 +109,38 @@ def scene_contacts(inputs: SceneInputs) -> SceneOutcome:
     planes = scene_planes(inputs, up, env_runs, events, tests)
     tested = [gate(inputs, c, tests, planes) for c in resolve(scene, events)]
     impacts = [r for t in tested if t.accepted and (r := impact_record(scene, t, planes))]
+    near = near_plane(inputs, planes, rest & ~covered)
     resting = [
         r
-        for n, runs in enumerate(env_runs)
-        if (support := planes[n]) is not None
-        for run in runs
+        for n, support in enumerate(planes)
+        if support is not None
+        for run in long_runs(near[:, n], proximity.min_rest_rows)
         if (r := env_resting(inputs, n, run, support))
     ]
     records = sorted(
         [*pairs, *impacts, *resting], key=lambda r: (r.object_a, r.object_b, r.t_start)
     )
-    return SceneOutcome(tuple(records), tuple(tested), planes, rest)
+    return SceneOutcome(tuple(records), tuple(tested), planes, rest, inputs.gap_error.known)
+
+
+def near_plane(
+    inputs: SceneInputs, planes: Sequence[SupportPlane | None], candidates: BoolArray
+) -> BoolArray:
+    """Candidate rows whose body lies within K sigma_gap of its plane, K = z(alpha / 2);
+    none when sigma_gap is unknown. The planes come from the ungated runs, so the gate never
+    feeds the plane it tests against."""
+    near = np.zeros(candidates.shape, dtype=np.bool_)
+    if not inputs.gap_error.known:
+        return near
+    proximity = inputs.scene.proximity
+    k = float(norm.isf(inputs.alpha / 2.0))
+    for t, n in zip(*np.nonzero(candidates), strict=True):
+        support = planes[n]
+        if support is None:
+            continue
+        bound = k * inputs.gap_error.sigma(float(proximity.lengths[n]))
+        near[t, n] = abs(support_gap(proximity.bodies[t][n], support)) <= bound
+    return near
 
 
 def resting_pairs(
@@ -228,17 +256,16 @@ def impact_record(
 def env_impact(
     scene: KinematicScene, event: Event, support: SupportPlane, change: NormalChange
 ) -> ContactRecord | None:
-    """One point b - (g / 2) up with g = up . b - c, b the body's lowest point at the impact."""
+    """One point at b, the body's lowest point at the impact, with distance 0."""
     up, impact = support.plane.normal, event.impact
     row = nearest_row(scene, impact.time)
     bottom = facing_point(scene, event.index, row, impact.position, up)
     if bottom is None:
         return None
-    gap = float(up @ bottom) - support.height
-    record = make_record(scene, (event.index, None), impact.time, up, bottom - gap / 2.0 * up, row)
+    record = make_record(scene, (event.index, None), impact.time, up, bottom, row)
     return replace(
         record,
-        point_distances=np.array([gap]),
+        point_distances=np.zeros(1),
         confidence=change.confidence,
         source=SOURCE,
     )
@@ -247,23 +274,25 @@ def env_impact(
 def env_resting(
     inputs: SceneInputs, n: int, run: slice, support: SupportPlane
 ) -> ContactRecord | None:
-    """RESTING on P_n over ``run``: the patch of the body moved onto the plane at the central
-    row, projected on the plane and lifted by g / 2; the gap is only a confidence."""
+    """RESTING on P_n over ``run``, placed on the body's own floor (the median of its lowest
+    heights): the patch of the central row's body moved onto that floor, distances 0. The gap
+    to P_n only sets the confidence, the two-sided p-value of its median under sigma_gap."""
     scene = inputs.scene
     states, proximity = scene.states, scene.proximity
+    up = support.plane.normal
     rows = [t for t in range(run.start, run.stop) if solid(proximity.bodies[t][n]) is not None]
     if not rows:
         return None
+    lowest = [height(proximity.bodies[t][n], up) for t in rows]
     gaps = [support_gap(proximity.bodies[t][n], support) for t in rows]
-    middle = len(rows) // 2
-    placed = proximity.bodies[rows[middle]][n]
+    floor = Plane.ground(float(np.median(lowest)), up)
+    placed = proximity.bodies[rows[len(rows) // 2]][n]
     body = solid(placed)
     assert placed is not None and body is not None
     length = float(proximity.lengths[n])
-    patch = plane_patch(body, support, gaps[middle], scene.tol_rel * length)
+    patch = floor_patch(body, floor, scene.tol_rel * length)
     count = patch.shape[0]
-    up = support.plane.normal
-    spread = math.hypot(inputs.height_error.sigma(length), support.sigma)
+    spread = inputs.gap_error.sigma(length)
     frames = states.frame_index
     return ContactRecord(
         object_a=str(states.object_ids[n]),
@@ -275,22 +304,28 @@ def env_resting(
         points=patch,
         manifold=ManifoldKind.POINT if placed.point_only else ManifoldKind.PRIMITIVE,
         point_normals=np.tile(up, (count, 1)),
-        point_distances=np.full(count, gaps[middle]),
+        point_distances=np.zeros(count),
         orientation_assumed=placed.assumed,
-        max_penetration=max(0.0, -min(gaps)),
-        confidence=float(2.0 * norm.sf(abs(float(np.median(gaps))) / spread)),
+        max_penetration=0.0,
+        confidence=two_sided(float(np.median(gaps)), spread),
         source=SOURCE,
     )
 
 
-def plane_patch(body: Solid, support: SupportPlane, gap: float, tol: float) -> FloatArray:
-    """Contact patch of the body moved by -gap along up, on the plane, lifted by gap / 2."""
-    plane, up = support.plane, support.plane.normal
-    touching = moved(body, body.pose.position - gap * up)
-    manifold = contact_manifold(touching, plane, tol)
+def two_sided(value: float, sigma: float) -> float:
+    """2 P(Z > |value| / sigma); NaN when both are 0."""
+    with np.errstate(divide="ignore", invalid="ignore"):
+        score = np.float64(abs(value)) / np.float64(sigma)
+    return float(2.0 * norm.sf(score))
+
+
+def floor_patch(body: Solid, floor: Plane, tol: float) -> FloatArray:
+    """Contact patch of the body moved along up onto ``floor``, projected on it."""
+    up = floor.normal
+    touching = moved(body, body.pose.position - signed_distance(body, floor).distance * up)
+    manifold = contact_manifold(touching, floor, tol)
     points = (
-        signed_distance(touching, plane).point_a[None, :] if manifold is None else manifold.points
+        signed_distance(touching, floor).point_a[None, :] if manifold is None else manifold.points
     )
-    on_plane = points - (points @ up - plane.offset)[:, None] * up
-    lifted: FloatArray = on_plane + gap / 2.0 * up
-    return lifted
+    on_floor: FloatArray = points - (points @ up - floor.offset)[:, None] * up
+    return on_floor

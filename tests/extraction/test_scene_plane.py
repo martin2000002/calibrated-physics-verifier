@@ -9,8 +9,9 @@ from dataclasses import replace
 import numpy as np
 import pytest
 import scene_contact_cases as cases
+from scipy.stats import norm
 
-from physverify.extraction.providers._scene_plane import HeightError, ScenePlane, up_of
+from physverify.extraction.providers._scene_plane import GapError, HeightError, ScenePlane, up_of
 from physverify.physics.geometry import Plane
 from physverify.physics.tracks import support_plane
 from physverify.schema.contacts import ContactKind, ContactTable
@@ -44,27 +45,32 @@ def test_one_object_alone_has_no_environment_record() -> None:
 def test_two_objects_are_each_judged_against_the_other() -> None:
     lift = 0.02 * cases.LENGTH
     case = cases.boxes_at([0.0, lift])
-    records = cases.outcome(case).records
-    (low,) = cases.env_records(records, "box0")
-    (high,) = cases.env_records(records, "box1")
+    found = cases.outcome(case)
+    (low,) = cases.env_records(found.records, "box0")
+    (high,) = cases.env_records(found.records, "box1")
     assert low.kind is high.kind is ContactKind.RESTING
-    assert low.point_distances == pytest.approx(np.full(4, -lift), abs=TOL)
-    assert high.point_distances == pytest.approx(np.full(4, lift), abs=TOL)
-    assert cases.pair_records(records) == []
+    assert [p.height for p in found.planes if p] == pytest.approx(
+        [cases.world_plane(case, lift)[1], cases.world_plane(case)[1]], abs=TOL
+    )
+    sigma = cases.GAPS.sigma(cases.LENGTH)
+    assert low.confidence == pytest.approx(2.0 * norm.sf(lift / sigma))
+    assert high.confidence == pytest.approx(low.confidence)
+    assert cases.pair_records(found.records) == []
 
 
-def test_a_sunk_body_sees_the_plane_of_the_others() -> None:
+def test_a_sunk_body_within_the_gate_rests_on_its_own_bottom() -> None:
     depth = 0.3 * cases.LENGTH
     case = cases.boxes_at([0.0, 0.0, -depth, 0.0])
-    contacts = table(case, cases.outcome(case).records)
-    up, offset = cases.world_plane(case)
+    wide = GapError(depth / cases.LENGTH)
+    contacts = table(case, cases.outcome(case, gaps=wide).records)
+    up, offset = cases.world_plane(case, -depth)
     plane = support_plane("box2", contacts)
     assert isinstance(plane, Plane)
     np.testing.assert_allclose(plane.normal, up, atol=TOL)
     assert plane.offset == pytest.approx(offset, abs=TOL)
     (record,) = cases.env_records(contacts.records, "box2")
-    assert record.point_distances == pytest.approx(np.full(4, -depth), abs=TOL)
-    assert record.max_penetration == pytest.approx(depth, abs=TOL)
+    assert record.point_distances == pytest.approx(np.zeros(4), abs=TOL)
+    assert record.max_penetration == 0.0
 
 
 def test_two_stacked_boxes_alone_rest_on_each_other_and_build_no_plane_below() -> None:
@@ -134,14 +140,17 @@ def test_the_plane_sigma_adds_the_height_and_the_tilt_errors() -> None:
     assert plane.for_object(1) is None
     error = HeightError(0.06, 0.08)
     assert error.sigma(2.0) == pytest.approx(2.0 * math.hypot(0.06, 0.04))
+    gap = GapError.of(cases.GAP_REL)
+    assert gap.known and gap.sigma(2.0) == pytest.approx(0.2)
+    assert not GapError.of(None).known
 
 
-def test_an_unknown_tilt_error_leaves_records_with_unknown_confidence() -> None:
+def test_the_confidence_reads_the_gap_error_not_the_plane_tilt_error() -> None:
     case = cases.boxes_at([0.0, 0.0])
     states = replace(case.states, gravity_dir_sigma=math.nan)
     records = cases.env_records(cases.outcome(case, states=states).records)
     assert len(records) == 2
-    assert all(math.isnan(r.confidence) for r in records)
+    assert [r.confidence for r in records] == pytest.approx([1.0, 1.0])
 
 
 def test_without_gravity_pairs_remain_and_there_is_no_environment() -> None:

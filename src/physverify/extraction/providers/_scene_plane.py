@@ -18,7 +18,7 @@ from numpy.typing import NDArray
 
 from physverify.extraction.providers._proximity import PlacedBody
 from physverify.physics.geometry import Plane, Pose, Solid
-from physverify.physics.signed_distance import signed_distance
+from physverify.physics.signed_distance import lowest_height, signed_distance
 from physverify.physics.uncertainty import entry_rms
 from physverify.schema.error_profile import ErrorEntry
 
@@ -38,6 +38,25 @@ class HeightError:
 
     def sigma(self, length: float) -> float:
         return length * math.hypot(self.centroid, self.size / 2.0)
+
+
+@dataclass(frozen=True)
+class GapError:
+    """Relative error of a body's gap to its scene plane (NaN when unknown):
+    sigma_gap = L e_gap."""
+
+    relative: float
+
+    @classmethod
+    def of(cls, entry: ErrorEntry | None) -> GapError:
+        return cls(entry_rms(entry))
+
+    @property
+    def known(self) -> bool:
+        return math.isfinite(self.relative)
+
+    def sigma(self, length: float) -> float:
+        return length * self.relative
 
 
 @dataclass(frozen=True)
@@ -62,11 +81,6 @@ def up_of(gravity: FloatArray | None) -> FloatArray | None:
     return -g / norm if bool(np.all(np.isfinite(g))) and norm > 0.0 else None
 
 
-def lowest(body: Solid, up: FloatArray) -> float:
-    """Height along up of the body's lowest point."""
-    return signed_distance(body, Plane.ground(0.0, up)).distance
-
-
 def moved(body: Solid, position: FloatArray) -> Solid:
     return Solid(body.primitive, Pose(np.asarray(position, dtype=np.float64), body.pose.rotation))
 
@@ -80,7 +94,7 @@ def height(placed: PlacedBody | None, up: FloatArray, position: FloatArray | Non
     body = solid(placed)
     if body is None:
         return math.nan
-    return lowest(body if position is None else moved(body, position), up)
+    return lowest_height(body if position is None else moved(body, position), up)
 
 
 def support_gap(placed: PlacedBody | None, support: SupportPlane) -> float:

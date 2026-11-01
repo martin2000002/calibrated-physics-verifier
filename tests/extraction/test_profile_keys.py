@@ -27,7 +27,7 @@ from physverify.diagnosis.stage_errors import provider_ref
 from physverify.extraction._base import StageProvider
 from physverify.extraction.cache import StageCache, plan_params_hashes, profile_keys
 from physverify.extraction.plan import ResolvedPlan
-from physverify.schema.error_profile import ErrorEntry, ErrorProfile
+from physverify.schema.error_profile import SUPPORT_GAP_REL, ErrorEntry, ErrorProfile
 from physverify.schema.io import stable_hash
 from physverify.schema.stages import STAGE_ORDER, Stage, StageArtifactMeta
 
@@ -116,7 +116,11 @@ def test_light_outputs_only_depend_on_their_profile_keys(
         assert hashes[0] == hashes[1], provider.name
 
 
-SCENE = profile_of(*P0.entries, entry(Stage.KINEMATICS, "savgol", "vel_rel", 0.3))
+SCENE = profile_of(
+    *P0.entries,
+    entry(Stage.KINEMATICS, "savgol", "vel_rel", 0.3),
+    entry(Stage.LIFT, "backproject", SUPPORT_GAP_REL, 0.1),
+)
 
 
 @pytest.mark.parametrize(
@@ -124,6 +128,7 @@ SCENE = profile_of(*P0.entries, entry(Stage.KINEMATICS, "savgol", "vel_rel", 0.3
     [
         ((Stage.KINEMATICS, "savgol", "vel_rel"), [Stage.CONTACTS]),
         ((Stage.LIFT, "backproject", "centroid_rel"), FROM_LIFT),
+        ((Stage.LIFT, "backproject", SUPPORT_GAP_REL), FROM_LIFT),
         ((Stage.DEPTH, "vda_small", "depth_rel"), FROM_LIFT),
     ],
 )

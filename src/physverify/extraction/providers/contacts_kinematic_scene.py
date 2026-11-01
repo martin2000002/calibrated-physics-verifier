@@ -2,11 +2,14 @@
 
 A RESTING contact needs a velocity compatible with zero and constant under the profile's
 velocity error, with something under the body: another resting object (pair) or the scene plane
-(environment). An IMPACT needs a velocity kink that explains its window best and a significant
-change along the chosen surface normal. The scene plane has normal up from gravity and the
-height of the lowest other object at rest or bouncing, never the judged body's own; distance to
-it is only a confidence. Pairs use the proximity geometry of ``contacts/proximity`` without a
-ground plane. See ``_velocity_tests.py``, ``_scene_plane.py`` and ``_scene_records.py``.
+(environment), the latter only on rows where the body lies within z(alpha / 2) sigma_gap of the
+plane, sigma_gap from the profile's LIFT ``support_gap_rel`` entry (unknown: no environment
+rest). An IMPACT needs a velocity kink that explains its window best and a significant change
+along the chosen surface normal. The scene plane has normal up from gravity and the height of
+the lowest other object at rest or bouncing, never the judged body's own. Environment records
+lie on the body's own bottom, so checks measure the body, not the plane it was tested against.
+Pairs use the proximity geometry of ``contacts/proximity`` without a ground plane. See
+``_velocity_tests.py``, ``_scene_plane.py`` and ``_scene_records.py``.
 """
 
 from __future__ import annotations
@@ -20,7 +23,7 @@ from physverify.extraction.providers._common import expect_params
 from physverify.extraction.providers._impact_attribution import KinematicScene, camera_positions
 from physverify.extraction.providers._impacts import EDGE_SIDE_S
 from physverify.extraction.providers._proximity import ContactScene, ProximityParams
-from physverify.extraction.providers._scene_plane import HeightError
+from physverify.extraction.providers._scene_plane import GapError, HeightError
 from physverify.extraction.providers._scene_records import (
     SceneInputs,
     SceneOutcome,
@@ -29,6 +32,7 @@ from physverify.extraction.providers._scene_records import (
 from physverify.extraction.providers._velocity_tests import VelocityError
 from physverify.physics.row_time import reference_seconds
 from physverify.schema.contacts import ContactTable
+from physverify.schema.error_profile import SUPPORT_GAP_REL
 from physverify.schema.perception import CameraModel
 from physverify.schema.stages import Stage
 from physverify.schema.states import ObjectStateTable
@@ -55,7 +59,7 @@ def pair_params(params: Params) -> ProximityParams:
 class KinematicSceneContacts:
     stage: ClassVar[Stage] = Stage.CONTACTS
     name: ClassVar[str] = "kinematic_scene"
-    version: ClassVar[str] = "1"
+    version: ClassVar[str] = "2"
     requires: ClassVar[tuple[Stage, ...]] = (Stage.CAMERA, Stage.KINEMATICS)
     heavy: ClassVar[bool] = False
     is_ground_truth: ClassVar[bool] = False
@@ -73,7 +77,9 @@ class KinematicSceneContacts:
         heights = HeightError.of(
             ctx.error_entry(Stage.LIFT, "centroid_rel"), ctx.error_entry(Stage.LIFT, "size_rel")
         )
-        outcome = self.outcome(states, camera, ctx.sampling.seconds_per_frame, velocity, heights)
+        gaps = GapError.of(ctx.error_entry(Stage.LIFT, SUPPORT_GAP_REL))
+        seconds_per_frame = ctx.sampling.seconds_per_frame
+        outcome = self.outcome(states, camera, seconds_per_frame, velocity, heights, gaps)
         return ContactTable(
             clip_id=states.clip_id,
             frame=states.frame,
@@ -89,6 +95,7 @@ class KinematicSceneContacts:
         seconds_per_frame: float,
         velocity: VelocityError,
         heights: HeightError,
+        gaps: GapError,
     ) -> SceneOutcome | None:
         """The records and the tests behind them; None when sigma_v is unknown."""
         if not velocity.known:
@@ -109,6 +116,7 @@ class KinematicSceneContacts:
             intervals=intervals,
             sigma_v=velocity.sigmas(states, pairs.lengths),
             height_error=heights,
+            gap_error=gaps,
             alpha=p.alpha,
             focal=float(camera.K[0, 0]),
             side_s=p.side_s,
