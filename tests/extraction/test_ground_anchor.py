@@ -1,18 +1,22 @@
-"""Ground-plane anchoring of the lift: geometry, envelope, fallbacks, sigma and v5 equality."""
+"""Ground-plane anchoring of the lift: geometry, floor-row selection, stack guard, fallbacks,
+sigma, profile independence and v5 equality."""
 
 from __future__ import annotations
 
 import math
+from dataclasses import replace
+from typing import Any
 
 import numpy as np
 import pytest
-from support import make_context, run_provider
+from support import entry, make_context, profile_of, run_provider
 from synthetic_clip import SyntheticClip
 from test_lift_backproject import lift, truth_inputs
 
 from physverify.extraction._base import GROUND_TRUTH
 from physverify.extraction.floor_plane import FloorSampling, plane_normal
 from physverify.extraction.ground_anchor import (
+    AnchorMode,
     AnchorPath,
     AnchorResult,
     GroundAnchorParams,
@@ -22,10 +26,16 @@ from physverify.extraction.ground_anchor import (
     anchored_sigma,
     elevation_gain,
     implied_height,
+    interpolated_factor,
     ray_plane_distance,
+    row_noise,
+    steady_rows,
 )
+from physverify.extraction.providers import lift_ground_anchored
 from physverify.extraction.providers.lift_ground_anchored import GroundAnchoredLift
+from physverify.extraction.stack_guard import stacked_rows
 from physverify.physics.geometry import characteristic_lengths
+from physverify.schema.error_profile import ErrorProfile
 from physverify.schema.stages import STAGE_ORDER, Stage
 from physverify.schema.states import ObjectStateTable
 
@@ -34,7 +44,13 @@ DOWN = np.array([0.0, math.cos(PITCH), math.sin(PITCH)])
 CAMERA_HEIGHT = 2.0
 RADIUS = 0.1
 PARAMS = GroundAnchorParams(
-    envelope_quantile=0.9, anchor_z=2.0, min_anchor_rows=5, max_normal_sigma_rad=math.radians(10)
+    envelope_quantile=0.9,
+    anchor_z=2.0,
+    min_anchor_rows=5,
+    max_normal_sigma_rad=math.radians(10),
+    steady_window=7,
+    min_elevation_rad=math.radians(10),
+    anchor_mode=AnchorMode.PER_ROW,
 )
 PIXEL = 1e-3
 N_T = 30
@@ -68,11 +84,17 @@ def bouncing_heights() -> np.ndarray:
     return heights
 
 
-def anchored(bias: tuple[float, ...] = (1.0, 1.3, 0.8)) -> tuple[np.ndarray, AnchorResult]:
+def anchored(
+    bias: tuple[float, ...] = (1.0, 1.3, 0.8),
+    excluded: np.ndarray | None = None,
+    params: GroundAnchorParams = PARAMS,
+) -> tuple[np.ndarray, AnchorResult]:
     truth, position, size, quaternion = scene(bias, bouncing_heights())
     pixel = np.full((N_T, len(bias)), PIXEL)
     spheres = np.ones(len(bias), dtype=bool)
-    return truth, anchor_clip(position, size, quaternion, spheres, DOWN, 0.01, pixel, PARAMS)
+    excluded = np.zeros((N_T, len(bias)), dtype=bool) if excluded is None else excluded
+    result = anchor_clip(position, size, quaternion, spheres, DOWN, 0.01, pixel, excluded, params)
+    return truth, result
 
 
 def test_ray_plane_distance_places_a_resting_sphere_on_the_plane() -> None:
@@ -105,7 +127,43 @@ def test_a_constant_object_bias_is_recovered_and_every_row_shares_one_scale() ->
 def test_rows_in_flight_are_not_anchored() -> None:
     _, result = anchored()
     assert bool(result.anchored[:, 0].all())
-    np.testing.assert_array_equal(result.anchored[:, 1], bouncing_heights()[:, 1] == 0.0)
+    resting = bouncing_heights()[:, 1] == 0.0
+    assert not bool((result.anchored[:, 1] & ~resting).any())
+    settled = np.arange(N_T) >= int(np.argmax(resting)) + PARAMS.steady_window // 2
+    assert bool(result.anchored[settled, 1].all())
+
+
+def test_excluded_and_flat_rows_are_never_anchored() -> None:
+    excluded = np.zeros((N_T, 3), dtype=bool)
+    excluded[:10, 0] = True
+    _, result = anchored(excluded=excluded)
+    np.testing.assert_array_equal(result.anchored[:, 0], ~excluded[:, 0])
+    flat = replace(PARAMS, min_elevation_rad=math.radians(60))
+    assert anchored(params=flat)[1].paths == (AnchorPath.CLIP_FALLBACK,) * 3
+
+
+def test_the_smoothed_mode_matches_a_constant_bias_and_interpolates_in_time() -> None:
+    _, per_row = anchored()
+    _, smoothed = anchored(params=replace(PARAMS, anchor_mode=AnchorMode.PER_ROW_SMOOTHED))
+    np.testing.assert_allclose(smoothed.factor[:, :2], per_row.factor[:, :2], rtol=1e-9)
+    rows = np.zeros(7, dtype=bool)
+    rows[[1, 5]] = True
+    factor = interpolated_factor(np.array([9, 2.0, 9, 9, 9, 8.0, 9]), rows, 1)
+    expected = np.exp(np.interp(np.arange(7), [1, 5], np.log([2.0, 8.0])))
+    np.testing.assert_allclose(factor, expected, rtol=1e-12)
+
+
+def test_the_row_noise_ignores_the_motion_and_a_slope_breaks_steadiness() -> None:
+    times = np.arange(400, dtype=np.float64)
+    noise = np.random.default_rng(1).normal(0.0, 0.01, times.size)
+    curve = 0.5 - 1e-3 * times + 2e-6 * times**2
+    assert row_noise(curve + noise, 7) == pytest.approx(0.01, rel=0.15)
+    assert row_noise(curve, 7) == pytest.approx(0.0, abs=1e-9)
+    ramp = np.r_[np.zeros(10), 0.05 * np.arange(10.0), np.full(10, 0.45)]
+    ramp[0] = np.nan
+    steady = steady_rows(ramp, 0.01, 2.0, 7)
+    assert bool(steady[:7].all()) and bool(steady[-6:].all())
+    assert not bool(steady[12:18].any())
 
 
 def test_an_object_never_at_its_envelope_keeps_the_network_depth() -> None:
@@ -126,7 +184,10 @@ def test_an_unusable_normal_leaves_the_whole_clip_unchanged(
     _, position, size, quaternion = scene((1.0, 1.3), np.zeros((N_T, 2)))
     pixel = np.full((N_T, 2), PIXEL)
     spheres = np.ones(2, dtype=bool)
-    result = anchor_clip(position, size, quaternion, spheres, down, normal_sigma, pixel, PARAMS)
+    excluded = np.zeros((N_T, 2), dtype=bool)
+    result = anchor_clip(
+        position, size, quaternion, spheres, down, normal_sigma, pixel, excluded, PARAMS
+    )
     assert result.paths == (AnchorPath.CLIP_FALLBACK,) * 2
     assert math.isnan(result.height)
     np.testing.assert_array_equal(result.factor, 1.0)
@@ -137,7 +198,8 @@ def test_no_anchored_object_leaves_the_whole_clip_unchanged() -> None:
     _, position, size, quaternion = scene((1.0, 1.3), heights)
     pixel = np.full((N_T, 2), PIXEL)
     spheres = np.ones(2, dtype=bool)
-    result = anchor_clip(position, size, quaternion, spheres, DOWN, 0.01, pixel, PARAMS)
+    excluded = np.zeros((N_T, 2), dtype=bool)
+    result = anchor_clip(position, size, quaternion, spheres, DOWN, 0.01, pixel, excluded, PARAMS)
     assert result.paths == (AnchorPath.CLIP_FALLBACK,) * 2
 
 
@@ -183,9 +245,34 @@ def test_the_floor_normal_points_down_from_the_camera() -> None:
     np.testing.assert_allclose(normal, DOWN, atol=1e-9)
 
 
-def ground_anchored(clip: SyntheticClip, **params: object) -> ObjectStateTable:
-    names = {**dict.fromkeys(STAGE_ORDER, GROUND_TRUTH), Stage.LIFT: "ground_anchored"}
-    ctx = make_context(clip, upstream=truth_inputs(clip), plan=names)
+def test_a_body_resting_on_another_one_in_the_image_is_stacked() -> None:
+    masks = np.zeros((2, 3, 60, 40), dtype=bool)
+    masks[:, 0, 10:20, 15:25] = True
+    masks[0, 1, 22:32, 15:25] = True
+    masks[1, 1, 26:36, 15:25] = True
+    masks[:, 2, 40:50, 15:25] = True
+    position = np.tile([0.0, 0.0, 5.0], (2, 3, 1))
+    intrinsics = np.array([[100.0, 0.0, 20.0], [0.0, 100.0, 30.0], [0.0, 0.0, 1.0]])
+    down = np.array([0.0, 1.0, 0.0])
+    stacked = stacked_rows(masks, position, intrinsics, down, np.ones(2), 4)
+    np.testing.assert_array_equal(stacked, [[True, False, False], [False, False, False]])
+    masks[:, 1, 36:40, 15:25] = True
+    stacked = stacked_rows(masks, position, intrinsics, down, np.ones(2), 4)
+    np.testing.assert_array_equal(stacked[:, 1:], [[True, False], [True, False]])
+
+
+def ground_anchored(
+    clip: SyntheticClip,
+    plan: dict[Stage, str] | None = None,
+    profile: ErrorProfile | None = None,
+    **params: object,
+) -> ObjectStateTable:
+    names = {
+        **dict.fromkeys(STAGE_ORDER, GROUND_TRUTH),
+        Stage.LIFT: "ground_anchored",
+        **(plan or {}),
+    }
+    ctx = make_context(clip, upstream=truth_inputs(clip), plan=names, profile=profile)
     output = run_provider(GroundAnchoredLift, ctx, **params)
     assert isinstance(output, ObjectStateTable)
     return output
@@ -204,3 +291,23 @@ def test_truth_inputs_stay_within_a_quarter_length(fixture_clip: SyntheticClip) 
     length = characteristic_lengths(v5.size)
     moved = np.linalg.norm(table.position - v5.position, axis=2) / length
     assert float(np.nanmax(moved)) <= 0.25
+
+
+def test_the_selection_does_not_depend_on_a_loaded_profile(
+    fixture_clip: SyntheticClip, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    results: list[AnchorResult] = []
+
+    def recorded(*args: Any) -> AnchorResult:
+        results.append(anchor_clip(*args))
+        return results[-1]
+
+    monkeypatch.setattr(lift_ground_anchored, "anchor_clip", recorded)
+    plan = {Stage.TRACK: "edgetam"}
+    profile = profile_of(entry(Stage.TRACK, "edgetam", "centroid_px_rel", 5.0))
+    bare = ground_anchored(fixture_clip, plan, min_elevation_deg=0.0)
+    profiled = ground_anchored(fixture_clip, plan, profile, min_elevation_deg=0.0)
+    assert bool(results[0].anchored.any())
+    np.testing.assert_array_equal(results[1].anchored, results[0].anchored)
+    np.testing.assert_array_equal(profiled.position, bare.position)
+    np.testing.assert_array_equal(profiled.size, bare.size)

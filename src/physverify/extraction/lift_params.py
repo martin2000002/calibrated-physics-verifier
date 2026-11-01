@@ -12,7 +12,7 @@ from pydantic import Field, field_validator
 
 from physverify.extraction._base import ProviderParams
 from physverify.extraction.backprojection import ShiftStrategy, SummaryOptions
-from physverify.extraction.ground_anchor import GroundAnchorParams
+from physverify.extraction.ground_anchor import AnchorMode, GroundAnchorParams
 from physverify.physics.running_median import EdgeMode
 from physverify.physics.tracks import OCCLUDED_AT
 from physverify.schema.states import PrimitiveKind
@@ -116,7 +116,10 @@ class UnnestedLiftParams(LiftParams):
 
 
 class GroundAnchoredLiftParams(LiftParams):
-    """``lift/ground_anchored``: the anchoring settings, fixed a priori (never fitted on calib)."""
+    """``lift/ground_anchored``: the anchoring settings, fixed a priori (never fitted on calib).
+
+    They live here rather than in a precise-profile table, which would change that profile's
+    section and run-config hashes while the provider is still outside the plan."""
 
     normal_source: Literal["gravity", "depth_plane"] = "gravity"
     envelope_quantile: float = Field(default=0.9, gt=0.5, lt=1.0)
@@ -125,6 +128,25 @@ class GroundAnchoredLiftParams(LiftParams):
     # Above it the whole clip keeps the network depth: at a typical elevation of 25 deg the
     # anchor's relative error would be about 0.35.
     max_normal_sigma_deg: float = Field(default=10.0, gt=0.0)
+    steady_window: int = Field(default=7, ge=5)
+    # A ray this flat amplifies a normal error by cot(beta) = 5.7: 2 deg of tilt already give 0.2
+    # relative depth, the network's own error, so flatter rows keep the network depth.
+    min_elevation_deg: float = Field(default=10.0, ge=0.0, lt=90.0)
+    # Pixels a body's lowest mask pixels are probed below it for another object's mask.
+    stack_reach_px: int = Field(default=4, ge=1)
+    # Row-noise floor: the mask-centre jitter in equivalent radii (the tracker's calib rms, 0.35),
+    # a parameter so the rows chosen are the same with and without a loaded error profile.
+    pixel_floor_rel: float = Field(default=0.35, ge=0.0)
+    # per_row matched per_row_smoothed with true floor rows and was within 0.01 L with perceived
+    # ones on calib, so the simpler mode is the default.
+    anchor_mode: AnchorMode = AnchorMode.PER_ROW
+
+    @field_validator("steady_window")
+    @classmethod
+    def _odd_steady_window(cls, value: int) -> int:
+        if value % 2 == 0:
+            raise ValueError("steady_window must be odd")
+        return value
 
 
 def ground_anchor_params(params: GroundAnchoredLiftParams) -> GroundAnchorParams:
@@ -133,6 +155,9 @@ def ground_anchor_params(params: GroundAnchoredLiftParams) -> GroundAnchorParams
         anchor_z=params.anchor_z,
         min_anchor_rows=params.min_anchor_rows,
         max_normal_sigma_rad=math.radians(params.max_normal_sigma_deg),
+        steady_window=params.steady_window,
+        min_elevation_rad=math.radians(params.min_elevation_deg),
+        anchor_mode=params.anchor_mode,
     )
 
 
