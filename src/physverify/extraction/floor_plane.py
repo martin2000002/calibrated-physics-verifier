@@ -15,7 +15,7 @@ BoolArray = NDArray[np.bool_]
 
 @dataclass(frozen=True)
 class FloorSampling:
-    """Fixed a priori (the values of the WP 1.10 D0 measurement)."""
+    """Fixed a priori, never fitted on calibration clips."""
 
     frames: int = 8
     points_per_frame: int = 3000
