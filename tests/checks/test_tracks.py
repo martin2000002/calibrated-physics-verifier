@@ -282,6 +282,14 @@ def test_support_plane_is_the_ground_in_camera_axes() -> None:
     assert support_plane("ball_a", spheres.contacts) is None
 
 
+def test_support_plane_keeps_only_the_given_kinds() -> None:
+    bounce = sc.bounce()
+    assert bounce.contacts is not None
+    assert support_plane("ball", bounce.contacts) is not None
+    assert support_plane("ball", bounce.contacts, frozenset({ContactKind.IMPACT})) is not None
+    assert support_plane("ball", bounce.contacts, frozenset({ContactKind.RESTING})) is None
+
+
 def test_poly_fit_recovers_slope_on_spaced_times() -> None:
     t = sc.times(30)[::3]
     y = np.asarray(np.array([1.0, -2.0, 0.5]) + np.outer(t - 0.3, [3.0, 0.25, -9.81]))

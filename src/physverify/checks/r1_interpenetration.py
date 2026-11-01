@@ -26,6 +26,7 @@ from physverify.physics.signed_distance import signed_distance
 from physverify.physics.tracks import native_span, place_body, support_plane
 from physverify.schema.checks import AbstainReason, CheckResult
 from physverify.schema.constants import ENV_ID
+from physverify.schema.contacts import ContactKind
 from physverify.schema.states import ObjectStateTable, PrimitiveKind
 
 FloatArray = NDArray[np.float64]
@@ -35,6 +36,9 @@ YAW_AXIS = np.array([1.0, 0.0, 0.0])
 # Relative step of the central differences that propagate position and size sigmas to d.
 JACOBIAN_STEP = 1e-6
 SEPARATED_SIGMAS = 3.0
+# A support surface is where a body rests, not where it bounces: an impact record lies at the
+# body's bottom at one instant, at whatever depth the lift gave that instant.
+SUPPORT_KINDS = frozenset({ContactKind.RESTING})
 
 
 class InterpenetrationParams(OcclusionParams):
@@ -79,7 +83,8 @@ class InterpenetrationCheck:
         if inputs.contacts is None:
             return
         for i in range(n):
-            plane = support_plane(str(inputs.states.object_ids[i]), inputs.contacts)
+            object_id = str(inputs.states.object_ids[i])
+            plane = support_plane(object_id, inputs.contacts, SUPPORT_KINDS)
             if plane is not None:
                 yield i, plane
 

@@ -14,6 +14,7 @@ from physverify.checks.r1_interpenetration import (
 )
 from physverify.schema.checks import AbstainReason, CheckResult, Verdict
 from physverify.schema.constants import ENV_ID
+from physverify.schema.contacts import ContactKind
 from physverify.schema.states import PrimitiveKind
 from physverify.verification.thresholding import ThresholdEntry, ThresholdRule
 
@@ -70,6 +71,23 @@ def test_ground_comes_from_the_env_records() -> None:
     result = by_subject(sc.sinking_box(depth=0.05, pitch_deg=20.0))[("box", ENV_ID)]
     assert result.magnitude == pytest.approx(0.25, abs=1e-9)
     assert result.details["ground"] == "records"
+
+
+def test_the_ground_comes_from_resting_records_only() -> None:
+    """An impact record lies at the body's bottom at one instant: placed 0.3 m up, as a bounce
+    at a wrong learned depth would be, it neither moves the ground nor gives one alone."""
+    box = sc.still("box", PrimitiveKind.BOX, sc.cube(0.2), (0.0, 0.0, 0.05), sc.FRAMES)
+    rest = sc.resting(box)
+    raised = replace(
+        rest,
+        kind=ContactKind.IMPACT,
+        t_start=10.0,
+        t_end=10.0,
+        points=rest.points + np.array([0.0, 0.0, 0.3]),
+    )
+    result = by_subject(sc.with_records(sc.sinking_box(depth=0.05), raised))[("box", ENV_ID)]
+    assert result.magnitude == pytest.approx(0.25, abs=1e-9)
+    assert ("ball", ENV_ID) not in by_subject(sc.bounce())
 
 
 def test_no_contacts_still_checks_pairs() -> None:
