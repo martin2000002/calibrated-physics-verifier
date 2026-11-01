@@ -41,7 +41,12 @@ def test_every_provider_validates_and_only_providers_with_weights_are_heavy(
 def test_only_the_backproject_lifts_and_the_moge2_focal_read_their_own_profile_entry(
     registry: dict[str, type[StageProvider]],
 ) -> None:
-    lifts = ("lift/backproject", "lift/backproject_unnested", "lift/ground_anchored")
+    lifts = (
+        "lift/backproject",
+        "lift/backproject_unnested",
+        "lift/ground_anchored",
+        "lift/backproject_size_constancy",
+    )
     for key in lifts:
         assert registry[key].error_profile_reads == (Stage.TRACK, Stage.DEPTH)
         assert reads_own_error(registry[key])
@@ -62,7 +67,7 @@ def test_building_the_registry_imports_no_heavy_library() -> None:
         f"sys.path.insert(0, {str(REPO / 'src')!r})\n"
         "from physverify.app.plugins import PLUGIN_KINDS\n"
         "import physverify.extraction.weights, physverify.extraction.pipeline\n"
-        "assert len(PLUGIN_KINDS['providers']()) == 32\n"
+        "assert len(PLUGIN_KINDS['providers']()) == 33\n"
         f"print(sorted(m for m in {LAZY_MODULES!r} if m in sys.modules))\n"
     )
     done = subprocess.run(

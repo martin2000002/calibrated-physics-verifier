@@ -50,7 +50,8 @@ SEED_HEX_DIGITS = 16
 class BackprojectLift:
     stage: ClassVar[Stage] = Stage.LIFT
     name: ClassVar[str] = "backproject"
-    version: ClassVar[str] = "5"
+    # 6: 1c8de44 changed the footprint yaw trim (robust_scale) and cached v5 lifts went stale.
+    version: ClassVar[str] = "6"
     requires: ClassVar[tuple[Stage, ...]] = (Stage.TRACK, Stage.DEPTH, Stage.CAMERA)
     heavy: ClassVar[bool] = False
     is_ground_truth: ClassVar[bool] = False
