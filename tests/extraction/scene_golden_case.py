@@ -1,9 +1,11 @@
 """contacts/kinematic_scene tables of analytic scenes seen through disc masks.
 
 ``golden/contacts_kinematic_scene/v2`` holds the tables of commit ff171fd (version 2: 3D velocity
-rest, gap gate); version 3 with ``rest="velocity"`` and ``env_gap_gate=True`` must reproduce them.
-``golden/contacts_kinematic_scene/v3`` holds version 3 with its defaults. The same module writes
-both, each from its own tree:
+rest, gap gate) and ``v3`` those of version 3 with its defaults (image rest, 3D velocity impacts,
+proximity pair rest); version 4 with the 3D velocity impacts and the proximity pair rest must
+reproduce both, with ``rest="velocity"`` and ``env_gap_gate=True`` for version 2.
+``golden/contacts_kinematic_scene/v4`` holds version 4 with its defaults. The same module writes
+them all, each from its own tree:
 
     PYTHONPATH=<tree>/src:tests/fixtures:tests/extraction:tests/checks \
         python tests/extraction/scene_golden_case.py <out>
@@ -34,7 +36,8 @@ ENTRIES = (
     entry(Stage.LIFT, "backproject", "support_gap_rel", 0.1),
     entry(Stage.KINEMATICS, "savgol", "vel_rel", 0.3157, bias=-0.0022),
 )
-V2_EQUIVALENT = {"rest": "velocity", "env_gap_gate": True}
+V3_EQUIVALENT = {"impacts": "velocity", "pair_rest": "proximity"}
+V2_EQUIVALENT = {**V3_EQUIVALENT, "rest": "velocity", "env_gap_gate": True}
 
 
 def table(case: sc.Case, **params: Any) -> ContactTable:

@@ -219,7 +219,9 @@ def stacked(
     K hypot(sigma_h(L_upper), sigma_h(L_lower))."""
     proximity = inputs.scene.proximity
     bodies = [(proximity.bodies[r][upper], proximity.bodies[r][lower]) for r in rows]
-    rises = [height(hi, up) - height(lo, up) for hi, lo in bodies if hi is not None and lo is not None]
+    rises = [
+        height(hi, up) - height(lo, up) for hi, lo in bodies if hi is not None and lo is not None
+    ]
     rises = [r for r in rises if math.isfinite(r)]
     if not rises:
         return False
