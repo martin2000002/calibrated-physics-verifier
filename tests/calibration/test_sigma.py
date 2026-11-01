@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import inspect
 import math
+from types import MappingProxyType
 
 import numpy as np
 import pytest
@@ -21,9 +22,12 @@ from physverify.calibration.sigma_recalibration import (
     oracle_correction,
     recalibrate_profile,
     stage_factor,
+    stage_factors,
 )
+from physverify.diagnosis.error_profile_writer import MetricSamples, ProviderRef
+from physverify.diagnosis.measurement_cases import MetricOutcome
 from physverify.diagnosis.report import profile_hash
-from physverify.schema.error_profile import ErrorEntry, ErrorProfile
+from physverify.schema.error_profile import FOCAL_REL, ErrorEntry, ErrorProfile
 from physverify.schema.stages import Stage
 
 SCALE = 2.0
@@ -222,3 +226,23 @@ def test_the_pair_filter_has_no_silent_default() -> None:
         for name, p in inspect.signature(bias_factor).parameters.items()
         if p.default is not p.empty
     }
+
+
+def test_a_measured_camera_focal_gets_a_stage_factor() -> None:
+    """camera/fov in PROFILE_QUANTITIES also makes stage-sigma fit a CAMERA focal_rel factor."""
+    rng = np.random.default_rng(0)
+    outcomes = {
+        f"c{i}": MetricOutcome(samples=MappingProxyType({FOCAL_REL: rng.normal(0.0, 0.1, 1)}))
+        for i in range(60)
+    }
+    ref = ProviderRef(Stage.CAMERA, "moge2_focal", "1", "abc")
+    measured = MetricSamples("camera/fov", ref, "V1", "V2", MappingProxyType(outcomes))
+    scenes = {clip: f"s{i % 20}" for i, clip in enumerate(outcomes)}
+    (found,) = stage_factors((measured,), scenes, settings())
+    assert (found.stage, found.provider, found.quantity, found.n) == (
+        "camera",
+        "moge2_focal",
+        FOCAL_REL,
+        60,
+    )
+    assert found.factor is not None and math.isfinite(found.factor)

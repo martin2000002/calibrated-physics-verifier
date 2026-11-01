@@ -25,9 +25,16 @@ from physverify.diagnosis.error_profile_writer import (
     write_profile,
 )
 from physverify.diagnosis.measurement_cases import MetricOutcome
+from physverify.diagnosis.report import profile_hash
 from physverify.extraction._base import GROUND_TRUTH, StageContext
 from physverify.schema.clip import FrameSampling
-from physverify.schema.error_profile import MAX_RESIDUALS, EntryFilter, ErrorEntry, ErrorProfile
+from physverify.schema.error_profile import (
+    FOCAL_REL,
+    MAX_RESIDUALS,
+    EntryFilter,
+    ErrorEntry,
+    ErrorProfile,
+)
 from physverify.schema.stages import Stage
 
 META = ProfileMeta(
@@ -161,6 +168,26 @@ def test_empty_quantities_are_skipped_even_without_a_minimum() -> None:
     build = build_profile((lift,), META, min_samples=0)
     assert [e.quantity for e in build.profile.entries] == ["centroid_rel"]
     assert [(s.quantity, s.n) for s in build.skipped] == [("size_rel", 0)]
+
+
+def test_a_measured_camera_adds_a_focal_entry_and_changes_the_profile_hash() -> None:
+    """camera/fov writes FOCAL_REL for whichever camera ran, assumed or estimated; only
+    camera/moge2_focal reads it back, but every profile measuring a camera gets a new hash."""
+    fov = samples(
+        "camera/fov",
+        provider(Stage.CAMERA, "geocalib"),
+        {"a": {FOCAL_REL: [0.1], "fov_err_deg": [2.0]}, "b": {FOCAL_REL: [-0.1]}},
+    )
+    before = build_profile((), META, min_samples=1).profile
+    after = build_profile((fov,), META, min_samples=1).profile
+    (only,) = after.entries
+    assert (only.stage, only.provider, only.quantity, only.n) == (
+        Stage.CAMERA,
+        "geocalib",
+        FOCAL_REL,
+        2,
+    )
+    assert profile_hash(after) != profile_hash(before)
 
 
 def test_merge_replaces_only_the_renewed_entries() -> None:
