@@ -59,6 +59,13 @@ NESTED_OVERLAP = 0.5
 of that object."""
 
 
+def _odd(value: int, name: str) -> int:
+    """A running-median window has a middle row."""
+    if value % 2 == 0:
+        raise ValueError(f"{name} must be odd")
+    return value
+
+
 class LiftParams(ProviderParams):
     shift: ShiftStrategy = ShiftStrategy.ZERO_SHIFT
     gravity: GravityMode = "auto"
@@ -98,9 +105,7 @@ class LiftParams(ProviderParams):
     @field_validator("temporal_window")
     @classmethod
     def _odd_window(cls, value: int) -> int:
-        if value % 2 == 0:
-            raise ValueError("temporal_window must be odd")
-        return value
+        return _odd(value, "temporal_window")
 
 
 class UnnestedLiftParams(LiftParams):
@@ -111,6 +116,19 @@ class UnnestedLiftParams(LiftParams):
         default_factory=lambda: dict(REAL_PRIMITIVES)
     )
     nested_overlap: float = Field(default=NESTED_OVERLAP, gt=0.0, le=1.0)
+
+
+class SmoothedSizeLiftParams(LiftParams):
+    """``lift/smoothed_size``: sizes re-referred to a running median of ``depth_window`` rows of
+    the object's own surface depth (ADR 0029)."""
+
+    depth_window: int = Field(default=17, ge=3)
+    depth_edges: EdgeMode = "shifted"
+
+    @field_validator("depth_window")
+    @classmethod
+    def _odd_depth_window(cls, value: int) -> int:
+        return _odd(value, "depth_window")
 
 
 def summary_options(params: LiftParams) -> SummaryOptions:
