@@ -36,7 +36,13 @@ from physverify.extraction.pipeline import PENDING_SOURCE_KEY
 from physverify.extraction.providers._common import expect_params
 from physverify.extraction.providers._temporal_smoothing import stabilize_summaries
 from physverify.extraction.providers._visibility import gap_visibility
-from physverify.schema.error_profile import CENTROID_PX_REL
+from physverify.schema.error_profile import (
+    CENTROID_PX_REL,
+    CENTROID_REL,
+    DEPTH_REL,
+    ORIENTATION_RAD,
+    SIZE_REL,
+)
 from physverify.schema.io import stable_hash
 from physverify.schema.perception import CameraModel, DepthMap, IntrinsicsSource, MaskTrack
 from physverify.schema.stages import Stage
@@ -216,10 +222,10 @@ def _mutable_fields(table: ObjectStateTable) -> dict[str, Any]:
 
 def _lift_errors(ctx: StageContext, camera: CameraModel) -> LiftErrors:
     return LiftErrors(
-        depth_rel=ctx.error_entry(Stage.DEPTH, "depth_rel"),
+        depth_rel=ctx.error_entry(Stage.DEPTH, DEPTH_REL),
         centroid_px_rel=ctx.error_entry(Stage.TRACK, CENTROID_PX_REL),
-        centroid_rel=ctx.error_entry(Stage.LIFT, "centroid_rel"),
-        size_rel=ctx.error_entry(Stage.LIFT, "size_rel"),
+        centroid_rel=ctx.error_entry(Stage.LIFT, CENTROID_REL),
+        size_rel=ctx.error_entry(Stage.LIFT, SIZE_REL),
         phi=camera_focal_phi(camera),
-        orientation_rad=ctx.error_entry(Stage.LIFT, "orientation_rad"),
+        orientation_rad=ctx.error_entry(Stage.LIFT, ORIENTATION_RAD),
     )

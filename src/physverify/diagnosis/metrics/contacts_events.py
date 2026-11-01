@@ -25,6 +25,7 @@ from physverify.extraction.matching import hungarian
 from physverify.schema.clip import ClipManifest
 from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactRecord, ContactTable
+from physverify.schema.error_profile import GAP_REL
 from physverify.schema.outputs import StageOutput
 from physverify.schema.stages import Stage
 from physverify.schema.states import ObjectStateTable
@@ -76,7 +77,7 @@ def geometry_errors(pred: ContactRecord, truth: ContactRecord, length: float) ->
     out["point_rel"] = float(np.linalg.norm(offset)) / length
     if pred.point_distances is not None and truth.point_distances is not None:
         gap = float(np.median(pred.point_distances) - np.median(truth.point_distances))
-        out["gap_rel"] = gap / length
+        out[GAP_REL] = gap / length
     return out
 
 
@@ -101,7 +102,7 @@ class ContactEventMetric:
         matches = hungarian(tiou_matrix(pred.records, truth.records), case.options.contact_min_tiou)
         states = stage_output(case.context, Stage.LIFT, ObjectStateTable)
         lengths = object_lengths(states) if states is not None else {}
-        columns: dict[str, list[float]] = {"normal_err_deg": [], "gap_rel": [], "point_rel": []}
+        columns: dict[str, list[float]] = {"normal_err_deg": [], GAP_REL: [], "point_rel": []}
         same_kind = 0
         for i, j in matches:
             p, g = pred.records[i], truth.records[j]

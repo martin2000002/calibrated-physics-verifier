@@ -15,6 +15,7 @@ from physverify.diagnosis.normalizers import characteristic_lengths
 from physverify.diagnosis.settings import MetricSettings
 from physverify.extraction.matching import conditional_scale_fit
 from physverify.schema.clip import ClipManifest
+from physverify.schema.error_profile import CENTROID_REL, SIZE_REL
 from physverify.schema.outputs import StageOutput
 from physverify.schema.stages import Stage
 from physverify.schema.states import ObjectStateTable
@@ -45,7 +46,7 @@ class LiftPositionMetric:
         fit = conditional_scale_fit(pred, truth)
         if fit is None:
             empty = np.zeros(0)
-            keys = ("centroid_rel", "size_rel", "position_err_m", "position_z")
+            keys = (CENTROID_REL, SIZE_REL, "position_err_m", "position_z")
             return MetricOutcome(
                 samples=MappingProxyType(dict.fromkeys(keys, empty)),
                 ratios=MappingProxyType({"coverage": coverage}),
@@ -57,8 +58,8 @@ class LiftPositionMetric:
         sized = ok & finite_rows(e_p) & finite_rows(e_g) & (e_g > 0).all(axis=-1)
         residual = s * p - g
         samples = {
-            "centroid_rel": (residual[with_length] / length[with_length][:, None]).ravel(),
-            "size_rel": (s * e_p[sized] / e_g[sized] - 1.0).ravel(),
+            CENTROID_REL: (residual[with_length] / length[with_length][:, None]).ravel(),
+            SIZE_REL: (s * e_p[sized] / e_g[sized] - 1.0).ravel(),
             "position_err_m": np.linalg.norm(residual[ok], axis=-1),
             "position_z": sigma_scores(p - g / s, pairs.pred(pred.position_sigma), ok),
         }

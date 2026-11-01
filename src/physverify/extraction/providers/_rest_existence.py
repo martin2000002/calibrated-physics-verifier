@@ -19,6 +19,7 @@ from physverify.extraction._base import StageContext
 from physverify.extraction.providers._image_rest import image_rest
 from physverify.extraction.providers._proximity import object_lengths
 from physverify.extraction.providers._velocity_tests import VelocityError, rest_mask
+from physverify.schema.error_profile import VEL_REL
 from physverify.schema.stages import Stage
 from physverify.schema.states import ObjectStateTable
 
@@ -53,7 +54,7 @@ class VelocityRest:
 
 
 def velocity_rest(ctx: StageContext, _states: ObjectStateTable) -> VelocityRest:
-    return VelocityRest(VelocityError.of(ctx.error_entry(Stage.KINEMATICS, "vel_rel")))
+    return VelocityRest(VelocityError.of(ctx.error_entry(Stage.KINEMATICS, VEL_REL)))
 
 
 REST_TESTS: Mapping[RestName, RestBuilder] = MappingProxyType(

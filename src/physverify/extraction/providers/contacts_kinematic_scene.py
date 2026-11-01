@@ -39,7 +39,7 @@ from physverify.extraction.providers._scene_records import (
 from physverify.extraction.providers._velocity_tests import VelocityError
 from physverify.physics.row_time import reference_seconds
 from physverify.schema.contacts import ContactTable
-from physverify.schema.error_profile import SUPPORT_GAP_REL
+from physverify.schema.error_profile import CENTROID_REL, SIZE_REL, SUPPORT_GAP_REL, VEL_REL
 from physverify.schema.perception import CameraModel
 from physverify.schema.stages import Stage
 from physverify.schema.states import ObjectStateTable
@@ -82,9 +82,9 @@ class KinematicSceneContacts:
     def run(self, ctx: StageContext) -> ContactTable:
         states = ctx.require(Stage.KINEMATICS, ObjectStateTable)
         camera = ctx.require(Stage.CAMERA, CameraModel)
-        velocity = VelocityError.of(ctx.error_entry(Stage.KINEMATICS, "vel_rel"))
+        velocity = VelocityError.of(ctx.error_entry(Stage.KINEMATICS, VEL_REL))
         heights = HeightError.of(
-            ctx.error_entry(Stage.LIFT, "centroid_rel"), ctx.error_entry(Stage.LIFT, "size_rel")
+            ctx.error_entry(Stage.LIFT, CENTROID_REL), ctx.error_entry(Stage.LIFT, SIZE_REL)
         )
         gaps = GapError.of(ctx.error_entry(Stage.LIFT, SUPPORT_GAP_REL))
         seconds_per_frame = ctx.sampling.seconds_per_frame

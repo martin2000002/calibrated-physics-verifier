@@ -22,6 +22,7 @@ from physverify.diagnosis.metrics._depth import (
 from physverify.diagnosis.metrics._lift import lift_params
 from physverify.diagnosis.settings import MetricSettings
 from physverify.schema.clip import ClipManifest
+from physverify.schema.error_profile import DEPTH_REL
 from physverify.schema.outputs import StageOutput
 from physverify.schema.perception import CameraModel, DepthMap, MaskTrack
 from physverify.schema.stages import Stage
@@ -47,14 +48,14 @@ class ObjectDepthMetric:
             raise TypeError("object depth metric compares two DepthMap")
         track = stage_output(case.context, Stage.TRACK, MaskTrack)
         if track is None:
-            return MetricOutcome(samples=MappingProxyType({"depth_rel": np.zeros(0)}))
+            return MetricOutcome(samples=MappingProxyType({DEPTH_REL: np.zeros(0)}))
         camera = stage_output(case.context, Stage.CAMERA, CameraModel)
         k = camera.K if camera is not None else np.eye(3)
         params = lift_params(case.plan)
         residual = relative_object_error(
             object_depths(pred, track, k, params), object_depths(truth, track, k, params)
         )
-        return MetricOutcome(samples=MappingProxyType({"depth_rel": residual}))
+        return MetricOutcome(samples=MappingProxyType({DEPTH_REL: residual}))
 
 
 PLUGINS = (ObjectDepthMetric,)

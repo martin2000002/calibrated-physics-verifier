@@ -28,6 +28,7 @@ from physverify.diagnosis.normalizers import gravity_in_units, reference_speed
 from physverify.diagnosis.settings import MetricSettings
 from physverify.schema.clip import ClipManifest
 from physverify.schema.contacts import ContactKind, ContactTable
+from physverify.schema.error_profile import ACC_REL, VEL_REL
 from physverify.schema.outputs import StageOutput
 from physverify.schema.scale import ScaleEstimate
 from physverify.schema.stages import Stage
@@ -79,7 +80,7 @@ def velocity_samples(
     usable = np.isfinite(v_ref) & (v_ref > 0)
     scaled = residual / np.where(usable, v_ref, np.nan)[None, :, None]
     return {
-        "vel_rel": scaled[ok & usable[None, :]].ravel(),
+        VEL_REL: scaled[ok & usable[None, :]].ravel(),
         "vel_z": sigma_scores(residual, pairs.pred(pred.velocity_sigma), ok),
     }
 
@@ -104,12 +105,12 @@ def impact_mask(case: MetricCase, truth: ObjectStateTable, pairs: StatePairs) ->
 def acceleration_samples(
     residual: FloatArray, ok: BoolArray, g_units: float, near: BoolArray | None
 ) -> dict[str, FloatArray]:
-    keys = ("acc_rel", "acc_rel_impact", "acc_rel_free")
+    keys = (ACC_REL, "acc_rel_impact", "acc_rel_free")
     out: dict[str, FloatArray] = {key: np.zeros(0) for key in keys}
     if not np.isfinite(g_units):
         return out
     scaled = residual / g_units
-    out["acc_rel"] = scaled[ok].ravel()
+    out[ACC_REL] = scaled[ok].ravel()
     if near is not None:
         out["acc_rel_impact"] = scaled[ok & near].ravel()
         out["acc_rel_free"] = scaled[ok & ~near].ravel()
