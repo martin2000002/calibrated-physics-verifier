@@ -15,13 +15,13 @@ from synthetic_clip import SyntheticClip
 from physverify.core.errors import PluginError
 from physverify.extraction._base import StageContext, WeightKind
 from physverify.extraction.providers import depth_moge2
-from physverify.extraction.providers.depth_moge2 import (
+from physverify.extraction.providers._moge2 import (
     CHECKPOINT,
     FrameEstimate,
-    MoGe2Depth,
     PointMapModel,
     check_load_warnings,
 )
+from physverify.extraction.providers.depth_moge2 import MoGe2Depth
 from physverify.schema.perception import DepthKind, DepthMap, horizontal_fov_deg
 
 DEPTH_M = 3.25
@@ -102,11 +102,15 @@ def test_zero_probe_frames_keeps_the_per_frame_focal(fixture_clip: SyntheticClip
 
 
 def test_a_checkpoint_that_does_not_match_the_model_is_refused() -> None:
-    check_load_warnings(["torch.meshgrid: in an upcoming release"])
+    check_load_warnings(["torch.meshgrid: in an upcoming release"], "depth/moge2")
     with pytest.raises(PluginError, match="depth/moge2"):
-        check_load_warnings(["3 parameter(s) are absent from the checkpoint and keep ..."])
+        check_load_warnings(
+            ["3 parameter(s) are absent from the checkpoint and keep ..."], "depth/moge2"
+        )
     with pytest.raises(PluginError, match="depth/moge2"):
-        check_load_warnings(["2 parameter(s) in the checkpoint have no counterpart in the model"])
+        check_load_warnings(
+            ["2 parameter(s) in the checkpoint have no counterpart in the model"], "depth/moge2"
+        )
 
 
 def test_weights_are_pinned() -> None:

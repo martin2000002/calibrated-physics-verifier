@@ -387,6 +387,7 @@ def test_the_perception_arms_are_declared() -> None:
             "extraction.plan.depth=moge2 extraction.plan.camera=from_depth "
             "extraction.plan.scale=metric_depth"
         ),
+        "moge2-focal-clip": "extraction.plan.camera=moge2_focal",
     }
 
 

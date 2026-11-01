@@ -17,14 +17,14 @@ import importlib
 import math
 from collections.abc import Callable
 from dataclasses import dataclass, replace
-from typing import Annotated, Any, ClassVar, Literal, Protocol
+from typing import Annotated, Any, ClassVar, Final, Literal, Protocol
 
 import numpy as np
 from numpy.typing import NDArray
 from pydantic import AfterValidator, BaseModel, Field
 
 from physverify.extraction._base import ProviderParams, StageContext, WeightKind, WeightSpec
-from physverify.extraction.backprojection import fov_sigma_from_phi
+from physverify.extraction.backprojection import focal_rel_sigma, fov_sigma_from_phi
 from physverify.extraction.gravity_pose import pose_from_gravity
 from physverify.extraction.providers._assumed_fov import AssumedFovCamera
 from physverify.extraction.providers._assumed_fov import Params as AssumedParams
@@ -57,6 +57,10 @@ VENDORED_MODULE = "geocalib.extractor"
 CAMERA_MODEL = "pinhole"
 
 FocalMode = Literal["geocalib", "assumed"]
+GravitySource = Literal["geocalib", "none"]
+_ASSUMED: Final = AssumedParams()
+UNMEASURED_FOCAL_SIGMA_REL: Final = focal_rel_sigma(_ASSUMED.fov_deg, _ASSUMED.fov_sigma_deg)
+"""camera/assumed_fov's phi: an unmeasured focal counts as no better than an assumed one."""
 
 
 def _nan_or_non_negative(value: float) -> float:
@@ -126,6 +130,15 @@ class GeoCalibCamera:
             return replace(assumed, world_from_camera=pose, gravity_sigma_deg=sigma_deg)
         phi = focal_rel(result.focal_px, result.focal_sigma_px, self.params.focal_sigma_floor_rel)
         return replace(camera_model(s, result.focal_px, phi, pose), gravity_sigma_deg=sigma_deg)
+
+
+def with_gravity(camera: CameraModel, result: Calibration) -> CameraModel:
+    """``camera`` with the clip pose and gravity sigma of a calibration."""
+    return replace(
+        camera,
+        world_from_camera=pose_from_gravity(clip_gravity(result)),
+        gravity_sigma_deg=clip_gravity_sigma_deg(result),
+    )
 
 
 def clip_gravity(result: Calibration) -> FloatArray:

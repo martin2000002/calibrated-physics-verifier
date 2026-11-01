@@ -34,6 +34,7 @@ UPSTREAM_CONDITION = "ground_truth"
 PROFILE_QUANTITIES: Mapping[str, tuple[str, ...]] = MappingProxyType(
     {
         "track/mask": ("centroid_px_rel",),
+        "camera/fov": (FOCAL_REL,),
         "depth/metric": (FOCAL_REL, SCALE_REL),
         "depth/object_rel": ("depth_rel",),
         "lift/position": ("centroid_rel", "size_rel"),

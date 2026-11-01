@@ -108,6 +108,7 @@ PROVIDER_ORDER = (
     "camera/assumed_fov",
     "camera/from_depth",
     "camera/geocalib",
+    "camera/moge2_focal",
     "contacts/kinematic",
     "contacts/proximity",
     "depth/moge2",

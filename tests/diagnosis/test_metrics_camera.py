@@ -10,9 +10,11 @@ from metric_cases import METRIC_OPTIONS as OPTIONS
 from metric_cases import metric_case, native_sampling
 from synthetic_clip import manifest
 
+from physverify.diagnosis.error_profile_writer import PROFILE_QUANTITIES
 from physverify.diagnosis.measurement_cases import MetricOutcome
 from physverify.diagnosis.metrics.camera_fov import FovMetric
 from physverify.schema.clip import FrameSampling
+from physverify.schema.error_profile import FOCAL_REL
 from physverify.schema.perception import CameraModel, IntrinsicsSource
 
 WIDTH, HEIGHT = 96, 72
@@ -69,3 +71,7 @@ def test_compute_summarizes_without_context() -> None:
     )
     assert summary["fov_err_deg.mean"] == pytest.approx(2.0)
     assert summary["fov_z.n"] == 0.0
+
+
+def test_the_focal_ratio_is_the_camera_profile_entry() -> None:
+    assert PROFILE_QUANTITIES["camera/fov"] == (FOCAL_REL,)
