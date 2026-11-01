@@ -2,7 +2,8 @@
 
 An impact test gives a clip's IMPACT records from the scene inputs and evidence. ``velocity``: 3D
 velocity kinks attributed as in ``_impact_attribution.py`` and kept when their change along the
-chosen normal is significant. A new test is a module with a class that meets
+chosen normal is significant; ``image``: kinks of the masks' centroid pixel tracks, attributed
+and tested in the image (``_image_impacts.py``). A new test is a module with a class that meets
 ``ImpactExistence``, a builder from the stage context and an entry in ``IMPACT_TESTS``.
 """
 
@@ -16,6 +17,7 @@ from types import MappingProxyType
 from typing import Literal, Protocol
 
 from physverify.extraction._base import StageContext
+from physverify.extraction.providers._image_impacts import image_impacts
 from physverify.extraction.providers._impact_attribution import (
     Choice,
     KinematicScene,
@@ -36,7 +38,7 @@ from physverify.extraction.providers._velocity_tests import NormalChange
 from physverify.schema.contacts import ContactRecord
 from physverify.schema.states import ObjectStateTable
 
-ImpactName = Literal["velocity"]
+ImpactName = Literal["image", "velocity"]
 
 
 class ImpactBuilder(Protocol):
@@ -97,4 +99,6 @@ def impact_record(
     return env_impact(scene, choice.event, support, change)
 
 
-IMPACT_TESTS: Mapping[ImpactName, ImpactBuilder] = MappingProxyType({"velocity": velocity_impacts})
+IMPACT_TESTS: Mapping[ImpactName, ImpactBuilder] = MappingProxyType(
+    {"image": image_impacts, "velocity": velocity_impacts}
+)

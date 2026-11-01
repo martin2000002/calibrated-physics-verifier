@@ -78,7 +78,7 @@ def object_kinks(
     alpha: float,
     bases: Bases,
 ) -> list[ImageKink]:
-    sigma = float(error.sigma(np.median(image.radius[image.valid])))
+    sigma = float(error.sigma(np.asarray(np.median(image.radius[image.valid]))))
     if not sigma > 0.0:
         return []
     noise = NoiseScale(np.array([sigma, sigma]), known=True)
