@@ -34,7 +34,7 @@ class RestExistence(Protocol):
 
 
 class RestBuilder(Protocol):
-    def __call__(self, ctx: StageContext, states: ObjectStateTable) -> RestExistence: ...
+    def __call__(self, ctx: StageContext, states: ObjectStateTable, /) -> RestExistence: ...
 
 
 @dataclass(frozen=True)
@@ -52,7 +52,7 @@ class VelocityRest:
         return rest_mask(states, sigmas, alpha, min_rows)
 
 
-def velocity_rest(ctx: StageContext, states: ObjectStateTable) -> VelocityRest:
+def velocity_rest(ctx: StageContext, _states: ObjectStateTable) -> VelocityRest:
     return VelocityRest(VelocityError.of(ctx.error_entry(Stage.KINEMATICS, "vel_rel")))
 
 

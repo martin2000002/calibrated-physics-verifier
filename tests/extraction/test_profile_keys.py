@@ -127,19 +127,21 @@ SCENE = profile_of(
     ("key", "moved"),
     [
         ((Stage.KINEMATICS, "savgol", "vel_rel"), [Stage.CONTACTS]),
+        ((Stage.TRACK, "edgetam", "centroid_px_rel"), FROM_LIFT),
         ((Stage.LIFT, "backproject", "centroid_rel"), FROM_LIFT),
         ((Stage.LIFT, "backproject", SUPPORT_GAP_REL), FROM_LIFT),
         ((Stage.DEPTH, "vda_small", "depth_rel"), FROM_LIFT),
     ],
 )
-def test_the_scene_contacts_key_follows_the_velocity_and_lift_entries_only(
+def test_the_scene_contacts_key_follows_the_track_velocity_and_lift_entries_only(
     make_settings: SettingsFactory,
     real_providers: Providers,
     fixture_clip: SyntheticClip,
     key: tuple[Stage, str, str],
     moved: list[Stage],
 ) -> None:
-    """Beyond what the proximity plan moves, only the velocity entry moves the contacts key."""
+    """Beyond what the proximity plan moves, only the velocity and centroid entries move the
+    contacts key (the centroid one moves the lift as well)."""
     scene = resolve_plan(
         make_settings(*plan_overrides(contacts="kinematic_scene")),
         real_providers,
@@ -151,6 +153,7 @@ def test_the_scene_contacts_key_follows_the_velocity_and_lift_entries_only(
     assert set(moved) - set(changed(base, fixture_clip, SCENE, altered)) <= {Stage.CONTACTS}
     provider = real_providers["contacts/kinematic_scene"]
     assert profile_keys(provider, scene.names) == (
+        (Stage.TRACK, "edgetam"),
         (Stage.LIFT, "backproject"),
         (Stage.KINEMATICS, "savgol"),
     )

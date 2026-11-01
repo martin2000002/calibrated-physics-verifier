@@ -9,7 +9,7 @@ from __future__ import annotations
 import math
 import sys
 from collections.abc import Mapping
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -22,11 +22,13 @@ if CHECKS not in sys.path:
 
 import check_scenarios as sc  # noqa: E402
 
+from physverify.physics.geometry import characteristic_lengths  # noqa: E402
 from physverify.schema.clip import FrameSampling, SamplingSpec, resolve_sampling  # noqa: E402
 from physverify.schema.constants import STANDARD_GRAVITY  # noqa: E402
 from physverify.schema.contacts import ContactTable  # noqa: E402
+from physverify.schema.error_profile import ErrorEntry  # noqa: E402
 from physverify.schema.outputs import StageOutput  # noqa: E402
-from physverify.schema.perception import CameraModel  # noqa: E402
+from physverify.schema.perception import CameraModel, MaskTrack  # noqa: E402
 from physverify.schema.stages import Stage  # noqa: E402
 from physverify.schema.states import ObjectStateTable, PrimitiveKind  # noqa: E402
 
@@ -154,15 +156,45 @@ FOCAL_PX = sc.FOCAL_PX
 
 @dataclass(frozen=True)
 class StubContext:
-    """The part of a StageContext the CONTACTS providers read."""
+    """The part of a StageContext the CONTACTS providers read, with their profile entries."""
 
     upstream: Mapping[Stage, StageOutput]
     sampling: FrameSampling
+    entries: Mapping[tuple[Stage, str], ErrorEntry] = field(default_factory=dict)
 
     def require(self, stage: Stage, kind: type[Any]) -> Any:
         output = self.upstream[stage]
         assert isinstance(output, kind)
         return output
+
+    def error_entry(self, stage: Stage, quantity: str) -> ErrorEntry | None:
+        return self.entries.get((stage, quantity))
+
+
+def disk_track(
+    states: ObjectStateTable, sampling: FrameSampling, size: tuple[int, int] = (400, 320)
+) -> MaskTrack:
+    """Discs at each visible object's centre, projected by a centred pinhole of ``FOCAL_PX`` on
+    an image of ``size`` (wider than the scenario clips, so every scene stays in view), with
+    radius the projected half length L / 2."""
+    width, height = size
+    rows, cols = np.mgrid[0:height, 0:width]
+    lengths = characteristic_lengths(states.size)
+    masks = np.zeros((*states.visible.shape, height, width), dtype=np.bool_)
+    for t, n in zip(*np.nonzero(states.visible), strict=True):
+        x, y, z = states.position[t, n]
+        if not z > 0.0:
+            continue
+        u, v = FOCAL_PX * x / z + width / 2.0, FOCAL_PX * y / z + height / 2.0
+        radius = FOCAL_PX * lengths[t, n] / (2.0 * z)
+        masks[t, n] = (cols - u) ** 2 + (rows - v) ** 2 <= radius**2
+    return MaskTrack(
+        sampling=replace(sampling, width=width, height=height),
+        object_ids=states.object_ids,
+        labels=states.labels,
+        masks=masks,
+        scores=np.ones(states.visible.shape),
+    )
 
 
 def scene_camera(

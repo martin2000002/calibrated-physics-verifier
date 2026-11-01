@@ -1,15 +1,17 @@
 """Contacts whose existence is kinematic, on a scene plane.
 
-A RESTING contact needs a velocity compatible with zero and constant under the profile's
-velocity error, with something under the body: another resting object (pair) or the scene plane
-(environment), the latter only on rows where the body lies within z(alpha / 2) sigma_gap of the
-plane, sigma_gap from the profile's LIFT ``support_gap_rel`` entry (unknown: no environment
-rest). An IMPACT needs a velocity kink that explains its window best and a significant change
-along the chosen surface normal. The scene plane has normal up from gravity and the height of
-the lowest other object at rest or bouncing, never the judged body's own. Environment records
+A RESTING contact needs a rest run of the chosen rest test (``_rest_existence.py``): by default
+the image-plane one, a mask centroid compatible with standing still and constant under the
+profile's TRACK centroid error (unknown: no rest at all), or the 3D velocity one under the
+profile's velocity error. Under it lies another resting object (pair) or the scene plane
+(environment). An optional gap gate keeps only environment rows where the body lies within
+z(alpha / 2) sigma_gap of the plane, sigma_gap from the LIFT ``support_gap_rel`` entry; it is off
+by default. An IMPACT needs a 3D velocity kink that explains its window best and a significant
+change along the chosen surface normal. The scene plane has normal up from gravity and the height
+of the lowest other object at rest or bouncing, never the judged body's own. Environment records
 lie on the body's own bottom, so checks measure the body, not the plane it was tested against.
 Pairs use the proximity geometry of ``contacts/proximity`` without a ground plane. See
-``_velocity_tests.py``, ``_scene_plane.py`` and ``_scene_records.py``.
+``_velocity_tests.py``, ``_image_rest.py``, ``_scene_plane.py`` and ``_scene_records.py``.
 """
 
 from __future__ import annotations
@@ -23,7 +25,11 @@ from physverify.extraction.providers._common import expect_params
 from physverify.extraction.providers._impact_attribution import KinematicScene, camera_positions
 from physverify.extraction.providers._impacts import EDGE_SIDE_S
 from physverify.extraction.providers._proximity import ContactScene, ProximityParams
-from physverify.extraction.providers._rest_existence import RestExistence, VelocityRest
+from physverify.extraction.providers._rest_existence import (
+    REST_TESTS,
+    RestExistence,
+    RestName,
+)
 from physverify.extraction.providers._scene_plane import GapError, HeightError
 from physverify.extraction.providers._scene_records import (
     SceneInputs,
@@ -45,6 +51,8 @@ class Params(ProviderParams):
     normal_split_deg: float = Field(default=20.0, gt=0.0)
     side_s: float = Field(default=reference_seconds(4), ge=EDGE_SIDE_S)
     alpha: float = Field(default=0.05, gt=0.0, lt=1.0)
+    rest: RestName = "image"
+    env_gap_gate: bool = False
 
 
 def pair_params(params: Params) -> ProximityParams:
@@ -60,11 +68,11 @@ def pair_params(params: Params) -> ProximityParams:
 class KinematicSceneContacts:
     stage: ClassVar[Stage] = Stage.CONTACTS
     name: ClassVar[str] = "kinematic_scene"
-    version: ClassVar[str] = "2"
-    requires: ClassVar[tuple[Stage, ...]] = (Stage.CAMERA, Stage.KINEMATICS)
+    version: ClassVar[str] = "3"
+    requires: ClassVar[tuple[Stage, ...]] = (Stage.TRACK, Stage.CAMERA, Stage.KINEMATICS)
     heavy: ClassVar[bool] = False
     is_ground_truth: ClassVar[bool] = False
-    error_profile_reads: ClassVar[tuple[Stage, ...]] = (Stage.LIFT, Stage.KINEMATICS)
+    error_profile_reads: ClassVar[tuple[Stage, ...]] = (Stage.TRACK, Stage.LIFT, Stage.KINEMATICS)
     weights: ClassVar[tuple[WeightSpec, ...]] = ()
     Params: ClassVar[type[BaseModel]] = Params
 
@@ -80,7 +88,7 @@ class KinematicSceneContacts:
         )
         gaps = GapError.of(ctx.error_entry(Stage.LIFT, SUPPORT_GAP_REL))
         seconds_per_frame = ctx.sampling.seconds_per_frame
-        rest = VelocityRest(velocity)
+        rest = REST_TESTS[self.params.rest](ctx, states)
         outcome = self.outcome(states, camera, seconds_per_frame, velocity, heights, gaps, rest)
         return ContactTable(
             clip_id=states.clip_id,
@@ -125,7 +133,7 @@ class KinematicSceneContacts:
             alpha=p.alpha,
             focal=float(camera.K[0, 0]),
             side_s=p.side_s,
-            env_gap_gate=True,
+            env_gap_gate=p.env_gap_gate,
         )
         return scene_contacts(inputs)
 

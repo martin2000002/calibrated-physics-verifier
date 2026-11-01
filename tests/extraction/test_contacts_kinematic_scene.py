@@ -59,14 +59,16 @@ def test_records_are_sorted_and_marked_as_kinematic() -> None:
 # 9. The oracle is untouched
 
 
-def test_the_provider_reads_the_lift_and_kinematics_entries_and_is_light() -> None:
+def test_the_provider_reads_the_track_lift_and_kinematics_entries_and_is_light() -> None:
     provider = KinematicSceneContacts
     assert (provider.stage, provider.name, provider.version) == (
         Stage.CONTACTS,
         "kinematic_scene",
-        "2",
+        "3",
     )
-    assert provider.error_profile_reads == (Stage.LIFT, Stage.KINEMATICS)
+    assert provider.requires == (Stage.TRACK, Stage.CAMERA, Stage.KINEMATICS)
+    assert provider.error_profile_reads == (Stage.TRACK, Stage.LIFT, Stage.KINEMATICS)
+    assert (provider.Params().rest, provider.Params().env_gap_gate) == ("image", False)
     assert not provider.heavy and not provider.is_ground_truth
 
 

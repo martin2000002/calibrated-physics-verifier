@@ -894,7 +894,9 @@
       "min_rest_s",
       "normal_split_deg",
       "side_s",
-      "alpha"
+      "alpha",
+      "rest",
+      "env_gap_gate"
     ],
     "contacts/proximity": [
       "tol_rel",

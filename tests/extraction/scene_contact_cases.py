@@ -2,14 +2,14 @@
 
 Boxes stand on a world floor (z up) and are seen by the check-scenario camera, so the provider
 only learns "up" from ``gravity_dir``. The error entries are the measured ones of the profile,
-except the gap error, a round test value.
+except the gap error, a round test value; masks are discs at the projected centres.
 """
 
 from __future__ import annotations
 
 import math
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, replace
+from dataclasses import replace
 from typing import Any
 
 import contact_scenes as cs
@@ -27,8 +27,8 @@ from physverify.physics.geometry import characteristic_lengths
 from physverify.schema.clip import FrameSampling, SamplingSpec, resolve_sampling
 from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactRecord, ContactTable
-from physverify.schema.error_profile import SUPPORT_GAP_REL, ErrorEntry
-from physverify.schema.outputs import StageOutput
+from physverify.schema.error_profile import CENTROID_PX_REL, SUPPORT_GAP_REL, ErrorEntry
+from physverify.schema.perception import MaskTrack
 from physverify.schema.stages import Stage
 from physverify.schema.states import ObjectStateTable, PrimitiveKind
 
@@ -38,6 +38,7 @@ VEL_REL = entry(Stage.KINEMATICS, "savgol", "vel_rel", 0.3157, bias=-0.0022)
 CENTROID_REL = entry(Stage.LIFT, "backproject", "centroid_rel", 0.0552, bias=0.0002)
 SIZE_REL = entry(Stage.LIFT, "backproject", "size_rel", 0.0782, bias=0.0056)
 GAP_REL = entry(Stage.LIFT, "backproject", SUPPORT_GAP_REL, 0.1)
+CENTROID_PX = entry(Stage.TRACK, "edgetam", CENTROID_PX_REL, 0.3526)
 VELOCITY = VelocityError.of(VEL_REL)
 HEIGHTS = HeightError.of(CENTROID_REL, SIZE_REL)
 GAPS = GapError.of(GAP_REL)
@@ -74,36 +75,31 @@ def outcome(
     return found
 
 
-@dataclass(frozen=True)
-class ProfiledContext:
-    """The part of a StageContext the provider reads, with its profile entries."""
-
-    upstream: Mapping[Stage, StageOutput]
-    sampling: FrameSampling
-    entries: Mapping[tuple[Stage, str], ErrorEntry]
-
-    def require(self, stage: Stage, kind: type[Any]) -> Any:
-        output = self.upstream[stage]
-        assert isinstance(output, kind)
-        return output
-
-    def error_entry(self, stage: Stage, quantity: str) -> ErrorEntry | None:
-        return self.entries.get((stage, quantity))
-
-
 def measured_entries() -> dict[tuple[Stage, str], ErrorEntry]:
-    return {(e.stage, e.quantity): e for e in (VEL_REL, CENTROID_REL, SIZE_REL, GAP_REL)}
+    measured = (VEL_REL, CENTROID_REL, SIZE_REL, GAP_REL, CENTROID_PX)
+    return {(e.stage, e.quantity): e for e in measured}
 
 
 def scene_table(
-    case: sc.Case, entries: Mapping[tuple[Stage, str], ErrorEntry] | None = None
+    case: sc.Case,
+    entries: Mapping[tuple[Stage, str], ErrorEntry] | None = None,
+    states: ObjectStateTable | None = None,
+    track: MaskTrack | None = None,
+    **params: Any,
 ) -> ContactTable:
-    ctx = ProfiledContext(
-        upstream={Stage.KINEMATICS: case.states, Stage.CAMERA: cs.scene_camera(case)},
+    """The provider run on the case with disc masks of its (or ``states``') objects."""
+    states = case.states if states is None else states
+    camera = cs.scene_camera(case)
+    ctx = cs.StubContext(
+        upstream={
+            Stage.TRACK: cs.disk_track(states, sampling(case)) if track is None else track,
+            Stage.KINEMATICS: states,
+            Stage.CAMERA: camera,
+        },
         sampling=sampling(case),
         entries=measured_entries() if entries is None else entries,
     )
-    provider = KinematicSceneContacts(KinematicSceneContacts.Params())
+    provider = KinematicSceneContacts(KinematicSceneContacts.Params(**params))
     table = provider.run(ctx)  # type: ignore[arg-type]
     assert isinstance(table, ContactTable)
     return table
