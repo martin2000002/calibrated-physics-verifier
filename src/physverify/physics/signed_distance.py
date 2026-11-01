@@ -254,3 +254,8 @@ def signed_distance(a: Body, b: Body) -> Separation:
     if key[::-1] in _PAIRS:
         return _flip(_PAIRS[key[::-1]](b, a))
     raise ValueError(f"no signed distance defined for {key}")
+
+
+def lowest_height(body: Solid, up: Vec) -> float:
+    """Height along ``up`` of the body's lowest point."""
+    return signed_distance(body, Plane.ground(0.0, up)).distance

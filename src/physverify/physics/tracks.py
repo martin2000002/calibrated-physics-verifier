@@ -44,6 +44,8 @@ OCCLUDED_AT = 0.9
 MIN_NOISE_STENCILS = 8
 QUANTIZATION = math.sqrt(12.0)
 """A uniform error over one pixel has a standard deviation of 1 / sqrt(12) pixels."""
+PIXEL_QUANTIZATION_SIGMA = 1.0 / QUANTIZATION
+"""Standard deviation, in pixels, of an image coordinate rounded to whole pixels."""
 
 
 @dataclass(frozen=True, eq=False)

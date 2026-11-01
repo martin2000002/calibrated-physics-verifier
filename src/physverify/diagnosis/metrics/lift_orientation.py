@@ -21,6 +21,7 @@ from physverify.diagnosis.metrics._state_pairing import finite_rows, paired_stat
 from physverify.diagnosis.settings import MetricSettings
 from physverify.physics.geometry import matrix_from_quaternion
 from physverify.schema.clip import ClipManifest
+from physverify.schema.error_profile import ORIENTATION_RAD
 from physverify.schema.outputs import StageOutput
 from physverify.schema.stages import Stage
 from physverify.schema.states import ObjectStateTable, PrimitiveKind
@@ -100,7 +101,7 @@ class LiftOrientationMetric:
             angles.append(angle)
             if math.isfinite(sigma[t, n]) and sigma[t, n] > 0:
                 scores.append(angle / sigma[t, n])
-        samples = {"orientation_rad": np.array(angles), "orientation_z": np.array(scores)}
+        samples = {ORIENTATION_RAD: np.array(angles), "orientation_z": np.array(scores)}
         return MetricOutcome(samples=MappingProxyType(samples))
 
 

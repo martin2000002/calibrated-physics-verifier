@@ -97,10 +97,15 @@ class ContactScene:
         self.ground = self._ground()
 
     def records(self) -> Iterator[ContactRecord]:
+        for pair, interval in self.intervals():
+            yield self.record(pair, interval)
+
+    def intervals(self) -> Iterator[tuple[Pair, list[FrameContact]]]:
+        """Every pair's contact intervals, in record order."""
         for pair in self._pairs():
             contacts = [c for t in range(self.states.n_frames) if (c := self._contact(pair, t))]
             for interval in self._intervals(contacts):
-                yield self._record(pair, interval)
+                yield pair, interval
 
     def _pairs(self) -> Iterator[Pair]:
         order = np.argsort(self.states.object_ids)
@@ -198,7 +203,7 @@ class ContactScene:
         if current:
             yield current
 
-    def _record(self, pair: Pair, interval: list[FrameContact]) -> ContactRecord:
+    def record(self, pair: Pair, interval: list[FrameContact]) -> ContactRecord:
         middle = interval[len(interval) // 2]
         frames = self.states.frame_index
         placed = [self.bodies[middle.frame][pair.a]]

@@ -28,6 +28,7 @@ from physverify.extraction.providers._backproject import SEED_HEX_DIGITS, Backpr
 from physverify.extraction.providers._common import expect_params
 from physverify.extraction.stack_guard import stacked_rows
 from physverify.physics.uncertainty import entry_rms
+from physverify.schema.error_profile import CENTROID_PX_REL, DEPTH_REL
 from physverify.schema.io import stable_hash
 from physverify.schema.perception import CameraModel, DepthMap, MaskTrack
 from physverify.schema.stages import Stage
@@ -80,10 +81,10 @@ class GroundAnchoredLift(BackprojectLift):
         )
         if not math.isfinite(result.height):
             return table
-        pixel = entry_rms(ctx.error_entry(Stage.TRACK, "centroid_px_rel")) * angular_radius
+        pixel = entry_rms(ctx.error_entry(Stage.TRACK, CENTROID_PX_REL)) * angular_radius
         phi = camera_focal_phi(camera)
         sigma_rel = anchored_sigma(result.gain, normal_sigma, phi, pixel)
-        depth_rel = entry_rms(ctx.error_entry(Stage.DEPTH, "depth_rel"))
+        depth_rel = entry_rms(ctx.error_entry(Stage.DEPTH, DEPTH_REL))
         fields = {name: getattr(table, name) for name in SCALED_FIELDS}
         scaled = anchored_fields(fields, result, sigma_rel, depth_rel, phi)
         return replace(

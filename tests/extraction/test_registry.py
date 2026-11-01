@@ -67,7 +67,7 @@ def test_building_the_registry_imports_no_heavy_library() -> None:
         f"sys.path.insert(0, {str(REPO / 'src')!r})\n"
         "from physverify.app.plugins import PLUGIN_KINDS\n"
         "import physverify.extraction.weights, physverify.extraction.pipeline\n"
-        "assert len(PLUGIN_KINDS['providers']()) == 32\n"
+        "assert len(PLUGIN_KINDS['providers']()) == 33\n"
         f"print(sorted(m for m in {LAZY_MODULES!r} if m in sys.modules))\n"
     )
     done = subprocess.run(
