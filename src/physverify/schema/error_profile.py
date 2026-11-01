@@ -32,6 +32,9 @@ FOCAL_REL = "focal_rel"
 """Quantity: relative error of a focal length, f_pred / f_true - 1."""
 SCALE_REL = "scale_rel"
 """Quantity: relative error of a metric scale, s_pred / s_true - 1."""
+SUPPORT_OFFSET_REL = "support_offset_rel"
+"""Quantity: error of the horizontal offset between a body and the body it rests on, per
+horizontal axis, over the length of the upper body."""
 
 
 @dataclass(frozen=True, eq=False)

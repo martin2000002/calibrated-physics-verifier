@@ -21,6 +21,7 @@ EXPECTED = {
     "lift/position",
     "lift/gravity_angle",
     "lift/orientation",
+    "lift/support_offset",
     "scale/relative",
     "kinematics/derivatives",
     "contacts/events",
