@@ -51,8 +51,9 @@ class WhitenedFallShapeCheck(FallShapeCheck):
 
     The perturbations it answers to are injected in ``accel_rel_diff``: each result carries v1's
     ratio of the chosen windows as that estimate. A row with a finite position and an unknown
-    sigma leaves its window without a statistic; an object left with none abstains with
-    UNKNOWN_UNCERTAINTY."""
+    sigma leaves its window without a statistic and drops its candidates: the maximum runs over
+    the candidates left, with no trace of the dropped ones, and an object left with none abstains
+    with UNKNOWN_UNCERTAINTY (only its eligible flights are asked)."""
 
     variant: ClassVar[str] = "whitened"
     magnitude_unit: ClassVar[str] = "accel_wald_chi2_3"
