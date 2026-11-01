@@ -306,10 +306,16 @@ def judge_windows(
     ]
 
 
+def fit_kink(u: FloatArray, s: float, y: FloatArray) -> tuple[FloatArray, FloatArray]:
+    """Design D of p(u) = c0 + c1 u + c2 u^2 + c3 (u - s)_+ and the least-squares c of y."""
+    design = np.column_stack([parabola(u), np.maximum(0.0, u - s)])
+    coef, *_ = np.linalg.lstsq(design, y, rcond=None)
+    return design, coef
+
+
 def kink_fit(window: Window, s: float, sigma: FloatArray) -> tuple[FloatArray, FloatArray]:
     """Velocity change (per second) and the position at the kink, in the track's units."""
-    design = np.column_stack([parabola(window.u), np.maximum(0.0, window.u - s)])
-    coef, *_ = np.linalg.lstsq(design, window.y, rcond=None)
+    _, coef = fit_kink(window.u, s, window.y)
     at_kink = parabola(np.array([s]))[0] @ coef[:3]
     return coef[3] * sigma / window.step, at_kink * sigma
 

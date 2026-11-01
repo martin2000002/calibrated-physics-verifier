@@ -23,7 +23,7 @@ from physverify.extraction.providers._impacts import (
     Impact,
     ImpactRows,
     boundaries,
-    parabola,
+    fit_kink,
     track_impacts,
 )
 from physverify.physics.tracks import NoiseScale
@@ -103,9 +103,8 @@ def kink_of(
     step = float(t[impact.row + 1] - t[impact.row])
     u = (t[lo:hi] - t[impact.row]) / step
     s = (impact.time - t[impact.row]) / step
-    design = np.column_stack([parabola(u), np.maximum(0.0, u - s)])
+    design, coef = fit_kink(u, s, position[lo:hi])
     covariance = np.linalg.inv(design.T @ design)
-    coef, *_ = np.linalg.lstsq(design, position[lo:hi], rcond=None)
     before, after = np.array([0.0, 1.0, 2.0 * s, 0.0]), np.array([0.0, 1.0, 2.0 * s, 1.0])
     scale = sigma / step
     return ImageKink(
