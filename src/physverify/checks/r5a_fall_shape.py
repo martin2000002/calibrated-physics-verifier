@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import itertools
 import math
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, ClassVar
 
@@ -39,6 +39,9 @@ from physverify.schema.states import ObjectStateTable
 FloatArray = NDArray[np.float64]
 IntArray = NDArray[np.int64]
 GRAVITY_STREAM = "R5a/gravity"
+
+Statistic = Callable[[ObjectStateTable, Sequence[Flight], Sequence[Any]], float]
+"""A candidate's magnitude from its two windows and per-window position offsets."""
 
 
 class FallShapeParams(FallParams):
@@ -118,7 +121,7 @@ class FallShapeCheck:
         ]
         firsts = [long[0] for long in (_long(f, rows) for f in falls.values()) if long]
         for a, b in itertools.combinations(firsts, 2):
-            pair = _candidate(states, (a, b), (a, b), "pair")
+            pair = _candidate(states, (a, b), (a, b), "pair", self._statistic)
             if math.isfinite(pair.value):
                 results.append(self._scored(inputs, _ids(states, a, b), pair, rng))
         return results
@@ -126,6 +129,18 @@ class FallShapeCheck:
     def _falls(self, states: ObjectStateTable, contacts: ContactTable, index: int) -> list[Flight]:
         flights = find_falls(states, contacts, index, self.params)
         return [f for f in flights if self._accelerates(states, f)]
+
+    def _statistic(
+        self, states: ObjectStateTable, windows: Sequence[Flight], offsets: Sequence[Any]
+    ) -> float:
+        """The magnitude of a candidate; variants replace it, the candidates stay."""
+        return _inconsistency(states, windows, offsets)
+
+    def _no_candidate(self, states: ObjectStateTable, flights: Sequence[Flight]) -> AbstainReason:
+        return AbstainReason.TOO_FEW_FRAMES
+
+    def _statistic_details(self, states: ObjectStateTable, best: Candidate) -> dict[str, Any]:
+        return {}
 
     def _accelerates(self, states: ObjectStateTable, flight: Flight) -> bool:
         fit = fit_flight(states, flight)
@@ -144,9 +159,11 @@ class FallShapeCheck:
     ) -> CheckResult:
         states = inputs.states
         long = _long(flights, rows)
-        candidates = [c for f in long for c in _splits(states, f, rows.side)]
+        statistic = self._statistic
+        candidates = [c for f in long for c in _splits(states, f, rows.side, statistic)]
         candidates += [
-            _candidate(states, (a, b), (a, b), "consecutive") for a, b in itertools.pairwise(long)
+            _candidate(states, (a, b), (a, b), "consecutive", statistic)
+            for a, b in itertools.pairwise(long)
         ]
         candidates = [c for c in candidates if math.isfinite(c.value)]
         subject = (str(states.object_ids[flights[0].index]),)
@@ -158,7 +175,7 @@ class FallShapeCheck:
                 "side_rows": rows.side,
             }
             span = flights_span(states.frame_index, flights)
-            reason = AbstainReason.TOO_FEW_FRAMES
+            reason = self._no_candidate(states, flights)
             return abstain(type(self), inputs, subject, reason, span, details)
         best = candidates[first_max(np.array([c.value for c in candidates]))]
         return self._scored(inputs, subject, best, rng)
@@ -171,10 +188,11 @@ class FallShapeCheck:
         rng: _Streams,
     ) -> CheckResult:
         states = inputs.states
-        sigma = _sigma(states, best.windows, self.params.mc_draws, rng.magnitude)
+        sigma = _sigma(states, best.windows, self._statistic, self.params.mc_draws, rng.magnitude)
         span = flights_span(states.frame_index, best.flights)
         gravity_rng = rng.gravity if self.params.sample_gravity else None
         details = _details(states, best, self.params.mc_draws, gravity_rng)
+        details |= self._statistic_details(states, best)
         return unscored(type(self), inputs, subject, best.value, sigma, span, details)
 
 
@@ -182,14 +200,16 @@ def _long(flights: Sequence[Flight], rows: FlightRows) -> list[Flight]:
     return [f for f in flights if f.present >= rows.min_flight]
 
 
-def _splits(states: ObjectStateTable, flight: Flight, side: int) -> list[Candidate]:
+def _splits(
+    states: ObjectStateTable, flight: Flight, side: int, statistic: Statistic
+) -> list[Candidate]:
     """One candidate per row k leaving >= ``side`` present rows on each side."""
     out = []
     for k in range(flight.lo + 1, flight.hi):
         left, right = flight.rows[flight.rows < k], flight.rows[flight.rows >= k]
         if left.size >= side and right.size >= side:
             windows = (_sub(flight, left, k), _sub(flight, right, flight.hi))
-            out.append(_candidate(states, windows, (flight,), "split", split_row=k))
+            out.append(_candidate(states, windows, (flight,), "split", statistic, split_row=k))
     return out
 
 
@@ -206,9 +226,10 @@ def _candidate(
     windows: tuple[Flight, Flight],
     flights: tuple[Flight, ...],
     mode: str,
+    statistic: Statistic,
     split_row: int | None = None,
 ) -> Candidate:
-    value = _inconsistency(states, windows, (0.0, 0.0))
+    value = statistic(states, windows, (0.0, 0.0))
     return Candidate(value, windows, flights, mode, split_row)
 
 
@@ -225,6 +246,7 @@ def _inconsistency(
 def _sigma(
     states: ObjectStateTable,
     windows: Sequence[Flight],
+    statistic: Statistic,
     draws: int,
     rng: np.random.Generator,
 ) -> float:
@@ -234,7 +256,7 @@ def _sigma(
     def model(noise: Mapping[str, FloatArray]) -> FloatArray:
         per_window = [noise[str(n)] for n in range(len(windows))]
         return np.array(
-            [_inconsistency(states, windows, [x[d] for x in per_window]) for d in range(draws)]
+            [statistic(states, windows, [x[d] for x in per_window]) for d in range(draws)]
         )
 
     return mc_sigma(model, sigmas, draws, rng)
