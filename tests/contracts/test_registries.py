@@ -128,6 +128,7 @@ PROVIDER_ORDER = (
     "kinematics/savgol",
     "lift/backproject",
     "lift/backproject_unnested",
+    "lift/smoothed_size",
     "scale/free_fall",
     "scale/metric_depth",
     "scale/size_model",

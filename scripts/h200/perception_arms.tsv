@@ -9,3 +9,4 @@ it3-c	extraction.plan.depth=vda_large extraction.plan.contacts=kinematic
 moge2-depth	extraction.plan.depth=moge2
 moge2-focal	extraction.plan.depth=moge2 extraction.plan.camera=from_depth
 moge2-metric	extraction.plan.depth=moge2 extraction.plan.camera=from_depth extraction.plan.scale=metric_depth
+smoothed-size	extraction.plan.lift=smoothed_size
