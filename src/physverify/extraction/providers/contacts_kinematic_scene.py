@@ -1,0 +1,127 @@
+"""Contacts whose existence is kinematic, on a scene plane.
+
+A RESTING contact needs a velocity compatible with zero and constant under the profile's
+velocity error, with something under the body: another resting object (pair) or the scene plane
+(environment), the latter only on rows where the body lies within z(alpha / 2) sigma_gap of the
+plane, sigma_gap from the profile's LIFT ``support_gap_rel`` entry (unknown: no environment
+rest). An IMPACT needs a velocity kink that explains its window best and a significant change
+along the chosen surface normal. The scene plane has normal up from gravity and the height of
+the lowest other object at rest or bouncing, never the judged body's own. Environment records
+lie on the body's own bottom, so checks measure the body, not the plane it was tested against.
+Pairs use the proximity geometry of ``contacts/proximity`` without a ground plane. See
+``_velocity_tests.py``, ``_scene_plane.py`` and ``_scene_records.py``.
+"""
+
+from __future__ import annotations
+
+from typing import ClassVar
+
+from pydantic import BaseModel, Field
+
+from physverify.extraction._base import ProviderParams, StageContext, WeightSpec
+from physverify.extraction.providers._common import expect_params
+from physverify.extraction.providers._impact_attribution import KinematicScene, camera_positions
+from physverify.extraction.providers._impacts import EDGE_SIDE_S
+from physverify.extraction.providers._proximity import ContactScene, ProximityParams
+from physverify.extraction.providers._scene_plane import GapError, HeightError
+from physverify.extraction.providers._scene_records import (
+    SceneInputs,
+    SceneOutcome,
+    scene_contacts,
+)
+from physverify.extraction.providers._velocity_tests import VelocityError
+from physverify.physics.row_time import reference_seconds
+from physverify.schema.contacts import ContactTable
+from physverify.schema.error_profile import SUPPORT_GAP_REL
+from physverify.schema.perception import CameraModel
+from physverify.schema.stages import Stage
+from physverify.schema.states import ObjectStateTable
+
+
+class Params(ProviderParams):
+    tol_rel: float = Field(default=0.05, gt=0.0)
+    min_rest_s: float = Field(default=reference_seconds(3), gt=0.0)
+    normal_split_deg: float = Field(default=20.0, gt=0.0)
+    side_s: float = Field(default=reference_seconds(4), ge=EDGE_SIDE_S)
+    alpha: float = Field(default=0.05, gt=0.0, lt=1.0)
+
+
+def pair_params(params: Params) -> ProximityParams:
+    """Proximity geometry for object pairs only; their kind comes from the rest test."""
+    return ProximityParams(
+        tol_rel=params.tol_rel,
+        min_rest_s=params.min_rest_s,
+        normal_split_deg=params.normal_split_deg,
+        ground="none",
+    )
+
+
+class KinematicSceneContacts:
+    stage: ClassVar[Stage] = Stage.CONTACTS
+    name: ClassVar[str] = "kinematic_scene"
+    version: ClassVar[str] = "2"
+    requires: ClassVar[tuple[Stage, ...]] = (Stage.CAMERA, Stage.KINEMATICS)
+    heavy: ClassVar[bool] = False
+    is_ground_truth: ClassVar[bool] = False
+    error_profile_reads: ClassVar[tuple[Stage, ...]] = (Stage.LIFT, Stage.KINEMATICS)
+    weights: ClassVar[tuple[WeightSpec, ...]] = ()
+    Params: ClassVar[type[BaseModel]] = Params
+
+    def __init__(self, params: BaseModel) -> None:
+        self.params = expect_params(params, Params)
+
+    def run(self, ctx: StageContext) -> ContactTable:
+        states = ctx.require(Stage.KINEMATICS, ObjectStateTable)
+        camera = ctx.require(Stage.CAMERA, CameraModel)
+        velocity = VelocityError.of(ctx.error_entry(Stage.KINEMATICS, "vel_rel"))
+        heights = HeightError.of(
+            ctx.error_entry(Stage.LIFT, "centroid_rel"), ctx.error_entry(Stage.LIFT, "size_rel")
+        )
+        gaps = GapError.of(ctx.error_entry(Stage.LIFT, SUPPORT_GAP_REL))
+        seconds_per_frame = ctx.sampling.seconds_per_frame
+        outcome = self.outcome(states, camera, seconds_per_frame, velocity, heights, gaps)
+        return ContactTable(
+            clip_id=states.clip_id,
+            frame=states.frame,
+            unit=states.unit,
+            source_key=states.source_key,
+            records=() if outcome is None else outcome.records,
+        )
+
+    def outcome(
+        self,
+        states: ObjectStateTable,
+        camera: CameraModel,
+        seconds_per_frame: float,
+        velocity: VelocityError,
+        heights: HeightError,
+        gaps: GapError,
+    ) -> SceneOutcome | None:
+        """The records and the tests behind them; None when sigma_v is unknown."""
+        if not velocity.known:
+            return None
+        p = self.params
+        pairs = ContactScene(states, pair_params(p), seconds_per_frame, split_on_point_count=False)
+        intervals = tuple(pairs.intervals())
+        scene = KinematicScene(
+            states=states,
+            proximity=pairs,
+            records=tuple(pairs.record(pair, interval) for pair, interval in intervals),
+            camera_positions=camera_positions(states, camera),
+            seconds_per_frame=seconds_per_frame,
+            tol_rel=p.tol_rel,
+        )
+        inputs = SceneInputs(
+            scene=scene,
+            intervals=intervals,
+            sigma_v=velocity.sigmas(states, pairs.lengths),
+            height_error=heights,
+            gap_error=gaps,
+            alpha=p.alpha,
+            focal=float(camera.K[0, 0]),
+            side_s=p.side_s,
+        )
+        return scene_contacts(inputs)
+
+
+PLUGINS = (KinematicSceneContacts,)

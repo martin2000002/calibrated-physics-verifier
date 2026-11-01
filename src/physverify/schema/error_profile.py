@@ -30,6 +30,9 @@ PROFILE_CONDITION = "profile"
 """``conditions`` key: extraction profile (fast, precise) the entry was measured under."""
 FOCAL_REL = "focal_rel"
 """Quantity: relative error of a focal length, f_pred / f_true - 1."""
+SUPPORT_GAP_REL = "support_gap_rel"
+"""Quantity: error of a resting body's gap to the lowest other resting body (its scene plane),
+along up, over the body's length."""
 SCALE_REL = "scale_rel"
 """Quantity: relative error of a metric scale, s_pred / s_true - 1."""
 

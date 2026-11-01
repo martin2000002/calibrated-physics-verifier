@@ -321,9 +321,13 @@ def track_impacts(
     rows: ImpactRows,
     alpha: float,
     bases: Bases | None = None,
+    *,
+    bonferroni: bool = True,
 ) -> list[Impact]:
     """Impacts of one track (rows with a non-finite position split it into runs). ``bases``
-    caches the window bases by row times; tracks of one clip can share it."""
+    caches the window bases by row times; tracks of one clip can share it. Without
+    ``bonferroni`` the critical quantile is 0: only the shape selection and the local maxima
+    remain, and significance is left to the caller."""
     sigma = noise.sigma
     candidates = list(boundaries(position, rows))
     cache: Bases = {} if bases is None else bases
@@ -336,7 +340,9 @@ def track_impacts(
         basis = cache.get(key)
         if basis is None:
             basis = cache[key] = Basis.of(windows[0].u)
-        critical = critical_ratio(alpha, len(candidates), len(key), noise.known)
+        critical = (
+            critical_ratio(alpha, len(candidates), len(key), noise.known) if bonferroni else 0.0
+        )
         for window, s, ratio in judge_windows(windows, basis, critical, noise.known):
             delta_v, at_kink = kink_fit(window, s, sigma)
             accepted.append(

@@ -6,6 +6,7 @@ independent position noise sigma_x the derivative sigma is sqrt(W^2 sigma_x^2).
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 import numpy as np
@@ -107,3 +108,13 @@ def differentiate(
             out[index][run] = operator @ position[run]
             out[index + 2][run] = propagate_linear_sigma(operator, position_sigma[run])
     return TrackDerivatives(*out)
+
+
+def reference_speed(velocity: FloatArray, length: float, duration: float) -> float:
+    """v_ref = max(RMS_t ||v||, L / T) over the finite rows of ``velocity`` (..., 3)."""
+    speeds = np.linalg.norm(np.asarray(velocity, dtype=np.float64), axis=-1).ravel()
+    finite = speeds[np.isfinite(speeds)]
+    rms = float(np.sqrt(np.mean(finite**2))) if finite.size else math.nan
+    floor = length / duration if duration > 0 and math.isfinite(length) else math.nan
+    candidates = [value for value in (rms, floor) if math.isfinite(value)]
+    return max(candidates) if candidates else math.nan

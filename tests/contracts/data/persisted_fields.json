@@ -889,6 +889,13 @@
       "side_s",
       "alpha"
     ],
+    "contacts/kinematic_scene": [
+      "tol_rel",
+      "min_rest_s",
+      "normal_split_deg",
+      "side_s",
+      "alpha"
+    ],
     "contacts/proximity": [
       "tol_rel",
       "rest_speed_rel",

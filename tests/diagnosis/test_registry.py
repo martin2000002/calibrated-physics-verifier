@@ -19,6 +19,7 @@ EXPECTED = {
     "camera/fov",
     "camera/gravity",
     "lift/position",
+    "lift/support_gap",
     "lift/gravity_angle",
     "lift/orientation",
     "scale/relative",
