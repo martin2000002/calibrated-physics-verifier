@@ -24,7 +24,7 @@ from scipy.ndimage import label
 
 from physverify.physics.contact_manifold import convex_hull_indices
 from physverify.physics.geometry import assumed_upright_pose, quaternion_from_matrix
-from physverify.physics.uncertainty import entry_rms
+from physverify.physics.uncertainty import entry_rms, robust_scale
 from physverify.schema.error_profile import ErrorEntry
 from physverify.schema.states import PrimitiveKind
 
@@ -38,7 +38,6 @@ MIN_COS_ELEVATION = 0.25
 then assumed equal to its horizontal size."""
 MIN_HEIGHT_FRAC = 0.1
 """Height floor relative to the horizontal size, against a negative estimate from mask noise."""
-MAD_TO_SIGMA = 1.4826
 MIN_UP_IMAGE_NORM = 1e-6
 MAX_CENTRE_DEPTH_GROWTH = 2.0
 """Bound on centre depth / surface depth, against an offset as large as the distance itself."""
@@ -103,9 +102,7 @@ def footprint_yaw(points: FloatArray, frame: GroundFrame, trim_mads: float) -> f
     median + ``trim_mads`` robust sigma (depth bleeding at the silhouette). NaN when degenerate."""
     flat = points @ frame.basis[:, :2]
     radius = np.linalg.norm(flat - np.median(flat, axis=0), axis=1)
-    centre_r = float(np.median(radius))
-    spread = MAD_TO_SIGMA * float(np.median(np.abs(radius - centre_r)))
-    kept = flat[radius <= centre_r + trim_mads * spread]
+    kept = flat[radius <= float(np.median(radius)) + trim_mads * robust_scale(radius)]
     if kept.shape[0] < MIN_FOOTPRINT_POINTS:
         return math.nan
     rectangle = minimum_area_rectangle(kept)

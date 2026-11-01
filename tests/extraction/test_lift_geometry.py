@@ -13,6 +13,7 @@ from synthetic_clip import SyntheticClip
 from test_lift_backproject import lift, truth_inputs
 from upright_scenes import UprightView, render
 
+from physverify.extraction import lift_geometry
 from physverify.extraction.backprojection import (
     PlacedObject,
     SummaryOptions,
@@ -225,3 +226,12 @@ def test_trimming_the_footprint_keeps_the_yaw_under_depth_noise_and_edge_bleedin
         raw_error = yaw_error_deg(lifted(PrimitiveKind.BOX, view, untrimmed), view, 90.0)
         assert trimmed_error < NOISY_YAW_TOL_DEG
         assert raw_error > UNTRIMMED_YAW_ERROR_DEG
+
+
+def test_the_footprint_trim_reads_the_shared_robust_scale(monkeypatch: pytest.MonkeyPatch) -> None:
+    grid = np.stack(np.meshgrid(np.linspace(0, 4, 9), np.linspace(0, 1, 5)), -1).reshape(-1, 2)
+    points = np.column_stack([np.vstack([grid, [[6.0, 6.0]]]), np.zeros(len(grid) + 1)])
+    frame = lift_geometry.GroundFrame(np.eye(3))
+    assert footprint_yaw(points, frame, 3.0) == pytest.approx(0.0, abs=1e-9)
+    monkeypatch.setattr(lift_geometry, "robust_scale", lambda values: math.inf)
+    assert footprint_yaw(points, frame, 3.0) > 1e-3
