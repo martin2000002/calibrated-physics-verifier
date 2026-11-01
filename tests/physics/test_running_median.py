@@ -12,6 +12,7 @@ from physverify.physics.running_median import EdgeMode, running_median
 WINDOW = 5
 SHIFTED: EdgeMode = "shifted"
 KEEP: EdgeMode = "keep"
+SHRINK: EdgeMode = "shrink"
 ROWS = 12
 
 
@@ -90,3 +91,24 @@ def test_the_shifted_window_keeps_its_width_at_the_ends() -> None:
     found = running_median(values, 3, SHIFTED)
     assert found[0] == pytest.approx(2.0) and found[1] == pytest.approx(2.0)
     assert np.isnan(found[4]) and found[5] == pytest.approx(3.5)
+
+
+@pytest.mark.parametrize("ramp", [np.arange(ROWS, dtype=np.float64), 5.0 - 0.3 * np.arange(ROWS)])
+def test_shrinking_edges_leave_monotone_series_identical(ramp: np.ndarray) -> None:
+    np.testing.assert_array_equal(running_median(ramp, WINDOW, SHRINK), ramp)
+
+
+def test_the_shrinking_window_stays_centred_on_the_finite_rows() -> None:
+    values = np.array([np.nan, 1.0, 9.0, 2.0, 3.0, 4.0, 5.0, np.nan])
+    found = running_median(values, WINDOW, SHRINK)
+    assert np.isnan(found[0]) and np.isnan(found[7])
+    assert found[1] == pytest.approx(1.0) and found[6] == pytest.approx(5.0)
+    assert found[2] == pytest.approx(2.0)
+    assert found[3] == pytest.approx(3.0) and found[5] == pytest.approx(4.0)
+
+
+def test_shrinking_edges_remove_impulses_away_from_the_ends() -> None:
+    z = series()
+    z[[1, 5, ROWS - 2]] = 3.0
+    np.testing.assert_array_equal(running_median(z, WINDOW, SHRINK), series())
+    assert np.isnan(running_median(np.array([math.nan, math.nan]), WINDOW, SHRINK)).all()

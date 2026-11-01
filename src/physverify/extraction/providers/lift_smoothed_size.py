@@ -37,14 +37,16 @@ class SmoothedSizeLift(BackprojectLift):
     Only the lengths of the summaries change (extents, silhouette widths and area); the centre
     and its pixel stay, so the position moves only through the centre's offset behind the
     surface, a fraction of the size. Rows cut by the image border do not enter the median and
-    keep their size.
+    keep their size. Near the ends of the object's rows the median window stays centred and
+    narrows (``depth_edges = "shrink"``), so an object that approaches or recedes keeps its size
+    there instead of taking the depth of rows further inside.
 
     ``lift/ground_anchored`` extends ``run`` and calls ``super().run``; to stack it on this one,
     its class statement names ``SmoothedSizeLift`` instead of ``BackprojectLift`` and its params
     derive from ``SmoothedSizeLiftParams``, one line each."""
 
     name: ClassVar[str] = "smoothed_size"
-    version: ClassVar[str] = "1"
+    version: ClassVar[str] = "2"
     Params: ClassVar[type[BaseModel]] = SmoothedSizeLiftParams
 
     def __init__(self, params: BaseModel) -> None:

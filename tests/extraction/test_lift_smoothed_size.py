@@ -73,12 +73,28 @@ def test_a_step_and_a_monotone_run_are_kept_inside_the_series() -> None:
     assert ratios([2.0 + 0.1 * t for t in range(10)])[2:-2] == pytest.approx([1.0] * 6)
 
 
-@pytest.mark.parametrize(("edges", "first"), [("shifted", 2.2 / 2.0), ("keep", 1.0)])
-def test_edge_rows_use_a_window_shifted_inside_or_keep_their_size(
+@pytest.mark.parametrize(
+    ("edges", "first"), [("shifted", 2.2 / 2.0), ("keep", 1.0), ("shrink", 1.0)]
+)
+def test_edge_rows_use_a_window_shifted_inside_narrowed_or_keep_their_size(
     edges: EdgeMode, first: float
 ) -> None:
     got = ratios([2.0 + 0.1 * t for t in range(10)], edges=edges)
     assert got[0] == pytest.approx(first)
+
+
+def test_shrinking_edges_leave_a_receding_object_unchanged_and_clean_inner_impulses() -> None:
+    ramp = [2.0 + 0.1 * t for t in range(10)]
+    assert ratios(ramp, edges="shrink") == pytest.approx([1.0] * 10)
+    ramp[1] = 2.5
+    got = ratios(ramp, edges="shrink")
+    assert got[1] == pytest.approx(2.2 / 2.5)
+    assert got[0] == pytest.approx(1.0)
+
+
+def test_the_default_smoothing_narrows_its_window_at_the_ends() -> None:
+    assert SmoothedSizeLiftParams().depth_edges == "shrink"
+    assert SmoothedSizeLift.version == "2"
 
 
 def test_an_object_shorter_than_the_window_takes_the_median_of_all_its_rows() -> None:

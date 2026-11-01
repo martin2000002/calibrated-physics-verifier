@@ -123,7 +123,7 @@ class SmoothedSizeLiftParams(LiftParams):
     the object's own surface depth."""
 
     depth_window: int = Field(default=17, ge=3)
-    depth_edges: EdgeMode = "shifted"
+    depth_edges: EdgeMode = "shrink"
 
     @field_validator("depth_window")
     @classmethod
