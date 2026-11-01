@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import replace
-from typing import Protocol
 
 import numpy as np
 
@@ -19,6 +18,7 @@ from physverify.calibration.stratified import (
     Families,
     Index,
     Reading,
+    Resampling,
     Valued,
     above,
     columns,
@@ -30,17 +30,6 @@ from physverify.calibration.stratified import (
 from physverify.core.models import ArtifactModel
 from physverify.stats.bootstrap import ClusterBlock, scene_bootstrap
 from physverify.stats.intervals import Ci
-
-
-class Resampling(Protocol):
-    """The scene bootstrap settings (``CalibrationSettings``, a ``DevScoreOof``)."""
-
-    @property
-    def bootstrap(self) -> int: ...
-    @property
-    def seed(self) -> int: ...
-    @property
-    def ci(self) -> float: ...
 
 
 class PairedReading(ArtifactModel):

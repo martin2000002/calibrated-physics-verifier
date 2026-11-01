@@ -13,13 +13,13 @@ import math
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import Protocol
 
 import numpy as np
 from numpy.typing import NDArray
 
 from physverify.calibration.artifact import Auroc, Weight
 from physverify.calibration.check_weights import Flag, weight
-from physverify.calibration.settings import CalibrationSettings
 from physverify.calibration.stats import auroc
 from physverify.core.models import ArtifactModel
 from physverify.stats.bootstrap import ClusterBlock, scene_bootstrap
@@ -40,6 +40,17 @@ class Reading(StrEnum):
 
 
 READINGS = tuple(Reading)
+
+
+class Resampling(Protocol):
+    """The scene bootstrap settings (``CalibrationSettings``, a ``DevScoreOof``)."""
+
+    @property
+    def bootstrap(self) -> int: ...
+    @property
+    def seed(self) -> int: ...
+    @property
+    def ci(self) -> float: ...
 
 
 class Stratification(ArtifactModel):
@@ -251,7 +262,7 @@ def unit_scores(
     items: Sequence[Valued],
     flags: Sequence[Flag],
     families: Families | None,
-    settings: CalibrationSettings,
+    settings: Resampling,
 ) -> UnitScores:
     """Global AUROC_cv in both readings and, with families, the stratified block; every interval
     from one scene bootstrap, so they share the drawn scenes. ``flags`` are ``oof_flags``'s."""
