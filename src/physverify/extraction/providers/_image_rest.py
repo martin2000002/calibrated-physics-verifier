@@ -3,8 +3,9 @@
 The mask's centroid and equivalent radius r_eq = sqrt(area / pi) give a pixel track with
 sigma_px = max(e_c r_eq, 1 / sqrt(12)) per component, e_c the profile's TRACK centroid error (zero
 for a ground-truth TRACK). Its velocity and linear sigma come from the Savitzky-Golay
-differentiation of the kinematics stage, with that stage's window and order; rows and runs are
-tested as in ``_velocity_tests.py`` with two components.
+differentiation of the kinematics stage, with the plan's window and order (the defaults when
+KINEMATICS is not ``savgol``); rows and runs are tested as in ``_velocity_tests.py`` with two
+components.
 Under a fixed camera flight and rest differ by orders of magnitude here, while the 3D test,
 whose sigma_v scales with the object's own speed, passes the apex of a throw.
 """
@@ -117,11 +118,17 @@ class ImageRest:
         return masks
 
 
+def savgol_params(ctx: StageContext) -> SavgolParams:
+    """The plan's KINEMATICS window and order; the defaults when that stage is not ``savgol``."""
+    params = ctx.stage_params.get(Stage.KINEMATICS)
+    return params if isinstance(params, SavgolParams) else SavgolParams()
+
+
 def image_rest(ctx: StageContext, states: ObjectStateTable) -> ImageRest:
-    """The image rest of the clip's masks, with the kinematics stage's window at its row rate."""
+    """The image rest of the clip's masks, with the kinematics window at its row rate."""
     row_seconds = seconds_per_row(states.frame_index, ctx.sampling.seconds_per_frame)
     return ImageRest(
         track=ctx.require(Stage.TRACK, MaskTrack),
         error=PixelError.of(ctx.error_entry(Stage.TRACK, CENTROID_PX_REL)),
-        spec=SavgolParams().spec(row_seconds),
+        spec=savgol_params(ctx).spec(row_seconds),
     )

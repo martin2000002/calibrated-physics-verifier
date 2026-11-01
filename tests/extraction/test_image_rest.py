@@ -10,9 +10,16 @@ import pytest
 import scene_contact_cases as cases
 
 from physverify.extraction._base import GROUND_TRUTH
-from physverify.extraction.providers._image_rest import ImageRest, PixelError, mask_motion
+from physverify.extraction.providers._image_rest import (
+    ImageRest,
+    PixelError,
+    image_rest,
+    mask_motion,
+)
 from physverify.extraction.providers._velocity_tests import rest_runs
+from physverify.extraction.providers.gt_kinematics import Params as TruthParams
 from physverify.extraction.providers.kinematics_savgol import Params as SavgolParams
+from physverify.physics.row_time import reference_seconds, seconds_per_row
 from physverify.physics.tracks import PIXEL_QUANTIZATION_SIGMA
 from physverify.schema.contacts import ContactKind
 from physverify.schema.error_profile import CENTROID_PX_REL, ErrorEntry
@@ -162,3 +169,19 @@ def test_the_provider_rests_under_a_ground_truth_track() -> None:
     records = cases.scene_table(case, entries, states=states).records
     assert {r.kind for r in records} == {ContactKind.RESTING}
     assert cases.pair_records(records) and cases.env_records(records)
+
+
+def test_the_rest_window_is_the_plans_kinematics_window() -> None:
+    case, track = still_boxes()
+    sampling = cases.sampling(case)
+    row = seconds_per_row(case.states.frame_index, sampling.seconds_per_frame)
+    wide = SavgolParams(window_s=reference_seconds(11))
+
+    def spec_of(stage_params: dict[Stage, object]) -> object:
+        ctx = cs.StubContext({Stage.TRACK: track}, sampling, stage_params=stage_params)
+        return image_rest(ctx, case.states).spec  # type: ignore[arg-type]
+
+    assert wide.spec(row) != SavgolParams().spec(row)
+    assert spec_of({Stage.KINEMATICS: wide}) == wide.spec(row)
+    assert spec_of({Stage.KINEMATICS: TruthParams()}) == SavgolParams().spec(row)
+    assert spec_of({}) == SavgolParams().spec(row)

@@ -53,7 +53,9 @@ class StageContext:
     """Everything a provider may read; ``upstream`` holds only the stages it requires.
 
     ``entry_filter`` holds the plan's profile and stage params hashes; a profile entry is read
-    only when it was measured under that profile with those params."""
+    only when it was measured under that profile with those params. ``stage_params`` holds the
+    plan's validated params of every stage, for a provider that must treat data as another stage
+    does (their cache keys reach it through the upstream keys)."""
 
     clip: ClipManifest
     video: VideoSource
@@ -66,6 +68,7 @@ class StageContext:
     threads: int
     paths: PathsSettings
     entry_filter: EntryFilter = field(default_factory=EntryFilter)
+    stage_params: Mapping[Stage, BaseModel] = field(default_factory=dict)
 
     def require[O](self, stage: Stage, kind: type[O]) -> O:
         output = self.upstream.get(stage)

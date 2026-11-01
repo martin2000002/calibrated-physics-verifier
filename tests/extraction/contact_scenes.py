@@ -156,11 +156,13 @@ FOCAL_PX = sc.FOCAL_PX
 
 @dataclass(frozen=True)
 class StubContext:
-    """The part of a StageContext the CONTACTS providers read, with their profile entries."""
+    """The part of a StageContext the CONTACTS providers read, with their profile entries and
+    the plan's params by stage."""
 
     upstream: Mapping[Stage, StageOutput]
     sampling: FrameSampling
     entries: Mapping[tuple[Stage, str], ErrorEntry] = field(default_factory=dict)
+    stage_params: Mapping[Stage, Any] = field(default_factory=dict)
 
     def require(self, stage: Stage, kind: type[Any]) -> Any:
         output = self.upstream[stage]

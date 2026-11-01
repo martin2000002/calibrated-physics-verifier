@@ -124,6 +124,7 @@ class ExtractionPipeline:
         self._deps = deps
         self._names = dict(plan.names)
         self._filter = plan_entry_filter(plan)
+        self._params = {step.stage: step.params for step in plan.stages}
 
     def run(self, dataset: DatasetSource, clips: Sequence[ClipManifest]) -> ExtractionReport:
         self._warn_rejected_entries()
@@ -284,6 +285,7 @@ class ExtractionPipeline:
             upstream=upstream,
             plan=self._names,
             entry_filter=self._filter,
+            stage_params=self._params,
             gt=dataset.ground_truth(cell.clip) if step.provider.is_ground_truth else None,
             error_profile=self._deps.error_profile,
             device=self._deps.device,

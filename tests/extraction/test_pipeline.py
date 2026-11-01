@@ -21,7 +21,7 @@ from synthetic_clip import SyntheticFixtureDataset
 from wiring import resolve_plan
 
 from physverify.config.models import Settings
-from physverify.extraction._base import StageProvider
+from physverify.extraction._base import StageContext, StageProvider
 from physverify.extraction.pipeline import ExtractionReport
 from physverify.schema.scale import ScaleEstimate
 from physverify.schema.stages import STAGE_ORDER, Stage
@@ -150,3 +150,27 @@ def test_a_failing_clip_leaves_the_others_complete(
     assert "fails on" in report.failures[0].error
     assert completed(report, clip.clip_id) == list(STAGE_ORDER)
     assert completed(report, TWIN) == [Stage.DETECT, Stage.TRACK]
+
+
+def test_every_provider_sees_the_plans_params_by_stage(
+    make_settings: SettingsFactory,
+    providers: Providers,
+    fixture_dataset: SyntheticFixtureDataset,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    contacts = providers["contacts/proximity"]
+    seen: dict[Stage, object] = {}
+    run = contacts.run
+
+    def spy(self: StageProvider, ctx: StageContext) -> object:
+        seen.update(ctx.stage_params)
+        return run(self, ctx)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(contacts, "run", spy)
+    settings = make_settings(*FAKE_HEAVIES, "extraction.providers.kinematics.savgol.window_s=0.5")
+    gt = (Stage.CAMERA,)
+    report = run_pipeline(settings, providers, fixture_dataset, gt_stages=gt)
+    plan = resolve_plan(settings, providers, dataset="synthetic_fixture", gt_stages=gt)
+    assert report.failures == ()
+    assert seen == {step.stage: step.params for step in plan.stages}
+    assert getattr(seen[Stage.KINEMATICS], "window_s", None) == 0.5
