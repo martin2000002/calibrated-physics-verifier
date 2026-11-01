@@ -20,7 +20,8 @@ class UnnestedBackprojectLift(BackprojectLift):
     ``REAL_PRIMITIVES`` as the default label map."""
 
     name: ClassVar[str] = "backproject_unnested"
-    version: ClassVar[str] = "2"
+    # 3: 1c8de44 changed the inherited footprint yaw trim; cached v2 lifts went stale.
+    version: ClassVar[str] = "3"
     Params: ClassVar[type[BaseModel]] = UnnestedLiftParams
 
     def __init__(self, params: BaseModel) -> None:
