@@ -14,6 +14,7 @@ import check_scenarios as sc
 import pytest
 from settings_factory import SettingsFactory
 
+from physverify.app import plugins
 from physverify.app.plugins import PLUGIN_KINDS
 from physverify.checks._base import Check, CheckInputs, abstain, unscored
 from physverify.checks._params import CommonParams
@@ -21,6 +22,7 @@ from physverify.core.errors import ConfigError
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
 from physverify.schema.clip import ClipManifest
 from physverify.schema.io import read_jsonl
+from physverify.verification.check_set import active_checks_hash
 from physverify.verification.inputs import ClipInputs
 from physverify.verification.policies.raw import RawPolicy
 from physverify.verification.policies.threshold import ThresholdPolicy
@@ -232,3 +234,45 @@ def test_configured_suite_builds_the_registered_checks_and_the_chosen_policy(
     assert isinstance(suite.runner(), VerificationRunner)
     with pytest.raises(ConfigError, match="unknown verdict policy 'nope'"):
         configured_suite(make_settings(), checks, policies, policy="nope")
+
+
+def test_a_provisional_tau_in_another_unit_than_its_check_stops_the_suite(
+    make_settings: SettingsFactory,
+) -> None:
+    policies = PLUGIN_KINDS["policies"]()
+    whitened = make_settings("check_variants.R5a=whitened")
+    with pytest.raises(ConfigError, match=r"R5a \(tau in accel_rel_diff, check reports accel_wald"):
+        configured_suite(whitened, plugins.configured("checks", whitened), policies)
+    declared = make_settings(
+        "check_variants.R5a=whitened",
+        "verification.thresholds.R5a=11.34",
+        "verification.threshold_units.R5a=accel_wald_chi2_3",
+    )
+    suite = configured_suite(declared, plugins.configured("checks", declared), policies)
+    assert suite.thresholds.tau_of("R5a") == 11.34
+
+
+@pytest.mark.parametrize("recorded", ["default", "whitened", None])
+def test_a_calibrated_table_judges_only_the_checks_it_was_fitted_with(
+    make_settings: SettingsFactory, recorded: str | None
+) -> None:
+    policies = PLUGIN_KINDS["policies"]()
+    default = make_settings()
+    fitted = None if recorded is None else make_settings(f"check_variants.R5a={recorded}")
+    table = ThresholdTable(
+        status="calibrated",
+        source="calibration.json#oracle/fast@run",
+        checks={},
+        checks_hash=None
+        if fitted is None
+        else active_checks_hash(fitted, plugins.configured("checks", fitted)),
+    )
+    path = default.paths.thresholds
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(table.model_dump(mode="json")), encoding="utf-8")
+    checks = plugins.configured("checks", default)
+    if recorded == "default":
+        assert configured_suite(default, checks, policies).thresholds.calibrated
+        return
+    with pytest.raises(ConfigError, match="calibrated with other check parameters or variants"):
+        configured_suite(default, checks, policies)

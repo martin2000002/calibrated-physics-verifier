@@ -28,7 +28,10 @@ reference = "others"
 # R5a "whitened" (selectable, no profile runs it): each candidate scored by the Wald contrast of
 # its two accelerations fitted with weights 1 / position_sigma^2, chi-square with 3 degrees of
 # freedom. Its unit is not v1's: thresholds come from fold calibration, and an uncalibrated run
-# sets the a priori chi-square(3) 0.99 quantile, --set verification.thresholds.R5a=11.34.
+# sets the a priori chi-square(3) 0.99 quantile and its unit, --set verification.thresholds.R5a=11.34
+# --set verification.threshold_units.R5a=accel_wald_chi2_3. A tau whose unit is not the unit of
+# the configured check, or a calibrated table fitted with other check parameters or variants
+# (its checks_hash), stops the run with a ConfigError.
 [check_variants]
 
 [check_variants.profiles.precise]
@@ -57,6 +60,17 @@ R4_size = 0.10
 R4_jump = 3.78
 R5a = 0.15
 R5b = 0.15
+
+[verification.threshold_units]   # the unit each provisional tau above is written in
+R1 = "pen_over_size"
+R2 = "residual_over_weight"
+R3a = "e_minus_1"
+R3b = "dE_over_E"
+R4_missing = "seconds"
+R4_size = "rel_size_change"
+R4_jump = "jump_over_noise"
+R5a = "accel_rel_diff"
+R5b = "g_rel_error"
 
 [verification.specificity]
 abs_tol = 1e-3
