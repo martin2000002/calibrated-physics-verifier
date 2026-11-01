@@ -81,7 +81,8 @@ STRATIFIED_NOTE = (
     " Every scene carries a family: AUROC_cv and J_cv are also stratified (positives against the "
     "negatives of their own family, weighted by positives) in two readings, scored rows and "
     "every labelled row with an unscored one read as 0.0; the family floor is the in-sample "
-    "AUROC of the family positive rate alone. n_met counts a check only when, besides H1 and "
+    "AUROC of the family positive rate alone. n_met counts a check only when, besides "
+    "monotonicity and "
     "J_cv^lo > 0, its stratified J_cv^lo > 0 and its stratified AUROC_cv^lo > 0.5 in both "
     "readings; the tie-break AUROC_cv is the stratified one (scored reading)."
 )
@@ -131,7 +132,7 @@ class LevelDevScore(ArtifactModel):
     stratified: Stratified | None = None
     n_met_global: int | None = None
     met_global: tuple[str, ...] | None = None
-    """The checks meeting H1 and J_cv^lo > 0 (``meets_both``), the 1.1.0 count."""
+    """The checks meeting monotonicity and J_cv^lo > 0 (``meets_both``), the 1.1.0 count."""
 
 
 class Selection(ArtifactModel):
@@ -214,6 +215,7 @@ def check_score(
     j_cv = raw_weight(flags, settings)
     low = j_cv.informedness_ci.low
     meets_h1, meets_j = full.monotonicity.h1_pass, low is not None and low > 0.0
+    both = meets_h1 and meets_j
     strat = None if unit.stratified is None else meets_stratified(unit.stratified)
     return CheckDevScore(
         h1=full.monotonicity,
@@ -226,11 +228,11 @@ def check_score(
         ),
         meets_h1=meets_h1,
         meets_j=meets_j,
-        meets_both=meets_h1 and meets_j,
+        meets_both=both,
         auroc_cv_readings=unit.auroc_cv,
         stratified=unit.stratified,
         meets_stratified=strat,
-        meets_clause=meets_h1 and meets_j and strat is not False,
+        meets_clause=both and strat is not False,
     )
 
 

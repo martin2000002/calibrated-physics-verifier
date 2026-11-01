@@ -1,4 +1,4 @@
-"""Paired out-of-fold AUROC deltas b - a of two arms on the same clips (ADR 0036 clause (i)).
+"""Paired out-of-fold AUROC deltas b - a of two arms on the same clips.
 
 Both arms are read on the same scene draws. Readings: "scored" keeps the clips scored in both
 arms, "operational" every labelled clip of both (unscored = 0.0). Pure, no I/O.

@@ -1,4 +1,4 @@
-"""``calibrate compare-devscore``: paired deltas b - a of two devscore runs (ADR 0036)."""
+"""``calibrate compare-devscore``: paired deltas b - a of two devscore runs."""
 
 from __future__ import annotations
 

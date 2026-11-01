@@ -1,4 +1,4 @@
-"""Family-stratified validity of a score (ADR 0036, where every scene carries a family).
+"""Family-stratified validity of a score, where every scene carries a family.
 
 A score can rank the positives of one family above the negatives of another without separating
 anything inside a family. Per family with positives: the AUROC of its positives against its own

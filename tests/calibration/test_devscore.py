@@ -297,7 +297,7 @@ def test_folds_without_a_sigma_factor_are_counted() -> None:
 
 
 def test_scenes_without_a_family_keep_the_global_clause(dev: DevScore) -> None:
-    """No family: nothing stratified, the clause is H1 and J_cv^lo > 0 as in 1.1.0."""
+    """No family: nothing stratified, the clause is monotonicity and J_cv^lo > 0 as in 1.1.0."""
     for level in dev.report.levels:
         assert level.stratified is None and level.stratification is not None
         assert not level.stratification.applies

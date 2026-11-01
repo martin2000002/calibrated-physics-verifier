@@ -1,4 +1,4 @@
-"""Paired comparison of two devscore runs from their out-of-fold values (ADR 0036 clause (i)).
+"""Paired comparison of two devscore runs from their out-of-fold values.
 
 Both runs must hold the same labelled clips with the same scenes and bootstrap settings; every
 unit (check and clip score) present in both is compared. Pure, no I/O.
