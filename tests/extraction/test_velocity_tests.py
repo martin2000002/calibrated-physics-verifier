@@ -10,13 +10,14 @@ import contact_scenes as cs
 import numpy as np
 import pytest
 import scene_contact_cases as cases
-from scipy.stats import binom, norm
+from scipy.stats import binom, chi2, norm
 
 from physverify.extraction.providers._impacts import Bases, ImpactRows, track_impacts
 from physverify.extraction.providers._proximity import object_lengths
 from physverify.extraction.providers._velocity_tests import (
     NormalChange,
     VelocityError,
+    long_runs,
     rest_rows,
     rest_runs,
 )
@@ -91,6 +92,54 @@ def test_a_run_shorter_than_the_minimum_is_nothing() -> None:
 
 def test_an_unknown_sigma_has_no_rest() -> None:
     assert not rest_rows(np.zeros((10, 3)), visible(10), math.nan, ALPHA).any()
+
+
+def scalar_rest_runs(
+    velocity: np.ndarray, rows_visible: np.ndarray, sigma: float, min_rows: int
+) -> tuple[slice, ...]:
+    """The 3D rest runs before sigma could vary per row (chi2_3, 2 sigma^2 constancy)."""
+    quantile = float(chi2.isf(ALPHA, 3))
+    with np.errstate(invalid="ignore"):
+        rows = (np.sum(velocity**2, axis=-1) <= quantile * sigma**2) & rows_visible
+    kept = []
+    for run in long_runs(rows, min_rows):
+        change = velocity[run.stop - 1] - velocity[run.start]
+        if float(change @ change) <= quantile * 2.0 * sigma**2:
+            kept.append(run)
+    return tuple(kept)
+
+
+@pytest.mark.parametrize("seed", range(40))
+def test_scalar_sigma_runs_in_space_are_the_old_runs(seed: int) -> None:
+    rng = np.random.default_rng(seed)
+    rows = int(rng.integers(5, 80))
+    sigma = float(rng.uniform(0.05, 1.0))
+    velocity = rng.normal(0.0, rng.uniform(0.2, 2.0) * sigma, (rows, 3))
+    velocity[rng.random(rows) < 0.2] *= 6.0
+    shown = rng.random(rows) > 0.1
+    expected = scalar_rest_runs(velocity, shown, sigma, MIN_ROWS)
+    assert rest_runs(velocity, shown, sigma, ALPHA, MIN_ROWS) == expected
+    per_row = np.full(rows, sigma)
+    assert rest_runs(velocity, shown, per_row, ALPHA, MIN_ROWS) == expected
+
+
+def test_image_velocities_use_two_degrees_of_freedom() -> None:
+    edge = math.sqrt(chi2.isf(ALPHA, 2)) * SIGMA
+    velocity = np.array([[edge * 0.999, 0.0], [edge * 1.001, 0.0]])
+    assert rest_rows(velocity, visible(2), SIGMA, ALPHA).tolist() == [True, False]
+
+
+def test_a_per_row_sigma_scales_each_row_and_the_run_ends() -> None:
+    velocity = np.tile([1.0, 0.0], (6, 1))
+    sigma = np.array([0.1, 1.0, 1.0, 1.0, 1.0, 0.1])
+    assert rest_rows(velocity, visible(6), sigma, ALPHA).tolist() == [False, *[True] * 4, False]
+    swing = np.zeros((6, 2))
+    swing[0, 0], swing[-1, 0] = -0.5, 0.5
+    tight = np.full(6, 0.25)
+    loose = np.array([1.0, 0.25, 0.25, 0.25, 0.25, 1.0])
+    assert rest_rows(swing, visible(6), tight, ALPHA).all()
+    assert rest_runs(swing, visible(6), tight, ALPHA, MIN_ROWS) == ()
+    assert rest_runs(swing, visible(6), loose, ALPHA, MIN_ROWS) == (slice(0, 6),)
 
 
 # 3. Significance along the normal

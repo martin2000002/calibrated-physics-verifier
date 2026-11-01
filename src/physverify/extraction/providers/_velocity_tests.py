@@ -1,10 +1,10 @@
 """Tests of velocities against the measured velocity error; not a plugin.
 
 sigma_v of an object is the profile's relative velocity error times its reference speed, per
-component. A row is at rest when its velocity is compatible with zero at chi2_3(alpha); a run of
-such rows is kept when its velocity is also constant (end minus start). A velocity change is
-significant along a normal when it beats the one-sided normal quantile at alpha / m (Bonferroni
-over the m candidates of the track).
+component. A row is at rest when its velocity is compatible with zero at chi2_d(alpha), d its
+components (3 in space, 2 in the image); a run of such rows is kept when its velocity is also
+constant (end minus start). A velocity change is significant along a normal when it beats the
+one-sided normal quantile at alpha / m (Bonferroni over the m candidates of the track).
 """
 
 from __future__ import annotations
@@ -23,7 +23,6 @@ from physverify.schema.states import ObjectStateTable
 
 FloatArray = NDArray[np.float64]
 BoolArray = NDArray[np.bool_]
-COMPONENTS = 3
 
 
 @dataclass(frozen=True)
@@ -55,19 +54,23 @@ class VelocityError:
         )
 
 
-def rest_quantile(alpha: float) -> float:
-    return float(chi2.isf(alpha, COMPONENTS))
+def rest_quantile(alpha: float, components: int) -> float:
+    return float(chi2.isf(alpha, components))
 
 
 def change_quantile(alpha: float, tests: int) -> float:
     return float(norm.isf(alpha / max(tests, 1)))
 
 
-def rest_rows(velocity: FloatArray, visible: BoolArray, sigma: float, alpha: float) -> BoolArray:
-    """Visible rows with ||v||^2 <= chi2_3(alpha) sigma^2 (none when sigma is unknown)."""
-    squared = np.sum(np.asarray(velocity, dtype=np.float64) ** 2, axis=-1)
+def rest_rows(
+    velocity: FloatArray, visible: BoolArray, sigma: float | FloatArray, alpha: float
+) -> BoolArray:
+    """Visible rows with ||v||^2 <= chi2_d(alpha) sigma^2, d the velocity's components and
+    sigma scalar or per row (none where sigma is unknown)."""
+    velocity = np.asarray(velocity, dtype=np.float64)
+    squared = np.sum(velocity**2, axis=-1)
     with np.errstate(invalid="ignore"):
-        rest = squared <= rest_quantile(alpha) * sigma**2
+        rest = squared <= rest_quantile(alpha, velocity.shape[-1]) * np.square(sigma)
     return np.asarray(rest & visible, dtype=np.bool_)
 
 
@@ -75,14 +78,22 @@ def long_runs(rows: BoolArray, min_rows: int) -> tuple[slice, ...]:
     return tuple(run for run in visible_runs(rows) if run.stop - run.start >= min_rows)
 
 
-def constant(velocity: FloatArray, run: slice, sigma: float, alpha: float) -> bool:
-    """||v_end - v_start||^2 <= chi2_3(alpha) 2 sigma^2: no velocity change across the run."""
-    change = velocity[run.stop - 1] - velocity[run.start]
-    return bool(float(change @ change) <= rest_quantile(alpha) * 2.0 * sigma**2)
+def constant(velocity: FloatArray, run: slice, sigma: float | FloatArray, alpha: float) -> bool:
+    """||v_end - v_start||^2 <= chi2_d(alpha) (sigma_end^2 + sigma_start^2): no velocity change
+    across the run."""
+    end, start = run.stop - 1, run.start
+    change = velocity[end] - velocity[start]
+    sigmas = np.broadcast_to(np.asarray(sigma, dtype=np.float64), velocity.shape[:1])
+    spread = float(sigmas[end] ** 2 + sigmas[start] ** 2)
+    return bool(float(change @ change) <= rest_quantile(alpha, velocity.shape[-1]) * spread)
 
 
 def rest_runs(
-    velocity: FloatArray, visible: BoolArray, sigma: float, alpha: float, min_rows: int
+    velocity: FloatArray,
+    visible: BoolArray,
+    sigma: float | FloatArray,
+    alpha: float,
+    min_rows: int,
 ) -> tuple[slice, ...]:
     """Runs of at least ``min_rows`` rest rows whose velocity is constant; a run that is not
     constant is dropped whole, never split."""
