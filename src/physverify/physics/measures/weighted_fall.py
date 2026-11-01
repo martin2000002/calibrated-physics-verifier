@@ -3,11 +3,12 @@ between two fitted accelerations [accel_wald_chi2_3]."""
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass
 
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
+
+from physverify.physics.tracks import poly_fit
 
 Vec = NDArray[np.float64]
 MIN_ROWS = 3
@@ -15,8 +16,8 @@ MIN_ROWS = 3
 
 @dataclass(frozen=True, eq=False)
 class WeightedFallFit:
-    """Per axis, the acceleration of p(t) = p0 + v0 tau + a tau^2 / 2 (tau = t - t[0]) fitted with
-    weights 1 / sigma^2, and its variance [(X^T W X)^-1]_aa under that sigma."""
+    """Per axis, the acceleration of the degree-2 ``poly_fit`` weighted by 1 / sigma^2 and its
+    variance under that sigma."""
 
     a: Vec
     a_var: Vec
@@ -25,34 +26,24 @@ class WeightedFallFit:
 def weighted_fall_fit(
     t: ArrayLike, positions: ArrayLike, sigma: ArrayLike
 ) -> WeightedFallFit | None:
-    """None when an axis has fewer than three rows with a finite position and a sigma > 0, or a
-    singular normal matrix."""
+    """None when fewer than three distinct times have a finite position and a sigma > 0 on every
+    axis, or the normal matrix is singular."""
     times = np.asarray(t, dtype=np.float64).reshape(-1)
     p = np.asarray(positions, dtype=np.float64).reshape(-1, 3)
     s = np.asarray(sigma, dtype=np.float64).reshape(-1, 3)
-    tau = times - times[0]
-    design = np.column_stack([np.ones_like(tau), tau, 0.5 * tau**2])
-    a, a_var = np.full(3, math.nan), np.full(3, math.nan)
-    for axis in range(3):
-        fitted = _axis(design, p[:, axis], s[:, axis])
-        if fitted is None:
-            return None
-        a[axis], a_var[axis] = fitted
-    return WeightedFallFit(a=a, a_var=a_var)
-
-
-def _axis(design: Vec, y: Vec, s: Vec) -> tuple[float, float] | None:
-    ok = np.isfinite(y) & np.isfinite(s) & (s > 0.0)
-    if int(ok.sum()) < MIN_ROWS:
+    keep = np.all(np.isfinite(p), axis=1) & np.all(np.isfinite(s) & (s > 0.0), axis=1)
+    if np.unique(times[keep]).size < MIN_ROWS:
         return None
-    w = 1.0 / s[ok] ** 2
-    x = design[ok]
     try:
-        inverse = np.linalg.inv(x.T @ (w[:, None] * x))
+        fit = poly_fit(times[keep], p[keep], s[keep], 2)
     except np.linalg.LinAlgError:
         return None
-    coef = inverse @ (x.T @ (w * y[ok]))
-    return float(coef[2]), float(inverse[2, 2])
+    if fit.cov is None:
+        return None
+    return WeightedFallFit(
+        a=np.asarray(2.0 * fit.coef[2], dtype=np.float64),
+        a_var=np.asarray(4.0 * fit.cov[:, 2, 2], dtype=np.float64),
+    )
 
 
 def wald_terms(first: WeightedFallFit, second: WeightedFallFit) -> Vec:
@@ -61,6 +52,6 @@ def wald_terms(first: WeightedFallFit, second: WeightedFallFit) -> Vec:
 
 
 def accel_wald(first: WeightedFallFit, second: WeightedFallFit) -> float:
-    """Sum of ``wald_terms``: chi-square with three degrees of freedom when both fits share one
-    acceleration and sigma is the noise's."""
+    """Sum of ``wald_terms``: chi-square with three degrees of freedom per candidate when both
+    fits share one acceleration and sigma is the noise's, white and independent per axis."""
     return float(np.sum(wald_terms(first, second)))
