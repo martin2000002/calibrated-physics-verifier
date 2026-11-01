@@ -53,6 +53,12 @@ def test_fov_offset_and_its_z_score() -> None:
     assert outcome.samples["fov_z"][0] == pytest.approx(2.0, abs=1e-9)
 
 
+def test_an_assumed_focal_gives_no_focal_sample() -> None:
+    assert (
+        measure(camera(96.0, 60.0, 1.0, IntrinsicsSource.ASSUMED_FOV)).samples[FOCAL_REL].size == 0
+    )
+
+
 def test_focal_ratio() -> None:
     outcome = measure(camera(96.0, 60.0, 1.0, IntrinsicsSource.ESTIMATED))
     assert outcome.samples["focal_rel"][0] == pytest.approx(0.2, abs=1e-9)

@@ -171,8 +171,8 @@ def test_empty_quantities_are_skipped_even_without_a_minimum() -> None:
 
 
 def test_a_measured_camera_adds_a_focal_entry_and_changes_the_profile_hash() -> None:
-    """camera/fov writes FOCAL_REL for whichever camera ran, assumed or estimated; only
-    camera/moge2_focal reads it back, but every profile measuring a camera gets a new hash."""
+    """camera/fov writes FOCAL_REL for a camera that estimates its focal; only
+    camera/moge2_focal reads it back, but every profile measuring one gets a new hash."""
     fov = samples(
         "camera/fov",
         provider(Stage.CAMERA, "geocalib"),
