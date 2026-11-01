@@ -22,6 +22,7 @@ from physverify.diagnosis.measurement_cases import (
 from physverify.diagnosis.settings import MetricSettings
 from physverify.extraction.matching import DEFAULT_MATCH_FRAMES, DEFAULT_MIN_IOU, match_masks
 from physverify.schema.clip import ClipManifest
+from physverify.schema.error_profile import CENTROID_PX_REL
 from physverify.schema.outputs import StageOutput
 from physverify.schema.perception import MaskTrack
 from physverify.schema.stages import Stage
@@ -140,7 +141,7 @@ class MaskMetric:
                     "mask_iou": j_arr,
                     "boundary_f": f_arr,
                     "j_and_f": (j_arr + f_arr) / 2.0,
-                    "centroid_px_rel": centroid,
+                    CENTROID_PX_REL: centroid,
                 }
             ),
             ratios=MappingProxyType({"object_recall": (float(matched), float(present))}),
