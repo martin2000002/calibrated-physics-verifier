@@ -49,6 +49,8 @@ class ThresholdTable(FrozenModel):
     source: str
     checks: dict[str, ThresholdEntry]
     artifact: ArtifactRef | None = None
+    checks_hash: str | None = None
+    """``checks_hash`` of the check parameters and variants the calibration was fitted with."""
 
     @classmethod
     def provisional(cls, taus: Mapping[str, float]) -> Self:
@@ -83,6 +85,33 @@ class ThresholdTable(FrozenModel):
     def dump(self) -> dict[str, Any]:
         """What is hashed and reported."""
         return self.model_dump(exclude_unset=True)
+
+
+def threshold_problem(
+    table: ThresholdTable, checks_hash: str, units: Mapping[str, str], checks: Mapping[str, str]
+) -> str | None:
+    """Why ``table`` may not judge the configured checks (``checks``: id -> magnitude unit): a
+    calibrated table fitted with other check parameters or variants, or a provisional tau whose
+    unit (``units``: declared, else the default implementation's) is not the unit it reports."""
+    if table.calibrated:
+        if table.checks_hash == checks_hash:
+            return None
+        recorded = "no checks_hash" if table.checks_hash is None else table.checks_hash[:12]
+        return (
+            f"{table.source} was calibrated with other check parameters or variants "
+            f"({recorded} != {checks_hash[:12]}): publish a stratum fitted with these checks"
+        )
+    wrong = sorted(
+        f"{c} (tau in {units[c]}, check reports {unit})"
+        for c, unit in checks.items()
+        if c in table.checks and c in units and units[c] != unit
+    )
+    if not wrong:
+        return None
+    return (
+        f"provisional thresholds in another unit: {', '.join(wrong)}; set "
+        "verification.thresholds.<id> and verification.threshold_units.<id> for the variant"
+    )
 
 
 def load_thresholds(path: Path, provisional: Mapping[str, float]) -> ThresholdTable:

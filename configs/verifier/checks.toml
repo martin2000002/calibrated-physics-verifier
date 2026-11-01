@@ -25,6 +25,16 @@ reference = "others"
 # rows whose mask the lift saw cut by the image border left out. R4_jump "rigid2": v2 without the
 # stencils where the apparent size steps, in the statistic and in its noise estimate. The precise
 # profile runs both; --set check_variants.R4_size=default (or R4_jump=default) restores v2.
+# R5a "whitened" (selectable, no profile runs it): each candidate scored by the Wald contrast of
+# its two accelerations fitted with weights 1 / position_sigma^2, chi-square with 3 degrees of
+# freedom per candidate under white noise independent per axis. Its unit is not v1's: thresholds
+# come from fold calibration, and an uncalibrated run sets the a priori chi-square(3) 0.99
+# quantile (about the 0.90 quantile of the maximum over a flight's ~13 cuts) and its unit:
+# --set verification.thresholds.R5a=11.34 --set verification.threshold_units.R5a=accel_wald_chi2_3.
+# A provisional tau is read in the unit of the check's default implementation unless
+# verification.threshold_units.<id> says otherwise; a tau whose unit is not the unit of the
+# configured check, or a calibrated table fitted with other check parameters or variants (its
+# checks_hash), stops the run with a ConfigError.
 [check_variants]
 
 [check_variants.profiles.precise]

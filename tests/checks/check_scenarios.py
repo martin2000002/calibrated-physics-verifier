@@ -400,6 +400,13 @@ def with_sigma(case: Case, **sigmas: float) -> Case:
     return replace(case, states=replace(case.states, **changes))
 
 
+def jittered(case: Case, scale: float, seed: int) -> Case:
+    """``case`` with N(0, scale) noise on every position."""
+    position = np.asarray(case.states.position, dtype=np.float64)
+    noise = np.random.default_rng(seed).normal(0.0, scale, position.shape)
+    return replace(case, states=replace(case.states, position=position + noise))
+
+
 def with_records(case: Case, *world_records: ContactRecord) -> Case:
     """Append contact records given in world coordinates."""
     assert case.contacts is not None
@@ -644,3 +651,15 @@ def parabola(
     p, v, a = piecewise_ballistic(t, t_c, anchor, (v_c, a_before), (v_c, a_after))
     ball = SceneObject("ball", PrimitiveKind.SPHERE, cube(2 * BALL_RADIUS), p, v, a, label="sphere")
     return build(clip_id, [ball], [], pitch_deg)
+
+
+def two_balls(g_j: float) -> Case:
+    """Two balls in free flight from t = 0, ``ball_i`` under standard gravity, ``ball_j`` under
+    ``g_j``."""
+    t = times()
+    balls = []
+    for name, g, x in (("ball_i", STANDARD_GRAVITY, -0.5), ("ball_j", g_j, 0.5)):
+        start, v0, a = np.array([x, 0.0, 1.0]), np.array([0.5, 0.0, 3.0]), g * DOWN
+        p, v, acc = piecewise_ballistic(t, 0.0, start, (v0, a), (v0, a))
+        balls.append(SceneObject(name, PrimitiveKind.SPHERE, cube(0.2), p, v, acc))
+    return build("two_balls", balls)

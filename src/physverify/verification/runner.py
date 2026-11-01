@@ -14,6 +14,7 @@ from typing import Any
 from pydantic import Field
 
 from physverify.checks._base import Check, CheckInputs, abstain, missing_inputs, row_step_or_none
+from physverify.checks.variants._base import REPLACED_UNIT
 from physverify.config.models import Settings, validated
 from physverify.core.errors import ConfigError
 from physverify.core.models import FrozenModel
@@ -21,11 +22,20 @@ from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Ver
 from physverify.schema.clip import ClipManifest
 from physverify.schema.io import write_jsonl
 from physverify.verification._base import VerdictPolicy
-from physverify.verification.check_set import CHECKS_SECTION, ChecksSettings, build_checks
+from physverify.verification.check_set import (
+    CHECKS_SECTION,
+    ChecksSettings,
+    build_checks,
+    checks_hash,
+)
 from physverify.verification.decisive import Judged, decisive
 from physverify.verification.inputs import ClipInputs, InputSource
 from physverify.verification.sweep import SpecificitySettings
-from physverify.verification.thresholding import ThresholdTable, load_thresholds
+from physverify.verification.thresholding import (
+    ThresholdTable,
+    load_thresholds,
+    threshold_problem,
+)
 
 VERIFICATION_SECTION = "verification"
 CHECKS_FILE = "checks.jsonl"
@@ -40,6 +50,7 @@ UNKNOWN_ROW_STEP = 0
 class VerificationSettings(FrozenModel):
     policy: str = "threshold"
     thresholds: dict[str, float] = Field(default_factory=dict)
+    threshold_units: dict[str, str] = Field(default_factory=dict)
     policies: dict[str, dict[str, Any]] = Field(default_factory=dict)
     specificity: SpecificitySettings = Field(default_factory=SpecificitySettings)
 
@@ -156,13 +167,25 @@ def configured_suite(
     policy: str | None = None,
 ) -> ConfiguredSuite:
     """The ``[checks]`` and ``[verification]`` sections built over the registries (``policy``
-    overrides the configured one)."""
+    overrides the configured one). Thresholds that do not belong to these checks (another
+    calibration, another unit) are a ``ConfigError``."""
     verification = settings.section(VERIFICATION_SECTION, VerificationSettings)
     if policy is not None:
         verification = verification.model_copy(update={"policy": policy})
-    built = build_checks(checks, settings.section(CHECKS_SECTION, ChecksSettings))
+    overrides = settings.section(CHECKS_SECTION, ChecksSettings)
+    built = build_checks(checks, overrides)
     decider = build_policy(policies, verification)
     thresholds = load_thresholds(settings.paths.thresholds, verification.thresholds)
+    written = {
+        c.check_id: verification.threshold_units.get(
+            c.check_id, getattr(c, REPLACED_UNIT, c.magnitude_unit)
+        )
+        for c in built
+    }
+    units = {c.check_id: c.magnitude_unit for c in built}
+    problem = threshold_problem(thresholds, checks_hash(checks, overrides), written, units)
+    if problem is not None:
+        raise ConfigError(problem)
     return ConfiguredSuite(verification, built, decider, thresholds)
 
 

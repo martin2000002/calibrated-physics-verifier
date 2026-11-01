@@ -48,16 +48,6 @@ def halves(case: sc.Case, change_frame: int) -> float:
     return accel_inconsistency([fit.a for fit in fits])
 
 
-def two_balls(g_j: float) -> sc.Case:
-    t = sc.times()
-    balls = []
-    for name, g, x in (("ball_i", G, -0.5), ("ball_j", g_j, 0.5)):
-        start, v0, a = np.array([x, 0.0, 1.0]), np.array([0.5, 0.0, 3.0]), g * sc.DOWN
-        p, v, acc = sc.piecewise_ballistic(t, 0.0, start, (v0, a), (v0, a))
-        balls.append(sc.SceneObject(name, PrimitiveKind.SPHERE, sc.cube(0.2), p, v, acc))
-    return sc.build("two_balls", balls)
-
-
 def test_plugins_satisfy_the_check_protocol() -> None:
     assert {cls.check_id for cls in (*R5A_PLUGINS, *R5B_PLUGINS)} == {"R5a", "R5b"}
     for cls in (*R5A_PLUGINS, *R5B_PLUGINS):
@@ -113,7 +103,7 @@ def test_consecutive_flights_of_a_bounce_agree() -> None:
 
 
 def test_objects_with_different_gravity_are_compared() -> None:
-    results = run(FallShapeCheck(FallShapeParams()), two_balls(1.2 * G))
+    results = run(FallShapeCheck(FallShapeParams()), sc.two_balls(1.2 * G))
     by_subject = {r.subject: r for r in results}
     assert set(by_subject) == {("ball_i",), ("ball_j",), ("ball_i", "ball_j")}
     pair = by_subject[("ball_i", "ball_j")]

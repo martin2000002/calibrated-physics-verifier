@@ -175,7 +175,11 @@ class Stratum:
         lies under it, so the table does not pin one machine's absolute path."""
         entries = {c: e for c in sorted(self.model.checks) if (e := self.entry(c)) is not None}
         table = ThresholdTable(
-            status=CALIBRATED, source=self.source, checks=entries, artifact=self._ref(root)
+            status=CALIBRATED,
+            source=self.source,
+            checks=entries,
+            artifact=self._ref(root),
+            checks_hash=self.checks_hash,
         )
         return table.model_dump(mode="json")
 

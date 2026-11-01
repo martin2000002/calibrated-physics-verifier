@@ -12,6 +12,10 @@ from physverify.core.errors import InvalidPluginError
 DEFAULT_VARIANT = "default"
 """The variant name that keeps a check's registered implementation (undoes a profile's choice)."""
 
+REPLACED_UNIT = "replaced_unit"
+"""Optional class attribute of a variant whose magnitude unit is not its default's: the default's
+unit, the one a provisional tau of the check id is written in unless declared otherwise."""
+
 
 @runtime_checkable
 class CheckVariant(Check, Protocol):

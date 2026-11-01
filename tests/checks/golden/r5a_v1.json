@@ -1,0 +1,962 @@
+{
+ "bounce": [
+  {
+   "abstain_reason": null,
+   "check_id": "R5a",
+   "clip_id": "bounce",
+   "details": {
+    "accelerations": [
+     [
+      2.130240428499519e-14,
+      8.890879390829847,
+      4.145885147676093
+     ],
+     [
+      3.1363800445660672e-15,
+      8.89087939082956,
+      4.145885147676245
+     ]
+    ],
+    "fall_residual_ratio": 8.034064138381157e-16,
+    "lateral_accel_ratio": 1.8762350353348928e-15,
+    "lateral_accel_ratio_sigma": 0.0,
+    "mode": "split",
+    "row_step": 1,
+    "split_frame": 5,
+    "windows": [
+     [
+      0,
+      4
+     ],
+     [
+      5,
+      13
+     ]
+    ]
+   },
+   "frame_span": [
+    0,
+    13
+   ],
+   "input_level": "oracle",
+   "magnitude": 3.306106643221235e-14,
+   "provenance": {},
+   "sigma": 0.0,
+   "subject": [
+    "ball"
+   ],
+   "threshold": null,
+   "unit": "accel_rel_diff",
+   "verdict": "UNSCORED"
+  }
+ ],
+ "bounce_jittered": [
+  {
+   "abstain_reason": null,
+   "check_id": "R5a",
+   "clip_id": "bounce",
+   "details": {
+    "accelerations": [
+     [
+      0.13836215605695912,
+      8.768842561145009,
+      4.022102941679662
+     ],
+     [
+      0.0014112400342133902,
+      8.893166821714003,
+      4.147861824730572
+     ]
+    ],
+    "fall_residual_ratio": 0.00021298789116192755,
+    "lateral_accel_ratio": 0.00014846004636941904,
+    "lateral_accel_ratio_sigma": 0.0,
+    "mode": "split",
+    "row_step": 1,
+    "split_frame": 4,
+    "windows": [
+     [
+      0,
+      3
+     ],
+     [
+      4,
+      13
+     ]
+    ]
+   },
+   "frame_span": [
+    0,
+    13
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.022986072262609906,
+   "provenance": {},
+   "sigma": 0.0,
+   "subject": [
+    "ball"
+   ],
+   "threshold": null,
+   "unit": "accel_rel_diff",
+   "verdict": "UNSCORED"
+  }
+ ],
+ "bounce_sigma": [
+  {
+   "abstain_reason": null,
+   "check_id": "R5a",
+   "clip_id": "bounce",
+   "details": {
+    "accelerations": [
+     [
+      -3.559652572704408e-15,
+      9.809999999999981,
+      -6.028323860358758e-14
+     ],
+     [
+      9.679756995950584e-15,
+      9.81000000000006,
+      2.23758049075741e-13
+     ]
+    ],
+    "fall_residual_ratio": 4.996119580403044e-16,
+    "lateral_accel_ratio": 3.476018717446808e-15,
+    "lateral_accel_ratio_sigma": 0.0,
+    "mode": "split",
+    "row_step": 1,
+    "split_frame": 26,
+    "windows": [
+     [
+      18,
+      25
+     ],
+     [
+      26,
+      31
+     ]
+    ]
+   },
+   "frame_span": [
+    18,
+    31
+   ],
+   "input_level": "oracle",
+   "magnitude": 3.0060758325893e-14,
+   "provenance": {},
+   "sigma": 0.040469318863793,
+   "subject": [
+    "ball"
+   ],
+   "threshold": null,
+   "unit": "accel_rel_diff",
+   "verdict": "UNSCORED"
+  }
+ ],
+ "gravity_switch": [
+  {
+   "abstain_reason": null,
+   "check_id": "R5a",
+   "clip_id": "parabola",
+   "details": {
+    "accelerations": [
+     [
+      2.3314683517128287e-15,
+      9.809999999999999,
+      -1.6295683244536494e-14
+     ],
+     [
+      4.107825191113079e-15,
+      12.753,
+      3.4099740794187664e-14
+     ]
+    ],
+    "fall_residual_ratio": 0.003778139370147899,
+    "lateral_accel_ratio": 5.245266638256633e-16,
+    "lateral_accel_ratio_sigma": 0.0,
+    "mode": "split",
+    "row_step": 1,
+    "split_frame": 18,
+    "windows": [
+     [
+      0,
+      17
+     ],
+     [
+      18,
+      31
+     ]
+    ]
+   },
+   "frame_span": [
+    0,
+    31
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.26086956521739146,
+   "provenance": {},
+   "sigma": 0.0,
+   "subject": [
+    "ball"
+   ],
+   "threshold": null,
+   "unit": "accel_rel_diff",
+   "verdict": "UNSCORED"
+  }
+ ],
+ "gravity_switch_jittered": [
+  {
+   "abstain_reason": null,
+   "check_id": "R5a",
+   "clip_id": "parabola",
+   "details": {
+    "accelerations": [
+     [
+      -1.6576419185176938e-05,
+      9.812778414305702,
+      0.0009144325863228247
+     ],
+     [
+      -0.0010089982751706472,
+      12.753066915543153,
+      -0.003973302062181265
+     ]
+    ],
+    "fall_residual_ratio": 0.0037740759393670824,
+    "lateral_accel_ratio": 1.8242158076073345e-05,
+    "lateral_accel_ratio_sigma": 0.0,
+    "mode": "split",
+    "row_step": 1,
+    "split_frame": 19,
+    "windows": [
+     [
+      0,
+      18
+     ],
+     [
+      19,
+      31
+     ]
+    ]
+   },
+   "frame_span": [
+    0,
+    31
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.2605967201187798,
+   "provenance": {},
+   "sigma": 0.004398997448344894,
+   "subject": [
+    "ball"
+   ],
+   "threshold": null,
+   "unit": "accel_rel_diff",
+   "verdict": "UNSCORED"
+  }
+ ],
+ "gravity_switch_sigma": [
+  {
+   "abstain_reason": null,
+   "check_id": "R5a",
+   "clip_id": "parabola",
+   "details": {
+    "accelerations": [
+     [
+      2.3314683517128287e-15,
+      9.809999999999999,
+      -1.6295683244536494e-14
+     ],
+     [
+      4.107825191113079e-15,
+      12.753,
+      3.4099740794187664e-14
+     ]
+    ],
+    "fall_residual_ratio": 0.003778139370147899,
+    "lateral_accel_ratio": 5.245266638256633e-16,
+    "lateral_accel_ratio_sigma": 0.0,
+    "mode": "split",
+    "row_step": 1,
+    "split_frame": 18,
+    "windows": [
+     [
+      0,
+      17
+     ],
+     [
+      18,
+      31
+     ]
+    ]
+   },
+   "frame_span": [
+    0,
+    31
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.26086956521739146,
+   "provenance": {},
+   "sigma": 0.0043389339140398895,
+   "subject": [
+    "ball"
+   ],
+   "threshold": null,
+   "unit": "accel_rel_diff",
+   "verdict": "UNSCORED"
+  }
+ ],
+ "gravity_switch_strided": [
+  {
+   "abstain_reason": null,
+   "check_id": "R5a",
+   "clip_id": "parabola",
+   "details": {
+    "accelerations": [
+     [
+      1.4710455076283324e-15,
+      9.810000000000011,
+      -1.5190972788574357e-14
+     ],
+     [
+      -2.525757381022231e-15,
+      12.753000000000007,
+      -1.5195549302067132e-14
+     ]
+    ],
+    "fall_residual_ratio": 0.004102120279931724,
+    "lateral_accel_ratio": 5.421304281210929e-16,
+    "lateral_accel_ratio_sigma": 0.0,
+    "mode": "split",
+    "row_step": 2,
+    "split_frame": 16,
+    "windows": [
+     [
+      0,
+      14
+     ],
+     [
+      16,
+      30
+     ]
+    ]
+   },
+   "frame_span": [
+    0,
+    30
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.26086956521739074,
+   "provenance": {},
+   "sigma": 0.0,
+   "subject": [
+    "ball"
+   ],
+   "threshold": null,
+   "unit": "accel_rel_diff",
+   "verdict": "UNSCORED"
+  }
+ ],
+ "parabola": [
+  {
+   "abstain_reason": null,
+   "check_id": "R5a",
+   "clip_id": "parabola",
+   "details": {
+    "accelerations": [
+     [
+      6.661338147750939e-16,
+      8.890879390829532,
+      4.145885147676264
+     ],
+     [
+      -6.07708328104195e-14,
+      8.890879390829351,
+      4.145885147675557
+     ]
+    ],
+    "fall_residual_ratio": 2.7511053368240345e-16,
+    "lateral_accel_ratio": 8.15490713701978e-16,
+    "lateral_accel_ratio_sigma": 0.0,
+    "mode": "split",
+    "row_step": 1,
+    "split_frame": 27,
+    "windows": [
+     [
+      0,
+      26
+     ],
+     [
+      27,
+      31
+     ]
+    ]
+   },
+   "frame_span": [
+    0,
+    31
+   ],
+   "input_level": "oracle",
+   "magnitude": 7.466052062048584e-14,
+   "provenance": {},
+   "sigma": 0.0,
+   "subject": [
+    "ball"
+   ],
+   "threshold": null,
+   "unit": "accel_rel_diff",
+   "verdict": "UNSCORED"
+  }
+ ],
+ "parabola_jittered": [
+  {
+   "abstain_reason": null,
+   "check_id": "R5a",
+   "clip_id": "parabola",
+   "details": {
+    "accelerations": [
+     [
+      -0.0006957507935853591,
+      8.890825179555291,
+      4.145165536640752
+     ],
+     [
+      -0.17397127125286366,
+      8.89435810681484,
+      4.166407871696003
+     ]
+    ],
+    "fall_residual_ratio": 3.870593977671061e-05,
+    "lateral_accel_ratio": 5.7334304771614836e-05,
+    "lateral_accel_ratio_sigma": 0.0,
+    "mode": "split",
+    "row_step": 1,
+    "split_frame": 28,
+    "windows": [
+     [
+      0,
+      27
+     ],
+     [
+      28,
+      31
+     ]
+    ]
+   },
+   "frame_span": [
+    0,
+    31
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.017787219071603674,
+   "provenance": {},
+   "sigma": 0.0,
+   "subject": [
+    "ball"
+   ],
+   "threshold": null,
+   "unit": "accel_rel_diff",
+   "verdict": "UNSCORED"
+  }
+ ],
+ "teleport_flight": [
+  {
+   "abstain_reason": null,
+   "check_id": "R5a",
+   "clip_id": "teleport",
+   "details": {
+    "accelerations": [
+     [
+      8.326672684688674e-17,
+      8.890879390829532,
+      4.145885147676251
+     ],
+     [
+      -6.07708328104195e-14,
+      8.890879390829443,
+      4.145885147675557
+     ]
+    ],
+    "fall_residual_ratio": 1.0496607033808918e-15,
+    "lateral_accel_ratio": 3.01175183513342e-15,
+    "lateral_accel_ratio_sigma": 0.0,
+    "mode": "split",
+    "row_step": 1,
+    "split_frame": 27,
+    "windows": [
+     [
+      16,
+      26
+     ],
+     [
+      27,
+      31
+     ]
+    ]
+   },
+   "frame_span": [
+    16,
+    31
+   ],
+   "input_level": "oracle",
+   "magnitude": 7.155688976362936e-14,
+   "provenance": {},
+   "sigma": 0.0,
+   "subject": [
+    "ball"
+   ],
+   "threshold": null,
+   "unit": "accel_rel_diff",
+   "verdict": "UNSCORED"
+  }
+ ],
+ "two_balls": [
+  {
+   "abstain_reason": null,
+   "check_id": "R5a",
+   "clip_id": "two_balls",
+   "details": {
+    "accelerations": [
+     [
+      1.942890293094024e-16,
+      9.809999999999999,
+      -2.387807676482011e-16
+     ],
+     [
+      -6.598888102615774e-15,
+      9.809999999999684,
+      -1.6342479724385345e-13
+     ]
+    ],
+    "fall_residual_ratio": 1.7649503763617676e-16,
+    "lateral_accel_ratio": 5.809670251789343e-16,
+    "lateral_accel_ratio_sigma": 0.0,
+    "mode": "split",
+    "row_step": 1,
+    "split_frame": 27,
+    "windows": [
+     [
+      0,
+      26
+     ],
+     [
+      27,
+      31
+     ]
+    ]
+   },
+   "frame_span": [
+    0,
+    31
+   ],
+   "input_level": "oracle",
+   "magnitude": 3.611681594553128e-14,
+   "provenance": {},
+   "sigma": 0.0,
+   "subject": [
+    "ball_i"
+   ],
+   "threshold": null,
+   "unit": "accel_rel_diff",
+   "verdict": "UNSCORED"
+  },
+  {
+   "abstain_reason": null,
+   "check_id": "R5a",
+   "clip_id": "two_balls",
+   "details": {
+    "accelerations": [
+     [
+      -1.304512053934559e-15,
+      11.772000000000004,
+      -1.0154022485064889e-14
+     ],
+     [
+      9.1773810773077e-14,
+      11.772000000000272,
+      2.23758049075741e-13
+     ]
+    ],
+    "fall_residual_ratio": 1.548083362348471e-16,
+    "lateral_accel_ratio": 4.796169971347233e-16,
+    "lateral_accel_ratio_sigma": 0.0,
+    "mode": "split",
+    "row_step": 1,
+    "split_frame": 26,
+    "windows": [
+     [
+      0,
+      25
+     ],
+     [
+      26,
+      31
+     ]
+    ]
+   },
+   "frame_span": [
+    0,
+    31
+   ],
+   "input_level": "oracle",
+   "magnitude": 3.124927097157444e-14,
+   "provenance": {},
+   "sigma": 0.0,
+   "subject": [
+    "ball_j"
+   ],
+   "threshold": null,
+   "unit": "accel_rel_diff",
+   "verdict": "UNSCORED"
+  },
+  {
+   "abstain_reason": null,
+   "check_id": "R5a",
+   "clip_id": "two_balls",
+   "details": {
+    "accelerations": [
+     [
+      -9.71445146547012e-16,
+      9.81,
+      5.615884714821804e-15
+     ],
+     [
+      5.828670879282072e-16,
+      11.771999999999995,
+      5.615884714821804e-15
+     ]
+    ],
+    "fall_residual_ratio": 1.7649503763617676e-16,
+    "lateral_accel_ratio": 5.809670251789343e-16,
+    "lateral_accel_ratio_sigma": 0.0,
+    "mode": "pair",
+    "row_step": 1,
+    "split_frame": null,
+    "windows": [
+     [
+      0,
+      31
+     ],
+     [
+      0,
+      31
+     ]
+    ]
+   },
+   "frame_span": [
+    0,
+    31
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.18181818181818135,
+   "provenance": {},
+   "sigma": 0.0,
+   "subject": [
+    "ball_i",
+    "ball_j"
+   ],
+   "threshold": null,
+   "unit": "accel_rel_diff",
+   "verdict": "UNSCORED"
+  }
+ ],
+ "two_balls_jittered": [
+  {
+   "abstain_reason": null,
+   "check_id": "R5a",
+   "clip_id": "two_balls",
+   "details": {
+    "accelerations": [
+     [
+      0.30527719900668243,
+      9.7031238660502,
+      0.13609278946233877
+     ],
+     [
+      -0.0004191369515193777,
+      9.810648521405533,
+      0.0005390620724843034
+     ]
+    ],
+    "fall_residual_ratio": 4.3029239524876845e-05,
+    "lateral_accel_ratio": 3.193189006706438e-05,
+    "lateral_accel_ratio_sigma": 0.0,
+    "mode": "split",
+    "row_step": 1,
+    "split_frame": 4,
+    "windows": [
+     [
+      0,
+      3
+     ],
+     [
+      4,
+      31
+     ]
+    ]
+   },
+   "frame_span": [
+    0,
+    31
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.03599106695411182,
+   "provenance": {},
+   "sigma": 0.0,
+   "subject": [
+    "ball_i"
+   ],
+   "threshold": null,
+   "unit": "accel_rel_diff",
+   "verdict": "UNSCORED"
+  },
+  {
+   "abstain_reason": null,
+   "check_id": "R5a",
+   "clip_id": "two_balls",
+   "details": {
+    "accelerations": [
+     [
+      0.0010087231969891919,
+      11.771497656404415,
+      0.0004226881230417483
+     ],
+     [
+      0.13148192319181956,
+      11.815832061148068,
+      -0.09758674359397926
+     ]
+    ],
+    "fall_residual_ratio": 3.4690930338819934e-05,
+    "lateral_accel_ratio": 0.00010678468444006719,
+    "lateral_accel_ratio_sigma": 0.0,
+    "mode": "split",
+    "row_step": 1,
+    "split_frame": 28,
+    "windows": [
+     [
+      0,
+      27
+     ],
+     [
+      28,
+      31
+     ]
+    ]
+   },
+   "frame_span": [
+    0,
+    31
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.014337475103316788,
+   "provenance": {},
+   "sigma": 0.0,
+   "subject": [
+    "ball_j"
+   ],
+   "threshold": null,
+   "unit": "accel_rel_diff",
+   "verdict": "UNSCORED"
+  },
+  {
+   "abstain_reason": null,
+   "check_id": "R5a",
+   "clip_id": "two_balls",
+   "details": {
+    "accelerations": [
+     [
+      0.00031206470953326626,
+      9.809753636188333,
+      2.715519926569968e-05
+     ],
+     [
+      0.0007557573964526443,
+      11.771493984971865,
+      0.001004449185464078
+     ]
+    ],
+    "fall_residual_ratio": 4.3029239524876845e-05,
+    "lateral_accel_ratio": 0.00010678468444006719,
+    "lateral_accel_ratio_sigma": 0.0,
+    "mode": "pair",
+    "row_step": 1,
+    "split_frame": null,
+    "windows": [
+     [
+      0,
+      31
+     ],
+     [
+      0,
+      31
+     ]
+    ]
+   },
+   "frame_span": [
+    0,
+    31
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.18180048440879032,
+   "provenance": {},
+   "sigma": 0.0,
+   "subject": [
+    "ball_i",
+    "ball_j"
+   ],
+   "threshold": null,
+   "unit": "accel_rel_diff",
+   "verdict": "UNSCORED"
+  }
+ ],
+ "two_balls_sigma": [
+  {
+   "abstain_reason": null,
+   "check_id": "R5a",
+   "clip_id": "two_balls",
+   "details": {
+    "accelerations": [
+     [
+      1.942890293094024e-16,
+      9.809999999999999,
+      -2.387807676482011e-16
+     ],
+     [
+      -6.598888102615774e-15,
+      9.809999999999684,
+      -1.6342479724385345e-13
+     ]
+    ],
+    "fall_residual_ratio": 1.7649503763617676e-16,
+    "lateral_accel_ratio": 5.809670251789343e-16,
+    "lateral_accel_ratio_sigma": 0.0,
+    "mode": "split",
+    "row_step": 1,
+    "split_frame": 27,
+    "windows": [
+     [
+      0,
+      26
+     ],
+     [
+      27,
+      31
+     ]
+    ]
+   },
+   "frame_span": [
+    0,
+    31
+   ],
+   "input_level": "oracle",
+   "magnitude": 3.611681594553128e-14,
+   "provenance": {},
+   "sigma": 0.046368259425729,
+   "subject": [
+    "ball_i"
+   ],
+   "threshold": null,
+   "unit": "accel_rel_diff",
+   "verdict": "UNSCORED"
+  },
+  {
+   "abstain_reason": null,
+   "check_id": "R5a",
+   "clip_id": "two_balls",
+   "details": {
+    "accelerations": [
+     [
+      -1.304512053934559e-15,
+      7.848000000000002,
+      -1.0154022485064889e-14
+     ],
+     [
+      9.1773810773077e-14,
+      7.8480000000001455,
+      2.23758049075741e-13
+     ]
+    ],
+    "fall_residual_ratio": 2.155701695439219e-16,
+    "lateral_accel_ratio": 7.194254957020846e-16,
+    "lateral_accel_ratio_sigma": 0.0,
+    "mode": "split",
+    "row_step": 1,
+    "split_frame": 26,
+    "windows": [
+     [
+      0,
+      25
+     ],
+     [
+      26,
+      31
+     ]
+    ]
+   },
+   "frame_span": [
+    0,
+    31
+   ],
+   "input_level": "oracle",
+   "magnitude": 3.694798058781059e-14,
+   "provenance": {},
+   "sigma": 0.03188266001556634,
+   "subject": [
+    "ball_j"
+   ],
+   "threshold": null,
+   "unit": "accel_rel_diff",
+   "verdict": "UNSCORED"
+  },
+  {
+   "abstain_reason": null,
+   "check_id": "R5a",
+   "clip_id": "two_balls",
+   "details": {
+    "accelerations": [
+     [
+      -9.71445146547012e-16,
+      9.81,
+      5.615884714821804e-15
+     ],
+     [
+      5.828670879282072e-16,
+      7.848,
+      5.615884714821804e-15
+     ]
+    ],
+    "fall_residual_ratio": 2.155701695439219e-16,
+    "lateral_accel_ratio": 7.194254957020846e-16,
+    "lateral_accel_ratio_sigma": 0.0,
+    "mode": "pair",
+    "row_step": 1,
+    "split_frame": null,
+    "windows": [
+     [
+      0,
+      31
+     ],
+     [
+      0,
+      31
+     ]
+    ]
+   },
+   "frame_span": [
+    0,
+    31
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.22222222222222227,
+   "provenance": {},
+   "sigma": 0.0008549047026505707,
+   "subject": [
+    "ball_i",
+    "ball_j"
+   ],
+   "threshold": null,
+   "unit": "accel_rel_diff",
+   "verdict": "UNSCORED"
+  }
+ ]
+}
