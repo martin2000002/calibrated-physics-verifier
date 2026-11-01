@@ -1,14 +1,20 @@
 """Camera with one focal per clip from MoGe-2, and GeoCalib's gravity with that focal as prior.
 
 MoGe-2 runs here only for its focal, on ``n_frames`` evenly spaced frames with a free field of
-view; the depth stage keeps its own provider. The clip focal is the geometric median of the
-frame focals. A frame whose focal is not finite or not > 0 is dropped; with no frame left the
+view; the depth stage keeps its own provider. The clip focal is exp(median ln f) over the frame
+focals. A frame whose forward raises, or whose focal is not finite or not > 0, is dropped; with
+no frame left the
 camera is camera/assumed_fov's (its focal, FOV sigma and source) and GeoCalib takes that focal
 as its prior, so a failed clip is recorded as assumed, never as estimated.
 
 The focal's relative sigma phi is the larger of this provider's own measured ``focal_rel`` (the
 CAMERA entry of the error profile; ``unmeasured_focal_sigma_rel`` without one), the spread of
 the frame focals, and ``focal_sigma_floor_rel``.
+
+It is opt-in (``--set extraction.plan.camera=moge2_focal``) and has no profile table, so the
+precise run config hash is unchanged. Its parameters are overridden at
+``extraction.providers.camera.moge2_focal.*``; the loader drops ``extraction.profiles.*`` keys
+from ``--set``.
 """
 
 from __future__ import annotations
@@ -17,12 +23,13 @@ import functools
 import math
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import ClassVar
+from typing import ClassVar, Final
 
 import numpy as np
 from numpy.typing import NDArray
 from pydantic import BaseModel, Field
 
+from physverify.core.log import get_logger
 from physverify.extraction._base import ProviderParams, StageContext, WeightSpec
 from physverify.extraction.providers import _geocalib, _moge2
 from physverify.extraction.providers._common import (
@@ -49,6 +56,10 @@ from physverify.schema.stages import Stage
 PROVIDER_KEY = "camera/moge2_focal"
 MAD_TO_SIGMA = 1.4826
 """sigma = 1.4826 * MAD for a normal sample."""
+FRAME_ERRORS: Final = (RuntimeError, ValueError)
+"""What a failing MoGe-2 forward raises (torch raises RuntimeError, out of memory included)."""
+
+log = get_logger("extraction.camera_moge2_focal")
 
 
 class Params(ProviderParams):
@@ -81,6 +92,26 @@ def clip_focal(frame_focal_rel: NDArray[np.float64]) -> ClipFocal | None:
     centre = float(np.median(logs))
     mad = float(np.median(np.abs(logs - centre)))
     return ClipFocal(math.exp(centre), MAD_TO_SIGMA * mad / math.sqrt(logs.size), int(logs.size))
+
+
+def frame_focals(
+    model: PointMapModel, frames: NDArray[np.uint8], batch_size: int
+) -> NDArray[np.float64]:
+    """Focal / width per frame at a free field of view. When a batch raises, the frames are
+    retried one by one and a frame that still raises is NaN, so it drops out of the clip focal."""
+    try:
+        return predict(model, frames, None, batch_size).focal_rel
+    except FRAME_ERRORS as exc:
+        log.warning("%s: batched MoGe-2 failed (%s); retrying frame by frame", PROVIDER_KEY, exc)
+    return np.array([_one_focal(model, frames[i : i + 1]) for i in range(frames.shape[0])])
+
+
+def _one_focal(model: PointMapModel, frame: NDArray[np.uint8]) -> float:
+    try:
+        return float(model.estimate(frame, None).focal_rel[0])
+    except FRAME_ERRORS as exc:
+        log.warning("%s: MoGe-2 failed on a frame (%s); dropped", PROVIDER_KEY, exc)
+        return math.nan
 
 
 def clip_phi(profile_phi: float, spread_rel: float, floor_rel: float) -> float:
@@ -126,8 +157,7 @@ class MoGe2FocalCamera:
         frames = ctx.video.frames(s.start, s.stop, s.step, s.max_side)
         picked = frames[frame_indices(frames.shape[0], self.params.n_frames)]
         set_torch_threads(ctx.threads)
-        estimate = predict(self._moge.get(ctx), picked, None, self.params.batch_size)
-        focal = clip_focal(estimate.focal_rel)
+        focal = clip_focal(frame_focals(self._moge.get(ctx), picked, self.params.batch_size))
         camera = assumed_camera(ctx) if focal is None else self._estimated(ctx, focal)
         if self.params.gravity == "none":
             return camera

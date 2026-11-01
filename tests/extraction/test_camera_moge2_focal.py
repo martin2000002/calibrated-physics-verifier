@@ -53,6 +53,26 @@ class FakeMoGe:
         return FrameEstimate(np.ones((n, h, w), dtype=np.float32), focal)
 
 
+class FlakyMoGe:
+    """Every batch of more than one frame raises; single frames return ``focal_rel`` in call
+    order, except the calls listed in ``broken``, which raise."""
+
+    def __init__(self, focal_rel: Sequence[float], broken: set[int]) -> None:
+        self.focal_rel = list(focal_rel)
+        self.broken = broken
+        self.single_calls = 0
+
+    def estimate(self, frames: NDArray[np.uint8], fov_x_deg: float | None) -> FrameEstimate:
+        if frames.shape[0] > 1:
+            raise RuntimeError("batch failed")
+        k = self.single_calls
+        self.single_calls += 1
+        if k in self.broken:
+            raise RuntimeError("frame failed")
+        n, h, w = frames.shape[:3]
+        return FrameEstimate(np.ones((n, h, w), dtype=np.float32), np.array([self.focal_rel[k]]))
+
+
 class FakeCalibrator:
     def __init__(self) -> None:
         self.calls: list[tuple[int, float | None]] = []
@@ -109,7 +129,7 @@ def measured(sigma: float, bias: float = 0.0) -> ErrorProfile:
     return profile_of(entry(Stage.CAMERA, "moge2_focal", FOCAL_REL, sigma, bias=bias))
 
 
-def test_the_clip_focal_is_the_geometric_median_with_a_mad_spread() -> None:
+def test_the_clip_focal_is_the_median_of_log_focal_with_a_mad_spread() -> None:
     found = clip_focal(np.array([0.5, 1.0, 2.0]))
     assert found is not None
     assert found.focal_rel == pytest.approx(1.0)
@@ -191,6 +211,21 @@ def test_with_no_usable_frame_the_camera_is_the_assumed_one(fixture_clip: Synthe
     assert camera.fov_sigma_deg == assumed.fov_sigma_deg
     assert calibrator.calls == [(8, pytest.approx(focal))]
     assert camera.world_from_camera is not None
+
+
+def test_a_frame_whose_forward_raises_is_dropped(fixture_clip: SyntheticClip) -> None:
+    moge = FlakyMoGe([0.8, 0.9, 1.0, 5.0], broken={3})
+    camera = run(fixture_clip, moge, n_frames=4, batch_size=4)
+    assert moge.single_calls == 4
+    assert camera.K[0, 0] == pytest.approx(0.9 * camera.sampling.width)
+    assert camera.source is IntrinsicsSource.ESTIMATED
+
+
+def test_when_every_forward_raises_the_camera_is_the_assumed_one(
+    fixture_clip: SyntheticClip,
+) -> None:
+    camera = run(fixture_clip, FlakyMoGe([0.9] * 4, broken={0, 1, 2, 3}), n_frames=4)
+    assert camera.source is IntrinsicsSource.ASSUMED_FOV
 
 
 def test_the_own_profile_entry_is_part_of_the_stage_key() -> None:
