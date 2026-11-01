@@ -25,6 +25,8 @@ reference = "others"
 # rows whose mask the lift saw cut by the image border left out. R4_jump "rigid2": v2 without the
 # stencils where the apparent size steps, in the statistic and in its noise estimate. The precise
 # profile runs both; --set check_variants.R4_size=default (or R4_jump=default) restores v2.
+# R2 "footprint" (proposed, not active): each body resting on another body is scored by how far
+# its centre leaves the outline of its supports, over its size; --set check_variants.R2=footprint.
 [check_variants]
 
 [check_variants.profiles.precise]

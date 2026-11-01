@@ -79,11 +79,12 @@ ORDER: Mapping[str, tuple[str, ...]] = {
         "lift/gravity_angle",
         "lift/orientation",
         "lift/position",
+        "lift/support_offset",
         "scale/relative",
         "track/mask",
     ),
     "policies": ("raw", "threshold"),
-    "check_variants": ("R4_jump/rigid2", "R4_size/v3"),
+    "check_variants": ("R2/footprint", "R4_jump/rigid2", "R4_size/v3"),
     "truth_measures": (
         "R1",
         "R2",
