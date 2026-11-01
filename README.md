@@ -17,10 +17,14 @@ verifier as preference signal against best-of-8 sampling from the base generator
 Every subcommand is implemented and covered by unit tests. The checks are calibrated on the
 calibration split of the synthetic dataset only; `calibrate publish` writes the thresholds that
 `verify` uses, and the values in `configs/verifier/checks.toml` are provisional fallbacks for when
-none is published. The tag `final-freeze` marks the frozen verifier (code and configuration) under
-which the sealed sets of `configs/verifier/sealed.toml` are evaluated. A command refuses to compute
-on a sealed set unless it is unsealed explicitly, and each look is logged before any number is
-computed.
+none is published. A published threshold table carries the `checks_hash` of the check
+parameters and variants it was fitted with, and `verify` refuses (exit 2) a table without that
+hash or with another one. A provisional `verification.thresholds.<id>` is read in the unit of the
+check's default implementation; a variant that reports another unit needs
+`verification.threshold_units.<id>` set to that unit next to its tau. The tag `final-freeze`
+marks the frozen verifier (code and configuration) under which the sealed sets of
+`configs/verifier/sealed.toml` are evaluated. A command refuses to compute on a sealed set
+unless it is unsealed explicitly, and each look is logged before any number is computed.
 
 The calibration artifact is a run output and is not versioned. The size model is versioned
 (`configs/verifier/size_model.toml`): its coefficients are estimates and carry their measured
