@@ -14,7 +14,7 @@ import pytest
 from r5a_v1_golden_case import GOLDEN, SCENES, results
 
 TOLERANCE = 1e-9
-WINNER_FIELDS = frozenset({"mode", "split_frame", "windows"})
+WINNER_FIELDS = frozenset({"frame_span", "mode", "split_frame", "windows"})
 
 
 @pytest.fixture(scope="module")
