@@ -57,6 +57,7 @@ class WhitenedFallShapeCheck(FallShapeCheck):
 
     variant: ClassVar[str] = "whitened"
     magnitude_unit: ClassVar[str] = "accel_wald_chi2_3"
+    replaced_unit: ClassVar[str] = FallShapeCheck.magnitude_unit
     perturbation_unit: ClassVar[str] = "accel_rel_diff"
     perturbation_estimate: ClassVar[str] = "accel_rel_diff_estimated"
     Params: ClassVar[type[BaseModel]] = WhitenedFallShapeParams

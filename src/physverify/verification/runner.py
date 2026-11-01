@@ -14,6 +14,7 @@ from typing import Any
 from pydantic import Field
 
 from physverify.checks._base import Check, CheckInputs, abstain, missing_inputs, row_step_or_none
+from physverify.checks.variants._base import REPLACED_UNIT
 from physverify.config.models import Settings, validated
 from physverify.core.errors import ConfigError
 from physverify.core.models import FrozenModel
@@ -175,10 +176,14 @@ def configured_suite(
     built = build_checks(checks, overrides)
     decider = build_policy(policies, verification)
     thresholds = load_thresholds(settings.paths.thresholds, verification.thresholds)
+    written = {
+        c.check_id: verification.threshold_units.get(
+            c.check_id, getattr(c, REPLACED_UNIT, c.magnitude_unit)
+        )
+        for c in built
+    }
     units = {c.check_id: c.magnitude_unit for c in built}
-    problem = threshold_problem(
-        thresholds, checks_hash(checks, overrides), verification.threshold_units, units
-    )
+    problem = threshold_problem(thresholds, checks_hash(checks, overrides), written, units)
     if problem is not None:
         raise ConfigError(problem)
     return ConfiguredSuite(verification, built, decider, thresholds)

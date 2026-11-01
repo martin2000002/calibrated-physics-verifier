@@ -250,6 +250,13 @@ def test_a_provisional_tau_in_another_unit_than_its_check_stops_the_suite(
     )
     suite = configured_suite(declared, plugins.configured("checks", declared), policies)
     assert suite.thresholds.tau_of("R5a") == 11.34
+    same_unit = make_settings("check_variants.R4_size=v3", "check_variants.R4_jump=rigid2")
+    assert not configured_suite(
+        same_unit, plugins.configured("checks", same_unit), policies
+    ).thresholds.calibrated
+    with pytest.raises(ConfigError, match=r"R1 \(tau in seconds, check reports pen_over_size"):
+        mislabelled = make_settings("verification.threshold_units.R1=seconds")
+        configured_suite(mislabelled, plugins.configured("checks", mislabelled), policies)
 
 
 @pytest.mark.parametrize("recorded", ["default", "whitened", None])

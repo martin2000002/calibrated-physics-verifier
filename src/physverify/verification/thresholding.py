@@ -92,7 +92,7 @@ def threshold_problem(
 ) -> str | None:
     """Why ``table`` may not judge the configured checks (``checks``: id -> magnitude unit): a
     calibrated table fitted with other check parameters or variants, or a provisional tau whose
-    declared unit (``units``) is not the unit its check reports."""
+    unit (``units``: declared, else the default implementation's) is not the unit it reports."""
     if table.calibrated:
         if table.checks_hash == checks_hash:
             return None

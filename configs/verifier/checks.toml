@@ -31,8 +31,10 @@ reference = "others"
 # come from fold calibration, and an uncalibrated run sets the a priori chi-square(3) 0.99
 # quantile (about the 0.90 quantile of the maximum over a flight's ~13 cuts) and its unit:
 # --set verification.thresholds.R5a=11.34 --set verification.threshold_units.R5a=accel_wald_chi2_3.
-# A tau whose unit is not the unit of the configured check, or a calibrated table fitted with
-# other check parameters or variants (its checks_hash), stops the run with a ConfigError.
+# A provisional tau is read in the unit of the check's default implementation unless
+# verification.threshold_units.<id> says otherwise; a tau whose unit is not the unit of the
+# configured check, or a calibrated table fitted with other check parameters or variants (its
+# checks_hash), stops the run with a ConfigError.
 [check_variants]
 
 [check_variants.profiles.precise]
@@ -61,17 +63,6 @@ R4_size = 0.10
 R4_jump = 3.78
 R5a = 0.15
 R5b = 0.15
-
-[verification.threshold_units]   # the unit each provisional tau above is written in
-R1 = "pen_over_size"
-R2 = "residual_over_weight"
-R3a = "e_minus_1"
-R3b = "dE_over_E"
-R4_missing = "seconds"
-R4_size = "rel_size_change"
-R4_jump = "jump_over_noise"
-R5a = "accel_rel_diff"
-R5b = "g_rel_error"
 
 [verification.specificity]
 abs_tol = 1e-3
