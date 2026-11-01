@@ -213,12 +213,14 @@ def test_perceived_inputs_come_from_the_stage_outputs() -> None:
     assert item.inputs.provenance[Stage.DEPTH.value] == "fake"
 
 
-def lift_entry(provider: str, **conditions: str) -> ErrorEntry:
+def lift_entry(
+    provider: str, quantity: str = "support_offset_rel", **conditions: str
+) -> ErrorEntry:
     return ErrorEntry(
         stage=Stage.LIFT,
         provider=provider,
         provider_version="1",
-        quantity="support_offset_rel",
+        quantity=quantity,
         unit="1",
         bias=0.0,
         sigma=0.1,
@@ -310,7 +312,7 @@ def test_the_ground_truth_pipeline_feeds_the_checks_without_the_lock(settings: S
 def test_the_loader_passes_the_profile_entries_the_plan_admits(settings: Settings) -> None:
     dataset = SyntheticFixtureDataset()
     admitted = lift_entry(GROUND_TRUTH)
-    refused = lift_entry(GROUND_TRUTH, **{PROFILE_CONDITION: "another_profile"})
+    refused = lift_entry(GROUND_TRUTH, "centroid_rel", **{PROFILE_CONDITION: "another_profile"})
     elsewhere = lift_entry("backproject")
     profile = ErrorProfile(
         created_utc="2026-11-01T00:00:00Z",
