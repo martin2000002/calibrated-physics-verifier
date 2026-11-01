@@ -293,9 +293,7 @@ class PerceivedSource:
 
     def _one(self, clip: ClipManifest, found: StageOutputs) -> ClipInputs:
         try:
-            inputs = perceived_inputs(
-                clip, found.outputs, found.names, self._level, found.errors
-            )
+            inputs = perceived_inputs(clip, found.outputs, found.names, self._level, found.errors)
         except DOMAIN_ERRORS as exc:
             return ClipInputs(clip, None, error_message(exc), self._level)
         return ClipInputs(clip, inputs, None)

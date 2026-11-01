@@ -81,7 +81,7 @@ def tilted_support(case: sc.Case, degrees: float) -> sc.Case:
 def test_the_plugin_is_the_r2_footprint_variant() -> None:
     assert plugins.build("check_variants")["R2/footprint"] is SupportFootprintCheck
     assert SupportFootprintCheck.magnitude_unit == "overhang_over_size"
-    assert SUPPORT_MAX_TILT_DEG == pytest.approx(45.0)
+    assert math.isclose(SUPPORT_MAX_TILT_DEG, 45.0)
 
 
 def test_the_setting_selects_it_and_default_restores_v1(make_settings: SettingsFactory) -> None:
