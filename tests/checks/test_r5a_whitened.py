@@ -39,6 +39,8 @@ def test_it_is_the_selectable_whitened_variant_of_r5a(make_settings: SettingsFac
     assert chosen["R5a"] is WhitenedFallShapeCheck
     for profile in ("precise", "fast"):
         assert plugins.configured("checks", make_settings(profile=profile))["R5a"] is FallShapeCheck
+    restored = plugins.configured("checks", make_settings("check_variants.R5a=default"))
+    assert restored["R5a"] is FallShapeCheck
 
 
 def test_a_free_fall_is_consistent_and_a_gravity_switch_is_not() -> None:
