@@ -80,6 +80,9 @@ STAGE_KEYS = {
     "lift/backproject": "b79574cc0403c7d55fcfb6938df2a5928196c8e09cd7f88ceb7d939858cf7445",
     "lift/backproject_unnested": "2b203300810399325c0cabda849cd3495b44c7ba9270e2d889c94aa5eab21807",
     "lift/ground_anchored": "ac80b50a87e0478504d75ce419fb1324bec3bde97aa6beefb8a208a4f0fb65a0",
+    "lift/backproject_size_constancy": (
+        "48156d4fc36cf48faa0d43bb330a7c704543f3135352007d76f3b520cd1cc1af"
+    ),
     "scale/free_fall": "5cf5fae25a5cca7ac5558e7f2734a5c14b9a9b3cdf1a1e4d408f74bc38e5786e",
     "scale/metric_depth": "f7565e70da567e4b25e5e5b8226e2602787fa852321b630f556be8e45e027e86",
     "scale/size_model": "f2eee46d6025088a682777cd62df8c131040faaca18c170be16aea2caec1bf91",

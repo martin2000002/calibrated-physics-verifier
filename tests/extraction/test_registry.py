@@ -41,7 +41,12 @@ def test_every_provider_validates_and_only_providers_with_weights_are_heavy(
 def test_only_the_backproject_lifts_and_the_moge2_focal_read_their_own_profile_entry(
     registry: dict[str, type[StageProvider]],
 ) -> None:
-    lifts = ("lift/backproject", "lift/backproject_unnested", "lift/ground_anchored")
+    lifts = (
+        "lift/backproject",
+        "lift/backproject_unnested",
+        "lift/ground_anchored",
+        "lift/backproject_size_constancy",
+    )
     for key in lifts:
         assert registry[key].error_profile_reads == (Stage.TRACK, Stage.DEPTH)
         assert reads_own_error(registry[key])
