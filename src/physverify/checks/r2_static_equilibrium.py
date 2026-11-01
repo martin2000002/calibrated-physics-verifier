@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import math
-from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, replace
+from collections.abc import Mapping
+from dataclasses import replace
 from typing import Any, ClassVar
 
 import numpy as np
@@ -13,6 +13,14 @@ from pydantic import BaseModel, Field, field_validator
 
 from physverify.checks._base import CheckInputs, abstain, unscored
 from physverify.checks._params import CommonParams, as_params
+from physverify.checks._support_graph import (
+    Event,
+    agents_in,
+    components,
+    reaches_ground,
+    resting_mask,
+    runs,
+)
 from physverify.checks._uncertainty import check_rng, mc_sigma
 from physverify.physics.equilibrium import (
     EquilibriumProblem,
@@ -24,16 +32,10 @@ from physverify.physics.equilibrium import (
 from physverify.physics.geometry import tilted
 from physverify.physics.measures.support_overhang import overhang_fraction
 from physverify.physics.row_time import reference_seconds, rows_in
-from physverify.physics.tracks import (
-    body_length,
-    contact_rows,
-    native_span,
-    rest_mask,
-    segments,
-)
+from physverify.physics.tracks import body_length, native_span
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel
 from physverify.schema.constants import ENV_ID
-from physverify.schema.contacts import ContactKind, ContactRecord, ContactTable, ManifoldKind
+from physverify.schema.contacts import ContactRecord, ManifoldKind
 from physverify.schema.states import ObjectStateTable
 
 FloatArray = NDArray[np.float64]
@@ -79,21 +81,6 @@ class EquilibriumParams(CommonParams):
         return 0.5 * (self.friction_range[0] + self.friction_range[1])
 
 
-@dataclass(frozen=True)
-class _Event:
-    """One component of resting bodies over a run of rows with a constant resting set."""
-
-    start: int
-    stop: int
-    bodies: tuple[int, ...]  # table indices, sorted by object id
-    support: tuple[ContactRecord, ...]  # RESTING records inside the component or with ENV
-    excluded: tuple[ContactRecord, ...]  # other records touching the component at the row
-
-    @property
-    def row(self) -> int:
-        return (self.start + self.stop - 1) // 2
-
-
 class EquilibriumCheck:
     """R2 [residual_over_weight]: minimal force and torque imbalance over the total weight."""
 
@@ -122,20 +109,15 @@ class EquilibriumCheck:
         resting = self._resting(states, rows_in(self.params.min_rest_s, inputs.row_seconds))
         return [
             self._event(inputs, event)
-            for start, stop in _runs(resting)
-            for event in _components(states, contacts, resting, start, stop)
+            for start, stop in runs(resting)
+            for event in components(states, contacts, resting, start, stop)
         ]
 
     def _resting(self, states: ObjectStateTable, min_rows: int) -> BoolArray:
         """Rows x bodies at rest for at least ``min_rows`` consecutive rows."""
-        resting = np.zeros(states.visible.shape, dtype=np.bool_)
-        for i in range(states.n_objects):
-            mask = rest_mask(states, i, self.params.rest_speed)
-            for start, stop in segments(mask, min_rows):
-                resting[start:stop, i] = True
-        return resting
+        return resting_mask(states, min_rows, self.params.rest_speed)
 
-    def _event(self, inputs: CheckInputs, event: _Event) -> CheckResult:
+    def _event(self, inputs: CheckInputs, event: Event) -> CheckResult:
         states = inputs.states
         fi = states.frame_index
         subject = tuple(str(states.object_ids[i]) for i in event.bodies)
@@ -167,7 +149,7 @@ class EquilibriumCheck:
         return unscored(type(self), inputs, subject, solution.residual, sigma, span, details)
 
     def _abstain_reason(
-        self, inputs: CheckInputs, event: _Event, details: dict[str, Any]
+        self, inputs: CheckInputs, event: Event, details: dict[str, Any]
     ) -> AbstainReason | None:
         states = inputs.states
         if not bool(np.all(np.isfinite(states.gravity_dir))):
@@ -180,11 +162,7 @@ class EquilibriumCheck:
         if not bool(np.all(np.isfinite(centroids))):
             details["missing"] = "position"
             return AbstainReason.MISSING_INPUT
-        records = event.support + event.excluded
-        involved = {str(states.object_ids[i]) for i in event.bodies}
-        involved |= {r.object_a for r in records} | {r.object_b for r in records}
-        labels = {str(states.labels[states.object_index(o)]) for o in involved - {ENV_ID}}
-        agents = sorted(labels & set(self.params.agent_labels))
+        agents = agents_in(states, event, self.params.agent_labels)
         if agents:
             details["agents"] = agents
             return AbstainReason.OUT_OF_SCOPE
@@ -195,13 +173,13 @@ class EquilibriumCheck:
             return AbstainReason.CONTACT_GEOMETRY_UNKNOWN
         return None
 
-    def _unsupported(self, inputs: CheckInputs, event: _Event) -> bool:
+    def _unsupported(self, inputs: CheckInputs, event: Event) -> bool:
         """A perceived table that never reaches the ground most likely missed a contact, which
         the program would read as a certain violation (residual 1, sigma 0)."""
         perceived = inputs.input_level is not InputLevel.ORACLE
-        return self.params.require_support_path and perceived and not _reaches_ground(event)
+        return self.params.require_support_path and perceived and not reaches_ground(event)
 
-    def _sigma(self, inputs: CheckInputs, event: _Event, problem: EquilibriumProblem) -> float:
+    def _sigma(self, inputs: CheckInputs, event: Event, problem: EquilibriumProblem) -> float:
         """Monte Carlo over the centroids, the contact points (sigma of object a), the gravity
         direction (an isotropic tilt of gravity_dir_sigma per axis) and mu (uniform)."""
         states = inputs.states
@@ -232,74 +210,7 @@ class EquilibriumCheck:
         return mc_sigma(model, sigmas, self.params.mc_draws, rng, uniform)
 
 
-def _runs(resting: BoolArray) -> list[tuple[int, int]]:
-    """Maximal [start, stop) row runs with a constant, non-empty set of resting bodies."""
-    runs: list[tuple[int, int]] = []
-    start = 0
-    for row in range(1, resting.shape[0] + 1):
-        if row == resting.shape[0] or not np.array_equal(resting[row], resting[start]):
-            if bool(resting[start].any()):
-                runs.append((start, row))
-            start = row
-    return runs
-
-
-def _components(
-    states: ObjectStateTable,
-    contacts: ContactTable,
-    resting: BoolArray,
-    start: int,
-    stop: int,
-) -> list[_Event]:
-    """Connected groups of resting bodies linked by RESTING records active at the central row."""
-    row = (start + stop - 1) // 2
-    fi = states.frame_index
-    members = {str(states.object_ids[i]) for i in np.flatnonzero(resting[start])}
-    active = [r for r in contacts.records if bool(contact_rows(r, fi)[row])]
-    links = [r for r in active if _is_support(r, members)]
-    parent = {m: m for m in members}
-
-    def root(node: str) -> str:
-        while parent[node] != node:
-            node = parent[node]
-        return node
-
-    for record in links:
-        if record.object_b != ENV_ID:
-            parent[root(record.object_a)] = root(record.object_b)
-    groups: dict[str, list[str]] = {}
-    for member in sorted(members):
-        groups.setdefault(root(member), []).append(member)
-    return [_group_event(states, active, links, group, start, stop) for group in groups.values()]
-
-
-def _is_support(record: ContactRecord, members: set[str]) -> bool:
-    ends_resting = record.object_a in members and record.object_b in members | {ENV_ID}
-    return record.kind is ContactKind.RESTING and ends_resting
-
-
-def _group_event(
-    states: ObjectStateTable,
-    active: Sequence[ContactRecord],
-    links: Sequence[ContactRecord],
-    group: list[str],
-    start: int,
-    stop: int,
-) -> _Event:
-    names = set(group)
-    support = tuple(r for r in links if r.object_a in names)
-    used = {id(r) for r in support}
-    excluded = tuple(r for r in active if id(r) not in used and names & {r.object_a, r.object_b})
-    bodies = tuple(states.object_index(name) for name in group)
-    return _Event(start, stop, bodies, support, excluded)
-
-
-def _reaches_ground(event: _Event) -> bool:
-    """The component is connected, so one support on the environment links every body to it."""
-    return any(r.object_b == ENV_ID for r in event.support)
-
-
-def _problem(states: ObjectStateTable, event: _Event) -> EquilibriumProblem:
+def _problem(states: ObjectStateTable, event: Event) -> EquilibriumProblem:
     local = {str(states.object_ids[i]): k for k, i in enumerate(event.bodies)}
     contacts = tuple(
         SupportContact(
@@ -333,7 +244,7 @@ def _perturbed(
 
 
 def _overhangs(
-    states: ObjectStateTable, event: _Event, subject: tuple[str, ...]
+    states: ObjectStateTable, event: Event, subject: tuple[str, ...]
 ) -> dict[str, float | None]:
     """Signed CM overhang of each body over the points of the contacts holding it from below."""
     gravity = np.asarray(states.gravity_dir, dtype=np.float64)
