@@ -103,7 +103,7 @@ class ContactScene:
     def intervals(self) -> Iterator[tuple[Pair, list[FrameContact]]]:
         """Every pair's contact intervals, in record order."""
         for pair in self._pairs():
-            contacts = [c for t in range(self.states.n_frames) if (c := self._contact(pair, t))]
+            contacts = [c for t in range(self.states.n_frames) if (c := self.contact(pair, t))]
             for interval in self._intervals(contacts):
                 yield pair, interval
 
@@ -161,7 +161,7 @@ class ContactScene:
                 if run.stop - run.start >= self.min_rest_rows:
                     yield from ((t, n) for t in range(run.start, run.stop))
 
-    def _contact(self, pair: Pair, t: int) -> FrameContact | None:
+    def contact(self, pair: Pair, t: int) -> FrameContact | None:
         placed_a = self.bodies[t][pair.a]
         placed_b = None if pair.b is None else self.bodies[t][pair.b]
         if placed_a is None or (pair.b is not None and placed_b is None):
