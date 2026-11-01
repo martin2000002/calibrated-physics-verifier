@@ -79,6 +79,7 @@ ORDER: Mapping[str, tuple[str, ...]] = {
         "lift/gravity_angle",
         "lift/orientation",
         "lift/position",
+        "lift/support_gap",
         "scale/relative",
         "track/mask",
     ),
