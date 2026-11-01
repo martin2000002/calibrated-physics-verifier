@@ -1006,7 +1006,12 @@
       "envelope_quantile",
       "anchor_z",
       "min_anchor_rows",
-      "max_normal_sigma_deg"
+      "max_normal_sigma_deg",
+      "steady_window",
+      "min_elevation_deg",
+      "stack_reach_px",
+      "pixel_floor_rel",
+      "anchor_mode"
     ],
     "lift/ground_truth": [],
     "scale/free_fall": [
