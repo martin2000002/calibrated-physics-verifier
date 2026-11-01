@@ -62,6 +62,11 @@ def change_quantile(alpha: float, tests: int) -> float:
     return float(norm.isf(alpha / max(tests, 1)))
 
 
+def two_sided_quantile(alpha: float) -> float:
+    """K = z(alpha / 2): the two-sided normal bound at alpha."""
+    return float(norm.isf(alpha / 2.0))
+
+
 def rest_rows(
     velocity: FloatArray, visible: BoolArray, sigma: float | FloatArray, alpha: float
 ) -> BoolArray:

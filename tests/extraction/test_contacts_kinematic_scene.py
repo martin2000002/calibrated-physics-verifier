@@ -64,11 +64,17 @@ def test_the_provider_reads_the_track_lift_and_kinematics_entries_and_is_light()
     assert (provider.stage, provider.name, provider.version) == (
         Stage.CONTACTS,
         "kinematic_scene",
-        "3",
+        "4",
     )
     assert provider.requires == (Stage.TRACK, Stage.CAMERA, Stage.KINEMATICS)
     assert provider.error_profile_reads == (Stage.TRACK, Stage.LIFT, Stage.KINEMATICS)
-    assert (provider.Params().rest, provider.Params().env_gap_gate) == ("image", False)
+    params = provider.Params()
+    assert (params.rest, params.impacts, params.pair_rest, params.env_gap_gate) == (
+        "image",
+        "image",
+        "image",
+        False,
+    )
     assert not provider.heavy and not provider.is_ground_truth
 
 

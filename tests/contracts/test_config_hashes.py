@@ -54,7 +54,7 @@ STAGE_KEYS = {
     "camera/geocalib": "18892cc4e5b735d5fd4b8c45ad9dccfd98b0a95814a506b28ce11079f3bf3154",
     "camera/moge2_focal": "d3e712cbff3fb294c89a0288de885b4ca62f1a83b3e4da41c2c2ac49fd070487",
     "contacts/kinematic": "f31effc18d3cf9f2bdd93ea22c310456af425c97b58a6a0014ec56147a25a0cd",
-    "contacts/kinematic_scene": "4c9e8b817789b93d4e3f5b9c8d739cdbcb2800652ab3f4b3a963b59ce0c74bc7",
+    "contacts/kinematic_scene": "7cf65074cd14ef8aeb77d6ad771c18253f153bc91050583f00dcd2a0b93a1583",
     "contacts/proximity": "9630320bb6d56480ab0196b5fd6ba081d4f1bbdd3c71f303187104f19adff29b",
     "depth/moge2": "6cdce7a43eb0a8999a01982327df1202bc13bbda4c86c3af356092a578a18f81",
     "depth/vda_small": "70f6c003ff50af82ae87a48aa6a2c81030761e6a0c859278fc99fd8dba78cf1c",

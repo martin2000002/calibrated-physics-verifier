@@ -18,9 +18,11 @@ from numpy.typing import NDArray
 from scipy.stats import norm
 from support import entry
 
+from physverify.extraction.providers._impact_existence import VelocityImpacts
+from physverify.extraction.providers._pair_rest import ProximityPairs
 from physverify.extraction.providers._rest_existence import RestExistence, VelocityRest
 from physverify.extraction.providers._scene_plane import GapError, HeightError
-from physverify.extraction.providers._scene_records import SceneOutcome
+from physverify.extraction.providers._scene_records import ImpactExistence, PairRest, SceneOutcome
 from physverify.extraction.providers._velocity_tests import VelocityError
 from physverify.extraction.providers.contacts_kinematic_scene import KinematicSceneContacts
 from physverify.physics.geometry import characteristic_lengths
@@ -45,6 +47,8 @@ GAPS = GapError.of(GAP_REL)
 SIDE = cs.BOX_SIDE
 LENGTH = float(characteristic_lengths(sc.cube(SIDE)))
 SPACING = 2.0 * SIDE
+VELOCITY_IMPACTS = VelocityImpacts()
+PROXIMITY_PAIRS = ProximityPairs()
 
 
 def sampling(case: sc.Case) -> FrameSampling:
@@ -58,9 +62,12 @@ def outcome(
     heights: HeightError = HEIGHTS,
     gaps: GapError = GAPS,
     rest: RestExistence | None = None,
+    impacts: ImpactExistence = VELOCITY_IMPACTS,
+    pair_rest: PairRest = PROXIMITY_PAIRS,
     **params: Any,
 ) -> SceneOutcome:
-    """The provider's outcome with the 3D velocity rest unless ``rest`` is given."""
+    """The provider's outcome with the 3D velocity rest unless ``rest`` is given, and the 3D
+    velocity impacts and proximity pair rest unless others are."""
     provider = KinematicSceneContacts(KinematicSceneContacts.Params(**params))
     found = provider.outcome(
         case.states if states is None else states,
@@ -70,6 +77,8 @@ def outcome(
         heights,
         gaps,
         VelocityRest(velocity) if rest is None else rest,
+        impacts,
+        pair_rest,
     )
     assert found is not None
     return found

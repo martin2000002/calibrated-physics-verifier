@@ -1,11 +1,10 @@
 """Contact records of the kinematic scene provider; not a plugin.
 
-Existence comes from a rest test (``_rest_existence.py``) and from velocity kinks. RESTING: rest
-runs of both objects of a proximity pair (pair record), or rest rows of an object not resting on
-another one (environment record), with the optional gap gate: within K sigma_gap of its scene
-plane, K = z(alpha / 2) and sigma_gap the profile's measured gap error.
-IMPACT: a velocity kink whose shape explains its window best, attributed to a surface as in
-``_impact_attribution.py`` and kept when its change along the surface normal is significant.
+Existence comes from a rest test (``_rest_existence.py``), a pair rest test (``_pair_rest.py``)
+and an impact test (``_impact_existence.py``), each injected. RESTING on the environment: rest
+rows of an object not resting on another one, with the optional gap gate: within K sigma_gap of
+its scene plane, K = z(alpha / 2) and sigma_gap the profile's measured gap error. The scene plane
+of each object rests on the others' rest runs and significant upward 3D velocity kinks.
 Environment records place their points on the body's own bottom with distance 0, so that
 ``support_plane`` returns where the body is, not the scene plane it was tested against.
 """
@@ -14,8 +13,9 @@ from __future__ import annotations
 
 import math
 from collections import Counter
-from collections.abc import Iterator, Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
+from typing import Protocol
 
 import numpy as np
 from numpy.typing import NDArray
@@ -29,10 +29,8 @@ from physverify.extraction.providers._impact_attribution import (
     facing_point,
     make_record,
     nearest_row,
-    record_of,
-    resolve,
 )
-from physverify.extraction.providers._proximity import FrameContact, Pair, nan_median
+from physverify.extraction.providers._proximity import FrameContact, Pair
 from physverify.extraction.providers._scene_plane import (
     GapError,
     HeightError,
@@ -45,7 +43,11 @@ from physverify.extraction.providers._scene_plane import (
     support_gap,
     up_of,
 )
-from physverify.extraction.providers._velocity_tests import NormalChange, long_runs
+from physverify.extraction.providers._velocity_tests import (
+    NormalChange,
+    long_runs,
+    two_sided_quantile,
+)
 from physverify.physics.contact_manifold import contact_manifold
 from physverify.physics.geometry import Plane, Solid
 from physverify.physics.signed_distance import signed_distance
@@ -75,6 +77,32 @@ class SceneInputs:
     focal: float
     side_s: float
     env_gap_gate: bool
+    impacts: ImpactExistence
+    pair_rest: PairRest
+
+
+@dataclass(frozen=True)
+class SceneEvidence:
+    """What the impact test may read: up (None without gravity), each object's rest runs on the
+    environment, the 3D velocity kinks with their count per object, and the scene planes."""
+
+    up: FloatArray | None
+    env_runs: tuple[tuple[slice, ...], ...]
+    events: tuple[Event, ...]
+    tests: Counter[int]
+    planes: tuple[SupportPlane | None, ...]
+
+
+class ImpactExistence(Protocol):
+    def impacts(self, inputs: SceneInputs, evidence: SceneEvidence) -> FoundImpacts: ...
+
+
+class PairRest(Protocol):
+    def pairs(
+        self, inputs: SceneInputs, up: FloatArray | None, covered: BoolArray
+    ) -> list[ContactRecord]:
+        """RESTING pair records; marks in ``covered`` the rows where a body rests on another."""
+        ...
 
 
 @dataclass(frozen=True)
@@ -84,6 +112,14 @@ class TestedChoice:
     choice: Choice
     change: NormalChange | None
     accepted: bool
+
+
+@dataclass(frozen=True)
+class FoundImpacts:
+    """IMPACT records and the 3D choices tested on the way (none for a test without them)."""
+
+    records: tuple[ContactRecord, ...]
+    tested: tuple[TestedChoice, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -106,16 +142,15 @@ def scene_contacts(inputs: SceneInputs) -> SceneOutcome:
     up = up_of(proximity.gravity)
     rest = inputs.rest
     covered = np.zeros(rest.shape, dtype=np.bool_)
-    pairs = list(resting_pairs(scene, inputs.intervals, rest, up, covered))
-    events = detect(scene, inputs.focal, inputs.side_s, alpha, bonferroni=False)
+    pairs = inputs.pair_rest.pairs(inputs, up, covered)
+    events = tuple(detect(scene, inputs.focal, inputs.side_s, alpha, bonferroni=False))
     tests = Counter(e.index for e in events)
-    env_runs = [
+    env_runs = tuple(
         long_runs(rest[:, n] & ~covered[:, n], proximity.min_rest_rows)
         for n in range(states.n_objects)
-    ]
+    )
     planes = scene_planes(inputs, up, env_runs, events, tests)
-    tested = [gate(inputs, c, tests, planes) for c in resolve(scene, events)]
-    impacts = [r for t in tested if t.accepted and (r := impact_record(scene, t, planes))]
+    found = inputs.impacts.impacts(inputs, SceneEvidence(up, env_runs, events, tests, planes))
     alone = rest & ~covered
     near = near_plane(inputs, planes, alone) if inputs.env_gap_gate else alone
     resting = [
@@ -126,10 +161,10 @@ def scene_contacts(inputs: SceneInputs) -> SceneOutcome:
         if (r := env_resting(inputs, n, run, support))
     ]
     records = sorted(
-        [*pairs, *impacts, *resting], key=lambda r: (r.object_a, r.object_b, r.t_start)
+        [*pairs, *found.records, *resting], key=lambda r: (r.object_a, r.object_b, r.t_start)
     )
     return SceneOutcome(
-        tuple(records), tuple(tested), planes, rest, inputs.rest_known, inputs.gap_error.known
+        tuple(records), found.tested, planes, rest, inputs.rest_known, inputs.gap_error.known
     )
 
 
@@ -143,7 +178,7 @@ def near_plane(
     if not inputs.gap_error.known:
         return near
     proximity = inputs.scene.proximity
-    k = float(norm.isf(inputs.alpha / 2.0))
+    k = two_sided_quantile(inputs.alpha)
     for t, n in zip(*np.nonzero(candidates), strict=True):
         support = planes[n]
         if support is None:
@@ -151,45 +186,6 @@ def near_plane(
         bound = k * inputs.gap_error.sigma(float(proximity.lengths[n]))
         near[t, n] = abs(support_gap(proximity.bodies[t][n], support)) <= bound
     return near
-
-
-def resting_pairs(
-    scene: KinematicScene,
-    intervals: Sequence[Interval],
-    rest: BoolArray,
-    up: FloatArray | None,
-    covered: BoolArray,
-) -> Iterator[ContactRecord]:
-    """RESTING pair records over the stretches where both objects rest; marks in ``covered``
-    the rows where the upper object (larger up . median position) rests on the pair."""
-    min_rows = scene.proximity.min_rest_rows
-    for pair, interval in intervals:
-        assert pair.b is not None
-        both = [c for c in interval if rest[c.frame, pair.a] and rest[c.frame, pair.b]]
-        for stretch in consecutive(both):
-            if len(stretch) < min_rows:
-                continue
-            rows = [c.frame for c in stretch]
-            if up is not None:
-                covered[rows, upper(scene, pair.a, pair.b, rows, up)] = True
-            record = scene.proximity.record(pair, stretch)
-            yield replace(record, kind=ContactKind.RESTING, source=SOURCE)
-
-
-def consecutive(contacts: Sequence[FrameContact]) -> Iterator[list[FrameContact]]:
-    current: list[FrameContact] = []
-    for contact in contacts:
-        if current and contact.frame != current[-1].frame + 1:
-            yield current
-            current = []
-        current.append(contact)
-    if current:
-        yield current
-
-
-def upper(scene: KinematicScene, a: int, b: int, rows: Sequence[int], up: FloatArray) -> int:
-    heights = [nan_median((scene.states.position[rows, n] @ up).tolist()) for n in (a, b)]
-    return b if heights[1] > heights[0] else a
 
 
 def scene_planes(
@@ -200,20 +196,36 @@ def scene_planes(
     tests: Counter[int],
 ) -> tuple[SupportPlane | None, ...]:
     """P_n of every object: evidence from rest runs on the environment and upward impacts."""
-    states = inputs.scene.states
     if up is None:
-        return (None,) * states.n_objects
-    evidence: dict[int, list[float]] = {n: [] for n in range(states.n_objects)}
+        return (None,) * inputs.scene.states.n_objects
+    evidence = rest_heights(inputs, up, env_runs)
     bodies = inputs.scene.proximity.bodies
-    for n, runs in enumerate(env_runs):
-        for run in runs:
-            evidence[n].extend(height(bodies[t][n], up) for t in range(run.start, run.stop))
     for event in events:
         n, impact = event.index, event.impact
         change = NormalChange.along(impact.delta_v, up, float(inputs.sigma_v[n]), tests[n])
         if change.significant(inputs.alpha):
             body = bodies[nearest_row(inputs.scene, impact.time)][n]
             evidence[n].append(height(body, up, impact.position))
+    return planes_from(inputs, up, evidence)
+
+
+def rest_heights(
+    inputs: SceneInputs, up: FloatArray, env_runs: Sequence[tuple[slice, ...]]
+) -> dict[int, list[float]]:
+    """Lowest heights of every object over its rest runs on the environment."""
+    bodies = inputs.scene.proximity.bodies
+    evidence: dict[int, list[float]] = {n: [] for n in range(inputs.scene.states.n_objects)}
+    for n, runs in enumerate(env_runs):
+        for run in runs:
+            evidence[n].extend(height(bodies[t][n], up) for t in range(run.start, run.stop))
+    return evidence
+
+
+def planes_from(
+    inputs: SceneInputs, up: FloatArray, evidence: Mapping[int, Sequence[float]]
+) -> tuple[SupportPlane | None, ...]:
+    """P_n of every object from the evidence heights of the others."""
+    states = inputs.scene.states
     lengths = inputs.scene.proximity.lengths
     sigmas = np.array([inputs.height_error.sigma(float(length)) for length in lengths])
     plane = ScenePlane.of(
@@ -224,43 +236,6 @@ def scene_planes(
         float(states.gravity_dir_sigma),
     )
     return tuple(plane.for_object(n) for n in range(states.n_objects))
-
-
-def gate(
-    inputs: SceneInputs,
-    choice: Choice,
-    tests: Counter[int],
-    planes: Sequence[SupportPlane | None],
-) -> TestedChoice:
-    """Significance of the change along the chosen normal: environment du = dv . up with m_n;
-    opposite impacts (a) du = (dv_a - dv_b) . n with hypot(sigma_a, sigma_b) and max(m_a, m_b);
-    a proximity pair (b) du = dv_a . n with m_a."""
-    sigma_v, index = inputs.sigma_v, choice.event.index
-    delta_v = choice.event.impact.delta_v
-    if choice.other is None and planes[index] is None:
-        return TestedChoice(choice, None, False)
-    sigma, m = float(sigma_v[index]), tests[index]
-    if choice.partner is not None:
-        delta_v = delta_v - choice.partner.impact.delta_v
-        sigma = math.hypot(sigma, float(sigma_v[choice.partner.index]))
-        m = max(m, tests[choice.partner.index])
-    change = NormalChange.along(delta_v, choice.normal, sigma, m)
-    return TestedChoice(choice, change, change.significant(inputs.alpha))
-
-
-def impact_record(
-    scene: KinematicScene, tested: TestedChoice, planes: Sequence[SupportPlane | None]
-) -> ContactRecord | None:
-    choice, change = tested.choice, tested.change
-    assert change is not None
-    if choice.other is not None:
-        record = record_of(scene, choice)
-        if record is None:
-            return None
-        return replace(record, confidence=change.confidence, source=SOURCE)
-    support = planes[choice.event.index]
-    assert support is not None
-    return env_impact(scene, choice.event, support, change)
 
 
 def env_impact(

@@ -15,10 +15,16 @@ from __future__ import annotations
 import math
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
+from functools import partial
 
 import numpy as np
 from numpy.typing import NDArray
 
+from physverify.extraction.providers._greedy_attribution import (
+    EventKey,
+    best_choice,
+    resolve_greedy,
+)
 from physverify.extraction.providers._impacts import Bases, Impact, ImpactRows, track_impacts
 from physverify.extraction.providers._proximity import ContactScene, nan_median
 from physverify.physics.geometry import Plane, Pose, Solid, characteristic_lengths
@@ -44,8 +50,6 @@ PAIR_MARGIN = 1
 """A proximity record is around an impact when its contact window widened by one native frame
 (``contact_rows(margin=1)``) holds the impact's frame."""
 
-EventKey = tuple[int, int]
-
 
 @dataclass(frozen=True)
 class Event:
@@ -57,6 +61,10 @@ class Event:
     @property
     def key(self) -> EventKey:
         return (self.index, self.impact.row)
+
+    @property
+    def time(self) -> float:
+        return self.impact.time
 
 
 @dataclass(frozen=True)
@@ -93,19 +101,30 @@ class KinematicScene:
         return seconds_per_row(self.states.frame_index, self.seconds_per_frame)
 
 
-def camera_positions(states: ObjectStateTable, camera: CameraModel) -> FloatArray | None:
-    """Positions in CAMERA_OPENCV: as they are, or moved with the camera pose (one per row or
-    one for the clip); None without a pose that fits the rows."""
+def camera_from_world(states: ObjectStateTable, camera: CameraModel) -> FloatArray | None:
+    """(T, 4, 4) camera-from-world transform of each row: the identity for states in
+    CAMERA_OPENCV, the inverse of the camera pose (one per row or one for the clip) otherwise;
+    None without a pose that fits the rows."""
     if states.frame is CoordFrame.CAMERA_OPENCV:
-        return np.asarray(states.position, dtype=np.float64)
+        return np.tile(np.eye(4), (states.n_frames, 1, 1))
     pose = camera.world_from_camera
     if pose is None:
         return None
     poses = pose if pose.ndim == 3 else np.broadcast_to(pose, (states.n_frames, 4, 4))
     if poses.shape[0] != states.n_frames:
         return None
-    camera_from_world = np.linalg.inv(poses)
-    rotation, translation = camera_from_world[:, :3, :3], camera_from_world[:, :3, 3]
+    return np.asarray(np.linalg.inv(poses), dtype=np.float64)
+
+
+def camera_positions(states: ObjectStateTable, camera: CameraModel) -> FloatArray | None:
+    """Positions in CAMERA_OPENCV: as they are, or moved with ``camera_from_world``; None
+    without a pose that fits the rows."""
+    if states.frame is CoordFrame.CAMERA_OPENCV:
+        return np.asarray(states.position, dtype=np.float64)
+    transform = camera_from_world(states, camera)
+    if transform is None:
+        return None
+    rotation, translation = transform[:, :3, :3], transform[:, :3, 3]
     moved = np.einsum("tij,tnj->tni", rotation, states.position) + translation[:, None, :]
     return np.asarray(moved, dtype=np.float64)
 
@@ -221,43 +240,17 @@ def environment_candidate(scene: KinematicScene, event: Event) -> Iterator[Choic
 
 
 def choose(scene: KinematicScene, event: Event, events: Sequence[Event]) -> Choice | None:
-    """The candidate with the largest cosine, if that cosine is positive."""
-    candidates = [
-        *impulse_candidates(scene, event, events),
-        *proximity_candidates(scene, event),
-        *environment_candidate(scene, event),
-    ]
-    usable = [c for c in candidates if math.isfinite(c.cosine) and c.cosine > 0.0]
-    return max(usable, key=lambda c: c.cosine) if usable else None
+    return best_choice(
+        [
+            *impulse_candidates(scene, event, events),
+            *proximity_candidates(scene, event),
+            *environment_candidate(scene, event),
+        ]
+    )
 
 
 def resolve(scene: KinematicScene, events: Sequence[Event]) -> list[Choice]:
-    """Final choices. The pair through (a) with the largest cosine is accepted and consumes both
-    objects' impacts within one row step; the events left choose again among themselves, so an
-    event whose best partner was consumed falls back to its next surface (three bodies meeting
-    at once). Without pairs left, the remaining events keep their choices."""
-    consumed: set[EventKey] = set()
-    final: list[Choice] = []
-    while True:
-        left = [e for e in events if e.key not in consumed]
-        choices = [c for e in left if (c := choose(scene, e, left)) is not None]
-        pairs = [c for c in choices if c.partner is not None]
-        if not pairs:
-            return final + choices
-        best = max(pairs, key=lambda c: c.cosine)
-        final.append(best)
-        consumed |= around(scene, events, best)
-
-
-def around(scene: KinematicScene, events: Sequence[Event], pair: Choice) -> set[EventKey]:
-    """Events of the pair's two objects within one row step of its impact."""
-    objects = {pair.event.index, pair.other}
-    time = pair.event.impact.time
-    return {
-        e.key
-        for e in events
-        if e.index in objects and abs(e.impact.time - time) <= scene.row_seconds
-    }
+    return resolve_greedy(events, partial(choose, scene), scene.row_seconds)
 
 
 def facing_point(

@@ -896,6 +896,8 @@
       "side_s",
       "alpha",
       "rest",
+      "impacts",
+      "pair_rest",
       "env_gap_gate"
     ],
     "contacts/proximity": [

@@ -10,12 +10,8 @@ import pytest
 import scene_contact_cases as cases
 
 from physverify.extraction._base import GROUND_TRUTH
-from physverify.extraction.providers._image_rest import (
-    ImageRest,
-    PixelError,
-    image_rest,
-    mask_motion,
-)
+from physverify.extraction.providers._image_motion import ObjectImage, PixelError, mask_motion
+from physverify.extraction.providers._image_rest import ImageRest, image_rest
 from physverify.extraction.providers._velocity_tests import rest_runs
 from physverify.extraction.providers.gt_kinematics import Params as TruthParams
 from physverify.extraction.providers.kinematics_savgol import Params as SavgolParams
@@ -51,9 +47,12 @@ def discs(centres: np.ndarray, radius: float = RADIUS) -> np.ndarray:
 
 
 def runs_of(masks: np.ndarray, error: PixelError = ERROR) -> np.ndarray:
-    motion, valid = mask_motion(masks, np.ones(len(masks), dtype=np.bool_), times(), SPEC, error)
+    image = ObjectImage.of(masks, np.ones(len(masks), dtype=np.bool_))
+    motion = mask_motion(image, times(), SPEC, error)
     rest = np.zeros(len(masks), dtype=np.bool_)
-    for run in rest_runs(motion.velocity, valid, motion.velocity_sigma[:, 0], ALPHA, MIN_ROWS):
+    for run in rest_runs(
+        motion.velocity, image.valid, motion.velocity_sigma[:, 0], ALPHA, MIN_ROWS
+    ):
         rest[run] = True
     return rest
 
@@ -85,9 +84,10 @@ def test_under_an_exact_track_a_still_disc_rests_and_a_throw_apex_does_not() -> 
 def test_the_centroid_velocity_and_its_sigma_follow_a_moving_disc() -> None:
     t = times()
     centres = np.stack([40.0 + 30.0 * t, np.full(FRAMES, 80.0)], axis=-1)
-    motion, valid = mask_motion(discs(centres), np.ones(FRAMES, bool), t, SPEC, ERROR)
+    image = ObjectImage.of(discs(centres), np.ones(FRAMES, bool))
+    motion = mask_motion(image, t, SPEC, ERROR)
     inner = slice(SPEC.window, FRAMES - SPEC.window)
-    assert valid.all()
+    assert image.valid.all()
     assert motion.velocity[inner, 0] == pytest.approx(30.0, abs=3.0)
     assert np.allclose(motion.velocity_sigma[:, 0], motion.velocity_sigma[:, 1])
     assert np.all(motion.velocity_sigma[inner, 0] > 0.0)

@@ -319,13 +319,20 @@ def place_body(states: ObjectStateTable, row: int, index: int, yaw_axis: Vec) ->
     return PlacedBody(Solid(sphere, Pose(position, np.eye(3))), assumed=True, point_only=True)
 
 
-def support_plane(object_id: str, contacts: ContactTable) -> Plane | None:
-    """Environment surface under the object's ENV contacts; None without ENV records.
+def support_plane(
+    object_id: str, contacts: ContactTable, kinds: frozenset[ContactKind] | None = None
+) -> Plane | None:
+    """Environment surface under the object's ENV contacts of ``kinds`` (any kind when None);
+    None without such records.
 
     ENV is always ``object_b``, so each record normal already points from the environment to
     the object. Points lie midway between the surfaces, hence offset = median(n.p - d/2).
     """
-    env = [r for r in records_of(object_id, contacts) if r.object_b == ENV_ID]
+    env = [
+        r
+        for r in records_of(object_id, contacts)
+        if r.object_b == ENV_ID and (kinds is None or r.kind in kinds)
+    ]
     if not env:
         return None
     normal = np.median(np.stack([r.normal for r in env]), axis=0)
