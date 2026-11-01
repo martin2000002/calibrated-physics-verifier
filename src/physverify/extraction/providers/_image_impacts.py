@@ -18,12 +18,14 @@ from __future__ import annotations
 
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, replace
+from functools import partial
 
 import numpy as np
 from numpy.typing import NDArray
 from scipy.stats import norm
 
 from physverify.extraction._base import StageContext
+from physverify.extraction.providers._greedy_attribution import best_choice, resolve_greedy
 from physverify.extraction.providers._image_kinks import ImageKink, clip_kinks
 from physverify.extraction.providers._image_motion import (
     ImageProjection,
@@ -140,34 +142,13 @@ def environment_candidate(view: ImageScene, kink: ImageKink) -> Iterator[ImageCh
 
 
 def choose(view: ImageScene, kink: ImageKink, left: Sequence[ImageKink]) -> ImageChoice | None:
-    candidates = [
-        *impulse_candidates(view, kink, left),
-        *proximity_candidates(view, kink),
-        *environment_candidate(view, kink),
-    ]
-    usable = [c for c in candidates if np.isfinite(c.cosine) and c.cosine > 0.0]
-    return max(usable, key=lambda c: c.cosine) if usable else None
-
-
-def resolve(view: ImageScene, kinks: Sequence[ImageKink]) -> list[ImageChoice]:
-    """Final choices, as ``_impact_attribution.resolve``: the pair through (a) with the largest
-    cosine consumes both objects' kinks within one row step, and the others choose again."""
-    consumed: set[tuple[int, int]] = set()
-    final: list[ImageChoice] = []
-    while True:
-        left = [k for k in kinks if k.key not in consumed]
-        choices = [c for k in left if (c := choose(view, k, left)) is not None]
-        pairs = [c for c in choices if c.partner is not None]
-        if not pairs:
-            return final + choices
-        best = max(pairs, key=lambda c: c.cosine)
-        final.append(best)
-        objects = {best.kink.index, best.other}
-        consumed |= {
-            k.key
-            for k in kinks
-            if k.index in objects and abs(k.time - best.kink.time) <= view.scene.row_seconds
-        }
+    return best_choice(
+        [
+            *impulse_candidates(view, kink, left),
+            *proximity_candidates(view, kink),
+            *environment_candidate(view, kink),
+        ]
+    )
 
 
 def bounces(kink: ImageKink, up_image: FloatArray, alpha: float) -> bool:
@@ -252,7 +233,7 @@ class ImageImpacts:
         planes = bounce_planes(inputs, view, evidence, kinks)
         records = [
             r
-            for c in resolve(view, kinks)
+            for c in resolve_greedy(kinks, partial(choose, view), scene.row_seconds)
             if (
                 r := environment_record(inputs, c, planes)
                 if c.other is None
