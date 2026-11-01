@@ -34,7 +34,7 @@ input_size = 280
 detect = "grounding_dino_base"
 track = "sam2_1_hiera_tiny"
 # One MoGe-2 focal per clip with GeoCalib gravity: the assumed 60 deg FOV was biased by
-# +10.9 deg on Kubric (ADR 0027). camera/geocalib with an assumed focal was the earlier choice.
+# +10.9 deg on Kubric. camera/geocalib with an assumed focal was the earlier choice.
 camera = "moge2_focal"
 # A later perception iteration: G-depth passes and G-contacts fails on (c), so only the depth
 # was adopted and contacts stay proximity. The base chain finally chosen is the earlier

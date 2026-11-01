@@ -85,8 +85,8 @@ def test_the_precise_profile_takes_the_clip_focal_and_keeps_the_v5_lift(
     real_providers: Mapping[str, type[StageProvider]],
     dataset: str,
 ) -> None:
-    """Camera moge2_focal on 8 frames with GeoCalib gravity (ADR 0027); LIFT backproject v5 with
-    its temporal filter off (lift/ground_anchored is opt-in, ADR 0028)."""
+    """Camera moge2_focal on 8 frames with GeoCalib gravity; LIFT backproject v5 with its
+    temporal filter off (lift/ground_anchored is opt-in)."""
     plan = resolve_plan(make_settings(profile="precise"), real_providers, dataset=dataset)
     camera = plan.step(Stage.CAMERA)
     lift = plan.step(Stage.LIFT)
@@ -100,7 +100,7 @@ def test_the_precise_profile_takes_the_clip_focal_and_keeps_the_v5_lift(
 def test_the_generic_size_spread_follows_the_profile_camera(
     make_settings: SettingsFactory, profile: str, spread: float
 ) -> None:
-    """1.435 goes only with camera/moge2_focal (ADR 0027); the assumed camera keeps 0.85."""
+    """1.435 goes only with camera/moge2_focal; the assumed camera keeps 0.85."""
     priors = make_settings(profile=profile).section(SIZE_PRIORS_SECTION, SizePriorTable).root
     assert (priors[GENERIC_PRIOR].mean_m, priors[GENERIC_PRIOR].rel_spread) == (0.19, spread)
 
