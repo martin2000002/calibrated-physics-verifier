@@ -36,8 +36,9 @@ class CheckValue(ArtifactModel):
     role: Role
     value: float | None
     """m - bias of the fold; None when the row is not scored."""
-    flag: bool
-    """Fails the fold's tau (a fold without tau flags nothing)."""
+    flag: bool | None
+    """Fails the fold's tau (a fold without tau flags nothing); None outside the populations of
+    J_cv (``in_informedness``)."""
 
 
 class LevelOof(ArtifactModel):
@@ -68,6 +69,13 @@ def flagger(check: CheckCalibration, policy: ThresholdRule) -> Callable[[Calibra
     return flagged
 
 
+def in_informedness(row: CalibrationRow) -> bool:
+    """J_cv's populations: positives with an event and scored clean rows."""
+    if row.role is Role.POSITIVE:
+        return row.has_event
+    return row.role is Role.CLEAN and row.scored
+
+
 def check_values(
     held: Sequence[CalibrationRow], check: CheckCalibration, policy: ThresholdRule
 ) -> list[CheckValue]:
@@ -79,7 +87,11 @@ def check_values(
 
     return [
         CheckValue(
-            clip_id=r.clip_id, scene_id=r.scene_id, role=r.role, value=value(r), flag=flagged(r)
+            clip_id=r.clip_id,
+            scene_id=r.scene_id,
+            role=r.role,
+            value=value(r),
+            flag=flagged(r) if in_informedness(r) else None,
         )
         for r in held
     ]

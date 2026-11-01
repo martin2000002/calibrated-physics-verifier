@@ -20,6 +20,7 @@ from calibration_cases import (
     record,
 )
 
+from physverify.calibration.check_weights import Flag, raw_weight
 from physverify.calibration.collect import level_data
 from physverify.calibration.dev_folds import fold_parts, scene_folds, split_data
 from physverify.calibration.dev_score import (
@@ -337,3 +338,7 @@ def test_the_out_of_fold_values_give_back_the_score_auroc(dev: DevScore) -> None
         pos = [v for v, positive in scored if positive]
         neg = [v for v, positive in scored if not positive]
         assert auroc(pos, neg) == level.auroc_cv.value
+        for check_id, check in level.checks.items():
+            judged = [v for v in values.checks[check_id] if v.flag is not None]
+            flags = [Flag(v.scene_id, v.role is Role.POSITIVE, v.flag) for v in judged]
+            assert raw_weight(flags, CONFIG.calibration) == check.j_cv

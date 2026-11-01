@@ -40,6 +40,7 @@ from physverify.calibration.oof import (
     check_valued,
     clip_valued,
     flagger,
+    in_informedness,
     level_oof,
     oof_report,
 )
@@ -187,13 +188,9 @@ def oof_flags(
     """The populations of ``fit_check``'s J judged with the fold's tau and sigma correction; a
     fold without tau flags nothing."""
     flagged = flagger(check, policy)
-    flags = [
-        Flag(r.scene_id, True, flagged(r)) for r in held if r.role is Role.POSITIVE and r.has_event
-    ]
-    flags += [
-        Flag(r.scene_id, False, flagged(r)) for r in held if r.role is Role.CLEAN and r.scored
-    ]
-    return flags
+    judged = [r for r in held if in_informedness(r)]
+    flags = [Flag(r.scene_id, True, flagged(r)) for r in judged if r.role is Role.POSITIVE]
+    return flags + [Flag(r.scene_id, False, flagged(r)) for r in judged if r.role is Role.CLEAN]
 
 
 @dataclass(frozen=True)
