@@ -10,7 +10,7 @@ import numpy as np
 from numpy.typing import ArrayLike, NDArray
 from scipy.optimize import brentq
 from scipy.special import expit
-from scipy.stats import chi2, mannwhitneyu
+from scipy.stats import chi2
 
 from physverify.physics.uncertainty import robust_scale
 from physverify.stats.bootstrap import ClusterBlock, scene_bootstrap
@@ -84,8 +84,10 @@ def auroc(positives: ArrayLike, negatives: ArrayLike) -> float:
     pos, neg = _finite(positives), _finite(negatives)
     if not pos.size or not neg.size:
         return math.nan
-    u = mannwhitneyu(pos, neg, alternative="two-sided").statistic
-    return float(u) / (pos.size * neg.size)
+    ordered = np.sort(neg)
+    below = np.searchsorted(ordered, pos, side="left")
+    ties = np.searchsorted(ordered, pos, side="right") - below
+    return float(below.sum() + 0.5 * ties.sum()) / (pos.size * neg.size)
 
 
 def ece(p: ArrayLike, y: ArrayLike, weights: ArrayLike | None = None, bins: int = 10) -> float:
