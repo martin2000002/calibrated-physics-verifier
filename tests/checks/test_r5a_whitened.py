@@ -18,13 +18,15 @@ G = STANDARD_GRAVITY
 CHI2_3_Q99 = 11.344866730144373
 
 
-def run(case: sc.Case) -> dict[tuple[str, ...], CheckResult]:
-    check = WhitenedFallShapeCheck(WhitenedFallShapeParams())
+def run(
+    case: sc.Case, params: WhitenedFallShapeParams | None = None
+) -> dict[tuple[str, ...], CheckResult]:
+    check = WhitenedFallShapeCheck(params or WhitenedFallShapeParams())
     return {r.subject: r for r in check.evaluate(sc.bare_inputs(case))}
 
 
-def only(case: sc.Case) -> CheckResult:
-    results = run(case)
+def only(case: sc.Case, params: WhitenedFallShapeParams | None = None) -> CheckResult:
+    results = run(case, params)
     assert len(results) == 1
     return next(iter(results.values()))
 
@@ -71,6 +73,13 @@ def test_a_flight_row_without_sigma_abstains_as_unknown_uncertainty() -> None:
     case = sc.with_sigma(sc.parabola(), position=0.002)
     result = only(sc.with_values(case, "position_sigma", "ball", [10], np.nan))
     assert result.abstain_reason is AbstainReason.UNKNOWN_UNCERTAINTY
+
+
+def test_an_unknown_sigma_on_a_flight_too_short_to_score_is_not_the_reason() -> None:
+    case = sc.with_sigma(sc.parabola(), position=0.002)
+    short = WhitenedFallShapeParams(min_flight_s=100.0)
+    result = only(sc.with_values(case, "position_sigma", "ball", [10], np.nan), short)
+    assert result.abstain_reason is AbstainReason.TOO_FEW_FRAMES
 
 
 def test_the_pair_of_balls_compares_their_first_flights() -> None:

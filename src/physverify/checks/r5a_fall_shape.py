@@ -137,6 +137,7 @@ class FallShapeCheck:
         return _inconsistency(states, windows, offsets)
 
     def _no_candidate(self, states: ObjectStateTable, flights: Sequence[Flight]) -> AbstainReason:
+        """Why an object whose eligible ``flights`` gave no candidate abstains."""
         return AbstainReason.TOO_FEW_FRAMES
 
     def _statistic_details(self, states: ObjectStateTable, best: Candidate) -> dict[str, Any]:
@@ -175,7 +176,7 @@ class FallShapeCheck:
                 "side_rows": rows.side,
             }
             span = flights_span(states.frame_index, flights)
-            reason = self._no_candidate(states, flights)
+            reason = self._no_candidate(states, long)
             return abstain(type(self), inputs, subject, reason, span, details)
         best = candidates[first_max(np.array([c.value for c in candidates]))]
         return self._scored(inputs, subject, best, rng)
