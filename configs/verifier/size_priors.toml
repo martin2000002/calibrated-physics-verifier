@@ -14,3 +14,10 @@
 [size_priors.primitive]
 mean_m = 0.19
 rel_spread = 0.85
+
+# precise only, tied to its camera/moge2_focal: with the clip focal right the generic prior's
+# mean (0.19 m against Kubric objects of about 0.10 m) leaves a +0.74 log bias, so this spread is
+# a calibration on Kubric calib (1-sigma scale coverage 0.700, scene-grouped cross-fit), not a
+# real-world spread. Refitted in the clean re-run; the assumed camera keeps 0.85 (ADR 0027).
+[size_priors.profiles.precise.primitive]
+rel_spread = 1.435

@@ -11,10 +11,10 @@ The focal's relative sigma phi is the larger of this provider's own measured ``f
 CAMERA entry of the error profile; ``unmeasured_focal_sigma_rel`` without one), the spread of
 the frame focals, and ``focal_sigma_floor_rel``.
 
-It is opt-in (``--set extraction.plan.camera=moge2_focal``) and has no profile table, so the
-precise run config hash is unchanged. Its parameters are overridden at
-``extraction.providers.camera.moge2_focal.*``; the loader drops ``extraction.profiles.*`` keys
-from ``--set``.
+It is the precise profile's camera (``extraction.profiles.precise.plan``); elsewhere it is
+selected with ``--set extraction.plan.camera=moge2_focal``. It has no provider table: its defaults
+are those of ``Params``, overridden at ``extraction.providers.camera.moge2_focal.*``; the loader
+drops ``extraction.profiles.*`` keys from ``--set``.
 """
 
 from __future__ import annotations

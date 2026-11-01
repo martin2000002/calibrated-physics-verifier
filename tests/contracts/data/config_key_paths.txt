@@ -438,6 +438,7 @@ size_model.sigma_factor
 size_model.source
 size_priors.primitive.mean_m
 size_priors.primitive.rel_spread
+size_priors.profiles.precise.primitive.rel_spread
 sizing.baseline_prior
 sizing.bootstrap
 sizing.bucket_url

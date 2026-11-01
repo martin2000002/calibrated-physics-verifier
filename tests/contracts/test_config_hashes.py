@@ -29,15 +29,15 @@ PINNED_ROOT = "/pinned"
 
 SECTIONS_HASH = {
     "fast": "0f496b6b6c3c134833db620699a062e177149f50106563766a0f2149ef568e02",
-    "precise": "156736b52557062df340b7ed6d3a36c6af526931f1c7d110cba60703d982a5fb",
+    "precise": "492ad5cd6de067a9913ff7e835fce47465a9f1d8e535a4983960100dd964b961",
 }
 CONFIG_HASH = {
     "fast": "5c823cad1d6520fb36db4320c0d65d4f9fab8acd842e709b4891c49116dff0c4",
-    "precise": "ca4d85e578fe778cc3b1870973206afa55630d6113513a099a59843f7d78e969",
+    "precise": "d6f2b02fcad3eb8ca4ed922e009311ed04cfb786cb9b1cfdff5e291c4da9ea5f",
 }
 LOOK_CONFIG_HASH = {
     "fast": "264a6f208d3db9bbbe0f08e4fbd73d74c264783f9219d8cc891d8f914d289953",
-    "precise": "da0b24afc5238cbc00e13ff37c1438592b91a2b08ef4c200b16f3d98de20587a",
+    "precise": "d58abacd1db2e5f4829fdfa28c7a4d6d7ff5bb2cffb77000531bdff979f026db",
 }
 CHECKS_HASH = "891fd3580169fec8f8c70ca0b7d66b24973fd7348dbf1c98ac00be92aa41b2b8"
 RUN_CHECKS_HASH = {

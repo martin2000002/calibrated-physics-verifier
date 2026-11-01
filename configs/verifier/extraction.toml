@@ -33,9 +33,9 @@ input_size = 280
 [extraction.profiles.precise.plan]
 detect = "grounding_dino_base"
 track = "sam2_1_hiera_tiny"
-# Adopted by a perception iteration's gates: G-conv and G-ood pass, G-focal keeps the assumed
-# focal (OOD p90 no-harm fails), so GeoCalib gives gravity only.
-camera = "geocalib"
+# One MoGe-2 focal per clip with GeoCalib gravity: the assumed 60 deg FOV was biased by
+# +10.9 deg on Kubric (ADR 0027). camera/geocalib with an assumed focal was the earlier choice.
+camera = "moge2_focal"
 # A later perception iteration: G-depth passes and G-contacts fails on (c), so only the depth
 # was adopted and contacts stay proximity. The base chain finally chosen is the earlier
 # iteration's chain on CPU, with GeoCalib gravity, so precise keeps vda_small.
