@@ -130,6 +130,7 @@ PROVIDER_ORDER = (
     "lift/backproject",
     "lift/backproject_unnested",
     "lift/ground_anchored",
+    "lift/backproject_size_constancy",
     "scale/free_fall",
     "scale/metric_depth",
     "scale/size_model",

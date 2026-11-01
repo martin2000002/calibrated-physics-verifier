@@ -13,6 +13,7 @@ from pydantic import Field, field_validator
 from physverify.extraction._base import ProviderParams
 from physverify.extraction.backprojection import ShiftStrategy, SummaryOptions
 from physverify.extraction.ground_anchor import AnchorMode, GroundAnchorParams
+from physverify.extraction.size_constancy import SizeConstancyParams
 from physverify.physics.running_median import EdgeMode
 from physverify.physics.tracks import OCCLUDED_AT
 from physverify.schema.states import PrimitiveKind
@@ -146,6 +147,24 @@ class GroundAnchoredLiftParams(LiftParams):
         return value
 
 
+class SizeConstancyLiftParams(LiftParams):
+    """``lift/backproject_size_constancy``: the along-ray sigma settings, fixed a priori from
+    pixel arithmetic and never swept on calib. Like the ground-anchoring settings they
+    live here, outside the profile tables, so no section or run-config hash moves."""
+
+    # A box side is off by up to a pixel at each end (sqrt(2) px together); at 12 px that is
+    # already 0.12 of the diameter, so smaller boxes say little about depth.
+    min_diameter_px: float = Field(default=12.0, gt=0.0)
+    # Two independent one-pixel quantisation errors, one per end of the box side.
+    diameter_noise_px: float = Field(default=math.sqrt(2.0), ge=0.0)
+    # Mask outline noise (segmentation edge, antialiasing) assumed at 5 % of the diameter.
+    shape_sigma_floor: float = Field(default=0.05, ge=0.0)
+    # The smallest count whose median is one of the rows rather than the mean of two.
+    min_clean_rows: int = Field(default=3, ge=1)
+    # A mask with a pixel in the outermost row or column is cut by the frame.
+    constancy_border_px: int = Field(default=1, ge=1)
+
+
 def ground_anchor_params(params: GroundAnchoredLiftParams) -> GroundAnchorParams:
     return GroundAnchorParams(
         envelope_quantile=params.envelope_quantile,
@@ -155,6 +174,16 @@ def ground_anchor_params(params: GroundAnchoredLiftParams) -> GroundAnchorParams
         steady_window=params.steady_window,
         min_elevation_rad=math.radians(params.min_elevation_deg),
         anchor_mode=params.anchor_mode,
+    )
+
+
+def size_constancy_params(params: SizeConstancyLiftParams) -> SizeConstancyParams:
+    return SizeConstancyParams(
+        min_diameter_px=params.min_diameter_px,
+        diameter_noise_px=params.diameter_noise_px,
+        shape_sigma_floor=params.shape_sigma_floor,
+        min_clean_rows=params.min_clean_rows,
+        border_margin_px=params.constancy_border_px,
     )
 
 
