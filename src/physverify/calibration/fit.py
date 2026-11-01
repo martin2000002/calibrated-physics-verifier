@@ -53,6 +53,7 @@ from physverify.calibration.thresholds import (
     verdict_of,
 )
 from physverify.calibration.verdict import DECIDED, Rule, clip_verdict
+from physverify.core.models import ArtifactModel
 from physverify.schema.checks import CheckResult, InputLevel, Verdict
 from physverify.stats.bootstrap import ClusterBlock, scene_bootstrap
 from physverify.stats.intervals import Ci, Rate, rate
@@ -342,27 +343,39 @@ def fit_aggregate(model: Stratum, data: LevelData, settings: CalibrationSettings
     )
 
 
-def clip_scores(model: Stratum, data: LevelData) -> list[tuple[str, float, bool]]:
-    """(scene, 1 - S, perturbed?) of every clip of ``data`` with a row, a score and a label,
-    outside the extension scenes."""
+class ClipValue(ArtifactModel):
+    """``value`` = 1 - S of a clip with a label; None when the clip has no score."""
+
+    clip_id: str
+    scene_id: str
+    value: float | None
+    perturbed: bool
+
+
+def clip_values(model: Stratum, data: LevelData) -> list[ClipValue]:
+    """Every labelled clip of ``data`` outside the extension scenes, by clip id."""
     from physverify.calibration.apply import score_clip
 
     view = StratumView(model=model, source="fit", artifact=None)
     by_clip: dict[str, list[CheckResult]] = {}
     for result in data.results:
         by_clip.setdefault(result.clip_id, []).append(result)
-    info = clip_info(data.rows)
-    scored: list[tuple[str, float, bool]] = []
-    for clip_id in sorted(by_clip):
-        if clip_id not in info:
+    found: list[ClipValue] = []
+    for clip_id, (scene, perturbed) in sorted(clip_info(data.rows).items()):
+        if perturbed is None or scene in data.extension_scenes:
             continue
-        scene, perturbed = info[clip_id]
-        if scene in data.extension_scenes:
-            continue
-        score = score_clip(by_clip[clip_id], view).score
-        if score is not None and perturbed is not None:
-            scored.append((scene, 1.0 - score, perturbed))
-    return scored
+        results = by_clip.get(clip_id)
+        score = score_clip(results, view).score if results else None
+        value = None if score is None else 1.0 - score
+        found.append(ClipValue(clip_id=clip_id, scene_id=scene, value=value, perturbed=perturbed))
+    return found
+
+
+def clip_scores(model: Stratum, data: LevelData) -> list[tuple[str, float, bool]]:
+    """(scene, 1 - S, perturbed?) of the clips of ``clip_values`` with a score."""
+    return [
+        (c.scene_id, c.value, c.perturbed) for c in clip_values(model, data) if c.value is not None
+    ]
 
 
 def clip_info(rows: Sequence[CalibrationRow]) -> dict[str, tuple[str, bool | None]]:

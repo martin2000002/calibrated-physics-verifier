@@ -22,6 +22,7 @@ from physverify.calibration.collect import SubjectLookup, Subjects
 from physverify.calibration.dev_score import DEVSCORE_FILE, dev_score, require_bootstrap
 from physverify.calibration.evaluate import EvaluationMeta, evaluate
 from physverify.calibration.fit import FitInputs, fit_calibration
+from physverify.calibration.oof import DEVSCORE_OOF_FILE
 from physverify.calibration.report import EVALUATION_FILE, EVALUATION_MD, evaluation_markdown
 from physverify.calibration.session import (
     Session,
@@ -68,6 +69,7 @@ from physverify.extraction.events import ConsoleObserver, EventRecorder
 from physverify.runtime.runs import new_run
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import ClipManifest, Split
+from physverify.synth.plan import family_of
 from physverify.synth.scene_scope import scene_of
 from physverify.verification.check_set import CHECKS_SECTION, ChecksSettings, build_checks
 from physverify.verification.inputs import (
@@ -162,12 +164,13 @@ def score_devscore(
     reports = live_reports(session, source, chosen, levels)
     data = fit_level_data(session, source, reports, levels, no_sigma, extension)
     meta = fit_meta(session, source, extension.label(name, reports.clips), reports.clips)
-    result = dev_score(data, session.check_units(), meta, session.config)
+    result = dev_score(data, session.check_units(), meta, session.config, family_of)
     run_dir = session.run.run_dir
     text = result.report.to_json()
     for path in (run_dir / DEVSCORE_FILE, *(() if out is None else (out,))):
         write_text_atomic(path, text)
         echo(f"devscore: {path}")
+    write_text_atomic(run_dir / DEVSCORE_OOF_FILE, result.oof.to_json())
     write_text_atomic(run_dir / cal.artifact, result.artifact.to_json())
     echo(f"calibration: {run_dir / cal.artifact} (full calib fit)")
     for line in devscore_lines(result.report):

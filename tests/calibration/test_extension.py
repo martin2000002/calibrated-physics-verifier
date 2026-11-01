@@ -18,7 +18,8 @@ from calibration_cases import CHECKS, config, extension_report, fit_meta, merged
 from calibration_cases import synthetic_report as base_report
 
 from physverify.calibration.collect import level_data
-from physverify.calibration.dev_score import dev_score, scene_folds
+from physverify.calibration.dev_folds import scene_folds
+from physverify.calibration.dev_score import dev_score
 from physverify.calibration.extension import ExtensionScope, extension_of, restrict
 from physverify.calibration.fit import (
     FitInputs,
@@ -33,6 +34,7 @@ from physverify.core.errors import ConfigError
 from physverify.datasets._base import ScopedSubset
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import Split
+from physverify.synth.plan import family_of
 from physverify.verification.sweep import CheckUnit
 
 CONFIG = config(alpha=0.1, folds=3, bootstrap=30)
@@ -111,7 +113,7 @@ def test_base_scenes_are_folded_as_without_the_extension() -> None:
 def test_the_other_checks_devscore_bit_identically() -> None:
     without, with_ext, _ = arms()
     both = (without, with_ext)
-    reports = [dev_score((data,), CHECKS, fit_meta(), CONFIG).report for data in both]
+    reports = [dev_score((data,), CHECKS, fit_meta(), CONFIG, family_of).report for data in both]
     levels = [report.levels[0].checks for report in reports]
     assert all(dumped(levels[0][c]) == dumped(levels[1][c]) for c in OTHERS)
     assert dumped(levels[0][SCOPED]) != dumped(levels[1][SCOPED])
@@ -159,7 +161,9 @@ def test_the_configured_r3b_extension_leaves_the_others_identical(level: InputLe
     assert (before[scoped].status, after[scoped].status) == ("no_negatives", "ok")
     model = fit_stratum(with_ext, checks, "fast", CONFIG)
     assert clip_scores(model, with_ext) == clip_scores(model, without)
-    reports = [dev_score((d,), checks, fit_meta(), CONFIG).report for d in (without, with_ext)]
+    reports = [
+        dev_score((d,), checks, fit_meta(), CONFIG, family_of).report for d in (without, with_ext)
+    ]
     found = [report.levels[0].checks for report in reports]
     assert all(dumped(found[0][c]) == dumped(found[1][c]) for c in OTHERS)
     assert dumped(found[0][scoped]) != dumped(found[1][scoped])

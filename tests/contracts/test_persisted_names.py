@@ -21,6 +21,11 @@ from physverify.calibration.artifact import (
     EVALUATION_SCHEMA,
 )
 from physverify.calibration.dev_score import DEVSCORE_FILE, DEVSCORE_SCHEMA, DEVSCORE_VERSION
+from physverify.calibration.oof import (
+    DEVSCORE_OOF_FILE,
+    DEVSCORE_OOF_SCHEMA,
+    DEVSCORE_OOF_VERSION,
+)
 from physverify.reporting.render import RESULTS_SCHEMA, RESULTS_VERSION
 from physverify.runtime.runs import RunContext
 from physverify.schema.io import SCHEMA_VERSION as RECORD_FORMAT_VERSION
@@ -135,6 +140,7 @@ FILE_NAMES = (
     "curve.csv",
     "curves.csv",
     "devscore.json",
+    "devscore_oof.json",
     "e2e.json",
     "errors.csv",
     "eval.json",
@@ -308,8 +314,13 @@ def _module_constant(name: str) -> set[str]:
 def test_schema_ids_and_versions_are_unchanged() -> None:
     assert (DEVSCORE_SCHEMA, DEVSCORE_VERSION, DEVSCORE_FILE) == (
         "physverify.devscore",
-        "1.1.0",
+        "1.2.0",
         "devscore.json",
+    )
+    assert (DEVSCORE_OOF_SCHEMA, DEVSCORE_OOF_VERSION, DEVSCORE_OOF_FILE) == (
+        "physverify.devscore_oof",
+        "1.0.0",
+        "devscore_oof.json",
     )
     assert (RECORD_SCHEMA, RECORD_VERSION) == ("physverify.exclusions", "1.0.0")
     assert (CALIBRATION_SCHEMA, CALIBRATION_VERSION, EVALUATION_SCHEMA) == (
