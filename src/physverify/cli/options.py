@@ -39,6 +39,24 @@ DiagnosisSubsetOption = Annotated[
 ]
 ClipsOption = Annotated[list[str] | None, typer.Option(help="Clip ids (repeatable).")]
 
+DatasetOption = Annotated[str | None, typer.Option(help="Dataset (default: calibration.dataset).")]
+SubsetOption = Annotated[str | None, typer.Option(help="Subset (default: calibration.subset).")]
+ArtifactOption = Annotated[
+    Path | None, typer.Option(help="Artifact (default: calibration_dir/artifact).")
+]
+ProfileOption = Annotated[str | None, typer.Option(help="Sampling profile (default: active).")]
+LevelOption = Annotated[str | None, typer.Option(help="oracle, perceived or both.")]
+OneLevelOption = Annotated[str, typer.Option(help="oracle or perceived.")]
+RealDatasetOption = Annotated[
+    list[str] | None,
+    typer.Option(
+        "--real-dataset",
+        help="Real dataset to score instead of calibration.real_datasets (repeatable).",
+    ),
+]
+NoSigmaOption = Annotated[bool, typer.Option(help="Do not recalibrate the perceived sigma.")]
+ArmOption = Annotated[Path, typer.Option(help="Run directory or devscore_oof.json of the arm.")]
+
 ShardOption = Annotated[str | None, typer.Option(help="Shard i/n of the candidates.")]
 PurgeStaleCacheOption = Annotated[
     bool,

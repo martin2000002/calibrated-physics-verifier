@@ -133,3 +133,33 @@ def test_the_runners_keep_the_development_metric_lines(
     assert kept[0].startswith("note: ") and kept[1].startswith("oracle/fast: ")
     assert [line.split(":")[0] for line in kept[2:]] == [f"  {c}" for c in sorted(checks())]
     assert InputLevel.PERCEIVED.value == "perceived"
+
+
+def _run_of(out: str) -> Path:
+    return Path(out.split("run: ")[1].split()[0])
+
+
+def test_compare_devscore_pairs_two_runs(cli: CliRunner, calls: list[int], tmp_path: Path) -> None:
+    """Two dev-score runs of the same clips: every delta is 0; a run of other clips is refused."""
+    runs = []
+    for _ in range(2):
+        result = cli(*FAST, "calibrate", "dev-score", "--dataset", DATASET, "--level", "oracle")
+        assert result.code == 0, result.err
+        runs.append(_run_of(result.out))
+    out = tmp_path / "compare.json"
+    result = cli("calibrate", "compare-devscore", "--a", str(runs[0]), "--b", str(runs[1]),
+                 "--level", "oracle", "--out", str(out))  # fmt: skip
+    assert result.code == 0, result.err
+    found = json.loads(out.read_text(encoding="utf-8"))
+    assert found["schema"] == "physverify.devscore_compare"
+    assert not found["stratification"]["applies"]
+    for unit in found["units"].values():
+        assert unit["stratified"] is None
+        assert {r["delta"] for r in unit["auroc_cv"].values()} <= {0.0, None}
+    fewer = json.loads((runs[1] / "devscore_oof.json").read_text(encoding="utf-8"))
+    fewer["levels"][0]["aggregate"] = fewer["levels"][0]["aggregate"][1:]
+    other = tmp_path / "devscore_oof.json"
+    other.write_text(json.dumps(fewer), encoding="utf-8")
+    result = cli("calibrate", "compare-devscore", "--a", str(runs[0]), "--b", str(other),
+                 "--level", "oracle")  # fmt: skip
+    assert result.code == EXIT_USAGE and "different labelled clips" in result.err

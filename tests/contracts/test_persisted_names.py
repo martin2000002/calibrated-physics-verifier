@@ -21,6 +21,11 @@ from physverify.calibration.artifact import (
     EVALUATION_SCHEMA,
 )
 from physverify.calibration.dev_score import DEVSCORE_FILE, DEVSCORE_SCHEMA, DEVSCORE_VERSION
+from physverify.calibration.devscore_compare import (
+    DEVSCORE_COMPARE_FILE,
+    DEVSCORE_COMPARE_SCHEMA,
+    DEVSCORE_COMPARE_VERSION,
+)
 from physverify.calibration.oof import (
     DEVSCORE_OOF_FILE,
     DEVSCORE_OOF_SCHEMA,
@@ -140,6 +145,7 @@ FILE_NAMES = (
     "curve.csv",
     "curves.csv",
     "devscore.json",
+    "devscore_compare.json",
     "devscore_oof.json",
     "e2e.json",
     "errors.csv",
@@ -321,6 +327,11 @@ def test_schema_ids_and_versions_are_unchanged() -> None:
         "physverify.devscore_oof",
         "1.0.0",
         "devscore_oof.json",
+    )
+    assert (DEVSCORE_COMPARE_SCHEMA, DEVSCORE_COMPARE_VERSION, DEVSCORE_COMPARE_FILE) == (
+        "physverify.devscore_compare",
+        "1.0.0",
+        "devscore_compare.json",
     )
     assert (RECORD_SCHEMA, RECORD_VERSION) == ("physverify.exclusions", "1.0.0")
     assert (CALIBRATION_SCHEMA, CALIBRATION_VERSION, EVALUATION_SCHEMA) == (
