@@ -25,6 +25,10 @@ reference = "others"
 # rows whose mask the lift saw cut by the image border left out. R4_jump "rigid2": v2 without the
 # stencils where the apparent size steps, in the statistic and in its noise estimate. The precise
 # profile runs both; --set check_variants.R4_size=default (or R4_jump=default) restores v2.
+# R5a "whitened" (selectable, no profile runs it): each candidate scored by the Wald contrast of
+# its two accelerations fitted with weights 1 / position_sigma^2, chi-square with 3 degrees of
+# freedom. Its unit is not v1's: thresholds come from fold calibration, and an uncalibrated run
+# sets the a priori chi-square(3) 0.99 quantile, --set verification.thresholds.R5a=11.34.
 [check_variants]
 
 [check_variants.profiles.precise]
