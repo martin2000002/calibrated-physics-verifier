@@ -23,7 +23,9 @@ from pydantic import BaseModel, Field
 from physverify.extraction._base import ProviderParams, StageContext, WeightSpec
 from physverify.extraction.providers._common import expect_params
 from physverify.extraction.providers._impact_attribution import KinematicScene, camera_positions
+from physverify.extraction.providers._impact_existence import IMPACT_TESTS
 from physverify.extraction.providers._impacts import EDGE_SIDE_S
+from physverify.extraction.providers._pair_rest import PAIR_RESTS
 from physverify.extraction.providers._proximity import ContactScene, ProximityParams
 from physverify.extraction.providers._rest_existence import (
     REST_TESTS,
@@ -32,6 +34,8 @@ from physverify.extraction.providers._rest_existence import (
 )
 from physverify.extraction.providers._scene_plane import GapError, HeightError
 from physverify.extraction.providers._scene_records import (
+    ImpactExistence,
+    PairRest,
     SceneInputs,
     SceneOutcome,
     scene_contacts,
@@ -88,8 +92,12 @@ class KinematicSceneContacts:
         )
         gaps = GapError.of(ctx.error_entry(Stage.LIFT, SUPPORT_GAP_REL))
         seconds_per_frame = ctx.sampling.seconds_per_frame
-        rest = REST_TESTS[self.params.rest](ctx, states)
-        outcome = self.outcome(states, camera, seconds_per_frame, velocity, heights, gaps, rest)
+        tests = (
+            REST_TESTS[self.params.rest](ctx, states),
+            IMPACT_TESTS["velocity"](ctx, states),
+            PAIR_RESTS["proximity"](ctx, states),
+        )
+        outcome = self.outcome(states, camera, seconds_per_frame, velocity, heights, gaps, *tests)
         return ContactTable(
             clip_id=states.clip_id,
             frame=states.frame,
@@ -107,6 +115,8 @@ class KinematicSceneContacts:
         heights: HeightError,
         gaps: GapError,
         rest: RestExistence,
+        impacts: ImpactExistence,
+        pair_rest: PairRest,
     ) -> SceneOutcome | None:
         """The records and the tests behind them; None when sigma_v is unknown."""
         if not velocity.known:
@@ -134,6 +144,8 @@ class KinematicSceneContacts:
             focal=float(camera.K[0, 0]),
             side_s=p.side_s,
             env_gap_gate=p.env_gap_gate,
+            impacts=impacts,
+            pair_rest=pair_rest,
         )
         return scene_contacts(inputs)
 
