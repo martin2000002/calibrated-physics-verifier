@@ -42,10 +42,12 @@ class WhitenedFallShapeCheck(FallShapeCheck):
     """R5a whitened [accel_wald_chi2_3]: per candidate of v1 (split, consecutive flights, pair of
     first flights), each window gets a parabola per axis weighted by 1 / sigma^2 of its rows and
     the magnitude is W = sum_d (a1_d - a2_d)^2 / (var1_d + var2_d), chi-square with three degrees
-    of freedom when both windows share one acceleration and sigma is the position noise. W
-    compares the contrast with what the window's own noise allows, so a clip with a noisier depth
-    no longer reads as a larger change of gravity. A global scale of sigma rescales W without
-    changing its order.
+    of freedom per candidate when both windows share one acceleration and sigma is the position
+    noise, white and independent per axis. W compares the contrast with what the window's own
+    noise allows, so a clip with a noisier depth no longer reads as a larger change of gravity. A
+    global scale of sigma rescales W without changing its order. The result is the maximum over
+    about 13 cuts per flight: under that null the chi-square(3) 0.99 quantile 11.34 is near the
+    0.90 quantile of the maximum, a nominal provisional tau that the calibrated one replaces.
 
     The perturbations it answers to are injected in ``accel_rel_diff``: each result carries v1's
     ratio of the chosen windows as that estimate. A row with a finite position and an unknown
