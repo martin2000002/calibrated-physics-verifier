@@ -18,6 +18,7 @@ from physverify.schema.error_profile import (
     PARAMS_HASH_CONDITION,
     PROFILE_CONDITION,
     SCALE_REL,
+    SUPPORT_GAP_REL,
     ErrorEntry,
     ErrorProfile,
 )
@@ -38,6 +39,7 @@ PROFILE_QUANTITIES: Mapping[str, tuple[str, ...]] = MappingProxyType(
         "depth/metric": (FOCAL_REL, SCALE_REL),
         "depth/object_rel": ("depth_rel",),
         "lift/position": ("centroid_rel", "size_rel"),
+        "lift/support_gap": (SUPPORT_GAP_REL,),
         "lift/orientation": ("orientation_rad",),
         "scale/relative": (SCALE_REL,),
         "kinematics/derivatives": ("vel_rel", "acc_rel"),
