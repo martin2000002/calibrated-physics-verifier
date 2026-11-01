@@ -134,9 +134,6 @@ class GroundAnchoredLiftParams(LiftParams):
     min_elevation_deg: float = Field(default=10.0, ge=0.0, lt=90.0)
     # Pixels a body's lowest mask pixels are probed below it for another object's mask.
     stack_reach_px: int = Field(default=4, ge=1)
-    # Row-noise floor: the mask-centre jitter in equivalent radii (the tracker's calib rms, 0.35),
-    # a parameter so the rows chosen are the same with and without a loaded error profile.
-    pixel_floor_rel: float = Field(default=0.35, ge=0.0)
     # per_row matched per_row_smoothed with true floor rows and was within 0.01 L with perceived
     # ones on calib, so the simpler mode is the default.
     anchor_mode: AnchorMode = AnchorMode.PER_ROW

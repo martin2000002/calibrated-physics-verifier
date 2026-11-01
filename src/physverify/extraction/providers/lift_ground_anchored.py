@@ -14,11 +14,14 @@ from physverify.extraction._base import StageContext
 from physverify.extraction.backprojection import camera_focal_phi, lift_depth
 from physverify.extraction.floor_plane import FloorSampling, floor_points, plane_normal
 from physverify.extraction.ground_anchor import (
+    PIXEL_FLOOR_REL,
     SCALED_FIELDS,
     FloatArray,
     anchor_clip,
     anchored_fields,
     anchored_sigma,
+    mask_angular_radius,
+    normal_usable,
 )
 from physverify.extraction.lift_params import GroundAnchoredLiftParams, ground_anchor_params
 from physverify.extraction.providers._backproject import SEED_HEX_DIGITS, BackprojectLift
@@ -55,10 +58,14 @@ class GroundAnchoredLift(BackprojectLift):
         track = self._track(ctx)
         down = self._normal(ctx, table, track, camera)
         normal_sigma = float(table.gravity_dir_sigma)
+        params = ground_anchor_params(self.anchor)
+        if not normal_usable(down, normal_sigma, params):
+            return table
         visible = np.asarray(table.visible, dtype=bool)[..., None]
         position = np.where(visible, np.asarray(table.position, dtype=np.float64), np.nan)
         intrinsics = np.asarray(camera.K, dtype=np.float64)
-        angular_radius = np.sqrt(track.masks.sum(axis=(2, 3)) / math.pi) / intrinsics[1, 1]
+        scale = _mask_scale(track, camera)
+        angular_radius = mask_angular_radius(track.masks, float(intrinsics[1, 1]), float(scale[1]))
         result = anchor_clip(
             position,
             np.asarray(table.size, dtype=np.float64),
@@ -66,9 +73,9 @@ class GroundAnchoredLift(BackprojectLift):
             np.asarray(table.primitive) == PrimitiveKind.SPHERE.value,
             down,
             normal_sigma,
-            self.anchor.pixel_floor_rel * angular_radius,
-            self._stacked(track, position, intrinsics, down, camera),
-            ground_anchor_params(self.anchor),
+            PIXEL_FLOOR_REL * angular_radius,
+            self._stacked(track, position, intrinsics, down, scale),
+            params,
         )
         if not math.isfinite(result.height):
             return table
@@ -92,11 +99,9 @@ class GroundAnchoredLift(BackprojectLift):
         position: FloatArray,
         intrinsics: FloatArray,
         down: FloatArray,
-        camera: CameraModel,
+        scale: FloatArray,
     ) -> NDArray[np.bool_]:
         """Cells whose body sits on another tracked body in the image."""
-        height, width = track.masks.shape[2:]
-        scale = np.array([width / camera.sampling.width, height / camera.sampling.height])
         unit = down / float(np.linalg.norm(down)) if np.isfinite(down).all() else down
         return stacked_rows(
             track.masks, position, intrinsics, unit, scale, self.anchor.stack_reach_px
@@ -115,6 +120,12 @@ class GroundAnchoredLift(BackprojectLift):
         points = floor_points(z, valid, track.masks, np.asarray(camera.K), rng, sampling)
         normal = plane_normal(points, rng, sampling)
         return np.full(3, np.nan) if normal is None else normal
+
+
+def _mask_scale(track: MaskTrack, camera: CameraModel) -> FloatArray:
+    """Mask pixels per camera pixel along (x, y)."""
+    height, width = track.masks.shape[2:]
+    return np.array([width / camera.sampling.width, height / camera.sampling.height])
 
 
 PLUGINS = (GroundAnchoredLift,)

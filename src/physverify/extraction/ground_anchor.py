@@ -34,6 +34,10 @@ FloatArray = NDArray[np.float64]
 BoolArray = NDArray[np.bool_]
 SCALED_FIELDS = ("position", "position_sigma", "size", "size_sigma")
 SMOOTHING_ORDER = 2
+PIXEL_FLOOR_REL = 0.35
+"""Row-noise floor in equivalent mask radii: a frozen hand copy of the calib TRACK
+``centroid_px_rel`` sigma (0.353, v5 profile), a constant so the floor rows are the same with and
+without a loaded error profile; it is not re-derived when the profile is re-measured."""
 
 
 class AnchorMode(StrEnum):
@@ -166,6 +170,19 @@ def elevation_gain(position: FloatArray, support: FloatArray, down: FloatArray) 
     return gain
 
 
+def normal_usable(down: FloatArray, normal_sigma: float, params: GroundAnchorParams) -> bool:
+    """A finite plane normal whose sigma is within ``max_normal_sigma_rad``."""
+    sigma_ok = math.isfinite(normal_sigma) and normal_sigma <= params.max_normal_sigma_rad
+    return sigma_ok and bool(np.isfinite(down).all())
+
+
+def mask_angular_radius(masks: BoolArray, focal_px: float, scale: float) -> FloatArray:
+    """(T, N) equivalent-disc radius of each mask in radians; ``scale`` is mask pixels per camera
+    pixel, so masks at another resolution than the camera give the same angle."""
+    radius_px: FloatArray = np.sqrt(masks.sum(axis=(2, 3)) / math.pi) / scale
+    return radius_px / focal_px
+
+
 def anchored_sigma(
     gain: FloatArray, normal_sigma: float, phi: float, pixel: FloatArray
 ) -> FloatArray:
@@ -190,8 +207,7 @@ def anchor_clip(
     angular sigma of the mask centre (the row-noise floor) and ``excluded`` the cells that may
     not be floor rows."""
     n_t, n_obj = position.shape[:2]
-    usable = math.isfinite(normal_sigma) and normal_sigma <= params.max_normal_sigma_rad
-    if not (usable and np.isfinite(down).all()):
+    if not normal_usable(down, normal_sigma, params):
         return _unchanged(n_t, n_obj, AnchorPath.CLIP_FALLBACK)
     down = down / float(np.linalg.norm(down))
     support = support_half_extent(size, quaternion, spheres, down)

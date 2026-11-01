@@ -27,6 +27,8 @@ from physverify.extraction.ground_anchor import (
     elevation_gain,
     implied_height,
     interpolated_factor,
+    mask_angular_radius,
+    normal_usable,
     ray_plane_distance,
     row_noise,
     steady_rows,
@@ -191,6 +193,8 @@ def test_an_unusable_normal_leaves_the_whole_clip_unchanged(
     assert result.paths == (AnchorPath.CLIP_FALLBACK,) * 2
     assert math.isnan(result.height)
     np.testing.assert_array_equal(result.factor, 1.0)
+    assert not normal_usable(down, normal_sigma, PARAMS)
+    assert normal_usable(DOWN, 0.01, PARAMS)
 
 
 def test_no_anchored_object_leaves_the_whole_clip_unchanged() -> None:
@@ -234,6 +238,35 @@ def test_anchored_fields_scale_by_the_factor_and_swap_the_depth_term() -> None:
     np.testing.assert_allclose(out["position_sigma"][0, 0, 2], math.sqrt(4 + 400 * 0.08))
     np.testing.assert_allclose(out["position_sigma"][0, 0, :2], 2.0)
     np.testing.assert_allclose(out["size_sigma"][0, 0], math.sqrt(0.16 + 4 * 0.08))
+
+
+def test_the_focal_term_is_counted_once_on_anchored_cells() -> None:
+    fields = {
+        "position": np.array([[[2.0, 0.0, 10.0]]]),
+        "position_sigma": np.ones((1, 1, 3)),
+        "size": np.ones((1, 1, 3)),
+        "size_sigma": np.full((1, 1, 3), 0.5),
+    }
+    result = AnchorResult(
+        factor=np.ones((1, 1)),
+        anchored=np.ones((1, 1), dtype=bool),
+        bias=np.ones(1),
+        paths=(AnchorPath.ANCHORED,),
+        height=1.0,
+        gain=np.ones((1, 1)),
+    )
+    out = anchored_fields(fields, result, np.full((1, 1), 0.3), 0.1, 0.2)
+    np.testing.assert_allclose(out["position_sigma"][0, 0], [math.sqrt(1.16), 1.0, 3.0])
+    np.testing.assert_allclose(out["size_sigma"][0, 0], math.sqrt(0.29))
+
+
+def test_the_mask_radius_does_not_depend_on_the_mask_resolution() -> None:
+    yy, xx = np.mgrid[:200, :200]
+    full = ((yy - 100) ** 2 + (xx - 100) ** 2 <= 40**2)[None, None]
+    half = full[:, :, ::2, ::2]
+    radius = mask_angular_radius(full, 500.0, 1.0)
+    assert radius[0, 0] == pytest.approx(40.0 / 500.0, rel=0.01)
+    assert mask_angular_radius(half, 500.0, 0.5)[0, 0] == pytest.approx(radius[0, 0], rel=0.01)
 
 
 def test_the_floor_normal_points_down_from_the_camera() -> None:
