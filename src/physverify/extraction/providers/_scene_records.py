@@ -1,8 +1,9 @@
 """Contact records of the kinematic scene provider; not a plugin.
 
-Existence is kinematic. RESTING: rest runs of both objects of a proximity pair (pair record), or
-rest rows of an object not resting on another one and within K sigma_gap of its scene plane
-(environment record), K = z(alpha / 2) and sigma_gap the profile's measured gap error.
+Existence comes from a rest test (``_rest_existence.py``) and from velocity kinks. RESTING: rest
+runs of both objects of a proximity pair (pair record), or rest rows of an object not resting on
+another one (environment record), with the optional gap gate: within K sigma_gap of its scene
+plane, K = z(alpha / 2) and sigma_gap the profile's measured gap error.
 IMPACT: a velocity kink whose shape explains its window best, attributed to a surface as in
 ``_impact_attribution.py`` and kept when its change along the surface normal is significant.
 Environment records place their points on the body's own bottom with distance 0, so that
@@ -44,7 +45,7 @@ from physverify.extraction.providers._scene_plane import (
     support_gap,
     up_of,
 )
-from physverify.extraction.providers._velocity_tests import NormalChange, long_runs, rest_mask
+from physverify.extraction.providers._velocity_tests import NormalChange, long_runs
 from physverify.physics.contact_manifold import contact_manifold
 from physverify.physics.geometry import Plane, Solid
 from physverify.physics.signed_distance import signed_distance
@@ -59,17 +60,21 @@ Interval = tuple[Pair, list[FrameContact]]
 
 @dataclass(frozen=True)
 class SceneInputs:
-    """A clip's kinematic scene (pair proximity only), its pair intervals, sigma_v per object,
-    the lift's height and gap errors and the test settings."""
+    """A clip's kinematic scene (pair proximity only), its pair intervals, its rest rows (T, N)
+    and whether their test was known, sigma_v per object, the lift's height and gap errors and
+    the test settings."""
 
     scene: KinematicScene
     intervals: tuple[Interval, ...]
+    rest: BoolArray
+    rest_known: bool
     sigma_v: FloatArray
     height_error: HeightError
     gap_error: GapError
     alpha: float
     focal: float
     side_s: float
+    env_gap_gate: bool
 
 
 @dataclass(frozen=True)
@@ -83,13 +88,15 @@ class TestedChoice:
 
 @dataclass(frozen=True)
 class SceneOutcome:
-    """Records and the tests behind them; ``gap_known`` False means no environment rest could
-    be tested (unknown gap error), not that none was found."""
+    """Records and the tests behind them. ``rest_known`` False means no rest could be tested
+    (unknown error of the rest test); ``gap_known`` False means the gap error is unknown, so with
+    the gap gate on no environment rest could be tested. Neither means that none was found."""
 
     records: tuple[ContactRecord, ...]
     tested: tuple[TestedChoice, ...]
     planes: tuple[SupportPlane | None, ...]
     rest: BoolArray
+    rest_known: bool
     gap_known: bool
 
 
@@ -97,7 +104,7 @@ def scene_contacts(inputs: SceneInputs) -> SceneOutcome:
     scene, alpha = inputs.scene, inputs.alpha
     states, proximity = scene.states, scene.proximity
     up = up_of(proximity.gravity)
-    rest = rest_mask(states, inputs.sigma_v, alpha, proximity.min_rest_rows)
+    rest = inputs.rest
     covered = np.zeros(rest.shape, dtype=np.bool_)
     pairs = list(resting_pairs(scene, inputs.intervals, rest, up, covered))
     events = detect(scene, inputs.focal, inputs.side_s, alpha, bonferroni=False)
@@ -109,7 +116,8 @@ def scene_contacts(inputs: SceneInputs) -> SceneOutcome:
     planes = scene_planes(inputs, up, env_runs, events, tests)
     tested = [gate(inputs, c, tests, planes) for c in resolve(scene, events)]
     impacts = [r for t in tested if t.accepted and (r := impact_record(scene, t, planes))]
-    near = near_plane(inputs, planes, rest & ~covered)
+    alone = rest & ~covered
+    near = near_plane(inputs, planes, alone) if inputs.env_gap_gate else alone
     resting = [
         r
         for n, support in enumerate(planes)
@@ -120,7 +128,9 @@ def scene_contacts(inputs: SceneInputs) -> SceneOutcome:
     records = sorted(
         [*pairs, *impacts, *resting], key=lambda r: (r.object_a, r.object_b, r.t_start)
     )
-    return SceneOutcome(tuple(records), tuple(tested), planes, rest, inputs.gap_error.known)
+    return SceneOutcome(
+        tuple(records), tuple(tested), planes, rest, inputs.rest_known, inputs.gap_error.known
+    )
 
 
 def near_plane(

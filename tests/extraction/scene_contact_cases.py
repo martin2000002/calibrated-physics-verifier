@@ -18,6 +18,7 @@ from numpy.typing import NDArray
 from scipy.stats import norm
 from support import entry
 
+from physverify.extraction.providers._rest_existence import RestExistence, VelocityRest
 from physverify.extraction.providers._scene_plane import GapError, HeightError
 from physverify.extraction.providers._scene_records import SceneOutcome
 from physverify.extraction.providers._velocity_tests import VelocityError
@@ -55,8 +56,10 @@ def outcome(
     velocity: VelocityError = VELOCITY,
     heights: HeightError = HEIGHTS,
     gaps: GapError = GAPS,
+    rest: RestExistence | None = None,
     **params: Any,
 ) -> SceneOutcome:
+    """The provider's outcome with the 3D velocity rest unless ``rest`` is given."""
     provider = KinematicSceneContacts(KinematicSceneContacts.Params(**params))
     found = provider.outcome(
         case.states if states is None else states,
@@ -65,6 +68,7 @@ def outcome(
         velocity,
         heights,
         gaps,
+        VelocityRest(velocity) if rest is None else rest,
     )
     assert found is not None
     return found

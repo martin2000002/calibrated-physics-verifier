@@ -23,6 +23,7 @@ from physverify.extraction.providers._common import expect_params
 from physverify.extraction.providers._impact_attribution import KinematicScene, camera_positions
 from physverify.extraction.providers._impacts import EDGE_SIDE_S
 from physverify.extraction.providers._proximity import ContactScene, ProximityParams
+from physverify.extraction.providers._rest_existence import RestExistence, VelocityRest
 from physverify.extraction.providers._scene_plane import GapError, HeightError
 from physverify.extraction.providers._scene_records import (
     SceneInputs,
@@ -79,7 +80,8 @@ class KinematicSceneContacts:
         )
         gaps = GapError.of(ctx.error_entry(Stage.LIFT, SUPPORT_GAP_REL))
         seconds_per_frame = ctx.sampling.seconds_per_frame
-        outcome = self.outcome(states, camera, seconds_per_frame, velocity, heights, gaps)
+        rest = VelocityRest(velocity)
+        outcome = self.outcome(states, camera, seconds_per_frame, velocity, heights, gaps, rest)
         return ContactTable(
             clip_id=states.clip_id,
             frame=states.frame,
@@ -96,6 +98,7 @@ class KinematicSceneContacts:
         velocity: VelocityError,
         heights: HeightError,
         gaps: GapError,
+        rest: RestExistence,
     ) -> SceneOutcome | None:
         """The records and the tests behind them; None when sigma_v is unknown."""
         if not velocity.known:
@@ -114,12 +117,15 @@ class KinematicSceneContacts:
         inputs = SceneInputs(
             scene=scene,
             intervals=intervals,
+            rest=rest.mask(states, p.alpha, pairs.min_rest_rows),
+            rest_known=rest.known,
             sigma_v=velocity.sigmas(states, pairs.lengths),
             height_error=heights,
             gap_error=gaps,
             alpha=p.alpha,
             focal=float(camera.K[0, 0]),
             side_s=p.side_s,
+            env_gap_gate=True,
         )
         return scene_contacts(inputs)
 
