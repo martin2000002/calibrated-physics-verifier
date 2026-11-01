@@ -43,7 +43,11 @@ from physverify.extraction.providers._scene_plane import (
     support_gap,
     up_of,
 )
-from physverify.extraction.providers._velocity_tests import NormalChange, long_runs
+from physverify.extraction.providers._velocity_tests import (
+    NormalChange,
+    long_runs,
+    two_sided_quantile,
+)
 from physverify.physics.contact_manifold import contact_manifold
 from physverify.physics.geometry import Plane, Solid
 from physverify.physics.signed_distance import signed_distance
@@ -174,7 +178,7 @@ def near_plane(
     if not inputs.gap_error.known:
         return near
     proximity = inputs.scene.proximity
-    k = float(norm.isf(inputs.alpha / 2.0))
+    k = two_sided_quantile(inputs.alpha)
     for t, n in zip(*np.nonzero(candidates), strict=True):
         support = planes[n]
         if support is None:

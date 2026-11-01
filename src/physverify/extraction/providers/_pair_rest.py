@@ -24,7 +24,6 @@ from typing import Literal, Protocol
 
 import numpy as np
 from numpy.typing import NDArray
-from scipy.stats import norm
 
 from physverify.extraction._base import StageContext
 from physverify.extraction.providers._image_motion import (
@@ -43,6 +42,7 @@ from physverify.extraction.providers._scene_records import (
     PairRest,
     SceneInputs,
 )
+from physverify.extraction.providers._velocity_tests import two_sided_quantile
 from physverify.schema.contacts import ContactKind, ContactRecord
 from physverify.schema.perception import CameraModel, MaskTrack
 from physverify.schema.stages import Stage
@@ -146,7 +146,7 @@ class ImagePairs:
         found: dict[Key, dict[int, PairRow]] = {}
         if not (inputs.gap_error.known and self.error.known):
             return found
-        k = float(norm.isf(inputs.alpha / 2.0))
+        k = two_sided_quantile(inputs.alpha)
         for a, b in combinations(np.argsort(inputs.scene.states.object_ids).tolist(), 2):
             pair = stack_pair(inputs, a, b, k)
             for row in np.flatnonzero(inputs.rest[:, a] & inputs.rest[:, b]).tolist():
@@ -226,7 +226,7 @@ def stacked(
     if not rises:
         return False
     sigmas = [inputs.height_error.sigma(float(proximity.lengths[n])) for n in (upper, lower)]
-    bound = float(norm.isf(inputs.alpha / 2.0)) * math.hypot(*sigmas)
+    bound = two_sided_quantile(inputs.alpha) * math.hypot(*sigmas)
     return float(np.median(rises)) > bound
 
 
