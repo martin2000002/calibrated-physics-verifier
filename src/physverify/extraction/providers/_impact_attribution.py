@@ -93,19 +93,30 @@ class KinematicScene:
         return seconds_per_row(self.states.frame_index, self.seconds_per_frame)
 
 
-def camera_positions(states: ObjectStateTable, camera: CameraModel) -> FloatArray | None:
-    """Positions in CAMERA_OPENCV: as they are, or moved with the camera pose (one per row or
-    one for the clip); None without a pose that fits the rows."""
+def camera_from_world(states: ObjectStateTable, camera: CameraModel) -> FloatArray | None:
+    """(T, 4, 4) camera-from-world transform of each row: the identity for states in
+    CAMERA_OPENCV, the inverse of the camera pose (one per row or one for the clip) otherwise;
+    None without a pose that fits the rows."""
     if states.frame is CoordFrame.CAMERA_OPENCV:
-        return np.asarray(states.position, dtype=np.float64)
+        return np.tile(np.eye(4), (states.n_frames, 1, 1))
     pose = camera.world_from_camera
     if pose is None:
         return None
     poses = pose if pose.ndim == 3 else np.broadcast_to(pose, (states.n_frames, 4, 4))
     if poses.shape[0] != states.n_frames:
         return None
-    camera_from_world = np.linalg.inv(poses)
-    rotation, translation = camera_from_world[:, :3, :3], camera_from_world[:, :3, 3]
+    return np.asarray(np.linalg.inv(poses), dtype=np.float64)
+
+
+def camera_positions(states: ObjectStateTable, camera: CameraModel) -> FloatArray | None:
+    """Positions in CAMERA_OPENCV: as they are, or moved with ``camera_from_world``; None
+    without a pose that fits the rows."""
+    if states.frame is CoordFrame.CAMERA_OPENCV:
+        return np.asarray(states.position, dtype=np.float64)
+    transform = camera_from_world(states, camera)
+    if transform is None:
+        return None
+    rotation, translation = transform[:, :3, :3], transform[:, :3, 3]
     moved = np.einsum("tij,tnj->tni", rotation, states.position) + translation[:, None, :]
     return np.asarray(moved, dtype=np.float64)
 
