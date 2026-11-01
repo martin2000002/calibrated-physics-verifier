@@ -28,10 +28,10 @@ from scipy.signal import savgol_coeffs, savgol_filter
 
 from physverify.physics.geometry import matrix_from_quaternion
 from physverify.physics.running_median import running_median
+from physverify.physics.uncertainty import robust_scale
 
 FloatArray = NDArray[np.float64]
 BoolArray = NDArray[np.bool_]
-MAD_TO_SIGMA = 1.4826
 SCALED_FIELDS = ("position", "position_sigma", "size", "size_sigma")
 SMOOTHING_ORDER = 2
 
@@ -128,15 +128,14 @@ def smoothed(series: FloatArray, window: int, deriv: int) -> FloatArray:
 
 
 def row_noise(log_heights: FloatArray, window: int) -> float:
-    """Sigma of ln H without the motion: 1.4826 MAD of the residual to the smoothed series,
+    """Sigma of ln H without the motion: the robust scale of the residual to the smoothed series,
     divided by sqrt(1 - c0) (c0 the filter's own weight, 1/3 for 7 rows); NaN when too short."""
     residual = log_heights - smoothed(log_heights, window, 0)
     residual = residual[np.isfinite(residual)]
     if residual.size < 3:
         return math.nan
-    mad = float(np.median(np.abs(residual - np.median(residual))))
     centre = float(savgol_coeffs(window, SMOOTHING_ORDER)[window // 2])
-    return MAD_TO_SIGMA * mad / math.sqrt(1.0 - centre)
+    return robust_scale(residual) / math.sqrt(1.0 - centre)
 
 
 def steady_rows(log_heights: FloatArray, sigma: float, z: float, window: int) -> BoolArray:
