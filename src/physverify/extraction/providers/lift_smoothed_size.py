@@ -1,4 +1,4 @@
-"""Back-projection whose sizes follow a smooth along-ray depth of each object (ADR 0029)."""
+"""Back-projection whose sizes follow a smooth along-ray depth of each object."""
 
 from __future__ import annotations
 

@@ -120,7 +120,7 @@ class UnnestedLiftParams(LiftParams):
 
 class SmoothedSizeLiftParams(LiftParams):
     """``lift/smoothed_size``: sizes re-referred to a running median of ``depth_window`` rows of
-    the object's own surface depth (ADR 0029)."""
+    the object's own surface depth."""
 
     depth_window: int = Field(default=17, ge=3)
     depth_edges: EdgeMode = "shifted"
