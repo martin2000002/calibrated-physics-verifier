@@ -1,5 +1,5 @@
 """Rest in the image plane for ``contacts/kinematic_scene``: the mask centroid's velocity against
-sigma_px = e_c r_eq, objects matched by id and rows by frame index."""
+sigma_px = max(e_c r_eq, 1 / sqrt(12)), objects matched by id and rows by frame index."""
 
 from __future__ import annotations
 
@@ -9,11 +9,13 @@ import numpy as np
 import pytest
 import scene_contact_cases as cases
 
+from physverify.extraction._base import GROUND_TRUTH
 from physverify.extraction.providers._image_rest import ImageRest, PixelError, mask_motion
 from physverify.extraction.providers._velocity_tests import rest_runs
 from physverify.extraction.providers.kinematics_savgol import Params as SavgolParams
+from physverify.physics.tracks import PIXEL_QUANTIZATION_SIGMA
 from physverify.schema.contacts import ContactKind
-from physverify.schema.error_profile import CENTROID_PX_REL
+from physverify.schema.error_profile import CENTROID_PX_REL, ErrorEntry
 from physverify.schema.perception import MaskTrack
 from physverify.schema.stages import Stage
 
@@ -26,6 +28,7 @@ SIZE = 160
 RADIUS = 12.0
 E_C = 0.3526
 ERROR = PixelError(E_C)
+EXACT_ENTRY = ErrorEntry.exact(Stage.TRACK, GROUND_TRUTH, CENTROID_PX_REL)
 SPEC = SavgolParams().spec(1.0 / FPS)
 
 
@@ -53,6 +56,23 @@ def test_sigma_px_is_the_entry_rms_times_the_equivalent_radius() -> None:
     assert error.known and error.relative == pytest.approx(E_C)
     assert error.sigma(np.array([10.0])) == pytest.approx([E_C * 10.0])
     assert not PixelError.of(None).known
+
+
+def test_an_exact_track_keeps_the_pixel_quantization_floor() -> None:
+    exact = PixelError.of(EXACT_ENTRY)
+    assert exact.known and exact.relative == 0.0
+    assert exact.sigma(np.array([0.0, RADIUS])) == pytest.approx([1.0 / np.sqrt(12.0)] * 2)
+    assert ERROR.sigma(np.array([0.5])) == pytest.approx([PIXEL_QUANTIZATION_SIGMA])
+    assert np.isnan(PixelError.of(None).sigma(np.array([RADIUS]))).all()
+
+
+def test_under_an_exact_track_a_still_disc_rests_and_a_throw_apex_does_not() -> None:
+    exact = PixelError.of(EXACT_ENTRY)
+    assert runs_of(discs(np.tile([80.0, 80.0], (FRAMES, 1))), exact).all()
+    t = times() - times()[FRAMES // 2]
+    gravity = 0.3 * RADIUS * FPS**2
+    centres = np.stack([np.full(FRAMES, 80.0), 60.0 + 0.5 * gravity * t**2], axis=-1)
+    assert not runs_of(discs(centres), exact).any()
 
 
 def test_the_centroid_velocity_and_its_sigma_follow_a_moving_disc() -> None:
@@ -131,3 +151,14 @@ def test_the_provider_rests_on_masks_and_needs_the_track_entry() -> None:
     assert cases.pair_records(records) and cases.env_records(records)
     del entries[(Stage.TRACK, CENTROID_PX_REL)]
     assert cases.scene_table(case, entries, states=states).records == ()
+
+
+def test_the_provider_rests_under_a_ground_truth_track() -> None:
+    case = cases.stacked_boxes()
+    floor = cs.sc.build("floor", [cases.box("box2", 3 * cases.SPACING, 0.0)], [], 25.0).states
+    states = cs.joined(case.states, floor)
+    entries = cases.measured_entries()
+    entries[(Stage.TRACK, CENTROID_PX_REL)] = EXACT_ENTRY
+    records = cases.scene_table(case, entries, states=states).records
+    assert {r.kind for r in records} == {ContactKind.RESTING}
+    assert cases.pair_records(records) and cases.env_records(records)

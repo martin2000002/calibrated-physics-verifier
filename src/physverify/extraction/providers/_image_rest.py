@@ -1,9 +1,10 @@
 """Rest of an object in the image plane; not a plugin.
 
 The mask's centroid and equivalent radius r_eq = sqrt(area / pi) give a pixel track with
-sigma_px = e_c r_eq per component, e_c the profile's TRACK centroid error. Its velocity and linear
-sigma come from the Savitzky-Golay differentiation of the kinematics stage, with that stage's
-window and order; rows and runs are tested as in ``_velocity_tests.py`` with two components.
+sigma_px = max(e_c r_eq, 1 / sqrt(12)) per component, e_c the profile's TRACK centroid error (zero
+for a ground-truth TRACK). Its velocity and linear sigma come from the Savitzky-Golay
+differentiation of the kinematics stage, with that stage's window and order; rows and runs are
+tested as in ``_velocity_tests.py`` with two components.
 Under a fixed camera flight and rest differ by orders of magnitude here, while the 3D test,
 whose sigma_v scales with the object's own speed, passes the apex of a throw.
 """
@@ -21,6 +22,7 @@ from physverify.extraction.providers._velocity_tests import rest_runs
 from physverify.extraction.providers.kinematics_savgol import Params as SavgolParams
 from physverify.physics.kinematics import SavgolSpec, TrackDerivatives, differentiate
 from physverify.physics.row_time import seconds_per_row
+from physverify.physics.tracks import PIXEL_QUANTIZATION_SIGMA
 from physverify.physics.uncertainty import entry_rms
 from physverify.schema.error_profile import CENTROID_PX_REL, ErrorEntry
 from physverify.schema.perception import MaskTrack
@@ -34,7 +36,8 @@ IntArray = NDArray[np.int64]
 
 @dataclass(frozen=True)
 class PixelError:
-    """Relative centroid error e_c (NaN when unknown); sigma_px = e_c * r_eq per component."""
+    """Relative centroid error e_c (NaN when unknown); sigma_px = max(e_c r_eq, 1 / sqrt(12))
+    per component."""
 
     relative: float
 
@@ -47,7 +50,9 @@ class PixelError:
         return math.isfinite(self.relative)
 
     def sigma(self, r_eq: FloatArray) -> FloatArray:
-        return np.asarray(self.relative * np.asarray(r_eq, dtype=np.float64), dtype=np.float64)
+        # Masks are whole pixels: an exact track still carries the quantization of its centroid.
+        scaled = self.relative * np.asarray(r_eq, dtype=np.float64)
+        return np.asarray(np.maximum(scaled, PIXEL_QUANTIZATION_SIGMA), dtype=np.float64)
 
 
 def mask_motion(
