@@ -644,3 +644,15 @@ def parabola(
     p, v, a = piecewise_ballistic(t, t_c, anchor, (v_c, a_before), (v_c, a_after))
     ball = SceneObject("ball", PrimitiveKind.SPHERE, cube(2 * BALL_RADIUS), p, v, a, label="sphere")
     return build(clip_id, [ball], [], pitch_deg)
+
+
+def two_balls(g_j: float) -> Case:
+    """Two balls in free flight from t = 0, ``ball_i`` under standard gravity, ``ball_j`` under
+    ``g_j``."""
+    t = times()
+    balls = []
+    for name, g, x in (("ball_i", STANDARD_GRAVITY, -0.5), ("ball_j", g_j, 0.5)):
+        start, v0, a = np.array([x, 0.0, 1.0]), np.array([0.5, 0.0, 3.0]), g * DOWN
+        p, v, acc = piecewise_ballistic(t, 0.0, start, (v0, a), (v0, a))
+        balls.append(SceneObject(name, PrimitiveKind.SPHERE, cube(0.2), p, v, acc))
+    return build("two_balls", balls)

@@ -1,0 +1,659 @@
+{
+ "bounce": [
+  {
+   "abstain_reason": null,
+   "check_id": "R5a",
+   "clip_id": "bounce",
+   "details": {
+    "accelerations": [
+     [
+      -6.877161675382812e-16,
+      8.890879390829559,
+      4.145885147676315
+     ],
+     [
+      -2.1477433016196992e-14,
+      8.890879390829665,
+      4.1458851476760215
+     ]
+    ],
+    "fall_residual_ratio": 8.138995354086717e-16,
+    "lateral_accel_ratio": 5.103247396102415e-15,
+    "lateral_accel_ratio_sigma": 0.0,
+    "mode": "split",
+    "row_step": 1,
+    "split_frame": 27,
+    "windows": [
+     [
+      18,
+      26
+     ],
+     [
+      27,
+      31
+     ]
+    ]
+   },
+   "frame_span": [
+    18,
+    31
+   ],
+   "input_level": "oracle",
+   "magnitude": 3.194709678494285e-14,
+   "provenance": {},
+   "sigma": 0.0,
+   "subject": [
+    "ball"
+   ],
+   "threshold": null,
+   "unit": "accel_rel_diff",
+   "verdict": "UNSCORED"
+  }
+ ],
+ "bounce_sigma": [
+  {
+   "abstain_reason": null,
+   "check_id": "R5a",
+   "clip_id": "bounce",
+   "details": {
+    "accelerations": [
+     [
+      -2.7681373327724482e-15,
+      9.809999999999974,
+      -7.706165140948165e-14
+     ],
+     [
+      1.2803387607915147e-14,
+      9.810000000000048,
+      2.768894605619402e-13
+     ]
+    ],
+    "fall_residual_ratio": 4.857529546566617e-16,
+    "lateral_accel_ratio": 2.544740947147776e-15,
+    "lateral_accel_ratio_sigma": 0.0,
+    "mode": "split",
+    "row_step": 1,
+    "split_frame": 26,
+    "windows": [
+     [
+      18,
+      25
+     ],
+     [
+      26,
+      31
+     ]
+    ]
+   },
+   "frame_span": [
+    18,
+    31
+   ],
+   "input_level": "oracle",
+   "magnitude": 3.690760647813659e-14,
+   "provenance": {},
+   "sigma": 0.040469318863793104,
+   "subject": [
+    "ball"
+   ],
+   "threshold": null,
+   "unit": "accel_rel_diff",
+   "verdict": "UNSCORED"
+  }
+ ],
+ "gravity_switch": [
+  {
+   "abstain_reason": null,
+   "check_id": "R5a",
+   "clip_id": "parabola",
+   "details": {
+    "accelerations": [
+     [
+      2.3169615905274523e-15,
+      9.81,
+      -1.6767674000330864e-14
+     ],
+     [
+      5.409068594767055e-15,
+      12.752999999999997,
+      2.496233535693962e-14
+     ]
+    ],
+    "fall_residual_ratio": 0.003778139370147899,
+    "lateral_accel_ratio": 6.067619242290921e-16,
+    "lateral_accel_ratio_sigma": 0.0,
+    "mode": "split",
+    "row_step": 1,
+    "split_frame": 18,
+    "windows": [
+     [
+      0,
+      17
+     ],
+     [
+      18,
+      31
+     ]
+    ]
+   },
+   "frame_span": [
+    0,
+    31
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.260869565217391,
+   "provenance": {},
+   "sigma": 0.0,
+   "subject": [
+    "ball"
+   ],
+   "threshold": null,
+   "unit": "accel_rel_diff",
+   "verdict": "UNSCORED"
+  }
+ ],
+ "gravity_switch_sigma": [
+  {
+   "abstain_reason": null,
+   "check_id": "R5a",
+   "clip_id": "parabola",
+   "details": {
+    "accelerations": [
+     [
+      2.3169615905274523e-15,
+      9.81,
+      -1.6767674000330864e-14
+     ],
+     [
+      5.409068594767055e-15,
+      12.752999999999997,
+      2.496233535693962e-14
+     ]
+    ],
+    "fall_residual_ratio": 0.003778139370147899,
+    "lateral_accel_ratio": 6.067619242290921e-16,
+    "lateral_accel_ratio_sigma": 0.0,
+    "mode": "split",
+    "row_step": 1,
+    "split_frame": 18,
+    "windows": [
+     [
+      0,
+      17
+     ],
+     [
+      18,
+      31
+     ]
+    ]
+   },
+   "frame_span": [
+    0,
+    31
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.260869565217391,
+   "provenance": {},
+   "sigma": 0.004338933914039898,
+   "subject": [
+    "ball"
+   ],
+   "threshold": null,
+   "unit": "accel_rel_diff",
+   "verdict": "UNSCORED"
+  }
+ ],
+ "gravity_switch_strided": [
+  {
+   "abstain_reason": null,
+   "check_id": "R5a",
+   "clip_id": "parabola",
+   "details": {
+    "accelerations": [
+     [
+      1.448238361197372e-15,
+      9.810000000000013,
+      -1.9360934576894622e-14
+     ],
+     [
+      -2.4585026387231157e-15,
+      12.753000000000013,
+      -1.9381933426059257e-14
+     ]
+    ],
+    "fall_residual_ratio": 0.00410212027993172,
+    "lateral_accel_ratio": 5.85090514513801e-16,
+    "lateral_accel_ratio_sigma": 0.0,
+    "mode": "split",
+    "row_step": 2,
+    "split_frame": 16,
+    "windows": [
+     [
+      0,
+      14
+     ],
+     [
+      16,
+      30
+     ]
+    ]
+   },
+   "frame_span": [
+    0,
+    30
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.260869565217391,
+   "provenance": {},
+   "sigma": 0.0,
+   "subject": [
+    "ball"
+   ],
+   "threshold": null,
+   "unit": "accel_rel_diff",
+   "verdict": "UNSCORED"
+  }
+ ],
+ "parabola": [
+  {
+   "abstain_reason": null,
+   "check_id": "R5a",
+   "clip_id": "parabola",
+   "details": {
+    "accelerations": [
+     [
+      5.537786519105969e-16,
+      8.890879390829532,
+      4.145885147676263
+     ],
+     [
+      -6.943380690480038e-14,
+      8.890879390829317,
+      4.14588514767554
+     ]
+    ],
+    "fall_residual_ratio": 2.1478091129185382e-16,
+    "lateral_accel_ratio": 9.031902367299053e-16,
+    "lateral_accel_ratio_sigma": 0.0,
+    "mode": "split",
+    "row_step": 1,
+    "split_frame": 27,
+    "windows": [
+     [
+      0,
+      26
+     ],
+     [
+      27,
+      31
+     ]
+    ]
+   },
+   "frame_span": [
+    0,
+    31
+   ],
+   "input_level": "oracle",
+   "magnitude": 7.721624680594586e-14,
+   "provenance": {},
+   "sigma": 0.0,
+   "subject": [
+    "ball"
+   ],
+   "threshold": null,
+   "unit": "accel_rel_diff",
+   "verdict": "UNSCORED"
+  }
+ ],
+ "teleport_flight": [
+  {
+   "abstain_reason": null,
+   "check_id": "R5a",
+   "clip_id": "teleport",
+   "details": {
+    "accelerations": [
+     [
+      -2.338436386048049e-15,
+      8.890879390829529,
+      4.145885147676242
+     ],
+     [
+      -6.943380690480038e-14,
+      8.890879390829356,
+      4.145885147675561
+     ]
+    ],
+    "fall_residual_ratio": 1.1808496355471452e-15,
+    "lateral_accel_ratio": 4.1334585536249154e-15,
+    "lateral_accel_ratio_sigma": 0.0,
+    "mode": "split",
+    "row_step": 1,
+    "split_frame": 27,
+    "windows": [
+     [
+      16,
+      26
+     ],
+     [
+      27,
+      31
+     ]
+    ]
+   },
+   "frame_span": [
+    16,
+    31
+   ],
+   "input_level": "oracle",
+   "magnitude": 7.186799014275962e-14,
+   "provenance": {},
+   "sigma": 0.0,
+   "subject": [
+    "ball"
+   ],
+   "threshold": null,
+   "unit": "accel_rel_diff",
+   "verdict": "UNSCORED"
+  }
+ ],
+ "two_balls": [
+  {
+   "abstain_reason": null,
+   "check_id": "R5a",
+   "clip_id": "two_balls",
+   "details": {
+    "accelerations": [
+     [
+      1.3427509869043068e-16,
+      9.809999999999995,
+      -2.1967402714691229e-16
+     ],
+     [
+      -9.892875249953845e-15,
+      9.809999999999528,
+      -8.562415780900485e-14
+     ]
+    ],
+    "fall_residual_ratio": 1.490058056026692e-16,
+    "lateral_accel_ratio": 6.685870935027744e-16,
+    "lateral_accel_ratio_sigma": 0.0,
+    "mode": "split",
+    "row_step": 1,
+    "split_frame": 27,
+    "windows": [
+     [
+      0,
+      26
+     ],
+     [
+      27,
+      31
+     ]
+    ]
+   },
+   "frame_span": [
+    0,
+    31
+   ],
+   "input_level": "oracle",
+   "magnitude": 4.842302146216445e-14,
+   "provenance": {},
+   "sigma": 0.0,
+   "subject": [
+    "ball_i"
+   ],
+   "threshold": null,
+   "unit": "accel_rel_diff",
+   "verdict": "UNSCORED"
+  },
+  {
+   "abstain_reason": null,
+   "check_id": "R5a",
+   "clip_id": "two_balls",
+   "details": {
+    "accelerations": [
+     [
+      -1.3957391391838581e-15,
+      11.772000000000007,
+      -9.97814569237731e-15
+     ],
+     [
+      9.944565506122967e-14,
+      11.772000000000174,
+      2.768894605619402e-13
+     ]
+    ],
+    "fall_residual_ratio": 1.521047899966925e-16,
+    "lateral_accel_ratio": 5.515126735749079e-16,
+    "lateral_accel_ratio_sigma": 0.0,
+    "mode": "split",
+    "row_step": 1,
+    "split_frame": 26,
+    "windows": [
+     [
+      0,
+      25
+     ],
+     [
+      26,
+      31
+     ]
+    ]
+   },
+   "frame_span": [
+    0,
+    31
+   ],
+   "input_level": "oracle",
+   "magnitude": 2.946870721777763e-14,
+   "provenance": {},
+   "sigma": 0.0,
+   "subject": [
+    "ball_j"
+   ],
+   "threshold": null,
+   "unit": "accel_rel_diff",
+   "verdict": "UNSCORED"
+  },
+  {
+   "abstain_reason": null,
+   "check_id": "R5a",
+   "clip_id": "two_balls",
+   "details": {
+    "accelerations": [
+     [
+      -1.268686422017313e-15,
+      9.81,
+      6.434967666623596e-15
+     ],
+     [
+      8.617089377693937e-16,
+      11.771999999999995,
+      6.434967666623596e-15
+     ]
+    ],
+    "fall_residual_ratio": 1.521047899966925e-16,
+    "lateral_accel_ratio": 6.685870935027744e-16,
+    "lateral_accel_ratio_sigma": 0.0,
+    "mode": "pair",
+    "row_step": 1,
+    "split_frame": null,
+    "windows": [
+     [
+      0,
+      31
+     ],
+     [
+      0,
+      31
+     ]
+    ]
+   },
+   "frame_span": [
+    0,
+    31
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.18181818181818135,
+   "provenance": {},
+   "sigma": 0.0,
+   "subject": [
+    "ball_i",
+    "ball_j"
+   ],
+   "threshold": null,
+   "unit": "accel_rel_diff",
+   "verdict": "UNSCORED"
+  }
+ ],
+ "two_balls_sigma": [
+  {
+   "abstain_reason": null,
+   "check_id": "R5a",
+   "clip_id": "two_balls",
+   "details": {
+    "accelerations": [
+     [
+      1.3427509869043068e-16,
+      9.809999999999995,
+      -2.1967402714691229e-16
+     ],
+     [
+      -9.892875249953845e-15,
+      9.809999999999528,
+      -8.562415780900485e-14
+     ]
+    ],
+    "fall_residual_ratio": 1.490058056026692e-16,
+    "lateral_accel_ratio": 6.685870935027744e-16,
+    "lateral_accel_ratio_sigma": 0.0,
+    "mode": "split",
+    "row_step": 1,
+    "split_frame": 27,
+    "windows": [
+     [
+      0,
+      26
+     ],
+     [
+      27,
+      31
+     ]
+    ]
+   },
+   "frame_span": [
+    0,
+    31
+   ],
+   "input_level": "oracle",
+   "magnitude": 4.842302146216445e-14,
+   "provenance": {},
+   "sigma": 0.04636825942572878,
+   "subject": [
+    "ball_i"
+   ],
+   "threshold": null,
+   "unit": "accel_rel_diff",
+   "verdict": "UNSCORED"
+  },
+  {
+   "abstain_reason": null,
+   "check_id": "R5a",
+   "clip_id": "two_balls",
+   "details": {
+    "accelerations": [
+     [
+      -1.3957391391838581e-15,
+      7.848000000000002,
+      -9.97814569237731e-15
+     ],
+     [
+      9.944565506122967e-14,
+      7.848000000000148,
+      2.768894605619402e-13
+     ]
+    ],
+    "fall_residual_ratio": 2.0708984112312711e-16,
+    "lateral_accel_ratio": 8.272690103623612e-16,
+    "lateral_accel_ratio_sigma": 0.0,
+    "mode": "split",
+    "row_step": 1,
+    "split_frame": 26,
+    "windows": [
+     [
+      0,
+      25
+     ],
+     [
+      26,
+      31
+     ]
+    ]
+   },
+   "frame_span": [
+    0,
+    31
+   ],
+   "input_level": "oracle",
+   "magnitude": 4.30107215104227e-14,
+   "provenance": {},
+   "sigma": 0.031882660015566534,
+   "subject": [
+    "ball_j"
+   ],
+   "threshold": null,
+   "unit": "accel_rel_diff",
+   "verdict": "UNSCORED"
+  },
+  {
+   "abstain_reason": null,
+   "check_id": "R5a",
+   "clip_id": "two_balls",
+   "details": {
+    "accelerations": [
+     [
+      -1.268686422017313e-15,
+      9.81,
+      6.434967666623596e-15
+     ],
+     [
+      8.617089377693937e-16,
+      7.848000000000002,
+      6.434967666623596e-15
+     ]
+    ],
+    "fall_residual_ratio": 2.0708984112312711e-16,
+    "lateral_accel_ratio": 8.272690103623612e-16,
+    "lateral_accel_ratio_sigma": 0.0,
+    "mode": "pair",
+    "row_step": 1,
+    "split_frame": null,
+    "windows": [
+     [
+      0,
+      31
+     ],
+     [
+      0,
+      31
+     ]
+    ]
+   },
+   "frame_span": [
+    0,
+    31
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.22222222222222207,
+   "provenance": {},
+   "sigma": 0.0008549047026505703,
+   "subject": [
+    "ball_i",
+    "ball_j"
+   ],
+   "threshold": null,
+   "unit": "accel_rel_diff",
+   "verdict": "UNSCORED"
+  }
+ ]
+}
