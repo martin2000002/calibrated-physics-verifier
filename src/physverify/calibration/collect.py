@@ -15,7 +15,7 @@ from physverify.calibration.settings import CalibrationConfig
 from physverify.calibration.sigma_recalibration import SigmaPair
 from physverify.calibration.table import CalibrationDataError, build_rows
 from physverify.config.models import is_cuda_device
-from physverify.core.errors import UsageError
+from physverify.core.errors import ConfigError, UsageError
 from physverify.diagnosis.pairing import pair_results
 from physverify.runtime.runs import run_record
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
@@ -135,7 +135,10 @@ def require_same_checks(run_dir: Path, checks_hash: str, device: str) -> None:
             f"--from-run {run_dir.name} was verified with checks_hash {found}, this session "
             f"has {checks_hash}: rerun verify with the session's [check_variants]"
         )
-    ran_on = str(run_record(run_dir).get("device", ""))
+    record = run_record(run_dir)
+    if "device" not in record:
+        raise ConfigError(f"--from-run {run_dir.name}: run predates device recording; rerun verify")
+    ran_on = str(record["device"])
     if is_cuda_device(ran_on) != is_cuda_device(device):
         raise UsageError(
             f"--from-run {run_dir.name} ran on {ran_on!r}, this session on {device!r}: "

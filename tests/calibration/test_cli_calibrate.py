@@ -24,6 +24,7 @@ from physverify.app import plugins
 from physverify.calibration.artifact_io import load_calibration, projection_name
 from physverify.config.models import Settings
 from physverify.datasets._base import GroundTruthStore, VideoSource
+from physverify.runtime.runs import RUN_FILE
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import ClipManifest
 from physverify.verification.runner import CHECKS_HASH_FILE
@@ -337,3 +338,12 @@ def test_a_cuda_run_is_refused_by_a_cpu_session(cli: CliRunner, settings: Settin
     write_verify_run(settings, "cuda-oracle", REPORT, device="cuda:1")
     result = cli(*FAST, "calibrate", "fit", "--dataset", DATASET, "--from-run", "cuda-oracle")
     assert result.code == EXIT_USAGE and "'cuda:1'" in result.err and "'cpu'" in result.err
+
+
+def test_a_run_without_its_device_is_refused(cli: CliRunner, settings: Settings) -> None:
+    folder = write_verify_run(settings, "deviceless", REPORT)
+    record = json.loads((folder / RUN_FILE).read_text(encoding="utf-8"))
+    del record["device"]
+    (folder / RUN_FILE).write_text(json.dumps(record), encoding="utf-8")
+    result = cli(*FAST, "calibrate", "fit", "--dataset", DATASET, "--from-run", "deviceless")
+    assert result.code == EXIT_USAGE and "run predates device recording" in result.err
