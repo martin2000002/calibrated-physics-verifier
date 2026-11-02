@@ -111,6 +111,7 @@ ERROR_CLASSES = frozenset(
         "UnusableStratumError",
         "UsageError",
         "WireError",
+        "WorkerError",
         "_HookError",
     }
 )
