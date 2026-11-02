@@ -159,14 +159,14 @@ def perceived_inputs(
 
 def scene_gap_bound(plan: ResolvedPlan, profile: ErrorProfile | None) -> float:
     """``CheckInputs.support_gap_bound`` of ``plan``: z(alpha / 2) of its scene contacts times the
-    rms of the LIFT ``support_gap_rel`` entry it may read (0 for a ground-truth LIFT); NaN when
-    CONTACTS is not the scene provider or the entry is unknown."""
-    contacts = next((s.params for s in plan.stages if s.stage is Stage.CONTACTS), None)
+    rms of the LIFT ``support_gap_rel`` entry it may read; 0 for a ground-truth LIFT, whose gap
+    is exact; NaN when CONTACTS is not the scene provider or the entry is unknown."""
     lift = plan.names.get(Stage.LIFT)
-    if not isinstance(contacts, SceneParams) or lift is None:
-        return math.nan
     if lift == GROUND_TRUTH:
         return 0.0
+    contacts = next((s.params for s in plan.stages if s.stage is Stage.CONTACTS), None)
+    if not isinstance(contacts, SceneParams) or lift is None:
+        return math.nan
     entry = (
         None
         if profile is None
