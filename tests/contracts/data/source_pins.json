@@ -61,20 +61,20 @@
       "version": "1"
     },
     "camera/from_depth": {
-      "digest": "5a7eafc20313480e4d484133c2785e5bf06c002a82b7eb74dba910b2242d9bce",
-      "version": "1"
+      "digest": "5cc0d1fa5553be75beb955b1fbd89d03f222253b9533804bf8e0d3dfbcfece4b",
+      "version": "2"
     },
     "camera/geocalib": {
-      "digest": "9b0219d0d3d4e0159bdb1125c942691747b8a57340aa3563d704799699f492d2",
-      "version": "2"
+      "digest": "cef3f44385004c49385fd316f88eaec3d728cf7d4dae49c553bdacd197c1db2e",
+      "version": "3"
     },
     "camera/ground_truth": {
       "digest": "26e03ab7c325db102222387b718ff3196da4492b05ab827e74b2e2e8e3285eb2",
       "version": "1"
     },
     "camera/moge2_focal": {
-      "digest": "39e795c64b077203e46cf992c8f1b8c4796594be8173520a768080f2f6fa7de9",
-      "version": "1"
+      "digest": "1cc0ffaf81ddd25b1b3fb44181fe62d60ee5da5fe357e327f42b4379e0a9e0e2",
+      "version": "2"
     },
     "contacts/ground_truth": {
       "digest": "c90c608b0edad105a1440adb8f279e5f110500ec3fb0703d18c0178f15c1590c",

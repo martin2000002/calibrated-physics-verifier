@@ -23,7 +23,13 @@ def checks() -> Mapping[str, type[Check]]:
 
 
 def build_scorer(name: str, settings: Settings) -> AggregateScorer:
-    return build_injected_scorer(name, settings, scorers=plugins.build("scorers"), checks=checks())
+    """As a CLI run builds it: over the checks ``settings`` selects ([check_variants])."""
+    return build_injected_scorer(
+        name,
+        settings,
+        scorers=plugins.build("scorers"),
+        checks=plugins.configured("checks", settings),
+    )
 
 
 def active_checks_hash(settings: Settings) -> str:

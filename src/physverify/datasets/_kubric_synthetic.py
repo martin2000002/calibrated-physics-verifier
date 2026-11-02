@@ -15,6 +15,7 @@ import numpy as np
 from physverify.core.errors import MissingInputError, UsageError
 from physverify.core.video import FrameDirVideoSource
 from physverify.datasets._base import ArrayGroundTruthStore, NativeGroundTruth, ScopedSubset
+from physverify.datasets._queries import blind
 from physverify.schema.clip import ClipManifest, Split
 from physverify.schema.contacts import ContactTable
 from physverify.schema.render import RenderLayers
@@ -45,9 +46,14 @@ if TYPE_CHECKING:
 SPLITS = frozenset(s.value for s in Split if s is not Split.ALL)
 
 
-def content_identity(version: str, content_hash: str) -> str:
-    """The cache identity of a rendered dataset: its version and its settings' content hash."""
-    return f"{version}:{content_hash}"
+BLIND_MARK = "blind"
+
+
+def content_identity(version: str, content_hash: str, *, blind_queries: bool = False) -> str:
+    """The cache identity of a rendered dataset: its version and its settings' content hash, and
+    whether its clips are read with blind queries."""
+    rendered = f"{version}:{content_hash}"
+    return f"{rendered}:{BLIND_MARK}" if blind_queries else rendered
 
 
 def load_native(store: DatasetStore, clip_id: str, far_z_m: float) -> NativeGroundTruth:
@@ -80,6 +86,8 @@ def load_native(store: DatasetStore, clip_id: str, far_z_m: float) -> NativeGrou
 
 class KubricSynthetic:
     name: ClassVar[str] = DATASET_NAME
+    always_blind: ClassVar[bool] = False
+    """Blind queries whatever ``blind_queries`` says."""
 
     def __init__(self, settings: Settings, root: Path | None = None) -> None:
         """``root`` defaults to the configured dataset version (``dataset_root``)."""
@@ -89,6 +97,7 @@ class KubricSynthetic:
         self._data_dir = settings.paths.data_dir
         self._max_frame_bytes = settings.runtime.max_frame_bytes
         self._scoped = {k: v.checks_only for k, v in sorted(ds.subsets.items()) if v.checks_only}
+        self._blind = self.always_blind or ds.blind_queries
 
     def clips(self, subset: str | None = None) -> Sequence[ClipManifest]:
         """Exported clips: all (None), one split ("calib"/"eval") or one planned subset.
@@ -118,7 +127,10 @@ class KubricSynthetic:
         """Read from the stored plan: what these clips were rendered from, whatever settings
         (calib's, for a ``kubric_fresh*`` root) this instance was built with."""
         plan = self._plan()
-        return content_identity(plan.version, plan.config_hash)
+        return content_identity(plan.version, plan.config_hash, blind_queries=self._blind)
+
+    def content_version(self) -> str:
+        return self._plan().version
 
     def _plan(self) -> DatasetPlan:
         plan = load_plan(self._store)
@@ -136,8 +148,10 @@ class KubricSynthetic:
         return frozenset(scoped - plain)
 
     def _own(self, clip: ClipManifest) -> ClipManifest:
-        """Labelled with this plugin's name, which keys the stage cache and the sealed sets."""
-        return clip if clip.dataset == self.name else replace(clip, dataset=self.name)
+        """Labelled with this plugin's name, which keys the stage cache and the sealed sets, and
+        blind when this reading withholds the counts."""
+        own = clip if clip.dataset == self.name else replace(clip, dataset=self.name)
+        return blind(own) if self._blind else own
 
     def video(self, clip: ClipManifest) -> FrameDirVideoSource:
         path = Path(clip.video_path)

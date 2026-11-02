@@ -58,7 +58,7 @@ class Params(ProviderParams):
 class DepthFocalCamera:
     stage: ClassVar[Stage] = Stage.CAMERA
     name: ClassVar[str] = "from_depth"
-    version: ClassVar[str] = "1"
+    version: ClassVar[str] = "2"
     requires: ClassVar[tuple[Stage, ...]] = (Stage.DEPTH,)
     heavy: ClassVar[bool] = True
     is_ground_truth: ClassVar[bool] = False

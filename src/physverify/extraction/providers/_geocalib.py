@@ -55,6 +55,10 @@ CHECKPOINT = WeightSpec(
 )
 VENDORED_MODULE = "geocalib.extractor"
 CAMERA_MODEL = "pinhole"
+DECODER_SEED: Final = 0
+"""Seeds the CPU draw of the decoder's matrix-decomposition bases (geocalib/modules.py:132,
+``torch.rand``) on every call, so a clip's gravity depends neither on the process nor on what
+ran before it."""
 
 FocalMode = Literal["geocalib", "assumed"]
 GravitySource = Literal["geocalib", "none"]
@@ -101,7 +105,7 @@ class Calibrator(Protocol):
 class GeoCalibCamera:
     stage: ClassVar[Stage] = Stage.CAMERA
     name: ClassVar[str] = "geocalib"
-    version: ClassVar[str] = "2"
+    version: ClassVar[str] = "3"
     requires: ClassVar[tuple[Stage, ...]] = ()
     heavy: ClassVar[bool] = True
     is_ground_truth: ClassVar[bool] = False
@@ -233,9 +237,11 @@ class TorchCalibrator:
             priors = {"focal": torch.full((n,), focal_prior_px, device=self.device)}
         # With the focal fixed there is nothing to share, and GeoCalib's shared system indexes a
         # focal gradient that a prior removes (lm_optimizer.py setup_system_shared_intrinsics).
-        out = self.model.calibrate(
-            images, camera_model=CAMERA_MODEL, priors=priors, shared_intrinsics=priors is None
-        )
+        with torch.random.fork_rng(devices=[]):
+            torch.default_generator.manual_seed(DECODER_SEED)
+            out = self.model.calibrate(
+                images, camera_model=CAMERA_MODEL, priors=priors, shared_intrinsics=priors is None
+            )
         return Calibration(
             focal_px=float(np.median(_numpy(out["camera"].f)[..., 0])),
             focal_sigma_px=float(np.median(_numpy(out["focal_uncertainty"]))),

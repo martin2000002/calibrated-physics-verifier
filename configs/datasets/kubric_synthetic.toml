@@ -23,6 +23,10 @@ calib_fraction = 0.5
 # is moved over with `physverify synth migrate --name velocity-<convention>`, never by bumping
 # `version`.
 velocity_convention = "position"
+# Detector queries without the true object counts, as real and generated video are read. A
+# reading, not content: it changes the cache identity, never `version`. false (the counted
+# reading) only measures the gap on calib.
+blind_queries = true
 
 # HDRI Haven ids outside GeoCalib's OpenPano training panoramas, so the camera estimate is tested
 # on backgrounds it never saw. Preregistered:

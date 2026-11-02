@@ -106,6 +106,32 @@ def test_unknown_profile_and_bad_set_raise(tmp_path: Path) -> None:
         load_settings(tmp_path, environ={}, overrides=("threads=3",))
 
 
+@pytest.mark.parametrize(
+    ("environ", "overrides", "local", "origin"),
+    [
+        ({}, ("demo.profiles.precise.level=x",), "", "--set"),
+        ({"PHYSVERIFY__DEMO__PROFILES": "x"}, (), "", "PHYSVERIFY__<SECTION>__<KEY>"),
+        ({}, (), '[demo.profiles.precise]\nlevel = "x"\n', "local.toml"),
+    ],
+)
+def test_a_profiles_key_above_the_files_raises(
+    tmp_path: Path, environ: dict[str, str], overrides: tuple[str, ...], local: str, origin: str
+) -> None:
+    _write(tmp_path, "default.toml", BASE)
+    if local:
+        _write(tmp_path, "local.toml", local)
+    with pytest.raises(ConfigError, match="use --profile or the key without 'profiles'") as caught:
+        load_settings(tmp_path, environ=environ, overrides=overrides, profile="precise")
+    assert origin in str(caught.value)
+
+
+def test_the_real_configs_reject_a_profiles_set(config_dir: Path) -> None:
+    with pytest.raises(ConfigError, match=re.escape("[extraction.profiles]")):
+        load_settings(
+            config_dir, environ={}, overrides=("extraction.profiles.precise.plan.depth=x",)
+        )
+
+
 def test_paths_derive_from_data_dir_and_expand_env(tmp_path: Path) -> None:
     _write(tmp_path / "configs", "default.toml", '[paths]\ndata_dir = "${BIG}/data"\n')
     settings = load_settings(tmp_path / "configs", environ={"BIG": "/mnt/big", "HOME": "/h"})

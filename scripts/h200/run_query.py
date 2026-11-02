@@ -1,11 +1,12 @@
 """Read-only queries the H200 scripts ask of the checkout: clip selections, the checks on an
-evaluation and the input errors of a verify run.
+evaluation, the input errors of a verify run and the declared version of a development set.
 
 Exit codes: 0 ok, 2 a check failed or an input is unusable (message on stderr).
 
     python run_query.py [--profile P] [--set K=V]... clips DATASET SUBSET [--split calib|eval]
     python run_query.py [--set K=V]... evaluation EVALUATION_JSON
     python run_query.py run-errors RUN_DIR
+    python run_query.py development-version DATASET
 """
 
 from __future__ import annotations
@@ -21,6 +22,7 @@ from physverify.app.queries import (
     QueryError,
     allowed_real_sets,
     dataset_clip_ids,
+    development_version,
     read_json,
     run_errors,
 )
@@ -74,6 +76,7 @@ def _parser() -> argparse.ArgumentParser:
     clips.add_argument("--split", choices=("calib", "eval"))
     sub.add_parser("evaluation").add_argument("path", type=Path)
     sub.add_parser("run-errors").add_argument("run_dir", type=Path)
+    sub.add_parser("development-version").add_argument("dataset")
     return parser
 
 
@@ -86,6 +89,9 @@ def _lines(args: argparse.Namespace) -> list[str]:
             args.path, allowed_real_sets(query_settings(args.overrides))
         ),
         "run-errors": lambda: run_errors(args.run_dir),
+        "development-version": lambda: development_version(
+            query_settings(args.overrides, args.profile), args.dataset
+        ),
     }
     return commands[args.command]()
 

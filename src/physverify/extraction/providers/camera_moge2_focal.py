@@ -3,9 +3,8 @@
 MoGe-2 runs here only for its focal, on ``n_frames`` evenly spaced frames with a free field of
 view; the depth stage keeps its own provider. The clip focal is exp(median ln f) over the frame
 focals. A frame whose forward raises, or whose focal is not finite or not > 0, is dropped; with
-no frame left the
-camera is camera/assumed_fov's (its focal, FOV sigma and source) and GeoCalib takes that focal
-as its prior, so a failed clip is recorded as assumed, never as estimated.
+no frame left the camera is camera/assumed_fov's (its focal, FOV sigma and source) and GeoCalib
+takes that focal as its prior, so a failed clip is recorded as assumed, never as estimated.
 
 The focal's relative sigma phi is the larger of this provider's own measured ``focal_rel`` (the
 CAMERA entry of the error profile; ``unmeasured_focal_sigma_rel`` without one), the spread of
@@ -14,7 +13,7 @@ the frame focals, and ``focal_sigma_floor_rel``.
 It is the precise profile's camera (``extraction.profiles.precise.plan``); elsewhere it is
 selected with ``--set extraction.plan.camera=moge2_focal``. It has no provider table: its defaults
 are those of ``Params``, overridden at ``extraction.providers.camera.moge2_focal.*``; the loader
-drops ``extraction.profiles.*`` keys from ``--set``.
+rejects ``extraction.profiles.*`` keys in ``--set``.
 """
 
 from __future__ import annotations
@@ -124,7 +123,7 @@ def clip_phi(profile_phi: float, spread_rel: float, floor_rel: float) -> float:
 class MoGe2FocalCamera:
     stage: ClassVar[Stage] = Stage.CAMERA
     name: ClassVar[str] = "moge2_focal"
-    version: ClassVar[str] = "1"
+    version: ClassVar[str] = "2"
     requires: ClassVar[tuple[Stage, ...]] = ()
     heavy: ClassVar[bool] = True
     is_ground_truth: ClassVar[bool] = False

@@ -91,7 +91,8 @@ lowest to highest: model defaults, `configs/**/*.toml` (except the root's `local
 active profile's `[<section>.profiles.<name>]` tables, `configs/local.toml`,
 `PHYSVERIFY__SECTION__KEY` environment variables, `--device` / `--profile`, then `--set`. `doctor`
 prints every effective value with its source. A bad option value, a missing config directory, an
-unknown section in `--set` or the environment, or an invalid field exits 2; each invalid field
+unknown section in `--set` or the environment, a `<section>.profiles` key above the config files
+(use `--profile`), or an invalid field exits 2; each invalid field
 prints one `[section] key: message (got value)` line.
 
 `configs/` holds `default.toml` and `local.example.toml`; `verifier/` the verifier's own settings

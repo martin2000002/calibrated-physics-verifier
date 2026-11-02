@@ -204,7 +204,7 @@ def test_a_valid_camera_with_one_pose_and_a_key_per_parameter(
     }
     assert len(hashes) == 4
     assert (GeoCalibCamera.version, GeoCalibCamera.requires, GeoCalibCamera.heavy) == (
-        "2",
+        "3",
         (),
         True,
     )
@@ -258,6 +258,31 @@ def test_the_torch_adapter_reads_geocalibs_outputs() -> None:
     prior = model.calls[-1]["priors"]["focal"]
     assert tuple(prior.shape) == (3,) and float(prior.min()) == pytest.approx(150.0)
     assert model.calls[-1]["shared_intrinsics"] is False
+
+
+class RandomBasesModel(FakeGeoCalibModel):
+    """Draws on the CPU generator as GeoCalib's decoder does, and reports the draw as focal."""
+
+    def calibrate(self, images: Any, **kwargs: Any) -> dict[str, Any]:
+        import torch
+
+        out = super().calibrate(images, **kwargs)
+        out["camera"] = SimpleNamespace(f=FakeTensor(np.full((images.shape[0], 2), torch.rand(1))))
+        return out
+
+
+def test_the_decoder_draw_is_seeded_per_call_and_the_global_generator_is_untouched() -> None:
+    torch = pytest.importorskip("torch")
+    frames = np.full((2, 8, 8, 3), 128, dtype=np.uint8)
+    calibrator = TorchCalibrator(RandomBasesModel(), "cpu")
+    torch.manual_seed(1)
+    first = calibrator.calibrate(frames, None).focal_px
+    after_first = torch.get_rng_state()
+    torch.rand(5)
+    second = calibrator.calibrate(frames, 150.0).focal_px
+    assert first == second
+    torch.manual_seed(1)
+    assert torch.equal(torch.get_rng_state(), after_first)
 
 
 def test_per_frame_broadcasts_one_value_and_refuses_a_mismatch() -> None:

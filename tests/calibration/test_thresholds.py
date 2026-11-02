@@ -68,6 +68,20 @@ def test_the_precise_profile_writes_the_whitened_tolerance_in_its_unit(
         tolerance(v1)
 
 
+def test_a_configured_value_is_written_in_the_default_implementation_unit() -> None:
+    checks, variants = plugins.build("checks"), plugins.build("check_variants")
+    assert CheckUnit.of(variants["R5a/whitened"]).written_unit == "accel_rel_diff"
+    assert CheckUnit.of(checks["R4_jump"]).written_unit == "jump_over_noise"
+
+
+def test_a_tolerance_unit_without_its_tolerance_stops_the_config(
+    make_settings: SettingsFactory,
+) -> None:
+    orphan = make_settings("calibration.tau_tolerance_units.R9=pen_over_size")
+    with pytest.raises(ConfigError, match=r"tau_tolerance_units declares \['R9'\] without"):
+        calibration_settings(orphan)
+
+
 def clean_rows(values: np.ndarray) -> list:  # type: ignore[type-arg]
     return [row(float(v), scene=f"s{i}") for i, v in enumerate(values)]
 

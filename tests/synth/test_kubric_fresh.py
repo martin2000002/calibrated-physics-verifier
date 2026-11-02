@@ -1,5 +1,6 @@
 """``kubric_fresh`` over a store is ``kubric_synthetic`` over it, except the
-dataset name and the cache root; the blind and OOD variants only change what they declare."""
+dataset name and the cache root; the blind and OOD variants only change what they declare. Both
+read the queries blind unless ``dataset.blind_queries`` is false."""
 
 from __future__ import annotations
 
@@ -53,6 +54,8 @@ from physverify.verification.thresholding import ThresholdTable  # noqa: E402
 
 SYNTHETIC = KubricSynthetic.name
 FRESH = KubricFresh.name
+COUNTS = {"PHYSVERIFY__DATASET__BLIND_QUERIES": "false"}
+"""The reading with the true object counts as detector queries."""
 
 
 @pytest.fixture
@@ -208,10 +211,10 @@ def test_blind_keeps_its_scenes_and_withholds_the_counts(
 ) -> None:
     outside = fresh_settings(config_dir, smoke_env)
     assert KubricFreshBlind(outside).clips() == []
-    settings = fresh_settings(
-        config_dir, smoke_env, PHYSVERIFY__KUBRIC_FRESH__BLIND_SCENES='["s000"]'
+    counted = fresh_settings(
+        config_dir, smoke_env, PHYSVERIFY__KUBRIC_FRESH__BLIND_SCENES='["s000"]', **COUNTS
     )
-    blind, seen = KubricFreshBlind(settings).clips(), KubricFresh(settings).clips()
+    blind, seen = KubricFreshBlind(counted).clips(), KubricFresh(counted).clips()
     assert [c.clip_id for c in blind] == [c.clip_id for c in seen]
     for mine, theirs in zip(blind, seen, strict=True):
         assert mine.dataset == KubricFreshBlind.name
@@ -225,3 +228,32 @@ def test_fresh_cannot_be_fetched(
 ) -> None:
     with pytest.raises(UsageError, match="generated locally"):
         KubricFresh(fresh_settings(config_dir, smoke_env)).fetch("full", tmp_path)
+
+
+def test_synthetic_queries_are_blind_unless_the_counts_are_asked(
+    config_dir: Path, smoke_env: dict[str, str]
+) -> None:
+    """Whatever the split: calib is read as the held-out sets are."""
+    blind = KubricSynthetic(fresh_settings(config_dir, smoke_env)).clips()
+    counted = KubricSynthetic(fresh_settings(config_dir, smoke_env, **COUNTS)).clips()
+    assert blind and [c.clip_id for c in blind] == [c.clip_id for c in counted]
+    assert all(q.expected_count is None for c in blind for q in c.object_queries)
+    assert all(q.expected_count is not None for c in counted for q in c.object_queries)
+    for mine, theirs in zip(blind, counted, strict=True):
+        assert [q.phrase for q in mine.object_queries] == [q.phrase for q in theirs.object_queries]
+
+
+def test_the_blind_reading_is_another_cache_identity(
+    config_dir: Path, smoke_env: dict[str, str]
+) -> None:
+    """With the counts the identity is the one before blind readings existed."""
+    settings = fresh_settings(config_dir, smoke_env)
+    blind = KubricSynthetic(settings)
+    counted = KubricSynthetic(fresh_settings(config_dir, smoke_env, **COUNTS))
+    plan = load_plan(DatasetStore(dataset_root(settings, load_dataset_settings(settings))))
+    assert plan is not None
+    assert counted.cache_identity() == f"{plan.version}:{plan.config_hash}"
+    assert blind.cache_identity() != counted.cache_identity()
+    assert KubricFreshBlind(fresh_settings(config_dir, smoke_env, **COUNTS)).cache_identity() == (
+        blind.cache_identity()
+    )

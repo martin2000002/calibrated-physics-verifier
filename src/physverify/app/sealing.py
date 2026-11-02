@@ -14,6 +14,8 @@ from types import MappingProxyType
 from typing import Final
 
 from physverify.app.context import AppContext
+from physverify.app.services import dataset_for
+from physverify.calibration.development import is_development, may_be_development
 from physverify.calibration.sealed_ledger import (
     REPEAT_ENV,
     UNSEAL_ENV,
@@ -34,8 +36,14 @@ from physverify.calibration.sealed_ledger import (
     touched,
     unsealed,
 )
+from physverify.calibration.settings import SECTION as CALIBRATION_SECTION
+from physverify.calibration.settings import CalibrationSettings, calibration_settings
+from physverify.config.loader import file_sections
+from physverify.config.models import validated
 from physverify.core.digests import sha256_if_file
+from physverify.core.errors import MissingInputError
 from physverify.core.output import Echo
+from physverify.datasets._versions import versioned_name
 from physverify.runtime.runs import current_commit
 from physverify.schema.clip import ClipManifest
 
@@ -174,8 +182,11 @@ def guard_sealed(
     if command not in GUARDED_LEAVES:
         raise ValueError(f"{command!r} is not a guarded subcommand")
     sealed = sealed_settings(context.settings)
+    specs = [(sel, touched(sel.dataset, sel.clips, sealed.sets)) for sel in selections]
     found = tuple(
-        dict.fromkeys(s for sel in selections for s in touched(sel.dataset, sel.clips, sealed.sets))
+        dict.fromkeys(
+            s for sel, seen in specs if seen and not _development(context, sel, err) for s in seen
+        )
     )
     if not found:
         return
@@ -203,6 +214,32 @@ def guard_sealed(
         )
         append_entry(path, entry)
     err(f"sealed look: {','.join(found)} freeze {look.freeze[:12]}")
+
+
+def _development(context: AppContext, selection: Selection, err: Echo) -> bool:
+    """A selection of a development set (that exact version) declared in the config files is not
+    a sealed look. One declared only by ``local.toml``, the environment or ``--set`` stays sealed:
+    those layers never lift a seal."""
+    settings = context.settings
+    effective = calibration_settings(settings)
+    if not may_be_development(selection.dataset, effective):
+        return False
+    try:
+        source = dataset_for(context, selection.dataset)
+        name = versioned_name(source)
+    except MissingInputError as exc:
+        raise MissingInputError(
+            f"cannot read the version of {selection.dataset} to tell a development look from a "
+            f"sealed one: {exc}"
+        ) from exc
+    if not is_development(source, effective):
+        return False
+    filed = file_sections(settings.config_dir, settings.profile).get(CALIBRATION_SECTION, {})
+    if not is_development(source, validated(CalibrationSettings, filed, CALIBRATION_SECTION)):
+        err(f"development set {name} is not declared in the config files: a sealed look")
+        return False
+    err(f"development set {name}: not a sealed look")
+    return True
 
 
 def _tree_state(root: Path) -> str | None:

@@ -32,9 +32,8 @@ from physverify.human_agreement.verify_run_reader import (
 )
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import Split
-from physverify.verification.runner import VERIFICATION_SECTION, VerificationSettings
+from physverify.verification.runner import guarded_thresholds
 from physverify.verification.scope import CheckScope, check_scope
-from physverify.verification.thresholding import load_thresholds
 
 if TYPE_CHECKING:
     from physverify.config.models import Settings
@@ -83,7 +82,7 @@ def build_rule[S: CalibrationStratum](
     checks, scope = rule_scope(settings, registry, agreement)
     excluded = frozenset(checks.exclude_checks)
     if agreement.rule != CALIBRATED_NAME:
-        return _provisional(settings, checks, scope, None)
+        return _provisional(settings, registry, checks, scope, None)
     api = api_loader()
     artifact = api.default_artifact_path(settings)
     request = StratumRequest(
@@ -98,12 +97,13 @@ def build_rule[S: CalibrationStratum](
     except UnusableCalibrationError as exc:
         if agreement.on_unusable_stratum == "error":
             raise ConfigError(f"calibration {artifact}: {exc}") from exc
-        return _provisional(settings, checks, scope, str(exc), artifact)
+        return _provisional(settings, registry, checks, scope, str(exc), artifact)
     return RuleSetup(rule, artifact, None, scope, calibration=dict(rule.status), checks=checks)
 
 
 def _provisional(
     settings: Settings,
+    registry: Mapping[str, type[Check]],
     checks: CheckScope,
     scope: RuleScope,
     gate: str | None,
@@ -111,8 +111,7 @@ def _provisional(
 ) -> RuleSetup:
     """The provisional rule, also the fallback of an unusable stratum (descriptive study), which
     keeps the artifact so the freeze binds the one whose stratum was found unusable."""
-    verification = settings.section(VERIFICATION_SECTION, VerificationSettings)
-    thresholds = load_thresholds(settings.paths.thresholds, verification.thresholds)
+    thresholds = guarded_thresholds(settings, registry)
     rule = ProvisionalAnyFail(thresholds, frozenset(checks.exclude_checks))
     return RuleSetup(rule, artifact, thresholds.label, scope, gate, checks=checks)
 

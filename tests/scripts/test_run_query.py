@@ -77,6 +77,17 @@ def test_the_allowed_sets_are_the_preregistered_ones(make_settings: Callable[...
     assert sets == [{"physics_iq": 54, "pisa_real": n} for n in (360, 40, 361)]
 
 
+def test_development_version_is_the_one_declared(make_settings: Callable[..., Any]) -> None:
+    settings = make_settings()
+    assert queries.development_version(settings, "kubric_synthetic") == ["v1-precise-hdri-dev"]
+    assert queries.development_version(settings, "kubric_fresh") == ["v2-fresh"]
+    twice = '["kubric_fresh@v2-fresh", "kubric_fresh@v3"]'
+    for dataset, sets in (("pisa_real", None), ("kubric_fresh", twice)):
+        overrides = () if sets is None else (f"calibration.development_sets={sets}",)
+        with pytest.raises(queries.QueryError, match="not one"):
+            queries.development_version(make_settings(*overrides), dataset)
+
+
 def test_main_exits_2_with_the_reason(
     query: ModuleType, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

@@ -106,6 +106,10 @@ def evaluate_command(
     clips: opt.ClipsOption = None,
     real: Annotated[bool, typer.Option(help="Also score the real datasets.")] = True,
     real_dataset: opt.RealDatasetOption = None,
+    score_all_clips: Annotated[
+        bool,
+        typer.Option(help="Score every clip of a development set, calib ones included."),
+    ] = False,
 ) -> None:
     service.evaluate_artifact(
         app_context(ctx),
@@ -114,6 +118,7 @@ def evaluate_command(
         artifact,
         real,
         real_dataset,
+        score_all_clips=score_all_clips,
         echo=typer.echo,
         err=echo_err,
     )
