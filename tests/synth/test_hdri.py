@@ -25,13 +25,14 @@ from physverify.synth.settings import (
 )
 from physverify.synth.store import DatasetStore
 
-NEW_KEYS = ("hdri_ids", "hdri_pool", "hdri_pools")
+NEW_KEYS = ("hdri_ids", "hdri_pool", "hdri_pools", "blind_queries")
+"""The keys added after the first plans (v1, v1-precise)."""
 DEV = "openpano_ood_dev"
 RESERVED = "openpano_ood_reserved"
 
 
 def old_content_hash(ds: DatasetSettings) -> str:
-    """The content hash of the code before ``hdri_ids`` existed."""
+    """The content hash of the code before ``NEW_KEYS`` existed."""
     dumped = ds.model_dump(mode="json")
     skipped = ("render", "subsets", "version", *NEW_KEYS)
     return params_hash({k: v for k, v in dumped.items() if k not in skipped})

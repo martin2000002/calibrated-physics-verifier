@@ -847,6 +847,7 @@
       "assets",
       "calib_fraction",
       "velocity_convention",
+      "blind_queries",
       "floor",
       "floor.friction",
       "floor.restitution",

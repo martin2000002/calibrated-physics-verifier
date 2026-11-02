@@ -7,14 +7,13 @@ the expected object counts withheld from the detector."""
 
 from __future__ import annotations
 
-from dataclasses import replace
 from typing import TYPE_CHECKING, ClassVar
 
 from pydantic import Field
 
 from physverify.core.models import FrozenModel
 from physverify.datasets._kubric_synthetic import KubricSynthetic
-from physverify.schema.clip import ClipManifest, ObjectQuery
+from physverify.schema.clip import ClipManifest
 from physverify.synth.scene_scope import expand, in_scope
 
 if TYPE_CHECKING:
@@ -92,6 +91,7 @@ class KubricFreshOod(KubricFresh):
 
 class KubricFreshBlind(KubricFresh):
     name: ClassVar[str] = "kubric_fresh_blind"
+    always_blind: ClassVar[bool] = True
 
     def __init__(self, settings: Settings) -> None:
         super().__init__(settings)
@@ -99,15 +99,10 @@ class KubricFreshBlind(KubricFresh):
 
     def clips(self, subset: str | None = None) -> Sequence[ClipManifest]:
         return [
-            blind(c)
+            c
             for c in super().clips(subset)
             if c.scene_id is not None and in_scope(c.scene_id, self._scenes)
         ]
-
-
-def blind(clip: ClipManifest) -> ClipManifest:
-    queries = tuple(ObjectQuery(q.phrase, expected_count=None) for q in clip.object_queries)
-    return replace(clip, object_queries=queries)
 
 
 PLUGINS = (KubricFresh, KubricFreshOod, KubricFreshBlind)

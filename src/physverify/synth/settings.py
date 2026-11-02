@@ -20,7 +20,7 @@ SECTION = "dataset"
 SIZE_DISTRIBUTION_SECTION = "size_distribution"
 """The generator's object-size table (configs/synth/size_distribution.toml), read only here."""
 MAX_LEVEL = 4
-NON_CONTENT_KEYS = ("render", "subsets", "version", "hdri_pools", "hdri_pool")
+NON_CONTENT_KEYS = ("render", "subsets", "version", "hdri_pools", "hdri_pool", "blind_queries")
 LEGACY_HDRI_IDS = ("abandoned_parking",)
 """The single HDRI of every dataset planned before ``hdri_ids`` existed (v1, v1-precise)."""
 
@@ -88,6 +88,9 @@ class DatasetSettings(FrozenModel):
     assets: Literal["kubasic"] = "kubasic"
     calib_fraction: float = Field(default=0.5, ge=0.0, le=1.0)
     velocity_convention: VelocityConvention = "position"
+    # Detector queries without the true object counts, as on real and generated video. It is
+    # how the clips are read, not rendered: it enters the cache identity, not the content hash.
+    blind_queries: bool = True
     floor: FloorSettings = FloorSettings()
     contacts: ContactSettings = ContactSettings()
     render: RenderSettings = RenderSettings()

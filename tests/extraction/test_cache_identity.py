@@ -110,7 +110,10 @@ def test_the_identity_is_the_stored_plans_not_the_settings(make_settings: Settin
     settings = make_settings()
     declared = load_dataset_settings(settings)
     stored = synthetic(settings, HDRI_DEV, content_hash="rendered-elsewhere")
-    assert stored.cache_identity() == content_identity(HDRI_DEV, "rendered-elsewhere")
+    blind = declared.blind_queries
+    assert stored.cache_identity() == content_identity(
+        HDRI_DEV, "rendered-elsewhere", blind_queries=blind
+    )
     assert stored.cache_identity() != content_identity(declared.version, declared.content_hash())
 
 
