@@ -12,6 +12,7 @@ from physverify.core.errors import UsageError
 from physverify.core.output import Echo
 from physverify.datasets._base import select_clips
 from physverify.extraction.cache import StageCache
+from physverify.extraction.error_profile import require_current_profile
 from physverify.extraction.events import (
     ConsoleObserver,
     EventRecorder,
@@ -59,9 +60,11 @@ def run_extraction(
     fps: float | None,
     max_side: int | None,
     subset: str | None,
+    strict_profile: bool,
     echo: Echo,
 ) -> ExtractionReport:
-    """Run the extraction plan over the selected clips and print its per-stage summary."""
+    """Run the extraction plan over the selected clips and print its per-stage summary;
+    ``strict_profile`` refuses a missing or stale error profile instead of warning."""
     source = dataset_for(context, dataset)
     selected = select_clips(source.clips(subset), clips)
     plan = plan_for(
@@ -71,11 +74,14 @@ def run_extraction(
         fps=fps,
         max_side=max_side,
     )
-    run_dir = new_run(context.settings, context.invocation.argv).run_dir
     recorder = EventRecorder(ConsoleObserver(echo))
+    deps = pipeline_deps(context, recorder)
+    if strict_profile:
+        require_current_profile(plan, deps.error_profile)
+    run_dir = new_run(context.settings, context.invocation.argv).run_dir
 
     def run() -> ExtractionReport:
-        return ExtractionPipeline(plan, pipeline_deps(context, recorder)).run(source, selected)
+        return ExtractionPipeline(plan, deps).run(source, selected)
 
     report = recorded_run(run_dir, EVENTS_FILE, recorder, run, _same, echo=echo)
     for line in summary_lines(report):

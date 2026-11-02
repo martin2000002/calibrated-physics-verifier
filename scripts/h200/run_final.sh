@@ -395,7 +395,7 @@ cmd_extract() {
     fi
     note "extract $DS $SUBSET: $(grep -c . "$clips_file") clips, list sha256 $(sha_of "$clips_file")"
     [[ -z "${PHYSVERIFY_FINAL_EXTRACT_SHARDS:-}" ]] || extract_shards "$clips_file"
-    call 1 -- extract run --dataset "$DS" --subset "$SUBSET" "${clips[@]}"
+    call 1 -- extract run --strict-profile --dataset "$DS" --subset "$SUBSET" "${clips[@]}"
 }
 
 # extract_shards CLIPS_FILE: round-robin --no-lock shards under nice that warm the cache before
@@ -416,7 +416,7 @@ extract_shards() {
         (
             THREADS="$threads"
             PV_NICE=(nice -n 5)
-            pv --no-lock extract run --dataset "$DS" --subset "$SUBSET" "${clips[@]}"
+            pv --no-lock extract run --strict-profile --dataset "$DS" --subset "$SUBSET" "${clips[@]}"
         ) >"$log" 2>&1 &
         pids+=("$!")
         logs+=("$log")
