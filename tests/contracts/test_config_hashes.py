@@ -45,7 +45,7 @@ RUN_CHECKS_HASH = {
     "fast": "4a529448fb1f7ee61d9f0550eaf132e1dc29bdaa4fdfe0ca4c825eb3733cdad2",
     "precise": "44d28133ca495c629fbae87d0ffd9d3df5881dbc2a823ea86009ddf3b9ebe1fd",
 }
-PRECISE_STAGE_KEYS_HASH = "5d046c7dabc27e2d568213e0ff0f073a3261dc2bce852b32c814ced9cf1542cc"
+PRECISE_STAGE_KEYS_HASH = "895ef305fa2c3361b65ebe4eea0af0d5d40378011aef5cafaf857a43410283b1"
 """Hash of every stage key of the precise plan for the declared calib dataset. It and
 ``RUN_CHECKS_HASH["precise"]`` are what the defaults give with the same choices passed by
 ``--set``."""
@@ -58,14 +58,15 @@ DATASET_CONTENT_HASH = {
     "fast": "7792797236e163025d89c1c518dc43ad8f90c3f511bd884e1969ca9bf1f2fa3e",
     "precise": "4a6829efdd64424d79dfc0941246de148ca50446e0f6f40738e3a02d1b8e8b4e",
 }
-NO_IDENTITY_STAGE_KEYS_HASH = "6ade5370b65788da19532c6cd38584c44991b3949da4819f825f622fd0dc4129"
+NO_IDENTITY_STAGE_KEYS_HASH = "24a92615e927077feaf7b24e5c5e1d885c665589bb677f290b481e91c19eab87"
 """Hash of ``STAGE_KEYS`` computed for a dataset without cache identity (PISA, Physics-IQ,
-Objectron): the table as it was before identities entered the key, so those caches stay valid."""
+Objectron): the table as it was before identities entered the key, so those caches stay valid,
+except the three GeoCalib cameras, whose version moved when their draw was seeded."""
 STAGE_KEYS = {
     "camera/assumed_fov": "dddd1ad9189f13fabcc53f7e2fe5f8818b5d2bdeaf0900f0473a9207790e3c92",
-    "camera/from_depth": "4f2092762390e410d79defaec7a811e1019570c71c0c270fd8c394d92aa54bc4",
-    "camera/geocalib": "41d243a78abb91554ce802d61af9ef12d2515c8d8330912fe560252633d4efbd",
-    "camera/moge2_focal": "4210a4f2cced1b44a8d1202d2807c0da725f7b2ebf75e5aefe2c4711e84b8032",
+    "camera/from_depth": "65273a1f47e29c4e6da046d5e8ccf8f256367ec663625ef9ce92d6322c5c1d2d",
+    "camera/geocalib": "1ff25d84dfcf9a37fb3d0d88440068c3cb949b2cf25846339e5039b4abffc7d6",
+    "camera/moge2_focal": "bc46182cb78ba3b6a303a702c794b03f1c9d99f07d336dedecca6776b73cfca7",
     "contacts/kinematic": "9c78abca44f4fa0c275626230c5c6b59078cf8eaaa7727428ee1dfcb17817f4a",
     "contacts/kinematic_scene": "3d87fced966e20bd3ce3ace6d6cc1bc3e1cec49e9defca60f92c474bc887b299",
     "contacts/proximity": "acb367e5702bfbfe704f03107617abc106427c539108c4cd6f24200b7e7a47e7",
