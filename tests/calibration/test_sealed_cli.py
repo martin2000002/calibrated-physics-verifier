@@ -6,7 +6,6 @@ import ast
 import inspect
 import json
 import os
-import re
 import subprocess
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import replace
@@ -18,6 +17,7 @@ import pytest
 from calibration_cases import DATASET, fitted_artifact, synthetic_report
 from cli_runner import CliResult, CliRunner
 from cli_tree import cli_leaves, command_modules
+from repo_configs import CALIBRATION_FILE, SEALED_FILE, declare
 from verify_runs import write_verify_run
 
 from physverify.app import calibration as app_calibration
@@ -42,7 +42,7 @@ HELD = synthetic_report(20, seed=7, split=Split.EVAL, prefix="e")
 REPORT = VerificationReport(
     CALIB.results + HELD.results, CALIB.table + HELD.table, CALIB.clips + HELD.clips
 )
-SEAL = ("--set", f'sealed.sets=["{DATASET}:eval"]', "--set", "calibration.bootstrap=50")
+FAST = ("--set", "calibration.bootstrap=50")
 UNSEAL = {"PHYSVERIFY_UNSEAL": f"{DATASET}:eval"}
 CALIB_CLIP = CALIB.clips[0].clip_id
 THREE = ("--set", "runtime.threads=3")
@@ -92,6 +92,12 @@ def _real_fixture(dataset: str) -> type[SealFixtureDataset]:
 NEW_REAL = ("physics_iq_views", "objectron_static")
 DEV_REAL = ("physics_iq", "pisa_real")
 """``calibration.real_datasets`` as shipped."""
+
+
+@pytest.fixture(autouse=True)
+def sealed_in_files(config_dir: Path) -> None:
+    """The fixture's eval split sealed by the config files, before ``checkout`` commits them."""
+    declare(config_dir, SEALED_FILE, "sets", f'["{DATASET}:eval"]')
 
 
 @pytest.fixture(autouse=True)
@@ -193,11 +199,10 @@ def evaluate_cli(
         options: Sequence[str] = (),
         env: Mapping[str, str] | None = None,
         artifact: Path = path,
-        seal: Sequence[str] = SEAL,
         real: Sequence[str] = ("--no-real",),
     ) -> CliResult:
         command = ("calibrate", "evaluate", "--dataset", DATASET, *real, "--artifact")
-        return cli(*seal, *options, *command, str(artifact), *extra, env=env)
+        return cli(*FAST, *options, *command, str(artifact), *extra, env=env)
 
     return invoke
 
@@ -237,22 +242,25 @@ def test_evaluate_on_calib_clips_leaves_no_line(
     assert read_entries(ledger) == () and reached
 
 
-REAL_SEAL = (
-    "--set", f'sealed.sets=["{DATASET}:eval", "{NEW_REAL[0]}", "{NEW_REAL[1]}"]',
-    "--set", "calibration.bootstrap=50",
-)  # fmt: skip
 REAL_UNSEAL = {"PHYSVERIFY_UNSEAL": ",".join((f"{DATASET}:eval", *NEW_REAL))}
 NAMED = tuple(arg for name in NEW_REAL for arg in ("--real-dataset", name))
 
 
 def test_the_named_real_datasets_enter_the_ledger_line(
-    evaluate_cli: Callable[..., CliResult], ledger: Path, settings: Settings
+    evaluate_cli: Callable[..., CliResult],
+    ledger: Path,
+    settings: Settings,
+    config_dir: Path,
+    checkout: Path,
 ) -> None:
     """``--real-dataset`` replaces ``calibration.real_datasets`` in the
     selections, so the line names the new controls only and its config hash stays the same."""
-    named = evaluate_cli(seal=REAL_SEAL, real=NAMED, env=REAL_UNSEAL)
+    sealed = (f"{DATASET}:eval", *NEW_REAL)
+    declare(config_dir, SEALED_FILE, "sets", json.dumps(sealed))
+    _git(checkout, "commit", "-qam", "new real controls sealed")
+    named = evaluate_cli(real=NAMED, env=REAL_UNSEAL)
     assert named.code == 0, named.err
-    unnamed = evaluate_cli(seal=REAL_SEAL, real=(), env=REAL_UNSEAL)
+    unnamed = evaluate_cli(real=(), env=REAL_UNSEAL)
     assert unnamed.code == 0, unnamed.err
     first, second = read_entries(ledger)
     assert [d.name for d in first.datasets] == [DATASET, *sorted(NEW_REAL)]
@@ -324,7 +332,7 @@ def _guarded_verify(
         *extra: str, options: Sequence[str] = (), env: Mapping[str, str] | None = None
     ) -> CliResult:
         command = ("verify", "--dataset", DATASET, "--level", "oracle", *extra)
-        return cli(*SEAL, *options, *command, env=env)
+        return cli(*FAST, *options, *command, env=env)
 
     return invoke
 
@@ -345,17 +353,17 @@ def guarded(
                 "--set",
                 "abstention.real_datasets=[]",
             )
-            return cli(*SEAL, *sets, *own, *extra, "selective-risk", leaf, env=env)
+            return cli(*FAST, *sets, *own, *extra, "selective-risk", leaf, env=env)
 
         return run
 
     def diagnose_stages(*extra: str, env: Mapping[str, str] | None = None) -> CliResult:
         monkeypatch.setattr(app_diagnosis, "run_stage_errors", stop)
-        return cli(*SEAL, *extra, "diagnose", "stages", "--dataset", DATASET, env=env)
+        return cli(*FAST, *extra, "diagnose", "stages", "--dataset", DATASET, env=env)
 
     def scene_stats_per_clip(*extra: str, env: Mapping[str, str] | None = None) -> CliResult:
         monkeypatch.setattr(scene_stats, "collect_rows", stop)
-        return cli(*SEAL, *extra, "scene-stats", "per-clip", "--dataset", DATASET,
+        return cli(*FAST, *extra, "scene-stats", "per-clip", "--dataset", DATASET,
                    "--label", "x", "--out", str(ledger.parent / "x.json"), env=env)  # fmt: skip
 
     commands = {
@@ -635,15 +643,14 @@ def test_fit_from_a_perceived_run_guards_before_the_oracle_runs(
     write_verify_run(settings, "perceived", perceived)
     stop = sentinel(ledger, reached)
     monkeypatch.setattr(app_calibration, "_raw_runner", lambda session: _SentinelRunner(stop))
-    refused = cli(*SEAL, "calibrate", "fit", "--dataset", DATASET, "--from-run", "perceived")
+    refused = cli(*FAST, "calibrate", "fit", "--dataset", DATASET, "--from-run", "perceived")
     assert refused.code == EXIT_USAGE and "PHYSVERIFY_UNSEAL" in refused.err
     assert reached == []
-    looked = cli(*SEAL, "calibrate", "fit", "--dataset", DATASET, "--from-run", "perceived",
+    looked = cli(*FAST, "calibrate", "fit", "--dataset", DATASET, "--from-run", "perceived",
                  env=UNSEAL)  # fmt: skip
     assert looked.code == REACHED and reached == [1]
 
 
-DEVELOPMENT = ("--set", f'calibration.development_sets=["{DATASET}@v2"]')
 SCORE_ALL = "--score-all-clips"
 
 
@@ -697,12 +704,7 @@ def _clean_n(evaluation: Mapping[str, Any]) -> int:
 @pytest.fixture
 def filed(config_dir: Path, checkout: Path) -> None:
     """``DATASET@v2`` declared a development set by the committed config files."""
-    path = config_dir / "verifier" / "calibration.toml"
-    text = path.read_text(encoding="utf-8")
-    line = f'development_sets = ["{DATASET}@v2"]'
-    declared = re.sub(r"(?m)^development_sets = .*$", line, text)
-    assert declared != text
-    path.write_text(declared, encoding="utf-8")
+    declare(config_dir, CALIBRATION_FILE, "development_sets", f'["{DATASET}@v2"]')
     _git(checkout, "commit", "-qam", "development set")
 
 
@@ -736,12 +738,12 @@ def test_another_version_of_a_development_set_stays_sealed(
 @pytest.mark.parametrize(
     ("options", "env"),
     [
-        (DEVELOPMENT, {}),
+        (("--set", f'calibration.development_sets=["{DATASET}@v2"]'), {}),
         ((), {"PHYSVERIFY__CALIBRATION__DEVELOPMENT_SETS": f'["{DATASET}@v2"]'}),
     ],
     ids=["set", "environment"],
 )
-def test_a_sealed_set_declared_development_outside_the_files_stays_sealed(
+def test_a_development_set_declared_outside_the_files_is_refused(
     evaluate_cli: Callable[..., CliResult],
     version: Callable[[str], None],
     ledger: Path,
@@ -749,20 +751,19 @@ def test_a_sealed_set_declared_development_outside_the_files_stays_sealed(
     options: tuple[str, ...],
     env: dict[str, str],
 ) -> None:
-    """``--set`` and the environment never lift a seal: the sealed ledger's own refusal."""
+    """``--set`` and the environment never lift a seal: the loader refuses the key."""
     version("v2")
     result = evaluate_cli(options=options, env=env)
-    assert result.code == EXIT_USAGE and "PHYSVERIFY_UNSEAL" in result.err
-    assert "not declared in the config files" in result.err
+    assert result.code == EXIT_USAGE and "only the committed configs" in result.err
     assert read_entries(ledger) == () and reached == []
 
 
 @pytest.mark.parametrize(
     ("identity", "development", "message"),
     [
-        (content_identity("v2", "fixture"), DEVELOPMENT, "own fit set"),
-        (None, DEVELOPMENT, "refit it"),
-        ("v1:other", (), "not in calibration.development_sets"),
+        (content_identity("v2", "fixture"), True, "own fit set"),
+        (None, True, "refit it"),
+        ("v1:other", False, "not in calibration.development_sets"),
     ],
 )
 def test_score_all_clips_needs_a_development_set_and_another_fit_set(
@@ -771,13 +772,16 @@ def test_score_all_clips_needs_a_development_set_and_another_fit_set(
     tmp_path: Path,
     artifact_text: str,
     reached: list[int],
+    request: pytest.FixtureRequest,
     identity: str | None,
-    development: tuple[str, ...],
+    development: bool,
     message: str,
 ) -> None:
+    if development:
+        request.getfixturevalue("filed")
     version("v2")
     artifact = _fitted_on(identity, tmp_path, artifact_text)
-    result = evaluate_cli(SCORE_ALL, options=development, artifact=artifact, env=UNSEAL)
+    result = evaluate_cli(SCORE_ALL, artifact=artifact, env=UNSEAL)
     assert result.code == EXIT_USAGE and message in result.err
     assert reached == []
 

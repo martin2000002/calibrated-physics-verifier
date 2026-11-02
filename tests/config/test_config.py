@@ -132,6 +132,38 @@ def test_the_real_configs_reject_a_profiles_set(config_dir: Path) -> None:
         )
 
 
+@pytest.mark.parametrize(
+    ("environ", "overrides", "local", "origin"),
+    [
+        ({}, ("sealed.sets=[]",), "", "--set"),
+        ({"PHYSVERIFY__SEALED__SETS": "[]"}, (), "", "PHYSVERIFY__<SECTION>__<KEY>"),
+        ({}, (), "[sealed]\nsets = []\n", "local.toml"),
+        ({}, ('calibration.development_sets=["kubric_synthetic@v1"]',), "", "--set"),
+        (
+            {"PHYSVERIFY__CALIBRATION__DEVELOPMENT_SETS": '["kubric_synthetic@v1"]'},
+            (),
+            "",
+            "PHYSVERIFY__<SECTION>__<KEY>",
+        ),
+        ({}, (), '[calibration]\ndevelopment_sets = ["kubric_synthetic@v1"]\n', "local.toml"),
+    ],
+)
+def test_the_seal_keys_come_only_from_the_files(
+    config_dir: Path, environ: dict[str, str], overrides: tuple[str, ...], local: str, origin: str
+) -> None:
+    if local:
+        (config_dir / "local.toml").write_text(local, encoding="utf-8")
+    with pytest.raises(ConfigError, match="only the committed configs") as caught:
+        load_settings(config_dir, environ=environ, overrides=overrides)
+    assert origin in str(caught.value)
+
+
+def test_the_sealed_ledger_stays_overridable(config_dir: Path, tmp_path: Path) -> None:
+    ledger = tmp_path / "dry-run-ledger.txt"
+    settings = load_settings(config_dir, environ={}, overrides=(f"sealed.ledger={ledger}",))
+    assert settings.sections["sealed"]["ledger"] == str(ledger)
+
+
 def test_paths_derive_from_data_dir_and_expand_env(tmp_path: Path) -> None:
     _write(tmp_path / "configs", "default.toml", '[paths]\ndata_dir = "${BIG}/data"\n')
     settings = load_settings(tmp_path / "configs", environ={"BIG": "/mnt/big", "HOME": "/h"})

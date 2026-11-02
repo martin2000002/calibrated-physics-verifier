@@ -11,6 +11,7 @@ from typing import Any
 
 import pytest
 from check_rows import UNCACHED, write_check_rows
+from repo_configs import CALIBRATION_FILE, declare
 
 from physverify.app import queries
 from physverify.schema.clip import ClipManifest
@@ -77,7 +78,9 @@ def test_the_allowed_sets_are_the_preregistered_ones(make_settings: Callable[...
     assert sets == [{"physics_iq": 54, "pisa_real": n} for n in (360, 40, 361)]
 
 
-def test_development_version_is_the_one_declared(make_settings: Callable[..., Any]) -> None:
+def test_development_version_is_the_one_declared(
+    make_settings: Callable[..., Any], config_dir: Path
+) -> None:
     settings = make_settings()
     assert queries.development_version(settings, "kubric_synthetic") == ["v1-precise-hdri-dev"]
     for version in ("v2-fresh", "v2-dev-b2"):
@@ -85,14 +88,16 @@ def test_development_version_is_the_one_declared(make_settings: Callable[..., An
     for dataset in ("pisa_real", "kubric_fresh"):
         with pytest.raises(queries.QueryError, match="not one"):
             queries.development_version(settings, dataset)
-    once = '["kubric_fresh@v2-fresh"]'
-    alone = make_settings(f"calibration.development_sets={once}")
-    assert queries.development_version(alone, "kubric_fresh") == ["v2-fresh"]
+    declare(config_dir, CALIBRATION_FILE, "development_sets", '["kubric_fresh@v2-fresh"]')
+    assert queries.development_version(make_settings(), "kubric_fresh") == ["v2-fresh"]
 
 
-def test_development_version_names_one_of_several(make_settings: Callable[..., Any]) -> None:
+def test_development_version_names_one_of_several(
+    make_settings: Callable[..., Any], config_dir: Path
+) -> None:
     sets = '["kubric_fresh@v2-fresh", "kubric_fresh@v3", "kubric_synthetic@v1-precise-hdri-dev"]'
-    settings = make_settings(f"calibration.development_sets={sets}")
+    declare(config_dir, CALIBRATION_FILE, "development_sets", sets)
+    settings = make_settings()
     assert queries.development_version(settings, "kubric_fresh", "v3") == ["v3"]
     assert queries.development_version(settings, "kubric_fresh", "v2-fresh") == ["v2-fresh"]
     for dataset, version in (("kubric_fresh", "v4"), ("kubric_synthetic", "v3")):

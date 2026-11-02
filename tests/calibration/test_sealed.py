@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 from calibration_cases import clip
+from repo_configs import SEALED_FILE, declare
 
 from physverify.calibration.sealed_ledger import (
     LedgerEntry,
@@ -57,7 +58,8 @@ def entry(freeze: str = "f1", sets: tuple[str, ...] = ("kubric_synthetic:eval",)
 def test_an_invalid_spec_is_a_config_error(
     config_dir: Path, environ: dict[str, str], spec: str
 ) -> None:
-    settings = load_settings(config_dir, environ=environ, overrides=(f'sealed.sets=["{spec}"]',))
+    declare(config_dir, SEALED_FILE, "sets", f'["{spec}"]')
+    settings = load_settings(config_dir, environ=environ)
     with pytest.raises(ConfigError, match="sealed"):
         sealed_settings(settings)
 
