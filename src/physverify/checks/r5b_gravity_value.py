@@ -20,7 +20,6 @@ from physverify.physics.row_time import reference_seconds, rows_in
 from physverify.physics.tracks import MIN_FIT_ROWS
 from physverify.schema.checks import AbstainReason, CheckResult
 from physverify.schema.constants import STANDARD_GRAVITY
-from physverify.schema.contacts import ContactTable
 from physverify.schema.scale import EffectiveScale, ScaleSource
 from physverify.schema.states import ObjectStateTable, PrimitiveKind
 
@@ -50,7 +49,7 @@ class GravityValueCheck:
         if inputs.contacts is None:
             raise ValueError(f"{self.check_id} requires contacts")
         states = inputs.states
-        flights = self._flights(states, inputs.contacts)
+        flights = self._flights(inputs)
         if not flights:
             return []
         span = flights_span(states.frame_index, flights)
@@ -75,14 +74,16 @@ class GravityValueCheck:
             return [abstain(type(self), inputs, SUBJECT, reason, span, details)]
         return [self._scored(inputs, long, scale, details)]
 
-    def _flights(self, states: ObjectStateTable, contacts: ContactTable) -> list[Flight]:
+    def _flights(self, inputs: CheckInputs) -> list[Flight]:
+        return [flight for i in self._subjects(inputs.states) for flight in self._falls(inputs, i)]
+
+    def _subjects(self, states: ObjectStateTable) -> list[int]:
         kinds = {kind.value for kind in self.params.primitives}
-        return [
-            flight
-            for i in range(states.n_objects)
-            if str(states.primitive[i]) in kinds
-            for flight in find_falls(states, contacts, i, self.params)
-        ]
+        return [i for i in range(states.n_objects) if str(states.primitive[i]) in kinds]
+
+    def _falls(self, inputs: CheckInputs, index: int) -> list[Flight]:
+        assert inputs.contacts is not None
+        return find_falls(inputs.states, inputs.contacts, index, self.params)
 
     def _scored(
         self,

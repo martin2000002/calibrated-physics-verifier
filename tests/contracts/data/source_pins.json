@@ -1,57 +1,57 @@
 {
   "check_variants": {
     "R4_jump/rigid2": {
-      "digest": "0e88f16e430145504c20bc9ad385340043cbc2fb9d6a841c38262ffc7dcf9999",
+      "digest": "de71498c1415deba9404791a936ea7985ff6f622f15cddb601c068c87edd3450",
       "version": "1"
     },
     "R4_jump/rigid2_dfloor": {
-      "digest": "678017c2fdd76b371cdc4e1adc19a71eb051e43ef39d74c31b56f474ab6861bd",
+      "digest": "f24c7a57df99cac8943dd2be5f94a60b1a05d09329ee7a11a19fb23d873612d3",
       "version": "1"
     },
     "R4_size/v3": {
-      "digest": "40fd6b24187a4471b39b55dbcffe3432b81c59d1e1fe9e5445f4a3625cff0028",
+      "digest": "128b6939aa563a9b6af1bbb9574bcaaa0472f827241bd228fb0a817e4f77cba5",
       "version": "1"
     },
     "R5a/whitened": {
-      "digest": "586175ee37b6490df39b2661707eacc679de61370ce73cd7df6308870e9b95e8",
+      "digest": "e231115a9d1e6ef0c40c2cec04015f175d71c72f4aa94913ad761951ae9e3b59",
       "version": "1"
     }
   },
   "checks": {
     "R1": {
-      "digest": "13959310c030c4a9b0792ff1cfe5ddc083212afe45fa928eb221ddb75e3e5bb9",
+      "digest": "443d510766d5c10b1160dd4ce7dde4eae2464548358e259938a9d618cc4ce427",
       "version": "2"
     },
     "R2": {
-      "digest": "ba78c2b8142f459b2832a9beb211bd335005b088184536088e90e5baa00738f1",
+      "digest": "93e5662eaa942a110df072e9ee5520c125dc2fefa99671e8595075cfc82310a1",
       "version": "1"
     },
     "R3a": {
-      "digest": "45f1f6984e2668703d1a98099b0b58a2a79681e2faac6407bc0a49b13d00c3a8",
+      "digest": "e9d14cc3bb8d02b56bcb8a36ec1890e2032a445798b45529b461321b7a6857e9",
       "version": "1"
     },
     "R3b": {
-      "digest": "bd49b6c0819457c541db3eb2c6311087eb509594a02069a057d3151918e977e9",
+      "digest": "8a59cfa2ef7e040864fa1677563223f5dfee4dc7a32525539bbc21b90f4a97d7",
       "version": "1"
     },
     "R4_jump": {
-      "digest": "43a060c172d2ecb3580bfcb2516d73023bc9a322bbee530d3da8d497fd89cca1",
+      "digest": "70f34016630fb763311acc661b326807f28d0bf4bf07f2b525fe1e89ed367415",
       "version": "1"
     },
     "R4_missing": {
-      "digest": "25a59aa98b1b623e4912e0315b92f66dcb2c822cbbf384d845a092023c470320",
+      "digest": "ee6ecd6bff4794857b729b37db1453144cfd1d261c8a1f3e33242c7b4cd4df19",
       "version": "1"
     },
     "R4_size": {
-      "digest": "c450bfe81076cd44bb0acdd9f0a81c8bb276128ed0ff892adc31f9b548959109",
+      "digest": "9eac239340ffe238f712f7cfebcbb677bdd4f00547966587efcf46feda8e28aa",
       "version": "1"
     },
     "R5a": {
-      "digest": "7fbc3ddb5f7d4e734ff547661a558ad29b8cc1bfa2158665722830431e3642d8",
+      "digest": "f898fb58cdd8621fdd8f50e9b2d6cb3e2c31dbf88e2c195d2d155a2b5cb31189",
       "version": "1"
     },
     "R5b": {
-      "digest": "4bf4a622c09059b91aa1502ef841fb19a4f2eb28cf7c8863d66fa1750f20605d",
+      "digest": "edf66b6325c4af70010791177d80eee0501cc542a643f8bb936e50f584cd643c",
       "version": "1"
     }
   },
