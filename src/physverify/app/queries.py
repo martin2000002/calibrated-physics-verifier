@@ -50,9 +50,7 @@ def dataset_clip_ids(settings: Settings, dataset: str, subset: str, split: str |
     return clip_ids(source, subset, split)
 
 
-def development_version(
-    settings: Settings, dataset: str, version: str | None = None
-) -> list[str]:
+def development_version(settings: Settings, dataset: str, version: str | None = None) -> list[str]:
     """The version of ``dataset`` that ``calibration.development_sets`` declares: ``version`` when
     given and declared, else the only declared one (several must be told apart by name)."""
     from physverify.calibration.settings import calibration_settings
