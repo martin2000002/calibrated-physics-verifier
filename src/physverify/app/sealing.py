@@ -14,6 +14,8 @@ from types import MappingProxyType
 from typing import Final
 
 from physverify.app.context import AppContext
+from physverify.app.services import dataset_for
+from physverify.calibration.development import is_development, may_be_development
 from physverify.calibration.sealed_ledger import (
     REPEAT_ENV,
     UNSEAL_ENV,
@@ -34,8 +36,10 @@ from physverify.calibration.sealed_ledger import (
     touched,
     unsealed,
 )
+from physverify.calibration.settings import calibration_settings
 from physverify.core.digests import sha256_if_file
 from physverify.core.output import Echo
+from physverify.datasets._versions import versioned_name
 from physverify.runtime.runs import current_commit
 from physverify.schema.clip import ClipManifest
 
@@ -174,8 +178,11 @@ def guard_sealed(
     if command not in GUARDED_LEAVES:
         raise ValueError(f"{command!r} is not a guarded subcommand")
     sealed = sealed_settings(context.settings)
+    specs = [(sel, touched(sel.dataset, sel.clips, sealed.sets)) for sel in selections]
     found = tuple(
-        dict.fromkeys(s for sel in selections for s in touched(sel.dataset, sel.clips, sealed.sets))
+        dict.fromkeys(
+            s for sel, seen in specs if seen and not _development(context, sel, err) for s in seen
+        )
     )
     if not found:
         return
@@ -203,6 +210,18 @@ def guard_sealed(
         )
         append_entry(path, entry)
     err(f"sealed look: {','.join(found)} freeze {look.freeze[:12]}")
+
+
+def _development(context: AppContext, selection: Selection, err: Echo) -> bool:
+    """A selection of a declared development set (that exact version) is not a sealed look."""
+    cal = calibration_settings(context.settings)
+    if not may_be_development(selection.dataset, cal):
+        return False
+    source = dataset_for(context, selection.dataset)
+    if not is_development(source, cal):
+        return False
+    err(f"development set {versioned_name(source)}: not a sealed look")
+    return True
 
 
 def _tree_state(root: Path) -> str | None:

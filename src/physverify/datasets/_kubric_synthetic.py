@@ -120,6 +120,9 @@ class KubricSynthetic:
         plan = self._plan()
         return content_identity(plan.version, plan.config_hash)
 
+    def content_version(self) -> str:
+        return self._plan().version
+
     def _plan(self) -> DatasetPlan:
         plan = load_plan(self._store)
         if plan is None:

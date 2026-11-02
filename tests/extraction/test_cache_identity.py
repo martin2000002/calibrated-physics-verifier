@@ -44,6 +44,9 @@ class VersionedFixture(SyntheticFixtureDataset):
     def cache_identity(self) -> str:
         return content_identity(self._version, "fixture")
 
+    def content_version(self) -> str:
+        return self._version
+
 
 def cached(report: ExtractionReport) -> set[bool]:
     return {event.cached for event in report.events}

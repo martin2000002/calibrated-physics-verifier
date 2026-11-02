@@ -46,7 +46,7 @@ from physverify.config.models import Settings
 from physverify.core.atomic import write_text_atomic
 from physverify.core.errors import PhysverifyError, UsageError
 from physverify.core.output import Echo
-from physverify.datasets._base import DatasetSource, select_clips
+from physverify.datasets._base import DatasetSource, dataset_identity, select_clips
 from physverify.diagnosis.error_profile_writer import write_profile
 from physverify.diagnosis.report import dataset_versions, profile_hash
 from physverify.diagnosis.settings import diagnosis_settings
@@ -110,6 +110,7 @@ def dataset_ref(
         n_clips=len(ids),
         n_scenes=len({scene_of(clip) for clip in clips}),
         clip_ids_hash=stable_hash(ids),
+        identity=dataset_identity(dataset),
     )
 
 

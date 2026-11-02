@@ -20,6 +20,11 @@ from physverify.app.services import (
 from physverify.calibration.artifact_io import default_artifact_path, load_calibration
 from physverify.calibration.collect import SubjectLookup, Subjects
 from physverify.calibration.dev_score import DEVSCORE_FILE, dev_score, require_bootstrap
+from physverify.calibration.development import (
+    calib_clips,
+    development_clips,
+    require_all_clips_scorable,
+)
 from physverify.calibration.evaluate import EvaluationMeta, evaluate
 from physverify.calibration.fit import FitInputs, fit_calibration
 from physverify.calibration.oof import DEVSCORE_OOF_FILE
@@ -156,7 +161,7 @@ def score_devscore(
     source = dataset_for(context, picked.dataset or cal.dataset)
     name = picked.subset or cal.subset
     levels = levels_of(level, session)
-    base = fit_clips(source, name, picked.clips or ())
+    base = calib_clips(source, name, picked.clips or (), cal)
     extension = calib_extension(session, source, base, picked.clips or ())
     chosen = [*base, *extension.clips]
     require_calib(chosen)
@@ -193,11 +198,8 @@ def fit_stage_sigma(
         subset=picked.subset or cal.subset,
     )
     source = ctx.dataset()
-    calib = [
-        c
-        for c in select_clips(source.clips(ctx.diag.subset), picked.clips or ())
-        if c.split is Split.CALIB
-    ]
+    selected = select_clips(source.clips(ctx.diag.subset), picked.clips or ())
+    calib = [c for c in development_clips(source, selected, cal) if c.split is Split.CALIB]
     if not calib:
         raise UsageError(
             f"no split=calib clip in subset {ctx.diag.subset!r}: stage-sigma fits on calib only"
@@ -224,10 +226,12 @@ def evaluate_artifact(
     real: bool,
     real_dataset: Sequence[str] | None,
     *,
+    score_all_clips: bool = False,
     echo: Echo,
     err: Echo,
 ) -> None:
-    """``calibrate evaluate``: held-out and real clips scored with the frozen artifact."""
+    """``calibrate evaluate``: held-out and real clips scored with the frozen artifact; every
+    clip of a development set with ``score_all_clips``."""
     if real_dataset and not real:
         raise UsageError("--real-dataset and --no-real exclude each other")
     session = _session(context, echo, err)
@@ -235,6 +239,8 @@ def evaluate_artifact(
     calibration = artifact_at(session, artifact or default_artifact_path(context.settings))
     cal = session.config.calibration
     source = dataset_for(context, picked.dataset or cal.dataset)
+    if score_all_clips:
+        require_all_clips_scorable(source, calibration.artifact.dataset, cal)
     name = picked.subset or cal.subset
     chosen = select_clips(source.clips(name), picked.clips or ())
     levels = sorted({lv for lv, _ in calibration.strata()})
@@ -258,6 +264,7 @@ def evaluate_artifact(
             if any(name in item.real for item in inputs)
         ),
         primary=primary_scope(session, source, name, chosen),
+        score_all_clips=score_all_clips,
     )
     report = evaluate(calibration, inputs, meta, session.config)
     write_text_atomic(session.run.run_dir / EVALUATION_FILE, report.to_json())

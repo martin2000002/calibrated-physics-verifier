@@ -28,6 +28,7 @@ from physverify.calibration.sealed_ledger import LedgerEntry, read_entries
 from physverify.config.models import Settings
 from physverify.core.errors import PhysverifyError
 from physverify.datasets._base import GroundTruthStore, VideoSource
+from physverify.datasets._kubric_synthetic import content_identity
 from physverify.diagnosis import scene_stats
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import ClipManifest, Split
@@ -635,3 +636,120 @@ def test_fit_from_a_perceived_run_guards_before_the_oracle_runs(
     looked = cli(*SEAL, "calibrate", "fit", "--dataset", DATASET, "--from-run", "perceived",
                  env=UNSEAL)  # fmt: skip
     assert looked.code == REACHED and reached == [1]
+
+
+DEVELOPMENT = ("--set", f'calibration.development_sets=["{DATASET}@v2"]')
+SCORE_ALL = "--score-all-clips"
+
+
+def _versioned(version: str) -> type[SealFixtureDataset]:
+    """The fixture as one version of a dataset whose content has versions."""
+
+    class VersionedSeal(SealFixtureDataset):
+        def cache_identity(self) -> str:
+            return content_identity(version, "fixture")
+
+        def content_version(self) -> str:
+            return version
+
+    return VersionedSeal
+
+
+@pytest.fixture
+def version(monkeypatch: pytest.MonkeyPatch) -> Callable[[str], None]:
+    """Registers the fixture dataset as ``version`` of a versioned content."""
+
+    def use(label: str) -> None:
+        kinds: Mapping[str, Any] = plugins.PLUGIN_KINDS
+        datasets = kinds["datasets"]
+        patched = {**kinds, "datasets": lambda: {**datasets(), DATASET: _versioned(label)}}
+        monkeypatch.setattr(plugins, "PLUGIN_KINDS", MappingProxyType(patched))
+
+    return use
+
+
+def _fitted_on(identity: str | None, tmp_path: Path, artifact_text: str) -> Path:
+    data = json.loads(artifact_text)
+    if identity is not None:
+        data["dataset"]["identity"] = identity
+    path = tmp_path / "fitted" / "calibration.json"
+    path.parent.mkdir(exist_ok=True)
+    path.write_text(json.dumps(data), encoding="utf-8")
+    return path
+
+
+def _evaluation(result: CliResult) -> dict[str, Any]:
+    path = Path(result.out.split("evaluation: ")[1].split()[0])
+    data: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
+    return data
+
+
+def _clean_n(evaluation: Mapping[str, Any]) -> int:
+    """Clean clips scored by the checks that score any."""
+    return max(check["fpr_clean"]["n"] for check in evaluation["strata"][0]["checks"])
+
+
+def test_a_development_set_is_not_a_sealed_look(
+    evaluate_cli: Callable[..., CliResult],
+    version: Callable[[str], None],
+    ledger: Path,
+) -> None:
+    """Its declared version runs without the variable and writes no line."""
+    version("v2")
+    result = evaluate_cli(options=DEVELOPMENT)
+    assert result.code == 0, result.err
+    assert f"development set {DATASET}@v2: not a sealed look" in result.err
+    assert read_entries(ledger) == ()
+
+
+def test_another_version_of_a_development_set_stays_sealed(
+    evaluate_cli: Callable[..., CliResult],
+    version: Callable[[str], None],
+    ledger: Path,
+    reached: list[int],
+) -> None:
+    version("v3")
+    result = evaluate_cli(options=DEVELOPMENT)
+    assert result.code == EXIT_USAGE and "PHYSVERIFY_UNSEAL" in result.err
+    assert read_entries(ledger) == () and reached == []
+
+
+@pytest.mark.parametrize(
+    ("identity", "development", "message"),
+    [
+        (content_identity("v2", "fixture"), DEVELOPMENT, "own fit set"),
+        (None, DEVELOPMENT, "refit it"),
+        ("v1:other", (), "not in calibration.development_sets"),
+    ],
+)
+def test_score_all_clips_needs_a_development_set_and_another_fit_set(
+    evaluate_cli: Callable[..., CliResult],
+    version: Callable[[str], None],
+    tmp_path: Path,
+    artifact_text: str,
+    reached: list[int],
+    identity: str | None,
+    development: tuple[str, ...],
+    message: str,
+) -> None:
+    version("v2")
+    artifact = _fitted_on(identity, tmp_path, artifact_text)
+    result = evaluate_cli(SCORE_ALL, options=development, artifact=artifact, env=UNSEAL)
+    assert result.code == EXIT_USAGE and message in result.err
+    assert reached == []
+
+
+def test_score_all_clips_scores_every_row(
+    evaluate_cli: Callable[..., CliResult],
+    version: Callable[[str], None],
+    tmp_path: Path,
+    artifact_text: str,
+) -> None:
+    """One clean clip per scene: every clean clip with the flag, the eval ones without."""
+    version("v2")
+    artifact = _fitted_on("v1:other", tmp_path, artifact_text)
+    every = _evaluation(evaluate_cli(SCORE_ALL, options=DEVELOPMENT, artifact=artifact))
+    assert _clean_n(every) == len(REPORT.clips) // 7
+    assert every["scored_splits"] == ["calib", "eval"]
+    held = _evaluation(evaluate_cli(options=DEVELOPMENT, artifact=artifact))
+    assert _clean_n(held) == len(HELD.clips) // 7 and "scored_splits" not in held

@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, ValidationInfo, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, model_validator
 
 from physverify.schema.io import json_ready
 
@@ -13,6 +13,16 @@ LENIENT = "lenient"
 """Validation-context flag: drop keys this version does not know (newer minor version)."""
 SCHEMA_KEY = "schema"
 SCHEMA_FIELD = "schema_"
+
+
+def _is_none(value: object) -> bool:
+    return value is None
+
+
+def absent_when_none() -> Any:
+    """A field default None whose key is left out of the record while it is None, so a record
+    without it reads (and hashes) as before the field existed."""
+    return Field(default=None, exclude_if=_is_none)
 
 
 class FrozenModel(BaseModel):
