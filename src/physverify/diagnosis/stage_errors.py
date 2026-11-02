@@ -8,6 +8,7 @@ from __future__ import annotations
 import math
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
+from functools import partial
 from types import MappingProxyType
 
 from physverify.datasets._base import DatasetSource
@@ -49,6 +50,7 @@ from physverify.diagnosis.settings import DiagnosisSettings, MetricSettings
 from physverify.extraction.cache import step_params_hash
 from physverify.extraction.plan import ResolvedPlan
 from physverify.physics.uncertainty import entry_rms
+from physverify.runtime.parallel import ordered_map
 from physverify.schema.clip import ClipManifest, Split
 from physverify.schema.outputs import StageOutput
 from physverify.schema.stages import STAGE_ORDER, Stage
@@ -184,18 +186,27 @@ def measure_clip(
         outputs.release(index)
 
 
+def _clip_outcomes(
+    runner: ChainRunner, jobs: Sequence[MetricJob], options: MetricSettings, clip: ClipManifest
+) -> list[tuple[int, MetricOutcome]]:
+    return list(measure_clip(runner, clip, jobs, options))
+
+
 def measure(
     runner: ChainRunner,
     clips: Sequence[ClipManifest],
     metrics: Mapping[str, SampledMetric],
     pairs: Sequence[StagePair],
     options: MetricSettings,
+    workers: int = 1,
 ) -> StageSamples:
-    """Per-clip outcomes of every metric on every pair; clips are processed one at a time."""
+    """Per-clip outcomes of every metric on every pair. Clips are measured independently, by up
+    to ``workers`` processes, and gathered in clip order: the result is the serial one."""
     jobs = metric_jobs(runner, metrics, pairs)
+    per_clip = ordered_map(partial(_clip_outcomes, runner, jobs, options), clips, workers)
     outcomes: list[dict[str, MetricOutcome]] = [{} for _ in jobs]
-    for clip in clips:
-        for index, outcome in measure_clip(runner, clip, jobs, options):
+    for clip, found in zip(clips, per_clip, strict=True):
+        for index, outcome in found:
             outcomes[index][clip.clip_id] = outcome
     return tuple(
         MetricSamples(
@@ -297,7 +308,8 @@ def run_stage_errors(
     calib, report = clips_of(clips, diag.profile_split), clips_of(clips, diag.report_split)
     runner = ctx.chain(dataset).with_error_profile(None)
     failures = warm_variants(runner, calib, variants, skip_failed=False)
-    calib_samples = measure(runner, calib, ctx.metrics, pairs, diag.metrics)
+    workers = ctx.settings.runtime.workers
+    calib_samples = measure(runner, calib, ctx.metrics, pairs, diag.metrics, workers)
     version = dataset_versions(dataset, calib).get(dataset.name, "")
     build = build_profile(calib_samples, profile_meta(ctx, dataset, version), diag.min_samples)
     merged = merge_profiles(
@@ -308,7 +320,7 @@ def run_stage_errors(
         save_profile(path, merged)
     eval_runner = runner.with_error_profile(merged)
     failures += warm_variants(eval_runner, report, variants, skip_failed=False)
-    eval_samples = measure(eval_runner, report, ctx.metrics, pairs, diag.metrics)
+    eval_samples = measure(eval_runner, report, ctx.metrics, pairs, diag.metrics, workers)
     z_levels = diag.end_to_end.z_levels
     return StageErrorReport(
         provenance=build_provenance(

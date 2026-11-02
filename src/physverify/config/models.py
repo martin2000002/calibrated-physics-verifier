@@ -122,6 +122,9 @@ def anchor(path: Path, root: Path, home: Path) -> Path:
 
 class RuntimeSettings(FrozenModel):
     threads: int = Field(default=4, ge=1)
+    workers: int = Field(default=1, ge=1, exclude=True)
+    """Processes for clip-independent work (``physverify.runtime.parallel``). Outputs do not
+    depend on it, so it stays out of the dump and of ``config_hash``."""
     device: str = "cpu"
     heavy_lock: str = ""
     lock_timeout_s: float | None = Field(default=None, ge=0)
