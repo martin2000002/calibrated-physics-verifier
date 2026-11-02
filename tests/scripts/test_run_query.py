@@ -88,6 +88,25 @@ def test_development_version_is_the_one_declared(make_settings: Callable[..., An
             queries.development_version(make_settings(*overrides), dataset)
 
 
+def test_development_version_names_one_of_several(make_settings: Callable[..., Any]) -> None:
+    sets = '["kubric_fresh@v2-fresh", "kubric_fresh@v3", "kubric_synthetic@v1-precise-hdri-dev"]'
+    settings = make_settings(f"calibration.development_sets={sets}")
+    assert queries.development_version(settings, "kubric_fresh", "v3") == ["v3"]
+    assert queries.development_version(settings, "kubric_fresh", "v2-fresh") == ["v2-fresh"]
+    for dataset, version in (("kubric_fresh", "v4"), ("kubric_synthetic", "v3")):
+        with pytest.raises(queries.QueryError, match=f"does not declare {dataset}@{version}"):
+            queries.development_version(settings, dataset, version)
+
+
+def test_main_names_the_development_version(
+    query: ModuleType, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert query.main(["development-version", "kubric_fresh", "v2-fresh"]) == 0
+    assert capsys.readouterr().out == "v2-fresh\n"
+    assert query.main(["development-version", "kubric_fresh", "v9"]) == 2
+    assert "does not declare kubric_fresh@v9" in capsys.readouterr().err
+
+
 def test_main_exits_2_with_the_reason(
     query: ModuleType, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

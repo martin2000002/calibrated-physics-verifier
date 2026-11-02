@@ -6,7 +6,7 @@ Exit codes: 0 ok, 2 a check failed or an input is unusable (message on stderr).
     python run_query.py [--profile P] [--set K=V]... clips DATASET SUBSET [--split calib|eval]
     python run_query.py [--set K=V]... evaluation EVALUATION_JSON
     python run_query.py run-errors RUN_DIR
-    python run_query.py development-version DATASET
+    python run_query.py development-version DATASET [VERSION]
 """
 
 from __future__ import annotations
@@ -76,7 +76,9 @@ def _parser() -> argparse.ArgumentParser:
     clips.add_argument("--split", choices=("calib", "eval"))
     sub.add_parser("evaluation").add_argument("path", type=Path)
     sub.add_parser("run-errors").add_argument("run_dir", type=Path)
-    sub.add_parser("development-version").add_argument("dataset")
+    development = sub.add_parser("development-version")
+    development.add_argument("dataset")
+    development.add_argument("version", nargs="?")
     return parser
 
 
@@ -90,7 +92,7 @@ def _lines(args: argparse.Namespace) -> list[str]:
         ),
         "run-errors": lambda: run_errors(args.run_dir),
         "development-version": lambda: development_version(
-            query_settings(args.overrides, args.profile), args.dataset
+            query_settings(args.overrides, args.profile), args.dataset, args.version
         ),
     }
     return commands[args.command]()
