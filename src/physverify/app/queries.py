@@ -50,6 +50,20 @@ def dataset_clip_ids(settings: Settings, dataset: str, subset: str, split: str |
     return clip_ids(source, subset, split)
 
 
+def development_version(settings: Settings, dataset: str) -> list[str]:
+    """The version ``calibration.development_sets`` declares for ``dataset``; exactly one."""
+    from physverify.calibration.settings import calibration_settings
+    from physverify.datasets._versions import versioned_parts
+
+    specs = calibration_settings(settings).development_sets
+    found = [version for name, version in map(versioned_parts, specs) if name == dataset]
+    if len(found) != 1:
+        raise QueryError(
+            f"calibration.development_sets declares {len(found)} versions of {dataset}, not one"
+        )
+    return found
+
+
 def allowed_real_sets(settings: Settings) -> list[Mapping[str, int]]:
     """The real-set sizes the pre-registered exclusion rules allow an evaluation to report."""
     from physverify.app import plugins

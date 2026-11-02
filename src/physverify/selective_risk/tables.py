@@ -77,10 +77,12 @@ def level_tables(
     fallback: ThresholdTable,
     overrides: Mapping[InputLevel, Path],
     *,
+    guard: Callable[[ThresholdTable], ThresholdTable],
     stale_hash: str | None = None,
 ) -> dict[InputLevel, ThresholdTable]:
-    """Per level: an explicit table file, else the projection of the calibration chain's stratum,
-    else ``fallback`` (what ``verify`` uses) when there is no artifact."""
+    """Per level: an explicit table file (through ``guard``), else the projection of the
+    calibration chain's stratum, else ``fallback`` (what ``verify`` uses) when there is no
+    artifact."""
     for level, given in overrides.items():
         if not given.is_file():
             raise UsageError(f"no {level.value} threshold table at {given}")
@@ -94,7 +96,7 @@ def level_tables(
     for level in (InputLevel.ORACLE, InputLevel.PERCEIVED):
         path = overrides.get(level)
         if path is not None:
-            out[level] = load_thresholds(path, {})
+            out[level] = guard(load_thresholds(path, {}))
         elif calibration is not None:
             stratum = calibration.stratum(level, profile)
             out[level] = ThresholdTable.complete(

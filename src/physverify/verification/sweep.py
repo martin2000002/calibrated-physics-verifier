@@ -77,6 +77,12 @@ class CheckUnit:
     replaced_unit: str | None = None
     """Set for a variant that reports in another unit than its default implementation: that one."""
 
+    @property
+    def written_unit(self) -> str:
+        """The unit a configured value of this check id (provisional tau, epsilon_c) is written
+        in unless its ``*_units`` table declares another: that of the default implementation."""
+        return self.replaced_unit or self.magnitude_unit
+
     @classmethod
     def of(cls, check: CheckIdentity) -> CheckUnit:
         """Identity of a check class (or instance), its declared perturbation unit, estimate

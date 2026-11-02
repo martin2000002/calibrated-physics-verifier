@@ -74,6 +74,8 @@ class EvaluationMeta:
     profile: str
     real_sets: tuple[DatasetRef, ...] = ()
     primary: PrimaryScope | None = None
+    score_all_clips: bool = False
+    """Score the calib rows too (a development set evaluated with another set's artifact)."""
 
 
 def evaluate(
@@ -104,9 +106,17 @@ def evaluate(
         dataset=meta.dataset,
         real_datasets=tuple(sorted({name for item in inputs for name in item.real})),
         real_sets=meta.real_sets,
-        strata=tuple(_stratum(stratum, item, config, pooled) for stratum, item in matched),
-        h1_primary=_primary(matched, meta.primary, config, pooled),
+        strata=tuple(
+            _stratum(stratum, item, config, pooled, score_all=meta.score_all_clips)
+            for stratum, item in matched
+        ),
+        h1_primary=_primary(matched, meta.primary, config, pooled, meta.score_all_clips),
+        scored_splits=_scored_splits(inputs) if meta.score_all_clips else None,
     )
+
+
+def _scored_splits(inputs: Sequence[EvaluationInputs]) -> tuple[str, ...]:
+    return tuple(sorted({r.split.value for item in inputs for r in item.synthetic.rows}))
 
 
 def _primary(
@@ -114,6 +124,7 @@ def _primary(
     primary: PrimaryScope | None,
     config: CalibrationConfig,
     pooled: CalibrationSettings,
+    score_all: bool,
 ) -> PrimaryScenesView | None:
     if primary is None or not primary.scope.primary_scenes:
         return None
@@ -122,7 +133,8 @@ def _primary(
         scenes=primary.scope.primary_scenes,
         dataset=primary.dataset,
         strata=tuple(
-            _stratum(stratum, item, config, pooled, keep=keep) for stratum, item in matched
+            _stratum(stratum, item, config, pooled, keep=keep, score_all=score_all)
+            for stratum, item in matched
         ),
     )
 
@@ -146,11 +158,14 @@ def _stratum(
     config: CalibrationConfig,
     pooled: CalibrationSettings,
     keep: frozenset[int] | None = None,
+    *,
+    score_all: bool = False,
 ) -> EvaluationStratum:
-    """``keep``: only the scenes of these indices, and no real video (the primary view)."""
+    """``keep``: only the scenes of these indices, and no real video (the primary view);
+    ``score_all``: the calib rows are scored too."""
     rows = [r for r in item.synthetic.rows if keep is None or in_scope(r.scene_id, keep)]
     real: Mapping[str, LevelData] = item.real if keep is None else {}
-    heldout = [r for r in rows if r.split is not Split.CALIB]
+    heldout = rows if score_all else [r for r in rows if r.split is not Split.CALIB]
     check_ids = sorted(stratum.model.checks)
     return EvaluationStratum(
         level=stratum.level,

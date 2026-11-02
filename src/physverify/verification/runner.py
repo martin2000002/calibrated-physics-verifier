@@ -14,7 +14,6 @@ from typing import Any
 from pydantic import Field
 
 from physverify.checks._base import Check, CheckInputs, abstain, missing_inputs, row_step_or_none
-from physverify.checks.variants._base import REPLACED_UNIT
 from physverify.config.models import Settings, validated
 from physverify.core.errors import ConfigError
 from physverify.core.models import FrozenModel
@@ -30,7 +29,7 @@ from physverify.verification.check_set import (
 )
 from physverify.verification.decisive import Judged, decisive
 from physverify.verification.inputs import ClipInputs, InputSource
-from physverify.verification.sweep import SpecificitySettings
+from physverify.verification.sweep import CheckUnit, SpecificitySettings
 from physverify.verification.thresholding import (
     ThresholdTable,
     load_thresholds,
@@ -45,6 +44,12 @@ CHECKS_HASH_FILE = "checks_hash.txt"
 THRESHOLDS_KEY = "thresholds"
 UNKNOWN_ROW_STEP = 0
 """``row_step`` of a clip whose table has no valid time axis."""
+
+
+def run_checks_hash(run_dir: Path) -> str:
+    """The ``checks_hash`` a ``verify`` run recorded; empty when it records none (an older run)."""
+    path = run_dir / CHECKS_HASH_FILE
+    return path.read_text(encoding="utf-8").strip() if path.is_file() else ""
 
 
 class VerificationSettings(FrozenModel):
@@ -167,26 +172,40 @@ def configured_suite(
     policy: str | None = None,
 ) -> ConfiguredSuite:
     """The ``[checks]`` and ``[verification]`` sections built over the registries (``policy``
-    overrides the configured one). Thresholds that do not belong to these checks (another
-    calibration, another unit) are a ``ConfigError``."""
+    overrides the configured one), with the thresholds of ``guarded_thresholds``."""
     verification = settings.section(VERIFICATION_SECTION, VerificationSettings)
     if policy is not None:
         verification = verification.model_copy(update={"policy": policy})
-    overrides = settings.section(CHECKS_SECTION, ChecksSettings)
-    built = build_checks(checks, overrides)
+    built = build_checks(checks, settings.section(CHECKS_SECTION, ChecksSettings))
     decider = build_policy(policies, verification)
-    thresholds = load_thresholds(settings.paths.thresholds, verification.thresholds)
+    return ConfiguredSuite(verification, built, decider, guarded_thresholds(settings, checks))
+
+
+def guarded_thresholds(settings: Settings, checks: Mapping[str, type[Check]]) -> ThresholdTable:
+    """The threshold table every consumer of ``[verification]`` thresholds loads, through
+    ``guard_table``."""
+    verification = settings.section(VERIFICATION_SECTION, VerificationSettings)
+    table = load_thresholds(settings.paths.thresholds, verification.thresholds)
+    return guard_table(table, settings, checks)
+
+
+def guard_table(
+    thresholds: ThresholdTable, settings: Settings, checks: Mapping[str, type[Check]]
+) -> ThresholdTable:
+    """``thresholds`` when it may judge the configured checks: a calibrated table of other checks
+    (``checks_hash``) or a tau in another unit than the check reports is a ``ConfigError``."""
+    verification = settings.section(VERIFICATION_SECTION, VerificationSettings)
+    units = {c.check_id: CheckUnit.of(c) for c in checks.values()}
     written = {
-        c.check_id: verification.threshold_units.get(
-            c.check_id, getattr(c, REPLACED_UNIT, c.magnitude_unit)
-        )
-        for c in built
+        check_id: verification.threshold_units.get(check_id, unit.written_unit)
+        for check_id, unit in units.items()
     }
-    units = {c.check_id: c.magnitude_unit for c in built}
-    problem = threshold_problem(thresholds, checks_hash(checks, overrides), written, units)
+    reported = {check_id: unit.magnitude_unit for check_id, unit in units.items()}
+    current = checks_hash(checks, settings.section(CHECKS_SECTION, ChecksSettings))
+    problem = threshold_problem(thresholds, current, written, reported)
     if problem is not None:
         raise ConfigError(problem)
-    return ConfiguredSuite(verification, built, decider, thresholds)
+    return thresholds
 
 
 def aggregate(

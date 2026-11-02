@@ -10,7 +10,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from physverify.core.models import SCHEMA_KEY, ArtifactModel
+from physverify.core.models import SCHEMA_KEY, ArtifactModel, absent_when_none
 from physverify.schema.checks import InputLevel
 from physverify.stats.intervals import Ci, Rate
 
@@ -191,6 +191,8 @@ class DatasetRef(ArtifactModel):
     n_clips: int
     n_scenes: int
     clip_ids_hash: str
+    identity: str | None = absent_when_none()
+    """The content's cache identity (``dataset_identity``); absent for plain datasets."""
 
 
 class SettingsSnapshot(ArtifactModel):
@@ -330,3 +332,6 @@ class EvaluationReport(ArtifactModel):
     """The real clip sets the evaluation scored (empty before 1.2.0): what rule 1.5 checks."""
     h1_primary: PrimaryScenesView | None = None
     """The primary-scenes view (from 1.3.0); ``strata`` stays the all-scenes view."""
+    scored_splits: tuple[str, ...] | None = absent_when_none()
+    """The splits whose rows were scored, when every row was (a development set); absent when
+    only the rows outside calib were."""

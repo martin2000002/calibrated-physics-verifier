@@ -102,7 +102,7 @@ def test_a_clip_of_another_time_base_is_refused(settings: Settings, make_result:
 
 def test_agreement_and_comparison_give_the_same_stale_message(settings: Settings) -> None:
     path = _artifact(settings, checks_hash=STALE)
-    active = active_checks_hash(settings)
+    active = run_checks_hash(settings)
     with pytest.raises(StaleCalibrationError) as stale:
         load_calibration(path, checks_hash=active)
     message = str(stale.value)
@@ -115,7 +115,7 @@ def test_agreement_and_comparison_give_the_same_stale_message(settings: Settings
 
 
 def test_scoring_records_the_state_of_each_check(settings: Settings) -> None:
-    _artifact(settings)
+    _artifact(settings, checks_hash=run_checks_hash(settings))
     store = CampaignStore.from_settings(settings)
     scorer = build_scorer("calibrated", settings)
     write_calibration_status(store, BASE_TAG, scorer)

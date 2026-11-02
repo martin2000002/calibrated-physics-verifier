@@ -1092,7 +1092,7 @@ requires-dist = [
     { name = "numpy", specifier = ">=2.0" },
     { name = "opencv-python-headless", specifier = ">=4.10" },
     { name = "psutil", specifier = ">=6" },
-    { name = "pydantic", specifier = ">=2.8" },
+    { name = "pydantic", specifier = ">=2.11" },
     { name = "scipy", specifier = ">=1.14" },
     { name = "typer", specifier = ">=0.27.2" },
 ]

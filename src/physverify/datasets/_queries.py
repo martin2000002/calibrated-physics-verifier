@@ -1,11 +1,13 @@
-"""Detection queries derived from a caption or prompt, shared by the real-video datasets."""
+"""Detection queries: derived from a caption or prompt (the real-video datasets), or a clip's
+queries with their counts withheld (the blind Kubric readings)."""
 
 from __future__ import annotations
 
 import string
 from collections.abc import Sequence
+from dataclasses import replace
 
-from physverify.schema.clip import ObjectQuery
+from physverify.schema.clip import ClipManifest, ObjectQuery
 
 ARTICLES = ("a", "an", "the")
 
@@ -20,3 +22,9 @@ def derive_queries(prompt: str, fall_verbs: Sequence[str]) -> tuple[ObjectQuery,
     phrase = text[: min(cuts)] if cuts else text
     phrase = phrase.strip()
     return (ObjectQuery(phrase, 1),) if phrase else ()
+
+
+def blind(clip: ClipManifest) -> ClipManifest:
+    """``clip`` with its object phrases kept and their expected counts withheld."""
+    queries = tuple(ObjectQuery(q.phrase, expected_count=None) for q in clip.object_queries)
+    return replace(clip, object_queries=queries)

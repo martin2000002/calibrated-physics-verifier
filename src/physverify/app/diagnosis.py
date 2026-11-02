@@ -10,6 +10,8 @@ from physverify.app.context import AppContext
 from physverify.app.extraction import recorded_run
 from physverify.app.sealing import Selection, guard_sealed
 from physverify.app.services import check_suite, dataset_for, pipeline_deps
+from physverify.calibration.development import development_clips
+from physverify.calibration.settings import calibration_settings
 from physverify.checks._base import CHECKS
 from physverify.config.models import Settings
 from physverify.config.plugin_context import registry_of
@@ -142,7 +144,9 @@ def stage_errors_runner(
     err: Echo,
 ) -> Runner:
     def runner(ctx: DiagnosisContext) -> Report:
-        selected = guarded_clips(app, ctx, command, clips, err=err)
+        guarded = guarded_clips(app, ctx, command, clips, err=err)
+        cal = calibration_settings(ctx.settings)
+        selected = development_clips(ctx.dataset(), guarded, cal)
         return run_stage_errors(
             ctx, selected, write_profile=write_profile, replace_mismatched=replace_mismatched
         )

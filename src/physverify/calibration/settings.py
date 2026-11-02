@@ -5,11 +5,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-from pydantic import Field, NonNegativeFloat
+from pydantic import Field, NonNegativeFloat, model_validator
 
 from physverify.config.models import Settings
 from physverify.core.errors import ConfigError
 from physverify.core.models import FrozenModel
+from physverify.datasets._versions import versioned_parts
 from physverify.diagnosis.settings import diagnosis_settings
 from physverify.schema.checks import InputLevel
 from physverify.verification.runner import VERIFICATION_SECTION, VerificationSettings
@@ -48,6 +49,30 @@ class CalibrationSettings(FrozenModel):
     """Unit of an epsilon_c entry when it is not that of the check id's default implementation."""
     require_calibrated_artifact: bool = False
     """A consumer also requires artifact status ``calibrated``, not only a usable stratum."""
+    development_sets: tuple[str, ...] = ()
+    """``name@version`` of the development datasets: every clip of one is a development clip
+    for the calib-only commands, it is never a sealed look, and ``calibrate evaluate
+    --score-all-clips`` scores all of its rows."""
+
+    @model_validator(mode="after")
+    def _development_sets_are_versioned(self) -> CalibrationSettings:
+        loose = [s for s in self.development_sets if not all(versioned_parts(s))]
+        if loose:
+            raise ValueError(
+                f"calibration.development_sets {loose} must read name@version (a dataset version, "
+                "not only its name)"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _units_name_a_tolerance(self) -> CalibrationSettings:
+        orphans = sorted(set(self.tau_tolerance_units) - set(self.tau_tolerance))
+        if orphans:
+            raise ValueError(
+                f"tau_tolerance_units declares {orphans} without a tau_tolerance entry: set "
+                "calibration.tau_tolerance for them or drop the unit"
+            )
+        return self
 
     def tolerance_of(self, check: CheckUnit) -> float:
         """epsilon_c of ``check``; an entry written in another unit than the one it reports is a
@@ -55,8 +80,7 @@ class CalibrationSettings(FrozenModel):
         tolerance = self.tau_tolerance.get(check.check_id)
         if tolerance is None:
             return 0.0
-        default = check.replaced_unit or check.magnitude_unit
-        written = self.tau_tolerance_units.get(check.check_id, default)
+        written = self.tau_tolerance_units.get(check.check_id, check.written_unit)
         if written != check.magnitude_unit:
             raise ConfigError(
                 f"calibration.tau_tolerance.{check.check_id} is in {written}, the check reports "
