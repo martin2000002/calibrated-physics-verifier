@@ -108,7 +108,7 @@ def make_iteration(directory: Path, *, steps: int = 5) -> Path:
 class DevBSandbox(Sandbox):
     def __init__(self, root: Path) -> None:
         super().__init__(root.resolve(), SCRIPT_NAMES, TOOLS)
-        self.iteration = make_iteration(self.root / "iterations" / "it3-final-v2-cpu")
+        self.iteration = make_iteration(self.root / "iterations" / "final-cpu")
         self.out = self.iteration / "dev-b"
         self.clips = self.root / "fresh_clips.txt"
         self.clips.write_text("\n".join(FRESH_CLIPS) + "\n", encoding="utf-8")

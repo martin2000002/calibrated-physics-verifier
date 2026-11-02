@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# The B reading of a perception iteration on the development sets of calibration.development_sets
-# (ADR 0024 tier B), with the committed configuration only. Development sets are read as calib by
-# the calib-only commands and are not sealed looks, so nothing here unseals or relabels anything.
+# The B reading of a perception iteration on the development sets of calibration.development_sets,
+# with the committed configuration only. Development sets are read as calib by the calib-only
+# commands and are not sealed looks, so nothing here unseals or relabels anything.
 #
 #   bash scripts/h200/run_dev_b.sh [FROM [TO]]   steps FROM..TO (default 1..6); FROM resumes
 #
