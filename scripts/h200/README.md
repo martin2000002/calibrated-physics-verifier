@@ -25,6 +25,7 @@ use and what each script leaves behind.
 | `smoke_finetune.sh`, `run_preference.sh`, `run_finetune.sh` | Preference pairs and Flow-DPO fine-tuning |
 | `run_kubric.sh` | Kubric synthetic dataset (Docker or udocker) |
 | `run_perception_iteration.sh`, `perception_arms.tsv` | One iteration of the perception campaign on the calib clips |
+| `run_dev_b.sh` | The B reading of an iteration on the declared development sets |
 | `run_freeze.sh`, `freeze_query.py` | The freeze: adopted iteration, exclusion record, abstention level, `freeze.json` |
 | `run_final.sh` | The sealed final looks |
 | `run_human_agreement.sh`, `agreement_query.py` | Human-agreement study on VideoPhy |
@@ -232,6 +233,24 @@ its error-profile entries (a separate profile name would not: the name is part o
 `doctor` must list each swap among its sources, `state.env` records `CHAIN_ARM` (a resume with
 another arm exits 2) and the summary names the arm and the GPU. Give each arm its own
 `PHYSVERIFY_ITERATION_ID` containing the arm name (`it<n>-<arm>`), and run arms one at a time.
+
+### B reading on the development sets
+
+```sh
+PHYSVERIFY_DEV_B_ITERATION_DIR=<iteration directory> PHYSVERIFY_DEV_B_EXPECT_COMMIT=<head> \
+    PHYSVERIFY_DEV_B_CACHE_DIR=<cache root> PHYSVERIFY_DEV_B_CLIPS_FILE=<fresh clip ids> \
+    PHYSVERIFY_DEV_B_DRY_RUN=1 bash scripts/h200/run_dev_b.sh
+```
+
+`run_dev_b.sh [FROM [TO]]` reads a completed iteration on the two sets of
+`calibration.development_sets`, which the calib-only commands read as calib and the sealed guard
+does not count as looks: on `kubric_fresh` (the listed clips) the error profile, relift,
+`stage-sigma` and `dev-score --level both`, under `<dir>/fresh/`; on `kubric_synthetic` at its
+development version (`--set dataset.version`, the iteration's error profile) `extract run` and
+`calibrate evaluate --score-all-clips --no-real` with the iteration's `calibration.json`, under
+`<dir>/hdri/`. It runs on the iteration's device and profile, with no `PHYSVERIFY_UNSEAL` and no
+variable outside its own; `PHYSVERIFY_DEV_B_DRY_RUN=1` runs the startup checks and `doctor` and
+prints the commands without running them. The output defaults to `<iteration>/dev-b/`.
 
 ### Sealed sets
 
