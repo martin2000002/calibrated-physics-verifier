@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import ClassVar, Literal
 
@@ -140,15 +141,17 @@ class NoiseContinuityCheck:
         if noise is None:
             reason = AbstainReason.TOO_FEW_FRAMES
             return abstain(type(self), inputs, (object_id,), reason, None, details)
-        per_row = noise_jumps(states.position[:, index], noise.sigma, exclude)
+        stencil, extra = self._stencil_sigma(inputs, index, exclude, noise)
+        per_row = noise_jumps(states.position[:, index], stencil, exclude)
         k = first_max(per_row)
-        raw = jump_over_noise(states.position[:, index], noise.sigma, exclude)
+        raw = jump_over_noise(states.position[:, index], stencil, exclude)
         stencils = stencils_in(states.n_frames)
         magnitude = reference_max(raw, stencils, self.params.reference_stencils)
         sigma = 0.0 if noise.source == "exact" else 1.0
         span = native_span(states.frame_index, k - 1, k + 2)
         details |= {"row": k, "stencils": stencils, "raw_jump_over_noise": raw}
         details |= self._physical(inputs, index, k, noise)
+        details |= extra
         return unscored(type(self), inputs, (object_id,), magnitude, sigma, span, details)
 
     def _excluded(self, inputs: CheckInputs, contacts: ContactTable, index: int) -> BoolArray:
@@ -160,6 +163,13 @@ class NoiseContinuityCheck:
     ) -> FloatArray:
         """Per-axis floor of sigma-hat: one pixel at the object's median depth on every axis."""
         return np.full(3, pixel)
+
+    def _stencil_sigma(
+        self, inputs: CheckInputs, index: int, excluded: BoolArray, noise: TrackNoise
+    ) -> tuple[FloatArray, Mapping[str, object]]:
+        """Noise of each third-difference stencil, shape (3,) or (T - 3, 3), and its details:
+        sigma-hat per axis, the same on every stencil."""
+        return noise.sigma, {}
 
     @staticmethod
     def _physical(

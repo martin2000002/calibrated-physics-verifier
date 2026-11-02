@@ -30,6 +30,7 @@ from physverify.physics.measures.object_integrity import (
 )
 from physverify.physics.measures.penetration import penetration_ratio
 from physverify.physics.measures.support_overhang import overhang_fraction
+from physverify.physics.measures.track_jump import jump_over_noise, noise_jumps
 from physverify.schema.constants import STANDARD_GRAVITY
 
 DOWN = np.array([0.0, 0.0, -1.0])
@@ -209,3 +210,56 @@ def test_second_difference_sigma_coverage() -> None:
 
 def test_second_difference_sigma_is_calibrated_on_many_replicas() -> None:
     assert abs(_second_difference_coverage(seed=2, replicas=100_000) - 0.6827) <= 0.01
+
+
+def _noisy_step() -> tuple[np.ndarray, np.ndarray]:
+    rng = np.random.default_rng(20261102)
+    positions = rng.normal(0.0, 0.01, (24, 3))
+    positions[12:, 1] += 0.08
+    return positions, np.array([0.011, 0.009, 0.03])
+
+
+def test_noise_jumps_with_one_sigma_per_axis_keeps_its_bits() -> None:
+    positions, sigma = _noisy_step()
+    assert jump_over_noise(positions, sigma).hex() == "0x1.1e0a22ff68ea5p+2"
+    assert float(np.nansum(noise_jumps(positions, sigma))).hex() == "0x1.02017cc05c34cp+5"
+
+
+def test_a_constant_sigma_per_stencil_gives_the_same_bits() -> None:
+    positions, sigma = _noisy_step()
+    per_stencil = np.tile(sigma, (positions.shape[0] - 3, 1))
+    expected = noise_jumps(positions, sigma)
+    assert np.array_equal(noise_jumps(positions, per_stencil), expected, equal_nan=True)
+    assert jump_over_noise(positions, per_stencil) == jump_over_noise(positions, sigma)
+
+
+def test_a_larger_sigma_on_one_stencil_lowers_only_its_row() -> None:
+    positions, sigma = _noisy_step()
+    per_stencil = np.tile(sigma, (positions.shape[0] - 3, 1))
+    per_stencil[7] *= 2.0
+    before, after = noise_jumps(positions, sigma), noise_jumps(positions, per_stencil)
+    changed = np.flatnonzero(np.isfinite(before) & (before != after))
+    assert changed.tolist() == [8]
+    assert after[8] == pytest.approx(before[8] / 2.0, rel=1e-12)
+    assert np.array_equal(np.isnan(before), np.isnan(after))
+
+
+@pytest.mark.parametrize("shape", [(2,), (1, 3), (20, 3), (21, 2), (21, 3, 1)])
+def test_a_sigma_of_another_shape_is_an_error(shape: tuple[int, ...]) -> None:
+    positions, _ = _noisy_step()
+    with pytest.raises(ValueError, match="sigma_hat"):
+        noise_jumps(positions, np.ones(shape))
+
+
+@pytest.mark.parametrize("per_stencil", [False, True])
+def test_excluded_rows_stay_out_with_either_sigma_shape(per_stencil: bool) -> None:
+    positions, sigma = _noisy_step()
+    sigma_in = np.tile(sigma, (positions.shape[0] - 3, 1)) if per_stencil else sigma
+    exclude = np.zeros(positions.shape[0], dtype=bool)
+    exclude[9:14] = True
+    values = noise_jumps(positions, sigma_in, exclude)
+    assert np.isnan(values[9:14]).all()
+    kept = noise_jumps(positions, sigma_in)
+    finite = np.isfinite(values)
+    assert np.array_equal(values[finite], kept[finite])
+    assert jump_over_noise(positions, sigma_in, exclude) == pytest.approx(np.max(values[finite]))
