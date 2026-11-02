@@ -1,11 +1,15 @@
 {
   "check_variants": {
     "R4_jump/rigid2": {
-      "digest": "0e88f16e430145504c20bc9ad385340043cbc2fb9d6a841c38262ffc7dcf9999",
+      "digest": "5429d7e742b07886ce4990012459f5d66b66c2e2ae2ed99d18cf079f96cd1f7b",
       "version": "1"
     },
     "R4_jump/rigid2_dfloor": {
-      "digest": "678017c2fdd76b371cdc4e1adc19a71eb051e43ef39d74c31b56f474ab6861bd",
+      "digest": "74dd68751834a5d8e054f98f9cddca2a8cb9331d591bff7a8043a61132f6f265",
+      "version": "1"
+    },
+    "R4_jump/rigid2_dfloor_timing": {
+      "digest": "3135b5f91be751c8857c0d6f2d841284e0421e1cf4f52cdd41f7191f5b55c668",
       "version": "1"
     },
     "R4_size/v3": {
@@ -35,7 +39,7 @@
       "version": "1"
     },
     "R4_jump": {
-      "digest": "43a060c172d2ecb3580bfcb2516d73023bc9a322bbee530d3da8d497fd89cca1",
+      "digest": "65e29f719a8460e46d7e7cd9fa8d87fd6131fd3fe2fcc2cc3d3a453431a2d1d8",
       "version": "1"
     },
     "R4_missing": {
