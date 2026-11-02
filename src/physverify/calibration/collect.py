@@ -14,7 +14,10 @@ from physverify.calibration.fit import LevelData
 from physverify.calibration.settings import CalibrationConfig
 from physverify.calibration.sigma_recalibration import SigmaPair
 from physverify.calibration.table import CalibrationDataError, build_rows
+from physverify.config.models import is_cuda_device
+from physverify.core.errors import UsageError
 from physverify.diagnosis.pairing import pair_results
+from physverify.runtime.runs import run_record
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
 from physverify.schema.clip import ClipManifest, Split
 from physverify.schema.io import read_jsonl
@@ -22,10 +25,12 @@ from physverify.schema.matching import IdMap
 from physverify.synth.scene_scope import scene_of
 from physverify.verification.runner import (
     CHECKS_FILE,
+    CHECKS_HASH_FILE,
     TABLE_FILE,
     RowStatus,
     TableRow,
     VerificationReport,
+    run_checks_hash,
 )
 from physverify.verification.sweep import CheckIdentity
 
@@ -118,6 +123,24 @@ def read_run(run_dir: Path, clips: Sequence[ClipManifest]) -> VerificationReport
         raise CalibrationDataError(f"{run_dir}: clips not in the dataset: {missing[:5]}")
     seen = tuple(by_id[c] for c in dict.fromkeys(row.clip_id for row in table))
     return VerificationReport(results=results, table=table, clips=seen)
+
+
+def require_same_checks(run_dir: Path, checks_hash: str, device: str) -> None:
+    """A ``--from-run`` run was verified with the session's checks and on its kind of device:
+    rows of another check variant, or of cuda perception against a cpu session, never mix."""
+    recorded = run_checks_hash(run_dir)
+    if recorded != checks_hash:
+        found = recorded or f"no {CHECKS_HASH_FILE}"
+        raise UsageError(
+            f"--from-run {run_dir.name} was verified with checks_hash {found}, this session "
+            f"has {checks_hash}: rerun verify with the session's [check_variants]"
+        )
+    ran_on = str(run_record(run_dir).get("device", ""))
+    if is_cuda_device(ran_on) != is_cuda_device(device):
+        raise UsageError(
+            f"--from-run {run_dir.name} ran on {ran_on!r}, this session on {device!r}: "
+            "pass --device to match or rerun verify"
+        )
 
 
 def run_level_of(report: VerificationReport) -> InputLevel:

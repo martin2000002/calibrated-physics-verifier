@@ -14,7 +14,10 @@ import pytest
 from calibration_cases import DATASET, synthetic_report
 from cli_runner import CliRunner
 from cli_tree import command_modules
+from settings_factory import SettingsFactory
 from steps_sh import steps_read
+from verify_runs import write_verify_run
+from wiring import run_checks_hash
 
 from physverify.app import calibration as app_calibration
 from physverify.app import plugins
@@ -23,7 +26,7 @@ from physverify.config.models import Settings
 from physverify.datasets._base import GroundTruthStore, VideoSource
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import ClipManifest
-from physverify.verification.runner import write_report
+from physverify.verification.runner import CHECKS_HASH_FILE
 from physverify.verification.thresholding import CALIBRATED
 
 EXIT_USAGE = 2
@@ -65,9 +68,7 @@ def fixture_dataset(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.fixture
 def raw_run(settings: Settings) -> str:
-    folder = settings.paths.runs_dir / RUN_ID
-    folder.mkdir(parents=True)
-    write_report(folder, REPORT)
+    write_verify_run(settings, RUN_ID, REPORT)
     return RUN_ID
 
 
@@ -178,9 +179,7 @@ def test_publish_rejects_a_stale_artifact_even_with_force(
 def test_two_runs_at_one_level_are_refused(
     cli: CliRunner, raw_run: str, settings: Settings
 ) -> None:
-    folder = settings.paths.runs_dir / "raw-oracle-b"
-    folder.mkdir(parents=True)
-    write_report(folder, REPORT)
+    write_verify_run(settings, "raw-oracle-b", REPORT)
     result = cli(
         "calibrate",
         "fit",
@@ -207,9 +206,7 @@ def test_a_policy_decided_run_is_refused(cli: CliRunner, settings: Settings) -> 
     from physverify.schema.checks import Verdict
 
     decided = replace(REPORT, results=(replace(REPORT.results[0], verdict=Verdict.PASS),))
-    folder = settings.paths.runs_dir / "decided"
-    folder.mkdir(parents=True)
-    write_report(folder, decided)
+    write_verify_run(settings, "decided", decided)
     result = cli("calibrate", "fit", "--dataset", DATASET, "--from-run", "decided")
     assert result.code != 0
     assert "--policy raw" in result.err + result.out
@@ -238,9 +235,7 @@ def family_run(monkeypatch: pytest.MonkeyPatch, settings: Settings) -> str:
     monkeypatch.setattr(sys.modules[__name__], "REPORT", FAMILY_REPORT)
     monkeypatch.setattr(app_calibration, "_raw_runner", lambda session: _ReportRunner())
     monkeypatch.setattr(app_calibration, "_input_source", lambda session, dataset, level: None)
-    folder = settings.paths.runs_dir / "family"
-    folder.mkdir(parents=True)
-    write_report(folder, FAMILY_REPORT)
+    write_verify_run(settings, "family", FAMILY_REPORT)
     return "family"
 
 
@@ -306,3 +301,39 @@ def test_evaluate_writes_only_its_run_and_repeats_the_artifacts_tau(
     fitted = json.loads(out.read_text(encoding="utf-8"))["strata"][0]["checks"]
     pooled = {m["check_id"]: m["monotonicity"] for m in data["strata"][0]["monotonicity"]}
     assert pooled and all(pooled[c] == fitted[c]["monotonicity"] for c in pooled)
+
+
+def test_an_oracle_run_of_another_check_variant_is_refused(
+    cli: CliRunner, make_settings: SettingsFactory, settings: Settings
+) -> None:
+    whitened = run_checks_hash(make_settings("check_variants.R5a=whitened"))
+    current = run_checks_hash(settings)
+    assert whitened != current
+    write_verify_run(settings, "whitened-oracle", REPORT, checks_hash=whitened)
+    result = cli(*FAST, "calibrate", "fit", "--dataset", DATASET, "--from-run", "whitened-oracle")
+    assert result.code == EXIT_USAGE
+    assert whitened in result.err and current in result.err
+
+
+def test_a_run_without_its_checks_hash_is_refused(cli: CliRunner, settings: Settings) -> None:
+    folder = write_verify_run(settings, "unstamped", REPORT)
+    (folder / CHECKS_HASH_FILE).unlink()
+    result = cli(*FAST, "calibrate", "fit", "--dataset", DATASET, "--from-run", "unstamped")
+    assert result.code == EXIT_USAGE and f"no {CHECKS_HASH_FILE}" in result.err
+
+
+def test_arms_that_differ_only_in_extraction_share_their_oracle(
+    cli: CliRunner, make_settings: SettingsFactory, raw_run: str, tmp_path: Path
+) -> None:
+    arm = "extraction.plan.depth=vda_large"
+    assert run_checks_hash(make_settings(arm)) == run_checks_hash(make_settings())
+    out = tmp_path / "arm.json"
+    result = cli(*FAST, "--set", arm, "calibrate", "fit", "--dataset", DATASET,
+                 "--from-run", raw_run, "--out", str(out))  # fmt: skip
+    assert result.code == 0, result.err
+
+
+def test_a_cuda_run_is_refused_by_a_cpu_session(cli: CliRunner, settings: Settings) -> None:
+    write_verify_run(settings, "cuda-oracle", REPORT, device="cuda:1")
+    result = cli(*FAST, "calibrate", "fit", "--dataset", DATASET, "--from-run", "cuda-oracle")
+    assert result.code == EXIT_USAGE and "'cuda:1'" in result.err and "'cpu'" in result.err

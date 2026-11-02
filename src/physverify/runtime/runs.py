@@ -13,6 +13,7 @@ from typing import Any, Final
 
 from physverify.config.models import Settings
 from physverify.core.atomic import write_text_atomic
+from physverify.core.errors import UsageError
 from physverify.schema.io import json_ready
 
 RUN_FILE: Final = "run.json"
@@ -93,6 +94,15 @@ def new_run(settings: Settings, argv: Sequence[str], now: dt.datetime | None = N
         commit=current_commit(settings.repo_root),
         now=now if now is not None else dt.datetime.now(dt.UTC),
     )
+
+
+def run_record(run_dir: Path) -> dict[str, Any]:
+    """The ``run.json`` of ``run_dir``; a directory without one is not a run."""
+    path = run_dir / RUN_FILE
+    if not path.is_file():
+        raise UsageError(f"{run_dir} is not a run: no {RUN_FILE}")
+    record: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
+    return record
 
 
 def write_json(path: Path, payload: Any) -> None:

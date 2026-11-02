@@ -17,6 +17,7 @@ import pytest
 from calibration_cases import DATASET, fitted_artifact, synthetic_report
 from cli_runner import CliResult, CliRunner
 from cli_tree import cli_leaves, command_modules
+from verify_runs import write_verify_run
 
 from physverify.app import calibration as app_calibration
 from physverify.app import diagnosis as app_diagnosis
@@ -30,7 +31,7 @@ from physverify.datasets._base import GroundTruthStore, VideoSource
 from physverify.diagnosis import scene_stats
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import ClipManifest, Split
-from physverify.verification.runner import ConfiguredSuite, VerificationReport, write_report
+from physverify.verification.runner import ConfiguredSuite, VerificationReport
 
 EXIT_USAGE = 2
 REACHED = 9
@@ -625,9 +626,7 @@ def test_fit_from_a_perceived_run_guards_before_the_oracle_runs(
     perceived = synthetic_report(
         20, seed=7, split=Split.EVAL, prefix="e", level=InputLevel.PERCEIVED
     )
-    folder = settings.paths.runs_dir / "perceived"
-    folder.mkdir(parents=True)
-    write_report(folder, perceived)
+    write_verify_run(settings, "perceived", perceived)
     stop = sentinel(ledger, reached)
     monkeypatch.setattr(app_calibration, "_raw_runner", lambda session: _SentinelRunner(stop))
     refused = cli(*SEAL, "calibrate", "fit", "--dataset", DATASET, "--from-run", "perceived")

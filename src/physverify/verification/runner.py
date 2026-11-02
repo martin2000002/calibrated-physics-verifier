@@ -46,6 +46,12 @@ UNKNOWN_ROW_STEP = 0
 """``row_step`` of a clip whose table has no valid time axis."""
 
 
+def run_checks_hash(run_dir: Path) -> str:
+    """The ``checks_hash`` a ``verify`` run recorded; empty when it records none (an older run)."""
+    path = run_dir / CHECKS_HASH_FILE
+    return path.read_text(encoding="utf-8").strip() if path.is_file() else ""
+
+
 class VerificationSettings(FrozenModel):
     policy: str = "threshold"
     thresholds: dict[str, float] = Field(default_factory=dict)

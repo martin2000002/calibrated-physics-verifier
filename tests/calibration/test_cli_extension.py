@@ -14,6 +14,7 @@ from typing import Any, ClassVar
 import pytest
 from calibration_cases import CHECKS, DATASET, extension_report, merged, missing, synthetic_report
 from cli_runner import CliRunner
+from verify_runs import write_verify_run
 
 from physverify.app import calibration as app_calibration
 from physverify.app import plugins
@@ -21,7 +22,7 @@ from physverify.config.models import Settings
 from physverify.datasets._base import GroundTruthStore, ScopedSubset, VideoSource
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import ClipManifest
-from physverify.verification.runner import VerificationReport, write_report
+from physverify.verification.runner import VerificationReport
 
 BASE = synthetic_report(24)
 EXTRA = extension_report()
@@ -145,9 +146,7 @@ def test_explicit_clips_take_no_extension(
 
 
 def fit_from(cli: CliRunner, settings: Settings, report: VerificationReport, out: Path) -> Any:
-    folder = settings.paths.runs_dir / out.stem
-    folder.mkdir(parents=True)
-    write_report(folder, report)
+    write_verify_run(settings, out.stem, report)
     result = cli(*FAST, "calibrate", "fit", "--dataset", DATASET, "--from-run", out.stem,
                  "--out", str(out))  # fmt: skip
     assert result.code == 0, result.err

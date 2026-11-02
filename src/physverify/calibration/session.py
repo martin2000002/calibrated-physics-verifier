@@ -21,6 +21,7 @@ from physverify.calibration.collect import (
     SubjectLookup,
     level_data,
     read_run,
+    require_same_checks,
     run_level_of,
     sigma_pairs,
 )
@@ -143,6 +144,7 @@ def run_reports(session: Session, dataset: DatasetSource, run_ids: Sequence[str]
     reports = {}
     seen: dict[InputLevel, str] = {}
     for run_id in run_ids:
+        require_same_checks(runs_dir / run_id, session.checks_hash(), session.run.device)
         report = read_run(runs_dir / run_id, every)
         level = run_level_of(report)
         if level in seen:

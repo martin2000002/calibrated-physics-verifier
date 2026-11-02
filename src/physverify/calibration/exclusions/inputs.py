@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -31,7 +30,7 @@ from physverify.calibration.table import (
 )
 from physverify.core.digests import text_sha256
 from physverify.core.errors import UsageError
-from physverify.runtime.runs import RUN_FILE
+from physverify.runtime.runs import run_record
 from physverify.schema.clip import ClipManifest
 from physverify.schema.io import stable_hash
 from physverify.schema.stages import Stage
@@ -46,10 +45,10 @@ from physverify.verification.exclusion_record import (
 )
 from physverify.verification.runner import (
     CHECKS_FILE,
-    CHECKS_HASH_FILE,
     TABLE_FILE,
     UNKNOWN_ROW_STEP,
     VerificationReport,
+    run_checks_hash,
 )
 from physverify.verification.sweep import CheckUnit, perturbation_name
 
@@ -186,14 +185,12 @@ class RunMeta:
 
 def run_meta(run_dir: Path) -> RunMeta:
     """``run.json`` plus the ``checks_hash`` that ``verify`` writes (empty: an older run)."""
-    path = run_dir / RUN_FILE
-    if not path.is_file():
-        raise UsageError(f"{run_dir} is not a run: no {RUN_FILE}")
-    record = json.loads(path.read_text(encoding="utf-8"))
-    hashed = run_dir / CHECKS_HASH_FILE
-    checks = hashed.read_text(encoding="utf-8").strip() if hashed.is_file() else ""
+    record = run_record(run_dir)
     return RunMeta(
-        run_dir.name, str(record.get("profile", "")), str(record.get("commit", "")), checks
+        run_dir.name,
+        str(record.get("profile", "")),
+        str(record.get("commit", "")),
+        run_checks_hash(run_dir),
     )
 
 
