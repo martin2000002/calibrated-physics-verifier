@@ -1,7 +1,7 @@
 """R5b v1 results (commit 4671f02) on analytic scenes, written once into
-``golden/r5b_v1.json``: the registered ``GravityValueCheck`` must keep reproducing them exactly
-after its flight search was made a method that its variants override. To regenerate the golden
-from the old tree:
+``golden/r5b_v1.json``: the registered ``GravityValueCheck`` must keep reproducing them (floats
+within ``golden.same``'s tolerance) after its flight search was made a method that its variants
+override. To regenerate the golden from the old tree:
 
     git archive 4671f02 src | tar -x -C OLD
     PYTHONPATH=OLD/src:tests/checks python tests/checks/r5b_v1_golden_case.py
