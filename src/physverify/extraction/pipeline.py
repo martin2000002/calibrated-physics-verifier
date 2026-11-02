@@ -262,8 +262,11 @@ class ExtractionPipeline:
             progress.keys[(cell.clip.clip_id, step.stage)] = cell.keys[step.stage]
             self._notify_end(event)
             alive.append(cell)
-        del instance
-        gc.collect()
+        if instance is not None:
+            # Frees a model before the next stage loads its own; a stage served wholly from the
+            # cache built nothing, and a full collection costs more as the heap grows.
+            del instance
+            gc.collect()
         return alive
 
     def _instantiate(self, step: StagePlan) -> StageProvider:
