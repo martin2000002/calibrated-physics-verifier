@@ -7,6 +7,7 @@ from typing import Any, Final
 
 from physverify.core.models import FrozenModel
 from physverify.human_agreement.comparison_items import JoinCounts
+from physverify.human_agreement.complementarity import Complementarity
 from physverify.human_agreement.coverage import InputGaps
 from physverify.human_agreement.prereg import FreezeAudit
 from physverify.schema.io import json_ready
@@ -86,6 +87,8 @@ class ComparisonMetrics(FrozenModel):
     sensitivity_time_dependent: Sensitivity
     risk_coverage_vlm: dict[str, list[dict[str, float]]]
     h2_verdict: PrimaryVerdict
+    complementarity: Complementarity | None = None
+    """The VLM, the verifier and their OR-combination on the aggregate paired items."""
 
     @property
     def primary(self) -> ViewBlock:

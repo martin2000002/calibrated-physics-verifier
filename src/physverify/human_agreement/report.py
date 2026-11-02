@@ -13,6 +13,13 @@ from physverify.core.markdown import number, table
 from physverify.human_agreement.breakdown import AGGREGATE
 from physverify.human_agreement.comparison import Comparison
 from physverify.human_agreement.comparison_items import ComparisonItem
+from physverify.human_agreement.complementarity import (
+    DECIDED_SYSTEMS,
+    DETECTION,
+    SHARES,
+    SYSTEMS,
+    Complementarity,
+)
 from physverify.human_agreement.coverage import NO_VIDEO, InputGaps
 from physverify.human_agreement.error_sample import CATEGORIES
 from physverify.human_agreement.metrics import (
@@ -351,6 +358,34 @@ def _header_lines(metrics: ComparisonMetrics) -> list[str]:
     ]
 
 
+def _complementarity_lines(block: Complementarity | None) -> list[str]:
+    if block is None:
+        return []
+
+    def cell(key: str) -> str:
+        low, high = block.intervals.get(key, (None, None))
+        return f"{_fmt(block.point[key])} [{_fmt(low)}, {_fmt(high)}]"
+
+    flagged = [[s, _fmt(block.counts[f"flagged.{s}"])] for s in SYSTEMS]
+    rows = [[*row, *(cell(f"{row[0]}.{k}") for k in DETECTION)] for row in flagged]
+    shares = ", ".join(f"{name} {cell(f'share.{name}')}" for name in SHARES)
+    decided = ", ".join(f"{k} {cell(f'decided.{k}.precision')}" for k in DECIDED_SYSTEMS)
+    nan = {k: v for k, v in block.non_finite.items() if v} or "none"
+    return [
+        "## Complementarity of the VLM and the verifier (`either` = VLM or verifier flags)",
+        "",
+        *table(["system", "flagged", *DETECTION], rows),
+        "",
+        f"Human implausible {block.counts['human_implausible']}/{block.counts['n']}: {shares}.",
+        (
+            f"Decided by the verifier {cell('decided.fraction')}; precision on them: {decided}; "
+            f"policies {block.flag_policy}, {block.decided_policy}; caption bootstrap "
+            f"{block.replicas} replicas, NaN replicas {nan}."
+        ),
+        "",
+    ]
+
+
 def summary(metrics: ComparisonMetrics) -> str:
     lines = _header_lines(metrics)
     for group, policies in metrics.groups.items():
@@ -358,6 +393,7 @@ def summary(metrics: ComparisonMetrics) -> str:
     lines += _breakdown_lines("Per check", PER_CHECK_COLUMNS, metrics.per_check)
     lines += _breakdown_lines("Per generator", PER_GENERATOR_COLUMNS, metrics.per_generator)
     lines += _sensitivity_lines(metrics.sensitivity_time_dependent)
+    lines += _complementarity_lines(metrics.complementarity)
     lines += ["Honesty notes:", "", *(f"- {note}" for note in HONESTY)]
     lines += ["", f"errors.csv categories (filled by hand): {', '.join(CATEGORIES)}.", ""]
     return "\n".join(lines)
