@@ -48,6 +48,8 @@ printf 'pv %s\n' "$*" >> "$CALLS"
 printf 'env %s|%s|%s|%s|%s\n' "${CUDA_VISIBLE_DEVICES-unset}" "$PHYSVERIFY__PATHS__CACHE_DIR" \
     "$CAL" "$PHYSVERIFY__PATHS__RUNS_DIR" "$PHYSVERIFY__RUNTIME__HEAVY_LOCK" >> "$CALLS"
 printf 'workers %s\n' "$PHYSVERIFY__RUNTIME__WORKERS" >> "$CALLS"
+printf 'threads %s|%s|%s|%s\n' "${OMP_NUM_THREADS-unset}" "${MKL_NUM_THREADS-unset}" \
+    "${OPENBLAS_NUM_THREADS-unset}" "${DD_INSTRUMENT_SERVICE_WITH_APM-unset}" >> "$CALLS"
 new_run() {
     local n
     n=$(( $(cat "$PHYSVERIFY__PATHS__RUNS_DIR/counter" 2>/dev/null || echo 0) + 1 ))
@@ -463,6 +465,17 @@ def test_the_worker_count_reaches_every_call(sandbox: IterationSandbox) -> None:
     assert other.run(PHYSVERIFY_ITERATION_WORKERS="64").returncode == 0
     assert {x for x in other.lines() if x.startswith("workers ")} == {"workers 64"}
     assert "workers 64" in (other.out / "summary.md").read_text(encoding="utf-8")
+
+
+def test_several_workers_fork_from_a_one_thread_parent(sandbox: IterationSandbox) -> None:
+    """Above one worker every call sees BLAS at one thread and the APM injection off; with one
+    worker (no fork) the environment is left as it was."""
+    assert sandbox.run(OPENBLAS_NUM_THREADS="8").returncode == 0
+    unchanged = {"threads unset|unset|8|unset"}
+    assert {x for x in sandbox.lines() if x.startswith("threads ")} == unchanged
+    other = IterationSandbox(sandbox.root / "second")
+    assert other.run(PHYSVERIFY_ITERATION_WORKERS="5", OPENBLAS_NUM_THREADS="8").returncode == 0
+    assert {x for x in other.lines() if x.startswith("threads ")} == {"threads 1|1|1|false"}
 
 
 def test_cache_only_cuda_steps_run_with_no_gpu_visible(sandbox: IterationSandbox) -> None:

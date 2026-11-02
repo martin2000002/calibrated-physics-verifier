@@ -52,7 +52,9 @@
 #   PHYSVERIFY_ITERATION_PYTHON          interpreter [/home/mmonterot/dev/venv/bin/python]
 #   PHYSVERIFY_ITERATION_THREADS         runtime.threads [16: at most 16 while a calibration chain runs]
 #   PHYSVERIFY_ITERATION_WORKERS         runtime.workers, processes over clips in steps 2, 4, 5 [1];
-#                                        at most 64. Outputs do not depend on it
+#                                        at most 64. Outputs do not depend on it. Above 1, numpy's
+#                                        BLAS runs one thread per process (OMP/MKL/OPENBLAS_NUM_THREADS=1)
+#                                        and the APM injection is off, so the forking parent has one thread
 #   PHYSVERIFY_ITERATION_DATA            paths.data_dir, the synthetic dataset read only
 #                                        [$H200_ROOT/kubric-data]
 #   PHYSVERIFY_ITERATION_DIR             output [$H200_ROOT/iterations/$PHYSVERIFY_ITERATION_ID-<device>]
@@ -159,6 +161,12 @@ export PHYSVERIFY__PATHS__CALIBRATION_DIR="$OUT/calibration"
 export PHYSVERIFY__PATHS__RUNS_DIR="$OUT/runs"
 export PHYSVERIFY__RUNTIME__HEAVY_LOCK="$OUT/heavy.lock"
 export PHYSVERIFY__RUNTIME__WORKERS="$WORKERS"
+if [[ "$WORKERS" -gt 1 ]]; then
+    # The workers are forked: leave the parent with one thread (no BLAS pool, no APM agent threads)
+    # so no lock held by another thread is copied into them, and keep workers x threads in bounds.
+    export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
+    export DD_INSTRUMENT_SERVICE_WITH_APM=false
+fi
 unset PHYSVERIFY_LOCK_HELD
 
 LOGS="$OUT/logs"
