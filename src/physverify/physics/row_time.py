@@ -11,9 +11,12 @@ from numpy.typing import NDArray
 
 from physverify.physics.tracks import row_step
 
-# The frame rate the row-count windows were tuned at (Kubric); a window of n rows there is
-# ``reference_seconds(n)``, so 24-fps tables keep their former row counts.
+# The Kubric calibration clip (`fps` and `n_frames` of configs/datasets/kubric_synthetic.toml,
+# tied by tests/contracts/test_reference_clip.py) the row-count windows and R4_jump's stencil
+# reference were tuned on; a window of n rows there is ``reference_seconds(n)``, so 24-fps tables
+# keep their former row counts.
 REFERENCE_FPS: Final = 24
+REFERENCE_ROWS: Final = 24
 
 
 def reference_seconds(rows: int) -> float:

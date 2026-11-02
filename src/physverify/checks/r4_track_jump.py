@@ -16,6 +16,7 @@ from physverify.checks._peaks import first_max
 from physverify.physics.geometry import characteristic_length
 from physverify.physics.measures.object_integrity import jump_ratio
 from physverify.physics.measures.track_jump import jump_over_noise, noise_jumps
+from physverify.physics.row_time import REFERENCE_ROWS
 from physverify.physics.stencil_tail import reference_max, stencils_in
 from physverify.physics.tracks import (
     MIN_NOISE_STENCILS,
@@ -33,9 +34,9 @@ from physverify.schema.contacts import ContactTable
 FloatArray = NDArray[np.float64]
 BoolArray = NDArray[np.bool_]
 NoiseSource = Literal["exact", "track", "declared"]
-REFERENCE_STENCILS = stencils_in(24)
-"""The stencils of a 24-row Kubric calibration clip, the length the a-priori threshold (a
-Bonferroni over about 20 stencils) and the calibrated tau were set on."""
+REFERENCE_STENCILS = stencils_in(REFERENCE_ROWS)
+"""The stencils of a Kubric calibration clip, the length the a-priori threshold (a Bonferroni
+over about 20 stencils) and the calibrated tau were set on."""
 
 
 class NoiseJumpParams(CommonParams):
