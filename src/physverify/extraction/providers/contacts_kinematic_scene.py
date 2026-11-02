@@ -47,7 +47,12 @@ from physverify.extraction.providers._scene_records import (
 from physverify.extraction.providers._velocity_tests import VelocityError
 from physverify.physics.row_time import reference_seconds
 from physverify.schema.contacts import ContactTable
-from physverify.schema.error_profile import CENTROID_REL, SIZE_REL, SUPPORT_GAP_REL, VEL_REL
+from physverify.schema.error_profile import (
+    CENTROID_REL,
+    SIZE_REL,
+    SUPPORT_GAP_REL,
+    VEL_REL_FLIGHT,
+)
 from physverify.schema.perception import CameraModel
 from physverify.schema.stages import Stage
 from physverify.schema.states import ObjectStateTable
@@ -78,7 +83,7 @@ def pair_params(params: Params) -> ProximityParams:
 class KinematicSceneContacts:
     stage: ClassVar[Stage] = Stage.CONTACTS
     name: ClassVar[str] = "kinematic_scene"
-    version: ClassVar[str] = "4"
+    version: ClassVar[str] = "5"
     requires: ClassVar[tuple[Stage, ...]] = (Stage.TRACK, Stage.CAMERA, Stage.KINEMATICS)
     heavy: ClassVar[bool] = False
     is_ground_truth: ClassVar[bool] = False
@@ -92,7 +97,7 @@ class KinematicSceneContacts:
     def run(self, ctx: StageContext) -> ContactTable:
         states = ctx.require(Stage.KINEMATICS, ObjectStateTable)
         camera = ctx.require(Stage.CAMERA, CameraModel)
-        velocity = VelocityError.of(ctx.error_entry(Stage.KINEMATICS, VEL_REL))
+        velocity = VelocityError.of(ctx.error_entry(Stage.KINEMATICS, VEL_REL_FLIGHT))
         heights = HeightError.of(
             ctx.error_entry(Stage.LIFT, CENTROID_REL), ctx.error_entry(Stage.LIFT, SIZE_REL)
         )

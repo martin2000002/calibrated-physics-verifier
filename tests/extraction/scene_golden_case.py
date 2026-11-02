@@ -35,6 +35,7 @@ ENTRIES = (
     entry(Stage.LIFT, "backproject", "size_rel", 0.0782, bias=0.0056),
     entry(Stage.LIFT, "backproject", "support_gap_rel", 0.1),
     entry(Stage.KINEMATICS, "savgol", "vel_rel", 0.3157, bias=-0.0022),
+    entry(Stage.KINEMATICS, "savgol", "vel_rel_flight", 0.3157, bias=-0.0022),
 )
 V3_EQUIVALENT = {"impacts": "velocity", "pair_rest": "proximity"}
 V2_EQUIVALENT = {**V3_EQUIVALENT, "rest": "velocity", "env_gap_gate": True}

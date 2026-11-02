@@ -56,7 +56,7 @@ def test_an_unknown_entry_is_nan_and_the_provider_returns_an_empty_table() -> No
     case = cs.bounce_on_floor()
     entries = cases.measured_entries()
     assert cases.scene_table(case, entries).records
-    del entries[(Stage.KINEMATICS, "vel_rel")]
+    del entries[(Stage.KINEMATICS, "vel_rel_flight")]
     assert cases.scene_table(case, entries).records == ()
 
 
