@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import os
 import pickle
+import subprocess
+import sys
 
 import numpy as np
 import pytest
@@ -53,6 +55,18 @@ def test_one_and_three_workers_give_byte_identical_results() -> None:
 
     serial = [a.tobytes() for a in ordered_map(noisy, list(range(10)), 1)]
     assert [a.tobytes() for a in ordered_map(noisy, list(range(10)), 3)] == serial
+
+
+MANY_ITEMS = """
+from physverify.runtime.parallel import ordered_map
+assert ordered_map(abs, list(range(-10_000, 0)), 2) == list(range(10_000, 0, -1))
+"""
+
+
+def test_many_items_never_block_on_a_full_pipe() -> None:
+    """Thousands of indices overflow any pipe buffer if they are all queued before dispatch."""
+    done = subprocess.run([sys.executable, "-c", MANY_ITEMS], timeout=60, check=False)
+    assert done.returncode == 0
 
 
 def test_no_items_gives_no_results() -> None:
