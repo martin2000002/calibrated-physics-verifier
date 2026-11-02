@@ -182,11 +182,19 @@ def configured_suite(
 
 
 def guarded_thresholds(settings: Settings, checks: Mapping[str, type[Check]]) -> ThresholdTable:
-    """The threshold table every consumer of ``[verification]`` thresholds loads: a calibrated
-    table of other checks (``checks_hash``) or a tau in another unit than the check reports is a
-    ``ConfigError``."""
+    """The threshold table every consumer of ``[verification]`` thresholds loads, through
+    ``guard_table``."""
     verification = settings.section(VERIFICATION_SECTION, VerificationSettings)
-    thresholds = load_thresholds(settings.paths.thresholds, verification.thresholds)
+    table = load_thresholds(settings.paths.thresholds, verification.thresholds)
+    return guard_table(table, settings, checks)
+
+
+def guard_table(
+    thresholds: ThresholdTable, settings: Settings, checks: Mapping[str, type[Check]]
+) -> ThresholdTable:
+    """``thresholds`` when it may judge the configured checks: a calibrated table of other checks
+    (``checks_hash``) or a tau in another unit than the check reports is a ``ConfigError``."""
+    verification = settings.section(VERIFICATION_SECTION, VerificationSettings)
     units = {c.check_id: CheckUnit.of(c) for c in checks.values()}
     written = {
         check_id: verification.threshold_units.get(check_id, unit.written_unit)

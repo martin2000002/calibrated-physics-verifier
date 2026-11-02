@@ -51,3 +51,20 @@ def test_every_provisional_reader_refuses_a_tau_in_another_unit(
 ) -> None:
     with pytest.raises(ConfigError, match=MISMATCH):
         reader(make_settings(V1, profile="precise"), config_dir)
+
+
+@pytest.mark.parametrize("flag", ["oracle", "perceived"])
+def test_an_explicit_selective_risk_table_of_other_checks_is_refused(
+    config_dir: Path, tmp_path: Path, flag: str
+) -> None:
+    table = tmp_path / "foreign.json"
+    table.write_text(
+        '{"status": "calibrated", "source": "elsewhere", "checks_hash": "' + "0" * 64 + '",'
+        ' "checks": {"R1": {"tau": 0.7}}}',
+        encoding="utf-8",
+    )
+    options = GlobalOptions(config_dir=config_dir, profile="precise")
+    context = AppContext(Invocation(argv=("physverify",), environ={}), options)
+    tables = {"oracle": None, "perceived": None} | {flag: table}
+    with pytest.raises(ConfigError, match="calibrated with other check versions"):
+        _session(context, tables["oracle"], tables["perceived"], provisional=True)

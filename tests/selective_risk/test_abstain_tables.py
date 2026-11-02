@@ -24,6 +24,10 @@ FALLBACK = ThresholdTable.model_validate(
 )
 
 
+def unguarded(table: ThresholdTable) -> ThresholdTable:
+    return table
+
+
 def write_artifact(tmp_path: Path) -> Path:
     oracle = stratum_model({"R1": check_calibration(tau=0.1)}, level=InputLevel.ORACLE)
     perceived = stratum_model(
@@ -35,7 +39,7 @@ def write_artifact(tmp_path: Path) -> Path:
 
 
 def test_each_level_gets_its_own_stratum(tmp_path: Path) -> None:
-    tables = level_tables(write_artifact(tmp_path), PROFILE, FALLBACK, {})
+    tables = level_tables(write_artifact(tmp_path), PROFILE, FALLBACK, {}, guard=unguarded)
     oracle, perceived = tables[InputLevel.ORACLE], tables[InputLevel.PERCEIVED]
     assert oracle.checks["R1"].tau == pytest.approx(0.1)
     assert perceived.checks["R1"].tau == pytest.approx(0.3)
@@ -47,7 +51,7 @@ def test_each_level_gets_its_own_stratum(tmp_path: Path) -> None:
 
 def test_without_an_artifact_both_levels_use_the_fallback(tmp_path: Path) -> None:
     for artifact in (None, tmp_path / "absent.json"):
-        tables = level_tables(artifact, PROFILE, FALLBACK, {})
+        tables = level_tables(artifact, PROFILE, FALLBACK, {}, guard=unguarded)
         assert tables[InputLevel.ORACLE] == tables[InputLevel.PERCEIVED] == FALLBACK
 
 
@@ -57,11 +61,15 @@ def test_an_explicit_table_overrides_one_level(tmp_path: Path) -> None:
         '{"status": "calibrated", "source": "mine", "checks": {"R1": {"tau": 0.7}}}',
         encoding="utf-8",
     )
-    tables = level_tables(write_artifact(tmp_path), PROFILE, FALLBACK, {InputLevel.ORACLE: table})
+    tables = level_tables(
+        write_artifact(tmp_path), PROFILE, FALLBACK, {InputLevel.ORACLE: table}, guard=unguarded
+    )
     assert tables[InputLevel.ORACLE].checks["R1"].tau == pytest.approx(0.7)
     assert tables[InputLevel.PERCEIVED].checks["R1"].tau == pytest.approx(0.3)
     with pytest.raises(UsageError, match="no oracle threshold table"):
-        level_tables(None, PROFILE, FALLBACK, {InputLevel.ORACLE: tmp_path / "missing.json"})
+        level_tables(
+            None, PROFILE, FALLBACK, {InputLevel.ORACLE: tmp_path / "missing.json"}, guard=unguarded
+        )
 
 
 def test_strata_without_an_ok_check_are_refused_with_a_clear_error(tmp_path: Path) -> None:
@@ -73,7 +81,7 @@ def test_strata_without_an_ok_check_are_refused_with_a_clear_error(tmp_path: Pat
     )
     path = tmp_path / "calibration.json"
     path.write_text(artifact_of(strata).to_json(), encoding="utf-8")
-    tables = level_tables(path, PROFILE, FALLBACK, {})
+    tables = level_tables(path, PROFILE, FALLBACK, {}, guard=unguarded)
     assert tables[InputLevel.ORACLE].checks == {}
     with pytest.raises(
         MissingInputError, match=r"oracle threshold table .* has no tau for any check"

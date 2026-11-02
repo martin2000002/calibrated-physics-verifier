@@ -51,6 +51,7 @@ from physverify.verification.inputs import refuse_heavy
 from physverify.verification.runner import (
     VERIFICATION_SECTION,
     VerificationSettings,
+    guard_table,
     guarded_thresholds,
 )
 from physverify.verification.sweep import units_of
@@ -123,6 +124,7 @@ def _session(
         settings.profile,
         fallback,
         overrides,
+        guard=partial(guard_table, settings=settings, checks=registry),
         stale_hash=checks_hash(registry, settings.section(CHECKS_SECTION, ChecksSettings)),
     )
     for level, table in tables.items():
