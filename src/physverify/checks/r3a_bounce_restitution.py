@@ -65,6 +65,7 @@ class RestitutionCheck:
     """R3a [e_minus_1]: restitution e - 1 of each impact of a sphere with the environment."""
 
     check_id: ClassVar[str] = "R3a"
+    version: ClassVar[str] = "1"
     requires: ClassVar[frozenset[str]] = frozenset({"contacts"})
     time_dependent: ClassVar[bool] = False
     magnitude_unit: ClassVar[str] = "e_minus_1"

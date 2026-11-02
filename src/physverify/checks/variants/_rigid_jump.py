@@ -34,6 +34,7 @@ class RigidJumpCheck(NoiseContinuityCheck):
     left out of sigma-hat as well ("rigid" kept it there)."""
 
     variant: ClassVar[str] = "rigid2"
+    version: ClassVar[str] = "1"
     Params: ClassVar[type[BaseModel]] = RigidJumpParams
     params: RigidJumpParams
 

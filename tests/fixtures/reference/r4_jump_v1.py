@@ -39,6 +39,7 @@ class ContinuityCheck:
     contains it."""
 
     check_id: ClassVar[str] = "R4_jump"
+    version: ClassVar[str] = "1"
     requires: ClassVar[frozenset[str]] = frozenset({"contacts"})
     magnitude_unit: ClassVar[str] = "jump_over_size"
     time_dependent: ClassVar[bool] = True

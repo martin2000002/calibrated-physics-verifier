@@ -102,6 +102,7 @@ class NoiseContinuityCheck:
     sweep compares that estimate with the injected jump (``perturbation_estimate``)."""
 
     check_id: ClassVar[str] = "R4_jump"
+    version: ClassVar[str] = "1"
     requires: ClassVar[frozenset[str]] = frozenset({"contacts", "camera"})
     time_dependent: ClassVar[bool] = True
     magnitude_unit: ClassVar[str] = "jump_over_noise"

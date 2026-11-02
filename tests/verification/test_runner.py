@@ -5,7 +5,7 @@ from __future__ import annotations
 import csv
 import json
 import math
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
@@ -18,11 +18,12 @@ from physverify.app import plugins
 from physverify.app.plugins import PLUGIN_KINDS
 from physverify.checks._base import Check, CheckInputs, abstain, unscored
 from physverify.checks._params import CommonParams
+from physverify.config.models import Settings
 from physverify.core.errors import ConfigError
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
 from physverify.schema.clip import ClipManifest
-from physverify.schema.io import read_jsonl
-from physverify.verification.check_set import active_checks_hash
+from physverify.schema.io import read_jsonl, stable_hash
+from physverify.verification.check_set import CHECKS_SECTION, ChecksSettings, active_checks_hash
 from physverify.verification.inputs import ClipInputs
 from physverify.verification.policies.raw import RawPolicy
 from physverify.verification.policies.threshold import ThresholdPolicy
@@ -94,6 +95,9 @@ NINE = (
     make_check("F8", scored(("a", 0.5, math.nan))),
     make_check("F9", scored(("a", 0.1, 0.0), ("b", 0.9, 0.0))),
 )
+STALE_TABLE = "calibrated with other check versions, parameters or variants"
+FORMER_FAST_CHECKS_HASH = "891fd3580169fec8f8c70ca0b7d66b24973fd7348dbf1c98ac00be92aa41b2b8"
+"""The fast ``checks_hash`` pinned on f133fc8 (``tests/contracts/test_config_hashes.py``)."""
 THRESHOLDS = ThresholdTable.provisional(dict.fromkeys(("F1", "F5", "F7", "F8"), 1.0))
 
 
@@ -280,20 +284,57 @@ def test_a_calibrated_table_judges_only_the_checks_it_was_fitted_with(
     policies = PLUGIN_KINDS["policies"]()
     default = make_settings()
     fitted = None if recorded is None else make_settings(f"check_variants.R5a={recorded}")
-    table = ThresholdTable(
-        status="calibrated",
-        source="calibration.json#oracle/fast@run",
-        checks={},
-        checks_hash=None
+    write_table(
+        default,
+        None
         if fitted is None
         else active_checks_hash(fitted, plugins.configured("checks", fitted)),
     )
-    path = default.paths.thresholds
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(table.model_dump(mode="json")), encoding="utf-8")
     checks = plugins.configured("checks", default)
     if recorded == "default":
         assert configured_suite(default, checks, policies).thresholds.calibrated
         return
-    with pytest.raises(ConfigError, match="calibrated with other check parameters or variants"):
+    with pytest.raises(ConfigError, match=STALE_TABLE):
         configured_suite(default, checks, policies)
+
+
+def test_a_table_calibrated_before_check_versions_is_refused(
+    make_settings: SettingsFactory,
+) -> None:
+    """I24c (ADR 0039): the hash a table recorded before versions entered ``checks_hash`` (the
+    parameters alone, as on f133fc8) no longer matches, so verify refuses the table."""
+    policies = PLUGIN_KINDS["policies"]()
+    settings = make_settings()
+    checks = plugins.configured("checks", settings)
+    former = former_checks_hash(checks, settings.section(CHECKS_SECTION, ChecksSettings).root)
+    assert former == FORMER_FAST_CHECKS_HASH
+    write_table(settings, former)
+    with pytest.raises(ConfigError, match=STALE_TABLE):
+        configured_suite(settings, checks, policies)
+
+
+def former_checks_hash(checks: Mapping[str, type[Check]], overrides: Mapping[str, Any]) -> str:
+    """``checks_hash`` as f133fc8 computed it, before versions: the effective parameters alone."""
+    return stable_hash(
+        {
+            check_id
+            if getattr(check, "variant", None) is None
+            else f"{check_id}/{check.variant}": (
+                check.Params.model_validate(overrides.get(check_id, {})).model_dump(mode="json")
+            )
+            for check_id, check in sorted(checks.items())
+        }
+    )
+
+
+def write_table(settings: Settings, checks_hash: str | None) -> None:
+    """A calibrated threshold table recorded with ``checks_hash``, where verify reads it."""
+    table = ThresholdTable(
+        status="calibrated",
+        source="calibration.json#oracle/fast@run",
+        checks={},
+        checks_hash=checks_hash,
+    )
+    path = settings.paths.thresholds
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(table.model_dump(mode="json")), encoding="utf-8")

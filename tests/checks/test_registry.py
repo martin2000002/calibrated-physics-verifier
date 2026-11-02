@@ -36,6 +36,7 @@ def test_each_check_satisfies_the_protocol(check_id: str) -> None:
 
 
 class UnknownInput:
+    version = "1"
     requires = frozenset({"states", "depth"})
 
 

@@ -91,14 +91,15 @@ def threshold_problem(
     table: ThresholdTable, checks_hash: str, units: Mapping[str, str], checks: Mapping[str, str]
 ) -> str | None:
     """Why ``table`` may not judge the configured checks (``checks``: id -> magnitude unit): a
-    calibrated table fitted with other check parameters or variants, or a provisional tau whose
-    unit (``units``: declared, else the default implementation's) is not the unit it reports."""
+    calibrated table fitted with other check versions, parameters or variants, or a provisional
+    tau whose unit (``units``: declared, else the default implementation's) is not the unit it
+    reports."""
     if table.calibrated:
         if table.checks_hash == checks_hash:
             return None
         recorded = "no checks_hash" if table.checks_hash is None else table.checks_hash[:12]
         return (
-            f"{table.source} was calibrated with other check parameters or variants "
+            f"{table.source} was calibrated with other check versions, parameters or variants "
             f"({recorded} != {checks_hash[:12]}): publish a stratum fitted with these checks"
         )
     wrong = sorted(

@@ -98,6 +98,7 @@ class EquilibriumCheck:
     """R2 [residual_over_weight]: minimal force and torque imbalance over the total weight."""
 
     check_id: ClassVar[str] = "R2"
+    version: ClassVar[str] = "1"
     requires: ClassVar[frozenset[str]] = frozenset({"contacts"})
     time_dependent: ClassVar[bool] = False
     magnitude_unit: ClassVar[str] = "residual_over_weight"

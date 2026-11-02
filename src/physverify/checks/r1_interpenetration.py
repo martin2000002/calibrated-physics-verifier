@@ -64,6 +64,7 @@ class InterpenetrationCheck:
     """
 
     check_id: ClassVar[str] = "R1"
+    version: ClassVar[str] = "2"
     requires: ClassVar[frozenset[str]] = frozenset()
     time_dependent: ClassVar[bool] = False
     magnitude_unit: ClassVar[str] = "pen_over_size"

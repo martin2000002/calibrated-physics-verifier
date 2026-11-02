@@ -47,9 +47,11 @@ class CheckInputs:
 @runtime_checkable
 class Check(Protocol):
     """One physics check (R1..R5b); registered by ``check_id``. ``time_dependent``: the magnitude
-    depends on the clip's time base (fps)."""
+    depends on the clip's time base (fps). ``version``: declared by every check class itself and
+    bumped whenever its output changes for the same inputs and params; it enters ``checks_hash``."""
 
     check_id: ClassVar[str]
+    version: ClassVar[str]
     requires: ClassVar[frozenset[str]]
     time_dependent: ClassVar[bool]
     magnitude_unit: ClassVar[str]
@@ -61,7 +63,12 @@ class Check(Protocol):
 
 
 def validate_check(plugin: type[Check]) -> None:
-    """Registry hook: ``requires`` names fields of ``CheckInputs``."""
+    """Registry hook: the class declares its own ``version`` (an inherited one would let a
+    subclass change the output under its parent's) and ``requires`` names fields of
+    ``CheckInputs``."""
+    version = vars(plugin).get("version")
+    if not isinstance(version, str) or not version:
+        raise InvalidPluginError(f"{plugin.__name__}: declares no version of its own")
     unknown = sorted(set(plugin.requires) - {field.name for field in fields(CheckInputs)})
     if unknown:
         raise InvalidPluginError(f"{plugin.__name__}: requires unknown inputs {unknown}")

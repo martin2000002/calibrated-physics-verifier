@@ -98,6 +98,7 @@ class FallShapeCheck:
     candidate's own, not the sigma of the maximum (a known limitation, left to calibration)."""
 
     check_id: ClassVar[str] = "R5a"
+    version: ClassVar[str] = "1"
     requires: ClassVar[frozenset[str]] = frozenset({"contacts"})
     time_dependent: ClassVar[bool] = False
     magnitude_unit: ClassVar[str] = "accel_rel_diff"

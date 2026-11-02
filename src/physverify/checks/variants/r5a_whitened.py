@@ -56,6 +56,7 @@ class WhitenedFallShapeCheck(FallShapeCheck):
     with UNKNOWN_UNCERTAINTY (only its eligible flights are asked)."""
 
     variant: ClassVar[str] = "whitened"
+    version: ClassVar[str] = "1"
     magnitude_unit: ClassVar[str] = "accel_wald_chi2_3"
     replaced_unit: ClassVar[str] = FallShapeCheck.magnitude_unit
     perturbation_unit: ClassVar[str] = "accel_rel_diff"
