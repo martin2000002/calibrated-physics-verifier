@@ -15,6 +15,10 @@
     "R5a/whitened": {
       "digest": "e231115a9d1e6ef0c40c2cec04015f175d71c72f4aa94913ad761951ae9e3b59",
       "version": "1"
+    },
+    "R5b/unsupported": {
+      "digest": "9149485eb92e38872e2cb823c8d3bef6050d3e88904c04e4d8b15789c731e849",
+      "version": "1"
     }
   },
   "checks": {
