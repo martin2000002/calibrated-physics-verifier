@@ -3,6 +3,9 @@ dataset name and the cache root; the blind and OOD variants only change what the
 
 from __future__ import annotations
 
+import dataclasses
+import json
+import shutil
 import sys
 from collections.abc import Mapping, Sequence
 from contextlib import nullcontext
@@ -31,7 +34,9 @@ from physverify.extraction.pipeline_resources import LazyLock, ProcRssProbe
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import ClipManifest
 from physverify.schema.stages import STAGE_ORDER
-from physverify.synth.settings import load_dataset_settings
+from physverify.synth.generate import load_plan
+from physverify.synth.settings import dataset_root, load_dataset_settings
+from physverify.synth.store import DatasetStore
 from physverify.verification.check_set import ChecksSettings, build_checks
 from physverify.verification.inputs import OracleSource
 from physverify.verification.policies.raw import RawPolicy
@@ -148,6 +153,35 @@ def test_fresh_stage_keys_match_and_only_the_cache_root_moves(
         other = cache.directory(SYNTHETIC, clip_id, stage, provider, key)
         assert own.relative_to(cache.root / FRESH) == other.relative_to(cache.root / SYNTHETIC)
         assert own.is_dir() and other.is_dir()
+
+
+def test_another_version_of_the_store_misses_every_stage(
+    config_dir: Path, smoke_env: dict[str, str]
+) -> None:
+    """I29a over a real store: a copy under another version (same name and clip ids) shares no
+    cache entry with the original, ground truth included (ADR 0039)."""
+    settings = fresh_settings(config_dir, smoke_env)
+    calib = KubricSynthetic(settings)
+    other = KubricSynthetic(settings, root=renamed_copy(settings, "smoke-other"))
+    first = ground_truth_chain(settings, calib, calib.clips("smoke"))
+    second = ground_truth_chain(settings, other, other.clips("smoke"))
+    again = ground_truth_chain(settings, calib, calib.clips("smoke"))
+    assert first.events and not first.failures and not second.failures
+    assert not any(event.cached for event in (*first.events, *second.events))
+    assert all(event.cached for event in again.events)
+    assert all(second.keys[cell] != key for cell, key in first.keys.items())
+
+
+def renamed_copy(settings: Settings, version: str) -> Path:
+    """The configured store copied to ``version``, its plan relabelled with that version."""
+    source = DatasetStore(dataset_root(settings, load_dataset_settings(settings)))
+    target = source.root.with_name(version)
+    shutil.copytree(source.root, target)
+    plan = load_plan(source)
+    assert plan is not None
+    relabelled = dataclasses.replace(plan, version=version).to_json()
+    DatasetStore(target).plan_path.write_text(json.dumps(relabelled), encoding="utf-8")
+    return target
 
 
 def test_fresh_sampling_follows_kubric_synthetic(

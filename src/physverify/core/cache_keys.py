@@ -62,11 +62,13 @@ def cache_key(
     device: str,
     error_profile_filter: EntryFilter | None = None,
     inputs: Mapping[str, Any] | None = None,
+    dataset: str | None = None,
 ) -> str:
     """sha256 of everything that can change a stage output, and nothing else.
 
-    ``inputs`` holds clip data the provider reads besides pixels (e.g. object queries); None
-    leaves the payload, and so every key computed without it, unchanged."""
+    ``inputs`` holds clip data the provider reads besides pixels (e.g. object queries) and
+    ``dataset`` the content identity of the clip's dataset; None leaves the payload, and so every
+    key computed without it, unchanged."""
     payload: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
         "clip_id": clip_id,
@@ -82,6 +84,8 @@ def cache_key(
     }
     if inputs is not None:
         payload["inputs"] = dict(inputs)
+    if dataset is not None:
+        payload["dataset"] = dataset
     if is_ground_truth:
         payload["gt_version"] = gt_version
     if heavy:

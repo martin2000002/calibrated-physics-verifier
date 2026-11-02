@@ -199,8 +199,10 @@ def chain_keys(
     gt_version: str | None,
     profile: ErrorProfile | None,
     device: str = "cpu",
+    dataset: str | None = None,
 ) -> dict[Stage, str]:
-    """Stage keys in plan order, computed the way the pipeline computes them."""
+    """Stage keys in plan order, computed the way the pipeline computes them; ``dataset`` is the
+    clip dataset's ``dataset_identity``."""
     sampling = resolve_sampling(clip, plan.sampling)
     accept = plan_entry_filter(plan)
     keys: dict[Stage, str] = {}
@@ -216,6 +218,7 @@ def chain_keys(
             gt_version=gt_version if step.provider.is_ground_truth else None,
             error_profile=profile,
             device=device,
+            dataset=dataset,
         )
     return keys
 

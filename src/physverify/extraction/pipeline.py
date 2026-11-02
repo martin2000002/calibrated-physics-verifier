@@ -15,7 +15,7 @@ from physverify.config.models import PathsSettings
 from physverify.core.cache_keys import error_profile_hash, sampling_hash, upstream_keys
 from physverify.core.errors import MissingInputError, ResourceBudgetError
 from physverify.core.log import get_logger
-from physverify.datasets._base import DatasetSource
+from physverify.datasets._base import DatasetSource, dataset_identity
 from physverify.extraction._base import StageContext, StageEvent, StageObserver, StageProvider
 from physverify.extraction.cache import (
     StageCache,
@@ -100,6 +100,7 @@ class PipelineDeps:
 @dataclass
 class _Cell:
     clip: ClipManifest
+    dataset: str | None
     sampling: FrameSampling
     gt_version: str | None
     keys: dict[Stage, str]
@@ -129,7 +130,8 @@ class ExtractionPipeline:
     def run(self, dataset: DatasetSource, clips: Sequence[ClipManifest]) -> ExtractionReport:
         self._warn_rejected_entries()
         progress = _Progress()
-        cells = [cell for clip in clips if (cell := self._prepare(dataset, clip, progress))]
+        identity = dataset_identity(dataset)
+        cells = [c for clip in clips if (c := self._prepare(dataset, identity, clip, progress))]
         self._check_weights(cells)
         try:
             for index, step in enumerate(self._plan.stages):
@@ -171,7 +173,11 @@ class ExtractionPipeline:
             )
 
     def _prepare(
-        self, dataset: DatasetSource, clip: ClipManifest, progress: _Progress
+        self,
+        dataset: DatasetSource,
+        identity: str | None,
+        clip: ClipManifest,
+        progress: _Progress,
     ) -> _Cell | None:
         gt_stages = self._plan.ground_truth_stages()
         missing = [stage for stage in gt_stages if stage not in clip.gt_stages]
@@ -180,7 +186,8 @@ class ExtractionPipeline:
             progress.fail(clip, missing[0], error)
             return None
         try:
-            cell = _Cell(clip, resolve_sampling(clip, self._plan.sampling), None, {}, {})
+            sampling = resolve_sampling(clip, self._plan.sampling)
+            cell = _Cell(clip, identity, sampling, None, {}, {})
         except DOMAIN_ERRORS as exc:
             progress.fail(clip, self._plan.stages[0].stage, exc)
             return None
@@ -210,6 +217,7 @@ class ExtractionPipeline:
             gt_version=cell.gt_version if step.provider.is_ground_truth else None,
             error_profile=self._deps.error_profile,
             device=self._deps.device,
+            dataset=cell.dataset,
         )
 
     def _check_weights(self, cells: Sequence[_Cell]) -> None:

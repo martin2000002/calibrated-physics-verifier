@@ -45,6 +45,11 @@ if TYPE_CHECKING:
 SPLITS = frozenset(s.value for s in Split if s is not Split.ALL)
 
 
+def content_identity(version: str, content_hash: str) -> str:
+    """The cache identity of a rendered dataset: its version and its settings' content hash."""
+    return f"{version}:{content_hash}"
+
+
 def load_native(store: DatasetStore, clip_id: str, far_z_m: float) -> NativeGroundTruth:
     clip_dir = store.clip_dir(clip_id)
     meta = read_json(clip_dir / GT_META)
@@ -108,6 +113,12 @@ class KubricSynthetic:
             ScopedSubset(name, checks, _members(exported, planned.get(name, ())))
             for name, checks in self._scoped.items()
         )
+
+    def cache_identity(self) -> str:
+        """Read from the stored plan: what these clips were rendered from, whatever settings
+        (calib's, for a ``kubric_fresh*`` root) this instance was built with."""
+        plan = self._plan()
+        return content_identity(plan.version, plan.config_hash)
 
     def _plan(self) -> DatasetPlan:
         plan = load_plan(self._store)
