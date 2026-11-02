@@ -65,9 +65,12 @@ def load_settings(
     env, sets = env_layer(environ), set_layer(overrides)
     _require_known_sections(base, env, f"{ENV_PREFIX}<SECTION>__<KEY>")
     _require_known_sections(base, sets, "--set")
+    layers = {str(local_path): local, f"{ENV_PREFIX}<SECTION>__<KEY>": env, "--set": sets}
+    for origin, layer in layers.items():
+        reject_profiles(layer, origin)
     upper = [local, env, device_layer(device), sets]
     name = resolve_profile(profile, base, upper)
-    merged = merge(apply_profile(base, name), *(strip_profiles(layer) for layer in upper))
+    merged = merge(apply_profile(base, name), *upper)
     sources.extend(_describe_overrides(environ, device, overrides))
     return _build(merged, name, config_dir, environ, tuple(sources))
 
@@ -199,13 +202,15 @@ def apply_profile(base: Mapping[str, Any], name: str) -> Table:
     return result
 
 
-def strip_profiles(layer: Mapping[str, Any]) -> Table:
-    return {
-        key: {k: v for k, v in value.items() if k != PROFILES_KEY}
-        if isinstance(value, Mapping)
-        else value
-        for key, value in layer.items()
-    }
+def reject_profiles(layer: Mapping[str, Any], origin: str) -> None:
+    """Profiles are chosen with --profile; a ``<section>.profiles`` key in an upper layer would
+    otherwise be merged into a table no profile reads."""
+    for key, value in layer.items():
+        if isinstance(value, Mapping) and PROFILES_KEY in value:
+            raise ConfigError(
+                f"{origin} sets [{key}.{PROFILES_KEY}]: use --profile or the key without "
+                f"'{PROFILES_KEY}'"
+            )
 
 
 def _describe_overrides(
