@@ -1,0 +1,192 @@
+{
+  "check_variants": {
+    "R4_jump/rigid2": {
+      "digest": "0e88f16e430145504c20bc9ad385340043cbc2fb9d6a841c38262ffc7dcf9999",
+      "version": "1"
+    },
+    "R4_jump/rigid2_dfloor": {
+      "digest": "678017c2fdd76b371cdc4e1adc19a71eb051e43ef39d74c31b56f474ab6861bd",
+      "version": "1"
+    },
+    "R4_size/v3": {
+      "digest": "40fd6b24187a4471b39b55dbcffe3432b81c59d1e1fe9e5445f4a3625cff0028",
+      "version": "1"
+    },
+    "R5a/whitened": {
+      "digest": "586175ee37b6490df39b2661707eacc679de61370ce73cd7df6308870e9b95e8",
+      "version": "1"
+    }
+  },
+  "checks": {
+    "R1": {
+      "digest": "13959310c030c4a9b0792ff1cfe5ddc083212afe45fa928eb221ddb75e3e5bb9",
+      "version": "2"
+    },
+    "R2": {
+      "digest": "ba78c2b8142f459b2832a9beb211bd335005b088184536088e90e5baa00738f1",
+      "version": "1"
+    },
+    "R3a": {
+      "digest": "45f1f6984e2668703d1a98099b0b58a2a79681e2faac6407bc0a49b13d00c3a8",
+      "version": "1"
+    },
+    "R3b": {
+      "digest": "bd49b6c0819457c541db3eb2c6311087eb509594a02069a057d3151918e977e9",
+      "version": "1"
+    },
+    "R4_jump": {
+      "digest": "43a060c172d2ecb3580bfcb2516d73023bc9a322bbee530d3da8d497fd89cca1",
+      "version": "1"
+    },
+    "R4_missing": {
+      "digest": "25a59aa98b1b623e4912e0315b92f66dcb2c822cbbf384d845a092023c470320",
+      "version": "1"
+    },
+    "R4_size": {
+      "digest": "c450bfe81076cd44bb0acdd9f0a81c8bb276128ed0ff892adc31f9b548959109",
+      "version": "1"
+    },
+    "R5a": {
+      "digest": "7fbc3ddb5f7d4e734ff547661a558ad29b8cc1bfa2158665722830431e3642d8",
+      "version": "1"
+    },
+    "R5b": {
+      "digest": "4bf4a622c09059b91aa1502ef841fb19a4f2eb28cf7c8863d66fa1750f20605d",
+      "version": "1"
+    }
+  },
+  "providers": {
+    "camera/assumed_fov": {
+      "digest": "db5f5bd7b6e8b2b67757dd5c66e7b49f857d22a995b7c99e8b52a291fad58e3f",
+      "version": "1"
+    },
+    "camera/from_depth": {
+      "digest": "5a7eafc20313480e4d484133c2785e5bf06c002a82b7eb74dba910b2242d9bce",
+      "version": "1"
+    },
+    "camera/geocalib": {
+      "digest": "9b0219d0d3d4e0159bdb1125c942691747b8a57340aa3563d704799699f492d2",
+      "version": "2"
+    },
+    "camera/ground_truth": {
+      "digest": "26e03ab7c325db102222387b718ff3196da4492b05ab827e74b2e2e8e3285eb2",
+      "version": "1"
+    },
+    "camera/moge2_focal": {
+      "digest": "39e795c64b077203e46cf992c8f1b8c4796594be8173520a768080f2f6fa7de9",
+      "version": "1"
+    },
+    "contacts/ground_truth": {
+      "digest": "c90c608b0edad105a1440adb8f279e5f110500ec3fb0703d18c0178f15c1590c",
+      "version": "2"
+    },
+    "contacts/kinematic": {
+      "digest": "be22c9387ea9189cb8a318c899d65daf38e99218382324ef6d23de250bf023e7",
+      "version": "1"
+    },
+    "contacts/kinematic_scene": {
+      "digest": "9f2b65f3d39fc39ede80417e6a51a560acaf973f6d48c47bd2348d1e93d100df",
+      "version": "4"
+    },
+    "contacts/proximity": {
+      "digest": "5bed1a9db606b3bcde202b151553bffa16ecfa96a015866f420ccb738b23d8cb",
+      "version": "1"
+    },
+    "depth/ground_truth": {
+      "digest": "0edf4ff8667f7aaf87833a03ab6dff7c29d60546bf5d56815b6797a0d9ea3cdb",
+      "version": "2"
+    },
+    "depth/moge2": {
+      "digest": "a59bf9e4bd0362447f9f2e5c4bf43a2d2e0aeb4dfb0e57481babaa82039c1019",
+      "version": "1"
+    },
+    "depth/vda_large": {
+      "digest": "9e6e6129aef0a8c556d10308fa25f5ac1d04861b00f29eb5375c0d55ab22422a",
+      "version": "1"
+    },
+    "depth/vda_metric_small": {
+      "digest": "9d836ded77e1096c0d0dc5fa8bc58eb6acef7e4f562f46c10375e4070b4426f9",
+      "version": "1"
+    },
+    "depth/vda_small": {
+      "digest": "0c42d8f2e9be7727901e9ec93228f035e0ca020cc8a7de16d6c6b52937758572",
+      "version": "1"
+    },
+    "detect/ground_truth": {
+      "digest": "4bdfa504c70b9542a1e818655767d4260d0b3a8a66a16330b89aafda2e34da40",
+      "version": "1"
+    },
+    "detect/grounding_dino_base": {
+      "digest": "45297510f4aba346c78e6a63b77ec7782b4b3b74fc139ed000fa36df5d84e68f",
+      "version": "1"
+    },
+    "detect/grounding_dino_tiny": {
+      "digest": "50a3088837410644a0372996138cc2d06ac727bd1a9f83045d1f195e11ff9073",
+      "version": "1"
+    },
+    "detect/grounding_dino_tiny_per_query": {
+      "digest": "16e1a16a1ceb0e10d6d6aef68e778750f0ef43ef9b7e536a803befd5c982eaef",
+      "version": "1"
+    },
+    "kinematics/ground_truth": {
+      "digest": "82ea2dddfba3b5817c8f693b8dc4e792dafd972c51a5e58fe82e62bbbc52885e",
+      "version": "2"
+    },
+    "kinematics/savgol": {
+      "digest": "260b15ed605396cde50001cc78ee47132c030e99c405473837acd48020dada6c",
+      "version": "1"
+    },
+    "lift/backproject": {
+      "digest": "3ad213d7192c71723fae1d9073af76c3cd1f265c92c968b589cf81fc31b80366",
+      "version": "6"
+    },
+    "lift/backproject_size_constancy": {
+      "digest": "874044abb9798148da6b48c6bdc1f281f3fab7984af01a121c4b712db0132680",
+      "version": "1"
+    },
+    "lift/backproject_unnested": {
+      "digest": "719dbb1e70e7f948752199629b10e13d6441031a9f7600172754503076890eaf",
+      "version": "3"
+    },
+    "lift/ground_anchored": {
+      "digest": "47ad70d489e2668d17390dccbe5e0178b844cec85a5082d1d40e327aa99a50a4",
+      "version": "4"
+    },
+    "lift/ground_truth": {
+      "digest": "8fec42fc012bcde6f6c3ac8550040c1d8a5ba4240198ad437f0d49e20f973c84",
+      "version": "2"
+    },
+    "scale/free_fall": {
+      "digest": "3b694c7b50dc55d1a09c65657a3f8931fbb7f4d4f9eb8d8bad84c51a8eb06d10",
+      "version": "2"
+    },
+    "scale/ground_truth": {
+      "digest": "337530b50b68669f196185f76aa920f3c7d944ede21f0fbabe6c11a7e487d4d5",
+      "version": "2"
+    },
+    "scale/metric_depth": {
+      "digest": "ffe5f65d814dae88c626c8efe38359d0f484ae1260c7eb8f5080c7dcbbd7f292",
+      "version": "3"
+    },
+    "scale/size_model": {
+      "digest": "7da640267fdeef6a55666e900000c11af8d2f9a8dec6d7fb64534db9adc2a70e",
+      "version": "2"
+    },
+    "scale/size_prior": {
+      "digest": "e652aa71c9dfa0e69a789c081ba8c8f5b55aeba569e79fcada434452690a39f4",
+      "version": "2"
+    },
+    "track/edgetam": {
+      "digest": "0a6e9162fc292190b0e0a6893e52af1a50f29c305255cc4659b25b03f4b2bc8b",
+      "version": "1"
+    },
+    "track/ground_truth": {
+      "digest": "0d6612c1a2b810f422af87863c175c975ef298579579272426ebc50c1e99ad93",
+      "version": "1"
+    },
+    "track/sam2_1_hiera_tiny": {
+      "digest": "2544225aeda92bec12f1fee45601cd0d75251d035379e086d5fe3ccf891c693c",
+      "version": "1"
+    }
+  }
+}
