@@ -20,6 +20,7 @@ from physverify.human_agreement.comparison_items import (
     decide_all,
     implausible,
 )
+from physverify.human_agreement.complementarity import complementarity
 from physverify.human_agreement.coverage import InputGaps, generator_key
 from physverify.human_agreement.error_sample import sample_errors
 from physverify.human_agreement.metrics import (
@@ -214,7 +215,7 @@ def _compared(inputs: ComparisonInputs) -> _Compared:
 
 def _metrics(inputs: ComparisonInputs, compared: _Compared) -> ComparisonMetrics:
     items, groups = compared.items, compared.groups
-    run = inputs.run
+    run, agreement = inputs.run, inputs.agreement
     return ComparisonMetrics(
         rule=inputs.rule.label,
         calibration=CalibrationState(gate=inputs.gate, stratum=inputs.calibration),
@@ -236,6 +237,9 @@ def _metrics(inputs: ComparisonInputs, compared: _Compared) -> ComparisonMetrics
         sensitivity_time_dependent=_sensitivity(inputs),
         risk_coverage_vlm={g: risk_coverage(m) for g, m in by_version(items).items()},
         h2_verdict=_verdict(inputs, groups[AGGREGATE][inputs.agreement.primary_policy]),
+        complementarity=complementarity(
+            items, agreement.bootstrap_n, agreement.bootstrap_seed, agreement.ci
+        ),
     )
 
 
