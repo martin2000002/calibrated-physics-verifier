@@ -42,6 +42,7 @@ def test_a_tolerance_applies_only_in_the_unit_it_is_written_in() -> None:
     assert whitened.replaced_unit == checks["R5a"].magnitude_unit
     assert found.tolerance_of(CheckUnit.of(checks["R5a"])) == 1e-5
     assert found.tolerance_of(CheckUnit.of(variants["R4_jump/rigid2"])) == 0.01
+    assert found.tolerance_of(CheckUnit.of(variants["R4_jump/rigid2_dfloor_timing"])) == 0.01
     assert found.tolerance_of(CheckUnit.of(checks["R1"])) == 0.0
     with pytest.raises(ConfigError, match=r"tau_tolerance\.R5a is in accel_rel_diff"):
         found.tolerance_of(whitened)
