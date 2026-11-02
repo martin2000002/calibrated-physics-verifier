@@ -663,3 +663,46 @@ def two_balls(g_j: float) -> Case:
         p, v, acc = piecewise_ballistic(t, 0.0, start, (v0, a), (v0, a))
         balls.append(SceneObject(name, PrimitiveKind.SPHERE, cube(0.2), p, v, acc))
     return build("two_balls", balls)
+
+
+def resting_box(frames: int = FRAMES) -> SceneObject:
+    """Cube (side 0.2) resting on the ground away from the scene's ball."""
+    return still("box", PrimitiveKind.BOX, cube(0.2), (-1.0, 1.0, 0.1), frames)
+
+
+def ball_beside_box(ball: SceneObject, clip_id: str, records: Iterable[ContactRecord] = ()) -> Case:
+    """``ball`` (no contact of its own unless in ``records``) next to ``resting_box``, whose
+    RESTING record on the ground is the only environment contact of another object."""
+    box = resting_box(ball.frames)
+    return build(clip_id, [ball, box], [resting(box), *records])
+
+
+def unmarked_roll(speed: float = 0.5, frames: int = FRAMES) -> Case:
+    """Ball (radius 0.1) rolling along x on the ground at ``speed`` with no contact record, as
+    perceived contacts can leave a roll, beside a resting box."""
+    return ball_beside_box(_gliding(BALL_RADIUS, speed, frames), "unmarked_roll")
+
+
+def gliding_ball(height: float = 1.0, speed: float = 0.5, frames: int = FRAMES) -> Case:
+    """Ball whose centre glides along x at ``height`` with no acceleration and no contact (a
+    floating, gravity-free motion), beside a resting box."""
+    return ball_beside_box(_gliding(height, speed, frames), "gliding_ball")
+
+
+def _gliding(height: float, speed: float, frames: int) -> SceneObject:
+    t = times(frames)
+    position = np.column_stack([speed * t, np.zeros(frames), np.full(frames, height)])
+    velocity = np.tile([speed, 0.0, 0.0], (frames, 1))
+    still_acc = np.zeros((frames, 3))
+    return SceneObject(
+        "ball", PrimitiveKind.SPHERE, cube(2 * BALL_RADIUS), position, velocity, still_acc
+    )
+
+
+def flight_beside_box(g: float = STANDARD_GRAVITY, frames: int = FRAMES) -> Case:
+    """A ball in free flight under ``g`` from t = 0 (no contact) beside a resting box."""
+    t = times(frames)
+    p0, v0, a = np.array([-0.5, 0.0, 1.0]), np.array([1.0, 0.0, 3.0]), g * DOWN
+    p, v, acc = piecewise_ballistic(t, 0.0, p0, (v0, a), (v0, a))
+    ball = SceneObject("ball", PrimitiveKind.SPHERE, cube(2 * BALL_RADIUS), p, v, acc)
+    return ball_beside_box(ball, "flight_beside_box")

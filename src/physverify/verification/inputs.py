@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from typing import NoReturn, Protocol
@@ -10,12 +11,17 @@ from physverify.checks._base import CheckInputs
 from physverify.core.errors import MissingInputError
 from physverify.datasets._base import DatasetSource
 from physverify.extraction._base import GROUND_TRUTH
+from physverify.extraction.cache import plan_entry_filter
 from physverify.extraction.pipeline import DOMAIN_ERRORS, ExtractionPipeline, PipelineDeps
 from physverify.extraction.plan import ResolvedPlan
+from physverify.extraction.providers._velocity_tests import two_sided_quantile
+from physverify.extraction.providers.contacts_kinematic_scene import Params as SceneParams
 from physverify.physics import tracks
+from physverify.physics.uncertainty import entry_rms
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import ClipManifest, FrameSampling, SamplingSpec, resolve_sampling
 from physverify.schema.contacts import ContactTable
+from physverify.schema.error_profile import SUPPORT_GAP_REL, ErrorProfile
 from physverify.schema.errors import ScaleBindingError
 from physverify.schema.outputs import StageOutput
 from physverify.schema.perception import CameraModel
@@ -39,6 +45,7 @@ class RawInputs:
     level: InputLevel
     provenance: Mapping[str, str]
     camera: CameraModel | None = None
+    support_gap_bound: float = math.nan
 
 
 @dataclass(frozen=True)
@@ -66,10 +73,12 @@ class ClipInputs:
 
 @dataclass(frozen=True)
 class StageOutputs:
-    """Cached outputs of one clip plus the provider name of every stage of the plan."""
+    """Cached outputs of one clip plus the provider name of every stage of the plan and the
+    plan's ``CheckInputs.support_gap_bound``."""
 
     outputs: Mapping[Stage, StageOutput]
     names: Mapping[Stage, str]
+    support_gap_bound: float = math.nan
 
 
 class InputSource(Protocol):
@@ -107,6 +116,7 @@ def build_inputs(raw: RawInputs) -> CheckInputs:
         provenance=dict(raw.provenance),
         scene=raw.scene,
         camera=raw.camera,
+        support_gap_bound=raw.support_gap_bound,
     )
 
 
@@ -124,10 +134,11 @@ def perceived_inputs(
     outputs: Mapping[Stage, StageOutput],
     names: Mapping[Stage, str],
     level: InputLevel,
+    support_gap_bound: float = math.nan,
 ) -> CheckInputs:
     """States from KINEMATICS, contacts from CONTACTS, scale from SCALE, camera from CAMERA
-    (``lift_camera``); raises ``MissingInputError`` without states and ``InputsError`` on an
-    invalid table."""
+    (``lift_camera``), the plan's ``support_gap_bound``; raises ``MissingInputError`` without
+    states and ``InputsError`` on an invalid table."""
     states = _output(outputs, Stage.KINEMATICS, ObjectStateTable)
     if states is None:
         raise MissingInputError(f"no {Stage.KINEMATICS.value} output")
@@ -141,8 +152,27 @@ def perceived_inputs(
         level=level,
         provenance=provenance(names, scale),
         camera=lift_camera(outputs, names),
+        support_gap_bound=support_gap_bound,
     )
     return build_inputs(raw)
+
+
+def scene_gap_bound(plan: ResolvedPlan, profile: ErrorProfile | None) -> float:
+    """``CheckInputs.support_gap_bound`` of ``plan``: z(alpha / 2) of its scene contacts times the
+    rms of the LIFT ``support_gap_rel`` entry it may read; 0 for a ground-truth LIFT, whose gap
+    is exact; NaN when CONTACTS is not the scene provider or the entry is unknown."""
+    lift = plan.names.get(Stage.LIFT)
+    if lift == GROUND_TRUTH:
+        return 0.0
+    contacts = next((s.params for s in plan.stages if s.stage is Stage.CONTACTS), None)
+    if not isinstance(contacts, SceneParams) or lift is None:
+        return math.nan
+    entry = (
+        None
+        if profile is None
+        else profile.lookup(Stage.LIFT, lift, SUPPORT_GAP_REL, plan_entry_filter(plan))
+    )
+    return two_sided_quantile(contacts.alpha) * entry_rms(entry)
 
 
 def lift_camera(
@@ -207,6 +237,7 @@ class OracleSource:
                 level=InputLevel.ORACLE,
                 provenance=provenance(names, scale),
                 camera=store.camera(native_sampling(clip)),
+                support_gap_bound=0.0,
             )
         except DOMAIN_ERRORS as exc:
             return ClipInputs(clip, None, error_message(exc), InputLevel.ORACLE)
@@ -254,7 +285,8 @@ class PipelineOutputLoader:
             output = self._deps.cache.load(dataset, clip.clip_id, step.stage, step.name, key)
             if output is not None:
                 outputs[step.stage] = output
-        return StageOutputs(outputs, dict(self._plan.names))
+        bound = scene_gap_bound(self._plan, self._deps.error_profile)
+        return StageOutputs(outputs, dict(self._plan.names), bound)
 
 
 class PerceivedSource:
@@ -278,7 +310,9 @@ class PerceivedSource:
 
     def _one(self, clip: ClipManifest, found: StageOutputs) -> ClipInputs:
         try:
-            inputs = perceived_inputs(clip, found.outputs, found.names, self._level)
+            inputs = perceived_inputs(
+                clip, found.outputs, found.names, self._level, found.support_gap_bound
+            )
         except DOMAIN_ERRORS as exc:
             return ClipInputs(clip, None, error_message(exc), self._level)
         return ClipInputs(clip, inputs, None)
