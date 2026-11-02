@@ -81,9 +81,8 @@ STRATIFIED_NOTE = (
     " Every scene carries a family: AUROC_cv and J_cv are also stratified (positives against the "
     "negatives of their own family, weighted by positives) in two readings, scored rows and "
     "every labelled row with an unscored one read as 0.0; the family floor is the in-sample "
-    "AUROC of the family positive rate alone. n_met counts a check only when, besides "
-    "monotonicity and "
-    "J_cv^lo > 0, its stratified J_cv^lo > 0 and its stratified AUROC_cv^lo > 0.5 in both "
+    "AUROC of the family positive rate alone. n_met counts a check only when it is monotone, "
+    "its J_cv^lo > 0, its stratified J_cv^lo > 0 and its stratified AUROC_cv^lo > 0.5 in both "
     "readings; the tie-break AUROC_cv is the stratified one (scored reading)."
 )
 

@@ -67,7 +67,9 @@ def test_r4_jump_beats_its_family_floor(scores: dict[str, UnitScores]) -> None:
     assert (auroc.value, auroc.ci.low, auroc.ci.high) == pytest.approx(
         (0.8283, 0.7505, 0.8966), abs=1e-4
     )
-    assert found.family_floor[Reading.SCORED] == pytest.approx(0.7567, abs=1e-4)
+    floor = found.family_floor[Reading.SCORED]
+    assert floor == pytest.approx(0.7567, abs=1e-4)
+    assert auroc.value is not None and floor is not None and auroc.value > floor
     j = found.j_cv
     assert (j.informedness, j.informedness_ci.low, j.informedness_ci.high) == pytest.approx(
         (0.3670, 0.2260, 0.5228), abs=1e-4
