@@ -122,6 +122,21 @@ class ScopedSubsetSource(Protocol):
         ...
 
 
+@runtime_checkable
+class CacheIdentitySource(Protocol):
+    """A dataset whose clip ids recur across contents (e.g. dataset versions with the same ids);
+    datasets with one content per clip id declare none."""
+
+    def cache_identity(self) -> str:
+        """What tells this content apart from another one with the same name and clip ids."""
+        ...
+
+
+def dataset_identity(source: DatasetSource) -> str | None:
+    """The identity a stage key carries for ``source``; None keeps the keys of plain datasets."""
+    return source.cache_identity() if isinstance(source, CacheIdentitySource) else None
+
+
 DATASETS = PluginKind[type[DatasetSource]]("datasets")
 
 

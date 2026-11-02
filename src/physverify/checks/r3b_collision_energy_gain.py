@@ -59,6 +59,7 @@ class EnergyGainCheck:
     """R3b [dE_over_E]: relative gain of translational kinetic energy in a two-body collision."""
 
     check_id: ClassVar[str] = "R3b"
+    version: ClassVar[str] = "1"
     requires: ClassVar[frozenset[str]] = frozenset({"contacts"})
     time_dependent: ClassVar[bool] = False
     magnitude_unit: ClassVar[str] = "dE_over_E"

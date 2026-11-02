@@ -67,14 +67,17 @@ def build_checks(
 
 
 def checks_hash(registry: Mapping[str, type[Check]], overrides: ChecksSettings) -> str:
-    """Hash of the effective parameters of every registered check."""
-    params = {
-        _hash_key(check_id, check): check.Params.model_validate(
-            overrides.root.get(check_id, {})
-        ).model_dump(mode="json")
+    """Hash of the version and effective parameters of every registered check."""
+    checks = {
+        _hash_key(check_id, check): {
+            "version": check.version,
+            "params": check.Params.model_validate(overrides.root.get(check_id, {})).model_dump(
+                mode="json"
+            ),
+        }
         for check_id, check in sorted(registry.items())
     }
-    return stable_hash(params)
+    return stable_hash(checks)
 
 
 def _hash_key(check_id: str, check: type[Check]) -> str:

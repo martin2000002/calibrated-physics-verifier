@@ -10,6 +10,9 @@ import pytest
 from cli_tree import command_modules
 
 from physverify.app.plugins import PLUGIN_KINDS
+from physverify.checks._base import Check, validate_check
+from physverify.core.errors import InvalidPluginError
+from physverify.core.registry import discover
 
 KINDS = (
     "checks",
@@ -231,3 +234,18 @@ def test_check_files_are_named_after_their_check_ids_in_check_order(
         letter = found["letter"]
         stem = check.__module__.rsplit(".", 1)[-1]
         assert re.match(rf"^r{found['number']}({letter})?_[a-z0-9_]+$", stem), (check_id, stem)
+
+
+@pytest.mark.parametrize("kind", ["checks", "check_variants"])
+def test_every_check_declares_its_own_version(
+    registries: dict[str, Mapping[str, Any]], kind: str
+) -> None:
+    """The version is the class's own, so a variant never runs under its parent's."""
+    for key, check in registries[kind].items():
+        version = vars(check).get("version")
+        assert isinstance(version, str) and version, key
+
+
+def test_a_check_without_a_version_of_its_own_is_a_registry_error() -> None:
+    with pytest.raises(InvalidPluginError, match="InheritedVersionCheck: declares no version"):
+        discover("fx_unversioned_check", (Check,), "check_id", validate_check)

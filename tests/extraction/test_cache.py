@@ -63,6 +63,7 @@ def key_of(
         "gt_version": None,
         "error_profile": P0,
         "device": "cpu",
+        "dataset": None,
     }
     kwargs.update(changes)
     return stage_key(step, **kwargs)

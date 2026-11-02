@@ -37,6 +37,7 @@ class GravityValueCheck:
     the parabola fitted against table time, so it does not depend on the row step."""
 
     check_id: ClassVar[str] = "R5b"
+    version: ClassVar[str] = "1"
     requires: ClassVar[frozenset[str]] = frozenset({"contacts"})
     time_dependent: ClassVar[bool] = True
     magnitude_unit: ClassVar[str] = "g_rel_error"

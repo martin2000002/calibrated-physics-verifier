@@ -86,5 +86,6 @@ def test_vda_small_keeps_its_keys(fixture_clip: SyntheticClip, size: int, device
         gt_version=None,
         error_profile=None,
         device=device,
+        dataset=None,
     )
     assert key == SMALL_MODEL_KEYS[(size, device)]

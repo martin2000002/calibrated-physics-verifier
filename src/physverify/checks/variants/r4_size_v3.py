@@ -50,6 +50,7 @@ class DetrendedSizeCheck:
 
     check_id: ClassVar[str] = "R4_size"
     variant: ClassVar[str] = "v3"
+    version: ClassVar[str] = "1"
     requires: ClassVar[frozenset[str]] = frozenset()
     time_dependent: ClassVar[bool] = False
     magnitude_unit: ClassVar[str] = "rel_size_change"

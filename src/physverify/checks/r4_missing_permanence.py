@@ -30,6 +30,7 @@ class PermanenceCheck:
     (``missing_frames``), the unit the perturbations are injected in."""
 
     check_id: ClassVar[str] = "R4_missing"
+    version: ClassVar[str] = "1"
     requires: ClassVar[frozenset[str]] = frozenset()
     time_dependent: ClassVar[bool] = True
     magnitude_unit: ClassVar[str] = "seconds"

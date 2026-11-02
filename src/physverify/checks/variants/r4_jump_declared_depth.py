@@ -41,6 +41,7 @@ class DeclaredDepthJumpCheck(RigidJumpCheck):
     (times tau) is not seen, since per-row monocular depth cannot support it."""
 
     variant: ClassVar[str] = "rigid2_dfloor"
+    version: ClassVar[str] = "1"
 
     def _floor(
         self, inputs: CheckInputs, index: int, excluded: NDArray[np.bool_], pixel: float

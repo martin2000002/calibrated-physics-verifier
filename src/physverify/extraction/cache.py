@@ -90,8 +90,10 @@ def stage_key(
     gt_version: str | None,
     error_profile: ErrorProfile | None,
     device: str,
+    dataset: str | None,
 ) -> str:
-    """``entry_filter`` drops profile entries measured under another profile or other params."""
+    """``entry_filter`` drops profile entries measured under another profile or other params;
+    ``dataset`` is the clip's ``dataset_identity``."""
     provider = step.provider
     return cache_key(
         clip_id=clip_id,
@@ -110,6 +112,7 @@ def stage_key(
         device=device,
         error_profile_filter=entry_filter,
         inputs=stage_inputs(provider, object_queries, sampling),
+        dataset=dataset,
     )
 
 
@@ -138,7 +141,8 @@ class StageCache:
     def purge_clip(self, dataset: str, clip_id: str) -> int:
         """Remove every cached stage of the clip (all providers and keys); returns the entries.
 
-        Keys do not hash the frames, so a re-rendered clip must be purged by hand."""
+        Keys hash the dataset identity (a new version or content hash gets new keys), not the
+        frames, so a clip re-rendered under the same identity must be purged by hand."""
         entries = len(self.entries(dataset, clip_id))
         shutil.rmtree(self.root / dataset / clip_id, ignore_errors=True)
         return entries

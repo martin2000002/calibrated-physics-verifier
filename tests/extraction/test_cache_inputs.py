@@ -145,6 +145,7 @@ def key(case: str, **changes: Any) -> str:
         "gt_version": "gt-v1" if provider.is_ground_truth else None,
         "error_profile": PROFILE,
         "device": "cuda",
+        "dataset": None,
     }
     kwargs.update(changes)
     return stage_key(StagePlan(provider.stage, provider, FakeParams()), **kwargs)

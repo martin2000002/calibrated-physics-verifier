@@ -17,6 +17,7 @@ from physverify.app.plugins import PLUGIN_KINDS
 from physverify.calibration.sealed_ledger import look_config_hash
 from physverify.config.loader import load_settings, read_config_files
 from physverify.config.models import PathsSettings, Settings
+from physverify.datasets._kubric_synthetic import content_identity
 from physverify.extraction.cache import plan_entry_filter, stage_key
 from physverify.schema.clip import resolve_sampling
 from physverify.schema.io import stable_hash
@@ -39,14 +40,15 @@ LOOK_CONFIG_HASH = {
     "fast": "264a6f208d3db9bbbe0f08e4fbd73d74c264783f9219d8cc891d8f914d289953",
     "precise": "de74e813330b3859a83a3fde17c4ddd51577a8d573fcfc855eb2c15656fe5fc7",
 }
-CHECKS_HASH = "891fd3580169fec8f8c70ca0b7d66b24973fd7348dbf1c98ac00be92aa41b2b8"
+CHECKS_HASH = "4a529448fb1f7ee61d9f0550eaf132e1dc29bdaa4fdfe0ca4c825eb3733cdad2"
 RUN_CHECKS_HASH = {
-    "fast": "891fd3580169fec8f8c70ca0b7d66b24973fd7348dbf1c98ac00be92aa41b2b8",
-    "precise": "b6720c630361bdb6e65444d4562844b77ed2d2be53d7f5068eee9010cd3aebac",
+    "fast": "4a529448fb1f7ee61d9f0550eaf132e1dc29bdaa4fdfe0ca4c825eb3733cdad2",
+    "precise": "44d28133ca495c629fbae87d0ffd9d3df5881dbc2a823ea86009ddf3b9ebe1fd",
 }
-PRECISE_STAGE_KEYS_HASH = "e712aab0fcbf7850a6d19e3ed4232ea3f811abd2a56b2fb39910ebb96701a593"
-"""Hash of every stage key of the precise plan. It and ``RUN_CHECKS_HASH["precise"]`` are what the
-tree before the current precise defaults gave with the same choices passed by ``--set``."""
+PRECISE_STAGE_KEYS_HASH = "a8178847f34638df2acf2d789cfbf86edb29b102a608c0ee83f48ffe7502282e"
+"""Hash of every stage key of the precise plan for the declared calib dataset. It and
+``RUN_CHECKS_HASH["precise"]`` are what the defaults give with the same choices passed by
+``--set``."""
 PRECISE_CHOICES = (
     "extraction.plan.contacts=kinematic_scene",
     "check_variants.R5a=whitened",
@@ -56,48 +58,51 @@ DATASET_CONTENT_HASH = {
     "fast": "7792797236e163025d89c1c518dc43ad8f90c3f511bd884e1969ca9bf1f2fa3e",
     "precise": "4a6829efdd64424d79dfc0941246de148ca50446e0f6f40738e3a02d1b8e8b4e",
 }
+NO_IDENTITY_STAGE_KEYS_HASH = "6ade5370b65788da19532c6cd38584c44991b3949da4819f825f622fd0dc4129"
+"""Hash of ``STAGE_KEYS`` computed for a dataset without cache identity (PISA, Physics-IQ,
+Objectron): the table as it was before identities entered the key, so those caches stay valid."""
 STAGE_KEYS = {
-    "camera/assumed_fov": "d0ae25696b1da8e41856f1aaf094085c01f865833bc905f253b56546f7477018",
-    "camera/from_depth": "71f47572478cef19abbac16c095575678d6703941e26128139ef90cac930aae0",
-    "camera/geocalib": "18892cc4e5b735d5fd4b8c45ad9dccfd98b0a95814a506b28ce11079f3bf3154",
-    "camera/moge2_focal": "d3e712cbff3fb294c89a0288de885b4ca62f1a83b3e4da41c2c2ac49fd070487",
-    "contacts/kinematic": "f31effc18d3cf9f2bdd93ea22c310456af425c97b58a6a0014ec56147a25a0cd",
-    "contacts/kinematic_scene": "7cf65074cd14ef8aeb77d6ad771c18253f153bc91050583f00dcd2a0b93a1583",
-    "contacts/proximity": "9630320bb6d56480ab0196b5fd6ba081d4f1bbdd3c71f303187104f19adff29b",
-    "depth/moge2": "6cdce7a43eb0a8999a01982327df1202bc13bbda4c86c3af356092a578a18f81",
-    "depth/vda_small": "70f6c003ff50af82ae87a48aa6a2c81030761e6a0c859278fc99fd8dba78cf1c",
-    "depth/vda_large": "5f9dc8fa05d3d3be2711507ea24c8d730f337ca0d1584513c2c4677d98509b13",
-    "depth/vda_metric_small": "ccc78054bf3ca5553e4bb71716289309a5b2ab609836225cf252b782f3c5b5fe",
+    "camera/assumed_fov": "53f92f90d4626f1091e3570f15005e69b3d472debd7181ecba263503c2fe6d85",
+    "camera/from_depth": "32c114cba2d96137e33d17b757f8bcb6c5163eadfb2b8645ac50a901b7a7f290",
+    "camera/geocalib": "c0c9fa78c8db19c78e6ca8984e3f4d5b2bd270ad6226d06a6d398ba2a83d7d2c",
+    "camera/moge2_focal": "f62f2580721e6350ec104e32b086fdba2b3ff6e177aaedb2117bbc5a689ad1cf",
+    "contacts/kinematic": "0d26df4538f87dd656915cafa64201a64f062c04a47b20d013e1490ca995df84",
+    "contacts/kinematic_scene": "27ef2fee523e16fc20515a0222eea55e0fe21ee531c482e8eb173305189ffa5f",
+    "contacts/proximity": "6a724ba07cf31ed9436d4a3975b69c0bba525ecd37538716a57b5f4346e1ea67",
+    "depth/moge2": "7a667c69e1312e42a50820503500a7d84d4e877540a9acb7dd1c4ccae1012b09",
+    "depth/vda_small": "a1a6a304e0e173d294247a30346164244ffd678772e5794dabe6f516f89e79b7",
+    "depth/vda_large": "f832e8c3540534bb8c828d14fe7c6d0ccfd68142b3844f2af82caaba53af7851",
+    "depth/vda_metric_small": "994f5ce61f266b181f46407f4de30f38dbd0955023e06e0a8fb7d25b8c2466e0",
     "detect/grounding_dino_tiny": (
-        "07d10de3f9dd857bfff1085bcb432229b7e8715ce167ef6c60c00dafbe942873"
+        "4aaf1f926fab14d002169ed85a89c6b818d3dd6a07d7c3491795457f0565250e"
     ),
     "detect/grounding_dino_base": (
-        "6294aa52ed26a80584610f39638f21797ad425b46f52e2f004b44b8391d78b70"
+        "aca09b204541e1178b6f5bc69ffd480fff7989b122d495e987302a7f0614f6c0"
     ),
     "detect/grounding_dino_tiny_per_query": (
-        "c5d3b85789817de2d6b754cd0d07fe8d0bbd829118ce96a201887376f4224f6d"
+        "f4463392c0d99791bd7cb9d2ce7e0c0c4ccbc21d20c65c47ded467819dd6bb4d"
     ),
-    "camera/ground_truth": "dcc9f3896dfae49cd3ef2203bda5922a6d2658e10742995834a8a97e79e756e9",
-    "contacts/ground_truth": "920d0123bf68388103884658a3bed685540debe379906dc9174b43b79a7cfaee",
-    "depth/ground_truth": "06c3b85ad942509b944137bd664d5d865d99c6cdb7441854de17f2860afaf9be",
-    "detect/ground_truth": "a62f5932c2390f802e0e37c316b245d6d790dde1ef5f17326d53382a39d142fe",
-    "kinematics/ground_truth": "c5cd41647a4c05e946c47d67b9434f304a71127680e12eefb5f1e171ad5b1e03",
-    "lift/ground_truth": "fd9112fb74e8dd281c76ae277a0ee4782161166f15cee466b834c0f5eeaa79a5",
-    "scale/ground_truth": "bccf5857fc655176ed5792c8f93a5ac8d7d0cd9bb4099b62262be587b4702dde",
-    "track/ground_truth": "7f0b4774a68b28d2fd70ac39fe6a15dabc0634cf9046983c158734a331523cd5",
-    "kinematics/savgol": "02b0027084deeeb4c537d0afe63883d4fbb26d6cc61d5c99568262da7ebe9927",
-    "lift/backproject": "cf2ef534540a15398980b3bfdcb63d0fe4ac7e2c5753a91f53c31fe2aaf82219",
-    "lift/backproject_unnested": "995088d40f7c84f4d2e72acaa75bcb12a0814bd27e744c6b81cd5c0715a2a73d",
-    "lift/ground_anchored": "68cad4a9603bf2bd1122746bb03553ec714826a9927411163853de2655d269c9",
+    "camera/ground_truth": "8f6b9478481bd12a4be19e5d92e6b81159ea5cc238bb1a0498f861c397dd48b4",
+    "contacts/ground_truth": "31ff7e48e8d7186806e46f62f59a062ae77c1b0a95abf5c067e847ed23761d6b",
+    "depth/ground_truth": "cf41e7e98d18c13174dde108a0015f716e50415c3cbec05e6d2ef0cff88c33a5",
+    "detect/ground_truth": "c73b5ff8f835a607233cff7dfc9744b16fc89c87ad09f36d440b919e0b6b3e4c",
+    "kinematics/ground_truth": "f18c6f2afe604ad22ad33bef4b7038d560c73634263894bc27f0a0adcdd91dc5",
+    "lift/ground_truth": "58fbc57523514a24251abcf54d2bb446409b74da73f151b722eb93d9d1ac3d86",
+    "scale/ground_truth": "07420c4a00b64542a927d20169f28b5221649efa1bb7c012aa3d62172b0c4566",
+    "track/ground_truth": "977b5196333ce2b1f00e4c004ef8937490af2d49960b488f6f7edda64cd516fc",
+    "kinematics/savgol": "a165f823628cc07cefaadba78afd89531fa5ba8bc1ac9d703d5707d43adccbb5",
+    "lift/backproject": "e8cc671d39fe789e3d49a420c8ccf3d8bbf2c8fbe020d17b4316299d640da9f7",
+    "lift/backproject_unnested": "fe90c07a750631846f45889882a45194937a4865043cb713cb4a9dc8b2db2c99",
+    "lift/ground_anchored": "c4f50cfa06d8e6fe1d26e5538aa3baa95f3fde157c5f823cb3cf7a987559cad6",
     "lift/backproject_size_constancy": (
-        "48156d4fc36cf48faa0d43bb330a7c704543f3135352007d76f3b520cd1cc1af"
+        "e808703621bbb239b8cc77699bf5e9014b81fa97c302f105ade50ba448dda596"
     ),
-    "scale/free_fall": "79aa638c7c8bd89c2b4cb9800301db24284b3cf191c2665c67b02e5603483813",
-    "scale/metric_depth": "5cdcab4e3fc8e24fb0ddf46a1fe36b4492ed5c61199bd31cb006d37141fc1403",
-    "scale/size_model": "6fd8fe1b46013e0be612b326f1d547721927a01208ed5e9637d86297105c5ce8",
-    "scale/size_prior": "0a50acebcd6d2aadacb293a689e932393273582d885ccc1c98e13004dfb5294c",
-    "track/edgetam": "81a150661413d4a8e45d79ab5f2dd7a3c4b2ca10db56a5bade893403801ce4d8",
-    "track/sam2_1_hiera_tiny": "88cf35cd5a540158b73d940af239b84d357dd091f5b2935f884a87671d14dbee",
+    "scale/free_fall": "66b092d13c6484aa70c13b89029fb78c080e9c644c1edbef4ed6a35d5059ff26",
+    "scale/metric_depth": "b7f4ecb2590c4eb2e8e6e7566a0558425227f6fe8b1687fd974dd6054ed0f1fc",
+    "scale/size_model": "a4c0dd5361a16ad2715d8261a24ee49d7cf34a076e32dd450565d16b550bb2d4",
+    "scale/size_prior": "9d259ba1c77a32ee7561d4148eb1e2cd27e114dccab368b4d3702188b21bb779",
+    "track/edgetam": "ced3cc80435c37af484f4d906a7a40b541255cfcad4d754ac7919983083041a6",
+    "track/sam2_1_hiera_tiny": "3cadb052e7c25db63fc75f3091903a7567705958e213b98c0f306b5f429587b7",
 }
 GROUND_TRUTH = "ground_truth"
 
@@ -136,7 +141,18 @@ def _key_paths(table: Mapping[str, Any], prefix: str = "") -> Iterator[str]:
             yield f"{prefix}{key}"
 
 
-def _stage_keys(settings: Settings, providers: Mapping[str, Any], gt: tuple[Stage, ...]) -> Any:
+def _calib_identity(settings: Settings) -> str:
+    """The cache identity of the declared calib dataset, as ``KubricSynthetic`` reads it."""
+    ds = load_dataset_settings(settings)
+    return content_identity(ds.version, ds.content_hash())
+
+
+def _stage_keys(
+    settings: Settings,
+    providers: Mapping[str, Any],
+    gt: tuple[Stage, ...],
+    dataset: str | None,
+) -> Any:
     clip = synthetic_clip.manifest()
     plan = resolve_plan(settings, providers, dataset=synthetic_clip.DATASET, gt_stages=gt)
     sampling = resolve_sampling(clip, plan.sampling)
@@ -154,8 +170,21 @@ def _stage_keys(settings: Settings, providers: Mapping[str, Any], gt: tuple[Stag
             gt_version=synthetic_clip.GT_VERSION if step.provider.is_ground_truth else None,
             error_profile=None,
             device="cpu",
+            dataset=dataset,
         )
     return keys
+
+
+def _pinned_key(configs: Path, providers: Mapping[str, Any], key: str, identity: bool) -> str:
+    """The ``STAGE_KEYS`` entry ``key`` under the fast profile, with or without calib identity."""
+    stage_name, name = key.split("/")
+    stage = Stage(stage_name)
+    overrides = () if name == GROUND_TRUTH else (f"extraction.plan.{stage_name}={name}",)
+    settings = _settings(configs, "fast", overrides)
+    dataset = _calib_identity(settings) if identity else None
+    gt = (stage,) if name == GROUND_TRUTH else ()
+    keys: dict[Stage, str] = _stage_keys(settings, providers, gt, dataset)
+    return keys[stage]
 
 
 def test_config_key_paths_are_unchanged(configs: Path) -> None:
@@ -185,7 +214,7 @@ def test_the_precise_defaults_hash_as_their_explicit_choices(
     configs: Path, providers: Mapping[str, Any], overrides: tuple[str, ...]
 ) -> None:
     settings = _settings(configs, "precise", overrides)
-    keys = _stage_keys(settings, providers, ())
+    keys = _stage_keys(settings, providers, (), _calib_identity(settings))
     assert run_checks_hash(settings) == RUN_CHECKS_HASH["precise"]
     assert stable_hash({s.value: k for s, k in keys.items()}) == PRECISE_STAGE_KEYS_HASH
 
@@ -194,14 +223,14 @@ def test_the_precise_defaults_hash_as_their_explicit_choices(
 def test_stage_cache_keys_are_unchanged(
     configs: Path, providers: Mapping[str, Any], key: str
 ) -> None:
-    stage_name, name = key.split("/")
-    stage = Stage(stage_name)
-    if name == GROUND_TRUTH:
-        keys = _stage_keys(_settings(configs, "fast"), providers, (stage,))
-    else:
-        settings = _settings(configs, "fast", (f"extraction.plan.{stage_name}={name}",))
-        keys = _stage_keys(settings, providers, ())
-    assert keys[stage] == STAGE_KEYS[key]
+    assert _pinned_key(configs, providers, key, identity=True) == STAGE_KEYS[key]
+
+
+def test_keys_without_identity_are_the_former_keys(
+    configs: Path, providers: Mapping[str, Any]
+) -> None:
+    keys = {key: _pinned_key(configs, providers, key, identity=False) for key in STAGE_KEYS}
+    assert stable_hash(keys) == NO_IDENTITY_STAGE_KEYS_HASH
 
 
 def test_every_provider_has_a_pinned_stage_key(providers: Mapping[str, Any]) -> None:
