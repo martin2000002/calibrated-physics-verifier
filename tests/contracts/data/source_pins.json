@@ -1,15 +1,15 @@
 {
   "check_variants": {
     "R4_jump/rigid2": {
-      "digest": "5429d7e742b07886ce4990012459f5d66b66c2e2ae2ed99d18cf079f96cd1f7b",
+      "digest": "723921a59d9ae6beeb9c1ba5b573f905f540b69f58d31835d04eb1f83040c305",
       "version": "1"
     },
     "R4_jump/rigid2_dfloor": {
-      "digest": "74dd68751834a5d8e054f98f9cddca2a8cb9331d591bff7a8043a61132f6f265",
+      "digest": "a0b9f332cacdbd1bceb345cfa93d2a6682a7a5f02e116261f65297b734b52666",
       "version": "1"
     },
     "R4_jump/rigid2_dfloor_timing": {
-      "digest": "3135b5f91be751c8857c0d6f2d841284e0421e1cf4f52cdd41f7191f5b55c668",
+      "digest": "79e64c4926351ac5c1ee29e57478214b59d0de12090f8ab31a0f95e089db292e",
       "version": "1"
     },
     "R4_size/v3": {
@@ -39,7 +39,7 @@
       "version": "1"
     },
     "R4_jump": {
-      "digest": "65e29f719a8460e46d7e7cd9fa8d87fd6131fd3fe2fcc2cc3d3a453431a2d1d8",
+      "digest": "393ecc066cb1f43096bc0d3739f1fcfdddc9babeabd9732ec27a72eef30295cf",
       "version": "1"
     },
     "R4_missing": {
