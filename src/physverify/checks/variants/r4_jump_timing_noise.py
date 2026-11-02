@@ -10,12 +10,9 @@ import numpy as np
 from numpy.typing import NDArray
 
 from physverify.checks._base import CheckInputs
-from physverify.checks._peaks import first_max
-from physverify.checks.r4_track_jump import TrackNoise
+from physverify.checks.r4_track_jump import NoiseStencils, TrackNoise
 from physverify.checks.variants._declared_depth_jump import DeclaredDepthJumpCheck
-from physverify.physics.measures.track_jump import noise_jumps
 from physverify.physics.timing_noise import TimingFit, stencil_sigma, stencil_speed, timing_sigma
-from physverify.physics.tracks import noise_stencils
 
 FloatArray = NDArray[np.float64]
 
@@ -38,34 +35,24 @@ class TimingJumpCheck(DeclaredDepthJumpCheck):
     version: ClassVar[str] = "1"
 
     def _stencil_sigma(
-        self, inputs: CheckInputs, index: int, excluded: NDArray[np.bool_], noise: TrackNoise
+        self, inputs: CheckInputs, index: int, stencils: NoiseStencils, noise: TrackNoise
     ) -> tuple[FloatArray, Mapping[str, object]]:
-        positions = inputs.states.position[:, index]
         if noise.source != "track":
             fit, sigma = TimingFit(0.0, 0), noise.sigma
         else:
-            d3, usable = noise_stencils(inputs.states, index, excluded)
-            speed = stencil_speed(positions)
+            d3, usable = stencils
+            speed = stencil_speed(inputs.states.position[:, index])
             fit = timing_sigma(d3, noise.sigma, speed, usable, self.params.min_noise_stencils)
             sigma = noise.sigma
             if fit.sigma_frames:
                 sigma = stencil_sigma(noise.sigma, speed, fit.sigma_frames)
-        return sigma, {
-            "timing_sigma_frames": fit.sigma_frames,
-            "timing_moving_cells": fit.cells,
-            "timing_sigma_eff": _peak_sigma(positions, sigma, excluded),
-        }
+        return sigma, {"timing_sigma_frames": fit.sigma_frames, "timing_moving_cells": fit.cells}
 
-
-def _peak_sigma(
-    positions: FloatArray, sigma: FloatArray, excluded: NDArray[np.bool_]
-) -> list[float] | None:
-    """The noise per axis of the stencil the statistic peaks at; None without a finite one."""
-    per_row = noise_jumps(positions, sigma, excluded)
-    if not np.isfinite(per_row).any():
-        return None
-    row = first_max(per_row)
-    return [float(value) for value in (sigma[row - 1] if sigma.ndim == 2 else sigma)]
+    def _peak_details(self, row: int, stencil: FloatArray) -> Mapping[str, object]:
+        """``timing_sigma_eff``: the noise per axis of the peak row's stencil, row - 1 of a
+        per-stencil ``stencil`` (``noise_jumps`` writes stencil j at row j + 1)."""
+        at_peak = stencil[row - 1] if stencil.ndim == 2 else stencil
+        return {"timing_sigma_eff": [float(value) for value in at_peak]}
 
 
 PLUGINS = (TimingJumpCheck,)

@@ -14,6 +14,8 @@ from physverify.checks.variants._base import validate_variant
 from physverify.checks.variants._declared_depth_jump import DeclaredDepthJumpCheck
 from physverify.checks.variants._rigid_jump import RigidJumpParams
 from physverify.checks.variants.r4_jump_timing_noise import TimingJumpCheck
+from physverify.physics.finite_diff import third_difference, third_difference_sigma
+from physverify.physics.tracks import noise_stencils
 from physverify.schema.checks import CheckResult
 
 SIGMA = 0.01
@@ -60,22 +62,34 @@ def test_the_variant_declares_its_version_and_passes_the_registry_hooks() -> Non
     validate_variant(TimingJumpCheck)
 
 
-def test_the_base_seam_returns_sigma_hat_itself_and_no_details() -> None:
+def stencils_of(inputs: CheckInputs) -> tuple[np.ndarray, np.ndarray]:
+    return noise_stencils(inputs.states, 0, np.zeros(inputs.states.n_frames, dtype=bool))
+
+
+def test_the_base_seams_return_sigma_hat_itself_and_no_details() -> None:
     inputs = sc.teleport().inputs()
     noise = TrackNoise(np.array([0.01, 0.02, 0.03]), "track", 0)
-    excluded = np.zeros(inputs.states.n_frames, dtype=bool)
-    sigma, details = NoiseContinuityCheck(NoiseJumpParams())._stencil_sigma(
-        inputs, 0, excluded, noise
-    )
+    check = NoiseContinuityCheck(NoiseJumpParams())
+    sigma, details = check._stencil_sigma(inputs, 0, stencils_of(inputs), noise)
     assert sigma is noise.sigma
     assert details == {}
+    assert check._peak_details(4, np.arange(30.0).reshape(10, 3)) == {}
+
+
+def test_the_peak_noise_is_the_stencil_of_the_peak_row() -> None:
+    check = TimingJumpCheck(RigidJumpParams())
+    per_stencil = np.arange(30.0).reshape(10, 3)
+    assert check._peak_details(4, per_stencil) == {"timing_sigma_eff": [9.0, 10.0, 11.0]}
+    assert check._peak_details(4, np.array([0.1, 0.2, 0.3])) == {
+        "timing_sigma_eff": [0.1, 0.2, 0.3]
+    }
 
 
 def test_exact_positions_keep_sigma_hat_and_no_timing_noise() -> None:
     inputs = sc.teleport().inputs()
     noise = TrackNoise(np.array([0.001, 0.001, 0.001]), "exact", 3)
-    excluded = np.zeros(inputs.states.n_frames, dtype=bool)
-    sigma, details = TimingJumpCheck(RigidJumpParams())._stencil_sigma(inputs, 0, excluded, noise)
+    check = TimingJumpCheck(RigidJumpParams())
+    sigma, details = check._stencil_sigma(inputs, 0, stencils_of(inputs), noise)
     assert sigma is noise.sigma
     assert details["timing_sigma_frames"] == 0.0
     assert details["timing_moving_cells"] == 0
@@ -121,3 +135,13 @@ def test_the_timing_details_are_added_and_the_base_has_none() -> None:
     assert {k: v for k, v in result.details.items() if k not in TIMING_KEYS}.keys() == (
         base.details.keys()
     )
+
+
+def test_the_peak_noise_restates_the_raw_statistic_at_the_peak_row() -> None:
+    positions = slide_and_rest(seed=4, delta=0.1)
+    result = timed(with_track(positions))
+    row, peak = result.details["row"], result.details["timing_sigma_eff"]
+    assert isinstance(row, int) and isinstance(peak, list)
+    d3 = third_difference(positions)[row - 1]
+    scale = third_difference_sigma(1.0, 1.0) * np.asarray(peak)
+    assert float(np.linalg.norm(d3 / scale)) == pytest.approx(result.details["raw_jump_over_noise"])

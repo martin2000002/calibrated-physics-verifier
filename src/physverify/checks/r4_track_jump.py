@@ -35,6 +35,8 @@ from physverify.schema.contacts import ContactTable
 FloatArray = NDArray[np.float64]
 BoolArray = NDArray[np.bool_]
 NoiseSource = Literal["exact", "track", "declared"]
+NoiseStencils = tuple[FloatArray, BoolArray]
+"""``noise_stencils`` of one object: its third differences and the ones usable as noise."""
 REFERENCE_STENCILS = stencils_in(REFERENCE_ROWS)
 """The stencils of a Kubric calibration clip, the length the a-priori threshold (a Bonferroni
 over about 20 stencils) and the calibrated tau were set on."""
@@ -127,7 +129,8 @@ class NoiseContinuityCheck:
         states = inputs.states
         object_id = str(states.object_ids[index])
         exclude = self._excluded(inputs, contacts, index)
-        usable = int(noise_stencils(states, index, exclude)[1].sum())
+        track_stencils = noise_stencils(states, index, exclude)
+        usable = int(track_stencils[1].sum())
         details: dict[str, object] = {
             "excluded_rows": int(np.count_nonzero(exclude)),
             "usable_stencils": usable,
@@ -141,7 +144,7 @@ class NoiseContinuityCheck:
         if noise is None:
             reason = AbstainReason.TOO_FEW_FRAMES
             return abstain(type(self), inputs, (object_id,), reason, None, details)
-        stencil, extra = self._stencil_sigma(inputs, index, exclude, noise)
+        stencil, extra = self._stencil_sigma(inputs, index, track_stencils, noise)
         per_row = noise_jumps(states.position[:, index], stencil, exclude)
         k = first_max(per_row)
         raw = jump_over_noise(states.position[:, index], stencil, exclude)
@@ -152,6 +155,7 @@ class NoiseContinuityCheck:
         details |= {"row": k, "stencils": stencils, "raw_jump_over_noise": raw}
         details |= self._physical(inputs, index, k, noise)
         details |= extra
+        details |= self._peak_details(k, stencil)
         return unscored(type(self), inputs, (object_id,), magnitude, sigma, span, details)
 
     def _excluded(self, inputs: CheckInputs, contacts: ContactTable, index: int) -> BoolArray:
@@ -165,11 +169,15 @@ class NoiseContinuityCheck:
         return np.full(3, pixel)
 
     def _stencil_sigma(
-        self, inputs: CheckInputs, index: int, excluded: BoolArray, noise: TrackNoise
+        self, inputs: CheckInputs, index: int, stencils: NoiseStencils, noise: TrackNoise
     ) -> tuple[FloatArray, Mapping[str, object]]:
         """Noise of each third-difference stencil, shape (3,) or (T - 3, 3), and its details:
         sigma-hat per axis, the same on every stencil."""
         return noise.sigma, {}
+
+    def _peak_details(self, row: int, stencil: FloatArray) -> Mapping[str, object]:
+        """Details of the peak ``row`` under the stencil noise ``stencil``: none."""
+        return {}
 
     @staticmethod
     def _physical(
