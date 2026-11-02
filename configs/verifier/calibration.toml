@@ -37,7 +37,7 @@ R3a = 1e-5           # e_minus_1; clean -0.27..0.034
 R3b = 1e-5           # dE_over_E; clean -0.077
 R4_missing = 0.020833333333333332  # seconds: half a frame at 24 fps, one missing frame fails
 R4_size = 1e-5       # rel_size_change; clean exactly 0
-R4_jump = 0.01       # jump_over_size; clean 1e-14 free flight, up to 2.8e-3 at bounces (frame
+R4_jump = 0.01       # jump_over_noise; clean 1e-14 free flight, up to 2.8e-3 at bounces (frame
                      # discretisation, 3.5x below), L1 teleport 0.25 (25x above)
 R5a = 1e-5           # accel_rel_diff; clean <= 3.8e-14
 R5b = 1e-5           # g_rel_error; clean 4.3e-8 (float32 rounding of g)

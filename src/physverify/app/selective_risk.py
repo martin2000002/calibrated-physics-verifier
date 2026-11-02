@@ -48,9 +48,12 @@ from physverify.selective_risk.tables import (
 )
 from physverify.verification.check_set import CHECKS_SECTION, ChecksSettings, checks_hash
 from physverify.verification.inputs import refuse_heavy
-from physverify.verification.runner import VERIFICATION_SECTION, VerificationSettings
+from physverify.verification.runner import (
+    VERIFICATION_SECTION,
+    VerificationSettings,
+    guarded_thresholds,
+)
 from physverify.verification.sweep import units_of
-from physverify.verification.thresholding import load_thresholds
 
 
 def fit_abstention(
@@ -109,7 +112,7 @@ def _session(
     settings = context.settings
     verification = settings.section(VERIFICATION_SECTION, VerificationSettings)
     registry = registry_of(context, CHECKS)
-    fallback = load_thresholds(settings.paths.thresholds, verification.thresholds)
+    fallback = guarded_thresholds(settings, registry)
     overrides = {
         level: path
         for level, path in ((InputLevel.ORACLE, oracle), (InputLevel.PERCEIVED, perceived))
