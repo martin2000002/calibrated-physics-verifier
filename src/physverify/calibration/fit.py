@@ -226,7 +226,7 @@ def fit_check(
     settings: CalibrationSettings,
 ) -> CheckCalibration:
     rule = Rule(policy, sigma.bias, sigma.factor)
-    tolerance = settings.tau_tolerance.get(check.check_id, 0.0)
+    tolerance = settings.tolerance_of(check)
     clean = [r for r in rows if r.role is Role.CLEAN]
     positives = [r for r in rows if r.role is Role.POSITIVE]
     require_subjects(rows)

@@ -22,7 +22,8 @@ stage_profile = "stage_errors.recalibrated.json"
 # of the calibration rule). Not part of any fit hash.
 require_calibrated_artifact = false
 
-# Numerical tolerance epsilon_c per check, in check units: tau = max(q, epsilon_c), where q is
+# Numerical tolerance epsilon_c per check, in the unit of its default implementation unless
+# tau_tolerance_units declares another (a variant's): tau = max(q, epsilon_c), where q is
 # the conformal quantile. It only bites when the clean clips are exact up to rounding (the oracle);
 # a perceived q is far above it. Chosen from the oracle clean clips of `local` + `levels`
 # about 100x the largest clean value that is rounding noise and >= 25x below the
@@ -43,3 +44,11 @@ R5b = 1e-5           # g_rel_error; clean 4.3e-8 (float32 rounding of g)
 
 [calibration.profiles.fast]
 subset = "local"
+
+# Same rule, measured for the whitened R5a on the oracle clean clips of the precise calib set:
+# clean <= 3.3e-15, level-1 >= 1.4e8.
+[calibration.profiles.precise.tau_tolerance]
+R5a = 1e-5
+
+[calibration.profiles.precise.tau_tolerance_units]
+R5a = "accel_wald_chi2_3"

@@ -259,6 +259,20 @@ def test_a_provisional_tau_in_another_unit_than_its_check_stops_the_suite(
         configured_suite(mislabelled, plugins.configured("checks", mislabelled), policies)
 
 
+def test_the_precise_profile_runs_the_whitened_fall_with_a_threshold_in_its_unit(
+    make_settings: SettingsFactory,
+) -> None:
+    policies = PLUGIN_KINDS["policies"]()
+    precise = make_settings(profile="precise")
+    checks = plugins.configured("checks", precise)
+    assert checks["R5a"] is plugins.build("check_variants")["R5a/whitened"]
+    assert configured_suite(precise, checks, policies).thresholds.tau_of("R5a") == 11.34
+    v1 = make_settings("check_variants.R5a=default", profile="precise")
+    mismatch = r"R5a \(tau in accel_wald_chi2_3, check reports accel_rel"
+    with pytest.raises(ConfigError, match=mismatch):
+        configured_suite(v1, plugins.configured("checks", v1), policies)
+
+
 @pytest.mark.parametrize("recorded", ["default", "whitened", None])
 def test_a_calibrated_table_judges_only_the_checks_it_was_fitted_with(
     make_settings: SettingsFactory, recorded: str | None

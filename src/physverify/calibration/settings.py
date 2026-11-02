@@ -8,10 +8,12 @@ from typing import Literal
 from pydantic import Field, NonNegativeFloat
 
 from physverify.config.models import Settings
+from physverify.core.errors import ConfigError
 from physverify.core.models import FrozenModel
 from physverify.diagnosis.settings import diagnosis_settings
 from physverify.schema.checks import InputLevel
 from physverify.verification.runner import VERIFICATION_SECTION, VerificationSettings
+from physverify.verification.sweep import CheckUnit
 from physverify.verification.thresholding import ThresholdParams
 
 SECTION = "calibration"
@@ -41,9 +43,27 @@ class CalibrationSettings(FrozenModel):
     artifact: str = "calibration.json"
     stage_profile: str = "stage_errors.recalibrated.json"
     tau_tolerance: dict[str, NonNegativeFloat] = Field(default_factory=dict)
-    """epsilon_c per check in check units: tau = max(q, epsilon_c); absent = 0."""
+    """epsilon_c per check id: tau = max(q, epsilon_c); absent = 0."""
+    tau_tolerance_units: dict[str, str] = Field(default_factory=dict)
+    """Unit of an epsilon_c entry when it is not that of the check id's default implementation."""
     require_calibrated_artifact: bool = False
     """A consumer also requires artifact status ``calibrated``, not only a usable stratum."""
+
+    def tolerance_of(self, check: CheckUnit) -> float:
+        """epsilon_c of ``check``; an entry written in another unit than the one it reports is a
+        ``ConfigError``."""
+        tolerance = self.tau_tolerance.get(check.check_id)
+        if tolerance is None:
+            return 0.0
+        default = check.replaced_unit or check.magnitude_unit
+        written = self.tau_tolerance_units.get(check.check_id, default)
+        if written != check.magnitude_unit:
+            raise ConfigError(
+                f"calibration.tau_tolerance.{check.check_id} is in {written}, the check reports "
+                f"{check.magnitude_unit}: set calibration.tau_tolerance.{check.check_id} and "
+                f"calibration.tau_tolerance_units.{check.check_id} for the variant"
+            )
+        return tolerance
 
 
 @dataclass(frozen=True)

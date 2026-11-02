@@ -36,10 +36,11 @@ track = "sam2_1_hiera_tiny"
 # One MoGe-2 focal per clip with GeoCalib gravity: the assumed 60 deg FOV was biased by
 # +10.9 deg on Kubric. camera/geocalib with an assumed focal was the earlier choice.
 camera = "moge2_focal"
-# A later perception iteration: G-depth passes and G-contacts fails on (c), so only the depth
-# was adopted and contacts stay proximity. The base chain finally chosen is the earlier
-# iteration's chain on CPU, with GeoCalib gravity, so precise keeps vda_small.
+# The base chain finally chosen is an earlier iteration's chain on CPU, with GeoCalib gravity,
+# so precise keeps vda_small.
 depth = "vda_small"
+# Kinematic-scene contacts replaced proximity once a held-out look on fresh scenes confirmed them.
+contacts = "kinematic_scene"
 
 [extraction.profiles.precise.providers.camera.geocalib]
 focal = "assumed"

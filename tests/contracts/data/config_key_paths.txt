@@ -38,6 +38,8 @@ calibration.levels
 calibration.min_sigma_pairs
 calibration.platt_l2
 calibration.profiles.fast.subset
+calibration.profiles.precise.tau_tolerance.R5a
+calibration.profiles.precise.tau_tolerance_units.R5a
 calibration.real_datasets
 calibration.require_calibrated_artifact
 calibration.seed
@@ -60,6 +62,7 @@ check_scope.require_decision_record
 check_scope.time_dependent_checks
 check_variants.profiles.precise.R4_jump
 check_variants.profiles.precise.R4_size
+check_variants.profiles.precise.R5a
 checks.R2.mass_floor
 checks.R4_size.reference
 dataset.assets
@@ -199,6 +202,7 @@ extraction.plan.lift
 extraction.plan.scale
 extraction.plan.track
 extraction.profiles.precise.plan.camera
+extraction.profiles.precise.plan.contacts
 extraction.profiles.precise.plan.depth
 extraction.profiles.precise.plan.detect
 extraction.profiles.precise.plan.track
@@ -526,6 +530,8 @@ timing.valid_profile
 verification.policies.threshold.k_sigma
 verification.policies.threshold.on_unknown_sigma
 verification.policy
+verification.profiles.precise.threshold_units.R5a
+verification.profiles.precise.thresholds.R5a
 verification.specificity.abs_tol
 verification.specificity.couplings
 verification.specificity.null_tol

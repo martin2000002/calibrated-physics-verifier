@@ -7,9 +7,12 @@ import math
 import numpy as np
 import pytest
 from calibration_cases import result, row, settings
+from settings_factory import SettingsFactory
 
+from physverify.app import plugins
 from physverify.calibration.artifact import UNRANKED_NEGATIVES
 from physverify.calibration.fit import check_status
+from physverify.calibration.settings import calibration_settings
 from physverify.calibration.table import CalibrationDataError, Role, require_subjects
 from physverify.calibration.thresholds import (
     NOT_DETERMINED,
@@ -23,11 +26,46 @@ from physverify.calibration.thresholds import (
     tpr_by_level,
 )
 from physverify.calibration.verdict import Rule
+from physverify.core.errors import ConfigError
 from physverify.schema.checks import InputLevel, Verdict
 from physverify.verification.policies.threshold import ThresholdPolicy
+from physverify.verification.sweep import CheckUnit
 
 ALPHA = 0.05
 RULE = Rule(ThresholdPolicy(), bias=0.0, factor=1.0)
+
+
+def test_a_tolerance_applies_only_in_the_unit_it_is_written_in() -> None:
+    found = settings(tau_tolerance={"R5a": 1e-5, "R4_jump": 0.01})
+    checks, variants = plugins.build("checks"), plugins.build("check_variants")
+    whitened = CheckUnit.of(variants["R5a/whitened"])
+    assert whitened.replaced_unit == checks["R5a"].magnitude_unit
+    assert found.tolerance_of(CheckUnit.of(checks["R5a"])) == 1e-5
+    assert found.tolerance_of(CheckUnit.of(variants["R4_jump/rigid2"])) == 0.01
+    assert found.tolerance_of(CheckUnit.of(checks["R1"])) == 0.0
+    with pytest.raises(ConfigError, match=r"tau_tolerance\.R5a is in accel_rel_diff"):
+        found.tolerance_of(whitened)
+    declared = settings(
+        tau_tolerance={"R5a": 2e-5}, tau_tolerance_units={"R5a": whitened.magnitude_unit}
+    )
+    assert declared.tolerance_of(whitened) == 2e-5
+    with pytest.raises(ConfigError, match=r"tau_tolerance\.R5a is in accel_wald_chi2_3"):
+        declared.tolerance_of(CheckUnit.of(checks["R5a"]))
+
+
+def test_the_precise_profile_writes_the_whitened_tolerance_in_its_unit(
+    make_settings: SettingsFactory,
+) -> None:
+    def tolerance(*overrides: str) -> float:
+        found = make_settings(*overrides, profile="precise")
+        r5a = plugins.configured("checks", found)["R5a"]
+        return calibration_settings(found).tolerance_of(CheckUnit.of(r5a))
+
+    assert tolerance() == 1e-5
+    v1 = "check_variants.R5a=default"
+    assert tolerance(v1, "calibration.tau_tolerance_units.R5a=accel_rel_diff") == 1e-5
+    with pytest.raises(ConfigError, match=r"tau_tolerance\.R5a is in accel_wald_chi2_3"):
+        tolerance(v1)
 
 
 def clean_rows(values: np.ndarray) -> list:  # type: ignore[type-arg]
