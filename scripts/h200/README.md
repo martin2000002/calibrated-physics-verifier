@@ -243,18 +243,27 @@ sigma. Steps 4 and 5 only read the cache. A cuda iteration therefore holds the G
 and the script keeps `--device cuda` (the cache keys hold the device) with `CUDA_VISIBLE_DEVICES`
 empty, so a cache miss fails instead of computing on a GPU nobody locked.
 
-`PHYSVERIFY_ITERATION_WORKERS` (default 1, at most 64) is `runtime.workers`: `diagnose stages` and
+`PHYSVERIFY_ITERATION_WORKERS` (default 1) is `runtime.workers`: `diagnose stages` and
 `calibrate stage-sigma` measure the clips, and `calibrate dev-score` verifies them, in that many
-forked processes and gather them in clip order, so every output is the one-worker output. A launcher, with the server's GPU slot launcher
-(`gpu_slot.sh TAG cmd...`, not in this repository; it takes the GPU lock and sets
-`CUDA_VISIBLE_DEVICES`):
+forked processes and gather them in clip order, so every output is the one-worker output. Above
+one worker the script sets `OMP_NUM_THREADS`, `MKL_NUM_THREADS` and `OPENBLAS_NUM_THREADS` to 1
+and `DD_INSTRUMENT_SERVICE_WITH_APM=false`, so the parent forks with a single thread and workers
+times BLAS threads stays within the worker count (the launcher below sets BLAS to 1 thread in
+any case; torch takes `runtime.threads` explicitly). A cuda range that crosses from step 3 to 4 exits
+2. Take the count from the server's `~/work/scratch/cpu_workers.sh` (not in this repository) right
+before each half, so it follows the load of other users, and run under `nice -n 10`; steps 1-3 go
+through the server's GPU slot launcher (`~/work/scratch/gpu_slot.sh TAG cmd...`, not in this
+repository; it takes the GPU lock and sets `CUDA_VISIBLE_DEVICES`):
 
 ```sh
 export PHYSVERIFY_ITERATION_ID=<id> PHYSVERIFY_ITERATION_EXPECT_COMMIT=<head> \
     PHYSVERIFY_ITERATION_CACHE_DIR=<cache> PHYSVERIFY_ITERATION_DIR=<out> \
-    PHYSVERIFY_ITERATION_DEVICE=cuda PHYSVERIFY_ITERATION_WORKERS=32
-gpu_slot.sh "$PHYSVERIFY_ITERATION_ID" bash scripts/h200/run_perception_iteration.sh 1 3 \
-    && bash scripts/h200/run_perception_iteration.sh 4 5
+    PHYSVERIFY_ITERATION_DEVICE=cuda OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
+~/work/scratch/gpu_slot.sh "$PHYSVERIFY_ITERATION_ID" bash -c \
+    'PHYSVERIFY_ITERATION_WORKERS=$(~/work/scratch/cpu_workers.sh) \
+        nice -n 10 bash scripts/h200/run_perception_iteration.sh 1 3' \
+    && PHYSVERIFY_ITERATION_WORKERS=$(~/work/scratch/cpu_workers.sh) \
+        nice -n 10 bash scripts/h200/run_perception_iteration.sh 4 5
 ```
 
 ### B reading on the development sets
