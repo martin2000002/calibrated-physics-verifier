@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import ClassVar
 
@@ -15,9 +15,12 @@ from physverify.calibration.development import (
     is_development,
     may_be_development,
 )
+from physverify.calibration.settings import calibration_settings
+from physverify.config.models import Settings
 from physverify.core.errors import UsageError
 from physverify.datasets._base import GroundTruthStore, VideoSource
 from physverify.datasets._kubric_synthetic import content_identity
+from physverify.datasets.kubric_fresh import fresh_settings
 from physverify.schema.clip import ClipManifest, Split
 
 CLIPS = synthetic_report(3, split=Split.EVAL, prefix="d").clips
@@ -49,6 +52,25 @@ class VersionedDataset(PlainDataset):
 
     def content_version(self) -> str:
         return self._version
+
+
+class FreshRender(VersionedDataset):
+    name: ClassVar[str] = "kubric_fresh"
+
+
+def test_the_committed_sets_hold_both_fresh_renders(make_settings: Callable[..., Settings]) -> None:
+    """Both kubric_fresh renders are development sets; any other version of the name is not, and
+    kubric_fresh still reads v2-fresh by default."""
+    committed = make_settings()
+    declared = calibration_settings(committed)
+    assert declared.development_sets == (
+        "kubric_fresh@v2-fresh",
+        "kubric_fresh@v2-dev-b2",
+        "kubric_synthetic@v1-precise-hdri-dev",
+    )
+    assert fresh_settings(committed).version == "v2-fresh"
+    for version, expected in (("v2-fresh", True), ("v2-dev-b2", True), ("v2-fresh-ood", False)):
+        assert is_development(FreshRender(version), declared) is expected
 
 
 def test_a_development_set_names_its_version() -> None:
