@@ -20,6 +20,14 @@ def scene_id_of(family: str, index: int) -> str:
     return f"{family}-s{index:03d}"
 
 
+def family_of(scene_id: str) -> str | None:
+    """The family ``scene_id_of`` was given for ``scene_id``; None for any other scene id."""
+    family, sep, index = scene_id.rpartition("-s")
+    if not (sep and family and index.isascii() and index.isdigit()):
+        return None
+    return family if scene_id_of(family, int(index)) == scene_id else None
+
+
 def clip_id_of(scene_id: str, perturbation: str, level: int) -> str:
     return f"{scene_id}__{NONE}" if perturbation == NONE else f"{scene_id}__{perturbation}_L{level}"
 

@@ -21,6 +21,7 @@ from physverify.calibration.fit import FitInputs, fit_calibration
 from physverify.calibration.sigma_recalibration import SigmaPair
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import Split
+from physverify.synth.plan import family_of
 
 GOLDEN = Path(__file__).resolve().parent / "golden" / "dev_score_all_sigma_pairs.json"
 
@@ -46,7 +47,7 @@ def fitted(**update: Any) -> dict[str, Any]:
         InputLevel.PERCEIVED, td.REPORT, CHECKS, cfg, split=Split.CALIB, pairs=pairs()
     )
     artifact = fit_calibration(FitInputs((oracle, perceived), CHECKS, fit_meta()), cfg)
-    report = dev_score((oracle, perceived), CHECKS, fit_meta(), cfg).report
+    report = dev_score((oracle, perceived), CHECKS, fit_meta(), cfg, family_of).report
     return {"two_level": json.loads(artifact.to_json()), "devscore": json.loads(report.to_json())}
 
 

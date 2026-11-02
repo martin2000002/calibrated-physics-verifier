@@ -12,8 +12,9 @@ from typing import Annotated
 import typer
 
 from physverify.app import calibration as service
+from physverify.app.devscore_compare import compare_devscore
+from physverify.cli import options as opt
 from physverify.cli.context import app_context, echo_err
-from physverify.cli.options import ClipsOption
 
 NAME = "calibrate"
 
@@ -22,26 +23,17 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
-DatasetOption = Annotated[str | None, typer.Option(help="Dataset (default: calibration.dataset).")]
-SubsetOption = Annotated[str | None, typer.Option(help="Subset (default: calibration.subset).")]
-ArtifactOption = Annotated[
-    Path | None, typer.Option(help="Artifact (default: calibration_dir/artifact).")
-]
-ProfileOption = Annotated[str | None, typer.Option(help="Sampling profile (default: active).")]
-LevelOption = Annotated[str | None, typer.Option(help="oracle, perceived or both.")]
-NoSigmaOption = Annotated[bool, typer.Option(help="Do not recalibrate the perceived sigma.")]
-
 
 @app.command("fit", help="Fit thresholds, rates and weights on split=calib.")
 def fit(
     ctx: typer.Context,
-    dataset: DatasetOption = None,
-    subset: SubsetOption = None,
-    level: LevelOption = None,
-    clips: ClipsOption = None,
+    dataset: opt.DatasetOption = None,
+    subset: opt.SubsetOption = None,
+    level: opt.LevelOption = None,
+    clips: opt.ClipsOption = None,
     from_run: Annotated[list[str] | None, typer.Option(help="verify --policy raw run ids.")] = None,
     out: Annotated[Path | None, typer.Option(help="Artifact path.")] = None,
-    no_sigma: NoSigmaOption = False,
+    no_sigma: opt.NoSigmaOption = False,
 ) -> None:
     service.fit_artifact(
         app_context(ctx),
@@ -61,12 +53,12 @@ def fit(
 )
 def devscore(
     ctx: typer.Context,
-    dataset: DatasetOption = None,
-    subset: SubsetOption = None,
-    level: LevelOption = None,
-    clips: ClipsOption = None,
+    dataset: opt.DatasetOption = None,
+    subset: opt.SubsetOption = None,
+    level: opt.LevelOption = None,
+    clips: opt.ClipsOption = None,
     out: Annotated[Path | None, typer.Option(help="Also write devscore.json here.")] = None,
-    no_sigma: NoSigmaOption = False,
+    no_sigma: opt.NoSigmaOption = False,
 ) -> None:
     """Writes only its run directory (and ``--out``): never calibration_dir or the thresholds."""
     service.score_devscore(
@@ -81,12 +73,23 @@ def devscore(
     )
 
 
+@app.command("compare-devscore", help="Paired AUROC_cv deltas b - a of two dev-score runs.")
+def compare(
+    ctx: typer.Context,
+    a: opt.ArmOption,
+    b: opt.ArmOption,
+    level: opt.OneLevelOption = "perceived",
+    out: Annotated[Path | None, typer.Option(help="Also write devscore_compare.json here.")] = None,
+) -> None:
+    compare_devscore(app_context(ctx), a, b, level, out, echo=typer.echo)
+
+
 @app.command("stage-sigma", help="Per-stage sigma factors (heavy, lazy lock; H200).")
 def stage_sigma(
     ctx: typer.Context,
-    dataset: DatasetOption = None,
-    subset: SubsetOption = None,
-    clips: ClipsOption = None,
+    dataset: opt.DatasetOption = None,
+    subset: opt.SubsetOption = None,
+    clips: opt.ClipsOption = None,
 ) -> None:
     picked = service.Picked(dataset, subset, clips)
     service.fit_stage_sigma(
@@ -97,18 +100,12 @@ def stage_sigma(
 @app.command("evaluate", help="Score held-out and real clips with the frozen artifact.")
 def evaluate_command(
     ctx: typer.Context,
-    artifact: ArtifactOption = None,
-    dataset: DatasetOption = None,
-    subset: SubsetOption = None,
-    clips: ClipsOption = None,
+    artifact: opt.ArtifactOption = None,
+    dataset: opt.DatasetOption = None,
+    subset: opt.SubsetOption = None,
+    clips: opt.ClipsOption = None,
     real: Annotated[bool, typer.Option(help="Also score the real datasets.")] = True,
-    real_dataset: Annotated[
-        list[str] | None,
-        typer.Option(
-            "--real-dataset",
-            help="Real dataset to score instead of calibration.real_datasets (repeatable).",
-        ),
-    ] = None,
+    real_dataset: opt.RealDatasetOption = None,
 ) -> None:
     service.evaluate_artifact(
         app_context(ctx),
@@ -125,9 +122,9 @@ def evaluate_command(
 @app.command("publish", help="Copy a stratum's projection to paths.thresholds (verify uses it).")
 def publish(
     ctx: typer.Context,
-    level: Annotated[str, typer.Option(help="oracle or perceived.")],
-    profile: ProfileOption = None,
-    artifact: ArtifactOption = None,
+    level: opt.OneLevelOption,
+    profile: opt.ProfileOption = None,
+    artifact: opt.ArtifactOption = None,
     force: Annotated[
         bool, typer.Option(help="Publish a stratum that is not usable yet (warns).")
     ] = False,
@@ -140,9 +137,9 @@ def publish(
 @app.command("show", help="Summary of the artifact per stratum and check.")
 def show(
     ctx: typer.Context,
-    artifact: ArtifactOption = None,
+    artifact: opt.ArtifactOption = None,
     level: Annotated[str | None, typer.Option()] = None,
-    profile: ProfileOption = None,
+    profile: opt.ProfileOption = None,
 ) -> None:
     for line in service.show_artifact(app_context(ctx), artifact, level, profile):
         typer.echo(line)

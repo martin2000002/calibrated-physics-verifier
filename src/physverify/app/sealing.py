@@ -90,6 +90,7 @@ EXEMPT: Final[Mapping[str, str]] = MappingProxyType(
         "agreement fetch": _DATA,
         "agreement freeze": "reads the h2_dev verify run (development data)",
         "agreement subset": _DATA,
+        "calibrate compare-devscore": _READS,
         "calibrate publish": _READS,
         "calibrate show": _READS,
         "compare-generators compare": _GENERATED,

@@ -8,9 +8,8 @@ weights refitted). One scene partition serves every check, both levels and the s
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from dataclasses import dataclass, replace
-from itertools import zip_longest
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 
 from pydantic import Field
 
@@ -25,31 +24,49 @@ from physverify.calibration.artifact import (
     Weight,
 )
 from physverify.calibration.check_weights import Flag, raw_weight
+from physverify.calibration.dev_folds import FoldPart, fold_parts, scene_folds
 from physverify.calibration.fit import (
     FitMeta,
     LevelData,
     assemble_stratum,
     auroc_of,
     build_artifact,
-    clip_scores,
     fit_checks,
-    fit_stratum,
     settings_snapshot,
 )
+from physverify.calibration.oof import (
+    DevScoreOof,
+    LevelOof,
+    check_valued,
+    clip_valued,
+    flagger,
+    in_informedness,
+    level_oof,
+    oof_report,
+)
 from physverify.calibration.settings import CalibrationConfig, CalibrationSettings
+from physverify.calibration.stratified import (
+    FamilyOf,
+    Reading,
+    Stratification,
+    Stratified,
+    UnitScores,
+    Valued,
+    family_map,
+    meets_stratified,
+    stratification,
+    unit_scores,
+)
 from physverify.calibration.table import CalibrationRow, Role
-from physverify.calibration.thresholds import fails
-from physverify.calibration.verdict import Rule
 from physverify.core.errors import UsageError
 from physverify.core.models import SCHEMA_KEY, ArtifactModel
 from physverify.schema.checks import InputLevel
 from physverify.schema.io import stable_hash
-from physverify.stats.folds import grouped_folds
 from physverify.verification.sweep import CheckUnit
 from physverify.verification.thresholding import ThresholdRule
 
 DEVSCORE_SCHEMA = "physverify.devscore"
-DEVSCORE_VERSION = "1.1.0"
+DEVSCORE_VERSION = "1.2.0"
 DEVSCORE_FILE = "devscore.json"
 SELECTION_LEVEL = InputLevel.PERCEIVED
 SCOPE_NOTE = (
@@ -59,6 +76,14 @@ SCOPE_NOTE = (
     "(diagnose stages), the per-stage sigma factors (calibrate stage-sigma, D10) and H1 (Kendall "
     "tau_b, rule 1.1). These folds are not those of fpr.cv: the artifact's FPR and J_cv differ. "
     "AUROC_cv pools the held-out scores of the fold models."
+)
+STRATIFIED_NOTE = (
+    " Every scene carries a family: AUROC_cv and J_cv are also stratified (positives against the "
+    "negatives of their own family, weighted by positives) in two readings, scored rows and "
+    "every labelled row with an unscored one read as 0.0; the family floor is the in-sample "
+    "AUROC of the family positive rate alone. n_met counts a check only when it is monotone, "
+    "its J_cv^lo > 0, its stratified J_cv^lo > 0 and its stratified AUROC_cv^lo > 0.5 in both "
+    "readings; the tie-break AUROC_cv is the stratified one (scored reading)."
 )
 
 
@@ -83,6 +108,13 @@ class CheckDevScore(ArtifactModel):
     meets_h1: bool
     meets_j: bool
     meets_both: bool
+    auroc_cv_readings: dict[Reading, Auroc] = Field(default_factory=dict)
+    """Out-of-fold AUROC of the corrected magnitude, global."""
+    stratified: Stratified | None = None
+    """None where the set has no families (or before 1.2.0)."""
+    meets_stratified: bool | None = None
+    meets_clause: bool | None = None
+    """``meets_both`` and, where stratified, ``meets_stratified``; None before 1.2.0."""
 
 
 class LevelDevScore(ArtifactModel):
@@ -92,6 +124,14 @@ class LevelDevScore(ArtifactModel):
     auroc_cv: Auroc
     n_met: int
     met: tuple[str, ...]
+    """The checks meeting the clause (``meets_clause``) from 1.2.0 on."""
+    auroc_cv_operational: Auroc | None = None
+    """``auroc_cv`` over every labelled clip, an unscored one read as 0.0."""
+    stratification: Stratification | None = None
+    stratified: Stratified | None = None
+    n_met_global: int | None = None
+    met_global: tuple[str, ...] | None = None
+    """The checks meeting monotonicity and J_cv^lo > 0 (``meets_both``), the 1.1.0 count."""
 
 
 class Selection(ArtifactModel):
@@ -105,6 +145,8 @@ class Selection(ArtifactModel):
     oracle_evaluable: tuple[str, ...] | None
     all_oracle_evaluable_met: bool | None
     tiebreak_auroc_cv: float | None
+    """The stratified AUROC_cv (scored reading) where it applies, else the global one."""
+    tiebreak_auroc_cv_global: float | None = None
 
 
 class DevScoreReport(ArtifactModel):
@@ -131,14 +173,7 @@ class DevScore:
 
     report: DevScoreReport
     artifact: CalibrationArtifact
-
-
-@dataclass(frozen=True)
-class FoldPart:
-    train: LevelData
-    held: LevelData
-    stratum: Stratum
-    """Fitted on ``train`` only."""
+    oof: DevScoreOof
 
 
 def require_bootstrap(settings: CalibrationSettings) -> None:
@@ -147,92 +182,40 @@ def require_bootstrap(settings: CalibrationSettings) -> None:
         raise UsageError("devscore needs calibration.bootstrap >= 1 (J^lo is a bootstrap bound)")
 
 
-def scene_folds(
-    levels: Sequence[LevelData], settings: CalibrationSettings
-) -> tuple[frozenset[str], ...]:
-    """Base scenes partitioned as without any extension; extension scenes on their own, joined
-    fold by fold."""
-    extension = frozenset().union(*(level.extension_scenes for level in levels))
-    scenes = {row.scene_id for level in levels for row in level.rows}
-    base = grouped_folds(sorted(scenes - extension), settings.folds, settings.seed)
-    added = grouped_folds(sorted(scenes & extension), settings.folds, settings.seed)
-    return tuple(a | b for a, b in zip_longest(base, added, fillvalue=frozenset[str]()))
-
-
-def split_data(data: LevelData, fold: frozenset[str]) -> tuple[LevelData, LevelData]:
-    """(train, held out): rows, results and sigma pairs follow the scene of their row; a result
-    of a clip without a row is dropped, as ``clip_scores`` drops it."""
-    scene = {row.clip_id: row.scene_id for row in data.rows}
-
-    def part(held: bool) -> LevelData:
-        pairs = data.sigma_pairs
-        return replace(
-            data,
-            rows=tuple(r for r in data.rows if (r.scene_id in fold) is held),
-            results=tuple(
-                r for r in data.results if r.clip_id in scene and (scene[r.clip_id] in fold) is held
-            ),
-            sigma_pairs=None
-            if pairs is None
-            else tuple(p for p in pairs if (p.scene_id in fold) is held),
-        )
-
-    return part(False), part(True)
-
-
-def fold_parts(
-    data: LevelData,
-    checks: Sequence[CheckUnit],
-    profile: str,
-    config: CalibrationConfig,
-    folds: Sequence[frozenset[str]],
-) -> tuple[FoldPart, ...]:
-    found: list[FoldPart] = []
-    for fold in folds:
-        train, held = split_data(data, fold)
-        found.append(FoldPart(train, held, fit_stratum(train, checks, profile, config)))
-    return tuple(found)
-
-
 def oof_flags(
     held: Sequence[CalibrationRow], check: CheckCalibration, policy: ThresholdRule
 ) -> list[Flag]:
     """The populations of ``fit_check``'s J judged with the fold's tau and sigma correction; a
     fold without tau flags nothing."""
-    rule, tau = Rule(policy, check.sigma.bias, check.sigma.factor), check.tau
+    flagged = flagger(check, policy)
+    judged = [r for r in held if in_informedness(r)]
+    flags = [Flag(r.scene_id, True, flagged(r)) for r in judged if r.role is Role.POSITIVE]
+    return flags + [Flag(r.scene_id, False, flagged(r)) for r in judged if r.role is Role.CLEAN]
 
-    def flagged(row: CalibrationRow) -> bool:
-        return tau is not None and fails(row, rule, tau)
 
-    flags = [
-        Flag(r.scene_id, True, flagged(r)) for r in held if r.role is Role.POSITIVE and r.has_event
-    ]
-    flags += [
-        Flag(r.scene_id, False, flagged(r)) for r in held if r.role is Role.CLEAN and r.scored
-    ]
-    return flags
+@dataclass(frozen=True)
+class Scored:
+    score: LevelDevScore
+    full: Stratum
+    """``fit_stratum`` of all the level's rows."""
+    oof: LevelOof
 
 
 def check_score(
     check_id: str,
     full: CheckCalibration,
     parts: Sequence[FoldPart],
-    policy: ThresholdRule,
+    flags: Sequence[Flag],
     settings: CalibrationSettings,
+    unit: UnitScores,
 ) -> CheckDevScore:
-    """``full`` is the check of ``fit_checks`` on all of calib (weight not normalised)."""
-    flags = [
-        flag
-        for part in parts
-        for flag in oof_flags(
-            [r for r in part.held.rows if r.check_id == check_id],
-            part.stratum.checks[check_id],
-            policy,
-        )
-    ]
+    """``full`` is the check of ``fit_checks`` on all of calib (weight not normalised); ``flags``
+    its out-of-fold decisions; ``unit`` the out-of-fold AUROC_cv of its corrected magnitude."""
     j_cv = raw_weight(flags, settings)
     low = j_cv.informedness_ci.low
     meets_h1, meets_j = full.monotonicity.h1_pass, low is not None and low > 0.0
+    both = meets_h1 and meets_j
+    strat = None if unit.stratified is None else meets_stratified(unit.stratified)
     return CheckDevScore(
         h1=full.monotonicity,
         tau=full.tau,
@@ -244,8 +227,24 @@ def check_score(
         ),
         meets_h1=meets_h1,
         meets_j=meets_j,
-        meets_both=meets_h1 and meets_j,
+        meets_both=both,
+        auroc_cv_readings=unit.auroc_cv,
+        stratified=unit.stratified,
+        meets_stratified=strat,
+        meets_clause=both and strat is not False,
     )
+
+
+def check_flags(check_id: str, parts: Sequence[FoldPart], policy: ThresholdRule) -> list[Flag]:
+    return [
+        flag
+        for part in parts
+        for flag in oof_flags(
+            [r for r in part.held.rows if r.check_id == check_id],
+            part.stratum.checks[check_id],
+            policy,
+        )
+    ]
 
 
 def level_score(
@@ -254,17 +253,35 @@ def level_score(
     profile: str,
     config: CalibrationConfig,
     folds: Sequence[frozenset[str]],
-) -> tuple[LevelDevScore, Stratum]:
-    """The level's score and its full calib stratum (``fit_stratum`` of all its rows)."""
+    family_of: FamilyOf,
+) -> Scored:
     fitted = fit_checks(data, checks, config)
     parts = fold_parts(data, checks, profile, config, folds)
     policy, settings = ThresholdRule(config.policy), config.calibration
+    held = [(part.held, part.stratum) for part in parts]
+    oof = level_oof(data.level, held, [c.check_id for c in checks], policy)
+    scenes = [row.scene_id for row in data.rows]
+    families = family_map(scenes, family_of)
+
+    def unit(values: Mapping[str, Valued], flags: Sequence[Flag]) -> UnitScores:
+        return unit_scores(list(values.values()), flags, families, settings)
+
+    flags = {c.check_id: check_flags(c.check_id, parts, policy) for c in checks}
     scores = {
-        c.check_id: check_score(c.check_id, fitted[c.check_id], parts, policy, settings)
+        c.check_id: check_score(
+            c.check_id,
+            fitted[c.check_id],
+            parts,
+            flags[c.check_id],
+            settings,
+            unit(check_valued(oof.checks[c.check_id]), flags[c.check_id]),
+        )
         for c in checks
     }
-    scored = [s for part in parts for s in clip_scores(part.stratum, part.held)]
-    met = tuple(sorted(c for c, s in scores.items() if s.meets_both))
+    aggregate = unit(clip_valued(oof.aggregate), ())
+    scored = [(c.scene_id, c.value, c.perturbed) for c in oof.aggregate if c.value is not None]
+    met = tuple(sorted(c for c, s in scores.items() if s.meets_clause))
+    met_global = tuple(sorted(c for c, s in scores.items() if s.meets_both))
     level = LevelDevScore(
         level=data.level,
         profile=profile,
@@ -272,8 +289,13 @@ def level_score(
         auroc_cv=auroc_of(scored, settings).model_copy(update={"in_sample": False}),
         n_met=len(met),
         met=met,
+        auroc_cv_operational=aggregate.auroc_cv[Reading.OPERATIONAL],
+        stratification=stratification(scenes, family_of),
+        stratified=aggregate.stratified,
+        n_met_global=len(met_global),
+        met_global=met_global,
     )
-    return level, assemble_stratum(fitted, data, profile, config)
+    return Scored(level, assemble_stratum(fitted, data, profile, config), oof)
 
 
 def selection(levels: Sequence[LevelDevScore]) -> Selection | None:
@@ -292,7 +314,10 @@ def selection(levels: Sequence[LevelDevScore]) -> Selection | None:
         all_oracle_evaluable_met=None
         if evaluable is None
         else bool(evaluable) and set(evaluable) <= set(chosen.met),
-        tiebreak_auroc_cv=chosen.auroc_cv.value,
+        tiebreak_auroc_cv=chosen.auroc_cv.value
+        if chosen.stratified is None
+        else chosen.stratified.auroc_cv[Reading.SCORED].value,
+        tiebreak_auroc_cv_global=chosen.auroc_cv.value,
     )
 
 
@@ -301,10 +326,15 @@ def dev_score(
     checks: Sequence[CheckUnit],
     meta: FitMeta,
     config: CalibrationConfig,
+    family_of: FamilyOf,
 ) -> DevScore:
+    """``family_of`` names the family of a scene (None: none), for the stratified block."""
     require_bootstrap(config.calibration)
     folds = scene_folds(levels, config.calibration)
-    scored = [level_score(level, checks, meta.profile, config, folds) for level in levels]
+    scored = [
+        level_score(level, checks, meta.profile, config, folds, family_of) for level in levels
+    ]
+    stratified = any(s.score.stratified is not None for s in scored)
     report = DevScoreReport(
         created_utc=meta.created_utc,
         run_id=meta.run_id,
@@ -318,7 +348,10 @@ def dev_score(
             FoldInfo(index=i, n_scenes=len(fold), scenes_hash=stable_hash(sorted(fold)))
             for i, fold in enumerate(folds)
         ),
-        levels=tuple(level for level, _ in scored),
-        selection=selection([level for level, _ in scored]),
+        levels=tuple(s.score for s in scored),
+        selection=selection([s.score for s in scored]),
+        scope_note=SCOPE_NOTE + STRATIFIED_NOTE if stratified else SCOPE_NOTE,
     )
-    return DevScore(report, build_artifact(tuple(full for _, full in scored), meta, config))
+    artifact = build_artifact(tuple(s.full for s in scored), meta, config)
+    oof = oof_report(meta.run_id, [s.oof for s in scored], config.calibration)
+    return DevScore(report, artifact, oof)

@@ -17,7 +17,21 @@ ADDED_AT_ALL: dict[str, Any] = {
     "coverage_after_degenerate": [],
     "sigma_pair_filter": "all",
 }
-ADDED_ANY = ("folds_without_sigma_factor", "device")  # added later, not tied to the filter
+# Added later, not tied to the filter; the stratified fields (devscore 1.2.0) are null or
+# repeat the global figures on scenes without a family, as here.
+ADDED_ANY = (
+    "folds_without_sigma_factor",
+    "device",
+    "auroc_cv_readings",
+    "auroc_cv_operational",
+    "stratification",
+    "stratified",
+    "meets_stratified",
+    "meets_clause",
+    "n_met_global",
+    "met_global",
+    "tiebreak_auroc_cv_global",
+)
 
 
 def without_filter_fields(value: Any) -> Any:

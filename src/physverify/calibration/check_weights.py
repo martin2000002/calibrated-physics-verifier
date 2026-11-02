@@ -46,10 +46,14 @@ def raw_weight(flags: Sequence[Flag], settings: CalibrationSettings) -> Weight:
         settings.seed,
         settings.ci,
     ).get(J_KEY, Ci())
-    value = _informedness(flags)
+    return weight(_informedness(flags), ci, flags)
+
+
+def weight(informedness: float, ci: Ci, flags: Sequence[Flag]) -> Weight:
+    """The weight max(0, J^lo) of informedness ``informedness`` measured on ``flags``."""
     return Weight(
         value=max(0.0, ci.low) if ci.low is not None else 0.0,
-        informedness=value if math.isfinite(value) else None,
+        informedness=informedness if math.isfinite(informedness) else None,
         informedness_ci=ci,
         n_positive=sum(f.positive for f in flags),
         n_negative=sum(not f.positive for f in flags),

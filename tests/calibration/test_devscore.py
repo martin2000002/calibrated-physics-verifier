@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from dataclasses import replace
 
 import numpy as np
@@ -19,26 +20,30 @@ from calibration_cases import (
     record,
 )
 
+from physverify.calibration.check_weights import Flag, raw_weight
 from physverify.calibration.collect import level_data
+from physverify.calibration.dev_folds import fold_parts, scene_folds, split_data
 from physverify.calibration.dev_score import (
     DEVSCORE_SCHEMA,
+    STRATIFIED_NOTE,
     DevScore,
     LevelDevScore,
-    fold_parts,
     oof_flags,
     require_bootstrap,
-    scene_folds,
     selection,
-    split_data,
 )
 from physverify.calibration.dev_score import dev_score as compute
 from physverify.calibration.fit import FitInputs, LevelData, fit_calibration, fit_checks
+from physverify.calibration.oof import DevScoreOof
 from physverify.calibration.sigma_recalibration import SigmaPair
+from physverify.calibration.stats import auroc
+from physverify.calibration.stratified import Reading
 from physverify.calibration.table import Role
 from physverify.calibration.thresholds import fit_tau
 from physverify.core.errors import UsageError
 from physverify.schema.checks import CheckResult, InputLevel
 from physverify.schema.clip import Split
+from physverify.synth.plan import family_of, scene_id_of
 from physverify.verification.policies.threshold import ThresholdPolicy
 from physverify.verification.runner import VerificationReport
 from physverify.verification.thresholding import ThresholdParams
@@ -50,14 +55,24 @@ SMALL = config(alpha=0.1, folds=2, bootstrap=20)
 VOLATILE = ("created_utc", "run_id")
 
 
-def report(n_scenes: int = SCENES, seed: int = 0) -> VerificationReport:
+def plain(index: int) -> str:
+    return f"s{index:03d}"
+
+
+def two_families(index: int) -> str:
+    return scene_id_of("fa" if index % 2 else "fb", index)
+
+
+def report(
+    n_scenes: int = SCENES, seed: int = 0, scene_name: Callable[[int], str] = plain
+) -> VerificationReport:
     """Per scene: a clean clip, R1 at three levels (mu = 0.05 * 2^(L-1) over clean noise 0.01)
     and R3a 'perturbed' at three levels with the clean noise only: R1 separable and monotone,
     R3a random, R5b without a clean event."""
     rng = np.random.default_rng(seed)
     table, results, clips = [], [], []
     for s in range(n_scenes):
-        scene = f"s{s:03d}"
+        scene = scene_name(s)
         found = [(clip(f"{scene}__none", scene), None, 0.0)]
         for name, target in (("r1_penetration", "R1"), ("r3a_noise", "R3a")):
             for lv in LEVELS:
@@ -93,7 +108,7 @@ def levels(source: VerificationReport = REPORT) -> tuple[LevelData, LevelData]:
 
 @pytest.fixture(scope="module")
 def dev() -> DevScore:
-    return compute(levels(), CHECKS, fit_meta(), CONFIG)
+    return compute(levels(), CHECKS, fit_meta(), CONFIG, family_of)
 
 
 def stable(text: str) -> dict[str, object]:
@@ -103,9 +118,9 @@ def stable(text: str) -> dict[str, object]:
 def test_two_runs_differ_only_in_time_and_run_id() -> None:
     """On the oracle level of a smaller case, to stay fast."""
     small = levels(report(20, seed=3))[:1]
-    first = compute(small, CHECKS, fit_meta(run_id="a"), SMALL)
+    first = compute(small, CHECKS, fit_meta(run_id="a"), SMALL, family_of)
     later = fit_meta(run_id="b", created_utc="2026-10-21T00:00:00Z")
-    second = compute(small, CHECKS, later, SMALL)
+    second = compute(small, CHECKS, later, SMALL, family_of)
     assert stable(first.report.to_json()) == stable(second.report.to_json())
     assert json.loads(first.report.to_json())["schema"] == DEVSCORE_SCHEMA
 
@@ -251,7 +266,7 @@ def test_perfect_separation_out_of_fold_is_one() -> None:
         table=tuple(r for r in only_r1.table if r.clip_id in ids),
         clips=tuple(kept),
     )
-    result = compute(levels(narrow)[:1], CHECKS, fit_meta(), SMALL)
+    result = compute(levels(narrow)[:1], CHECKS, fit_meta(), SMALL, family_of)
     assert result.report.levels[0].auroc_cv.value == 1.0
 
 
@@ -260,7 +275,7 @@ def test_bootstrap_zero_is_refused() -> None:
     with pytest.raises(UsageError, match="bootstrap"):
         require_bootstrap(config(bootstrap=0).calibration)
     with pytest.raises(UsageError, match="bootstrap"):
-        compute(levels()[:1], CHECKS, fit_meta(), config(bootstrap=0))
+        compute(levels()[:1], CHECKS, fit_meta(), config(bootstrap=0), family_of)
 
 
 def test_folds_without_a_sigma_factor_are_counted() -> None:
@@ -268,14 +283,62 @@ def test_folds_without_a_sigma_factor_are_counted() -> None:
     (its subjects abstain); the count is reported per check."""
     oracle, base = levels()
     data = LevelData(base.level, base.rows, base.results, _pairs(base))
-    found = compute((oracle, data), CHECKS, fit_meta(), CONFIG).report
+    found = compute((oracle, data), CHECKS, fit_meta(), CONFIG, family_of).report
     perceived = next(level for level in found.levels if level.level is InputLevel.PERCEIVED)
     assert perceived.checks["R1"].folds_without_sigma_factor == 0
     assert perceived.checks["R3a"].folds_without_sigma_factor == CONFIG.calibration.folds
     zeros = tuple(replace(p, oracle=0.0, perceived=0.0) for p in data.sigma_pairs or ())
     censored = LevelData(base.level, base.rows, base.results, zeros)
-    blind = compute((oracle, censored), CHECKS, fit_meta(), CONFIG).report
+    blind = compute((oracle, censored), CHECKS, fit_meta(), CONFIG, family_of).report
     level = next(item for item in blind.levels if item.level is InputLevel.PERCEIVED)
     assert level.checks["R1"].folds_without_sigma_factor == CONFIG.calibration.folds
     oracle_level = next(item for item in blind.levels if item.level is InputLevel.ORACLE)
     assert all(c.folds_without_sigma_factor == 0 for c in oracle_level.checks.values())
+
+
+def test_scenes_without_a_family_keep_the_global_clause(dev: DevScore) -> None:
+    """No family: nothing stratified, the clause is monotonicity and J_cv^lo > 0 as in 1.1.0."""
+    for level in dev.report.levels:
+        assert level.stratified is None and level.stratification is not None
+        assert not level.stratification.applies
+        assert (level.n_met, level.met) == (level.n_met_global, level.met_global)
+        for check in level.checks.values():
+            assert check.stratified is None and check.meets_stratified is None
+            assert check.meets_clause == check.meets_both
+    chosen = dev.report.selection
+    assert chosen is not None and chosen.tiebreak_auroc_cv == chosen.tiebreak_auroc_cv_global
+    assert STRATIFIED_NOTE not in dev.report.scope_note
+
+
+def test_family_scenes_add_the_stratified_clause() -> None:
+    """Two families on every scene: each check and the score carry both readings, and a check
+    counts only when its stratified bounds pass too."""
+    source = report(SCENES, scene_name=two_families)
+    found = compute(levels(source)[:1], CHECKS, fit_meta(), CONFIG, family_of).report
+    (level,) = found.levels
+    assert level.stratification is not None and level.stratification.families == ("fa", "fb")
+    assert level.stratified is not None and set(level.stratified.auroc_cv) == set(Reading)
+    for check in level.checks.values():
+        expected = check.meets_both and check.meets_stratified is not False
+        assert check.meets_clause == expected
+    assert level.met == tuple(sorted(c for c, s in level.checks.items() if s.meets_clause))
+    assert level.checks["R1"].meets_clause
+    r1 = level.checks["R1"].stratified
+    assert r1 is not None and r1.j_cv is not None and r1.j_cv.informedness > 0.9
+    assert found.scope_note.endswith(STRATIFIED_NOTE)
+
+
+def test_the_out_of_fold_values_give_back_the_score_auroc(dev: DevScore) -> None:
+    """``devscore_oof.json`` holds the clip scores AUROC_cv was computed from."""
+    assert DevScoreOof.model_validate_json(dev.oof.to_json()) == dev.oof
+    for level in dev.report.levels:
+        values = dev.oof.level(level.level)
+        assert values is not None
+        scored = [(c.value, c.perturbed) for c in values.aggregate if c.value is not None]
+        pos = [v for v, positive in scored if positive]
+        neg = [v for v, positive in scored if not positive]
+        assert auroc(pos, neg) == level.auroc_cv.value
+        for check_id, check in level.checks.items():
+            judged = [v for v in values.checks[check_id] if v.flag is not None]
+            flags = [Flag(v.scene_id, v.role is Role.POSITIVE, v.flag) for v in judged]
+            assert raw_weight(flags, CONFIG.calibration) == check.j_cv

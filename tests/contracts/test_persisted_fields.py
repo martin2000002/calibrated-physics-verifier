@@ -14,6 +14,8 @@ from pydantic import BaseModel
 from physverify.app.plugins import PLUGIN_KINDS
 from physverify.calibration.artifact import CalibrationArtifact, EvaluationReport
 from physverify.calibration.dev_score import DevScoreReport
+from physverify.calibration.devscore_compare import DevScoreCompare
+from physverify.calibration.oof import DevScoreOof
 from physverify.calibration.sealed_ledger import LedgerEntry
 from physverify.generation.settings import GenerationSettings
 from physverify.synth.plan import DatasetPlan
@@ -27,6 +29,8 @@ MODELS: Mapping[str, type[BaseModel]] = {
     "evaluation_report": EvaluationReport,
     "exclusion_record": ExclusionRecord,
     "dev_score_report": DevScoreReport,
+    "dev_score_oof": DevScoreOof,
+    "dev_score_compare": DevScoreCompare,
     "ledger_entry": LedgerEntry,
     "dataset_settings": DatasetSettings,
     "generation_settings": GenerationSettings,

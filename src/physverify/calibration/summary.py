@@ -7,7 +7,11 @@ from collections.abc import Sequence
 from physverify.calibration.artifact import StageFactor
 from physverify.calibration.artifact_io import Calibration
 from physverify.calibration.dev_score import DevScoreReport, LevelDevScore
+from physverify.calibration.devscore_compare import DevScoreCompare
+from physverify.calibration.paired import PairedReading, PairedUnit
+from physverify.calibration.stratified import READINGS, Stratified
 from physverify.core.markdown import SIG4
+from physverify.stats.intervals import Ci
 
 
 def show_lines(
@@ -53,13 +57,71 @@ def _level_lines(level: LevelDevScore) -> list[str]:
             f"{_num(auroc.value)} [{_num(auroc.ci.low)}, {_num(auroc.ci.high)}]"
         )
     ]
+    if level.stratified is not None and level.stratification is not None:
+        lines.append(
+            f"  stratified by {len(level.stratification.families)} families: "
+            f"{_auroc_lines(level.stratified)}; met with the clause "
+            f"{_names(level.met)} (globally {_names(level.met_global or ())})"
+        )
     for check_id, c in sorted(level.checks.items()):
         lines.append(
             f"  {check_id}: tau_b {_num(c.h1.kendall_tau_b)} [{_num(c.h1.ci.low)}, "
             f"{_num(c.h1.ci.high)}] monotone {c.meets_h1}; J_cv {_num(c.j_cv.informedness)} "
             f"[{_num(c.j_cv.informedness_ci.low)}, {_num(c.j_cv.informedness_ci.high)}]"
+            + ("" if c.stratified is None else f"; {_stratified_line(c.stratified)}")
         )
     return lines
+
+
+def _names(checks: Sequence[str]) -> str:
+    return ",".join(checks) or "none"
+
+
+def _interval(value: float | None, ci: Ci) -> str:
+    return f"{_num(value)} [{_num(ci.low)}, {_num(ci.high)}]"
+
+
+def _auroc_lines(scores: Stratified) -> str:
+    return "; ".join(
+        f"AUROC_cv {reading.value} {_interval(a.value, a.ci)} floor "
+        f"{_num(scores.family_floor.get(reading))}"
+        for reading, a in scores.auroc_cv.items()
+    )
+
+
+def _stratified_line(scores: Stratified) -> str:
+    j = scores.j_cv
+    j_text = "" if j is None else f"; J_cv {_interval(j.informedness, j.informedness_ci)}"
+    return f"stratified {_auroc_lines(scores)}{j_text}"
+
+
+def compare_lines(found: DevScoreCompare) -> list[str]:
+    """One line per unit: b - a of the global (and stratified) AUROC_cv in both readings."""
+    strat = found.stratification
+    head = f"{found.level.value}: {found.run_b} - {found.run_a} on {found.n_clips} clips; "
+    lines = [
+        head + f"stratified by {len(strat.families)} families"
+        if strat.applies
+        else head + f"not stratified ({strat.n_scenes_with_family}/{strat.n_scenes} scenes "
+        "with a family)"
+    ]
+    for unit, paired in sorted(found.units.items()):
+        lines.append(f"  {unit}: {_paired_line(paired)}")
+    return lines
+
+
+def _delta(reading: PairedReading) -> str:
+    return f"{_num(reading.delta)} [{_num(reading.ci.low)}, {_num(reading.ci.high)}]"
+
+
+def _paired_line(paired: PairedUnit) -> str:
+    parts = []
+    for r in READINGS:
+        strat = paired.stratified
+        text = f"{r.value} n {paired.auroc_cv[r].n} global {_delta(paired.auroc_cv[r])}"
+        text += "" if strat is None else f" stratified {_delta(strat[r])}"
+        parts.append(text + f" improves {paired.improves[r]} breaks {paired.breaks[r]}")
+    return "; ".join(parts)
 
 
 def factor_lines(factors: Sequence[StageFactor]) -> list[str]:
