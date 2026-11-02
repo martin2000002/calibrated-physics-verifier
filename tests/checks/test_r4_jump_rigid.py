@@ -10,7 +10,7 @@ import pytest
 
 from physverify.checks._base import CheckInputs
 from physverify.checks.r4_track_jump import NoiseContinuityCheck, NoiseJumpParams
-from physverify.checks.variants.r4_jump_rigid import RigidJumpCheck, RigidJumpParams
+from physverify.checks.variants._rigid_jump import RigidJumpCheck, RigidJumpParams
 from physverify.physics.size_steps import size_step_stencil_mask, size_steps
 from physverify.physics.tracks import impact_stencil_mask
 from physverify.schema.checks import CheckResult

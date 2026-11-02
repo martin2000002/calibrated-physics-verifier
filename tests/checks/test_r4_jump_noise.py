@@ -14,7 +14,7 @@ import pytest
 from physverify.app.plugins import PLUGIN_KINDS
 from physverify.checks._base import Check, CheckInputs
 from physverify.checks.r4_track_jump import NoiseContinuityCheck, NoiseJumpParams
-from physverify.checks.variants.r4_jump_rigid import RigidJumpCheck
+from physverify.checks.variants._rigid_jump import RigidJumpCheck
 from physverify.physics.finite_diff import third_difference
 from physverify.physics.measures.track_jump import jump_over_noise, noise_jumps
 from physverify.physics.stencil_tail import reference_max, stencils_in

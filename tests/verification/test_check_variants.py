@@ -8,7 +8,8 @@ from settings_factory import SettingsFactory
 from physverify.app import plugins
 from physverify.checks.r4_size_constancy import SizeConstancyCheck
 from physverify.checks.variants._base import DEFAULT_VARIANT
-from physverify.checks.variants.r4_jump_rigid import RigidJumpCheck
+from physverify.checks.variants._rigid_jump import RigidJumpCheck
+from physverify.checks.variants.r4_jump_declared_depth import DeclaredDepthJumpCheck
 from physverify.checks.variants.r4_size_v3 import DetrendedSizeCheck
 from physverify.core.errors import ConfigError
 from physverify.verification.check_set import (
@@ -73,3 +74,18 @@ def test_the_rigid_jump_keeps_the_inputs_of_v2() -> None:
     rigid = VARIANTS["R4_jump/rigid2"]
     assert rigid.requires == CHECKS["R4_jump"].requires
     assert rigid.magnitude_unit == CHECKS["R4_jump"].magnitude_unit
+
+
+def test_the_depth_floor_is_selectable_and_moves_the_hash_only_when_selected(
+    make_settings: SettingsFactory,
+) -> None:
+    precise = plugins.configured("checks", make_settings(profile="precise"))
+    floored = plugins.configured(
+        "checks", make_settings("check_variants.R4_jump=rigid2_dfloor", profile="precise")
+    )
+    assert floored["R4_jump"] is DeclaredDepthJumpCheck
+    assert all(floored[c] is precise[c] for c in CHECKS if c != "R4_jump")
+    overrides = ChecksSettings()
+    assert checks_hash(floored, overrides) != checks_hash(precise, overrides)
+    rigid = select_variants(CHECKS, VARIANTS, selected(R4_size="v3", R4_jump="rigid2"))
+    assert checks_hash(rigid, overrides) == checks_hash(precise, overrides)

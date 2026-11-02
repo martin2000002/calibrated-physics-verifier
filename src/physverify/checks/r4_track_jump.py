@@ -52,7 +52,7 @@ class NoiseJumpParams(CommonParams):
 
 @dataclass(frozen=True)
 class TrackNoise:
-    """sigma-hat per axis = max(noise, pixel floor), where the noise came from, and how many axes
+    """sigma-hat per axis = max(noise, floor), where the noise came from, and how many axes
     the floor set."""
 
     sigma: FloatArray
@@ -60,21 +60,21 @@ class TrackNoise:
     floored_axes: int
 
 
-def floored(noise: FloatArray, floor: float, source: NoiseSource) -> TrackNoise:
+def floored(noise: FloatArray, floor: FloatArray, source: NoiseSource) -> TrackNoise:
     measured = np.asarray(noise, dtype=np.float64)
     return TrackNoise(np.maximum(measured, floor), source, int(np.count_nonzero(measured <= floor)))
 
 
 def object_noise(
-    inputs: CheckInputs, excluded: BoolArray, index: int, floor: float, params: NoiseJumpParams
+    inputs: CheckInputs, excluded: BoolArray, index: int, floor: FloatArray, params: NoiseJumpParams
 ) -> TrackNoise | None:
-    """sigma-hat of object ``index``: the floor alone for exact positions (a known sigma, all 0);
-    else its track noise over the rows not ``excluded``; else, under "declared", its median
-    declared sigma; else None."""
+    """sigma-hat of object ``index`` (``floor`` per axis): the floor alone for exact positions (a
+    known sigma, all 0); else its track noise over the rows not ``excluded``; else, under
+    "declared", its median declared sigma; else None."""
     declared = inputs.states.position_sigma[:, index]
     known = declared[np.all(np.isfinite(declared), axis=-1)]
     if known.shape[0] and bool(np.all(known == 0.0)):
-        return TrackNoise(np.full(3, floor), "exact", 3)
+        return TrackNoise(np.array(floor, dtype=np.float64), "exact", 3)
     track = track_noise(inputs.states, index, excluded, params.min_noise_stencils)
     if track is not None:
         return floored(track, floor, "track")
@@ -129,10 +129,11 @@ class NoiseContinuityCheck:
             "excluded_rows": int(np.count_nonzero(exclude)),
             "usable_stencils": usable,
         }
-        floor = pixel_floor(camera_depth(states, index), focal)
-        if usable and not math.isfinite(floor):
+        pixel = pixel_floor(camera_depth(states, index), focal)
+        if usable and not math.isfinite(pixel):
             reason = AbstainReason.UNKNOWN_UNCERTAINTY
             return abstain(type(self), inputs, (object_id,), reason, None, details)
+        floor = self._floor(inputs, index, exclude, pixel)
         noise = object_noise(inputs, exclude, index, floor, self.params) if usable else None
         if noise is None:
             reason = AbstainReason.TOO_FEW_FRAMES
@@ -151,6 +152,12 @@ class NoiseContinuityCheck:
     def _excluded(self, inputs: CheckInputs, contacts: ContactTable, index: int) -> BoolArray:
         """Rows whose stencil spans an impact of the object."""
         return impact_rows(inputs.states, contacts, index)
+
+    def _floor(
+        self, inputs: CheckInputs, index: int, excluded: BoolArray, pixel: float
+    ) -> FloatArray:
+        """Per-axis floor of sigma-hat: one pixel at the object's median depth on every axis."""
+        return np.full(3, pixel)
 
     @staticmethod
     def _physical(
