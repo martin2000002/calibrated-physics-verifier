@@ -244,8 +244,10 @@ PHYSVERIFY_DEV_B_ITERATION_DIR=<iteration directory> PHYSVERIFY_DEV_B_EXPECT_COM
 
 `run_dev_b.sh [FROM [TO]]` reads a completed iteration on the two sets of
 `calibration.development_sets`, which the calib-only commands read as calib and the sealed guard
-does not count as looks: on `kubric_fresh` (the listed clips) the error profile, relift,
-`stage-sigma` and `dev-score --level both`, under `<dir>/fresh/`; on `kubric_synthetic` at its
+does not count as looks: on `kubric_fresh` at its development version (`--set
+kubric_fresh.version`; `PHYSVERIFY_DEV_B_FRESH_VERSION` names it when several are declared) and on
+the listed clips, the error profile, relift, `stage-sigma` and `dev-score --level both`, under
+`<dir>/fresh/`; on `kubric_synthetic` at its
 development version (`--set dataset.version`, the iteration's error profile) `extract run` and
 `calibrate evaluate --score-all-clips --no-real` with the iteration's `calibration.json`, under
 `<dir>/hdri/`. It runs on the iteration's device and profile, with no `PHYSVERIFY_UNSEAL` and no

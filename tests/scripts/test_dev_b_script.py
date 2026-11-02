@@ -23,18 +23,31 @@ FRESH_CLIPS = ("f1_projectile-s000__none", "f2_bounce-s001__r4_resize_L1")
 FRESH = "--dataset kubric_fresh --subset full " + " ".join(f"--clips {c}" for c in FRESH_CLIPS)
 HDRI_SET = "--set dataset.version=v1-precise-hdri-dev"
 HDRI = "--dataset kubric_synthetic --subset calib_clean"
-VERSIONS = {"kubric_fresh": "v2-fresh", "kubric_synthetic": "v1-precise-hdri-dev"}
-# The queries answer from VERSIONS (QUERY_FAIL refuses); pv calls are logged with the paths and
-# PV_* variables they see; doctor answers from the environment; the steps write what they would.
+TWO_FRESH = "v2-fresh v2-dev-b2"
+# The development-version query answers from DECLARED_FRESH (the declared kubric_fresh versions,
+# v2-fresh by default) and v1-precise-hdri-dev, as run_query.py would (QUERY_FAIL refuses); pv
+# calls are logged with the paths and PV_* variables they see; doctor answers from the
+# environment; the steps write what they would.
 FAKE_PYTHON = r"""#!/bin/bash
 CAL="$PHYSVERIFY__PATHS__CALIBRATION_DIR"
 if [[ "$1" != -c ]]; then
     printf 'query %s\n' "${*:2}" >> "$CALLS"
     [[ -z "${QUERY_FAIL:-}" ]] || { echo "run_query: no version" >&2; exit 2; }
-    case "${!#}" in
-        kubric_fresh) echo v2-fresh ;;
-        kubric_synthetic) echo v1-precise-hdri-dev ;;
-    esac
+    args=("$@")
+    for ((i = 0; i < ${#args[@]}; i++)); do [[ "${args[i]}" == development-version ]] && break; done
+    dataset="${args[i + 1]}"
+    wanted="${args[i + 2]:-}"
+    declared=(v1-precise-hdri-dev)
+    [[ "$dataset" == kubric_fresh ]] && read -ra declared <<<"${DECLARED_FRESH:-v2-fresh}"
+    if [[ -n "$wanted" ]]; then
+        [[ " ${declared[*]} " == *" $wanted "* ]] \
+            || { echo "run_query: does not declare $dataset@$wanted" >&2; exit 2; }
+        echo "$wanted"
+    elif [[ ${#declared[@]} -eq 1 ]]; then
+        echo "${declared[0]}"
+    else
+        echo "run_query: declares ${#declared[@]} versions of $dataset, not one" >&2; exit 2
+    fi
     exit 0
 fi
 shift 2
@@ -51,7 +64,7 @@ new_run() {
 }
 case "$*" in
   *" doctor")
-    for arg in "$@"; do [[ "$arg" == dataset.* ]] && echo "source: --set $arg"; done
+    for arg in "$@"; do [[ "$arg" == *.version=* ]] && echo "source: --set $arg"; done
     echo "profile: $2"
     echo "device: $4"
     echo "config_dir: $REPO_CONFIGS"
@@ -145,16 +158,17 @@ def sandbox(tmp_path: Path) -> DevBSandbox:
     return DevBSandbox(tmp_path)
 
 
-def _expected(sandbox: DevBSandbox) -> list[str]:
+def _expected(sandbox: DevBSandbox, fresh_version: str = "v2-fresh") -> list[str]:
     devscore = sandbox.out / "fresh" / "devscore.json"
     artifact = sandbox.iteration / "calibration.json"
+    fresh_set = f"--set kubric_fresh.version={fresh_version}"
     return [
         f"{HDRI_SET} doctor",
-        "doctor",
-        f"diagnose stages {FRESH} --write-profile",
-        f"extract run {FRESH}",
-        f"calibrate stage-sigma {FRESH}",
-        f"calibrate dev-score {FRESH} --level both --out {devscore}",
+        f"{fresh_set} doctor",
+        f"{fresh_set} diagnose stages {FRESH} --write-profile",
+        f"{fresh_set} extract run {FRESH}",
+        f"{fresh_set} calibrate stage-sigma {FRESH}",
+        f"{fresh_set} calibrate dev-score {FRESH} --level both --out {devscore}",
         f"{HDRI_SET} extract run {HDRI}",
         f"{HDRI_SET} calibrate evaluate --artifact {artifact} {HDRI} --no-real --score-all-clips",
     ]
@@ -175,6 +189,15 @@ def test_the_reading_runs_both_sets_with_their_own_paths(sandbox: DevBSandbox) -
     summary = (sandbox.out / "summary.md").read_text(encoding="utf-8")
     assert "kubric_fresh@v2-fresh (2 clips" in summary and "n_met 2" in summary
     assert "every clean clip scored with" in summary
+
+
+def test_a_declared_fresh_version_is_read_by_name(sandbox: DevBSandbox) -> None:
+    """With two kubric_fresh versions declared, the one named is the one every fresh call reads."""
+    result = sandbox.run(DECLARED_FRESH=TWO_FRESH, PHYSVERIFY_DEV_B_FRESH_VERSION="v2-dev-b2")
+    assert result.returncode == 0, result.stderr
+    assert sandbox.commands() == _expected(sandbox, "v2-dev-b2")
+    summary = (sandbox.out / "summary.md").read_text(encoding="utf-8")
+    assert "kubric_fresh@v2-dev-b2 (2 clips" in summary
 
 
 def test_no_scratch_variable_or_unseal_is_needed(sandbox: DevBSandbox) -> None:
@@ -238,6 +261,9 @@ def test_an_iteration_that_is_not_the_recorded_one_is_refused(
         ({"PHYSVERIFY_DEV_B_CLIPS_FILE": ""}, "PHYSVERIFY_DEV_B_CLIPS_FILE"),
         ({"PHYSVERIFY_DEV_B_DRY_RUN": "yes"}, "PHYSVERIFY_DEV_B_DRY_RUN"),
         ({"QUERY_FAIL": "1"}, "run_query: no version"),
+        ({"DECLARED_FRESH": TWO_FRESH}, "versions of kubric_fresh, not one"),
+        ({"PHYSVERIFY_DEV_B_FRESH_VERSION": "v3"}, "does not declare kubric_fresh@v3"),
+        ({"PHYSVERIFY_DEV_B_FRESH_VERSION": "v2 x"}, "is not a version"),
         ({"DOCTOR_CALIBRATION_DIR": "/elsewhere"}, "paths.calibration_dir"),
     ],
 )

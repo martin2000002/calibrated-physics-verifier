@@ -5,7 +5,8 @@
 #
 #   bash scripts/h200/run_dev_b.sh [FROM [TO]]   steps FROM..TO (default 1..6); FROM resumes
 #
-#  kubric_fresh (its declared version), the clips of PHYSVERIFY_DEV_B_CLIPS_FILE, its own profile:
+#  kubric_fresh at its declared development version (--set kubric_fresh.version), the clips of
+#  PHYSVERIFY_DEV_B_CLIPS_FILE, its own profile:
 #    1 fresh-stages    diagnose stages --write-profile (the reading's own error profile)
 #    2 fresh-relift    extract run (LIFT reads that profile)
 #    3 fresh-sigma     calibrate stage-sigma
@@ -26,7 +27,8 @@
 # src, configs, scripts, annotations, pyproject.toml or uv.lock; no configs/local.toml and no
 # PHYSVERIFY_CONFIG_DIR; no PHYSVERIFY__* variable but the ones exported here; no PHYSVERIFY_UNSEAL
 # or PHYSVERIFY_UNSEAL_REPEAT; the clips file lists clip ids; calibration.development_sets declares
-# one version of kubric_fresh and of kubric_synthetic; the output directory is not inside the
+# PHYSVERIFY_DEV_B_FRESH_VERSION of kubric_fresh (or only one version when it is unset) and one
+# version of kubric_synthetic; the output directory is not inside the
 # calibration chain's directory or the baseline's calibration or runs; no other instance on
 # $OUT/run.lock; state.env of another iteration or clip list; steps 1..FROM-1 completed. Then
 # doctor, for each set, reports config_dir $REPO_ROOT/configs, the device, the profile, the cache,
@@ -43,6 +45,8 @@
 #   PHYSVERIFY_DEV_B_PYTHON          interpreter [/home/mmonterot/dev/venv/bin/python]
 #   PHYSVERIFY_DEV_B_THREADS         runtime.threads [16]
 #   PHYSVERIFY_DEV_B_DATA            paths.data_dir, read only [$H200_ROOT/kubric-data]
+#   PHYSVERIFY_DEV_B_FRESH_VERSION   the declared kubric_fresh version read; required when
+#                                    several are declared [the only one declared]
 #   PHYSVERIFY_DEV_B_DIR             output [<iteration>/dev-b]
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/_common.sh"
@@ -114,7 +118,14 @@ done <"$CLIPS_FILE"
 N_CLIPS=$((${#CLIP_ARGS[@]} / 2))
 CLIPS_SHA="$(sha_of "$CLIPS_FILE")"
 
-FRESH_VERSION="$(query --profile "$PV_PROFILE" development-version kubric_fresh)" || exit 2
+WANTED_FRESH=()
+if [[ -n "${PHYSVERIFY_DEV_B_FRESH_VERSION:-}" ]]; then
+    [[ "$PHYSVERIFY_DEV_B_FRESH_VERSION" =~ ^[A-Za-z0-9_.-]+$ ]] \
+        || die "PHYSVERIFY_DEV_B_FRESH_VERSION '$PHYSVERIFY_DEV_B_FRESH_VERSION' is not a version"
+    WANTED_FRESH=("$PHYSVERIFY_DEV_B_FRESH_VERSION")
+fi
+FRESH_VERSION="$(query --profile "$PV_PROFILE" development-version kubric_fresh \
+    "${WANTED_FRESH[@]}")" || exit 2
 HDRI_VERSION="$(query --profile "$PV_PROFILE" development-version kubric_synthetic)" || exit 2
 FRESH=(--dataset kubric_fresh --subset full "${CLIP_ARGS[@]}")
 HDRI=(--dataset kubric_synthetic --subset calib_clean)
@@ -134,12 +145,14 @@ export PHYSVERIFY__PATHS__HF_HOME="$H200_ROOT/.cache/huggingface"
 export PHYSVERIFY__RUNTIME__HEAVY_LOCK="$OUT/heavy.lock"
 unset PHYSVERIFY_LOCK_HELD
 
-# fresh_set / hdri_set: the paths and overrides of each set's calls.
+# fresh_set / hdri_set: the paths and the version override of each set's calls, and whether the
+# set reads the iteration's error profile.
 fresh_set() {
     SET_NAME="kubric_fresh@$FRESH_VERSION"
     export PHYSVERIFY__PATHS__CALIBRATION_DIR="$OUT/fresh/calibration"
     export PHYSVERIFY__PATHS__RUNS_DIR="$OUT/fresh/runs"
-    PV_EXTRA=()
+    PV_EXTRA=(--set "kubric_fresh.version=$FRESH_VERSION")
+    ITERATION_PROFILE=0
 }
 
 hdri_set() {
@@ -147,6 +160,7 @@ hdri_set() {
     export PHYSVERIFY__PATHS__CALIBRATION_DIR="$ITER/calibration"
     export PHYSVERIFY__PATHS__RUNS_DIR="$OUT/hdri/runs"
     PV_EXTRA=(--set "dataset.version=$HDRI_VERSION")
+    ITERATION_PROFILE=1
 }
 
 # check_set_doctor: doctor confirms the current set's paths and overrides.
@@ -171,9 +185,9 @@ check_set_doctor() {
     under "$profile_path" "$PHYSVERIFY__PATHS__CALIBRATION_DIR" \
         || die "$SET_NAME: doctor reports paths.error_profile '$profile_path', outside" \
             "$PHYSVERIFY__PATHS__CALIBRATION_DIR"
-    if [[ ${#PV_EXTRA[@]} -gt 0 ]]; then
-        grep -qxF "source: --set ${PV_EXTRA[1]}" <<<"$DOCTOR" \
-            || die "$SET_NAME: doctor does not list the override --set ${PV_EXTRA[1]}"
+    grep -qxF "source: --set ${PV_EXTRA[1]}" <<<"$DOCTOR" \
+        || die "$SET_NAME: doctor does not list the override --set ${PV_EXTRA[1]}"
+    if [[ "$ITERATION_PROFILE" == 1 ]]; then
         [[ -f "$profile_path" && "$(sha_of "$profile_path")" == "$ITER_PROFILE_SHA" ]] \
             || die "$SET_NAME: $profile_path is not the error profile $ITER/state.env records"
     fi

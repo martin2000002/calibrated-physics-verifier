@@ -80,12 +80,33 @@ def test_the_allowed_sets_are_the_preregistered_ones(make_settings: Callable[...
 def test_development_version_is_the_one_declared(make_settings: Callable[..., Any]) -> None:
     settings = make_settings()
     assert queries.development_version(settings, "kubric_synthetic") == ["v1-precise-hdri-dev"]
-    assert queries.development_version(settings, "kubric_fresh") == ["v2-fresh"]
-    twice = '["kubric_fresh@v2-fresh", "kubric_fresh@v3"]'
-    for dataset, sets in (("pisa_real", None), ("kubric_fresh", twice)):
-        overrides = () if sets is None else (f"calibration.development_sets={sets}",)
+    for version in ("v2-fresh", "v2-dev-b2"):
+        assert queries.development_version(settings, "kubric_fresh", version) == [version]
+    for dataset in ("pisa_real", "kubric_fresh"):
         with pytest.raises(queries.QueryError, match="not one"):
-            queries.development_version(make_settings(*overrides), dataset)
+            queries.development_version(settings, dataset)
+    once = '["kubric_fresh@v2-fresh"]'
+    alone = make_settings(f"calibration.development_sets={once}")
+    assert queries.development_version(alone, "kubric_fresh") == ["v2-fresh"]
+
+
+def test_development_version_names_one_of_several(make_settings: Callable[..., Any]) -> None:
+    sets = '["kubric_fresh@v2-fresh", "kubric_fresh@v3", "kubric_synthetic@v1-precise-hdri-dev"]'
+    settings = make_settings(f"calibration.development_sets={sets}")
+    assert queries.development_version(settings, "kubric_fresh", "v3") == ["v3"]
+    assert queries.development_version(settings, "kubric_fresh", "v2-fresh") == ["v2-fresh"]
+    for dataset, version in (("kubric_fresh", "v4"), ("kubric_synthetic", "v3")):
+        with pytest.raises(queries.QueryError, match=f"does not declare {dataset}@{version}"):
+            queries.development_version(settings, dataset, version)
+
+
+def test_main_names_the_development_version(
+    query: ModuleType, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert query.main(["development-version", "kubric_fresh", "v2-fresh"]) == 0
+    assert capsys.readouterr().out == "v2-fresh\n"
+    assert query.main(["development-version", "kubric_fresh", "v9"]) == 2
+    assert "does not declare kubric_fresh@v9" in capsys.readouterr().err
 
 
 def test_main_exits_2_with_the_reason(

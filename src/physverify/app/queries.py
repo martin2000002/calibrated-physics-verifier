@@ -50,16 +50,25 @@ def dataset_clip_ids(settings: Settings, dataset: str, subset: str, split: str |
     return clip_ids(source, subset, split)
 
 
-def development_version(settings: Settings, dataset: str) -> list[str]:
-    """The version ``calibration.development_sets`` declares for ``dataset``; exactly one."""
+def development_version(settings: Settings, dataset: str, version: str | None = None) -> list[str]:
+    """The version of ``dataset`` that ``calibration.development_sets`` declares: ``version`` when
+    given and declared, else the only declared one (several must be told apart by name)."""
     from physverify.calibration.settings import calibration_settings
     from physverify.datasets._versions import versioned_parts
 
     specs = calibration_settings(settings).development_sets
-    found = [version for name, version in map(versioned_parts, specs) if name == dataset]
+    found = [v for name, v in map(versioned_parts, specs) if name == dataset]
+    if version is not None:
+        if version not in found:
+            raise QueryError(
+                f"calibration.development_sets does not declare {dataset}@{version} "
+                f"(it declares {found or 'none'})"
+            )
+        return [version]
     if len(found) != 1:
         raise QueryError(
-            f"calibration.development_sets declares {len(found)} versions of {dataset}, not one"
+            f"calibration.development_sets declares {len(found)} versions of {dataset}, not one: "
+            "name the version to read"
         )
     return found
 
