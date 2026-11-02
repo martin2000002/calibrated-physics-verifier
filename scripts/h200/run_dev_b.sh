@@ -8,12 +8,13 @@
 #  kubric_fresh at its declared development version (--set kubric_fresh.version), the clips of
 #  PHYSVERIFY_DEV_B_CLIPS_FILE, its own profile:
 #    1 fresh-stages    diagnose stages --write-profile (the reading's own error profile)
-#    2 fresh-relift    extract run (LIFT reads that profile)
+#    2 fresh-relift    extract run --strict-profile (LIFT reads that profile; a missing or
+#                      stale one stops the step)
 #    3 fresh-sigma     calibrate stage-sigma
 #    4 fresh-devscore  calibrate dev-score --level both: $OUT/fresh/devscore.json
 #  kubric_synthetic at its declared development version (--set dataset.version), the
 #  iteration's error profile and stage sigma, read from its calibration/ and never written:
-#    5 hdri-extract    extract run on calib_clean
+#    5 hdri-extract    extract run --strict-profile on calib_clean
 #    6 hdri-evaluate   calibrate evaluate --artifact <iteration>/calibration.json --no-real
 #                      --score-all-clips: every clean clip scored with the iteration's fit
 #
@@ -254,7 +255,7 @@ step_1() {
 }
 
 step_2() {
-    call 1 -- extract run "${FRESH[@]}"
+    call 1 -- extract run --strict-profile "${FRESH[@]}"
 }
 
 step_3() {
@@ -275,7 +276,7 @@ step_4() {
 }
 
 step_5() {
-    call 1 -- extract run "${HDRI[@]}"
+    call 1 -- extract run --strict-profile "${HDRI[@]}"
 }
 
 step_6() {

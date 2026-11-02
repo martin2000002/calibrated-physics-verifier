@@ -166,10 +166,10 @@ def _expected(sandbox: DevBSandbox, fresh_version: str = "v2-fresh") -> list[str
         f"{HDRI_SET} doctor",
         f"{fresh_set} doctor",
         f"{fresh_set} diagnose stages {FRESH} --write-profile",
-        f"{fresh_set} extract run {FRESH}",
+        f"{fresh_set} extract run --strict-profile {FRESH}",
         f"{fresh_set} calibrate stage-sigma {FRESH}",
         f"{fresh_set} calibrate dev-score {FRESH} --level both --out {devscore}",
-        f"{HDRI_SET} extract run {HDRI}",
+        f"{HDRI_SET} extract run --strict-profile {HDRI}",
         f"{HDRI_SET} calibrate evaluate --artifact {artifact} {HDRI} --no-real --score-all-clips",
     ]
 
