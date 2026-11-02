@@ -105,11 +105,15 @@ def _named(scene_ids: Iterable[str], family_of: FamilyOf) -> tuple[int, dict[str
     return len(scenes), {scene: family for scene, family in found.items() if family is not None}
 
 
+def _applies(n_scenes: int, named: Mapping[str, str]) -> bool:
+    return len(named) == n_scenes and len(set(named.values())) > 1
+
+
 def stratification(scene_ids: Iterable[str], family_of: FamilyOf) -> Stratification:
     n_scenes, named = _named(scene_ids, family_of)
     families = tuple(sorted(set(named.values())))
     return Stratification(
-        applies=len(named) == n_scenes and len(families) > 1,
+        applies=_applies(n_scenes, named),
         families=families,
         n_scenes=n_scenes,
         n_scenes_with_family=len(named),
@@ -120,9 +124,7 @@ def family_map(scene_ids: Iterable[str], family_of: FamilyOf) -> Families | None
     """None ("does not apply") when a scene has no family or there is a single family: a set
     with only some scenes in families is not stratified halfway."""
     n_scenes, named = _named(scene_ids, family_of)
-    if len(named) < n_scenes or len(set(named.values())) < 2:
-        return None
-    return Families(named)
+    return Families(named) if _applies(n_scenes, named) else None
 
 
 @dataclass(frozen=True)
