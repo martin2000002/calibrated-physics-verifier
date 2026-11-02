@@ -93,6 +93,17 @@ def test_freeze_then_compare_writes_every_output_without_an_agreement_verdict(cl
     assert "no human-agreement verdict" in (out / "summary.md").read_text(encoding="utf-8")
 
 
+def test_compare_adds_the_complementarity_block_and_section(cli, world) -> None:
+    run = _frozen(cli, world)
+    assert cli(*FAST, "agreement", "compare", "--verify-run", str(run)).code == 0
+    metrics = json.loads((run / REPORT_DIR / "metrics.json").read_text(encoding="utf-8"))
+    block = metrics["complementarity"]
+    primary = metrics["groups"]["all"]["as_plausible"]
+    assert block["replicas"] == 50 and block["counts"]["n"] == primary["verifier"]["n"]
+    text = (run / REPORT_DIR / "summary.md").read_text(encoding="utf-8")
+    assert "## Complementarity of the VLM and the verifier" in text
+
+
 def test_a_changed_config_breaks_the_preregistration(cli, world) -> None:
     run = _frozen(cli, world)
     result = cli(
