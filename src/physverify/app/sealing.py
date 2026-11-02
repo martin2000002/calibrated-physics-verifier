@@ -36,8 +36,12 @@ from physverify.calibration.sealed_ledger import (
     touched,
     unsealed,
 )
-from physverify.calibration.settings import calibration_settings
+from physverify.calibration.settings import SECTION as CALIBRATION_SECTION
+from physverify.calibration.settings import CalibrationSettings, calibration_settings
+from physverify.config.loader import file_sections
+from physverify.config.models import validated
 from physverify.core.digests import sha256_if_file
+from physverify.core.errors import MissingInputError
 from physverify.core.output import Echo
 from physverify.datasets._versions import versioned_name
 from physverify.runtime.runs import current_commit
@@ -213,14 +217,28 @@ def guard_sealed(
 
 
 def _development(context: AppContext, selection: Selection, err: Echo) -> bool:
-    """A selection of a declared development set (that exact version) is not a sealed look."""
-    cal = calibration_settings(context.settings)
-    if not may_be_development(selection.dataset, cal):
+    """A selection of a development set (that exact version) declared in the config files is not
+    a sealed look. One declared only by ``local.toml``, the environment or ``--set`` stays sealed:
+    those layers never lift a seal."""
+    settings = context.settings
+    effective = calibration_settings(settings)
+    if not may_be_development(selection.dataset, effective):
         return False
-    source = dataset_for(context, selection.dataset)
-    if not is_development(source, cal):
+    try:
+        source = dataset_for(context, selection.dataset)
+        name = versioned_name(source)
+    except MissingInputError as exc:
+        raise MissingInputError(
+            f"cannot read the version of {selection.dataset} to tell a development look from a "
+            f"sealed one: {exc}"
+        ) from exc
+    if not is_development(source, effective):
         return False
-    err(f"development set {versioned_name(source)}: not a sealed look")
+    filed = file_sections(settings.config_dir, settings.profile).get(CALIBRATION_SECTION, {})
+    if not is_development(source, validated(CalibrationSettings, filed, CALIBRATION_SECTION)):
+        err(f"development set {name} is not declared in the config files: a sealed look")
+        return False
+    err(f"development set {name}: not a sealed look")
     return True
 
 

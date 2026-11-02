@@ -91,6 +91,12 @@ def read_config_files(config_dir: Path) -> tuple[Table, list[str]]:
     return merged, [str(p) for p in files]
 
 
+def file_sections(config_dir: Path, profile: str) -> Table:
+    """The sections as the ``configs/**/*.toml`` files declare them under ``profile``, without
+    ``local.toml``, the environment or ``--set``."""
+    return apply_profile(read_config_files(config_dir)[0], profile)
+
+
 def _require_known_sections(base: Mapping[str, Any], layer: Mapping[str, Any], origin: str) -> None:
     known = set(base) | MODEL_ONLY_SECTIONS
     unknown = sorted(set(layer) - known)

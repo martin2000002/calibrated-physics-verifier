@@ -6,6 +6,7 @@ import ast
 import inspect
 import json
 import os
+import re
 import subprocess
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import replace
@@ -103,14 +104,18 @@ def fixture_dataset(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(plugins, "PLUGIN_KINDS", MappingProxyType(patched))
 
 
+def _git(root: Path, *args: str) -> None:
+    git = ("git", "-C", str(root), "-c", "user.name=t", "-c", "user.email=t@t",
+           "-c", "commit.gpgsign=false")  # fmt: skip
+    subprocess.run([*git, *args], check=True, capture_output=True)
+
+
 @pytest.fixture
 def checkout(config_dir: Path) -> Path:
     """The copied repository committed: a sealed look needs a clean git checkout."""
     root = config_dir.parent
-    git = ("git", "-C", str(root), "-c", "user.name=t", "-c", "user.email=t@t",
-           "-c", "commit.gpgsign=false")  # fmt: skip
     for args in (("init", "-q"), ("add", "-A"), ("commit", "-qm", "fixture")):
-        subprocess.run([*git, *args], check=True, capture_output=True)
+        _git(root, *args)
     return root
 
 
@@ -689,6 +694,19 @@ def _clean_n(evaluation: Mapping[str, Any]) -> int:
     return max(check["fpr_clean"]["n"] for check in evaluation["strata"][0]["checks"])
 
 
+@pytest.fixture
+def filed(config_dir: Path, checkout: Path) -> None:
+    """``DATASET@v2`` declared a development set by the committed config files."""
+    path = config_dir / "verifier" / "calibration.toml"
+    text = path.read_text(encoding="utf-8")
+    line = f'development_sets = ["{DATASET}@v2"]'
+    declared = re.sub(r"(?m)^development_sets = .*$", line, text)
+    assert declared != text
+    path.write_text(declared, encoding="utf-8")
+    _git(checkout, "commit", "-qam", "development set")
+
+
+@pytest.mark.usefixtures("filed")
 def test_a_development_set_is_not_a_sealed_look(
     evaluate_cli: Callable[..., CliResult],
     version: Callable[[str], None],
@@ -696,12 +714,13 @@ def test_a_development_set_is_not_a_sealed_look(
 ) -> None:
     """Its declared version runs without the variable and writes no line."""
     version("v2")
-    result = evaluate_cli(options=DEVELOPMENT)
+    result = evaluate_cli()
     assert result.code == 0, result.err
     assert f"development set {DATASET}@v2: not a sealed look" in result.err
     assert read_entries(ledger) == ()
 
 
+@pytest.mark.usefixtures("filed")
 def test_another_version_of_a_development_set_stays_sealed(
     evaluate_cli: Callable[..., CliResult],
     version: Callable[[str], None],
@@ -709,8 +728,32 @@ def test_another_version_of_a_development_set_stays_sealed(
     reached: list[int],
 ) -> None:
     version("v3")
-    result = evaluate_cli(options=DEVELOPMENT)
+    result = evaluate_cli()
     assert result.code == EXIT_USAGE and "PHYSVERIFY_UNSEAL" in result.err
+    assert read_entries(ledger) == () and reached == []
+
+
+@pytest.mark.parametrize(
+    ("options", "env"),
+    [
+        (DEVELOPMENT, {}),
+        ((), {"PHYSVERIFY__CALIBRATION__DEVELOPMENT_SETS": f'["{DATASET}@v2"]'}),
+    ],
+    ids=["set", "environment"],
+)
+def test_a_sealed_set_declared_development_outside_the_files_stays_sealed(
+    evaluate_cli: Callable[..., CliResult],
+    version: Callable[[str], None],
+    ledger: Path,
+    reached: list[int],
+    options: tuple[str, ...],
+    env: dict[str, str],
+) -> None:
+    """``--set`` and the environment never lift a seal: the sealed ledger's own refusal."""
+    version("v2")
+    result = evaluate_cli(options=options, env=env)
+    assert result.code == EXIT_USAGE and "PHYSVERIFY_UNSEAL" in result.err
+    assert "not declared in the config files" in result.err
     assert read_entries(ledger) == () and reached == []
 
 
@@ -739,6 +782,7 @@ def test_score_all_clips_needs_a_development_set_and_another_fit_set(
     assert reached == []
 
 
+@pytest.mark.usefixtures("filed")
 def test_score_all_clips_scores_every_row(
     evaluate_cli: Callable[..., CliResult],
     version: Callable[[str], None],
@@ -748,8 +792,8 @@ def test_score_all_clips_scores_every_row(
     """One clean clip per scene: every clean clip with the flag, the eval ones without."""
     version("v2")
     artifact = _fitted_on("v1:other", tmp_path, artifact_text)
-    every = _evaluation(evaluate_cli(SCORE_ALL, options=DEVELOPMENT, artifact=artifact))
+    every = _evaluation(evaluate_cli(SCORE_ALL, artifact=artifact))
     assert _clean_n(every) == len(REPORT.clips) // 7
     assert every["scored_splits"] == ["calib", "eval"]
-    held = _evaluation(evaluate_cli(options=DEVELOPMENT, artifact=artifact))
+    held = _evaluation(evaluate_cli(artifact=artifact))
     assert _clean_n(held) == len(HELD.clips) // 7 and "scored_splits" not in held
