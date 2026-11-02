@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import pickle
+import re
 import subprocess
 import sys
 
@@ -99,3 +101,11 @@ def test_a_metric_outcome_survives_pickling() -> None:
     assert isinstance(back, MetricOutcome)
     np.testing.assert_array_equal(back.samples["x"], outcome.samples["x"])
     assert dict(back.ratios) == {"hit": (3.0, 4.0)}
+
+
+def test_the_fork_logs_how_many_threads_the_parent_has(caplog: pytest.LogCaptureFixture) -> None:
+    with caplog.at_level(logging.INFO, logger="physverify.runtime.parallel"):
+        ordered_map(square_with_pid, [1, 2, 3], 2)
+    assert re.search(
+        r"forking 2 workers from a process with \d+ threads \(\d+ Python\)", caplog.text
+    )

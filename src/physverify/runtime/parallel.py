@@ -14,11 +14,17 @@ from __future__ import annotations
 import contextlib
 import multiprocessing
 import pickle
+import threading
 import traceback
 from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass
 from multiprocessing.connection import Connection, wait
 from multiprocessing.process import BaseProcess
+from pathlib import Path
+
+from physverify.core.log import get_logger
+
+_log = get_logger("runtime.parallel")
 
 STOP = -1
 """Index that tells a worker to exit."""
@@ -46,6 +52,12 @@ def ordered_map[T, R](fn: Callable[[T], R], items: Sequence[T], workers: int) ->
 
 def _fan_out[T, R](fn: Callable[[T], R], items: Sequence[T], workers: int) -> list[R]:
     context = multiprocessing.get_context("fork")
+    _log.info(
+        "forking %d workers from a process with %d threads (%d Python)",
+        workers,
+        _native_threads(),
+        threading.active_count(),
+    )
     pool: list[_Worker] = []
     try:
         for _ in range(workers):
@@ -67,6 +79,12 @@ def _fan_out[T, R](fn: Callable[[T], R], items: Sequence[T], workers: int) -> li
             worker.process.join()
             worker.tasks.close()
             worker.answers.close()
+
+
+def _native_threads() -> int:
+    """Threads of this process as the OS sees them (BLAS pools, injected agents included)."""
+    tasks = Path("/proc/self/task")
+    return sum(1 for _ in tasks.iterdir()) if tasks.is_dir() else threading.active_count()
 
 
 def _serve[T, R](
@@ -97,22 +115,24 @@ def _collect[R](pool: Sequence[_Worker], count: int) -> list[R]:
     pending = iter(range(count))
     for worker in pool:
         _dispatch(worker, pending)
-    open_pipes = {worker.answers: worker for worker in pool}
+    live = list(pool)
     while len(results) < count:
-        if not open_pipes:
+        if not live:
             raise WorkerError(f"every worker exited with {count - len(results)} items pending")
-        for pipe in wait(list(open_pipes)):
-            assert isinstance(pipe, Connection)
+        ready = wait([worker.answers for worker in live])
+        for worker in [worker for worker in live if worker.answers in ready]:
             try:
-                index, ok, payload = pipe.recv()
+                index, ok, payload = worker.answers.recv()
             except EOFError:
-                process = open_pipes.pop(pipe).process
-                process.join()
-                if process.exitcode != 0:
-                    raise WorkerError(f"a worker died with exit code {process.exitcode}") from None
+                live.remove(worker)
+                worker.process.join()
+                if worker.process.exitcode != 0:
+                    raise WorkerError(
+                        f"a worker died with exit code {worker.process.exitcode}"
+                    ) from None
                 continue
             if not ok:
                 raise WorkerError(f"item {index} failed in a worker:\n{payload}")
             results[index] = pickle.loads(payload)
-            _dispatch(open_pipes[pipe], pending)
+            _dispatch(worker, pending)
     return [results[index] for index in range(count)]
