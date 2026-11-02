@@ -8,8 +8,8 @@ from settings_factory import SettingsFactory
 from physverify.app import plugins
 from physverify.checks.r4_size_constancy import SizeConstancyCheck
 from physverify.checks.variants._base import DEFAULT_VARIANT
+from physverify.checks.variants._rigid_jump import RigidJumpCheck
 from physverify.checks.variants.r4_jump_declared_depth import DeclaredDepthJumpCheck
-from physverify.checks.variants.r4_jump_rigid import RigidJumpCheck
 from physverify.checks.variants.r4_size_v3 import DetrendedSizeCheck
 from physverify.core.errors import ConfigError
 from physverify.verification.check_set import (

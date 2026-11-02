@@ -11,12 +11,12 @@ import pytest
 
 from physverify.checks._base import CheckInputs
 from physverify.checks.r4_track_jump import NoiseContinuityCheck, NoiseJumpParams
+from physverify.checks.variants._rigid_jump import RigidJumpCheck, RigidJumpParams
 from physverify.checks.variants.r4_jump_declared_depth import (
     DEPTH_AXIS,
     DeclaredDepthJumpCheck,
     declared_depth_sigma,
 )
-from physverify.checks.variants.r4_jump_rigid import RigidJumpCheck, RigidJumpParams
 from physverify.schema.checks import CheckResult
 from physverify.schema.states import CoordFrame
 

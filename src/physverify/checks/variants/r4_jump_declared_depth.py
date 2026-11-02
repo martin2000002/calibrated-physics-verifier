@@ -10,7 +10,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from physverify.checks._base import CheckInputs
-from physverify.checks.variants.r4_jump_rigid import RigidJumpCheck
+from physverify.checks.variants._rigid_jump import RigidJumpCheck
 from physverify.schema.states import CoordFrame, ObjectStateTable
 
 DEPTH_AXIS = 2
