@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Protocol
 
 from pydantic import Field
 
+from physverify.checks.variants._base import REPLACED_UNIT
 from physverify.core.models import FrozenModel
 from physverify.schema.clip import ClipManifest
 from physverify.schema.io import encode
@@ -73,18 +74,22 @@ class CheckUnit:
     magnitude_unit: str
     perturbation_unit: str | None = None
     perturbation_estimate: str | None = None
+    replaced_unit: str | None = None
+    """Set for a variant that reports in another unit than its default implementation: that one."""
 
     @classmethod
     def of(cls, check: CheckIdentity) -> CheckUnit:
-        """Identity of a check class (or instance), its declared perturbation unit and estimate
-        key included."""
+        """Identity of a check class (or instance), its declared perturbation unit, estimate
+        key and replaced unit included."""
         unit = getattr(check, PERTURBATION_UNIT, None)
         estimate = getattr(check, PERTURBATION_ESTIMATE, None)
+        replaced = getattr(check, REPLACED_UNIT, None)
         return cls(
             check.check_id,
             check.magnitude_unit,
             None if unit is None else str(unit),
             None if estimate is None else str(estimate),
+            None if replaced is None else str(replaced),
         )
 
 

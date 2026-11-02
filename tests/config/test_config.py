@@ -157,6 +157,8 @@ def test_repository_configs(config_dir: Path) -> None:
     assert (
         precise.sections["extraction"]["plan"]["depth"] == "vda_small"
     )  # the chosen base chain is the CPU one
+    assert precise.sections["extraction"]["plan"]["contacts"] == "kinematic_scene"
+    assert fast.sections["extraction"]["plan"]["contacts"] == "proximity"
     assert precise.sections["extraction"]["sampling"]["max_side"] == 960
     assert precise.sections["extraction"]["sampling"]["target_fps"] == {
         "kubric_synthetic": 24, "physics_iq": 30, "pisa_real": 120,

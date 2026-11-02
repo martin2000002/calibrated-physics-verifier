@@ -111,7 +111,7 @@ def test_the_precise_profile_is_the_base_chain(
     real_providers: Mapping[str, type[StageProvider]],
     dataset: str,
 ) -> None:
-    """Contacts stay proximity and depth stays vda_small in the precise base chain."""
+    """Contacts are kinematic_scene and depth stays vda_small in the precise base chain."""
     plan = resolve_plan(make_settings(profile="precise"), real_providers, dataset=dataset)
     assert plan.step(Stage.DEPTH).provider.name == "vda_small"
-    assert plan.step(Stage.CONTACTS).provider.name == "proximity"
+    assert plan.step(Stage.CONTACTS).provider.name == "kinematic_scene"

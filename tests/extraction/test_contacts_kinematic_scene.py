@@ -78,7 +78,7 @@ def test_the_provider_reads_the_track_lift_and_kinematics_entries_and_is_light()
     assert not provider.heavy and not provider.is_ground_truth
 
 
-def test_the_precise_oracle_and_perceived_plans_do_not_use_the_provider(
+def test_the_precise_perceived_plan_uses_the_provider_and_the_oracle_the_truth(
     make_settings: SettingsFactory, real_providers: Providers
 ) -> None:
     settings = make_settings(profile="precise")
@@ -87,4 +87,4 @@ def test_the_precise_oracle_and_perceived_plans_do_not_use_the_provider(
     )
     perceived = resolve_plan(settings, real_providers, dataset="kubric_synthetic")
     assert oracle.names[Stage.CONTACTS] == "ground_truth"
-    assert perceived.names[Stage.CONTACTS] != KinematicSceneContacts.name
+    assert perceived.names[Stage.CONTACTS] == KinematicSceneContacts.name

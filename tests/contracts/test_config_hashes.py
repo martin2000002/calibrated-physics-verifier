@@ -29,21 +29,25 @@ PINNED_ROOT = "/pinned"
 
 SECTIONS_HASH = {
     "fast": "0f496b6b6c3c134833db620699a062e177149f50106563766a0f2149ef568e02",
-    "precise": "492ad5cd6de067a9913ff7e835fce47465a9f1d8e535a4983960100dd964b961",
+    "precise": "b1596e56a537296577316bdc570e7ae43113151943dc4ff7b00e0e6d4f3156a3",
 }
 CONFIG_HASH = {
     "fast": "5c823cad1d6520fb36db4320c0d65d4f9fab8acd842e709b4891c49116dff0c4",
-    "precise": "d6f2b02fcad3eb8ca4ed922e009311ed04cfb786cb9b1cfdff5e291c4da9ea5f",
+    "precise": "b84e9cb4e726f6608267144c7ad59c1201b3ad3dd0e7ae860b924406b646de88",
 }
 LOOK_CONFIG_HASH = {
     "fast": "264a6f208d3db9bbbe0f08e4fbd73d74c264783f9219d8cc891d8f914d289953",
-    "precise": "d58abacd1db2e5f4829fdfa28c7a4d6d7ff5bb2cffb77000531bdff979f026db",
+    "precise": "aec7cab675a6149f711a41a71bad502115f04d870f1419855efb65249e2e28db",
 }
 CHECKS_HASH = "891fd3580169fec8f8c70ca0b7d66b24973fd7348dbf1c98ac00be92aa41b2b8"
 RUN_CHECKS_HASH = {
     "fast": "891fd3580169fec8f8c70ca0b7d66b24973fd7348dbf1c98ac00be92aa41b2b8",
-    "precise": "ea5ff7c226668081e5caa4784361a9e04c0484b39771a3e393791d530e207187",
+    "precise": "14ee88d5785760791f710f4afef505eb1053e13fba2d3a61262b17b3f89b5a4a",
 }
+PRECISE_STAGE_KEYS_HASH = "e712aab0fcbf7850a6d19e3ed4232ea3f811abd2a56b2fb39910ebb96701a593"
+"""Hash of every stage key of the precise plan. It and ``RUN_CHECKS_HASH["precise"]`` are what the
+tree before the current precise defaults gave with the same choices passed by ``--set``."""
+PRECISE_CHOICES = ("extraction.plan.contacts=kinematic_scene", "check_variants.R5a=whitened")
 DATASET_CONTENT_HASH = {
     "fast": "7792797236e163025d89c1c518dc43ad8f90c3f511bd884e1969ca9bf1f2fa3e",
     "precise": "4a6829efdd64424d79dfc0941246de148ca50446e0f6f40738e3a02d1b8e8b4e",
@@ -170,6 +174,16 @@ def test_section_hashes_are_unchanged(configs: Path, profile: str) -> None:
 def test_the_run_config_hash_is_unchanged(configs: Path, profile: str) -> None:
     settings = _relocated(_settings(configs, profile), configs.parent.parent)
     assert settings.config_hash() == CONFIG_HASH[profile]
+
+
+@pytest.mark.parametrize("overrides", [(), PRECISE_CHOICES])
+def test_the_precise_defaults_hash_as_their_explicit_choices(
+    configs: Path, providers: Mapping[str, Any], overrides: tuple[str, ...]
+) -> None:
+    settings = _settings(configs, "precise", overrides)
+    keys = _stage_keys(settings, providers, ())
+    assert run_checks_hash(settings) == RUN_CHECKS_HASH["precise"]
+    assert stable_hash({s.value: k for s, k in keys.items()}) == PRECISE_STAGE_KEYS_HASH
 
 
 @pytest.mark.parametrize("key", list(STAGE_KEYS))

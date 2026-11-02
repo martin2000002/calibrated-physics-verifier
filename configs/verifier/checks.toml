@@ -25,12 +25,15 @@ reference = "others"
 # rows whose mask the lift saw cut by the image border left out. R4_jump "rigid2": v2 without the
 # stencils where the apparent size steps, in the statistic and in its noise estimate. The precise
 # profile runs both; --set check_variants.R4_size=default (or R4_jump=default) restores v2.
-# R5a "whitened" (selectable, no profile runs it): each candidate scored by the Wald contrast of
+# R5a "whitened" (the precise profile runs it): each candidate scored by the Wald contrast of
 # its two accelerations fitted with weights 1 / position_sigma^2, chi-square with 3 degrees of
 # freedom per candidate under white noise independent per axis. Its unit is not v1's: thresholds
-# come from fold calibration, and an uncalibrated run sets the a priori chi-square(3) 0.99
-# quantile (about the 0.90 quantile of the maximum over a flight's ~13 cuts) and its unit:
-# --set verification.thresholds.R5a=11.34 --set verification.threshold_units.R5a=accel_wald_chi2_3.
+# come from fold calibration, and an uncalibrated run reads the a priori chi-square(3) 0.99
+# quantile (about the 0.90 quantile of the maximum over a flight's ~13 cuts) and its unit from
+# [verification.profiles.precise] (its tau_tolerance from [calibration.profiles.precise]);
+# --set check_variants.R5a=default under precise also needs --set verification.thresholds.R5a=0.15
+# --set verification.threshold_units.R5a=accel_rel_diff
+# --set calibration.tau_tolerance_units.R5a=accel_rel_diff.
 # A provisional tau is read in the unit of the check's default implementation unless
 # verification.threshold_units.<id> says otherwise; a tau whose unit is not the unit of the
 # configured check, or a calibrated table fitted with other check parameters or variants (its
@@ -40,6 +43,7 @@ reference = "others"
 [check_variants.profiles.precise]
 R4_size = "v3"
 R4_jump = "rigid2"
+R5a = "whitened"
 
 [verification]
 policy = "threshold"
@@ -63,6 +67,12 @@ R4_size = 0.10
 R4_jump = 3.78
 R5a = 0.15
 R5b = 0.15
+
+[verification.profiles.precise.thresholds]
+R5a = 11.34
+
+[verification.profiles.precise.threshold_units]
+R5a = "accel_wald_chi2_3"
 
 [verification.specificity]
 abs_tol = 1e-3

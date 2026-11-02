@@ -39,8 +39,9 @@ def test_it_is_the_selectable_whitened_variant_of_r5a(make_settings: SettingsFac
     assert variant.perturbation_unit == FallShapeCheck.magnitude_unit
     chosen = plugins.configured("checks", make_settings("check_variants.R5a=whitened"))
     assert chosen["R5a"] is WhitenedFallShapeCheck
-    for profile in ("precise", "fast"):
-        assert plugins.configured("checks", make_settings(profile=profile))["R5a"] is FallShapeCheck
+    precise = plugins.configured("checks", make_settings(profile="precise"))
+    assert precise["R5a"] is WhitenedFallShapeCheck
+    assert plugins.configured("checks", make_settings(profile="fast"))["R5a"] is FallShapeCheck
     restored = plugins.configured("checks", make_settings("check_variants.R5a=default"))
     assert restored["R5a"] is FallShapeCheck
 

@@ -11,6 +11,7 @@ from physverify.checks.variants._base import DEFAULT_VARIANT
 from physverify.checks.variants._rigid_jump import RigidJumpCheck
 from physverify.checks.variants.r4_jump_declared_depth import DeclaredDepthJumpCheck
 from physverify.checks.variants.r4_size_v3 import DetrendedSizeCheck
+from physverify.checks.variants.r5a_whitened import WhitenedFallShapeCheck
 from physverify.core.errors import ConfigError
 from physverify.verification.check_set import (
     ChecksSettings,
@@ -57,7 +58,9 @@ def test_the_precise_profile_runs_the_adopted_variants(make_settings: SettingsFa
     precise = plugins.configured("checks", make_settings(profile="precise"))
     assert precise["R4_size"] is DetrendedSizeCheck
     assert precise["R4_jump"] is RigidJumpCheck
-    assert all(precise[c] is CHECKS[c] for c in CHECKS if c not in {"R4_size", "R4_jump"})
+    assert precise["R5a"] is WhitenedFallShapeCheck
+    adopted = {"R4_size", "R4_jump", "R5a"}
+    assert all(precise[c] is CHECKS[c] for c in CHECKS if c not in adopted)
     assert dict(plugins.configured("checks", make_settings(profile="fast"))) == dict(CHECKS)
 
 
@@ -65,6 +68,7 @@ def test_the_default_variant_restores_the_registered_check(make_settings: Settin
     restore = (
         f"check_variants.R4_size={DEFAULT_VARIANT}",
         f"check_variants.R4_jump={DEFAULT_VARIANT}",
+        f"check_variants.R5a={DEFAULT_VARIANT}",
     )
     restored = plugins.configured("checks", make_settings(*restore, profile="precise"))
     assert dict(restored) == dict(CHECKS)
@@ -87,5 +91,7 @@ def test_the_depth_floor_is_selectable_and_moves_the_hash_only_when_selected(
     assert all(floored[c] is precise[c] for c in CHECKS if c != "R4_jump")
     overrides = ChecksSettings()
     assert checks_hash(floored, overrides) != checks_hash(precise, overrides)
-    rigid = select_variants(CHECKS, VARIANTS, selected(R4_size="v3", R4_jump="rigid2"))
+    rigid = select_variants(
+        CHECKS, VARIANTS, selected(R4_size="v3", R4_jump="rigid2", R5a="whitened")
+    )
     assert checks_hash(rigid, overrides) == checks_hash(precise, overrides)
