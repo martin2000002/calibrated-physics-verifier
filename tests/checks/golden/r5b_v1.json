@@ -1,0 +1,327 @@
+{
+ "bounce": [
+  {
+   "abstain_reason": null,
+   "check_id": "R5b",
+   "clip_id": "bounce",
+   "details": {
+    "flight_errors": [
+     3.621522608359328e-16,
+     2.3539896954335633e-15
+    ],
+    "flights": 2,
+    "row_step": 1,
+    "scale_source": "ground_truth",
+    "time_source": "ground_truth",
+    "used_flights": 2
+   },
+   "frame_span": [
+    0,
+    31
+   ],
+   "input_level": "oracle",
+   "magnitude": 1.358070978134748e-15,
+   "provenance": {},
+   "sigma": 0.0,
+   "subject": [],
+   "threshold": null,
+   "unit": "g_rel_error",
+   "verdict": "UNSCORED"
+  }
+ ],
+ "bounce_jittered": [
+  {
+   "abstain_reason": null,
+   "check_id": "R5b",
+   "clip_id": "bounce",
+   "details": {
+    "flight_errors": [
+     0.0003496825306571119,
+     0.00010865672095460221
+    ],
+    "flights": 2,
+    "row_step": 1,
+    "scale_source": "ground_truth",
+    "time_source": "ground_truth",
+    "used_flights": 2
+   },
+   "frame_span": [
+    0,
+    31
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.00022916962580585707,
+   "provenance": {},
+   "sigma": 0.0,
+   "subject": [],
+   "threshold": null,
+   "unit": "g_rel_error",
+   "verdict": "UNSCORED"
+  }
+ ],
+ "bounce_sigma": [
+  {
+   "abstain_reason": null,
+   "check_id": "R5b",
+   "clip_id": "bounce",
+   "details": {
+    "flight_errors": [
+     3.621522608359328e-16,
+     7.243045216718656e-16
+    ],
+    "flights": 2,
+    "row_step": 1,
+    "scale_source": "ground_truth",
+    "time_source": "ground_truth",
+    "used_flights": 2
+   },
+   "frame_span": [
+    0,
+    31
+   ],
+   "input_level": "oracle",
+   "magnitude": 5.432283912538992e-16,
+   "provenance": {},
+   "sigma": 0.00461630019840845,
+   "subject": [],
+   "threshold": null,
+   "unit": "g_rel_error",
+   "verdict": "UNSCORED"
+  }
+ ],
+ "flight_beside_box": [
+  {
+   "abstain_reason": null,
+   "check_id": "R5b",
+   "clip_id": "flight_beside_box",
+   "details": {
+    "flight_errors": [
+     0.0
+    ],
+    "flights": 1,
+    "row_step": 1,
+    "scale_source": "ground_truth",
+    "time_source": "ground_truth",
+    "used_flights": 1
+   },
+   "frame_span": [
+    0,
+    31
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.0,
+   "provenance": {},
+   "sigma": 0.0,
+   "subject": [],
+   "threshold": null,
+   "unit": "g_rel_error",
+   "verdict": "UNSCORED"
+  }
+ ],
+ "gliding_ball": [
+  {
+   "abstain_reason": null,
+   "check_id": "R5b",
+   "clip_id": "gliding_ball",
+   "details": {
+    "flight_errors": [
+     0.9999999999999771,
+     0.9999999999999998,
+     1.0
+    ],
+    "flights": 3,
+    "row_step": 1,
+    "scale_source": "ground_truth",
+    "time_source": "ground_truth",
+    "used_flights": 3
+   },
+   "frame_span": [
+    3,
+    31
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.9999999999999998,
+   "provenance": {},
+   "sigma": 0.0,
+   "subject": [],
+   "threshold": null,
+   "unit": "g_rel_error",
+   "verdict": "UNSCORED"
+  }
+ ],
+ "parabola": [
+  {
+   "abstain_reason": null,
+   "check_id": "R5b",
+   "clip_id": "parabola",
+   "details": {
+    "flight_errors": [
+     0.0
+    ],
+    "flights": 1,
+    "row_step": 1,
+    "scale_source": "ground_truth",
+    "time_source": "ground_truth",
+    "used_flights": 1
+   },
+   "frame_span": [
+    0,
+    31
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.0,
+   "provenance": {},
+   "sigma": 0.0,
+   "subject": [],
+   "threshold": null,
+   "unit": "g_rel_error",
+   "verdict": "UNSCORED"
+  }
+ ],
+ "parabola_jittered": [
+  {
+   "abstain_reason": null,
+   "check_id": "R5b",
+   "clip_id": "parabola",
+   "details": {
+    "flight_errors": [
+     9.418482632247815e-06
+    ],
+    "flights": 1,
+    "row_step": 1,
+    "scale_source": "ground_truth",
+    "time_source": "ground_truth",
+    "used_flights": 1
+   },
+   "frame_span": [
+    0,
+    31
+   ],
+   "input_level": "oracle",
+   "magnitude": 9.418482632247815e-06,
+   "provenance": {},
+   "sigma": 0.0,
+   "subject": [],
+   "threshold": null,
+   "unit": "g_rel_error",
+   "verdict": "UNSCORED"
+  }
+ ],
+ "parabola_strided": [
+  {
+   "abstain_reason": null,
+   "check_id": "R5b",
+   "clip_id": "parabola",
+   "details": {
+    "flight_errors": [
+     0.20000000000000087
+    ],
+    "flights": 1,
+    "row_step": 2,
+    "scale_source": "ground_truth",
+    "time_source": "ground_truth",
+    "used_flights": 1
+   },
+   "frame_span": [
+    0,
+    30
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.20000000000000087,
+   "provenance": {},
+   "sigma": 0.0,
+   "subject": [],
+   "threshold": null,
+   "unit": "g_rel_error",
+   "verdict": "UNSCORED"
+  }
+ ],
+ "parabola_weak": [
+  {
+   "abstain_reason": null,
+   "check_id": "R5b",
+   "clip_id": "parabola",
+   "details": {
+    "flight_errors": [
+     0.4000000000000003
+    ],
+    "flights": 1,
+    "row_step": 1,
+    "scale_source": "ground_truth",
+    "time_source": "ground_truth",
+    "used_flights": 1
+   },
+   "frame_span": [
+    0,
+    31
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.4000000000000003,
+   "provenance": {},
+   "sigma": 0.0,
+   "subject": [],
+   "threshold": null,
+   "unit": "g_rel_error",
+   "verdict": "UNSCORED"
+  }
+ ],
+ "two_balls": [
+  {
+   "abstain_reason": null,
+   "check_id": "R5b",
+   "clip_id": "two_balls",
+   "details": {
+    "flight_errors": [
+     0.0,
+     0.19999999999999943
+    ],
+    "flights": 2,
+    "row_step": 1,
+    "scale_source": "ground_truth",
+    "time_source": "ground_truth",
+    "used_flights": 2
+   },
+   "frame_span": [
+    0,
+    31
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.09999999999999971,
+   "provenance": {},
+   "sigma": 0.0,
+   "subject": [],
+   "threshold": null,
+   "unit": "g_rel_error",
+   "verdict": "UNSCORED"
+  }
+ ],
+ "unmarked_roll": [
+  {
+   "abstain_reason": null,
+   "check_id": "R5b",
+   "clip_id": "unmarked_roll",
+   "details": {
+    "flight_errors": [
+     0.9999999999999949
+    ],
+    "flights": 1,
+    "row_step": 1,
+    "scale_source": "ground_truth",
+    "time_source": "ground_truth",
+    "used_flights": 1
+   },
+   "frame_span": [
+    13,
+    24
+   ],
+   "input_level": "oracle",
+   "magnitude": 0.9999999999999949,
+   "provenance": {},
+   "sigma": 0.0,
+   "subject": [],
+   "threshold": null,
+   "unit": "g_rel_error",
+   "verdict": "UNSCORED"
+  }
+ ]
+}
