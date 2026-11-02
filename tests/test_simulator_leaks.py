@@ -1,9 +1,10 @@
 """The verifier does not know the simulator: no constant the synthetic scenes are made with (floor
-and object materials, camera framing, object sizes, render settings) is a value of a verifier
-source or configuration line that names it, and R2 samples mu from an interval.
+and object materials, camera framing, object sizes, render settings, perturbation windows and
+levels) is a value of a verifier source or configuration line that names it, and R2 samples mu
+from an interval.
 
-Every constant is read from the simulator itself (each registered family's parameters under every
-profile, as ``synth/generate.py`` builds them), never copied here."""
+Every constant is read from the simulator itself (each registered family's and perturbation's
+parameters under every profile, as ``synth/generate.py`` builds them), never copied here."""
 
 from __future__ import annotations
 
@@ -22,7 +23,13 @@ from physverify.checks.r2_static_equilibrium import EquilibriumParams
 from physverify.config.loader import known_profiles, load_settings, read_config_files
 from physverify.synth.family_toolkit import gravity_vector
 from physverify.synth.placement import CameraFraming
-from physverify.synth.settings import family_params, load_dataset_settings, load_size_distribution
+from physverify.synth.settings import (
+    DatasetSettings,
+    family_params,
+    load_dataset_settings,
+    load_size_distribution,
+    perturbation_params,
+)
 
 REPO = Path(__file__).resolve().parents[1]
 CONFIGS = REPO / "configs"
@@ -54,6 +61,7 @@ FIELD_KEYWORDS: Mapping[str, str] = {
 family field whose name contains it, e.g. ``restitution`` covers ``cube_restitution``)."""
 FOV = "fov"
 GRAVITY = "gravity"
+UNPERTURBED = "none"
 
 EXEMPT: Mapping[str, str] = {
     GRAVITY: "g is physics, not a simulator choice: R5b measures departures from it",
@@ -81,6 +89,36 @@ LINE_EXCEPTIONS = (
         "src/physverify/checks/r3a_bounce_restitution.py",
         "restitution e - 1",
         "the elastic bound e = 1 of mechanics, not the floor's restitution",
+    ),
+    LineException(
+        "src/physverify/checks/variants/r4_size_v3.py",
+        "The shortest r4_resize bump",
+        "R4_size v3's windows are set on the r4_resize bumps (3 to 8 rows) and on simulator data",
+    ),
+    LineException(
+        "configs/verifier/checks.toml",
+        "R4_size = 0.10",
+        "provisional threshold, r4_resize level 2; the calibration replaces it",
+    ),
+    LineException(
+        "configs/verifier/checks.toml",
+        "R1 = 0.05",
+        "provisional threshold, r1_penetration level 1; the calibration replaces it",
+    ),
+    LineException(
+        "configs/verifier/checks.toml",
+        "R3a = 0.05",
+        "provisional threshold, r3_restitution_gain level 1; the calibration replaces it",
+    ),
+    LineException(
+        "configs/verifier/calibration.toml",
+        "level-1 effects are >= 0.05",
+        "epsilon_c is an upper bound kept below the smallest level-1 effect, not a level",
+    ),
+    LineException(
+        "configs/verifier/checks.toml",
+        "(0.4 % on the local f1 clip",
+        "a measured share of g, not an r5b_gravity_scale level",
     ),
 )
 
@@ -111,17 +149,43 @@ def numeric_leaves(value: Any, name: str = "") -> Iterator[tuple[str, float]]:
         yield name, float(value)
 
 
+def profile_settings() -> Iterator[Any]:
+    base = read_config_files(CONFIGS)[0]
+    for profile in sorted(known_profiles(base)):
+        yield load_settings(CONFIGS, environ={}, profile=profile)
+
+
 def family_parameters() -> list[Any]:
     """Every registered family's parameters under every profile."""
-    base = read_config_files(CONFIGS)[0]
     found = []
-    for profile in sorted(known_profiles(base)):
-        settings = load_settings(CONFIGS, environ={}, profile=profile)
+    for settings in profile_settings():
         dataset, priors = load_dataset_settings(settings), load_size_distribution(settings)
         found.extend(
             family_params(family, dataset, priors) for family in PLUGIN_KINDS["families"]().values()
         )
     return found
+
+
+def perturbation_constants() -> list[SimulatorConstant]:
+    """Each perturbation's parameters, on lines naming the perturbation, and its fractional
+    levels, on lines naming a check it targets. Whole-number levels (frames, multiples) are not
+    searched there: every index and formula line of a check would match them."""
+    named: dict[str, set[float]] = {}
+    targeted: dict[str, set[float]] = {}
+    datasets: list[DatasetSettings] = [load_dataset_settings(s) for s in profile_settings()]
+    for name, plugin in PLUGIN_KINDS["perturbations"]().items():
+        if name == UNPERTURBED:
+            continue
+        for dataset in datasets:
+            params = perturbation_params(plugin, dataset)
+            named.setdefault(name, set()).update(
+                v for _, v in numeric_leaves(params.model_dump(mode="json"))
+            )
+            for check in plugin.target_checks:
+                targeted.setdefault(check.lower(), set()).update(
+                    v for v in params.levels if not float(v).is_integer()
+                )
+    return [SimulatorConstant(k, frozenset(v)) for k, v in sorted({**named, **targeted}.items())]
 
 
 def field_of_view_deg(framing: CameraFraming) -> float:
@@ -141,6 +205,7 @@ def simulator_constants() -> list[SimulatorConstant]:
         *named,
         SimulatorConstant(FOV, fov, approximate=True),
         SimulatorConstant(GRAVITY, gravity),
+        *perturbation_constants(),
     ]
 
 
@@ -217,6 +282,18 @@ def test_a_camera_prior_from_the_simulator_is_caught(
     tmp_path: Path, constants: list[SimulatorConstant], planted: str
 ) -> None:
     config = tmp_path / "camera.toml"
+    config.write_text(planted, encoding="utf-8")
+    assert leaks([config], constants)
+
+
+@pytest.mark.parametrize(
+    "planted",
+    ["[verification.thresholds]\nR5b = 0.2\n", "# r4_resize bumps last 8 rows\nwindow = 17\n"],
+)
+def test_a_perturbation_level_or_window_is_caught(
+    tmp_path: Path, constants: list[SimulatorConstant], planted: str
+) -> None:
+    config = tmp_path / "checks.toml"
     config.write_text(planted, encoding="utf-8")
     assert leaks([config], constants)
 
