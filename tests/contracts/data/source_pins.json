@@ -1,61 +1,61 @@
 {
   "check_variants": {
     "R4_jump/rigid2": {
-      "digest": "de71498c1415deba9404791a936ea7985ff6f622f15cddb601c068c87edd3450",
+      "digest": "40ccce692cc8c17cacb0f4969aaea24498150a9cd839554b035dc1672c387044",
       "version": "1"
     },
     "R4_jump/rigid2_dfloor": {
-      "digest": "f24c7a57df99cac8943dd2be5f94a60b1a05d09329ee7a11a19fb23d873612d3",
+      "digest": "cc404d5ee5d64880af65d8cabd7c3971fc5e52d6de6e5e51f4d4d4d0cc4c7540",
       "version": "1"
     },
     "R4_size/v3": {
-      "digest": "128b6939aa563a9b6af1bbb9574bcaaa0472f827241bd228fb0a817e4f77cba5",
+      "digest": "cf93a3c728b2f1b31615ea45b04790204eca5b0a23cab7d80230e0f6e64060cf",
       "version": "1"
     },
     "R5a/whitened": {
-      "digest": "e231115a9d1e6ef0c40c2cec04015f175d71c72f4aa94913ad761951ae9e3b59",
+      "digest": "7ef234a62633d8e6ceed5d5ae16e226d0c4331ffab957684218981fef8b1363e",
       "version": "1"
     },
     "R5b/unsupported": {
-      "digest": "9149485eb92e38872e2cb823c8d3bef6050d3e88904c04e4d8b15789c731e849",
+      "digest": "ca876ed8910482a49e3510acda4ce952d0e64a72d5c5f7aa568da6e464a040a2",
       "version": "1"
     }
   },
   "checks": {
     "R1": {
-      "digest": "443d510766d5c10b1160dd4ce7dde4eae2464548358e259938a9d618cc4ce427",
+      "digest": "042d6dfee2b68b191d7caf8e98911d6293b807de908276c5765350597b89ecec",
       "version": "2"
     },
     "R2": {
-      "digest": "93e5662eaa942a110df072e9ee5520c125dc2fefa99671e8595075cfc82310a1",
+      "digest": "8b679c6c1b57b7b1a078a66975fd4d30d35c7d94878e31eb115d39cc07bd7280",
       "version": "1"
     },
     "R3a": {
-      "digest": "e9d14cc3bb8d02b56bcb8a36ec1890e2032a445798b45529b461321b7a6857e9",
+      "digest": "73f85b5c74334ea136994edd048e38eae6cb5e5af9aaafc89b9e3a6a27abe626",
       "version": "1"
     },
     "R3b": {
-      "digest": "8a59cfa2ef7e040864fa1677563223f5dfee4dc7a32525539bbc21b90f4a97d7",
+      "digest": "a0ff64b120c611721d6174d80cc3bb04de9335f88a8bdca7becf925082be2541",
       "version": "1"
     },
     "R4_jump": {
-      "digest": "70f34016630fb763311acc661b326807f28d0bf4bf07f2b525fe1e89ed367415",
+      "digest": "2f8a73e37159a686b56d17f0927c6e2b56a5ffff271378f6c9adc32fa33d59bf",
       "version": "1"
     },
     "R4_missing": {
-      "digest": "ee6ecd6bff4794857b729b37db1453144cfd1d261c8a1f3e33242c7b4cd4df19",
+      "digest": "d19257c6fdeb4cb6997274880cd5fe1c61b3fa9952ca4472cbe56303b15e6abd",
       "version": "1"
     },
     "R4_size": {
-      "digest": "9eac239340ffe238f712f7cfebcbb677bdd4f00547966587efcf46feda8e28aa",
+      "digest": "a0257b505e7017f8a32cbf0c68aaeaed5e8e98d86b8021db81a5aa5ff749b6f6",
       "version": "1"
     },
     "R5a": {
-      "digest": "f898fb58cdd8621fdd8f50e9b2d6cb3e2c31dbf88e2c195d2d155a2b5cb31189",
+      "digest": "e5b4cacc7ab8d5776e016d45b384c729f3758249096742a4332fdd148e0546e7",
       "version": "1"
     },
     "R5b": {
-      "digest": "edf66b6325c4af70010791177d80eee0501cc542a643f8bb936e50f584cd643c",
+      "digest": "3efd1a6a01a330a712d080f092495426bbc406fd820de099dc2cc3d579bc1608",
       "version": "1"
     }
   },

@@ -38,8 +38,8 @@ reference = "others"
 # --set verification.threshold_units.R5a=accel_rel_diff
 # --set calibration.tau_tolerance_units.R5a=accel_rel_diff.
 # R5b "unsupported" (no profile runs it): a flight counts only if on some row the body's lowest
-# point rises above its scene plane by more than the scene contacts' gap gate K sigma_gap (ADR
-# 0032), so a roll the contacts left unmarked is not a fall; same unit as v1.
+# point rises above its scene plane by more than the scene contacts' gap gate K sigma_gap (the
+# same z and sigma_gap), so a roll the contacts left unmarked is not a fall; same unit as v1.
 # A provisional tau is read in the unit of the check's default implementation unless
 # verification.threshold_units.<id> says otherwise; a tau whose unit is not the unit of the
 # configured check, or a calibrated table fitted with other check parameters or variants (its

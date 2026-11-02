@@ -28,7 +28,7 @@ from physverify.schema.states import ObjectStateTable
 class CheckInputs:
     """States and contacts in one unit and frame; ``scale`` converts that unit to meters;
     ``camera`` is the CAMERA output the states were lifted with (ground truth for the oracle).
-    ``support_gap_bound`` is K sigma_gap / L of the scene contacts' gap gate (ADR 0032): K =
+    ``support_gap_bound`` is K sigma_gap / L of the scene contacts' gap gate: K =
     z(alpha / 2) of the plan's scene contacts, sigma_gap / L the rms of the LIFT
     ``support_gap_rel`` entry; 0 for ground truth, NaN when unknown."""
 

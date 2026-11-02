@@ -21,7 +21,7 @@ from physverify.schema.states import ObjectStateTable
 class UnsupportedGravityValueCheck(GravityValueCheck):
     """R5b unsupported [g_rel_error]: R5b's flights, each kept only when on some row the body's
     lowest point rises above its scene plane by more than K sigma_gap, with K sigma_gap / L =
-    ``inputs.support_gap_bound`` (the gap gate of ADR 0032, the same z and sigma_gap). The plane
+    ``inputs.support_gap_bound`` (the scene contacts' gap gate, same z and sigma_gap). The plane
     of object n is the lowest environment surface under the other objects' ENV contacts, never
     n's own, as the scene contacts build it; a flight without such a plane, or without a placed
     row, is kept. The fitted acceleration is not read, so a body gliding above the plane with no
