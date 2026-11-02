@@ -1,4 +1,4 @@
-"""Source pins (ADR 0039): no provider, check or check variant changes its code, or the code of a
+"""Source pins: no provider, check or check variant changes its code, or the code of a
 physverify module it imports, without a new ``version`` or a re-pin justified by
 ``tools/equivalence/run_equivalence.sh``; every one of them has a pin."""
 

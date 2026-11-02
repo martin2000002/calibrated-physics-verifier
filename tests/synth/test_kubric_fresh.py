@@ -158,8 +158,8 @@ def test_fresh_stage_keys_match_and_only_the_cache_root_moves(
 def test_another_version_of_the_store_misses_every_stage(
     config_dir: Path, smoke_env: dict[str, str]
 ) -> None:
-    """I29a over a real store: a copy under another version (same name and clip ids) shares no
-    cache entry with the original, ground truth included (ADR 0039)."""
+    """Over a real store, a copy under another version (same name and clip ids) shares no
+    cache entry with the original, ground truth included."""
     settings = fresh_settings(config_dir, smoke_env)
     calib = KubricSynthetic(settings)
     other = KubricSynthetic(settings, root=renamed_copy(settings, "smoke-other"))

@@ -240,8 +240,7 @@ def test_check_files_are_named_after_their_check_ids_in_check_order(
 def test_every_check_declares_its_own_version(
     registries: dict[str, Mapping[str, Any]], kind: str
 ) -> None:
-    """L24 (ADR 0039): the version is the class's own, so a variant never runs under its
-    parent's."""
+    """The version is the class's own, so a variant never runs under its parent's."""
     for key, check in registries[kind].items():
         version = vars(check).get("version")
         assert isinstance(version, str) and version, key

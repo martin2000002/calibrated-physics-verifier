@@ -1,4 +1,4 @@
-"""L24 (ADR 0039): a check's version enters ``checks_hash``; with the same version, parameters and
+"""A check's version enters ``checks_hash``; with the same version, parameters and
 variant the hash stays put."""
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from physverify.checks._base import Check, CheckInputs
 from physverify.schema.checks import CheckResult
 from physverify.verification.check_set import ChecksSettings, checks_hash
 
-TOY = "T1"
+TOY = "toy_check"
 
 
 class ToyParams(BaseModel):

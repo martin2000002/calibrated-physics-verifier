@@ -1,5 +1,5 @@
-"""L29: the identity of a dataset's content enters every stage key, ground truth included, so two
-versions with the same name and clip ids never share cache entries (ADR 0039)."""
+"""The identity of a dataset's content enters every stage key, ground truth included, so two
+versions with the same name and clip ids never share cache entries."""
 
 from __future__ import annotations
 

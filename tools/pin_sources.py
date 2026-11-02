@@ -1,4 +1,4 @@
-"""Source pins of the registered providers, checks and check variants (ADR 0039).
+"""Source pins of the registered providers, checks and check variants.
 
     PYTHONPATH=src python tools/pin_sources.py                       # list every stale pin
     PYTHONPATH=src python tools/pin_sources.py --accept checks:R1    # record the current pin

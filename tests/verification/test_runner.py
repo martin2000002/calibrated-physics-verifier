@@ -301,7 +301,7 @@ def test_a_calibrated_table_judges_only_the_checks_it_was_fitted_with(
 def test_a_table_calibrated_before_check_versions_is_refused(
     make_settings: SettingsFactory,
 ) -> None:
-    """I24c (ADR 0039): the hash a table recorded before versions entered ``checks_hash`` (the
+    """The hash a table recorded before versions entered ``checks_hash`` (the
     parameters alone, as on f133fc8) no longer matches, so verify refuses the table."""
     policies = PLUGIN_KINDS["policies"]()
     settings = make_settings()
