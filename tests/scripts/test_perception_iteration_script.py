@@ -193,7 +193,7 @@ def test_the_iteration_runs_its_five_steps_on_calib_only(sandbox: IterationSandb
         ({"PHYSVERIFY_ITERATION_DEVICE": "tpu"}, "cpu or cuda"),
         ({"PHYSVERIFY_ITERATION_THREADS": "0"}, "PHYSVERIFY_ITERATION_THREADS"),
         ({"PHYSVERIFY_ITERATION_WORKERS": "0"}, "PHYSVERIFY_ITERATION_WORKERS"),
-        ({"PHYSVERIFY_ITERATION_WORKERS": "65"}, "PHYSVERIFY_ITERATION_WORKERS"),
+        ({"PHYSVERIFY_ITERATION_WORKERS": "-3"}, "PHYSVERIFY_ITERATION_WORKERS"),
     ],
 )
 def test_a_startup_guard_stops_before_any_call(
@@ -474,9 +474,9 @@ def test_the_worker_count_reaches_every_call(sandbox: IterationSandbox) -> None:
     assert sandbox.run().returncode == 0
     assert {x for x in sandbox.lines() if x.startswith("workers ")} == {"workers 1"}
     other = IterationSandbox(sandbox.root / "second")
-    assert other.run(PHYSVERIFY_ITERATION_WORKERS="64").returncode == 0
-    assert {x for x in other.lines() if x.startswith("workers ")} == {"workers 64"}
-    assert "workers 64" in (other.out / "summary.md").read_text(encoding="utf-8")
+    assert other.run(PHYSVERIFY_ITERATION_WORKERS="205").returncode == 0
+    assert {x for x in other.lines() if x.startswith("workers ")} == {"workers 205"}
+    assert "workers 205" in (other.out / "summary.md").read_text(encoding="utf-8")
 
 
 def test_several_workers_fork_from_a_one_thread_parent(sandbox: IterationSandbox) -> None:

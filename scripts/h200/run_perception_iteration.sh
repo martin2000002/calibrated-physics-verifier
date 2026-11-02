@@ -52,9 +52,10 @@
 #   PHYSVERIFY_ITERATION_PYTHON          interpreter [/home/mmonterot/dev/venv/bin/python]
 #   PHYSVERIFY_ITERATION_THREADS         runtime.threads [16: at most 16 while a calibration chain runs]
 #   PHYSVERIFY_ITERATION_WORKERS         runtime.workers, processes over clips in steps 2, 4, 5 [1];
-#                                        at most 64. Outputs do not depend on it. Above 1, numpy's
-#                                        BLAS runs one thread per process (OMP/MKL/OPENBLAS_NUM_THREADS=1)
-#                                        and the APM injection is off, so the forking parent has one thread
+#                                        take it from cpu_workers.sh. Outputs do not depend on it.
+#                                        Above 1, numpy's BLAS runs one thread per process
+#                                        (OMP/MKL/OPENBLAS_NUM_THREADS=1) and the APM injection is
+#                                        off, so the forking parent has one thread
 #   PHYSVERIFY_ITERATION_DATA            paths.data_dir, the synthetic dataset read only
 #                                        [$H200_ROOT/kubric-data]
 #   PHYSVERIFY_ITERATION_DIR             output [$H200_ROOT/iterations/$PHYSVERIFY_ITERATION_ID-<device>]
@@ -67,7 +68,6 @@ cd "$REPO_ROOT"
 FIRST_STEP=1
 LAST_STEP=5
 LAST_GPU_STEP=3
-MAX_WORKERS=64
 [[ $# -le 2 ]] || die "usage: run_perception_iteration.sh [FROM [TO]]"
 FROM="${1:-$FIRST_STEP}"
 TO="${2:-$LAST_STEP}"
@@ -140,8 +140,8 @@ PY="${PHYSVERIFY_ITERATION_PYTHON:-/home/mmonterot/dev/venv/bin/python}"
 THREADS="${PHYSVERIFY_ITERATION_THREADS:-16}"
 [[ "$THREADS" =~ ^[1-9][0-9]*$ ]] || die "PHYSVERIFY_ITERATION_THREADS must be a positive integer"
 WORKERS="${PHYSVERIFY_ITERATION_WORKERS:-1}"
-[[ "$WORKERS" =~ ^[1-9][0-9]*$ && "$WORKERS" -le "$MAX_WORKERS" ]] \
-    || die "PHYSVERIFY_ITERATION_WORKERS must be an integer in 1..$MAX_WORKERS, got '$WORKERS'"
+[[ "$WORKERS" =~ ^[1-9][0-9]*$ ]] \
+    || die "PHYSVERIFY_ITERATION_WORKERS must be a positive integer, got '$WORKERS'"
 DATA="${PHYSVERIFY_ITERATION_DATA:-$H200_ROOT/kubric-data}"
 OUT="${PHYSVERIFY_ITERATION_DIR:-$H200_ROOT/iterations/$ITER_ID-$PV_DEVICE}"
 
