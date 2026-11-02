@@ -8,6 +8,7 @@ from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, fields, replace
 from enum import Enum, StrEnum
+from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +18,7 @@ from physverify.checks._base import Check, CheckInputs, abstain, missing_inputs,
 from physverify.config.models import Settings, validated
 from physverify.core.errors import ConfigError
 from physverify.core.models import FrozenModel
+from physverify.runtime.parallel import ordered_map
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
 from physverify.schema.clip import ClipManifest
 from physverify.schema.io import write_jsonl
@@ -103,14 +105,34 @@ class VerificationRunner:
     """Every check on every clip: 9 table rows per clip, whatever happens inside a check."""
 
     def __init__(
-        self, checks: Sequence[Check], policy: VerdictPolicy, thresholds: ThresholdTable
+        self,
+        checks: Sequence[Check],
+        policy: VerdictPolicy,
+        thresholds: ThresholdTable,
+        workers: int = 1,
     ) -> None:
         self._checks = tuple(checks)
         self._policy = policy
         self._thresholds = thresholds
         self._label = thresholds.label
+        self._workers = workers
 
     def run(self, source: InputSource, clips: Sequence[ClipManifest]) -> VerificationReport:
+        """With several workers each clip is loaded and checked alone in a worker process and
+        the reports are joined in clip order."""
+        if self._workers == 1:
+            return self._run(source, clips)
+        parts = ordered_map(partial(self._run_clip, source), clips, self._workers)
+        return VerificationReport(
+            tuple(result for part in parts for result in part.results),
+            tuple(row for part in parts for row in part.table),
+            tuple(clip for part in parts for clip in part.clips),
+        )
+
+    def _run_clip(self, source: InputSource, clip: ClipManifest) -> VerificationReport:
+        return self._run(source, [clip])
+
+    def _run(self, source: InputSource, clips: Sequence[ClipManifest]) -> VerificationReport:
         results: list[CheckResult] = []
         table: list[TableRow] = []
         seen: list[ClipManifest] = []

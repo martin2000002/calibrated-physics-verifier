@@ -345,7 +345,10 @@ def _raw_runner(context: AppContext) -> VerificationRunner:
     registry = registry_of(context, CHECKS)
     overrides = context.settings.section(CHECKS_SECTION, ChecksSettings)
     return VerificationRunner(
-        build_checks(registry, overrides), RawPolicy(), ThresholdTable.provisional({})
+        build_checks(registry, overrides),
+        RawPolicy(),
+        ThresholdTable.provisional({}),
+        context.settings.runtime.workers,
     )
 
 
