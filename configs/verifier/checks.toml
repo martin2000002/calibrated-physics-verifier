@@ -23,8 +23,11 @@ reference = "others"
 # check id -> variant name; a check left out, or set to "default", runs its registered
 # implementation. R4_size "v3": persistent change against a running median, windows in seconds,
 # rows whose mask the lift saw cut by the image border left out. R4_jump "rigid2": v2 without the
-# stencils where the apparent size steps, in the statistic and in its noise estimate. The precise
-# profile runs both; --set check_variants.R4_size=default (or R4_jump=default) restores v2.
+# stencils where the apparent size steps, in the statistic and in its noise estimate. R4_jump
+# "rigid2_dfloor": rigid2 with the depth axis of its noise no smaller than the median depth sigma
+# the lift declares (blind to line-of-sight jumps below about sqrt(20) times it). The precise
+# profile runs v3 and rigid2_dfloor; --set check_variants.R4_size=default (or R4_jump=default)
+# restores v2, --set check_variants.R4_jump=rigid2 keeps rigid2 without the depth floor.
 # R5a "whitened" (the precise profile runs it): each candidate scored by the Wald contrast of
 # its two accelerations fitted with weights 1 / position_sigma^2, chi-square with 3 degrees of
 # freedom per candidate under white noise independent per axis. Its unit is not v1's: thresholds
@@ -42,7 +45,7 @@ reference = "others"
 
 [check_variants.profiles.precise]
 R4_size = "v3"
-R4_jump = "rigid2"
+R4_jump = "rigid2_dfloor"
 R5a = "whitened"
 
 [verification]
