@@ -234,6 +234,29 @@ its error-profile entries (a separate profile name would not: the name is part o
 another arm exits 2) and the summary names the arm and the GPU. Give each arm its own
 `PHYSVERIFY_ITERATION_ID` containing the arm name (`it<n>-<arm>`), and run arms one at a time.
 
+### Iteration launcher
+
+Only steps 1-3 may run a model: extraction, the truth-seeded tracker that `diagnose stages` warms,
+and the camera that `extract run` re-runs because its cache key holds the new profile's focal
+sigma. Steps 4 and 5 only read the cache. A cuda iteration therefore holds the GPU lock for steps
+1-3 and releases it before 4-5: run `FROM >= 4` with `PHYSVERIFY_ITERATION_DEVICE=cuda` and no GPU,
+and the script keeps `--device cuda` (the cache keys hold the device) with `CUDA_VISIBLE_DEVICES`
+empty, so a cache miss fails instead of computing on a GPU nobody locked.
+
+`PHYSVERIFY_ITERATION_WORKERS` (default 1, at most 64) is `runtime.workers`: `diagnose stages` and
+`calibrate stage-sigma` measure the clips in that many forked processes and gather them in clip
+order, so every output is the one-worker output. A launcher, with the server's GPU slot launcher
+(`gpu_slot.sh TAG cmd...`, not in this repository; it takes the GPU lock and sets
+`CUDA_VISIBLE_DEVICES`):
+
+```sh
+export PHYSVERIFY_ITERATION_ID=<id> PHYSVERIFY_ITERATION_EXPECT_COMMIT=<head> \
+    PHYSVERIFY_ITERATION_CACHE_DIR=<cache> PHYSVERIFY_ITERATION_DIR=<out> \
+    PHYSVERIFY_ITERATION_DEVICE=cuda PHYSVERIFY_ITERATION_WORKERS=32
+gpu_slot.sh "$PHYSVERIFY_ITERATION_ID" bash scripts/h200/run_perception_iteration.sh 1 3 \
+    && bash scripts/h200/run_perception_iteration.sh 4 5
+```
+
 ### B reading on the development sets
 
 ```sh

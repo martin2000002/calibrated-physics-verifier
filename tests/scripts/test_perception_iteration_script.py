@@ -47,6 +47,7 @@ shift 2
 printf 'pv %s\n' "$*" >> "$CALLS"
 printf 'env %s|%s|%s|%s|%s\n' "${CUDA_VISIBLE_DEVICES-unset}" "$PHYSVERIFY__PATHS__CACHE_DIR" \
     "$CAL" "$PHYSVERIFY__PATHS__RUNS_DIR" "$PHYSVERIFY__RUNTIME__HEAVY_LOCK" >> "$CALLS"
+printf 'workers %s\n' "$PHYSVERIFY__RUNTIME__WORKERS" >> "$CALLS"
 new_run() {
     local n
     n=$(( $(cat "$PHYSVERIFY__PATHS__RUNS_DIR/counter" 2>/dev/null || echo 0) + 1 ))
@@ -62,6 +63,7 @@ case "$*" in
     done
     echo "profile: ${DOCTOR_PROFILE:-$2}"
     echo "device: ${DOCTOR_DEVICE:-${4}}"
+    echo "workers: ${DOCTOR_WORKERS:-$PHYSVERIFY__RUNTIME__WORKERS}"
     echo "config_dir: ${DOCTOR_CONFIG_DIR:-$REPO_CONFIGS}"
     echo "paths.cache_dir: ${DOCTOR_CACHE_DIR:-$PHYSVERIFY__PATHS__CACHE_DIR} (env)"
     echo "paths.runs_dir: ${DOCTOR_RUNS_DIR:-$PHYSVERIFY__PATHS__RUNS_DIR}"
@@ -188,6 +190,8 @@ def test_the_iteration_runs_its_five_steps_on_calib_only(sandbox: IterationSandb
         ),
         ({"PHYSVERIFY_ITERATION_DEVICE": "tpu"}, "cpu or cuda"),
         ({"PHYSVERIFY_ITERATION_THREADS": "0"}, "PHYSVERIFY_ITERATION_THREADS"),
+        ({"PHYSVERIFY_ITERATION_WORKERS": "0"}, "PHYSVERIFY_ITERATION_WORKERS"),
+        ({"PHYSVERIFY_ITERATION_WORKERS": "65"}, "PHYSVERIFY_ITERATION_WORKERS"),
     ],
 )
 def test_a_startup_guard_stops_before_any_call(
@@ -235,6 +239,7 @@ def test_local_toml_and_a_held_lock_stop_before_any_call(sandbox: IterationSandb
         ({"DOCTOR_THRESHOLDS": "/e/thresholds.json"}, "paths.thresholds"),
         ({"DOCTOR_DEVICE": "cuda"}, "device"),
         ({"DOCTOR_PROFILE": "fast"}, "profile"),
+        ({"DOCTOR_WORKERS": "3"}, "workers"),
         ({"DOCTOR_CACHE_DIR": "/other/cache"}, "paths.cache_dir"),
         ({"DOCTOR_CONFIG_DIR": "/other/configs"}, "config_dir"),
     ],
@@ -449,3 +454,27 @@ def test_an_arm_needs_an_iteration_id_that_names_it(sandbox: IterationSandbox) -
     result = sandbox.run(PHYSVERIFY_ITERATION_ID="it0-x", PHYSVERIFY_ITERATION_ARM="it3-c")
     assert result.returncode == 2 and "must contain the arm name" in result.stderr
     assert sandbox.pv() == []
+
+
+def test_the_worker_count_reaches_every_call(sandbox: IterationSandbox) -> None:
+    assert sandbox.run().returncode == 0
+    assert {x for x in sandbox.lines() if x.startswith("workers ")} == {"workers 1"}
+    other = IterationSandbox(sandbox.root / "second")
+    assert other.run(PHYSVERIFY_ITERATION_WORKERS="64").returncode == 0
+    assert {x for x in other.lines() if x.startswith("workers ")} == {"workers 64"}
+    assert "workers 64" in (other.out / "summary.md").read_text(encoding="utf-8")
+
+
+def test_cache_only_cuda_steps_run_with_no_gpu_visible(sandbox: IterationSandbox) -> None:
+    """Steps 1-3 on the locked GPU, then 4-5 keep --device cuda (the cache keys) and see no GPU."""
+    gpu = sandbox.run("1", "3", PHYSVERIFY_ITERATION_DEVICE="cuda", CUDA_VISIBLE_DEVICES="2")
+    assert gpu.returncode == 0, gpu.stderr
+    assert all(x.startswith("env 2|") for x in sandbox.lines() if x.startswith("env "))
+    sandbox.calls.unlink()
+    cpu = sandbox.run("4", "5", PHYSVERIFY_ITERATION_DEVICE="cuda", CUDA_VISIBLE_DEVICES="1")
+    assert cpu.returncode == 0, cpu.stderr
+    assert all("--device cuda" in line for line in sandbox.pv())
+    assert all(x.startswith("env |") for x in sandbox.lines() if x.startswith("env "))
+    out = sandbox.root / "iterations" / "it0-baseline-cuda"
+    assert (out / "devscore.json").is_file()
+    assert sandbox.run("3", PHYSVERIFY_ITERATION_DEVICE="cuda").returncode == 2

@@ -16,6 +16,12 @@
 #    5 devscore     calibrate dev-score --level both: devscore.json, and the full calib fit as
 #                   <run>/calibration.json (never in a calibration directory); copied to $OUT
 #
+# Steps 1-3 may run a model (2 seeds a tracker with the truth; 3 re-runs the camera, whose key holds
+# the new profile's focal sigma); 4 and 5 only read the cache. A cuda range FROM >= 4 needs no GPU:
+# it keeps the device (the cache keys hold it) and hides every GPU, so a cache miss fails instead of
+# using a GPU nobody locked. Launch steps 1-3 under the GPU lock and 4-5 without it
+# (scripts/h200/README.md, "Iteration launcher").
+#
 # Startup (exit 2 before any physverify call): PHYSVERIFY_ITERATION_ID; HEAD is
 # PHYSVERIFY_ITERATION_EXPECT_COMMIT with nothing uncommitted or untracked under src, configs, scripts,
 # annotations, pyproject.toml or uv.lock; no configs/local.toml and no PHYSVERIFY_CONFIG_DIR; no PHYSVERIFY__* variable
@@ -45,6 +51,8 @@
 #                                        launcher, not in this repository)
 #   PHYSVERIFY_ITERATION_PYTHON          interpreter [/home/mmonterot/dev/venv/bin/python]
 #   PHYSVERIFY_ITERATION_THREADS         runtime.threads [16: at most 16 while a calibration chain runs]
+#   PHYSVERIFY_ITERATION_WORKERS         runtime.workers, processes over clips in steps 2 and 4 [1];
+#                                        at most 64. Outputs do not depend on it
 #   PHYSVERIFY_ITERATION_DATA            paths.data_dir, the synthetic dataset read only
 #                                        [$H200_ROOT/kubric-data]
 #   PHYSVERIFY_ITERATION_DIR             output [$H200_ROOT/iterations/$PHYSVERIFY_ITERATION_ID-<device>]
@@ -56,6 +64,8 @@ cd "$REPO_ROOT"
 
 FIRST_STEP=1
 LAST_STEP=5
+LAST_GPU_STEP=3
+MAX_WORKERS=64
 [[ $# -le 2 ]] || die "usage: run_perception_iteration.sh [FROM [TO]]"
 FROM="${1:-$FIRST_STEP}"
 TO="${2:-$LAST_STEP}"
@@ -91,7 +101,8 @@ ITER_ID="${PHYSVERIFY_ITERATION_ID:-}"
 
 source_h200_env
 refuse_foreign_config run_perception_iteration.sh " PATHS__DATA_DIR PATHS__CACHE_DIR PATHS__WEIGHTS_DIR
-    PATHS__VENDOR_DIR PATHS__HF_HOME PATHS__CALIBRATION_DIR PATHS__RUNS_DIR RUNTIME__HEAVY_LOCK "
+    PATHS__VENDOR_DIR PATHS__HF_HOME PATHS__CALIBRATION_DIR PATHS__RUNS_DIR RUNTIME__HEAVY_LOCK
+    RUNTIME__WORKERS "
 for name in PHYSVERIFY_UNSEAL PHYSVERIFY_UNSEAL_REPEAT; do
     [[ -z "${!name+set}" ]] || die "$name is set: an iteration never looks at a sealed set; unset it"
 done
@@ -99,7 +110,12 @@ refuse_local_config run_perception_iteration.sh
 require_checkout PHYSVERIFY_ITERATION_EXPECT_COMMIT
 
 PHYSVERIFY_ITERATION_DEVICE="${PHYSVERIFY_ITERATION_DEVICE:-cpu}"
-use_device PHYSVERIFY_ITERATION_DEVICE
+if [[ "$PHYSVERIFY_ITERATION_DEVICE" == cuda && "$FROM" -gt "$LAST_GPU_STEP" ]]; then
+    export CUDA_VISIBLE_DEVICES=""
+    PV_DEVICE=cuda
+else
+    use_device PHYSVERIFY_ITERATION_DEVICE
+fi
 ARM="${PHYSVERIFY_ITERATION_ARM:-}"
 SWAPS=()
 if [[ -n "$ARM" ]]; then
@@ -117,6 +133,9 @@ PY="${PHYSVERIFY_ITERATION_PYTHON:-/home/mmonterot/dev/venv/bin/python}"
 [[ -x "$PY" ]] || die "no interpreter at $PY (PHYSVERIFY_ITERATION_PYTHON)"
 THREADS="${PHYSVERIFY_ITERATION_THREADS:-16}"
 [[ "$THREADS" =~ ^[1-9][0-9]*$ ]] || die "PHYSVERIFY_ITERATION_THREADS must be a positive integer"
+WORKERS="${PHYSVERIFY_ITERATION_WORKERS:-1}"
+[[ "$WORKERS" =~ ^[1-9][0-9]*$ && "$WORKERS" -le "$MAX_WORKERS" ]] \
+    || die "PHYSVERIFY_ITERATION_WORKERS must be an integer in 1..$MAX_WORKERS, got '$WORKERS'"
 DATA="${PHYSVERIFY_ITERATION_DATA:-$H200_ROOT/kubric-data}"
 OUT="${PHYSVERIFY_ITERATION_DIR:-$H200_ROOT/iterations/$ITER_ID-$PV_DEVICE}"
 
@@ -139,6 +158,7 @@ export PHYSVERIFY__PATHS__HF_HOME="$H200_ROOT/.cache/huggingface"
 export PHYSVERIFY__PATHS__CALIBRATION_DIR="$OUT/calibration"
 export PHYSVERIFY__PATHS__RUNS_DIR="$OUT/runs"
 export PHYSVERIFY__RUNTIME__HEAVY_LOCK="$OUT/heavy.lock"
+export PHYSVERIFY__RUNTIME__WORKERS="$WORKERS"
 unset PHYSVERIFY_LOCK_HELD
 
 LOGS="$OUT/logs"
@@ -147,7 +167,7 @@ STEPS="$OUT/steps.tsv"
 NOTES="$OUT/notes.md"
 SUMMARY="$OUT/summary.md"
 SUMMARY_TITLE="Iteration $ITER_ID ($PV_DEVICE)"
-SUMMARY_INFO="commit $HEAD_COMMIT, profile $PV_PROFILE, arm ${ARM:-none} (${SWAPS[*]:-no swap}), device $PV_DEVICE${CUDA_VISIBLE_DEVICES:+ (CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES)}, cache $CACHE, data $DATA, threads $THREADS"
+SUMMARY_INFO="commit $HEAD_COMMIT, profile $PV_PROFILE, arm ${ARM:-none} (${SWAPS[*]:-no swap}), device $PV_DEVICE${CUDA_VISIBLE_DEVICES:+ (CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES)}, cache $CACHE, data $DATA, threads $THREADS, workers $WORKERS"
 mkdir -p "$LOGS"
 touch "$STEPS" "$NOTES"
 if [[ -f "$STATE" ]]; then
@@ -174,6 +194,8 @@ check_doctor() {
         || die "doctor reports device '$(doctor_value device)', not $PV_DEVICE"
     [[ "$(doctor_value profile)" == "$PV_PROFILE" ]] \
         || die "doctor reports profile '$(doctor_value profile)', not $PV_PROFILE"
+    [[ "$(doctor_value workers)" == "$WORKERS" ]] \
+        || die "doctor reports workers '$(doctor_value workers)', not $WORKERS"
     same_path "$(doctor_value paths.cache_dir)" "$CACHE" \
         || die "doctor reports paths.cache_dir '$(doctor_value paths.cache_dir)', not $CACHE"
     for name in calibration_dir runs_dir error_profile thresholds; do
