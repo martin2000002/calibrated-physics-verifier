@@ -21,6 +21,10 @@ stage_profile = "stage_errors.recalibrated.json"
 # usable on its own; true also requires the whole artifact to be `calibrated` (the strict reading
 # of the calibration rule). Not part of any fit hash.
 require_calibrated_artifact = false
+# Development datasets, name@version (another version of the same name is not one): the
+# calib-only commands read every clip of one as calib, it is never a sealed look, and
+# `calibrate evaluate --score-all-clips` scores all its rows with another set's artifact.
+development_sets = ["kubric_fresh@v2-fresh", "kubric_synthetic@v1-precise-hdri-dev"]
 
 # Numerical tolerance epsilon_c per check, in the unit of its default implementation unless
 # tau_tolerance_units declares another (a variant's): tau = max(q, epsilon_c), where q is
