@@ -244,8 +244,8 @@ and the script keeps `--device cuda` (the cache keys hold the device) with `CUDA
 empty, so a cache miss fails instead of computing on a GPU nobody locked.
 
 `PHYSVERIFY_ITERATION_WORKERS` (default 1, at most 64) is `runtime.workers`: `diagnose stages` and
-`calibrate stage-sigma` measure the clips in that many forked processes and gather them in clip
-order, so every output is the one-worker output. A launcher, with the server's GPU slot launcher
+`calibrate stage-sigma` measure the clips, and `calibrate dev-score` verifies them, in that many
+forked processes and gather them in clip order, so every output is the one-worker output. A launcher, with the server's GPU slot launcher
 (`gpu_slot.sh TAG cmd...`, not in this repository; it takes the GPU lock and sets
 `CUDA_VISIBLE_DEVICES`):
 

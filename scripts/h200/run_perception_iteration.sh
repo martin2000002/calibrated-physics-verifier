@@ -51,7 +51,7 @@
 #                                        launcher, not in this repository)
 #   PHYSVERIFY_ITERATION_PYTHON          interpreter [/home/mmonterot/dev/venv/bin/python]
 #   PHYSVERIFY_ITERATION_THREADS         runtime.threads [16: at most 16 while a calibration chain runs]
-#   PHYSVERIFY_ITERATION_WORKERS         runtime.workers, processes over clips in steps 2 and 4 [1];
+#   PHYSVERIFY_ITERATION_WORKERS         runtime.workers, processes over clips in steps 2, 4, 5 [1];
 #                                        at most 64. Outputs do not depend on it
 #   PHYSVERIFY_ITERATION_DATA            paths.data_dir, the synthetic dataset read only
 #                                        [$H200_ROOT/kubric-data]
