@@ -20,7 +20,7 @@
 # the new profile's focal sigma); 4 and 5 only read the cache. A cuda range FROM >= 4 needs no GPU:
 # it keeps the device (the cache keys hold it) and hides every GPU, so a cache miss fails instead of
 # using a GPU nobody locked. Launch steps 1-3 under the GPU lock and 4-5 without it
-# (scripts/h200/README.md, "Iteration launcher").
+# (scripts/h200/README.md, "Iteration launcher"); a cuda range that crosses from 3 to 4 is refused.
 #
 # Startup (exit 2 before any physverify call): PHYSVERIFY_ITERATION_ID; HEAD is
 # PHYSVERIFY_ITERATION_EXPECT_COMMIT with nothing uncommitted or untracked under src, configs, scripts,
@@ -117,6 +117,10 @@ if [[ "$PHYSVERIFY_ITERATION_DEVICE" == cuda && "$FROM" -gt "$LAST_GPU_STEP" ]];
     PV_DEVICE=cuda
 else
     use_device PHYSVERIFY_ITERATION_DEVICE
+fi
+if [[ "$PV_DEVICE" == cuda && "$FROM" -le "$LAST_GPU_STEP" && "$TO" -gt "$LAST_GPU_STEP" ]]; then
+    die "a cuda range must not cross step $LAST_GPU_STEP: run $FROM $LAST_GPU_STEP under the GPU lock," \
+        "then $((LAST_GPU_STEP + 1)) $TO without it (got $FROM $TO)"
 fi
 ARM="${PHYSVERIFY_ITERATION_ARM:-}"
 SWAPS=()

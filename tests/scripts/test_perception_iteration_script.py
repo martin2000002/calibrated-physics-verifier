@@ -283,12 +283,24 @@ def test_resume_with_another_device_profile_or_id_is_refused(
 
 
 def test_a_cuda_iteration_has_its_own_directory_and_device(sandbox: IterationSandbox) -> None:
-    result = sandbox.run(PHYSVERIFY_ITERATION_DEVICE="cuda", CUDA_VISIBLE_DEVICES="2")
+    result = sandbox.run("1", "3", PHYSVERIFY_ITERATION_DEVICE="cuda", CUDA_VISIBLE_DEVICES="2")
     assert result.returncode == 0, result.stderr
+    assert all(line.startswith("env 2|") for line in sandbox.lines() if line.startswith("env "))
+    assert sandbox.run("4", "5", PHYSVERIFY_ITERATION_DEVICE="cuda").returncode == 0
     out = sandbox.root / "iterations" / "it0-baseline-cuda"
     assert all("--device cuda" in line for line in sandbox.pv())
-    assert all(line.startswith("env 2|") for line in sandbox.lines() if line.startswith("env "))
     assert (out / "devscore.json").is_file()
+
+
+@pytest.mark.parametrize(("first", "last"), [("1", "5"), ("3", "4"), ("2", "4")])
+def test_a_cuda_range_across_the_last_gpu_step_is_refused(
+    sandbox: IterationSandbox, first: str, last: str
+) -> None:
+    """Steps 4-5 must run outside the GPU lock, so a cuda run never goes from 3 to 4."""
+    result = sandbox.run(first, last, PHYSVERIFY_ITERATION_DEVICE="cuda", CUDA_VISIBLE_DEVICES="2")
+    assert result.returncode == 2 and "must not cross step 3" in result.stderr, result.stderr
+    assert sandbox.pv() == []
+    assert sandbox.run(first, last).returncode == (0 if first == "1" else 2)
 
 
 def test_failed_clips_are_noted_and_a_failed_devscore_stops(sandbox: IterationSandbox) -> None:
@@ -358,26 +370,26 @@ ARM_C = ["--set extraction.plan.depth=vda_large", "--set extraction.plan.contact
 def test_an_arm_swaps_providers_on_every_call_on_one_gpu(sandbox: IterationSandbox) -> None:
     """PHYSVERIFY_ITERATION_ARM passes its declared swaps to every physverify call, the run is
     CUDA on GPU 0 only, and state.env and the summary name the arm."""
+    arm = {"PHYSVERIFY_ITERATION_ID": "it3-c", "PHYSVERIFY_ITERATION_ARM": "it3-c"}
     result = sandbox.run(
-        PHYSVERIFY_ITERATION_ID="it3-c",
-        PHYSVERIFY_ITERATION_ARM="it3-c",
-        PHYSVERIFY_ITERATION_DEVICE="cuda",
-        CUDA_VISIBLE_DEVICES="0",
+        "1", "3", PHYSVERIFY_ITERATION_DEVICE="cuda", CUDA_VISIBLE_DEVICES="0", **arm
     )
     assert result.returncode == 0, result.stderr
     out = sandbox.root / "iterations" / "it3-c-cuda"
-    swaps = " ".join(ARM_C)
-    assert all(f"--device cuda --set runtime.threads=16 {swaps} " in line for line in sandbox.pv())
     assert all(line.startswith("env 0|") for line in sandbox.lines() if line.startswith("env "))
-    state = dict(
-        line.split("=", 1) for line in (out / "state.env").read_text(encoding="utf-8").splitlines()
-    )
-    assert state["CHAIN_ARM"] == "it3-c"
     summary = (out / "summary.md").read_text(encoding="utf-8")
     assert (
         "arm it3-c (extraction.plan.depth=vda_large extraction.plan.contacts=kinematic)" in summary
     )
     assert "CUDA_VISIBLE_DEVICES=0" in summary
+    result = sandbox.run("4", "5", PHYSVERIFY_ITERATION_DEVICE="cuda", **arm)
+    assert result.returncode == 0, result.stderr
+    swaps = " ".join(ARM_C)
+    assert all(f"--device cuda --set runtime.threads=16 {swaps} " in line for line in sandbox.pv())
+    state = dict(
+        line.split("=", 1) for line in (out / "state.env").read_text(encoding="utf-8").splitlines()
+    )
+    assert state["CHAIN_ARM"] == "it3-c"
 
 
 def test_the_perception_arms_are_declared() -> None:
