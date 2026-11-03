@@ -30,6 +30,7 @@ RECORD_SHA = "rec0123"
 # pv calls go to the case below; the helpers answer from files (agreement_query) or run for real on
 # run-errors unless the run holds the clean rows and REAL_QUERY is unset (its import costs
 # seconds). freeze writes a key=value pre-registration, compare appends to the comparison log.
+# With CACHE_GATED set, extract marks CACHE_DIR and the preflight is uncached until it does.
 FAKE_PYTHON = r"""#!/bin/bash
 DATA="$PHYSVERIFY__PATHS__DATA_DIR"
 CAL="$PHYSVERIFY__PATHS__CALIBRATION_DIR"
@@ -55,12 +56,14 @@ if [[ "$1" != -c ]]; then
 fi
 shift 2
 printf 'pv %s\n' "$*" >> "$CALLS"
-printf 'env cuda=%s|%s|%s|%s|%s|%s|%s|%s\n' "${CUDA_VISIBLE_DEVICES-unset}" \
+printf 'env cuda=%s|%s|%s|%s|%s|%s|%s|%s|%s\n' "${CUDA_VISIBLE_DEVICES-unset}" \
     "${PHYSVERIFY__PATHS__DATA_DIR-unset}" "${PHYSVERIFY__PATHS__CACHE_DIR-unset}" \
     "${PHYSVERIFY__PATHS__RAW_DIR-unset}" "${PHYSVERIFY__PATHS__CALIBRATION_DIR-unset}" \
     "${PHYSVERIFY__PATHS__ERROR_PROFILE-unset}" "${PHYSVERIFY__PATHS__THRESHOLDS-unset}" \
-    "${PHYSVERIFY__CHECK_SCOPE__REQUIRE_DECISION_RECORD-unset}" >> "$CALLS"
+    "${PHYSVERIFY__CHECK_SCOPE__REQUIRE_DECISION_RECORD-unset}" \
+    "${PHYSVERIFY__PATHS__RUNS_DIR-unset}" >> "$CALLS"
 RUNS="${PHYSVERIFY__PATHS__RUNS_DIR:-$DATA/runs}"
+CACHED="$PHYSVERIFY__PATHS__CACHE_DIR/fake-extracted"
 new_run() {
     local n
     n=$(( $(cat "$RUNS/counter" 2>/dev/null || echo 0) + 1 ))
@@ -85,9 +88,12 @@ case "$*" in
   *" agreement fetch "*) ;;
   *" --clips "*)
     new_run
-    cp "${PREFLIGHT_CHECKS:-$CLEAN_CHECKS}" "$RUN/checks.jsonl"
+    checks="${PREFLIGHT_CHECKS:-$CLEAN_CHECKS}"
+    [[ -z "${CACHE_GATED:-}" || -f "$CACHED" ]] || checks="$UNCACHED_CHECKS"
+    cp "$checks" "$RUN/checks.jsonl"
     exit "${PREFLIGHT_EXIT:-0}" ;;
-  *" extract run "*|*" verify "*) new_run; exit "${CLIP_EXIT:-0}" ;;
+  *" extract run "*) new_run; mkdir -p "${CACHED%/*}"; touch "$CACHED"; exit "${CLIP_EXIT:-0}" ;;
+  *" verify "*) new_run; exit "${CLIP_EXIT:-0}" ;;
   *" agreement freeze "*)
     state="${FROZEN_STATE:-a}"
     if [[ -f "$PREREG" ]] && ! grep -qx "state=$state" "$PREREG"; then
@@ -153,6 +159,7 @@ class AgreementSandbox(Sandbox):
             }
         )
         self.uncached = write_check_rows(self.root / "uncached.jsonl", error=UNCACHED)
+        self.env["UNCACHED_CHECKS"] = str(self.uncached)
 
     def run(self, *args: str, **env: str) -> subprocess.CompletedProcess[str]:
         return self.call("run_human_agreement.sh", *args, **env)
@@ -323,6 +330,7 @@ def test_every_call_runs_on_the_chains_device_through_the_interpreter(
     assert pv and all(call and call.groups() == (device, "32") for call in pv)
     paths = (sandbox.data, *(sandbox.root / "Repo" / "data" / n for n in ("cache", "raw")))
     expected = f"env cuda={gpus}|{'|'.join(map(str, paths))}|{sandbox.calibration}|unset|unset|true"
+    expected += f"|{sandbox.out / 'runs'}"
     envs = [line for line in lines if line.startswith("env ")]
     assert len(envs) == len(pv) and set(envs) == {expected}
 
@@ -338,7 +346,7 @@ def test_dev_freezes_without_touching_test(sandbox: AgreementSandbox) -> None:
     assert result.returncode == 0, result.stderr
     assert "run_human_agreement.sh test" in result.stdout
     assert "WARNING" not in result.stderr
-    runs = sandbox.data / "runs"
+    runs = sandbox.out / "runs"
     assert sandbox.commands() == [
         "doctor",
         "agreement subset --check",
@@ -489,7 +497,7 @@ def test_test_compares_once_with_the_calibrated_rule(sandbox: AgreementSandbox) 
     _dev_done(sandbox)
     result = sandbox.run("test", CLIP_EXIT="1")
     assert result.returncode == 0, result.stderr
-    runs = sandbox.data / "runs"
+    runs = sandbox.out / "runs"
     assert sandbox.commands() == [
         "doctor",
         "agreement subset --check",
@@ -534,7 +542,7 @@ def test_a_compare_that_fails_before_logging_can_be_repeated(sandbox: AgreementS
     failed = sandbox.run("test", COMPARE_EXIT="1")
     assert failed.returncode == 1
     assert "TEST_COMPARED" not in sandbox.state() and not sandbox.comparison_log().exists()
-    assert not (sandbox.data / "runs" / "h2-latest").exists()
+    assert not (sandbox.out / "runs" / "h2-latest").exists()
     again = sandbox.run("test")
     assert again.returncode == 0, again.stderr
     assert sandbox.state()["TEST_COMPARED"] == "1"
@@ -653,8 +661,41 @@ def test_prefetch_checks_its_runs_directory_with_doctor(sandbox: AgreementSandbo
     assert sandbox.commands() == ["doctor"]
 
 
-def test_prefetch_runs_under_the_data_directory_are_refused(sandbox: AgreementSandbox) -> None:
-    result = sandbox.run("prefetch", PHYSVERIFY_AGREEMENT_DIR=str(sandbox.data / "h2"))
-    assert result.returncode == 2 and "are under" in result.stderr, result.stderr
+@pytest.mark.parametrize("phase", ["prefetch", "dev", "test"])
+@pytest.mark.parametrize(
+    ("variable", "subdir", "name"),
+    [
+        ("PHYSVERIFY_AGREEMENT_DIR", "h2", "paths.runs_dir"),
+        ("PHYSVERIFY_AGREEMENT_DIR", "", "paths.runs_dir"),
+        ("PHYSVERIFY_AGREEMENT_CACHE_DIR", "cache", "paths.cache_dir"),
+    ],
+)
+def test_runs_or_a_cache_under_the_data_directory_are_refused(
+    sandbox: AgreementSandbox, phase: str, variable: str, subdir: str, name: str
+) -> None:
+    result = sandbox.run(phase, **{variable: str(sandbox.data / subdir)})
+    assert result.returncode == 2, result.stderr
+    assert f"{name} " in result.stderr and "is under the data directory" in result.stderr
+    assert variable in result.stderr
     assert sandbox.commands() == []
     assert not sandbox.data.exists()
+
+
+def test_dev_and_test_runs_default_to_the_output_directory(sandbox: AgreementSandbox) -> None:
+    _dev_done(sandbox)
+    assert sandbox.run("test").returncode == 0
+    runs = sandbox.out / "runs"
+    assert sorted(path.name for path in runs.glob("r*")) == [f"r{n}" for n in range(1, 7)]
+    assert (runs / "h2-latest").is_symlink()
+    assert sorted(path.name for path in sandbox.data.iterdir()) == ["agreement"]
+
+
+def test_dev_finds_the_cache_prefetch_filled(sandbox: AgreementSandbox) -> None:
+    uncached = sandbox.run("dev", CACHE_GATED="1")
+    assert uncached.returncode == 2 and "run_human_agreement.sh prefetch" in uncached.stderr
+    assert sandbox.run("prefetch", CACHE_GATED="1").returncode == 0
+    dev = sandbox.run("dev", CACHE_GATED="1")
+    assert dev.returncode == 0, dev.stderr
+    caches = {line.split("|")[2] for line in sandbox.lines() if line.startswith("env ")}
+    assert caches == {str(sandbox.root / "Repo" / "data" / "cache")}
+    assert not (sandbox.data / "runs").exists()

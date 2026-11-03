@@ -9,8 +9,12 @@
 #       `agreement compare --rule calibrated`
 #   bash scripts/h200/run_human_agreement.sh prefetch
 #       fetch and extract h2_dev only, so that the dev preflight finds its clip cached; its
-#       bookkeeping goes to $OUT/prefetch/ and its runs to $OUT/prefetch/runs, never under DATA.
-#       It does not touch h2_test, the pre-registration or the comparison log
+#       bookkeeping goes to $OUT/prefetch/ and its runs to $OUT/prefetch/runs. It does not touch
+#       h2_test, the pre-registration or the comparison log
+#
+# The runs of every phase go to its bookkeeping directory ($OUT/runs, $OUT/prefetch/runs), never to
+# the derived DATA/runs; all phases share CACHE_DIR, so dev finds what prefetch extracted. A runs or
+# cache directory under DATA stops at startup, before anything is written.
 #
 # Every call is --profile precise --device $PHYSVERIFY_AGREEMENT_DEVICE through
 # $PHYSVERIFY_AGREEMENT_PYTHON: no uv, no setup_cuda.sh. cpu (the default, whose keys the VideoPhy
@@ -55,8 +59,8 @@
 #   DEVICE                   cpu or cuda [cpu]
 #   PYTHON                   interpreter [/home/mmonterot/dev/venv/bin/python]
 #   THREADS                  runtime.threads [32]
-#   DIR                      output: logs/, steps.tsv, state.env, summary.md [$H200_ROOT/h2]
-#   DATA                     paths.data_dir: runs, agreement/ [$H200_ROOT/h2-data]
+#   DIR                      output: logs/, steps.tsv, state.env, summary.md, runs/ [$H200_ROOT/h2]
+#   DATA                     paths.data_dir: agreement/ [$H200_ROOT/h2-data]
 #   CACHE_DIR                paths.cache_dir [$H200_ROOT/Repo/data/cache]
 #   RAW_DIR                  paths.raw_dir, the VideoPhy videos [$H200_ROOT/Repo/data/raw]
 #   CALIBRATION_DIR          the calibration chain's artifacts, read only
@@ -130,14 +134,20 @@ export PHYSVERIFY__RUNTIME__HEAVY_LOCK="$H200_ROOT/kubric.lock"
 export PHYSVERIFY__CHECK_SCOPE__REQUIRE_DECISION_RECORD=true
 unset PHYSVERIFY_LOCK_HELD
 BOOK="$OUT"
-if [[ "$PHASE" == prefetch ]]; then
-    BOOK="$OUT/prefetch"
-    PHYSVERIFY__PATHS__RUNS_DIR="$(realpath -m "$BOOK/runs")"
-    export PHYSVERIFY__PATHS__RUNS_DIR
-    [[ "$PHYSVERIFY__PATHS__RUNS_DIR/" != "$(realpath -m "$PHYSVERIFY__PATHS__DATA_DIR")"/* ]] \
-        || die "the prefetch runs $PHYSVERIFY__PATHS__RUNS_DIR are under $PHYSVERIFY__PATHS__DATA_DIR:" \
-            "set PHYSVERIFY_AGREEMENT_DIR outside it"
-fi
+[[ "$PHASE" != prefetch ]] || BOOK="$OUT/prefetch"
+PHYSVERIFY__PATHS__RUNS_DIR="$(realpath -m "$BOOK/runs")"
+export PHYSVERIFY__PATHS__RUNS_DIR
+
+# outside_data NAME VAR: paths.NAME is neither DATA nor below it (no run writes into the data
+# directory); VAR is the PHYSVERIFY_AGREEMENT_* variable that moves it.
+outside_data() {
+    local path="PHYSVERIFY__PATHS__$1"
+    [[ "$(realpath -m "${!path}")/" != "$(realpath -m "$PHYSVERIFY__PATHS__DATA_DIR")"/* ]] \
+        || die "paths.${1,,} ${!path} is under the data directory $PHYSVERIFY__PATHS__DATA_DIR:" \
+            "set $2 outside it"
+}
+outside_data RUNS_DIR PHYSVERIFY_AGREEMENT_DIR
+outside_data CACHE_DIR PHYSVERIFY_AGREEMENT_CACHE_DIR
 mkdir -p "$OUT"
 exec 9>"$OUT/run.lock"
 flock -n 9 || die "another run_human_agreement.sh holds $OUT/run.lock"
@@ -235,7 +245,7 @@ check_doctor() {
         || die "doctor reports config_dir '$(doctor_value config_dir)', not $REPO_ROOT/configs"
     [[ "$(doctor_value device)" == "$PV_DEVICE" ]] \
         || die "doctor reports device '$(doctor_value device)', not $PV_DEVICE"
-    for name in DATA_DIR CACHE_DIR RAW_DIR CALIBRATION_DIR ${PHYSVERIFY__PATHS__RUNS_DIR:+RUNS_DIR}; do
+    for name in DATA_DIR RUNS_DIR CACHE_DIR RAW_DIR CALIBRATION_DIR; do
         var="PHYSVERIFY__PATHS__$name"
         same_path "$(doctor_value "paths.${name,,}")" "${!var}" \
             || die "doctor reports paths.${name,,} '$(doctor_value "paths.${name,,}")', not ${!var}"
