@@ -162,7 +162,7 @@ def test_only_a_fit_on_the_whole_calib_population_is_a_candidate(
 ) -> None:
     whole = iteration_factory(tmp_path, "it2-state", 3, 0.6)
     assert candidate(whole).id == "it2-state"
-    rehearsal = iteration_factory(tmp_path, "it3-dry", 9, 0.99, whole=False)
+    rehearsal = iteration_factory(tmp_path, "it3-arms", 9, 0.99, whole=False)
     with pytest.raises(QueryError, match="not fitted on the whole calib population"):
         candidate(rehearsal)
 
@@ -195,7 +195,7 @@ def test_the_candidate_query_exits_2_on_a_rehearsal(
     whole = iteration_factory(tmp_path, "it2-state", 3, 0.6)
     assert script.main(["candidate", str(whole)]) == 0
     assert json.loads(capsys.readouterr().out)["id"] == "it2-state"
-    rehearsal = iteration_factory(tmp_path, "it3-dry", 9, 0.99, whole=False)
+    rehearsal = iteration_factory(tmp_path, "it3-arms", 9, 0.99, whole=False)
     assert script.main(["candidate", str(rehearsal)]) == 2
     assert "not fitted on the whole calib population" in capsys.readouterr().err
 
