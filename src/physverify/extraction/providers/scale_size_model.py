@@ -14,9 +14,11 @@ from typing import ClassVar
 from pydantic import BaseModel, Field
 
 from physverify.config.models import SIZE_PRIORS_SECTION, SizePrior, SizePriorTable
+from physverify.core.models import absent_when_none
 from physverify.extraction._base import ProviderParams, StageContext, WeightSpec
 from physverify.extraction.providers._common import expect_params
 from physverify.extraction.providers._size_prior import (
+    AxisErrors,
     ObjectScale,
     clip_focal_phi,
     combine,
@@ -46,6 +48,7 @@ class Params(ProviderParams):
     priors: SizePriorTable = SizePriorTable({})
     model: SizeModelTable = SizeModelTable()
     lookup: SizeLookup = SizeLookup()
+    axis_errors: AxisErrors | None = absent_when_none()
 
 
 class SizeModelScale:
@@ -96,7 +99,7 @@ class SizeModelScale:
                 continue
             key, prior = resolved
             unshared = SizePrior(mean_m=prior.mean_m, rel_spread=keep * prior.rel_spread)
-            estimate = object_scale(lift, n, unshared, phi)
+            estimate = object_scale(lift, n, unshared, phi, self.params.axis_errors)
             if estimate is not None:
                 groups.setdefault(key, (prior, []))[1].append(estimate)
         return groups

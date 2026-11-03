@@ -7,16 +7,20 @@ from dataclasses import replace
 
 import numpy as np
 import pytest
+from pydantic import BaseModel
 from support import make_context, run_provider, sampling_of
 from synthetic_clip import SyntheticClip
 
 from physverify.config.models import SizePrior, SizePriorTable
-from physverify.extraction.backprojection import focal_rel_sigma
+from physverify.extraction.backprojection import focal_rel_sigma, full_extents
 from physverify.extraction.matching import align_ground_truth
+from physverify.extraction.providers import scale_size_model
 from physverify.extraction.providers._size_prior import (
+    AxisErrors,
     ObjectScale,
     SizePriorScale,
     combine,
+    length_rel_sigma,
 )
 from physverify.extraction.providers.scale_free_fall import FreeFallScale, focal_share
 from physverify.physics.geometry import characteristic_lengths
@@ -64,11 +68,16 @@ def size_prior(
     lift: ObjectStateTable,
     priors: dict[str, SizePrior],
     camera: CameraModel | None = None,
+    axis_errors: AxisErrors | None = None,
 ) -> ScaleEstimate:
     upstream = {Stage.LIFT: lift, Stage.CAMERA: camera or truth_camera(clip)}
     ctx = make_context(clip, upstream=upstream)
     output = run_provider(
-        SizePriorScale, ctx, priors=SizePriorTable(priors), label_to_prior=ALIASES
+        SizePriorScale,
+        ctx,
+        priors=SizePriorTable(priors),
+        label_to_prior=ALIASES,
+        axis_errors=axis_errors,
     )
     assert isinstance(output, ScaleEstimate)
     return output
@@ -90,6 +99,40 @@ def test_the_focal_error_enters_the_size_scale_once_and_never_averages_down(
     per_object = PRIORS["ball"].rel_spread ** 2 + 0.06**2 / 3
     expected = math.sqrt(per_object / 2 + phi**2)
     assert estimate.sigma / estimate.meters_per_unit == pytest.approx(expected, abs=1e-12)
+
+
+@pytest.mark.parametrize(("axis_errors", "axes"), [(None, 3.0), ("correlated", 1.0)])
+def test_the_measurement_term_follows_the_declared_axis_correlation(
+    fixture_clip: SyntheticClip, axis_errors: AxisErrors | None, axes: float
+) -> None:
+    camera, phi = estimated_camera(fixture_clip, 5.0)
+    lift = truth_lift(fixture_clip, scale=SCALE)
+    twins = replace(with_lift_focal(lift, 0.06, phi), labels=np.array(["ball", "ball"]))
+    estimate = size_prior(fixture_clip, twins, PRIORS, camera, axis_errors)
+    assert estimate.meters_per_unit is not None
+    per_object = PRIORS["ball"].rel_spread ** 2 + 0.06**2 / axes
+    expected = math.sqrt(per_object / 2 + phi**2)
+    assert estimate.sigma / estimate.meters_per_unit == pytest.approx(expected, abs=1e-12)
+    default = size_prior(fixture_clip, twins, PRIORS, camera).meters_per_unit
+    assert estimate.meters_per_unit == pytest.approx(default, rel=1e-12)
+
+
+@pytest.mark.parametrize("rel", [0.0, 0.10])
+def test_correlated_axis_errors_match_a_common_factor_monte_carlo(rel: float) -> None:
+    extents = full_extents(np.array([0.2, 0.3]))
+    formula = float(length_rel_sigma(np.full(3, rel), "correlated"))
+    draws = np.random.default_rng(0).normal(0.0, rel, 200_000)
+    lengths = characteristic_lengths(extents[None, :] * (1.0 + draws)[:, None])
+    simulated = float(np.std(lengths)) / float(characteristic_lengths(extents[None, :])[0])
+    if rel == 0.0:
+        assert formula == 0.0
+    assert formula == pytest.approx(simulated, rel=0.02, abs=1e-12)
+
+
+@pytest.mark.parametrize("params", [SizePriorScale.Params, scale_size_model.Params])
+def test_axis_errors_enter_the_params_only_when_set(params: type[BaseModel]) -> None:
+    assert "axis_errors" not in params().model_dump(mode="json")
+    assert params(axis_errors="correlated").model_dump(mode="json")["axis_errors"] == "correlated"
 
 
 def test_an_unknown_focal_sigma_leaves_the_size_scale_sigma_unknown(

@@ -177,7 +177,7 @@
       "version": "2"
     },
     "scale/free_fall": {
-      "digest": "7926e1b086f7071d8bfcede7c457be4f4dc8c685284c27f1c0b3b44a96e44793",
+      "digest": "3bc7509af50bec7c2cf428c84a2ad7018207bc1f033beb9fd3e3a19473aaf10a",
       "version": "2"
     },
     "scale/ground_truth": {
@@ -189,11 +189,11 @@
       "version": "3"
     },
     "scale/size_model": {
-      "digest": "a38e2cdcfbc6e8a746671fd9c80e14ef314fdfb106c7a78a271567bd4b46f62f",
+      "digest": "d854ade77a168ac68810e2a661b8d133677be81e123c69eb8c1a3253e36e9f20",
       "version": "2"
     },
     "scale/size_prior": {
-      "digest": "37aa1955b136ed10056b226e7b63150832f0c2b3fcd6a2faa97d2072eda771c7",
+      "digest": "205bff53c1257f176afa804c62ca1ff214e40ccb1400395bf0053bcd61f257c1",
       "version": "2"
     },
     "track/edgetam": {

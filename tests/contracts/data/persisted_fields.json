@@ -1221,13 +1221,15 @@
       "lookup.fixed",
       "lookup.fixed.mean_m",
       "lookup.fixed.rel_spread",
-      "lookup.fixed.source"
+      "lookup.fixed.source",
+      "axis_errors"
     ],
     "scale/size_prior": [
       "label_to_prior",
       "priors",
       "priors.mean_m",
-      "priors.rel_spread"
+      "priors.rel_spread",
+      "axis_errors"
     ],
     "track/edgetam": [
       "mask_threshold"
