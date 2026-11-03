@@ -1024,7 +1024,8 @@
       "seed",
       "occluded_at",
       "min_size_frames",
-      "reference"
+      "reference",
+      "axis_errors"
     ],
     "R5a": [
       "mc_draws",
@@ -1289,13 +1290,15 @@
       "lookup.fixed",
       "lookup.fixed.mean_m",
       "lookup.fixed.rel_spread",
-      "lookup.fixed.source"
+      "lookup.fixed.source",
+      "axis_errors"
     ],
     "scale/size_prior": [
       "label_to_prior",
       "priors",
       "priors.mean_m",
-      "priors.rel_spread"
+      "priors.rel_spread",
+      "axis_errors"
     ],
     "track/edgetam": [
       "mask_threshold"

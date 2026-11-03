@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 from physverify.checks._base import CheckInputs, abstain, unscored
 from physverify.checks._params import OcclusionParams
 from physverify.checks._size import BoolArray, relative_sigma, whole_lengths, whole_rows
+from physverify.physics.length_sigma import DEFAULT_AXIS_ERRORS, AxisErrors
 from physverify.physics.measures.detrended_size import persistent_change
 from physverify.physics.measures.relative_size import relative_lengths
 from physverify.physics.row_time import odd_rows_in, reference_seconds, rows_in
@@ -28,11 +29,13 @@ PERSISTENCE_S = reference_seconds(3)
 
 
 class DetrendedSizeParams(OcclusionParams):
-    """Windows in seconds, turned into rows with the clip's real frame rate and row step."""
+    """Windows in seconds, turned into rows with the clip's real frame rate and row step;
+    ``axis_errors`` as in v2's ``SizeParams``."""
 
     reference: Literal["others"] = "others"
     window_s: float = Field(default=WINDOW_S, gt=0.0)
     persistence_s: float = Field(default=PERSISTENCE_S, gt=0.0)
+    axis_errors: AxisErrors = DEFAULT_AXIS_ERRORS
 
 
 class DetrendedSizeCheck:
@@ -50,7 +53,8 @@ class DetrendedSizeCheck:
 
     check_id: ClassVar[str] = "R4_size"
     variant: ClassVar[str] = "v3"
-    version: ClassVar[str] = "1"
+    # 2: sigma combines the extent sigmas as correlated axes by default.
+    version: ClassVar[str] = "2"
     requires: ClassVar[frozenset[str]] = frozenset()
     time_dependent: ClassVar[bool] = False
     magnitude_unit: ClassVar[str] = "rel_size_change"
@@ -95,7 +99,7 @@ class DetrendedSizeCheck:
         if change is None:
             return abstain(type(self), inputs, subject, AbstainReason.TOO_FEW_FRAMES, None, details)
         ratio = 1.0 + change.deviation
-        sigma = relative_sigma(states, lengths, index, change.row, ratio)
+        sigma = relative_sigma(states, lengths, index, change.row, ratio, self.params.axis_errors)
         last = change.first_row + persistence - 1
         span = native_span(states.frame_index, change.first_row, last)
         details |= {"row": change.row, "deviation": change.deviation}

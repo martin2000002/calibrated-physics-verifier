@@ -14,6 +14,7 @@ from physverify.checks.r4_missing_permanence import PermanenceCheck, PermanenceP
 from physverify.checks.r4_size_constancy import PLUGINS as SIZE_PLUGINS
 from physverify.checks.r4_size_constancy import SizeConstancyCheck, SizeParams
 from physverify.physics.finite_diff import third_difference
+from physverify.physics.length_sigma import AxisErrors
 from physverify.physics.measures.object_integrity import size_change_ratio
 from physverify.schema.checks import AbstainReason, CheckResult, Verdict
 from physverify.schema.constants import STANDARD_GRAVITY
@@ -142,9 +143,11 @@ def test_constant_size_gives_zero() -> None:
     assert result.magnitude == pytest.approx(0.0, abs=1e-12)
 
 
-def test_size_sigma_follows_the_extent_sigma() -> None:
-    result = size(sc.with_sigma(sc.size_change(1.3, frame=20), size=0.002))
-    rel_length = math.sqrt(3 * (0.002 / (1.3 * BALL_LENGTH)) ** 2) / 3
+@pytest.mark.parametrize(("axis_errors", "axes"), [("correlated", 1.0), ("independent", 3.0)])
+def test_size_sigma_follows_the_extent_sigma(axis_errors: AxisErrors, axes: float) -> None:
+    check = SizeConstancyCheck(SizeParams(reference="self", axis_errors=axis_errors))
+    result = run_one(check, sc.with_sigma(sc.size_change(1.3, frame=20), size=0.002))
+    rel_length = 0.002 / (1.3 * BALL_LENGTH) / math.sqrt(axes)
     assert result.sigma == pytest.approx(1.3 * math.sqrt(2) * rel_length, rel=1e-9)
 
 

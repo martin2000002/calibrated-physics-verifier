@@ -30,22 +30,22 @@ PINNED_ROOT = "/pinned"
 
 SECTIONS_HASH = {
     "fast": "2dd9c7d4ef8f03af44ac3db3841c180abc99bf1b84bde91ee2b0d33b97d31c8d",
-    "precise": "4ff7304afe5bb1a84036ef068054fa526e17f55574bb42107cad5ac561db61d7",
+    "precise": "7965e7018cbcee9c4fa888bf01674f515baac933e589fbb1a3f1bfe00f165b91",
 }
 CONFIG_HASH = {
     "fast": "9fd0bd4b9a203ad27ffa1140075ac1995e2a955a2f1d8f4bff9d96900ad46e6d",
-    "precise": "13a70759587c1b4e59b0ae77a485afb94e0745472aef07d6e5d0dbd139b38cda",
+    "precise": "1af16d90ebe4ef7b8599750938cae367ff146479b98bbd18f43906aec66a68ed",
 }
 LOOK_CONFIG_HASH = {
     "fast": "7e4bf252235f348158fb6adad4e3a694606ea64b36092149e9771af57a8ffeea",
-    "precise": "0365aca17f9ce9185b0d39d682d221d49a177957cc362a74e974379e8f19ecc8",
+    "precise": "791590f22ea254c585fd3b5154de2841a350a1a96f56fbed07dc95cecea4240f",
 }
-CHECKS_HASH = "4a529448fb1f7ee61d9f0550eaf132e1dc29bdaa4fdfe0ca4c825eb3733cdad2"
+CHECKS_HASH = "5c5820acaf1bfce8270cdc8653a9eefd373f9feccde4baaac4b3a4510198f78e"
 RUN_CHECKS_HASH = {
-    "fast": "4a529448fb1f7ee61d9f0550eaf132e1dc29bdaa4fdfe0ca4c825eb3733cdad2",
-    "precise": "44d28133ca495c629fbae87d0ffd9d3df5881dbc2a823ea86009ddf3b9ebe1fd",
+    "fast": "5c5820acaf1bfce8270cdc8653a9eefd373f9feccde4baaac4b3a4510198f78e",
+    "precise": "b41ea2ac6501e53c05c30dae4e5698262d4ae254acb3029b5f835aff535a3531",
 }
-PRECISE_STAGE_KEYS_HASH = "00187902bde2787d197e086606f14e88423f0e538cd77a991bac75b2fb2b170b"
+PRECISE_STAGE_KEYS_HASH = "ec16d4fdf53ef8035cbc943c211eba298cc87b875c66f1b61d75e09b66b51b38"
 """Hash of every stage key of the precise plan for the declared calib dataset. It and
 ``RUN_CHECKS_HASH["precise"]`` are what the defaults give with the same choices passed by
 ``--set``."""
@@ -58,13 +58,14 @@ DATASET_CONTENT_HASH = {
     "fast": "7792797236e163025d89c1c518dc43ad8f90c3f511bd884e1969ca9bf1f2fa3e",
     "precise": "4a6829efdd64424d79dfc0941246de148ca50446e0f6f40738e3a02d1b8e8b4e",
 }
-NO_IDENTITY_STAGE_KEYS_HASH = "a9837dca3ba7f3dfa369e8ceaa12ef128ee6a90c7db15866db96d65bb4cf79ff"
+NO_IDENTITY_STAGE_KEYS_HASH = "e92400c5a60ecff3378986383341160a5368ef75a06dd79c07216f174271ecf1"
 """Hash of ``STAGE_KEYS`` computed for a dataset without cache identity (PISA, Physics-IQ,
 Objectron): the table as it was before identities entered the key, so those caches stay valid,
 except the three GeoCalib cameras, whose version moved when their draw was seeded,
-``contacts/kinematic_scene``, whose version moved when its sigma_v became ``vel_rel_flight``, and
+``contacts/kinematic_scene``, whose version moved when its sigma_v became ``vel_rel_flight``,
 the back-projecting lifts and every stage after them, whose version moved when the lift output
-gained ``nearer_cover``."""
+gained ``nearer_cover``, and the size-prior scales, whose version moved when the extent sigmas of
+a length became correlated axes."""
 STAGE_KEYS = {
     "camera/assumed_fov": "dddd1ad9189f13fabcc53f7e2fe5f8818b5d2bdeaf0900f0473a9207790e3c92",
     "camera/from_depth": "65273a1f47e29c4e6da046d5e8ccf8f256367ec663625ef9ce92d6322c5c1d2d",
@@ -103,8 +104,8 @@ STAGE_KEYS = {
     ),
     "scale/free_fall": "35e953454486c4732ba0858bf2070e7ecc5ad18d0cd1b1c3375f86f5b2322f7d",
     "scale/metric_depth": "a3fdd8b10d7115559cae9de0560fe1cd4def96ca09efc43af114459ee8460c25",
-    "scale/size_model": "a027047beb5fc646e46979ca3e919f5c9f2daa0160d9121a9da0a9886a7be96e",
-    "scale/size_prior": "c97fbed3a79a93323b5f2aaf997caa24e2f25419ab93d3c2bfd66fe24753e67f",
+    "scale/size_model": "7f0a28e8a7eca40a8c6f93782b74949759346cfddd1f7492a7750f593bff1595",
+    "scale/size_prior": "48851fc649a7bc3bb20f5865bf8471f34d38b30ffabe5f8d0b723ddc7a4130d4",
     "track/edgetam": "d8a575fa696b6b5d3c81d0a29f1a6c38410b86fea8a59afd36c635ccaa0c546e",
     "track/sam2_1_hiera_tiny": "a38a8223ecde1e228b7b30f4889972cb07277c5effebb96451b787dff76557bf",
 }

@@ -22,13 +22,16 @@ from physverify.extraction._base import StageContext, WeightSpec
 from physverify.extraction.backprojection import camera_focal_phi
 from physverify.extraction.providers._common import expect_params
 from physverify.physics.geometry import characteristic_lengths
+from physverify.physics.length_sigma import DEFAULT_AXIS_ERRORS, AxisErrors, length_rel_sigma
 from physverify.schema.perception import CameraModel
 from physverify.schema.scale import ScaleEstimate, ScaleSource
 from physverify.schema.stages import Stage
 from physverify.schema.states import ObjectStateTable
 from physverify.sizing.priors import SizePriorParams, lookup_label, prior_keys
 
-Params = SizePriorParams
+
+class Params(SizePriorParams):
+    axis_errors: AxisErrors = DEFAULT_AXIS_ERRORS
 
 
 @dataclass(frozen=True)
@@ -42,7 +45,8 @@ class ObjectScale:
 class SizePriorScale:
     stage: ClassVar[Stage] = Stage.SCALE
     name: ClassVar[str] = "size_prior"
-    version: ClassVar[str] = "2"
+    # 3: the extent sigmas of L combine as correlated axes by default (physics.length_sigma).
+    version: ClassVar[str] = "3"
     requires: ClassVar[tuple[Stage, ...]] = (Stage.CAMERA, Stage.LIFT)
     heavy: ClassVar[bool] = False
     is_ground_truth: ClassVar[bool] = False
@@ -63,7 +67,7 @@ class SizePriorScale:
             estimate
             for n, label in enumerate(lift.labels.tolist())
             if (prior := self._prior(label)) is not None
-            and (estimate := object_scale(lift, n, prior, phi)) is not None
+            and (estimate := object_scale(lift, n, prior, phi, self.params.axis_errors)) is not None
         ]
         if not estimates:
             return ScaleEstimate(None, math.nan, ScaleSource.NONE, lift.source_key, "no_prior")
@@ -83,7 +87,11 @@ def clip_focal_phi(ctx: StageContext) -> float:
 
 
 def object_scale(
-    lift: ObjectStateTable, n: int, prior: SizePrior, phi: float
+    lift: ObjectStateTable,
+    n: int,
+    prior: SizePrior,
+    phi: float,
+    axis_errors: AxisErrors,
 ) -> ObjectScale | None:
     """s_i = mean_m / median_t L and rho_i^2 = rel_spread^2 + median_t(sigma_L / L)^2, with
     sigma_L free of the focal error ``phi`` (``without_focal``)."""
@@ -92,9 +100,8 @@ def object_scale(
     if not bool(known.any()):
         return None
     lengths = characteristic_lengths(size[known])
-    # sigma_L / L = (1/3) sqrt(sum_j (sigma_e_j / e_j)^2) for L = (e_x e_y e_z)^(1/3).
     rel_extent = without_focal(lift.size_sigma[:, n][known] / size[known], phi)
-    rel_sigma = np.sqrt(np.sum(rel_extent**2, axis=1)) / 3.0
+    rel_sigma = length_rel_sigma(rel_extent, axis_errors)
     length = float(np.median(lengths))
     return ObjectScale(
         log_scale=math.log(prior.mean_m / length),
