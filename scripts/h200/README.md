@@ -227,7 +227,9 @@ with one GPU, `CUDA_VISIBLE_DEVICES` in 0-3 (anything else, a list included, exi
 `gpu_queue.sh`, the server's GPU queue launcher (not in this repository).
 
 Declared arms: `PHYSVERIFY_ITERATION_ARM=<arm>` names a line of `perception_arms.tsv`, whose
-provider swaps (`extraction.plan.<stage>=<provider>` only) go as `--set` to every physverify call.
+swaps go as `--set` to every physverify call: `extraction.plan.<stage>=<provider>`,
+`check_variants.<check>=<variant>`, and a check's `verification.thresholds`,
+`verification.threshold_units` or `calibration.tau_tolerance_units` (`_common.sh` checks each).
 The profile stays the committed one, so arms that share a provider prefix share its cache keys and
 its error-profile entries (a separate profile name would not: the name is part of every entry).
 `doctor` must list each swap among its sources, `state.env` records `CHAIN_ARM` (a resume with
