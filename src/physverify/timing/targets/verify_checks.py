@@ -82,7 +82,9 @@ def load_suite(
     def perceived(
         settings: Settings, dataset: DatasetSource, resolve: PlanResolver, deps: PipelineDeps
     ) -> InputSource:
-        return perceived_routed_source(settings, dataset, resolve, deps, InputLevel.PERCEIVED)
+        return perceived_routed_source(
+            settings, dataset, resolve, checks, deps, InputLevel.PERCEIVED
+        )
 
     return Verifier(suite.checks, suite.runner(), perceived)
 
@@ -198,7 +200,8 @@ class VerifyChecks(TargetHooks):
         for dataset_name in dict.fromkeys(clip.dataset for clip in clips):
             group = [clip for clip in clips if clip.dataset == dataset_name]
             dataset = dataset_from(self._services.datasets, dataset_name, ctx.settings)
-            for plan in input_plans(ctx.settings, self._resolver(dataset_name)):
+            resolve = self._resolver(dataset_name)
+            for plan in input_plans(ctx.settings, resolve, self._services.checks):
                 pipeline = self._pipeline_factory(plan, self._deps(ctx, ctx.observer))
                 report = pipeline.run(dataset, group)
                 failures += [f"{f.clip_id} {f.stage.value}: {f.error}" for f in report.failures]

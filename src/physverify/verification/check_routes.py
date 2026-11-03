@@ -13,11 +13,12 @@ from typing import Self
 
 from pydantic import Field, model_validator
 
+from physverify.checks._base import Check
 from physverify.config.models import Settings, validated
 from physverify.core.errors import ConfigError
 from physverify.core.models import FrozenModel
 from physverify.datasets._base import DatasetSource
-from physverify.extraction._base import StageProvider
+from physverify.extraction._base import derives_depth_from_size
 from physverify.extraction.pipeline import PipelineDeps
 from physverify.extraction.plan import ResolvedPlan
 from physverify.extraction.routes import PlanResolver, extra_plans, route_plans
@@ -33,12 +34,10 @@ from physverify.verification.inputs import (
 
 VERIFICATION_SECTION = "verification"
 
-DERIVES_DEPTH_FROM_SIZE_ATTR = "derives_depth_from_size"
-"""Optional provider ClassVar ``bool``: the provider's depth follows the object's apparent size."""
-
-SIZE_CHANGE_CHECKS = frozenset({"R4_size"})
-"""Checks that measure apparent-size change: fed a depth taken from that size they would measure
-their own input, so they never read a plan with a provider that derives depth from size."""
+FORBIDS_SIZE_DERIVED_DEPTH_ATTR = "forbids_size_derived_depth"
+"""Optional check ClassVar ``bool``: the check measures apparent-size change, so fed a depth taken
+from that size it would measure its own input; it never reads a plan with a provider that derives
+depth from size."""
 
 StageTable = Mapping[Stage, str]
 ProviderTables = Mapping[Stage, Mapping[str, Mapping[str, object]]]
@@ -142,26 +141,49 @@ def routed_source(
 
 
 def routed_inputs(
-    settings: Settings, resolve: PlanResolver, source_of: Callable[[ResolvedPlan], InputSource]
+    settings: Settings,
+    resolve: PlanResolver,
+    checks: Mapping[str, type[Check]],
+    source_of: Callable[[ResolvedPlan], InputSource],
 ) -> InputSource:
     """The inputs of the plan ``resolve`` gives for ``settings``, each routed check reading its
     route's plan, resolved by the same ``resolve``; ``source_of`` loads one plan's inputs."""
-    routing = check_routing(settings)
-    main = resolve(settings)
-    routes = route_plans(settings, routing.routes, resolve)
-    refuse_size_derived_depth(main, routes, routing.check_routes)
+    routing, main, routes = guarded_plans(settings, resolve, checks)
     return routed_source(main, routes, routing.check_routes, source_of)
 
 
-def derives_depth_from_size(provider: type[StageProvider]) -> bool:
-    return getattr(provider, DERIVES_DEPTH_FROM_SIZE_ATTR, False) is True
+def guarded_plans(
+    settings: Settings, resolve: PlanResolver, checks: Mapping[str, type[Check]]
+) -> tuple[CheckRouting, ResolvedPlan, dict[str, ResolvedPlan]]:
+    """The routing of ``settings``, its main plan and every route's plan, resolved by
+    ``resolve``, once no check of ``checks`` that forbids it would read a size-derived depth."""
+    routing = check_routing(settings)
+    main = resolve(settings)
+    routes = route_plans(settings, routing.routes, resolve)
+    refuse_size_derived_depth(main, routes, routing.check_routes, size_change_checks(checks))
+    return routing, main, routes
+
+
+def forbids_size_derived_depth(check: type[Check]) -> bool:
+    return getattr(check, FORBIDS_SIZE_DERIVED_DEPTH_ATTR, False) is True
+
+
+def size_change_checks(checks: Mapping[str, type[Check]]) -> frozenset[str]:
+    """Ids of the checks in ``checks`` that declare ``forbids_size_derived_depth``."""
+    return frozenset(
+        check.check_id for check in checks.values() if forbids_size_derived_depth(check)
+    )
 
 
 def refuse_size_derived_depth(
-    main: ResolvedPlan, routes: Mapping[str, ResolvedPlan], assignment: Mapping[str, str]
+    main: ResolvedPlan,
+    routes: Mapping[str, ResolvedPlan],
+    assignment: Mapping[str, str],
+    size_checks: Collection[str],
 ) -> None:
-    """Raise if a size-change check would read a plan whose depth derives from apparent size."""
-    for check_id in sorted(SIZE_CHANGE_CHECKS):
+    """Raise if a check of ``size_checks`` would read a plan whose depth derives from apparent
+    size."""
+    for check_id in sorted(size_checks):
         route = assignment.get(check_id)
         plan = main if route is None else routes[route]
         derived = [step for step in plan.stages if derives_depth_from_size(step.provider)]
@@ -177,6 +199,7 @@ def perceived_routed_source(
     settings: Settings,
     dataset: DatasetSource,
     resolve: PlanResolver,
+    checks: Mapping[str, type[Check]],
     deps: PipelineDeps,
     level: InputLevel,
 ) -> InputSource:
@@ -185,11 +208,21 @@ def perceived_routed_source(
     def source_of(plan: ResolvedPlan) -> InputSource:
         return PerceivedSource(dataset, PipelineOutputLoader(plan, deps), level)
 
-    return routed_inputs(settings, resolve, source_of)
+    return routed_inputs(settings, resolve, checks, source_of)
 
 
-def input_plans(settings: Settings, resolve: PlanResolver) -> tuple[ResolvedPlan, ...]:
+def input_plans(
+    settings: Settings, resolve: PlanResolver, checks: Mapping[str, type[Check]]
+) -> tuple[ResolvedPlan, ...]:
     """Every distinct plan :func:`routed_inputs` can read, the main plan first."""
-    main = resolve(settings)
-    routes = route_plans(settings, check_routing(settings).routes, resolve)
-    return (main, *extra_plans(main, routes).values())
+    main, routes = input_plans_by_route(settings, resolve, checks)
+    return (main, *routes.values())
+
+
+def input_plans_by_route(
+    settings: Settings, resolve: PlanResolver, checks: Mapping[str, type[Check]]
+) -> tuple[ResolvedPlan, dict[str, ResolvedPlan]]:
+    """The main plan and every route plan that differs from it, by route name (``extra_plans``),
+    under the guard of :func:`routed_inputs`."""
+    _, main, routes = guarded_plans(settings, resolve, checks)
+    return main, extra_plans(main, routes)

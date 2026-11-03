@@ -61,6 +61,7 @@ class SizeConstancyCheck:
     time_dependent: ClassVar[bool] = False
     magnitude_unit: ClassVar[str] = "rel_size_change"
     Params: ClassVar[type[BaseModel]] = SizeParams
+    forbids_size_derived_depth: ClassVar[bool] = True
 
     def __init__(self, params: BaseModel) -> None:
         self.params = SizeParams.model_validate(params)

@@ -14,14 +14,22 @@ from physverify.core.errors import MissingInputError
 from physverify.core.models import FrozenModel
 from physverify.datasets._base import DatasetSource
 from physverify.diagnosis.chain_runner import ChainRunner, VariantOutputs
+from physverify.diagnosis.chain_variants import Variant
+from physverify.extraction.pipeline import DOMAIN_ERRORS
 from physverify.extraction.plan import ResolvedPlan
 from physverify.schema.checks import CheckResult, InputLevel
 from physverify.schema.clip import ClipManifest
 from physverify.schema.outputs import StageOutput
 from physverify.schema.stages import Stage
 from physverify.verification._base import VerdictPolicy
-from physverify.verification.check_routes import routed_inputs
-from physverify.verification.inputs import ClipInputs, InputSource, OracleSource, perceived_inputs
+from physverify.verification.check_routes import guarded_plans, routed_inputs
+from physverify.verification.inputs import (
+    ClipInputs,
+    InputSource,
+    OracleSource,
+    error_message,
+    perceived_inputs,
+)
 from physverify.verification.runner import VerificationRunner, configured_suite
 from physverify.verification.thresholding import ThresholdTable
 
@@ -61,17 +69,38 @@ class _Prepared:
 
 @dataclass(frozen=True)
 class _PlanSource:
-    """Inputs of one plan's loaded stage outputs; a failure raises, so the clip fails as a whole."""
+    """Inputs of one plan's loaded stage outputs (None if a stage failed, ``failure`` saying so).
+    The main plan's failure raises, so the clip fails as a whole; a route's failure leaves only
+    the checks routed to it without inputs, as in ``verify``."""
 
-    outputs: Mapping[Stage, StageOutput]
+    outputs: Mapping[Stage, StageOutput] | None
     names: Mapping[Stage, str]
     level: InputLevel
+    route: bool
+    failure: str = ""
 
     def load(self, clips: Sequence[ClipManifest]) -> Iterator[ClipInputs]:
         for clip in clips:
-            yield ClipInputs(
+            yield self._one(clip)
+
+    def _one(self, clip: ClipManifest) -> ClipInputs:
+        try:
+            if self.outputs is None:
+                raise MissingInputError(self.failure)
+            return ClipInputs(
                 clip, perceived_inputs(clip, self.outputs, self.names, self.level), None
             )
+        except DOMAIN_ERRORS as exc:
+            if not self.route:
+                raise
+            return ClipInputs(clip, None, error_message(exc), self.level)
+
+
+def require_routable(chain: ChainRunner, variants: Sequence[Variant]) -> None:
+    """Resolve and guard every variant's plans before any clip, so a refused routing stops the run
+    as it stops ``verify`` instead of failing each clip."""
+    for variant in variants:
+        guarded_plans(chain.settings_of(variant), chain.resolver(variant), chain.checks)
 
 
 def variant_inputs(
@@ -81,15 +110,16 @@ def variant_inputs(
     ``verify`` reads them (``routed_inputs``)."""
 
     def source_of(plan: ResolvedPlan) -> InputSource:
-        found = outputs.outputs if plan == outputs.plan else chain.plan_outputs(clip, plan)
-        if found is None:
-            raise MissingInputError(
-                f"{clip.clip_id}: a route plan of variant {outputs.variant.name} has a failed stage"
-            )
-        return _PlanSource(found, plan.names, level)
+        if plan == outputs.plan:
+            return _PlanSource(outputs.outputs, plan.names, level, route=False)
+        failure = (
+            f"{clip.clip_id}: a route plan of variant {outputs.variant.name} has a failed stage"
+        )
+        return _PlanSource(chain.plan_outputs(clip, plan), plan.names, level, True, failure)
 
     variant = outputs.variant
-    source = routed_inputs(chain.settings_of(variant), chain.resolver(variant), source_of)
+    settings, resolve = chain.settings_of(variant), chain.resolver(variant)
+    source = routed_inputs(settings, resolve, chain.checks, source_of)
     return next(iter(source.load([clip])))
 
 

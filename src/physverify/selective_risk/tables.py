@@ -20,7 +20,7 @@ from physverify.diagnosis.chain_runner import ChainRunner
 from physverify.diagnosis.chain_variants import oracle_variant, perceived_variant
 from physverify.diagnosis.end_to_end import track_of, variant_outputs, variant_results
 from physverify.diagnosis.pairing import pair_results, subject_map
-from physverify.diagnosis.verification_adapter import VerificationCheckSuite
+from physverify.diagnosis.verification_adapter import VerificationCheckSuite, require_routable
 from physverify.schema.checks import InputLevel, Verdict
 from physverify.schema.clip import ClipManifest, Split
 from physverify.selective_risk.curve import (
@@ -119,6 +119,7 @@ def collect_synthetic(session: Session, split: Split) -> Collected:
     """Oracle/perceived pairs of every cached clip of the population's ``split`` as cases."""
     population = session.population
     chain, source = session.chain(population.dataset)
+    require_routable(chain, (oracle_variant(), perceived_variant()))
     clips = split_clips(source, population.subset, split)
     cases: list[Case] = []
     counts, failed = CaseCounts(), []
@@ -143,6 +144,7 @@ def collect_synthetic(session: Session, split: Split) -> Collected:
 def collect_real(session: Session, dataset: str) -> Collected:
     """Perceived events of real video, all with reference PASS (real physics)."""
     chain, source = session.chain(dataset)
+    require_routable(chain, (perceived_variant(),))
     clips = list(source.clips(None))
     cases: list[Case] = []
     failed = []

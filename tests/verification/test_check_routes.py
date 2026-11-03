@@ -21,16 +21,25 @@ from physverify.checks._params import CommonParams
 from physverify.config.models import Settings
 from physverify.core.errors import ConfigError
 from physverify.core.registry import discover
-from physverify.extraction._base import StageProvider, provider_key, validate_provider
+from physverify.extraction._base import (
+    StageProvider,
+    derives_depth_from_size,
+    provider_key,
+    validate_provider,
+)
 from physverify.extraction.plan import ResolvedPlan
-from physverify.schema.checks import CheckResult
+from physverify.schema.checks import AbstainReason, CheckResult, InputLevel
 from physverify.schema.clip import ClipManifest
 from physverify.schema.stages import Stage
 from physverify.verification.check_routes import (
+    FORBIDS_SIZE_DERIVED_DEPTH_ATTR,
     RoutedSource,
     check_routing,
-    derives_depth_from_size,
+    forbids_size_derived_depth,
+    input_plans,
+    input_plans_by_route,
     routed_inputs,
+    size_change_checks,
 )
 from physverify.verification.check_set import (
     CHECKS_SECTION,
@@ -39,7 +48,7 @@ from physverify.verification.check_set import (
     build_checks,
     checks_hash,
 )
-from physverify.verification.inputs import ClipInputs, InputSource, provenance
+from physverify.verification.inputs import ClipInputs, InputSource, PerceivedSource, provenance
 from physverify.verification.policies.raw import RawPolicy
 from physverify.verification.runner import VerificationRunner, configured_suite
 from physverify.verification.thresholding import ThresholdTable
@@ -49,6 +58,7 @@ ROUTE_AREA = (f"verification.routes.area_depth.lift={AREA_LIFT}",)
 ROUTED_R3A = (*ROUTE_AREA, "verification.check_routes.R3a=area_depth")
 DATASET = "synthetic_fixture"
 Providers = Mapping[str, type[StageProvider]]
+Checks = Mapping[str, type[Check]]
 
 
 class PlanSource:
@@ -68,10 +78,13 @@ class PlanSource:
             yield ClipInputs(case.clip, inputs, None)
 
 
-def source_for(settings: Settings, providers: Providers | None = None) -> InputSource:
+def source_for(
+    settings: Settings, providers: Providers | None = None, checks: Checks | None = None
+) -> InputSource:
     registry = PLUGIN_KINDS["providers"]() if providers is None else providers
     resolve = partial(resolve_plan, providers=registry, dataset=DATASET)
-    return routed_inputs(settings, resolve, PlanSource.of)
+    found = PLUGIN_KINDS["checks"]() if checks is None else checks
+    return routed_inputs(settings, resolve, found, PlanSource.of)
 
 
 def lift_by_check(settings: Settings, providers: Providers | None = None) -> dict[str, str]:
@@ -111,7 +124,21 @@ def test_a_route_that_resolves_to_the_main_plan_is_not_loaded_again(
         dataset=DATASET,
         gt_stages=(Stage.LIFT,),
     )
-    assert isinstance(routed_inputs(settings, resolve, PlanSource.of), PlanSource)
+    checks = PLUGIN_KINDS["checks"]()
+    assert isinstance(routed_inputs(settings, resolve, checks, PlanSource.of), PlanSource)
+
+
+def test_the_input_plans_are_the_main_plan_and_each_distinct_route_plan(
+    make_settings: SettingsFactory,
+) -> None:
+    settings = make_settings(*ROUTED_R3A, f"verification.routes.again.lift={AREA_LIFT}")
+    resolve = partial(resolve_plan, providers=PLUGIN_KINDS["providers"](), dataset=DATASET)
+    checks = PLUGIN_KINDS["checks"]()
+    main, routes = input_plans_by_route(settings, resolve, checks)
+    assert main == resolve(settings)
+    assert list(routes) == ["again"]
+    assert routes["again"].names[Stage.LIFT] == AREA_LIFT
+    assert input_plans(settings, resolve, checks) == (main, routes["again"])
 
 
 def spy(seen: dict[str, str]) -> Callable[[str], type[Check]]:
@@ -144,6 +171,32 @@ def test_the_runner_hands_each_check_its_routed_inputs(make_settings: SettingsFa
     report = runner.run(source, [sc.parabola(clip_id="c").clip])
     assert seen == {"R3a": AREA_LIFT, "R1": "backproject", "R4_size": "backproject"}
     assert {r.check_id: r.provenance[Stage.LIFT.value] for r in report.results} == seen
+
+
+class _FailedLoader:
+    """A pipeline whose every clip has a failed stage."""
+
+    def load(self, dataset: object, clips: Sequence[ClipManifest]) -> dict[str, str]:
+        return {clip.clip_id: "MissingInputError: a failed stage" for clip in clips}
+
+
+def test_a_failed_route_plan_fails_only_its_routed_check(make_settings: SettingsFactory) -> None:
+    seen: dict[str, str] = {}
+    checks = [spy(seen)(check_id)() for check_id in ("R3a", "R1", "R4_size")]
+    runner = VerificationRunner(checks, RawPolicy(), ThresholdTable.provisional({}))
+
+    def source_of(plan: ResolvedPlan) -> InputSource:
+        if plan.names[Stage.LIFT] != AREA_LIFT:
+            return PlanSource.of(plan)
+        return PerceivedSource(None, _FailedLoader(), InputLevel.PERCEIVED)  # type: ignore[arg-type]
+
+    settings = make_settings(*ROUTED_R3A, profile="precise")
+    resolve = partial(resolve_plan, providers=PLUGIN_KINDS["providers"](), dataset=DATASET)
+    source = routed_inputs(settings, resolve, PLUGIN_KINDS["checks"](), source_of)
+    report = runner.run(source, [sc.parabola(clip_id="c").clip])
+    reasons = {r.check_id: r.abstain_reason for r in report.results}
+    assert reasons == {"R3a": AbstainReason.MISSING_INPUT, "R1": None, "R4_size": None}
+    assert seen == {"R1": "backproject", "R4_size": "backproject"}
 
 
 def test_routed_inputs_must_match_the_main_clip() -> None:
@@ -205,6 +258,31 @@ def test_r4_size_routed_off_a_size_derived_main_lift_reads_its_route(
     lifts = lift_by_check(settings)
     assert lifts.pop("R4_size") == "backproject"
     assert set(lifts.values()) == {AREA_LIFT}
+
+
+def test_every_r4_size_implementation_and_no_other_check_forbids_a_size_derived_depth() -> None:
+    checks = {**PLUGIN_KINDS["checks"](), **PLUGIN_KINDS["check_variants"]()}
+    forbidding = {key for key, check in checks.items() if forbids_size_derived_depth(check)}
+    assert forbidding == {key for key, check in checks.items() if check.check_id == "R4_size"}
+    assert size_change_checks(checks) == {"R4_size"}
+
+
+def size_check(declared: bool) -> type[Check]:
+    namespace: dict[str, object] = {"check_id": "R9_size", "Params": CommonParams}
+    if declared:
+        namespace[FORBIDS_SIZE_DERIVED_DEPTH_ATTR] = True
+    return type("SizeCheck", (), namespace)
+
+
+def test_the_guard_follows_the_checks_declaration_not_its_id(
+    make_settings: SettingsFactory,
+) -> None:
+    settings = make_settings(f"extraction.plan.lift={AREA_LIFT}")
+    with pytest.raises(ConfigError, match="R9_size would read"):
+        source_for(settings, checks={"R9_size": size_check(declared=True)})
+    assert isinstance(
+        source_for(settings, checks={"R9_size": size_check(declared=False)}), PlanSource
+    )
 
 
 def test_only_the_area_lift_declares_a_size_derived_depth() -> None:

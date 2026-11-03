@@ -45,7 +45,7 @@ from physverify.diagnosis.report import (
     build_provenance,
     dataset_versions,
 )
-from physverify.diagnosis.verification_adapter import CheckSuite
+from physverify.diagnosis.verification_adapter import CheckSuite, require_routable
 from physverify.schema.checks import CheckResult, InputLevel
 from physverify.schema.clip import ClipManifest
 from physverify.schema.perception import MaskTrack
@@ -169,9 +169,9 @@ def run_attribution(ctx: DiagnosisContext, clips: Sequence[ClipManifest]) -> Att
     dataset = ctx.dataset()
     cells = factorial_cells(frozenset(fixed))
     run = _Run(suite, ctx.chain(dataset), ctx.diag.end_to_end.min_span_iou, cells)
-    failures = list(
-        warm_variants(run.chain, selected, (oracle_variant(), *cells, perceived_variant()))
-    )
+    variants = (oracle_variant(), *cells, perceived_variant())
+    require_routable(run.chain, variants)
+    failures = list(warm_variants(run.chain, selected, variants))
     parts = _evaluate(run, selected, failures)
     scene_by_clip = {clip.clip_id: scene_of(clip) for clip in selected}
     scenes = {part.clip_id: scene_by_clip[part.clip_id] for part in parts}

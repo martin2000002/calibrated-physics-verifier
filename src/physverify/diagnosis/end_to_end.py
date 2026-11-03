@@ -33,7 +33,7 @@ from physverify.diagnosis.report import (
     dataset_versions,
     z_coverage,
 )
-from physverify.diagnosis.verification_adapter import CheckSuite, variant_inputs
+from physverify.diagnosis.verification_adapter import CheckSuite, require_routable, variant_inputs
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
 from physverify.schema.clip import ClipManifest
 from physverify.schema.perception import MaskTrack
@@ -261,7 +261,9 @@ def run_end_to_end(ctx: DiagnosisContext, clips: Sequence[ClipManifest]) -> EndT
     selected = report_clips(ctx, clips)
     dataset = ctx.dataset()
     run = _Run(suite, ctx.chain(dataset), dataset, ctx.diag.end_to_end.min_span_iou)
-    failures = list(warm_variants(run.chain, selected, (oracle_variant(), perceived_variant())))
+    variants = (oracle_variant(), perceived_variant())
+    require_routable(run.chain, variants)
+    failures = list(warm_variants(run.chain, selected, variants))
     failed = {f.clip_id for f in failures}
     perceived: list[Paired] = []
     sampling: list[Paired] = []

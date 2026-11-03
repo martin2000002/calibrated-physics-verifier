@@ -16,7 +16,7 @@ from synthetic_clip import CLIP_ID, SyntheticFixtureDataset
 
 from physverify.app import plugins
 from physverify.app.extraction import EVENTS_FILE, route_events_file
-from physverify.core.errors import PluginError
+from physverify.core.errors import EXIT_USAGE, PluginError
 from physverify.extraction._base import StageContext, provider_key
 from physverify.runtime.heavy import holder_path
 from physverify.schema.stages import STAGE_ORDER
@@ -129,6 +129,22 @@ def test_a_route_reuses_the_main_runs_upstream_stages_and_recomputes_from_its_li
     again = cli(*FAKE_PLAN, *AREA_ROUTE, *RUN)
     assert again.code == 0, again.err
     assert all(e["cached"] for e in events_of(again.out, route_events_file("area_depth")))
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        ["--set", "extraction.plan.lift=backproject_area_depth"],
+        [*AREA_ROUTE, "--set", "verification.check_routes.R4_size=area_depth"],
+    ],
+)
+def test_a_size_derived_depth_for_r4_size_is_refused_before_any_extraction(
+    cli: CliRunner, overrides: list[str]
+) -> None:
+    result = cli(*FAKE_PLAN, *overrides, *RUN)
+    assert result.code == EXIT_USAGE, result.out
+    assert "R4_size would read lift/backproject_area_depth" in result.err
+    assert "run: " not in result.out
 
 
 def test_without_a_route_no_route_events_are_written(cli: CliRunner) -> None:

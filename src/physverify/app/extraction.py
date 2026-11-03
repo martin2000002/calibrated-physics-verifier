@@ -7,7 +7,7 @@ from functools import partial
 from pathlib import Path
 
 from physverify.app.context import AppContext
-from physverify.app.services import dataset_for, pipeline_deps, plan_for, route_plans_for
+from physverify.app.services import dataset_for, input_plans_for, pipeline_deps, plan_for
 from physverify.core.download import BYTES_PER_MB
 from physverify.core.errors import UsageError
 from physverify.core.output import Echo
@@ -23,7 +23,6 @@ from physverify.extraction.events import (
 )
 from physverify.extraction.pipeline import ExtractionPipeline, ExtractionReport
 from physverify.extraction.plan import ResolvedPlan
-from physverify.extraction.routes import extra_plans
 from physverify.extraction.weights import NetworkDownloader, fetch, hub_cache
 from physverify.runtime.runs import new_run
 from physverify.schema.clip import ClipManifest
@@ -93,11 +92,9 @@ def run_extraction(
     source = dataset_for(context, dataset)
     selected = select_clips(source.clips(subset), clips)
     gt_stages = parse_stages(gt)
-    main = plan_for(context, dataset=dataset, gt_stages=gt_stages, fps=fps, max_side=max_side)
-    every = route_plans_for(
+    main, routes = input_plans_for(
         context, dataset=dataset, gt_stages=gt_stages, fps=fps, max_side=max_side
     )
-    routes = extra_plans(main, every)
     if strict_profile:
         profile = pipeline_deps(context, None).error_profile
         for each in (main, *routes.values()):

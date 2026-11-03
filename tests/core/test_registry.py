@@ -8,6 +8,7 @@ import subprocess
 import sys
 import uuid
 from pathlib import Path
+from typing import ClassVar, Protocol
 
 import pytest
 from cli_tree import command_modules
@@ -16,7 +17,7 @@ from fx_protocol import Widget
 import physverify
 from physverify.app.plugins import PLUGIN_KINDS
 from physverify.core.errors import DuplicatePluginError, InvalidPluginError, MissingPluginsError
-from physverify.core.registry import discover
+from physverify.core.registry import discover, protocol_members, satisfies
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "plugins"
 HEAVY_MODULES = ("torch", "transformers", "kubric", "bpy")
@@ -67,6 +68,23 @@ def test_validate_hook_can_reject() -> None:
 
     with pytest.raises(InvalidPluginError, match="Alpha"):
         discover("fx_good", (Widget,), "name", reject)
+
+
+class _Optional(Protocol):
+    name: ClassVar[str]
+    flag: ClassVar[bool] = False
+
+
+def test_a_protocol_attribute_with_a_value_is_optional() -> None:
+    class Bare:
+        name: ClassVar[str] = "bare"
+
+    class Unnamed:
+        flag: ClassVar[bool] = True
+
+    assert protocol_members(_Optional) == {"name"}
+    assert satisfies(Bare, _Optional)
+    assert not satisfies(Unnamed, _Optional)
 
 
 def test_callable_key() -> None:

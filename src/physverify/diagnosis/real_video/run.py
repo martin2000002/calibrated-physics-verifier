@@ -32,6 +32,7 @@ from physverify.diagnosis.report import (
     VerdictDistribution,
     build_provenance,
 )
+from physverify.diagnosis.verification_adapter import require_routable
 from physverify.schema.checks import CheckResult, InputLevel, Verdict
 from physverify.schema.clip import ClipManifest, FrameSampling
 from physverify.schema.scale import ScaleEstimate, effective_scale
@@ -160,6 +161,7 @@ def _run_dataset(
     ctx: DiagnosisContext, dataset: DatasetSource, clips: Sequence[ClipManifest], out: _Collected
 ) -> None:
     chain = ctx.chain(dataset)
+    require_routable(chain, (perceived_variant(),))
     warm = warm_variants(chain, clips, (perceived_variant(),))
     out.failures += warm
     failed = {f.clip_id for f in warm}

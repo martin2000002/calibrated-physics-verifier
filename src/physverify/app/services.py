@@ -19,7 +19,7 @@ from physverify.extraction._base import PROVIDERS, StageObserver
 from physverify.extraction.pipeline import PipelineDeps
 from physverify.extraction.pipeline_resources import ProcRssProbe
 from physverify.extraction.plan import ResolvedPlan, resolve_plan
-from physverify.extraction.routes import PlanResolver, route_plans
+from physverify.extraction.routes import PlanResolver
 from physverify.finetune.candidate_scoring import build_scorer
 from physverify.finetune.scorers._base import SCORERS, AggregateScorer
 from physverify.generator_comparison.judges._base import JUDGES, ExternalJudge, Judge
@@ -27,7 +27,7 @@ from physverify.generator_comparison.settings import ComparisonSettings
 from physverify.schema.checks import InputLevel
 from physverify.schema.stages import Stage
 from physverify.verification._base import POLICIES
-from physverify.verification.check_routes import check_routing, perceived_routed_source
+from physverify.verification.check_routes import input_plans_by_route, perceived_routed_source
 from physverify.verification.check_set import active_checks_hash, occlusion_thresholds
 from physverify.verification.inputs import InputSource, refuse_heavy
 
@@ -74,17 +74,17 @@ def plan_for(
     return _resolver(context, dataset, gt_stages, fps, max_side)(context.settings)
 
 
-def route_plans_for(
+def input_plans_for(
     context: PluginContext,
     *,
     dataset: str,
     gt_stages: tuple[Stage, ...] = (),
     fps: float | None = None,
     max_side: int | None = None,
-) -> dict[str, ResolvedPlan]:
-    """The plan of every input route in ``[verification]``, resolved like :func:`plan_for`."""
+) -> tuple[ResolvedPlan, dict[str, ResolvedPlan]]:
+    """The plan of :func:`plan_for` and every input route's plan that differs from it."""
     resolve = _resolver(context, dataset, gt_stages, fps, max_side)
-    return route_plans(context.settings, check_routing(context.settings).routes, resolve)
+    return input_plans_by_route(context.settings, resolve, registry_of(context, CHECKS))
 
 
 def perceived_source(
@@ -101,6 +101,7 @@ def perceived_source(
         context.settings,
         dataset,
         _resolver(context, dataset.name, gt_stages, None, None),
+        registry_of(context, CHECKS),
         pipeline_deps(context, None, lock),
         level,
     )

@@ -50,12 +50,16 @@ def plugin_modules(package: str) -> list[ModuleType]:
 
 
 def protocol_members(protocol: type) -> frozenset[str]:
-    """Attribute and method names a class must provide to satisfy ``protocol``."""
+    """Attribute and method names a class must provide to satisfy ``protocol``; an attribute the
+    protocol gives a value is optional, its value being the default."""
     members: set[str] = set()
     for base in protocol.__mro__:
         if base is object or not getattr(base, "_is_protocol", False):
             continue
-        members.update(name for name in getattr(base, "__annotations__", {}))
+        defaults = vars(base)
+        members.update(
+            name for name in getattr(base, "__annotations__", {}) if name not in defaults
+        )
         members.update(
             name
             for name, value in vars(base).items()
