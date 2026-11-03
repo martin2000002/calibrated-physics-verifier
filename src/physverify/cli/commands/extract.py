@@ -28,6 +28,10 @@ def run(
     fps: Annotated[float | None, typer.Option(help="Target sampling fps.")] = None,
     max_side: Annotated[int | None, typer.Option(help="Longest frame side in pixels.")] = None,
     subset: Annotated[str | None, typer.Option(help="Dataset subset.")] = None,
+    strict_profile: Annotated[
+        bool,
+        typer.Option(help="Exit 2 when a provider reads a missing or stale error profile."),
+    ] = False,
 ) -> None:
     report = extraction.run_extraction(
         app_context(ctx),
@@ -37,6 +41,7 @@ def run(
         fps=fps,
         max_side=max_side,
         subset=subset,
+        strict_profile=strict_profile,
         echo=typer.echo,
     )
     if report.failures:

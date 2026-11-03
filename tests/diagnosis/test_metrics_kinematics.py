@@ -158,6 +158,31 @@ def test_impact_frames_are_split_from_free_flight() -> None:
     np.testing.assert_allclose(free[:, 2], 0.1, atol=TOL)
 
 
+def resting_until(frame: float) -> ContactTable:
+    table = contacts(ContactKind.RESTING)
+    record = dataclasses.replace(table.records[0], t_start=0.0, t_end=frame)
+    return dataclasses.replace(table, records=(record,))
+
+
+def test_flight_velocity_error_excludes_resting_rows() -> None:
+    resting = np.arange(FRAMES) <= 5
+    errors = np.where(resting, 0.1, 0.2) * np.array([1.0, -1.0])[np.arange(FRAMES) % 2]
+    base = truth()
+    pred = dataclasses.replace(base, velocity=base.velocity + errors[:, None, None])
+    plain = measure(pred, truth())
+    outcome = measure(pred, truth(), {Stage.CONTACTS: resting_until(5.0)})
+
+    def rms(values: NDArray[np.float64]) -> float:
+        return float(np.sqrt(np.mean(values**2)))
+
+    flight = outcome.samples["vel_rel_flight"].reshape(-1, 3)
+    assert flight.shape[0] == FRAMES - int(resting.sum())
+    rest_rms = rms(outcome.samples["vel_rel"].reshape(FRAMES, 3)[resting][:, 0])
+    assert rms(flight[:, 0]) == pytest.approx(2.0 * rest_rms)
+    np.testing.assert_array_equal(outcome.samples["vel_rel"], plain.samples["vel_rel"])
+    assert plain.samples["vel_rel_flight"].size == 0
+
+
 def test_resting_contacts_are_not_impacts() -> None:
     context: dict[Stage, StageOutput] = {
         Stage.SCALE: scale(),

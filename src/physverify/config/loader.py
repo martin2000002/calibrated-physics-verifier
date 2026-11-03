@@ -33,6 +33,10 @@ DEFAULT_PROFILE = "fast"
 PROFILES_KEY = "profiles"
 LOCAL_FILE = "local.toml"
 MODEL_ONLY_SECTIONS = frozenset({"paths", "runtime", "container", "check_variants"})
+FILE_ONLY_KEYS = (("sealed", "sets"), ("calibration", "development_sets"))
+"""(section, key) pairs only ``configs/**/*.toml`` declare: from ``local.toml``, the environment or
+``--set`` they would lift a seal that the committed files keep. ``[sealed] ledger`` stays
+overridable: a dry run writes its own ledger, and a look still needs PHYSVERIFY_UNSEAL."""
 """Sections that may lack a configs/**/*.toml table: their defaults live in their model."""
 
 Table = dict[str, Any]
@@ -68,6 +72,7 @@ def load_settings(
     layers = {str(local_path): local, f"{ENV_PREFIX}<SECTION>__<KEY>": env, "--set": sets}
     for origin, layer in layers.items():
         reject_profiles(layer, origin)
+        reject_file_only_keys(layer, origin)
     upper = [local, env, device_layer(device), sets]
     name = resolve_profile(profile, base, upper)
     merged = merge(apply_profile(base, name), *upper)
@@ -216,6 +221,15 @@ def reject_profiles(layer: Mapping[str, Any], origin: str) -> None:
             raise ConfigError(
                 f"{origin} sets [{key}.{PROFILES_KEY}]: use --profile or the key without "
                 f"'{PROFILES_KEY}'"
+            )
+
+
+def reject_file_only_keys(layer: Mapping[str, Any], origin: str) -> None:
+    for section, key in FILE_ONLY_KEYS:
+        table = layer.get(section)
+        if isinstance(table, Mapping) and key in table:
+            raise ConfigError(
+                f"{origin} sets {section}.{key}: only the committed configs/**/*.toml declare it"
             )
 
 

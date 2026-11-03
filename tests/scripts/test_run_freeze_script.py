@@ -174,10 +174,10 @@ def _expected(final: Path) -> list[str]:
     runs = final / "runs"
     return [
         "doctor",
-        "extract run --dataset physics_iq --subset full",
-        "extract run --dataset pisa_real --subset full",
-        "extract run --dataset kubric_synthetic --subset calib",
-        "extract run --dataset kubric_synthetic --subset calib_f3_extra",
+        "extract run --strict-profile --dataset physics_iq --subset full",
+        "extract run --strict-profile --dataset pisa_real --subset full",
+        "extract run --strict-profile --dataset kubric_synthetic --subset calib",
+        "extract run --strict-profile --dataset kubric_synthetic --subset calib_f3_extra",
         "calibrate evaluate --dataset kubric_synthetic --subset calib --real",
         f"exclusions r2-clips --out {final / 'r2_clips.txt'}",
         f"verify {KS} --level perceived --policy raw {CLIPS}",

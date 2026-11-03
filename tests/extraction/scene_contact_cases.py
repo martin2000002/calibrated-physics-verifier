@@ -37,6 +37,7 @@ from physverify.schema.states import ObjectStateTable, PrimitiveKind
 sc = cs.sc
 FloatArray = NDArray[np.float64]
 VEL_REL = entry(Stage.KINEMATICS, "savgol", "vel_rel", 0.3157, bias=-0.0022)
+VEL_REL_FLIGHT = entry(Stage.KINEMATICS, "savgol", "vel_rel_flight", 0.3157, bias=-0.0022)
 CENTROID_REL = entry(Stage.LIFT, "backproject", "centroid_rel", 0.0552, bias=0.0002)
 SIZE_REL = entry(Stage.LIFT, "backproject", "size_rel", 0.0782, bias=0.0056)
 GAP_REL = entry(Stage.LIFT, "backproject", SUPPORT_GAP_REL, 0.1)
@@ -85,7 +86,7 @@ def outcome(
 
 
 def measured_entries() -> dict[tuple[Stage, str], ErrorEntry]:
-    measured = (VEL_REL, CENTROID_REL, SIZE_REL, GAP_REL, CENTROID_PX)
+    measured = (VEL_REL, VEL_REL_FLIGHT, CENTROID_REL, SIZE_REL, GAP_REL, CENTROID_PX)
     return {(e.stage, e.quantity): e for e in measured}
 
 

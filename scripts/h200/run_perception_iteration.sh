@@ -10,7 +10,8 @@
 #                   calib_f3_extra extension, which dev-score adds for R3b and refuses uncached
 #    2 stages       diagnose stages --clips <calib> --write-profile: the iteration's own error
 #                   profile; only calib clips are passed, so the report pass is empty
-#    3 relift       extract run again on both (LIFT reads the new profile)
+#    3 relift       extract run --strict-profile again on both (LIFT reads the new profile; a
+#                   missing or stale profile stops the step)
 #    4 stage-sigma  calibrate stage-sigma (per-stage sigma recalibration, calib only)
 #    5 devscore     calibrate dev-score --level both: devscore.json, and the full calib fit as
 #                   <run>/calibration.json (never in a calibration directory); copied to $OUT
@@ -221,8 +222,8 @@ step_2() {
 }
 
 step_3() {
-    call 1 -- extract run "${KS[@]}" "${CLIP_ARGS[@]}"
-    call 1 -- extract run "${EXTENSION[@]}"
+    call 1 -- extract run --strict-profile "${KS[@]}" "${CLIP_ARGS[@]}"
+    call 1 -- extract run --strict-profile "${EXTENSION[@]}"
 }
 
 step_4() {

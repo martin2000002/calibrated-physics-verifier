@@ -1,6 +1,7 @@
 """Version 4 of ``contacts/kinematic_scene`` with the 3D velocity impacts and the proximity pair
 rest is version 3, and with the 3D velocity rest and the gap gate as well, version 2; its defaults
-are pinned by their own goldens (``scene_golden_case.py``)."""
+are pinned by their own goldens (``scene_golden_case.py``). Version 5 reads sigma_v from
+``vel_rel_flight``; with the same entry as ``vel_rel`` its tables are version 4's."""
 
 from __future__ import annotations
 
@@ -27,7 +28,7 @@ def test_the_velocity_impacts_and_the_proximity_pairs_are_version_3(name: str) -
 
 
 @pytest.mark.parametrize("name", sorted(CASES))
-def test_the_version_4_tables_do_not_move(name: str) -> None:
+def test_version_5_with_the_flight_entry_of_vel_rel_is_version_4(name: str) -> None:
     assert same(plain(table(CASES[name]())), plain(golden("v4", name)))
 
 

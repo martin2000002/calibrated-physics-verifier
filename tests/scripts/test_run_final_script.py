@@ -327,7 +327,7 @@ def test_the_fresh_kubric_look_and_its_v1_arm(sandbox: FinalSandbox) -> None:
         "doctor",
         "doctor",
         "doctor",
-        "extract run --dataset kubric_fresh --subset eval",
+        "extract run --strict-profile --dataset kubric_fresh --subset eval",
         "doctor",
         _look(final, *FRESH),
         "doctor",
@@ -505,9 +505,9 @@ def test_an_interrupted_extraction_resumes_into_its_own_cache(sandbox: FinalSand
     sandbox.ok("extract", "kubric_synthetic_eval")
     extracts = [c for c in sandbox.commands() if c.startswith("extract")]
     assert extracts == [
-        "extract run --dataset kubric_fresh --subset eval",
-        "extract run --dataset kubric_fresh --subset eval",
-        "extract run --dataset kubric_synthetic --subset eval",
+        "extract run --strict-profile --dataset kubric_fresh --subset eval",
+        "extract run --strict-profile --dataset kubric_fresh --subset eval",
+        "extract run --strict-profile --dataset kubric_synthetic --subset eval",
     ]
 
 
@@ -517,12 +517,15 @@ def test_extract_shards_warm_the_cache_before_the_locked_pass(sandbox: FinalSand
     env = {"PHYSVERIFY_FINAL_EXTRACT_LIMIT": "2", "PHYSVERIFY_FINAL_EXTRACT_SHARDS": "2"}
     sandbox.ok("extract", "kubric_fresh", **env)
     pv = [line[3:] for line in sandbox.lines() if line.startswith("pv ") and "extract" in line]
-    shard = "--profile precise --device cpu --set runtime.threads=16 --no-lock extract run "
+    shard = (
+        "--profile precise --device cpu --set runtime.threads=16 --no-lock extract run "
+        "--strict-profile "
+    )
     clips = "--dataset kubric_fresh --subset eval --clips kubric_fresh-"
     assert sorted(pv[:2]) == [f"{shard}{clips}1", f"{shard}{clips}2"]
     assert pv[2] == (
-        "--profile precise --device cpu --set runtime.threads=32 extract run --dataset "
-        "kubric_fresh --subset eval --clips kubric_fresh-1 --clips kubric_fresh-2"
+        "--profile precise --device cpu --set runtime.threads=32 extract run --strict-profile "
+        "--dataset kubric_fresh --subset eval --clips kubric_fresh-1 --clips kubric_fresh-2"
     )
 
 

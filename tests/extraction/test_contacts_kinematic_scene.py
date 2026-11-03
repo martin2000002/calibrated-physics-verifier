@@ -64,7 +64,7 @@ def test_the_provider_reads_the_track_lift_and_kinematics_entries_and_is_light()
     assert (provider.stage, provider.name, provider.version) == (
         Stage.CONTACTS,
         "kinematic_scene",
-        "4",
+        "5",
     )
     assert provider.requires == (Stage.TRACK, Stage.CAMERA, Stage.KINEMATICS)
     assert provider.error_profile_reads == (Stage.TRACK, Stage.LIFT, Stage.KINEMATICS)

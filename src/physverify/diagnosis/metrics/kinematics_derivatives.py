@@ -28,7 +28,7 @@ from physverify.diagnosis.normalizers import gravity_in_units, reference_speed
 from physverify.diagnosis.settings import MetricSettings
 from physverify.schema.clip import ClipManifest
 from physverify.schema.contacts import ContactKind, ContactTable
-from physverify.schema.error_profile import ACC_REL, VEL_REL
+from physverify.schema.error_profile import ACC_REL, VEL_REL, VEL_REL_FLIGHT
 from physverify.schema.outputs import StageOutput
 from physverify.schema.scale import ScaleEstimate
 from physverify.schema.stages import Stage
@@ -48,19 +48,21 @@ def reference_speeds(truth: ObjectStateTable, pairs: StatePairs, visible: BoolAr
     )
 
 
-def impact_frames(
+def contact_frames(
     contacts: ContactTable,
     times: FloatArray,
     object_ids: list[str],
     clip: ClipManifest,
+    kind: ContactKind,
     half: float,
 ) -> BoolArray:
-    """(T, N): sample within ``half`` seconds of a ground-truth IMPACT involving the object.
+    """(T, N): sample within ``half`` seconds of a ground-truth contact of ``kind`` involving the
+    object.
 
     Contact bounds are fractional native frames; the tables' time base is frame * seconds."""
     near = np.zeros((times.size, len(object_ids)), dtype=bool)
     for record in contacts.records:
-        if record.kind is not ContactKind.IMPACT:
+        if record.kind is not kind:
             continue
         start = record.t_start * clip.seconds_per_frame - half
         end = record.t_end * clip.seconds_per_frame + half
@@ -72,15 +74,23 @@ def impact_frames(
 
 
 def velocity_samples(
-    pred: ObjectStateTable, truth: ObjectStateTable, pairs: StatePairs, visible: BoolArray
+    pred: ObjectStateTable,
+    truth: ObjectStateTable,
+    pairs: StatePairs,
+    visible: BoolArray,
+    resting: BoolArray | None,
 ) -> dict[str, FloatArray]:
+    """``vel_rel_flight`` is empty without ``resting``, the rows in a true RESTING contact."""
     residual = pairs.pred(pred.velocity) - pairs.truth(truth.velocity)
     ok = visible & finite_rows(residual)
     v_ref = reference_speeds(truth, pairs, visible)
     usable = np.isfinite(v_ref) & (v_ref > 0)
     scaled = residual / np.where(usable, v_ref, np.nan)[None, :, None]
+    measured = ok & usable[None, :]
+    flight = measured & ~resting if resting is not None else np.zeros_like(measured)
     return {
-        VEL_REL: scaled[ok & usable[None, :]].ravel(),
+        VEL_REL: scaled[measured].ravel(),
+        VEL_REL_FLIGHT: scaled[flight].ravel(),
         "vel_z": sigma_scores(residual, pairs.pred(pred.velocity_sigma), ok),
     }
 
@@ -93,13 +103,16 @@ def true_gravity(case: MetricCase) -> float:
     return gravity_in_units(scale.meters_per_unit)
 
 
-def impact_mask(case: MetricCase, truth: ObjectStateTable, pairs: StatePairs) -> BoolArray | None:
+def contact_mask(
+    case: MetricCase, truth: ObjectStateTable, pairs: StatePairs, kind: ContactKind, half: float
+) -> BoolArray | None:
+    """Paired rows near a context-CONTACTS (true) contact of ``kind``; None without context."""
     contacts = stage_output(case.context, Stage.CONTACTS, ContactTable)
     if contacts is None:
         return None
     ids = [str(truth.object_ids[j]) for j in pairs.truth_cols]
     times = truth.t[pairs.truth_rows]
-    return impact_frames(contacts, times, ids, case.clip, case.options.impact_half_window_s)
+    return contact_frames(contacts, times, ids, case.clip, kind, half)
 
 
 def acceleration_samples(
@@ -120,8 +133,8 @@ def acceleration_samples(
 @dataclass(frozen=True)
 class DerivativeMetric:
     """``vel_rel`` and ``vel_z`` need no context. ``acc_rel`` needs context SCALE (true scale);
-    ``acc_rel_impact``/``acc_rel_free`` also need context CONTACTS (true contacts). Without them
-    those keys are NaN. ``acc_z`` needs no context."""
+    ``acc_rel_impact``/``acc_rel_free`` also need context CONTACTS (true contacts), as does
+    ``vel_rel_flight``. Without them those keys are NaN. ``acc_z`` needs no context."""
 
     stage: ClassVar[Stage] = Stage.KINEMATICS
     name: ClassVar[str] = "derivatives"
@@ -138,11 +151,14 @@ class DerivativeMetric:
             raise TypeError("derivative metric compares two ObjectStateTable")
         pairs = paired_states(pred, truth)
         visible = pairs.visible(pred, truth)
-        samples = velocity_samples(pred, truth, pairs, visible)
+        resting = contact_mask(case, truth, pairs, ContactKind.RESTING, 0.0)
+        samples = velocity_samples(pred, truth, pairs, visible, resting)
         a_res = pairs.pred(pred.acceleration) - pairs.truth(truth.acceleration)
         ok_a = visible & finite_rows(a_res)
         samples["acc_z"] = sigma_scores(a_res, pairs.pred(pred.acceleration_sigma), ok_a)
-        near = impact_mask(case, truth, pairs)
+        near = contact_mask(
+            case, truth, pairs, ContactKind.IMPACT, case.options.impact_half_window_s
+        )
         samples.update(acceleration_samples(a_res, ok_a, true_gravity(case), near))
         return MetricOutcome(samples=MappingProxyType(samples))
 

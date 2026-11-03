@@ -24,7 +24,7 @@ from physverify.extraction.cache import (
     stage_key,
     step_params_hash,
 )
-from physverify.extraction.error_profile import load_error_profile
+from physverify.extraction.error_profile import load_error_profile, plan_profile_keys, stale_entries
 from physverify.extraction.pipeline_resources import LazyLock, RssProbe
 from physverify.extraction.plan import ResolvedPlan, StagePlan
 from physverify.extraction.weights import missing_weights
@@ -147,18 +147,15 @@ class ExtractionPipeline:
     def _warn_rejected_entries(self) -> None:
         """Loud, once per entry: a profile or params mismatch turns that sigma unknown (NaN)."""
         profile = self._deps.error_profile
-        keys = {
-            key for step in self._plan.stages for key in profile_keys(step.provider, self._names)
-        }
         if profile is None:
-            if keys:
+            if plan_profile_keys(self._plan):
                 log.warning(
                     "no error profile is loaded for profile %s (paths.error_profile is missing); "
                     "every measured sigma is unknown (run `diagnose stages --write-profile`)",
                     self._filter.profile,
                 )
             return
-        for entry in profile.rejected(keys, self._filter):
+        for entry in stale_entries(self._plan, profile):
             log.warning(
                 "error profile entry %s/%s %s was measured under profile %s with params_hash %s "
                 "but the plan is profile %s with params_hash %s; it is ignored and its sigma is "

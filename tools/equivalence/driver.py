@@ -514,6 +514,25 @@ def prepare(run: Path) -> None:
     folder = run / "repo" / "data" / "runs" / RAW_RUN
     folder.mkdir(parents=True)
     write_report(folder, calibration_cases.synthetic_report(40))
+    stamp_raw_run(folder, run / "repo" / "configs", os.environ)
+
+
+def stamp_raw_run(folder: Path, config_dir: Path, environ: Mapping[str, str]) -> None:
+    """Record what ``--from-run`` checks, as ``verify`` does: the side's own ``checks_hash`` under
+    ``config_dir`` and the device. A revision that predates the checks hash gets nothing."""
+    from physverify.verification import runner
+
+    if not hasattr(runner, "CHECKS_HASH_FILE"):
+        return
+    from physverify.app.context import AppContext, GlobalOptions, Invocation
+    from physverify.app.services import checks_hash_for
+    from physverify.runtime.runs import RUN_FILE
+
+    context = AppContext(Invocation((), dict(environ)), GlobalOptions(config_dir=config_dir))
+    digest = checks_hash_for(context)
+    (folder / runner.CHECKS_HASH_FILE).write_text(digest + "\n", encoding="utf-8")
+    record = {"device": context.settings.runtime.device}
+    (folder / RUN_FILE).write_text(json.dumps(record) + "\n", encoding="utf-8")
 
 
 def _canonical_npz(data: bytes) -> str:

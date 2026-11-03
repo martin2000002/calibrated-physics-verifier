@@ -95,8 +95,8 @@ EXPECTED = [
     f"extract run {KS} {CLIPS}",
     f"extract run {EXTENSION}",
     f"diagnose stages {KS} {CLIPS} --write-profile",
-    f"extract run {KS} {CLIPS}",
-    f"extract run {EXTENSION}",
+    f"extract run --strict-profile {KS} {CLIPS}",
+    f"extract run --strict-profile {EXTENSION}",
     f"calibrate stage-sigma {KS}",
 ]
 
