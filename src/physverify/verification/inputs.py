@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import math
 from collections.abc import Iterator, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from types import MappingProxyType
 from typing import NoReturn, Protocol
 
 from physverify.checks._base import CheckInputs
@@ -48,18 +49,23 @@ class RawInputs:
 
 @dataclass(frozen=True)
 class ClipInputs:
-    """``inputs`` or ``error``; ``level`` labels the abstentions of a clip without inputs."""
+    """``inputs`` or ``error``; ``level`` labels the abstentions of a clip without inputs.
+    ``by_check`` holds the inputs of the checks routed to another plan."""
 
     clip: ClipManifest
     inputs: CheckInputs | None
     error: str | None
     level: InputLevel | None = None
+    by_check: Mapping[str, ClipInputs] = field(default_factory=lambda: MappingProxyType({}))
 
     def __post_init__(self) -> None:
         if (self.inputs is None) == (self.error is None):
             raise ValueError("ClipInputs needs exactly one of inputs and error")
         if self.inputs is None and self.level is None:
             raise ValueError("a ClipInputs without inputs needs its level")
+
+    def for_check(self, check_id: str) -> ClipInputs:
+        return self.by_check.get(check_id, self)
 
     @property
     def input_level(self) -> InputLevel:

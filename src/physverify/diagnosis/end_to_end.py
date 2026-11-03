@@ -33,7 +33,7 @@ from physverify.diagnosis.report import (
     dataset_versions,
     z_coverage,
 )
-from physverify.diagnosis.verification_adapter import CheckSuite
+from physverify.diagnosis.verification_adapter import CheckSuite, variant_inputs
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
 from physverify.schema.clip import ClipManifest
 from physverify.schema.perception import MaskTrack
@@ -196,11 +196,14 @@ def variant_outputs(chain: ChainRunner, clip: ClipManifest, variant: Variant) ->
 
 
 def variant_results(
-    suite: CheckSuite, clip: ClipManifest, outputs: VariantOutputs, level: InputLevel
+    suite: CheckSuite,
+    chain: ChainRunner,
+    clip: ClipManifest,
+    outputs: VariantOutputs,
+    level: InputLevel,
 ) -> tuple[CheckResult, ...]:
-    """Check results of one variant, built through the suite's single inputs builder."""
-    inputs = suite.inputs(clip, outputs.outputs, outputs.plan.names, level)
-    return tuple(suite.evaluate(inputs))
+    """Check results of one variant, on the routed inputs ``verify`` would read."""
+    return tuple(suite.evaluate(variant_inputs(chain, clip, outputs, level)))
 
 
 def decided(suite: CheckSuite, results: Sequence[CheckResult]) -> tuple[CheckResult, ...]:
@@ -241,8 +244,8 @@ def _clip_end_to_end(run: _Run, clip: ClipManifest) -> ClipEndToEnd:
     suite = run.suite
     v8 = variant_outputs(run.chain, clip, oracle_variant())
     v0 = variant_outputs(run.chain, clip, perceived_variant())
-    oracle = decided(suite, variant_results(suite, clip, v8, InputLevel.ORACLE))
-    perceived = decided(suite, variant_results(suite, clip, v0, InputLevel.PERCEIVED))
+    oracle = decided(suite, variant_results(suite, run.chain, clip, v8, InputLevel.ORACLE))
+    perceived = decided(suite, variant_results(suite, run.chain, clip, v0, InputLevel.PERCEIVED))
     subjects = match_subjects(track_of(v0), track_of(v8))
     perceived_pairs = pair_results(oracle, perceived, subjects, run.min_span_iou)
     truth_inputs = suite.truth_inputs(run.dataset, clip)

@@ -12,19 +12,18 @@ from physverify.core.errors import ConfigError
 from physverify.diagnosis.chain_runner import ChainRunner
 from physverify.diagnosis.chain_variants import (
     CELLS,
-    EXTRACTION_SECTION,
     FACTORS,
-    PLAN_KEY,
     apply_overrides,
     cell_name,
     factorial_cells,
     ladder,
     scale_variants,
     truth_covers,
-    with_provider,
 )
 from physverify.diagnosis.settings import diagnosis_settings
 from physverify.extraction._base import GROUND_TRUTH
+from physverify.extraction.routes import PLAN_KEY, with_provider
+from physverify.extraction.settings import SECTION as EXTRACTION_SECTION
 from physverify.schema.clip import Split
 from physverify.schema.stages import STAGE_ORDER, Stage
 

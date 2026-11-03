@@ -26,7 +26,7 @@ from physverify.diagnosis.end_to_end import (
     variant_results,
 )
 from physverify.diagnosis.pairing import Paired, ResultPair, pair_results, span_iou
-from physverify.diagnosis.verification_adapter import CheckSuite
+from physverify.diagnosis.verification_adapter import CheckSuite, variant_inputs
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
 from physverify.schema.clip import ClipManifest, Split
 from physverify.schema.matching import IdMap, MatchMethod
@@ -234,7 +234,7 @@ def magnitudes(
     chain = ctx.chain(ctx.dataset())
     chain.warm([clip], [variant])
     level = InputLevel.PERCEIVED if perceived else InputLevel.ORACLE
-    results = variant_results(suite, clip, variant_outputs(chain, clip, variant), level)
+    results = variant_results(suite, chain, clip, variant_outputs(chain, clip, variant), level)
     return {r.subject: r.magnitude for r in results if r.magnitude is not None}
 
 
@@ -243,7 +243,7 @@ def script_truth_from_v8(ctx: DiagnosisContext, suite: Suite, clip: ClipManifest
     chain = ctx.chain(ctx.dataset())
     chain.warm([clip], [oracle_variant()])
     outputs = variant_outputs(chain, clip, oracle_variant())
-    inputs = suite.inputs(clip, outputs.outputs, outputs.plan.names, InputLevel.ORACLE)
+    inputs = variant_inputs(chain, clip, outputs, InputLevel.ORACLE).inputs
     suite.truth = {clip.clip_id: inputs}
 
 

@@ -91,7 +91,7 @@ def _pairs(
 ) -> tuple[Paired, str]:
     """``variant``'s results paired with the oracle; ids need matching only without true DETECT."""
     outputs = variant_outputs(run.chain, clip, variant)
-    results = variant_results(run.suite, clip, outputs, level)
+    results = variant_results(run.suite, run.chain, clip, outputs, level)
     true_ids = Stage.DETECT in variant.gt_stages
     subjects = None if true_ids else match_subjects(track_of(outputs), oracle.track)
     paired = pair_results(oracle.results, results, subjects, run.min_span_iou)
@@ -102,7 +102,7 @@ def _clip_cells(run: _Run, clip: ClipManifest) -> ClipCells:
     """Variants are loaded one at a time; only the oracle track is kept for subject matching."""
     oracle_outputs = variant_outputs(run.chain, clip, oracle_variant())
     oracle = _Oracle(
-        variant_results(run.suite, clip, oracle_outputs, InputLevel.ORACLE),
+        variant_results(run.suite, run.chain, clip, oracle_outputs, InputLevel.ORACLE),
         track_of(oracle_outputs),
     )
     del oracle_outputs

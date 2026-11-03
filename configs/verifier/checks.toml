@@ -98,6 +98,23 @@ R5a = 11.34
 [verification.profiles.precise.threshold_units]
 R5a = "accel_wald_chi2_3"
 
+# Input routes (verification/check_routes.py): routes.<name>.<stage> = <provider> is the main
+# extraction plan with that stage's provider substituted, and check_routes.<id> = <name> makes
+# that check read the route's inputs; every other check reads the main plan. Stages a route
+# leaves alone, and every stage upstream of the first one it changes, share the main plan's
+# cache keys. R3a under precise reads depth from the apparent mask area along each track
+# (lift/backproject_area_depth; its min_rows, 3 by default, is set with
+# --set extraction.providers.lift.backproject_area_depth.min_rows=<n>), so its kinematics and
+# contacts are recomputed from it. No profile may route R4_size to that lift: a
+# size-change check fed a depth taken from the apparent size would measure its own input.
+# --set verification.routes.area_depth.lift=backproject points the route back at the main lift,
+# so R3a reads the main plan again (the checks hash still names the route).
+[verification.profiles.precise.routes.area_depth]
+lift = "backproject_area_depth"
+
+[verification.profiles.precise.check_routes]
+R3a = "area_depth"
+
 [verification.specificity]
 abs_tol = 1e-3
 rel_tol = 0.02

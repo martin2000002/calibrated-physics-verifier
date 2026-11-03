@@ -14,8 +14,8 @@ from physverify.app.services import (
     chain_runner,
     checks_hash_for,
     dataset_for,
+    perceived_source,
     pipeline_deps,
-    plan_for,
 )
 from physverify.calibration.artifact_io import default_artifact_path, load_calibration
 from physverify.calibration.collect import SubjectLookup, Subjects
@@ -77,12 +77,11 @@ from physverify.schema.checks import InputLevel
 from physverify.schema.clip import ClipManifest, Split
 from physverify.synth.plan import family_of
 from physverify.synth.scene_scope import scene_of
+from physverify.verification.check_routes import check_routing
 from physverify.verification.check_set import CHECKS_SECTION, ChecksSettings, build_checks
 from physverify.verification.inputs import (
     InputSource,
     OracleSource,
-    PerceivedSource,
-    PipelineOutputLoader,
     refuse_heavy,
 )
 from physverify.verification.policies.raw import RawPolicy
@@ -216,7 +215,7 @@ def fit_stage_sigma(
             f"no error profile at {ctx.settings.paths.error_profile}: run `diagnose stages`"
         )
     runner = ctx.chain(source).with_error_profile(None)
-    pairs = stage_pairs(ctx.diag)
+    pairs = stage_pairs(ctx.diag, check_routing(ctx.settings).routes)
     warm_variants(runner, calib, pair_variants(pairs), skip_failed=False)
     samples = measure(
         runner, calib, ctx.metrics, pairs, ctx.diag.metrics, ctx.settings.runtime.workers
@@ -350,7 +349,7 @@ def _raw_runner(context: AppContext) -> VerificationRunner:
     registry = registry_of(context, CHECKS)
     overrides = context.settings.section(CHECKS_SECTION, ChecksSettings)
     return VerificationRunner(
-        build_checks(registry, overrides),
+        build_checks(registry, overrides, check_routing(context.settings)),
         RawPolicy(),
         ThresholdTable.provisional({}),
         context.settings.runtime.workers,
@@ -360,9 +359,7 @@ def _raw_runner(context: AppContext) -> VerificationRunner:
 def _input_source(context: AppContext, dataset: DatasetSource, level: InputLevel) -> InputSource:
     if level is InputLevel.ORACLE:
         return OracleSource(dataset)
-    plan = plan_for(context, dataset=dataset.name)
-    deps = pipeline_deps(context, None, partial(refuse_heavy, dataset.name))
-    return PerceivedSource(dataset, PipelineOutputLoader(plan, deps), level)
+    return perceived_source(context, dataset, level)
 
 
 def _subject_lookup(context: AppContext, dataset: DatasetSource) -> SubjectLookup:

@@ -17,6 +17,7 @@ from physverify.diagnosis.chain_variants import (
     Variant,
     ladder,
     oracle_variant,
+    route_variants,
     scale_variants,
     truth_covers,
 )
@@ -54,6 +55,7 @@ from physverify.runtime.parallel import ordered_map
 from physverify.schema.clip import ClipManifest, Split
 from physverify.schema.outputs import StageOutput
 from physverify.schema.stages import STAGE_ORDER, Stage
+from physverify.verification.check_routes import check_routing
 
 Z_SUFFIX = "_z"
 
@@ -65,12 +67,20 @@ class StagePair:
     truth: Variant
 
 
-def stage_pairs(diag: DiagnosisSettings) -> tuple[StagePair, ...]:
-    """(V_k, V_{k+1}) per stage, plus V5 with each SCALE provider against V6."""
+def stage_pairs(
+    diag: DiagnosisSettings, routes: Mapping[str, Mapping[Stage, str]] = MappingProxyType({})
+) -> tuple[StagePair, ...]:
+    """(V_k, V_{k+1}) per stage, plus V5 with each SCALE provider against V6, plus V_k on each
+    input route against V_{k+1} for every stage the route substitutes."""
     variants = ladder()
     pairs = [StagePair(stage, variants[k], variants[k + 1]) for k, stage in enumerate(STAGE_ORDER)]
     scale_truth = variants[STAGE_ORDER.index(Stage.SCALE) + 1]
     pairs += [StagePair(Stage.SCALE, v, scale_truth) for v in scale_variants(diag.scale.providers)]
+    pairs += [
+        StagePair(stage, v, variants[STAGE_ORDER.index(stage) + 1])
+        for name, stages in sorted(routes.items())
+        for stage, v in route_variants(name, stages)
+    ]
     for pair in pairs:
         if not truth_covers(pair.truth, pair.stage):
             raise ValueError(
@@ -303,7 +313,7 @@ def run_stage_errors(
 ) -> StageErrorReport:
     diag = ctx.diag
     dataset = ctx.dataset()
-    pairs = stage_pairs(diag)
+    pairs = stage_pairs(diag, check_routing(ctx.settings).routes)
     variants = pair_variants(pairs)
     calib, report = clips_of(clips, diag.profile_split), clips_of(clips, diag.report_split)
     runner = ctx.chain(dataset).with_error_profile(None)

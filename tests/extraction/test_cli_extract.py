@@ -15,7 +15,7 @@ from support import plan_overrides
 from synthetic_clip import CLIP_ID, SyntheticFixtureDataset
 
 from physverify.app import plugins
-from physverify.app.extraction import EVENTS_FILE
+from physverify.app.extraction import EVENTS_FILE, route_events_file
 from physverify.core.errors import PluginError
 from physverify.extraction._base import StageContext, provider_key
 from physverify.runtime.heavy import holder_path
@@ -40,10 +40,10 @@ def fixture_registries(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(plugins, "PLUGIN_KINDS", MappingProxyType(patched))
 
 
-def events_of(output: str) -> list[dict[str, Any]]:
+def events_of(output: str, events_file: str = EVENTS_FILE) -> list[dict[str, Any]]:
     (line,) = [line for line in output.splitlines() if line.startswith("run: ")]
     run_dir = Path(line.removeprefix("run: "))
-    lines = (run_dir / EVENTS_FILE).read_text().splitlines()
+    lines = (run_dir / events_file).read_text().splitlines()
     return [json.loads(line) for line in lines]
 
 
@@ -100,3 +100,40 @@ def test_an_aborted_run_still_writes_the_finished_events(
     events = events_of(result.out)
     assert [e["stage"] for e in events] == ["detect", "track", "depth"]
     assert (events[-1]["clip_id"], events[-1]["error"]) == (CLIP_ID, "aborted: PluginError: boom")
+
+
+AREA_ROUTE = [
+    "--set",
+    "verification.routes.area_depth.lift=backproject_area_depth",
+    "--set",
+    "verification.check_routes.R3a=area_depth",
+]
+HEAVY = ["detect", "track", "depth", "camera"]
+
+
+def test_a_route_reuses_the_main_runs_upstream_stages_and_recomputes_from_its_lift(
+    cli: CliRunner,
+) -> None:
+    result = cli(*FAKE_PLAN, *AREA_ROUTE, *RUN)
+    assert result.code == 0, result.err
+    assert "route area_depth:" in result.out
+    assert result.out.count("run: ") == 1
+    main = events_of(result.out)
+    assert [e["stage"] for e in main] == [s.value for s in STAGE_ORDER]
+    assert not any(e["cached"] for e in main)
+    routed = events_of(result.out, route_events_file("area_depth"))
+    assert [e["stage"] for e in routed] == [s.value for s in STAGE_ORDER]
+    assert [e["stage"] for e in routed if e["cached"]] == HEAVY
+    lift = {e["stage"]: e["provider"] for e in routed}["lift"]
+    assert lift == "backproject_area_depth"
+    again = cli(*FAKE_PLAN, *AREA_ROUTE, *RUN)
+    assert again.code == 0, again.err
+    assert all(e["cached"] for e in events_of(again.out, route_events_file("area_depth")))
+
+
+def test_without_a_route_no_route_events_are_written(cli: CliRunner) -> None:
+    result = cli(*FAKE_PLAN, *RUN)
+    assert result.code == 0, result.err
+    assert "route " not in result.out
+    with pytest.raises(FileNotFoundError):
+        events_of(result.out, route_events_file("area_depth"))

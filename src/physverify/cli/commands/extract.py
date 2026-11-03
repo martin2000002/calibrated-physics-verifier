@@ -33,7 +33,7 @@ def run(
         typer.Option(help="Exit 2 when a provider reads a missing or stale error profile."),
     ] = False,
 ) -> None:
-    report = extraction.run_extraction(
+    reports = extraction.run_extraction(
         app_context(ctx),
         dataset,
         clips or (),
@@ -44,7 +44,7 @@ def run(
         strict_profile=strict_profile,
         echo=typer.echo,
     )
-    if report.failures:
+    if any(report.failures for report in reports):
         raise typer.Exit(code=EXIT_ERROR)
 
 

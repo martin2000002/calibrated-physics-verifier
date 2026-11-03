@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Final
 
 from physverify.app.context import AppContext
-from physverify.app.services import dataset_for, pipeline_deps, plan_for, scorer_for
+from physverify.app.services import dataset_for, perceived_source, scorer_for
 from physverify.checks._base import CHECKS
 from physverify.config.models import Settings, is_cuda_device
 from physverify.config.plugin_context import registry_of
@@ -83,7 +83,6 @@ from physverify.timing.finetune_budget import BudgetRequest as BudgetRequest
 from physverify.timing.finetune_budget import budget_report
 from physverify.timing.settings import load_timing
 from physverify.verification._base import POLICIES
-from physverify.verification.inputs import PerceivedSource, PipelineOutputLoader
 from physverify.verification.runner import configured_suite
 
 NESTED_LOCK: Final = "held by finetune"
@@ -144,11 +143,12 @@ def scoring_deps(context: AppContext, purge_stale_cache: bool = False) -> Scorin
         context.settings, registry_of(context, CHECKS), registry_of(context, POLICIES)
     )
     dataset = dataset_for(context, LOCAL_VIDEO)
-    plan = plan_for(context, dataset=LOCAL_VIDEO)
-    loader = PipelineOutputLoader(plan, pipeline_deps(context, None, lambda: NullLock(NESTED_LOCK)))
+    source = perceived_source(
+        context, dataset, InputLevel.PERCEIVED, heavy_lock=lambda: NullLock(NESTED_LOCK)
+    )
     return ScoringDeps(
         clips=dataset.clips,
-        source=PerceivedSource(dataset, loader, InputLevel.PERCEIVED),
+        source=source,
         runner=suite.runner(),
         guard=cache_guard(context.settings, purge_stale_cache),
     )

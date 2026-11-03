@@ -6,6 +6,7 @@ from __future__ import annotations
 import dataclasses
 import shutil
 from collections.abc import Iterator, Mapping
+from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -19,10 +20,13 @@ from physverify.config.loader import load_settings, read_config_files
 from physverify.config.models import PathsSettings, Settings
 from physverify.datasets._kubric_synthetic import content_identity
 from physverify.extraction.cache import plan_entry_filter, stage_key
+from physverify.extraction.plan import ResolvedPlan
+from physverify.extraction.routes import route_plans
 from physverify.schema.clip import resolve_sampling
 from physverify.schema.io import stable_hash
 from physverify.schema.stages import Stage
 from physverify.synth.settings import load_dataset_settings
+from physverify.verification.check_routes import check_routing
 
 REPO_CONFIGS = Path(__file__).resolve().parents[2] / "configs"
 KEY_PATHS = Path(__file__).with_name("data") / "config_key_paths.txt"
@@ -30,36 +34,48 @@ PINNED_ROOT = "/pinned"
 
 SECTIONS_HASH = {
     "fast": "e24a269c3ca07ee6a5af92512a1e9148ebfdc960fa0bb1b80fd78ddaebc75855",
-    "precise": "9c53077954f9431db16bf08f67befe899c08b24adc5f1d8e36b3b105e52a6be9",
+    "precise": "bd89751a1b3e965c9b2843de4e22e8e3b79466566b60a282c09f41b113aaf4e1",
 }
 CONFIG_HASH = {
     "fast": "9fe0de4030620a52c878f2ea888d9b1e8fc8b8a342988ed3aefb8a6e75f06bfa",
-    "precise": "4e78cfae92ca8a980905fd67cf8dc032ca5fcd2ea672fbe1bf7502572d7af3ef",
+    "precise": "f2075211f67a4bd9bf9320bb466382b7e1b9d5d05b4f1e7ed6129a2c5e5881ed",
 }
 LOOK_CONFIG_HASH = {
     "fast": "0f1b1b32aac0093908e9f2199231b4c4273d24094b8c88b3f8d7a6dfe72fb40b",
-    "precise": "e62dd51c8d580526d33df1e877ef0ccb6079f8a6ea786ccca5cc9ed91ca4e7cf",
+    "precise": "220f8e12c2376b61483349d7dd9d53a4b9a3be9f9e633c6d95c4e8de849813dd",
 }
 CHECKS_HASH = "5c5820acaf1bfce8270cdc8653a9eefd373f9feccde4baaac4b3a4510198f78e"
+ROUTED_CHECKS_HASH = {
+    "precise": "1cb265b2c5085d705441f409176f2f20b9a09a69e875e1cd04729068fa007ff8",
+}
+"""``CHECKS_HASH`` with the input routes of a profile that routes a check; a profile without
+routes hashes its default checks as ``CHECKS_HASH``."""
 RUN_CHECKS_HASH = {
     "fast": "5c5820acaf1bfce8270cdc8653a9eefd373f9feccde4baaac4b3a4510198f78e",
-    "precise": "ad9f8ded560f66eabff9b650d1b8cb69c0b86539b21eb94ae4ad4b9f2551d6ec",
+    "precise": "35546962197b93e06aa1677e5b34e121d410ccbdc601b81496754918c9981996",
 }
 PRECISE_STAGE_KEYS_HASH = "d9b9e880768fb779384a271017fb36c975bb5e4290ebadaeee21e9f8325240a0"
 """Hash of every stage key of the precise plan for the declared calib dataset. It and
 ``RUN_CHECKS_HASH["precise"]`` are what the defaults give with the same choices passed by
 ``--set``."""
+PRECISE_ROUTE_STAGE_KEYS_HASH = {
+    "area_depth": "0acea35986efeac48dc7923351f183b2c05f7f7cca3470ea03d0abae05908db4",
+}
+"""Per input route of the precise profile, the hash of every stage key of its plan, as
+``PRECISE_STAGE_KEYS_HASH`` is of the main plan's."""
 PRECISE_CHOICES = (
     "extraction.plan.contacts=kinematic_scene",
     "check_variants.R4_size=v3_window_depth_unoccluded",
     "check_variants.R5a=whitened",
     "check_variants.R4_jump=rigid2_dfloor",
+    "verification.routes.area_depth.lift=backproject_area_depth",
+    "verification.check_routes.R3a=area_depth",
 )
 DATASET_CONTENT_HASH = {
     "fast": "7792797236e163025d89c1c518dc43ad8f90c3f511bd884e1969ca9bf1f2fa3e",
     "precise": "4a6829efdd64424d79dfc0941246de148ca50446e0f6f40738e3a02d1b8e8b4e",
 }
-NO_IDENTITY_STAGE_KEYS_HASH = "eeff3bf8e53c72383a4825f6294338197dba1fe12629a36db90723f6b53dfc7c"
+NO_IDENTITY_STAGE_KEYS_HASH = "7a7540bde6c86abb4ae495218da40dbe2b88dceb03885ba002872109e82e5322"
 """Hash of ``STAGE_KEYS`` computed for a dataset without cache identity (PISA, Physics-IQ,
 Objectron): the table as it was before identities entered the key, so those caches stay valid,
 except the three GeoCalib cameras, whose version moved when their draw was seeded,
@@ -104,6 +120,9 @@ STAGE_KEYS = {
     "lift/ground_anchored": "b74cfce0b916220d1d151afb163ef69418fd91c5520659dcaa61f57716f84da5",
     "lift/backproject_size_constancy": (
         "e0d1d4a13a47ad1ac473a2a02d84b2e465d36d313c79f0c14c861e3263f69cf8"
+    ),
+    "lift/backproject_area_depth": (
+        "cd92dfccf4ebd2064a83f4b0c05b32211f2debdf1dee34a61a0f87a1eed3b540"
     ),
     "scale/free_fall": "35e953454486c4732ba0858bf2070e7ecc5ad18d0cd1b1c3375f86f5b2322f7d",
     "scale/metric_depth": "a3fdd8b10d7115559cae9de0560fe1cd4def96ca09efc43af114459ee8460c25",
@@ -161,8 +180,21 @@ def _stage_keys(
     gt: tuple[Stage, ...],
     dataset: str | None,
 ) -> Any:
-    clip = synthetic_clip.manifest()
     plan = resolve_plan(settings, providers, dataset=synthetic_clip.DATASET, gt_stages=gt)
+    return _plan_keys(plan, dataset)
+
+
+def _route_keys(
+    settings: Settings, providers: Mapping[str, Any], dataset: str | None
+) -> dict[str, dict[Stage, str]]:
+    """The stage keys of each input route's plan."""
+    resolve = partial(resolve_plan, providers=providers, dataset=synthetic_clip.DATASET)
+    routes = route_plans(settings, check_routing(settings).routes, resolve)
+    return {name: _plan_keys(plan, dataset) for name, plan in routes.items()}
+
+
+def _plan_keys(plan: ResolvedPlan, dataset: str | None) -> dict[Stage, str]:
+    clip = synthetic_clip.manifest()
     sampling = resolve_sampling(clip, plan.sampling)
     accept = plan_entry_filter(plan)
     keys: dict[Stage, str] = {}
@@ -206,7 +238,7 @@ def test_section_hashes_are_unchanged(configs: Path, profile: str) -> None:
     settings = _settings(configs, profile)
     assert stable_hash(dict(settings.sections)) == SECTIONS_HASH[profile]
     assert look_config_hash(settings) == LOOK_CONFIG_HASH[profile]
-    assert active_checks_hash(settings) == CHECKS_HASH
+    assert active_checks_hash(settings) == ROUTED_CHECKS_HASH.get(profile, CHECKS_HASH)
     assert run_checks_hash(settings) == RUN_CHECKS_HASH[profile]
     assert load_dataset_settings(settings).content_hash() == DATASET_CONTENT_HASH[profile]
 
@@ -222,9 +254,15 @@ def test_the_precise_defaults_hash_as_their_explicit_choices(
     configs: Path, providers: Mapping[str, Any], overrides: tuple[str, ...]
 ) -> None:
     settings = _settings(configs, "precise", overrides)
-    keys = _stage_keys(settings, providers, (), _calib_identity(settings))
+    identity = _calib_identity(settings)
+    keys = _stage_keys(settings, providers, (), identity)
     assert run_checks_hash(settings) == RUN_CHECKS_HASH["precise"]
     assert stable_hash({s.value: k for s, k in keys.items()}) == PRECISE_STAGE_KEYS_HASH
+    routes = {
+        name: stable_hash({s.value: k for s, k in route.items()})
+        for name, route in _route_keys(settings, providers, identity).items()
+    }
+    assert routes == PRECISE_ROUTE_STAGE_KEYS_HASH
 
 
 @pytest.mark.parametrize("key", list(STAGE_KEYS))

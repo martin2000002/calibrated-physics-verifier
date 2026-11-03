@@ -196,7 +196,9 @@ def _clip_results(
         return []
     level = InputLevel.PERCEIVED
     results = _attempt(
-        clip, out.failures, lambda: decided(suite, variant_results(suite, clip, outputs, level))
+        clip,
+        out.failures,
+        lambda: decided(suite, variant_results(suite, chain, clip, outputs, level)),
     )
     return list(results or ())
 
