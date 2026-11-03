@@ -1,4 +1,4 @@
-"""The selective-risk study reads the calibration chain's population, declared once."""
+"""The selective-risk study reads the calibration chain's population and k, declared once."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from physverify.selective_risk.settings import (
     Population,
     population,
 )
-from physverify.selective_risk.tables import split_clips
+from physverify.selective_risk.tables import named_ks, split_clips
 
 
 def test_the_population_is_the_calibration_section(make_settings: SettingsFactory) -> None:
@@ -58,3 +58,8 @@ def test_one_split_of_the_subset_is_read() -> None:
     assert split_clips(source, "full", Split.EVAL) == [held]  # type: ignore[arg-type]
     assert split_clips(source, "full", Split.CALIB) == [calib]  # type: ignore[arg-type]
     assert source.asked == ["full", "full"]
+
+
+def test_the_configured_k_is_reported_next_to_k_star() -> None:
+    assert named_ks(None, 2.5) == {"k_2": 2.5}
+    assert list(named_ks(1.7, 2.5).items()) == [("k_star", 1.7), ("k_2", 2.5)]

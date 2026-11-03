@@ -9,6 +9,7 @@ from physverify.app.context import AppContext
 from physverify.app.sealing import Selection, guard_sealed
 from physverify.app.services import chain_runner, check_suite, dataset_for, pipeline_deps
 from physverify.calibration.artifact_io import default_artifact_path
+from physverify.calibration.settings import calibration_config
 from physverify.checks._base import CHECKS
 from physverify.config.plugin_context import registry_of
 from physverify.core.atomic import write_text_atomic
@@ -143,6 +144,7 @@ def _session(
         min_span_iou=diagnosis_settings(settings).end_to_end.min_span_iou,
         checks=units_of(registry),
         couplings=frozenset((p, c) for p, c in verification.specificity.couplings),
+        configured_k=calibration_config(settings).policy.k_sigma,
     )
 
 

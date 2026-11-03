@@ -38,10 +38,10 @@ from physverify.selective_risk.fit import choose_k, curve_rows, paired_aurc_diff
 from physverify.selective_risk.records import ComparedTables, SweptTable
 from physverify.selective_risk.settings import AbstentionSettings, Population
 from physverify.verification.sweep import CheckUnit
-from physverify.verification.thresholding import ThresholdParams, ThresholdTable, load_thresholds
+from physverify.verification.thresholding import ThresholdTable, load_thresholds
 
-DEFAULT_K = ThresholdParams().k_sigma
-"""The default k of ``ThresholdParams``, reported next to k* as ``k_2``."""
+CONFIGURED_K = "k_2"
+"""The persisted name of the rows at the configured ``k_sigma`` of the threshold policy."""
 
 
 @dataclass(frozen=True)
@@ -70,6 +70,8 @@ class Session:
     min_span_iou: float
     checks: tuple[CheckUnit, ...]
     couplings: frozenset[tuple[str, str]]
+    configured_k: float
+    """``k_sigma`` of ``[verification.policies.threshold]``, what ``verify`` decides with."""
 
 
 def level_tables(
@@ -198,8 +200,8 @@ def sweep(collected: Collected, thresholds: ThresholdTable, settings: Abstention
     return Swept(table, codes)
 
 
-def named_ks(fitted: float | None) -> dict[str, float]:
-    return {"k_2": DEFAULT_K} if fitted is None else {"k_star": fitted, "k_2": DEFAULT_K}
+def named_ks(fitted: float | None, configured: float) -> dict[str, float]:
+    return ({} if fitted is None else {"k_star": fitted}) | {CONFIGURED_K: configured}
 
 
 def compare_tables(

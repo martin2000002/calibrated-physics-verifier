@@ -46,7 +46,6 @@ from physverify.selective_risk.records import (
 )
 from physverify.selective_risk.settings import ABSTENTION_FILE, AbstentionSettings
 from physverify.selective_risk.tables import (
-    DEFAULT_K,
     Collected,
     Session,
     collect_real,
@@ -119,7 +118,9 @@ def curve_parts(session: Session, evaluated: Collected, fitted: float | None) ->
     """Per check, against the injected label, z and real video, all on the perceived table."""
     calibrated, settings = session.thresholds, session.settings
     return CurveParts(
-        per_check=per_check_rows(evaluated.cases, calibrated, named_ks(fitted), settings.ci),
+        per_check=per_check_rows(
+            evaluated.cases, calibrated, named_ks(fitted, session.configured_k), settings.ci
+        ),
         injected_label=_injected(session, evaluated, fitted),
         z=_z_summary(evaluated.cases, calibrated),
         real_video=_real(session, fitted),
@@ -159,8 +160,8 @@ def _row_role(session: Session, clip: ClipManifest, check_id: str) -> Role:
 
 
 def _injected(session: Session, collected: Collected, k: float | None) -> InjectedLabel:
-    """Risk at k (default 2) of the (clip, check) rows against the calibration chain's injected
-    label, and the rows where the oracle's point verdict disagrees with that label."""
+    """Risk at k (else the configured k) of the (clip, check) rows against the calibration
+    chain's injected label, and the rows where the oracle's point verdict disagrees with it."""
     cases = collected.cases
     keys = [(c.clip_id, c.check_id) for c in cases]
     labels = {
@@ -171,7 +172,7 @@ def _injected(session: Session, collected: Collected, k: float | None) -> Inject
     }
     if not labels:
         return InjectedLabel(rows=0)
-    chosen, s = DEFAULT_K if k is None else k, session.settings
+    chosen, s = session.configured_k if k is None else k, session.settings
     decided = row_codes(keys, decision_codes(cases, [chosen], session.thresholds)[0])
     oracle = row_codes(keys, reference_codes(cases))
     order = sorted(labels)
@@ -208,7 +209,8 @@ def _z_summary(cases: Sequence[Case], thresholds: ThresholdTable) -> ZSummary:
 
 
 def _real(session: Session, k: float | None) -> dict[str, RealRows | RealError]:
-    """False-fail rate and coverage on real video at k* and k = 2 (every reference PASS)."""
+    """False-fail rate and coverage on real video at k* and the configured k (every reference
+    PASS)."""
     out: dict[str, RealRows | RealError] = {}
     s = session.settings
     for dataset in session.population.real_datasets:
@@ -217,17 +219,19 @@ def _real(session: Session, k: float | None) -> dict[str, RealRows | RealError]:
         except PhysverifyError as error:
             out[dataset] = RealError(error=str(error))
             continue
-        out[dataset] = real_rows(collected, session.thresholds, k, s.ci)
+        out[dataset] = real_rows(
+            collected, session.thresholds, named_ks(k, session.configured_k), s.ci
+        )
     return out
 
 
 def real_rows(
-    collected: Collected, thresholds: ThresholdTable, k: float | None, ci: float
+    collected: Collected, thresholds: ThresholdTable, ks: Mapping[str, float], ci: float
 ) -> RealRows:
-    """One real dataset: counts and the point rows at k* and k = 2."""
+    """One real dataset: counts and the point rows at ``ks`` (``named_ks``)."""
     reference = reference_codes(collected.cases)
     rows: dict[str, PointRow] = {}
-    for name, value in named_ks(k).items():
+    for name, value in ks.items():
         codes = decision_codes(collected.cases, [value], thresholds)[0]
         rows[name] = point_row(curve_point(codes, reference), value, float(norm.sf(value)), ci)
     return RealRows(n=_counts(collected), **rows)
