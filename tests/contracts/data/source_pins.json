@@ -13,11 +13,11 @@
       "version": "1"
     },
     "R5a/whitened": {
-      "digest": "d6306640827179bbfb0a0452964a87539d607d6cac7e4e6b06a540bc0d3cb545",
+      "digest": "b3a5300f1240ad067bf2b0d250c54a838e52e5abe1eee730daac56888bc92eb9",
       "version": "1"
     },
     "R5b/unsupported": {
-      "digest": "4f5c95f2403febc9f75be9419a799c588b7f45c32f45a8bdb2badaa6b38276e0",
+      "digest": "81ee58b771a5cea71c89796ed88f6b94e1637fec397bf318c66c9edaf7863525",
       "version": "1"
     }
   },
@@ -55,7 +55,7 @@
       "version": "1"
     },
     "R5b": {
-      "digest": "33083d4d067f59654c2e9136d2407d29b24b1342b761b72d12999139fbefb2ff",
+      "digest": "331cd2fcbdea07449561292512335212e268d80ecb234d5a99d979b6da5b9468",
       "version": "1"
     }
   },

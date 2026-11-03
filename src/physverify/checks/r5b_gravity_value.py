@@ -96,7 +96,7 @@ class GravityValueCheck:
         mpu = scale.meters_per_unit
         accels = [fit_flight(states, f).a for f in flights]
         errors = [gravity_rel_error(float(np.linalg.norm(a)), mpu) for a in accels]
-        middle = _middle(errors)
+        middle = median_indices(errors)
         magnitude = float(np.mean([errors[m] for m in middle]))
         sigma = _sigma(states, [flights[m] for m in middle], [accels[m] for m in middle], scale)
         span = flights_span(states.frame_index, flights)
@@ -104,7 +104,7 @@ class GravityValueCheck:
         return unscored(type(self), inputs, SUBJECT, magnitude, sigma, span, details)
 
 
-def _middle(values: Sequence[float]) -> list[int]:
+def median_indices(values: Sequence[float]) -> list[int]:
     """Indices whose mean is the median: one for an odd count, the two central for an even."""
     order = sorted(range(len(values)), key=lambda n: values[n])
     half = len(order) // 2
@@ -117,17 +117,25 @@ def _sigma(
     accels: Sequence[Any],
     scale: EffectiveScale,
 ) -> float:
-    """First order on the mean of the central flights' errors e_f = |x_f - 1|, x_f = |a_f| mpu/g0:
-    the position terms are independent per flight, the scale term (dx/x = ds/s) is shared.
+    """``mean_error_sigma`` with x_f = |a_f| mpu / g0 and the variance of x_f from sigma_|a|.
     With one flight it is x sqrt((sigma_|a| / |a|)^2 + rel_sigma^2)."""
-    weight = 1.0 / len(flights)
     per_unit = scale.meters_per_unit / STANDARD_GRAVITY
     ratios = [per_unit * float(np.linalg.norm(a)) for a in accels]
-    position = sum(
+    variances = [
         (per_unit * _accel_norm_sigma(states, f, a)) ** 2
         for f, a in zip(flights, accels, strict=True)
-    )
-    shared = sum(math.copysign(x, x - 1.0) for x in ratios) * scale.rel_sigma
+    ]
+    return mean_error_sigma(variances, ratios, scale.rel_sigma)
+
+
+def mean_error_sigma(
+    variances: Sequence[float], ratios: Sequence[float], rel_sigma: float
+) -> float:
+    """First order on the mean of the central flights' errors e_f = |x_f - 1|: the position
+    variances of x_f are independent per flight, the scale term (dx/x = ds/s) is shared."""
+    weight = 1.0 / len(ratios)
+    position = sum(variances)
+    shared = sum(math.copysign(x, x - 1.0) for x in ratios) * rel_sigma
     return weight * math.sqrt(position + shared**2)
 
 

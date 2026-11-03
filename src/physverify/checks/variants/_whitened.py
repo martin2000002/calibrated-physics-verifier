@@ -100,15 +100,24 @@ class WhitenedFallShapeCheck(FallShapeCheck):
         return weighted_fall_fit(states.t[window.rows], positions, sigma)
 
     def _window_sigma(self, states: ObjectStateTable, window: Flight) -> FloatArray | None:
-        """The window's position sigma, exact rows floored at ``exact_sigma_lengths`` body
-        lengths; None when a row with a finite position has no valid sigma."""
-        sigma = np.asarray(states.position_sigma[window.rows, window.index], dtype=np.float64)
-        seen = np.isfinite(states.position[window.rows, window.index])
-        if bool(np.any(seen & ~(np.isfinite(sigma) & (sigma >= 0.0)))):
-            return None
-        exact = sigma == 0.0
-        if not exact.any():
-            return sigma
-        length = body_length(states, window.index)
-        floor = self.params.exact_sigma_lengths * (length if math.isfinite(length) else 1.0)
-        return np.where(exact, floor, sigma)
+        return floored_sigma(states, window, self.params.exact_sigma_lengths)
+
+
+def exact_floor(states: ObjectStateTable, index: int, lengths: float) -> float:
+    """The sigma of an exact position of object ``index``: ``lengths`` body lengths (``lengths``
+    table units when its length is unknown)."""
+    length = body_length(states, index)
+    return lengths * (length if math.isfinite(length) else 1.0)
+
+
+def floored_sigma(states: ObjectStateTable, window: Flight, lengths: float) -> FloatArray | None:
+    """The window's position sigma, exact rows floored at ``exact_floor``; None when a row with a
+    finite position has no valid sigma."""
+    sigma = np.asarray(states.position_sigma[window.rows, window.index], dtype=np.float64)
+    seen = np.isfinite(states.position[window.rows, window.index])
+    if bool(np.any(seen & ~(np.isfinite(sigma) & (sigma >= 0.0)))):
+        return None
+    exact = sigma == 0.0
+    if not exact.any():
+        return sigma
+    return np.where(exact, exact_floor(states, window.index, lengths), sigma)
