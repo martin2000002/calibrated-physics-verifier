@@ -212,7 +212,7 @@ def test_none_reproduces_the_golden_table(fixture_clip: SyntheticClip, case: str
 
 
 def test_the_version_and_both_parameters_enter_the_key() -> None:
-    assert BackprojectLift.version == "6"
+    assert BackprojectLift.version == "7"
     default = BackprojectLift.Params()
     hashes = {
         params_hash(p.model_dump(mode="json"))

@@ -92,6 +92,7 @@ ORDER: Mapping[str, tuple[str, ...]] = {
         "R4_jump/rigid2",
         "R4_size/v3",
         "R4_size/v3_window_depth",
+        "R4_size/v3_window_depth_unoccluded",
         "R5a/los_tilt",
         "R5a/whitened",
         "R5b/los_ballistic",

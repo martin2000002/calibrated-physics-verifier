@@ -10,6 +10,9 @@ ordering, and an untracked occluder is not seen.
 The estimate is decisive only at its ends: a covered share >= the occlusion threshold explains
 the gap, a share of exactly 0 does not, and anything in between is unknown (NaN), so the check
 abstains instead of counting a disappearance perception cannot tell.
+
+On visible rows the same box share, restricted to the tracked objects nearer the camera, tells
+whether the object's own mask may be cut by one of them (``nearer_cover``).
 """
 
 from __future__ import annotations
@@ -134,3 +137,24 @@ def _fill_gap(
         covered = np.delete(masks[row], n, axis=0).any(axis=0)
         in_frame[row, n] = True
         occlusion[row, n] = decisive_occlusion(covered_fraction(box, covered), occluded_at)
+
+
+def nearer_cover(masks: BoolArray, depth: FloatArray, visible: BoolArray) -> FloatArray:
+    """(T, N) share of each mask box (masks (T, N, H, W)) covered by the masks of the other
+    objects strictly nearer on the row, by ``depth`` on visible rows with a finite depth; 0
+    without a nearer one, NaN for an empty mask or an object without such a depth."""
+    shown = np.asarray(visible, dtype=bool) & np.isfinite(depth)
+    z = np.where(shown, np.asarray(depth, dtype=np.float64), math.nan)
+    cover = np.full(z.shape, math.nan)
+    for row in range(z.shape[0]):
+        for n in range(z.shape[1]):
+            cover[row, n] = _nearer_share(masks[row], z[row], n)
+    return cover
+
+
+def _nearer_share(masks: BoolArray, z: FloatArray, n: int) -> float:
+    box = mask_box(masks[n])
+    if box is None or not math.isfinite(z[n]):
+        return math.nan
+    nearer = z < z[n]
+    return covered_fraction(box, masks[nearer].any(axis=0))

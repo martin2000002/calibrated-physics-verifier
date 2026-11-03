@@ -35,7 +35,7 @@ from physverify.extraction.mask_border import border_cut
 from physverify.extraction.pipeline import PENDING_SOURCE_KEY
 from physverify.extraction.providers._common import expect_params
 from physverify.extraction.providers._temporal_smoothing import stabilize_summaries
-from physverify.extraction.providers._visibility import gap_visibility
+from physverify.extraction.providers._visibility import gap_visibility, nearer_cover
 from physverify.schema.error_profile import (
     CENTROID_PX_REL,
     CENTROID_REL,
@@ -57,7 +57,8 @@ class BackprojectLift:
     stage: ClassVar[Stage] = Stage.LIFT
     name: ClassVar[str] = "backproject"
     # 6: 1c8de44 changed the footprint yaw trim (robust_scale) and cached v5 lifts went stale.
-    version: ClassVar[str] = "6"
+    # 7: the output gains nearer_cover.
+    version: ClassVar[str] = "7"
     requires: ClassVar[tuple[Stage, ...]] = (Stage.TRACK, Stage.DEPTH, Stage.CAMERA)
     heavy: ClassVar[bool] = False
     is_ground_truth: ClassVar[bool] = False
@@ -106,12 +107,14 @@ class BackprojectLift:
             gaps = gap_visibility(track.masks, fields["visible"], self.params.gap_occluded_at)
             fields["in_frame"], fields["occlusion"] = gaps.in_frame, gaps.occlusion
         cut = border_cut(track.masks, self.params.border_margin_px)
+        cover = nearer_cover(track.masks, fields["position"][..., 2], fields["visible"])
         return replace(
             table,
             **fields,
             gravity_dir=gravity,
             gravity_dir_sigma=gravity_sigma,
             border_cut=cut,
+            nearer_cover=cover,
         )
 
     def _track(self, ctx: StageContext) -> MaskTrack:
