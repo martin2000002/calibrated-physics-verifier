@@ -32,7 +32,10 @@ class AreaDepthLiftParams(LiftParams):
 
 class AreaDepthLift(BackprojectLift):
     """``lift/backproject`` with position, size and their sigmas rescaled along the camera ray on
-    the trusted rows of each track, perceived or true."""
+    the trusted rows of each track, perceived or true.
+
+    Its params come from ``[extraction.providers.lift.backproject_area_depth]`` alone: as an
+    input route's lift it does not inherit overrides of the main lift's table."""
 
     name: ClassVar[str] = "backproject_area_depth"
     version: ClassVar[str] = "1"
