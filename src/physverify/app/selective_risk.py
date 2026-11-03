@@ -20,6 +20,7 @@ from physverify.diagnosis.chain_runner import ChainRunner
 from physverify.diagnosis.settings import diagnosis_settings
 from physverify.runtime.runs import new_run, write_json
 from physverify.schema.checks import InputLevel
+from physverify.schema.clip import Split
 from physverify.selective_risk.curve import require_taus
 from physverify.selective_risk.report import (
     curve_csv,
@@ -37,6 +38,7 @@ from physverify.selective_risk.settings import (
     REPORT_FILE,
     SECTION,
     AbstentionSettings,
+    population,
 )
 from physverify.selective_risk.tables import (
     Session,
@@ -44,6 +46,7 @@ from physverify.selective_risk.tables import (
     compare_tables,
     level_tables,
     require,
+    split_clips,
     sweep,
 )
 from physverify.verification.check_set import CHECKS_SECTION, ChecksSettings, checks_hash
@@ -70,10 +73,10 @@ def fit_abstention(
     _guard(context, command, real=False, err=err)
     session = _session(context, oracle, perceived, provisional)
     settings = session.settings
-    collected = collect_synthetic(session, settings.calib_split)
-    require(collected, settings.calib_split)
+    collected = collect_synthetic(session, Split.CALIB)
+    require(collected, Split.CALIB.value)
     result = sweep(collected, session.thresholds, settings).table
-    record = fit_record(collected, result, settings, tables_of(session))
+    record = fit_record(collected, result, settings, tables_of(session), session.population.dataset)
     target = session.calibration_dir / ABSTENTION_FILE
     target.parent.mkdir(parents=True, exist_ok=True)
     write_json(target, record.model_dump())
@@ -95,13 +98,13 @@ def abstention_curve(
     session = _session(context, oracle, perceived, provisional)
     settings = session.settings
     fitted = fitted_k(session)
-    evaluated = collect_synthetic(session, settings.eval_split)
-    require(evaluated, settings.eval_split)
+    evaluated = collect_synthetic(session, Split.EVAL)
+    require(evaluated, Split.EVAL.value)
     calibrated, raw = session.thresholds, session.thresholds.raw()
     run_dir = new_run(context.settings, context.invocation.argv).run_dir
     compared = compare_tables(evaluated, calibrated, raw, settings)
     parts = curve_parts(session, evaluated, fitted)
-    report = curve_record(evaluated, compared, fitted, settings, tables_of(session), parts)
+    report = curve_record(evaluated, compared, fitted, tables_of(session), parts)
     write_text_atomic(run_dir / CURVE_FILE, curve_csv(compared))
     write_json(run_dir / REPORT_FILE, report.model_dump())
     return [*summary_lines(report), f"run: {run_dir}"]
@@ -133,6 +136,7 @@ def _session(
         chain=partial(_chain, context),
         calibration_dir=settings.paths.calibration_dir,
         settings=settings.section(SECTION, AbstentionSettings),
+        population=population(settings),
         suite=check_suite(context),
         reference_table=tables[InputLevel.ORACLE],
         thresholds=tables[InputLevel.PERCEIVED],
@@ -153,10 +157,9 @@ def _guard(context: AppContext, command: str, *, real: bool, err: Echo) -> None:
     ``real``, else calib) and ``collect_real`` read; a dataset that does not resolve is reported
     where it is read."""
     settings = context.settings
-    own = settings.section(SECTION, AbstentionSettings)
-    wanted: list[tuple[str, str | None]] = [
-        (own.dataset, own.eval_split if real else own.calib_split)
-    ]
+    own = population(settings)
+    split = Split.EVAL if real else Split.CALIB
+    wanted: list[tuple[str, str | None]] = [(own.dataset, own.subset)]
     wanted += [(name, None) for name in own.real_datasets] if real else []
     selections = []
     for name, subset in wanted:
@@ -164,7 +167,8 @@ def _guard(context: AppContext, command: str, *, real: bool, err: Echo) -> None:
             source = dataset_for(context, name)
         except PhysverifyError:
             continue
-        selections.append(Selection(source.name, subset, tuple(source.clips(subset))))
+        clips = source.clips(None) if subset is None else split_clips(source, subset, split)
+        selections.append(Selection(source.name, subset, tuple(clips)))
     abstention = sha256_if_file(settings.paths.calibration_dir / ABSTENTION_FILE)
     shas = {} if abstention is None else {"abstention": abstention}
     guard_sealed(context, command, selections, err=err, artifacts=shas)

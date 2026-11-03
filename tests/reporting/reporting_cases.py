@@ -240,7 +240,8 @@ def _abstention_records() -> tuple[AbstentionRecord, CurveRecord]:
     """``selective-risk fit`` and ``selective-risk curve`` content through their own builders."""
     tables, calibrated = _tables(), _projection(InputLevel.PERCEIVED)
     calib = _collected(30, 11, "ab-s")
-    fitted = fit_record(calib, sweep(calib, calibrated, ABSTENTION).table, ABSTENTION, tables)
+    swept = sweep(calib, calibrated, ABSTENTION).table
+    fitted = fit_record(calib, swept, ABSTENTION, tables, "kubric_synthetic")
     k = fitted.k_star
     held = _collected(30, 12, "ah-s")
     parts = CurveParts(
@@ -250,7 +251,7 @@ def _abstention_records() -> tuple[AbstentionRecord, CurveRecord]:
         real_video={"physics_iq": real_rows(_collected(10, 13, "pi-s"), calibrated, k, 0.95)},
     )
     compared = compare_tables(held, calibrated, calibrated.raw(), ABSTENTION)
-    return fitted, curve_record(held, compared, k, ABSTENTION, tables, parts)
+    return fitted, curve_record(held, compared, k, tables, parts)
 
 
 def _write_abstention(artifact: Path, curve_run: Path) -> Path:

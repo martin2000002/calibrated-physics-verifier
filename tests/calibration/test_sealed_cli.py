@@ -90,6 +90,8 @@ def _real_fixture(dataset: str) -> type[SealFixtureDataset]:
 
 
 NEW_REAL = ("physics_iq_views", "objectron_static")
+SEALED_CALIB = "sealed_calib_fixture"
+"""A whole dataset sealed, whose clips are calib clips: ``selective-risk fit`` reads calib only."""
 DEV_REAL = ("physics_iq", "pisa_real")
 """``calibration.real_datasets`` as shipped."""
 
@@ -97,14 +99,14 @@ DEV_REAL = ("physics_iq", "pisa_real")
 @pytest.fixture(autouse=True)
 def sealed_in_files(config_dir: Path) -> None:
     """The fixture's eval split sealed by the config files, before ``checkout`` commits them."""
-    declare(config_dir, SEALED_FILE, "sets", f'["{DATASET}:eval"]')
+    declare(config_dir, SEALED_FILE, "sets", f'["{DATASET}:eval", "{SEALED_CALIB}"]')
 
 
 @pytest.fixture(autouse=True)
 def fixture_dataset(monkeypatch: pytest.MonkeyPatch) -> None:
     kinds: Mapping[str, Any] = plugins.PLUGIN_KINDS
     datasets = kinds["datasets"]
-    reals = {name: _real_fixture(name) for name in (*NEW_REAL, *DEV_REAL)}
+    reals = {name: _real_fixture(name) for name in (*NEW_REAL, *DEV_REAL, SEALED_CALIB)}
     fixtures = {DATASET: SealFixtureDataset, **reals}
     patched = {**kinds, "datasets": lambda: {**datasets(), **fixtures}}
     monkeypatch.setattr(plugins, "PLUGIN_KINDS", MappingProxyType(patched))
@@ -344,16 +346,21 @@ def guarded(
     """A guarded command whose first computation is a sentinel, by name."""
     stop = sentinel(ledger, reached)
 
-    def selective_risk(leaf: str, *own: str) -> Callable[..., CliResult]:
+    def selective_risk(leaf: str, dataset: str = DATASET) -> Callable[..., CliResult]:
+        """A ``dataset`` other than the fixture's is a whole sealed set: the variable names it
+        in place of the fixture's sealed split."""
+
         def run(*extra: str, env: Mapping[str, str] | None = None) -> CliResult:
             monkeypatch.setattr(app_selective_risk, "_session", stop)
             sets = (
                 "--set",
-                f"abstention.dataset={DATASET}",
+                f"calibration.dataset={dataset}",
                 "--set",
-                "abstention.real_datasets=[]",
+                "calibration.real_datasets=[]",
             )
-            return cli(*FAST, *sets, *own, *extra, "selective-risk", leaf, env=env)
+            if env is not None and dataset != DATASET:
+                env = {**env, "PHYSVERIFY_UNSEAL": dataset}
+            return cli(*FAST, *sets, *extra, "selective-risk", leaf, env=env)
 
         return run
 
@@ -369,7 +376,7 @@ def guarded(
     commands = {
         "verify": _guarded_verify(cli, monkeypatch, ledger, reached),
         "abstain curve": selective_risk("curve"),
-        "abstain fit": selective_risk("fit", "--set", "abstention.calib_split=eval"),
+        "abstain fit": selective_risk("fit", SEALED_CALIB),
         "diagnose stages": diagnose_stages,
         "scene-stats per-clip": scene_stats_per_clip,
     }
@@ -411,6 +418,16 @@ def test_verify_on_calib_clips_leaves_no_line(
 ) -> None:
     run = _guarded_verify(cli, monkeypatch, ledger, reached)
     assert run("--clips", CALIB_CLIP).code == REACHED
+    assert reached == [0] and read_entries(ledger) == ()
+
+
+def test_fit_reads_the_calib_split_of_the_calibration_population_only(
+    cli: CliRunner, monkeypatch: pytest.MonkeyPatch, ledger: Path, reached: list[int]
+) -> None:
+    """The fixture's sealed eval split is outside what ``selective-risk fit`` reads."""
+    monkeypatch.setattr(app_selective_risk, "_session", sentinel(ledger, reached))
+    sets = ("--set", f"calibration.dataset={DATASET}", "--set", "calibration.real_datasets=[]")
+    assert cli(*FAST, *sets, "selective-risk", "fit").code == REACHED
     assert reached == [0] and read_entries(ledger) == ()
 
 

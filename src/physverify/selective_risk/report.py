@@ -16,7 +16,7 @@ from scipy.stats import norm
 from physverify.calibration.table import Role, role_of
 from physverify.core.errors import MissingInputError, PhysverifyError
 from physverify.schema.checks import InputLevel
-from physverify.schema.clip import ClipManifest
+from physverify.schema.clip import ClipManifest, Split
 from physverify.schema.io import stable_hash
 from physverify.selective_risk.curve import (
     ABSTAINED,
@@ -89,11 +89,12 @@ def fit_record(
     result: SweptTable,
     settings: AbstentionSettings,
     tables: Mapping[str, TableRef],
+    dataset: str,
 ) -> AbstentionRecord:
     """The content of ``abstention.json``; ``result`` is ``sweep`` on the calib cases."""
     return AbstentionRecord(
-        dataset=settings.dataset,
-        split=settings.calib_split,
+        dataset=dataset,
+        split=Split.CALIB.value,
         risk_target=settings.risk_target,
         ci=settings.ci,
         alpha_star=result.alpha_star,
@@ -129,13 +130,12 @@ def curve_record(
     evaluated: Collected,
     tables: ComparedTables,
     fitted: float | None,
-    settings: AbstentionSettings,
     thresholds: Mapping[str, TableRef],
     parts: CurveParts,
 ) -> CurveRecord:
     """The content of ``abstention_report.json``; ``tables`` is ``compare_tables``."""
     return CurveRecord(
-        split=settings.eval_split,
+        split=Split.EVAL.value,
         k_star_from_calib=fitted,
         n=_counts(evaluated),
         thresholds=dict(thresholds),
@@ -211,7 +211,7 @@ def _real(session: Session, k: float | None) -> dict[str, RealRows | RealError]:
     """False-fail rate and coverage on real video at k* and k = 2 (every reference PASS)."""
     out: dict[str, RealRows | RealError] = {}
     s = session.settings
-    for dataset in s.real_datasets:
+    for dataset in session.population.real_datasets:
         try:
             collected = collect_real(session, dataset)
         except PhysverifyError as error:

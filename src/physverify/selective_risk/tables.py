@@ -22,7 +22,7 @@ from physverify.diagnosis.end_to_end import track_of, variant_outputs, variant_r
 from physverify.diagnosis.pairing import pair_results, subject_map
 from physverify.diagnosis.verification_adapter import VerificationCheckSuite
 from physverify.schema.checks import InputLevel, Verdict
-from physverify.schema.clip import ClipManifest
+from physverify.schema.clip import ClipManifest, Split
 from physverify.selective_risk.curve import (
     Case,
     CaseCounts,
@@ -36,7 +36,7 @@ from physverify.selective_risk.curve import (
 )
 from physverify.selective_risk.fit import choose_k, curve_rows, paired_aurc_difference
 from physverify.selective_risk.records import ComparedTables, SweptTable
-from physverify.selective_risk.settings import AbstentionSettings
+from physverify.selective_risk.settings import AbstentionSettings, Population
 from physverify.verification.sweep import CheckUnit
 from physverify.verification.thresholding import ThresholdParams, ThresholdTable, load_thresholds
 
@@ -61,6 +61,7 @@ class Session:
     chain: ChainFor
     calibration_dir: Path
     settings: AbstentionSettings
+    population: Population
     suite: VerificationCheckSuite
     reference_table: ThresholdTable
     """Oracle level: the reference is the point verdict against its raw taus."""
@@ -107,10 +108,16 @@ def level_tables(
     return out
 
 
-def collect_synthetic(session: Session, subset: str) -> Collected:
-    """Oracle/perceived pairs of every cached clip of ``subset`` as cases."""
-    chain, source = session.chain(session.settings.dataset)
-    clips = list(source.clips(subset))
+def split_clips(source: DatasetSource, subset: str, split: Split) -> list[ClipManifest]:
+    """The clips of one split of a planned subset, as the calibration chain selects them."""
+    return [c for c in source.clips(subset) if c.split is split]
+
+
+def collect_synthetic(session: Session, split: Split) -> Collected:
+    """Oracle/perceived pairs of every cached clip of the population's ``split`` as cases."""
+    population = session.population
+    chain, source = session.chain(population.dataset)
+    clips = split_clips(source, population.subset, split)
     cases: list[Case] = []
     counts, failed = CaseCounts(), []
     suite = session.suite

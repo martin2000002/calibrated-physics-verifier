@@ -1,12 +1,8 @@
 abstention.alpha_max
 abstention.alpha_min
 abstention.bootstrap
-abstention.calib_split
 abstention.ci
-abstention.dataset
-abstention.eval_split
 abstention.grid_points
-abstention.real_datasets
 abstention.risk_target
 abstention.seed
 agreement.alpha
