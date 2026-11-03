@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 
 from physverify.checks._base import CheckInputs, abstain, unscored
 from physverify.checks._params import OcclusionParams
-from physverify.checks._size import relative_sigma, whole_lengths, whole_rows
+from physverify.checks._size import BoolArray, relative_sigma, whole_lengths, whole_rows
 from physverify.physics.measures.detrended_size import persistent_change
 from physverify.physics.measures.relative_size import relative_lengths
 from physverify.physics.row_time import odd_rows_in, reference_seconds, rows_in
@@ -61,10 +61,7 @@ class DetrendedSizeCheck:
 
     def evaluate(self, inputs: CheckInputs) -> list[CheckResult]:
         states = inputs.states
-        whole = whole_rows(states.in_frame, states.occlusion, self.params.occluded_at)
-        if states.border_cut is not None:
-            whole &= ~states.border_cut
-        lengths = whole_lengths(states, whole)
+        lengths = whole_lengths(states, self._whole_rows(inputs))
         row_seconds = inputs.row_seconds
         window = odd_rows_in(self.params.window_s, row_seconds)
         persistence = rows_in(self.params.persistence_s, row_seconds)
@@ -72,6 +69,14 @@ class DetrendedSizeCheck:
             self._object(inputs, lengths, index, window, persistence)
             for index in range(states.n_objects)
         ]
+
+    def _whole_rows(self, inputs: CheckInputs) -> BoolArray:
+        """(T, N) rows that enter, for the object and as a reference."""
+        states = inputs.states
+        whole = whole_rows(states.in_frame, states.occlusion, self.params.occluded_at)
+        if states.border_cut is not None:
+            whole &= ~states.border_cut
+        return whole
 
     def _object(
         self, inputs: CheckInputs, lengths: FloatArray, index: int, window: int, persistence: int
