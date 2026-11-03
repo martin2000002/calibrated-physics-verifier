@@ -43,6 +43,11 @@ same_path() {
     [[ -n "$1" && "$(realpath -m "$1")" == "$(realpath -m "$2")" ]]
 }
 
+# under PATH DIR: PATH is strictly below DIR.
+under() {
+    [[ "$(realpath -m "$1")" == "$(realpath -m "$2")"/* ]]
+}
+
 save() {
     printf -v "$1" '%s' "$2"
     printf '%s=%q\n' "$1" "$2" >>"$STATE"

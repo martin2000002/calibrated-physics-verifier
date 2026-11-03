@@ -7,11 +7,6 @@ near() {
     [[ "$(realpath -m "$1")" == "$(realpath -m "$2")"* ]]
 }
 
-# under PATH DIR: PATH is strictly below DIR.
-under() {
-    [[ "$(realpath -m "$1")" == "$(realpath -m "$2")"/* ]]
-}
-
 # refuse_foreign_config SCRIPT OWN [ALLOWED]: no PHYSVERIFY__* variable but the names of OWN
 # (without the prefix, space separated, with a leading and a trailing space) or those matching
 # the regular expression ALLOWED.

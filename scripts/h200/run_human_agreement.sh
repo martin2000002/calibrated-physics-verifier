@@ -141,8 +141,8 @@ export PHYSVERIFY__PATHS__RUNS_DIR
 # outside_data NAME VAR: paths.NAME is neither DATA nor below it (no run writes into the data
 # directory); VAR is the PHYSVERIFY_AGREEMENT_* variable that moves it.
 outside_data() {
-    local path="PHYSVERIFY__PATHS__$1"
-    [[ "$(realpath -m "${!path}")/" != "$(realpath -m "$PHYSVERIFY__PATHS__DATA_DIR")"/* ]] \
+    local path="PHYSVERIFY__PATHS__$1" data="$PHYSVERIFY__PATHS__DATA_DIR"
+    ! same_path "${!path}" "$data" && ! under "${!path}" "$data" \
         || die "paths.${1,,} ${!path} is under the data directory $PHYSVERIFY__PATHS__DATA_DIR:" \
             "set $2 outside it"
 }
