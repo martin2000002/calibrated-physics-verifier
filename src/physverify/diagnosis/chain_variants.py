@@ -6,18 +6,14 @@ V_k (prediction) against V_{k+1} (truth), so both sides share the same true upst
 
 from __future__ import annotations
 
-import dataclasses
 import itertools
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from types import MappingProxyType
-from typing import Any
 
 from physverify.config.models import Settings
+from physverify.extraction.routes import with_providers
 from physverify.schema.stages import STAGE_ORDER, Stage
-
-EXTRACTION_SECTION = "extraction"
-PLAN_KEY = "plan"
 
 FACTORS: tuple[Stage, ...] = (Stage.TRACK, Stage.DEPTH, Stage.SCALE)
 
@@ -85,18 +81,5 @@ def factorial_cells(fixed: frozenset[Stage]) -> tuple[Variant, ...]:
     return tuple(Variant(cell_name(cell), cell_ground_truth(cell, fixed)) for cell in CELLS)
 
 
-def with_provider(settings: Settings, stage: Stage, name: str) -> Settings:
-    """Copy of ``settings`` whose extraction plan uses provider ``name`` for ``stage``."""
-    sections: dict[str, Any] = dict(settings.sections)
-    extraction = dict(sections.get(EXTRACTION_SECTION, {}))
-    plan = dict(extraction.get(PLAN_KEY, {}))
-    plan[stage.value] = name
-    extraction[PLAN_KEY] = plan
-    sections[EXTRACTION_SECTION] = extraction
-    return dataclasses.replace(settings, sections=MappingProxyType(sections))
-
-
 def apply_overrides(settings: Settings, variant: Variant) -> Settings:
-    for stage, name in variant.overrides.items():
-        settings = with_provider(settings, stage, name)
-    return settings
+    return with_providers(settings, variant.overrides)

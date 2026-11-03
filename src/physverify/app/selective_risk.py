@@ -49,7 +49,7 @@ from physverify.selective_risk.tables import (
     split_clips,
     sweep,
 )
-from physverify.verification.check_set import CHECKS_SECTION, ChecksSettings, checks_hash
+from physverify.verification.check_set import active_checks_hash
 from physverify.verification.inputs import refuse_heavy
 from physverify.verification.runner import (
     VERIFICATION_SECTION,
@@ -128,7 +128,7 @@ def _session(
         fallback,
         overrides,
         guard=partial(guard_table, settings=settings, checks=registry),
-        stale_hash=checks_hash(registry, settings.section(CHECKS_SECTION, ChecksSettings)),
+        stale_hash=active_checks_hash(settings, registry),
     )
     for level, table in tables.items():
         require_taus(table, level)

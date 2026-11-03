@@ -17,6 +17,7 @@ from physverify.core.errors import ConfigError
 from physverify.core.registry import Registry
 from physverify.extraction.plan import CHECK_THRESHOLD_FIELD
 from physverify.schema.io import stable_hash
+from physverify.verification.check_routes import CheckRouting, check_routing, routes_hash_part
 
 CHECKS_SECTION = "checks"
 CHECK_VARIANTS_SECTION = "check_variants"
@@ -105,8 +106,13 @@ def build_checks(
     )
 
 
-def checks_hash(registry: Mapping[str, type[Check]], overrides: ChecksSettings) -> str:
-    """Hash of the version and effective parameters of every registered check."""
+def checks_hash(
+    registry: Mapping[str, type[Check]],
+    overrides: ChecksSettings,
+    routing: CheckRouting | None = None,
+) -> str:
+    """Hash of the version and effective parameters of every registered check, and of the input
+    route of each routed one; without routed checks it is the hash of the checks alone."""
     checks = {
         _table_key(check_id, check): {
             "version": check.version,
@@ -116,7 +122,9 @@ def checks_hash(registry: Mapping[str, type[Check]], overrides: ChecksSettings) 
         }
         for check_id, check in sorted(registry.items())
     }
-    return stable_hash(checks)
+    ids = sorted({check.check_id for check in registry.values()})
+    routes = routes_hash_part(routing, ids) if routing is not None else {}
+    return stable_hash({"checks": checks, "routes": routes} if routes else checks)
 
 
 def _table_key(check_id: str, check: type[Check]) -> str:
@@ -129,7 +137,9 @@ def _table_key(check_id: str, check: type[Check]) -> str:
 def active_checks_hash(settings: Settings, checks: Mapping[str, type[Check]]) -> str:
     """``checks_hash`` of ``checks`` under the ``[checks]`` overrides of ``settings``: what a
     consumer compares with the artifact's own hash."""
-    return checks_hash(checks, settings.section(CHECKS_SECTION, ChecksSettings))
+    return checks_hash(
+        checks, settings.section(CHECKS_SECTION, ChecksSettings), check_routing(settings)
+    )
 
 
 def occlusion_thresholds(settings: Settings, checks: Mapping[str, type[Check]]) -> dict[str, float]:

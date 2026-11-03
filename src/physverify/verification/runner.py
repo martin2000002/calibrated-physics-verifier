@@ -17,17 +17,18 @@ from pydantic import Field
 from physverify.checks._base import Check, CheckInputs, abstain, missing_inputs, row_step_or_none
 from physverify.config.models import Settings, validated
 from physverify.core.errors import ConfigError
-from physverify.core.models import FrozenModel
 from physverify.runtime.parallel import ordered_map
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
 from physverify.schema.clip import ClipManifest
 from physverify.schema.io import write_jsonl
 from physverify.verification._base import VerdictPolicy
+from physverify.verification.check_routes import VERIFICATION_SECTION as VERIFICATION_SECTION
+from physverify.verification.check_routes import CheckRouting
 from physverify.verification.check_set import (
     CHECKS_SECTION,
     ChecksSettings,
+    active_checks_hash,
     build_checks,
-    checks_hash,
 )
 from physverify.verification.decisive import Judged, decisive
 from physverify.verification.inputs import ClipInputs, InputSource
@@ -39,7 +40,6 @@ from physverify.verification.thresholding import (
     threshold_problem,
 )
 
-VERIFICATION_SECTION = "verification"
 CHECKS_FILE = "checks.jsonl"
 TABLE_FILE = "table.csv"
 CHECKS_HASH_FILE = "checks_hash.txt"
@@ -55,7 +55,7 @@ def run_checks_hash(run_dir: Path) -> str:
     return path.read_text(encoding="utf-8").strip() if path.is_file() else ""
 
 
-class VerificationSettings(FrozenModel):
+class VerificationSettings(CheckRouting):
     policy: str = THRESHOLD_POLICY
     thresholds: dict[str, float] = Field(default_factory=dict)
     threshold_units: dict[str, str] = Field(default_factory=dict)
@@ -141,7 +141,7 @@ class VerificationRunner:
             seen.append(item.clip)
             step = _row_step(item.inputs)
             for check in self._checks:
-                decided, failed = self._evaluate(check, item)
+                decided, failed = self._evaluate(check, item.for_check(check.check_id))
                 results.extend(decided)
                 row = aggregate(item.clip.clip_id, check, decided, row_step=step)
                 table.append(replace(row, status=RowStatus.ERROR) if failed else row)
@@ -224,7 +224,7 @@ def guard_table(
         for check_id, unit in units.items()
     }
     reported = {check_id: unit.magnitude_unit for check_id, unit in units.items()}
-    current = checks_hash(checks, settings.section(CHECKS_SECTION, ChecksSettings))
+    current = active_checks_hash(settings, checks)
     problem = threshold_problem(thresholds, current, written, reported)
     if problem is not None:
         raise ConfigError(problem)
