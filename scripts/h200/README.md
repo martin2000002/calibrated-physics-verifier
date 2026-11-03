@@ -21,6 +21,7 @@ use and what each script leaves behind.
 | Script | Purpose |
 |---|---|
 | `setup_cuda.sh` | CUDA environment, perception weights and the Wan2.1 snapshot |
+| `checkout_at.sh` | A clean checkout of a commit (short or full sha) in a new directory, for the launchers |
 | `run_timing.sh` | Timing benchmark |
 | `smoke_finetune.sh`, `run_preference.sh`, `run_finetune.sh` | Preference pairs and Flow-DPO fine-tuning |
 | `run_kubric.sh` | Kubric synthetic dataset (Docker or udocker) |
