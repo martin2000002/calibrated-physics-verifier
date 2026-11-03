@@ -227,7 +227,9 @@ with one GPU, `CUDA_VISIBLE_DEVICES` in 0-3 (anything else, a list included, exi
 `gpu_queue.sh`, the server's GPU queue launcher (not in this repository).
 
 Declared arms: `PHYSVERIFY_ITERATION_ARM=<arm>` names a line of `perception_arms.tsv`, whose
-provider swaps (`extraction.plan.<stage>=<provider>` only) go as `--set` to every physverify call.
+swaps go as `--set` to every physverify call: `extraction.plan.<stage>=<provider>`,
+`check_variants.<check>=<variant>`, and a check's `verification.thresholds`,
+`verification.threshold_units` or `calibration.tau_tolerance_units` (`_common.sh` checks each).
 The profile stays the committed one, so arms that share a provider prefix share its cache keys and
 its error-profile entries (a separate profile name would not: the name is part of every entry).
 `doctor` must list each swap among its sources, `state.env` records `CHAIN_ARM` (a resume with
@@ -265,6 +267,19 @@ export PHYSVERIFY_ITERATION_ID=<id> PHYSVERIFY_ITERATION_EXPECT_COMMIT=<head> \
     && PHYSVERIFY_ITERATION_WORKERS=$(~/work/scratch/cpu_workers.sh) \
         nice -n 10 bash scripts/h200/run_perception_iteration.sh 4 5
 ```
+
+### Line-of-sight R5 (arm `k`)
+
+The arm `k` of `perception_arms.tsv` runs the precise profile with depth `vda_large` and R5a and
+R5b on the line-of-sight GLS (`checks/variants/r5a_line_of_sight.py`, `r5b_line_of_sight.py`). It
+is an arm, not a profile: a profile name is part of every error-profile entry and cache key, so a
+separate one would not share them. `PHYSVERIFY_ITERATION_ARM=k` runs it
+through `run_perception_iteration.sh`, `run_dev_b.sh` replays it from the iteration's
+`CHAIN_ARM`, and by hand each of its swaps goes as `--set` after `--profile precise`.
+
+`los_tilt` reports in `accel_tilt_chi2_4`, so the arm also sets the provisional tau (13.28, the a
+priori chi-square(4) 0.99 quantile, not fitted) and moves the units of the precise R5a tau and
+tolerance with it; `los_ballistic` keeps the unit of R5b.
 
 ### B reading on the development sets
 

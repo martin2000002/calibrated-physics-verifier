@@ -40,6 +40,14 @@ reference = "others"
 # R5b "unsupported" (no profile runs it): a flight counts only if on some row the body's lowest
 # point rises above its scene plane by more than the scene contacts' gap gate K sigma_gap (the
 # same z and sigma_gap), so a roll the contacts left unmarked is not a fall; same unit as v1.
+# R5a "los_tilt" and R5b "los_ballistic" (no profile runs them; the arm k of
+# scripts/h200/perception_arms.tsv does): each window is fitted by generalized least squares on the
+# covariance of a monocular lift (a depth error moves the point along its ray). los_tilt scores
+# the tilt of each window's acceleration away from the perceived gravity, summed over the two
+# windows, about chi-square(4) [accel_tilt_chi2_4], so under precise the arm also sets its tau
+# (13.28, the a priori chi-square(4) 0.99 quantile) and the units of the R5a tau and tolerance.
+# los_ballistic reads g along the perceived gravity from the ballistic fit of each flight; same
+# unit as v1.
 # A provisional tau is read in the unit of the check's default implementation unless
 # verification.threshold_units.<id> says otherwise; a tau whose unit is not the unit of the
 # configured check, or a calibrated table fitted with other check parameters or variants (its

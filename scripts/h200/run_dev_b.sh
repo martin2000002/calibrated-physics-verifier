@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # The B reading of a perception iteration on the development sets of calibration.development_sets,
-# with the committed configuration only. Development sets are read as calib by the calib-only
-# commands and are not sealed looks, so nothing here unseals or relabels anything.
+# with the committed configuration and the iteration's arm only (its CHAIN_ARM swaps from
+# perception_arms.tsv go as --set to every call, as in the iteration). Development sets are read
+# as calib by the calib-only commands and are not sealed looks, so nothing here unseals or
+# relabels anything.
 #
 #   bash scripts/h200/run_dev_b.sh [FROM [TO]]   steps FROM..TO (default 1..6); FROM resumes
 #
@@ -97,6 +99,15 @@ DEV_B_DEVICE="$(state_value "$ITER/state.env" CHAIN_DEVICE)"
 use_device DEV_B_DEVICE
 PV_PROFILE="$(state_value "$ITER/state.env" CHAIN_PROFILE)"
 PV_PROFILE="${PV_PROFILE:-$ASSUMED_CHAIN_PROFILE}"
+DEV_B_ARM="$(state_value "$ITER/state.env" CHAIN_ARM)"
+ARM_SETS=()
+if [[ -n "$DEV_B_ARM" && "$DEV_B_ARM" != none ]]; then
+    SWAP_LINES="$(arm_swaps "$DEV_B_ARM")" || exit 2
+    mapfile -t SWAPS <<<"$SWAP_LINES"
+    for swap in "${SWAPS[@]}"; do
+        ARM_SETS+=(--set "$swap")
+    done
+fi
 
 CACHE="${PHYSVERIFY_DEV_B_CACHE_DIR:-}"
 [[ -n "$CACHE" ]] || die "set PHYSVERIFY_DEV_B_CACHE_DIR to the cache root"
@@ -152,7 +163,7 @@ fresh_set() {
     SET_NAME="kubric_fresh@$FRESH_VERSION"
     export PHYSVERIFY__PATHS__CALIBRATION_DIR="$OUT/fresh/calibration"
     export PHYSVERIFY__PATHS__RUNS_DIR="$OUT/fresh/runs"
-    PV_EXTRA=(--set "kubric_fresh.version=$FRESH_VERSION")
+    PV_EXTRA=(--set "kubric_fresh.version=$FRESH_VERSION" "${ARM_SETS[@]}")
     ITERATION_PROFILE=0
 }
 
@@ -160,13 +171,13 @@ hdri_set() {
     SET_NAME="kubric_synthetic@$HDRI_VERSION"
     export PHYSVERIFY__PATHS__CALIBRATION_DIR="$ITER/calibration"
     export PHYSVERIFY__PATHS__RUNS_DIR="$OUT/hdri/runs"
-    PV_EXTRA=(--set "dataset.version=$HDRI_VERSION")
+    PV_EXTRA=(--set "dataset.version=$HDRI_VERSION" "${ARM_SETS[@]}")
     ITERATION_PROFILE=1
 }
 
 # check_set_doctor: doctor confirms the current set's paths and overrides.
 check_set_doctor() {
-    local profile_path
+    local profile_path i
     DOCTOR="$(pv doctor)" || die "physverify doctor failed"
     same_path "$(doctor_value config_dir)" "$REPO_ROOT/configs" \
         || die "doctor reports config_dir '$(doctor_value config_dir)', not $REPO_ROOT/configs"
@@ -186,8 +197,10 @@ check_set_doctor() {
     under "$profile_path" "$PHYSVERIFY__PATHS__CALIBRATION_DIR" \
         || die "$SET_NAME: doctor reports paths.error_profile '$profile_path', outside" \
             "$PHYSVERIFY__PATHS__CALIBRATION_DIR"
-    grep -qxF "source: --set ${PV_EXTRA[1]}" <<<"$DOCTOR" \
-        || die "$SET_NAME: doctor does not list the override --set ${PV_EXTRA[1]}"
+    for ((i = 1; i < ${#PV_EXTRA[@]}; i += 2)); do
+        grep -qxF "source: --set ${PV_EXTRA[i]}" <<<"$DOCTOR" \
+            || die "$SET_NAME: doctor does not list the override --set ${PV_EXTRA[i]}"
+    done
     if [[ "$ITERATION_PROFILE" == 1 ]]; then
         [[ -f "$profile_path" && "$(sha_of "$profile_path")" == "$ITER_PROFILE_SHA" ]] \
             || die "$SET_NAME: $profile_path is not the error profile $ITER/state.env records"
@@ -220,7 +233,7 @@ STEPS="$OUT/steps.tsv"
 NOTES="$OUT/notes.md"
 SUMMARY="$OUT/summary.md"
 SUMMARY_TITLE="B reading of $(basename "$ITER") ($PV_DEVICE)"
-SUMMARY_INFO="commit $HEAD_COMMIT, iteration $ITER, kubric_fresh@$FRESH_VERSION ($N_CLIPS clips of $CLIPS_FILE, sha256 $CLIPS_SHA), kubric_synthetic@$HDRI_VERSION calib_clean, profile $PV_PROFILE, device $PV_DEVICE${CUDA_VISIBLE_DEVICES:+ (CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES)}, cache $CACHE, data $DATA, threads $THREADS"
+SUMMARY_INFO="commit $HEAD_COMMIT, iteration $ITER, kubric_fresh@$FRESH_VERSION ($N_CLIPS clips of $CLIPS_FILE, sha256 $CLIPS_SHA), kubric_synthetic@$HDRI_VERSION calib_clean, profile $PV_PROFILE, arm ${DEV_B_ARM:-none} (${ARM_SETS[*]:-no swap}), device $PV_DEVICE${CUDA_VISIBLE_DEVICES:+ (CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES)}, cache $CACHE, data $DATA, threads $THREADS"
 if [[ "$DRY" == 0 ]]; then
     mkdir -p "$LOGS"
     touch "$STEPS" "$NOTES"

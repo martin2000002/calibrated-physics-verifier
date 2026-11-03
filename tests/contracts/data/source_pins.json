@@ -12,12 +12,20 @@
       "digest": "064b5947917df144565eb16231e6a485420a77c4d83d17aa34b31dc3484860a4",
       "version": "1"
     },
+    "R5a/los_tilt": {
+      "digest": "ad8b10dc430f21d470b697a201f7afdddc43eca7286201bda9517626a52651b2",
+      "version": "1"
+    },
     "R5a/whitened": {
-      "digest": "82db389bb9f7473cd24742a6bb385999c61fcc145868355e6bc11be0186a7a88",
+      "digest": "b3a5300f1240ad067bf2b0d250c54a838e52e5abe1eee730daac56888bc92eb9",
+      "version": "1"
+    },
+    "R5b/los_ballistic": {
+      "digest": "5718f1a4ab53f710ecc3e85955bfa78c157b94582bb092e194f787c6446aab3f",
       "version": "1"
     },
     "R5b/unsupported": {
-      "digest": "4f5c95f2403febc9f75be9419a799c588b7f45c32f45a8bdb2badaa6b38276e0",
+      "digest": "81ee58b771a5cea71c89796ed88f6b94e1637fec397bf318c66c9edaf7863525",
       "version": "1"
     }
   },
@@ -55,7 +63,7 @@
       "version": "1"
     },
     "R5b": {
-      "digest": "33083d4d067f59654c2e9136d2407d29b24b1342b761b72d12999139fbefb2ff",
+      "digest": "331cd2fcbdea07449561292512335212e268d80ecb234d5a99d979b6da5b9468",
       "version": "1"
     }
   },

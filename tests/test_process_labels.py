@@ -39,6 +39,7 @@ JARGON = re.compile(
     r"|\b(?i:wp)-?[0-9]+[a-z]?\b|\bWP-[A-Z0-9]+\b|\bP[1-5]\b|§|\b20[0-9]{2}-[01][0-9]-[0-3][0-9]\b"
     r"|(?<![-\w])[Aa]udit [A-Za-z]?[0-9]|\b[Jj]udge change|(?<![-\w])[Aa]mendments?\b"
     r"|\bKnowledge/"
+    r"|\b(?:[Cc]andidate|[Pp]robe|[Ss]tate) [A-Z]\b|\b[C-Z] (?:probe|candidate|reading)\b"
 )
 IDENT = re.compile(r"(^|_)(h[123]|a8v2|a([3-9]|1[0-3])|it[1-5]|d9)(_|$)", re.IGNORECASE)
 CAMEL = re.compile(r"(?<![A-Z])(H[123]|A(?:[3-9]|1[0-3])|A8V2|It[1-5])(?=[A-Z][a-z]|$)")
@@ -452,6 +453,10 @@ def test_no_labels_in_file_or_directory_names() -> None:
         "wp9-c-help-text.diff",
         "WP-X",
         "WP4a",
+        "candidate K",
+        "the K probe",
+        "perception state C",
+        "a K reading",
     ],
 )
 def test_process_references_are_labels(text: str) -> None:
@@ -462,6 +467,20 @@ def test_process_references_are_labels(text: str) -> None:
     "text", ["re-audit", "--audit", "subset --audit 3", "audit_lines", "audit(dataset, 2)"]
 )
 def test_command_words_are_not_labels(text: str) -> None:
+    assert not JARGON.search(text)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "The B reading of an iteration",
+        "A candidate's magnitude",
+        "At most N candidates.",
+        "A state table may be strided",
+        "A look never creates the ledger",
+    ],
+)
+def test_articles_and_the_b_reading_are_not_labels(text: str) -> None:
     assert not JARGON.search(text)
 
 
