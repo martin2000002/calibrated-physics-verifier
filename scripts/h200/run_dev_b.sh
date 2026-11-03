@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # The B reading of a perception iteration on the development sets of calibration.development_sets,
 # with the committed configuration and the iteration's arm only (its CHAIN_ARM swaps from
-# perception_arms.tsv go as --set to every call, as in the iteration). Development sets are read as calib by the calib-only
-# commands and are not sealed looks, so nothing here unseals or relabels anything.
+# perception_arms.tsv go as --set to every call, as in the iteration). Development sets are read
+# as calib by the calib-only commands and are not sealed looks, so nothing here unseals or
+# relabels anything.
 #
 #   bash scripts/h200/run_dev_b.sh [FROM [TO]]   steps FROM..TO (default 1..6); FROM resumes
 #
