@@ -86,6 +86,8 @@ class Monotonicity(ArtifactModel):
     median_delta_by_level: dict[str, float | None]
     monotone_medians: bool
     h1_pass: bool
+    n_unranked: int | None = absent_when_none()
+    """Scored rows left out of the deltas for a NaN magnitude (``monotonicity.unranked``)."""
 
 
 class Weight(ArtifactModel):

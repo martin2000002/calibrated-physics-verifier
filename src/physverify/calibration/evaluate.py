@@ -20,7 +20,7 @@ from physverify.calibration.artifact import (
 from physverify.calibration.artifact_io import Calibration, CalibrationError, Stratum
 from physverify.calibration.fit import LevelData
 from physverify.calibration.heldout_monotonicity import heldout_h1
-from physverify.calibration.monotonicity import deltas, monotonicity, scene_kendall
+from physverify.calibration.monotonicity import monotonicity_of, scene_kendall
 from physverify.calibration.settings import CalibrationConfig, CalibrationSettings
 from physverify.calibration.stats import clustered_rate
 from physverify.calibration.stratified import FamilyOf
@@ -211,11 +211,9 @@ def pooled_monotonicity(
     found: list[CheckMonotonicity] = []
     for check_id in check_ids:
         calib = [r for r in rows if r.check_id == check_id and r.split is Split.CALIB]
-        pairs = deltas(calib, stratum.sigma_correction(check_id)[0])
-        if pairs:
-            found.append(
-                CheckMonotonicity(check_id=check_id, monotonicity=monotonicity(pairs, settings))
-            )
+        pooled = monotonicity_of(calib, stratum.sigma_correction(check_id)[0], settings)
+        if pooled.n_pairs:
+            found.append(CheckMonotonicity(check_id=check_id, monotonicity=pooled))
     return tuple(found)
 
 

@@ -19,7 +19,7 @@ from physverify.calibration.artifact_io import Stratum
 from physverify.calibration.check_weights import Flag, raw_weight
 from physverify.calibration.clause import clause
 from physverify.calibration.dev_score import oof_flags
-from physverify.calibration.monotonicity import deltas, monotonicity
+from physverify.calibration.monotonicity import monotonicity_of
 from physverify.calibration.oof import check_valued, check_values
 from physverify.calibration.settings import CalibrationSettings
 from physverify.calibration.stratified import Families, FamilyOf, Valued, family_map, unit_scores
@@ -54,7 +54,7 @@ def _check(
     families: Families | None,
 ) -> HeldoutMonotonicityCheck:
     frozen, policy = stratum.model.checks[check_id], policy_for(stratum)
-    tau_b = _finite(monotonicity(deltas(rows, stratum.sigma_correction(check_id)[0]), settings))
+    tau_b = _finite(monotonicity_of(rows, stratum.sigma_correction(check_id)[0], settings))
     valued = list(check_valued(check_values(rows, frozen, policy)).values())
     return judged(check_id, tau_b, oof_flags(rows, frozen, policy), valued, families, settings)
 
