@@ -43,7 +43,7 @@ LOOK_CONFIG_HASH = {
 CHECKS_HASH = "4a529448fb1f7ee61d9f0550eaf132e1dc29bdaa4fdfe0ca4c825eb3733cdad2"
 RUN_CHECKS_HASH = {
     "fast": "4a529448fb1f7ee61d9f0550eaf132e1dc29bdaa4fdfe0ca4c825eb3733cdad2",
-    "precise": "44d28133ca495c629fbae87d0ffd9d3df5881dbc2a823ea86009ddf3b9ebe1fd",
+    "precise": "501c7a1328bffb0f13ce5611f181922811f6ce17d4b7e1bb19876756ea65f5bf",
 }
 PRECISE_STAGE_KEYS_HASH = "4a1446f6e00c49f4571361661163710838a2f7761a88512acadbf92205c281cb"
 """Hash of every stage key of the precise plan for the declared calib dataset. It and
