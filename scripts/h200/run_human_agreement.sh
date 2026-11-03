@@ -7,13 +7,18 @@
 #   bash scripts/h200/run_human_agreement.sh test
 #       test-pre, test-fetch, test-extract, test-verify, then the one pre-registered
 #       `agreement compare --rule calibrated`
+#   bash scripts/h200/run_human_agreement.sh prefetch
+#       fetch and extract h2_dev only, so that the dev preflight finds its clip cached; its
+#       bookkeeping goes to $OUT/prefetch/ and its runs to $OUT/prefetch/runs, never under DATA.
+#       It does not touch h2_test, the pre-registration or the comparison log
 #
 # Every call is --profile precise --device $PHYSVERIFY_AGREEMENT_DEVICE through
 # $PHYSVERIFY_AGREEMENT_PYTHON: no uv, no setup_cuda.sh. cpu (the default, whose keys the VideoPhy
 # cache holds) hides the GPUs; cuda needs one GPU of 0-3 in CUDA_VISIBLE_DEVICES.
 # Extract and verify exit 1 when some clips fail; compare counts those clips, so that is not fatal.
 # The `pre` steps verify one cached clip and stop when its checks carry an error (an uncached heavy
-# stage), so a wrong cache stops before hours of recomputation.
+# stage), so a wrong cache stops before hours of recomputation; the dev one then prints the
+# prefetch command with this run's PHYSVERIFY_AGREEMENT_* variables.
 #
 # Startup (exit 2, before any physverify call): the phase argument; no PHYSVERIFY__* variable but
 # the ones this script exports (a foreign one would change verify or the rule without moving the
@@ -68,7 +73,8 @@ source "$(dirname "${BASH_SOURCE[0]}")/_common.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/_steps.sh"
 cd "$REPO_ROOT"
 
-[[ $# -eq 1 && ("$1" == dev || "$1" == test) ]] || die "usage: run_human_agreement.sh dev|test"
+[[ $# -eq 1 && ("$1" == dev || "$1" == test || "$1" == prefetch) ]] \
+    || die "usage: run_human_agreement.sh dev|test|prefetch"
 PHASE="$1"
 DEV_SUBSET=h2_dev
 TEST_SUBSET=h2_test
@@ -110,9 +116,6 @@ THREADS="${PHYSVERIFY_AGREEMENT_THREADS:-32}"
 [[ "$THREADS" =~ ^[1-9][0-9]*$ ]] || die "PHYSVERIFY_AGREEMENT_THREADS must be a positive integer"
 
 OUT="${PHYSVERIFY_AGREEMENT_DIR:-$H200_ROOT/h2}"
-mkdir -p "$OUT"
-exec 9>"$OUT/run.lock"
-flock -n 9 || die "another run_human_agreement.sh holds $OUT/run.lock"
 
 export PHYSVERIFY__PATHS__DATA_DIR="${PHYSVERIFY_AGREEMENT_DATA:-$H200_ROOT/h2-data}"
 export PHYSVERIFY__PATHS__CACHE_DIR="${PHYSVERIFY_AGREEMENT_CACHE_DIR:-$H200_ROOT/Repo/data/cache}"
@@ -126,6 +129,18 @@ export PHYSVERIFY__RUNTIME__HEAVY_LOCK="$H200_ROOT/kubric.lock"
 # No step runs without the sealed exclusion record.
 export PHYSVERIFY__CHECK_SCOPE__REQUIRE_DECISION_RECORD=true
 unset PHYSVERIFY_LOCK_HELD
+BOOK="$OUT"
+if [[ "$PHASE" == prefetch ]]; then
+    BOOK="$OUT/prefetch"
+    PHYSVERIFY__PATHS__RUNS_DIR="$(realpath -m "$BOOK/runs")"
+    export PHYSVERIFY__PATHS__RUNS_DIR
+    [[ "$PHYSVERIFY__PATHS__RUNS_DIR/" != "$(realpath -m "$PHYSVERIFY__PATHS__DATA_DIR")"/* ]] \
+        || die "the prefetch runs $PHYSVERIFY__PATHS__RUNS_DIR are under $PHYSVERIFY__PATHS__DATA_DIR:" \
+            "set PHYSVERIFY_AGREEMENT_DIR outside it"
+fi
+mkdir -p "$OUT"
+exec 9>"$OUT/run.lock"
+flock -n 9 || die "another run_human_agreement.sh holds $OUT/run.lock"
 CAL="$PHYSVERIFY__PATHS__CALIBRATION_DIR"
 CHAIN_DIR="${PHYSVERIFY_AGREEMENT_CHAIN_DIR:-$CHAIN_ROOT}"
 FREEZE="${PHYSVERIFY_AGREEMENT_FREEZE:-}"
@@ -134,11 +149,11 @@ FROZEN_BY="the calibration chain"
 LEDGER="$H200_ROOT/h2-test-ledger.txt"
 ENV_SHA="$(env | grep '^PHYSVERIFY__' | LC_ALL=C sort | sha256sum | cut -d ' ' -f 1)"
 
-LOGS="$OUT/logs"
-STATE="$OUT/state.env"
-STEPS="$OUT/steps.tsv"
-NOTES="$OUT/notes.md"
-SUMMARY="$OUT/summary.md"
+LOGS="$BOOK/logs"
+STATE="$BOOK/state.env"
+STEPS="$BOOK/steps.tsv"
+NOTES="$BOOK/notes.md"
+SUMMARY="$BOOK/summary.md"
 SUMMARY_TITLE="Human-agreement study on VideoPhy ($PV_DEVICE)"
 SUMMARY_INFO="commit $HEAD_COMMIT, device $PV_DEVICE, profile $PV_PROFILE, data $PHYSVERIFY__PATHS__DATA_DIR, cache $PHYSVERIFY__PATHS__CACHE_DIR, calibration $CAL, threads $THREADS"
 mkdir -p "$LOGS"
@@ -220,7 +235,7 @@ check_doctor() {
         || die "doctor reports config_dir '$(doctor_value config_dir)', not $REPO_ROOT/configs"
     [[ "$(doctor_value device)" == "$PV_DEVICE" ]] \
         || die "doctor reports device '$(doctor_value device)', not $PV_DEVICE"
-    for name in DATA_DIR CACHE_DIR RAW_DIR CALIBRATION_DIR; do
+    for name in DATA_DIR CACHE_DIR RAW_DIR CALIBRATION_DIR ${PHYSVERIFY__PATHS__RUNS_DIR:+RUNS_DIR}; do
         var="PHYSVERIFY__PATHS__$name"
         same_path "$(doctor_value "paths.${name,,}")" "${!var}" \
             || die "doctor reports paths.${name,,} '$(doctor_value "paths.${name,,}")', not ${!var}"
@@ -259,16 +274,28 @@ prereg_problem() {
         || { echo "decision record $value, not $FROZEN_BY's $CHAIN_RECORD_SHA"; return; }
 }
 
+# The prefetch phase with this run's PHYSVERIFY_AGREEMENT_* variables, as a command to paste.
+prefetch_command() {
+    local name command="cd $(printf %q "$REPO_ROOT") &&"
+    for name in $(compgen -e -X '!PHYSVERIFY_AGREEMENT_*'); do
+        command+=" $name=$(printf %q "${!name}")"
+    done
+    [[ "$PV_DEVICE" != cuda ]] || command+=" CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES"
+    echo "$command bash scripts/h200/run_human_agreement.sh prefetch"
+}
+
 # preflight STEP SUBSET CLIP: one cached clip verified; any error in its checks stops.
 preflight() {
     begin "$1" "$PHASE"
     [[ -n "$3" ]] || stop "no $2 clip to preflight"
     call 1 -- verify --dataset videophy --level perceived --subset "$2" --clips "$3"
-    local run errors
+    local run errors hint=""
     run="$(run_of)"
+    [[ "$2" != "$DEV_SUBSET" ]] \
+        || hint=$'\n'"Cache $2 first (fetch and extract only, runs under $OUT/prefetch/runs):"$'\n'"  $(prefetch_command)"
     # verify exits 0 on an uncached clip: its rows abstain with the error in checks.jsonl.
     errors="$(query run-errors "$run" 2>&1)" \
-        || stop "preflight: $3 failed or is not cached for --device $PV_DEVICE:"$'\n'"$errors"
+        || stop "preflight: $3 failed or is not cached for --device $PV_DEVICE:"$'\n'"$errors$hint"
     note "preflight: $2 $3 cached, run $run"
     row 0
 }
@@ -379,6 +406,18 @@ phase_test() {
     artifacts_unchanged
     row 0
     echo "Agreement run: $(dirname "$TEST_VERIFY_RUN")/$AGREEMENT_LINK (summary: agreement/summary.md)"
+}
+
+phase_prefetch() {
+    check_doctor
+    begin prefetch-fetch "$PHASE"
+    call 0 -- agreement fetch --subset "$DEV_SUBSET"
+    row 0
+    begin prefetch-extract "$PHASE"
+    call 1 -- extract run --dataset videophy --subset "$DEV_SUBSET"
+    note "prefetch: $DEV_SUBSET extracted, run $(run_of)"
+    row 0
+    echo "$DEV_SUBSET cached; run run_human_agreement.sh dev"
 }
 
 if [[ -n "$FREEZE" ]]; then

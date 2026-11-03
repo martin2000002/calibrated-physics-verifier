@@ -60,12 +60,13 @@ printf 'env cuda=%s|%s|%s|%s|%s|%s|%s|%s\n' "${CUDA_VISIBLE_DEVICES-unset}" \
     "${PHYSVERIFY__PATHS__RAW_DIR-unset}" "${PHYSVERIFY__PATHS__CALIBRATION_DIR-unset}" \
     "${PHYSVERIFY__PATHS__ERROR_PROFILE-unset}" "${PHYSVERIFY__PATHS__THRESHOLDS-unset}" \
     "${PHYSVERIFY__CHECK_SCOPE__REQUIRE_DECISION_RECORD-unset}" >> "$CALLS"
+RUNS="${PHYSVERIFY__PATHS__RUNS_DIR:-$DATA/runs}"
 new_run() {
     local n
-    n=$(( $(cat "$DATA/counter" 2>/dev/null || echo 0) + 1 ))
-    mkdir -p "$DATA/runs/r$n"
-    echo "$n" > "$DATA/counter"
-    RUN="$DATA/runs/r$n"
+    n=$(( $(cat "$RUNS/counter" 2>/dev/null || echo 0) + 1 ))
+    mkdir -p "$RUNS/r$n"
+    echo "$n" > "$RUNS/counter"
+    RUN="$RUNS/r$n"
     echo "run: $RUN"
 }
 case "$*" in
@@ -74,6 +75,7 @@ case "$*" in
     echo "device: ${DOCTOR_DEVICE:-$4} (--device)"
     echo "config_hash: ${CONFIG_HASH:-cafe12345678}"
     echo "paths.data_dir: ${DOCTOR_DATA_DIR:-$DATA}"
+    echo "paths.runs_dir: ${DOCTOR_RUNS_DIR:-$RUNS}"
     echo "paths.cache_dir: ${DOCTOR_CACHE_DIR:-$PHYSVERIFY__PATHS__CACHE_DIR} (env)"
     echo "paths.raw_dir: ${DOCTOR_RAW_DIR:-$PHYSVERIFY__PATHS__RAW_DIR}"
     echo "paths.calibration_dir: ${DOCTOR_CALIBRATION_DIR:-$CAL}"
@@ -435,6 +437,8 @@ def test_an_uncached_preflight_clip_stops_before_any_extraction(sandbox: Agreeme
     result = sandbox.run("dev", PREFLIGHT_CHECKS=str(sandbox.uncached))
     assert result.returncode == 2 and "preflight" in result.stderr
     assert "heavy stage is not cached" in result.stderr
+    assert "PHYSVERIFY_AGREEMENT_EXPECT_COMMIT=c0ffee1" in result.stderr
+    assert "bash scripts/h200/run_human_agreement.sh prefetch" in result.stderr
     assert not any(" extract run " in call for call in sandbox.commands())
     assert sandbox.last_rows()["pre"] == "2"
 
@@ -629,3 +633,31 @@ def test_dev_warns_when_the_calibration_gate_is_not_null(sandbox: AgreementSandb
     result = sandbox.run("dev", PREREG_RULE="provisional_any_fail", PREREG_GATE="weights 0")
     assert result.returncode == 0, result.stderr
     assert "WARNING: calibration_gate not null (weights 0)" in result.stderr
+
+
+def test_prefetch_caches_h2_dev_outside_the_data_directory(sandbox: AgreementSandbox) -> None:
+    result = sandbox.run("prefetch")
+    assert result.returncode == 0, result.stderr
+    assert sandbox.commands() == ["doctor", "agreement subset --check", *_pass("h2_dev")[:2]]
+    prefetch = sandbox.out / "prefetch"
+    assert (prefetch / "runs" / "r1").is_dir() and not (sandbox.data / "runs").exists()
+    assert not (sandbox.out / "steps.tsv").exists() and not sandbox.prereg().exists()
+    rows = (prefetch / "steps.tsv").read_text(encoding="utf-8")
+    assert "prefetch-extract\tprefetch\t0" in rows
+    assert sandbox.run("dev").returncode == 0
+
+
+@pytest.mark.parametrize(("env", "message"), [({"DOCTOR_RUNS_DIR": "/elsewhere"}, "paths.runs_dir")])
+def test_prefetch_checks_its_runs_directory_with_doctor(
+    sandbox: AgreementSandbox, env: dict[str, str], message: str
+) -> None:
+    result = sandbox.run("prefetch", **env)
+    assert result.returncode == 2 and message in result.stderr, result.stderr
+    assert sandbox.commands() == ["doctor"]
+
+
+def test_prefetch_runs_under_the_data_directory_are_refused(sandbox: AgreementSandbox) -> None:
+    result = sandbox.run("prefetch", PHYSVERIFY_AGREEMENT_DIR=str(sandbox.data / "h2"))
+    assert result.returncode == 2 and "are under" in result.stderr, result.stderr
+    assert sandbox.commands() == []
+    assert not sandbox.data.exists()

@@ -403,7 +403,10 @@ stored output directory of a calibration-chain runner that is no longer in the r
 logged, also through the list of test logs in `$PHYSVERIFY_H200_ROOT/h2-test-ledger.txt`, and `dev`
 refuses on the same evidence. A pre-registration with a calibration gate makes the study not
 evaluable with the calibrated rule; `test` then needs `PHYSVERIFY_AGREEMENT_ACCEPT_NOT_EVALUABLE=1`.
-Output goes to `PHYSVERIFY_AGREEMENT_DIR` (default `$PHYSVERIFY_H200_ROOT/h2`). Unlike the freeze,
+Output goes to `PHYSVERIFY_AGREEMENT_DIR` (default `$PHYSVERIFY_H200_ROOT/h2`). `prefetch` fetches and
+extracts the dev subset only, with its runs and bookkeeping in `<dir>/prefetch/` (never under
+`PHYSVERIFY_AGREEMENT_DATA`), so that the dev preflight finds its clip cached; an uncached dev
+preflight prints that command. Unlike the freeze,
 iteration and final runners, this script keeps its own startup checks instead of `_guards.sh`.
 
 ## Generator comparison
