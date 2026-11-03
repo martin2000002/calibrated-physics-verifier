@@ -9,15 +9,15 @@
       "version": "1"
     },
     "R4_size/v3": {
-      "digest": "760be7636dc0eee065a6daff674848968c6b93389291c74b039df7fe01580e6b",
+      "digest": "8f17c50d4e6c6a7299697adde94b8ccc60094d040cc9591c9cdbb6866981f209",
       "version": "2"
     },
     "R4_size/v3_window_depth": {
-      "digest": "e40d683c5f9bfcfcfaa59075f84c8b64798c041acd862d8dea51f5c4f814431f",
+      "digest": "05cc0e5dc769cfce913975c2046608c1033a01903f7fa6111218c0d051565606",
       "version": "2"
     },
     "R4_size/v3_window_depth_unoccluded": {
-      "digest": "d57256260c4db606ab300821fd264312d2f913d01011f13bce6ad3df05cbc675",
+      "digest": "2985ed651553445a22079885701dcf0fbff656ef7503f1d02f490657ab62b983",
       "version": "2"
     },
     "R5a/los_tilt": {
@@ -63,7 +63,7 @@
       "version": "1"
     },
     "R4_size": {
-      "digest": "b9102e5e097d773245fe05116b2c19918fb1d35fe88f1f26f45a0398b753c55e",
+      "digest": "599ba04a23bd2dba2e512509090371c15e48573dec5fc24e378e242a8ab0efc8",
       "version": "2"
     },
     "R5a": {

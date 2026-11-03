@@ -82,7 +82,9 @@ def load_suite(
     def perceived(
         settings: Settings, dataset: DatasetSource, resolve: PlanResolver, deps: PipelineDeps
     ) -> InputSource:
-        return perceived_routed_source(settings, dataset, resolve, deps, InputLevel.PERCEIVED)
+        return perceived_routed_source(
+            settings, dataset, resolve, checks, deps, InputLevel.PERCEIVED
+        )
 
     return Verifier(suite.checks, suite.runner(), perceived)
 

@@ -89,7 +89,8 @@ def variant_inputs(
         return _PlanSource(found, plan.names, level)
 
     variant = outputs.variant
-    source = routed_inputs(chain.settings_of(variant), chain.resolver(variant), source_of)
+    settings, resolve = chain.settings_of(variant), chain.resolver(variant)
+    source = routed_inputs(settings, resolve, chain.checks, source_of)
     return next(iter(source.load([clip])))
 
 

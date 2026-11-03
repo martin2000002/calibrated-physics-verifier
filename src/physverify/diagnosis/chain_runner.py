@@ -56,6 +56,10 @@ class ChainRunner:
         return self._dataset
 
     @property
+    def checks(self) -> Mapping[str, type[Check]]:
+        return self._checks
+
+    @property
     def error_profile(self) -> ErrorProfile | None:
         return self._deps.error_profile
 

@@ -101,6 +101,7 @@ def perceived_source(
         context.settings,
         dataset,
         _resolver(context, dataset.name, gt_stages, None, None),
+        registry_of(context, CHECKS),
         pipeline_deps(context, None, lock),
         level,
     )
