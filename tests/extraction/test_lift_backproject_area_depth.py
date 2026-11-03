@@ -1,11 +1,12 @@
-"""``lift/backproject_area_depth`` is ``lift/backproject`` rescaled by the area depth on a perceived
-TRACK; with a true TRACK it is the parent's output."""
+"""``lift/backproject_area_depth`` is ``lift/backproject`` rescaled by the area depth, on a
+perceived TRACK and on a true one alike."""
 
 from __future__ import annotations
 
 from collections.abc import Mapping
 
 import numpy as np
+import pytest
 from support import entry, make_context, profile_of, run_provider
 from synthetic_clip import SyntheticClip
 
@@ -63,18 +64,10 @@ def test_the_provider_is_registered_under_lift() -> None:
     assert AreaDepthLift.Params is AreaDepthLiftParams
 
 
-def test_with_a_true_track_the_output_is_the_parents(fixture_clip: SyntheticClip) -> None:
-    parent = lifted(fixture_clip, BackprojectLift, GROUND_TRUTH)
-    table = lifted(fixture_clip, AreaDepthLift, GROUND_TRUTH)
-    for name in (*SCALED_FIELDS, *UNSCALED):
-        np.testing.assert_array_equal(getattr(table, name), getattr(parent, name), err_msg=name)
-
-
-def test_with_a_perceived_track_the_parent_is_rescaled_by_the_area_depth(
-    fixture_clip: SyntheticClip,
-) -> None:
-    parent = lifted(fixture_clip, BackprojectLift, PERCEIVED_TRACK)
-    table = lifted(fixture_clip, AreaDepthLift, PERCEIVED_TRACK)
+@pytest.mark.parametrize("track", [PERCEIVED_TRACK, GROUND_TRUTH])
+def test_the_parent_is_rescaled_by_the_area_depth(fixture_clip: SyntheticClip, track: str) -> None:
+    parent = lifted(fixture_clip, BackprojectLift, track)
+    table = lifted(fixture_clip, AreaDepthLift, track)
     area = mask_area(np.asarray(masks_of(fixture_clip).masks, dtype=np.bool_))
     used = area_depth_rows(parent, area)
     factor = area_depth_factor(parent.position[..., 2], area, used, AreaDepthLiftParams().min_rows)

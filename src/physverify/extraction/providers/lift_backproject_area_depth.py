@@ -8,7 +8,7 @@ from typing import ClassVar
 import numpy as np
 from pydantic import BaseModel, Field
 
-from physverify.extraction._base import GROUND_TRUTH, StageContext
+from physverify.extraction._base import StageContext
 from physverify.extraction.area_depth import (
     area_depth_factor,
     area_depth_rows,
@@ -18,7 +18,6 @@ from physverify.extraction.area_depth import (
 from physverify.extraction.lift_params import LiftParams
 from physverify.extraction.providers._backproject import BackprojectLift
 from physverify.extraction.providers._common import expect_params
-from physverify.schema.stages import Stage
 from physverify.schema.states import ObjectStateTable
 
 
@@ -33,7 +32,7 @@ class AreaDepthLiftParams(LiftParams):
 
 class AreaDepthLift(BackprojectLift):
     """``lift/backproject`` with position, size and their sigmas rescaled along the camera ray on
-    the trusted rows of each perceived track. With a true TRACK the parent's output is returned."""
+    the trusted rows of each track, perceived or true."""
 
     name: ClassVar[str] = "backproject_area_depth"
     version: ClassVar[str] = "1"
@@ -46,8 +45,6 @@ class AreaDepthLift(BackprojectLift):
 
     def run(self, ctx: StageContext) -> ObjectStateTable:
         table = super().run(ctx)
-        if ctx.plan.get(Stage.TRACK) == GROUND_TRUTH:
-            return table
         area = mask_area(np.asarray(self._track(ctx).masks, dtype=np.bool_))
         used = area_depth_rows(table, area)
         position_z = np.asarray(table.position[..., 2], dtype=np.float64)
