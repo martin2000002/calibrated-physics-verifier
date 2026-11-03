@@ -15,6 +15,7 @@ Exit codes: 0 ok, 2 a check failed or an input is unusable (message on stderr).
     python freeze_query.py plan SET SEED                  the render's plan.json is that render's
                                                           (both refuse a development version)
     python freeze_query.py look-state [--retry] SPEC...   the first look, or the one retry
+    python freeze_query.py look-recorded RUN COMMIT SPEC...  the look of RUN left its ledger line
     python freeze_query.py v1-state FREEZE_JSON SPEC...   the v1 arm follows the look, once
     python freeze_query.py ledger                         the sealed ledger and its line count
 
@@ -88,6 +89,10 @@ def _parser() -> argparse.ArgumentParser:
     state = sub.add_parser("look-state")
     state.add_argument("--retry", action="store_true")
     state.add_argument("specs", nargs="+")
+    recorded = sub.add_parser("look-recorded")
+    recorded.add_argument("run_dir", type=Path)
+    recorded.add_argument("commit")
+    recorded.add_argument("specs", nargs="+")
     arm = sub.add_parser("v1-state")
     arm.add_argument("freeze", type=Path)
     arm.add_argument("specs", nargs="+")
@@ -141,7 +146,13 @@ def _artifacts(args: argparse.Namespace) -> list[str]:
 
 
 def _ledger(args: argparse.Namespace) -> list[str]:
-    from physverify.freeze.ledger import ledger_entries, ledger_line, look_state, v1_state
+    from physverify.freeze.ledger import (
+        ledger_entries,
+        ledger_line,
+        look_state,
+        recorded_look,
+        v1_state,
+    )
 
     settings, home = _settings(), Path(os.environ.get("HOME") or Path.home())
     if args.command == "ledger":
@@ -149,6 +160,8 @@ def _ledger(args: argparse.Namespace) -> list[str]:
     entries = ledger_entries(settings, home)
     if args.command == "look-state":
         return [look_state(entries, args.specs, retry=args.retry)]
+    if args.command == "look-recorded":
+        return [recorded_look(entries, args.run_dir, args.commit, args.specs)]
     return [v1_state(entries, read_json(args.freeze), args.specs)]
 
 

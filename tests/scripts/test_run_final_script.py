@@ -28,7 +28,8 @@ PREFIX = re.compile(r"^--profile precise --device (cpu|cuda) --set runtime\.thre
 GPU = "2"
 # freeze_query.py field and seed run for real (they only read freeze.json or hash strings); the
 # ledger is a file of commit|sets|run_dir lines that a fake look appends to before it computes,
-# as the sealed guard does, and that the fake look-state and v1-state read with the one-look rule.
+# as the sealed guard does (UNRECORDED: an exempted look appends none), and that the fake
+# look-state, look-recorded and v1-state read with the one-look rule.
 FAKE_PYTHON = r"""#!/bin/bash
 LEDGER_FILE="${PHYSVERIFY__SEALED__LEDGER:-$LEDGER}"
 log_env() {
@@ -57,7 +58,7 @@ covering() {
 }
 evaluate() {
     new_run
-    if [[ -n "${PHYSVERIFY_UNSEAL:-}" ]]; then
+    if [[ -n "${PHYSVERIFY_UNSEAL:-}" && -z "${UNRECORDED:-}" ]]; then
         [[ -f "$LEDGER_FILE" ]] || { echo "no sealed ledger" >&2; exit 2; }
         echo "$1|$PHYSVERIFY_UNSEAL|$RUN" >> "$LEDGER_FILE"
     fi
@@ -100,6 +101,11 @@ if [[ "$1" != -c ]]; then
                 || { echo "freeze_query: the earlier look wrote evaluation.json" >&2; exit 2; }
             echo retry
         fi ;;
+      "freeze_query.py look-recorded")
+        specs="${*:5}"
+        grep -qxF "$4|${specs// /,}|$3" "$LEDGER_FILE" \
+            || { echo "freeze_query: no ledger line of run $3" >&2; exit 2; }
+        echo "recorded: $4 $specs" ;;
       "freeze_query.py v1-state")
         shift 3; specs="$*"
         found="$(covering "${specs// /,}")"
@@ -561,6 +567,22 @@ def test_one_retry_follows_a_look_that_wrote_no_evaluation(sandbox: FinalSandbox
     assert sandbox.run("look", "kubric_fresh", "--retry").returncode == 2
     assert len(sandbox.looks()) == 2 and len(sandbox.ledger_lines()) == 2
     assert "retry look at kubric_fresh" in sandbox.summary("look-kubric_fresh")
+
+
+@pytest.mark.parametrize("dataset", ["kubric_fresh", "real_new"])
+def test_a_look_that_left_no_ledger_line_fails(sandbox: FinalSandbox, dataset: str) -> None:
+    """A look the guard exempted (no line of this run, commit and specs) exits 2."""
+    if dataset == "real_new":
+        sandbox.ok("seed")
+        for name in ("physics_iq_views", "objectron_static"):
+            sandbox.ok("fetch", name)
+            sandbox.ok("extract", name)
+    else:
+        _ready(sandbox)
+    result = sandbox.run("look", dataset, UNRECORDED="1")
+    assert result.returncode == 2, result.stderr
+    assert "the look left no ledger line covering exactly" in result.stderr
+    assert len(sandbox.looks()) == 1 and sandbox.ledger_lines() == []
 
 
 def test_a_render_after_a_look_is_refused(sandbox: FinalSandbox) -> None:

@@ -31,7 +31,7 @@ from physverify.freeze.fresh_render import (
     render_overrides,
     sealed_overrides,
 )
-from physverify.freeze.ledger import ledger_entries, look_state, v1_state
+from physverify.freeze.ledger import ledger_entries, look_state, recorded_look, v1_state
 from physverify.freeze.ledger import ledger_line as summary_line
 from physverify.freeze.manifest import ManifestInputs, artifact_problems, manifest
 from physverify.freeze.selection import J4_RULE, candidate, chosen_candidate, seed_of, select
@@ -516,6 +516,21 @@ def test_a_set_is_looked_at_once_with_one_retry_when_nothing_was_written(tmp_pat
     twice = [*looked, ledger_line(spec, HEAD, tmp_path / "again")]
     with pytest.raises(QueryError, match="found 2"):
         look_state(twice, spec, retry=True)
+
+
+def test_a_look_is_recorded_only_by_its_own_line(tmp_path: Path) -> None:
+    """The run's line, of the commit, over exactly the specs; any other line does not count."""
+    run, specs = tmp_path / "run", ("physics_iq_views", "objectron_static")
+    others = [
+        ledger_line(specs, HEAD, tmp_path / "other"),
+        ledger_line(specs, V1, run),
+        ledger_line(specs[:1], HEAD, run),
+        ledger_line(specs, HEAD, None),
+    ]
+    with pytest.raises(QueryError, match=r"no ledger line of run .* covers exactly"):
+        recorded_look(others, run, HEAD, specs)
+    line = ledger_line(specs[::-1], HEAD, tmp_path / "." / "run")
+    assert recorded_look([*others, line], run, HEAD, specs).startswith("recorded: 2026-10-30")
 
 
 def test_the_v1_arm_follows_the_look_once(tmp_path: Path) -> None:

@@ -39,6 +39,24 @@ def look_state(entries: Sequence[LedgerEntry], specs: Sequence[str], *, retry: b
     return "retry"
 
 
+def recorded_look(
+    entries: Sequence[LedgerEntry], run_dir: Path, commit: str, specs: Sequence[str]
+) -> str:
+    """The look of ``run_dir`` left its ledger line, at ``commit`` and over exactly ``specs``: a
+    look the guard exempted would otherwise pass as never made."""
+    for entry in entries:
+        if (
+            entry.run_dir is not None
+            and Path(entry.run_dir).resolve() == run_dir.resolve()
+            and entry.commit == commit
+            and sorted(entry.sets) == sorted(specs)
+        ):
+            return f"recorded: {entry.utc} {entry.command} freeze {entry.freeze[:12]}"
+    raise QueryError(
+        f"no ledger line of run {run_dir} at commit {commit[:12]} covers exactly {','.join(specs)}"
+    )
+
+
 def v1_state(
     entries: Sequence[LedgerEntry], frozen: Mapping[str, Any], specs: Sequence[str]
 ) -> str:
