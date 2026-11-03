@@ -17,14 +17,14 @@ AUROC_FLOOR = 0.5
 
 @dataclass(frozen=True)
 class Clause:
-    meets_h1: bool
+    meets_monotone: bool
     meets_j: bool
     meets_stratified: bool | None
     """None where the set has no families."""
 
     @property
     def meets_both(self) -> bool:
-        return self.meets_h1 and self.meets_j
+        return self.meets_monotone and self.meets_j
 
     @property
     def meets_clause(self) -> bool:
@@ -36,9 +36,9 @@ def meets_stratified(scores: Stratified) -> bool:
     return aurocs and scores.j_cv is not None and above(scores.j_cv.informedness_ci.low, 0.0)
 
 
-def clause(h1: Monotonicity, j: Weight, stratified: Stratified | None) -> Clause:
+def clause(monotonicity: Monotonicity, j: Weight, stratified: Stratified | None) -> Clause:
     return Clause(
-        meets_h1=h1.h1_pass,
+        meets_monotone=monotonicity.h1_pass,
         meets_j=above(j.informedness_ci.low, 0.0),
         meets_stratified=None if stratified is None else meets_stratified(stratified),
     )

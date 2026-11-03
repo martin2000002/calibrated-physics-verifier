@@ -222,7 +222,7 @@ def check_score(
         folds_without_sigma_factor=sum(
             part.stratum.checks[check_id].sigma.factor is None for part in parts
         ),
-        meets_h1=met.meets_h1,
+        meets_h1=met.meets_monotone,
         meets_j=met.meets_j,
         meets_both=met.meets_both,
         auroc_cv_readings=unit.auroc_cv,

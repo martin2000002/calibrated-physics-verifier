@@ -75,7 +75,7 @@ def judged(
         check_id=check_id,
         monotonicity=tau_b,
         j=j,
-        meets_h1=met.meets_h1,
+        meets_h1=met.meets_monotone,
         meets_j=met.meets_j,
         meets_both=met.meets_both,
         auroc_readings=unit.auroc_cv,

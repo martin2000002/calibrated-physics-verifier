@@ -55,7 +55,7 @@ def test_random_changes_do_not_pass_monotonicity() -> None:
 
 
 def test_scored_rows_without_a_number_are_left_out_and_counted() -> None:
-    """A SCORED row whose subjects are all NaN would make tau_b NaN and fail H1 silently."""
+    """A SCORED row whose subjects are all NaN would make tau_b NaN and fail the trend silently."""
     rows = []
     for s in range(10):
         rows += scene_rows(f"s{s}", 0.0, [0.1 * lv for lv in LEVELS])

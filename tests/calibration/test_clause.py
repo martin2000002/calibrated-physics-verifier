@@ -1,4 +1,4 @@
-"""ADR 0036 clause (ii): the held-out n_met and the dev score count a check by the same rule."""
+"""The n_met clause: the held-out n_met and the dev score count a check by the same rule."""
 
 from __future__ import annotations
 
