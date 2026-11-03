@@ -451,6 +451,18 @@ def test_an_uncached_preflight_clip_stops_before_any_extraction(sandbox: Agreeme
     assert sandbox.last_rows()["pre"] == "2"
 
 
+def test_a_cuda_prefetch_hint_goes_through_the_gpu_slot(sandbox: AgreementSandbox) -> None:
+    """The command to paste never pins a GPU by hand: the GPU slot launcher picks it."""
+    _chain_on(sandbox, "cuda")
+    result = sandbox.run("dev", PREFLIGHT_CHECKS=str(sandbox.uncached), **_on("cuda"))
+    assert result.returncode == 2 and "preflight" in result.stderr, result.stderr
+    hint = next(line for line in result.stderr.splitlines() if "prefetch" in line and "cd " in line)
+    assert hint.endswith(
+        "~/work/scratch/gpu_slot.sh h2-prefetch bash scripts/h200/run_human_agreement.sh prefetch"
+    )
+    assert "CUDA_VISIBLE_DEVICES" not in hint
+
+
 def test_an_unrecorded_review_stops_before_any_download(sandbox: AgreementSandbox) -> None:
     result = sandbox.run("dev", CHECK_EXIT="1")
     assert result.returncode == 2 and "caption review" in result.stderr

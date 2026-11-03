@@ -284,14 +284,16 @@ prereg_problem() {
         || { echo "decision record $value, not $FROZEN_BY's $CHAIN_RECORD_SHA"; return; }
 }
 
-# The prefetch phase with this run's PHYSVERIFY_AGREEMENT_* variables, as a command to paste.
+# The prefetch phase with this run's PHYSVERIFY_AGREEMENT_* variables, as a command to paste; on
+# cuda through the server's GPU slot launcher, which takes the GPU lock and picks the GPU.
 prefetch_command() {
     local name command="cd $(printf %q "$REPO_ROOT") &&"
+    local run="bash scripts/h200/run_human_agreement.sh prefetch"
     for name in $(compgen -e -X '!PHYSVERIFY_AGREEMENT_*'); do
         command+=" $name=$(printf %q "${!name}")"
     done
-    [[ "$PV_DEVICE" != cuda ]] || command+=" CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES"
-    echo "$command bash scripts/h200/run_human_agreement.sh prefetch"
+    [[ "$PV_DEVICE" != cuda ]] || run="~/work/scratch/gpu_slot.sh h2-prefetch $run"
+    echo "$command $run"
 }
 
 # preflight STEP SUBSET CLIP: one cached clip verified; any error in its checks stops.
