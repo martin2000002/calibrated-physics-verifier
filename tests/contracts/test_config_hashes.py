@@ -30,22 +30,22 @@ PINNED_ROOT = "/pinned"
 
 SECTIONS_HASH = {
     "fast": "2dd9c7d4ef8f03af44ac3db3841c180abc99bf1b84bde91ee2b0d33b97d31c8d",
-    "precise": "4ff7304afe5bb1a84036ef068054fa526e17f55574bb42107cad5ac561db61d7",
+    "precise": "7965e7018cbcee9c4fa888bf01674f515baac933e589fbb1a3f1bfe00f165b91",
 }
 CONFIG_HASH = {
     "fast": "9fd0bd4b9a203ad27ffa1140075ac1995e2a955a2f1d8f4bff9d96900ad46e6d",
-    "precise": "13a70759587c1b4e59b0ae77a485afb94e0745472aef07d6e5d0dbd139b38cda",
+    "precise": "1af16d90ebe4ef7b8599750938cae367ff146479b98bbd18f43906aec66a68ed",
 }
 LOOK_CONFIG_HASH = {
     "fast": "7e4bf252235f348158fb6adad4e3a694606ea64b36092149e9771af57a8ffeea",
-    "precise": "0365aca17f9ce9185b0d39d682d221d49a177957cc362a74e974379e8f19ecc8",
+    "precise": "791590f22ea254c585fd3b5154de2841a350a1a96f56fbed07dc95cecea4240f",
 }
 CHECKS_HASH = "5c5820acaf1bfce8270cdc8653a9eefd373f9feccde4baaac4b3a4510198f78e"
 RUN_CHECKS_HASH = {
     "fast": "5c5820acaf1bfce8270cdc8653a9eefd373f9feccde4baaac4b3a4510198f78e",
     "precise": "b41ea2ac6501e53c05c30dae4e5698262d4ae254acb3029b5f835aff535a3531",
 }
-PRECISE_STAGE_KEYS_HASH = "799408065b099f4510b6b00a450a43c51d222bedb3f74687331bd434201727ef"
+PRECISE_STAGE_KEYS_HASH = "ec16d4fdf53ef8035cbc943c211eba298cc87b875c66f1b61d75e09b66b51b38"
 """Hash of every stage key of the precise plan for the declared calib dataset. It and
 ``RUN_CHECKS_HASH["precise"]`` are what the defaults give with the same choices passed by
 ``--set``."""
