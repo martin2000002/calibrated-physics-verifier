@@ -21,8 +21,8 @@ from physverify.extraction.providers._image_motion import (
     object_images,
     pixel_error,
 )
+from physverify.extraction.providers._savgol import SavgolParams
 from physverify.extraction.providers._velocity_tests import rest_runs
-from physverify.extraction.providers.kinematics_savgol import Params as SavgolParams
 from physverify.physics.kinematics import SavgolSpec
 from physverify.physics.row_time import seconds_per_row
 from physverify.schema.perception import MaskTrack

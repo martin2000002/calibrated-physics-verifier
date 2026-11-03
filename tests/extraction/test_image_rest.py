@@ -12,9 +12,9 @@ import scene_contact_cases as cases
 from physverify.extraction._base import GROUND_TRUTH
 from physverify.extraction.providers._image_motion import ObjectImage, PixelError, mask_motion
 from physverify.extraction.providers._image_rest import ImageRest, image_rest
+from physverify.extraction.providers._savgol import SavgolParams
 from physverify.extraction.providers._velocity_tests import rest_runs
 from physverify.extraction.providers.gt_kinematics import Params as TruthParams
-from physverify.extraction.providers.kinematics_savgol import Params as SavgolParams
 from physverify.physics.row_time import reference_seconds, seconds_per_row
 from physverify.physics.tracks import PIXEL_QUANTIZATION_SIGMA
 from physverify.schema.contacts import ContactKind
