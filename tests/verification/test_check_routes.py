@@ -262,6 +262,21 @@ def test_routes_enter_the_checks_hash_only_when_a_check_is_routed(
     )
 
 
+def test_a_route_provider_override_enters_the_routed_checks_hash_alone(
+    make_settings: SettingsFactory,
+) -> None:
+    registry: Mapping[str, type[Check]] = plugins.build("checks")
+    tuned = f"extraction.providers.lift.{AREA_LIFT}.min_rows=7"
+
+    def hashed(*overrides: str, profile: str) -> str:
+        return active_checks_hash(make_settings(*overrides, profile=profile), registry)
+
+    assert hashed(tuned, profile="precise") != hashed(profile="precise")
+    assert hashed(tuned, profile="fast") == hashed(profile="fast")
+    main_tuned = "extraction.providers.lift.backproject.erode_px=2"
+    assert hashed(main_tuned, profile="precise") == hashed(profile="precise")
+
+
 TEST_LIFT = """
 from typing import ClassVar
 

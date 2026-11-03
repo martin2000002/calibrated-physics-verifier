@@ -41,6 +41,8 @@ SIZE_CHANGE_CHECKS = frozenset({"R4_size"})
 their own input, so they never read a plan with a provider that derives depth from size."""
 
 StageTable = Mapping[Stage, str]
+ProviderTables = Mapping[Stage, Mapping[str, Mapping[str, object]]]
+"""``[extraction.providers]``: stage -> provider name -> parameter overrides."""
 
 
 class CheckRouting(FrozenModel):
@@ -82,15 +84,24 @@ def check_routing(settings: Settings) -> CheckRouting:
     return validated(CheckRouting, own, VERIFICATION_SECTION)
 
 
-def routes_hash_part(routing: CheckRouting, check_ids: Sequence[str]) -> dict[str, object]:
-    """What the routing adds to a checks hash: empty when no check in ``check_ids`` is routed."""
-    return {
-        check_id: {
+def routes_hash_part(
+    routing: CheckRouting, check_ids: Sequence[str], provider_tables: ProviderTables
+) -> dict[str, object]:
+    """What the routing adds to a checks hash: empty when no check in ``check_ids`` is routed.
+    A substituted provider's ``provider_tables`` entry enters only when it is not empty."""
+    part: dict[str, object] = {}
+    for check_id, stages in routing.stages_of(check_ids).items():
+        entry: dict[str, object] = {
             "route": routing.check_routes[check_id],
             "stages": {stage.value: name for stage, name in sorted(stages.items())},
         }
-        for check_id, stages in routing.stages_of(check_ids).items()
-    }
+        params = {
+            f"{stage.value}/{name}": dict(table)
+            for stage, name in sorted(stages.items())
+            if (table := provider_tables.get(stage, {}).get(name))
+        }
+        part[check_id] = {**entry, "params": params} if params else entry
+    return part
 
 
 class RoutedSource:
