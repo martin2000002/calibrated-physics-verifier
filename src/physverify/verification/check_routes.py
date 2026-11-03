@@ -148,11 +148,20 @@ def routed_inputs(
 ) -> InputSource:
     """The inputs of the plan ``resolve`` gives for ``settings``, each routed check reading its
     route's plan, resolved by the same ``resolve``; ``source_of`` loads one plan's inputs."""
+    routing, main, routes = guarded_plans(settings, resolve, checks)
+    return routed_source(main, routes, routing.check_routes, source_of)
+
+
+def guarded_plans(
+    settings: Settings, resolve: PlanResolver, checks: Mapping[str, type[Check]]
+) -> tuple[CheckRouting, ResolvedPlan, dict[str, ResolvedPlan]]:
+    """The routing of ``settings``, its main plan and every route's plan, resolved by
+    ``resolve``, once no check of ``checks`` that forbids it would read a size-derived depth."""
     routing = check_routing(settings)
     main = resolve(settings)
     routes = route_plans(settings, routing.routes, resolve)
     refuse_size_derived_depth(main, routes, routing.check_routes, size_change_checks(checks))
-    return routed_source(main, routes, routing.check_routes, source_of)
+    return routing, main, routes
 
 
 def forbids_size_derived_depth(check: type[Check]) -> bool:
@@ -202,16 +211,18 @@ def perceived_routed_source(
     return routed_inputs(settings, resolve, checks, source_of)
 
 
-def input_plans(settings: Settings, resolve: PlanResolver) -> tuple[ResolvedPlan, ...]:
+def input_plans(
+    settings: Settings, resolve: PlanResolver, checks: Mapping[str, type[Check]]
+) -> tuple[ResolvedPlan, ...]:
     """Every distinct plan :func:`routed_inputs` can read, the main plan first."""
-    main, routes = input_plans_by_route(settings, resolve)
+    main, routes = input_plans_by_route(settings, resolve, checks)
     return (main, *routes.values())
 
 
 def input_plans_by_route(
-    settings: Settings, resolve: PlanResolver
+    settings: Settings, resolve: PlanResolver, checks: Mapping[str, type[Check]]
 ) -> tuple[ResolvedPlan, dict[str, ResolvedPlan]]:
-    """The main plan and every route plan that differs from it, by route name (``extra_plans``)."""
-    main = resolve(settings)
-    routes = route_plans(settings, check_routing(settings).routes, resolve)
+    """The main plan and every route plan that differs from it, by route name (``extra_plans``),
+    under the guard of :func:`routed_inputs`."""
+    _, main, routes = guarded_plans(settings, resolve, checks)
     return main, extra_plans(main, routes)

@@ -84,7 +84,7 @@ def input_plans_for(
 ) -> tuple[ResolvedPlan, dict[str, ResolvedPlan]]:
     """The plan of :func:`plan_for` and every input route's plan that differs from it."""
     resolve = _resolver(context, dataset, gt_stages, fps, max_side)
-    return input_plans_by_route(context.settings, resolve)
+    return input_plans_by_route(context.settings, resolve, registry_of(context, CHECKS))
 
 
 def perceived_source(

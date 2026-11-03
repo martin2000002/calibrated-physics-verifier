@@ -133,11 +133,12 @@ def test_the_input_plans_are_the_main_plan_and_each_distinct_route_plan(
 ) -> None:
     settings = make_settings(*ROUTED_R3A, f"verification.routes.again.lift={AREA_LIFT}")
     resolve = partial(resolve_plan, providers=PLUGIN_KINDS["providers"](), dataset=DATASET)
-    main, routes = input_plans_by_route(settings, resolve)
+    checks = PLUGIN_KINDS["checks"]()
+    main, routes = input_plans_by_route(settings, resolve, checks)
     assert main == resolve(settings)
     assert list(routes) == ["again"]
     assert routes["again"].names[Stage.LIFT] == AREA_LIFT
-    assert input_plans(settings, resolve) == (main, routes["again"])
+    assert input_plans(settings, resolve, checks) == (main, routes["again"])
 
 
 def spy(seen: dict[str, str]) -> Callable[[str], type[Check]]:
