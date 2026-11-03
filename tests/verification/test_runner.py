@@ -16,13 +16,17 @@ from settings_factory import SettingsFactory
 
 from physverify.app import plugins
 from physverify.app.plugins import PLUGIN_KINDS
+from physverify.calibration.settings import calibration_settings
 from physverify.checks._base import Check, CheckInputs, abstain, unscored
 from physverify.checks._params import CommonParams
 from physverify.config.models import Settings
 from physverify.core.errors import ConfigError
+from physverify.extraction.settings import SECTION as EXTRACTION
+from physverify.extraction.settings import ExtractionSettings
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
 from physverify.schema.clip import ClipManifest
 from physverify.schema.io import read_jsonl, stable_hash
+from physverify.schema.stages import Stage
 from physverify.verification.check_set import CHECKS_SECTION, ChecksSettings, active_checks_hash
 from physverify.verification.inputs import ClipInputs
 from physverify.verification.policies.raw import RawPolicy
@@ -38,6 +42,7 @@ from physverify.verification.runner import (
     configured_suite,
     write_report,
 )
+from physverify.verification.sweep import CheckUnit
 from physverify.verification.thresholding import ThresholdTable
 
 Behavior = Callable[[type[Check], CheckInputs], Sequence[CheckResult]]
@@ -275,6 +280,28 @@ def test_the_precise_profile_runs_the_whitened_fall_with_a_threshold_in_its_unit
     mismatch = r"R5a \(tau in accel_wald_chi2_3, check reports accel_rel"
     with pytest.raises(ConfigError, match=mismatch):
         configured_suite(v1, plugins.configured("checks", v1), policies)
+
+
+def test_the_k_set_list_runs_the_line_of_sight_falls_under_precise(
+    make_settings: SettingsFactory,
+) -> None:
+    k = make_settings(
+        "extraction.plan.depth=vda_large",
+        "check_variants.R5a=los_tilt",
+        "check_variants.R5b=los_ballistic",
+        "verification.thresholds.R5a=13.28",
+        "verification.threshold_units.R5a=accel_tilt_chi2_4",
+        "calibration.tau_tolerance_units.R5a=accel_tilt_chi2_4",
+        profile="precise",
+    )
+    checks = plugins.configured("checks", k)
+    variants = plugins.build("check_variants")
+    assert checks["R5a"] is variants["R5a/los_tilt"]
+    assert checks["R5b"] is variants["R5b/los_ballistic"]
+    suite = configured_suite(k, checks, PLUGIN_KINDS["policies"]())
+    assert suite.thresholds.tau_of("R5a") == 13.28
+    assert calibration_settings(k).tolerance_of(CheckUnit.of(checks["R5a"])) == 1e-5
+    assert k.section(EXTRACTION, ExtractionSettings).plan[Stage.DEPTH] == "vda_large"
 
 
 @pytest.mark.parametrize("recorded", ["default", "whitened", None])
