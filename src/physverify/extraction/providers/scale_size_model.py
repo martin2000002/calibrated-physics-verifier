@@ -23,6 +23,7 @@ from physverify.extraction.providers._size_prior import (
     object_scale,
     with_focal,
 )
+from physverify.physics.length_sigma import DEFAULT_AXIS_ERRORS, AxisErrors
 from physverify.schema.scale import ScaleEstimate, ScaleSource
 from physverify.schema.stages import Stage
 from physverify.schema.states import ObjectStateTable
@@ -46,12 +47,14 @@ class Params(ProviderParams):
     priors: SizePriorTable = SizePriorTable({})
     model: SizeModelTable = SizeModelTable()
     lookup: SizeLookup = SizeLookup()
+    axis_errors: AxisErrors = DEFAULT_AXIS_ERRORS
 
 
 class SizeModelScale:
     stage: ClassVar[Stage] = Stage.SCALE
     name: ClassVar[str] = "size_model"
-    version: ClassVar[str] = "2"
+    # 3: the extent sigmas of L combine as correlated axes by default (physics.length_sigma).
+    version: ClassVar[str] = "3"
     requires: ClassVar[tuple[Stage, ...]] = (Stage.CAMERA, Stage.LIFT)
     heavy: ClassVar[bool] = False
     is_ground_truth: ClassVar[bool] = False
@@ -96,7 +99,7 @@ class SizeModelScale:
                 continue
             key, prior = resolved
             unshared = SizePrior(mean_m=prior.mean_m, rel_spread=keep * prior.rel_spread)
-            estimate = object_scale(lift, n, unshared, phi)
+            estimate = object_scale(lift, n, unshared, phi, self.params.axis_errors)
             if estimate is not None:
                 groups.setdefault(key, (prior, []))[1].append(estimate)
         return groups

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Sequence
 from dataclasses import dataclass
 from itertools import pairwise
@@ -33,20 +34,36 @@ class LevelDelta:
 
 
 def deltas(rows: Sequence[CalibrationRow], bias: float) -> tuple[LevelDelta, ...]:
-    """Pairs of the scenes with a scored clean clip and at least one scored positive."""
+    """Pairs of the scenes with a ranked clean clip and at least one ranked positive; see
+    ``unranked`` for the scored rows left out."""
     require_one_clean_per_scene(rows)
     clean = {r.scene_id: corrected(r, bias) for r in rows if r.role is Role.CLEAN and r.scored}
     found: list[LevelDelta] = []
-    for scene_id in sorted(clean):
+    for scene_id in sorted(s for s, m in clean.items() if not math.isnan(m)):
         positives = [r for r in rows if r.scene_id == scene_id and r.role is Role.POSITIVE]
-        scored = [r for r in positives if r.scored]
-        if not scored:
-            continue
-        found.append(LevelDelta(scene_id, CLEAN_LEVEL, 0.0))
-        found += [
-            LevelDelta(scene_id, r.pert_level, corrected(r, bias) - clean[scene_id]) for r in scored
+        scored = [
+            (r.pert_level, corrected(r, bias) - clean[scene_id]) for r in positives if r.scored
         ]
+        ranked = [LevelDelta(scene_id, level, d) for level, d in scored if not math.isnan(d)]
+        if ranked:
+            found += [LevelDelta(scene_id, CLEAN_LEVEL, 0.0), *ranked]
     return tuple(found)
+
+
+def unranked(rows: Sequence[CalibrationRow], bias: float) -> int:
+    """Scored clean and positive rows with a NaN corrected magnitude (every subject NaN), which
+    ``deltas`` leaves out: a clean one takes its scene's positives with it."""
+    labelled = (Role.CLEAN, Role.POSITIVE)
+    return sum(r.scored and r.role in labelled and math.isnan(corrected(r, bias)) for r in rows)
+
+
+def monotonicity_of(
+    rows: Sequence[CalibrationRow], bias: float, settings: CalibrationSettings
+) -> Monotonicity:
+    """``monotonicity`` of ``deltas``, with ``n_unranked`` set when a scored row was left out."""
+    found = monotonicity(deltas(rows, bias), settings)
+    left_out = unranked(rows, bias)
+    return found.model_copy(update={"n_unranked": left_out}) if left_out else found
 
 
 def _tau(pairs: Sequence[LevelDelta]) -> float:

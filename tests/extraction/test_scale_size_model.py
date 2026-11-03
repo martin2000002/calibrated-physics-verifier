@@ -89,7 +89,7 @@ def test_one_class_object_follows_the_log_normal_formula(fixture_clip: Synthetic
     lookup = SizeLookup(labels={"ball": "cup"})
     got = run_model(fixture_clip, lift, model=FULL, lookup=lookup)
     n = lift.labels.tolist().index("ball")
-    measured = math.sqrt(3 * 0.06**2) / 3
+    measured = 0.06
     assert got.meters_per_unit is not None
     assert abs(got.meters_per_unit / (0.09 / object_length(lift, n)) - 1) < 1e-12
     expected_rel = math.sqrt((0.9 * 0.15) ** 2 + measured**2)
@@ -115,7 +115,7 @@ def test_two_objects_of_one_class_share_the_prior_term(
     lookup = SizeLookup(labels={"ball": "cup", "box": "cup"})
     got = run_model(fixture_clip, lift, model=FULL, lookup=lookup, same_class_rho=rho)
     p2 = (0.9 * 0.15) ** 2
-    q2 = 3 * 0.06**2 / 9
+    q2 = 0.06**2
     logs = np.array([math.log(0.09 / object_length(lift, n)) for n in range(2)])
     # Compound symmetry, n = 2 equal-variance members: rho p^2 + ((1 - rho) p^2 + q^2) / n.
     expected_rel_var = rho * p2 + ((1 - rho) * p2 + q2) / 2
@@ -129,7 +129,7 @@ def test_the_focal_error_enters_once_after_the_class_groups(fixture_clip: Synthe
     lift = with_lift_focal(truth_lift(fixture_clip, scale=SCALE), 0.06, phi)
     lookup = SizeLookup(labels={"ball": "cup", "box": "cup"})
     got = run_model(fixture_clip, lift, camera, model=FULL, lookup=lookup)
-    expected_rel_var = (0.9 * 0.15) ** 2 + 0.06**2 / 3 / 2 + phi**2
+    expected_rel_var = (0.9 * 0.15) ** 2 + 0.06**2 / 2 + phi**2
     assert got.meters_per_unit is not None
     assert abs((got.sigma / got.meters_per_unit) ** 2 - expected_rel_var) < 1e-12
     assert got.detail.endswith(":sigma=size_and_focal")

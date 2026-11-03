@@ -11,6 +11,7 @@ from physverify.config.loader import config_files
 
 REPO_CONFIGS = Path(__file__).resolve().parents[2] / "configs"
 SEALED_FILE = "verifier/sealed.toml"
+SEALED_LEGACY_FILE = "verifier/sealed_legacy.toml"
 CALIBRATION_FILE = "verifier/calibration.toml"
 
 

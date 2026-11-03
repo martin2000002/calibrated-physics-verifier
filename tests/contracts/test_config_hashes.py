@@ -29,23 +29,23 @@ KEY_PATHS = Path(__file__).with_name("data") / "config_key_paths.txt"
 PINNED_ROOT = "/pinned"
 
 SECTIONS_HASH = {
-    "fast": "fe18b7f41c182e4e8a258da909dcaba059569e651c02727b03de7dbc3004d6a2",
-    "precise": "3cd564191c6f9c904399f3bd4a7d0f61fa20f9731bbefeff12f898d809c08bf9",
+    "fast": "e24a269c3ca07ee6a5af92512a1e9148ebfdc960fa0bb1b80fd78ddaebc75855",
+    "precise": "4ded59c8f3efc9e27c48e2606d4ed7f2347135ddf616363710f5ab3226236aa3",
 }
 CONFIG_HASH = {
-    "fast": "d8c5a4b89ba8344d51392790a2673fd7f45b015b6c02c5f59634461f233d60df",
-    "precise": "41e149dc52ee16d90540d670c97a3c6fd353a67e0a9193bb92e836c30c2f0017",
+    "fast": "9fe0de4030620a52c878f2ea888d9b1e8fc8b8a342988ed3aefb8a6e75f06bfa",
+    "precise": "d2b98f6a9155777e2c01f4aad97bf6b9e2d13c95b875514888611295652fdb1b",
 }
 LOOK_CONFIG_HASH = {
-    "fast": "fae93bdf218e815c7735f22f29daf591aa50f572701f452dc8a62449ccb1a29d",
-    "precise": "bf46b2f3a33f650882fb4909e3be29dcd2e74b34a7c85ab48b47afa868615ebc",
+    "fast": "0f1b1b32aac0093908e9f2199231b4c4273d24094b8c88b3f8d7a6dfe72fb40b",
+    "precise": "91ae36461b84128ddc028bb5d38596e7566db704922dbe2e559388581f708c7b",
 }
-CHECKS_HASH = "4a529448fb1f7ee61d9f0550eaf132e1dc29bdaa4fdfe0ca4c825eb3733cdad2"
+CHECKS_HASH = "5c5820acaf1bfce8270cdc8653a9eefd373f9feccde4baaac4b3a4510198f78e"
 RUN_CHECKS_HASH = {
-    "fast": "4a529448fb1f7ee61d9f0550eaf132e1dc29bdaa4fdfe0ca4c825eb3733cdad2",
-    "precise": "501c7a1328bffb0f13ce5611f181922811f6ce17d4b7e1bb19876756ea65f5bf",
+    "fast": "5c5820acaf1bfce8270cdc8653a9eefd373f9feccde4baaac4b3a4510198f78e",
+    "precise": "a73fc147ac301994b4e6f31490e64337cd8b4e32da809d0c7027d1f0b9480a30",
 }
-PRECISE_STAGE_KEYS_HASH = "4a1446f6e00c49f4571361661163710838a2f7761a88512acadbf92205c281cb"
+PRECISE_STAGE_KEYS_HASH = "d9b9e880768fb779384a271017fb36c975bb5e4290ebadaeee21e9f8325240a0"
 """Hash of every stage key of the precise plan for the declared calib dataset. It and
 ``RUN_CHECKS_HASH["precise"]`` are what the defaults give with the same choices passed by
 ``--set``."""
@@ -58,15 +58,16 @@ DATASET_CONTENT_HASH = {
     "fast": "7792797236e163025d89c1c518dc43ad8f90c3f511bd884e1969ca9bf1f2fa3e",
     "precise": "4a6829efdd64424d79dfc0941246de148ca50446e0f6f40738e3a02d1b8e8b4e",
 }
-NO_IDENTITY_STAGE_KEYS_HASH = "08512dd57cef57439b9b95db49ef25cce449c2974a1e2abe4f48936d6a6a7f0f"
+NO_IDENTITY_STAGE_KEYS_HASH = "eeff3bf8e53c72383a4825f6294338197dba1fe12629a36db90723f6b53dfc7c"
 """Hash of ``STAGE_KEYS`` computed for a dataset without cache identity (PISA, Physics-IQ,
 Objectron): the table as it was before identities entered the key, so those caches stay valid,
 except the three GeoCalib cameras, whose version moved when their draw was seeded,
-``contacts/kinematic_scene``, whose version moved when its sigma_v became ``vel_rel_flight``, and
+``contacts/kinematic_scene``, whose version moved when its sigma_v became ``vel_rel_flight``,
 the back-projecting lifts and every stage after them, whose version moved when the lift output
-gained ``nearer_cover``, and ``camera/moge2_focal``, whose version moved when its frame spread
-took the shared robust scale, and the three GeoCalib cameras again, whose params gained the
-configured ``assumed`` fallback."""
+gained ``nearer_cover``, the size-prior scales, whose version moved when the extent sigmas of
+a length became correlated axes, ``camera/moge2_focal``, whose version moved when its frame
+spread took the shared robust scale, and the three GeoCalib cameras again, whose params gained
+the configured ``assumed`` fallback."""
 STAGE_KEYS = {
     "camera/assumed_fov": "dddd1ad9189f13fabcc53f7e2fe5f8818b5d2bdeaf0900f0473a9207790e3c92",
     "camera/from_depth": "528097477f8abe02aee99fb728a9083fc5d6be7ef2565f09783422a4f7c4822d",
@@ -105,8 +106,8 @@ STAGE_KEYS = {
     ),
     "scale/free_fall": "35e953454486c4732ba0858bf2070e7ecc5ad18d0cd1b1c3375f86f5b2322f7d",
     "scale/metric_depth": "a3fdd8b10d7115559cae9de0560fe1cd4def96ca09efc43af114459ee8460c25",
-    "scale/size_model": "a027047beb5fc646e46979ca3e919f5c9f2daa0160d9121a9da0a9886a7be96e",
-    "scale/size_prior": "c97fbed3a79a93323b5f2aaf997caa24e2f25419ab93d3c2bfd66fe24753e67f",
+    "scale/size_model": "7f0a28e8a7eca40a8c6f93782b74949759346cfddd1f7492a7750f593bff1595",
+    "scale/size_prior": "48851fc649a7bc3bb20f5865bf8471f34d38b30ffabe5f8d0b723ddc7a4130d4",
     "track/edgetam": "d8a575fa696b6b5d3c81d0a29f1a6c38410b86fea8a59afd36c635ccaa0c546e",
     "track/sam2_1_hiera_tiny": "a38a8223ecde1e228b7b30f4889972cb07277c5effebb96451b787dff76557bf",
 }

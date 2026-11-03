@@ -8,7 +8,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from physverify.calibration.sealed_ledger import frozen_files
 from physverify.calibration.sigma_recalibration import STAGE_SIGMA_FILE
 from physverify.checks._base import Check
 from physverify.config.models import Settings
@@ -17,7 +16,7 @@ from physverify.freeze.diffs import Git, diff_record
 from physverify.freeze.errors import QueryError
 from physverify.freeze.files import readable_sha256
 from physverify.freeze.selection import COMMIT, chosen_candidate, seed_of
-from physverify.selective_risk.settings import ABSTENTION_FILE
+from physverify.selective_risk.frozen import look_files
 from physverify.verification.scope import check_scope
 
 FREEZE_SCHEMA = "physverify/freeze"
@@ -34,12 +33,11 @@ class ManifestInputs:
 
 
 def frozen_paths(settings: Settings) -> dict[str, Path | None]:
-    """What a look judges with (the ledger's freeze) plus the stage sigma and the abstention."""
-    calibration_dir = settings.paths.calibration_dir
-    found: dict[str, Path | None] = {"exclusions": None, **frozen_files(settings)}
-    found["stage_sigma"] = calibration_dir / STAGE_SIGMA_FILE
-    found["abstention"] = calibration_dir / ABSTENTION_FILE
-    return found
+    """What a look judges with (the ledger's freeze, abstention.json in it) and the stage sigma."""
+    found: dict[str, Path | None] = {"exclusions": None, **look_files(settings)}
+    abstention = found.pop("abstention")
+    stage_sigma = settings.paths.calibration_dir / STAGE_SIGMA_FILE
+    return {**found, "stage_sigma": stage_sigma, "abstention": abstention}
 
 
 def artifact_record(paths: Mapping[str, Path | None]) -> dict[str, dict[str, str | None]]:

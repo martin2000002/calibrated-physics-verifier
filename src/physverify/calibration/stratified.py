@@ -12,13 +12,12 @@ from __future__ import annotations
 import math
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from enum import StrEnum
 from typing import Protocol
 
 import numpy as np
 from numpy.typing import NDArray
 
-from physverify.calibration.artifact import Auroc, Weight
+from physverify.calibration.artifact import READINGS, Auroc, Reading, Stratified
 from physverify.calibration.check_weights import Flag, weight
 from physverify.calibration.stats import auroc
 from physverify.core.models import ArtifactModel
@@ -28,18 +27,7 @@ from physverify.stats.intervals import Ci
 FamilyOf = Callable[[str], str | None]
 Index = NDArray[np.int64]
 UNSCORED_VALUE = 0.0
-AUROC_FLOOR = 0.5
 J_KEY = "j/stratified"
-
-
-class Reading(StrEnum):
-    SCORED = "scored"
-    """The rows with a finite value."""
-    OPERATIONAL = "operational"
-    """Every labelled row; one without a finite value reads ``UNSCORED_VALUE``."""
-
-
-READINGS = tuple(Reading)
 
 
 class Resampling(Protocol):
@@ -60,14 +48,6 @@ class Stratification(ArtifactModel):
     families: tuple[str, ...]
     n_scenes: int
     n_scenes_with_family: int
-
-
-class Stratified(ArtifactModel):
-    auroc_cv: dict[Reading, Auroc]
-    family_floor: dict[Reading, float | None]
-    """In-sample AUROC of the family positive rate: what the family alone separates."""
-    j_cv: Weight | None = None
-    """Out-of-fold informedness per family, weighted by positives; None for the clip score."""
 
 
 @dataclass(frozen=True)
@@ -294,9 +274,3 @@ def unit_scores(
         j_cv=weight(point[J_KEY], cis.get(J_KEY, Ci()), flags) if J_KEY in point else None,
     )
     return UnitScores(scored_as(GLOBAL), stratified)
-
-
-def meets_stratified(scores: Stratified) -> bool:
-    """Clause (ii): stratified AUROC_cv^lo > 0.5 in both readings and stratified J_cv^lo > 0."""
-    aurocs = all(above(scores.auroc_cv[r].ci.low, AUROC_FLOOR) for r in READINGS)
-    return aurocs and scores.j_cv is not None and above(scores.j_cv.informedness_ci.low, 0.0)

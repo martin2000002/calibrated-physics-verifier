@@ -58,6 +58,7 @@ from physverify.selective_risk.report import CurveParts, curve_record, fit_recor
 from physverify.selective_risk.report import artifact_of as abstain_table
 from physverify.selective_risk.settings import ABSTENTION_FILE, REPORT_FILE, AbstentionSettings
 from physverify.selective_risk.tables import Collected, compare_tables, named_ks, sweep
+from physverify.synth.plan import family_of
 from physverify.synth.scene_scope import SceneScope
 from physverify.verification.exclusion_record import ExclusionRecord, InputHashes, RuleEvidence
 from physverify.verification.runner import TableRow, VerificationReport
@@ -145,7 +146,7 @@ def evaluation() -> EvaluationReport:
         primary=PrimaryScope(SceneScope(primary_scenes=PRIMARY), dataset_ref()),
     )
     inputs = tuple(_inputs(level) for level in (InputLevel.ORACLE, InputLevel.PERCEIVED))
-    return evaluate(parse_calibration(artifact_text()), inputs, meta, config())
+    return evaluate(parse_calibration(artifact_text()), inputs, meta, config(), family_of)
 
 
 @dataclass(frozen=True)

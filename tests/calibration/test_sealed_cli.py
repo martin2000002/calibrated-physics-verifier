@@ -17,7 +17,7 @@ import pytest
 from calibration_cases import DATASET, fitted_artifact, synthetic_report
 from cli_runner import CliResult, CliRunner
 from cli_tree import cli_leaves, command_modules
-from repo_configs import CALIBRATION_FILE, SEALED_FILE, declare
+from repo_configs import CALIBRATION_FILE, SEALED_FILE, SEALED_LEGACY_FILE, declare
 from verify_runs import write_verify_run
 
 from physverify.app import calibration as app_calibration
@@ -25,7 +25,7 @@ from physverify.app import diagnosis as app_diagnosis
 from physverify.app import plugins, sealing
 from physverify.app import selective_risk as app_selective_risk
 from physverify.calibration import session as calibration_session
-from physverify.calibration.sealed_ledger import LedgerEntry, read_entries
+from physverify.calibration.sealed_ledger import LedgerEntry, append_entry, read_entries
 from physverify.config.models import Settings
 from physverify.core.errors import PhysverifyError
 from physverify.datasets._base import GroundTruthStore, VideoSource
@@ -460,20 +460,20 @@ def test_a_refit_of_the_default_artifact_is_another_freeze(
     cli: CliRunner, monkeypatch: pytest.MonkeyPatch, ledger: Path, reached: list[int],
     settings: Settings,
 ) -> None:  # fmt: skip
-    """The calibration.json and exclusions.json artifacts enter the freeze."""
+    """The calibration.json, exclusions.json and abstention.json artifacts enter the freeze."""
     run = _guarded_verify(cli, monkeypatch, ledger, reached)
     calibration_dir = settings.paths.calibration_dir
     calibration_dir.mkdir(parents=True)
-    for name in ("calibration.json", "exclusions.json"):
+    for name in ("calibration.json", "exclusions.json", "abstention.json"):
         (calibration_dir / name).write_text("{}\n", encoding="utf-8")
     assert run(env=UNSEAL).code == REACHED
-    for name in ("calibration.json", "exclusions.json"):
+    for name in ("calibration.json", "exclusions.json", "abstention.json"):
         (calibration_dir / name).write_text('{"refit": 1}\n', encoding="utf-8")
         moved = run(env=UNSEAL)
         assert moved.code == EXIT_USAGE and "PHYSVERIFY_UNSEAL_REPEAT" in moved.err
         assert run(env={**UNSEAL, "PHYSVERIFY_UNSEAL_REPEAT": "1"}).code == REACHED
     lines = read_entries(ledger)
-    assert "exclusions" in lines[-1].artifacts and "calibration" in lines[-1].artifacts
+    assert {"calibration", "exclusions", "abstention"} <= set(lines[-1].artifacts)
 
 
 def test_another_frozen_state_needs_the_repeat_variable(
@@ -684,17 +684,27 @@ def _versioned(version: str) -> type[SealFixtureDataset]:
     return VersionedSeal
 
 
+def _sealed_render(version: str, sealed: str) -> type[SealFixtureDataset]:
+    """The fixture as ``version`` of a sealed render whose configured version is ``sealed``."""
+
+    class SealedVersioned(_versioned(version)):
+        def sealed_version(self, sections: Mapping[str, Any]) -> str:
+            return sealed
+
+    return SealedVersioned
+
+
+def _register(monkeypatch: pytest.MonkeyPatch, dataset: type[SealFixtureDataset]) -> None:
+    kinds: Mapping[str, Any] = plugins.PLUGIN_KINDS
+    datasets = kinds["datasets"]
+    patched = {**kinds, "datasets": lambda: {**datasets(), DATASET: dataset}}
+    monkeypatch.setattr(plugins, "PLUGIN_KINDS", MappingProxyType(patched))
+
+
 @pytest.fixture
 def version(monkeypatch: pytest.MonkeyPatch) -> Callable[[str], None]:
     """Registers the fixture dataset as ``version`` of a versioned content."""
-
-    def use(label: str) -> None:
-        kinds: Mapping[str, Any] = plugins.PLUGIN_KINDS
-        datasets = kinds["datasets"]
-        patched = {**kinds, "datasets": lambda: {**datasets(), DATASET: _versioned(label)}}
-        monkeypatch.setattr(plugins, "PLUGIN_KINDS", MappingProxyType(patched))
-
-    return use
+    return lambda label: _register(monkeypatch, _versioned(label))
 
 
 def _fitted_on(identity: str | None, tmp_path: Path, artifact_text: str) -> Path:
@@ -750,6 +760,33 @@ def test_another_version_of_a_development_set_stays_sealed(
     result = evaluate_cli()
     assert result.code == EXIT_USAGE and "PHYSVERIFY_UNSEAL" in result.err
     assert read_entries(ledger) == () and reached == []
+
+
+@pytest.mark.usefixtures("filed")
+def test_a_sealed_render_declared_a_development_set_fails_closed(
+    evaluate_cli: Callable[..., CliResult],
+    monkeypatch: pytest.MonkeyPatch,
+    ledger: Path,
+    reached: list[int],
+) -> None:
+    """The configured sealed version collides with a development set: no exemption, no compute."""
+    _register(monkeypatch, _sealed_render("v2", sealed="v2"))
+    result = evaluate_cli()
+    assert result.code == EXIT_USAGE, result.err
+    assert f"{DATASET}@v2 is a sealed render and a declared development set" in result.err
+    assert read_entries(ledger) == () and reached == []
+
+
+@pytest.mark.usefixtures("filed")
+def test_a_development_version_of_a_sealed_render_is_still_development(
+    evaluate_cli: Callable[..., CliResult], monkeypatch: pytest.MonkeyPatch, ledger: Path
+) -> None:
+    """A sealed render of its own version leaves the development reads of the name as they are."""
+    _register(monkeypatch, _sealed_render("v2", sealed="v3"))
+    result = evaluate_cli()
+    assert result.code == 0, result.err
+    assert f"development set {DATASET}@v2: not a sealed look" in result.err
+    assert read_entries(ledger) == ()
 
 
 @pytest.mark.parametrize(
@@ -818,3 +855,80 @@ def test_score_all_clips_scores_every_row(
     assert every["scored_splits"] == ["calib", "eval"]
     held = _evaluation(evaluate_cli(artifact=artifact))
     assert _clean_n(held) == len(HELD.clips) // 7 and "scored_splits" not in held
+
+
+LEGACY_COMMIT = "0" * 40
+
+
+def _bare_line(ledger: Path, commit: str) -> None:
+    """A line written before lines recorded versions: the bare spec, another frozen state."""
+    sets = (f"{DATASET}:eval",)
+    append_entry(
+        ledger,
+        LedgerEntry(utc="2026-10-30T16:56:41+00:00", commit=commit, command="calibrate evaluate",
+                    argv=(), sets=sets, sealed=sets, datasets=(), artifacts={}, config_hash="old",
+                    freeze="old", repeat=False, run_dir=None, user="u", host="h"),
+    )  # fmt: skip
+
+
+@pytest.fixture
+def legacy(config_dir: Path, checkout: Path) -> None:
+    """The committed mapping reads the fixture's bare lines at ``LEGACY_COMMIT`` as ``v2``."""
+    path = config_dir / SEALED_LEGACY_FILE
+    table = f'[sealed_legacy.versions.{DATASET}]\nversion = "v2"\ncommit = "{LEGACY_COMMIT}"\n'
+    path.write_text(path.read_text(encoding="utf-8") + f'\n{table}reason = "fixture"\n')
+    _git(checkout, "commit", "-qam", "legacy mapping")
+
+
+def test_a_look_records_the_version_it_looked_at(
+    evaluate_cli: Callable[..., CliResult],
+    version: Callable[[str], None],
+    ledger: Path,
+    tmp_path: Path,
+    artifact_text: str,
+) -> None:
+    """A new version is unseen until its own line; then a look under another freeze repeats."""
+    version("v2")
+    assert evaluate_cli(env=UNSEAL).code == 0
+    (line,) = read_entries(ledger)
+    assert line.sets == (f"{DATASET}:eval@v2",)
+    refit = _fitted_on(None, tmp_path, artifact_text)
+    again = evaluate_cli(env=UNSEAL, artifact=refit)
+    assert again.code == EXIT_USAGE and f"['{DATASET}:eval@v2'] were already" in again.err
+    version("v3")
+    fresh = evaluate_cli(env=UNSEAL, artifact=refit)
+    assert fresh.code == 0, fresh.err
+    assert "earlier look" not in fresh.err and not read_entries(ledger)[-1].repeat
+
+
+@pytest.mark.usefixtures("legacy")
+def test_a_legacy_line_blocks_only_its_mapped_version(
+    evaluate_cli: Callable[..., CliResult],
+    version: Callable[[str], None],
+    ledger: Path,
+    reached: list[int],
+) -> None:
+    _bare_line(ledger, LEGACY_COMMIT)
+    version("v2")
+    refused = evaluate_cli(env=UNSEAL)
+    assert refused.code == EXIT_USAGE and f"['{DATASET}:eval@v2'] were already" in refused.err
+    assert len(read_entries(ledger)) == 1 and reached == []
+    version("v3")
+    looked = evaluate_cli(env=UNSEAL)
+    assert looked.code == 0, looked.err
+    assert read_entries(ledger)[-1].sets == (f"{DATASET}:eval@v3",)
+
+
+@pytest.mark.usefixtures("legacy")
+def test_an_unmapped_legacy_line_fails_closed(
+    evaluate_cli: Callable[..., CliResult],
+    version: Callable[[str], None],
+    ledger: Path,
+    reached: list[int],
+) -> None:
+    """A bare line of a versioned dataset at a commit the mapping does not name: no look."""
+    _bare_line(ledger, "1" * 40)
+    version("v3")
+    result = evaluate_cli(env=UNSEAL)
+    assert result.code == 1 and f"names {DATASET}:eval without a version" in result.err
+    assert len(read_entries(ledger)) == 1 and reached == []

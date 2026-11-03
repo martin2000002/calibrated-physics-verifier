@@ -7,6 +7,8 @@
 # with kubric_synthetic or the development real sets. h2_test keeps its own ledger
 # (run_human_agreement.sh). `~` is the invoking HOME: the H200 scripts source env.sh, so the
 # ledger is $PHYSVERIFY_H200_ROOT/sealed-ledger.txt.
+# A line names `spec@version` for a dataset whose content has versions, so a look counts
+# against one render; bare lines written before that are read through sealed_legacy.toml.
 [sealed]
 ledger = "~/sealed-ledger.txt"
 sets = [

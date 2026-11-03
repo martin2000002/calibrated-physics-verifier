@@ -7,6 +7,7 @@ import io
 from collections.abc import Sequence
 
 from physverify.calibration.artifact import (
+    READINGS,
     CalibrationArtifact,
     CheckCalibration,
     CheckMonotonicity,
@@ -18,7 +19,9 @@ from physverify.calibration.artifact import (
     HeldoutMonotonicityCheck,
     Monotonicity,
     PrimaryScenesView,
+    Stratified,
     Stratum,
+    Weight,
 )
 from physverify.calibration.heldout_monotonicity import n_met
 from physverify.core.markdown import number, table
@@ -257,33 +260,55 @@ def _primary_view(
 
 
 def _heldout_monotonicity(checks: Sequence[HeldoutMonotonicityCheck], scope: str) -> list[str]:
-    """Frozen tau and sigma correction, the artifact's bootstrap; met = both lower bounds
-    above 0. Every check is listed, without a multiplicity correction."""
+    """Frozen tau and sigma correction, the artifact's bootstrap; met = the dev score's clause.
+    Every check is listed, without a multiplicity correction."""
     if not checks:
         return []
     lines = [
         "",
         (
             f"Held-out monotonicity over {scope}: {n_met(checks)} of {len(checks)} checks meet "
-            "tau_b^lo > 0 and J^lo > 0 (no multiplicity correction):"
+            "tau_b^lo > 0, J^lo > 0 and, with families, stratified J^lo > 0 and AUROC^lo > 0.5 "
+            "in both readings (no multiplicity correction):"
         ),
         "",
     ]
     lines += table(
-        ("check", "tau_b", "h1_pass", "pairs", "scenes", "J", "positives", "negatives", "met"),
+        (
+            *("check", "tau_b", "h1_pass", "pairs", "scenes", "J", "positives", "negatives"),
+            *("stratified J", *(f"stratified AUROC {r.value} (floor)" for r in READINGS), "met"),
+        ),
         (
             [
                 c.check_id,
                 *_tau_cells(c.monotonicity),
-                f"{number_text(c.j.informedness)} {ci_text(c.j.informedness_ci)}",
+                _j_cell(c.j),
                 str(c.j.n_positive),
                 str(c.j.n_negative),
-                str(c.meets_both),
+                *_stratified_cells(c.stratified),
+                str(c.counted),
             ]
             for c in checks
         ),
     )
     return [*lines, ""]
+
+
+def _stratified_cells(s: Stratified | None) -> list[str]:
+    if s is None:
+        return ["-"] * (1 + len(READINGS))
+    return [
+        _j_cell(s.j_cv),
+        *(
+            f"{number_text(s.auroc_cv[r].value)} {ci_text(s.auroc_cv[r].ci)} "
+            f"({number_text(s.family_floor.get(r))})"
+            for r in READINGS
+        ),
+    ]
+
+
+def _j_cell(w: Weight | None) -> str:
+    return "-" if w is None else f"{number_text(w.informedness)} {ci_text(w.informedness_ci)}"
 
 
 def _tau_cells(m: Monotonicity) -> list[str]:

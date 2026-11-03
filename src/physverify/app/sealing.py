@@ -15,7 +15,12 @@ from typing import Final
 
 from physverify.app.context import AppContext
 from physverify.app.services import dataset_for
-from physverify.calibration.development import is_development, may_be_development
+from physverify.calibration.development import (
+    is_development,
+    may_be_development,
+    require_sealed,
+)
+from physverify.calibration.ledger_versions import legacy_settings, looks_of, resolved
 from physverify.calibration.sealed_ledger import (
     REPEAT_ENV,
     UNSEAL_ENV,
@@ -25,7 +30,6 @@ from physverify.calibration.sealed_ledger import (
     dataset_entry,
     earlier,
     freeze_of,
-    frozen_files,
     ledger_path,
     locked,
     look_config_hash,
@@ -43,9 +47,10 @@ from physverify.config.models import validated
 from physverify.core.digests import sha256_if_file
 from physverify.core.errors import MissingInputError
 from physverify.core.output import Echo
-from physverify.datasets._versions import versioned_name
+from physverify.datasets._versions import SealedRender, versioned_name
 from physverify.runtime.runs import current_commit
 from physverify.schema.clip import ClipManifest
+from physverify.selective_risk.frozen import look_files
 
 GUARDED: Final = frozenset(
     {
@@ -192,14 +197,16 @@ def guard_sealed(
         return
     environ = context.invocation.environ
     require_unsealed(found, unsealed(environ.get(UNSEAL_ENV)))
+    settings = context.settings
+    looks = looks_of(found, lambda name: dataset_for(context, name), settings.sections)
     home = Path(environ.get("HOME") or Path.home())
-    path = ledger_path(sealed, home, context.settings.repo_root)
+    path = ledger_path(sealed, home, settings.repo_root)
     err(f"ledger: {path}")
-    look = _look(context, found, artifacts or {})
+    look = _look(context, tuple(looks.values()), artifacts or {})
     with locked(path):
-        previous = read_entries(path)
-        repeat = check_repeat(previous, found, look.freeze, environ.get(REPEAT_ENV) == "1")
-        for entry in earlier(previous, found):
+        previous = resolved(read_entries(path), looks, legacy_settings(settings))
+        repeat = check_repeat(previous, look.sets, look.freeze, environ.get(REPEAT_ENV) == "1")
+        for entry in earlier(previous, look.sets):
             err(
                 f"earlier look at {','.join(entry.sets)}: {entry.utc} commit {entry.commit[:12]} "
                 f"{entry.command} freeze {entry.freeze[:12]}"
@@ -213,13 +220,14 @@ def guard_sealed(
             }
         )
         append_entry(path, entry)
-    err(f"sealed look: {','.join(found)} freeze {look.freeze[:12]}")
+    err(f"sealed look: {','.join(look.sets)} freeze {look.freeze[:12]}")
 
 
 def _development(context: AppContext, selection: Selection, err: Echo) -> bool:
     """A selection of a development set (that exact version) declared in the config files is not
     a sealed look. One declared only by ``local.toml``, the environment or ``--set`` stays sealed:
-    those layers never lift a seal."""
+    those layers never lift a seal. A sealed render whose version the config files also declare a
+    development set fails closed."""
     settings = context.settings
     effective = calibration_settings(settings)
     if not may_be_development(selection.dataset, effective):
@@ -234,10 +242,14 @@ def _development(context: AppContext, selection: Selection, err: Echo) -> bool:
         ) from exc
     if not is_development(source, effective):
         return False
-    filed = file_sections(settings.config_dir, settings.profile).get(CALIBRATION_SECTION, {})
-    if not is_development(source, validated(CalibrationSettings, filed, CALIBRATION_SECTION)):
+    sections = file_sections(settings.config_dir, settings.profile)
+    declared = sections.get(CALIBRATION_SECTION, {})
+    filed = validated(CalibrationSettings, declared, CALIBRATION_SECTION)
+    if not is_development(source, filed):
         err(f"development set {name} is not declared in the config files: a sealed look")
         return False
+    if isinstance(source, SealedRender):
+        require_sealed(f"{selection.dataset}@{source.sealed_version(sections)}", filed)
     err(f"development set {name}: not a sealed look")
     return True
 
@@ -256,20 +268,21 @@ def _tree_state(root: Path) -> str | None:
     return result.stdout if result.returncode == 0 else None
 
 
-def _look(context: AppContext, found: tuple[str, ...], artifacts: Mapping[str, str]) -> LedgerEntry:
-    """The invocation's part of the line: who, where, and the frozen state it looks with."""
+def _look(context: AppContext, looks: tuple[str, ...], artifacts: Mapping[str, str]) -> LedgerEntry:
+    """The invocation's part of the line: who, where, the looks (``spec@version`` for a dataset
+    whose content has versions) and the frozen state it looks with."""
     settings = context.settings
     commit = current_commit(settings.repo_root)
     require_clean(commit, _tree_state(settings.repo_root))
     config_hash = look_config_hash(settings)
-    frozen = {label: sha256_if_file(path) for label, path in frozen_files(settings).items()}
+    frozen = {label: sha256_if_file(path) for label, path in look_files(settings).items()}
     frozen |= dict(artifacts)
     return LedgerEntry(
         utc=dt.datetime.now(dt.UTC).isoformat(timespec="seconds"),
         commit=commit,
         command="",
         argv=context.invocation.argv,
-        sets=found,
+        sets=looks,
         sealed=sealed_settings(settings).sets,
         datasets=(),
         artifacts={k: v for k, v in frozen.items() if v is not None},

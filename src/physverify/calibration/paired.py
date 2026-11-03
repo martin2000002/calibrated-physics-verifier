@@ -11,13 +11,12 @@ from dataclasses import replace
 
 import numpy as np
 
+from physverify.calibration.artifact import READINGS, Reading
 from physverify.calibration.stratified import (
     GLOBAL,
-    READINGS,
     STRATIFIED,
     Families,
     Index,
-    Reading,
     Resampling,
     Valued,
     above,

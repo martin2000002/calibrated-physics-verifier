@@ -41,7 +41,7 @@ def conformal_quantile(values: ArrayLike, alpha: float) -> Conformal:
     as the largest sample instead of vanishing; when it is the chosen rank the quantile is
     undefined (None, insufficient). NaN cannot be ranked: it is dropped and counted."""
     raw = np.asarray(values, dtype=np.float64).ravel()
-    ordered = np.sort(raw[~np.isnan(raw)])
+    ordered = np.sort(_rankable(raw))
     n, dropped = int(ordered.size), int(raw.size - ordered.size)
     if not n:
         return Conformal(None, False, n, dropped)
@@ -80,8 +80,10 @@ def clustered_rate(flags: Sequence[tuple[str, bool]], n_boot: int, seed: int, ci
 
 
 def auroc(positives: ArrayLike, negatives: ArrayLike) -> float:
-    """P(m_pos > m_neg) + P(tie) / 2 (Mann-Whitney U / n_pos n_neg); NaN if a side is empty."""
-    pos, neg = _finite(positives), _finite(negatives)
+    """P(m_pos > m_neg) + P(tie) / 2 (Mann-Whitney U / n_pos n_neg); NaN if a side is empty.
+    As in ``conformal_quantile``, +inf ranks highest and -inf lowest (equal infinities tie);
+    only NaN is dropped."""
+    pos, neg = _rankable(positives), _rankable(negatives)
     if not pos.size or not neg.size:
         return math.nan
     ordered = np.sort(neg)
@@ -233,6 +235,11 @@ def mad(values: ArrayLike) -> float:
 def median_or_none(values: ArrayLike) -> float | None:
     finite = _finite(values)
     return float(np.median(finite)) if finite.size else None
+
+
+def _rankable(values: ArrayLike) -> FloatArray:
+    array = np.asarray(values, dtype=np.float64).ravel()
+    return array[~np.isnan(array)]
 
 
 def _finite(values: ArrayLike) -> FloatArray:

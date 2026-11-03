@@ -96,11 +96,11 @@ def test_the_precise_profile_takes_the_clip_focal_and_keeps_the_v5_lift(
     assert lift.params.temporal_filter == "none"  # type: ignore[attr-defined]
 
 
-@pytest.mark.parametrize(("profile", "spread"), [("fast", 0.85), ("precise", 1.435)])
+@pytest.mark.parametrize(("profile", "spread"), [("fast", 0.85), ("precise", 1.397)])
 def test_the_generic_size_spread_follows_the_profile_camera(
     make_settings: SettingsFactory, profile: str, spread: float
 ) -> None:
-    """1.435 goes only with camera/moge2_focal; the assumed camera keeps 0.85."""
+    """1.397 goes only with camera/moge2_focal; the assumed camera keeps 0.85."""
     priors = make_settings(profile=profile).section(SIZE_PRIORS_SECTION, SizePriorTable).root
     assert (priors[GENERIC_PRIOR].mean_m, priors[GENERIC_PRIOR].rel_spread) == (0.19, spread)
 

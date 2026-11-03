@@ -9,16 +9,16 @@
       "version": "1"
     },
     "R4_size/v3": {
-      "digest": "eae8c118bf3dc6f3555e82a83ca3a9691bb7c237af702fbcb9243874811af0a0",
-      "version": "1"
+      "digest": "760be7636dc0eee065a6daff674848968c6b93389291c74b039df7fe01580e6b",
+      "version": "2"
     },
     "R4_size/v3_window_depth": {
-      "digest": "6b26efe9af339d55a66a2b5d439930318ef96e42f2f1ebe8efe28873aae941a1",
-      "version": "1"
+      "digest": "e40d683c5f9bfcfcfaa59075f84c8b64798c041acd862d8dea51f5c4f814431f",
+      "version": "2"
     },
     "R4_size/v3_window_depth_unoccluded": {
-      "digest": "6f86e160e6f5c41d9d356e534d4cec7d4b9b97d0b1fac87d919aa50cc0866515",
-      "version": "1"
+      "digest": "d57256260c4db606ab300821fd264312d2f913d01011f13bce6ad3df05cbc675",
+      "version": "2"
     },
     "R5a/los_tilt": {
       "digest": "a6c6e8795f5e1cb2f49eda9e14b46579282bfa9275c44c7be1e147b476ccab0f",
@@ -63,8 +63,8 @@
       "version": "1"
     },
     "R4_size": {
-      "digest": "cb6103dac6a76fe15a8b2d01ff014495a0bc42f501d087fc451c0be5c7656271",
-      "version": "1"
+      "digest": "b9102e5e097d773245fe05116b2c19918fb1d35fe88f1f26f45a0398b753c55e",
+      "version": "2"
     },
     "R5a": {
       "digest": "e171da33b3f4005fb70968edf0336a24e3cb3e73be1f948140a7566cb41e4027",
@@ -177,7 +177,7 @@
       "version": "2"
     },
     "scale/free_fall": {
-      "digest": "f7dbf09a24313126accbaf22a922c170b4652f28a3d357df0ab5eb6f1ef4a70d",
+      "digest": "52d60ec9dfbeddcef09d7ffb9d1af3fac8a67de45f26543ba5cba5d09a07a556",
       "version": "2"
     },
     "scale/ground_truth": {
@@ -189,12 +189,12 @@
       "version": "3"
     },
     "scale/size_model": {
-      "digest": "21622d5196735271af49d860519938f476b3e4f3e2ceceb47edbb822061eb9f6",
-      "version": "2"
+      "digest": "b031de3d2932ca153782101a69881ec8bc01268cae7f3ead3f37029401e4afe9",
+      "version": "3"
     },
     "scale/size_prior": {
-      "digest": "5f503855ab51033a3a859ff511e146a71dc1f6ffbd6995352245f9d041faf259",
-      "version": "2"
+      "digest": "25152990b9d42c7b4598ac6b16bc85ff9ebc9f514cbed51617917a05c607bbd5",
+      "version": "3"
     },
     "track/edgetam": {
       "digest": "400090d46f751e3f44e5bcfcd3b6d59c563e7393fc517b5f7fb6654f468186f7",
