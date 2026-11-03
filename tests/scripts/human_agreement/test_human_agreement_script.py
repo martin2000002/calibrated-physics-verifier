@@ -647,12 +647,9 @@ def test_prefetch_caches_h2_dev_outside_the_data_directory(sandbox: AgreementSan
     assert sandbox.run("dev").returncode == 0
 
 
-@pytest.mark.parametrize(("env", "message"), [({"DOCTOR_RUNS_DIR": "/elsewhere"}, "paths.runs_dir")])
-def test_prefetch_checks_its_runs_directory_with_doctor(
-    sandbox: AgreementSandbox, env: dict[str, str], message: str
-) -> None:
-    result = sandbox.run("prefetch", **env)
-    assert result.returncode == 2 and message in result.stderr, result.stderr
+def test_prefetch_checks_its_runs_directory_with_doctor(sandbox: AgreementSandbox) -> None:
+    result = sandbox.run("prefetch", DOCTOR_RUNS_DIR="/elsewhere")
+    assert result.returncode == 2 and "paths.runs_dir" in result.stderr, result.stderr
     assert sandbox.commands() == ["doctor"]
 
 

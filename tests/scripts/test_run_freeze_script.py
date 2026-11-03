@@ -35,8 +35,8 @@ GPU = "2"
 CLIPS = "--clips k-calib-1 --clips k-calib-2"
 KS = "--dataset kubric_synthetic --subset full"
 # freeze_query.py select and chosen run for real (they only read the iteration directories);
-# diff, manifest and artifacts answer from the environment; a clip listing gives three clips. pv calls are logged with the paths
-# and the unseal variable they see.
+# diff, manifest and artifacts answer from the environment; a clip listing gives three clips. pv
+# calls are logged with the paths and the unseal variable they see.
 FAKE_PYTHON = r"""#!/bin/bash
 CAL="$PHYSVERIFY__PATHS__CALIBRATION_DIR"
 if [[ "$1" != -c ]]; then
@@ -246,9 +246,8 @@ def test_extract_shards_warm_the_cache_before_each_full_pass(sandbox: FreezeSand
         shards, full = pv[3 * k : 3 * k + 2], pv[3 * k + 2]
         clips = f"--strict-profile --dataset {dataset} --subset {subset} --clips {dataset}-"
         assert sorted(shards) == [f"{shard}{clips}1 --clips {dataset}-3", f"{shard}{clips}2"]
-        assert PREFIX.sub("", full) == f"extract run --strict-profile --dataset {dataset} " + (
-            f"--subset {subset}"
-        )
+        whole = f"extract run --strict-profile --dataset {dataset} --subset {subset}"
+        assert PREFIX.sub("", full) == whole
     assert len(pv) == 3 * len(REAL_DEV)
     logs = sorted(p.name for p in (sandbox.out / "logs").glob("2-shard-*"))
     assert logs == sorted(f"2-shard-{d}-{s}-{i}.log" for d, s in REAL_DEV for i in (0, 1))
