@@ -47,14 +47,12 @@ from physverify.extraction.providers._geocalib import (
     with_gravity,
 )
 from physverify.extraction.providers._moge2 import MAX_RESOLUTION_LEVEL, PointMapModel, predict
-from physverify.physics.uncertainty import entry_rms
+from physverify.physics.uncertainty import entry_rms, robust_scale
 from physverify.schema.error_profile import FOCAL_REL
 from physverify.schema.perception import CameraModel
 from physverify.schema.stages import Stage
 
 PROVIDER_KEY = "camera/moge2_focal"
-MAD_TO_SIGMA = 1.4826
-"""sigma = 1.4826 * MAD for a normal sample."""
 FRAME_ERRORS: Final = (RuntimeError, ValueError)
 """What a failing MoGe-2 forward raises (torch raises RuntimeError, out of memory included)."""
 
@@ -82,15 +80,14 @@ class ClipFocal:
 
 
 def clip_focal(frame_focal_rel: NDArray[np.float64]) -> ClipFocal | None:
-    """f_clip = exp(median ln f_k); spread = 1.4826 * MAD(ln f_k) / sqrt(N_eff), N_eff = the
+    """f_clip = exp(median ln f_k); spread = robust_scale(ln f_k) / sqrt(N_eff), N_eff = the
     frames with a finite focal > 0. None when no frame has one."""
     focal = np.asarray(frame_focal_rel, dtype=np.float64)
     logs = np.log(focal[np.isfinite(focal) & (focal > 0)])
     if logs.size == 0:
         return None
     centre = float(np.median(logs))
-    mad = float(np.median(np.abs(logs - centre)))
-    return ClipFocal(math.exp(centre), MAD_TO_SIGMA * mad / math.sqrt(logs.size), int(logs.size))
+    return ClipFocal(math.exp(centre), robust_scale(logs) / math.sqrt(logs.size), int(logs.size))
 
 
 def frame_focals(
@@ -123,7 +120,8 @@ def clip_phi(profile_phi: float, spread_rel: float, floor_rel: float) -> float:
 class MoGe2FocalCamera:
     stage: ClassVar[Stage] = Stage.CAMERA
     name: ClassVar[str] = "moge2_focal"
-    version: ClassVar[str] = "2"
+    # 3: the frame spread reads physics.uncertainty.robust_scale (MAD / 0.6745, was 1.4826 * MAD).
+    version: ClassVar[str] = "3"
     requires: ClassVar[tuple[Stage, ...]] = ()
     heavy: ClassVar[bool] = True
     is_ground_truth: ClassVar[bool] = False

@@ -23,7 +23,6 @@ from physverify.extraction.providers._common import frame_indices
 from physverify.extraction.providers._geocalib import Calibration, Calibrator
 from physverify.extraction.providers._moge2 import FrameEstimate, PointMapModel
 from physverify.extraction.providers.camera_moge2_focal import (
-    MAD_TO_SIGMA,
     MoGe2FocalCamera,
     clip_focal,
     clip_phi,
@@ -33,6 +32,8 @@ from physverify.schema.perception import CameraModel, IntrinsicsSource, focal_fr
 from physverify.schema.stages import Stage
 
 PLAN = {Stage.CAMERA: "moge2_focal"}
+NORMAL_MAD = 0.6745
+"""median(|z|) of a standard normal."""
 UP_SIGMA_RAD = 0.01
 
 
@@ -133,7 +134,7 @@ def test_the_clip_focal_is_the_median_of_log_focal_with_a_mad_spread() -> None:
     found = clip_focal(np.array([0.5, 1.0, 2.0]))
     assert found is not None
     assert found.focal_rel == pytest.approx(1.0)
-    assert found.spread_rel == pytest.approx(MAD_TO_SIGMA * math.log(2.0) / math.sqrt(3))
+    assert found.spread_rel == pytest.approx(math.log(2.0) / NORMAL_MAD / math.sqrt(3))
     assert found.n_eff == 3
     even = clip_focal(np.array([0.8, 0.9, 1.0, 1.2]))
     assert even is not None
@@ -182,6 +183,12 @@ def test_geocalib_gets_the_same_frames_and_the_clip_focal_as_prior(
     assert camera.gravity_sigma_deg == pytest.approx(math.degrees(UP_SIGMA_RAD))
 
 
+def test_the_spread_reads_the_shared_robust_scale(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(camera_moge2_focal, "robust_scale", lambda values: 0.3)
+    found = clip_focal(np.array([0.5, 1.0, 2.0, 4.0]))
+    assert found is not None and found.spread_rel == pytest.approx(0.3 / 2.0)
+
+
 def test_phi_is_the_measured_profile_entry(fixture_clip: SyntheticClip) -> None:
     camera = run(fixture_clip, FakeMoGe([0.9]), profile=measured(0.08, bias=0.02))
     assert lift_phi(camera) == pytest.approx(math.hypot(0.08, 0.02), rel=1e-9)
@@ -190,7 +197,7 @@ def test_phi_is_the_measured_profile_entry(fixture_clip: SyntheticClip) -> None:
 def test_a_wide_frame_spread_raises_phi_above_the_profile(fixture_clip: SyntheticClip) -> None:
     focal = [0.5, 1.0, 2.0]
     camera = run(fixture_clip, FakeMoGe(focal), profile=measured(0.01), n_frames=3)
-    spread = MAD_TO_SIGMA * math.log(2.0) / math.sqrt(3)
+    spread = math.log(2.0) / NORMAL_MAD / math.sqrt(3)
     assert lift_phi(camera) == pytest.approx(spread, rel=1e-9)
 
 
