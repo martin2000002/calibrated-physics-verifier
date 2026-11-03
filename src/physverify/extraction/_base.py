@@ -22,10 +22,8 @@ from physverify.schema.clip import ClipManifest, FrameSampling
 from physverify.schema.error_profile import EntryFilter, ErrorEntry, ErrorProfile
 from physverify.schema.errors import SchemaError
 from physverify.schema.outputs import StageOutput
+from physverify.schema.provenance import GROUND_TRUTH as GROUND_TRUTH
 from physverify.schema.stages import Stage, check_upstream_order, stage_index
-
-GROUND_TRUTH = "ground_truth"
-"""Provider name of every conditional ground-truth provider."""
 
 
 class ProviderParams(FrozenModel):

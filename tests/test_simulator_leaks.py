@@ -91,7 +91,7 @@ LINE_EXCEPTIONS = (
         "the elastic bound e = 1 of mechanics, not the floor's restitution",
     ),
     LineException(
-        "src/physverify/checks/variants/r4_size_v3.py",
+        "src/physverify/checks/variants/_detrended_size.py",
         "The shortest r4_resize bump",
         "R4_size v3's windows are set on the r4_resize bumps (3 to 8 rows) and on simulator data",
     ),
