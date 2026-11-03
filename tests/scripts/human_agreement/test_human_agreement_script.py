@@ -680,9 +680,10 @@ def test_prefetch_checks_its_runs_directory_with_doctor(sandbox: AgreementSandbo
         ("PHYSVERIFY_AGREEMENT_DIR", "h2", "paths.runs_dir"),
         ("PHYSVERIFY_AGREEMENT_DIR", "", "paths.runs_dir"),
         ("PHYSVERIFY_AGREEMENT_CACHE_DIR", "cache", "paths.cache_dir"),
+        ("PHYSVERIFY_AGREEMENT_RAW_DIR", "raw", "paths.raw_dir"),
     ],
 )
-def test_runs_or_a_cache_under_the_data_directory_are_refused(
+def test_runs_a_cache_or_raw_videos_under_the_data_directory_are_refused(
     sandbox: AgreementSandbox, phase: str, variable: str, subdir: str, name: str
 ) -> None:
     result = sandbox.run(phase, **{variable: str(sandbox.data / subdir)})

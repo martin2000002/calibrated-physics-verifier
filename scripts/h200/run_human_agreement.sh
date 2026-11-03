@@ -148,6 +148,7 @@ outside_data() {
 }
 outside_data RUNS_DIR PHYSVERIFY_AGREEMENT_DIR
 outside_data CACHE_DIR PHYSVERIFY_AGREEMENT_CACHE_DIR
+outside_data RAW_DIR PHYSVERIFY_AGREEMENT_RAW_DIR
 mkdir -p "$OUT"
 exec 9>"$OUT/run.lock"
 flock -n 9 || die "another run_human_agreement.sh holds $OUT/run.lock"
