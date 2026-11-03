@@ -17,6 +17,7 @@ import pytest
 from repo_configs import CALIBRATION_FILE, declare
 
 from physverify.app.plugins import PLUGIN_KINDS
+from physverify.calibration.ledger_versions import LegacyLook, LegacySettings
 from physverify.calibration.sealed_ledger import LedgerEntry, append_entry
 from physverify.config.loader import load_settings
 from physverify.config.models import Settings
@@ -45,6 +46,7 @@ HEAD = "c" * 40
 DATASETS = PLUGIN_KINDS["datasets"]()
 VERSION_OVERRIDE = "PHYSVERIFY__KUBRIC_FRESH__VERSION"
 V1 = "a" * 40
+LEGACY = "0641659e61d12b1a63d4c57cf5a391a2081d9757"
 
 
 def _sha(data: bytes) -> str:
@@ -534,14 +536,77 @@ def test_a_look_is_recorded_only_by_its_own_line(tmp_path: Path) -> None:
 
 
 def test_the_v1_arm_follows_the_look_once(tmp_path: Path) -> None:
+    """The look is found by version, the v1 arm (old code, bare spec) by spec."""
     frozen = {"commit": HEAD, "v1": {"commit": V1}}
-    spec = ("kubric_fresh",)
+    looks = {"kubric_fresh": "kubric_fresh@v2-fresh2"}
+    legacy = LegacySettings(
+        versions={"kubric_fresh": LegacyLook(version="v2-fresh", commit=LEGACY, reason="r")}
+    )
+    old = [ledger_line(["kubric_fresh"], LEGACY, None)]
+    other = ledger_line(["kubric_fresh@v2-fresh"], HEAD, None)
     with pytest.raises(QueryError, match="no look of the freeze"):
-        v1_state([ledger_line(spec, V1, None)], frozen, spec)
-    look = [ledger_line(spec, HEAD, tmp_path)]
-    assert v1_state(look, frozen, spec) == "v1arm"
+        v1_state([*old, other, ledger_line(["kubric_fresh"], V1, None)], frozen, looks, legacy)
+    look = [*old, ledger_line(list(looks.values()), HEAD, tmp_path)]
+    assert v1_state(look, frozen, looks, legacy) == "v1arm"
     with pytest.raises(QueryError, match="already looked"):
-        v1_state([*look, ledger_line(spec, V1, None)], frozen, spec)
+        v1_state([*look, ledger_line(["kubric_fresh"], V1, None)], frozen, looks, legacy)
+    with pytest.raises(QueryError, match="without a version"):
+        v1_state(look, {"commit": HEAD, "v1": {"commit": HEAD}}, looks, LegacySettings())
+
+
+@pytest.fixture
+def legacy_ledger(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """The two lines of the H200 ledger: bare specs written at the legacy commit."""
+    ledger = tmp_path / "ledger-copy.txt"
+    ledger.touch()
+    for sets in (["kubric_synthetic:eval"], ["kubric_fresh"]):
+        append_entry(ledger, ledger_line(sets, LEGACY, None))
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("PHYSVERIFY__SEALED__LEDGER", str(ledger))
+    return ledger
+
+
+def _query(script: ModuleType, capsys: pytest.CaptureFixture[str], *args: str) -> tuple[int, str]:
+    code = script.main(list(args))
+    out = capsys.readouterr()
+    return code, out.out + out.err
+
+
+def test_the_legacy_look_blocks_only_the_render_it_looked_at(
+    script: ModuleType,
+    legacy_ledger: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    assert _query(script, capsys, "look-state", "kubric_fresh", "kubric_fresh_blind") == (
+        0,
+        "first\n",
+    )
+    monkeypatch.setenv(VERSION_OVERRIDE, "v2-fresh")
+    code, out = _query(script, capsys, "look-state", "kubric_fresh", "kubric_fresh_blind")
+    assert code == 2
+    assert "kubric_fresh@v2-fresh,kubric_fresh_blind@v2-fresh already has 1 ledger lines" in out
+
+
+def test_a_versioned_line_blocks_its_render(
+    script: ModuleType, legacy_ledger: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    run = legacy_ledger.parent / "run"
+    append_entry(legacy_ledger, ledger_line(["kubric_fresh@v2-fresh2"], HEAD, run))
+    code, out = _query(script, capsys, "look-state", "kubric_fresh", "kubric_fresh_blind")
+    assert (code, "already has 1 ledger lines" in out) == (2, True)
+    assert _query(script, capsys, "look-recorded", str(run), HEAD, "kubric_fresh")[0] == 0
+    assert _query(script, capsys, "look-state", "kubric_fresh_blind") == (0, "first\n")
+
+
+def test_an_unmapped_legacy_line_fails_closed(
+    script: ModuleType, legacy_ledger: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    append_entry(legacy_ledger, ledger_line(["kubric_fresh_ood"], HEAD, None))
+    code, out = _query(script, capsys, "look-state", "kubric_fresh_ood")
+    assert code == 2
+    assert "names kubric_fresh_ood without a version" in out
+    assert _query(script, capsys, "look-state", "kubric_fresh") == (0, "first\n")
 
 
 def test_a_missing_ledger_is_refused(

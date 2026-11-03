@@ -146,6 +146,9 @@ def test_the_real_configs_reject_a_profiles_set(config_dir: Path) -> None:
             "PHYSVERIFY__<SECTION>__<KEY>",
         ),
         ({}, (), '[calibration]\ndevelopment_sets = ["kubric_synthetic@v1"]\n', "local.toml"),
+        ({}, ('sealed_legacy.versions.kubric_fresh.version="v2-fresh2"',), "", "--set"),
+        ({"PHYSVERIFY__SEALED_LEGACY__VERSIONS": "{}"}, (), "", "PHYSVERIFY__<SECTION>__<KEY>"),
+        ({}, (), '[sealed_legacy.versions.kubric_fresh]\nversion = "x"\n', "local.toml"),
     ],
 )
 def test_the_seal_keys_come_only_from_the_files(

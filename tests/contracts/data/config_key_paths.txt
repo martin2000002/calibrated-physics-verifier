@@ -396,6 +396,12 @@ runtime.max_frame_bytes
 runtime.threads
 sealed.ledger
 sealed.sets
+sealed_legacy.versions.kubric_fresh.commit
+sealed_legacy.versions.kubric_fresh.reason
+sealed_legacy.versions.kubric_fresh.version
+sealed_legacy.versions.kubric_synthetic.commit
+sealed_legacy.versions.kubric_synthetic.reason
+sealed_legacy.versions.kubric_synthetic.version
 size_distribution.ball.mean_m
 size_distribution.ball.rel_spread
 size_distribution.cube.mean_m

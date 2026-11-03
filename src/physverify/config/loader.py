@@ -33,7 +33,11 @@ DEFAULT_PROFILE = "fast"
 PROFILES_KEY = "profiles"
 LOCAL_FILE = "local.toml"
 MODEL_ONLY_SECTIONS = frozenset({"paths", "runtime", "container", "check_variants"})
-FILE_ONLY_KEYS = (("sealed", "sets"), ("calibration", "development_sets"))
+FILE_ONLY_KEYS = (
+    ("sealed", "sets"),
+    ("calibration", "development_sets"),
+    ("sealed_legacy", "versions"),
+)
 """(section, key) pairs only ``configs/**/*.toml`` declare: from ``local.toml``, the environment or
 ``--set`` they would lift a seal that the committed files keep. ``[sealed] ledger`` stays
 overridable: a dry run writes its own ledger, and a look still needs PHYSVERIFY_UNSEAL."""

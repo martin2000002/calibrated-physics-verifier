@@ -20,6 +20,7 @@ from physverify.calibration.development import (
     may_be_development,
     require_sealed,
 )
+from physverify.calibration.ledger_versions import legacy_settings, looks_of, resolved
 from physverify.calibration.sealed_ledger import (
     REPEAT_ENV,
     UNSEAL_ENV,
@@ -196,14 +197,16 @@ def guard_sealed(
         return
     environ = context.invocation.environ
     require_unsealed(found, unsealed(environ.get(UNSEAL_ENV)))
+    settings = context.settings
+    looks = looks_of(found, lambda name: dataset_for(context, name), settings.sections)
     home = Path(environ.get("HOME") or Path.home())
-    path = ledger_path(sealed, home, context.settings.repo_root)
+    path = ledger_path(sealed, home, settings.repo_root)
     err(f"ledger: {path}")
-    look = _look(context, found, artifacts or {})
+    look = _look(context, tuple(looks.values()), artifacts or {})
     with locked(path):
-        previous = read_entries(path)
-        repeat = check_repeat(previous, found, look.freeze, environ.get(REPEAT_ENV) == "1")
-        for entry in earlier(previous, found):
+        previous = resolved(read_entries(path), looks, legacy_settings(settings))
+        repeat = check_repeat(previous, look.sets, look.freeze, environ.get(REPEAT_ENV) == "1")
+        for entry in earlier(previous, look.sets):
             err(
                 f"earlier look at {','.join(entry.sets)}: {entry.utc} commit {entry.commit[:12]} "
                 f"{entry.command} freeze {entry.freeze[:12]}"
@@ -217,7 +220,7 @@ def guard_sealed(
             }
         )
         append_entry(path, entry)
-    err(f"sealed look: {','.join(found)} freeze {look.freeze[:12]}")
+    err(f"sealed look: {','.join(look.sets)} freeze {look.freeze[:12]}")
 
 
 def _development(context: AppContext, selection: Selection, err: Echo) -> bool:
@@ -265,8 +268,9 @@ def _tree_state(root: Path) -> str | None:
     return result.stdout if result.returncode == 0 else None
 
 
-def _look(context: AppContext, found: tuple[str, ...], artifacts: Mapping[str, str]) -> LedgerEntry:
-    """The invocation's part of the line: who, where, and the frozen state it looks with."""
+def _look(context: AppContext, looks: tuple[str, ...], artifacts: Mapping[str, str]) -> LedgerEntry:
+    """The invocation's part of the line: who, where, the looks (``spec@version`` for a dataset
+    whose content has versions) and the frozen state it looks with."""
     settings = context.settings
     commit = current_commit(settings.repo_root)
     require_clean(commit, _tree_state(settings.repo_root))
@@ -278,7 +282,7 @@ def _look(context: AppContext, found: tuple[str, ...], artifacts: Mapping[str, s
         commit=commit,
         command="",
         argv=context.invocation.argv,
-        sets=found,
+        sets=looks,
         sealed=sealed_settings(settings).sets,
         datasets=(),
         artifacts={k: v for k, v in frozen.items() if v is not None},

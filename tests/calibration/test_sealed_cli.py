@@ -17,7 +17,7 @@ import pytest
 from calibration_cases import DATASET, fitted_artifact, synthetic_report
 from cli_runner import CliResult, CliRunner
 from cli_tree import cli_leaves, command_modules
-from repo_configs import CALIBRATION_FILE, SEALED_FILE, declare
+from repo_configs import CALIBRATION_FILE, SEALED_FILE, SEALED_LEGACY_FILE, declare
 from verify_runs import write_verify_run
 
 from physverify.app import calibration as app_calibration
@@ -25,7 +25,7 @@ from physverify.app import diagnosis as app_diagnosis
 from physverify.app import plugins, sealing
 from physverify.app import selective_risk as app_selective_risk
 from physverify.calibration import session as calibration_session
-from physverify.calibration.sealed_ledger import LedgerEntry, read_entries
+from physverify.calibration.sealed_ledger import LedgerEntry, append_entry, read_entries
 from physverify.config.models import Settings
 from physverify.core.errors import PhysverifyError
 from physverify.datasets._base import GroundTruthStore, VideoSource
@@ -838,3 +838,80 @@ def test_score_all_clips_scores_every_row(
     assert every["scored_splits"] == ["calib", "eval"]
     held = _evaluation(evaluate_cli(artifact=artifact))
     assert _clean_n(held) == len(HELD.clips) // 7 and "scored_splits" not in held
+
+
+LEGACY_COMMIT = "0" * 40
+
+
+def _bare_line(ledger: Path, commit: str) -> None:
+    """A line written before lines recorded versions: the bare spec, another frozen state."""
+    sets = (f"{DATASET}:eval",)
+    append_entry(
+        ledger,
+        LedgerEntry(utc="2026-10-30T16:56:41+00:00", commit=commit, command="calibrate evaluate",
+                    argv=(), sets=sets, sealed=sets, datasets=(), artifacts={}, config_hash="old",
+                    freeze="old", repeat=False, run_dir=None, user="u", host="h"),
+    )  # fmt: skip
+
+
+@pytest.fixture
+def legacy(config_dir: Path, checkout: Path) -> None:
+    """The committed mapping reads the fixture's bare lines at ``LEGACY_COMMIT`` as ``v2``."""
+    path = config_dir / SEALED_LEGACY_FILE
+    table = f'[sealed_legacy.versions.{DATASET}]\nversion = "v2"\ncommit = "{LEGACY_COMMIT}"\n'
+    path.write_text(path.read_text(encoding="utf-8") + f'\n{table}reason = "fixture"\n')
+    _git(checkout, "commit", "-qam", "legacy mapping")
+
+
+def test_a_look_records_the_version_it_looked_at(
+    evaluate_cli: Callable[..., CliResult],
+    version: Callable[[str], None],
+    ledger: Path,
+    tmp_path: Path,
+    artifact_text: str,
+) -> None:
+    """A new version is unseen until its own line; then a look under another freeze repeats."""
+    version("v2")
+    assert evaluate_cli(env=UNSEAL).code == 0
+    (line,) = read_entries(ledger)
+    assert line.sets == (f"{DATASET}:eval@v2",)
+    refit = _fitted_on(None, tmp_path, artifact_text)
+    again = evaluate_cli(env=UNSEAL, artifact=refit)
+    assert again.code == EXIT_USAGE and f"['{DATASET}:eval@v2'] were already" in again.err
+    version("v3")
+    fresh = evaluate_cli(env=UNSEAL, artifact=refit)
+    assert fresh.code == 0, fresh.err
+    assert "earlier look" not in fresh.err and not read_entries(ledger)[-1].repeat
+
+
+@pytest.mark.usefixtures("legacy")
+def test_a_legacy_line_blocks_only_its_mapped_version(
+    evaluate_cli: Callable[..., CliResult],
+    version: Callable[[str], None],
+    ledger: Path,
+    reached: list[int],
+) -> None:
+    _bare_line(ledger, LEGACY_COMMIT)
+    version("v2")
+    refused = evaluate_cli(env=UNSEAL)
+    assert refused.code == EXIT_USAGE and f"['{DATASET}:eval@v2'] were already" in refused.err
+    assert len(read_entries(ledger)) == 1 and reached == []
+    version("v3")
+    looked = evaluate_cli(env=UNSEAL)
+    assert looked.code == 0, looked.err
+    assert read_entries(ledger)[-1].sets == (f"{DATASET}:eval@v3",)
+
+
+@pytest.mark.usefixtures("legacy")
+def test_an_unmapped_legacy_line_fails_closed(
+    evaluate_cli: Callable[..., CliResult],
+    version: Callable[[str], None],
+    ledger: Path,
+    reached: list[int],
+) -> None:
+    """A bare line of a versioned dataset at a commit the mapping does not name: no look."""
+    _bare_line(ledger, "1" * 40)
+    version("v3")
+    result = evaluate_cli(env=UNSEAL)
+    assert result.code == 1 and f"names {DATASET}:eval without a version" in result.err
+    assert len(read_entries(ledger)) == 1 and reached == []
