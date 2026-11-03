@@ -27,9 +27,9 @@ from physverify.schema.checks import CheckResult
 from physverify.schema.clip import ClipManifest
 from physverify.schema.stages import Stage
 from physverify.verification.check_routes import (
-    VERIFICATION_SECTION,
     RoutedSource,
     check_routing,
+    derives_depth_from_size,
     routed_inputs,
 )
 from physverify.verification.check_set import (
@@ -40,7 +40,7 @@ from physverify.verification.check_set import (
 )
 from physverify.verification.inputs import ClipInputs, InputSource, provenance
 from physverify.verification.policies.raw import RawPolicy
-from physverify.verification.runner import VerificationRunner, VerificationSettings
+from physverify.verification.runner import VerificationRunner
 from physverify.verification.thresholding import ThresholdTable
 
 AREA_LIFT = "backproject_area_depth"
@@ -157,43 +157,58 @@ def test_routed_inputs_must_match_the_main_clip() -> None:
         list(routed.load([sc.parabola(clip_id="c").clip]))
 
 
-FORBIDDEN = (
+SIZE_DERIVED = (
     (*ROUTE_AREA, "verification.check_routes.R4_size=area_depth"),
     (
         f"verification.routes.renamed.lift={AREA_LIFT}",
         "verification.check_routes.R4_size=renamed",
     ),
+    (f"extraction.plan.lift={AREA_LIFT}",),
+    (f"extraction.plan.lift={AREA_LIFT}", *ROUTED_R3A),
 )
 
 
-@pytest.mark.parametrize("overrides", FORBIDDEN)
-def test_r4_size_on_the_area_depth_lift_is_refused_from_the_command_line(
+@pytest.mark.parametrize("overrides", SIZE_DERIVED)
+def test_r4_size_on_a_size_derived_depth_is_refused_from_the_command_line(
     make_settings: SettingsFactory, overrides: tuple[str, ...]
 ) -> None:
     for profile in ("fast", "precise"):
-        settings = make_settings(*overrides, profile=profile)
-        with pytest.raises(ConfigError, match="R4_size"):
-            check_routing(settings)
-        with pytest.raises(ConfigError, match="R4_size"):
-            settings.section(VERIFICATION_SECTION, VerificationSettings)
-        with pytest.raises(ConfigError, match="R4_size"):
-            active_checks_hash(settings, plugins.configured("checks", settings))
+        with pytest.raises(ConfigError, match=f"R4_size would read lift/{AREA_LIFT}"):
+            source_for(make_settings(*overrides, profile=profile))
 
 
-FORBIDDEN_TOML = (
+SIZE_DERIVED_TOML = (
     f'\n[verification.routes.area_depth]\nlift = "{AREA_LIFT}"\n'
     '\n[verification.check_routes]\nR4_size = "area_depth"\n'
 )
 
 
 @pytest.mark.parametrize("file", ["verifier/checks.toml", "local.toml"])
-def test_r4_size_on_the_area_depth_lift_is_refused_from_a_config_file(
+def test_r4_size_on_a_size_derived_depth_is_refused_from_a_config_file(
     make_settings: SettingsFactory, config_dir: Path, file: str
 ) -> None:
     path = config_dir / file
-    path.write_text(path.read_text(encoding="utf-8") + FORBIDDEN_TOML, encoding="utf-8")
-    with pytest.raises(ConfigError, match="R4_size"):
-        check_routing(make_settings(profile="precise"))
+    path.write_text(path.read_text(encoding="utf-8") + SIZE_DERIVED_TOML, encoding="utf-8")
+    with pytest.raises(ConfigError, match="R4_size would read"):
+        source_for(make_settings(profile="precise"))
+
+
+def test_r4_size_routed_off_a_size_derived_main_lift_reads_its_route(
+    make_settings: SettingsFactory,
+) -> None:
+    settings = make_settings(
+        f"extraction.plan.lift={AREA_LIFT}",
+        "verification.routes.by_depth.lift=backproject",
+        "verification.check_routes.R4_size=by_depth",
+    )
+    lifts = lift_by_check(settings)
+    assert lifts.pop("R4_size") == "backproject"
+    assert set(lifts.values()) == {AREA_LIFT}
+
+
+def test_only_the_area_lift_declares_a_size_derived_depth() -> None:
+    providers = PLUGIN_KINDS["providers"]().values()
+    assert {p.name for p in providers if derives_depth_from_size(p)} == {AREA_LIFT}
 
 
 def test_an_unknown_route_is_refused(make_settings: SettingsFactory) -> None:
@@ -257,22 +272,44 @@ R3a = "route_test"
 """
 
 
+def plugin_lift(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, source: str) -> Providers:
+    """The providers with the lift that ``source``, one plugin file, declares."""
+    package = f"fx_route_{uuid.uuid4().hex[:8]}"
+    (tmp_path / package).mkdir()
+    (tmp_path / package / "__init__.py").write_text("", encoding="utf-8")
+    (tmp_path / package / "lift_route_test.py").write_text(source, encoding="utf-8")
+    monkeypatch.syspath_prepend(str(tmp_path))
+    importlib.invalidate_caches()
+    found = discover(package, (StageProvider,), provider_key, validate_provider)
+    return {**PLUGIN_KINDS["providers"](), **found}
+
+
 def test_a_new_lift_is_routed_with_one_plugin_file_and_toml_alone(
     make_settings: SettingsFactory,
     config_dir: Path,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    package = f"fx_route_{uuid.uuid4().hex[:8]}"
-    (tmp_path / package).mkdir()
-    (tmp_path / package / "__init__.py").write_text("", encoding="utf-8")
-    (tmp_path / package / "lift_route_test.py").write_text(TEST_LIFT, encoding="utf-8")
-    monkeypatch.syspath_prepend(str(tmp_path))
-    importlib.invalidate_caches()
-    found = discover(package, (StageProvider,), provider_key, validate_provider)
+    providers = plugin_lift(tmp_path, monkeypatch, TEST_LIFT)
     local = config_dir / "local.toml"
     local.write_text(local.read_text(encoding="utf-8") + TEST_ROUTE, encoding="utf-8")
     settings = make_settings()
-    lifts = lift_by_check(settings, {**PLUGIN_KINDS["providers"](), **found})
+    lifts = lift_by_check(settings, providers)
     assert lifts.pop("R3a") == "route_test_lift"
     assert set(lifts.values()) == {"backproject"}
+
+
+def test_a_new_size_derived_lift_is_kept_from_r4_size_by_its_declaration_alone(
+    make_settings: SettingsFactory, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    declared = TEST_LIFT.replace(
+        'version: ClassVar[str] = "1"',
+        'version: ClassVar[str] = "1"\n    derives_depth_from_size: ClassVar[bool] = True',
+    )
+    providers = plugin_lift(tmp_path, monkeypatch, declared)
+    routed = (
+        "verification.routes.route_test.lift=route_test_lift",
+        "verification.check_routes.R4_size=route_test",
+    )
+    with pytest.raises(ConfigError, match="R4_size would read lift/route_test_lift"):
+        source_for(make_settings(*routed), providers)

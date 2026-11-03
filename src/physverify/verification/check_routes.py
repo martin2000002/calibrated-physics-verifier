@@ -14,8 +14,10 @@ from typing import Self
 from pydantic import Field, model_validator
 
 from physverify.config.models import Settings, validated
+from physverify.core.errors import ConfigError
 from physverify.core.models import FrozenModel
 from physverify.datasets._base import DatasetSource
+from physverify.extraction._base import StageProvider
 from physverify.extraction.pipeline import PipelineDeps
 from physverify.extraction.plan import ResolvedPlan
 from physverify.extraction.routes import PlanResolver, extra_plans, route_plans
@@ -31,10 +33,12 @@ from physverify.verification.inputs import (
 
 VERIFICATION_SECTION = "verification"
 
-# A size-change check fed a depth taken from the apparent size would measure its own input.
-FORBIDDEN_PROVIDERS: Mapping[str, frozenset[tuple[Stage, str]]] = MappingProxyType(
-    {"R4_size": frozenset({(Stage.LIFT, "backproject_area_depth")})}
-)
+DERIVES_DEPTH_FROM_SIZE_ATTR = "derives_depth_from_size"
+"""Optional provider ClassVar ``bool``: the provider's depth follows the object's apparent size."""
+
+SIZE_CHANGE_CHECKS = frozenset({"R4_size"})
+"""Checks that measure apparent-size change: fed a depth taken from that size they would measure
+their own input, so they never read a plan with a provider that derives depth from size."""
 
 StageTable = Mapping[Stage, str]
 
@@ -50,15 +54,6 @@ class CheckRouting(FrozenModel):
                 raise ValueError(
                     f"check_routes.{check_id}: unknown route {route!r}; "
                     f"known: {sorted(self.routes)}"
-                )
-            forbidden = FORBIDDEN_PROVIDERS.get(check_id, frozenset()).intersection(
-                self.routes[route].items()
-            )
-            if forbidden:
-                stage, name = min(forbidden)
-                raise ValueError(
-                    f"check_routes.{check_id}: route {route!r} uses {stage.value}/{name}, "
-                    f"which {check_id} must never read"
                 )
         return self
 
@@ -134,7 +129,28 @@ def routed_inputs(
     routing = check_routing(settings)
     main = resolve(settings)
     routes = route_plans(settings, routing.routes, resolve)
+    refuse_size_derived_depth(main, routes, routing.check_routes)
     return routed_source(main, routes, routing.check_routes, source_of)
+
+
+def derives_depth_from_size(provider: type[StageProvider]) -> bool:
+    return getattr(provider, DERIVES_DEPTH_FROM_SIZE_ATTR, False) is True
+
+
+def refuse_size_derived_depth(
+    main: ResolvedPlan, routes: Mapping[str, ResolvedPlan], assignment: Mapping[str, str]
+) -> None:
+    """Raise if a size-change check would read a plan whose depth derives from apparent size."""
+    for check_id in sorted(SIZE_CHANGE_CHECKS):
+        route = assignment.get(check_id)
+        plan = main if route is None else routes[route]
+        derived = [step for step in plan.stages if derives_depth_from_size(step.provider)]
+        if derived:
+            where = "the main plan" if route is None else f"route {route!r}"
+            raise ConfigError(
+                f"{check_id} would read {derived[0].stage.value}/{derived[0].name} from {where}, "
+                f"whose depth derives from apparent size; route {check_id} to a plan without it"
+            )
 
 
 def perceived_routed_source(

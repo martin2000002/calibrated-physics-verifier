@@ -37,6 +37,7 @@ class AreaDepthLift(BackprojectLift):
     name: ClassVar[str] = "backproject_area_depth"
     version: ClassVar[str] = "1"
     Params: ClassVar[type[BaseModel]] = AreaDepthLiftParams
+    derives_depth_from_size: ClassVar[bool] = True
 
     def __init__(self, params: BaseModel) -> None:
         own = expect_params(params, AreaDepthLiftParams)
