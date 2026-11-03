@@ -117,6 +117,7 @@ def test_a_route_reuses_the_main_runs_upstream_stages_and_recomputes_from_its_li
     result = cli(*FAKE_PLAN, *AREA_ROUTE, *RUN)
     assert result.code == 0, result.err
     assert "route area_depth:" in result.out
+    assert result.out.count("run: ") == 1
     main = events_of(result.out)
     assert [e["stage"] for e in main] == [s.value for s in STAGE_ORDER]
     assert not any(e["cached"] for e in main)

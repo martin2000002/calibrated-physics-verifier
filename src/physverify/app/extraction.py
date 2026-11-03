@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
+from functools import partial
 from pathlib import Path
 
 from physverify.app.context import AppContext
@@ -30,6 +31,12 @@ from physverify.schema.stages import parse_stages
 from physverify.synth.migrate import manifest_dataset, rerender_clip_ids
 
 EVENTS_FILE = "extraction.jsonl"
+
+Record = Callable[
+    [EventRecorder, Callable[[], ExtractionReport], Callable[[ExtractionReport], ExtractionReport]],
+    ExtractionReport,
+]
+"""Runs an extraction and writes its stage events: :func:`recorded_run` or :func:`recorded`."""
 
 
 def recorded_run[T](
@@ -96,12 +103,12 @@ def run_extraction(
         for each in (main, *routes.values()):
             require_current_profile(each, profile)
     run_dir = new_run(context.settings, context.invocation.argv).run_dir
-    echo(f"run: {run_dir}")
-    reports = [_extract(context, main, source, selected, run_dir / EVENTS_FILE, echo=echo)]
+    first: Record = partial(recorded_run, run_dir, EVENTS_FILE, echo=echo)
+    reports = [_extract(context, main, source, selected, first, echo=echo)]
     for name, route in routes.items():
         echo(f"route {name}:")
-        events = run_dir / route_events_file(name)
-        reports.append(_extract(context, route, source, selected, events, echo=echo))
+        then: Record = partial(recorded, run_dir / route_events_file(name))
+        reports.append(_extract(context, route, source, selected, then, echo=echo))
     return tuple(reports)
 
 
@@ -110,7 +117,7 @@ def _extract(
     plan: ResolvedPlan,
     source: DatasetSource,
     selected: Sequence[ClipManifest],
-    events: Path,
+    record: Record,
     *,
     echo: Echo,
 ) -> ExtractionReport:
@@ -120,7 +127,7 @@ def _extract(
     def run() -> ExtractionReport:
         return ExtractionPipeline(plan, deps).run(source, selected)
 
-    report = recorded(events, recorder, run, _same)
+    report = record(recorder, run, _same)
     for line in summary_lines(report):
         echo(line)
     return report
