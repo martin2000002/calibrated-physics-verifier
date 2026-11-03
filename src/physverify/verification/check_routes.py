@@ -204,6 +204,14 @@ def perceived_routed_source(
 
 def input_plans(settings: Settings, resolve: PlanResolver) -> tuple[ResolvedPlan, ...]:
     """Every distinct plan :func:`routed_inputs` can read, the main plan first."""
+    main, routes = input_plans_by_route(settings, resolve)
+    return (main, *routes.values())
+
+
+def input_plans_by_route(
+    settings: Settings, resolve: PlanResolver
+) -> tuple[ResolvedPlan, dict[str, ResolvedPlan]]:
+    """The main plan and every route plan that differs from it, by route name (``extra_plans``)."""
     main = resolve(settings)
     routes = route_plans(settings, check_routing(settings).routes, resolve)
-    return (main, *extra_plans(main, routes).values())
+    return main, extra_plans(main, routes)
