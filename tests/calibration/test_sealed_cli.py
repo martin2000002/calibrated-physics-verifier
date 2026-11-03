@@ -443,20 +443,20 @@ def test_a_refit_of_the_default_artifact_is_another_freeze(
     cli: CliRunner, monkeypatch: pytest.MonkeyPatch, ledger: Path, reached: list[int],
     settings: Settings,
 ) -> None:  # fmt: skip
-    """The calibration.json and exclusions.json artifacts enter the freeze."""
+    """The calibration.json, exclusions.json and abstention.json artifacts enter the freeze."""
     run = _guarded_verify(cli, monkeypatch, ledger, reached)
     calibration_dir = settings.paths.calibration_dir
     calibration_dir.mkdir(parents=True)
-    for name in ("calibration.json", "exclusions.json"):
+    for name in ("calibration.json", "exclusions.json", "abstention.json"):
         (calibration_dir / name).write_text("{}\n", encoding="utf-8")
     assert run(env=UNSEAL).code == REACHED
-    for name in ("calibration.json", "exclusions.json"):
+    for name in ("calibration.json", "exclusions.json", "abstention.json"):
         (calibration_dir / name).write_text('{"refit": 1}\n', encoding="utf-8")
         moved = run(env=UNSEAL)
         assert moved.code == EXIT_USAGE and "PHYSVERIFY_UNSEAL_REPEAT" in moved.err
         assert run(env={**UNSEAL, "PHYSVERIFY_UNSEAL_REPEAT": "1"}).code == REACHED
     lines = read_entries(ledger)
-    assert "exclusions" in lines[-1].artifacts and "calibration" in lines[-1].artifacts
+    assert {"calibration", "exclusions", "abstention"} <= set(lines[-1].artifacts)
 
 
 def test_another_frozen_state_needs_the_repeat_variable(

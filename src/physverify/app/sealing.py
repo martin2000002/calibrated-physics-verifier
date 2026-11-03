@@ -29,7 +29,6 @@ from physverify.calibration.sealed_ledger import (
     dataset_entry,
     earlier,
     freeze_of,
-    frozen_files,
     ledger_path,
     locked,
     look_config_hash,
@@ -50,6 +49,7 @@ from physverify.core.output import Echo
 from physverify.datasets._versions import SealedRender, versioned_name
 from physverify.runtime.runs import current_commit
 from physverify.schema.clip import ClipManifest
+from physverify.selective_risk.frozen import look_files
 
 GUARDED: Final = frozenset(
     {
@@ -271,7 +271,7 @@ def _look(context: AppContext, found: tuple[str, ...], artifacts: Mapping[str, s
     commit = current_commit(settings.repo_root)
     require_clean(commit, _tree_state(settings.repo_root))
     config_hash = look_config_hash(settings)
-    frozen = {label: sha256_if_file(path) for label, path in frozen_files(settings).items()}
+    frozen = {label: sha256_if_file(path) for label, path in look_files(settings).items()}
     frozen |= dict(artifacts)
     return LedgerEntry(
         utc=dt.datetime.now(dt.UTC).isoformat(timespec="seconds"),

@@ -12,7 +12,6 @@ from physverify.calibration.artifact_io import default_artifact_path
 from physverify.checks._base import CHECKS
 from physverify.config.plugin_context import registry_of
 from physverify.core.atomic import write_text_atomic
-from physverify.core.digests import sha256_if_file
 from physverify.core.errors import PhysverifyError
 from physverify.core.output import Echo
 from physverify.datasets._base import DatasetSource
@@ -165,6 +164,4 @@ def _guard(context: AppContext, command: str, *, real: bool, err: Echo) -> None:
         except PhysverifyError:
             continue
         selections.append(Selection(source.name, subset, tuple(source.clips(subset))))
-    abstention = sha256_if_file(settings.paths.calibration_dir / ABSTENTION_FILE)
-    shas = {} if abstention is None else {"abstention": abstention}
-    guard_sealed(context, command, selections, err=err, artifacts=shas)
+    guard_sealed(context, command, selections, err=err)
