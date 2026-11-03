@@ -83,6 +83,9 @@ class ObjectStateTable(Record):
     NaN). ``source_key`` is the cache key of the LIFT output that fixed geometry and unit.
     ``border_cut`` marks the rows where the object's mask reaches the image border, so its extents
     describe the visible part only; None where no mask was observed (ground truth).
+    ``nearer_cover`` is the share of the object's mask box covered by the masks of the other
+    tracked objects nearer the camera on that row (by the back-projected depth, before any
+    correction along the viewing ray); NaN without a mask or a depth, None without masks.
     """
 
     clip_id: str
@@ -112,6 +115,7 @@ class ObjectStateTable(Record):
     gravity_dir: NDArray[np.float64]
     gravity_dir_sigma: float
     border_cut: NDArray[np.bool_] | None = None
+    nearer_cover: NDArray[np.float64] | None = None
 
     _arrays = MappingProxyType(
         {
@@ -129,6 +133,7 @@ class ObjectStateTable(Record):
             "confidence": ArraySpec("f8", ("T", "N")),
             "gravity_dir": ArraySpec("f8", (3,)),
             "border_cut": ArraySpec("?", ("T", "N"), optional=True),
+            "nearer_cover": ArraySpec("f8", ("T", "N"), optional=True),
         }
     )
 
@@ -160,6 +165,8 @@ class ObjectStateTable(Record):
             check_sigma_array(name, getattr(self, name))
         for name in ("occlusion", "confidence"):
             _check_unit_interval(name, getattr(self, name))
+        if self.nearer_cover is not None:
+            _check_unit_interval("nearer_cover", self.nearer_cover)
 
     def _validate_ids(self) -> None:
         if len(set(self.object_ids.tolist())) != self.n_objects:

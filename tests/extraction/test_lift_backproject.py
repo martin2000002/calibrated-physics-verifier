@@ -27,6 +27,7 @@ from physverify.extraction.gravity_pose import LEVEL_CAMERA_GRAVITY
 from physverify.extraction.mask_border import border_cut
 from physverify.extraction.matching import align_ground_truth
 from physverify.extraction.providers._assumed_fov import AssumedFovCamera
+from physverify.extraction.providers._visibility import nearer_cover
 from physverify.extraction.providers.lift_backproject import BackprojectLift
 from physverify.physics.geometry import characteristic_lengths
 from physverify.schema.clip import FrameSampling
@@ -359,3 +360,16 @@ def test_a_mask_cut_by_the_image_border_is_flagged_on_its_rows(
     assert bool(table.visible[:, 0].all())
     assert bool((table.border_cut[:, 0] == cut).all())
     np.testing.assert_array_equal(table.border_cut[:, 1:], border_cut(track.masks[:, 1:], 2))
+
+
+def test_the_nearer_cover_reads_the_masks_and_the_back_projected_depth(
+    fixture_clip: SyntheticClip,
+) -> None:
+    upstream = truth_inputs(fixture_clip)
+    track = upstream[Stage.TRACK]
+    assert isinstance(track, MaskTrack)
+    table = lift(fixture_clip, upstream)
+    assert table.nearer_cover is not None
+    expected = nearer_cover(track.masks, table.position[..., 2], table.visible)
+    np.testing.assert_array_equal(table.nearer_cover, expected)
+    assert bool(np.isfinite(table.nearer_cover[table.visible]).all())

@@ -45,7 +45,7 @@ RUN_CHECKS_HASH = {
     "fast": "4a529448fb1f7ee61d9f0550eaf132e1dc29bdaa4fdfe0ca4c825eb3733cdad2",
     "precise": "44d28133ca495c629fbae87d0ffd9d3df5881dbc2a823ea86009ddf3b9ebe1fd",
 }
-PRECISE_STAGE_KEYS_HASH = "d79978ac3fef70c1d181ba0ea6e787a0010e1c3180a53c025718511fc69193f9"
+PRECISE_STAGE_KEYS_HASH = "00187902bde2787d197e086606f14e88423f0e538cd77a991bac75b2fb2b170b"
 """Hash of every stage key of the precise plan for the declared calib dataset. It and
 ``RUN_CHECKS_HASH["precise"]`` are what the defaults give with the same choices passed by
 ``--set``."""
@@ -58,19 +58,21 @@ DATASET_CONTENT_HASH = {
     "fast": "7792797236e163025d89c1c518dc43ad8f90c3f511bd884e1969ca9bf1f2fa3e",
     "precise": "4a6829efdd64424d79dfc0941246de148ca50446e0f6f40738e3a02d1b8e8b4e",
 }
-NO_IDENTITY_STAGE_KEYS_HASH = "79ab094ec18f759f884b66dd2d9432d6e0795fa48fac91bafc532751ad6128b8"
+NO_IDENTITY_STAGE_KEYS_HASH = "a9837dca3ba7f3dfa369e8ceaa12ef128ee6a90c7db15866db96d65bb4cf79ff"
 """Hash of ``STAGE_KEYS`` computed for a dataset without cache identity (PISA, Physics-IQ,
 Objectron): the table as it was before identities entered the key, so those caches stay valid,
-except the three GeoCalib cameras, whose version moved when their draw was seeded, and
-``contacts/kinematic_scene``, whose version moved when its sigma_v became ``vel_rel_flight``."""
+except the three GeoCalib cameras, whose version moved when their draw was seeded,
+``contacts/kinematic_scene``, whose version moved when its sigma_v became ``vel_rel_flight``, and
+the back-projecting lifts and every stage after them, whose version moved when the lift output
+gained ``nearer_cover``."""
 STAGE_KEYS = {
     "camera/assumed_fov": "dddd1ad9189f13fabcc53f7e2fe5f8818b5d2bdeaf0900f0473a9207790e3c92",
     "camera/from_depth": "65273a1f47e29c4e6da046d5e8ccf8f256367ec663625ef9ce92d6322c5c1d2d",
     "camera/geocalib": "1ff25d84dfcf9a37fb3d0d88440068c3cb949b2cf25846339e5039b4abffc7d6",
     "camera/moge2_focal": "bc46182cb78ba3b6a303a702c794b03f1c9d99f07d336dedecca6776b73cfca7",
-    "contacts/kinematic": "9c78abca44f4fa0c275626230c5c6b59078cf8eaaa7727428ee1dfcb17817f4a",
-    "contacts/kinematic_scene": "b2b15dd098ffb91089b702f77dbc7194ae26ad83dd530c96d2cb45e9d03769ba",
-    "contacts/proximity": "acb367e5702bfbfe704f03107617abc106427c539108c4cd6f24200b7e7a47e7",
+    "contacts/kinematic": "c19c73ccff61e5cdac5aae9570496d4058fd41c2bd41c6753f13f64e5339fe6a",
+    "contacts/kinematic_scene": "1f7b010bc04feb965b4f3d3fca9aa211c86861e5ffb21051a8f14e00be4c345e",
+    "contacts/proximity": "28fe128928f350658a8b6ff998310df79efab6cf614a642dbe582ff3caf68544",
     "depth/moge2": "d8f98cce650ba75e04081abd3cc6f0ef8ca9e0607e80dd0d778782e9a4dce4f0",
     "depth/vda_small": "932e5bdd1e8e8e979e6ddd6f711dc3847a7a2c857b6e40edc6569cfa931a558b",
     "depth/vda_large": "bf81dd186e137ffe10de96898b7972a0acbb592ddcc836c9ae8ca515577a02cf",
@@ -85,24 +87,24 @@ STAGE_KEYS = {
         "c37ca9325ddfc1d25e76b62170ea4d061624556f1a950d37b527b1858531a2eb"
     ),
     "camera/ground_truth": "b2c14c9deb33cb4ba8222a4b376ebf5fcd654fa4c2a295753670d5ca3f7dcfa2",
-    "contacts/ground_truth": "601125381219f830f0b062894e48544be5982bf038573c77bb27c3529b03ad73",
+    "contacts/ground_truth": "e04343ba3823789bde913cec256fdceee8b696e487014ac31f20b4a857a829e3",
     "depth/ground_truth": "066f431b92050322c0ddd30e6593f2ed4b4867638b185fbd5c7f7eeabe28db22",
     "detect/ground_truth": "d824014b61086af84d16cf7898ff517a6f80f9d23aed8e6e52e96fe24a3520c1",
-    "kinematics/ground_truth": "5faaa8c2ef1ae37daa1c9dfd2146b5df22a721cde79b56a6b35ee8deb7ccb9f7",
+    "kinematics/ground_truth": "68dad3ff9368bd6d6425e9533c50898e2f1e6d48545d4d90fd6eee23ffca6f1f",
     "lift/ground_truth": "028c544e603d5ba3ec79640dec0ec1864058bccb1b2f3732ad3d42497fecfe36",
-    "scale/ground_truth": "da1e2436527b2b214554bb121d10154bc35b81b312bbb5967c84c5291fb82c3b",
+    "scale/ground_truth": "accd39b486b7b512982c2579b4a6cc58568fbd9703b6d77da6b4917e20d92c47",
     "track/ground_truth": "dd06a8daf8146b910fd9088f9d80f97e73b2756dc9f4e7de730aac4fe0204f4a",
-    "kinematics/savgol": "b96b897c7d194ad913ad978d55faa5acf8e64d2af93922cec03a54c28e69bc56",
-    "lift/backproject": "e68c48eb79726c78a52e32efa6715fb49060627df4ae422c6036232475ef6f50",
-    "lift/backproject_unnested": "e975151ba2786469eabc2360ca9b74888b5035cd8e640e5dc6c77a9d5af13032",
-    "lift/ground_anchored": "b91963fce552bd4273f6e3fdad68d804766cbe9eac619f5e0f68edf770a71d20",
+    "kinematics/savgol": "a9c44429ba8fdba5168df28297106692e0f010caf0097e1ecbac3aa463486108",
+    "lift/backproject": "efda833eca5711cbb182079b358d105e63f8b429527074db5aab1bb79c6cef84",
+    "lift/backproject_unnested": "2bafe8e5b64495ea649adbeddf76d96d8c422290267cc0f6fe5b069f88210969",
+    "lift/ground_anchored": "b74cfce0b916220d1d151afb163ef69418fd91c5520659dcaa61f57716f84da5",
     "lift/backproject_size_constancy": (
-        "29d7b6390610e4f8b6235852b585a94165ebc5c51ef0ba8e74593215983268ed"
+        "e0d1d4a13a47ad1ac473a2a02d84b2e465d36d313c79f0c14c861e3263f69cf8"
     ),
-    "scale/free_fall": "5a36e4164e06aa38361ff17cb2f869532ec98cc032bcfbd176161c618ae392fb",
-    "scale/metric_depth": "a0b43e7f9792067936f7f3ad893d94bc05fef6fc6b2c75f0630a876b81ead9c8",
-    "scale/size_model": "c262b9b7480c2f567697afefa1550f7a8323539c54ee17a561ba17e88c2ad17a",
-    "scale/size_prior": "75ea5611d5250240777c35fecbb03117d63a6a304c2b8ede75c288a9e69b4a5a",
+    "scale/free_fall": "35e953454486c4732ba0858bf2070e7ecc5ad18d0cd1b1c3375f86f5b2322f7d",
+    "scale/metric_depth": "a3fdd8b10d7115559cae9de0560fe1cd4def96ca09efc43af114459ee8460c25",
+    "scale/size_model": "a027047beb5fc646e46979ca3e919f5c9f2daa0160d9121a9da0a9886a7be96e",
+    "scale/size_prior": "c97fbed3a79a93323b5f2aaf997caa24e2f25419ab93d3c2bfd66fe24753e67f",
     "track/edgetam": "d8a575fa696b6b5d3c81d0a29f1a6c38410b86fea8a59afd36c635ccaa0c546e",
     "track/sam2_1_hiera_tiny": "a38a8223ecde1e228b7b30f4889972cb07277c5effebb96451b787dff76557bf",
 }

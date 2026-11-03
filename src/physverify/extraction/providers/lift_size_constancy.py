@@ -22,7 +22,8 @@ class SizeConstancyLift(BackprojectLift):
     sphere tracks; every other field and cell is left as the parent computed it."""
 
     name: ClassVar[str] = "backproject_size_constancy"
-    version: ClassVar[str] = "1"
+    # 2: the inherited output gains nearer_cover.
+    version: ClassVar[str] = "2"
     Params: ClassVar[type[BaseModel]] = SizeConstancyLiftParams
 
     def __init__(self, params: BaseModel) -> None:

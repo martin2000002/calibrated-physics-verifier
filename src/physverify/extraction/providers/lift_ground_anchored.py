@@ -46,7 +46,8 @@ class GroundAnchoredLift(BackprojectLift):
 
     name: ClassVar[str] = "ground_anchored"
     # 4: 1c8de44 changed the inherited footprint yaw trim; cached v3 lifts went stale.
-    version: ClassVar[str] = "4"
+    # 5: the inherited output gains nearer_cover.
+    version: ClassVar[str] = "5"
     Params: ClassVar[type[BaseModel]] = GroundAnchoredLiftParams
 
     def __init__(self, params: BaseModel) -> None:
