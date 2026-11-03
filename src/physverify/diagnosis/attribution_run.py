@@ -51,6 +51,7 @@ from physverify.schema.clip import ClipManifest
 from physverify.schema.perception import MaskTrack
 from physverify.schema.stages import STAGE_ORDER, Stage
 from physverify.schema.states import ObjectStateTable
+from physverify.synth.scene_scope import scene_of
 
 
 @dataclass(frozen=True)
@@ -172,19 +173,18 @@ def run_attribution(ctx: DiagnosisContext, clips: Sequence[ClipManifest]) -> Att
         warm_variants(run.chain, selected, (oracle_variant(), *cells, perceived_variant()))
     )
     parts = _evaluate(run, selected, failures)
-    clusters = tuple(part.clip_id for part in parts)
+    scene_by_clip = {clip.clip_id: scene_of(clip) for clip in selected}
+    scenes = {part.clip_id: scene_by_clip[part.clip_id] for part in parts}
     sources = _results_by_source(parts)
     collected = _collect(parts)
     budgeting = Budgeting(fixed, tuple(sorted(ctx.metrics)))
     checks = tuple(
-        attribute(
-            check_id, check_units(check_id, sources), collected, clusters, factorial, budgeting
-        )
+        attribute(check_id, check_units(check_id, sources), collected, scenes, factorial, budgeting)
         for check_id in sorted({r.check_id for results in sources.values() for r in results})
     )
     units = {name: [part.lift_units[name] for part in parts] for name in map(cell_name, CELLS)}
     return AttributionReport(
-        provenance=_provenance(ctx, dataset, selected, frozenset(clusters)),
+        provenance=_provenance(ctx, dataset, selected, frozenset(scenes)),
         report_split=ctx.diag.report_split,
         fixed_ground_truth=fixed,
         lift_unit=lift_unit(units),

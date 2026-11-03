@@ -291,7 +291,7 @@ def _attribution_body(report: AttributionReport) -> list[str]:
     lines += [
         (
             f"Report split `{report.report_split.value}`. Fixed ground truth: {fixed}. "
-            f"Clip bootstrap: {report.bootstrap} replicas, seed {report.seed}, "
+            f"Scene bootstrap: {report.bootstrap} replicas, seed {report.seed}, "
             f"{cell_text(100 * report.ci)}% intervals. "
             f"LIFT unit in every cell: `{report.lift_unit}`."
         ),

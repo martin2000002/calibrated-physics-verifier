@@ -29,7 +29,8 @@ class WindowDepthSizeCheck(DetrendedSizeCheck):
     running median does not follow and the silhouette does not show is not corrected."""
 
     variant: ClassVar[str] = "v3_window_depth"
-    version: ClassVar[str] = "1"
+    # 2: sigma combines the extent sigmas as correlated axes by default.
+    version: ClassVar[str] = "2"
 
     def evaluate(self, inputs: CheckInputs) -> list[CheckResult]:
         return super().evaluate(self._at_window_depth(inputs))

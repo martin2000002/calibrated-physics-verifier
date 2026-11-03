@@ -6,18 +6,17 @@ import numpy as np
 import pytest
 from calibration_cases import settings
 
+from physverify.calibration.artifact import READINGS, Reading
 from physverify.calibration.check_weights import Flag, raw_weight
+from physverify.calibration.clause import meets_stratified
 from physverify.calibration.paired import paired_deltas
 from physverify.calibration.stats import auroc
 from physverify.calibration.stratified import (
-    READINGS,
     Families,
-    Reading,
     Valued,
     columns,
     family_floor,
     family_map,
-    meets_stratified,
     stratification,
     stratified_auroc,
     stratified_informedness,

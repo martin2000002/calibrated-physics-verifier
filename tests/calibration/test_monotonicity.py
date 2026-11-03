@@ -2,11 +2,19 @@
 
 from __future__ import annotations
 
+import math
+
 import numpy as np
 import pytest
 from calibration_cases import row, settings
 
-from physverify.calibration.monotonicity import deltas, monotonicity, scene_kendall
+from physverify.calibration.monotonicity import (
+    deltas,
+    monotonicity,
+    monotonicity_of,
+    scene_kendall,
+    unranked,
+)
 from physverify.calibration.table import CalibrationDataError, CalibrationRow, Role
 
 LEVELS = (1, 2, 3, 4)
@@ -44,6 +52,22 @@ def test_random_changes_do_not_pass_monotonicity() -> None:
     assert found.ci.low is not None and found.ci.high is not None
     assert found.ci.low <= 0.0 <= found.ci.high
     assert not found.h1_pass
+
+
+def test_scored_rows_without_a_number_are_left_out_and_counted() -> None:
+    """A SCORED row whose subjects are all NaN would make tau_b NaN and fail the trend silently."""
+    rows = []
+    for s in range(10):
+        rows += scene_rows(f"s{s}", 0.0, [0.1 * lv for lv in LEVELS])
+    rows[1] = row(math.nan, role=Role.POSITIVE, scene="s0", level=1, mu=0.1)
+    rows[5] = row(math.nan, scene="s1")
+    assert unranked(rows, 0.0) == 2
+    assert all(not math.isnan(p.delta) for p in deltas(rows, 0.0))
+    found = monotonicity_of(rows, 0.0, settings())
+    assert found.kendall_tau_b == pytest.approx(1.0) and found.h1_pass
+    assert (found.n_pairs, found.n_scenes, found.n_unranked) == (44, 9, 2)
+    whole = monotonicity_of(rows[10:], 0.0, settings())
+    assert whole.n_unranked is None and "n_unranked" not in whole.model_dump_json()
 
 
 def test_a_scene_without_a_scored_clean_clip_is_left_out() -> None:

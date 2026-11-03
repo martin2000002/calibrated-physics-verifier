@@ -30,7 +30,7 @@ from physverify.calibration.check_weights import (
     normalised,
     raw_weight,
 )
-from physverify.calibration.monotonicity import deltas, monotonicity
+from physverify.calibration.monotonicity import monotonicity_of
 from physverify.calibration.settings import CalibrationConfig, CalibrationSettings
 from physverify.calibration.sigma_recalibration import SigmaPair, fit_sigma, oracle_correction
 from physverify.calibration.stats import auroc, conformal_quantile
@@ -252,7 +252,7 @@ def fit_check(
         auroc=check_auroc(rows, sigma.bias, settings),
         abstention_rate=_abstention(rows, rule, tau.value, settings.ci),
         detection_limit=detection_limit(detections(positives, rule, tau.value), mu_unit, settings),
-        monotonicity=monotonicity(deltas(rows, sigma.bias), settings),
+        monotonicity=monotonicity_of(rows, sigma.bias, settings),
         weight=raw_weight(flags, settings),
         probability=fit_probability(platt_data(rows, rule, tau.value), tau.value, settings),
         sigma=sigma,

@@ -13,6 +13,7 @@ from physverify.checks._params import OcclusionParams
 from physverify.checks._peaks import first_max
 from physverify.checks._size import relative_sigma, size_sigma, whole_lengths, whole_rows
 from physverify.physics.geometry import characteristic_lengths
+from physverify.physics.length_sigma import DEFAULT_AXIS_ERRORS, AxisErrors
 from physverify.physics.measures.object_integrity import size_change_ratio
 from physverify.physics.measures.relative_size import relative_lengths, relative_size_change
 from physverify.physics.tracks import native_span
@@ -26,10 +27,12 @@ SizeReference = Literal["self", "others"]
 
 class SizeParams(OcclusionParams):
     """``reference``: "others" (v2) measures the size relative to the other
-    bodies of each frame; "self" (v1) the size alone."""
+    bodies of each frame; "self" (v1) the size alone. ``axis_errors``: how the extent sigmas
+    combine into the sigma of a length (``length_sigma.length_rel_sigma``)."""
 
     min_size_frames: int = Field(default=3, ge=2)
     reference: SizeReference = "others"
+    axis_errors: AxisErrors = DEFAULT_AXIS_ERRORS
 
 
 class SizeConstancyCheck:
@@ -52,7 +55,8 @@ class SizeConstancyCheck:
     """
 
     check_id: ClassVar[str] = "R4_size"
-    version: ClassVar[str] = "1"
+    # 2: sigma combines the extent sigmas as correlated axes by default.
+    version: ClassVar[str] = "2"
     requires: ClassVar[frozenset[str]] = frozenset()
     time_dependent: ClassVar[bool] = False
     magnitude_unit: ClassVar[str] = "rel_size_change"
@@ -86,7 +90,9 @@ class SizeConstancyCheck:
         ratios = lengths[known] / np.median(lengths[known])
         pick = first_max(np.abs(ratios - 1.0))
         row = int(known[pick])
-        sigma = size_sigma(float(ratios[pick]), size[row], states.size_sigma[row, index])
+        sigma = size_sigma(
+            float(ratios[pick]), size[row], states.size_sigma[row, index], self.params.axis_errors
+        )
         span = native_span(states.frame_index, row, row)
         details = {"row": row, "size_rows": int(known.size), "excluded_rows": excluded}
         magnitude = size_change_ratio(size[known])
@@ -118,7 +124,9 @@ class SizeConstancyCheck:
         scaled = ratios[known] / np.median(ratios[known])
         pick = first_max(np.abs(scaled - 1.0))
         row = int(known[pick])
-        sigma = relative_sigma(inputs.states, lengths, index, row, float(scaled[pick]))
+        sigma = relative_sigma(
+            inputs.states, lengths, index, row, float(scaled[pick]), self.params.axis_errors
+        )
         span = native_span(states.frame_index, row, row)
         magnitude = relative_size_change(own, others)
         details["row"] = row

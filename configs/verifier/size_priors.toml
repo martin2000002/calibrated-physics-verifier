@@ -17,7 +17,11 @@ rel_spread = 0.85
 
 # precise only, tied to its camera/moge2_focal: with the clip focal right the generic prior's
 # mean (0.19 m against Kubric objects of about 0.10 m) leaves a +0.74 log bias, so this spread is
-# a calibration on Kubric calib (1-sigma scale coverage 0.700, scene-grouped cross-fit), not a
-# real-world spread. Refitted in the clean re-run; the assumed camera keeps 0.85.
+# a calibration on Kubric calib, not a real-world spread. Refitted with the extent sigmas of L as
+# correlated axes (physics/length_sigma.py): 1.435 -> 1.397, the smallest spread whose 1-sigma
+# coverage of |ln(s_hat / s_true)| reaches 0.683 on the 426 calib clips (bisection, rounded to 3
+# decimals as 1.435 was), scale sigma rebuilt from the per-object measurement terms of the
+# precise chain on calib; scene-grouped cross-fit coverage 0.700 (5 folds, seed 0).
+# The assumed camera keeps 0.85.
 [size_priors.profiles.precise.primitive]
-rel_spread = 1.435
+rel_spread = 1.397
