@@ -14,6 +14,7 @@ from types import ModuleType
 from typing import Any
 
 import pytest
+from repo_configs import CALIBRATION_FILE, declare
 
 from physverify.app.plugins import PLUGIN_KINDS
 from physverify.calibration.sealed_ledger import LedgerEntry, append_entry
@@ -24,7 +25,12 @@ from physverify.datasets.kubric_fresh import fresh_settings
 from physverify.freeze.diffs import DIFF_PATHS, Git
 from physverify.freeze.errors import QueryError
 from physverify.freeze.files import field
-from physverify.freeze.fresh_render import VERSION_ENV, plan_lines, render_overrides
+from physverify.freeze.fresh_render import (
+    VERSION_ENV,
+    plan_lines,
+    render_overrides,
+    sealed_overrides,
+)
 from physverify.freeze.ledger import ledger_entries, look_state, v1_state
 from physverify.freeze.ledger import ledger_line as summary_line
 from physverify.freeze.manifest import ManifestInputs, artifact_problems, manifest
@@ -37,6 +43,7 @@ from physverify.synth.store import DatasetStore
 HELPER = Path(__file__).resolve().parents[2] / "scripts" / "h200" / "freeze_query.py"
 HEAD = "c" * 40
 DATASETS = PLUGIN_KINDS["datasets"]()
+VERSION_OVERRIDE = "PHYSVERIFY__KUBRIC_FRESH__VERSION"
 V1 = "a" * 40
 
 
@@ -391,6 +398,41 @@ def test_the_render_settings_are_the_fresh_sets(
         render_overrides(section, DATASETS, "kubric_synthetic", 1)
 
 
+@pytest.mark.parametrize(
+    ("environment", "dataset", "spec"),
+    [
+        ({VERSION_OVERRIDE: "v2-fresh"}, "kubric_fresh", "kubric_fresh@v2-fresh"),
+        ({}, "kubric_fresh", "kubric_fresh@v2-fresh2"),
+        ({}, "kubric_fresh_ood", "kubric_fresh_ood@v2-fresh-ood"),
+    ],
+    ids=["environment", "file", "ood"],
+)
+def test_a_sealed_render_of_a_development_version_is_refused(
+    tmp_path: Path,
+    config_dir: Path,
+    environ: dict[str, str],
+    environment: dict[str, str],
+    dataset: str,
+    spec: str,
+) -> None:
+    """render-env and plan refuse a render whose name@version is a declared development set."""
+    if not environment:
+        declare(config_dir, CALIBRATION_FILE, "development_sets", f'["{spec}"]')
+    settings = _settings(config_dir, {**environ, **environment}, tmp_path)
+    with pytest.raises(QueryError, match=f"{spec} is a sealed render and a declared"):
+        sealed_overrides(settings, DATASETS, dataset, 12345)
+
+
+def test_the_committed_sealed_renders_are_not_development_sets(
+    tmp_path: Path, config_dir: Path, environ: dict[str, str]
+) -> None:
+    settings = _settings(config_dir, environ, tmp_path)
+    for dataset in ("kubric_fresh", "kubric_fresh_ood"):
+        overrides = sealed_overrides(settings, DATASETS, dataset, 12345)
+        assert overrides == render_overrides(fresh_settings(settings), DATASETS, dataset, 12345)
+    assert overrides[VERSION_ENV] == "v2-fresh-ood"
+
+
 def _stored_plan(settings: Settings) -> DatasetStore:
     ds = load_dataset_settings(settings)
     plan = plan_subset(ds, PLUGIN_KINDS["families"](), PLUGIN_KINDS["perturbations"](), "full")
@@ -411,7 +453,7 @@ def test_the_plan_check_accepts_only_the_render_of_the_seed(
     (line,) = plan_lines(settings, version, 12345)
     section = fresh_settings(settings)
     assert f"{section.scenes_per_family * 5} scenes" in line and "0 calib" in line
-    with pytest.raises(QueryError, match="not v2-fresh 1"):
+    with pytest.raises(QueryError, match=f"not {version} 1"):
         plan_lines(settings, version, 1)
     other = {**overrides, "PHYSVERIFY__DATASET__SEED": "1"}
     reseeded = load_settings(

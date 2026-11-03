@@ -15,7 +15,11 @@ from typing import Final
 
 from physverify.app.context import AppContext
 from physverify.app.services import dataset_for
-from physverify.calibration.development import is_development, may_be_development
+from physverify.calibration.development import (
+    is_development,
+    may_be_development,
+    require_sealed,
+)
 from physverify.calibration.sealed_ledger import (
     REPEAT_ENV,
     UNSEAL_ENV,
@@ -43,7 +47,7 @@ from physverify.config.models import validated
 from physverify.core.digests import sha256_if_file
 from physverify.core.errors import MissingInputError
 from physverify.core.output import Echo
-from physverify.datasets._versions import versioned_name
+from physverify.datasets._versions import SealedRender, versioned_name
 from physverify.runtime.runs import current_commit
 from physverify.schema.clip import ClipManifest
 
@@ -219,7 +223,8 @@ def guard_sealed(
 def _development(context: AppContext, selection: Selection, err: Echo) -> bool:
     """A selection of a development set (that exact version) declared in the config files is not
     a sealed look. One declared only by ``local.toml``, the environment or ``--set`` stays sealed:
-    those layers never lift a seal."""
+    those layers never lift a seal. A sealed render whose version the config files also declare a
+    development set fails closed."""
     settings = context.settings
     effective = calibration_settings(settings)
     if not may_be_development(selection.dataset, effective):
@@ -234,10 +239,14 @@ def _development(context: AppContext, selection: Selection, err: Echo) -> bool:
         ) from exc
     if not is_development(source, effective):
         return False
-    filed = file_sections(settings.config_dir, settings.profile).get(CALIBRATION_SECTION, {})
-    if not is_development(source, validated(CalibrationSettings, filed, CALIBRATION_SECTION)):
+    sections = file_sections(settings.config_dir, settings.profile)
+    declared = sections.get(CALIBRATION_SECTION, {})
+    filed = validated(CalibrationSettings, declared, CALIBRATION_SECTION)
+    if not is_development(source, filed):
         err(f"development set {name} is not declared in the config files: a sealed look")
         return False
+    if isinstance(source, SealedRender):
+        require_sealed(f"{selection.dataset}@{source.sealed_version(sections)}", filed)
     err(f"development set {name}: not a sealed look")
     return True
 

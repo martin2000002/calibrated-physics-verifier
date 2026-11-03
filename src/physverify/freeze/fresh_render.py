@@ -4,16 +4,24 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
+from physverify.calibration.development import require_sealed
+from physverify.calibration.sealed_ledger import SealedSetError
+from physverify.calibration.settings import calibration_settings
 from physverify.config.models import Settings
 from physverify.datasets._base import DatasetSource
-from physverify.datasets.kubric_fresh import VERSION_ENV, KubricFresh, KubricFreshSettings
+from physverify.datasets.kubric_fresh import (
+    VERSION_ENV,
+    KubricFresh,
+    KubricFreshSettings,
+    fresh_settings,
+)
 from physverify.freeze.errors import QueryError
 from physverify.schema.clip import Split
 from physverify.synth.generate import load_plan
 from physverify.synth.settings import dataset_root, load_dataset_settings
 from physverify.synth.store import DatasetStore
 
-__all__ = ("VERSION_ENV", "plan_lines", "render_overrides")
+__all__ = ("VERSION_ENV", "plan_lines", "render_overrides", "sealed_overrides")
 
 
 def render_overrides(
@@ -27,6 +35,19 @@ def render_overrides(
     if source is None or not issubclass(source, KubricFresh):
         raise QueryError(f"{dataset} is not a fresh Kubric set")
     return source.render_overrides(fresh, seed)
+
+
+def sealed_overrides(
+    settings: Settings, datasets: Mapping[str, type[DatasetSource]], dataset: str, seed: int
+) -> dict[str, str]:
+    """``render_overrides`` of a sealed render, refused when its version is a declared
+    development set (its look would leave no ledger line)."""
+    overrides = render_overrides(fresh_settings(settings), datasets, dataset, seed)
+    try:
+        require_sealed(f"{dataset}@{overrides[VERSION_ENV]}", calibration_settings(settings))
+    except SealedSetError as exc:
+        raise QueryError(str(exc)) from exc
+    return overrides
 
 
 def plan_lines(settings: Settings, version: str, seed: int) -> list[str]:

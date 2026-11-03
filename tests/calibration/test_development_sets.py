@@ -14,17 +14,31 @@ from physverify.calibration.development import (
     development_clips,
     is_development,
     may_be_development,
+    require_sealed,
 )
+from physverify.calibration.sealed_ledger import SealedSetError
 from physverify.calibration.settings import calibration_settings
 from physverify.config.models import Settings
 from physverify.core.errors import UsageError
 from physverify.datasets._base import GroundTruthStore, VideoSource
 from physverify.datasets._kubric_synthetic import content_identity
-from physverify.datasets.kubric_fresh import fresh_settings
+from physverify.datasets.kubric_fresh import (
+    SECTION,
+    KubricFresh,
+    KubricFreshBlind,
+    KubricFreshOod,
+    fresh_settings,
+)
 from physverify.schema.clip import ClipManifest, Split
 
 CLIPS = synthetic_report(3, split=Split.EVAL, prefix="d").clips
 DECLARED = settings(development_sets=[f"{DATASET}@v2"])
+SECTION_VALUES = {
+    "blind_scenes": ["s001"],
+    "scenes_per_family": 1,
+    "ood_scenes_per_family": 1,
+    "ood_hdri_pool": "pool",
+}
 
 
 class PlainDataset:
@@ -59,8 +73,8 @@ class FreshRender(VersionedDataset):
 
 
 def test_the_committed_sets_hold_both_fresh_renders(make_settings: Callable[..., Settings]) -> None:
-    """Both kubric_fresh renders are development sets; any other version of the name is not, and
-    kubric_fresh still reads v2-fresh by default."""
+    """Both kubric_fresh development renders are development sets; any other version of the name
+    is not, and the sealed renders kubric_fresh reads by default are neither."""
     committed = make_settings()
     declared = calibration_settings(committed)
     assert declared.development_sets == (
@@ -68,9 +82,25 @@ def test_the_committed_sets_hold_both_fresh_renders(make_settings: Callable[...,
         "kubric_fresh@v2-dev-b2",
         "kubric_synthetic@v1-precise-hdri-dev",
     )
-    assert fresh_settings(committed).version == "v2-fresh"
-    for version, expected in (("v2-fresh", True), ("v2-dev-b2", True), ("v2-fresh-ood", False)):
+    fresh = fresh_settings(committed)
+    assert (fresh.version, fresh.ood_version) == ("v2-fresh2", "v2-fresh-ood")
+    for version, expected in (("v2-fresh", True), ("v2-dev-b2", True), ("v2-fresh2", False)):
         assert is_development(FreshRender(version), declared) is expected
+    for cls in (KubricFresh, KubricFreshOod, KubricFreshBlind):
+        require_sealed(f"{cls.name}@{cls.sealed_version(committed.sections)}", declared)
+
+
+def test_a_sealed_render_declared_a_development_set_is_refused() -> None:
+    require_sealed(f"{DATASET}@v3", DECLARED)
+    with pytest.raises(SealedSetError, match=f"{DATASET}@v2 is a sealed render and a declared"):
+        require_sealed(f"{DATASET}@v2", DECLARED)
+
+
+def test_the_sealed_fresh_versions_are_those_of_the_section() -> None:
+    sections = {SECTION: {**SECTION_VALUES, "version": "a", "ood_version": "b"}}
+    assert KubricFresh.sealed_version(sections) == "a"
+    assert KubricFreshBlind.sealed_version(sections) == "a"
+    assert KubricFreshOod.sealed_version(sections) == "b"
 
 
 def test_a_development_set_names_its_version() -> None:

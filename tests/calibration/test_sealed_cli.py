@@ -667,17 +667,27 @@ def _versioned(version: str) -> type[SealFixtureDataset]:
     return VersionedSeal
 
 
+def _sealed_render(version: str, sealed: str) -> type[SealFixtureDataset]:
+    """The fixture as ``version`` of a sealed render whose configured version is ``sealed``."""
+
+    class SealedVersioned(_versioned(version)):
+        def sealed_version(self, sections: Mapping[str, Any]) -> str:
+            return sealed
+
+    return SealedVersioned
+
+
+def _register(monkeypatch: pytest.MonkeyPatch, dataset: type[SealFixtureDataset]) -> None:
+    kinds: Mapping[str, Any] = plugins.PLUGIN_KINDS
+    datasets = kinds["datasets"]
+    patched = {**kinds, "datasets": lambda: {**datasets(), DATASET: dataset}}
+    monkeypatch.setattr(plugins, "PLUGIN_KINDS", MappingProxyType(patched))
+
+
 @pytest.fixture
 def version(monkeypatch: pytest.MonkeyPatch) -> Callable[[str], None]:
     """Registers the fixture dataset as ``version`` of a versioned content."""
-
-    def use(label: str) -> None:
-        kinds: Mapping[str, Any] = plugins.PLUGIN_KINDS
-        datasets = kinds["datasets"]
-        patched = {**kinds, "datasets": lambda: {**datasets(), DATASET: _versioned(label)}}
-        monkeypatch.setattr(plugins, "PLUGIN_KINDS", MappingProxyType(patched))
-
-    return use
+    return lambda label: _register(monkeypatch, _versioned(label))
 
 
 def _fitted_on(identity: str | None, tmp_path: Path, artifact_text: str) -> Path:
@@ -733,6 +743,33 @@ def test_another_version_of_a_development_set_stays_sealed(
     result = evaluate_cli()
     assert result.code == EXIT_USAGE and "PHYSVERIFY_UNSEAL" in result.err
     assert read_entries(ledger) == () and reached == []
+
+
+@pytest.mark.usefixtures("filed")
+def test_a_sealed_render_declared_a_development_set_fails_closed(
+    evaluate_cli: Callable[..., CliResult],
+    monkeypatch: pytest.MonkeyPatch,
+    ledger: Path,
+    reached: list[int],
+) -> None:
+    """The configured sealed version collides with a development set: no exemption, no compute."""
+    _register(monkeypatch, _sealed_render("v2", sealed="v2"))
+    result = evaluate_cli()
+    assert result.code == EXIT_USAGE, result.err
+    assert f"{DATASET}@v2 is a sealed render and a declared development set" in result.err
+    assert read_entries(ledger) == () and reached == []
+
+
+@pytest.mark.usefixtures("filed")
+def test_a_development_version_of_a_sealed_render_is_still_development(
+    evaluate_cli: Callable[..., CliResult], monkeypatch: pytest.MonkeyPatch, ledger: Path
+) -> None:
+    """A sealed render of its own version leaves the development reads of the name as they are."""
+    _register(monkeypatch, _sealed_render("v2", sealed="v3"))
+    result = evaluate_cli()
+    assert result.code == 0, result.err
+    assert f"development set {DATASET}@v2: not a sealed look" in result.err
+    assert read_entries(ledger) == ()
 
 
 @pytest.mark.parametrize(

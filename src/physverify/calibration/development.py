@@ -8,6 +8,7 @@ from collections.abc import Sequence
 from dataclasses import replace
 
 from physverify.calibration.artifact import DatasetRef
+from physverify.calibration.sealed_ledger import SealedSetError
 from physverify.calibration.session import fit_clips
 from physverify.calibration.settings import CalibrationSettings
 from physverify.core.errors import UsageError
@@ -24,6 +25,16 @@ def is_development(source: DatasetSource, settings: CalibrationSettings) -> bool
 def may_be_development(dataset: str, settings: CalibrationSettings) -> bool:
     """Whether some declared development set carries the name ``dataset`` (no version read)."""
     return any(versioned_parts(spec)[0] == dataset for spec in settings.development_sets)
+
+
+def require_sealed(spec: str, settings: CalibrationSettings) -> None:
+    """A sealed render (``name@version``) is never a development set: its looks would be exempt
+    from the ledger."""
+    if spec in settings.development_sets:
+        raise SealedSetError(
+            f"{spec} is a sealed render and a declared development set "
+            "(calibration.development_sets): give the sealed render its own version"
+        )
 
 
 def development_clips(

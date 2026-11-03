@@ -4,7 +4,8 @@ those apart)."""
 
 from __future__ import annotations
 
-from typing import Final, Protocol, runtime_checkable
+from collections.abc import Mapping
+from typing import Any, Final, Protocol, runtime_checkable
 
 from physverify.datasets._base import DatasetSource
 
@@ -15,6 +16,13 @@ VERSION_MARK: Final = "@"
 class VersionedSource(Protocol):
     def content_version(self) -> str:
         """The version label of this content."""
+        ...
+
+
+@runtime_checkable
+class SealedRender(Protocol):
+    def sealed_version(self, sections: Mapping[str, Any]) -> str:
+        """The version of the sealed render that the configuration ``sections`` declare."""
         ...
 
 

@@ -71,6 +71,10 @@ evaluate() {
 if [[ "$1" != -c ]]; then
     script="$(basename "$1")"
     printf 'query %s %s\n' "$script" "${*:2}" >> "$CALLS"
+    if [[ " ${DEV_QUERIES:-} " == *" $2 "* ]]; then
+        echo "freeze_query: $3@v-$3 is a sealed render and a declared development set" >&2
+        exit 2
+    fi
     case "$script $2" in
       "freeze_query.py field" | "freeze_query.py seed") exec "$REAL_PYTHON" "$@" ;;
       "freeze_query.py artifacts") exit "${ARTIFACTS_EXIT:-0}" ;;
@@ -843,6 +847,24 @@ def test_a_render_without_a_planned_clip_count_stops(sandbox: FinalSandbox) -> N
     sandbox.ok("seed")
     result = sandbox.run("render", "kubric_fresh", PLAN_CLIPS="0")
     assert result.returncode == 2 and "no planned clip count" in result.stderr
+
+
+@pytest.mark.parametrize(
+    ("queries", "message"),
+    [
+        ("plan render-env", "kubric_fresh@v-kubric_fresh is a sealed render and a declared"),
+        ("render-env", "no render settings for kubric_fresh"),
+    ],
+    ids=["plan", "render-env"],
+)
+def test_a_render_of_a_development_version_is_refused(
+    sandbox: FinalSandbox, queries: str, message: str
+) -> None:
+    """freeze_query refuses the render settings of a declared development version: no render."""
+    sandbox.ok("seed")
+    result = sandbox.run("render", "kubric_fresh", DEV_QUERIES=queries)
+    assert result.returncode == 2 and message in result.stderr, result.stderr
+    assert not any(line.startswith("kubric ") for line in sandbox.lines())
 
 
 def test_an_unchanged_checks_toml_is_not_a_foreign_config_difference(sandbox: FinalSandbox) -> None:

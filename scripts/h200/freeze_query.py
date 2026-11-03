@@ -11,8 +11,9 @@ Exit codes: 0 ok, 2 a check failed or an input is unusable (message on stderr).
                            --v1-commit C --v1-calibration PATH --out FREEZE_JSON
     python freeze_query.py field FREEZE_JSON KEY          one value (dotted key)
     python freeze_query.py artifacts FREEZE_JSON          the frozen files are unchanged
-    python freeze_query.py render-env SET SEED            the dataset overrides of a fresh render
+    python freeze_query.py render-env SET SEED            the dataset overrides of a sealed render
     python freeze_query.py plan SET SEED                  the render's plan.json is that render's
+                                                          (both refuse a development version)
     python freeze_query.py look-state [--retry] SPEC...   the first look, or the one retry
     python freeze_query.py v1-state FREEZE_JSON SPEC...   the v1 arm follows the look, once
     python freeze_query.py ledger                         the sealed ledger and its line count
@@ -121,11 +122,10 @@ def _write_manifest(args: argparse.Namespace) -> list[str]:
 
 def _render(args: argparse.Namespace) -> list[str]:
     from physverify.app import plugins
-    from physverify.datasets.kubric_fresh import fresh_settings
-    from physverify.freeze.fresh_render import VERSION_ENV, plan_lines, render_overrides
+    from physverify.freeze.fresh_render import VERSION_ENV, plan_lines, sealed_overrides
 
     datasets = plugins.PLUGIN_KINDS["datasets"]()
-    overrides = render_overrides(fresh_settings(_settings()), datasets, args.dataset, args.seed)
+    overrides = sealed_overrides(_settings(), datasets, args.dataset, args.seed)
     if args.command == "render-env":
         return [f"{key}={value}" for key, value in overrides.items()]
     return plan_lines(_settings(overrides), overrides[VERSION_ENV], args.seed)
