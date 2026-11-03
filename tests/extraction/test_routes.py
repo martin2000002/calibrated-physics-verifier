@@ -12,8 +12,11 @@ from support import chain_keys, entry, profile_of
 from synthetic_clip import SyntheticClip
 from wiring import resolve_plan
 
+from physverify.config.models import Settings
+from physverify.core.errors import ConfigError
 from physverify.extraction._base import StageProvider
 from physverify.extraction.plan import ResolvedPlan
+from physverify.extraction.providers.lift_backproject_area_depth import AreaDepthLiftParams
 from physverify.extraction.routes import extra_plans, route_plans, with_providers
 from physverify.schema.error_profile import ErrorProfile
 from physverify.schema.stages import STAGE_ORDER, Stage
@@ -23,6 +26,7 @@ AREA = {Stage.LIFT: "backproject_area_depth"}
 HEAVY = [Stage.DETECT, Stage.TRACK, Stage.DEPTH, Stage.CAMERA]
 FROM_LIFT = [Stage.LIFT, Stage.SCALE, Stage.KINEMATICS, Stage.CONTACTS]
 DATASET = "synthetic_fixture"
+MIN_ROWS = "extraction.providers.lift.backproject_area_depth.min_rows"
 MAIN_ENTRIES = (
     entry(Stage.TRACK, "edgetam", "centroid_px_rel", 0.05),
     entry(Stage.DEPTH, "vda_small", "depth_rel", 0.1),
@@ -106,3 +110,23 @@ def test_with_providers_changes_only_the_listed_stages(make_settings: SettingsFa
     assert {k: v for k, v in changed.sections.items() if k != "extraction"} == {
         k: v for k, v in settings.sections.items() if k != "extraction"
     }
+
+
+def lift_params(settings: Settings, providers: Providers) -> AreaDepthLiftParams:
+    resolve = partial(resolve_plan, providers=providers, dataset=DATASET)
+    route = route_plans(settings, {"area": AREA}, resolve)["area"]
+    (lift,) = (step for step in route.stages if step.stage is Stage.LIFT)
+    assert isinstance(lift.params, AreaDepthLiftParams)
+    return lift.params
+
+
+@pytest.mark.parametrize("profile", ["fast", "precise"])
+def test_the_route_lift_takes_its_min_rows_from_the_command_line(
+    make_settings: SettingsFactory, real_providers: Providers, profile: str
+) -> None:
+    default = lift_params(make_settings(profile=profile), real_providers)
+    assert default.min_rows == AreaDepthLiftParams().min_rows == 3
+    changed = lift_params(make_settings(f"{MIN_ROWS}=5", profile=profile), real_providers)
+    assert changed.min_rows == 5
+    with pytest.raises(ConfigError, match="min_rows"):
+        lift_params(make_settings(f"{MIN_ROWS}=0", profile=profile), real_providers)

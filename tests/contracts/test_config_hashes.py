@@ -30,20 +30,25 @@ PINNED_ROOT = "/pinned"
 
 SECTIONS_HASH = {
     "fast": "e24a269c3ca07ee6a5af92512a1e9148ebfdc960fa0bb1b80fd78ddaebc75855",
-    "precise": "9c53077954f9431db16bf08f67befe899c08b24adc5f1d8e36b3b105e52a6be9",
+    "precise": "bd89751a1b3e965c9b2843de4e22e8e3b79466566b60a282c09f41b113aaf4e1",
 }
 CONFIG_HASH = {
     "fast": "9fe0de4030620a52c878f2ea888d9b1e8fc8b8a342988ed3aefb8a6e75f06bfa",
-    "precise": "4e78cfae92ca8a980905fd67cf8dc032ca5fcd2ea672fbe1bf7502572d7af3ef",
+    "precise": "f2075211f67a4bd9bf9320bb466382b7e1b9d5d05b4f1e7ed6129a2c5e5881ed",
 }
 LOOK_CONFIG_HASH = {
     "fast": "0f1b1b32aac0093908e9f2199231b4c4273d24094b8c88b3f8d7a6dfe72fb40b",
-    "precise": "e62dd51c8d580526d33df1e877ef0ccb6079f8a6ea786ccca5cc9ed91ca4e7cf",
+    "precise": "220f8e12c2376b61483349d7dd9d53a4b9a3be9f9e633c6d95c4e8de849813dd",
 }
 CHECKS_HASH = "5c5820acaf1bfce8270cdc8653a9eefd373f9feccde4baaac4b3a4510198f78e"
+ROUTED_CHECKS_HASH = {
+    "precise": "1cb265b2c5085d705441f409176f2f20b9a09a69e875e1cd04729068fa007ff8",
+}
+"""``CHECKS_HASH`` with the input routes of a profile that routes a check; a profile without
+routes hashes its default checks as ``CHECKS_HASH``."""
 RUN_CHECKS_HASH = {
     "fast": "5c5820acaf1bfce8270cdc8653a9eefd373f9feccde4baaac4b3a4510198f78e",
-    "precise": "ad9f8ded560f66eabff9b650d1b8cb69c0b86539b21eb94ae4ad4b9f2551d6ec",
+    "precise": "35546962197b93e06aa1677e5b34e121d410ccbdc601b81496754918c9981996",
 }
 PRECISE_STAGE_KEYS_HASH = "d9b9e880768fb779384a271017fb36c975bb5e4290ebadaeee21e9f8325240a0"
 """Hash of every stage key of the precise plan for the declared calib dataset. It and
@@ -54,6 +59,8 @@ PRECISE_CHOICES = (
     "check_variants.R4_size=v3_window_depth_unoccluded",
     "check_variants.R5a=whitened",
     "check_variants.R4_jump=rigid2_dfloor",
+    "verification.routes.area_depth.lift=backproject_area_depth",
+    "verification.check_routes.R3a=area_depth",
 )
 DATASET_CONTENT_HASH = {
     "fast": "7792797236e163025d89c1c518dc43ad8f90c3f511bd884e1969ca9bf1f2fa3e",
@@ -209,7 +216,7 @@ def test_section_hashes_are_unchanged(configs: Path, profile: str) -> None:
     settings = _settings(configs, profile)
     assert stable_hash(dict(settings.sections)) == SECTIONS_HASH[profile]
     assert look_config_hash(settings) == LOOK_CONFIG_HASH[profile]
-    assert active_checks_hash(settings) == CHECKS_HASH
+    assert active_checks_hash(settings) == ROUTED_CHECKS_HASH.get(profile, CHECKS_HASH)
     assert run_checks_hash(settings) == RUN_CHECKS_HASH[profile]
     assert load_dataset_settings(settings).content_hash() == DATASET_CONTENT_HASH[profile]
 

@@ -90,15 +90,18 @@ def lift_by_check(settings: Settings, providers: Providers | None = None) -> dic
     return found
 
 
-def test_under_precise_only_r3a_reads_the_area_depth_lift(make_settings: SettingsFactory) -> None:
-    lifts = lift_by_check(make_settings(*ROUTED_R3A, profile="precise"))
+@pytest.mark.parametrize("overrides", [(), ROUTED_R3A])
+def test_under_precise_only_r3a_reads_the_area_depth_lift(
+    make_settings: SettingsFactory, overrides: tuple[str, ...]
+) -> None:
+    lifts = lift_by_check(make_settings(*overrides, profile="precise"))
     assert len(lifts) == 9
     assert lifts.pop("R3a") == AREA_LIFT
     assert set(lifts.values()) == {"backproject"}
 
 
 def test_without_routes_every_check_reads_the_main_lift(make_settings: SettingsFactory) -> None:
-    settings = make_settings()
+    settings = make_settings(profile="fast")
     assert check_routing(settings).check_routes == {}
     assert isinstance(source_for(settings), PlanSource)
     assert set(lift_by_check(settings).values()) == {"backproject"}

@@ -532,6 +532,8 @@ timing.valid_profile
 verification.policies.threshold.k_sigma
 verification.policies.threshold.on_unknown_sigma
 verification.policy
+verification.profiles.precise.check_routes.R3a
+verification.profiles.precise.routes.area_depth.lift
 verification.profiles.precise.threshold_units.R5a
 verification.profiles.precise.thresholds.R5a
 verification.specificity.abs_tol
