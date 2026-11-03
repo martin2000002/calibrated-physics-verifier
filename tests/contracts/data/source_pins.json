@@ -12,8 +12,16 @@
       "digest": "064b5947917df144565eb16231e6a485420a77c4d83d17aa34b31dc3484860a4",
       "version": "1"
     },
+    "R5a/los_tilt": {
+      "digest": "9716d240b8db592b9cdffff770cdd1d77cd182e8f26678c6e8a997361bf22cf5",
+      "version": "1"
+    },
     "R5a/whitened": {
       "digest": "b3a5300f1240ad067bf2b0d250c54a838e52e5abe1eee730daac56888bc92eb9",
+      "version": "1"
+    },
+    "R5b/los_ballistic": {
+      "digest": "7276e9543072470ebe761f814604795a45ce03dd72188222a0ae6aa68ad84894",
       "version": "1"
     },
     "R5b/unsupported": {
