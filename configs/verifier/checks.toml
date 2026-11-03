@@ -25,15 +25,17 @@ reference = "others"
 # rows whose mask the lift saw cut by the image border left out. R4_jump "rigid2": v2 without the
 # stencils where the apparent size steps, in the statistic and in its noise estimate. R4_jump
 # "rigid2_dfloor": rigid2 with the depth axis of its noise no smaller than the median depth sigma
-# the lift declares (blind to line-of-sight jumps below about sqrt(20) times it). The precise
-# profile runs v3 and rigid2_dfloor; --set check_variants.R4_size=default (or R4_jump=default)
-# restores v2, --set check_variants.R4_jump=rigid2 keeps rigid2 without the depth floor.
-# R4_size "v3_window_depth" (no profile runs it): v3 on extents and their sigmas multiplied by
-# runmed_W(z) / z, z the object's camera depth and W v3's window, so the per-row noise of a
-# monocular depth is not read as a size change; a ground-truth lift is left as v3 sees it.
-# R4_size "v3_window_depth_unoccluded" (no profile runs it): v3_window_depth that also leaves out
-# the rows where the mask of a tracked object nearer the camera covers part of the object's mask
-# box (nearer_cover > 0, from the lift); a ground-truth lift is left as v3_window_depth sees it.
+# the lift declares (blind to line-of-sight jumps below about sqrt(20) times it).
+# R4_size "v3_window_depth": v3 on extents and their sigmas multiplied by runmed_W(z) / z, z the
+# object's camera depth and W v3's window, so the per-row noise of a monocular depth is not read
+# as a size change; a ground-truth lift is left as v3 sees it.
+# R4_size "v3_window_depth_unoccluded": v3_window_depth that also leaves out the rows where the
+# mask of a tracked object nearer the camera covers part of the object's mask box
+# (nearer_cover > 0, from the lift); a ground-truth lift is left as v3_window_depth sees it.
+# The precise profile runs v3_window_depth_unoccluded and rigid2_dfloor (same units as v3 and
+# rigid2, so no tau or tolerance moves); --set check_variants.R4_size=default (or
+# R4_jump=default) restores v2, --set check_variants.R4_size=v3 (or v3_window_depth) keeps that
+# variant, --set check_variants.R4_jump=rigid2 keeps rigid2 without the depth floor.
 # R5a "whitened" (the precise profile runs it): each candidate scored by the Wald contrast of
 # its two accelerations fitted with weights 1 / position_sigma^2, chi-square with 3 degrees of
 # freedom per candidate under white noise independent per axis. Its unit is not v1's: thresholds
@@ -61,7 +63,7 @@ reference = "others"
 [check_variants]
 
 [check_variants.profiles.precise]
-R4_size = "v3"
+R4_size = "v3_window_depth_unoccluded"
 R4_jump = "rigid2_dfloor"
 R5a = "whitened"
 
