@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import replace
+from pathlib import Path
+from typing import Any
 
 import pytest
 from records import manifest
@@ -18,7 +20,7 @@ from physverify.selective_risk.settings import (
     Population,
     population,
 )
-from physverify.selective_risk.tables import named_ks, split_clips
+from physverify.selective_risk.tables import Session, collect_synthetic, named_ks, split_clips
 
 
 def test_the_population_is_the_calibration_section(make_settings: SettingsFactory) -> None:
@@ -58,6 +60,40 @@ def test_one_split_of_the_subset_is_read() -> None:
     assert split_clips(source, "full", Split.EVAL) == [held]  # type: ignore[arg-type]
     assert split_clips(source, "full", Split.CALIB) == [calib]  # type: ignore[arg-type]
     assert source.asked == ["full", "full"]
+
+
+class _NoOutputs:
+    """A chain whose every clip has a failed stage, so the clips read are the failed ones."""
+
+    def outputs(self, clip: ClipManifest, variant: object) -> None:
+        return None
+
+
+def test_the_study_reads_one_split_of_the_calibration_population() -> None:
+    calib = manifest()
+    held = replace(calib, clip_id="e0", split=Split.EVAL)
+    source, asked = _Planned((calib, held)), []
+
+    def chain(dataset: str) -> tuple[Any, Any]:
+        asked.append(dataset)
+        return _NoOutputs(), source
+
+    session = Session(
+        chain=chain,
+        calibration_dir=Path(),
+        settings=AbstentionSettings(),
+        population=Population("synthetic", "full", ()),
+        suite=None,  # type: ignore[arg-type]
+        reference_table=None,  # type: ignore[arg-type]
+        thresholds=None,  # type: ignore[arg-type]
+        min_span_iou=0.5,
+        checks=(),
+        couplings=frozenset(),
+        configured_k=2.0,
+    )
+    collected = collect_synthetic(session, Split.EVAL)
+    assert (asked, source.asked) == (["synthetic"], ["full"])
+    assert (list(collected.clips), collected.failed) == (["e0"], ["e0"])
 
 
 def test_the_configured_k_is_reported_next_to_k_star() -> None:
