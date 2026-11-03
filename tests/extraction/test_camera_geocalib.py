@@ -187,6 +187,14 @@ def test_assumed_focal_is_assumed_fov_with_geocalibs_gravity(
     np.testing.assert_allclose(gravity_from_pose(camera.world_from_camera), expected, atol=TOL)
 
 
+def test_the_assumed_focal_is_the_configured_assumed_fov(fixture_clip: SyntheticClip) -> None:
+    fake = FakeCalibrator(geocalib_up(0.05, -0.5), np.array(0.01))
+    configured = AssumedParams(fov_deg=50.0, fov_sigma_deg=4.0)
+    camera = run(fixture_clip, fake, focal="assumed", assumed=configured)
+    assert (camera.fov_deg, camera.fov_sigma_deg) == (50.0, 4.0)
+    assert fake.priors == [camera.K[0, 0]]
+
+
 def test_a_valid_camera_with_one_pose_and_a_key_per_parameter(
     fixture_clip: SyntheticClip,
 ) -> None:

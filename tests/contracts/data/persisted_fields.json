@@ -1063,12 +1063,18 @@
       "gravity",
       "n_frames",
       "focal_sigma_floor_rel",
-      "unmeasured_focal_sigma_rel"
+      "unmeasured_focal_sigma_rel",
+      "assumed",
+      "assumed.fov_deg",
+      "assumed.fov_sigma_deg"
     ],
     "camera/geocalib": [
       "n_frames",
       "focal",
-      "focal_sigma_floor_rel"
+      "focal_sigma_floor_rel",
+      "assumed",
+      "assumed.fov_deg",
+      "assumed.fov_sigma_deg"
     ],
     "camera/moge2_focal": [
       "n_frames",
@@ -1076,7 +1082,10 @@
       "batch_size",
       "gravity",
       "focal_sigma_floor_rel",
-      "unmeasured_focal_sigma_rel"
+      "unmeasured_focal_sigma_rel",
+      "assumed",
+      "assumed.fov_deg",
+      "assumed.fov_sigma_deg"
     ],
     "camera/ground_truth": [],
     "contacts/ground_truth": [],

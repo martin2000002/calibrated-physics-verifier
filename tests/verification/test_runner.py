@@ -27,6 +27,7 @@ from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Ver
 from physverify.schema.clip import ClipManifest
 from physverify.schema.io import read_jsonl, stable_hash
 from physverify.schema.stages import Stage
+from physverify.verification._base import POLICIES
 from physverify.verification.check_set import CHECKS_SECTION, ChecksSettings, active_checks_hash
 from physverify.verification.inputs import ClipInputs
 from physverify.verification.policies.raw import RawPolicy
@@ -38,12 +39,13 @@ from physverify.verification.runner import (
     TableRow,
     VerificationReport,
     VerificationRunner,
+    VerificationSettings,
     aggregate,
     configured_suite,
     write_report,
 )
 from physverify.verification.sweep import CheckUnit
-from physverify.verification.thresholding import ThresholdTable
+from physverify.verification.thresholding import THRESHOLD_POLICY, ThresholdTable
 
 Behavior = Callable[[type[Check], CheckInputs], Sequence[CheckResult]]
 REASONS = AbstainReason
@@ -249,7 +251,7 @@ def test_configured_suite_builds_the_registered_checks_and_the_chosen_policy(
 def test_a_provisional_tau_in_another_unit_than_its_check_stops_the_suite(
     make_settings: SettingsFactory,
 ) -> None:
-    policies = PLUGIN_KINDS["policies"]()
+    policies = PLUGIN_KINDS[POLICIES.name]()
     whitened = make_settings("check_variants.R5a=whitened")
     with pytest.raises(ConfigError, match=r"R5a \(tau in accel_rel_diff, check reports accel_wald"):
         configured_suite(whitened, plugins.configured("checks", whitened), policies)
@@ -272,7 +274,7 @@ def test_a_provisional_tau_in_another_unit_than_its_check_stops_the_suite(
 def test_the_precise_profile_runs_the_whitened_fall_with_a_threshold_in_its_unit(
     make_settings: SettingsFactory,
 ) -> None:
-    policies = PLUGIN_KINDS["policies"]()
+    policies = PLUGIN_KINDS[POLICIES.name]()
     precise = make_settings(profile="precise")
     checks = plugins.configured("checks", precise)
     assert checks["R5a"] is plugins.build("check_variants")["R5a/whitened"]
@@ -321,7 +323,7 @@ def test_the_k_variants_without_the_tau_and_units_of_the_arm_are_refused_under_p
 def test_a_calibrated_table_judges_only_the_checks_it_was_fitted_with(
     make_settings: SettingsFactory, recorded: str | None
 ) -> None:
-    policies = PLUGIN_KINDS["policies"]()
+    policies = PLUGIN_KINDS[POLICIES.name]()
     default = make_settings()
     fitted = None if recorded is None else make_settings(f"check_variants.R5a={recorded}")
     write_table(
@@ -343,7 +345,7 @@ def test_a_table_calibrated_before_check_versions_is_refused(
 ) -> None:
     """The hash a table recorded before versions entered ``checks_hash`` (the
     parameters alone, as on f133fc8) no longer matches, so verify refuses the table."""
-    policies = PLUGIN_KINDS["policies"]()
+    policies = PLUGIN_KINDS[POLICIES.name]()
     settings = make_settings()
     checks = plugins.configured("checks", settings)
     former = former_checks_hash(checks, settings.section(CHECKS_SECTION, ChecksSettings).root)
@@ -378,3 +380,9 @@ def write_table(settings: Settings, checks_hash: str | None) -> None:
     path = settings.paths.thresholds
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(table.model_dump(mode="json")), encoding="utf-8")
+
+
+def test_the_default_policy_is_the_registered_threshold_policy() -> None:
+    policies = PLUGIN_KINDS[POLICIES.name]()
+    assert VerificationSettings().policy == THRESHOLD_POLICY
+    assert policies[THRESHOLD_POLICY] is ThresholdPolicy

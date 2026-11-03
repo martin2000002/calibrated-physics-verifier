@@ -9,8 +9,8 @@ from physverify.checks.r5a_fall_shape import FallShapeParams, FlightRows
 from physverify.checks.r5b_gravity_value import GravityValueParams
 from physverify.extraction.providers._impacts import ImpactRows
 from physverify.extraction.providers._proximity import ProximityParams
+from physverify.extraction.providers._savgol import SavgolParams
 from physverify.extraction.providers.contacts_kinematic import Params as KinematicParams
-from physverify.extraction.providers.kinematics_savgol import Params as SavgolParams
 from physverify.extraction.providers.scale_free_fall import Params as FreeFallParams
 from physverify.physics.row_time import REFERENCE_FPS, odd_rows_in, reference_seconds, rows_in
 

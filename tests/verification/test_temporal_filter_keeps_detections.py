@@ -38,8 +38,8 @@ from physverify.checks.r4_size_constancy import SizeConstancyCheck, SizeParams
 from physverify.checks.r5a_fall_shape import FallShapeCheck, FallShapeParams
 from physverify.checks.r5b_gravity_value import GravityValueCheck, GravityValueParams
 from physverify.extraction.lift_params import LiftParams
+from physverify.extraction.providers._savgol import SavgolParams
 from physverify.extraction.providers._temporal_smoothing import stabilize_run
-from physverify.extraction.providers.kinematics_savgol import Params as SavgolParams
 from physverify.extraction.providers.kinematics_savgol import track_derivatives
 from physverify.physics.geometry import matrix_from_quaternion, quaternion_from_matrix
 from physverify.physics.kinematics import visible_runs

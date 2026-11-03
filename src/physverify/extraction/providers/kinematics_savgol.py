@@ -8,24 +8,15 @@ from dataclasses import replace
 from typing import Any, ClassVar
 
 import numpy as np
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
-from physverify.extraction._base import ProviderParams, StageContext, WeightSpec
+from physverify.extraction._base import StageContext, WeightSpec
 from physverify.extraction.providers._common import expect_params
+from physverify.extraction.providers._savgol import SavgolParams as Params
 from physverify.physics.kinematics import SavgolSpec, differentiate
-from physverify.physics.row_time import odd_rows_in, reference_seconds, seconds_per_row
+from physverify.physics.row_time import seconds_per_row
 from physverify.schema.stages import Stage
 from physverify.schema.states import ObjectStateTable
-
-
-class Params(ProviderParams):
-    window_s: float = Field(default=reference_seconds(7), gt=0.0)
-    polyorder: int = Field(default=2, ge=0)
-
-    def spec(self, row_seconds: float) -> SavgolSpec:
-        """The window at ``row_seconds`` per row: odd and > polyorder at every frame rate."""
-        window = odd_rows_in(self.window_s, row_seconds, self.polyorder + 1)
-        return SavgolSpec(window, self.polyorder)
 
 
 class SavgolKinematics:

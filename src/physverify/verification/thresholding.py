@@ -19,9 +19,11 @@ from physverify.core.jsonio import loads
 from physverify.core.models import FrozenModel
 from physverify.schema.checks import AbstainReason, CheckResult, Verdict
 
+THRESHOLD_POLICY = "threshold"
+"""Registry name of the k-sigma threshold verdict policy, the default one."""
 PROVISIONAL = "provisional"
 CALIBRATED = "calibrated"
-PROVISIONAL_SOURCE = "configs/checks.toml [verification.thresholds]"
+PROVISIONAL_SOURCE = "configs/verifier/checks.toml [verification.thresholds]"
 
 Decision = tuple[Verdict, AbstainReason | None]
 

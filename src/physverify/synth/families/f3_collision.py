@@ -10,12 +10,12 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import BaseModel
 
+from physverify.core.models import expect_params
 from physverify.schema.scene import SceneSpec
 from physverify.synth.ballistics import energy_scale
 from physverify.synth.family_toolkit import (
     FamilyCommon,
     RejectedSampleError,
-    checked,
     clip_times,
     framed_scene,
     gravity_vector,
@@ -68,7 +68,7 @@ class CollisionFamily:
     Params: ClassVar[type[BaseModel]] = Params
 
     def sample(self, rng: np.random.Generator, params: BaseModel) -> SceneSpec:
-        chosen = checked(params, Params)
+        chosen = expect_params(params, Params)
         return with_retries(NAME, rng, lambda r: _draw(r, chosen))
 
 

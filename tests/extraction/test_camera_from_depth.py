@@ -192,6 +192,15 @@ def test_an_unmeasured_focal_takes_the_assumed_cameras_sigma(fixture_clip: Synth
     assert math.isfinite(camera.fov_sigma_deg)
 
 
+def test_an_unmeasured_focal_follows_the_configured_assumed_fov(
+    fixture_clip: SyntheticClip,
+) -> None:
+    assumed = AssumedParams(fov_deg=50.0, fov_sigma_deg=4.0)
+    ctx = depth_context(fixture_clip, FOCAL_PX)
+    camera = run(ctx, refusing_loader, gravity="none", assumed=assumed)
+    assert lift_phi(camera) == pytest.approx(focal_rel_sigma(50.0, 4.0), rel=1e-12)
+
+
 @pytest.mark.parametrize("bad", [math.nan, -0.1, math.inf])
 def test_the_floor_and_the_unmeasured_sigma_are_numbers(bad: float) -> None:
     with pytest.raises(ValidationError, match="focal_sigma_floor_rel"):

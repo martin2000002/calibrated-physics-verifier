@@ -6,16 +6,10 @@ from collections.abc import Callable
 
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import BaseModel
 
+from physverify.core.models import expect_params as expect_params
 from physverify.extraction._base import StageContext
 from physverify.schema.clip import FrameSampling
-
-
-def expect_params[P: BaseModel](params: BaseModel, model: type[P]) -> P:
-    if not isinstance(params, model):
-        raise TypeError(f"expected {model.__name__}, got {type(params).__name__}")
-    return params
 
 
 def centred_intrinsics(focal: float, sampling: FrameSampling) -> NDArray[np.float64]:

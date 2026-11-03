@@ -20,6 +20,12 @@ SETTINGS_SECTIONS_ATTR = "settings_sections"
 """Optional provider ClassVar ``{param_field: (settings_section, model)}``: the plan fills each
 field from that configuration section, so the section enters ``params`` and the cache key."""
 
+PROVIDER_PARAMS_ATTR = "provider_params"
+"""Optional provider ClassVar ``{param_field: (stage, provider_name)}``: the plan fills each field
+with that provider's params as ``[extraction.providers.<stage>.<name>]`` configures them, so a
+provider that runs another as a fallback runs it as configured and that configuration enters
+``params`` and the cache key."""
+
 PERCEIVED_PARAMS_ATTR = "perceived_params"
 """Optional ground-truth provider ClassVar ``{param_field: read(perceived_provider)}``: when the
 truth stands in for the configured perceived provider, the plan fills each field from that
@@ -61,6 +67,11 @@ def settings_sections(provider: type[StageProvider]) -> Mapping[str, tuple[str, 
         provider, SETTINGS_SECTIONS_ATTR, {}
     )
     return sections
+
+
+def provider_params(provider: type[StageProvider]) -> Mapping[str, tuple[Stage, str]]:
+    fields: Mapping[str, tuple[Stage, str]] = getattr(provider, PROVIDER_PARAMS_ATTR, {})
+    return fields
 
 
 def perceived_params(provider: type[StageProvider]) -> PerceivedParams:
@@ -135,7 +146,27 @@ def _stage_plan(
     reads = perceived_params(provider)
     if ground_truth and reads and config.plan[stage] != GROUND_TRUTH:
         _mirror(reads, key, raw, _provider(providers, stage, config.plan[stage]))
+    _fill_provider_params(provider, key, raw, config, providers, settings)
     return StagePlan(stage, provider, _params(provider, key, raw, settings))
+
+
+def _fill_provider_params(
+    provider: type[StageProvider],
+    key: str,
+    raw: dict[str, Any],
+    config: ExtractionSettings,
+    providers: Mapping[str, type[StageProvider]],
+    settings: Settings,
+) -> None:
+    for field, (stage, name) in provider_params(provider).items():
+        table = f"[extraction.providers.{stage.value}.{name}]"
+        if field in raw:
+            raise ConfigError(f"{key}: {field!r} comes from {table} and cannot be overridden")
+        other = _provider(providers, stage, name)
+        other_key = f"{stage.value}/{name}"
+        other_raw = dict(config.providers.get(stage, {}).get(name, {}))
+        _fill_provider_params(other, other_key, other_raw, config, providers, settings)
+        raw[field] = _params(other, other_key, other_raw, settings)
 
 
 def _provider(

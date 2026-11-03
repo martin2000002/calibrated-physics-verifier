@@ -7,22 +7,23 @@ camera, as with camera/assumed_fov).
 
 The focal's relative sigma phi is the depth model's measured ``focal_rel`` (rms of bias and sigma,
 the DEPTH entry of the error profile), at least ``focal_sigma_floor_rel``. Without that entry it is
-``unmeasured_focal_sigma_rel``, by default the phi of camera/assumed_fov's field of view: an
-unmeasured focal counts as no better than an assumed one. It is never NaN, so LIFT always gets a
-known focal sigma from this camera. On the true depth the focal is the true one: phi is 0 and the
-floor, which bounds a model's error, does not apply.
+``unmeasured_focal_sigma_rel``, by default the phi of camera/assumed_fov's configured field of
+view (``assumed``): an unmeasured focal counts as no better than an assumed one. It is never NaN,
+so LIFT always gets a known focal sigma from this camera. On the true depth the focal is the true
+one: phi is 0 and the floor, which bounds a model's error, does not apply.
 """
 
 from __future__ import annotations
 
 import math
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import ClassVar
 
 from pydantic import BaseModel, Field
 
 from physverify.core.errors import MissingInputError
 from physverify.extraction._base import GROUND_TRUTH, ProviderParams, StageContext, WeightSpec
+from physverify.extraction.providers._assumed_fov import Params as AssumedParams
 from physverify.extraction.providers._common import (
     LazyModel,
     expect_params,
@@ -30,14 +31,15 @@ from physverify.extraction.providers._common import (
     set_torch_threads,
 )
 from physverify.extraction.providers._geocalib import (
+    ASSUMED_FIELD,
     CHECKPOINT,
     CODE,
-    UNMEASURED_FOCAL_SIGMA_REL,
     Calibration,
     Calibrator,
     GravitySource,
     camera_model,
     load_calibrator,
+    unmeasured_phi,
     with_gravity,
 )
 from physverify.physics.uncertainty import entry_rms
@@ -50,9 +52,9 @@ class Params(ProviderParams):
     gravity: GravitySource = "geocalib"
     n_frames: int = Field(default=8, ge=1)
     focal_sigma_floor_rel: float = Field(default=0.0, ge=0.0, allow_inf_nan=False)
-    unmeasured_focal_sigma_rel: float = Field(
-        default=UNMEASURED_FOCAL_SIGMA_REL, gt=0.0, allow_inf_nan=False
-    )
+    unmeasured_focal_sigma_rel: float | None = Field(default=None, gt=0.0, allow_inf_nan=False)
+    """None: camera/assumed_fov's phi (``unmeasured_phi``)."""
+    assumed: AssumedParams = Field(default_factory=AssumedParams)
 
 
 class DepthFocalCamera:
@@ -65,6 +67,7 @@ class DepthFocalCamera:
     error_profile_reads: ClassVar[tuple[Stage, ...]] = (Stage.DEPTH,)
     weights: ClassVar[tuple[WeightSpec, ...]] = (CODE, CHECKPOINT)
     Params: ClassVar[type[BaseModel]] = Params
+    provider_params: ClassVar[Mapping[str, tuple[Stage, str]]] = ASSUMED_FIELD
 
     def __init__(self, params: BaseModel) -> None:
         self.params = expect_params(params, Params)
@@ -85,8 +88,11 @@ class DepthFocalCamera:
         if ctx.plan.get(Stage.DEPTH) == GROUND_TRUTH:
             return 0.0
         measured = entry_rms(ctx.error_entry(Stage.DEPTH, FOCAL_REL))
-        phi = self.params.unmeasured_focal_sigma_rel if math.isnan(measured) else measured
+        phi = self._unmeasured() if math.isnan(measured) else measured
         return max(phi, self.params.focal_sigma_floor_rel)
+
+    def _unmeasured(self) -> float:
+        return unmeasured_phi(self.params.unmeasured_focal_sigma_rel, self.params.assumed)
 
     def _calibrate(self, ctx: StageContext, focal_px: float) -> Calibration:
         s = ctx.sampling

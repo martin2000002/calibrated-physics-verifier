@@ -33,6 +33,7 @@ from physverify.verification.decisive import Judged, decisive
 from physverify.verification.inputs import ClipInputs, InputSource
 from physverify.verification.sweep import CheckUnit, SpecificitySettings
 from physverify.verification.thresholding import (
+    THRESHOLD_POLICY,
     ThresholdTable,
     load_thresholds,
     threshold_problem,
@@ -55,7 +56,7 @@ def run_checks_hash(run_dir: Path) -> str:
 
 
 class VerificationSettings(FrozenModel):
-    policy: str = "threshold"
+    policy: str = THRESHOLD_POLICY
     thresholds: dict[str, float] = Field(default_factory=dict)
     threshold_units: dict[str, str] = Field(default_factory=dict)
     policies: dict[str, dict[str, Any]] = Field(default_factory=dict)

@@ -70,6 +70,8 @@ FIXTURE_ROOT = Path("/fixture")
 ARTIFACT_NAME = "calibration.json"
 SIGMA = 0.005
 ABSTENTION = AbstentionSettings(risk_target=0.2, bootstrap=50, grid_points=10)
+K_SIGMA = 2.0
+"""``k_sigma`` of ``[verification.policies.threshold]``."""
 AGREEMENT = AgreementSettings(
     rule="calibrated",
     primary_policy=AS_PLAUSIBLE,
@@ -241,17 +243,22 @@ def _abstention_records() -> tuple[AbstentionRecord, CurveRecord]:
     """``selective-risk fit`` and ``selective-risk curve`` content through their own builders."""
     tables, calibrated = _tables(), _projection(InputLevel.PERCEIVED)
     calib = _collected(30, 11, "ab-s")
-    fitted = fit_record(calib, sweep(calib, calibrated, ABSTENTION).table, ABSTENTION, tables)
+    swept = sweep(calib, calibrated, ABSTENTION).table
+    fitted = fit_record(calib, swept, ABSTENTION, tables, "kubric_synthetic")
     k = fitted.k_star
     held = _collected(30, 12, "ah-s")
     parts = CurveParts(
-        per_check=per_check_rows(held.cases, calibrated, named_ks(k), ABSTENTION.ci),
+        per_check=per_check_rows(held.cases, calibrated, named_ks(k, K_SIGMA), ABSTENTION.ci),
         injected_label=InjectedLabel(rows=0),
         z=ZSummary(n=0),
-        real_video={"physics_iq": real_rows(_collected(10, 13, "pi-s"), calibrated, k, 0.95)},
+        real_video={
+            "physics_iq": real_rows(
+                _collected(10, 13, "pi-s"), calibrated, named_ks(k, K_SIGMA), 0.95
+            )
+        },
     )
     compared = compare_tables(held, calibrated, calibrated.raw(), ABSTENTION)
-    return fitted, curve_record(held, compared, k, ABSTENTION, tables, parts)
+    return fitted, curve_record(held, compared, k, tables, parts)
 
 
 def _write_abstention(artifact: Path, curve_run: Path) -> Path:

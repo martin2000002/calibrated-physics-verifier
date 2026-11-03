@@ -129,7 +129,6 @@ class TrainSettings(FrozenModel):
     keep_last: int | None = Field(None, ge=1)
     grad_clip: float = Field(gt=0)
     seed: int = 0
-    timestep_sampling: Literal["uniform_shifted"] = "uniform_shifted"
     gradient_checkpointing: bool = True
     beta_grid: list[float] = Field(default_factory=lambda: [100.0, 500.0, 2500.0, 5000.0])
     beta_grid_fraction: float = Field(0.25, gt=0, le=1)
