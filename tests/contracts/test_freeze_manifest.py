@@ -50,6 +50,10 @@ UNCOVERED = {
         "the one pinhole FOV-focal conversion, now in schema.perception next to CameraModel so "
         "that datasets, which may not import extraction, share it"
     ),
+    ("src/physverify/extraction/_base.py", "GROUND_TRUTH"): (
+        "the ground-truth provider name, now in schema.provenance so that checks, which may not "
+        "import extraction, read it in a provenance; extraction._base re-exports it"
+    ),
     ("src/physverify/verification/runner.py", "_validated"): (
         "became the generic config.models.validated; the name at HEAD is synth's own helper"
     ),
