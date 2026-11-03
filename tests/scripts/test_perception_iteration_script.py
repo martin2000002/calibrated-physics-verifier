@@ -34,13 +34,15 @@ CALIB = ("k-calib-1", "k-calib-2")
 CLIPS = " ".join(f"--clips {c}" for c in CALIB)
 KS = "--dataset kubric_synthetic --subset full"
 EXTENSION = "--dataset kubric_synthetic --subset calib_f3_extra"
-# pv calls are logged with the paths they see; doctor answers from the environment unless a
+# The calib and calib_f3_extra listings give two and three clips; pv calls are logged with the
+# paths they see; doctor answers from the environment unless a
 # DOCTOR_* variable overrides a line; stages, stage-sigma and devscore write what they would.
 FAKE_PYTHON = r"""#!/bin/bash
 CAL="$PHYSVERIFY__PATHS__CALIBRATION_DIR"
 if [[ "$1" != -c ]]; then
     printf 'query %s\n' "${*:2}" >> "$CALLS"
     [[ "$*" == *"clips kubric_synthetic full --split calib" ]] && printf 'k-calib-1\nk-calib-2\n'
+    [[ "$*" == *"clips kubric_synthetic calib_f3_extra" ]] && printf 'k-ext-1\nk-ext-2\nk-ext-3\n'
     exit 0
 fi
 shift 2
@@ -509,3 +511,65 @@ def test_cache_only_cuda_steps_run_with_no_gpu_visible(sandbox: IterationSandbox
     out = sandbox.root / "iterations" / "it0-baseline-cuda"
     assert (out / "devscore.json").is_file()
     assert sandbox.run("3", PHYSVERIFY_ITERATION_DEVICE="cuda").returncode == 2
+
+
+def _rehearsal(sandbox: IterationSandbox, *ids: str) -> dict[str, str]:
+    clips = sandbox.root / "rehearsal.txt"
+    clips.write_text("".join(f"{i}\n" for i in ids), encoding="utf-8")
+    return {"PHYSVERIFY_ITERATION_CLIPS_FILE": str(clips)}
+
+
+@pytest.mark.parametrize(
+    ("limit", "extension"),
+    [(None, EXTENSION), ("0", None), ("2", f"{EXTENSION} --clips k-ext-1 --clips k-ext-2")],
+)
+def test_a_clip_list_rehearses_every_step_on_those_clips(
+    sandbox: IterationSandbox, limit: str | None, extension: str | None
+) -> None:
+    env = _rehearsal(sandbox, "k-calib-2")
+    if limit is not None:
+        env["PHYSVERIFY_ITERATION_EXTENSION_LIMIT"] = limit
+    result = sandbox.run(**env)
+    assert result.returncode == 0, result.stderr
+    one = "--clips k-calib-2"
+    strict = [] if extension is None else [f"extract run --strict-profile {extension}"]
+    assert sandbox.commands() == [
+        "doctor",
+        f"extract run {KS} {one}",
+        *([] if extension is None else [f"extract run {extension}"]),
+        f"diagnose stages {KS} {one} --write-profile",
+        f"extract run --strict-profile {KS} {one}",
+        *strict,
+        f"calibrate stage-sigma {KS} {one}",
+        f"calibrate dev-score {KS} {one} --level both --out {sandbox.out / 'devscore.json'}",
+    ]
+    notes = (sandbox.out / "notes.md").read_text(encoding="utf-8")
+    assert "rehearsal on 1 calib clips" in notes and "drop the calib_f3_extra" in notes
+
+
+@pytest.mark.parametrize(
+    ("ids", "env", "message"),
+    [
+        (("k-calib-1", "k-eval-9"), {}, "not calib clips"),
+        ((), {"PHYSVERIFY_ITERATION_EXTENSION_LIMIT": "x"}, "must be a count"),
+    ],
+)
+def test_a_bad_rehearsal_stops_before_any_step(
+    sandbox: IterationSandbox, ids: tuple[str, ...], env: dict[str, str], message: str
+) -> None:
+    result = sandbox.run(**_rehearsal(sandbox, *ids), **env)
+    assert result.returncode == 2 and message in result.stderr, result.stderr
+    assert sandbox.commands() in ([], ["doctor"])
+
+
+def test_an_extension_limit_needs_a_clip_list(sandbox: IterationSandbox) -> None:
+    result = sandbox.run(PHYSVERIFY_ITERATION_EXTENSION_LIMIT="0")
+    assert result.returncode == 2 and "needs PHYSVERIFY_ITERATION_CLIPS_FILE" in result.stderr
+    assert sandbox.pv() == []
+
+
+def test_a_resume_with_another_clip_list_is_refused(sandbox: IterationSandbox) -> None:
+    assert sandbox.run("1", "1", **_rehearsal(sandbox, "k-calib-1")).returncode == 0
+    result = sandbox.run("2", **_rehearsal(sandbox, "k-calib-2"))
+    assert result.returncode == 2 and "belongs to CHAIN_CLIPS" in result.stderr, result.stderr
+    assert sandbox.run("2").returncode == 2

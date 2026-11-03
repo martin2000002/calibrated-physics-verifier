@@ -268,6 +268,12 @@ export PHYSVERIFY_ITERATION_ID=<id> PHYSVERIFY_ITERATION_EXPECT_COMMIT=<head> \
         nice -n 10 bash scripts/h200/run_perception_iteration.sh 4 5
 ```
 
+A rehearsal on a few calib clips sets `PHYSVERIFY_ITERATION_CLIPS_FILE` (calib ids only, checked
+against the listing): every step passes them as `--clips`, so `stage-sigma` and `dev-score` drop
+the `calib_f3_extra` extension and the result is not an iteration.
+`PHYSVERIFY_ITERATION_EXTENSION_LIMIT=N` (only with a clip list) extracts the first N extension
+clips in steps 1 and 3, none with 0. Without either variable the iteration is unchanged.
+
 ### Line-of-sight R5 (arm `k`)
 
 The arm `k` of `perception_arms.tsv` runs the precise profile with depth `vda_large` and R5a and
