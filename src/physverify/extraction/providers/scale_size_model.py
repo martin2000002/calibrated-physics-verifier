@@ -14,17 +14,16 @@ from typing import ClassVar
 from pydantic import BaseModel, Field
 
 from physverify.config.models import SIZE_PRIORS_SECTION, SizePrior, SizePriorTable
-from physverify.core.models import absent_when_none
 from physverify.extraction._base import ProviderParams, StageContext, WeightSpec
 from physverify.extraction.providers._common import expect_params
 from physverify.extraction.providers._size_prior import (
-    AxisErrors,
     ObjectScale,
     clip_focal_phi,
     combine,
     object_scale,
     with_focal,
 )
+from physverify.physics.length_sigma import DEFAULT_AXIS_ERRORS, AxisErrors
 from physverify.schema.scale import ScaleEstimate, ScaleSource
 from physverify.schema.stages import Stage
 from physverify.schema.states import ObjectStateTable
@@ -48,13 +47,14 @@ class Params(ProviderParams):
     priors: SizePriorTable = SizePriorTable({})
     model: SizeModelTable = SizeModelTable()
     lookup: SizeLookup = SizeLookup()
-    axis_errors: AxisErrors | None = absent_when_none()
+    axis_errors: AxisErrors = DEFAULT_AXIS_ERRORS
 
 
 class SizeModelScale:
     stage: ClassVar[Stage] = Stage.SCALE
     name: ClassVar[str] = "size_model"
-    version: ClassVar[str] = "2"
+    # 3: the extent sigmas of L combine as correlated axes by default (physics.length_sigma).
+    version: ClassVar[str] = "3"
     requires: ClassVar[tuple[Stage, ...]] = (Stage.CAMERA, Stage.LIFT)
     heavy: ClassVar[bool] = False
     is_ground_truth: ClassVar[bool] = False

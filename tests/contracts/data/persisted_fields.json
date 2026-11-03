@@ -956,7 +956,8 @@
       "seed",
       "occluded_at",
       "min_size_frames",
-      "reference"
+      "reference",
+      "axis_errors"
     ],
     "R5a": [
       "mc_draws",

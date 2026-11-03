@@ -11,32 +11,27 @@ from __future__ import annotations
 import math
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import ClassVar, Literal
+from typing import ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
 from pydantic import BaseModel
 
 from physverify.config.models import SIZE_PRIORS_SECTION, SizePrior, SizePriorTable
-from physverify.core.models import absent_when_none
 from physverify.extraction._base import StageContext, WeightSpec
 from physverify.extraction.backprojection import camera_focal_phi
 from physverify.extraction.providers._common import expect_params
 from physverify.physics.geometry import characteristic_lengths
+from physverify.physics.length_sigma import DEFAULT_AXIS_ERRORS, AxisErrors, length_rel_sigma
 from physverify.schema.perception import CameraModel
 from physverify.schema.scale import ScaleEstimate, ScaleSource
 from physverify.schema.stages import Stage
 from physverify.schema.states import ObjectStateTable
 from physverify.sizing.priors import SizePriorParams, lookup_label, prior_keys
 
-AxisErrors = Literal["correlated"]
-"""How the relative errors of the three extents combine into the error of L. ``correlated``: one
-error shared by every axis (LIFT scales all extents by one depth / focal factor and e_z is the mean
-of the lateral extents). None keeps the independent-axis formula, and so the original cache keys."""
-
 
 class Params(SizePriorParams):
-    axis_errors: AxisErrors | None = absent_when_none()
+    axis_errors: AxisErrors = DEFAULT_AXIS_ERRORS
 
 
 @dataclass(frozen=True)
@@ -50,7 +45,8 @@ class ObjectScale:
 class SizePriorScale:
     stage: ClassVar[Stage] = Stage.SCALE
     name: ClassVar[str] = "size_prior"
-    version: ClassVar[str] = "2"
+    # 3: the extent sigmas of L combine as correlated axes by default (physics.length_sigma).
+    version: ClassVar[str] = "3"
     requires: ClassVar[tuple[Stage, ...]] = (Stage.CAMERA, Stage.LIFT)
     heavy: ClassVar[bool] = False
     is_ground_truth: ClassVar[bool] = False
@@ -95,7 +91,7 @@ def object_scale(
     n: int,
     prior: SizePrior,
     phi: float,
-    axis_errors: AxisErrors | None = None,
+    axis_errors: AxisErrors,
 ) -> ObjectScale | None:
     """s_i = mean_m / median_t L and rho_i^2 = rel_spread^2 + median_t(sigma_L / L)^2, with
     sigma_L free of the focal error ``phi`` (``without_focal``)."""
@@ -111,19 +107,6 @@ def object_scale(
         log_scale=math.log(prior.mean_m / length),
         rel_var=prior.rel_spread**2 + float(np.median(rel_sigma)) ** 2,
     )
-
-
-def length_rel_sigma(
-    rel_extent: NDArray[np.float64], axis_errors: AxisErrors | None
-) -> NDArray[np.float64]:
-    """sigma_L / L for L = (e_x e_y e_z)^(1/3) from the relative extent sigmas (..., 3):
-    d ln L = (1/3) sum_j d ln e_j, so (1/3) sum_j r_j for fully correlated axis errors and
-    (1/3) sqrt(sum_j r_j^2) for independent ones."""
-    if axis_errors == "correlated":
-        mean: NDArray[np.float64] = np.mean(rel_extent, axis=-1)
-        return mean
-    quadrature: NDArray[np.float64] = np.sqrt(np.sum(rel_extent**2, axis=-1)) / 3.0
-    return quadrature
 
 
 def without_focal(rel_sigma: NDArray[np.float64], phi: float) -> NDArray[np.float64]:

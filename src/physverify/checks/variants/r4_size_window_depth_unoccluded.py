@@ -23,7 +23,8 @@ class UnoccludedWindowDepthSizeCheck(WindowDepthSizeCheck):
     a sound row."""
 
     variant: ClassVar[str] = "v3_window_depth_unoccluded"
-    version: ClassVar[str] = "1"
+    # 2: sigma combines the extent sigmas as correlated axes by default.
+    version: ClassVar[str] = "2"
 
     def _whole_rows(self, inputs: CheckInputs) -> BoolArray:
         whole = super()._whole_rows(inputs)

@@ -101,8 +101,9 @@ NINE = (
     make_check("F9", scored(("a", 0.1, 0.0), ("b", 0.9, 0.0))),
 )
 STALE_TABLE = "calibrated with other check versions, parameters or variants"
-FORMER_FAST_CHECKS_HASH = "891fd3580169fec8f8c70ca0b7d66b24973fd7348dbf1c98ac00be92aa41b2b8"
-"""The fast ``checks_hash`` pinned on f133fc8 (``tests/contracts/test_config_hashes.py``)."""
+FORMER_FAST_CHECKS_HASH = "d01a5232ec8cb0ab038923811724d8e725347616e5d5a0aa123b90f1e3536448"
+"""The fast ``checks_hash`` as f133fc8 computed it (parameters alone), over the current parameters:
+891fd358... there, until R4_size gained ``axis_errors``."""
 THRESHOLDS = ThresholdTable.provisional(dict.fromkeys(("F1", "F5", "F7", "F8"), 1.0))
 
 
