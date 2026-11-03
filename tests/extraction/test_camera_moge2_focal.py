@@ -220,6 +220,18 @@ def test_with_no_usable_frame_the_camera_is_the_assumed_one(fixture_clip: Synthe
     assert camera.world_from_camera is not None
 
 
+def test_the_configured_assumed_fov_is_the_fallback_and_the_unmeasured_sigma(
+    fixture_clip: SyntheticClip,
+) -> None:
+    assumed = AssumedParams(fov_deg=50.0, fov_sigma_deg=4.0)
+    fallback = run(fixture_clip, FakeMoGe([math.nan]), assumed=assumed)
+    assert (fallback.fov_deg, fallback.fov_sigma_deg) == (50.0, 4.0)
+    estimated = run(fixture_clip, FakeMoGe([0.9]), assumed=assumed)
+    assert lift_phi(estimated) == pytest.approx(focal_rel_sigma(50.0, 4.0), rel=1e-9)
+    explicit = run(fixture_clip, FakeMoGe([0.9]), assumed=assumed, unmeasured_focal_sigma_rel=0.3)
+    assert lift_phi(explicit) == pytest.approx(0.3, rel=1e-9)
+
+
 def test_a_frame_whose_forward_raises_is_dropped(fixture_clip: SyntheticClip) -> None:
     moge = FlakyMoGe([0.8, 0.9, 1.0, 5.0], broken={3})
     camera = run(fixture_clip, moge, n_frames=4, batch_size=4)

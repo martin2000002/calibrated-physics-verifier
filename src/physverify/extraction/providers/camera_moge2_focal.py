@@ -3,12 +3,13 @@
 MoGe-2 runs here only for its focal, on ``n_frames`` evenly spaced frames with a free field of
 view; the depth stage keeps its own provider. The clip focal is exp(median ln f) over the frame
 focals. A frame whose forward raises, or whose focal is not finite or not > 0, is dropped; with
-no frame left the camera is camera/assumed_fov's (its focal, FOV sigma and source) and GeoCalib
-takes that focal as its prior, so a failed clip is recorded as assumed, never as estimated.
+no frame left the camera is camera/assumed_fov's as configured (``assumed``: its focal, FOV sigma
+and source) and GeoCalib takes that focal as its prior, so a failed clip is recorded as assumed,
+never as estimated.
 
 The focal's relative sigma phi is the larger of this provider's own measured ``focal_rel`` (the
-CAMERA entry of the error profile; ``unmeasured_focal_sigma_rel`` without one), the spread of
-the frame focals, and ``focal_sigma_floor_rel``.
+CAMERA entry of the error profile; without one ``unmeasured_focal_sigma_rel``, by default
+camera/assumed_fov's phi), the spread of the frame focals, and ``focal_sigma_floor_rel``.
 
 It is the precise profile's camera (``extraction.profiles.precise.plan``); elsewhere it is
 selected with ``--set extraction.plan.camera=moge2_focal``. It has no provider table: its defaults
@@ -20,7 +21,7 @@ from __future__ import annotations
 
 import functools
 import math
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import ClassVar, Final
 
@@ -31,6 +32,7 @@ from pydantic import BaseModel, Field
 from physverify.core.log import get_logger
 from physverify.extraction._base import ProviderParams, StageContext, WeightSpec
 from physverify.extraction.providers import _geocalib, _moge2
+from physverify.extraction.providers._assumed_fov import Params as AssumedParams
 from physverify.extraction.providers._common import (
     LazyModel,
     expect_params,
@@ -38,12 +40,13 @@ from physverify.extraction.providers._common import (
     set_torch_threads,
 )
 from physverify.extraction.providers._geocalib import (
-    UNMEASURED_FOCAL_SIGMA_REL,
+    ASSUMED_FIELD,
     Calibrator,
     GravitySource,
     assumed_camera,
     camera_model,
     load_calibrator,
+    unmeasured_phi,
     with_gravity,
 )
 from physverify.extraction.providers._moge2 import MAX_RESOLUTION_LEVEL, PointMapModel, predict
@@ -65,9 +68,9 @@ class Params(ProviderParams):
     batch_size: int = Field(default=4, ge=1)
     gravity: GravitySource = "geocalib"
     focal_sigma_floor_rel: float = Field(default=0.0, ge=0.0, allow_inf_nan=False)
-    unmeasured_focal_sigma_rel: float = Field(
-        default=UNMEASURED_FOCAL_SIGMA_REL, gt=0.0, allow_inf_nan=False
-    )
+    unmeasured_focal_sigma_rel: float | None = Field(default=None, gt=0.0, allow_inf_nan=False)
+    """None: camera/assumed_fov's phi (``unmeasured_phi``)."""
+    assumed: AssumedParams = Field(default_factory=AssumedParams)
 
 
 @dataclass(frozen=True)
@@ -133,6 +136,7 @@ class MoGe2FocalCamera:
         _geocalib.CHECKPOINT,
     )
     Params: ClassVar[type[BaseModel]] = Params
+    provider_params: ClassVar[Mapping[str, tuple[Stage, str]]] = ASSUMED_FIELD
 
     def __init__(self, params: BaseModel) -> None:
         self.params = expect_params(params, Params)
@@ -155,7 +159,11 @@ class MoGe2FocalCamera:
         picked = frames[frame_indices(frames.shape[0], self.params.n_frames)]
         set_torch_threads(ctx.threads)
         focal = clip_focal(frame_focals(self._moge.get(ctx), picked, self.params.batch_size))
-        camera = assumed_camera(ctx) if focal is None else self._estimated(ctx, focal)
+        camera = (
+            assumed_camera(ctx, self.params.assumed)
+            if focal is None
+            else self._estimated(ctx, focal)
+        )
         if self.params.gravity == "none":
             return camera
         result = self._calibrator.get(ctx).calibrate(picked, float(camera.K[0, 0]))
@@ -163,9 +171,12 @@ class MoGe2FocalCamera:
 
     def _estimated(self, ctx: StageContext, focal: ClipFocal) -> CameraModel:
         measured = entry_rms(ctx.error_entry(Stage.CAMERA, FOCAL_REL))
-        profile = self.params.unmeasured_focal_sigma_rel if math.isnan(measured) else measured
+        profile = self._unmeasured() if math.isnan(measured) else measured
         phi = clip_phi(profile, focal.spread_rel, self.params.focal_sigma_floor_rel)
         return camera_model(ctx.sampling, focal.focal_rel * ctx.sampling.width, phi, None)
+
+    def _unmeasured(self) -> float:
+        return unmeasured_phi(self.params.unmeasured_focal_sigma_rel, self.params.assumed)
 
 
 PLUGINS = (MoGe2FocalCamera,)

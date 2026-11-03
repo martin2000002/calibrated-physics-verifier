@@ -81,11 +81,11 @@
       "version": "1"
     },
     "camera/from_depth": {
-      "digest": "b3e7704976bd124027cdc775487ebf1975ef7fd5b222024c88ee63be90840b55",
+      "digest": "bfe85f12185ac8fe69f2462501cbf8f199ee52c0f7c4060df7df7ce75d517a73",
       "version": "2"
     },
     "camera/geocalib": {
-      "digest": "84afd951ab715f7bee23a04f9a064830e161e7581230969a3032f54becf35ee4",
+      "digest": "cc9b21e6ee1f1b58844f0469eaa74efcfcb9219c56e5cda0e2a4c702eead1076",
       "version": "3"
     },
     "camera/ground_truth": {
@@ -93,7 +93,7 @@
       "version": "1"
     },
     "camera/moge2_focal": {
-      "digest": "1930c0b1ade97d0061029aa9118614ba23def834a77cba2206ad64561970d222",
+      "digest": "af2b5c222a157089075e803b72cf24947889b975ef062fa5846ec8b20d1520fc",
       "version": "3"
     },
     "contacts/ground_truth": {
@@ -113,7 +113,7 @@
       "version": "1"
     },
     "depth/ground_truth": {
-      "digest": "7ad8e534788f9334bb3f7b5a9aabf8a5bbe7715a432dd282651add934360dd14",
+      "digest": "6d88183489ccd123b760ac4c6df0baa8c7bc1a8e11c131331b79bb88145aed88",
       "version": "2"
     },
     "depth/moge2": {
@@ -157,23 +157,23 @@
       "version": "1"
     },
     "lift/backproject": {
-      "digest": "ebb84a21eb719351ed22ca405e4ecfc3e78caaa66cd52512f015b452f5492dee",
+      "digest": "c89643868698bd69699d5b110d17a4802a8ded362cdad28cf5283f4ee5eca0fe",
       "version": "7"
     },
     "lift/backproject_size_constancy": {
-      "digest": "49b564c37cdeb4114bd954d5e072df0a228dcb3748efd48a37d5d9b201ac8b01",
+      "digest": "8940f5d05618618003509393dd6f7d1914e2f4f5e725abe7c9d64aa435161634",
       "version": "2"
     },
     "lift/backproject_unnested": {
-      "digest": "bf416a9fa316a4b57dd3b9637494ca9586f3f85310fc601039638f20593ea108",
+      "digest": "b632851305446dd918b151922c68d72f47800f289fa70ec81fdda2718215b23b",
       "version": "4"
     },
     "lift/ground_anchored": {
-      "digest": "91fccf2ec91a1b8aed3b196cbb5174e334cfbc5a97762921669b6a72f15547b0",
+      "digest": "40bb9482af67510e12fbd7a0438150832c8076e9ac6abcd802641b5d9a11741e",
       "version": "5"
     },
     "lift/ground_truth": {
-      "digest": "01464eee6952ebade6174b1e5831d5facd55b3dd5addafee850e63d43da00839",
+      "digest": "b6f5277f3cba3eeb6d4d33f5a642894b2e431e9b82eb99214a8e99d25b77ec43",
       "version": "2"
     },
     "scale/free_fall": {
