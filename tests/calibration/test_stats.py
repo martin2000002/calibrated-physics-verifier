@@ -55,6 +55,15 @@ def test_auroc_is_mann_whitney() -> None:
     assert math.isnan(auroc([], [1.0]))
 
 
+def test_auroc_ranks_infinities_at_the_ends_and_drops_only_nan() -> None:
+    """A +inf is the largest violation, as in ``conformal_quantile``; n matches what is ranked."""
+    assert auroc([math.inf, 0.2], [0.5]) == 0.5
+    assert auroc([math.inf], [math.inf]) == 0.5
+    assert auroc([0.2], [-math.inf]) == 1.0
+    assert auroc([math.nan, 1.0], [0.0, math.nan]) == 1.0
+    assert math.isnan(auroc([math.nan], [0.0]))
+
+
 def test_ece_on_a_hand_made_case() -> None:
     assert ece([0.2, 0.2, 0.8, 0.8], [0, 1, 1, 1]) == pytest.approx(0.25)
     assert ece([0.2, 0.8], [0, 1], weights=[3.0, 1.0]) == pytest.approx(0.2)
