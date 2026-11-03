@@ -6,6 +6,7 @@ from __future__ import annotations
 import dataclasses
 import shutil
 from collections.abc import Iterator, Mapping
+from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -19,10 +20,13 @@ from physverify.config.loader import load_settings, read_config_files
 from physverify.config.models import PathsSettings, Settings
 from physverify.datasets._kubric_synthetic import content_identity
 from physverify.extraction.cache import plan_entry_filter, stage_key
+from physverify.extraction.plan import ResolvedPlan
+from physverify.extraction.routes import route_plans
 from physverify.schema.clip import resolve_sampling
 from physverify.schema.io import stable_hash
 from physverify.schema.stages import Stage
 from physverify.synth.settings import load_dataset_settings
+from physverify.verification.check_routes import check_routing
 
 REPO_CONFIGS = Path(__file__).resolve().parents[2] / "configs"
 KEY_PATHS = Path(__file__).with_name("data") / "config_key_paths.txt"
@@ -54,6 +58,11 @@ PRECISE_STAGE_KEYS_HASH = "d9b9e880768fb779384a271017fb36c975bb5e4290ebadaeee21e
 """Hash of every stage key of the precise plan for the declared calib dataset. It and
 ``RUN_CHECKS_HASH["precise"]`` are what the defaults give with the same choices passed by
 ``--set``."""
+PRECISE_ROUTE_STAGE_KEYS_HASH = {
+    "area_depth": "0acea35986efeac48dc7923351f183b2c05f7f7cca3470ea03d0abae05908db4",
+}
+"""Per input route of the precise profile, the hash of every stage key of its plan, as
+``PRECISE_STAGE_KEYS_HASH`` is of the main plan's."""
 PRECISE_CHOICES = (
     "extraction.plan.contacts=kinematic_scene",
     "check_variants.R4_size=v3_window_depth_unoccluded",
@@ -171,8 +180,21 @@ def _stage_keys(
     gt: tuple[Stage, ...],
     dataset: str | None,
 ) -> Any:
-    clip = synthetic_clip.manifest()
     plan = resolve_plan(settings, providers, dataset=synthetic_clip.DATASET, gt_stages=gt)
+    return _plan_keys(plan, dataset)
+
+
+def _route_keys(
+    settings: Settings, providers: Mapping[str, Any], dataset: str | None
+) -> dict[str, dict[Stage, str]]:
+    """The stage keys of each input route's plan."""
+    resolve = partial(resolve_plan, providers=providers, dataset=synthetic_clip.DATASET)
+    routes = route_plans(settings, check_routing(settings).routes, resolve)
+    return {name: _plan_keys(plan, dataset) for name, plan in routes.items()}
+
+
+def _plan_keys(plan: ResolvedPlan, dataset: str | None) -> dict[Stage, str]:
+    clip = synthetic_clip.manifest()
     sampling = resolve_sampling(clip, plan.sampling)
     accept = plan_entry_filter(plan)
     keys: dict[Stage, str] = {}
@@ -232,9 +254,15 @@ def test_the_precise_defaults_hash_as_their_explicit_choices(
     configs: Path, providers: Mapping[str, Any], overrides: tuple[str, ...]
 ) -> None:
     settings = _settings(configs, "precise", overrides)
-    keys = _stage_keys(settings, providers, (), _calib_identity(settings))
+    identity = _calib_identity(settings)
+    keys = _stage_keys(settings, providers, (), identity)
     assert run_checks_hash(settings) == RUN_CHECKS_HASH["precise"]
     assert stable_hash({s.value: k for s, k in keys.items()}) == PRECISE_STAGE_KEYS_HASH
+    routes = {
+        name: stable_hash({s.value: k for s, k in route.items()})
+        for name, route in _route_keys(settings, providers, identity).items()
+    }
+    assert routes == PRECISE_ROUTE_STAGE_KEYS_HASH
 
 
 @pytest.mark.parametrize("key", list(STAGE_KEYS))
