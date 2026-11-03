@@ -6,6 +6,7 @@ fields, which a lenient load drops. Every non-finite number is written as null.
 
 from __future__ import annotations
 
+from enum import StrEnum
 from typing import Literal
 
 from pydantic import Field
@@ -15,7 +16,7 @@ from physverify.schema.checks import InputLevel
 from physverify.stats.intervals import Ci, Rate
 
 CALIBRATION_SCHEMA = "physverify.calibration"
-CALIBRATION_VERSION = "1.7.0"
+CALIBRATION_VERSION = "1.8.0"
 EVALUATION_SCHEMA = "physverify.calibration.evaluation"
 
 CheckStatus = Literal["ok", "insufficient", "no_positives", "no_negatives", "unranked_negatives"]
@@ -94,6 +95,26 @@ class Weight(ArtifactModel):
     informedness_ci: Ci
     n_positive: int
     n_negative: int
+
+
+class Reading(StrEnum):
+    SCORED = "scored"
+    """The rows with a finite value."""
+    OPERATIONAL = "operational"
+    """Every labelled row; one without a finite value reads 0.0."""
+
+
+READINGS = tuple(Reading)
+
+
+class Stratified(ArtifactModel):
+    """A score's validity inside the scene families (``calibration.stratified``)."""
+
+    auroc_cv: dict[Reading, Auroc]
+    family_floor: dict[Reading, float | None]
+    """In-sample AUROC of the family positive rate: what the family alone separates."""
+    j_cv: Weight | None = None
+    """Informedness per family, weighted by positives; None for the clip score."""
 
 
 class Probability(ArtifactModel):
@@ -276,8 +297,9 @@ class CheckMonotonicity(ArtifactModel):
 
 
 class HeldoutMonotonicityCheck(ArtifactModel):
-    """Held-out monotonicity of one check: the pooled tau_b and the J of
-    the frozen tau and sigma correction, bootstrapped as the artifact was. No refit, no folds."""
+    """Held-out monotonicity of one check: the pooled tau_b and the J of the frozen tau and sigma
+    correction, bootstrapped as the artifact was, and the dev score's n_met clause
+    (``calibration.clause``) on them. No refit, no folds."""
 
     check_id: str
     split: Literal["heldout"] = "heldout"
@@ -287,6 +309,18 @@ class HeldoutMonotonicityCheck(ArtifactModel):
     meets_h1: bool
     meets_j: bool
     meets_both: bool
+    auroc_readings: dict[Reading, Auroc] = Field(default_factory=dict)
+    """AUROC of the frozen-bias corrected magnitude, global (from 1.8.0)."""
+    stratified: Stratified | None = None
+    """None where the held-out scenes have no families (or before 1.8.0)."""
+    meets_stratified: bool | None = None
+    meets_clause: bool | None = None
+    """``meets_both`` and, where stratified, ``meets_stratified``; None before 1.8.0."""
+
+    @property
+    def counted(self) -> bool:
+        """Counts in n_met: the clause from 1.8.0 on, ``meets_both`` in an older report."""
+        return self.meets_both if self.meets_clause is None else self.meets_clause
 
 
 class RealFpr(ArtifactModel):

@@ -23,6 +23,7 @@ from physverify.calibration.heldout_monotonicity import heldout_h1
 from physverify.calibration.monotonicity import deltas, monotonicity, scene_kendall
 from physverify.calibration.settings import CalibrationConfig, CalibrationSettings
 from physverify.calibration.stats import clustered_rate
+from physverify.calibration.stratified import FamilyOf
 from physverify.calibration.table import (
     CalibrationRow,
     Role,
@@ -83,9 +84,11 @@ def evaluate(
     inputs: Sequence[EvaluationInputs],
     meta: EvaluationMeta,
     config: CalibrationConfig,
+    family_of: FamilyOf,
 ) -> EvaluationReport:
     """Applies the strata of the run's level and profile; raises CalibrationError when there is
-    none or when the data's row_step differs from the stratum's."""
+    none or when the data's row_step differs from the stratum's. ``family_of`` names the family
+    of a scene (None: none), for the stratified block of the held-out monotonicity."""
     matched = [
         (_matching(calibration.stratum(level, profile), item, meta.profile), item)
         for item in inputs
@@ -107,10 +110,10 @@ def evaluate(
         real_datasets=tuple(sorted({name for item in inputs for name in item.real})),
         real_sets=meta.real_sets,
         strata=tuple(
-            _stratum(stratum, item, config, pooled, score_all=meta.score_all_clips)
+            _stratum(stratum, item, config, pooled, family_of, score_all=meta.score_all_clips)
             for stratum, item in matched
         ),
-        h1_primary=_primary(matched, meta.primary, config, pooled, meta.score_all_clips),
+        h1_primary=_primary(matched, meta.primary, config, pooled, family_of, meta.score_all_clips),
         scored_splits=_scored_splits(inputs) if meta.score_all_clips else None,
     )
 
@@ -124,6 +127,7 @@ def _primary(
     primary: PrimaryScope | None,
     config: CalibrationConfig,
     pooled: CalibrationSettings,
+    family_of: FamilyOf,
     score_all: bool,
 ) -> PrimaryScenesView | None:
     if primary is None or not primary.scope.primary_scenes:
@@ -133,7 +137,7 @@ def _primary(
         scenes=primary.scope.primary_scenes,
         dataset=primary.dataset,
         strata=tuple(
-            _stratum(stratum, item, config, pooled, keep=keep, score_all=score_all)
+            _stratum(stratum, item, config, pooled, family_of, keep=keep, score_all=score_all)
             for stratum, item in matched
         ),
     )
@@ -157,6 +161,7 @@ def _stratum(
     item: EvaluationInputs,
     config: CalibrationConfig,
     pooled: CalibrationSettings,
+    family_of: FamilyOf,
     keep: frozenset[int] | None = None,
     *,
     score_all: bool = False,
@@ -182,7 +187,7 @@ def _stratum(
             for name, data in sorted(real.items())
         ),
         monotonicity=pooled_monotonicity(stratum, rows, check_ids, pooled),
-        heldout_h1=heldout_h1(stratum, rows, check_ids, pooled),
+        heldout_h1=heldout_h1(stratum, rows, check_ids, pooled, family_of),
     )
 
 

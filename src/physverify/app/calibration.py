@@ -268,7 +268,7 @@ def evaluate_artifact(
         primary=primary_scope(session, source, name, chosen),
         score_all_clips=score_all_clips,
     )
-    report = evaluate(calibration, inputs, meta, session.config)
+    report = evaluate(calibration, inputs, meta, session.config, family_of)
     write_text_atomic(session.run.run_dir / EVALUATION_FILE, report.to_json())
     write_text_atomic(session.run.run_dir / EVALUATION_MD, evaluation_markdown(report))
     echo(f"evaluation: {session.run.run_dir / EVALUATION_FILE}")

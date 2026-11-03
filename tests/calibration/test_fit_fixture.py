@@ -29,6 +29,7 @@ from physverify.calibration.report import calibration_markdown, curves_csv
 from physverify.calibration.thresholds import NOT_DETERMINED
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import Split
+from physverify.synth.plan import family_of
 
 VOLATILE = ("created_utc", "run_id")
 
@@ -105,7 +106,7 @@ def test_evaluation_on_held_out_scenes(artifact: CalibrationArtifact) -> None:
     """Held-out FPR and TPR are reported and the artifact is only read."""
     text = artifact.to_json()
     calibration = parse_calibration(text)
-    report = evaluate(calibration, (held_out_inputs(),), meta(), config())
+    report = evaluate(calibration, (held_out_inputs(),), meta(), config(), family_of)
     assert report.artifact_sha256 == calibration.sha256
     (stratum,) = report.strata
     r1 = next(c for c in stratum.checks if c.check_id == "R1")
@@ -125,7 +126,11 @@ def test_evaluation_refuses_another_profile(artifact: CalibrationArtifact) -> No
     """1.15: clips of another sampling profile are not judged with this artifact."""
     with pytest.raises(CalibrationError, match="profile"):
         evaluate(
-            parse_calibration(artifact.to_json()), (held_out_inputs(),), meta("precise"), config()
+            parse_calibration(artifact.to_json()),
+            (held_out_inputs(),),
+            meta("precise"),
+            config(),
+            family_of,
         )
 
 
@@ -136,4 +141,4 @@ def test_evaluation_refuses_another_row_step(artifact: CalibrationArtifact) -> N
     slower = LevelData(real.level, tuple(replace(r, row_step=2) for r in real.rows), real.results)
     inputs = EvaluationInputs(item.synthetic, {"real_fixture": slower})
     with pytest.raises(CalibrationError, match=r"real_fixture clips: .*row_step"):
-        evaluate(parse_calibration(artifact.to_json()), (inputs,), meta(), config())
+        evaluate(parse_calibration(artifact.to_json()), (inputs,), meta(), config(), family_of)

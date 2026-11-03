@@ -20,6 +20,7 @@ from calibration_cases import (
     record,
 )
 
+from physverify.calibration.artifact import Reading
 from physverify.calibration.check_weights import Flag, raw_weight
 from physverify.calibration.collect import level_data
 from physverify.calibration.dev_folds import fold_parts, scene_folds, split_data
@@ -37,7 +38,6 @@ from physverify.calibration.fit import FitInputs, LevelData, fit_calibration, fi
 from physverify.calibration.oof import DevScoreOof
 from physverify.calibration.sigma_recalibration import SigmaPair
 from physverify.calibration.stats import auroc
-from physverify.calibration.stratified import Reading
 from physverify.calibration.table import Role
 from physverify.calibration.thresholds import fit_tau
 from physverify.core.errors import UsageError

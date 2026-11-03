@@ -35,6 +35,7 @@ from physverify.calibration.table import CLEAN_LEVEL, CalibrationRow, Role, corr
 from physverify.calibration.thresholds import fails
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import Split
+from physverify.synth.plan import family_of
 from physverify.synth.scene_scope import SceneScope
 from physverify.verification.runner import VerificationReport
 from physverify.verification.thresholding import ThresholdParams
@@ -85,7 +86,7 @@ def _evaluate(
     synthetic = level_data(InputLevel.ORACLE, _joined(*rows_of), CHECKS, config(), split=None)
     primary = PrimaryScope(SceneScope(primary_scenes=PRIMARY), dataset_ref())
     cfg = config(**update)
-    return evaluate(calibration, (EvaluationInputs(synthetic, {}),), _meta(primary), cfg)
+    return evaluate(calibration, (EvaluationInputs(synthetic, {}),), _meta(primary), cfg, family_of)
 
 
 def test_only_calib_rows_give_no_heldout_monotonicity(frozen: Calibration) -> None:
@@ -93,8 +94,8 @@ def test_only_calib_rows_give_no_heldout_monotonicity(frozen: Calibration) -> No
     stratum = frozen.stratum(InputLevel.ORACLE, "fast")
     calib_only = _rows(synthetic_report(10, prefix="fam-s"))
     settings = fit_settings(frozen, config())
-    assert heldout_h1(stratum, calib_only, _check_ids(frozen), settings) == ()
-    assert heldout_h1(stratum, (), _check_ids(frozen), settings) == ()
+    assert heldout_h1(stratum, calib_only, _check_ids(frozen), settings, family_of) == ()
+    assert heldout_h1(stratum, (), _check_ids(frozen), settings, family_of) == ()
     report = _evaluate(frozen, (synthetic_report(40, prefix="fam-s"),))
     assert report.h1_primary is not None
     assert [s.heldout_h1 for s in (*report.strata, *report.h1_primary.strata)] == [(), ()]
@@ -107,7 +108,9 @@ def test_heldout_monotonicity_is_tau_and_j_of_the_frozen_rule_by_hand(
     """tau_b from the held-out deltas only, J = TPR - FPR of the frozen tau and sigma."""
     stratum = frozen.stratum(InputLevel.ORACLE, "fast")
     settings = fit_settings(frozen, config())
-    found = {c.check_id: c for c in heldout_h1(stratum, mixed, _check_ids(frozen), settings)}
+    found = {
+        c.check_id: c for c in heldout_h1(stratum, mixed, _check_ids(frozen), settings, family_of)
+    }
     assert set(found) == set(_check_ids(frozen))
     for check_id, result in found.items():
         held = [r for r in mixed if r.check_id == check_id and r.split is Split.EVAL]
@@ -148,8 +151,8 @@ def test_calib_rows_never_enter(frozen: Calibration, mixed: tuple[CalibrationRow
     settings = fit_settings(frozen, config())
     held_only = tuple(r for r in mixed if r.split is not Split.CALIB)
     ids = _check_ids(frozen)
-    assert heldout_h1(stratum, mixed, ids, settings) == heldout_h1(
-        stratum, held_only, ids, settings
+    assert heldout_h1(stratum, mixed, ids, settings, family_of) == heldout_h1(
+        stratum, held_only, ids, settings, family_of
     )
 
 
@@ -169,7 +172,9 @@ def test_no_parameter_comes_from_outside_the_artifact(frozen: Calibration) -> No
         min_span_iou=cfg.min_span_iou,
     )
     synthetic = level_data(InputLevel.ORACLE, _joined(*reports), CHECKS, config(), split=None)
-    policy_moved = evaluate(frozen, (EvaluationInputs(synthetic, {}),), _meta(), other_policy)
+    policy_moved = evaluate(
+        frozen, (EvaluationInputs(synthetic, {}),), _meta(), other_policy, family_of
+    )
     assert shipped.strata[0].heldout_h1
     assert moved.strata[0].heldout_h1 == shipped.strata[0].heldout_h1
     assert policy_moved.strata[0].heldout_h1 == shipped.strata[0].heldout_h1
