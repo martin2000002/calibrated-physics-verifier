@@ -18,7 +18,6 @@ if TYPE_CHECKING:
     from physverify.config.models import Settings
 
 SECTION = "agreement"
-THRESHOLD_POLICY = "threshold"
 
 
 class AgreementSettings(FrozenModel):
