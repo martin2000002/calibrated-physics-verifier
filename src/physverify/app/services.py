@@ -27,14 +27,9 @@ from physverify.generator_comparison.settings import ComparisonSettings
 from physverify.schema.checks import InputLevel
 from physverify.schema.stages import Stage
 from physverify.verification._base import POLICIES
-from physverify.verification.check_routes import check_routing, routed_source
+from physverify.verification.check_routes import check_routing, perceived_routed_source
 from physverify.verification.check_set import active_checks_hash, occlusion_thresholds
-from physverify.verification.inputs import (
-    InputSource,
-    PerceivedSource,
-    PipelineOutputLoader,
-    refuse_heavy,
-)
+from physverify.verification.inputs import InputSource, refuse_heavy
 
 
 class LockingContext(PluginContext, Protocol):
@@ -97,18 +92,18 @@ def perceived_source(
     dataset: DatasetSource,
     level: InputLevel,
     gt_stages: tuple[Stage, ...] = (),
+    heavy_lock: Callable[[], AbstractContextManager[object]] | None = None,
 ) -> InputSource:
     """Cached perceived inputs of ``dataset``, each routed check reading its route's plan; a stage
-    that would need the heavy lock is refused."""
-    main = plan_for(context, dataset=dataset.name, gt_stages=gt_stages)
-    routes = route_plans_for(context, dataset=dataset.name, gt_stages=gt_stages)
-    deps = pipeline_deps(context, None, partial(refuse_heavy, dataset.name))
-
-    def source_of(plan: ResolvedPlan) -> InputSource:
-        return PerceivedSource(dataset, PipelineOutputLoader(plan, deps), level)
-
-    assignment = check_routing(context.settings).check_routes
-    return routed_source(main, routes, assignment, source_of)
+    that would need the heavy lock is refused unless ``heavy_lock`` replaces that refusal."""
+    lock = heavy_lock or partial(refuse_heavy, dataset.name)
+    return perceived_routed_source(
+        context.settings,
+        dataset,
+        _resolver(context, dataset.name, gt_stages, None, None),
+        pipeline_deps(context, None, lock),
+        level,
+    )
 
 
 def _resolver(

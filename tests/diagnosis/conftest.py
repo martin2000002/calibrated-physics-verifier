@@ -47,13 +47,12 @@ from physverify.extraction.pipeline import PipelineDeps
 from physverify.extraction.pipeline_resources import LazyLock
 from physverify.extraction.providers._common import expect_params
 from physverify.runtime.runs import RunContext
-from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
+from physverify.schema.checks import AbstainReason, CheckResult, Verdict
 from physverify.schema.clip import ClipManifest, Split
 from physverify.schema.error_profile import ErrorProfile
-from physverify.schema.outputs import StageOutput
 from physverify.schema.perception import DepthKind, DepthMap, Detections, MaskTrack
 from physverify.schema.stages import Stage
-from physverify.verification.inputs import perceived_inputs
+from physverify.verification.inputs import ClipInputs
 
 FAKE = "diag_fake"
 PERCEIVED_ID_PREFIX = "p_"
@@ -300,7 +299,8 @@ def threshold_decision(result: CheckResult, tau: float) -> CheckResult:
 
 @dataclasses.dataclass
 class FakeCheckSuite:
-    """``CheckSuite`` stand-in: real ``CheckInputs``, an injectable evaluator, optional taus.
+    """``CheckSuite`` stand-in: real (main-plan) ``CheckInputs``, an injectable evaluator, optional
+    taus.
 
     ``thresholds=None`` means no verdict policy (``decide`` returns None); a check without a tau
     stays UNSCORED. ``truth`` maps clip ids to scripted oracle inputs.
@@ -312,21 +312,14 @@ class FakeCheckSuite:
     truth: Mapping[str, CheckInputs] = dataclasses.field(default_factory=dict)
     evaluated: list[CheckInputs] = dataclasses.field(default_factory=list)
 
-    def inputs(
-        self,
-        clip: ClipManifest,
-        outputs: Mapping[Stage, StageOutput],
-        names: Mapping[Stage, str],
-        level: InputLevel,
-    ) -> CheckInputs:
-        return perceived_inputs(clip, outputs, names, level)
+    def truth_inputs(self, dataset: DatasetSource, clip: ClipManifest) -> ClipInputs | None:
+        inputs = self.truth.get(clip.clip_id)
+        return None if inputs is None else ClipInputs(clip, inputs, None)
 
-    def truth_inputs(self, dataset: DatasetSource, clip: ClipManifest) -> CheckInputs | None:
-        return self.truth.get(clip.clip_id)
-
-    def evaluate(self, inputs: CheckInputs) -> Sequence[CheckResult]:
-        self.evaluated.append(inputs)
-        return tuple(self.evaluator(inputs))
+    def evaluate(self, item: ClipInputs) -> Sequence[CheckResult]:
+        assert item.inputs is not None
+        self.evaluated.append(item.inputs)
+        return tuple(self.evaluator(item.inputs))
 
     def decide(self, results: Sequence[CheckResult]) -> Sequence[CheckResult] | None:
         if self.thresholds is None:

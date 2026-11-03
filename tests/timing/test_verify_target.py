@@ -48,6 +48,9 @@ class Loaded:
     inputs: Any
     error: str | None = None
 
+    def for_check(self, check_id: str) -> Loaded:
+        return self
+
 
 def fake_check(
     check_id: str,
@@ -115,8 +118,10 @@ class FakeSuite:
         built = (fake_check("R4_jump", 0.125, self.clock), fake_check("R1-pen", 0.0625, self.clock))
         return Verifier(built, self.runner, self.make_source)
 
-    def make_source(self, dataset: DatasetSource, plan: Any, deps: PipelineDeps) -> FakeSource:
-        self.sources.append((dataset.name, plan, deps))
+    def make_source(
+        self, settings: Settings, dataset: DatasetSource, resolve: Any, deps: PipelineDeps
+    ) -> FakeSource:
+        self.sources.append((dataset.name, resolve(settings), deps))
         return self.source
 
 
@@ -190,11 +195,12 @@ def test_wall_spans_load_and_runner_and_checks_are_timed_apart(
 
 def test_check_timing_skips_missing_inputs_and_survives_a_failing_check(setup: Setup) -> None:
     inputs = types.SimpleNamespace(contacts=None)
+    item: Any = Loaded(types.SimpleNamespace(), inputs)
     checks = (
         fake_check("R2", 0.5, setup.suite.clock, requires=frozenset({"contacts"}), inputs=inputs),
         fake_check("R5a", 0.25, setup.suite.clock, fails=True, inputs=inputs),
     )
-    assert setup.target()._time_checks(checks, inputs) == {"verify.r5a.wall_s": 0.25}
+    assert setup.target()._time_checks(checks, item) == {"verify.r5a.wall_s": 0.25}
 
 
 def test_inputs_come_from_the_persistent_cache_without_an_observer(

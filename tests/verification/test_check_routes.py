@@ -23,7 +23,6 @@ from physverify.core.errors import ConfigError
 from physverify.core.registry import discover
 from physverify.extraction._base import StageProvider, provider_key, validate_provider
 from physverify.extraction.plan import ResolvedPlan
-from physverify.extraction.routes import route_plans
 from physverify.schema.checks import CheckResult
 from physverify.schema.clip import ClipManifest
 from physverify.schema.stages import Stage
@@ -31,7 +30,7 @@ from physverify.verification.check_routes import (
     VERIFICATION_SECTION,
     RoutedSource,
     check_routing,
-    routed_source,
+    routed_inputs,
 )
 from physverify.verification.check_set import (
     CHECKS_SECTION,
@@ -71,13 +70,7 @@ class PlanSource:
 def source_for(settings: Settings, providers: Providers | None = None) -> InputSource:
     registry = PLUGIN_KINDS["providers"]() if providers is None else providers
     resolve = partial(resolve_plan, providers=registry, dataset=DATASET)
-    routing = check_routing(settings)
-    return routed_source(
-        resolve(settings),
-        route_plans(settings, routing.routes, resolve),
-        routing.check_routes,
-        PlanSource.of,
-    )
+    return routed_inputs(settings, resolve, PlanSource.of)
 
 
 def lift_by_check(settings: Settings, providers: Providers | None = None) -> dict[str, str]:
@@ -117,10 +110,7 @@ def test_a_route_that_resolves_to_the_main_plan_is_not_loaded_again(
         dataset=DATASET,
         gt_stages=(Stage.LIFT,),
     )
-    routing = check_routing(settings)
-    routes = route_plans(settings, routing.routes, resolve)
-    source = routed_source(resolve(settings), routes, routing.check_routes, PlanSource.of)
-    assert isinstance(source, PlanSource)
+    assert isinstance(routed_inputs(settings, resolve, PlanSource.of), PlanSource)
 
 
 def spy(seen: dict[str, str]) -> Callable[[str], type[Check]]:

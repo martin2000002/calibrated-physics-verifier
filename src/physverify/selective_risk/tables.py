@@ -127,8 +127,8 @@ def collect_synthetic(session: Session, split: Split) -> Collected:
         try:
             v8 = variant_outputs(chain, clip, oracle_variant())
             v0 = variant_outputs(chain, clip, perceived_variant())
-            oracle = variant_results(suite, clip, v8, InputLevel.ORACLE)
-            perceived = variant_results(suite, clip, v0, InputLevel.PERCEIVED)
+            oracle = variant_results(suite, chain, clip, v8, InputLevel.ORACLE)
+            perceived = variant_results(suite, chain, clip, v0, InputLevel.PERCEIVED)
             subjects = subject_map(track_of(v0), track_of(v8))
         except (PhysverifyError, ValueError):
             failed.append(clip.clip_id)
@@ -149,7 +149,7 @@ def collect_real(session: Session, dataset: str) -> Collected:
     for clip in clips:
         try:
             v0 = variant_outputs(chain, clip, perceived_variant())
-            results = variant_results(session.suite, clip, v0, InputLevel.PERCEIVED)
+            results = variant_results(session.suite, chain, clip, v0, InputLevel.PERCEIVED)
         except (PhysverifyError, ValueError):
             failed.append(clip.clip_id)
             continue

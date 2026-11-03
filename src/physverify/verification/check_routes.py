@@ -1,7 +1,8 @@
 """Input routes per check: a route is the main stage plan with some providers substituted, and a
 check assigned to a route reads the inputs of that route's plan; every other check reads the main
 plan's. Routes live in ``[verification]``: ``routes.<name>.<stage> = <provider>`` and
-``check_routes.<check_id> = <name>``."""
+``check_routes.<check_id> = <name>``. :func:`routed_inputs` is the one way check inputs are built
+from stage plans, so every consumer reads the same plan per check as ``verify`` and calibration."""
 
 from __future__ import annotations
 
@@ -14,10 +15,19 @@ from pydantic import Field, model_validator
 
 from physverify.config.models import Settings, validated
 from physverify.core.models import FrozenModel
+from physverify.datasets._base import DatasetSource
+from physverify.extraction.pipeline import PipelineDeps
 from physverify.extraction.plan import ResolvedPlan
+from physverify.extraction.routes import PlanResolver, extra_plans, route_plans
+from physverify.schema.checks import InputLevel
 from physverify.schema.clip import ClipManifest
 from physverify.schema.stages import Stage
-from physverify.verification.inputs import ClipInputs, InputSource
+from physverify.verification.inputs import (
+    ClipInputs,
+    InputSource,
+    PerceivedSource,
+    PipelineOutputLoader,
+)
 
 VERIFICATION_SECTION = "verification"
 
@@ -114,3 +124,36 @@ def routed_source(
         return source_of(main)
     sources = {route: source_of(routes[route]) for route in sorted(set(active.values()))}
     return RoutedSource(source_of(main), sources, active)
+
+
+def routed_inputs(
+    settings: Settings, resolve: PlanResolver, source_of: Callable[[ResolvedPlan], InputSource]
+) -> InputSource:
+    """The inputs of the plan ``resolve`` gives for ``settings``, each routed check reading its
+    route's plan, resolved by the same ``resolve``; ``source_of`` loads one plan's inputs."""
+    routing = check_routing(settings)
+    main = resolve(settings)
+    routes = route_plans(settings, routing.routes, resolve)
+    return routed_source(main, routes, routing.check_routes, source_of)
+
+
+def perceived_routed_source(
+    settings: Settings,
+    dataset: DatasetSource,
+    resolve: PlanResolver,
+    deps: PipelineDeps,
+    level: InputLevel,
+) -> InputSource:
+    """:func:`routed_inputs` over the stage cache of ``deps``."""
+
+    def source_of(plan: ResolvedPlan) -> InputSource:
+        return PerceivedSource(dataset, PipelineOutputLoader(plan, deps), level)
+
+    return routed_inputs(settings, resolve, source_of)
+
+
+def input_plans(settings: Settings, resolve: PlanResolver) -> tuple[ResolvedPlan, ...]:
+    """Every distinct plan :func:`routed_inputs` can read, the main plan first."""
+    main = resolve(settings)
+    routes = route_plans(settings, check_routing(settings).routes, resolve)
+    return (main, *extra_plans(main, routes).values())

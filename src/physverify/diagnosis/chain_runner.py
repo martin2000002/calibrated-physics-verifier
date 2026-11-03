@@ -19,6 +19,7 @@ from physverify.extraction.pipeline import (
     PipelineDeps,
 )
 from physverify.extraction.plan import ResolvedPlan, resolve_plan
+from physverify.extraction.routes import PlanResolver
 from physverify.schema.clip import ClipManifest
 from physverify.schema.error_profile import ErrorProfile
 from physverify.schema.outputs import StageOutput
@@ -63,15 +64,26 @@ class ChainRunner:
         deps = dataclasses.replace(self._deps, error_profile=profile)
         return ChainRunner(self._settings, self._providers, self._checks, deps, self._dataset)
 
+    def settings_of(self, variant: Variant) -> Settings:
+        """The settings ``variant`` resolves its plan from."""
+        return apply_overrides(self._settings, variant)
+
+    def resolver(self, variant: Variant) -> PlanResolver:
+        """Resolves a plan with ``variant``'s ground-truth stages."""
+
+        def resolve(settings: Settings) -> ResolvedPlan:
+            return resolve_plan(
+                settings,
+                self._providers,
+                dataset=self._dataset.name,
+                occlusion=occlusion_thresholds(settings, self._checks),
+                gt_stages=variant.gt_order,
+            )
+
+        return resolve
+
     def plan(self, variant: Variant) -> ResolvedPlan:
-        settings = apply_overrides(self._settings, variant)
-        return resolve_plan(
-            settings,
-            self._providers,
-            dataset=self._dataset.name,
-            occlusion=occlusion_thresholds(settings, self._checks),
-            gt_stages=variant.gt_order,
-        )
+        return self.resolver(variant)(self.settings_of(variant))
 
     def _run(self, variant: Variant, clips: Sequence[ClipManifest]) -> ExtractionReport:
         return ExtractionPipeline(self.plan(variant), self._deps).run(self._dataset, clips)
@@ -88,6 +100,13 @@ class ChainRunner:
     def outputs(self, clip: ClipManifest, variant: Variant) -> VariantOutputs | None:
         """Every stage output of ``clip`` under ``variant``, or None if any stage failed."""
         plan = self.plan(variant)
+        loaded = self.plan_outputs(clip, plan)
+        return None if loaded is None else VariantOutputs(variant, plan, loaded)
+
+    def plan_outputs(
+        self, clip: ClipManifest, plan: ResolvedPlan
+    ) -> dict[Stage, StageOutput] | None:
+        """Every stage output of ``clip`` under ``plan``, or None if any stage failed."""
         report = ExtractionPipeline(plan, self._deps).run(self._dataset, [clip])
         loaded: dict[Stage, StageOutput] = {}
         for step in plan.stages:
@@ -96,7 +115,7 @@ class ChainRunner:
             if output is None:
                 return None
             loaded[step.stage] = output
-        return VariantOutputs(variant, plan, loaded)
+        return loaded
 
     def _load(
         self, clip: ClipManifest, stage: Stage, provider: str, key: str

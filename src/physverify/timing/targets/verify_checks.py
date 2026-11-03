@@ -15,13 +15,14 @@ from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from typing import ClassVar, Final, Protocol
 
-from physverify.checks._base import Check, CheckInputs, missing_inputs
+from physverify.checks._base import Check, missing_inputs
 from physverify.config.models import Settings
 from physverify.core.errors import TimingError
 from physverify.datasets._base import DatasetSource, dataset_from
 from physverify.extraction._base import StageObserver
 from physverify.extraction.pipeline import ExtractionPipeline, PipelineDeps
 from physverify.extraction.plan import ResolvedPlan
+from physverify.extraction.routes import PlanResolver
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import ClipManifest
 from physverify.timing._base import TimingContext
@@ -41,12 +42,8 @@ from physverify.timing.targets._extract_pipeline import (
     pipeline_deps,
 )
 from physverify.verification._base import VerdictPolicy
-from physverify.verification.inputs import (
-    ClipInputs,
-    InputSource,
-    PerceivedSource,
-    PipelineOutputLoader,
-)
+from physverify.verification.check_routes import input_plans, perceived_routed_source
+from physverify.verification.inputs import ClipInputs, InputSource
 
 PREFIX: Final = "verify"
 _NOT_SLUG: Final = re.compile(r"[^a-z0-9_]")
@@ -56,7 +53,7 @@ class Runner(Protocol):
     def run(self, source: InputSource, clips: Sequence[ClipManifest]) -> object: ...
 
 
-SourceFactory = Callable[[DatasetSource, ResolvedPlan, PipelineDeps], InputSource]
+SourceFactory = Callable[[Settings, DatasetSource, PlanResolver, PipelineDeps], InputSource]
 
 
 @dataclass(frozen=True)
@@ -82,9 +79,10 @@ def load_suite(
 
     suite = configured_suite(settings, checks, policies)
 
-    def perceived(dataset: DatasetSource, plan: ResolvedPlan, deps: PipelineDeps) -> InputSource:
-        loader = PipelineOutputLoader(plan, deps)
-        return PerceivedSource(dataset, loader, InputLevel.PERCEIVED)
+    def perceived(
+        settings: Settings, dataset: DatasetSource, resolve: PlanResolver, deps: PipelineDeps
+    ) -> InputSource:
+        return perceived_routed_source(settings, dataset, resolve, deps, InputLevel.PERCEIVED)
 
     return Verifier(suite.checks, suite.runner(), perceived)
 
@@ -105,11 +103,11 @@ class PreloadedSource:
         return (item for item in self.loaded if item.clip.clip_id in wanted)
 
 
-def only_inputs(clip: ClipManifest, loaded: Sequence[ClipInputs]) -> CheckInputs:
+def only_inputs(clip: ClipManifest, loaded: Sequence[ClipInputs]) -> ClipInputs:
     for item in loaded:
         if item.error:
             raise TimingError(f"{clip.clip_id}: verification inputs failed: {item.error}")
-    found = [item.inputs for item in loaded if item.inputs is not None]
+    found = [item for item in loaded if item.inputs is not None]
     if len(found) != 1:
         raise TimingError(f"{clip.clip_id}: expected one set of inputs, got {len(found)}")
     return found[0]
@@ -160,10 +158,10 @@ class VerifyChecks(TargetHooks):
         started, cpu_started = clock(), cpu_clock()
         loaded = tuple(source.load([clip]))
         loaded_at = clock()
-        inputs = only_inputs(clip, loaded)
+        item = only_inputs(clip, loaded)
         verifier.runner.run(PreloadedSource(loaded), [clip])
         ended, cpu_ended = clock(), cpu_clock()
-        per_check = self._time_checks(verifier.checks, inputs)
+        per_check = self._time_checks(verifier.checks, item)
         return {
             VERIFY_WALL_S: ended - started,
             VERIFY_LOAD_S: loaded_at - started,
@@ -182,9 +180,14 @@ class VerifyChecks(TargetHooks):
         self, verifier: Verifier, clip: ClipManifest, ctx: TimingContext
     ) -> InputSource:
         dataset = dataset_from(self._services.datasets, clip.dataset, ctx.settings)
-        plan = self._plan_factory(ctx.settings, self._services, clip.dataset)
-        deps = self._deps(ctx, None)
-        return verifier.source(dataset, plan, deps)
+        resolve = self._resolver(clip.dataset)
+        return verifier.source(ctx.settings, dataset, resolve, self._deps(ctx, None))
+
+    def _resolver(self, dataset: str) -> PlanResolver:
+        def resolve(settings: Settings) -> ResolvedPlan:
+            return self._plan_factory(settings, self._services, dataset)
+
+        return resolve
 
     def _deps(self, ctx: TimingContext, observer: StageObserver | None) -> PipelineDeps:
         """Over the persistent cache that ``extract run`` also uses."""
@@ -194,20 +197,22 @@ class VerifyChecks(TargetHooks):
         failures: list[str] = []
         for dataset_name in dict.fromkeys(clip.dataset for clip in clips):
             group = [clip for clip in clips if clip.dataset == dataset_name]
-            plan = self._plan_factory(ctx.settings, self._services, dataset_name)
             dataset = dataset_from(self._services.datasets, dataset_name, ctx.settings)
-            pipeline = self._pipeline_factory(plan, self._deps(ctx, ctx.observer))
-            report = pipeline.run(dataset, group)
-            failures += [f"{f.clip_id} {f.stage.value}: {f.error}" for f in report.failures]
+            for plan in input_plans(ctx.settings, self._resolver(dataset_name)):
+                pipeline = self._pipeline_factory(plan, self._deps(ctx, ctx.observer))
+                report = pipeline.run(dataset, group)
+                failures += [f"{f.clip_id} {f.stage.value}: {f.error}" for f in report.failures]
         return failures
 
-    def _time_checks(self, checks: Sequence[Check], inputs: CheckInputs) -> dict[str, float]:
-        """Mirrors the runner: a check with missing inputs is skipped, and a check that raises still
-        counts the time it took (the runner records it as an error and goes on)."""
+    def _time_checks(self, checks: Sequence[Check], item: ClipInputs) -> dict[str, float]:
+        """Mirrors the runner: each check reads its routed inputs, a check with missing inputs is
+        skipped, and a check that raises still counts the time it took (the runner records it as
+        an error and goes on)."""
         clock = self._services.clock
         spent: dict[str, float] = {}
         for check in checks:
-            if missing_inputs(check, inputs):
+            inputs = item.for_check(type(check).check_id).inputs
+            if inputs is None or missing_inputs(check, inputs):
                 continue
             started = clock()
             with contextlib.suppress(Exception):
