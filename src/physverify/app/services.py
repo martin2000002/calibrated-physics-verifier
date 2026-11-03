@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from contextlib import AbstractContextManager
+from functools import partial
 from pathlib import Path
 from typing import Protocol, TypeGuard
 
@@ -18,13 +19,22 @@ from physverify.extraction._base import PROVIDERS, StageObserver
 from physverify.extraction.pipeline import PipelineDeps
 from physverify.extraction.pipeline_resources import ProcRssProbe
 from physverify.extraction.plan import ResolvedPlan, resolve_plan
+from physverify.extraction.routes import PlanResolver, route_plans
 from physverify.finetune.candidate_scoring import build_scorer
 from physverify.finetune.scorers._base import SCORERS, AggregateScorer
 from physverify.generator_comparison.judges._base import JUDGES, ExternalJudge, Judge
 from physverify.generator_comparison.settings import ComparisonSettings
+from physverify.schema.checks import InputLevel
 from physverify.schema.stages import Stage
 from physverify.verification._base import POLICIES
+from physverify.verification.check_routes import check_routing, routed_source
 from physverify.verification.check_set import active_checks_hash, occlusion_thresholds
+from physverify.verification.inputs import (
+    InputSource,
+    PerceivedSource,
+    PipelineOutputLoader,
+    refuse_heavy,
+)
 
 
 class LockingContext(PluginContext, Protocol):
@@ -66,11 +76,55 @@ def plan_for(
     max_side: int | None = None,
 ) -> ResolvedPlan:
     """The extraction plan of the context's providers, checked against its checks' occlusion."""
-    return resolve_plan(
-        context.settings,
-        registry_of(context, PROVIDERS),
+    return _resolver(context, dataset, gt_stages, fps, max_side)(context.settings)
+
+
+def route_plans_for(
+    context: PluginContext,
+    *,
+    dataset: str,
+    gt_stages: tuple[Stage, ...] = (),
+    fps: float | None = None,
+    max_side: int | None = None,
+) -> dict[str, ResolvedPlan]:
+    """The plan of every input route in ``[verification]``, resolved like :func:`plan_for`."""
+    resolve = _resolver(context, dataset, gt_stages, fps, max_side)
+    return route_plans(context.settings, check_routing(context.settings).routes, resolve)
+
+
+def perceived_source(
+    context: LockingContext,
+    dataset: DatasetSource,
+    level: InputLevel,
+    gt_stages: tuple[Stage, ...] = (),
+) -> InputSource:
+    """Cached perceived inputs of ``dataset``, each routed check reading its route's plan; a stage
+    that would need the heavy lock is refused."""
+    main = plan_for(context, dataset=dataset.name, gt_stages=gt_stages)
+    routes = route_plans_for(context, dataset=dataset.name, gt_stages=gt_stages)
+    deps = pipeline_deps(context, None, partial(refuse_heavy, dataset.name))
+
+    def source_of(plan: ResolvedPlan) -> InputSource:
+        return PerceivedSource(dataset, PipelineOutputLoader(plan, deps), level)
+
+    assignment = check_routing(context.settings).check_routes
+    return routed_source(main, routes, assignment, source_of)
+
+
+def _resolver(
+    context: PluginContext,
+    dataset: str,
+    gt_stages: tuple[Stage, ...],
+    fps: float | None,
+    max_side: int | None,
+) -> PlanResolver:
+    providers = registry_of(context, PROVIDERS)
+    occlusion = occlusion_thresholds(context.settings, registry_of(context, CHECKS))
+    return partial(
+        resolve_plan,
+        providers=providers,
         dataset=dataset,
-        occlusion=occlusion_thresholds(context.settings, registry_of(context, CHECKS)),
+        occlusion=occlusion,
         gt_stages=gt_stages,
         fps=fps,
         max_side=max_side,

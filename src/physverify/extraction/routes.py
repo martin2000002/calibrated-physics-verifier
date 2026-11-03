@@ -43,10 +43,11 @@ def route_plans(
     return {name: resolve(with_providers(settings, stages)) for name, stages in routes.items()}
 
 
-def extra_plans(main: ResolvedPlan, routes: Mapping[str, ResolvedPlan]) -> tuple[ResolvedPlan, ...]:
-    """The route plans that differ from ``main`` and from each other, in route-name order."""
-    found: list[ResolvedPlan] = []
-    for _, plan in sorted(routes.items()):
-        if plan != main and plan not in found:
-            found.append(plan)
-    return tuple(found)
+def extra_plans(main: ResolvedPlan, routes: Mapping[str, ResolvedPlan]) -> dict[str, ResolvedPlan]:
+    """The route plans that differ from ``main`` and from each other, each under the first of its
+    route names in name order."""
+    found: dict[str, ResolvedPlan] = {}
+    for name, plan in sorted(routes.items()):
+        if plan != main and plan not in found.values():
+            found[name] = plan
+    return found

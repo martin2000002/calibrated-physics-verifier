@@ -6,11 +6,11 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 
 from physverify.app.context import AppContext
-from physverify.app.services import dataset_for, pipeline_deps, plan_for
+from physverify.app.services import dataset_for, pipeline_deps, plan_for, route_plans_for
 from physverify.core.download import BYTES_PER_MB
 from physverify.core.errors import UsageError
 from physverify.core.output import Echo
-from physverify.datasets._base import select_clips
+from physverify.datasets._base import DatasetSource, select_clips
 from physverify.extraction.cache import StageCache
 from physverify.extraction.error_profile import require_current_profile
 from physverify.extraction.events import (
@@ -21,8 +21,11 @@ from physverify.extraction.events import (
     write_events,
 )
 from physverify.extraction.pipeline import ExtractionPipeline, ExtractionReport
+from physverify.extraction.plan import ResolvedPlan
+from physverify.extraction.routes import extra_plans
 from physverify.extraction.weights import NetworkDownloader, fetch, hub_cache
 from physverify.runtime.runs import new_run
+from physverify.schema.clip import ClipManifest
 from physverify.schema.stages import parse_stages
 from physverify.synth.migrate import manifest_dataset, rerender_clip_ids
 
@@ -40,8 +43,17 @@ def recorded_run[T](
 ) -> T:
     """Print the run directory, call ``run`` and write its stage events to ``events_file``, also
     when it aborts."""
-    events = run_dir / events_file
     echo(f"run: {run_dir}")
+    return recorded(run_dir / events_file, recorder, run, report_of)
+
+
+def recorded[T](
+    events: Path,
+    recorder: EventRecorder,
+    run: Callable[[], T],
+    report_of: Callable[[T], ExtractionReport],
+) -> T:
+    """Call ``run`` and write its stage events to ``events``, also when it aborts."""
     try:
         result = run()
     except Exception as exc:
@@ -49,6 +61,11 @@ def recorded_run[T](
         raise
     write_events(events, report_of(result))
     return result
+
+
+def route_events_file(route: str) -> str:
+    """The events file of the extraction of input route ``route``."""
+    return f"extraction.route-{route}.jsonl"
 
 
 def run_extraction(
@@ -62,28 +79,48 @@ def run_extraction(
     subset: str | None,
     strict_profile: bool,
     echo: Echo,
-) -> ExtractionReport:
-    """Run the extraction plan over the selected clips and print its per-stage summary;
-    ``strict_profile`` refuses a missing or stale error profile instead of warning."""
+) -> tuple[ExtractionReport, ...]:
+    """Run the extraction plan, then every input route's plan that differs from it, over the
+    selected clips and print each one's per-stage summary; ``strict_profile`` refuses a missing or
+    stale error profile of any of them instead of warning."""
     source = dataset_for(context, dataset)
     selected = select_clips(source.clips(subset), clips)
-    plan = plan_for(
-        context,
-        dataset=dataset,
-        gt_stages=parse_stages(gt),
-        fps=fps,
-        max_side=max_side,
+    gt_stages = parse_stages(gt)
+    main = plan_for(context, dataset=dataset, gt_stages=gt_stages, fps=fps, max_side=max_side)
+    every = route_plans_for(
+        context, dataset=dataset, gt_stages=gt_stages, fps=fps, max_side=max_side
     )
+    routes = extra_plans(main, every)
+    if strict_profile:
+        profile = pipeline_deps(context, None).error_profile
+        for each in (main, *routes.values()):
+            require_current_profile(each, profile)
+    run_dir = new_run(context.settings, context.invocation.argv).run_dir
+    echo(f"run: {run_dir}")
+    reports = [_extract(context, main, source, selected, run_dir / EVENTS_FILE, echo=echo)]
+    for name, route in routes.items():
+        echo(f"route {name}:")
+        events = run_dir / route_events_file(name)
+        reports.append(_extract(context, route, source, selected, events, echo=echo))
+    return tuple(reports)
+
+
+def _extract(
+    context: AppContext,
+    plan: ResolvedPlan,
+    source: DatasetSource,
+    selected: Sequence[ClipManifest],
+    events: Path,
+    *,
+    echo: Echo,
+) -> ExtractionReport:
     recorder = EventRecorder(ConsoleObserver(echo))
     deps = pipeline_deps(context, recorder)
-    if strict_profile:
-        require_current_profile(plan, deps.error_profile)
-    run_dir = new_run(context.settings, context.invocation.argv).run_dir
 
     def run() -> ExtractionReport:
         return ExtractionPipeline(plan, deps).run(source, selected)
 
-    report = recorded_run(run_dir, EVENTS_FILE, recorder, run, _same, echo=echo)
+    report = recorded(events, recorder, run, _same)
     for line in summary_lines(report):
         echo(line)
     return report

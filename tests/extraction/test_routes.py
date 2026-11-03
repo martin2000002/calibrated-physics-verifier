@@ -86,7 +86,7 @@ def test_a_route_over_a_true_stage_is_the_main_plan(
     main = resolve(settings)
     routes = route_plans(settings, {"area": AREA, "same": {}}, resolve)
     assert routes == {"area": main, "same": main}
-    assert extra_plans(main, routes) == ()
+    assert extra_plans(main, routes) == {}
 
 
 def test_extra_plans_are_distinct_and_in_route_order(
@@ -95,7 +95,7 @@ def test_extra_plans_are_distinct_and_in_route_order(
     settings = make_settings()
     resolve = partial(resolve_plan, providers=real_providers, dataset=DATASET)
     routes = route_plans(settings, {"b": AREA, "a": AREA, "main": {}}, resolve)
-    assert extra_plans(resolve(settings), routes) == (routes["a"],)
+    assert extra_plans(resolve(settings), routes) == {"a": routes["a"]}
 
 
 def test_with_providers_changes_only_the_listed_stages(make_settings: SettingsFactory) -> None:

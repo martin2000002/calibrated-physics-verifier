@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from functools import partial
 from pathlib import Path
 
 from physverify.app.context import AppContext
 from physverify.app.sealing import Selection, guard_sealed
-from physverify.app.services import checks_hash_for, dataset_for, pipeline_deps, plan_for
+from physverify.app.services import checks_hash_for, dataset_for, perceived_source
 from physverify.checks._base import CHECKS
 from physverify.config.plugin_context import registry_of
 from physverify.core.output import Echo
@@ -20,9 +19,6 @@ from physverify.verification._base import POLICIES
 from physverify.verification.inputs import (
     InputSource,
     OracleSource,
-    PerceivedSource,
-    PipelineOutputLoader,
-    refuse_heavy,
 )
 from physverify.verification.runner import (
     CHECKS_HASH_FILE,
@@ -125,11 +121,4 @@ def _inputs(
 ) -> InputSource:
     if level is InputLevel.ORACLE:
         return OracleSource(source)
-    plan = plan_for(context, dataset=source.name, gt_stages=tuple(gt_stages))
-    return PerceivedSource(
-        source,
-        PipelineOutputLoader(
-            plan, pipeline_deps(context, None, partial(refuse_heavy, source.name))
-        ),
-        level,
-    )
+    return perceived_source(context, source, level, tuple(gt_stages))

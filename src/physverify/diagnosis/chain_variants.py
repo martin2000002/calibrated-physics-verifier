@@ -67,6 +67,16 @@ def scale_variants(providers: Sequence[str]) -> tuple[Variant, ...]:
     )
 
 
+def route_variants(name: str, stages: Mapping[Stage, str]) -> tuple[tuple[Stage, Variant], ...]:
+    """Per stage that route ``name`` substitutes, V_k (true DETECT..stage k-1) on the route."""
+    overrides = MappingProxyType(dict(stages))
+    return tuple(
+        (stage, Variant(f"V{k}/route={name}", frozenset(STAGE_ORDER[:k]), overrides))
+        for k, stage in enumerate(STAGE_ORDER)
+        if stage in stages
+    )
+
+
 def cell_name(cell: Cell) -> str:
     return "F_" + "".join("p" if perceived else "t" for perceived in cell)
 
