@@ -61,7 +61,7 @@ reference = "others"
 # R3a "image_apex" (no profile runs it): e = sqrt(H+ / H-), the apex heights of the flight runs on
 # each side of the impact read on the image plane along the projected normal, so the body's depth
 # does not enter; windows, t_c and the normal speed gate are the default's on its route, and its
-# sigma propagates the residual sigma of each side's fit (delta method); same unit as v1.
+# sigma propagates position_sigma through the projection (delta method); same unit as v1.
 # A provisional tau is read in the unit of the check's default implementation unless
 # verification.threshold_units.<id> says otherwise; a tau whose unit is not the unit of the
 # configured check, or a calibrated table fitted with other check parameters or variants (its

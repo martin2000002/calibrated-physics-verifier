@@ -95,7 +95,7 @@ def test_an_affine_view_reads_the_true_restitution(e: float) -> None:
     result = variant(sc.bounce(e=e))
     assert result.verdict is Verdict.UNSCORED
     assert result.magnitude is not None and abs(result.magnitude + 1.0 - e) < 2e-3
-    assert result.sigma is not None and result.sigma < 1e-12
+    assert result.sigma == 0.0
     assert result.details["apex_interior_before"] and result.details["apex_interior_after"]
 
 
@@ -181,48 +181,31 @@ def test_the_weights_are_the_gradient_of_e_in_the_heights(monkeypatch: pytest.Mo
         assert (e_up - e_down) / (s_up - s_down) == pytest.approx(weights[row], rel=1e-6)
 
 
-def test_sigma_covers_the_spread_of_e_under_known_noise(monkeypatch: pytest.MonkeyPatch) -> None:
-    found = impact(sc.bounce(), monkeypatch)
+def test_sigma_matches_a_monte_carlo_of_the_estimator(monkeypatch: pytest.MonkeyPatch) -> None:
+    scale = 1e-4
+    case = sc.with_sigma(vertical(sc.bounce(pitch_deg=30.0)), position=scale)
+    found = impact(case, monkeypatch)
     rng = np.random.default_rng(11)
     clean = found.states.position
-    draws = [
-        found.restitution(
-            replace(found.states, position=clean + rng.normal(0.0, SIGMA, clean.shape))
-        )
-        for _ in range(400)
-    ]
-    e, sigma = np.array([d.e for d in draws]), np.array([d.sigma for d in draws])
-    error = np.abs(e - found.restitution().e)
-    assert float(np.median(sigma)) == pytest.approx(float(np.std(e, ddof=1)), rel=0.25)
-    assert 0.5 <= float(np.mean(error <= sigma)) <= 0.8
-    assert float(np.mean(error <= 2.0 * sigma)) >= 0.8
+    inputs = case.inputs(InputLevel.PERCEIVED)
+    draws = []
+    for _ in range(20_000):
+        states = replace(found.states, position=clean + rng.normal(0.0, scale, clean.shape))
+        bounce = found.bounce_on(states)
+        draws.append(probe_e(replace(inputs, states=states), bounce, found.runs, found.t_c))
+    assert float(np.std(draws, ddof=1)) == pytest.approx(found.restitution().sigma, rel=0.1)
 
 
-def test_sigma_reads_the_fit_residuals_and_no_sigma_of_the_chain() -> None:
+def test_sigma_is_zero_exact_linear_in_a_common_factor_and_unknown_with_a_nan_row() -> None:
     case = sc.jittered(sc.bounce(pitch_deg=30.0), SIGMA, seed=7)
-    nan_row = case.states.position_sigma + SIGMA
-    nan_row[20, 0, 1] = math.nan
-    tables = [
-        replace(case.states, position_sigma=sigma)
-        for sigma in (case.states.position_sigma, nan_row, case.states.position_sigma + 3 * SIGMA)
-    ]
-    results = [variant(replace(case, states=states)) for states in tables]
-    assert results[0].sigma is not None and results[0].sigma > 0.0
-    assert {(r.magnitude, r.sigma) for r in results} == {(results[0].magnitude, results[0].sigma)}
-
-
-def test_a_side_of_three_fit_rows_has_no_sigma_and_abstains(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    def three_rows_before(k: Any, states: Any, index: int, bounce: Bounce, *rest: Any) -> Any:
-        rows = np.searchsorted(states.t, bounce.before.t)[-3:]
-        before = side_data(states, index, rows, "position")
-        return apex_restitution(k, states, index, replace(bounce, before=before), *rest)
-
-    monkeypatch.setattr(apex_module, "apex_restitution", three_rows_before)
-    unknown = variant(noisy(sc.bounce(), seed=7))
-    assert unknown.verdict is Verdict.UNSCORED and unknown.magnitude is not None
-    assert math.isfinite(unknown.magnitude) and math.isnan(unknown.sigma)
+    assert variant(case).sigma == 0.0
+    one, three = (variant(sc.with_sigma(case, position=f * SIGMA)) for f in (1.0, 3.0))
+    assert three.sigma == pytest.approx(3.0 * one.sigma, rel=1e-12)
+    assert three.magnitude == one.magnitude
+    sigma = case.states.position_sigma + SIGMA
+    sigma[20, 0, 1] = math.nan
+    unknown = variant(replace(case, states=replace(case.states, position_sigma=sigma)))
+    assert unknown.verdict is Verdict.UNSCORED and math.isnan(unknown.sigma)
     table = ThresholdTable.model_validate(
         {"status": "provisional", "source": "test", "checks": {"R3a": {"tau": 0.05}}}
     )

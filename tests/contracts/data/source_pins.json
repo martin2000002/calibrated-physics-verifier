@@ -1,8 +1,8 @@
 {
   "check_variants": {
     "R3a/image_apex": {
-      "digest": "d911647fb3f4cdee93edcc99082f206b1480b93b1243364fee023eeadb115814",
-      "version": "2"
+      "digest": "295dabf6adeee27d0579f35c15d68c8497811f2b1bd597044a35200bc39a2bd3",
+      "version": "1"
     },
     "R4_jump/rigid2": {
       "digest": "eb09b0e90f2850230563a6859bded0d8eeb66df86b7f0cb736136ba4593ab8e8",
