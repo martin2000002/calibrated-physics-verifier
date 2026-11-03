@@ -10,12 +10,12 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import BaseModel
 
+from physverify.core.models import expect_params
 from physverify.schema.scene import ObjectSpec, SceneSpec
 from physverify.synth.ballistics import rolling_angular_velocity
 from physverify.synth.family_toolkit import (
     FamilyCommon,
     box_envelope,
-    checked,
     framed_scene,
     heading,
     image_plane_azimuth,
@@ -52,7 +52,7 @@ class ContactFamily:
     Params: ClassVar[type[BaseModel]] = Params
 
     def sample(self, rng: np.random.Generator, params: BaseModel) -> SceneSpec:
-        chosen = checked(params, Params)
+        chosen = expect_params(params, Params)
         return with_retries(NAME, rng, lambda r: _draw(r, chosen))
 
 
