@@ -120,6 +120,9 @@ class StageProvider(Protocol):
     error_profile_reads: ClassVar[tuple[Stage, ...]]
     weights: ClassVar[tuple[WeightSpec, ...]]
     Params: ClassVar[type[BaseModel]]
+    derives_depth_from_size: ClassVar[bool] = False
+    """The depth it gives follows the object's apparent size; read through
+    :func:`derives_depth_from_size`."""
 
     def __init__(self, params: BaseModel) -> None: ...
 
@@ -139,12 +142,22 @@ class SupportGapGate(Protocol):
         ...
 
 
+def derives_depth_from_size(provider: type[StageProvider]) -> bool:
+    return _declared_size_depth(provider) is True
+
+
+def _declared_size_depth(provider: type[StageProvider]) -> object:
+    """A provider that does not declare it gets the protocol's default, which a structural
+    implementation does not inherit."""
+    return getattr(provider, "derives_depth_from_size", StageProvider.derives_depth_from_size)
+
+
 def provider_key(provider: type[StageProvider]) -> str:
     return f"{provider.stage.value}/{provider.name}"
 
 
 def validate_provider(provider: type[StageProvider]) -> None:
-    """Registry hook: dependency order, ground-truth naming and parameter model."""
+    """Registry hook: dependency order, ground-truth naming, parameter model and declared traits."""
     try:
         check_upstream_order(provider.stage, provider.requires)
         check_upstream_order(provider.stage, provider.error_profile_reads)
@@ -154,6 +167,8 @@ def validate_provider(provider: type[StageProvider]) -> None:
         raise InvalidPluginError(f"{provider.__name__}: ground truth iff name == {GROUND_TRUTH!r}")
     if not (isinstance(provider.Params, type) and issubclass(provider.Params, BaseModel)):
         raise InvalidPluginError(f"{provider.__name__}: Params must be a pydantic model")
+    if not isinstance(_declared_size_depth(provider), bool):
+        raise InvalidPluginError(f"{provider.__name__}: derives_depth_from_size must be a bool")
 
 
 @dataclass(frozen=True)

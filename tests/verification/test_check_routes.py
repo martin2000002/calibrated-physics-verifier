@@ -21,7 +21,12 @@ from physverify.checks._params import CommonParams
 from physverify.config.models import Settings
 from physverify.core.errors import ConfigError
 from physverify.core.registry import discover
-from physverify.extraction._base import StageProvider, provider_key, validate_provider
+from physverify.extraction._base import (
+    StageProvider,
+    derives_depth_from_size,
+    provider_key,
+    validate_provider,
+)
 from physverify.extraction.plan import ResolvedPlan
 from physverify.schema.checks import CheckResult
 from physverify.schema.clip import ClipManifest
@@ -29,7 +34,6 @@ from physverify.schema.stages import Stage
 from physverify.verification.check_routes import (
     RoutedSource,
     check_routing,
-    derives_depth_from_size,
     routed_inputs,
 )
 from physverify.verification.check_set import (

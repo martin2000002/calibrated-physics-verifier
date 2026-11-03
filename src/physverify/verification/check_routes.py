@@ -17,7 +17,7 @@ from physverify.config.models import Settings, validated
 from physverify.core.errors import ConfigError
 from physverify.core.models import FrozenModel
 from physverify.datasets._base import DatasetSource
-from physverify.extraction._base import StageProvider
+from physverify.extraction._base import derives_depth_from_size
 from physverify.extraction.pipeline import PipelineDeps
 from physverify.extraction.plan import ResolvedPlan
 from physverify.extraction.routes import PlanResolver, extra_plans, route_plans
@@ -32,9 +32,6 @@ from physverify.verification.inputs import (
 )
 
 VERIFICATION_SECTION = "verification"
-
-DERIVES_DEPTH_FROM_SIZE_ATTR = "derives_depth_from_size"
-"""Optional provider ClassVar ``bool``: the provider's depth follows the object's apparent size."""
 
 SIZE_CHANGE_CHECKS = frozenset({"R4_size"})
 """Checks that measure apparent-size change: fed a depth taken from that size they would measure
@@ -151,10 +148,6 @@ def routed_inputs(
     routes = route_plans(settings, routing.routes, resolve)
     refuse_size_derived_depth(main, routes, routing.check_routes)
     return routed_source(main, routes, routing.check_routes, source_of)
-
-
-def derives_depth_from_size(provider: type[StageProvider]) -> bool:
-    return getattr(provider, DERIVES_DEPTH_FROM_SIZE_ATTR, False) is True
 
 
 def refuse_size_derived_depth(

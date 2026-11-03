@@ -11,7 +11,8 @@ import pytest
 from cli_runner import CliRunner
 
 from physverify.app.context import AppContext, GlobalOptions, Invocation
-from physverify.extraction._base import StageProvider, validate_provider
+from physverify.core.errors import InvalidPluginError
+from physverify.extraction._base import StageProvider, derives_depth_from_size, validate_provider
 from physverify.extraction.cache import reads_own_error
 from physverify.schema.stages import Stage, check_upstream_order
 
@@ -36,6 +37,24 @@ def test_every_provider_validates_and_only_providers_with_weights_are_heavy(
         check_upstream_order(provider.stage, provider.error_profile_reads)
     assert all(provider.heavy == bool(provider.weights) for provider in registry.values())
     assert any(provider.heavy for provider in registry.values())
+
+
+def test_a_provider_that_does_not_declare_a_size_derived_depth_reads_the_protocol_default(
+    registry: dict[str, type[StageProvider]],
+) -> None:
+    lift = registry["lift/backproject"]
+    assert "derives_depth_from_size" not in vars(lift)
+    assert derives_depth_from_size(lift) is StageProvider.derives_depth_from_size is False
+    assert derives_depth_from_size(registry["lift/backproject_area_depth"]) is True
+
+
+def test_a_size_derived_depth_declaration_must_be_a_bool(
+    registry: dict[str, type[StageProvider]],
+) -> None:
+    lift = registry["lift/backproject"]
+    malformed = type("Malformed", (lift,), {"derives_depth_from_size": "yes"})
+    with pytest.raises(InvalidPluginError, match="derives_depth_from_size must be a bool"):
+        validate_provider(malformed)
 
 
 def test_only_the_backproject_lifts_and_the_moge2_focal_read_their_own_profile_entry(
