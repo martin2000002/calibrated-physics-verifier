@@ -15,7 +15,7 @@ from physverify.checks._base import CheckInputs, abstain, unscored
 from physverify.checks._collision_windows import FloatArray, IntArray, side_rows
 from physverify.checks._params import as_params
 from physverify.checks.r3a_bounce_restitution import Bounce, RestitutionCheck, RestitutionParams
-from physverify.physics.tracks import body_length, flight_mask, poly_fit
+from physverify.physics.tracks import PolyFit, body_length, flight_mask, poly_fit
 from physverify.schema.checks import AbstainReason, CheckResult
 from physverify.schema.provenance import GROUND_TRUTH
 from physverify.schema.stages import Stage
@@ -35,15 +35,16 @@ class ImageApexRestitutionCheck(RestitutionCheck):
     minimum normal speed gate are those of the default implementation. A ground-truth LIFT (by
     provenance) is scored by the default implementation.
 
-    sigma is the delta-method propagation of ``position_sigma`` (independent rows, diagonal per
-    axis) through the projection: sigma_s,j^2 = d^T J_j diag(sigma_j^2) J_j^T d with
-    J_j = (K[:2] - u_j K[2]) / z_j, and dE/ds_j from the apex weights and the fit gains, so it is
-    invariant to the depth scale of each row. It treats t_c and d as fixed, lets the depth and
-    the isotropic centroid error of the lift leak into the image plane (an overestimate), does not
-    model rows correlated by smoothing, and is NaN when a used row's sigma is."""
+    sigma is the delta-method propagation of the residual sigma of each side's unweighted
+    degree-2 fit of u read along d, sqrt(RSS / (n - 3)), given to every row of that side (fit
+    rows and run rows) and weighted by dE/ds_j from the apex weights and the fit gains. It reads
+    no sigma of the chain and only pixels, so it is invariant to the depth scale of each row. It
+    treats t_c and d as fixed, counts the fit's lack of fit (perspective, a missed impact) as
+    noise, does not model rows correlated by smoothing, and is NaN when a side has n <= 3 fit
+    rows."""
 
     variant: ClassVar[str] = "image_apex"
-    version: ClassVar[str] = "1"
+    version: ClassVar[str] = "2"
     Params: ClassVar[type[BaseModel]] = RestitutionParams
 
     def __init__(self, params: BaseModel) -> None:
@@ -80,8 +81,8 @@ class ImageApexRestitutionCheck(RestitutionCheck):
 
 @dataclass(frozen=True, eq=False)
 class ApexRestitution:
-    """e and its sigma; ``weights`` is dE/ds_j and ``height_sigma`` sigma_s,j on the table rows
-    (zero weight off the used rows)."""
+    """e and its sigma; ``weights`` is dE/ds_j and ``height_sigma`` sigma_s,j, the residual
+    sigma of the row's side, on the table rows (zero off the used rows)."""
 
     e: float
     sigma: float
@@ -124,19 +125,20 @@ def apex_restitution(
 ) -> ApexRestitution:
     sides = (bounce.before, bounce.after)
     ones = np.ones(1)
-    fits = [poly_fit(side.t, _project(camera_k, side.y), ones, 2) for side in sides]
+    pixels = [_project(camera_k, side.y) for side in sides]
+    fits = [poly_fit(side.t, p, ones, 2) for side, p in zip(sides, pixels, strict=True)]
     d = _image_normal(camera_k, fits[0].value_at(t_c)[0], bounce.normal)
     s_c = float(np.mean([fit.value_at(t_c)[0] @ d for fit in fits]))
     positions = states.position[:, index]
-    n_rows = positions.shape[0]
     apexes = [run_apex(states.t[rows], _project(camera_k, positions[rows]) @ d) for rows in runs]
     drop, climb = apexes[0].height - s_c, apexes[1].height - s_c
     e = math.sqrt(climb / drop) if drop > 0.0 and climb > 0.0 else math.nan
     weights, used = _gradient(states.t, bounce, runs, apexes, t_c, (e, drop, climb))
-    height_sigma = np.zeros(n_rows)
-    height_sigma[used] = _row_sigma_along(
-        camera_k, positions[used], states.position_sigma[used, index], d
+    before, after = (
+        _residual_sigma(side.t, p, fit, d) for side, p, fit in zip(sides, pixels, fits, strict=True)
     )
+    side_sigma = np.where(states.t <= bounce.before.t[-1], before, after)
+    height_sigma = np.where(used, side_sigma, 0.0)
     sigma = float(np.sqrt(np.sum(weights[used] ** 2 * height_sigma[used] ** 2)))
     return ApexRestitution(
         e=e,
@@ -242,14 +244,14 @@ def _fit_gain_at(t: FloatArray, t_c: float) -> FloatArray:
     return poly_fit(t, np.eye(t.size), np.ones(1), 2).value_at(t_c)[0]
 
 
-def _row_sigma_along(
-    camera_k: FloatArray, positions: FloatArray, sigmas: FloatArray, d: FloatArray
-) -> FloatArray:
-    """sigma of u . d per row: |J^T d| weighted by the per-axis sigma, J = (K[:2] - u K[2]) / z."""
-    pixels = _project(camera_k, positions)
-    rows = camera_k[:2][None] - pixels[:, :, None] * camera_k[2][None, None]
-    along = np.einsum("i,nij->nj", d, rows) / positions[:, 2:3]
-    return np.asarray(np.sqrt(np.sum(along**2 * sigmas**2, axis=1)), dtype=np.float64)
+def _residual_sigma(t: FloatArray, pixels: FloatArray, fit: PolyFit, d: FloatArray) -> float:
+    """sqrt(RSS / (n - p)) of the fit's residuals along d, p its coefficients; NaN for n <= p."""
+    p = fit.degree + 1
+    if t.size <= p:
+        return math.nan
+    fitted = np.vander(t - fit.t0, p, increasing=True) @ fit.coef
+    residual = (pixels - fitted) @ d
+    return math.sqrt(float(residual @ residual) / (t.size - p))
 
 
 def _tangent_bias(camera_k: FloatArray, bounce: Bounce, t_c: float) -> float:
