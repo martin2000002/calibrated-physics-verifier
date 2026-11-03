@@ -14,13 +14,14 @@ from physverify.core.errors import MissingInputError
 from physverify.core.models import FrozenModel
 from physverify.datasets._base import DatasetSource
 from physverify.diagnosis.chain_runner import ChainRunner, VariantOutputs
+from physverify.diagnosis.chain_variants import Variant
 from physverify.extraction.plan import ResolvedPlan
 from physverify.schema.checks import CheckResult, InputLevel
 from physverify.schema.clip import ClipManifest
 from physverify.schema.outputs import StageOutput
 from physverify.schema.stages import Stage
 from physverify.verification._base import VerdictPolicy
-from physverify.verification.check_routes import routed_inputs
+from physverify.verification.check_routes import guarded_plans, routed_inputs
 from physverify.verification.inputs import ClipInputs, InputSource, OracleSource, perceived_inputs
 from physverify.verification.runner import VerificationRunner, configured_suite
 from physverify.verification.thresholding import ThresholdTable
@@ -72,6 +73,13 @@ class _PlanSource:
             yield ClipInputs(
                 clip, perceived_inputs(clip, self.outputs, self.names, self.level), None
             )
+
+
+def require_routable(chain: ChainRunner, variants: Sequence[Variant]) -> None:
+    """Resolve and guard every variant's plans before any clip, so a refused routing stops the run
+    as it stops ``verify`` instead of failing each clip."""
+    for variant in variants:
+        guarded_plans(chain.settings_of(variant), chain.resolver(variant), chain.checks)
 
 
 def variant_inputs(

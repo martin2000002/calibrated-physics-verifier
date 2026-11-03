@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
@@ -12,6 +12,7 @@ from records import manifest
 from settings_factory import SettingsFactory
 
 from physverify.calibration.settings import calibration_settings
+from physverify.config.models import Settings
 from physverify.core.errors import ConfigError
 from physverify.schema.clip import ClipManifest, Split
 from physverify.selective_risk.settings import (
@@ -20,7 +21,13 @@ from physverify.selective_risk.settings import (
     Population,
     population,
 )
-from physverify.selective_risk.tables import Session, collect_synthetic, named_ks, split_clips
+from physverify.selective_risk.tables import (
+    Session,
+    collect_real,
+    collect_synthetic,
+    named_ks,
+    split_clips,
+)
 
 
 def test_the_population_is_the_calibration_section(make_settings: SettingsFactory) -> None:
@@ -63,20 +70,34 @@ def test_one_split_of_the_subset_is_read() -> None:
 
 
 class _NoOutputs:
-    """A chain whose every clip has a failed stage, so the clips read are the failed ones."""
+    """A chain whose every clip has a failed stage, so the clips read are the failed ones; with
+    no check its routing has nothing to refuse."""
+
+    checks: dict[str, Any] = {}
+
+    def __init__(self, settings: Settings) -> None:
+        self._settings = settings
+
+    def settings_of(self, variant: object) -> Settings:
+        return self._settings
+
+    def resolver(self, variant: object) -> Callable[[Settings], None]:
+        return lambda settings: None
 
     def outputs(self, clip: ClipManifest, variant: object) -> None:
         return None
 
 
-def test_the_study_reads_one_split_of_the_calibration_population() -> None:
+def test_the_study_reads_one_split_of_the_calibration_population(
+    make_settings: SettingsFactory,
+) -> None:
     calib = manifest()
     held = replace(calib, clip_id="e0", split=Split.EVAL)
     source, asked = _Planned((calib, held)), []
 
     def chain(dataset: str) -> tuple[Any, Any]:
         asked.append(dataset)
-        return _NoOutputs(), source
+        return _NoOutputs(make_settings()), source
 
     session = Session(
         chain=chain,
@@ -94,6 +115,37 @@ def test_the_study_reads_one_split_of_the_calibration_population() -> None:
     collected = collect_synthetic(session, Split.EVAL)
     assert (asked, source.asked) == (["synthetic"], ["full"])
     assert (list(collected.clips), collected.failed) == (["e0"], ["e0"])
+
+
+class _Unroutable(_NoOutputs):
+    def resolver(self, variant: object) -> Callable[[Settings], None]:
+        def refuse(settings: Settings) -> None:
+            raise ConfigError("unroutable")
+
+        return refuse
+
+
+@pytest.mark.parametrize("real", [False, True])
+def test_a_refused_routing_stops_the_study_instead_of_failing_each_clip(
+    make_settings: SettingsFactory, real: bool
+) -> None:
+    source = _Planned((manifest(),))
+    session = Session(
+        chain=lambda dataset: (_Unroutable(make_settings()), source),
+        calibration_dir=Path(),
+        settings=AbstentionSettings(),
+        population=Population("synthetic", "full", ()),
+        suite=None,  # type: ignore[arg-type]
+        reference_table=None,  # type: ignore[arg-type]
+        thresholds=None,  # type: ignore[arg-type]
+        min_span_iou=0.5,
+        checks=(),
+        couplings=frozenset(),
+        configured_k=2.0,
+    )
+    with pytest.raises(ConfigError, match="unroutable"):
+        collect_real(session, "real") if real else collect_synthetic(session, Split.CALIB)
+    assert source.asked == []
 
 
 def test_the_configured_k_is_reported_next_to_k_star() -> None:
