@@ -30,20 +30,20 @@ PINNED_ROOT = "/pinned"
 
 SECTIONS_HASH = {
     "fast": "e24a269c3ca07ee6a5af92512a1e9148ebfdc960fa0bb1b80fd78ddaebc75855",
-    "precise": "4ded59c8f3efc9e27c48e2606d4ed7f2347135ddf616363710f5ab3226236aa3",
+    "precise": "9c53077954f9431db16bf08f67befe899c08b24adc5f1d8e36b3b105e52a6be9",
 }
 CONFIG_HASH = {
     "fast": "9fe0de4030620a52c878f2ea888d9b1e8fc8b8a342988ed3aefb8a6e75f06bfa",
-    "precise": "d2b98f6a9155777e2c01f4aad97bf6b9e2d13c95b875514888611295652fdb1b",
+    "precise": "4e78cfae92ca8a980905fd67cf8dc032ca5fcd2ea672fbe1bf7502572d7af3ef",
 }
 LOOK_CONFIG_HASH = {
     "fast": "0f1b1b32aac0093908e9f2199231b4c4273d24094b8c88b3f8d7a6dfe72fb40b",
-    "precise": "91ae36461b84128ddc028bb5d38596e7566db704922dbe2e559388581f708c7b",
+    "precise": "e62dd51c8d580526d33df1e877ef0ccb6079f8a6ea786ccca5cc9ed91ca4e7cf",
 }
 CHECKS_HASH = "5c5820acaf1bfce8270cdc8653a9eefd373f9feccde4baaac4b3a4510198f78e"
 RUN_CHECKS_HASH = {
     "fast": "5c5820acaf1bfce8270cdc8653a9eefd373f9feccde4baaac4b3a4510198f78e",
-    "precise": "a73fc147ac301994b4e6f31490e64337cd8b4e32da809d0c7027d1f0b9480a30",
+    "precise": "ad9f8ded560f66eabff9b650d1b8cb69c0b86539b21eb94ae4ad4b9f2551d6ec",
 }
 PRECISE_STAGE_KEYS_HASH = "d9b9e880768fb779384a271017fb36c975bb5e4290ebadaeee21e9f8325240a0"
 """Hash of every stage key of the precise plan for the declared calib dataset. It and
@@ -51,6 +51,7 @@ PRECISE_STAGE_KEYS_HASH = "d9b9e880768fb779384a271017fb36c975bb5e4290ebadaeee21e
 ``--set``."""
 PRECISE_CHOICES = (
     "extraction.plan.contacts=kinematic_scene",
+    "check_variants.R4_size=v3_window_depth_unoccluded",
     "check_variants.R5a=whitened",
     "check_variants.R4_jump=rigid2_dfloor",
 )
