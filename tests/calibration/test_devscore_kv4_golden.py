@@ -13,15 +13,11 @@ from pathlib import Path
 
 import pytest
 
+from physverify.calibration.artifact import Reading
 from physverify.calibration.check_weights import Flag
+from physverify.calibration.clause import meets_stratified
 from physverify.calibration.oof import AGGREGATE, DevScoreOof, LevelOof, units
-from physverify.calibration.stratified import (
-    Reading,
-    UnitScores,
-    family_map,
-    meets_stratified,
-    unit_scores,
-)
+from physverify.calibration.stratified import UnitScores, family_map, unit_scores
 from physverify.calibration.table import Role
 from physverify.schema.checks import InputLevel
 from physverify.synth.plan import family_of

@@ -7,6 +7,7 @@ import math
 from collections.abc import Callable, Sequence
 from typing import Any
 
+import numpy as np
 import pytest
 
 from physverify.checks._base import CheckInputs
@@ -14,6 +15,9 @@ from physverify.config.models import Settings
 from physverify.core.errors import MissingInputError, PhysverifyError
 from physverify.diagnosis.attribution import (
     Block,
+    Budgeting,
+    CollectedBlocks,
+    attribute,
     budget_stages,
     check_statistics,
     check_units,
@@ -27,6 +31,7 @@ from physverify.diagnosis.chain_variants import CELLS, Cell, cell_name
 from physverify.diagnosis.context import DiagnosisContext
 from physverify.diagnosis.factorial import ALL_PERCEIVED, ALL_TRUTH, shapley, yates_effects
 from physverify.diagnosis.pairing import UnitMismatchError, pair_results
+from physverify.diagnosis.settings import FactorialSettings
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
 from physverify.schema.clip import Split
 from physverify.schema.stages import Stage
@@ -187,6 +192,31 @@ def test_statistics_without_v0_have_no_budget() -> None:
     stats = check_statistics(blocks([None, None]), FIXED)
     assert not any(key.startswith("budget:") for key in stats)
     assert "v0" not in stats
+
+
+def test_clips_of_a_scene_are_resampled_together() -> None:
+    """20 scenes x 4 clips sharing their perception error: per-clip resampling would treat the
+    80 clips as independent and give a far narrower interval."""
+    rng = np.random.default_rng(1)
+    found: list[Block] = []
+    scenes: dict[str, str] = {}
+    for s in range(20):
+        error = float(rng.exponential(1.0))
+        for p in range(4):
+            clip_id = f"f1-s{s:03d}__p{p}"
+            scenes[clip_id] = f"f1-s{s:03d}"
+            found.append(Block(clip_id, CHECK, ("o",), (0, 1), dict.fromkeys(CELLS, error), None))
+    collected = CollectedBlocks(tuple(found), {})
+    factorial = FactorialSettings(fixed_ground_truth=(), bootstrap=2000, seed=0, ci=0.95)
+    budgeting = Budgeting((), ())
+
+    def width(clusters: dict[str, str]) -> float:
+        report = attribute(CHECK, "m/s^2", collected, clusters, factorial, budgeting)
+        interval = report.cells_ci[cell_name(ALL_PERCEIVED)]
+        return interval.high - interval.low
+
+    by_scene, by_clip = width(scenes), width({c: c for c in scenes})
+    assert by_scene > 1.5 * by_clip
 
 
 def test_budget_rows_point_at_their_level1_metrics() -> None:

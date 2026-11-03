@@ -46,6 +46,7 @@ from physverify.extraction.cache import plan_entry_filter, plan_params_hashes, p
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import Split
 from physverify.schema.stages import Stage
+from physverify.synth.plan import family_of
 from physverify.synth.scene_scope import SceneScope, expand, h1_scope, in_scope, scene_index
 from physverify.verification.runner import VerificationReport
 
@@ -131,7 +132,9 @@ def _meta(primary: PrimaryScope | None) -> EvaluationMeta:
 
 
 def _evaluate(artifact: CalibrationArtifact, primary: PrimaryScope | None) -> EvaluationReport:
-    return evaluate(parse_calibration(artifact.to_json()), (_inputs(),), _meta(primary), config())
+    return evaluate(
+        parse_calibration(artifact.to_json()), (_inputs(),), _meta(primary), config(), family_of
+    )
 
 
 def _scope() -> PrimaryScope:
@@ -200,7 +203,9 @@ def _json(model: Monotonicity) -> object:
 def _family_report(family: tuple[CalibrationArtifact, EvaluationInputs]) -> EvaluationReport:
     artifact, inputs = family
     calibration = parse_calibration(artifact.to_json())
-    return evaluate(calibration, (inputs,), _meta(_scope()), config(bootstrap=50, seed=3))
+    return evaluate(
+        calibration, (inputs,), _meta(_scope()), config(bootstrap=50, seed=3), family_of
+    )
 
 
 def test_the_all_scenes_tau_is_the_artifacts_own(
@@ -266,6 +271,6 @@ def test_a_1_3_0_artifact_loads_strictly_and_is_not_rewritten(
     calibration = parse_calibration(text)
     assert calibration.version == "1.3.0"
     assert calibration.artifact.to_json() == text
-    report = evaluate(calibration, (inputs,), _meta(_scope()), config())
+    report = evaluate(calibration, (inputs,), _meta(_scope()), config(), family_of)
     assert report.artifact_sha256 == text_sha256(text)
     assert report.strata[0].monotonicity
