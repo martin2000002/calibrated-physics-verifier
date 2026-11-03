@@ -160,6 +160,10 @@
       "digest": "9e6672167c5e6ea6987c181695cc697e23b158537945ddae25b0ea1efe8bc6e4",
       "version": "7"
     },
+    "lift/backproject_area_depth": {
+      "digest": "52f991a4fcf33a884788d55ae6c53c04d085a722e116f8405dc8f80d303f4abf",
+      "version": "1"
+    },
     "lift/backproject_size_constancy": {
       "digest": "066758b3999fac98c0f2a0b5d856a7a0b0367534fe390e5a0d3293356ff50755",
       "version": "2"
