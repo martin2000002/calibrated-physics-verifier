@@ -29,28 +29,29 @@ KEY_PATHS = Path(__file__).with_name("data") / "config_key_paths.txt"
 PINNED_ROOT = "/pinned"
 
 SECTIONS_HASH = {
-    "fast": "d7b7ab390d5c13cfedbab8db7570d4dfefad262e3d3f9e634f3619b113302b8c",
-    "precise": "2a60427f13704d5fcac89e5cf458e95ed350cde15f05f390096a3f3d38430061",
+    "fast": "e24a269c3ca07ee6a5af92512a1e9148ebfdc960fa0bb1b80fd78ddaebc75855",
+    "precise": "9c53077954f9431db16bf08f67befe899c08b24adc5f1d8e36b3b105e52a6be9",
 }
 CONFIG_HASH = {
-    "fast": "becb981f33e8974997dfa89d2bf492d9a9aaba4622d82dab7082c78a70170042",
-    "precise": "f9b76206c21c0d016bea0a193e1aeea9ad11d5b4bc415e5814fae5935ebd47e8",
+    "fast": "9fe0de4030620a52c878f2ea888d9b1e8fc8b8a342988ed3aefb8a6e75f06bfa",
+    "precise": "4e78cfae92ca8a980905fd67cf8dc032ca5fcd2ea672fbe1bf7502572d7af3ef",
 }
 LOOK_CONFIG_HASH = {
-    "fast": "fd7c0b4960a85e73d7498c09e8e576973c15bccfedacb68198178040cfa2976c",
-    "precise": "0c28f8316f568ec775872f529fdfc96c3fba163442b9bd7ad9ce55da0dad05b9",
+    "fast": "0f1b1b32aac0093908e9f2199231b4c4273d24094b8c88b3f8d7a6dfe72fb40b",
+    "precise": "e62dd51c8d580526d33df1e877ef0ccb6079f8a6ea786ccca5cc9ed91ca4e7cf",
 }
 CHECKS_HASH = "5c5820acaf1bfce8270cdc8653a9eefd373f9feccde4baaac4b3a4510198f78e"
 RUN_CHECKS_HASH = {
     "fast": "5c5820acaf1bfce8270cdc8653a9eefd373f9feccde4baaac4b3a4510198f78e",
-    "precise": "b41ea2ac6501e53c05c30dae4e5698262d4ae254acb3029b5f835aff535a3531",
+    "precise": "ad9f8ded560f66eabff9b650d1b8cb69c0b86539b21eb94ae4ad4b9f2551d6ec",
 }
-PRECISE_STAGE_KEYS_HASH = "ec16d4fdf53ef8035cbc943c211eba298cc87b875c66f1b61d75e09b66b51b38"
+PRECISE_STAGE_KEYS_HASH = "d9b9e880768fb779384a271017fb36c975bb5e4290ebadaeee21e9f8325240a0"
 """Hash of every stage key of the precise plan for the declared calib dataset. It and
 ``RUN_CHECKS_HASH["precise"]`` are what the defaults give with the same choices passed by
 ``--set``."""
 PRECISE_CHOICES = (
     "extraction.plan.contacts=kinematic_scene",
+    "check_variants.R4_size=v3_window_depth_unoccluded",
     "check_variants.R5a=whitened",
     "check_variants.R4_jump=rigid2_dfloor",
 )
@@ -58,19 +59,21 @@ DATASET_CONTENT_HASH = {
     "fast": "7792797236e163025d89c1c518dc43ad8f90c3f511bd884e1969ca9bf1f2fa3e",
     "precise": "4a6829efdd64424d79dfc0941246de148ca50446e0f6f40738e3a02d1b8e8b4e",
 }
-NO_IDENTITY_STAGE_KEYS_HASH = "e92400c5a60ecff3378986383341160a5368ef75a06dd79c07216f174271ecf1"
+NO_IDENTITY_STAGE_KEYS_HASH = "eeff3bf8e53c72383a4825f6294338197dba1fe12629a36db90723f6b53dfc7c"
 """Hash of ``STAGE_KEYS`` computed for a dataset without cache identity (PISA, Physics-IQ,
 Objectron): the table as it was before identities entered the key, so those caches stay valid,
 except the three GeoCalib cameras, whose version moved when their draw was seeded,
 ``contacts/kinematic_scene``, whose version moved when its sigma_v became ``vel_rel_flight``,
 the back-projecting lifts and every stage after them, whose version moved when the lift output
-gained ``nearer_cover``, and the size-prior scales, whose version moved when the extent sigmas of
-a length became correlated axes."""
+gained ``nearer_cover``, the size-prior scales, whose version moved when the extent sigmas of
+a length became correlated axes, ``camera/moge2_focal``, whose version moved when its frame
+spread took the shared robust scale, and the three GeoCalib cameras again, whose params gained
+the configured ``assumed`` fallback."""
 STAGE_KEYS = {
     "camera/assumed_fov": "dddd1ad9189f13fabcc53f7e2fe5f8818b5d2bdeaf0900f0473a9207790e3c92",
-    "camera/from_depth": "65273a1f47e29c4e6da046d5e8ccf8f256367ec663625ef9ce92d6322c5c1d2d",
-    "camera/geocalib": "1ff25d84dfcf9a37fb3d0d88440068c3cb949b2cf25846339e5039b4abffc7d6",
-    "camera/moge2_focal": "bc46182cb78ba3b6a303a702c794b03f1c9d99f07d336dedecca6776b73cfca7",
+    "camera/from_depth": "528097477f8abe02aee99fb728a9083fc5d6be7ef2565f09783422a4f7c4822d",
+    "camera/geocalib": "6bbe25585e50cb7c606b7effd4f20ae9e6feefb2702cb123590051559e4de22d",
+    "camera/moge2_focal": "ea90ddd70d84487f5ddd434cd9f3282d95fb38236f56adf937cf775a34289dfc",
     "contacts/kinematic": "c19c73ccff61e5cdac5aae9570496d4058fd41c2bd41c6753f13f64e5339fe6a",
     "contacts/kinematic_scene": "1f7b010bc04feb965b4f3d3fca9aa211c86861e5ffb21051a8f14e00be4c345e",
     "contacts/proximity": "28fe128928f350658a8b6ff998310df79efab6cf614a642dbe582ff3caf68544",

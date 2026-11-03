@@ -8,11 +8,11 @@ from typing import ClassVar
 import numpy as np
 from pydantic import BaseModel
 
+from physverify.core.models import expect_params
 from physverify.schema.scene import ObjectSpec, SceneSpec
 from physverify.synth.family_toolkit import (
     FamilyCommon,
     RejectedSampleError,
-    checked,
     clip_times,
     framed_scene,
     gravity_vector,
@@ -49,7 +49,7 @@ class ProjectileFamily:
     Params: ClassVar[type[BaseModel]] = Params
 
     def sample(self, rng: np.random.Generator, params: BaseModel) -> SceneSpec:
-        chosen = checked(params, Params)
+        chosen = expect_params(params, Params)
         return with_retries(NAME, rng, lambda r: _draw(r, chosen))
 
 

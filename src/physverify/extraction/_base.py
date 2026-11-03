@@ -129,6 +129,16 @@ class StageProvider(Protocol):
 PROVIDERS = PluginKind[type[StageProvider]]("providers")
 
 
+@runtime_checkable
+class SupportGapGate(Protocol):
+    """Params of a CONTACTS provider that gates support contacts on the LIFT's support gap at
+    K sigma_gap; a provider without it has no gap gate (``CheckInputs.support_gap_bound`` NaN)."""
+
+    def support_gap_z(self) -> float:
+        """K, the normal quantile the gate multiplies sigma_gap by."""
+        ...
+
+
 def provider_key(provider: type[StageProvider]) -> str:
     return f"{provider.stage.value}/{provider.name}"
 

@@ -1,11 +1,14 @@
 import math
+from dataclasses import replace
 
 import pytest
+from pydantic import BaseModel
 from settings_factory import SettingsFactory
 from synthetic_clip import SyntheticFixtureDataset
 from wiring import resolve_plan
 
 from physverify.app.plugins import PLUGIN_KINDS
+from physverify.extraction._base import SupportGapGate
 from physverify.extraction.plan import ResolvedPlan
 from physverify.extraction.providers._velocity_tests import two_sided_quantile
 from physverify.schema.error_profile import SUPPORT_GAP_REL, ErrorEntry, ErrorProfile
@@ -57,3 +60,28 @@ def test_oracle_inputs_have_an_exact_gap() -> None:
     dataset = SyntheticFixtureDataset()
     (item,) = OracleSource(dataset).load(dataset.clips())
     assert item.inputs is not None and item.inputs.support_gap_bound == 0.0
+
+
+class DeclaredGate(BaseModel):
+    """Params of a CONTACTS provider the verifier does not know, declaring its gap gate."""
+
+    def support_gap_z(self) -> float:
+        return 3.0
+
+
+def with_contacts_params(plan: ResolvedPlan, params: BaseModel) -> ResolvedPlan:
+    stages = tuple(
+        replace(s, params=params) if s.stage is Stage.CONTACTS else s for s in plan.stages
+    )
+    return replace(plan, stages=stages)
+
+
+def test_the_bound_reads_the_gate_the_contacts_provider_declares(
+    make_settings: SettingsFactory,
+) -> None:
+    scene = plan(make_settings, "precise")
+    contacts = next(s.params for s in scene.stages if s.stage is Stage.CONTACTS)
+    assert isinstance(contacts, SupportGapGate)
+    declared = with_contacts_params(scene, DeclaredGate())
+    bound = scene_gap_bound(declared, gap_profile(scene.names[Stage.LIFT]))
+    assert bound == pytest.approx(3.0 * 0.05)

@@ -9,7 +9,6 @@ from typing import Protocol
 
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
-from pydantic import BaseModel
 
 from physverify.core.errors import ConfigError
 from physverify.physics.geometry import Primitive, Solid, pose_from_quaternion
@@ -44,12 +43,6 @@ class FamilyCommon(SceneCommon):
     density: float = 1000.0
     aspect_range: tuple[float, float] = (1.0, 1.0)
     framing: CameraFraming = CameraFraming()
-
-
-def checked[M: BaseModel](params: BaseModel, cls: type[M]) -> M:
-    if not isinstance(params, cls):
-        raise TypeError(f"expected {cls.__name__}, got {type(params).__name__}")
-    return params
 
 
 def with_retries(

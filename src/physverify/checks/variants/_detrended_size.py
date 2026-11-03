@@ -3,7 +3,7 @@ median, with time windows in seconds and rows at the image border left out."""
 
 from __future__ import annotations
 
-from typing import ClassVar, Literal
+from typing import ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
@@ -32,7 +32,6 @@ class DetrendedSizeParams(OcclusionParams):
     """Windows in seconds, turned into rows with the clip's real frame rate and row step;
     ``axis_errors`` as in v2's ``SizeParams``."""
 
-    reference: Literal["others"] = "others"
     window_s: float = Field(default=WINDOW_S, gt=0.0)
     persistence_s: float = Field(default=PERSISTENCE_S, gt=0.0)
     axis_errors: AxisErrors = DEFAULT_AXIS_ERRORS

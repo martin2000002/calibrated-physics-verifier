@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import importlib
 import math
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
 from typing import Annotated, Any, ClassVar, Final, Literal, Protocol
 
@@ -62,9 +62,9 @@ ran before it."""
 
 FocalMode = Literal["geocalib", "assumed"]
 GravitySource = Literal["geocalib", "none"]
-_ASSUMED: Final = AssumedParams()
-UNMEASURED_FOCAL_SIGMA_REL: Final = focal_rel_sigma(_ASSUMED.fov_deg, _ASSUMED.fov_sigma_deg)
-"""camera/assumed_fov's phi: an unmeasured focal counts as no better than an assumed one."""
+ASSUMED_FIELD: Final[Mapping[str, tuple[Stage, str]]] = {"assumed": (Stage.CAMERA, "assumed_fov")}
+"""``provider_params`` of the cameras that fall back to camera/assumed_fov: its configured
+params, not its defaults."""
 
 
 def _nan_or_non_negative(value: float) -> float:
@@ -78,12 +78,21 @@ SigmaFloor = Annotated[float, AfterValidator(_nan_or_non_negative)]
 
 class Params(ProviderParams):
     n_frames: int = Field(default=8, ge=1)
-    # "assumed": K, FOV and FOV sigma of camera/assumed_fov's defaults, and GeoCalib's gravity
+    # "assumed": K, FOV and FOV sigma of camera/assumed_fov as configured, and GeoCalib's gravity
     # with that focal as a prior, so gravity and focal agree.
     focal: FocalMode = "geocalib"
     # phi_0, the measured floor of the relative focal sigma: the 0.68
     # quantile of |focal_rel| on v1-precise-hdri-dev. NaN = no floor (GeoCalib's own sigma alone).
     focal_sigma_floor_rel: SigmaFloor = math.nan
+    assumed: AssumedParams = Field(default_factory=AssumedParams)
+
+
+def unmeasured_phi(explicit: float | None, assumed: AssumedParams) -> float:
+    """``explicit``, else camera/assumed_fov's phi: an unmeasured focal counts as no better than
+    an assumed one."""
+    if explicit is not None:
+        return explicit
+    return focal_rel_sigma(assumed.fov_deg, assumed.fov_sigma_deg)
 
 
 @dataclass(frozen=True)
@@ -112,6 +121,7 @@ class GeoCalibCamera:
     error_profile_reads: ClassVar[tuple[Stage, ...]] = ()
     weights: ClassVar[tuple[WeightSpec, ...]] = (CODE, CHECKPOINT)
     Params: ClassVar[type[BaseModel]] = Params
+    provider_params: ClassVar[Mapping[str, tuple[Stage, str]]] = ASSUMED_FIELD
 
     def __init__(self, params: BaseModel) -> None:
         self.params = expect_params(params, Params)
@@ -124,7 +134,9 @@ class GeoCalibCamera:
         s = ctx.sampling
         frames = ctx.video.frames(s.start, s.stop, s.step, s.max_side)
         picked = frames[frame_indices(frames.shape[0], self.params.n_frames)]
-        assumed = assumed_camera(ctx) if self.params.focal == "assumed" else None
+        assumed = None
+        if self.params.focal == "assumed":
+            assumed = assumed_camera(ctx, self.params.assumed)
         prior = None if assumed is None else float(assumed.K[0, 0])
         set_torch_threads(ctx.threads)
         result = self._model.get(ctx).calibrate(picked, prior)
@@ -205,9 +217,9 @@ def camera_model(
     )
 
 
-def assumed_camera(ctx: StageContext) -> CameraModel:
-    """camera/assumed_fov with its default FOV and sigma (the same values, not a copy)."""
-    return AssumedFovCamera(AssumedParams()).run(ctx)
+def assumed_camera(ctx: StageContext, params: AssumedParams) -> CameraModel:
+    """camera/assumed_fov with ``params``, its configured FOV and sigma (``ASSUMED_FIELD``)."""
+    return AssumedFovCamera(params).run(ctx)
 
 
 def load_calibrator(ctx: StageContext) -> Calibrator:

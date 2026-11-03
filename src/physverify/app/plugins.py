@@ -39,8 +39,11 @@ from physverify.timing._base import TIMING_TARGETS, TimingTarget
 from physverify.verification._base import POLICIES, VerdictPolicy
 from physverify.verification.check_set import (
     CHECK_VARIANTS_SECTION,
+    CHECKS_SECTION,
+    ChecksSettings,
     CheckVariantsSettings,
     select_variants,
+    validate_overrides,
 )
 
 CONTAINER_TASKS = PluginKind[ModuleType]("container_tasks")
@@ -121,8 +124,10 @@ def build(kind: str) -> Registry[Any]:
 
 
 def _configured_checks(settings: Settings) -> Registry[Any]:
+    checks, variants = build(CHECKS.name), build(CHECK_VARIANTS.name)
+    validate_overrides(checks, variants, settings.section(CHECKS_SECTION, ChecksSettings))
     selection = settings.section(CHECK_VARIANTS_SECTION, CheckVariantsSettings)
-    return select_variants(build(CHECKS.name), build(CHECK_VARIANTS.name), selection)
+    return select_variants(checks, variants, selection)
 
 
 CONFIGURED: Mapping[str, Callable[[Settings], Registry[Any]]] = MappingProxyType(

@@ -119,6 +119,31 @@ def test_provider_overrides_and_settings_sections_reach_params(
     assert priors.root["primitive"].mean_m == 0.2
 
 
+@pytest.mark.parametrize("camera", ["geocalib", "moge2_focal", "from_depth"])
+def test_a_fallback_camera_runs_with_the_configured_assumed_fov(
+    make_settings: SettingsFactory, real_providers: Providers, camera: str
+) -> None:
+    settings = make_settings(
+        f"extraction.plan.camera={camera}",
+        "extraction.providers.camera.assumed_fov.fov_deg=50.0",
+        "extraction.providers.camera.assumed_fov.fov_sigma_deg=4.0",
+    )
+    assumed = resolve_plan(settings, real_providers, dataset="x").step(Stage.CAMERA).params
+    fov = assumed.assumed  # type: ignore[attr-defined]
+    assert (fov.fov_deg, fov.fov_sigma_deg) == (50.0, 4.0)
+
+
+def test_a_field_filled_from_another_provider_cannot_be_configured(
+    make_settings: SettingsFactory, real_providers: Providers
+) -> None:
+    settings = make_settings(
+        "extraction.plan.camera=moge2_focal",
+        "extraction.providers.camera.moge2_focal.assumed.fov_deg=50.0",
+    )
+    with pytest.raises(ConfigError, match=r"\[extraction.providers.camera.assumed_fov\]"):
+        resolve_plan(settings, real_providers, dataset="x")
+
+
 def test_sampling_from_flags_and_per_dataset_fps(
     make_settings: SettingsFactory, real_providers: Providers
 ) -> None:

@@ -15,10 +15,9 @@ from physverify.diagnosis.settings import diagnosis_settings
 from physverify.schema.checks import InputLevel
 from physverify.verification.runner import VERIFICATION_SECTION, VerificationSettings
 from physverify.verification.sweep import CheckUnit
-from physverify.verification.thresholding import ThresholdParams
+from physverify.verification.thresholding import THRESHOLD_POLICY, ThresholdParams
 
 SECTION = "calibration"
-THRESHOLD_POLICY = "threshold"
 PairFilter = Literal["all", "nonzero"]
 
 

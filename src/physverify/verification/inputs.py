@@ -10,12 +10,10 @@ from typing import NoReturn, Protocol
 from physverify.checks._base import CheckInputs
 from physverify.core.errors import MissingInputError
 from physverify.datasets._base import DatasetSource
-from physverify.extraction._base import GROUND_TRUTH
+from physverify.extraction._base import GROUND_TRUTH, SupportGapGate
 from physverify.extraction.cache import plan_entry_filter
 from physverify.extraction.pipeline import DOMAIN_ERRORS, ExtractionPipeline, PipelineDeps
 from physverify.extraction.plan import ResolvedPlan
-from physverify.extraction.providers._velocity_tests import two_sided_quantile
-from physverify.extraction.providers.contacts_kinematic_scene import Params as SceneParams
 from physverify.physics import tracks
 from physverify.physics.uncertainty import entry_rms
 from physverify.schema.checks import InputLevel
@@ -158,21 +156,22 @@ def perceived_inputs(
 
 
 def scene_gap_bound(plan: ResolvedPlan, profile: ErrorProfile | None) -> float:
-    """``CheckInputs.support_gap_bound`` of ``plan``: z(alpha / 2) of its scene contacts times the
-    rms of the LIFT ``support_gap_rel`` entry it may read; 0 for a ground-truth LIFT, whose gap
-    is exact; NaN when CONTACTS is not the scene provider or the entry is unknown."""
+    """``CheckInputs.support_gap_bound`` of ``plan``: the K its CONTACTS provider declares
+    (``SupportGapGate``) times the rms of the LIFT ``support_gap_rel`` entry it may read; 0 for a
+    ground-truth LIFT, whose gap is exact; NaN when CONTACTS has no gap gate or the entry is
+    unknown."""
     lift = plan.names.get(Stage.LIFT)
     if lift == GROUND_TRUTH:
         return 0.0
     contacts = next((s.params for s in plan.stages if s.stage is Stage.CONTACTS), None)
-    if not isinstance(contacts, SceneParams) or lift is None:
+    if not isinstance(contacts, SupportGapGate) or lift is None:
         return math.nan
     entry = (
         None
         if profile is None
         else profile.lookup(Stage.LIFT, lift, SUPPORT_GAP_REL, plan_entry_filter(plan))
     )
-    return two_sided_quantile(contacts.alpha) * entry_rms(entry)
+    return contacts.support_gap_z() * entry_rms(entry)
 
 
 def lift_camera(

@@ -1,19 +1,21 @@
-"""The registered R5a (``FallShapeCheck``) reproduces, field by field within 1e-9, what the code
-of commit 5140a4e wrote into ``golden/r5a_v1.json`` (``r5a_v1_golden_case.py``). In a degenerate
-result (magnitude below 1e-9) every candidate ties up to float noise, so which one wins depends
-on the platform's BLAS: its fields that only locate the winner are not pinned."""
+"""The registered R5a (``FallShapeCheck``) reproduces, field by field within the golden tolerance
+(``golden.same``), what the code of commit 5140a4e wrote into ``golden/r5a_v1.json``
+(``r5a_v1_golden_case.py``). In a degenerate result (magnitude below 1e-9) every candidate ties up
+to float noise, so which one wins depends on the platform's BLAS: its fields that only locate the
+winner are not pinned."""
 
 from __future__ import annotations
 
 import json
-import math
 from collections.abc import Mapping
 from typing import Any
 
 import pytest
+from golden import same
 from r5a_v1_golden_case import GOLDEN, SCENES, results
 
-TOLERANCE = 1e-9
+DEGENERATE = 1e-9
+"""A magnitude below it is float noise: every candidate ties."""
 WINNER_FIELDS = frozenset({"frame_span", "mode", "split_frame", "windows"})
 
 
@@ -27,7 +29,8 @@ def test_the_v1_results_do_not_move(current: dict[str, list[Any]], scene: str) -
     golden = json.loads(GOLDEN.read_text(encoding="utf-8"))[scene]
     assert len(current[scene]) == len(golden)
     for got, want in zip(current[scene], golden, strict=True):
-        assert_close(got, want, scene, unpinned=_unpinned(want))
+        unpinned = _unpinned(want)
+        assert same(_pinned(got, unpinned), _pinned(want, unpinned)), (scene, got, want)
 
 
 @pytest.mark.parametrize("scene", sorted(s for s in SCENES if s.endswith("_jittered")))
@@ -38,21 +41,14 @@ def test_the_jittered_scenes_are_not_degenerate(scene: str) -> None:
 
 def _unpinned(result: Mapping[str, Any]) -> frozenset[str]:
     magnitude = result.get("magnitude")
-    degenerate = isinstance(magnitude, float) and abs(magnitude) < TOLERANCE
+    degenerate = isinstance(magnitude, float) and abs(magnitude) < DEGENERATE
     return WINNER_FIELDS if degenerate else frozenset()
 
 
-def assert_close(got: Any, want: Any, where: str, unpinned: frozenset[str]) -> None:
-    if isinstance(want, dict):
-        assert isinstance(got, dict) and set(got) == set(want), where
-        for key in want:
-            if key not in unpinned:
-                assert_close(got[key], want[key], f"{where}.{key}", unpinned)
-    elif isinstance(want, list):
-        assert isinstance(got, list) and len(got) == len(want), where
-        for i, (g, w) in enumerate(zip(got, want, strict=True)):
-            assert_close(g, w, f"{where}[{i}]", unpinned)
-    elif isinstance(want, float) and not isinstance(got, bool) and isinstance(got, int | float):
-        assert math.isclose(got, want, rel_tol=TOLERANCE, abs_tol=TOLERANCE), (where, got, want)
-    else:
-        assert got == want, (where, got, want)
+def _pinned(value: Any, unpinned: frozenset[str]) -> Any:
+    """``value`` without the ``unpinned`` keys, at any depth."""
+    if isinstance(value, Mapping):
+        return {k: _pinned(v, unpinned) for k, v in value.items() if k not in unpinned}
+    if isinstance(value, list):
+        return [_pinned(v, unpinned) for v in value]
+    return value
