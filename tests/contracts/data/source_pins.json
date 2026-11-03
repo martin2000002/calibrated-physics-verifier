@@ -16,6 +16,10 @@
       "digest": "b9f9f1876e25278501dafb4d6823c916e87473e5fc0643226e3a4291d518efbf",
       "version": "1"
     },
+    "R4_size/v3_window_depth_unoccluded": {
+      "digest": "7b874b8ebe40bef60d3d45e3fa8ac219bd5ee6fd0738f30081cc432097d59d88",
+      "version": "1"
+    },
     "R5a/los_tilt": {
       "digest": "a6c6e8795f5e1cb2f49eda9e14b46579282bfa9275c44c7be1e147b476ccab0f",
       "version": "1"

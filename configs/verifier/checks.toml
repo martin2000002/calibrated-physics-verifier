@@ -31,6 +31,9 @@ reference = "others"
 # R4_size "v3_window_depth" (no profile runs it): v3 on extents and their sigmas multiplied by
 # runmed_W(z) / z, z the object's camera depth and W v3's window, so the per-row noise of a
 # monocular depth is not read as a size change; a ground-truth lift is left as v3 sees it.
+# R4_size "v3_window_depth_unoccluded" (no profile runs it): v3_window_depth that also leaves out
+# the rows where the mask of a tracked object nearer the camera covers part of the object's mask
+# box (nearer_cover > 0, from the lift); a ground-truth lift is left as v3_window_depth sees it.
 # R5a "whitened" (the precise profile runs it): each candidate scored by the Wald contrast of
 # its two accelerations fitted with weights 1 / position_sigma^2, chi-square with 3 degrees of
 # freedom per candidate under white noise independent per axis. Its unit is not v1's: thresholds
