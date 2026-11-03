@@ -23,7 +23,7 @@ SCRIPT_NAMES = (
 )
 TOOLS = (
     "awk", "basename", "bash", "cat", "cmp", "cp", "cut", "dirname", "env", "flock", "grep",
-    "mkdir", "mv", "nproc", "realpath", "sed", "sha256sum", "tee", "touch",
+    "mkdir", "mv", "nice", "nproc", "realpath", "sed", "sha256sum", "tee", "touch",
 )  # fmt: skip
 HEAD = "c0ffee1234567" + "0" * 27
 PREFIX = re.compile(
@@ -35,8 +35,8 @@ GPU = "2"
 CLIPS = "--clips k-calib-1 --clips k-calib-2"
 KS = "--dataset kubric_synthetic --subset full"
 # freeze_query.py select and chosen run for real (they only read the iteration directories);
-# diff, manifest and artifacts answer from the environment. pv calls are logged with the paths
-# and the unseal variable they see.
+# diff, manifest and artifacts answer from the environment; a clip listing gives three clips. pv
+# calls are logged with the paths and the unseal variable they see.
 FAKE_PYTHON = r"""#!/bin/bash
 CAL="$PHYSVERIFY__PATHS__CALIBRATION_DIR"
 if [[ "$1" != -c ]]; then
@@ -48,6 +48,7 @@ if [[ "$1" != -c ]]; then
       "freeze_query.py manifest")
         echo '{"freeze": 1}' > "${!#}"; echo "freeze: ${!#} sha256 f00" ;;
       "freeze_query.py artifacts") exit "${ARTIFACTS_EXIT:-0}" ;;
+      "run_query.py --profile") printf '%s-1\n%s-2\n%s-3\n' "$5" "$5" "$5" ;;
       "run_query.py evaluation") echo "real sets physics_iq, pisa_real; h1_primary present" ;;
     esac
     exit 0
@@ -224,6 +225,52 @@ def test_the_freeze_adopts_the_chosen_iteration_and_writes_the_manifest(
     assert state["FREEZE_DEVICE"] == device
     summary = (sandbox.out / "summary.md").read_text(encoding="utf-8")
     assert "h1_primary present" in summary and RECORD in summary and "it2-state" in summary
+
+
+REAL_DEV = (
+    ("physics_iq", "full"),
+    ("pisa_real", "full"),
+    ("kubric_synthetic", "calib"),
+    ("kubric_synthetic", "calib_f3_extra"),
+)
+
+
+def test_extract_shards_warm_the_cache_before_each_full_pass(sandbox: FreezeSandbox) -> None:
+    """Step 2 with two shards: each set's clips split round-robin into --no-lock shards under
+    nice, then the same full pass as without shards."""
+    result = sandbox.run("1", "2", PHYSVERIFY_FREEZE_EXTRACT_SHARDS="2")
+    assert result.returncode == 0, result.stderr
+    pv = sandbox.pv()[1:]
+    shard = "--profile precise --device cpu --set runtime.threads=16 --no-lock extract run "
+    for k, (dataset, subset) in enumerate(REAL_DEV):
+        shards, full = pv[3 * k : 3 * k + 2], pv[3 * k + 2]
+        clips = f"--strict-profile --dataset {dataset} --subset {subset} --clips {dataset}-"
+        assert sorted(shards) == [f"{shard}{clips}1 --clips {dataset}-3", f"{shard}{clips}2"]
+        whole = f"extract run --strict-profile --dataset {dataset} --subset {subset}"
+        assert PREFIX.sub("", full) == whole
+    assert len(pv) == 3 * len(REAL_DEV)
+    logs = sorted(p.name for p in (sandbox.out / "logs").glob("2-shard-*"))
+    assert logs == sorted(f"2-shard-{d}-{s}-{i}.log" for d, s in REAL_DEV for i in (0, 1))
+    notes = (sandbox.out / "notes.md").read_text(encoding="utf-8")
+    assert notes.count("extract shard 0 (16 threads): exit 0") == len(REAL_DEV)
+
+
+@pytest.mark.parametrize(
+    ("env", "message"),
+    [
+        ({"PHYSVERIFY_FREEZE_EXTRACT_SHARDS": "x"}, "PHYSVERIFY_FREEZE_EXTRACT_SHARDS must be"),
+        (
+            {"PHYSVERIFY_FREEZE_EXTRACT_SHARDS": "2", "PHYSVERIFY_FREEZE_SHARD_THREADS": "0"},
+            "PHYSVERIFY_FREEZE_SHARD_THREADS must be",
+        ),
+    ],
+)
+def test_a_bad_shard_setting_stops_step_2_before_extracting(
+    sandbox: FreezeSandbox, env: dict[str, str], message: str
+) -> None:
+    result = sandbox.run("1", "2", **env)
+    assert result.returncode == 2 and message in result.stderr, result.stderr
+    assert not any(c.startswith("extract") for c in sandbox.commands())
 
 
 @pytest.mark.parametrize(

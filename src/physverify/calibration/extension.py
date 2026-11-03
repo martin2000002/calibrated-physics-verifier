@@ -10,7 +10,8 @@ from __future__ import annotations
 from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 
-from physverify.calibration.fit import LevelData
+from physverify.calibration.artifact import clip_ids_hash
+from physverify.calibration.fit import FitMeta, LevelData
 from physverify.core.errors import ConfigError
 from physverify.datasets._base import DatasetSource, ScopedSubset, ScopedSubsetSource
 from physverify.schema.checks import AbstainReason, CheckResult
@@ -95,6 +96,16 @@ def extension_of(
         seen |= {c.clip_id for c in added}
         found.append(replace(subset, clips=added))
     return Extension(tuple(s for s in found if s.clips))
+
+
+def with_population(
+    meta: FitMeta, source: DatasetSource, base: Sequence[ClipManifest], check_ids: Collection[str]
+) -> FitMeta:
+    """``meta`` with the population of a fit without ``--clips``: the whole calib ``base`` and
+    every extension of it, so the artifact tells a whole fit from one on chosen clips."""
+    clips = (*base, *extension_of(declared(source), base, check_ids).clips)
+    dataset = meta.dataset.model_copy(update={"population_hash": clip_ids_hash(clips)})
+    return replace(meta, dataset=dataset)
 
 
 def unloaded(report: VerificationReport, clip_ids: Collection[str]) -> dict[str, str]:

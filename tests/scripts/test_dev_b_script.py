@@ -27,9 +27,15 @@ TWO_FRESH = "v2-fresh v2-dev-b2"
 # The development-version query answers from DECLARED_FRESH (the declared kubric_fresh versions,
 # v2-fresh by default) and v1-precise-hdri-dev, as run_query.py would (QUERY_FAIL refuses); pv
 # calls are logged with the paths and PV_* variables they see; doctor answers from the
-# environment; the steps write what they would.
+# environment; the steps write what they would. freeze_query.py candidate refuses an iteration whose
+# calibration.json reads REHEARSAL, as the real query refuses a fit on chosen clips.
 FAKE_PYTHON = r"""#!/bin/bash
 CAL="$PHYSVERIFY__PATHS__CALIBRATION_DIR"
+if [[ "$1" == */freeze_query.py ]]; then
+    printf 'freeze %s\n' "${*:2}" >> "$CALLS"
+    [[ "$(cat "$3/calibration.json")" != REHEARSAL ]] && exit 0
+    echo "freeze_query: not fitted on the whole calib population" >&2; exit 2
+fi
 if [[ "$1" != -c ]]; then
     printf 'query %s\n' "${*:2}" >> "$CALLS"
     [[ -z "${QUERY_FAIL:-}" ]] || { echo "run_query: no version" >&2; exit 2; }
@@ -54,6 +60,7 @@ shift 2
 printf 'pv %s\n' "$*" >> "$CALLS"
 printf 'env %s|%s|%s|%s|%s\n' "${CUDA_VISIBLE_DEVICES-unset}" "$PHYSVERIFY__PATHS__CACHE_DIR" \
     "$CAL" "$PHYSVERIFY__PATHS__RUNS_DIR" "$(compgen -e -X '!PV_*' | tr '\n' ' ')" >> "$CALLS"
+printf 'workers %s|%s\n' "$PHYSVERIFY__RUNTIME__WORKERS" "${OPENBLAS_NUM_THREADS-unset}" >> "$CALLS"
 new_run() {
     local n
     n=$(( $(cat "$PHYSVERIFY__PATHS__RUNS_DIR/counter" 2>/dev/null || echo 0) + 1 ))
@@ -70,6 +77,7 @@ case "$*" in
     done
     echo "profile: $2"
     echo "device: $4"
+    echo "workers: ${DOCTOR_WORKERS:-$PHYSVERIFY__RUNTIME__WORKERS}"
     echo "config_dir: $REPO_CONFIGS"
     echo "paths.cache_dir: $PHYSVERIFY__PATHS__CACHE_DIR (env)"
     echo "paths.runs_dir: $PHYSVERIFY__PATHS__RUNS_DIR"
@@ -101,14 +109,14 @@ def _sha(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def make_iteration(directory: Path, *, steps: int = 5) -> Path:
-    """A completed run_perception_iteration.sh directory on cpu, precise."""
+def make_iteration(directory: Path, *, steps: int = 5, device: str = "cpu") -> Path:
+    """A completed run_perception_iteration.sh directory on DEVICE, precise."""
     (directory / "calibration").mkdir(parents=True)
     artifact, profile = b"calibration of A", b"profile of A"
     (directory / "calibration.json").write_bytes(artifact)
     (directory / "calibration" / "stage_errors.precise.json").write_bytes(profile)
     state = {
-        "CHAIN_DEVICE": "cpu",
+        "CHAIN_DEVICE": device,
         "CHAIN_PROFILE": "precise",
         "DEVSCORE_RUN": str(directory / "runs" / "r1"),
         "CALIBRATION_SHA": _sha(artifact),
@@ -181,6 +189,7 @@ def test_the_reading_runs_both_sets_with_their_own_paths(sandbox: DevBSandbox) -
     before = {p: p.read_bytes() for p in (sandbox.iteration / "calibration").iterdir()}
     result = sandbox.run()
     assert result.returncode == 0, result.stderr
+    assert f"freeze candidate {sandbox.iteration}" in sandbox.lines()
     assert sandbox.commands() == _expected(sandbox)
     a_calibration = str(sandbox.iteration / "calibration")
     fresh = [str(sandbox.out / "fresh" / "calibration"), str(sandbox.out / "fresh" / "runs")]
@@ -282,6 +291,25 @@ def _break_profile(sandbox: DevBSandbox) -> None:
     (sandbox.iteration / "calibration" / "stage_errors.precise.json").write_bytes(b"other")
 
 
+def test_a_rehearsal_is_refused_before_any_call(sandbox: DevBSandbox) -> None:
+    """A fit on chosen calib clips is no iteration: the reading stops before it spends a look."""
+    artifact = sandbox.iteration / "calibration.json"
+    artifact.write_bytes(b"REHEARSAL")
+    state = sandbox.iteration / "state.env"
+    lines = [
+        f"CALIBRATION_SHA={_sha(b'REHEARSAL')}" if line.startswith("CALIBRATION_SHA=") else line
+        for line in state.read_text(encoding="utf-8").splitlines()
+    ]
+    state.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    for dry in ("0", "1"):
+        result = sandbox.run(PHYSVERIFY_DEV_B_DRY_RUN=dry)
+        assert result.returncode == 2, result.stderr
+        assert "not fitted on the whole calib population" in result.stderr
+        assert "is not an iteration the freeze would adopt" in result.stderr
+    assert sandbox.commands() == []
+    assert not sandbox.out.exists()
+
+
 def _drop_step(sandbox: DevBSandbox) -> None:
     (sandbox.iteration / "steps.tsv").write_text("1\tstep\t0\t9\t-\n", encoding="utf-8")
 
@@ -319,6 +347,8 @@ def test_an_iteration_that_is_not_the_recorded_one_is_refused(
         ({"PHYSVERIFY_DEV_B_FRESH_VERSION": "v3"}, "does not declare kubric_fresh@v3"),
         ({"PHYSVERIFY_DEV_B_FRESH_VERSION": "v2 x"}, "is not a version"),
         ({"DOCTOR_CALIBRATION_DIR": "/elsewhere"}, "paths.calibration_dir"),
+        ({"DOCTOR_WORKERS": "3"}, "doctor reports workers"),
+        ({"PHYSVERIFY_DEV_B_WORKERS": "0"}, "PHYSVERIFY_DEV_B_WORKERS"),
     ],
 )
 def test_a_startup_guard_stops_before_any_step(
@@ -354,3 +384,53 @@ def test_resume_needs_the_earlier_steps_and_the_same_clips(sandbox: DevBSandbox)
     sandbox.clips.write_text(FRESH_CLIPS[0] + "\n", encoding="utf-8")
     other = sandbox.run("5")
     assert other.returncode == 2 and "belongs to DEV_B_CLIPS_SHA" in other.stderr
+
+
+def test_the_worker_count_reaches_every_call(sandbox: DevBSandbox) -> None:
+    """One worker leaves BLAS as it was; several fork from a one-thread parent."""
+    assert sandbox.run(OPENBLAS_NUM_THREADS="8").returncode == 0
+    assert {x for x in sandbox.lines() if x.startswith("workers ")} == {"workers 1|8"}
+    other = DevBSandbox(sandbox.root / "second")
+    result = other.run(PHYSVERIFY_DEV_B_WORKERS="12", OPENBLAS_NUM_THREADS="8")
+    assert result.returncode == 0, result.stderr
+    assert {x for x in other.lines() if x.startswith("workers ")} == {"workers 12|1"}
+    assert "workers 12" in (other.out / "summary.md").read_text(encoding="utf-8")
+
+
+def _cuda_sandbox(root: Path) -> DevBSandbox:
+    sandbox = DevBSandbox(root)
+    state = sandbox.iteration / "state.env"
+    state.write_text(state.read_text(encoding="utf-8").replace("=cpu", "=cuda"), encoding="utf-8")
+    return sandbox
+
+
+def test_only_the_model_steps_of_a_cuda_reading_see_the_gpu(tmp_path: Path) -> None:
+    """Steps 1-2 on the locked GPU; 3-4 keep --device cuda (the cache keys) and see no GPU."""
+    sandbox = _cuda_sandbox(tmp_path)
+    gpu = sandbox.run("1", "2", CUDA_VISIBLE_DEVICES="2")
+    assert gpu.returncode == 0, gpu.stderr
+    assert {env[0] for env in sandbox.envs()} == {"2"}
+    sandbox.calls.unlink()
+    cache = sandbox.run("3", "4", CUDA_VISIBLE_DEVICES="1")
+    assert cache.returncode == 0, cache.stderr
+    assert {env[0] for env in sandbox.envs()} == {""}
+    assert all("--device cuda" in line for line in sandbox.lines() if line.startswith("pv "))
+
+
+@pytest.mark.parametrize(("first", "last"), [("1", "6"), ("2", "3"), ("4", "5")])
+def test_a_cuda_range_mixing_model_and_cache_steps_is_refused(
+    tmp_path: Path, first: str, last: str
+) -> None:
+    sandbox = _cuda_sandbox(tmp_path)
+    result = sandbox.run(first, last, CUDA_VISIBLE_DEVICES="2")
+    assert result.returncode == 2 and "must not mix GPU steps" in result.stderr, result.stderr
+    assert sandbox.commands() == []
+
+
+def test_a_cuda_dry_run_holds_no_gpu(tmp_path: Path) -> None:
+    """A dry run runs no step, so it needs no GPU slot and sees none whatever the range."""
+    sandbox = _cuda_sandbox(tmp_path)
+    result = sandbox.run(PHYSVERIFY_DEV_B_DRY_RUN="1")
+    assert result.returncode == 0, result.stderr
+    assert len(sandbox.envs()) == 2 and {env[0] for env in sandbox.envs()} == {""}
+    assert not sandbox.out.exists()

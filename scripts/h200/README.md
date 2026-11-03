@@ -21,6 +21,7 @@ use and what each script leaves behind.
 | Script | Purpose |
 |---|---|
 | `setup_cuda.sh` | CUDA environment, perception weights and the Wan2.1 snapshot |
+| `checkout_at.sh` | A clean checkout of a commit (short or full sha) in a new directory, for the launchers |
 | `run_timing.sh` | Timing benchmark |
 | `smoke_finetune.sh`, `run_preference.sh`, `run_finetune.sh` | Preference pairs and Flow-DPO fine-tuning |
 | `run_kubric.sh` | Kubric synthetic dataset (Docker or udocker) |
@@ -251,8 +252,8 @@ forked processes and gather them in clip order, so every output is the one-worke
 one worker the script sets `OMP_NUM_THREADS`, `MKL_NUM_THREADS` and `OPENBLAS_NUM_THREADS` to 1
 and `DD_INSTRUMENT_SERVICE_WITH_APM=false`, so the parent forks with a single thread and workers
 times BLAS threads stays within the worker count (the launcher below sets BLAS to 1 thread in
-any case; torch takes `runtime.threads` explicitly). A cuda range that crosses from step 3 to 4 exits
-2. Take the count from the server's `~/work/scratch/cpu_workers.sh` (not in this repository) right
+any case; torch takes `runtime.threads` explicitly). A cuda range that mixes steps 1-3 with 4-5
+exits 2 (`_common.sh` `use_step_device`, `use_workers`). Take the count from the server's `~/work/scratch/cpu_workers.sh` (not in this repository) right
 before each half, so it follows the load of other users, and run under `nice -n 10`; steps 1-3 go
 through the server's GPU slot launcher (`~/work/scratch/gpu_slot.sh TAG cmd...`, not in this
 repository; it takes the GPU lock and sets `CUDA_VISIBLE_DEVICES`):
@@ -267,6 +268,15 @@ export PHYSVERIFY_ITERATION_ID=<id> PHYSVERIFY_ITERATION_EXPECT_COMMIT=<head> \
     && PHYSVERIFY_ITERATION_WORKERS=$(~/work/scratch/cpu_workers.sh) \
         nice -n 10 bash scripts/h200/run_perception_iteration.sh 4 5
 ```
+
+A rehearsal on a few calib clips sets `PHYSVERIFY_ITERATION_CLIPS_FILE` (calib ids only, checked
+against the listing): every step passes them as `--clips`, so `stage-sigma` and `dev-score` drop
+the `calib_f3_extra` extension and the result is not an iteration. Its `calibration.json` records
+the population a fit without `--clips` would take (`dataset.population_hash`) beside the one it
+took (`dataset.clip_ids_hash`); `freeze_query.py select` (the freeze) and `candidate`
+(`run_dev_b.sh`) refuse it unless the two are equal.
+`PHYSVERIFY_ITERATION_EXTENSION_LIMIT=N` (only with a clip list) extracts the first N extension
+clips in steps 1 and 3, none with 0. Without either variable the iteration is unchanged.
 
 ### Line-of-sight R5 (arm `k`)
 
@@ -299,7 +309,11 @@ development version (`--set dataset.version`, the iteration's error profile) `ex
 `calibrate evaluate --score-all-clips --no-real` with the iteration's `calibration.json`, under
 `<dir>/hdri/`. It runs on the iteration's device and profile, with no `PHYSVERIFY_UNSEAL` and no
 variable outside its own; `PHYSVERIFY_DEV_B_DRY_RUN=1` runs the startup checks and `doctor` and
-prints the commands without running them. The output defaults to `<iteration>/dev-b/`.
+prints the commands without running them, with no GPU visible. The output defaults to
+`<iteration>/dev-b/`. `PHYSVERIFY_DEV_B_WORKERS` is `runtime.workers`, as in the iteration. Steps
+1, 2 and 5 may run a model and 3, 4 and 6 only read the cache, so a cuda reading runs `1 2` and
+`5 5` through the GPU slot launcher and `3 4` and `6 6` without it, with `CUDA_VISIBLE_DEVICES`
+empty; a cuda range that mixes both kinds exits 2.
 
 ### Sealed sets
 
@@ -399,7 +413,10 @@ stored output directory of a calibration-chain runner that is no longer in the r
 logged, also through the list of test logs in `$PHYSVERIFY_H200_ROOT/h2-test-ledger.txt`, and `dev`
 refuses on the same evidence. A pre-registration with a calibration gate makes the study not
 evaluable with the calibrated rule; `test` then needs `PHYSVERIFY_AGREEMENT_ACCEPT_NOT_EVALUABLE=1`.
-Output goes to `PHYSVERIFY_AGREEMENT_DIR` (default `$PHYSVERIFY_H200_ROOT/h2`). Unlike the freeze,
+Output goes to `PHYSVERIFY_AGREEMENT_DIR` (default `$PHYSVERIFY_H200_ROOT/h2`). `prefetch` fetches and
+extracts the dev subset only, with its runs and bookkeeping in `<dir>/prefetch/` (never under
+`PHYSVERIFY_AGREEMENT_DATA`), so that the dev preflight finds its clip cached; an uncached dev
+preflight prints that command. Unlike the freeze,
 iteration and final runners, this script keeps its own startup checks instead of `_guards.sh`.
 
 ## Generator comparison

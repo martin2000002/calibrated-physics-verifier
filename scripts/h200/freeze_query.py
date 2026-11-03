@@ -4,6 +4,8 @@ run_human_agreement.sh PHYSVERIFY_AGREEMENT_FREEZE).
 Exit codes: 0 ok, 2 a check failed or an input is unusable (message on stderr).
 
     python freeze_query.py select ITERATION_DIR...       the selection rule over their devscore.json
+    python freeze_query.py candidate ITERATION_DIR       the iteration as select reads it, or why
+                                                          select refuses it (run_dev_b.sh)
     python freeze_query.py chosen SELECTION_JSON KEY      one value of the chosen iteration
     python freeze_query.py seed COMMIT CALIBRATION_SHA EXCLUSIONS_SHA
     python freeze_query.py diff j3|j13 FROM               files changed from FROM to HEAD
@@ -29,6 +31,7 @@ query sees what the physverify calls of the same script see; no query depends on
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import functools
 import json
 import os
@@ -67,6 +70,7 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=(__doc__ or "").splitlines()[0])
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("select").add_argument("dirs", type=Path, nargs="+")
+    sub.add_parser("candidate").add_argument("dir", type=Path)
     chosen = sub.add_parser("chosen")
     chosen.add_argument("selection", type=Path)
     chosen.add_argument("key")
@@ -178,6 +182,9 @@ def _output(args: argparse.Namespace) -> list[str]:
     commands: dict[str, Callable[[], list[str]]] = {
         "select": lambda: [
             json.dumps(select([candidate(d) for d in args.dirs]), indent=2, sort_keys=True)
+        ],
+        "candidate": lambda: [
+            json.dumps(dataclasses.asdict(candidate(args.dir)), indent=2, sort_keys=True)
         ],
         "chosen": lambda: [field(chosen_candidate(read_json(args.selection)), args.key)],
         "seed": lambda: [str(seed_of(args.commit, args.calibration_sha, args.exclusions_sha))],

@@ -26,6 +26,7 @@ from physverify.calibration.development import (
     require_all_clips_scorable,
 )
 from physverify.calibration.evaluate import EvaluationMeta, evaluate
+from physverify.calibration.extension import with_population
 from physverify.calibration.fit import FitInputs, fit_calibration
 from physverify.calibration.oof import DEVSCORE_OOF_FILE
 from physverify.calibration.report import EVALUATION_FILE, EVALUATION_MD, evaluation_markdown
@@ -137,6 +138,8 @@ def fit_artifact(
         reports = live_reports(session, source, chosen, levels)
     data = fit_level_data(session, source, reports, levels, no_sigma, extension)
     meta = fit_meta(session, source, extension.label(name, reports.clips), reports.clips)
+    checks = [u.check_id for u in session.check_units()]
+    meta = with_population(meta, source, fit_clips(source, name, ()), checks)
     artifact = fit_calibration(FitInputs(data, session.check_units(), meta), session.config)
     path = out or default_artifact_path(context.settings)
     publish_fit(session, path, artifact.to_json())
@@ -169,6 +172,8 @@ def score_devscore(
     reports = live_reports(session, source, chosen, levels)
     data = fit_level_data(session, source, reports, levels, no_sigma, extension)
     meta = fit_meta(session, source, extension.label(name, reports.clips), reports.clips)
+    checks = [u.check_id for u in session.check_units()]
+    meta = with_population(meta, source, calib_clips(source, name, (), cal), checks)
     result = dev_score(data, session.check_units(), meta, session.config, family_of)
     run_dir = session.run.run_dir
     text = result.report.to_json()

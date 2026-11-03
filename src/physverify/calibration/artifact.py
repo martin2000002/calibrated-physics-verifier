@@ -6,6 +6,7 @@ fields, which a lenient load drops. Every non-finite number is written as null.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from enum import StrEnum
 from typing import Literal
 
@@ -13,10 +14,12 @@ from pydantic import Field
 
 from physverify.core.models import SCHEMA_KEY, ArtifactModel, absent_when_none
 from physverify.schema.checks import InputLevel
+from physverify.schema.clip import ClipManifest
+from physverify.schema.io import stable_hash
 from physverify.stats.intervals import Ci, Rate
 
 CALIBRATION_SCHEMA = "physverify.calibration"
-CALIBRATION_VERSION = "1.8.0"
+CALIBRATION_VERSION = "1.9.0"
 EVALUATION_SCHEMA = "physverify.calibration.evaluation"
 
 CheckStatus = Literal["ok", "insufficient", "no_positives", "no_negatives", "unranked_negatives"]
@@ -216,6 +219,19 @@ class DatasetRef(ArtifactModel):
     clip_ids_hash: str
     identity: str | None = absent_when_none()
     """The content's cache identity (``dataset_identity``); absent for plain datasets."""
+    population_hash: str | None = absent_when_none()
+    """``clip_ids_hash`` of the clips a calib fit without ``--clips`` takes (the subset's calib
+    clips and its extensions); absent outside a calib fit and before 1.9.0."""
+
+    @property
+    def whole_population(self) -> bool:
+        """The fit took its whole population, not a subset of it (a rehearsal's ``--clips``)."""
+        return self.population_hash is not None and self.population_hash == self.clip_ids_hash
+
+
+def clip_ids_hash(clips: Iterable[ClipManifest]) -> str:
+    """``DatasetRef.clip_ids_hash`` of ``clips``: their sorted ids, hashed."""
+    return stable_hash(sorted(clip.clip_id for clip in clips))
 
 
 class SettingsSnapshot(ArtifactModel):

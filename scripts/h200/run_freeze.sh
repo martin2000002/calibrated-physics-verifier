@@ -12,13 +12,16 @@
 #                      the choice must be PHYSVERIFY_FREEZE_ITERATION and the diff of the refit
 #                      paths (checks, physics, extraction, verification, selective_risk/curve.py)
 #                      from its commit to HEAD empty, its device and profile this run's
-#                      (_common.sh require_pair); its calibration.json, stage_errors.precise.json
-#                      and stage_sigma.json are copied to $F/calibration (a different file already
+#                      (_common.sh require_pair); select refuses an iteration whose
+#                      calibration.json was not fitted on the whole calib population (a
+#                      rehearsal); its calibration.json, stage_errors.precise.json and
+#                      stage_sigma.json are copied to $F/calibration (a different file already
 #                      there stops)
 #    2 real-dev        extract run on physics_iq and pisa_real (full), the kubric_synthetic calib
 #                      clips and its calib_f3_extra extension (R3b only; split calib leaves it out;
 #                      LIFT reads the adopted profile, --strict-profile stops on a stale one;
-#                      failed clips tolerated, noted)
+#                      failed clips tolerated, noted); with PHYSVERIFY_FREEZE_EXTRACT_SHARDS,
+#                      shards warm the cache before each set's full pass
 #    3 evaluate-calib  calibrate evaluate --dataset kubric_synthetic --subset calib --real; stops on
 #                      a skipped real dataset, a real set 1.5 does not allow or no primary view
 #    4 r2-arms         the R2 clips verified with the base and the tiny detector (rule 1.2)
@@ -59,6 +62,9 @@
 #   PHYSVERIFY_FREEZE_THREADS        runtime.threads [32]
 #   PHYSVERIFY_FREEZE_DATA           paths.data_dir [$H200_ROOT/kubric-data]
 #   PHYSVERIFY_FREEZE_DECIDE_REPLACE 1 to supersede a different decision record (a rerun from 3)
+#   PHYSVERIFY_FREEZE_EXTRACT_SHARDS step 2: --no-lock extract shards under nice before each full
+#                                    pass (_steps.sh extract_shards) [none]
+#   PHYSVERIFY_FREEZE_SHARD_THREADS  runtime.threads of each shard [THREADS / SHARDS]
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/_common.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/_steps.sh"
@@ -175,11 +181,25 @@ step_1() {
     note_block "Selection ($selection)" <"$selection"
 }
 
+# extract_real DATASET SUBSET: extract run --strict-profile on the whole subset, after the
+# PHYSVERIFY_FREEZE_EXTRACT_SHARDS shards that warm the cache when it is set.
+extract_real() {
+    if [[ -n "${PHYSVERIFY_FREEZE_EXTRACT_SHARDS:-}" ]]; then
+        local clips_file="$LOGS/2-clips-$1-$2.txt"
+        query --profile "$PV_PROFILE" clips "$1" "$2" >"$clips_file" \
+            || stop "cannot list the $1 $2 clips"
+        note "extract $1 $2: $(grep -c . "$clips_file") clips, list sha256 $(sha_of "$clips_file")"
+        extract_shards PHYSVERIFY_FREEZE_EXTRACT_SHARDS PHYSVERIFY_FREEZE_SHARD_THREADS \
+            "2-shard-$1-$2" "$clips_file" "$1" "$2"
+    fi
+    call 1 -- extract run --strict-profile --dataset "$1" --subset "$2"
+}
+
 step_2() {
-    call 1 -- extract run --strict-profile --dataset physics_iq --subset full
-    call 1 -- extract run --strict-profile --dataset pisa_real --subset full
-    call 1 -- extract run --strict-profile --dataset kubric_synthetic --subset calib
-    call 1 -- extract run --strict-profile --dataset kubric_synthetic --subset calib_f3_extra
+    extract_real physics_iq full
+    extract_real pisa_real full
+    extract_real kubric_synthetic calib
+    extract_real kubric_synthetic calib_f3_extra
 }
 
 step_3() {

@@ -19,8 +19,9 @@
 # Steps 1-3 may run a model (2 seeds a tracker with the truth; 3 re-runs the camera, whose key holds
 # the new profile's focal sigma); 4 and 5 only read the cache. A cuda range FROM >= 4 needs no GPU:
 # it keeps the device (the cache keys hold it) and hides every GPU, so a cache miss fails instead of
-# using a GPU nobody locked. Launch steps 1-3 under the GPU lock and 4-5 without it
-# (scripts/h200/README.md, "Iteration launcher"); a cuda range that crosses from 3 to 4 is refused.
+# using a GPU nobody locked (_common.sh use_step_device). Launch steps 1-3 under the GPU lock and
+# 4-5 without it (scripts/h200/README.md, "Iteration launcher"); a cuda range that crosses from 3
+# to 4 is refused.
 #
 # Startup (exit 2 before any physverify call): PHYSVERIFY_ITERATION_ID; HEAD is
 # PHYSVERIFY_ITERATION_EXPECT_COMMIT with nothing uncommitted or untracked under src, configs, scripts,
@@ -59,6 +60,13 @@
 #   PHYSVERIFY_ITERATION_DATA            paths.data_dir, the synthetic dataset read only
 #                                        [$H200_ROOT/kubric-data]
 #   PHYSVERIFY_ITERATION_DIR             output [$H200_ROOT/iterations/$PHYSVERIFY_ITERATION_ID-<device>]
+#   PHYSVERIFY_ITERATION_CLIPS_FILE      a rehearsal on some calib clips [all of calib]: one id per
+#                                        line, each a calib clip; steps 1-5 pass them as --clips,
+#                                        so dev-score and stage-sigma drop the calib_f3_extra
+#                                        extension (R3b loses it); the result is not an iteration:
+#                                        the freeze and run_dev_b.sh refuse its calibration.json
+#   PHYSVERIFY_ITERATION_EXTENSION_LIMIT with CLIPS_FILE only: steps 1 and 3 extract the first N
+#                                        calib_f3_extra clips, none with 0 [all of them]
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/_common.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/_steps.sh"
@@ -67,7 +75,7 @@ cd "$REPO_ROOT"
 
 FIRST_STEP=1
 LAST_STEP=5
-LAST_GPU_STEP=3
+GPU_STEPS="1 2 3"
 [[ $# -le 2 ]] || die "usage: run_perception_iteration.sh [FROM [TO]]"
 FROM="${1:-$FIRST_STEP}"
 TO="${2:-$LAST_STEP}"
@@ -95,16 +103,7 @@ refuse_local_config run_perception_iteration.sh
 require_checkout PHYSVERIFY_ITERATION_EXPECT_COMMIT
 
 PHYSVERIFY_ITERATION_DEVICE="${PHYSVERIFY_ITERATION_DEVICE:-cpu}"
-if [[ "$PHYSVERIFY_ITERATION_DEVICE" == cuda && "$FROM" -gt "$LAST_GPU_STEP" ]]; then
-    export CUDA_VISIBLE_DEVICES=""
-    PV_DEVICE=cuda
-else
-    use_device PHYSVERIFY_ITERATION_DEVICE
-fi
-if [[ "$PV_DEVICE" == cuda && "$FROM" -le "$LAST_GPU_STEP" && "$TO" -gt "$LAST_GPU_STEP" ]]; then
-    die "a cuda range must not cross step $LAST_GPU_STEP: run $FROM $LAST_GPU_STEP under the GPU lock," \
-        "then $((LAST_GPU_STEP + 1)) $TO without it (got $FROM $TO)"
-fi
+use_step_device PHYSVERIFY_ITERATION_DEVICE "$FROM" "$TO" "$GPU_STEPS"
 ARM="${PHYSVERIFY_ITERATION_ARM:-}"
 SWAPS=()
 if [[ -n "$ARM" ]]; then
@@ -122,10 +121,15 @@ PY="${PHYSVERIFY_ITERATION_PYTHON:-/home/mmonterot/dev/venv/bin/python}"
 [[ -x "$PY" ]] || die "no interpreter at $PY (PHYSVERIFY_ITERATION_PYTHON)"
 THREADS="${PHYSVERIFY_ITERATION_THREADS:-16}"
 [[ "$THREADS" =~ ^[1-9][0-9]*$ ]] || die "PHYSVERIFY_ITERATION_THREADS must be a positive integer"
-WORKERS="${PHYSVERIFY_ITERATION_WORKERS:-1}"
-[[ "$WORKERS" =~ ^[1-9][0-9]*$ ]] \
-    || die "PHYSVERIFY_ITERATION_WORKERS must be a positive integer, got '$WORKERS'"
+use_workers PHYSVERIFY_ITERATION_WORKERS
 DATA="${PHYSVERIFY_ITERATION_DATA:-$H200_ROOT/kubric-data}"
+CLIPS_FILE="${PHYSVERIFY_ITERATION_CLIPS_FILE:-}"
+[[ -z "$CLIPS_FILE" || -f "$CLIPS_FILE" ]] || die "no clip list at $CLIPS_FILE (PHYSVERIFY_ITERATION_CLIPS_FILE)"
+EXTENSION_LIMIT="${PHYSVERIFY_ITERATION_EXTENSION_LIMIT:-}"
+[[ -z "$EXTENSION_LIMIT" || -n "$CLIPS_FILE" ]] \
+    || die "PHYSVERIFY_ITERATION_EXTENSION_LIMIT needs PHYSVERIFY_ITERATION_CLIPS_FILE (a rehearsal)"
+[[ -z "$EXTENSION_LIMIT" || "$EXTENSION_LIMIT" =~ ^[0-9]+$ ]] \
+    || die "PHYSVERIFY_ITERATION_EXTENSION_LIMIT must be a count, got '$EXTENSION_LIMIT'"
 OUT="${PHYSVERIFY_ITERATION_DIR:-$H200_ROOT/iterations/$ITER_ID-$PV_DEVICE}"
 
 for dir in "$OUT" "$OUT/calibration" "$OUT/runs"; do
@@ -147,13 +151,6 @@ export PHYSVERIFY__PATHS__HF_HOME="$H200_ROOT/.cache/huggingface"
 export PHYSVERIFY__PATHS__CALIBRATION_DIR="$OUT/calibration"
 export PHYSVERIFY__PATHS__RUNS_DIR="$OUT/runs"
 export PHYSVERIFY__RUNTIME__HEAVY_LOCK="$OUT/heavy.lock"
-export PHYSVERIFY__RUNTIME__WORKERS="$WORKERS"
-if [[ "$WORKERS" -gt 1 ]]; then
-    # The workers are forked: leave the parent with one thread (no BLAS pool, no APM agent threads)
-    # so no lock held by another thread is copied into them, and keep workers x threads in bounds.
-    export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
-    export DD_INSTRUMENT_SERVICE_WITH_APM=false
-fi
 unset PHYSVERIFY_LOCK_HELD
 
 LOGS="$OUT/logs"
@@ -169,8 +166,10 @@ if [[ -f "$STATE" ]]; then
     # shellcheck disable=SC1090
     source "$STATE"
 fi
+CLIPS_KEY=all
+[[ -z "$CLIPS_FILE" ]] || CLIPS_KEY="$(sha_of "$CLIPS_FILE")"
 for pair in "CHAIN_DEVICE $PV_DEVICE" "CHAIN_PROFILE $PV_PROFILE" "CHAIN_ITER_ID $ITER_ID" \
-    "CHAIN_ARM ${ARM:-none}"; do
+    "CHAIN_ARM ${ARM:-none}" "CHAIN_CLIPS $CLIPS_KEY" "CHAIN_EXTENSION ${EXTENSION_LIMIT:-all}"; do
     read -r key value <<<"$pair"
     if [[ -z "${!key:-}" ]]; then
         save "$key" "$value"
@@ -204,12 +203,19 @@ check_doctor() {
     done
 }
 
-# The calib clips of the synthetic dataset, listed once; a resumed run must see the same list.
+# The calib clips of the synthetic dataset (those of CLIPS_FILE, in calib order), listed once; a
+# resumed run must see the same list.
 calib_clips() {
-    local file="$OUT/calib_clips.txt"
+    local file="$OUT/calib_clips.txt" unknown
     if [[ ! -f "$file" ]]; then
         query --profile "$PV_PROFILE" clips kubric_synthetic full --split calib >"$file.tmp" \
             || die "cannot list the kubric_synthetic calib clips"
+        if [[ -n "$CLIPS_FILE" ]]; then
+            unknown="$(grep -vxF -f "$file.tmp" "$CLIPS_FILE" | grep . || true)"
+            [[ -z "$unknown" ]] || die "$CLIPS_FILE lists clips that are not calib clips:"$'\n'"$unknown"
+            grep -xF -f "$CLIPS_FILE" "$file.tmp" >"$file.part" || true
+            mv "$file.part" "$file.tmp"
+        fi
         mv "$file.tmp" "$file"
     fi
     [[ -s "$file" ]] || die "no kubric_synthetic calib clip in $file"
@@ -220,11 +226,37 @@ calib_clips() {
     while IFS= read -r id; do
         [[ -z "$id" ]] || CLIP_ARGS+=(--clips "$id")
     done <"$file"
+    FIT_ARGS=()
+    [[ -z "$CLIPS_FILE" ]] || FIT_ARGS=("${CLIP_ARGS[@]}")
+}
+
+# EXTENSION_ARGS: the calib_f3_extra extraction of steps 1 and 3 (empty with a limit of 0).
+extension_clips() {
+    EXTENSION_ARGS=("${EXTENSION[@]}")
+    [[ -n "$EXTENSION_LIMIT" ]] || return 0
+    EXTENSION_ARGS=()
+    [[ "$EXTENSION_LIMIT" -gt 0 ]] || return 0
+    local file="$OUT/extension_clips.txt" id
+    if [[ ! -f "$file" ]]; then
+        query --profile "$PV_PROFILE" clips kubric_synthetic calib_f3_extra \
+            | sed -n "1,${EXTENSION_LIMIT}p" >"$file.tmp" \
+            || die "cannot list the kubric_synthetic calib_f3_extra clips"
+        mv "$file.tmp" "$file"
+    fi
+    EXTENSION_ARGS=("${EXTENSION[@]}")
+    while IFS= read -r id; do
+        [[ -z "$id" ]] || EXTENSION_ARGS+=(--clips "$id")
+    done <"$file"
+}
+
+# extract_extension [ARG...]: extract run on the extension unless the limit skips it.
+extract_extension() {
+    [[ ${#EXTENSION_ARGS[@]} -eq 0 ]] || call 1 -- extract run "$@" "${EXTENSION_ARGS[@]}"
 }
 
 step_1() {
     call 1 -- extract run "${KS[@]}" "${CLIP_ARGS[@]}"
-    call 1 -- extract run "${EXTENSION[@]}"
+    extract_extension
     save CALIB_SHA "$(sha_of "$OUT/calib_clips.txt")"
 }
 
@@ -240,16 +272,16 @@ step_2() {
 
 step_3() {
     call 1 -- extract run --strict-profile "${KS[@]}" "${CLIP_ARGS[@]}"
-    call 1 -- extract run --strict-profile "${EXTENSION[@]}"
+    extract_extension --strict-profile
 }
 
 step_4() {
-    call 0 -- calibrate stage-sigma "${KS[@]}"
+    call 0 -- calibrate stage-sigma "${KS[@]}" "${FIT_ARGS[@]}"
     save STAGE_SIGMA_SHA "$(sha_of "$OUT/calibration/stage_sigma.json")"
 }
 
 step_5() {
-    call 0 -- calibrate dev-score "${KS[@]}" --level both --out "$OUT/devscore.json"
+    call 0 -- calibrate dev-score "${KS[@]}" "${FIT_ARGS[@]}" --level both --out "$OUT/devscore.json"
     local run
     run="$(run_of)"
     [[ -f "$run/calibration.json" ]] || stop "no full calib fit in $run"
@@ -265,6 +297,9 @@ step_5() {
 
 check_doctor
 calib_clips
+extension_clips
+[[ -z "$CLIPS_FILE" ]] || note "rehearsal on $(grep -c . "$OUT/calib_clips.txt") calib clips of" \
+    "$CLIPS_FILE: steps 4-5 pass --clips, so they drop the calib_f3_extra extension (R3b)"
 for ((n = FROM; n <= TO; n++)); do
     case "$n" in
         1) begin 1 extract ;;

@@ -18,6 +18,8 @@ from verify_runs import write_verify_run
 
 from physverify.app import calibration as app_calibration
 from physverify.app import plugins
+from physverify.calibration.artifact import DatasetRef
+from physverify.calibration.artifact_io import load_calibration
 from physverify.config.models import Settings
 from physverify.datasets._base import GroundTruthStore, ScopedSubset, VideoSource
 from physverify.schema.checks import InputLevel
@@ -164,6 +166,35 @@ def test_a_fit_from_a_run_scopes_the_extension_clips_it_holds(
     before, after = plain["strata"][0]["checks"], extended["strata"][0]["checks"]
     assert {c: before[c] for c in OTHERS} == {c: after[c] for c in OTHERS}
     assert (before["R5b"]["status"], after["R5b"]["status"]) == ("no_negatives", "ok")
+
+
+def _fitted_on(out: str) -> DatasetRef:
+    path = Path(out.split("calibration: ")[1].split()[0])
+    return load_calibration(path).artifact.dataset
+
+
+def test_only_a_fit_on_every_calib_clip_and_extension_is_whole(
+    cli: CliRunner,
+    calls: list[int],
+    settings: Settings,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """A fit records the population it would take without --clips: a rehearsal on chosen clips,
+    even all the base ones (it drops the extension), is not the whole population."""
+    use(monkeypatch, ExtendedDataset)
+    whole = _fitted_on(devscore(cli)[0])
+    picked = [arg for c in BASE.clips for arg in ("--clips", c.clip_id)]
+    chosen = _fitted_on(devscore(cli, *picked)[0])
+    assert whole.whole_population and not chosen.whole_population
+    assert chosen.population_hash == whole.population_hash == whole.clip_ids_hash
+    from_all = DatasetRef.model_validate(
+        fit_from(cli, settings, ALL, tmp_path / "a.json")["dataset"]
+    )
+    from_base = DatasetRef.model_validate(
+        fit_from(cli, settings, BASE, tmp_path / "b.json")["dataset"]
+    )
+    assert from_all.whole_population and not from_base.whole_population
 
 
 def test_an_extension_missing_from_the_cache_stops_the_run(
