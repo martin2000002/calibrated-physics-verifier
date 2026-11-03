@@ -218,7 +218,7 @@ K_ARM = (
 
 def test_the_iteration_arm_goes_as_set_to_every_call(sandbox: DevBSandbox) -> None:
     """The arm the iteration ran (CHAIN_ARM) is replayed: each of its swaps follows the set's
-    version on every call, so a K reading never falls back to the committed depth."""
+    version on every call, so a reading of arm k never falls back to the committed depth."""
     _record_arm(sandbox, "k")
     result = sandbox.run()
     assert result.returncode == 0, result.stderr

@@ -266,12 +266,12 @@ export PHYSVERIFY_ITERATION_ID=<id> PHYSVERIFY_ITERATION_EXPECT_COMMIT=<head> \
         nice -n 10 bash scripts/h200/run_perception_iteration.sh 4 5
 ```
 
-### Line-of-sight R5 (candidate K)
+### Line-of-sight R5 (arm `k`)
 
-K is the precise profile on the perception state C (depth `vda_large`) with R5a and R5b on the
-line-of-sight GLS (`checks/variants/r5a_line_of_sight.py`, `r5b_line_of_sight.py`). It is the arm
-`k` of `perception_arms.tsv`, not a profile: a profile name is part of every error-profile entry
-and cache key, so a separate one would not share them. `PHYSVERIFY_ITERATION_ARM=k` runs it
+The arm `k` of `perception_arms.tsv` runs the precise profile with depth `vda_large` and R5a and
+R5b on the line-of-sight GLS (`checks/variants/r5a_line_of_sight.py`, `r5b_line_of_sight.py`). It
+is an arm, not a profile: a profile name is part of every error-profile entry and cache key, so a
+separate one would not share them. `PHYSVERIFY_ITERATION_ARM=k` runs it
 through `run_perception_iteration.sh`, `run_dev_b.sh` replays it from the iteration's
 `CHAIN_ARM`, and by hand each of its swaps goes as `--set` after `--profile precise`.
 

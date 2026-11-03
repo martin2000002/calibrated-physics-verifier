@@ -64,8 +64,8 @@ def tilt_statistic(fit: VectorFallFit, g_dir: ArrayLike, g_dir_sigma: float) -> 
 
 
 def _orthogonal_basis(normal: ArrayLike) -> FloatArray:
-    # The statistic does not depend on the basis, but its floating bits do: the SVD basis keeps
-    # the values bit-identical to the K probe (``geometry.plane_basis`` drifts by ~1e-13 relative).
+    # The statistic does not depend on the basis, but its floating bits do: on this statistic
+    # ``geometry.plane_basis`` drifts by ~1e-13 relative, ~0.02 absolute near magnitudes of 1e12.
     n = np.asarray(normal, dtype=np.float64).reshape(3)
     _, _, vt = np.linalg.svd((n / np.linalg.norm(n))[None, :])
     return np.asarray(vt[1:3])
