@@ -88,6 +88,7 @@ ORDER: Mapping[str, tuple[str, ...]] = {
     ),
     "policies": ("raw", "threshold"),
     "check_variants": (
+        "R3a/image_apex",
         "R4_jump/rigid2_dfloor",
         "R4_jump/rigid2",
         "R4_size/v3",
