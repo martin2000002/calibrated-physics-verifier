@@ -11,11 +11,16 @@ Exit codes: 0 ok, 2 a check failed or an input is unusable (message on stderr).
                            --v1-commit C --v1-calibration PATH --out FREEZE_JSON
     python freeze_query.py field FREEZE_JSON KEY          one value (dotted key)
     python freeze_query.py artifacts FREEZE_JSON          the frozen files are unchanged
-    python freeze_query.py render-env SET SEED            the dataset overrides of a fresh render
+    python freeze_query.py render-env SET SEED            the dataset overrides of a sealed render
     python freeze_query.py plan SET SEED                  the render's plan.json is that render's
+                                                          (both refuse a development version)
     python freeze_query.py look-state [--retry] SPEC...   the first look, or the one retry
+    python freeze_query.py look-recorded RUN COMMIT SPEC...  the look of RUN left its ledger line
     python freeze_query.py v1-state FREEZE_JSON SPEC...   the v1 arm follows the look, once
     python freeze_query.py ledger                         the sealed ledger and its line count
+
+A SPEC is spelled as in [sealed] sets; the ledger queries compare the look the guard records for it
+now (``spec@version`` for a dataset whose content has versions, ``calibration.ledger_versions``).
 
 The checkout's settings (configs/, the environment, profile precise) give the paths, so every
 query sees what the physverify calls of the same script see; no query depends on the device.
@@ -87,6 +92,10 @@ def _parser() -> argparse.ArgumentParser:
     state = sub.add_parser("look-state")
     state.add_argument("--retry", action="store_true")
     state.add_argument("specs", nargs="+")
+    recorded = sub.add_parser("look-recorded")
+    recorded.add_argument("run_dir", type=Path)
+    recorded.add_argument("commit")
+    recorded.add_argument("specs", nargs="+")
     arm = sub.add_parser("v1-state")
     arm.add_argument("freeze", type=Path)
     arm.add_argument("specs", nargs="+")
@@ -121,11 +130,10 @@ def _write_manifest(args: argparse.Namespace) -> list[str]:
 
 def _render(args: argparse.Namespace) -> list[str]:
     from physverify.app import plugins
-    from physverify.datasets.kubric_fresh import fresh_settings
-    from physverify.freeze.fresh_render import VERSION_ENV, plan_lines, render_overrides
+    from physverify.freeze.fresh_render import VERSION_ENV, plan_lines, sealed_overrides
 
     datasets = plugins.PLUGIN_KINDS["datasets"]()
-    overrides = render_overrides(fresh_settings(_settings()), datasets, args.dataset, args.seed)
+    overrides = sealed_overrides(_settings(), datasets, args.dataset, args.seed)
     if args.command == "render-env":
         return [f"{key}={value}" for key, value in overrides.items()]
     return plan_lines(_settings(overrides), overrides[VERSION_ENV], args.seed)
@@ -141,15 +149,29 @@ def _artifacts(args: argparse.Namespace) -> list[str]:
 
 
 def _ledger(args: argparse.Namespace) -> list[str]:
-    from physverify.freeze.ledger import ledger_entries, ledger_line, look_state, v1_state
+    from physverify.app import plugins
+    from physverify.calibration.ledger_versions import legacy_settings
+    from physverify.freeze.ledger import (
+        current_looks,
+        ledger_entries,
+        ledger_line,
+        ledger_looks,
+        look_state,
+        recorded_look,
+        v1_state,
+    )
 
     settings, home = _settings(), Path(os.environ.get("HOME") or Path.home())
     if args.command == "ledger":
         return [ledger_line(settings, home)]
-    entries = ledger_entries(settings, home)
+    looks = current_looks(settings, plugins.PLUGIN_KINDS["datasets"](), args.specs)
+    if args.command == "v1-state":
+        entries = ledger_entries(settings, home)
+        return [v1_state(entries, read_json(args.freeze), looks, legacy_settings(settings))]
+    looked = ledger_looks(settings, home, looks)
     if args.command == "look-state":
-        return [look_state(entries, args.specs, retry=args.retry)]
-    return [v1_state(entries, read_json(args.freeze), args.specs)]
+        return [look_state(looked, list(looks.values()), retry=args.retry)]
+    return [recorded_look(looked, args.run_dir, args.commit, list(looks.values()))]
 
 
 def _output(args: argparse.Namespace) -> list[str]:

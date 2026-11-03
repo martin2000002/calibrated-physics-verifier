@@ -34,9 +34,11 @@
 #
 # Fresh data: extract refuses a set whose cache directory ($CACHE/<dataset>) exists before its first
 # extraction (the marker $F/run-final/extract-SET.started tells a resume), and every Kubric command
-# needs the render's plan.json of the seed (freeze_query plan). Render resumes the same version
+# needs the render's plan.json of the seed (freeze_query plan); render, extract and look refuse a
+# render version declared in calibration.development_sets. Render resumes the same version
 # and seed only, never after a look; the exported share of the plan is noted against 90 %. One
-# look: look refuses a set any ledger line covers; --retry passes once, when that line's run wrote
+# look: look refuses a set any ledger line covers, and stops unless its run left a ledger line of
+# this commit covering exactly its specs; --retry passes once, when that line's run wrote
 # no evaluation, with PHYSVERIFY_UNSEAL_REPEAT=1; a missing ledger stops render, look and v1arm (it
 # is created once by hand, never by a look). Fixed downloads: fetch writes the sha256 manifest of
 # the downloaded files; extract and look check it, and fetch is refused once extraction has started.
@@ -337,10 +339,9 @@ cmd_render() {
     elif [[ "$line" != *"render first"* ]]; then
         stop "$line"
     fi
-    while IFS= read -r line; do
-        renv+=("$line")
-    done < <(fq render-env "$SET" "$SEED")
-    [[ ${#renv[@]} -gt 0 ]] || stop "no render settings for $SET"
+    line="$(fq render-env "$SET" "$SEED")" || stop "no render settings for $SET"
+    mapfile -t renv <<<"$line"
+    [[ -n "$line" ]] || stop "no render settings for $SET"
     run_logged 0 -- env "${renv[@]}" UV_PROJECT_ENVIRONMENT="$VENV" PYTHONPATH="$REPO_ROOT/src" \
         PHYSVERIFY_KUBRIC_ENGINE="${PHYSVERIFY_KUBRIC_ENGINE:-udocker}" \
         bash "$REPO_ROOT/scripts/h200/run_kubric.sh" full
@@ -433,7 +434,7 @@ extract_shards() {
 
 cmd_look() {
     hold "look-$SET"
-    local need state evaluation ledger
+    local need state evaluation ledger recorded
     for need in $NEEDS; do
         hold "extract-$need"
         completed extract "$need" || stop "extract $need has not completed"
@@ -452,6 +453,9 @@ cmd_look() {
     unset PHYSVERIFY_UNSEAL PHYSVERIFY_UNSEAL_REPEAT
     note "after: $(fq ledger)"
     evaluation="$(evaluation_of "$LAST_LOG")"
+    recorded="$(fq look-recorded "$(dirname "$evaluation")" "$HEAD_COMMIT" ${SPECS//,/ })" \
+        || stop "the look left no ledger line covering exactly $SPECS (fail closed)"
+    note "$recorded"
     note "evaluation $evaluation sha256 $(sha_of "$evaluation") (report $(dirname "$evaluation")/evaluation.md)"
 }
 

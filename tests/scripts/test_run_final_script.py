@@ -28,7 +28,8 @@ PREFIX = re.compile(r"^--profile precise --device (cpu|cuda) --set runtime\.thre
 GPU = "2"
 # freeze_query.py field and seed run for real (they only read freeze.json or hash strings); the
 # ledger is a file of commit|sets|run_dir lines that a fake look appends to before it computes,
-# as the sealed guard does, and that the fake look-state and v1-state read with the one-look rule.
+# as the sealed guard does (UNRECORDED: an exempted look appends none), and that the fake
+# look-state, look-recorded and v1-state read with the one-look rule.
 FAKE_PYTHON = r"""#!/bin/bash
 LEDGER_FILE="${PHYSVERIFY__SEALED__LEDGER:-$LEDGER}"
 log_env() {
@@ -57,7 +58,7 @@ covering() {
 }
 evaluate() {
     new_run
-    if [[ -n "${PHYSVERIFY_UNSEAL:-}" ]]; then
+    if [[ -n "${PHYSVERIFY_UNSEAL:-}" && -z "${UNRECORDED:-}" ]]; then
         [[ -f "$LEDGER_FILE" ]] || { echo "no sealed ledger" >&2; exit 2; }
         echo "$1|$PHYSVERIFY_UNSEAL|$RUN" >> "$LEDGER_FILE"
     fi
@@ -71,6 +72,10 @@ evaluate() {
 if [[ "$1" != -c ]]; then
     script="$(basename "$1")"
     printf 'query %s %s\n' "$script" "${*:2}" >> "$CALLS"
+    if [[ " ${DEV_QUERIES:-} " == *" $2 "* ]]; then
+        echo "freeze_query: $3@v-$3 is a sealed render and a declared development set" >&2
+        exit 2
+    fi
     case "$script $2" in
       "freeze_query.py field" | "freeze_query.py seed") exec "$REAL_PYTHON" "$@" ;;
       "freeze_query.py artifacts") exit "${ARTIFACTS_EXIT:-0}" ;;
@@ -96,6 +101,11 @@ if [[ "$1" != -c ]]; then
                 || { echo "freeze_query: the earlier look wrote evaluation.json" >&2; exit 2; }
             echo retry
         fi ;;
+      "freeze_query.py look-recorded")
+        specs="${*:5}"
+        grep -qxF "$4|${specs// /,}|$3" "$LEDGER_FILE" \
+            || { echo "freeze_query: no ledger line of run $3" >&2; exit 2; }
+        echo "recorded: $4 $specs" ;;
       "freeze_query.py v1-state")
         shift 3; specs="$*"
         found="$(covering "${specs// /,}")"
@@ -559,6 +569,22 @@ def test_one_retry_follows_a_look_that_wrote_no_evaluation(sandbox: FinalSandbox
     assert "retry look at kubric_fresh" in sandbox.summary("look-kubric_fresh")
 
 
+@pytest.mark.parametrize("dataset", ["kubric_fresh", "real_new"])
+def test_a_look_that_left_no_ledger_line_fails(sandbox: FinalSandbox, dataset: str) -> None:
+    """A look the guard exempted (no line of this run, commit and specs) exits 2."""
+    if dataset == "real_new":
+        sandbox.ok("seed")
+        for name in ("physics_iq_views", "objectron_static"):
+            sandbox.ok("fetch", name)
+            sandbox.ok("extract", name)
+    else:
+        _ready(sandbox)
+    result = sandbox.run("look", dataset, UNRECORDED="1")
+    assert result.returncode == 2, result.stderr
+    assert "the look left no ledger line covering exactly" in result.stderr
+    assert len(sandbox.looks()) == 1 and sandbox.ledger_lines() == []
+
+
 def test_a_render_after_a_look_is_refused(sandbox: FinalSandbox) -> None:
     """No new render of a set that has been looked at."""
     _ready(sandbox)
@@ -843,6 +869,24 @@ def test_a_render_without_a_planned_clip_count_stops(sandbox: FinalSandbox) -> N
     sandbox.ok("seed")
     result = sandbox.run("render", "kubric_fresh", PLAN_CLIPS="0")
     assert result.returncode == 2 and "no planned clip count" in result.stderr
+
+
+@pytest.mark.parametrize(
+    ("queries", "message"),
+    [
+        ("plan render-env", "kubric_fresh@v-kubric_fresh is a sealed render and a declared"),
+        ("render-env", "no render settings for kubric_fresh"),
+    ],
+    ids=["plan", "render-env"],
+)
+def test_a_render_of_a_development_version_is_refused(
+    sandbox: FinalSandbox, queries: str, message: str
+) -> None:
+    """freeze_query refuses the render settings of a declared development version: no render."""
+    sandbox.ok("seed")
+    result = sandbox.run("render", "kubric_fresh", DEV_QUERIES=queries)
+    assert result.returncode == 2 and message in result.stderr, result.stderr
+    assert not any(line.startswith("kubric ") for line in sandbox.lines())
 
 
 def test_an_unchanged_checks_toml_is_not_a_foreign_config_difference(sandbox: FinalSandbox) -> None:

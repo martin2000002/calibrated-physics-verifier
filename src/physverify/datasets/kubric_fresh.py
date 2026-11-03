@@ -7,10 +7,12 @@ the expected object counts withheld from the detector."""
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from pydantic import Field
 
+from physverify.config.models import validated
 from physverify.core.models import FrozenModel
 from physverify.datasets._kubric_synthetic import KubricSynthetic
 from physverify.schema.clip import ClipManifest
@@ -45,6 +47,10 @@ class KubricFresh(KubricSynthetic):
     def __init__(self, settings: Settings) -> None:
         version = self.version_of(fresh_settings(settings))
         super().__init__(settings, root=settings.paths.synthetic_dir / version)
+
+    @classmethod
+    def sealed_version(cls, sections: Mapping[str, Any]) -> str:
+        return cls.version_of(validated(KubricFreshSettings, sections.get(SECTION, {}), SECTION))
 
     @classmethod
     def render_overrides(cls, fresh: KubricFreshSettings, seed: int) -> dict[str, str]:

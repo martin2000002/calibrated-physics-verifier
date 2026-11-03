@@ -1,0 +1,15 @@
+# The dataset version each sealed-ledger line written before lines recorded versions looked at.
+# Those lines name the bare spec (`kubric_fresh`); a line now names `spec@version`, so a look
+# counts against one render. A bare line of a versioned dataset is read as `spec@version` only
+# when its dataset is declared here and the line was written at `commit`; any other bare line of
+# a versioned dataset fails closed. Only these committed files declare `versions` (never
+# local.toml, the environment or --set). The ledger itself is never edited.
+[sealed_legacy.versions.kubric_fresh]
+version = "v2-fresh"
+commit = "0641659e61d12b1a63d4c57cf5a391a2081d9757"
+reason = "configs/kubric_fresh.toml at that commit sets version = v2-fresh; the look read synthetic/v2-fresh"
+
+[sealed_legacy.versions.kubric_synthetic]
+version = "v1-precise"
+commit = "0641659e61d12b1a63d4c57cf5a391a2081d9757"
+reason = "the look ran --profile precise; configs/dataset.toml [dataset.profiles.precise] at that commit sets version = v1-precise"
