@@ -27,9 +27,15 @@ TWO_FRESH = "v2-fresh v2-dev-b2"
 # The development-version query answers from DECLARED_FRESH (the declared kubric_fresh versions,
 # v2-fresh by default) and v1-precise-hdri-dev, as run_query.py would (QUERY_FAIL refuses); pv
 # calls are logged with the paths and PV_* variables they see; doctor answers from the
-# environment; the steps write what they would.
+# environment; the steps write what they would. freeze_query.py candidate refuses an iteration whose
+# calibration.json reads REHEARSAL, as the real query refuses a fit on chosen clips.
 FAKE_PYTHON = r"""#!/bin/bash
 CAL="$PHYSVERIFY__PATHS__CALIBRATION_DIR"
+if [[ "$1" == */freeze_query.py ]]; then
+    printf 'freeze %s\n' "${*:2}" >> "$CALLS"
+    [[ "$(cat "$3/calibration.json")" != REHEARSAL ]] && exit 0
+    echo "freeze_query: not fitted on the whole calib population" >&2; exit 2
+fi
 if [[ "$1" != -c ]]; then
     printf 'query %s\n' "${*:2}" >> "$CALLS"
     [[ -z "${QUERY_FAIL:-}" ]] || { echo "run_query: no version" >&2; exit 2; }
@@ -183,6 +189,7 @@ def test_the_reading_runs_both_sets_with_their_own_paths(sandbox: DevBSandbox) -
     before = {p: p.read_bytes() for p in (sandbox.iteration / "calibration").iterdir()}
     result = sandbox.run()
     assert result.returncode == 0, result.stderr
+    assert f"freeze candidate {sandbox.iteration}" in sandbox.lines()
     assert sandbox.commands() == _expected(sandbox)
     a_calibration = str(sandbox.iteration / "calibration")
     fresh = [str(sandbox.out / "fresh" / "calibration"), str(sandbox.out / "fresh" / "runs")]
@@ -282,6 +289,25 @@ def _break_artifact(sandbox: DevBSandbox) -> None:
 
 def _break_profile(sandbox: DevBSandbox) -> None:
     (sandbox.iteration / "calibration" / "stage_errors.precise.json").write_bytes(b"other")
+
+
+def test_a_rehearsal_is_refused_before_any_call(sandbox: DevBSandbox) -> None:
+    """A fit on chosen calib clips is no iteration: the reading stops before it spends a look."""
+    artifact = sandbox.iteration / "calibration.json"
+    artifact.write_bytes(b"REHEARSAL")
+    state = sandbox.iteration / "state.env"
+    lines = [
+        f"CALIBRATION_SHA={_sha(b'REHEARSAL')}" if line.startswith("CALIBRATION_SHA=") else line
+        for line in state.read_text(encoding="utf-8").splitlines()
+    ]
+    state.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    for dry in ("0", "1"):
+        result = sandbox.run(PHYSVERIFY_DEV_B_DRY_RUN=dry)
+        assert result.returncode == 2, result.stderr
+        assert "not fitted on the whole calib population" in result.stderr
+        assert "is not an iteration the freeze would adopt" in result.stderr
+    assert sandbox.commands() == []
+    assert not sandbox.out.exists()
 
 
 def _drop_step(sandbox: DevBSandbox) -> None:

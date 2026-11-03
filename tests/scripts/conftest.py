@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 from data_environ import data_dir as data_dir
 from data_environ import settings_environ as settings_environ
+from iteration_artifact import calibration_text
 from network import no_network as no_network
 from timing_settings import clip_factory as clip_factory
 
@@ -33,6 +34,7 @@ def make_iteration(
     profile: str = "precise",
     steps: Sequence[int] = (1, 2, 3, 4, 5),
     commit: str = "c" * 40,
+    whole: bool = True,
 ) -> Path:
     """A run_perception_iteration.sh directory: state.env written with printf %q, steps.tsv, the
     files."""
@@ -42,7 +44,7 @@ def make_iteration(
     files = {key: relative.format(profile=profile) for key, relative in ITERATION_FILES.items()}
     contents = {
         files["DEVSCORE_SHA"]: json.dumps(devscore).encode(),
-        files["CALIBRATION_SHA"]: f"calibration of {name}".encode(),
+        files["CALIBRATION_SHA"]: calibration_text(name, whole=whole).encode(),
         files["PROFILE_SHA"]: f"profile of {name}".encode(),
         files["STAGE_SIGMA_SHA"]: f"sigma of {name}".encode(),
     }

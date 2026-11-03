@@ -7,7 +7,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from physverify.calibration.artifact import DatasetRef, StageFactor, StageSigma
+from physverify.calibration.artifact import DatasetRef, StageFactor, StageSigma, clip_ids_hash
 from physverify.calibration.artifact_io import (
     Calibration,
     CalibrationError,
@@ -55,7 +55,6 @@ from physverify.runtime.runs import RunContext
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import ClipManifest, Split
 from physverify.schema.error_profile import ErrorProfile
-from physverify.schema.io import stable_hash
 from physverify.synth.scene_scope import SceneScope, h1_scope, in_scope, scene_of
 from physverify.verification.inputs import InputSource, OracleSource
 from physverify.verification.runner import (
@@ -101,15 +100,14 @@ def levels_of(level: str | None, session: Session) -> tuple[InputLevel, ...]:
 def dataset_ref(
     dataset: DatasetSource, subset: str, split: str, clips: Sequence[ClipManifest]
 ) -> DatasetRef:
-    ids = sorted(clip.clip_id for clip in clips)
     return DatasetRef(
         name=dataset.name,
         version=dataset_versions(dataset, clips).get(dataset.name, ""),
         subset=subset,
         split=split,
-        n_clips=len(ids),
+        n_clips=len(clips),
         n_scenes=len({scene_of(clip) for clip in clips}),
-        clip_ids_hash=stable_hash(ids),
+        clip_ids_hash=clip_ids_hash(clips),
         identity=dataset_identity(dataset),
     )
 

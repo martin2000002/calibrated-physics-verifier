@@ -271,7 +271,10 @@ export PHYSVERIFY_ITERATION_ID=<id> PHYSVERIFY_ITERATION_EXPECT_COMMIT=<head> \
 
 A rehearsal on a few calib clips sets `PHYSVERIFY_ITERATION_CLIPS_FILE` (calib ids only, checked
 against the listing): every step passes them as `--clips`, so `stage-sigma` and `dev-score` drop
-the `calib_f3_extra` extension and the result is not an iteration.
+the `calib_f3_extra` extension and the result is not an iteration. Its `calibration.json` records
+the population a fit without `--clips` would take (`dataset.population_hash`) beside the one it
+took (`dataset.clip_ids_hash`); `freeze_query.py select` (the freeze) and `candidate`
+(`run_dev_b.sh`) refuse it unless the two are equal.
 `PHYSVERIFY_ITERATION_EXTENSION_LIMIT=N` (only with a clip list) extracts the first N extension
 clips in steps 1 and 3, none with 0. Without either variable the iteration is unchanged.
 

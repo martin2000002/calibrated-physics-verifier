@@ -14,6 +14,7 @@ from types import ModuleType
 from typing import Any
 
 import pytest
+from iteration_artifact import calibration_text
 from repo_configs import CALIBRATION_FILE, declare
 
 from physverify.app.plugins import PLUGIN_KINDS
@@ -156,6 +157,49 @@ def test_a_file_that_moved_after_the_iteration_is_refused(
         candidate(directory)
 
 
+def test_only_a_fit_on_the_whole_calib_population_is_a_candidate(
+    tmp_path: Path, iteration_factory: Callable[..., Path]
+) -> None:
+    whole = iteration_factory(tmp_path, "it2-state", 3, 0.6)
+    assert candidate(whole).id == "it2-state"
+    rehearsal = iteration_factory(tmp_path, "it3-dry", 9, 0.99, whole=False)
+    with pytest.raises(QueryError, match="not fitted on the whole calib population"):
+        candidate(rehearsal)
+
+
+def test_an_artifact_that_records_no_population_is_refused(
+    tmp_path: Path, iteration_factory: Callable[..., Path]
+) -> None:
+    directory = iteration_factory(tmp_path, "it2-state", 3, 0.6)
+    artifact = directory / "calibration.json"
+    data = json.loads(artifact.read_text())
+    del data["dataset"]["population_hash"]
+    artifact.write_text(json.dumps(data))
+    state = directory / "state.env"
+    sha = _sha(artifact.read_bytes())
+    lines = [
+        f"CALIBRATION_SHA={sha}" if line.startswith("CALIBRATION_SHA=") else line
+        for line in state.read_text().splitlines()
+    ]
+    state.write_text("\n".join(lines) + "\n")
+    with pytest.raises(QueryError, match="population_hash None"):
+        candidate(directory)
+
+
+def test_the_candidate_query_exits_2_on_a_rehearsal(
+    script: ModuleType,
+    tmp_path: Path,
+    iteration_factory: Callable[..., Path],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    whole = iteration_factory(tmp_path, "it2-state", 3, 0.6)
+    assert script.main(["candidate", str(whole)]) == 0
+    assert json.loads(capsys.readouterr().out)["id"] == "it2-state"
+    rehearsal = iteration_factory(tmp_path, "it3-dry", 9, 0.99, whole=False)
+    assert script.main(["candidate", str(rehearsal)]) == 2
+    assert "not fitted on the whole calib population" in capsys.readouterr().err
+
+
 def test_two_directories_of_one_iteration_are_refused(
     tmp_path: Path, iteration_factory: Callable[..., Path]
 ) -> None:
@@ -198,7 +242,7 @@ def _frozen_files(settings: Settings) -> dict[str, bytes]:
     directory = settings.paths.calibration_dir
     directory.mkdir(parents=True, exist_ok=True)
     files = {
-        "calibration.json": b"calibration of it2-state",
+        "calibration.json": calibration_text("it2-state").encode(),
         "exclusions.json": b"record",
         "stage_errors.precise.json": b"profile",
         "stage_sigma.json": b"sigma",

@@ -63,7 +63,8 @@
 #   PHYSVERIFY_ITERATION_CLIPS_FILE      a rehearsal on some calib clips [all of calib]: one id per
 #                                        line, each a calib clip; steps 1-5 pass them as --clips,
 #                                        so dev-score and stage-sigma drop the calib_f3_extra
-#                                        extension (R3b loses it); the result is not an iteration
+#                                        extension (R3b loses it); the result is not an iteration:
+#                                        the freeze and run_dev_b.sh refuse its calibration.json
 #   PHYSVERIFY_ITERATION_EXTENSION_LIMIT with CLIPS_FILE only: steps 1 and 3 extract the first N
 #                                        calib_f3_extra clips, none with 0 [all of them]
 set -euo pipefail

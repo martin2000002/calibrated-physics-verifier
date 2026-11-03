@@ -12,8 +12,10 @@
 #                      the choice must be PHYSVERIFY_FREEZE_ITERATION and the diff of the refit
 #                      paths (checks, physics, extraction, verification, selective_risk/curve.py)
 #                      from its commit to HEAD empty, its device and profile this run's
-#                      (_common.sh require_pair); its calibration.json, stage_errors.precise.json
-#                      and stage_sigma.json are copied to $F/calibration (a different file already
+#                      (_common.sh require_pair); select refuses an iteration whose
+#                      calibration.json was not fitted on the whole calib population (a
+#                      rehearsal); its calibration.json, stage_errors.precise.json and
+#                      stage_sigma.json are copied to $F/calibration (a different file already
 #                      there stops)
 #    2 real-dev        extract run on physics_iq and pisa_real (full), the kubric_synthetic calib
 #                      clips and its calib_f3_extra extension (R3b only; split calib leaves it out;

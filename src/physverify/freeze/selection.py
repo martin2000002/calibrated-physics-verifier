@@ -10,6 +10,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from physverify.calibration.artifact_io import CalibrationError, load_calibration
 from physverify.calibration.dev_score import DEVSCORE_FILE
 from physverify.calibration.settings import CalibrationSettings
 from physverify.calibration.sigma_recalibration import STAGE_SIGMA_FILE
@@ -85,9 +86,26 @@ def completed_steps(path: Path) -> set[int]:
     return {step for step, code in last.items() if code == "0"}
 
 
+def require_whole_fit(directory: Path, iteration: str) -> None:
+    """The iteration's calibration.json was fitted on its whole calib population; a rehearsal on
+    chosen clips (PHYSVERIFY_ITERATION_CLIPS_FILE), or an artifact that does not record its
+    population, is refused."""
+    path = directory / CalibrationSettings.model_fields["artifact"].default
+    try:
+        dataset = load_calibration(path).artifact.dataset
+    except CalibrationError as exc:
+        raise QueryError(f"{iteration}: {exc}") from exc
+    if not dataset.whole_population:
+        raise QueryError(
+            f"{iteration}: {path.name} was not fitted on the whole calib population of "
+            f"{dataset.name}/{dataset.subset} (population_hash {dataset.population_hash} != "
+            f"clip_ids_hash {dataset.clip_ids_hash}): a rehearsal is not an iteration"
+        )
+
+
 def candidate(directory: Path) -> Candidate:
     """One iteration of run_perception_iteration.sh with its device and profile, refused unless
-    complete and unchanged."""
+    complete, unchanged and fitted on the whole calib population."""
     state = state_env(directory / "state.env")
     iteration = state.get("CHAIN_ITER_ID", "")
     match = ITERATION_ID.match(iteration)
@@ -102,6 +120,7 @@ def candidate(directory: Path) -> Candidate:
     for key, name in iteration_files(profile).items():
         if readable_sha256(directory / name) != state.get(key):
             raise QueryError(f"{iteration}: {name} is not the file state.env records ({key})")
+    require_whole_fit(directory, iteration)
     devscore = read_json(directory / DEVSCORE_FILE)
     selection = devscore.get("selection")
     if not isinstance(selection, dict):

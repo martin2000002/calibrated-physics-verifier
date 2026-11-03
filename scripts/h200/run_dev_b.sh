@@ -31,7 +31,9 @@
 #
 # Startup (exit 2 before any step): the iteration directory completed steps 1-5 of
 # run_perception_iteration.sh and its calibration.json and error profile are the ones its
-# state.env records; the device (as above) and profile are the iteration's; HEAD is
+# state.env records; freeze_query.py candidate accepts it, as the freeze would (a rehearsal on
+# chosen calib clips is refused: its calibration.json was not fitted on the whole population);
+# the device (as above) and profile are the iteration's; HEAD is
 # PHYSVERIFY_DEV_B_EXPECT_COMMIT with nothing uncommitted or untracked under src, configs,
 # scripts, annotations, pyproject.toml or uv.lock; no configs/local.toml and no
 # PHYSVERIFY_CONFIG_DIR; no PHYSVERIFY__* variable but the ones exported here; no PHYSVERIFY_UNSEAL
@@ -126,6 +128,8 @@ CACHE="${PHYSVERIFY_DEV_B_CACHE_DIR:-}"
 [[ -n "$CACHE" ]] || die "set PHYSVERIFY_DEV_B_CACHE_DIR to the cache root"
 PY="${PHYSVERIFY_DEV_B_PYTHON:-/home/mmonterot/dev/venv/bin/python}"
 [[ -x "$PY" ]] || die "no interpreter at $PY (PHYSVERIFY_DEV_B_PYTHON)"
+h200_py freeze_query.py candidate "$ITER" >/dev/null \
+    || die "$ITER is not an iteration the freeze would adopt (see above): no B reading of it"
 THREADS="${PHYSVERIFY_DEV_B_THREADS:-16}"
 [[ "$THREADS" =~ ^[1-9][0-9]*$ ]] || die "PHYSVERIFY_DEV_B_THREADS must be a positive integer"
 use_workers PHYSVERIFY_DEV_B_WORKERS
