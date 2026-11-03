@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from pydantic import Field
 
+from physverify.calibration.settings import calibration_settings
+from physverify.config.models import Settings
 from physverify.core.models import FrozenModel
 
 SECTION = "abstention"
@@ -22,7 +26,18 @@ class AbstentionSettings(FrozenModel):
     grid_points: int = Field(default=25, ge=2)
     bootstrap: int = Field(default=1000, ge=1)
     seed: int = 0
-    dataset: str = "kubric_synthetic"
-    calib_split: str = "calib"
-    eval_split: str = "eval"
-    real_datasets: tuple[str, ...] = ("physics_iq", "pisa_real")
+
+
+@dataclass(frozen=True)
+class Population:
+    """The clips the study reads: those of the calibration chain (``[calibration]``), its calib
+    split for ``fit`` and its eval split for ``curve``, and its real controls."""
+
+    dataset: str
+    subset: str
+    real_datasets: tuple[str, ...]
+
+
+def population(settings: Settings) -> Population:
+    own = calibration_settings(settings)
+    return Population(own.dataset, own.subset, own.real_datasets)

@@ -6,7 +6,9 @@
 # Windows (*_s) are SECONDS of real time, turned into table rows at each clip's row rate
 # (physics/row_time.py); the defaults are the former row counts at 24 fps.
 # Any check id (R1, R2, R3a, R3b, R4_missing, R4_size, R4_jump, R5a, R5b) accepts a
-# [checks.<id>] table overriding fields of its Params; unknown fields are a ConfigError.
+# [checks.<id>] table overriding fields of its default implementation's Params, and a variant a
+# [checks."<id>/<variant>"] table of its own; a selected variant also takes the [checks.<id>]
+# fields it declares. Unknown fields are a ConfigError, selected or not.
 
 # R2's friction is an interval (friction_range, default FRICTION_RANGE in
 # checks/r2_static_equilibrium.py) sampled in its Monte Carlo: the static coefficients of dry

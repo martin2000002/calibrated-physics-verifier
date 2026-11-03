@@ -54,6 +54,10 @@ UNCOVERED = {
         "the ground-truth provider name, now in schema.provenance so that checks, which may not "
         "import extraction, read it in a provenance; extraction._base re-exports it"
     ),
+    ("src/physverify/extraction/providers/_common.py", "expect_params"): (
+        "a params type check with no numeric effect, now in core.models so that synth families, "
+        "which may not import extraction, share it; providers._common re-exports it"
+    ),
     ("src/physverify/verification/runner.py", "_validated"): (
         "became the generic config.models.validated; the name at HEAD is synth's own helper"
     ),

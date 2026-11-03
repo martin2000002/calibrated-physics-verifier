@@ -6,11 +6,11 @@ from typing import ClassVar
 
 from pydantic import BaseModel
 
-from physverify.verification.thresholding import ThresholdParams, ThresholdRule
+from physverify.verification.thresholding import THRESHOLD_POLICY, ThresholdParams, ThresholdRule
 
 
 class ThresholdPolicy(ThresholdRule):
-    name: ClassVar[str] = "threshold"
+    name: ClassVar[str] = THRESHOLD_POLICY
     Params: ClassVar[type[BaseModel]] = ThresholdParams
 
 

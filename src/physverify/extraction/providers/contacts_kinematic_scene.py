@@ -44,7 +44,7 @@ from physverify.extraction.providers._scene_records import (
     SceneOutcome,
     scene_contacts,
 )
-from physverify.extraction.providers._velocity_tests import VelocityError
+from physverify.extraction.providers._velocity_tests import VelocityError, two_sided_quantile
 from physverify.physics.row_time import reference_seconds
 from physverify.schema.contacts import ContactTable
 from physverify.schema.error_profile import (
@@ -68,6 +68,10 @@ class Params(ProviderParams):
     impacts: ImpactName = "image"
     pair_rest: PairRestName = "image"
     env_gap_gate: bool = False
+
+    def support_gap_z(self) -> float:
+        """The gap gate K: z(alpha / 2), as the scene records test the gap (``SupportGapGate``)."""
+        return two_sided_quantile(self.alpha)
 
 
 def pair_params(params: Params) -> ProximityParams:

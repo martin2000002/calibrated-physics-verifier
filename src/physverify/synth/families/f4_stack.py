@@ -10,6 +10,7 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import BaseModel
 
+from physverify.core.models import expect_params
 from physverify.physics.contact_manifold import support_polygon
 from physverify.physics.geometry import characteristic_length
 from physverify.physics.measures.support_overhang import overhang_fraction
@@ -18,7 +19,6 @@ from physverify.synth.family_toolkit import (
     FamilyCommon,
     RejectedSampleError,
     box_envelope,
-    checked,
     framed_scene,
     heading,
     kind_of,
@@ -55,7 +55,7 @@ class StackFamily:
     Params: ClassVar[type[BaseModel]] = Params
 
     def sample(self, rng: np.random.Generator, params: BaseModel) -> SceneSpec:
-        chosen = checked(params, Params)
+        chosen = expect_params(params, Params)
         return with_retries(NAME, rng, lambda r: _draw(r, chosen))
 
 

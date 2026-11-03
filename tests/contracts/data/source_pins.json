@@ -9,15 +9,15 @@
       "version": "1"
     },
     "R4_size/v3": {
-      "digest": "6472726457d79e9d32f572cc120635b51034838ee9c4c7fc09ac93151e38a9a4",
+      "digest": "760be7636dc0eee065a6daff674848968c6b93389291c74b039df7fe01580e6b",
       "version": "2"
     },
     "R4_size/v3_window_depth": {
-      "digest": "c5e714b0fe53a54bcc7db0c1470a51a1c5c74df50a61dc2986cbe205bcf9baa8",
+      "digest": "e40d683c5f9bfcfcfaa59075f84c8b64798c041acd862d8dea51f5c4f814431f",
       "version": "2"
     },
     "R4_size/v3_window_depth_unoccluded": {
-      "digest": "254c4800e2de1396949ead1416128f440d1200e3e0355a52379b491d91fdf46c",
+      "digest": "d57256260c4db606ab300821fd264312d2f913d01011f13bce6ad3df05cbc675",
       "version": "2"
     },
     "R5a/los_tilt": {
@@ -77,135 +77,135 @@
   },
   "providers": {
     "camera/assumed_fov": {
-      "digest": "5395c05af1504e2d40c65653efd1923d1a4e17554d4356435bfc340117304920",
+      "digest": "8f9298e5ae046ff4da3c23ae799c42504fb8f59ab71d26aae3ca076ac658d361",
       "version": "1"
     },
     "camera/from_depth": {
-      "digest": "b3e7704976bd124027cdc775487ebf1975ef7fd5b222024c88ee63be90840b55",
+      "digest": "0b655e21e4c1b6648ac81088e2fdd12478d9603bd1735e5f91051cc97f8f65c5",
       "version": "2"
     },
     "camera/geocalib": {
-      "digest": "84afd951ab715f7bee23a04f9a064830e161e7581230969a3032f54becf35ee4",
+      "digest": "a2b19ca5a86ec20bf161b53e10901e3c206e3a6dfbd78e7e9db1a737ed695255",
       "version": "3"
     },
     "camera/ground_truth": {
-      "digest": "c8443020e777e116a849b47ea0f698577686920b38187f775a908d3e34eb1178",
+      "digest": "1f479485733268f27fbbdaac7d13843644f072859ab751f963e34e9db1986b4e",
       "version": "1"
     },
     "camera/moge2_focal": {
-      "digest": "0f2e102eb40b0a0250dc5b1eedba77a2621f175767433964c2cd6f0b5fece3fb",
-      "version": "2"
+      "digest": "e6300b24a76680b4f2d2f9ce4d2708e30839e7b6c5350177e18be071424ccd31",
+      "version": "3"
     },
     "contacts/ground_truth": {
-      "digest": "e25038aaf3dfe21266d316234c57fe2715cbb71480cfc29dbb50c7c1e93d7ac0",
+      "digest": "d316e1d40222ad89086cb92a823e73e736a110000d88478d051ba3056b1fd63f",
       "version": "2"
     },
     "contacts/kinematic": {
-      "digest": "0431db8a83a00eb9a2f39a0a645c030a586abf5a25062428bc20d03ca4690fa0",
+      "digest": "d7ea73f5c9bf84c81279b442b99002d1217924f8d61a7628e99679d89b3ff85d",
       "version": "1"
     },
     "contacts/kinematic_scene": {
-      "digest": "430eaff20efb4eed859e44ae667601e0c78ebe2f80a010681fa9690d50a42971",
+      "digest": "f22c8cdbcf46c40df43822fada131fb34c64a610c936111f51bb5b2357da9676",
       "version": "5"
     },
     "contacts/proximity": {
-      "digest": "3f997627b5d7605148eba6cce70e5580893d981c3856797966d2309e2bd813b5",
+      "digest": "59e3fe5a5f94b34c0dfe2cb53828292f05038e3b57a23d547fc6941b8f8dbb47",
       "version": "1"
     },
     "depth/ground_truth": {
-      "digest": "7ad8e534788f9334bb3f7b5a9aabf8a5bbe7715a432dd282651add934360dd14",
+      "digest": "92a1e9d2e5418306f490a35f8d7e349089ec744e1904d4a4ac9a56159ea3e0b2",
       "version": "2"
     },
     "depth/moge2": {
-      "digest": "d372fcf6c771b844ac1a1bbf9e45e952f8fbbfedbf84bdf6f4b3bdd91d8ff419",
+      "digest": "5875518feda79450e0006fe76a159df3ce4710ec61e17590510f863dd109373b",
       "version": "1"
     },
     "depth/vda_large": {
-      "digest": "c4f1023a9a0c869f7f392a2cf92bbeec1dd834733aa882677e187f23f76f5695",
+      "digest": "6e2f4895d631250211f568d752690fb5a2627843983e2202f34026164c5b209c",
       "version": "1"
     },
     "depth/vda_metric_small": {
-      "digest": "809b277a8a4a51b7dfeffa1a3c33fad2257fd78d15dcc73172c29725ce7772b2",
+      "digest": "f4c3760cf26f307faefefcd3c93468210de3c8da62ed07356ace2fbdb1ffa97d",
       "version": "1"
     },
     "depth/vda_small": {
-      "digest": "45058e153b0cbe10f303319ce575759b0ab801d88928200e4461a165da132726",
+      "digest": "919b74f8158cf3e949693eed3af7b6817319a0a9b11e7f9fcb80504139c3dff7",
       "version": "1"
     },
     "detect/ground_truth": {
-      "digest": "e8dbe88659e61de91e4e89d927b317a12ab404395ed76bf1f8ff6bc11fb9b0de",
+      "digest": "5938a24cd7d0d5fb04e338872bcb7f8eb6e86246d5d5b5f58b138d43c45fee1c",
       "version": "1"
     },
     "detect/grounding_dino_base": {
-      "digest": "7085e3ed6d058529057c825b4719eb8e2ec58b37df9217cbec8961112767a0ae",
+      "digest": "7ca36d88d67fca28b89161a0dbb4f6c53afc1dcc95ac6c0130678f0789d2c75e",
       "version": "1"
     },
     "detect/grounding_dino_tiny": {
-      "digest": "49e4f1de2fb8fa590f026c01c5d268093ae5a600e3c2bff16a1d8ccc79a65b9c",
+      "digest": "abb3eab44f8f6014e41081b8503be7196cf959b950f8ec8939e42c9266c3ea4e",
       "version": "1"
     },
     "detect/grounding_dino_tiny_per_query": {
-      "digest": "b65744f7d93ccf7724354a2adea7fc227f61e9988f7379be2c9c196f2736d70a",
+      "digest": "474687bc6cb5f30f9941614e65aac60548fbc53c5ccc5ae8fe402da2ace08fa2",
       "version": "1"
     },
     "kinematics/ground_truth": {
-      "digest": "ca1898ead5b63808491df228aa834d4791f693c7dc59fb30f08ee44f71ac5f9f",
+      "digest": "a618e25c9f76937d88fcc4d4f113d94cc2da1a45b34640b2d8fb3d31a1f05b5d",
       "version": "2"
     },
     "kinematics/savgol": {
-      "digest": "7888e6d51416eb81b185171f6a10ab2837b0e538c3507afd286647f9358d3a77",
+      "digest": "72838dff6ed5309969353c14bbd63aa7ef72707fc1199b163f2431d9e7b75203",
       "version": "1"
     },
     "lift/backproject": {
-      "digest": "ebb84a21eb719351ed22ca405e4ecfc3e78caaa66cd52512f015b452f5492dee",
+      "digest": "9e6672167c5e6ea6987c181695cc697e23b158537945ddae25b0ea1efe8bc6e4",
       "version": "7"
     },
     "lift/backproject_size_constancy": {
-      "digest": "49b564c37cdeb4114bd954d5e072df0a228dcb3748efd48a37d5d9b201ac8b01",
+      "digest": "066758b3999fac98c0f2a0b5d856a7a0b0367534fe390e5a0d3293356ff50755",
       "version": "2"
     },
     "lift/backproject_unnested": {
-      "digest": "bf416a9fa316a4b57dd3b9637494ca9586f3f85310fc601039638f20593ea108",
+      "digest": "15a48f9ba515437015367afd13c657cad6da25a6023fe553ad78ffbbdab01f4b",
       "version": "4"
     },
     "lift/ground_anchored": {
-      "digest": "91fccf2ec91a1b8aed3b196cbb5174e334cfbc5a97762921669b6a72f15547b0",
+      "digest": "d9b88e339295f6d65d131a1ccf6ff9657e79c3ab851a10c216353c2e06e7fa1e",
       "version": "5"
     },
     "lift/ground_truth": {
-      "digest": "01464eee6952ebade6174b1e5831d5facd55b3dd5addafee850e63d43da00839",
+      "digest": "9d37b3c30049d3d8d248c71e6b3665273467ca6c2bee08170b155577fc4c30e4",
       "version": "2"
     },
     "scale/free_fall": {
-      "digest": "a21fc3b6ec6c875493cb7cea42019f304fec6a43bfbb1c7a241d8f0165233c64",
+      "digest": "52d60ec9dfbeddcef09d7ffb9d1af3fac8a67de45f26543ba5cba5d09a07a556",
       "version": "2"
     },
     "scale/ground_truth": {
-      "digest": "1feb09aebb5ab0e700913de83c4e920d5027451c024bccaee69b51c517d14a07",
+      "digest": "4451d732d10310d29877f91d033622e3889105f770dc5db84a9ee768c5f91b4b",
       "version": "2"
     },
     "scale/metric_depth": {
-      "digest": "671ce41b1019ae65131ca8f4e7756612706ef169fc5965892a52aab15cb1fe04",
+      "digest": "613b0bc7eff202f03087bdf3285c2b6b2fd1a3edd2af79ae18780920d28509d4",
       "version": "3"
     },
     "scale/size_model": {
-      "digest": "e5aa83cb681a5a772a69f03fb49c993d3645974f06b21f9daf2eac2a74c29aa5",
+      "digest": "b031de3d2932ca153782101a69881ec8bc01268cae7f3ead3f37029401e4afe9",
       "version": "3"
     },
     "scale/size_prior": {
-      "digest": "c02ce58ae85b0da764b0b5858ac049036f6eaa1800ad351e43b7832ed9cd27d6",
+      "digest": "25152990b9d42c7b4598ac6b16bc85ff9ebc9f514cbed51617917a05c607bbd5",
       "version": "3"
     },
     "track/edgetam": {
-      "digest": "5e13eaa6db7587968ec7c9f4a0fab28c032ab8a4eb19abe7d407e1d4d5e5cadf",
+      "digest": "400090d46f751e3f44e5bcfcd3b6d59c563e7393fc517b5f7fb6654f468186f7",
       "version": "1"
     },
     "track/ground_truth": {
-      "digest": "59d385deb4b356792d7bb9d6474387817a7eaa2ea60187bcab08076e813be3b6",
+      "digest": "c59e11d880ceac85e26990230a349d4b7867e1474915883c2612bbf33e1d53d2",
       "version": "1"
     },
     "track/sam2_1_hiera_tiny": {
-      "digest": "ead550435a5a9f16afe51c7124498e12be08f24645dab9eadf818ccbd1418913",
+      "digest": "396b4375a85b8c82f106ea9f16cca1ce91ccf3ce8074ed30a0d0609b16d6bed1",
       "version": "1"
     }
   }

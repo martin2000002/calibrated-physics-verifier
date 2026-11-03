@@ -25,6 +25,13 @@ def absent_when_none() -> Any:
     return Field(default=None, exclude_if=_is_none)
 
 
+def expect_params[P: BaseModel](params: BaseModel, model: type[P]) -> P:
+    """``params`` narrowed to the ``model`` a plugin declared; another model is a wiring bug."""
+    if not isinstance(params, model):
+        raise TypeError(f"expected {model.__name__}, got {type(params).__name__}")
+    return params
+
+
 class FrozenModel(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 

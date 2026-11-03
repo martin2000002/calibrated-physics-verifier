@@ -72,7 +72,6 @@ def test_b4_the_rule_flags_an_estimated_focal_without_a_floor(
     overrides: tuple[str, ...],
     missing: bool,
 ) -> None:
-    # fast: precise pins its own geocalib table, which overrides these keys
     settings = make_settings(*overrides, profile="fast")
     assert (
         floor_missing(resolve_plan(settings, real_providers, dataset="kubric_synthetic")) is missing

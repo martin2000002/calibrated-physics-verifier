@@ -42,10 +42,6 @@ depth = "vda_small"
 # Kinematic-scene contacts replaced proximity once a held-out look on fresh scenes confirmed them.
 contacts = "kinematic_scene"
 
-[extraction.profiles.precise.providers.camera.geocalib]
-focal = "assumed"
-n_frames = 8
-
 [extraction.profiles.precise.sampling]
 max_side = 960
 
