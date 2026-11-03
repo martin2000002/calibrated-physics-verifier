@@ -199,7 +199,8 @@ def configured_suite(
     verification = settings.section(VERIFICATION_SECTION, VerificationSettings)
     if policy is not None:
         verification = verification.model_copy(update={"policy": policy})
-    built = build_checks(checks, settings.section(CHECKS_SECTION, ChecksSettings))
+    overrides = settings.section(CHECKS_SECTION, ChecksSettings)
+    built = build_checks(checks, overrides, verification)
     decider = build_policy(policies, verification)
     return ConfiguredSuite(verification, built, decider, guarded_thresholds(settings, checks))
 

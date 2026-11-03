@@ -6,7 +6,7 @@ from stage plans, so every consumer reads the same plan per check as ``verify`` 
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Collection, Iterator, Mapping, Sequence
 from dataclasses import replace
 from types import MappingProxyType
 from typing import Self
@@ -56,6 +56,15 @@ class CheckRouting(FrozenModel):
                     f"known: {sorted(self.routes)}"
                 )
         return self
+
+    def require_known(self, check_ids: Collection[str]) -> None:
+        """Raise if ``check_routes`` names a check that is not in ``check_ids``."""
+        unknown = sorted(set(self.check_routes) - set(check_ids))
+        if unknown:
+            raise ConfigError(
+                f"{VERIFICATION_SECTION}.check_routes has unknown check ids {unknown}; "
+                f"known: {sorted(check_ids)}"
+            )
 
     def stages_of(self, check_ids: Sequence[str]) -> dict[str, StageTable]:
         """The substituted stages of every routed check in ``check_ids``."""

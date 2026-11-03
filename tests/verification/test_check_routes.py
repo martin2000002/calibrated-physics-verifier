@@ -36,11 +36,12 @@ from physverify.verification.check_set import (
     CHECKS_SECTION,
     ChecksSettings,
     active_checks_hash,
+    build_checks,
     checks_hash,
 )
 from physverify.verification.inputs import ClipInputs, InputSource, provenance
 from physverify.verification.policies.raw import RawPolicy
-from physverify.verification.runner import VerificationRunner
+from physverify.verification.runner import VerificationRunner, configured_suite
 from physverify.verification.thresholding import ThresholdTable
 
 AREA_LIFT = "backproject_area_depth"
@@ -214,6 +215,17 @@ def test_only_the_area_lift_declares_a_size_derived_depth() -> None:
 def test_an_unknown_route_is_refused(make_settings: SettingsFactory) -> None:
     with pytest.raises(ConfigError, match="unknown route"):
         check_routing(make_settings("verification.check_routes.R3a=missing"))
+
+
+def test_a_route_for_an_unknown_check_id_is_refused(make_settings: SettingsFactory) -> None:
+    settings = make_settings(*ROUTE_AREA, "verification.check_routes.R3A=area_depth")
+    registry = PLUGIN_KINDS["checks"]()
+    overrides = settings.section(CHECKS_SECTION, ChecksSettings)
+    with pytest.raises(ConfigError, match=r"check_routes has unknown check ids \['R3A'\]"):
+        build_checks(registry, overrides, check_routing(settings))
+    with pytest.raises(ConfigError, match="R3A"):
+        configured_suite(settings, registry, PLUGIN_KINDS["policies"]())
+    assert build_checks(registry, overrides, check_routing(make_settings(*ROUTED_R3A)))
 
 
 def test_no_r4_size_implementation_is_routed_under_either_profile(

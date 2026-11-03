@@ -89,11 +89,17 @@ def check_overrides(check_id: str, check: type[Check], overrides: ChecksSettings
 
 
 def build_checks(
-    registry: Mapping[str, type[Check]], overrides: ChecksSettings
+    registry: Mapping[str, type[Check]],
+    overrides: ChecksSettings,
+    routing: CheckRouting | None = None,
 ) -> tuple[Check, ...]:
+    """The checks of ``registry`` under ``overrides``; ``routing``, when given, may route only
+    them."""
     unknown = sorted({key.split("/")[0] for key in overrides.root} - set(registry))
     if unknown:
         raise ConfigError(f"[checks] has unknown check ids {unknown}; known: {sorted(registry)}")
+    if routing is not None:
+        routing.require_known({check.check_id for check in registry.values()})
     return tuple(
         check(
             validated(
