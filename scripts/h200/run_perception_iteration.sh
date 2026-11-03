@@ -19,8 +19,9 @@
 # Steps 1-3 may run a model (2 seeds a tracker with the truth; 3 re-runs the camera, whose key holds
 # the new profile's focal sigma); 4 and 5 only read the cache. A cuda range FROM >= 4 needs no GPU:
 # it keeps the device (the cache keys hold it) and hides every GPU, so a cache miss fails instead of
-# using a GPU nobody locked. Launch steps 1-3 under the GPU lock and 4-5 without it
-# (scripts/h200/README.md, "Iteration launcher"); a cuda range that crosses from 3 to 4 is refused.
+# using a GPU nobody locked (_common.sh use_step_device). Launch steps 1-3 under the GPU lock and
+# 4-5 without it (scripts/h200/README.md, "Iteration launcher"); a cuda range that crosses from 3
+# to 4 is refused.
 #
 # Startup (exit 2 before any physverify call): PHYSVERIFY_ITERATION_ID; HEAD is
 # PHYSVERIFY_ITERATION_EXPECT_COMMIT with nothing uncommitted or untracked under src, configs, scripts,
@@ -67,7 +68,7 @@ cd "$REPO_ROOT"
 
 FIRST_STEP=1
 LAST_STEP=5
-LAST_GPU_STEP=3
+GPU_STEPS="1 2 3"
 [[ $# -le 2 ]] || die "usage: run_perception_iteration.sh [FROM [TO]]"
 FROM="${1:-$FIRST_STEP}"
 TO="${2:-$LAST_STEP}"
@@ -95,16 +96,7 @@ refuse_local_config run_perception_iteration.sh
 require_checkout PHYSVERIFY_ITERATION_EXPECT_COMMIT
 
 PHYSVERIFY_ITERATION_DEVICE="${PHYSVERIFY_ITERATION_DEVICE:-cpu}"
-if [[ "$PHYSVERIFY_ITERATION_DEVICE" == cuda && "$FROM" -gt "$LAST_GPU_STEP" ]]; then
-    export CUDA_VISIBLE_DEVICES=""
-    PV_DEVICE=cuda
-else
-    use_device PHYSVERIFY_ITERATION_DEVICE
-fi
-if [[ "$PV_DEVICE" == cuda && "$FROM" -le "$LAST_GPU_STEP" && "$TO" -gt "$LAST_GPU_STEP" ]]; then
-    die "a cuda range must not cross step $LAST_GPU_STEP: run $FROM $LAST_GPU_STEP under the GPU lock," \
-        "then $((LAST_GPU_STEP + 1)) $TO without it (got $FROM $TO)"
-fi
+use_step_device PHYSVERIFY_ITERATION_DEVICE "$FROM" "$TO" "$GPU_STEPS"
 ARM="${PHYSVERIFY_ITERATION_ARM:-}"
 SWAPS=()
 if [[ -n "$ARM" ]]; then
@@ -122,9 +114,7 @@ PY="${PHYSVERIFY_ITERATION_PYTHON:-/home/mmonterot/dev/venv/bin/python}"
 [[ -x "$PY" ]] || die "no interpreter at $PY (PHYSVERIFY_ITERATION_PYTHON)"
 THREADS="${PHYSVERIFY_ITERATION_THREADS:-16}"
 [[ "$THREADS" =~ ^[1-9][0-9]*$ ]] || die "PHYSVERIFY_ITERATION_THREADS must be a positive integer"
-WORKERS="${PHYSVERIFY_ITERATION_WORKERS:-1}"
-[[ "$WORKERS" =~ ^[1-9][0-9]*$ ]] \
-    || die "PHYSVERIFY_ITERATION_WORKERS must be a positive integer, got '$WORKERS'"
+use_workers PHYSVERIFY_ITERATION_WORKERS
 DATA="${PHYSVERIFY_ITERATION_DATA:-$H200_ROOT/kubric-data}"
 OUT="${PHYSVERIFY_ITERATION_DIR:-$H200_ROOT/iterations/$ITER_ID-$PV_DEVICE}"
 
@@ -147,13 +137,6 @@ export PHYSVERIFY__PATHS__HF_HOME="$H200_ROOT/.cache/huggingface"
 export PHYSVERIFY__PATHS__CALIBRATION_DIR="$OUT/calibration"
 export PHYSVERIFY__PATHS__RUNS_DIR="$OUT/runs"
 export PHYSVERIFY__RUNTIME__HEAVY_LOCK="$OUT/heavy.lock"
-export PHYSVERIFY__RUNTIME__WORKERS="$WORKERS"
-if [[ "$WORKERS" -gt 1 ]]; then
-    # The workers are forked: leave the parent with one thread (no BLAS pool, no APM agent threads)
-    # so no lock held by another thread is copied into them, and keep workers x threads in bounds.
-    export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
-    export DD_INSTRUMENT_SERVICE_WITH_APM=false
-fi
 unset PHYSVERIFY_LOCK_HELD
 
 LOGS="$OUT/logs"

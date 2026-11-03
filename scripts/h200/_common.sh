@@ -72,6 +72,41 @@ use_device() {
     PV_DEVICE="$device"
 }
 
+# use_step_device NAME FROM TO GPU_STEPS: use_device NAME for the steps FROM..TO, of which the ones
+# in GPU_STEPS (space separated) may run a model. A cuda range of no GPU step keeps the device (the
+# cache keys hold it) and hides every GPU, so a cache miss fails instead of using a GPU nobody
+# locked; a cuda range of both kinds is refused, so the GPU lock is held by GPU steps only.
+use_step_device() {
+    local k gpu=0 cache=0
+    for ((k = $2; k <= $3; k++)); do
+        if [[ " $4 " == *" $k "* ]]; then gpu=1; else cache=1; fi
+    done
+    if [[ "${!1:-}" == cuda && "$gpu" == 0 ]]; then
+        export CUDA_VISIBLE_DEVICES=""
+        PV_DEVICE=cuda
+        return 0
+    fi
+    use_device "$1"
+    [[ "$PV_DEVICE" != cuda || "$cache" == 0 ]] \
+        || die "a cuda range must not mix GPU steps ($4) with cache-only ones: run the GPU steps" \
+            "under the GPU lock and the others without it (got $2 $3)"
+}
+
+# use_workers NAME: the value of the variable NAME (a positive integer, 1 when unset) becomes
+# WORKERS and runtime.workers.
+use_workers() {
+    WORKERS="${!1:-1}"
+    [[ "$WORKERS" =~ ^[1-9][0-9]*$ ]] || die "$1 must be a positive integer, got '$WORKERS'"
+    export PHYSVERIFY__RUNTIME__WORKERS="$WORKERS"
+    if [[ "$WORKERS" -gt 1 ]]; then
+        # The workers are forked: leave the parent with one thread (no BLAS pool, no APM agent
+        # threads) so no lock held by another thread is copied into them, and keep workers x
+        # threads in bounds.
+        export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
+        export DD_INSTRUMENT_SERVICE_WITH_APM=false
+    fi
+}
+
 # require_pair WHAT DEVICE PROFILE [FAIL]: WHAT (an adopted calibration, a freeze) was made with
 # this run's PV_DEVICE and PV_PROFILE; FAIL (die by default) refuses any other pair.
 require_pair() {

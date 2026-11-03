@@ -298,7 +298,7 @@ def test_a_cuda_range_across_the_last_gpu_step_is_refused(
 ) -> None:
     """Steps 4-5 must run outside the GPU lock, so a cuda run never goes from 3 to 4."""
     result = sandbox.run(first, last, PHYSVERIFY_ITERATION_DEVICE="cuda", CUDA_VISIBLE_DEVICES="2")
-    assert result.returncode == 2 and "must not cross step 3" in result.stderr, result.stderr
+    assert result.returncode == 2 and "must not mix GPU steps" in result.stderr, result.stderr
     assert sandbox.pv() == []
     assert sandbox.run(first, last).returncode == (0 if first == "1" else 2)
 

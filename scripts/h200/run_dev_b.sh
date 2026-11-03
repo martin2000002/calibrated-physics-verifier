@@ -23,19 +23,25 @@
 # The dev-score runs of A (the iteration) and of step 4 hold different clips, so they are set
 # side by side in the summary, not compared clip by clip (compare-devscore pairs clips).
 #
+# Steps 1, 2 and 5 may run a model (1 seeds a tracker with the truth; 2 and 5 compute the camera
+# and the stages a new cache lacks); 3, 4 and 6 only read the cache. As in the iteration
+# (_common.sh use_step_device), a cuda range of cache-only steps keeps the device and hides every
+# GPU, and a cuda range of both kinds is refused: run 1 2 and 5 under the GPU lock, 3 4 and 6
+# without it. A dry run runs no step and hides every GPU whatever the range.
+#
 # Startup (exit 2 before any step): the iteration directory completed steps 1-5 of
 # run_perception_iteration.sh and its calibration.json and error profile are the ones its
-# state.env records; the device (CUDA_VISIBLE_DEVICES in 0-3 for cuda) and profile are the
-# iteration's; HEAD is PHYSVERIFY_DEV_B_EXPECT_COMMIT with nothing uncommitted or untracked under
-# src, configs, scripts, annotations, pyproject.toml or uv.lock; no configs/local.toml and no
+# state.env records; the device (as above) and profile are the iteration's; HEAD is
+# PHYSVERIFY_DEV_B_EXPECT_COMMIT with nothing uncommitted or untracked under src, configs,
+# scripts, annotations, pyproject.toml or uv.lock; no configs/local.toml and no
 # PHYSVERIFY_CONFIG_DIR; no PHYSVERIFY__* variable but the ones exported here; no PHYSVERIFY_UNSEAL
 # or PHYSVERIFY_UNSEAL_REPEAT; the clips file lists clip ids; calibration.development_sets declares
 # PHYSVERIFY_DEV_B_FRESH_VERSION of kubric_fresh (or only one version when it is unset) and one
 # version of kubric_synthetic; the output directory is not inside the
 # calibration chain's directory or the baseline's calibration or runs; no other instance on
 # $OUT/run.lock; state.env of another iteration or clip list; steps 1..FROM-1 completed. Then
-# doctor, for each set, reports config_dir $REPO_ROOT/configs, the device, the profile, the cache,
-# and the set's calibration directory, runs directory and error profile.
+# doctor, for each set, reports config_dir $REPO_ROOT/configs, the device, the profile, the
+# workers, the cache, and the set's calibration directory, runs directory and error profile.
 #
 # Required:
 #   PHYSVERIFY_DEV_B_ITERATION_DIR   the run_perception_iteration.sh directory read (A)
@@ -47,6 +53,10 @@
 #                                    nothing else runs and nothing is written [0]
 #   PHYSVERIFY_DEV_B_PYTHON          interpreter [/home/mmonterot/dev/venv/bin/python]
 #   PHYSVERIFY_DEV_B_THREADS         runtime.threads [16]
+#   PHYSVERIFY_DEV_B_WORKERS         runtime.workers, processes over clips [1]; take it from
+#                                    cpu_workers.sh. Outputs do not depend on it. Above 1,
+#                                    numpy's BLAS runs one thread per process (_common.sh
+#                                    use_workers), as in the iteration
 #   PHYSVERIFY_DEV_B_DATA            paths.data_dir, read only [$H200_ROOT/kubric-data]
 #   PHYSVERIFY_DEV_B_FRESH_VERSION   the declared kubric_fresh version read; required when
 #                                    several are declared [the only one declared]
@@ -68,13 +78,15 @@ STEP_SAVES=([1]="FRESH_PROFILE_SHA" [3]="FRESH_SIGMA_SHA" [4]="FRESH_DEVSCORE_SH
     [6]="EVALUATION_SHA")
 STEP_NAMES=([1]=fresh-stages [2]=fresh-relift [3]=fresh-sigma [4]=fresh-devscore [5]=hdri-extract
     [6]=hdri-evaluate)
+GPU_STEPS="1 2 5"
 ITERATION_STEPS=5
 DRY="${PHYSVERIFY_DEV_B_DRY_RUN:-0}"
 [[ "$DRY" =~ ^[01]$ ]] || die "PHYSVERIFY_DEV_B_DRY_RUN must be 0 or 1, got '$DRY'"
 
 source_h200_env
 refuse_foreign_config run_dev_b.sh " PATHS__DATA_DIR PATHS__CACHE_DIR PATHS__WEIGHTS_DIR
-    PATHS__VENDOR_DIR PATHS__HF_HOME PATHS__CALIBRATION_DIR PATHS__RUNS_DIR RUNTIME__HEAVY_LOCK "
+    PATHS__VENDOR_DIR PATHS__HF_HOME PATHS__CALIBRATION_DIR PATHS__RUNS_DIR RUNTIME__HEAVY_LOCK
+    RUNTIME__WORKERS "
 for name in PHYSVERIFY_UNSEAL PHYSVERIFY_UNSEAL_REPEAT; do
     [[ -z "${!name+set}" ]] || die "$name is set: a development set is never unsealed; unset it"
 done
@@ -96,7 +108,8 @@ ARTIFACT="$ITER/calibration.json"
     || die "$ARTIFACT is missing or is not the one $ITER/state.env records"
 [[ -n "$ITER_PROFILE_SHA" ]] || die "$ITER/state.env records no PROFILE_SHA"
 DEV_B_DEVICE="$(state_value "$ITER/state.env" CHAIN_DEVICE)"
-use_device DEV_B_DEVICE
+[[ "$DRY" == 0 ]] || GPU_STEPS=""
+use_step_device DEV_B_DEVICE "$FROM" "$TO" "$GPU_STEPS"
 PV_PROFILE="$(state_value "$ITER/state.env" CHAIN_PROFILE)"
 PV_PROFILE="${PV_PROFILE:-$ASSUMED_CHAIN_PROFILE}"
 DEV_B_ARM="$(state_value "$ITER/state.env" CHAIN_ARM)"
@@ -115,6 +128,7 @@ PY="${PHYSVERIFY_DEV_B_PYTHON:-/home/mmonterot/dev/venv/bin/python}"
 [[ -x "$PY" ]] || die "no interpreter at $PY (PHYSVERIFY_DEV_B_PYTHON)"
 THREADS="${PHYSVERIFY_DEV_B_THREADS:-16}"
 [[ "$THREADS" =~ ^[1-9][0-9]*$ ]] || die "PHYSVERIFY_DEV_B_THREADS must be a positive integer"
+use_workers PHYSVERIFY_DEV_B_WORKERS
 DATA="${PHYSVERIFY_DEV_B_DATA:-$H200_ROOT/kubric-data}"
 OUT="$(realpath -m "${PHYSVERIFY_DEV_B_DIR:-$ITER/dev-b}")"
 
@@ -185,6 +199,8 @@ check_set_doctor() {
         || die "doctor reports device '$(doctor_value device)', not $PV_DEVICE"
     [[ "$(doctor_value profile)" == "$PV_PROFILE" ]] \
         || die "doctor reports profile '$(doctor_value profile)', not $PV_PROFILE"
+    [[ "$(doctor_value workers)" == "$WORKERS" ]] \
+        || die "doctor reports workers '$(doctor_value workers)', not $WORKERS"
     same_path "$(doctor_value paths.cache_dir)" "$CACHE" \
         || die "doctor reports paths.cache_dir '$(doctor_value paths.cache_dir)', not $CACHE"
     same_path "$(doctor_value paths.calibration_dir)" "$PHYSVERIFY__PATHS__CALIBRATION_DIR" \
@@ -233,7 +249,7 @@ STEPS="$OUT/steps.tsv"
 NOTES="$OUT/notes.md"
 SUMMARY="$OUT/summary.md"
 SUMMARY_TITLE="B reading of $(basename "$ITER") ($PV_DEVICE)"
-SUMMARY_INFO="commit $HEAD_COMMIT, iteration $ITER, kubric_fresh@$FRESH_VERSION ($N_CLIPS clips of $CLIPS_FILE, sha256 $CLIPS_SHA), kubric_synthetic@$HDRI_VERSION calib_clean, profile $PV_PROFILE, arm ${DEV_B_ARM:-none} (${ARM_SETS[*]:-no swap}), device $PV_DEVICE${CUDA_VISIBLE_DEVICES:+ (CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES)}, cache $CACHE, data $DATA, threads $THREADS"
+SUMMARY_INFO="commit $HEAD_COMMIT, iteration $ITER, kubric_fresh@$FRESH_VERSION ($N_CLIPS clips of $CLIPS_FILE, sha256 $CLIPS_SHA), kubric_synthetic@$HDRI_VERSION calib_clean, profile $PV_PROFILE, arm ${DEV_B_ARM:-none} (${ARM_SETS[*]:-no swap}), device $PV_DEVICE${CUDA_VISIBLE_DEVICES:+ (CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES)}, cache $CACHE, data $DATA, threads $THREADS, workers $WORKERS"
 if [[ "$DRY" == 0 ]]; then
     mkdir -p "$LOGS"
     touch "$STEPS" "$NOTES"
