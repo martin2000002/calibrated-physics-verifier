@@ -530,7 +530,7 @@ def test_a_look_is_recorded_only_by_its_own_line(tmp_path: Path) -> None:
     with pytest.raises(QueryError, match=r"no ledger line of run .* covers exactly"):
         recorded_look(others, run, HEAD, specs)
     line = ledger_line(specs[::-1], HEAD, tmp_path / "." / "run")
-    assert recorded_look([*others, line], run, HEAD, specs).startswith("recorded: 2026-10-30")
+    assert recorded_look([*others, line], run, HEAD, specs).startswith(f"recorded: {line.utc} ")
 
 
 def test_the_v1_arm_follows_the_look_once(tmp_path: Path) -> None:
