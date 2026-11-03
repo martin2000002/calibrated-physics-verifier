@@ -28,6 +28,9 @@ reference = "others"
 # the lift declares (blind to line-of-sight jumps below about sqrt(20) times it). The precise
 # profile runs v3 and rigid2_dfloor; --set check_variants.R4_size=default (or R4_jump=default)
 # restores v2, --set check_variants.R4_jump=rigid2 keeps rigid2 without the depth floor.
+# R4_size "v3_window_depth" (no profile runs it): v3 on extents and their sigmas multiplied by
+# runmed_W(z) / z, z the object's camera depth and W v3's window, so the per-row noise of a
+# monocular depth is not read as a size change; a ground-truth lift is left as v3 sees it.
 # R5a "whitened" (the precise profile runs it): each candidate scored by the Wald contrast of
 # its two accelerations fitted with weights 1 / position_sigma^2, chi-square with 3 degrees of
 # freedom per candidate under white noise independent per axis. Its unit is not v1's: thresholds
