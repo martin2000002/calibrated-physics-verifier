@@ -213,7 +213,9 @@ def fit_stage_sigma(
     runner = ctx.chain(source).with_error_profile(None)
     pairs = stage_pairs(ctx.diag)
     warm_variants(runner, calib, pair_variants(pairs), skip_failed=False)
-    samples = measure(runner, calib, ctx.metrics, pairs, ctx.diag.metrics)
+    samples = measure(
+        runner, calib, ctx.metrics, pairs, ctx.diag.metrics, ctx.settings.runtime.workers
+    )
     factors = stage_factors(samples, {c.clip_id: scene_of(c) for c in calib}, cal)
     write_stage_sigma(session, recalibrate_profile(profile, factor_map(factors)), factors)
 
@@ -343,7 +345,10 @@ def _raw_runner(context: AppContext) -> VerificationRunner:
     registry = registry_of(context, CHECKS)
     overrides = context.settings.section(CHECKS_SECTION, ChecksSettings)
     return VerificationRunner(
-        build_checks(registry, overrides), RawPolicy(), ThresholdTable.provisional({})
+        build_checks(registry, overrides),
+        RawPolicy(),
+        ThresholdTable.provisional({}),
+        context.settings.runtime.workers,
     )
 
 

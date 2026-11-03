@@ -23,6 +23,7 @@ def report_lines(context: AppContext) -> list[str]:
         f"profile: {settings.profile}",
         f"device: {settings.runtime.device}",
         f"threads: {settings.runtime.threads}",
+        f"workers: {settings.runtime.workers}",
         f"config_dir: {settings.config_dir}",
         *(f"source: {source}" for source in settings.sources),
         f"config_hash: {settings.config_hash()[:12]}",

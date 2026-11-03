@@ -141,23 +141,23 @@
       "version": "1"
     },
     "lift/backproject": {
-      "digest": "2cec4eb7e4ba4ea129ee8b70bc79e2f2dbdb54d75e9feb8cee98d22064995a25",
+      "digest": "b2bab1e672bd4bbd940d01c872cf26f6551216a64a8e09dc55b499354b8c7cf4",
       "version": "6"
     },
     "lift/backproject_size_constancy": {
-      "digest": "40a050d4fcd5a1e57cc325ff69816928af698ad80d620519fd1a1ace97f6cb6b",
+      "digest": "eae522c8891ef0d6e0655c0ebd606c38d0003a4a4720e176573ed02058648909",
       "version": "1"
     },
     "lift/backproject_unnested": {
-      "digest": "fbacac9370b476582894708ebe9bf64b6ddc318ab96980407f72e44ab279f69e",
+      "digest": "1582dc5aded3d5598ce67baed78b1ad215b6c0a589bc3d25c032683e6412d916",
       "version": "3"
     },
     "lift/ground_anchored": {
-      "digest": "0f3450fcd9f8ac391a765bf38f5262b0456da7296ee135a1aaf678d4fb8c7040",
+      "digest": "f3b69392ba6d8d5d81b4ef89044c95d5c72b838775acc662004e7e7f23e755c3",
       "version": "4"
     },
     "lift/ground_truth": {
-      "digest": "0dda2e5f1b6999bc93ec38e1021b801672603be4ec5c3581cb5e01b7a6da5fd9",
+      "digest": "3493ab3fa18f4acfec4bd47edfd082504d3774ad7d82a8e86157db9119beee60",
       "version": "2"
     },
     "scale/free_fall": {

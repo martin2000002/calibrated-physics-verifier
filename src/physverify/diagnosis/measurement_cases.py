@@ -43,6 +43,16 @@ class MetricOutcome:
     samples: Mapping[str, FloatArray] = field(default_factory=lambda: MappingProxyType({}))
     ratios: Mapping[str, tuple[float, float]] = field(default_factory=lambda: MappingProxyType({}))
 
+    def __reduce__(self) -> tuple[object, ...]:
+        """Plain dicts on the wire (a mapping proxy does not pickle), so workers can return it."""
+        return (outcome_of, (dict(self.samples), dict(self.ratios)))
+
+
+def outcome_of(
+    samples: Mapping[str, FloatArray], ratios: Mapping[str, tuple[float, float]]
+) -> MetricOutcome:
+    return MetricOutcome(MappingProxyType(dict(samples)), MappingProxyType(dict(ratios)))
+
 
 @runtime_checkable
 class SampledMetric(StageMetric, Protocol):
