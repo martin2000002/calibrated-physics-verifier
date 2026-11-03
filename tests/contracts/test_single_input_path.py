@@ -38,7 +38,7 @@ ALLOWED = frozenset(
             "perceived_routed_source.source_of",
             "PipelineOutputLoader",
         ),
-        ("diagnosis/verification_adapter.py", "_PlanSource.load", "perceived_inputs"),
+        ("diagnosis/verification_adapter.py", "_PlanSource._one", "perceived_inputs"),
         ("diagnosis/verification_adapter.py", "variant_inputs.source_of", "_PlanSource"),
     }
 )

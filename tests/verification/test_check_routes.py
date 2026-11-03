@@ -28,7 +28,7 @@ from physverify.extraction._base import (
     validate_provider,
 )
 from physverify.extraction.plan import ResolvedPlan
-from physverify.schema.checks import CheckResult
+from physverify.schema.checks import AbstainReason, CheckResult, InputLevel
 from physverify.schema.clip import ClipManifest
 from physverify.schema.stages import Stage
 from physverify.verification.check_routes import (
@@ -48,7 +48,7 @@ from physverify.verification.check_set import (
     build_checks,
     checks_hash,
 )
-from physverify.verification.inputs import ClipInputs, InputSource, provenance
+from physverify.verification.inputs import ClipInputs, InputSource, PerceivedSource, provenance
 from physverify.verification.policies.raw import RawPolicy
 from physverify.verification.runner import VerificationRunner, configured_suite
 from physverify.verification.thresholding import ThresholdTable
@@ -171,6 +171,32 @@ def test_the_runner_hands_each_check_its_routed_inputs(make_settings: SettingsFa
     report = runner.run(source, [sc.parabola(clip_id="c").clip])
     assert seen == {"R3a": AREA_LIFT, "R1": "backproject", "R4_size": "backproject"}
     assert {r.check_id: r.provenance[Stage.LIFT.value] for r in report.results} == seen
+
+
+class _FailedLoader:
+    """A pipeline whose every clip has a failed stage."""
+
+    def load(self, dataset: object, clips: Sequence[ClipManifest]) -> dict[str, str]:
+        return {clip.clip_id: "MissingInputError: a failed stage" for clip in clips}
+
+
+def test_a_failed_route_plan_fails_only_its_routed_check(make_settings: SettingsFactory) -> None:
+    seen: dict[str, str] = {}
+    checks = [spy(seen)(check_id)() for check_id in ("R3a", "R1", "R4_size")]
+    runner = VerificationRunner(checks, RawPolicy(), ThresholdTable.provisional({}))
+
+    def source_of(plan: ResolvedPlan) -> InputSource:
+        if plan.names[Stage.LIFT] != AREA_LIFT:
+            return PlanSource.of(plan)
+        return PerceivedSource(None, _FailedLoader(), InputLevel.PERCEIVED)  # type: ignore[arg-type]
+
+    settings = make_settings(*ROUTED_R3A, profile="precise")
+    resolve = partial(resolve_plan, providers=PLUGIN_KINDS["providers"](), dataset=DATASET)
+    source = routed_inputs(settings, resolve, PLUGIN_KINDS["checks"](), source_of)
+    report = runner.run(source, [sc.parabola(clip_id="c").clip])
+    reasons = {r.check_id: r.abstain_reason for r in report.results}
+    assert reasons == {"R3a": AbstainReason.MISSING_INPUT, "R1": None, "R4_size": None}
+    assert seen == {"R1": "backproject", "R4_size": "backproject"}
 
 
 def test_routed_inputs_must_match_the_main_clip() -> None:
