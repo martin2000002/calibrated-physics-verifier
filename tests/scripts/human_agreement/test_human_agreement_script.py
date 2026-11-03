@@ -635,7 +635,7 @@ def test_dev_warns_when_the_calibration_gate_is_not_null(sandbox: AgreementSandb
     assert "WARNING: calibration_gate not null (weights 0)" in result.stderr
 
 
-def test_prefetch_caches_h2_dev_outside_the_data_directory(sandbox: AgreementSandbox) -> None:
+def test_prefetch_caches_the_dev_split_outside_the_data_dir(sandbox: AgreementSandbox) -> None:
     result = sandbox.run("prefetch")
     assert result.returncode == 0, result.stderr
     assert sandbox.commands() == ["doctor", "agreement subset --check", *_pass("h2_dev")[:2]]
