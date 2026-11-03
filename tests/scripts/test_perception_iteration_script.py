@@ -407,6 +407,12 @@ def test_the_perception_arms_are_declared() -> None:
             "extraction.plan.scale=metric_depth"
         ),
         "moge2-focal-clip": "extraction.plan.camera=moge2_focal",
+        "k": (
+            "extraction.plan.depth=vda_large check_variants.R5a=los_tilt "
+            "check_variants.R5b=los_ballistic verification.thresholds.R5a=13.28 "
+            "verification.threshold_units.R5a=accel_tilt_chi2_4 "
+            "calibration.tau_tolerance_units.R5a=accel_tilt_chi2_4"
+        ),
     }
 
 

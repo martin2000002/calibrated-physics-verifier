@@ -131,3 +131,27 @@ h200_py() {
 query() {
     h200_py run_query.py "$@"
 }
+
+# perception_arms.tsv: the declared arms of run_perception_iteration.sh, replayed by run_dev_b.sh.
+ARMS_FILE="$(dirname "${BASH_SOURCE[0]}")/perception_arms.tsv"
+CHECK_ID='R[0-9][a-z_]*'
+SWAP_PATTERN="^(extraction\\.plan\\.[a-z]+=[a-z0-9_]+|check_variants\\.$CHECK_ID=[a-z0-9_]+"
+SWAP_PATTERN+="|verification\\.thresholds\\.$CHECK_ID=[0-9]+(\\.[0-9]+)?"
+SWAP_PATTERN+="|(verification\\.threshold_units|calibration\\.tau_tolerance_units)\\.$CHECK_ID=[a-z0-9_]+)\$"
+
+# arm_swaps NAME: the swaps of a declared arm, one per line (exit 2 if undeclared).
+arm_swaps() {
+    local lines swap
+    [[ "$1" =~ ^[a-z0-9][a-z0-9-]*$ ]] || die "the arm must be an arm name, got '$1'"
+    [[ -f "$ARMS_FILE" ]] || die "no arm table at $ARMS_FILE"
+    lines="$(awk -F '\t' -v arm="$1" '$1 == arm { print $2 }' "$ARMS_FILE")"
+    [[ -n "$lines" && "$lines" != *$'\n'* ]] \
+        || die "arm $1 is not declared exactly once in $ARMS_FILE"
+    for swap in $lines; do
+        [[ "$swap" =~ $SWAP_PATTERN ]] \
+            || die "arm $1: '$swap' is not extraction.plan.<stage>=<provider>," \
+                "check_variants.<check>=<variant> or a check's threshold, threshold unit or" \
+                "tau tolerance unit"
+        printf '%s\n' "$swap"
+    done
+}

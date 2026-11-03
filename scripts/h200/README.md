@@ -269,21 +269,15 @@ export PHYSVERIFY_ITERATION_ID=<id> PHYSVERIFY_ITERATION_EXPECT_COMMIT=<head> \
 ### Line-of-sight R5 (candidate K)
 
 K is the precise profile on the perception state C (depth `vda_large`) with R5a and R5b on the
-line-of-sight GLS (`checks/variants/r5a_line_of_sight.py`, `r5b_line_of_sight.py`). It is a
-`--set` list, not a profile: a profile name is part of every error-profile entry and cache key, so
-a separate one would not share them. Pass these to every `physverify` call of a run:
+line-of-sight GLS (`checks/variants/r5a_line_of_sight.py`, `r5b_line_of_sight.py`). It is the arm
+`k` of `perception_arms.tsv`, not a profile: a profile name is part of every error-profile entry
+and cache key, so a separate one would not share them. `PHYSVERIFY_ITERATION_ARM=k` runs it
+through `run_perception_iteration.sh`, `run_dev_b.sh` replays it from the iteration's
+`CHAIN_ARM`, and by hand each of its swaps goes as `--set` after `--profile precise`.
 
-```sh
---profile precise --set extraction.plan.depth=vda_large \
-    --set check_variants.R5a=los_tilt --set check_variants.R5b=los_ballistic \
-    --set verification.thresholds.R5a=13.28 \
-    --set verification.threshold_units.R5a=accel_tilt_chi2_4 \
-    --set calibration.tau_tolerance_units.R5a=accel_tilt_chi2_4
-```
-
-`los_tilt` reports in `accel_tilt_chi2_4`, so the provisional tau (13.28, the a priori
-chi-square(4) 0.99 quantile, not fitted) and the units of the precise R5a tau and tolerance move
-with it; `los_ballistic` keeps the unit of R5b. Without the first two sets nothing changes.
+`los_tilt` reports in `accel_tilt_chi2_4`, so the arm also sets the provisional tau (13.28, the a
+priori chi-square(4) 0.99 quantile, not fitted) and moves the units of the precise R5a tau and
+tolerance with it; `los_ballistic` keeps the unit of R5b.
 
 ### B reading on the development sets
 

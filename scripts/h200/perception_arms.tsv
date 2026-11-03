@@ -1,7 +1,9 @@
 # Declared arms of a perception iteration: one line per arm, the arm name, a tab, then the
-# provider swaps that run_perception_iteration.sh passes as --set on every physverify call (only
-# extraction.plan.<stage>=<provider>). Every arm runs the committed profile otherwise,
-# so arms that share a provider prefix share its cache keys and error-profile entries.
+# swaps that run_perception_iteration.sh and run_dev_b.sh pass as --set on every physverify call
+# (extraction.plan.<stage>=<provider>, check_variants.<check>=<variant>, and a check's
+# verification.thresholds, verification.threshold_units or calibration.tau_tolerance_units).
+# Every arm runs the committed profile otherwise, so arms that share a provider prefix share its
+# cache keys and error-profile entries. k: candidate K (scripts/h200/README.md).
 it3-r	extraction.plan.depth=vda_small extraction.plan.contacts=proximity
 it3-ak	extraction.plan.depth=vda_small extraction.plan.contacts=kinematic
 it3-ap	extraction.plan.depth=vda_large extraction.plan.contacts=proximity
@@ -10,3 +12,4 @@ moge2-depth	extraction.plan.depth=moge2
 moge2-focal	extraction.plan.depth=moge2 extraction.plan.camera=from_depth
 moge2-metric	extraction.plan.depth=moge2 extraction.plan.camera=from_depth extraction.plan.scale=metric_depth
 moge2-focal-clip	extraction.plan.camera=moge2_focal
+k	extraction.plan.depth=vda_large check_variants.R5a=los_tilt check_variants.R5b=los_ballistic verification.thresholds.R5a=13.28 verification.threshold_units.R5a=accel_tilt_chi2_4 calibration.tau_tolerance_units.R5a=accel_tilt_chi2_4

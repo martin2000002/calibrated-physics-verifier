@@ -42,8 +42,8 @@
 #   PHYSVERIFY_ITERATION_PROFILE         sampling profile [precise]; it also fixes the synthetic
 #                                        dataset version the calib clips are listed from
 #   PHYSVERIFY_ITERATION_ARM             a declared arm of scripts/h200/perception_arms.tsv [none]:
-#                                        its provider swaps (extraction.plan.<stage>=<provider>) go as
-#                                        --set to every physverify call; doctor must list each one;
+#                                        its swaps (see the table's header) go as --set to every
+#                                        physverify call; doctor must list each one;
 #                                        PHYSVERIFY_ITERATION_ID must contain the arm name. The heavy lock is
 #                                        per output directory: run arms one at a time
 #   PHYSVERIFY_ITERATION_DEVICE          cpu or cuda [cpu]; cuda needs CUDA_VISIBLE_DEVICES in 0-3
@@ -80,23 +80,6 @@ KS=(--dataset kubric_synthetic --subset full)
 EXTENSION=(--dataset kubric_synthetic --subset calib_f3_extra)
 STEP_SAVES=([1]="CALIB_SHA" [2]="STAGES_RUN PROFILE_SHA" [4]="STAGE_SIGMA_SHA"
     [5]="DEVSCORE_SHA CALIBRATION_SHA")
-ARMS_FILE="$(dirname "${BASH_SOURCE[0]}")/perception_arms.tsv"
-SWAP_PATTERN='^extraction\.plan\.[a-z]+=[a-z0-9_]+$'
-
-# arm_swaps NAME: the provider swaps of a declared arm, one per line (exit 2 if undeclared).
-arm_swaps() {
-    local lines swap
-    [[ "$1" =~ ^[a-z0-9][a-z0-9-]*$ ]] || die "PHYSVERIFY_ITERATION_ARM must be an arm name, got '$1'"
-    [[ -f "$ARMS_FILE" ]] || die "no arm table at $ARMS_FILE"
-    lines="$(awk -F '\t' -v arm="$1" '$1 == arm { print $2 }' "$ARMS_FILE")"
-    [[ -n "$lines" && "$lines" != *$'\n'* ]] \
-        || die "PHYSVERIFY_ITERATION_ARM=$1 is not declared exactly once in $ARMS_FILE"
-    for swap in $lines; do
-        [[ "$swap" =~ $SWAP_PATTERN ]] || die "arm $1: '$swap' is not extraction.plan.<stage>=<provider>"
-        printf '%s\n' "$swap"
-    done
-}
-
 ITER_ID="${PHYSVERIFY_ITERATION_ID:-}"
 [[ "$ITER_ID" =~ ^it[0-9]+[a-z0-9-]*$ ]] \
     || die "PHYSVERIFY_ITERATION_ID must match ^it[0-9]+[a-z0-9-]*\$ (e.g. it0-baseline), got '$ITER_ID'"

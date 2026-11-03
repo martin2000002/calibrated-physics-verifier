@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 from shell_sandbox import Sandbox, executable
 
-SCRIPT_NAMES = ("_common.sh", "_steps.sh", "_guards.sh", "run_dev_b.sh")
+SCRIPT_NAMES = ("_common.sh", "_steps.sh", "_guards.sh", "run_dev_b.sh", "perception_arms.tsv")
 TOOLS = (
     "awk", "basename", "bash", "cat", "cp", "cut", "dirname", "env", "flock", "grep", "mkdir",
     "mv", "nproc", "realpath", "sed", "sha256sum", "tee", "touch",
@@ -64,7 +64,10 @@ new_run() {
 }
 case "$*" in
   *" doctor")
-    for arg in "$@"; do [[ "$arg" == *.version=* ]] && echo "source: --set $arg"; done
+    for arg in "$@"; do
+        [[ "$arg" == *.version=* || ( -z "${DOCTOR_DROP_ARM:-}" && "$arg" == *=* ) ]] \
+            && echo "source: --set $arg"
+    done
     echo "profile: $2"
     echo "device: $4"
     echo "config_dir: $REPO_CONFIGS"
@@ -198,6 +201,57 @@ def test_a_declared_fresh_version_is_read_by_name(sandbox: DevBSandbox) -> None:
     assert sandbox.commands() == _expected(sandbox, "v2-dev-b2")
     summary = (sandbox.out / "summary.md").read_text(encoding="utf-8")
     assert "kubric_fresh@v2-dev-b2 (2 clips" in summary
+
+
+def _record_arm(sandbox: DevBSandbox, arm: str | None) -> None:
+    if arm is not None:
+        with (sandbox.iteration / "state.env").open("a", encoding="utf-8") as state:
+            state.write(f"CHAIN_ARM={arm}\n")
+
+
+K_ARM = (
+    "extraction.plan.depth=vda_large check_variants.R5a=los_tilt check_variants.R5b=los_ballistic "
+    "verification.thresholds.R5a=13.28 verification.threshold_units.R5a=accel_tilt_chi2_4 "
+    "calibration.tau_tolerance_units.R5a=accel_tilt_chi2_4"
+)
+
+
+def test_the_iteration_arm_goes_as_set_to_every_call(sandbox: DevBSandbox) -> None:
+    """The arm the iteration ran (CHAIN_ARM) is replayed: each of its swaps follows the set's
+    version on every call, so a K reading never falls back to the committed depth."""
+    _record_arm(sandbox, "k")
+    result = sandbox.run()
+    assert result.returncode == 0, result.stderr
+    arm_sets = " ".join(f"--set {swap}" for swap in K_ARM.split())
+    expected = [
+        re.sub(r"(--set \S+\.version=\S+)", rf"\1 {arm_sets}", c) for c in _expected(sandbox)
+    ]
+    assert sandbox.commands() == expected
+    summary = (sandbox.out / "summary.md").read_text(encoding="utf-8")
+    assert f"arm k ({arm_sets})" in summary
+
+
+@pytest.mark.parametrize("arm", ["none", None])
+def test_an_iteration_without_an_arm_adds_no_set(sandbox: DevBSandbox, arm: str | None) -> None:
+    _record_arm(sandbox, arm)
+    assert sandbox.run().returncode == 0
+    assert sandbox.commands() == _expected(sandbox)
+
+
+@pytest.mark.parametrize(
+    ("arm", "env", "message"),
+    [
+        ("undeclared-x", {}, "not declared exactly once"),
+        ("k", {"DOCTOR_DROP_ARM": "1"}, "does not list the override --set extraction.plan.depth"),
+    ],
+)
+def test_an_undeclared_arm_or_a_doctor_without_its_sets_stops(
+    sandbox: DevBSandbox, arm: str, env: dict[str, str], message: str
+) -> None:
+    _record_arm(sandbox, arm)
+    result = sandbox.run(**env)
+    assert result.returncode == 2 and message in result.stderr, result.stderr
+    assert all(c.endswith("doctor") for c in sandbox.commands())
 
 
 def test_no_scratch_variable_or_unseal_is_needed(sandbox: DevBSandbox) -> None:
