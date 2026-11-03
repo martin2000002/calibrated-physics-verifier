@@ -163,3 +163,38 @@ run_of() {
     [[ -n "$run_dir" && -d "$run_dir" ]] || stop "no run directory in $LAST_LOG"
     printf '%s\n' "$run_dir"
 }
+
+# extract_shards SHARDS_VAR THREADS_VAR STEM CLIPS_FILE DATASET SUBSET: as many round-robin
+# --no-lock shards of CLIPS_FILE as the variable SHARDS_VAR says, under nice, that warm the cache
+# before the full pass (the cache writes are atomic); like it, they tolerate exit 1 only. Each
+# shard has THREADS_VAR runtime.threads [THREADS / shards] and its log in $LOGS/STEM-<i>.log.
+extract_shards() {
+    local shards="${!1:-}" i id log pids=() logs=() clips=()
+    [[ "$shards" =~ ^[1-9][0-9]*$ ]] || stop "$1 must be a positive integer"
+    local per=$((THREADS / shards))
+    local threads="${!2:-$((per > 0 ? per : 1))}"
+    [[ "$threads" =~ ^[1-9][0-9]*$ ]] || stop "$2 must be a positive integer"
+    for ((i = 0; i < shards; i++)); do
+        clips=()
+        while IFS= read -r id; do
+            clips+=(--clips "$id")
+        done < <(sed -n "$((i + 1))~${shards}p" "$4")
+        [[ ${#clips[@]} -gt 0 ]] || continue
+        log="$LOGS/$3-$i.log"
+        (
+            THREADS="$threads"
+            PV_NICE=(nice -n 5)
+            pv --no-lock extract run --strict-profile --dataset "$5" --subset "$6" "${clips[@]}"
+        ) >"$log" 2>&1 &
+        pids+=("$!")
+        logs+=("$log")
+    done
+    local code failed=0
+    for i in "${!pids[@]}"; do
+        code=0
+        wait "${pids[$i]}" || code=$?
+        note "extract shard $i ($threads threads): exit $code, log ${logs[$i]}"
+        ! fatal 1 "$code" || failed=$((failed + 1))
+    done
+    [[ "$failed" -eq 0 ]] || stop "$failed of ${#pids[@]} extract shards failed"
+}

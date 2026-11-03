@@ -395,41 +395,10 @@ cmd_extract() {
         done <"$clips_file"
     fi
     note "extract $DS $SUBSET: $(grep -c . "$clips_file") clips, list sha256 $(sha_of "$clips_file")"
-    [[ -z "${PHYSVERIFY_FINAL_EXTRACT_SHARDS:-}" ]] || extract_shards "$clips_file"
+    [[ -z "${PHYSVERIFY_FINAL_EXTRACT_SHARDS:-}" ]] \
+        || extract_shards PHYSVERIFY_FINAL_EXTRACT_SHARDS PHYSVERIFY_FINAL_SHARD_THREADS shard \
+            "$clips_file" "$DS" "$SUBSET"
     call 1 -- extract run --strict-profile --dataset "$DS" --subset "$SUBSET" "${clips[@]}"
-}
-
-# extract_shards CLIPS_FILE: round-robin --no-lock shards under nice that warm the cache before
-# the full pass (the cache writes are atomic); like it, they tolerate exit 1 only.
-extract_shards() {
-    local shards="$PHYSVERIFY_FINAL_EXTRACT_SHARDS" i id log pids=() logs=() clips=()
-    [[ "$shards" =~ ^[1-9][0-9]*$ ]] || stop "PHYSVERIFY_FINAL_EXTRACT_SHARDS must be a positive integer"
-    local per=$((THREADS / shards))
-    local threads="${PHYSVERIFY_FINAL_SHARD_THREADS:-$((per > 0 ? per : 1))}"
-    [[ "$threads" =~ ^[1-9][0-9]*$ ]] || stop "PHYSVERIFY_FINAL_SHARD_THREADS must be a positive integer"
-    for ((i = 0; i < shards; i++)); do
-        clips=()
-        while IFS= read -r id; do
-            clips+=(--clips "$id")
-        done < <(sed -n "$((i + 1))~${shards}p" "$1")
-        [[ ${#clips[@]} -gt 0 ]] || continue
-        log="$LOGS/shard-$i.log"
-        (
-            THREADS="$threads"
-            PV_NICE=(nice -n 5)
-            pv --no-lock extract run --strict-profile --dataset "$DS" --subset "$SUBSET" "${clips[@]}"
-        ) >"$log" 2>&1 &
-        pids+=("$!")
-        logs+=("$log")
-    done
-    local code failed=0
-    for i in "${!pids[@]}"; do
-        code=0
-        wait "${pids[$i]}" || code=$?
-        note "extract shard $i ($threads threads): exit $code, log ${logs[$i]}"
-        ! fatal 1 "$code" || failed=$((failed + 1))
-    done
-    [[ "$failed" -eq 0 ]] || stop "$failed of ${#pids[@]} extract shards failed"
 }
 
 cmd_look() {
