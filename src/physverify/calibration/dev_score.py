@@ -19,11 +19,14 @@ from physverify.calibration.artifact import (
     CheckCalibration,
     DatasetRef,
     Monotonicity,
+    Reading,
     SettingsSnapshot,
+    Stratified,
     Stratum,
     Weight,
 )
 from physverify.calibration.check_weights import Flag, raw_weight
+from physverify.calibration.clause import clause
 from physverify.calibration.dev_folds import FoldPart, fold_parts, scene_folds
 from physverify.calibration.fit import (
     FitMeta,
@@ -47,13 +50,10 @@ from physverify.calibration.oof import (
 from physverify.calibration.settings import CalibrationConfig, CalibrationSettings
 from physverify.calibration.stratified import (
     FamilyOf,
-    Reading,
     Stratification,
-    Stratified,
     UnitScores,
     Valued,
     family_map,
-    meets_stratified,
     stratification,
     unit_scores,
 )
@@ -212,10 +212,7 @@ def check_score(
     """``full`` is the check of ``fit_checks`` on all of calib (weight not normalised); ``flags``
     its out-of-fold decisions; ``unit`` the out-of-fold AUROC_cv of its corrected magnitude."""
     j_cv = raw_weight(flags, settings)
-    low = j_cv.informedness_ci.low
-    meets_h1, meets_j = full.monotonicity.h1_pass, low is not None and low > 0.0
-    both = meets_h1 and meets_j
-    strat = None if unit.stratified is None else meets_stratified(unit.stratified)
+    met = clause(full.monotonicity, j_cv, unit.stratified)
     return CheckDevScore(
         h1=full.monotonicity,
         tau=full.tau,
@@ -225,13 +222,13 @@ def check_score(
         folds_without_sigma_factor=sum(
             part.stratum.checks[check_id].sigma.factor is None for part in parts
         ),
-        meets_h1=meets_h1,
-        meets_j=meets_j,
-        meets_both=both,
+        meets_h1=met.meets_monotone,
+        meets_j=met.meets_j,
+        meets_both=met.meets_both,
         auroc_cv_readings=unit.auroc_cv,
         stratified=unit.stratified,
-        meets_stratified=strat,
-        meets_clause=both and strat is not False,
+        meets_stratified=met.meets_stratified,
+        meets_clause=met.meets_clause,
     )
 
 

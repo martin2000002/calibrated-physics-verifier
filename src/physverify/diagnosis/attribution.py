@@ -12,7 +12,6 @@ import math
 from collections import Counter
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from functools import partial
 from statistics import fmean
 
 from physverify.diagnosis.chain_variants import (
@@ -32,7 +31,7 @@ from physverify.diagnosis.report import (
 from physverify.diagnosis.settings import FactorialSettings
 from physverify.schema.checks import CheckResult
 from physverify.schema.stages import STAGE_ORDER, Stage
-from physverify.stats.bootstrap import BootstrapResult, bootstrap
+from physverify.stats.bootstrap import BootstrapResult, ClusterBlock, bootstrap
 from physverify.stats.intervals import Interval
 
 ORACLE = "oracle"
@@ -232,20 +231,22 @@ def attribute(
     check_id: str,
     unit: str,
     collected: CollectedBlocks,
-    clusters: Sequence[str],
+    scenes: Mapping[str, str],
     factorial: FactorialSettings,
     budgeting: Budgeting,
 ) -> CheckAttribution:
-    """One check's cells, effects, Shapley values and budget, with clip-bootstrap intervals."""
+    """One check's cells, effects, Shapley values and budget, with scene-bootstrap intervals.
+    ``scenes`` maps every evaluated clip to its scene: the clips of a scene (the clean one and
+    its perturbations) share their perception error, so whole scenes are resampled."""
     blocks = [b for b in collected.blocks if b.check_id == check_id]
     stats = check_statistics(blocks, budgeting.label) if blocks else {}
     boot: BootstrapResult = bootstrap(
-        blocks,
-        partial(check_statistics, fixed=budgeting.label),
+        [ClusterBlock(scenes[b.clip_id], b) for b in blocks],
+        lambda sample: check_statistics([c.item for c in sample], budgeting.label),
         factorial.bootstrap,
         factorial.seed,
         factorial.ci,
-        clusters,
+        sorted(set(scenes.values())),
     )
     ci = boot.intervals
     return CheckAttribution(

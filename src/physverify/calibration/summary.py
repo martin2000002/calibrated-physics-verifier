@@ -4,12 +4,11 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from physverify.calibration.artifact import StageFactor
+from physverify.calibration.artifact import READINGS, StageFactor, Stratified
 from physverify.calibration.artifact_io import Calibration
 from physverify.calibration.dev_score import DevScoreReport, LevelDevScore
 from physverify.calibration.devscore_compare import DevScoreCompare
 from physverify.calibration.paired import PairedReading, PairedUnit
-from physverify.calibration.stratified import READINGS, Stratified
 from physverify.core.markdown import SIG4
 from physverify.stats.intervals import Ci
 

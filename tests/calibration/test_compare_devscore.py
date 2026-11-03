@@ -5,10 +5,10 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from physverify.calibration.artifact import READINGS
 from physverify.calibration.devscore_compare import compare_oof
 from physverify.calibration.fit import ClipValue
 from physverify.calibration.oof import AGGREGATE, CheckValue, DevScoreOof, LevelOof
-from physverify.calibration.stratified import READINGS
 from physverify.calibration.table import Role
 from physverify.core.errors import UsageError
 from physverify.schema.checks import InputLevel
