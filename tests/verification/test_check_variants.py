@@ -10,9 +10,11 @@ import pytest
 from settings_factory import SettingsFactory
 
 from physverify.app import plugins
+from physverify.checks.r3a_bounce_restitution import RestitutionCheck
 from physverify.checks.r4_size_constancy import SizeConstancyCheck
 from physverify.checks.variants._base import DEFAULT_VARIANT
 from physverify.checks.variants._rigid_jump import RigidJumpCheck
+from physverify.checks.variants.r3a_image_apex import ImageApexRestitutionCheck
 from physverify.checks.variants.r4_jump_declared_depth import DeclaredDepthJumpCheck
 from physverify.checks.variants.r4_size_v3 import DetrendedSizeCheck
 from physverify.checks.variants.r4_size_window_depth_unoccluded import (
@@ -69,9 +71,11 @@ def test_the_precise_profile_runs_the_adopted_variants(make_settings: SettingsFa
     assert precise["R4_size"] is UnoccludedWindowDepthSizeCheck
     assert precise["R4_jump"] is DeclaredDepthJumpCheck
     assert precise["R5a"] is WhitenedFallShapeCheck
-    adopted = {"R4_size", "R4_jump", "R5a"}
+    assert precise["R3a"] is ImageApexRestitutionCheck
+    adopted = {"R4_size", "R4_jump", "R5a", "R3a"}
     assert all(precise[c] is CHECKS[c] for c in CHECKS if c not in adopted)
-    assert dict(plugins.configured("checks", make_settings(profile="fast"))) == dict(CHECKS)
+    fast = plugins.configured("checks", make_settings(profile="fast"))
+    assert dict(fast) == dict(CHECKS) and fast["R3a"] is RestitutionCheck
 
 
 def test_the_default_variant_restores_the_registered_check(make_settings: SettingsFactory) -> None:
@@ -79,6 +83,7 @@ def test_the_default_variant_restores_the_registered_check(make_settings: Settin
         f"check_variants.R4_size={DEFAULT_VARIANT}",
         f"check_variants.R4_jump={DEFAULT_VARIANT}",
         f"check_variants.R5a={DEFAULT_VARIANT}",
+        f"check_variants.R3a={DEFAULT_VARIANT}",
     )
     restored = plugins.configured("checks", make_settings(*restore, profile="precise"))
     assert dict(restored) == dict(CHECKS)
@@ -120,7 +125,12 @@ def test_the_precise_checks_hash_as_their_explicit_choices(make_settings: Settin
     explicit = select_variants(
         CHECKS,
         VARIANTS,
-        selected(R4_size="v3_window_depth_unoccluded", R4_jump="rigid2_dfloor", R5a="whitened"),
+        selected(
+            R4_size="v3_window_depth_unoccluded",
+            R4_jump="rigid2_dfloor",
+            R5a="whitened",
+            R3a="image_apex",
+        ),
     )
     overrides = ChecksSettings()
     assert checks_hash(explicit, overrides) == checks_hash(precise, overrides)

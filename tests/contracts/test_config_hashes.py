@@ -34,15 +34,15 @@ PINNED_ROOT = "/pinned"
 
 SECTIONS_HASH = {
     "fast": "770487283a6d35c5b6414bed487488654e9113a68757739fed4bee8410cd41b4",
-    "precise": "28b92483339c4c94fce843378a23729370253fc139e26b14e297e9bae592a92f",
+    "precise": "316d76190137601778eb0835b5df82e8d66e4bb86713b26bdc13e68f07fce25c",
 }
 CONFIG_HASH = {
     "fast": "f5e93ae0c5afd7dcd4ab16dd6abb2cda2fc3d525a2ee05cac9acd105de34baf3",
-    "precise": "1966988d410b9dad7649d3785ff5325bf2d3a06f135236349e104405838e73d3",
+    "precise": "e66e9524c2034307eab6bc8037626c78cc1c9ca1c7b31cc288d59535e27a0ec1",
 }
 LOOK_CONFIG_HASH = {
     "fast": "5c767aadc19bf8b06c2585a0a53e565c9ac5952ff01468dfb8872f16d3d6d6af",
-    "precise": "817b0b39974ccb9d2cd6ba369787a8f787ee6960256d3aba3a9210e5432134da",
+    "precise": "ee39c9f96d722ced0463999441d259a9eb8c7d121d1f95ac2102fdfe83a8d20d",
 }
 CHECKS_HASH = "5c5820acaf1bfce8270cdc8653a9eefd373f9feccde4baaac4b3a4510198f78e"
 ROUTED_CHECKS_HASH = {
@@ -52,7 +52,7 @@ ROUTED_CHECKS_HASH = {
 routes hashes its default checks as ``CHECKS_HASH``."""
 RUN_CHECKS_HASH = {
     "fast": "5c5820acaf1bfce8270cdc8653a9eefd373f9feccde4baaac4b3a4510198f78e",
-    "precise": "35546962197b93e06aa1677e5b34e121d410ccbdc601b81496754918c9981996",
+    "precise": "05f8ade4c34a9d5e374d378bd8064743086c68379a61060c1c6eb03476a3e9c9",
 }
 PRECISE_STAGE_KEYS_HASH = "d9b9e880768fb779384a271017fb36c975bb5e4290ebadaeee21e9f8325240a0"
 """Hash of every stage key of the precise plan for the declared calib dataset. It and
@@ -68,6 +68,7 @@ PRECISE_CHOICES = (
     "check_variants.R4_size=v3_window_depth_unoccluded",
     "check_variants.R5a=whitened",
     "check_variants.R4_jump=rigid2_dfloor",
+    "check_variants.R3a=image_apex",
     "verification.routes.area_depth.lift=backproject_area_depth",
     "verification.check_routes.R3a=area_depth",
 )

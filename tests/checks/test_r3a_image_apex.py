@@ -257,7 +257,7 @@ def test_it_is_the_selectable_image_apex_variant_of_r3a(make_settings: SettingsF
     assert chosen.magnitude_unit == RestitutionCheck.magnitude_unit
     selected = plugins.configured("checks", make_settings("check_variants.R3a=image_apex"))
     assert selected["R3a"] is ImageApexRestitutionCheck
-    for profile in (None, "fast", "precise"):
+    for profile in (None, "fast"):
         assert plugins.configured("checks", make_settings(profile=profile))["R3a"] is (
             RestitutionCheck
         )

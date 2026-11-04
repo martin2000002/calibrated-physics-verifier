@@ -57,6 +57,7 @@ check_scope.exclude_checks
 check_scope.kept_when_excluding_time
 check_scope.require_decision_record
 check_scope.time_dependent_checks
+check_variants.profiles.precise.R3a
 check_variants.profiles.precise.R4_jump
 check_variants.profiles.precise.R4_size
 check_variants.profiles.precise.R5a
