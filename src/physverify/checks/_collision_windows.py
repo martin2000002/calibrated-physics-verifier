@@ -127,14 +127,16 @@ def fit_window(
         return Window(contact, empty, empty.copy())
     flight = flight_mask(str(states.object_ids[index]), contacts, fi, margin)
     finite = np.all(np.isfinite(getattr(states, source)[:, index]), axis=-1)
-    before = _side(flight, finite, range(int(contact[0]) - 1, -1, -1), rows.fit)
-    after = _side(flight, finite, range(int(contact[-1]) + 1, fi.shape[0]), rows.fit)
+    before = side_rows(flight, finite, range(int(contact[0]) - 1, -1, -1), rows.fit)
+    after = side_rows(flight, finite, range(int(contact[-1]) + 1, fi.shape[0]), rows.fit)
     return Window(contact, before, after)
 
 
-def _side(
+def side_rows(
     flight: NDArray[np.bool_], finite: NDArray[np.bool_], walk: range, count: int
 ) -> IntArray:
+    """Sorted rows with a finite value along ``walk``, at most ``count``, up to the first row
+    out of flight."""
     rows: list[int] = []
     for row in walk:
         if not flight[row] or len(rows) == count:

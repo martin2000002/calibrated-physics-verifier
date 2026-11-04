@@ -1,5 +1,9 @@
 {
   "check_variants": {
+    "R3a/image_apex": {
+      "digest": "295dabf6adeee27d0579f35c15d68c8497811f2b1bd597044a35200bc39a2bd3",
+      "version": "1"
+    },
     "R4_jump/rigid2": {
       "digest": "eb09b0e90f2850230563a6859bded0d8eeb66df86b7f0cb736136ba4593ab8e8",
       "version": "1"
@@ -47,11 +51,11 @@
       "version": "1"
     },
     "R3a": {
-      "digest": "dd63e565b227f2fad92e50d7448dcf278fe10565c2e5b3c181772a1ce9a3e5e5",
+      "digest": "0878410522ebf6ba5caf57c1644fd4a3bb587a2d1cf6a8ff5a81f4c2b58691c2",
       "version": "1"
     },
     "R3b": {
-      "digest": "12d8d54d43cbf104e332243716c13b962e7262f50426cc1c97f4d5dd1a329a3f",
+      "digest": "ff8cd994501a6a7f7cb95772bb70b2d9f8b4790ca2d6dfd5724c9e38bbaa1a34",
       "version": "1"
     },
     "R4_jump": {

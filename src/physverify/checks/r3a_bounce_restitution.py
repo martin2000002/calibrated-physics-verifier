@@ -115,7 +115,7 @@ class RestitutionCheck:
         inputs: CheckInputs,
         subject: tuple[str, str],
         index: int,
-        bounce: _Bounce,
+        bounce: Bounce,
         t_c: float,
         span: tuple[int, int],
         details: dict[str, Any],
@@ -135,7 +135,7 @@ class RestitutionCheck:
 
 
 @dataclass(frozen=True, eq=False)
-class _Bounce:
+class Bounce:
     """One ground impact: the fit rows of each side, the rows k and m that bound the contact
     window, the ground plane (None without one) and the sphere radius."""
 
@@ -239,9 +239,9 @@ def _bounce(
     index: int,
     window: Window,
     source: FitSource,
-) -> _Bounce:
+) -> Bounce:
     k, m = int(window.before[-1]), int(window.after[0])
-    return _Bounce(
+    return Bounce(
         source=source,
         before=side_data(states, index, window.before, source),
         after=side_data(states, index, window.after, source),
