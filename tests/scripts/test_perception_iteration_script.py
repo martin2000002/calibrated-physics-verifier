@@ -415,6 +415,7 @@ def test_the_perception_arms_are_declared() -> None:
             "verification.threshold_units.R5a=accel_tilt_chi2_4 "
             "calibration.tau_tolerance_units.R5a=accel_tilt_chi2_4"
         ),
+        "r3a-ip-h": "check_variants.R3a=image_apex",
     }
 
 
