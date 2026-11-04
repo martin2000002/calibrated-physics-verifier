@@ -72,19 +72,27 @@ class FreshRender(VersionedDataset):
     name: ClassVar[str] = "kubric_fresh"
 
 
-def test_the_committed_sets_hold_both_fresh_renders(make_settings: Callable[..., Settings]) -> None:
-    """Both kubric_fresh development renders are development sets; any other version of the name
+def test_the_committed_sets_hold_the_fresh_development_renders(
+    make_settings: Callable[..., Settings],
+) -> None:
+    """The kubric_fresh development renders are development sets; any other version of the name
     is not, and the sealed renders kubric_fresh reads by default are neither."""
     committed = make_settings()
     declared = calibration_settings(committed)
     assert declared.development_sets == (
         "kubric_fresh@v2-fresh",
         "kubric_fresh@v2-dev-b2",
+        "kubric_fresh@v2-dev-b3",
         "kubric_synthetic@v1-precise-hdri-dev",
     )
     fresh = fresh_settings(committed)
     assert (fresh.version, fresh.ood_version) == ("v2-fresh2", "v2-fresh-ood")
-    for version, expected in (("v2-fresh", True), ("v2-dev-b2", True), ("v2-fresh2", False)):
+    for version, expected in (
+        ("v2-fresh", True),
+        ("v2-dev-b2", True),
+        ("v2-dev-b3", True),
+        ("v2-fresh2", False),
+    ):
         assert is_development(FreshRender(version), declared) is expected
     for cls in (KubricFresh, KubricFreshOod, KubricFreshBlind):
         require_sealed(f"{cls.name}@{cls.sealed_version(committed.sections)}", declared)

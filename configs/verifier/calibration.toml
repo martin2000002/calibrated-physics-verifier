@@ -25,7 +25,12 @@ require_calibrated_artifact = false
 # calib-only commands read every clip of one as calib, it is never a sealed look, and
 # `calibrate evaluate --score-all-clips` scores all its rows with another set's artifact.
 # Several versions of one name may be declared; a B reading names the one it reads.
-development_sets = ["kubric_fresh@v2-fresh", "kubric_fresh@v2-dev-b2", "kubric_synthetic@v1-precise-hdri-dev"]
+development_sets = [
+    "kubric_fresh@v2-fresh",
+    "kubric_fresh@v2-dev-b2",
+    "kubric_fresh@v2-dev-b3",
+    "kubric_synthetic@v1-precise-hdri-dev",
+]
 
 # Numerical tolerance epsilon_c per check, in the unit of its default implementation unless
 # tau_tolerance_units declares another (a variant's): tau = max(q, epsilon_c), where q is
