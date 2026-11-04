@@ -4,7 +4,8 @@
 # verification.thresholds, verification.threshold_units or calibration.tau_tolerance_units).
 # Every arm runs the committed profile otherwise, so arms that share a provider prefix share its
 # cache keys and error-profile entries. k: vda_large depth with the line-of-sight R5a and R5b
-# variants and the R5a tau in their unit (scripts/h200/README.md).
+# variants and the R5a tau in their unit (scripts/h200/README.md). r3a-ip-h: the precise profile
+# with R3a read from the image-plane apex heights (the image_apex variant).
 it3-r	extraction.plan.depth=vda_small extraction.plan.contacts=proximity
 it3-ak	extraction.plan.depth=vda_small extraction.plan.contacts=kinematic
 it3-ap	extraction.plan.depth=vda_large extraction.plan.contacts=proximity
@@ -14,3 +15,4 @@ moge2-focal	extraction.plan.depth=moge2 extraction.plan.camera=from_depth
 moge2-metric	extraction.plan.depth=moge2 extraction.plan.camera=from_depth extraction.plan.scale=metric_depth
 moge2-focal-clip	extraction.plan.camera=moge2_focal
 k	extraction.plan.depth=vda_large check_variants.R5a=los_tilt check_variants.R5b=los_ballistic verification.thresholds.R5a=13.28 verification.threshold_units.R5a=accel_tilt_chi2_4 calibration.tau_tolerance_units.R5a=accel_tilt_chi2_4
+r3a-ip-h	check_variants.R3a=image_apex
