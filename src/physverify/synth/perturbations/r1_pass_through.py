@@ -123,8 +123,9 @@ class PassThrough(PluginBase[Params]):
 
 
 def first_rolling_hit(states: ObjectStateTable, contacts: ContactTable) -> tuple[int, int, int]:
-    """(mover, partner, k0): the first object-object contact of a moving sphere whose partner
-    and every other body rest until then; k0 is the last row before the contact starts."""
+    """(mover, partner, k0): the first object-object contact of a moving body, if that body is a
+    sphere whose partner and every other body rest until then; k0 is the last row before the
+    contact starts. Contacts between bodies at rest (a resting cluster) are not hits."""
     ids = states.object_ids.astype(str).tolist()
     hits = sorted(
         (r for r in contacts.records if ENV_ID not in (r.object_a, r.object_b)),
@@ -132,15 +133,12 @@ def first_rolling_hit(states: ObjectStateTable, contacts: ContactTable) -> tuple
     )
     for record in hits:
         start = int(np.searchsorted(states.frame_index, record.t_start, side="left")) - 1
-        if start < 0:
+        pair = (ids.index(record.object_a), ids.index(record.object_b))
+        if start < 0 or all(bool(rest_mask(states, j)[start]) for j in pair):
             continue
-        for mover_id, partner_id in (
-            (record.object_a, record.object_b),
-            (record.object_b, record.object_a),
-        ):
-            mover = ids.index(mover_id)
+        for mover, partner in (pair, pair[::-1]):
             if _rolls_into(states, mover, start):
-                return mover, ids.index(partner_id), start
+                return mover, partner, start
         break
     raise PerturbationNotApplicableError(f"{NAME}: no rolling sphere hits a resting body")
 

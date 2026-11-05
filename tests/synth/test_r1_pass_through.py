@@ -128,6 +128,19 @@ def test_a_clip_without_a_rolling_hit_is_refused(plugin: Any, bank: Any) -> None
             applied(plugin, clip, PEN_LEVELS[0])
 
 
+def test_a_contact_inside_a_resting_cluster_is_not_the_hit(plugin: Any, bank: Any) -> None:
+    clip = clip_of(bank)
+    expected = first_rolling_hit(clip.states, clip.contacts)
+    ids = clip.states.object_ids.astype(str).tolist()
+    mover, partner = ids[expected[0]], ids[expected[1]]
+    resting = [i for i in ids if i not in (mover, partner)]
+    template = min(clip.contacts.records, key=lambda r: r.t_start)
+    cluster = replace(template, object_a=resting[0], object_b=resting[1], t_start=0.05)
+    contacts = replace(clip.contacts, records=(cluster, *clip.contacts.records))
+    assert first_rolling_hit(clip.states, contacts) == expected
+    applied(plugin, replace(clip, contacts=contacts), PEN_LEVELS[0])
+
+
 def _with_position(states: ObjectStateTable, position: np.ndarray) -> ObjectStateTable:
     return replace(states, position=position)
 
