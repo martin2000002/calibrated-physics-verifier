@@ -25,7 +25,9 @@ KINDS = (
     "policies",
     "timing_targets",
 )
-ADDED_KINDS = frozenset({"judges", "scorers", "truth_measures", "check_variants"})
+ADDED_KINDS = frozenset(
+    {"judges", "scorers", "truth_measures", "check_variants", "centre_strategies"}
+)
 CLI_KIND = "commands"
 
 ORDER: Mapping[str, tuple[str, ...]] = {
@@ -117,6 +119,7 @@ ORDER: Mapping[str, tuple[str, ...]] = {
         "R5a",
         "R5b",
     ),
+    "centre_strategies": ("surface_median",),
     "timing_targets": (
         "dpo_step",
         "extract_pipeline",

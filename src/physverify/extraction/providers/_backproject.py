@@ -23,6 +23,12 @@ from physverify.extraction.backprojection import (
     object_summary,
     place_object,
 )
+from physverify.extraction.centres._base import (
+    CentreMethod,
+    ImageCentres,
+    build_centre,
+    centre_strategies,
+)
 from physverify.extraction.gravity_pose import LEVEL_CAMERA_GRAVITY, gravity_from_pose
 from physverify.extraction.lift_geometry import (
     GroundFrame,
@@ -58,7 +64,8 @@ class BackprojectLift:
     name: ClassVar[str] = "backproject"
     # 6: 1c8de44 changed the footprint yaw trim (robust_scale) and cached v5 lifts went stale.
     # 7: the output gains nearer_cover.
-    version: ClassVar[str] = "7"
+    # 8: the image-plane centre comes from a configured strategy (params ``centre``).
+    version: ClassVar[str] = "8"
     requires: ClassVar[tuple[Stage, ...]] = (Stage.TRACK, Stage.DEPTH, Stage.CAMERA)
     heavy: ClassVar[bool] = False
     is_ground_truth: ClassVar[bool] = False
@@ -69,6 +76,9 @@ class BackprojectLift:
 
     def __init__(self, params: BaseModel) -> None:
         self.params = expect_params(params, Params)
+        self.centre = build_centre(
+            self.params.centre, self.params.centre_params, centre_strategies()
+        )
 
     def run(self, ctx: StageContext) -> ObjectStateTable:
         track = self._track(ctx)
@@ -93,7 +103,8 @@ class BackprojectLift:
         frame = ground_frame(gravity)
         errors = _lift_errors(ctx, camera)
         rng = np.random.default_rng(int(stable_hash(ctx.clip.clip_id)[:SEED_HEX_DIGITS], 16))
-        summaries = self._summaries(track, z, valid, camera.K, frame, primitives)
+        centres = self.centre.image_centres(track.masks, primitives)
+        summaries = self._summaries(track, z, valid, camera.K, frame, primitives, centres)
         for t_index, row in enumerate(summaries):
             for n_index, (summary, primitive) in enumerate(zip(row, primitives, strict=True)):
                 cell = (t_index, n_index)
@@ -115,6 +126,7 @@ class BackprojectLift:
             gravity_dir_sigma=gravity_sigma,
             border_cut=cut,
             nearer_cover=cover,
+            centre_method=None if centres is None else centres.method,
         )
 
     def _track(self, ctx: StageContext) -> MaskTrack:
@@ -129,15 +141,15 @@ class BackprojectLift:
         intrinsics: FloatArray,
         frame: GroundFrame | None,
         primitives: list[PrimitiveKind],
+        centres: ImageCentres | None = None,
     ) -> list[list[ObjectSummary | None]]:
-        """Rows (T) of per-object summaries; with ``"median"`` every object's visible runs are
-        stabilised before positions and sigma are computed from them."""
+        """Rows (T) of per-object summaries at the strategy's ``centres`` where it set one; with
+        ``"median"`` every object's visible runs are stabilised before positions and sigma are
+        computed from them."""
         n_t, n_obj = track.masks.shape[:2]
         rows = [
             [
-                object_summary(
-                    track.masks[t, n], z[t], valid[t], intrinsics, self._options, frame, kind
-                )
+                self._summary(track, z, valid, intrinsics, frame, kind, centres, (t, n))
                 for n, kind in enumerate(primitives)
             ]
             for t in range(n_t)
@@ -149,6 +161,27 @@ class BackprojectLift:
             stabilize_summaries([row[n] for row in rows], window, edges) for n in range(n_obj)
         ]
         return [[columns[n][t] for n in range(n_obj)] for t in range(n_t)]
+
+    def _summary(
+        self,
+        track: MaskTrack,
+        z: FloatArray,
+        valid: NDArray[np.bool_],
+        intrinsics: FloatArray,
+        frame: GroundFrame | None,
+        kind: PrimitiveKind,
+        centres: ImageCentres | None,
+        cell: tuple[int, int],
+    ) -> ObjectSummary | None:
+        t, n = cell
+        method = CentreMethod.SURFACE_MEDIAN if centres is None else centres.method[cell]
+        if method == CentreMethod.ABSENT:
+            return None
+        uv = None
+        if centres is not None and method != CentreMethod.SURFACE_MEDIAN:
+            uv = (float(centres.uv[t, n, 0]), float(centres.uv[t, n, 1]))
+        mask = track.masks[t, n]
+        return object_summary(mask, z[t], valid[t], intrinsics, self._options, frame, kind, uv)
 
     @property
     def _options(self) -> SummaryOptions:

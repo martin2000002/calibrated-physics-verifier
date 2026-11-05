@@ -86,6 +86,8 @@ class ObjectStateTable(Record):
     ``nearer_cover`` is the share of the object's mask box covered by the masks of the other
     tracked objects nearer the camera on that row (by the back-projected depth, before any
     correction along the viewing ray); NaN without a mask or a depth, None without masks.
+    ``centre_method`` names how the lift found each cell's image-plane centre; None when the lift
+    used its own surface median throughout.
     """
 
     clip_id: str
@@ -116,6 +118,7 @@ class ObjectStateTable(Record):
     gravity_dir_sigma: float
     border_cut: NDArray[np.bool_] | None = None
     nearer_cover: NDArray[np.float64] | None = None
+    centre_method: NDArray[np.str_] | None = None
 
     _arrays = MappingProxyType(
         {
@@ -134,6 +137,7 @@ class ObjectStateTable(Record):
             "gravity_dir": ArraySpec("f8", (3,)),
             "border_cut": ArraySpec("?", ("T", "N"), optional=True),
             "nearer_cover": ArraySpec("f8", ("T", "N"), optional=True),
+            "centre_method": ArraySpec("U", ("T", "N"), optional=True),
         }
     )
 

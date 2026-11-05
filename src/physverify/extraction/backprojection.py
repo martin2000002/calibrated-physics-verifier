@@ -164,9 +164,11 @@ def object_summary(
     options: SummaryOptions,
     frame: GroundFrame | None = None,
     primitive: PrimitiveKind = PrimitiveKind.UNKNOWN,
+    centre_px: tuple[float, float] | None = None,
 ) -> ObjectSummary | None:
     """Back-projects X = z K^-1 [u, v, 1] of the eroded surface for the centre s; None when fewer
-    than ``min_area_px`` pixels remain.
+    than ``min_area_px`` pixels remain. A given image centre ``centre_px`` (whose strategy already
+    gated presence) is placed at the surface's median depth instead, with any surface pixel.
 
     Extents come from the silhouette's main parts at the surface depth z_s: a sphere's diameter
     from their area, else (P_hi - P_lo of the pixel coordinates + 1 px) z_s / f. The eroded set
@@ -174,14 +176,17 @@ def object_summary(
     shrink the extents by a third."""
     pixels = _surface_pixels(mask, valid, options.erode_px)
     n_pixels = int(pixels.sum())
-    if n_pixels < options.min_area_px:
+    if n_pixels < (1 if centre_px is not None else options.min_area_px):
         return None
     rows, cols = np.nonzero(pixels)
     depth = z[rows, cols]
     x = (cols + 0.5 - intrinsics[0, 2]) / intrinsics[0, 0] * depth
     y = (rows + 0.5 - intrinsics[1, 2]) / intrinsics[1, 1] * depth
     surface = np.column_stack([x, y, depth])
-    centre = np.median(surface, axis=0)
+    if centre_px is None:
+        centre = np.median(surface, axis=0)
+    else:
+        centre = ray_point(centre_px, float(np.median(depth)), intrinsics)
     parts = main_parts(mask, options.min_part_frac)
     focal = np.array([intrinsics[0, 0], intrinsics[1, 1]])
     if primitive is PrimitiveKind.SPHERE:
@@ -207,6 +212,14 @@ def object_summary(
         n_pixels=n_pixels,
         view=view,
     )
+
+
+def ray_point(uv: tuple[float, float], z: float, intrinsics: FloatArray) -> FloatArray:
+    """z K^-1 [u, v, 1] for a continuous pixel position (u, v)."""
+    u, v = uv
+    x = (u - intrinsics[0, 2]) / intrinsics[0, 0] * z
+    y = (v - intrinsics[1, 2]) / intrinsics[1, 1] * z
+    return np.array([x, y, z], dtype=np.float64)
 
 
 def full_extents(lateral: FloatArray) -> FloatArray:
