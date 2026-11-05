@@ -114,7 +114,11 @@ def walk(ok: BoolArray, start: int, step: int, limit: int) -> list[int]:
 
 
 def line_fit(t: FloatArray, y: FloatArray, t0: float) -> LineFit:
-    """Least-squares line y = intercept + slope (t - t0), y of shape (n, 2)."""
+    """Least-squares line y = intercept + slope (t - t0), y of shape (n, 2).
+
+    Not ``physics.tracks.poly_fit`` of degree 1: that one solves the normal equations about
+    mean(t) and its slopes differ from these closed-form ones in the last bits (most random
+    fits), which would move the probe's outputs; it also gives no rss or sxx."""
     x = np.asarray(t, dtype=np.float64) - t0
     xm = x.mean()
     sxx = float(((x - xm) ** 2).sum())
