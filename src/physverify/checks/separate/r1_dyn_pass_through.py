@@ -60,9 +60,9 @@ class ImageTrack:
 
 
 class PassThroughCheck:
-    """R1_dyn [no_impulse]: 1 - impulse when the pair's silhouettes overlap and their floor
-    footprints span the same image rows (within ``match_z`` sigma) on one run of at least
-    ``min_frames`` native frames; 0 otherwise.
+    """R1_dyn [frames]: s = n (1 - impulse), n the native frames of the longest run in which the
+    pair's silhouettes overlap and their floor shadows span the same image rows (within
+    ``match_z`` sigma); s = 0 when n < ``min_frames`` (ADR 0047: k and 1.96 sigma a priori).
 
     Every quantity is read on the image plane, so it does not depend on the depth scale. The
     silhouettes are the projected primitives (the occluding circle of a sphere, the hull of the
@@ -85,7 +85,7 @@ class PassThroughCheck:
     version: ClassVar[str] = "1"
     requires: ClassVar[frozenset[str]] = frozenset({"camera"})
     time_dependent: ClassVar[bool] = True
-    magnitude_unit: ClassVar[str] = "no_impulse"
+    magnitude_unit: ClassVar[str] = "frames"
     Params: ClassVar[type[BaseModel]] = PassThroughParams
 
     def __init__(self, params: BaseModel) -> None:
@@ -136,7 +136,7 @@ class PassThroughCheck:
         }
         if run is None or run[2] < params.min_frames:
             return unscored(type(self), inputs, subject, 0.0, sigma, None, details)
-        start, stop, _ = run
+        start, stop, frames = run
         span = native_span(states.frame_index, start, stop - 1)
         before = np.flatnonzero(usable[:start])
         after = start + np.flatnonzero(usable[start:])
@@ -162,7 +162,8 @@ class PassThroughCheck:
             "other_rate_change": changes[1 - mover],
             "first_matched_frame": int(states.frame_index[start]),
         }
-        return unscored(type(self), inputs, subject, 1.0 - impulse, sigma, span, details)
+        magnitude = frames * (1.0 - impulse)
+        return unscored(type(self), inputs, subject, magnitude, sigma, span, details)
 
 
 def image_track(k: FloatArray, states: ObjectStateTable, index: int) -> ImageTrack:

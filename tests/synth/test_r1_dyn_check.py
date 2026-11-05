@@ -23,7 +23,7 @@ from physverify.synth.placement import spec_intrinsics, spec_world_from_camera
 FAMILY = "f5_contact"
 PAIR = ("cube_0", "ball_0")
 K_FRAMES = 3
-# A pass-through keeps at least 0.8 of its speed; the clean hit is a full impulse.
+# A pass-through keeps at least 0.8 of its speed; the clean hit loses nearly all of it.
 NO_IMPULSE = 0.8
 
 
@@ -93,7 +93,7 @@ def passed_through(plugins: dict[str, Any], clip: Any, level: int) -> Any:
 def test_the_clean_hit_scores_low(check: Check, bank: Any) -> None:
     result = pair_result(check.evaluate(oracle_inputs(bank.recorded(FAMILY))))
     assert result.verdict is Verdict.UNSCORED
-    assert result.magnitude is not None and result.magnitude < 1.0 - NO_IMPULSE
+    assert result.magnitude is not None and result.magnitude < K_FRAMES * (1.0 - NO_IMPULSE)
 
 
 @pytest.mark.parametrize("level", [2, 3, 4])
@@ -105,7 +105,8 @@ def test_a_pass_through_keeps_its_speed(
     assert result.verdict is Verdict.UNSCORED, result.abstain_reason
     assert result.details["mover"] == "ball_0"
     assert result.details["matched_frames"] >= K_FRAMES
-    assert result.magnitude is not None and result.magnitude >= NO_IMPULSE
+    assert result.details["impulse"] < 1.0 - NO_IMPULSE
+    assert result.magnitude is not None and result.magnitude >= K_FRAMES * NO_IMPULSE
     assert result.sigma == 0.0
 
 
