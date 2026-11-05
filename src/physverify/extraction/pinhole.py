@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 from numpy.typing import NDArray
 
 FloatArray = NDArray[np.float64]
+Coordinates = NDArray[np.floating[Any]]
 
 
-def ray_points(u: FloatArray, v: FloatArray, z: FloatArray, intrinsics: FloatArray) -> FloatArray:
+def ray_points(
+    u: Coordinates, v: Coordinates, z: Coordinates, intrinsics: FloatArray
+) -> FloatArray:
     """X = z K^-1 [u, v, 1] at continuous pixel positions; a pixel's centre is its index + 0.5."""
     x = (u - intrinsics[0, 2]) / intrinsics[0, 0] * z
     y = (v - intrinsics[1, 2]) / intrinsics[1, 1] * z
