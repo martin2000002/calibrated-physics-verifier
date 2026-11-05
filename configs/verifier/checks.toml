@@ -115,6 +115,11 @@ R5a = "accel_wald_chi2_3"
 # size-change check fed a depth taken from the apparent size would measure its own input.
 # --set verification.routes.area_depth.lift=backproject points the route back at the main lift,
 # so R3a reads the main plan again (the checks hash still names the route).
+# lift/backproject_contour_circle is the main lift with the contour_circle image-plane centre,
+# for a route of its own; no profile selects it. R3b reads it with
+# --set verification.routes.contour_centre.lift=backproject_contour_circle
+# --set verification.check_routes.R3b=contour_centre
+# (both merge into the profile's tables, so R3a keeps its route under precise).
 [verification.profiles.precise.routes.area_depth]
 lift = "backproject_area_depth"
 
