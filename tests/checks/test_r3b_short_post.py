@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 
 import physverify.checks.variants.r3b_image_relspeed as relspeed
+from physverify.checks.variants._image_impulse import line_fit
 from physverify.checks.variants.r3b_image_relspeed import RelSpeedCheck, RelSpeedParams
 from physverify.schema.checks import AbstainReason, InputLevel
 from physverify.schema.provenance import GROUND_TRUTH
@@ -64,21 +65,22 @@ def test_a_full_after_side_is_read_bit_for_bit_as_by_the_default(case: sc.Case) 
     assert "short_post_fit" not in mine.details
 
 
-def _spy_streams(monkeypatch: pytest.MonkeyPatch) -> dict[str, list[Any]]:
-    """Records the stream each generator was made for and which sigma read it."""
-    made: dict[int, str] = {}
+def _spy_streams(
+    monkeypatch: pytest.MonkeyPatch,
+) -> tuple[dict[str, list[Any]], dict[str, np.random.Generator]]:
+    """Records the generator made for each stream and which sigma read which stream."""
+    made: dict[str, np.random.Generator] = {}
     seen: dict[str, list[Any]] = {"boot_sigma": [], "two_point_sigma": []}
 
     def rng(seed: int, clip_id: str, stream: str) -> np.random.Generator:
-        g = np.random.default_rng(seed)
-        made[id(g)] = stream
-        return g
+        made[stream] = np.random.default_rng(seed)
+        return made[stream]
 
     def spy(name: str) -> Any:
         real = getattr(relspeed, name)
 
         def wrapped(*args: Any) -> Any:
-            seen[name].append(made[id(args[3])])
+            seen[name].append(next(k for k, g in made.items() if g is args[3]))
             return real(*args)
 
         return wrapped
@@ -86,20 +88,48 @@ def _spy_streams(monkeypatch: pytest.MonkeyPatch) -> dict[str, list[Any]]:
     monkeypatch.setattr(relspeed, "check_rng", rng)
     for name in seen:
         monkeypatch.setattr(relspeed, name, spy(name))
-    return seen
+    return seen, made
 
 
 def test_a_short_after_side_draws_only_from_its_own_stream(monkeypatch: pytest.MonkeyPatch) -> None:
-    seen = _spy_streams(monkeypatch)
+    seen, made = _spy_streams(monkeypatch)
     only(noisy(cut_after(2)), G2)
     assert seen == {"boot_sigma": [], "two_point_sigma": [relspeed.SHORT_STREAM]}
+    fresh = np.random.default_rng(G2.seed).bit_generator.state
+    assert made[RelSpeedCheck.check_id].bit_generator.state == fresh
+    assert made[relspeed.SHORT_STREAM].bit_generator.state != fresh
 
 
 def test_a_full_after_side_draws_from_the_check_stream(monkeypatch: pytest.MonkeyPatch) -> None:
-    seen = _spy_streams(monkeypatch)
+    seen, _ = _spy_streams(monkeypatch)
     only(noisy(sc.collision(gain=0.2)), G2)
     assert seen == {"boot_sigma": [RelSpeedCheck.check_id], "two_point_sigma": []}
     assert RelSpeedCheck.check_id != relspeed.SHORT_STREAM
+
+
+def test_two_point_sigma_resamples_the_before_residuals_inflated_by_two_parameters() -> None:
+    t = [np.arange(-5.0, -2.0), np.array([3.0, 4.0])]
+    y = [
+        np.array([[5.0, 0.1], [4.1, -0.2], [2.9, 0.15]]),
+        np.array([[1.0, 0.05], [1.9, -0.1]]),
+    ]
+    params = RelSpeedParams(boot_draws=40)
+    sigma, finite = relspeed.two_point_sigma(t, y, 0.0, np.random.default_rng(3), params)
+
+    fits = [line_fit(ti, yi, 0.0) for ti, yi in zip(t, y, strict=True)]
+    base = [f.intercept + f.slope * ti[:, None] for f, ti in zip(fits, t, strict=True)]
+    pool = (y[0] - base[0]) * math.sqrt(3 / (3 - 2))
+    rng = np.random.default_rng(3)
+    draws = []
+    for _ in range(params.boot_draws):
+        vm, vp = (
+            line_fit(ti, bi + pool[rng.integers(0, 3, ti.shape[0])], 0.0).slope
+            for ti, bi in zip(t, base, strict=True)
+        )
+        draws.append(relspeed.log_ratio(vm, vp))
+    found = np.asarray(draws)[np.isfinite(draws)]
+    assert finite == found.size == params.boot_draws
+    assert sigma == pytest.approx(float(found.std(ddof=1)), rel=1e-12)
 
 
 def test_the_params_refuse_an_unreadable_after_side() -> None:
