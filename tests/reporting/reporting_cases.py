@@ -17,6 +17,7 @@ from calibration_cases import (
     config,
     dataset_ref,
     fit_meta,
+    pair_units,
     synthetic_level,
     synthetic_report,
 )
@@ -107,7 +108,9 @@ def _pairs() -> tuple[SigmaPair, ...]:
     """Measured R1 errors, so that the perceived stratum has a sigma factor and decides."""
     rng = np.random.default_rng(5)
     return tuple(
-        SigmaPair(f"fam-s{i:03d}", "R1", 0.1, 0.1 + float(rng.normal(0, SIGMA)), SIGMA)
+        SigmaPair(
+            f"fam-s{i:03d}", "R1", 0.1, 0.1 + float(rng.normal(0, SIGMA)), SIGMA, *pair_units()
+        )
         for i in range(40)
     )
 

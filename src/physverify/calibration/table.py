@@ -163,12 +163,17 @@ def unique_row_step(rows: Sequence[CalibrationRow]) -> int:
 def require_one_unit(rows: Sequence[CalibrationRow], unit: str | None = None) -> None:
     """Rows ranked or judged together are in one magnitude unit (``unit`` when given): rows of
     another implementation of the check (a variant, a host run spliced in) never mix."""
-    counts = Counter(row.unit for row in rows)
+    if rows:
+        require_units(f"{rows[0].check_id} rows", [row.unit for row in rows], unit)
+
+
+def require_units(what: str, units: Sequence[str], unit: str | None = None) -> None:
+    """``units`` are one magnitude unit (``unit`` when given); else a CalibrationDataError
+    naming ``what``."""
+    counts = Counter(units)
     if len(counts) > 1 or (unit is not None and counts and unit not in counts):
         wanted = "" if unit is None else f" (the check reports {unit})"
-        raise CalibrationDataError(
-            f"{rows[0].check_id} rows mix magnitude units {dict(counts)}{wanted}"
-        )
+        raise CalibrationDataError(f"{what} mix magnitude units {dict(counts)}{wanted}")
 
 
 def require_one_clean_per_scene(rows: Sequence[CalibrationRow]) -> None:

@@ -46,6 +46,12 @@ CLEAN_NOISE = {"R1": 0.01, "R3a": 0.02}
 """R5b has no event on clean clips (no_negatives); no perturbation targets R3a (no_positives)."""
 
 
+def pair_units(check_id: str = "R1") -> tuple[str, str]:
+    """(oracle, perceived) units of a sigma pair of ``check_id``: its magnitude unit twice."""
+    unit = UNITS.get(check_id, "u")
+    return unit, unit
+
+
 def settings(**update: object) -> CalibrationSettings:
     return CalibrationSettings.model_validate(
         {"bootstrap": 200, "sigma_pair_filter": "nonzero", **update}

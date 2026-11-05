@@ -162,7 +162,7 @@ def fit_checks(
         check.check_id: fit_check(
             [r for r in data.rows if r.check_id == check.check_id],
             check,
-            _sigma(data, check.check_id, config.calibration),
+            _sigma(data, check, config.calibration),
             policy,
             config.calibration,
         )
@@ -199,14 +199,15 @@ def _zero(weight: Weight) -> Weight:
     return weight.model_copy(update={"value": 0.0})
 
 
-def _sigma(data: LevelData, check_id: str, settings: CalibrationSettings) -> SigmaCorrection:
+def _sigma(data: LevelData, check: CheckUnit, settings: CalibrationSettings) -> SigmaCorrection:
     if data.level is InputLevel.ORACLE:
         return oracle_correction()
     if data.sigma_pairs is None:
         return oracle_correction().model_copy(
             update={"reason": NOT_RECALIBRATED, "estimated": True}
         )
-    return fit_sigma([p for p in data.sigma_pairs if p.check_id == check_id], settings)
+    pairs = [p for p in data.sigma_pairs if p.check_id == check.check_id]
+    return fit_sigma(pairs, settings, check.magnitude_unit)
 
 
 def check_status(tau: Tau, positives: Sequence[CalibrationRow]) -> CheckStatus:

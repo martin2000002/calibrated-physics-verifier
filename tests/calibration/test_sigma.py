@@ -8,7 +8,7 @@ from types import MappingProxyType
 
 import numpy as np
 import pytest
-from calibration_cases import check_calibration, settings, view
+from calibration_cases import check_calibration, pair_units, settings, view
 
 from physverify.calibration.sigma_recalibration import (
     FEW_PAIRS,
@@ -39,7 +39,7 @@ def pairs(rng: np.random.Generator, n: int = 200, scale: float = SCALE) -> list[
     sigma = rng.uniform(0.01, 0.05, n)
     delta = BIAS + scale * sigma * rng.normal(0.0, 1.0, n)
     return [
-        SigmaPair(f"s{i % 40}", "R1", 0.1, 0.1 + float(d), float(s))
+        SigmaPair(f"s{i % 40}", "R1", 0.1, 0.1 + float(d), float(s), *pair_units())
         for i, (d, s) in enumerate(zip(delta, sigma, strict=True))
     ]
 
@@ -131,10 +131,10 @@ def censored_pairs(
     for i in range(n):
         sigma = float(rng.uniform(0.01, 0.05))
         if i < zero_share * n:
-            found.append(SigmaPair(f"s{i % 40}", "R1", 0.0, 0.0, sigma))
+            found.append(SigmaPair(f"s{i % 40}", "R1", 0.0, 0.0, sigma, *pair_units()))
         else:
             delta = scale * sigma * float(rng.normal(0.0, 1.0))
-            found.append(SigmaPair(f"s{i % 40}", "R1", 0.1, 0.1 + delta, sigma))
+            found.append(SigmaPair(f"s{i % 40}", "R1", 0.1, 0.1 + delta, sigma, *pair_units()))
     return found
 
 
@@ -187,14 +187,15 @@ def test_the_bias_does_not_depend_on_the_filter(zero_share: float) -> None:
 
 
 def test_a_replica_with_fewer_than_two_informative_pairs_has_no_factor() -> None:
-    zeros = [SigmaPair(f"s{i}", "R1", 0.0, 0.0, 0.01) for i in range(10)]
-    one = [*zeros, SigmaPair("s9", "R1", 0.1, 0.2, 0.01)]
+    zeros = [SigmaPair(f"s{i}", "R1", 0.0, 0.0, 0.01, *pair_units()) for i in range(10)]
+    one = [*zeros, SigmaPair("s9", "R1", 0.1, 0.2, 0.01, *pair_units())]
     assert math.isnan(bias_factor(one, "nonzero")[1])
     assert bias_factor(one, "all")[1] == 0.0
     rng = np.random.default_rng(8)
-    found = [SigmaPair(f"s{i}", "R1", 0.0, 0.0, 0.01) for i in range(1, 31)]
+    found = [SigmaPair(f"s{i}", "R1", 0.0, 0.0, 0.01, *pair_units()) for i in range(1, 31)]
     found += [
-        SigmaPair("s0", "R1", 0.1, 0.1 + float(rng.normal(0.0, 0.02)), 0.01) for _ in range(10)
+        SigmaPair("s0", "R1", 0.1, 0.1 + float(rng.normal(0.0, 0.02)), 0.01, *pair_units())
+        for _ in range(10)
     ]
     result = fit_sigma(found, settings(sigma_pair_filter="nonzero"))
     assert result.factor is not None
@@ -204,8 +205,8 @@ def test_a_replica_with_fewer_than_two_informative_pairs_has_no_factor() -> None
 def test_cross_fitting_skips_a_fold_whose_training_lacks_informative_pairs() -> None:
     """Every informative pair sits in scene s0: the fold holding s0 trains without any and is
     skipped, the others are scored with the filter."""
-    found = [SigmaPair(f"s{i % 6}", "R1", 0.0, 0.0, 0.01) for i in range(30)]
-    found += [SigmaPair("s0", "R1", 0.1, 0.1 + 0.01 * k, 0.01) for k in range(-3, 4)]
+    found = [SigmaPair(f"s{i % 6}", "R1", 0.0, 0.0, 0.01, *pair_units()) for i in range(30)]
+    found += [SigmaPair("s0", "R1", 0.1, 0.1 + 0.01 * k, 0.01, *pair_units()) for k in range(-3, 4)]
     cfg = settings(sigma_pair_filter="nonzero", folds=3)
     z = cross_fitted_z(found, cfg)
     held_with_s0 = [p for p in found if p.scene_id == "s0"]
