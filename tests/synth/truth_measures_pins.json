@@ -10,6 +10,10 @@
   "R5a": "0x1.9b5d658569a2dp-49",
   "R5b": "0x1.6f6ddcd9a39eep-25"
  },
+ "f1_projectile/r1_pass_through/1": "not_applicable",
+ "f1_projectile/r1_pass_through/2": "not_applicable",
+ "f1_projectile/r1_pass_through/3": "not_applicable",
+ "f1_projectile/r1_pass_through/4": "not_applicable",
  "f1_projectile/r1_penetration/1": "not_applicable",
  "f1_projectile/r1_penetration/2": "not_applicable",
  "f1_projectile/r1_penetration/3": "not_applicable",
@@ -228,6 +232,10 @@
   "R5a": "nan",
   "R5b": "0x1.6f6ddce6afe2cp-25"
  },
+ "f2_bounce/r1_pass_through/1": "not_applicable",
+ "f2_bounce/r1_pass_through/2": "not_applicable",
+ "f2_bounce/r1_pass_through/3": "not_applicable",
+ "f2_bounce/r1_pass_through/4": "not_applicable",
  "f2_bounce/r1_penetration/1": "not_applicable",
  "f2_bounce/r1_penetration/2": "not_applicable",
  "f2_bounce/r1_penetration/3": "not_applicable",
@@ -446,6 +454,10 @@
   "R5a": "0x1.338534123b766p-48",
   "R5b": "0x1.6f6ddd4205bdbp-25"
  },
+ "f3_collision/r1_pass_through/1": "not_applicable",
+ "f3_collision/r1_pass_through/2": "not_applicable",
+ "f3_collision/r1_pass_through/3": "not_applicable",
+ "f3_collision/r1_pass_through/4": "not_applicable",
  "f3_collision/r1_penetration/1": "not_applicable",
  "f3_collision/r1_penetration/2": "not_applicable",
  "f3_collision/r1_penetration/3": "not_applicable",
@@ -573,6 +585,10 @@
   "R5a": "nan",
   "R5b": "nan"
  },
+ "f4_stack/r1_pass_through/1": "not_applicable",
+ "f4_stack/r1_pass_through/2": "not_applicable",
+ "f4_stack/r1_pass_through/3": "not_applicable",
+ "f4_stack/r1_pass_through/4": "not_applicable",
  "f4_stack/r1_penetration/1": "not_applicable",
  "f4_stack/r1_penetration/2": "not_applicable",
  "f4_stack/r1_penetration/3": "not_applicable",
@@ -739,6 +755,50 @@
   "R4_size": "0x0.0p+0",
   "R5a": "nan",
   "R5b": "nan"
+ },
+ "f5_contact/r1_pass_through/1": {
+  "R1": "0x1.9994881a983f7p-5",
+  "R2": "nan",
+  "R3a": "nan",
+  "R3b": "nan",
+  "R4_missing": "0x0.0p+0",
+  "R4_size": "0x0.0p+0",
+  "R4_jump": "0x1.23da772c3bd87p-10",
+  "R5a": "nan",
+  "R5b": "0x1.ffffffffffffdp-1"
+ },
+ "f5_contact/r1_pass_through/2": {
+  "R1": "0x1.9990a85c9d9efp-4",
+  "R2": "nan",
+  "R3a": "nan",
+  "R3b": "nan",
+  "R4_missing": "0x0.0p+0",
+  "R4_size": "0x0.0p+0",
+  "R4_jump": "0x1.23da772c3bd87p-10",
+  "R5a": "nan",
+  "R5b": "0x1.ffffffffffffdp-1"
+ },
+ "f5_contact/r1_pass_through/3": {
+  "R1": "0x1.999bae4c15c26p-3",
+  "R2": "nan",
+  "R3a": "nan",
+  "R3b": "nan",
+  "R4_missing": "0x0.0p+0",
+  "R4_size": "0x0.0p+0",
+  "R4_jump": "0x1.23da772c3bd87p-10",
+  "R5a": "nan",
+  "R5b": "0x1.ffffffffffffep-1"
+ },
+ "f5_contact/r1_pass_through/4": {
+  "R1": "0x1.99974d042a040p-2",
+  "R2": "nan",
+  "R3a": "nan",
+  "R3b": "nan",
+  "R4_missing": "0x0.0p+0",
+  "R4_size": "0x0.0p+0",
+  "R4_jump": "0x1.23da772c3bd87p-10",
+  "R5a": "nan",
+  "R5b": "0x1.ffffffffffffdp-1"
  },
  "f5_contact/r1_penetration/1": {
   "R1": "0x1.99abe68cec3a6p-5",
