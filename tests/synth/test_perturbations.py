@@ -47,11 +47,14 @@ OWN_KEY = {
     "r5b_gravity_scale": "R5b",
 }
 PLUGINS = PLUGIN_KINDS["perturbations"]()
+# Decoys target no check (labelled clean); tests/synth/test_decoys.py covers them.
+DECOYS = {name for name, plugin in PLUGINS.items() if name != "none" and not plugin.target_checks}
 APPLICABLE = {
     family: {
         name
         for name, plugin in PLUGINS.items()
         if name != "none"
+        and name not in DECOYS
         and plugin.target is PerturbationTarget.TRAJECTORY
         and (not plugin.families or family in plugin.families)
     }
@@ -179,14 +182,14 @@ def sweep(bank: Any, clean_ds: DatasetSettings, perturbations: Any, truth_measur
 
 def test_the_families_cover_every_plugin(plugins: dict[str, Any]) -> None:
     covered = set().union(*APPLICABLE.values()) | {"r5b_gravity_scale"}
-    assert covered == set(plugins) - {"none"} == set(OWN_KEY)
+    assert covered == set(plugins) - {"none"} - DECOYS == set(OWN_KEY)
 
 
 @pytest.mark.parametrize("source", ["recorded", "analytic"])
 @pytest.mark.parametrize("family", sorted(APPLICABLE))
 def test_each_level_is_reached_and_measured(family: str, source: str, sweep: Sweep) -> None:
     clip = sweep.clip(source, family)
-    for name in sorted(trajectory_names(sweep.plugins) - APPLICABLE[family]):
+    for name in sorted(trajectory_names(sweep.plugins) - APPLICABLE[family] - DECOYS):
         with pytest.raises(PerturbationNotApplicableError):
             perturbed(sweep.plugins[name], clip, family, 1, 0.1, sweep.ds.seed)
     for (name, level), edit in sweep.edits(source, family).items():

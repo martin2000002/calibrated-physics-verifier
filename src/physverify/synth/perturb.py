@@ -106,6 +106,12 @@ def measured(
     return float(value)
 
 
+def seed_stream(plugin: ScenePerturbation | TrajectoryPerturbation) -> str:
+    """Name the attempt seeds are drawn under: a plugin may share another's stream so that, at the
+    same level, it reproduces that plugin's random choices (a decoy and its positive)."""
+    return str(getattr(plugin, "seed_stream", plugin.name))
+
+
 def _attempts(plugin: object) -> int:
     return int(getattr(getattr(plugin, "params", None), "max_attempts", 1))
 
@@ -122,7 +128,7 @@ def perturb_scene(
         raise PerturbationNotApplicableError(f"{plugin.name}: not applicable to {scene.family}")
     reasons: list[str] = []
     for attempt in range(_attempts(plugin)):
-        seed = key.attempt_seed(plugin.name, attempt)
+        seed = key.attempt_seed(seed_stream(plugin), attempt)
         try:
             edited, record = plugin.apply(scene, target, np.random.default_rng(seed))
         except REFUSALS as exc:
@@ -145,7 +151,7 @@ def perturb_trajectory(
         raise PerturbationNotApplicableError(f"{plugin.name}: not applicable to {scene.family}")
     reasons: list[str] = []
     for attempt in range(_attempts(plugin)):
-        seed = key.attempt_seed(plugin.name, attempt)
+        seed = key.attempt_seed(seed_stream(plugin), attempt)
         try:
             new_states, new_contacts, record = plugin.apply(
                 scene, states, contacts, target, np.random.default_rng(seed)

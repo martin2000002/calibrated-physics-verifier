@@ -43,7 +43,9 @@ ORDER: Mapping[str, tuple[str, ...]] = {
     "perturbations": (
         "none",
         "r1_penetration",
+        "r1_penetration_decoy",
         "r2_unsupported_rest",
+        "r2_unsupported_rest_decoy",
         "r3_energy_gain",
         "r3_restitution_gain",
         "r4_resize",
