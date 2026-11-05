@@ -87,6 +87,8 @@ def _clip_pairs(
             oracle=float(p.oracle.magnitude or 0.0),
             perceived=float(p.other.magnitude or 0.0),
             sigma=p.other.sigma,
+            oracle_unit=p.oracle.unit,
+            perceived_unit=p.other.unit,
         )
         for p in paired.pairs
         if p.delta is not None

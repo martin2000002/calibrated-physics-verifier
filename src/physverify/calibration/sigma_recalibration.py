@@ -13,6 +13,7 @@ import numpy as np
 from physverify.calibration.artifact import CoverageAt, SigmaCorrection, StageFactor
 from physverify.calibration.settings import CalibrationSettings, PairFilter
 from physverify.calibration.stats import FloatArray
+from physverify.calibration.table import require_units
 from physverify.diagnosis.error_profile_writer import (
     PROFILE_QUANTITIES,
     MetricSamples,
@@ -42,17 +43,28 @@ MIN_FACTOR_PAIRS = 2
 
 @dataclass(frozen=True)
 class SigmaPair:
-    """One subject event seen by the oracle and by the perceived chain (``diagnosis.pairing``)."""
+    """One subject event seen by the oracle and by the perceived chain (``diagnosis.pairing``),
+    with the magnitude unit of each side."""
 
     scene_id: str
     check_id: str
     oracle: float
     perceived: float
     sigma: float
+    oracle_unit: str
+    perceived_unit: str
 
     @property
     def delta(self) -> float:
         return self.perceived - self.oracle
+
+
+def require_pair_units(pairs: Sequence[SigmaPair], unit: str | None = None) -> None:
+    """Both sides of the pairs fitted together are in one magnitude unit (``unit`` when given),
+    as the rows of ``table.require_one_unit``."""
+    if pairs:
+        units = [u for p in pairs for u in (p.oracle_unit, p.perceived_unit)]
+        require_units(f"{pairs[0].check_id} sigma pairs", units, unit)
 
 
 def coverage(z: FloatArray | Sequence[float]) -> tuple[CoverageAt, ...]:
@@ -112,7 +124,12 @@ def bias_factor(pairs: Sequence[SigmaPair], pair_filter: PairFilter) -> tuple[fl
     return bias, float(np.median(z)) / MAD_TO_SIGMA
 
 
-def fit_sigma(pairs: Sequence[SigmaPair], settings: CalibrationSettings) -> SigmaCorrection:
+def fit_sigma(
+    pairs: Sequence[SigmaPair], settings: CalibrationSettings, unit: str | None = None
+) -> SigmaCorrection:
+    """Bias and factor of one check's pairs, every side in one magnitude unit (``unit`` when
+    given)."""
+    require_pair_units(pairs, unit)
     found = usable(pairs)
     pair_filter = settings.sigma_pair_filter
     counted = factor_pairs(found, pair_filter)

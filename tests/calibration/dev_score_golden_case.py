@@ -13,7 +13,7 @@ from typing import Any
 
 import numpy as np
 import test_devscore as td
-from calibration_cases import CHECKS, config, fit_meta
+from calibration_cases import CHECKS, config, fit_meta, pair_units
 
 from physverify.calibration.collect import level_data
 from physverify.calibration.dev_score import dev_score
@@ -30,11 +30,15 @@ def pairs() -> tuple[SigmaPair, ...]:
     rng = np.random.default_rng(7)
     found: list[SigmaPair] = []
     for scene in sorted({r.scene_id for r in td.levels()[0].rows}):
-        found += [SigmaPair(scene, "R1", 0.0, 0.0, 0.01 + 0.001 * k) for k in range(2)]
+        found += [
+            SigmaPair(scene, "R1", 0.0, 0.0, 0.01 + 0.001 * k, *pair_units()) for k in range(2)
+        ]
         for _ in range(2):
             oracle = float(abs(rng.normal(0.05, 0.02)))
             found.append(
-                SigmaPair(scene, "R1", oracle, oracle + float(rng.normal(0.0, 0.01)), 0.004)
+                SigmaPair(
+                    scene, "R1", oracle, oracle + float(rng.normal(0.0, 0.01)), 0.004, *pair_units()
+                )
             )
     return tuple(found)
 
