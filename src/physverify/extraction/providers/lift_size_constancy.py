@@ -11,7 +11,7 @@ from pydantic import BaseModel
 
 from physverify.extraction._base import StageContext
 from physverify.extraction.lift_params import SizeConstancyLiftParams, size_constancy_params
-from physverify.extraction.providers._backproject import BackprojectLift
+from physverify.extraction.providers._backproject import BackprojectLift, CentreRegistry
 from physverify.extraction.providers._common import expect_params
 from physverify.extraction.size_constancy import along_ray_sigma, replace_along_ray_sigma
 from physverify.schema.states import ObjectStateTable, PrimitiveKind
@@ -27,9 +27,9 @@ class SizeConstancyLift(BackprojectLift):
     version: ClassVar[str] = "3"
     Params: ClassVar[type[BaseModel]] = SizeConstancyLiftParams
 
-    def __init__(self, params: BaseModel) -> None:
+    def __init__(self, params: BaseModel, centres: CentreRegistry) -> None:
         own = expect_params(params, SizeConstancyLiftParams)
-        super().__init__(own)
+        super().__init__(own, centres)
         self.constancy = size_constancy_params(own)
 
     def run(self, ctx: StageContext) -> ObjectStateTable:

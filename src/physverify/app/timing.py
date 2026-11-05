@@ -60,6 +60,7 @@ def timing_services(
     return TimingServices(
         datasets=registry_of(context, DATASETS),
         providers=registry_of(context, PROVIDERS),
+        registry=context.registry,
         checks=registry_of(context, CHECKS),
         policies=registry_of(context, POLICIES),
         lock_factory=lambda: NullLock(NESTED_LOCK),

@@ -131,7 +131,8 @@ def test_an_arc_under_ninety_degrees_falls_back_to_the_centroid() -> None:
 
 def test_the_strategy_is_registered_and_its_params_are_validated() -> None:
     assert isinstance(
-        BackprojectLift(LiftParams(centre="contour_circle")).centre, ContourCircleCentre
+        BackprojectLift(LiftParams(centre="contour_circle"), centre_strategies()).centre,
+        ContourCircleCentre,
     )
     with pytest.raises(ConfigError, match=r"contour_circle.*centre_params"):
         build_centre("contour_circle", {"min_arc_deg": -1.0}, centre_strategies())
@@ -156,7 +157,7 @@ def test_a_box_keeps_the_surface_median_summary() -> None:
     assert bool((found.method[:, 1] == CentreMethod.CIRCLE).all())
     z, valid = np.full((2, *SHAPE), 3.0), np.ones((2, *SHAPE), dtype=bool)
     k = np.array([[50.0, 0.0, 24.0], [0.0, 50.0, 24.0], [0.0, 0.0, 1.0]])
-    lift = BackprojectLift(LiftParams(centre="contour_circle"))
+    lift = BackprojectLift(LiftParams(centre="contour_circle"), centre_strategies())
     seam = cast(MaskTrack, SimpleNamespace(masks=masks))
     rows = lift._summaries(seam, z, valid, k, None, kinds, found)
     plain = object_summary(whole, z[0], valid[0], k, lift._options, None, PrimitiveKind.BOX)

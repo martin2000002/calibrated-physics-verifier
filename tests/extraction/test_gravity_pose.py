@@ -9,6 +9,7 @@ import pytest
 from support import make_context
 from synthetic_clip import SyntheticClip, world_from_camera
 
+from physverify.extraction.centres._base import centre_strategies
 from physverify.extraction.gravity_pose import (
     LEVEL_CAMERA_GRAVITY,
     gravity_from_pose,
@@ -70,7 +71,7 @@ def test_lift_reads_the_same_gravity_as_before(
         fov_sigma_deg=10.0,
         world_from_camera=pose,
     )
-    lift = BackprojectLift(BackprojectLift.Params())
+    lift = BackprojectLift(BackprojectLift.Params(), centre_strategies())
     gravity, sigma = lift._gravity(camera, "auto")
     np.testing.assert_array_equal(gravity, old_gravity(pose))
     assert sigma == pytest.approx(math.radians(2.0))

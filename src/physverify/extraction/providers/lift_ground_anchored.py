@@ -24,7 +24,11 @@ from physverify.extraction.ground_anchor import (
     normal_usable,
 )
 from physverify.extraction.lift_params import GroundAnchoredLiftParams, ground_anchor_params
-from physverify.extraction.providers._backproject import SEED_HEX_DIGITS, BackprojectLift
+from physverify.extraction.providers._backproject import (
+    SEED_HEX_DIGITS,
+    BackprojectLift,
+    CentreRegistry,
+)
 from physverify.extraction.providers._common import expect_params
 from physverify.extraction.stack_guard import stacked_rows
 from physverify.physics.uncertainty import entry_rms
@@ -51,9 +55,9 @@ class GroundAnchoredLift(BackprojectLift):
     version: ClassVar[str] = "6"
     Params: ClassVar[type[BaseModel]] = GroundAnchoredLiftParams
 
-    def __init__(self, params: BaseModel) -> None:
+    def __init__(self, params: BaseModel, centres: CentreRegistry) -> None:
         anchored = expect_params(params, GroundAnchoredLiftParams)
-        super().__init__(anchored)
+        super().__init__(anchored, centres)
         self.anchor = anchored
 
     def run(self, ctx: StageContext) -> ObjectStateTable:

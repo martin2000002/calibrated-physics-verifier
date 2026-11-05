@@ -6,10 +6,10 @@ Heavy libraries (torch, transformers) are imported inside ``run()``, never at mo
 from __future__ import annotations
 
 import math
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import ClassVar, Protocol, runtime_checkable
+from typing import Any, ClassVar, Protocol, runtime_checkable
 
 from pydantic import BaseModel
 
@@ -17,6 +17,7 @@ from physverify.config.models import PathsSettings
 from physverify.config.plugin_context import PluginKind
 from physverify.core.errors import InvalidPluginError, MissingInputError
 from physverify.core.models import FrozenModel
+from physverify.core.registry import Registry
 from physverify.datasets._base import GroundTruthStore, VideoSource
 from physverify.schema.clip import ClipManifest, FrameSampling
 from physverify.schema.error_profile import EntryFilter, ErrorEntry, ErrorProfile
@@ -131,6 +132,24 @@ class StageProvider(Protocol):
 
 PROVIDERS = PluginKind[type[StageProvider]]("providers")
 
+PluginRegistry = Callable[[str], Registry[Any]]
+"""The registry of a plugin kind by name, as ``PluginContext.registry`` hands it out."""
+PLUGIN_READS_ATTR = "plugin_reads"
+
+
+def plugin_reads(provider: type[StageProvider]) -> Mapping[str, PluginKind[Any]]:
+    """Constructor keywords a provider is built with, each the registry of a plugin kind; a
+    provider that declares no ``plugin_reads`` is built from its params alone."""
+    reads: Mapping[str, PluginKind[Any]] = getattr(provider, PLUGIN_READS_ATTR, {})
+    return reads
+
+
+def build_provider(
+    provider: type[StageProvider], params: BaseModel, registry: PluginRegistry
+) -> StageProvider:
+    plugins = {arg: registry(kind.name) for arg, kind in plugin_reads(provider).items()}
+    return provider(params, **plugins)
+
 
 @runtime_checkable
 class SupportGapGate(Protocol):
@@ -169,6 +188,8 @@ def validate_provider(provider: type[StageProvider]) -> None:
         raise InvalidPluginError(f"{provider.__name__}: Params must be a pydantic model")
     if not isinstance(_declared_size_depth(provider), bool):
         raise InvalidPluginError(f"{provider.__name__}: derives_depth_from_size must be a bool")
+    if not all(isinstance(kind, PluginKind) for kind in plugin_reads(provider).values()):
+        raise InvalidPluginError(f"{provider.__name__}: plugin_reads must map to PluginKind")
 
 
 @dataclass(frozen=True)

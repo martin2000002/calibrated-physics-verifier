@@ -9,9 +9,11 @@ from pathlib import Path
 from typing import Any
 
 from fakes import JOURNAL
+from pydantic import BaseModel
 from synthetic_clip import SyntheticClip, SyntheticFixtureDataset
 from wiring import resolve_plan
 
+from physverify.app.plugins import build as plugin_registry
 from physverify.config.models import PathsSettings, Settings
 from physverify.datasets._base import GroundTruthStore
 from physverify.extraction._base import (
@@ -19,6 +21,7 @@ from physverify.extraction._base import (
     StageContext,
     StageEvent,
     StageProvider,
+    build_provider,
 )
 from physverify.extraction.cache import StageCache, plan_entry_filter, stage_key
 from physverify.extraction.pipeline import (
@@ -79,7 +82,12 @@ def make_context(
 
 
 def run_provider(provider: type[StageProvider], ctx: StageContext, **params: Any) -> StageOutput:
-    return provider(provider.Params(**params)).run(ctx)
+    return construct(provider, provider.Params(**params)).run(ctx)
+
+
+def construct(provider: type[StageProvider], params: BaseModel) -> StageProvider:
+    """``provider`` built as the pipeline builds it, with the plugin registries it reads."""
+    return build_provider(provider, params, plugin_registry)
 
 
 def entry(stage: Stage, provider: str, quantity: str, sigma: float, **extra: Any) -> ErrorEntry:
@@ -163,6 +171,7 @@ def make_deps(
         error_profile=profile,
         observer=JournalObserver(),
         rss=FakeRss(),
+        registry=plugin_registry,
     )
 
 

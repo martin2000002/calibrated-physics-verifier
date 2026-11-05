@@ -19,6 +19,7 @@ from network import no_network as no_network
 from timing_settings import FAKE_DATASET, make_clip
 from timing_settings import clip_factory as clip_factory
 
+from physverify.app.plugins import build as plugin_registry
 from physverify.config.models import Settings
 from physverify.core.errors import TimingError
 from physverify.runtime.heavy import NullLock
@@ -208,6 +209,7 @@ def make_services() -> Callable[..., TimingServices]:
         services = TimingServices(
             datasets={FAKE_DATASET: FakeDataset},
             providers={},
+            registry=plugin_registry,
             checks={},
             policies={},
             lock_factory=lambda: NullLock("timing test"),
