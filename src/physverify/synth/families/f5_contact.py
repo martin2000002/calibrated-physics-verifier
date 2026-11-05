@@ -47,7 +47,7 @@ class Params(FamilyCommon):
     friction: float = 0.6
     restitution: float = 0.2
     plane_spread_deg: float = 15.0
-    # "along" puts the camera on the motion line (ADR 0049): the R1_dyn calibration scenes.
+    # "along" puts the camera on the motion line: the R1_dyn calibration scenes.
     camera_axis: Literal["across", "along"] = "across"
 
 

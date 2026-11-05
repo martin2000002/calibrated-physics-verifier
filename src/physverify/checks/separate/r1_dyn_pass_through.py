@@ -1,4 +1,4 @@
-"""R1_dyn: a moving body passes through another one (ADR 0047, separate row of ADR 0050)."""
+"""R1_dyn: a moving body passes through another one, reported as a row of its own."""
 
 from __future__ import annotations
 
@@ -32,7 +32,7 @@ _RIM = np.linspace(0.0, 2.0 * math.pi, 24, endpoint=False)
 
 
 class PassThroughParams(CommonParams):
-    """``min_frames`` is k of ADR 0047 (native frames of one run of matched rows); the floor
+    """``min_frames`` is k (native frames of one run of matched rows); the floor
     contact rows match within ``match_z`` sigma; each image rate is fitted on at least
     ``min_rate_rows`` rows."""
 
@@ -62,7 +62,7 @@ class ImageTrack:
 class PassThroughCheck:
     """R1_dyn [frames]: s = n (1 - impulse), n the native frames of the longest run in which the
     pair's silhouettes overlap and their floor shadows span the same image rows (within
-    ``match_z`` sigma); s = 0 when n < ``min_frames`` (ADR 0047: k and 1.96 sigma a priori).
+    ``match_z`` sigma); s = 0 when n < ``min_frames`` (k and 1.96 sigma fixed a priori).
 
     Every quantity is read on the image plane, so it does not depend on the depth scale. The
     silhouettes are the projected primitives (the occluding circle of a sphere, the hull of the

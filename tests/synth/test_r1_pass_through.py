@@ -1,4 +1,4 @@
-"""r1_pass_through (ADR 0047 section 1) on the committed f5 clips."""
+"""r1_pass_through on the committed f5 clips."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""The ``verify-separate`` service: the rows reported apart from the nine checks (ADR 0050).
+"""The ``verify-separate`` service: the rows reported apart from the nine checks.
 
 They run unscored (``raw`` policy, no thresholds) until a calibration of their own exists.
 """

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Renders an R1_dyn set (ADR 0047, 0049) on the H200 CPU through run_kubric.sh: f5_contact filmed
+# Renders an R1_dyn set on the H200 CPU through run_kubric.sh: f5_contact filmed
 # along the motion, each scene with its clean clip and one r1_pass_through level cycled by scene
 # index (L = index % 4 + 1), as a version of its own under paths.synthetic_dir.
 #
