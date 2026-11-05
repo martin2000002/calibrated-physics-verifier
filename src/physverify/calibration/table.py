@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from collections import Counter
 from collections.abc import Collection, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
@@ -157,6 +158,17 @@ def unique_row_step(rows: Sequence[CalibrationRow]) -> int:
         return unique_step(row.row_step for row in rows)
     except MixedRowStepError as exc:
         raise CalibrationDataError(str(exc)) from exc
+
+
+def require_one_unit(rows: Sequence[CalibrationRow], unit: str | None = None) -> None:
+    """Rows ranked or judged together are in one magnitude unit (``unit`` when given): rows of
+    another implementation of the check (a variant, a host run spliced in) never mix."""
+    counts = Counter(row.unit for row in rows)
+    if len(counts) > 1 or (unit is not None and counts and unit not in counts):
+        wanted = "" if unit is None else f" (the check reports {unit})"
+        raise CalibrationDataError(
+            f"{rows[0].check_id} rows mix magnitude units {dict(counts)}{wanted}"
+        )
 
 
 def require_one_clean_per_scene(rows: Sequence[CalibrationRow]) -> None:

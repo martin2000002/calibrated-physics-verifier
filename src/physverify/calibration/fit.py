@@ -38,6 +38,7 @@ from physverify.calibration.table import (
     CalibrationRow,
     Role,
     corrected,
+    require_one_unit,
     require_subjects,
     unique_row_step,
 )
@@ -230,6 +231,7 @@ def fit_check(
     clean = [r for r in rows if r.role is Role.CLEAN]
     positives = [r for r in rows if r.role is Role.POSITIVE]
     require_subjects(rows)
+    require_one_unit(rows, check.magnitude_unit)
     tau = fit_tau(clean, sigma.bias, settings.alpha, tolerance)
     cv = cv_verdicts(clean, rule, settings, tolerance)
     flags = [Flag(r.scene_id, True, fails(r, rule, tau.value)) for r in positives if r.has_event]
