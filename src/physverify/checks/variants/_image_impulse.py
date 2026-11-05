@@ -32,7 +32,8 @@ EVENT_SOURCE = "image_impulse"
 
 @dataclass(frozen=True)
 class Gates:
-    """Side lengths in rows and the detector's significance and geometry gates."""
+    """Side lengths in rows and the detector's significance and geometry gates; ``radius_rows``
+    is the half window of ``apparent_radius``."""
 
     side_min: int
     side_max: int
@@ -41,6 +42,7 @@ class Gates:
     kappa: float
     cross_rows: float
     merge_rows: int
+    radius_rows: int
 
 
 @dataclass(frozen=True)
@@ -122,10 +124,10 @@ def line_fit(t: FloatArray, y: FloatArray, t0: float) -> LineFit:
     return LineFit(intercept, slope, float((resid**2).sum()), sxx, int(x.size))
 
 
-def apparent_radius(states: ObjectStateTable, index: int, row: int) -> float:
-    """Median over rows row-2..row+2 of a quarter of (size_x + size_y) / Z (a learned size on a
-    perceived lift: only a proximity gate)."""
-    lo, hi = max(0, row - 2), min(states.n_frames, row + 3)
+def apparent_radius(states: ObjectStateTable, index: int, row: int, half: int) -> float:
+    """Median over rows row-half..row+half of a quarter of (size_x + size_y) / Z (a learned size
+    on a perceived lift: only a proximity gate)."""
+    lo, hi = max(0, row - half), min(states.n_frames, row + half + 1)
     size = np.asarray(states.size[lo:hi, index], dtype=np.float64)
     z = np.asarray(states.position[lo:hi, index, 2], dtype=np.float64)
     with np.errstate(invalid="ignore", divide="ignore"):
@@ -168,7 +170,8 @@ def _candidate(
     de = 0.5 * (fl.intercept + fl.slope * tau + fr.intercept + fr.slope * tau)
     if not float(de @ fl.slope) < 0.0 < float(de @ fr.slope):
         return None
-    radii = apparent_radius(states, pair[0], k) + apparent_radius(states, pair[1], k)
+    half = gates.radius_rows
+    radii = apparent_radius(states, pair[0], k, half) + apparent_radius(states, pair[1], k, half)
     if not math.isfinite(radii) or float(np.linalg.norm(de)) > gates.kappa * radii:
         return None
     return _Candidate(k, t0 + tau, z)

@@ -43,7 +43,9 @@ from physverify.schema.states import ObjectStateTable
 
 
 class RelSpeedParams(EnergyGainParams):
-    """Rows of each side, the image impulse detector's gates and the residual bootstrap."""
+    """Rows of each side, the image impulse detector's gates and the residual bootstrap;
+    ``same_t_frames`` is how close (native frames) a true record's middle is to an event's t to be
+    that event's own record."""
 
     gap_frames: float = Field(default=1.0, ge=0.0)
     bound_margin_rows: int = Field(default=1, ge=0)
@@ -54,6 +56,8 @@ class RelSpeedParams(EnergyGainParams):
     kappa: float = Field(default=1.5, gt=0.0)
     cross_rows: float = Field(default=1.0, ge=0.0)
     merge_rows: int = Field(default=2, ge=0)
+    radius_rows: int = Field(default=2, ge=0)
+    same_t_frames: float = Field(default=1e-9, gt=0.0)
     boot_draws: int = Field(default=200, ge=2)
     boot_min_finite: float = Field(default=0.5, gt=0.0, le=1.0)
 
@@ -66,6 +70,7 @@ class RelSpeedParams(EnergyGainParams):
             kappa=self.kappa,
             cross_rows=self.cross_rows,
             merge_rows=self.merge_rows,
+            radius_rows=self.radius_rows,
         )
 
 
@@ -150,8 +155,10 @@ class RelSpeedCheck:
             else detect(inputs.states, inputs.contacts, self.params.gates())
         )
         rng = check_rng(self.params.seed, inputs.clip.clip_id, self.check_id)
+        tol = self.params.same_t_frames
         return [
-            self._event(inputs, e, _bounds(inputs.contacts, found, e, truth), rng) for e in found
+            self._event(inputs, e, _bounds(inputs.contacts, found, e, truth, tol), rng)
+            for e in found
         ]
 
     def _event(
@@ -225,17 +232,17 @@ def _truth_lift(inputs: CheckInputs) -> bool:
 
 
 def _bounds(
-    contacts: ContactTable, found: Sequence[Event], e: Event, truth: bool
+    contacts: ContactTable, found: Sequence[Event], e: Event, truth: bool, tol: float
 ) -> list[ContactRecord]:
     """Every record but the event's own: the true table, or the ENV records plus the events."""
     if truth:
-        return [r for r in contacts.records if r.object_b == ENV_ID or not _same(r, e)]
+        return [r for r in contacts.records if r.object_b == ENV_ID or not _same(r, e, tol)]
     return env_records(contacts) + [as_record(x) for x in found if x is not e]
 
 
-def _same(r: ContactRecord, e: Event) -> bool:
+def _same(r: ContactRecord, e: Event, tol: float) -> bool:
     pair = sorted((r.object_a, r.object_b)) == [e.a, e.b]
-    return pair and abs(0.5 * (r.t_start + r.t_end) - e.t) < 1e-9
+    return pair and abs(0.5 * (r.t_start + r.t_end) - e.t) < tol
 
 
 def _full(vm: FloatArray, vp: FloatArray) -> float:
