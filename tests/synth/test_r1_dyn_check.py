@@ -10,9 +10,11 @@ import numpy as np
 import pytest
 
 from physverify.app.plugins import PLUGIN_KINDS
+from physverify.calibration.row_sigma import contact_rows, row_residuals
 from physverify.checks._base import Check, CheckInputs
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
 from physverify.schema.clip import ClipManifest, SamplingSpec, Split, TimeSource, resolve_sampling
+from physverify.schema.matching import IdMap, MatchMethod
 from physverify.schema.perception import CameraModel, IntrinsicsSource
 from physverify.schema.stages import STAGE_ORDER
 from physverify.synth.gt.camera import camera_states
@@ -143,3 +145,71 @@ def test_an_unknown_sigma_abstains(check: Check, bank: Any, plugins: dict[str, A
 def test_the_row_is_kept_out_of_the_nine_checks() -> None:
     assert "R1_dyn" not in PLUGIN_KINDS["checks"]()
     assert list(PLUGIN_KINDS["separate_checks"]()) == ["R1_dyn"]
+
+
+def calibrated(sigma: float) -> Check:
+    cls = PLUGIN_KINDS["separate_checks"]()["R1_dyn"]
+    instance: Check = cls(cls.Params.model_validate({"row_sigma": sigma}))
+    return instance
+
+
+def test_a_calibrated_row_sigma_replaces_the_unknown_one(
+    bank: Any, plugins: dict[str, Any]
+) -> None:
+    inputs = oracle_inputs(passed_through(plugins, bank.recorded(FAMILY), 3))
+    unknown = np.full_like(inputs.states.position_sigma, np.nan)
+    states = dataclasses.replace(inputs.states, position_sigma=unknown)
+    result = pair_result(calibrated(1.5).evaluate(dataclasses.replace(inputs, states=states)))
+    assert result.verdict is Verdict.UNSCORED, result.abstain_reason
+    assert result.magnitude is not None and result.magnitude >= K_FRAMES * NO_IMPULSE
+
+
+def test_the_default_row_sigma_keeps_the_delta_method(check: Check, bank: Any) -> None:
+    inputs = oracle_inputs(bank.recorded(FAMILY))
+    cls = PLUGIN_KINDS["separate_checks"]()["R1_dyn"]
+    assert cls.Params().row_sigma is None
+    explicit = cls(cls.Params.model_validate({"row_sigma": None}))
+    assert repr(explicit.evaluate(inputs)) == repr(check.evaluate(inputs))
+    assert repr(calibrated(0.0).evaluate(inputs)) == repr(check.evaluate(inputs))
+
+
+def test_matching_rows_have_no_residual(bank: Any) -> None:
+    truth = oracle_inputs(bank.recorded(FAMILY))
+    rows = contact_rows(truth)
+    assert set(rows) == set(truth.states.object_ids)
+    residuals = row_residuals(truth, truth, None)
+    assert residuals.size == sum(len(r) for r in rows.values()) > 0
+    assert not residuals.any()
+
+
+def test_residuals_follow_the_id_map(bank: Any) -> None:
+    truth = oracle_inputs(bank.recorded(FAMILY))
+    states = truth.states
+    renamed = np.asarray([f"p{i}" for i in range(len(states.object_ids))])
+    lowered = states.position.copy()
+    lowered[..., 1] += 0.05
+    perceived = dataclasses.replace(
+        truth, states=dataclasses.replace(states, object_ids=renamed, position=lowered)
+    )
+    ids = IdMap(
+        pairs=tuple((str(p), str(g), 1.0) for p, g in zip(renamed, states.object_ids, strict=True)),
+        unmatched_pred=(),
+        unmatched_gt=(),
+        method=MatchMethod.MASK_IOU,
+        frames_used=(),
+        min_score=0.5,
+    )
+    residuals = row_residuals(perceived, truth, ids)
+    assert residuals.size == sum(len(r) for r in contact_rows(truth).values()) > 0
+    assert (residuals > 0.0).all()
+    assert row_residuals(perceived, truth, None).size == 0
+
+
+def test_residuals_use_the_frames_both_read(bank: Any) -> None:
+    truth = oracle_inputs(bank.recorded(FAMILY))
+    offset = truth.states.n_frames // 2
+    shifted = dataclasses.replace(truth.states, frame_index=truth.states.frame_index + offset)
+    perceived = dataclasses.replace(truth, states=shifted)
+    seen, true = contact_rows(perceived), contact_rows(truth)
+    shared = sum(len(seen[o].keys() & true[o].keys()) for o in true)
+    assert 0 < row_residuals(perceived, truth, None).size == shared < sum(map(len, true.values()))

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, ClassVar
 
 import numpy as np
@@ -34,11 +34,13 @@ _RIM = np.linspace(0.0, 2.0 * math.pi, 24, endpoint=False)
 class PassThroughParams(CommonParams):
     """``min_frames`` is k (native frames of one run of matched rows); the floor
     contact rows match within ``match_z`` sigma; each image rate is fitted on at least
-    ``min_rate_rows`` rows."""
+    ``min_rate_rows`` rows. ``row_sigma`` is the calibrated contact-row sigma in pixels of
+    every body; None, the delta-method row sigma of the lowest points is used."""
 
     min_frames: int = Field(default=3, ge=1)
     match_z: float = Field(default=1.96, gt=0.0)
     min_rate_rows: int = Field(default=3, ge=2)
+    row_sigma: float | None = Field(default=None, ge=0.0)
 
 
 @dataclass(frozen=True)
@@ -77,9 +79,9 @@ class PassThroughCheck:
     impulse = clip(max_b |D'_b,after - D'_b,before| / |D'_m,before|, 0, 1), m the body with the
     faster rate before (the mover).
 
-    The row sigma propagates ``position_sigma`` of the lowest points; it ignores size and
-    orientation errors. The result's sigma is 0 for exact inputs and NaN otherwise: the row's
-    out-of-fold calibration supplies it."""
+    The row sigma propagates ``position_sigma`` of the lowest points (it ignores size and
+    orientation errors), or is the calibrated ``row_sigma``. The result's sigma is 0 when every
+    band is 0 (exact inputs) and NaN otherwise: the frame count has no propagated sigma."""
 
     check_id: ClassVar[str] = "R1_dyn"
     version: ClassVar[str] = "1"
@@ -102,6 +104,9 @@ class PassThroughCheck:
                 abstain(type(self), inputs, (ids[i], ids[j]), missing, None, {}) for i, j in pairs
             ]
         tracks = [image_track(k, states, i) for i in range(states.n_objects)]
+        calibrated = self.params.row_sigma
+        if calibrated is not None:
+            tracks = [replace(t, sigma=np.full_like(t.sigma, calibrated)) for t in tracks]
         return [self._pair(inputs, k, tracks[i], tracks[j], (ids[i], ids[j])) for i, j in pairs]
 
     def _pair(
