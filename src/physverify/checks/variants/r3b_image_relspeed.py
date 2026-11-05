@@ -8,7 +8,7 @@ from collections.abc import Sequence
 from typing import Any, ClassVar
 
 import numpy as np
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from physverify.checks._base import CheckInputs, abstain, unscored
 from physverify.checks._collision_windows import no_contacts
@@ -38,12 +38,17 @@ from physverify.schema.provenance import GROUND_TRUTH
 from physverify.schema.stages import Stage
 from physverify.schema.states import ObjectStateTable
 
+SHORT_STREAM = "R3b/short_post"
+
 
 class RelSpeedParams(CommonParams):
     """Rows of each side, the image impulse detector's gates and the residual bootstrap;
     ``same_t_frames`` is how close (native frames) a true record's middle is to an event's t to be
     that event's own record. None of the default R3b's windows or gates applies here; of the
-    common fields only ``seed`` is read (``mc_draws`` stays as every check's Params has it)."""
+    common fields only ``seed`` is read (``mc_draws`` stays as every check's Params has it).
+
+    ``post_min_rows`` < ``side_min_rows`` admits a short after side (the rows a floor bounce
+    leaves), read by ``two_point_sigma``."""
 
     gap_frames: float = Field(default=1.0, ge=0.0)
     bound_margin_rows: int = Field(default=1, ge=0)
@@ -58,6 +63,13 @@ class RelSpeedParams(CommonParams):
     same_t_frames: float = Field(default=1e-9, gt=0.0)
     boot_draws: int = Field(default=200, ge=2)
     boot_min_finite: float = Field(default=0.5, gt=0.0, le=1.0)
+    post_min_rows: int = Field(default=3, ge=2)
+
+    @model_validator(mode="after")
+    def _post_within_side(self) -> RelSpeedParams:
+        if self.post_min_rows > self.side_min_rows:
+            raise ValueError("post_min_rows must not exceed side_min_rows")
+        return self
 
     def gates(self) -> Gates:
         return Gates(
@@ -110,10 +122,38 @@ def boot_sigma(
             for ti, bi, ri in zip(t, base, resid, strict=True)
         ]
         draws.append(log_ratio(slopes[0], slopes[1]))
+    return _spread(draws, params)
+
+
+def _spread(draws: Sequence[float], params: RelSpeedParams) -> tuple[float, int]:
     found = np.asarray(draws)[np.isfinite(draws)]
     if found.size < params.boot_min_finite * params.boot_draws:
         return math.nan, int(found.size)
     return float(found.std(ddof=1)), int(found.size)
+
+
+def two_point_sigma(
+    t: Sequence[FloatArray],
+    y: Sequence[FloatArray],
+    t0: float,
+    rng: np.random.Generator,
+    params: RelSpeedParams,
+) -> tuple[float, int]:
+    """``boot_sigma`` with both sides drawing from the before side's inflated residuals: a short
+    after side leaves no residual of its own (none with 2 rows), so the noise is taken as
+    stationary across the impact."""
+    fits = [line_fit(ti, yi, t0) for ti, yi in zip(t, y, strict=True)]
+    base = [f.intercept + f.slope * (ti - t0)[:, None] for f, ti in zip(fits, t, strict=True)]
+    n = y[0].shape[0]
+    pool = (y[0] - base[0]) * math.sqrt(n / (n - 2))
+    draws = []
+    for _ in range(params.boot_draws):
+        slopes = [
+            line_fit(ti, bi + pool[rng.integers(0, n, ti.shape[0])], t0).slope
+            for ti, bi in zip(t, base, strict=True)
+        ]
+        draws.append(log_ratio(slopes[0], slopes[1]))
+    return _spread(draws, params)
 
 
 class RelSpeedCheck:
@@ -133,7 +173,7 @@ class RelSpeedCheck:
 
     check_id: ClassVar[str] = "R3b"
     variant: ClassVar[str] = "image_relspeed"
-    version: ClassVar[str] = "1"
+    version: ClassVar[str] = "2"
     requires: ClassVar[frozenset[str]] = frozenset({"contacts"})
     time_dependent: ClassVar[bool] = False
     magnitude_unit: ClassVar[str] = "log_normal_speed_ratio"
@@ -152,10 +192,11 @@ class RelSpeedCheck:
             if truth
             else detect(inputs.states, inputs.contacts, self.params.gates())
         )
-        rng = check_rng(self.params.seed, inputs.clip.clip_id, self.check_id)
+        clip_id, seed = inputs.clip.clip_id, self.params.seed
+        rngs = (check_rng(seed, clip_id, self.check_id), check_rng(seed, clip_id, SHORT_STREAM))
         tol = self.params.same_t_frames
         return [
-            self._event(inputs, e, _bounds(inputs.contacts, found, e, truth, tol), rng)
+            self._event(inputs, e, _bounds(inputs.contacts, found, e, truth, tol), rngs)
             for e in found
         ]
 
@@ -164,9 +205,12 @@ class RelSpeedCheck:
         inputs: CheckInputs,
         e: Event,
         bounds: Sequence[ContactRecord],
-        rng: np.random.Generator,
+        rngs: tuple[np.random.Generator, np.random.Generator],
     ) -> CheckResult:
+        """A short after side draws from its own stream, so the full-sided events of a clip
+        consume ``rngs[0]`` exactly as with the default gate."""
         states, p = inputs.states, self.params
+        rng, short_rng = rngs
         subject = (e.a, e.b)
         env = ContactTable(
             states.clip_id,
@@ -192,7 +236,7 @@ class RelSpeedCheck:
             "rows_after": len(right),
             "event_z": e.z,
         }
-        if len(left) < p.side_min_rows or len(right) < p.side_min_rows:
+        if len(left) < p.side_min_rows or len(right) < p.post_min_rows:
             reason = AbstainReason.TOO_FEW_FRAMES
             return abstain(type(self), inputs, subject, reason, None, details)
         span = native_span(fi, left[0], right[-1])
@@ -201,11 +245,17 @@ class RelSpeedCheck:
         vm, vp = (line_fit(ti, yi, e.t).slope for ti, yi in zip(t, y, strict=True))
         speeds = normal_speeds(vm, vp)
         details |= {"s_full": _full(vm, vp)}
+        short = len(right) < p.side_min_rows
+        if short:
+            details |= {"short_post_fit": "two_point"}
         if speeds is None:
             reason = AbstainReason.ILL_CONDITIONED
             return abstain(type(self), inputs, subject, reason, span, details)
         cm, cp, a = speeds
-        sigma, finite = boot_sigma(t, y, e.t, rng, p)
+        if short:
+            sigma, finite = two_point_sigma(t, y, e.t, short_rng, p)
+        else:
+            sigma, finite = boot_sigma(t, y, e.t, rng, p)
         details |= {"c_minus": cm, "c_plus": cp, "jump_dir": a.tolist(), "boot_finite": finite}
         if _truth_contacts(inputs) and _truth_lift(inputs) and e.normal is not None:
             details |= depth_view(states, (ia, ib), (left, right), e)
