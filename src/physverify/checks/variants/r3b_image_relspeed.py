@@ -17,7 +17,7 @@ from physverify.checks._uncertainty import check_rng
 from physverify.checks.r3b_collision_energy_gain import (
     EnergyGainCheck,
     EnergyGainParams,
-    _external_contacts,
+    external_contacts,
 )
 from physverify.checks.variants._image_impulse import (
     Event,
@@ -177,7 +177,7 @@ class RelSpeedCheck:
             states.source_key,
             tuple(env_records(inputs.contacts)),
         )
-        external = _external_contacts(states, env, as_record(e))
+        external = external_contacts(states, env, as_record(e))
         if external:
             scope = {"external_contacts": external, "t_e": e.t}
             return abstain(type(self), inputs, subject, AbstainReason.OUT_OF_SCOPE, None, scope)
