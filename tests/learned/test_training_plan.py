@@ -2,12 +2,14 @@
 the leakage guard before anything is counted."""
 
 from dataclasses import replace
+from pathlib import Path
 from typing import Any, ClassVar
 
 import pytest
 from records import manifest, perturbation
 
 from physverify.app import learned
+from physverify.app.context import AppContext, GlobalOptions, Invocation
 from physverify.checks.variants._learned import LeakageError, dense_layout
 from physverify.core.errors import UsageError
 from physverify.extraction.pair_features import dense_columns
@@ -15,6 +17,7 @@ from physverify.learned.arms import ARM_STAGES
 from physverify.schema.clip import ClipManifest, Split
 
 SEED = int(perturbation().seed)
+CONFIGS = Path(__file__).resolve().parents[2] / "configs"
 
 
 def clips() -> tuple[ClipManifest, ...]:
@@ -65,3 +68,10 @@ def test_training_reads_the_train_split_only(monkeypatch: pytest.MonkeyPatch, sp
         learned.training_clips(mixed)
     with pytest.raises(UsageError, match="not split=train"):
         plan(monkeypatch, mixed)
+
+
+@pytest.mark.parametrize("check_id", ["R1", "R2"])
+def test_the_learned_check_builds_under_the_shipped_checks_tables(check_id: str) -> None:
+    options = GlobalOptions(config_dir=CONFIGS, profile="precise")
+    app = AppContext(Invocation(argv=("physverify",), environ={}), options)
+    assert type(learned.learned_check(app, check_id)).TRACK_COLUMNS

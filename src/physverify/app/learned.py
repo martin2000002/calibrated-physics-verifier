@@ -106,8 +106,9 @@ def learned_check(app: AppContext, check_id: str) -> LearnedMixin:
     variants = registry_of(app, CHECK_VARIANTS)
     if key not in variants:
         raise ConfigError(f"no check variant {key}")
-    overrides = app.settings.section(CHECKS_SECTION, ChecksSettings)
-    (check,) = build_checks({check_id: variants[key]}, overrides)
+    tables = app.settings.section(CHECKS_SECTION, ChecksSettings).root
+    own = ChecksSettings({k: v for k, v in tables.items() if k.split("/")[0] == check_id})
+    (check,) = build_checks({check_id: variants[key]}, own)
     if not isinstance(check, LearnedMixin):
         raise ConfigError(f"{key} is not a learned variant")
     return check
