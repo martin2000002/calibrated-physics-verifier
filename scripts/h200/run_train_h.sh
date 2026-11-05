@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Builds the training set of the learned R1 and R2 variants: subset train_h of kubric_synthetic
-# at its own version and a seed derived from a fixed label, every scene eval (no calib split).
+# at its own version and a seed derived from a fixed label, every scene split=train.
 # Before anything is built, every seed it can draw is checked against the manifests of the
 # datasets already built (tools/seed_collisions.py); one collision stops it.
 #

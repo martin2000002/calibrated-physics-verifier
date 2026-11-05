@@ -32,9 +32,13 @@ if TYPE_CHECKING:
 
 
 class Split(str, Enum):
+    """``TRAIN`` is the training data of the learned variants: only the learned commands read it;
+    no calibration, scoring or sealed look does (``app.sealing.guard_sealed``)."""
+
     CALIB = "calib"
     EVAL = "eval"
     ALL = "all"
+    TRAIN = "train"
 
 
 class TimeSource(str, Enum):

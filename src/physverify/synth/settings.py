@@ -20,7 +20,15 @@ SECTION = "dataset"
 SIZE_DISTRIBUTION_SECTION = "size_distribution"
 """The generator's object-size table (configs/synth/size_distribution.toml), read only here."""
 MAX_LEVEL = 4
-NON_CONTENT_KEYS = ("render", "subsets", "version", "hdri_pools", "hdri_pool", "blind_queries")
+NON_CONTENT_KEYS = (
+    "render",
+    "subsets",
+    "version",
+    "hdri_pools",
+    "hdri_pool",
+    "blind_queries",
+    "train_split",
+)
 LEGACY_HDRI_IDS = ("abandoned_parking",)
 """The single HDRI of every dataset planned before ``hdri_ids`` existed (v1, v1-precise)."""
 
@@ -89,6 +97,9 @@ class DatasetSettings(FrozenModel):
     hdri_pools: dict[str, tuple[str, ...]] = {}
     assets: Literal["kubasic"] = "kubasic"
     calib_fraction: float = Field(default=0.5, ge=0.0, le=1.0)
+    # Every scene split=train (training data of the learned variants), none calib or eval. It
+    # labels the clips, it does not change them: it stays out of the content hash.
+    train_split: bool = False
     velocity_convention: VelocityConvention = "position"
     # Detector queries without the true object counts, as on real and generated video. It is
     # how the clips are read, not rendered: it enters the cache identity, not the content hash.
@@ -114,6 +125,12 @@ class DatasetSettings(FrozenModel):
             raise ValueError(f"hdri_pool {self.hdri_pool!r} is not in hdri_pools")
         if self.hdri_pool and self.hdri_ids != LEGACY_HDRI_IDS:
             raise ValueError("set either hdri_ids or hdri_pool, not both")
+        return self
+
+    @model_validator(mode="after")
+    def _train_without_calib(self) -> DatasetSettings:
+        if self.train_split and self.calib_fraction:
+            raise ValueError("train_split leaves no calib scene: set calib_fraction = 0")
         return self
 
     def effective_hdri_ids(self) -> tuple[str, ...]:

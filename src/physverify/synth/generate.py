@@ -66,6 +66,8 @@ def check_subset(
 
 
 def split_of(ds: DatasetSettings, family: str, index: int) -> Split:
+    if ds.train_split:
+        return Split.TRAIN
     calib = is_calib(index, ds.calib_fraction, split_phase(ds.seed, family))
     return Split.CALIB if calib else Split.EVAL
 

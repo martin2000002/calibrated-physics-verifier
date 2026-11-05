@@ -5,7 +5,7 @@ TRAIN_H_SEED_LABEL="plan-humano train v1"
 TRAIN_H_VERSION="v2-train-h"
 
 # Exports the dataset settings that make kubric_synthetic/train_h this set: its own version, the
-# seed derived from the label and no calib split.
+# seed derived from the label and every scene split=train.
 export_train_h_dataset() {
     local seed
     seed="$(PYTHONPATH="$REPO_ROOT/src" uv run --no-sync python -c \
@@ -14,4 +14,5 @@ export_train_h_dataset() {
     export PHYSVERIFY__DATASET__VERSION="$TRAIN_H_VERSION"
     export PHYSVERIFY__DATASET__SEED="$seed"
     export PHYSVERIFY__DATASET__CALIB_FRACTION=0.0
+    export PHYSVERIFY__DATASET__TRAIN_SPLIT=true
 }

@@ -25,7 +25,7 @@ from physverify.synth.settings import (
 )
 from physverify.synth.store import DatasetStore
 
-NEW_KEYS = ("hdri_ids", "hdri_pool", "hdri_pools", "blind_queries")
+NEW_KEYS = ("hdri_ids", "hdri_pool", "hdri_pools", "blind_queries", "train_split")
 """The keys added after the first plans (v1, v1-precise)."""
 DEV = "openpano_ood_dev"
 RESERVED = "openpano_ood_reserved"

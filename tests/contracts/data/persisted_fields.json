@@ -919,6 +919,7 @@
       "hdri_pools",
       "assets",
       "calib_fraction",
+      "train_split",
       "velocity_convention",
       "blind_queries",
       "floor",

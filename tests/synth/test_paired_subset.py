@@ -7,9 +7,14 @@ from __future__ import annotations
 import hashlib
 import json
 from collections import Counter
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
+import pytest
+from pydantic import ValidationError
+
+from physverify.schema.clip import Split
 from physverify.synth.generate import plan_subset
 from physverify.synth.plan import NONE
 from physverify.synth.seed_audit import collisions, manifest_seeds, planned_seeds
@@ -38,6 +43,37 @@ def test_each_scene_pairs_a_positive_and_its_decoy_at_one_level(
         assert len({v.level for v in variants if v.perturbation != NONE}) == 1
     levels = Counter(v.level for v in plan.variants if v.perturbation != NONE)
     assert set(levels) == {1, 2, 3, 4}
+
+
+def training(ds: DatasetSettings) -> DatasetSettings:
+    """The settings ``_train_h.sh`` exports: no calib scene, every scene split=train."""
+    return DatasetSettings.model_validate(
+        ds.model_dump() | {"calib_fraction": 0.0, "train_split": True}
+    )
+
+
+def test_train_split_labels_every_scene_train_and_changes_nothing_else(
+    ds: DatasetSettings, families: Any, perturbations: Any
+) -> None:
+    """Same scenes, seeds and content hash as the eval-labelled plan; only the split differs."""
+    eval_ds = ds.model_copy(update={"calib_fraction": 0.0})
+    labelled = plan_subset(eval_ds, families, perturbations, SUBSET)
+    trained = plan_subset(training(ds), families, perturbations, SUBSET)
+    assert {v.split for v in trained.variants} == {s.split for s in trained.scenes} == {Split.TRAIN}
+    assert {v.split for v in labelled.variants} == {Split.EVAL}
+    assert [replace_split(v) for v in trained.variants] == [
+        replace_split(v) for v in labelled.variants
+    ]
+    assert training(ds).content_hash() == eval_ds.content_hash() == trained.config_hash
+
+
+def replace_split(item: Any) -> Any:
+    return replace(item, split=Split.EVAL)
+
+
+def test_train_split_with_calib_scenes_is_refused(ds: DatasetSettings) -> None:
+    with pytest.raises(ValidationError, match="calib_fraction = 0"):
+        DatasetSettings.model_validate(ds.model_dump() | {"train_split": True})
 
 
 def test_more_scenes_extend_the_same_stream(

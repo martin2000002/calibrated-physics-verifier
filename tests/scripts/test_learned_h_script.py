@@ -23,10 +23,10 @@ if [[ "$1" == -c ]]; then
     [[ "$2" == *encoder_sha256* ]] && echo {ENCODER_SHA}
     exit 0
 fi
-printf '%s|%s|%s|%s\n' "$PHYSVERIFY__DATASET__VERSION" "$PHYSVERIFY__DATASET__SEED" \
-    "$PHYSVERIFY__DATASET__CALIB_FRACTION" "$*" >> "$CALLS"
+printf '%s|%s|%s|%s|%s\n' "$PHYSVERIFY__DATASET__VERSION" "$PHYSVERIFY__DATASET__SEED" \
+    "$PHYSVERIFY__DATASET__CALIB_FRACTION" "$PHYSVERIFY__DATASET__TRAIN_SPLIT" "$*" >> "$CALLS"
 """
-SETTINGS = f"v2-train-h|{SEED}|0.0|"
+SETTINGS = f"v2-train-h|{SEED}|0.0|true|"
 LEARNED = "tools/train_learned.py --profile precise --set runtime.device=cpu "
 SELECT = "--dataset kubric_synthetic --subset train_h"
 
