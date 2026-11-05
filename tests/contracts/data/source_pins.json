@@ -1,11 +1,11 @@
 {
   "check_variants": {
     "R1/learned": {
-      "digest": "924417245eeb2efdf5209904c7f02c101d086db6c578f1ca65bd962d28feb0b6",
+      "digest": "4e7b8d89d7c41fc18b7b2f835b1a500e06e78da52437d1828f125164fe107ab1",
       "version": "1"
     },
     "R2/learned": {
-      "digest": "1182ac50b9b1712131ad9dd15ac308ad75f082d12612d8d45030b475df44a7c4",
+      "digest": "8829b555b7d02157929206a840d5bd3d088ceb87a112a4c53ff7dde2e7685706",
       "version": "1"
     },
     "R3a/image_apex": {

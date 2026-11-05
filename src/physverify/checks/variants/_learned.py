@@ -33,7 +33,6 @@ from physverify.schema.checks import CheckResult
 from physverify.stats.mlp import Standardiser, TwoHeadWeights, predict
 
 FloatArray = NDArray[np.float64]
-TOKEN_PREFIX = "token_"
 SIGMA_SOURCE = "validation_residual_rms"
 HAS_IMAGE = "has_image"
 
@@ -204,6 +203,8 @@ class LearnedMixin:
 
     learned_params: LearnedFields
     TRACK_COLUMNS: ClassVar[tuple[str, ...]]
+    check_id: ClassVar[str]
+    magnitude_unit: ClassVar[str]
 
     def subjects(self, inputs: CheckInputs) -> list[SubjectFeatures]:
         raise NotImplementedError

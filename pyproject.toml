@@ -150,7 +150,7 @@ layers = [
     "physverify.reporting",
     "physverify.generator_comparison | physverify.timing | physverify.demo",
     "physverify.finetune | physverify.freeze",
-    "physverify.human_agreement | physverify.selective_risk",
+    "physverify.human_agreement | physverify.selective_risk | physverify.learned",
     "physverify.calibration",
     "physverify.diagnosis",
     "physverify.verification | physverify.generation",
