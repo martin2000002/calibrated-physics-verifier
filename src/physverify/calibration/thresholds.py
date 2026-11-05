@@ -22,6 +22,7 @@ from physverify.calibration.table import (
     Role,
     corrected,
     require_one_clean_per_scene,
+    require_one_unit,
 )
 from physverify.calibration.verdict import DECIDED, Rule, clip_verdict
 from physverify.schema.checks import Verdict
@@ -62,8 +63,10 @@ def fit_tau(clean: Sequence[CalibrationRow], bias: float, alpha: float, toleranc
     while ``clip_verdict`` judges each subject. The coverage still holds: a subject i FAILs only
     if its m_i is a number and m_i - b - k sigma_i > tau, so m_max - b >= m_i - b > tau, and
     P(clean clip FAILs) <= P(m_max - b > tau) <= alpha. A clip is dropped from the rank (counted
-    in ``n_dropped``) only when no subject has a numeric magnitude, and then none can FAIL."""
+    in ``n_dropped``) only when no subject has a numeric magnitude, and then none can FAIL.
+    Every row ranked shares one magnitude unit (``require_one_unit``)."""
     require_one_clean_per_scene(clean)
+    require_one_unit(clean)
     values = [corrected(row, bias) for row in clean if row.scored]
     found = conformal_quantile(values, alpha)
     value = None if found.value is None else max(found.value, tolerance)
