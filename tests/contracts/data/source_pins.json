@@ -168,6 +168,10 @@
       "digest": "24741eb689eb0e5b0b72805e3c76976df2d99e1801570d5539e03cbfd7c1159b",
       "version": "2"
     },
+    "lift/backproject_contour_circle": {
+      "digest": "f0238cdc69b4d05c89584636838c422454ad870f3d27cecf47ad5b143c698f38",
+      "version": "1"
+    },
     "lift/backproject_size_constancy": {
       "digest": "df29f5f8805f39506cdb94cc7e99b446b652c9089b19cb0cafc7995dc09648a3",
       "version": "3"
