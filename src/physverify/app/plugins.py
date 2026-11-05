@@ -11,6 +11,7 @@ from types import MappingProxyType, ModuleType
 from typing import Any
 
 from physverify.checks._base import CHECKS, Check, validate_check
+from physverify.checks.separate._base import SEPARATE_CHECKS
 from physverify.checks.variants._base import (
     CHECK_VARIANTS,
     CheckVariant,
@@ -62,6 +63,7 @@ PLUGIN_PACKAGES: Mapping[str, str] = MappingProxyType(
     {
         CHECKS.name: "physverify.checks",
         CHECK_VARIANTS.name: "physverify.checks.variants",
+        SEPARATE_CHECKS.name: "physverify.checks.separate",
         PERTURBATIONS.name: "physverify.synth.perturbations",
         FAMILIES.name: "physverify.synth.families",
         PROVIDERS.name: "physverify.extraction.providers",
@@ -84,6 +86,9 @@ PLUGIN_KINDS: Mapping[str, Callable[[], Registry[Any]]] = MappingProxyType(
         ),
         CHECK_VARIANTS.name: lambda: discover(
             PLUGIN_PACKAGES[CHECK_VARIANTS.name], (CheckVariant,), variant_key, validate_variant
+        ),
+        SEPARATE_CHECKS.name: lambda: discover(
+            PLUGIN_PACKAGES[SEPARATE_CHECKS.name], (Check,), "check_id", validate_check
         ),
         PERTURBATIONS.name: lambda: discover(
             PLUGIN_PACKAGES[PERTURBATIONS.name],

@@ -1,4 +1,4 @@
-"""Source pins of the registered providers, checks and check variants.
+"""Source pins of the registered providers, checks, check variants and separate checks.
 
     PYTHONPATH=src python tools/pin_sources.py                       # list every stale pin
     PYTHONPATH=src python tools/pin_sources.py --accept checks:R1    # record the current pin
@@ -24,7 +24,7 @@ from typing import Any, Final
 from physverify.app.plugins import PLUGIN_KINDS
 
 PINS_PATH: Final = Path(__file__).resolve().parents[1] / "tests/contracts/data/source_pins.json"
-PINNED_KINDS: Final = ("providers", "checks", "check_variants")
+PINNED_KINDS: Final = ("providers", "checks", "check_variants", "separate_checks")
 ROOT_PACKAGE: Final = "physverify"
 UNPINNED_PACKAGES: Final = frozenset({"core", "config", "app", "cli"})
 KIND_SEPARATOR: Final = ":"

@@ -25,7 +25,9 @@ KINDS = (
     "policies",
     "timing_targets",
 )
-ADDED_KINDS = frozenset({"judges", "scorers", "truth_measures", "check_variants"})
+ADDED_KINDS = frozenset(
+    {"judges", "scorers", "truth_measures", "check_variants", "separate_checks"}
+)
 CLI_KIND = "commands"
 
 ORDER: Mapping[str, tuple[str, ...]] = {
@@ -100,6 +102,7 @@ ORDER: Mapping[str, tuple[str, ...]] = {
         "R5b/los_ballistic",
         "R5b/unsupported",
     ),
+    "separate_checks": ("R1_dyn",),
     "truth_measures": (
         "R1",
         "R2",
@@ -249,7 +252,7 @@ def test_check_files_are_named_after_their_check_ids_in_check_order(
         assert re.match(rf"^r{found['number']}({letter})?_[a-z0-9_]+$", stem), (check_id, stem)
 
 
-@pytest.mark.parametrize("kind", ["checks", "check_variants"])
+@pytest.mark.parametrize("kind", ["checks", "check_variants", "separate_checks"])
 def test_every_check_declares_its_own_version(
     registries: dict[str, Mapping[str, Any]], kind: str
 ) -> None:
