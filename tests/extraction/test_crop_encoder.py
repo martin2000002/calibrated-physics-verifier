@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pytest
@@ -9,8 +10,11 @@ from physverify.extraction.crop_encoder import (
     PATCH_PX,
     CropEncoder,
     prepare,
+    vda_crop_encoder,
     verified_checkpoint,
 )
+from physverify.extraction.providers._vda import CHECKPOINT
+from physverify.extraction.weights import weight_file
 
 
 def test_prepare_resizes_to_whole_patches_and_normalises() -> None:
@@ -32,3 +36,14 @@ def test_checkpoint_with_another_hash_is_refused(tmp_path: Path) -> None:
     path.write_bytes(b"not the checkpoint")
     with pytest.raises(ConfigError):
         verified_checkpoint(path)
+
+
+def test_the_configured_encoder_is_refused_before_loading_on_another_hash(
+    make_settings: Any,
+) -> None:
+    paths = make_settings().paths
+    checkpoint = weight_file(CHECKPOINT, paths)
+    checkpoint.parent.mkdir(parents=True, exist_ok=True)
+    checkpoint.write_bytes(b"not the checkpoint")
+    with pytest.raises(ConfigError, match="expected"):
+        vda_crop_encoder(paths)

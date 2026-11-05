@@ -82,6 +82,7 @@ ERROR_CLASSES = frozenset(
         "ExistingRunError",
         "FeatureTableError",
         "GenerationError",
+        "ImageTableError",
         "IncompleteDownloadError",
         "InputsError",
         "InvalidPluginError",
