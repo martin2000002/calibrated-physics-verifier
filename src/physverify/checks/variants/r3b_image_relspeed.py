@@ -20,6 +20,7 @@ from physverify.checks.r3b_collision_energy_gain import (
     external_contacts,
 )
 from physverify.checks.variants._image_impulse import (
+    BoolArray,
     Event,
     FloatArray,
     Gates,
@@ -213,7 +214,7 @@ class RelSpeedCheck:
             details |= depth_view(states, (ia, ib), (left, right), e)
         return unscored(type(self), inputs, subject, math.log(cp / -cm), sigma, span, details)
 
-    def _side_rows(self, fi: IntArray, ok: Any, t_e: float) -> tuple[list[int], list[int]]:
+    def _side_rows(self, fi: IntArray, ok: BoolArray, t_e: float) -> tuple[list[int], list[int]]:
         """Rows nearest the event with |f - t_e| > ``gap_frames``, walked outwards while ``ok``."""
         gap, limit = self.params.gap_frames, self.params.side_max_rows
         before = np.flatnonzero(fi < t_e - gap)
