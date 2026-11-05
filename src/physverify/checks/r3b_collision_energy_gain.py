@@ -83,7 +83,7 @@ class EnergyGainCheck:
     ) -> CheckResult:
         states = inputs.states
         subject = (record.object_a, record.object_b)
-        external = _external_contacts(states, contacts, record)
+        external = external_contacts(states, contacts, record)
         if external:
             scope = {"external_contacts": external}
             return abstain(type(self), inputs, subject, AbstainReason.OUT_OF_SCOPE, None, scope)
@@ -185,7 +185,7 @@ class EnergyGainCheck:
         return mc_sigma(model, dict(sigmas), self.params.mc_draws, rng)
 
 
-def _external_contacts(
+def external_contacts(
     states: ObjectStateTable, contacts: ContactTable, record: ContactRecord
 ) -> list[str]:
     """ENV records of either body whose widened native window overlaps the collision."""
