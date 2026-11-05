@@ -26,6 +26,7 @@ use and what each script leaves behind.
 | `smoke_finetune.sh`, `run_preference.sh`, `run_finetune.sh` | Preference pairs and Flow-DPO fine-tuning |
 | `run_kubric.sh` | Kubric synthetic dataset (Docker or udocker) |
 | `run_train_h.sh` | Training set of the learned R1 and R2 variants (`train_h`, own version and seed) |
+| `run_learned_h.sh` | Training of the learned R1 and R2 variants on `train_h` |
 | `run_perception_iteration.sh`, `perception_arms.tsv` | One iteration of the perception campaign on the calib clips |
 | `run_dev_b.sh` | The B reading of an iteration on the declared development sets |
 | `run_freeze.sh`, `freeze_query.py` | The freeze: adopted iteration, exclusion record, abstention level, `freeze.json` |
@@ -197,7 +198,17 @@ rerun it with `PHYSVERIFY_KUBRIC_ENGINE=docker`, keeping the same data directory
 Before the build, `tools/seed_collisions.py` compares every attempt seed the subset can draw with
 the `perturbation.seed` of every `<data_dir>/synthetic/*/manifest.jsonl` and stops on any match;
 `PHYSVERIFY_TRAIN_H_DRY_RUN=1` runs that check only. `SCENES` above the configured 120 extends
-the same scene stream. Everything else is `run_kubric.sh train_h`.
+the same scene stream. Everything else is `run_kubric.sh train_h`. The set's version and seed label
+live in `_train_h.sh`, which `run_learned_h.sh` reads too.
+
+`run_learned_h.sh OUT EVALUATED_MANIFEST...` trains the learned R1 and R2 variants on that set
+with `tools/train_learned.py`: `warm` fills the chain cache, each clip under the substitution arm
+it draws (the only step that may run a perception model, on `PHYSVERIFY_LEARNED_DEVICE`, cpu by
+default); `images` builds `OUT/pairs.npz`, the pair image table, from that cache; `samples` and
+`train` then run per check into `OUT/R1` and `OUT/R2`. Training refuses any evaluated manifest that
+shares a perturbation seed with `train_h`. `PHYSVERIFY_LEARNED_DRY_RUN=1` stops after a dry
+`images` step that writes `OUT/images_plan.json` (clips, pairs, arms and clips without inputs) and
+needs no manifest; `PHYSVERIFY_LEARNED_SKIP_WARM=1` reads a cache filled before.
 
 ### Ground-truth migrations
 

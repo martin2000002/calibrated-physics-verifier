@@ -11,26 +11,19 @@
 # run_kubric.sh.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/_common.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/_train_h.sh"
 source_h200_env
 cd "$REPO_ROOT"
 
-SEED_LABEL="plan-humano train v1"
-VERSION="v2-train-h"
 DATA_DIR="${PHYSVERIFY__PATHS__DATA_DIR:-$H200_ROOT/kubric-data}"
-SEED="$(uv run --no-sync python -c \
-    "import sys; from physverify.synth.seeds import labelled_seed; print(labelled_seed(sys.argv[1]))" \
-    "$SEED_LABEL")" || die "could not derive the dataset seed"
-
-export PHYSVERIFY__DATASET__VERSION="$VERSION"
-export PHYSVERIFY__DATASET__SEED="$SEED"
-export PHYSVERIFY__DATASET__CALIB_FRACTION=0.0
+export_train_h_dataset
 if [[ $# -ge 1 ]]; then
     [[ "$1" =~ ^[1-9][0-9]*$ ]] || die "SCENES must be a positive integer, got '$1'"
     export PHYSVERIFY__DATASET__SUBSETS__TRAIN_H__SCENES_PER_FAMILY="$1"
 fi
 
 mapfile -t MANIFESTS < <(find "$DATA_DIR/synthetic" -mindepth 2 -maxdepth 2 -name manifest.jsonl \
-    -not -path "*/$VERSION/*" | sort)
+    -not -path "*/$TRAIN_H_VERSION/*" | sort)
 ((${#MANIFESTS[@]} > 0)) || die "no manifest.jsonl under $DATA_DIR/synthetic"
 PYTHONPATH=src uv run --no-sync python tools/seed_collisions.py \
     --profile "${PHYSVERIFY_KUBRIC_PROFILE:-precise}" --subset train_h "${MANIFESTS[@]}" \
