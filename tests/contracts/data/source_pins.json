@@ -85,11 +85,11 @@
       "version": "1"
     },
     "camera/from_depth": {
-      "digest": "dbff329bfa3b55ff7e43cab8382d92356bd214a61d232652e61fffa91dc74d8e",
+      "digest": "be2155043b1768ab60ec8155de3cba5cd073832332d1a057a95333e08cc68275",
       "version": "2"
     },
     "camera/geocalib": {
-      "digest": "b7b38527ec0fe3a6863ea912aebb955781193ccfbabecac73659a5965e2b41d6",
+      "digest": "e7921957b398dbf4ee5e7e07255cb47ef48e0b19fd904b5e48fd79eb0c998624",
       "version": "3"
     },
     "camera/ground_truth": {
@@ -97,7 +97,7 @@
       "version": "1"
     },
     "camera/moge2_focal": {
-      "digest": "e18440cc59cd115cda2c061c5f92f5b6d6ba133776aed71740d48172e59d7e28",
+      "digest": "493b7bc59aee148cc8d8fc74202ebc9bfdad6ae2c73c4dd08e5aa6875585bd7c",
       "version": "3"
     },
     "contacts/ground_truth": {
@@ -117,7 +117,7 @@
       "version": "1"
     },
     "depth/ground_truth": {
-      "digest": "1a1e529a0a10e70c3066c18065ddee6db62fab345dd35f12b038ee4adfd6cb5f",
+      "digest": "f3cd6df6002400495011bf936243c3e7af4753cefe0c5053bbdfa18a6e9a9a7f",
       "version": "2"
     },
     "depth/moge2": {
@@ -161,23 +161,23 @@
       "version": "1"
     },
     "lift/backproject": {
-      "digest": "57d68b4be51d7b37d22c559c455aebaf4ce5c1a2c6a2f6fe03c03b2eaef5c30b",
+      "digest": "b2e8d5708d38c24a0870b099574fa9fa93704c263685711b30a64d04b5315e74",
       "version": "8"
     },
     "lift/backproject_area_depth": {
-      "digest": "d78ef1e4cfc86e3787f9b05b9bf36207b74dd2399d0b8955bde8929267449c4a",
+      "digest": "775911034965d8178c3c7b61681a0860feecc38c4801f164c400f1e67c031646",
       "version": "2"
     },
     "lift/backproject_size_constancy": {
-      "digest": "d082b64d4fbef59e6e5e4d6e987e36b29de783941845ec2e12d4452a50188c93",
+      "digest": "49dea1ab038727244b627add6e598050ab2800bb18a2ba1921172b41d5db22b1",
       "version": "3"
     },
     "lift/backproject_unnested": {
-      "digest": "a26f103e0e09bc55b1b68295cf08ece8bd9befa40cf3f0f0c0a6a565a289dcf4",
+      "digest": "170122d50bad22bca65539dcc8d3296d6331fafba4a5c67e6577c47284531844",
       "version": "5"
     },
     "lift/ground_anchored": {
-      "digest": "6f3a5b3c0a04f98c71839e4183c144aed466c2929a9d6e2db409a08b0592349f",
+      "digest": "d43328ad4613420041b8c57a7ded973266f2bd1e14169e42240d64a7407df181",
       "version": "6"
     },
     "lift/ground_truth": {
@@ -185,7 +185,7 @@
       "version": "2"
     },
     "scale/free_fall": {
-      "digest": "8d753ed8ecb153a570076bdaea78ded32b40301886b2bc416348b6e4878dffd2",
+      "digest": "2960909f97eb7e4b3ca9e0ca5302f53aeee465f51723f55e3c8885784273ea69",
       "version": "2"
     },
     "scale/ground_truth": {
@@ -197,11 +197,11 @@
       "version": "3"
     },
     "scale/size_model": {
-      "digest": "26515f11129f6d9ce8913bf13c34c5fa56becb6d421df936d6b20309c716a752",
+      "digest": "d9d58d336e3f76d363104f014376b64be5482ce37fae9839d68533e83de75613",
       "version": "3"
     },
     "scale/size_prior": {
-      "digest": "666974856fbf9271cd50fa3334eea8153bbc39aaef96383ef4b548843c98fbac",
+      "digest": "72bce7baa2f3dc20aa77f532e4abcc89310cab23ed4934eda0ad7671808fa16b",
       "version": "3"
     },
     "track/edgetam": {

@@ -23,6 +23,7 @@ from physverify.extraction.lift_geometry import (
     main_parts,
     silhouette_view,
 )
+from physverify.extraction.pinhole import ray_points
 from physverify.physics.geometry import characteristic_length
 from physverify.physics.uncertainty import entry_draws, entry_rms, monte_carlo
 from physverify.schema.error_profile import ErrorEntry
@@ -180,13 +181,13 @@ def object_summary(
         return None
     rows, cols = np.nonzero(pixels)
     depth = z[rows, cols]
-    x = (cols + 0.5 - intrinsics[0, 2]) / intrinsics[0, 0] * depth
-    y = (rows + 0.5 - intrinsics[1, 2]) / intrinsics[1, 1] * depth
-    surface = np.column_stack([x, y, depth])
+    surface = ray_points(cols + 0.5, rows + 0.5, depth, intrinsics)
     if centre_px is None:
         centre = np.median(surface, axis=0)
     else:
-        centre = ray_point(centre_px, float(np.median(depth)), intrinsics)
+        u, v = centre_px
+        z_s = np.array([np.median(depth)])
+        centre = ray_points(np.array([u]), np.array([v]), z_s, intrinsics)[0]
     parts = main_parts(mask, options.min_part_frac)
     focal = np.array([intrinsics[0, 0], intrinsics[1, 1]])
     if primitive is PrimitiveKind.SPHERE:
@@ -212,14 +213,6 @@ def object_summary(
         n_pixels=n_pixels,
         view=view,
     )
-
-
-def ray_point(uv: tuple[float, float], z: float, intrinsics: FloatArray) -> FloatArray:
-    """z K^-1 [u, v, 1] for a continuous pixel position (u, v)."""
-    u, v = uv
-    x = (u - intrinsics[0, 2]) / intrinsics[0, 0] * z
-    y = (v - intrinsics[1, 2]) / intrinsics[1, 1] * z
-    return np.array([x, y, z], dtype=np.float64)
 
 
 def full_extents(lateral: FloatArray) -> FloatArray:
