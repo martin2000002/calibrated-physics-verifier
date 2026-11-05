@@ -4,9 +4,10 @@
 run a heavy stage. Image rows and samples are read from that cache only (a heavy stage that is
 not cached fails its clip, as in ``verify``). Each clip runs under the substitution arm it draws
 (``learned.arms``) and its inputs are routed as ``verify`` routes them (``variant_inputs``), so
-training sees exactly what evaluation will. A sealed dataset is refused by ``guard_sealed``
-before any clip is read, and a set of evaluated manifests that shares a perturbation seed with
-the training set is refused before training.
+training sees exactly what evaluation will. A selection that looks at a sealed set is refused
+before any clip is read (never unsealed: training reads its data many times), and a set of
+evaluated manifests that shares a perturbation seed with the training set is refused before
+training.
 """
 
 from __future__ import annotations
@@ -16,8 +17,9 @@ from dataclasses import dataclass
 from functools import partial
 
 from physverify.app.context import AppContext
-from physverify.app.sealing import Selection, guard_sealed
+from physverify.app.sealing import Selection, sealed_looks
 from physverify.app.services import chain_runner, dataset_for, pipeline_deps
+from physverify.calibration.sealed_ledger import SealedSetError
 from physverify.checks.variants._base import CHECK_VARIANTS
 from physverify.checks.variants._learned import LearnedMixin, dense_layout, require_disjoint
 from physverify.config.plugin_context import registry_of
@@ -73,7 +75,12 @@ def _selected(
     name, subset = selection
     dataset = dataset_for(app, name)
     clips = tuple(dataset.clips(subset))
-    guard_sealed(app, command, [Selection(name, subset, clips)], err=err)
+    found = sealed_looks(app, [Selection(name, subset, clips)], err=err)
+    if found:
+        raise SealedSetError(
+            f"{command}: {name} {subset or ''} looks at sealed sets {list(found)}; training data "
+            "never comes from a sealed set and nothing was read"
+        )
     return dataset, clips
 
 

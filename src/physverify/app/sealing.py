@@ -186,15 +186,10 @@ def guard_sealed(
     prints one line on the error stream."""
     if command not in GUARDED_LEAVES:
         raise ValueError(f"{command!r} is not a guarded subcommand")
-    sealed = sealed_settings(context.settings)
-    specs = [(sel, touched(sel.dataset, sel.clips, sealed.sets)) for sel in selections]
-    found = tuple(
-        dict.fromkeys(
-            s for sel, seen in specs if seen and not _development(context, sel, err) for s in seen
-        )
-    )
+    found = sealed_looks(context, selections, err=err)
     if not found:
         return
+    sealed = sealed_settings(context.settings)
     environ = context.invocation.environ
     require_unsealed(found, unsealed(environ.get(UNSEAL_ENV)))
     settings = context.settings
@@ -221,6 +216,19 @@ def guard_sealed(
         )
         append_entry(path, entry)
     err(f"sealed look: {','.join(look.sets)} freeze {look.freeze[:12]}")
+
+
+def sealed_looks(
+    context: AppContext, selections: Sequence[Selection], *, err: Echo
+) -> tuple[str, ...]:
+    """The sealed specs the selections look at; a declared development set is not a look."""
+    sets = sealed_settings(context.settings).sets
+    specs = [(sel, touched(sel.dataset, sel.clips, sets)) for sel in selections]
+    return tuple(
+        dict.fromkeys(
+            s for sel, seen in specs if seen and not _development(context, sel, err) for s in seen
+        )
+    )
 
 
 def _development(context: AppContext, selection: Selection, err: Echo) -> bool:
