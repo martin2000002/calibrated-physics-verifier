@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import itertools
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 
 from physverify.diagnosis.chain_variants import Variant
 from physverify.schema.checks import InputLevel
@@ -52,3 +52,11 @@ def uniform(*parts: object) -> float:
 
 def drawn_arm(clip_id: str, seed: int, share: float) -> Arm:
     return tuple(uniform(seed, clip_id, stage) < share for stage in ARM_STAGES)
+
+
+def arm_groups(clip_ids: Iterable[str], seed: int, share: float) -> dict[Arm, list[str]]:
+    """Clips by the arm they draw, arms in ``ARMS`` order, clips in the given order."""
+    groups: dict[Arm, list[str]] = {}
+    for clip_id in clip_ids:
+        groups.setdefault(drawn_arm(clip_id, seed, share), []).append(clip_id)
+    return {arm: groups[arm] for arm in ARMS if arm in groups}

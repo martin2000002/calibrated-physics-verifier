@@ -1,5 +1,7 @@
-"""Build the pair image table, collect training samples of a learned variant, then train it.
+"""Warm the chain cache, build the pair image table, collect a learned variant's training
+samples, then train it.
 
+    PYTHONPATH=src python tools/train_learned.py warm --dataset D --subset S [--truth-share 0.5]
     PYTHONPATH=src python tools/train_learned.py images --dataset D --subset S \
         --out pairs.npz [--truth-share 0.5] [--dry-run] [--set key=value ...]
     PYTHONPATH=src python tools/train_learned.py samples --check R1 --dataset D --subset S \
@@ -7,13 +9,15 @@
     PYTHONPATH=src python tools/train_learned.py train --check R1 --samples samples.npz \
         --dataset D --subset S --encoder-sha SHA --evaluated MANIFEST... --out DIR
 
-``images`` reads each clip's masks and depth from the pipeline cache under its drawn substitution
-arm and its frames from the video, and encodes every pair's crop with the VDA-S encoder
-(refused unless its checkpoint hash matches); ``--dry-run`` stops before the encoder and writes
-the counts of what it would read as JSON instead. ``samples`` reads the pipeline cache under the
-same drawn arm and refuses a sealed dataset (both take ``--truth-share``: 1 for every stage from
-ground truth, 0 for none). ``train`` refuses any evaluated manifest that shares a perturbation
-seed with the training clips, then writes ``<sha256>.npz`` (the artifact, named by its hash) and
+``warm`` runs each clip's chain under its drawn substitution arm; it is the only command that
+may run a heavy stage, the others read the cache and fail a clip whose stage is not cached.
+``images`` reads each clip's masks and depth under its drawn arm and its frames from the video,
+and encodes every pair's crop with the VDA-S encoder (refused unless its checkpoint hash
+matches); ``--dry-run`` stops before the encoder and writes the counts of what it would read as
+JSON instead. ``samples`` reads the same drawn arm. Every command but ``train`` refuses a sealed
+dataset and takes ``--truth-share`` (1: every stage from ground truth, 0: none). ``train``
+refuses any evaluated manifest that shares a perturbation seed with the training clips, then
+writes ``<sha256>.npz`` (the artifact, named by its hash) and
 ``training_log.json`` into ``--out``.
 """
 
@@ -34,6 +38,7 @@ from physverify.app.learned import (
     learned_check,
     plan_images,
     training_seeds,
+    warm,
 )
 from physverify.app.services import dataset_for
 from physverify.core.feature_table import FeatureTable
@@ -56,6 +61,15 @@ def _context(args: argparse.Namespace) -> AppContext:
 
 def _stderr(line: str) -> None:
     print(line, file=sys.stderr)
+
+
+def _warm(args: argparse.Namespace) -> int:
+    app = _context(args)
+    failures = warm(app, (args.dataset, args.subset), (ARM_SEED, args.truth_share), err=_stderr)
+    for failure in failures:
+        _stderr(f"{failure.clip_id} [{failure.variant}] {failure.stage}: {failure.error}")
+    print(f"{len(failures)} clip failures")
+    return 0
 
 
 def _images(args: argparse.Namespace) -> int:
@@ -120,13 +134,15 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--profile", default=None)
     parser.add_argument("--set", action="append", default=[])
     commands = parser.add_subparsers(dest="command", required=True)
+    warm_cmd = commands.add_parser("warm")
     images = commands.add_parser("images")
     samples = commands.add_parser("samples")
     train = commands.add_parser("train")
-    for sub in (images, samples):
+    for sub in (warm_cmd, images, samples):
         sub.add_argument("--truth-share", type=float, default=TRUTH_SHARE)
-    images.add_argument("--dataset", required=True)
-    images.add_argument("--subset", default=None)
+    for sub in (warm_cmd, images):
+        sub.add_argument("--dataset", required=True)
+        sub.add_argument("--subset", default=None)
     images.add_argument("--out", required=True, type=Path)
     images.add_argument("--dry-run", action="store_true")
     for sub in (samples, train):
@@ -139,7 +155,7 @@ def main(argv: list[str]) -> int:
     train.add_argument("--encoder-sha", required=True)
     train.add_argument("--evaluated", nargs="+", required=True, type=Path)
     args = parser.parse_args(argv)
-    run = {"images": _images, "samples": _samples, "train": _train}[args.command]
+    run = {"warm": _warm, "images": _images, "samples": _samples, "train": _train}[args.command]
     return run(args)
 
 

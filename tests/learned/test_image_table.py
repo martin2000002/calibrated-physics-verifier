@@ -11,7 +11,7 @@ from physverify.diagnosis.chain_variants import Variant
 from physverify.extraction.contact_crops import CropSettings
 from physverify.extraction.crop_encoder import CropEncoder
 from physverify.extraction.pair_features import PairFrames, dense_columns, pair_row, token_columns
-from physverify.learned.arms import arm_name, arm_variant
+from physverify.learned.arms import ARMS, arm_groups, arm_name, arm_variant, drawn_arm
 from physverify.learned.image_table import (
     CROP_KEY,
     ENCODER_KEY,
@@ -140,3 +140,12 @@ def test_a_clip_is_read_under_its_arm_and_fails_without_masks_or_depth() -> None
     no_depth = VariantOutputs(arm_variant(arm), Plan(NAMES), {Stage.TRACK: track()})  # type: ignore[arg-type]
     assert read_images(Runner({"A_tpt": no_depth}), clip, arm) is None  # type: ignore[arg-type]
     assert read_images(Runner({}), clip, arm) is None  # type: ignore[arg-type]
+
+
+def test_clips_are_grouped_by_the_arm_they_draw_in_arm_order() -> None:
+    ids = [f"clip-{i}" for i in range(40)]
+    groups = arm_groups(ids, 0, 0.5)
+    assert sorted(i for members in groups.values() for i in members) == sorted(ids)
+    assert list(groups) == [a for a in ARMS if a in groups]
+    assert all(drawn_arm(i, 0, 0.5) == arm for arm, members in groups.items() for i in members)
+    assert list(arm_groups(ids, 0, 1.0)) == [(True, True, True)]

@@ -1,6 +1,8 @@
 """Wiring of a learned variant's training data and training from the application context.
 
-Samples come from the pipeline cache: each clip runs under the substitution arm it draws
+``warm`` fills the pipeline cache, each clip under the arm it draws; it is the only step that may
+run a heavy stage. Image rows and samples are read from that cache only (a heavy stage that is
+not cached fails its clip, as in ``verify``). Each clip runs under the substitution arm it draws
 (``learned.arms``) and its inputs are routed as ``verify`` routes them (``variant_inputs``), so
 training sees exactly what evaluation will. A sealed dataset is refused by ``guard_sealed``
 before any clip is read, and a set of evaluated manifests that shares a perturbation seed with
@@ -11,6 +13,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass
+from functools import partial
 
 from physverify.app.context import AppContext
 from physverify.app.sealing import Selection, guard_sealed
@@ -21,11 +24,13 @@ from physverify.config.plugin_context import registry_of
 from physverify.core.errors import ConfigError
 from physverify.core.feature_table import FeatureTable
 from physverify.core.output import Echo
-from physverify.diagnosis.chain_runner import ChainRunner
+from physverify.datasets._base import DatasetSource
+from physverify.diagnosis.chain_runner import ChainRunner, warm_variants
+from physverify.diagnosis.report import Failure
 from physverify.diagnosis.verification_adapter import variant_inputs
 from physverify.extraction.contact_crops import CropSettings
 from physverify.extraction.crop_encoder import CropEncoder
-from physverify.learned.arms import Arm, arm_level, arm_name, arm_variant, drawn_arm
+from physverify.learned.arms import Arm, arm_groups, arm_level, arm_name, arm_variant, drawn_arm
 from physverify.learned.image_table import (
     ClipImages,
     clip_images,
@@ -43,9 +48,11 @@ from physverify.verification.check_set import (
     ChecksSettings,
     build_checks,
 )
+from physverify.verification.inputs import refuse_heavy
 
 COMMAND = "learned-samples"
 IMAGES_COMMAND = "learned-images"
+WARM_COMMAND = "learned-warm"
 VARIANT = "learned"
 
 
@@ -53,6 +60,34 @@ VARIANT = "learned"
 class Collected:
     samples: SampleSet
     failed: tuple[str, ...]
+
+
+def cached_runner(app: AppContext, dataset: DatasetSource) -> ChainRunner:
+    """A chain that reads the cache and refuses to run a heavy stage."""
+    return chain_runner(app, pipeline_deps(app, None, partial(refuse_heavy, dataset.name)), dataset)
+
+
+def _selected(
+    app: AppContext, selection: tuple[str, str | None], command: str, err: Echo
+) -> tuple[DatasetSource, tuple[ClipManifest, ...]]:
+    name, subset = selection
+    dataset = dataset_for(app, name)
+    clips = tuple(dataset.clips(subset))
+    guard_sealed(app, command, [Selection(name, subset, clips)], err=err)
+    return dataset, clips
+
+
+def warm(
+    app: AppContext, selection: tuple[str, str | None], arm_draw: tuple[int, float], *, err: Echo
+) -> tuple[Failure, ...]:
+    """Run every clip's chain under the arm it draws, one variant at a time."""
+    dataset, clips = _selected(app, selection, WARM_COMMAND, err)
+    by_id = {clip.clip_id: clip for clip in clips}
+    runner = chain_runner(app, pipeline_deps(app, None), dataset)
+    failures: list[Failure] = []
+    for arm, ids in arm_groups(by_id, *arm_draw).items():
+        failures += warm_variants(runner, [by_id[i] for i in ids], (arm_variant(arm),))
+    return tuple(failures)
 
 
 def learned_check(app: AppContext, check_id: str) -> LearnedMixin:
@@ -79,12 +114,9 @@ def collect(
 ) -> Collected:
     """``selection``: (dataset, subset); ``images``: the pair image table and the dense and token
     columns read from it; ``arm_draw``: (seed, ground-truth share per stage)."""
-    name, subset = selection
-    dataset = dataset_for(app, name)
-    clips = tuple(dataset.clips(subset))
-    guard_sealed(app, COMMAND, [Selection(name, subset, clips)], err=err)
+    dataset, clips = _selected(app, selection, COMMAND, err)
     check = learned_check(app, check_id)
-    runner = chain_runner(app, pipeline_deps(app, None), dataset)
+    runner = cached_runner(app, dataset)
     table, dense_columns, token_columns = images
     samples: list[Sample] = []
     failed: list[str] = []
@@ -142,11 +174,8 @@ def _clip_images(
     *,
     err: Echo,
 ) -> Iterator[tuple[ClipManifest, Arm, ClipImages | None]]:
-    name, subset = selection
-    dataset = dataset_for(app, name)
-    clips = tuple(dataset.clips(subset))
-    guard_sealed(app, IMAGES_COMMAND, [Selection(name, subset, clips)], err=err)
-    runner = chain_runner(app, pipeline_deps(app, None), dataset)
+    dataset, clips = _selected(app, selection, IMAGES_COMMAND, err)
+    runner = cached_runner(app, dataset)
     for clip in clips:
         arm = drawn_arm(clip.clip_id, *arm_draw)
         yield clip, arm, read_images(runner, clip, arm)
