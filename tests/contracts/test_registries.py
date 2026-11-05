@@ -178,6 +178,7 @@ COMMAND_ORDER = (
     "synth",
     "timing",
     "verify",
+    "verify-separate",
 )
 
 SERIALIZED_KINDS = ("checks", "perturbations", "families", "datasets", "metrics", "policies")

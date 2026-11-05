@@ -66,6 +66,7 @@ GUARDED: Final = frozenset(
         "diagnose stages",
         "scene-stats per-clip",
         "verify",
+        "verify-separate",
     }
 )
 """Run the checks or measure stage errors on the clips of a dataset. These are the labels the

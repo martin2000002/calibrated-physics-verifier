@@ -98,7 +98,7 @@ def run_verify(
     source = dataset_for(context, dataset)
     selected = select_clips(source.clips(subset), clips)
     suite = _suite(context, policy)
-    inputs = _inputs(context, source, input_level, parse_stages(gt))
+    inputs = input_source(context, source, input_level, parse_stages(gt))
     run_dir = new_run(context.settings, context.invocation.argv).run_dir
     echo(f"run: {run_dir}")
     guard_sealed(
@@ -116,9 +116,10 @@ def run_verify(
     return failed
 
 
-def _inputs(
+def input_source(
     context: AppContext, source: DatasetSource, level: InputLevel, gt_stages: Sequence[Stage]
 ) -> InputSource:
+    """Oracle states, or perceived ones with ``gt_stages`` replaced by ground truth."""
     if level is InputLevel.ORACLE:
         return OracleSource(source)
     return perceived_source(context, source, level, tuple(gt_stages))

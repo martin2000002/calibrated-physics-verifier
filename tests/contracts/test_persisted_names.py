@@ -252,6 +252,7 @@ LEDGER_LABELS: Mapping[str, tuple[str, str | None]] = {
     "diagnose stages": ("diagnose", "stages"),
     "scene-stats per-clip": ("scene-stats", "per-clip"),
     "verify": ("verify", None),
+    "verify-separate": ("verify-separate", None),
 }
 
 
