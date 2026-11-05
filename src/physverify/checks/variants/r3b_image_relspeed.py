@@ -12,13 +12,9 @@ from pydantic import BaseModel, Field
 
 from physverify.checks._base import CheckInputs, abstain, unscored
 from physverify.checks._collision_windows import no_contacts
-from physverify.checks._params import as_params
+from physverify.checks._params import CommonParams, as_params
 from physverify.checks._uncertainty import check_rng
-from physverify.checks.r3b_collision_energy_gain import (
-    EnergyGainCheck,
-    EnergyGainParams,
-    external_contacts,
-)
+from physverify.checks.r3b_collision_energy_gain import EnergyGainCheck, external_contacts
 from physverify.checks.variants._image_impulse import (
     BoolArray,
     Event,
@@ -43,10 +39,11 @@ from physverify.schema.stages import Stage
 from physverify.schema.states import ObjectStateTable
 
 
-class RelSpeedParams(EnergyGainParams):
+class RelSpeedParams(CommonParams):
     """Rows of each side, the image impulse detector's gates and the residual bootstrap;
     ``same_t_frames`` is how close (native frames) a true record's middle is to an event's t to be
-    that event's own record."""
+    that event's own record. None of the default R3b's windows or gates applies here; of the
+    common fields only ``seed`` is read (``mc_draws`` stays as every check's Params has it)."""
 
     gap_frames: float = Field(default=1.0, ge=0.0)
     bound_margin_rows: int = Field(default=1, ge=0)
