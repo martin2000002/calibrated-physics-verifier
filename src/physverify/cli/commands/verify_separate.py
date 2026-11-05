@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import functools
+from pathlib import Path
 from typing import Annotated
 
 import typer
 
-from physverify.app.separate_rows import run_separate
+from physverify.app.separate_rows import fit_separate_row_sigma, run_separate
 from physverify.app.verification import LEVELS
 from physverify.cli.context import app_context, echo_err
 from physverify.cli.options import choices_metavar, require_one_of
@@ -40,17 +41,43 @@ def verify_separate(
     ] = None,
     subset: Annotated[str | None, typer.Option(help="Dataset subset.")] = None,
     clips: Annotated[list[str] | None, typer.Option(help="Clip ids (repeatable).")] = None,
+    fit_row_sigma: Annotated[
+        bool,
+        typer.Option(
+            "--fit-row-sigma",
+            help="Fit R1_dyn's out-of-fold contact-row sigma on clean calib clips instead.",
+        ),
+    ] = False,
+    row_sigma: Annotated[
+        Path | None,
+        typer.Option(help="Row-sigma artifact of --fit-row-sigma: R1_dyn runs with its sigma."),
+    ] = None,
 ) -> None:
+    context, stages, chosen = app_context(ctx), gt or (), clips or ()
+    if fit_row_sigma:
+        fit_separate_row_sigma(
+            context,
+            NAME,
+            dataset,
+            level,
+            stages,
+            subset=subset,
+            clips=chosen,
+            echo=typer.echo,
+            err=echo_err,
+        )
+        return
     failed = run_separate(
-        app_context(ctx),
+        context,
         NAME,
         dataset,
         level,
-        gt or (),
+        stages,
         subset=subset,
-        clips=clips or (),
+        clips=chosen,
         echo=typer.echo,
         err=echo_err,
+        row_sigma=row_sigma,
     )
     if failed:
         raise typer.Exit(code=EXIT_ERROR)

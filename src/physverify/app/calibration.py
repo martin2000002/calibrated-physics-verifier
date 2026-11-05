@@ -321,7 +321,7 @@ def _session(context: AppContext, echo: Echo, err: Echo) -> Session:
         raw_runner=partial(_raw_runner, context),
         check_units=lambda: units_of(registry_of(context, CHECKS)),
         input_source=partial(_input_source, context),
-        subject_lookup=partial(_subject_lookup, context),
+        subject_lookup=partial(subject_lookup, context),
         dataset=partial(dataset_for, context),
         checks_hash=partial(checks_hash_for, context),
         echo=echo,
@@ -362,7 +362,7 @@ def _input_source(context: AppContext, dataset: DatasetSource, level: InputLevel
     return perceived_source(context, dataset, level)
 
 
-def _subject_lookup(context: AppContext, dataset: DatasetSource) -> SubjectLookup:
+def subject_lookup(context: AppContext, dataset: DatasetSource) -> SubjectLookup:
     deps = pipeline_deps(context, None, partial(refuse_heavy, dataset.name))
     chain = chain_runner(context, deps, dataset)
 
