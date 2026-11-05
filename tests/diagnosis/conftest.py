@@ -26,6 +26,7 @@ from synthetic_clip import DATASET, SyntheticFixtureDataset, build_clip, manifes
 from wiring import checks
 
 from physverify.app.plugins import PLUGIN_KINDS
+from physverify.app.plugins import build as plugin_registry
 from physverify.checks._base import CheckInputs
 from physverify.config.models import RuntimeSettings, Settings
 from physverify.datasets._base import ArrayGroundTruthStore, DatasetSource
@@ -394,6 +395,7 @@ def make_deps() -> DepsFactory:
             error_profile=profile,
             observer=None,
             rss=FakeRss(),
+            registry=plugin_registry,
         )
 
     return build

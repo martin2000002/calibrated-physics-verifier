@@ -16,7 +16,14 @@ from physverify.core.cache_keys import error_profile_hash, sampling_hash, upstre
 from physverify.core.errors import MissingInputError, ResourceBudgetError
 from physverify.core.log import get_logger
 from physverify.datasets._base import DatasetSource, dataset_identity
-from physverify.extraction._base import StageContext, StageEvent, StageObserver, StageProvider
+from physverify.extraction._base import (
+    PluginRegistry,
+    StageContext,
+    StageEvent,
+    StageObserver,
+    StageProvider,
+    build_provider,
+)
 from physverify.extraction.cache import (
     StageCache,
     plan_entry_filter,
@@ -69,6 +76,7 @@ class PipelineDeps:
     error_profile: ErrorProfile | None
     observer: StageObserver | None
     rss: RssProbe
+    registry: PluginRegistry
     clock: Callable[[], float] = time.perf_counter
 
     @classmethod
@@ -82,6 +90,7 @@ class PipelineDeps:
         threads: int,
         observer: StageObserver | None,
         rss: RssProbe,
+        registry: PluginRegistry,
     ) -> PipelineDeps:
         """Deps over the stage cache at ``cache_root``, the lazily entered ``lock`` and the error
         profile at ``paths.error_profile``, loaded when the file exists."""
@@ -94,6 +103,7 @@ class PipelineDeps:
             error_profile=load_error_profile(paths.error_profile),
             observer=observer,
             rss=rss,
+            registry=registry,
         )
 
 
@@ -272,7 +282,7 @@ class ExtractionPipeline:
     def _instantiate(self, step: StagePlan) -> StageProvider:
         if step.provider.heavy:
             self._deps.lock.ensure()
-        return step.provider(step.params)
+        return build_provider(step.provider, step.params, self._deps.registry)
 
     def _device(self, step: StagePlan) -> str:
         return self._deps.device if step.provider.heavy else LIGHT_DEVICE

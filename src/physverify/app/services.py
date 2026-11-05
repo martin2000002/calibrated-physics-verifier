@@ -59,6 +59,7 @@ def pipeline_deps(
         threads=settings.runtime.threads,
         observer=observer,
         rss=ProcRssProbe(),
+        registry=context.registry,
     )
 
 

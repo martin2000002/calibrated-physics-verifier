@@ -17,6 +17,7 @@ import pytest
 from wiring import resolve_plan
 
 from physverify.app.plugins import PLUGIN_KINDS
+from physverify.app.plugins import build as plugin_registry
 from physverify.calibration.settings import calibration_config
 from physverify.calibration.table import build_rows
 from physverify.config.loader import load_settings
@@ -105,6 +106,7 @@ def ground_truth_chain(
         error_profile=None,
         observer=None,
         rss=ProcRssProbe(),
+        registry=plugin_registry,
     )
     return ExtractionPipeline(plan, deps).run(dataset, clips)
 

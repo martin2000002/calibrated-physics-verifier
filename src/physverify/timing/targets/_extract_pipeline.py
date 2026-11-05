@@ -88,6 +88,7 @@ def pipeline_deps(
         threads=ctx.threads,
         observer=observer,
         rss=services.rss(),
+        registry=services.registry,
     )
 
 

@@ -12,7 +12,7 @@ from dataclasses import replace
 import numpy as np
 import pytest
 from settings_factory import SettingsFactory
-from support import entry, make_context, profile_of, run_provider
+from support import construct, entry, make_context, profile_of, run_provider
 from synthetic_clip import SyntheticClip
 from wiring import resolve_plan
 
@@ -207,7 +207,7 @@ def test_at_v3_a_metric_depth_arm_keeps_an_exact_metric_scale(
         ctx = make_context(
             fixture_clip, upstream=outputs, plan=plan.names, gt=fixture_clip.ground_truth
         )
-        outputs[step.stage] = step.provider(step.params).run(ctx)
+        outputs[step.stage] = construct(step.provider, step.params).run(ctx)
     lift, scale = outputs[Stage.LIFT], outputs[Stage.SCALE]
     assert isinstance(lift, ObjectStateTable) and lift.unit is LengthUnit.METER
     assert isinstance(scale, ScaleEstimate)

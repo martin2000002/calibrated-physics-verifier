@@ -12,7 +12,7 @@ from physverify.checks._base import Check
 from physverify.config.models import Settings, is_cuda_device
 from physverify.core.errors import UsageError
 from physverify.datasets._base import DatasetSource, dataset_from, select_clips
-from physverify.extraction._base import StageProvider
+from physverify.extraction._base import PluginRegistry, StageProvider
 from physverify.extraction.pipeline_resources import ProcRssProbe, RssProbe
 from physverify.schema.clip import ClipManifest
 from physverify.synth.store import ContainerRunner
@@ -48,6 +48,7 @@ class ClipSelection:
 class TimingServices:
     datasets: Mapping[str, type[DatasetSource]]
     providers: Mapping[str, type[StageProvider]]
+    registry: PluginRegistry
     checks: Mapping[str, type[Check]]
     policies: Mapping[str, type[VerdictPolicy]]
     lock_factory: Callable[[], AbstractContextManager[object]]  # a NullLock inside `timing run`

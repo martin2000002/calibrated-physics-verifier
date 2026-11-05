@@ -16,7 +16,7 @@ from physverify.extraction.area_depth import (
     scale_depth_fields,
 )
 from physverify.extraction.lift_params import LiftParams
-from physverify.extraction.providers._backproject import BackprojectLift
+from physverify.extraction.providers._backproject import BackprojectLift, CentreRegistry
 from physverify.extraction.providers._common import expect_params
 from physverify.schema.states import ObjectStateTable
 
@@ -43,9 +43,9 @@ class AreaDepthLift(BackprojectLift):
     Params: ClassVar[type[BaseModel]] = AreaDepthLiftParams
     derives_depth_from_size: ClassVar[bool] = True
 
-    def __init__(self, params: BaseModel) -> None:
+    def __init__(self, params: BaseModel, centres: CentreRegistry) -> None:
         own = expect_params(params, AreaDepthLiftParams)
-        super().__init__(own)
+        super().__init__(own, centres)
         self.min_rows = own.min_rows
 
     def run(self, ctx: StageContext) -> ObjectStateTable:

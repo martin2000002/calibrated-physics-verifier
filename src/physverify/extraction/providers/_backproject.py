@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Mapping
 from dataclasses import replace
+from types import MappingProxyType
 from typing import Any, ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
 from pydantic import BaseModel
 
+from physverify.config.plugin_context import PluginKind
 from physverify.extraction._base import StageContext, WeightSpec
 from physverify.extraction.backprojection import (
     LiftErrors,
@@ -24,10 +27,11 @@ from physverify.extraction.backprojection import (
     place_object,
 )
 from physverify.extraction.centres._base import (
+    CENTRE_STRATEGIES,
     CentreMethod,
+    CentreStrategy,
     ImageCentres,
     build_centre,
-    centre_strategies,
 )
 from physverify.extraction.gravity_pose import LEVEL_CAMERA_GRAVITY, gravity_from_pose
 from physverify.extraction.lift_geometry import (
@@ -56,6 +60,7 @@ from physverify.schema.states import CoordFrame, ObjectStateTable, PrimitiveKind
 from physverify.sizing.priors import lookup_label
 
 FloatArray = NDArray[np.float64]
+CentreRegistry = Mapping[str, type[CentreStrategy]]
 SEED_HEX_DIGITS = 16
 
 
@@ -73,12 +78,13 @@ class BackprojectLift:
     reads_own_error: ClassVar[bool] = True
     weights: ClassVar[tuple[WeightSpec, ...]] = ()
     Params: ClassVar[type[BaseModel]] = Params
+    plugin_reads: ClassVar[Mapping[str, PluginKind[Any]]] = MappingProxyType(
+        {"centres": CENTRE_STRATEGIES}
+    )
 
-    def __init__(self, params: BaseModel) -> None:
+    def __init__(self, params: BaseModel, centres: CentreRegistry) -> None:
         self.params = expect_params(params, Params)
-        self.centre = build_centre(
-            self.params.centre, self.params.centre_params, centre_strategies()
-        )
+        self.centre = build_centre(self.params.centre, self.params.centre_params, centres)
 
     def run(self, ctx: StageContext) -> ObjectStateTable:
         track = self._track(ctx)

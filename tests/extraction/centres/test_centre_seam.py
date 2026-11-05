@@ -14,9 +14,10 @@ from synthetic_clip import SyntheticClip
 from physverify.app.plugins import PLUGIN_KINDS
 from physverify.core.cache_keys import params_hash
 from physverify.core.errors import ConfigError
-from physverify.extraction._base import GROUND_TRUTH
+from physverify.extraction._base import GROUND_TRUTH, build_provider
 from physverify.extraction.backprojection import ObjectSummary, SummaryOptions, object_summary
 from physverify.extraction.centres._base import (
+    CENTRE_STRATEGIES,
     CentreMethod,
     ImageCentres,
     build_centre,
@@ -72,7 +73,16 @@ def test_a_centre_off_its_default_moves_the_params_hash(fields: dict[str, object
 def test_an_unknown_centre_is_a_config_error_naming_the_known_ones() -> None:
     known = "known: contour_circle, surface_median"
     with pytest.raises(ConfigError, match=rf"'nope' is unknown; {known}"):
-        BackprojectLift(LiftParams(centre="nope"))
+        BackprojectLift(LiftParams(centre="nope"), centre_strategies())
+
+
+def test_the_lift_is_built_with_the_centre_registry_it_is_given() -> None:
+    class MarkerCentre(SurfaceMedianCentre):
+        name = "marker"
+
+    registries = {CENTRE_STRATEGIES.name: {"marker": MarkerCentre}}
+    lift = build_provider(BackprojectLift, LiftParams(centre="marker"), registries.__getitem__)
+    assert isinstance(cast(BackprojectLift, lift).centre, MarkerCentre)
 
 
 def test_invalid_centre_params_are_a_config_error() -> None:
@@ -83,7 +93,9 @@ def test_invalid_centre_params_are_a_config_error() -> None:
 def test_the_default_lift_resolves_the_surface_median_and_records_no_method(
     fixture_clip: SyntheticClip,
 ) -> None:
-    assert isinstance(BackprojectLift(LiftParams()).centre, SurfaceMedianCentre)
+    assert isinstance(
+        BackprojectLift(LiftParams(), centre_strategies()).centre, SurfaceMedianCentre
+    )
     s = make_context(fixture_clip).sampling
     gt = fixture_clip.ground_truth
     upstream = {Stage.TRACK: gt.masks(s), Stage.DEPTH: gt.depth(s), Stage.CAMERA: gt.camera(s)}
@@ -135,7 +147,7 @@ def test_the_surface_median_path_is_bit_identical_on_random_masks(seed: int) -> 
     summary = object_summary(mask, z, valid, K, options, None, kind)
     if summary is not None:
         assert summary.centre.tobytes() == reference_centre(mask, z, valid).tobytes()
-    lifted = BackprojectLift(LiftParams(min_area_px=1))
+    lifted = BackprojectLift(LiftParams(min_area_px=1), centre_strategies())
     track = cast(MaskTrack, SimpleNamespace(masks=mask[None, None]))
     zs, valids = z[None], valid[None]
     plain = lifted._summaries(track, zs, valids, K, None, [kind])

@@ -16,6 +16,7 @@ from synthetic_clip import SyntheticFixtureDataset
 from wiring import resolve_plan
 
 from physverify.app.plugins import PLUGIN_KINDS
+from physverify.app.plugins import build as plugin_registry
 from physverify.checks._base import Check
 from physverify.config.loader import load_settings
 from physverify.config.models import Settings
@@ -260,6 +261,7 @@ def loader_for(
         error_profile=None,
         observer=None,
         rss=ProcRssProbe(),
+        registry=plugin_registry,
     )
     plan = resolve_plan(settings, PLUGIN_KINDS["providers"](), dataset=dataset, gt_stages=gt_stages)
     return PipelineOutputLoader(plan, deps), lock

@@ -9,7 +9,7 @@ from pydantic import BaseModel
 
 from physverify.extraction._base import StageContext
 from physverify.extraction.lift_params import UnnestedLiftParams
-from physverify.extraction.providers._backproject import BackprojectLift
+from physverify.extraction.providers._backproject import BackprojectLift, CentreRegistry
 from physverify.extraction.providers._common import expect_params
 from physverify.extraction.providers._nesting import without_nested
 from physverify.schema.perception import MaskTrack
@@ -26,9 +26,9 @@ class UnnestedBackprojectLift(BackprojectLift):
     version: ClassVar[str] = "5"
     Params: ClassVar[type[BaseModel]] = UnnestedLiftParams
 
-    def __init__(self, params: BaseModel) -> None:
+    def __init__(self, params: BaseModel, centres: CentreRegistry) -> None:
         unnested = expect_params(params, UnnestedLiftParams)
-        super().__init__(unnested)
+        super().__init__(unnested, centres)
         self.nested_overlap = unnested.nested_overlap
 
     def _track(self, ctx: StageContext) -> MaskTrack:
