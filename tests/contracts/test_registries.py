@@ -112,7 +112,7 @@ ORDER: Mapping[str, tuple[str, ...]] = {
         "R5a",
         "R5b",
     ),
-    "centre_strategies": ("surface_median",),
+    "centre_strategies": ("contour_circle", "surface_median"),
     "timing_targets": (
         "dpo_step",
         "extract_pipeline",
