@@ -4,7 +4,7 @@ a separate cube."""
 from __future__ import annotations
 
 import math
-from typing import ClassVar
+from typing import ClassVar, Literal
 
 import numpy as np
 from numpy.typing import NDArray
@@ -15,6 +15,7 @@ from physverify.schema.scene import ObjectSpec, SceneSpec
 from physverify.synth.ballistics import rolling_angular_velocity
 from physverify.synth.family_toolkit import (
     FamilyCommon,
+    along_motion_azimuth,
     box_envelope,
     framed_scene,
     heading,
@@ -29,6 +30,7 @@ from physverify.synth.placement import palette, rest_height
 
 NAME = "f5_contact"
 Vec = NDArray[np.float64]
+CAMERA_AZIMUTH = {"across": image_plane_azimuth, "along": along_motion_azimuth}
 
 
 class Params(FamilyCommon):
@@ -45,6 +47,8 @@ class Params(FamilyCommon):
     friction: float = 0.6
     restitution: float = 0.2
     plane_spread_deg: float = 15.0
+    # "along" puts the camera on the motion line (ADR 0049): the R1_dyn calibration scenes.
+    camera_axis: Literal["across", "along"] = "across"
 
 
 class ContactFamily:
@@ -60,7 +64,7 @@ def _draw(rng: np.random.Generator, params: Params) -> SceneSpec:
     n_cluster = int(rng.integers(params.cluster_size_range[0], params.cluster_size_range[1] + 1))
     colors = palette(rng, n_cluster + 2)
     motion = heading(float(rng.uniform(0.0, 2.0 * math.pi)))
-    azimuth = image_plane_azimuth(motion, rng, params.plane_spread_deg)
+    azimuth = CAMERA_AZIMUTH[params.camera_axis](motion, rng, params.plane_spread_deg)
     yaw = math.atan2(float(motion[1]), float(motion[0]))
     cube_ext = sampled_extents(params, "cube", rng)
     cube = material_object(

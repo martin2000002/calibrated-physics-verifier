@@ -239,6 +239,18 @@ def framed_scene(
 
 def image_plane_azimuth(motion: Vec, rng: np.random.Generator, spread_deg: float) -> float:
     """Camera azimuth (degrees) perpendicular to a horizontal ``motion`` within ``spread_deg``."""
+    return _motion_azimuth(motion, rng, spread_deg, (90.0, -90.0))
+
+
+def along_motion_azimuth(motion: Vec, rng: np.random.Generator, spread_deg: float) -> float:
+    """Camera azimuth (degrees) along or against a horizontal ``motion`` within ``spread_deg``;
+    the same two draws as ``image_plane_azimuth``."""
+    return _motion_azimuth(motion, rng, spread_deg, (0.0, 180.0))
+
+
+def _motion_azimuth(
+    motion: Vec, rng: np.random.Generator, spread_deg: float, sides: tuple[float, float]
+) -> float:
     angle = math.degrees(math.atan2(float(motion[1]), float(motion[0])))
-    side = 90.0 if rng.uniform() < 0.5 else -90.0
+    side = sides[0] if rng.uniform() < 0.5 else sides[1]
     return angle + side + float(rng.uniform(-spread_deg, spread_deg))
