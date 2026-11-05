@@ -66,6 +66,7 @@ def test_only_the_backproject_lifts_and_the_moge2_focal_read_their_own_profile_e
         "lift/ground_anchored",
         "lift/backproject_size_constancy",
         "lift/backproject_area_depth",
+        "lift/backproject_contour_circle",
     )
     for key in lifts:
         assert registry[key].error_profile_reads == (Stage.TRACK, Stage.DEPTH)
@@ -87,7 +88,7 @@ def test_building_the_registry_imports_no_heavy_library() -> None:
         f"sys.path.insert(0, {str(REPO / 'src')!r})\n"
         "from physverify.app.plugins import PLUGIN_KINDS\n"
         "import physverify.extraction.weights, physverify.extraction.pipeline\n"
-        "assert len(PLUGIN_KINDS['providers']()) == 34\n"
+        "assert len(PLUGIN_KINDS['providers']()) == 35\n"
         f"print(sorted(m for m in {LAZY_MODULES!r} if m in sys.modules))\n"
     )
     done = subprocess.run(

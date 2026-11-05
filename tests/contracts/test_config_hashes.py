@@ -76,7 +76,7 @@ DATASET_CONTENT_HASH = {
     "fast": "7792797236e163025d89c1c518dc43ad8f90c3f511bd884e1969ca9bf1f2fa3e",
     "precise": "4a6829efdd64424d79dfc0941246de148ca50446e0f6f40738e3a02d1b8e8b4e",
 }
-NO_IDENTITY_STAGE_KEYS_HASH = "de5f9205c792bd6117013c6db0b13333ec62fc1e5d62961eae535c236bcd5791"
+NO_IDENTITY_STAGE_KEYS_HASH = "7929f55b7ca4ea18f032dc26bbf202686054505d597324f8f4d653dbe671e3d8"
 """Hash of ``STAGE_KEYS`` computed for a dataset without cache identity (PISA, Physics-IQ,
 Objectron): the table as it was before identities entered the key, so those caches stay valid,
 except the three GeoCalib cameras, whose version moved when their draw was seeded,
@@ -128,6 +128,9 @@ STAGE_KEYS = {
     ),
     "lift/backproject_area_depth": (
         "8645310c2c29d1402c9d17da74df062d017131a96db9ef04dec130554349e1aa"
+    ),
+    "lift/backproject_contour_circle": (
+        "7cb997e5a761b8c0a7578777f2d39742337cc4e30d4b2a1d71cb595782164d1c"
     ),
     "scale/free_fall": "c5aab810008d5b2bc4826bc87569f905ec7c32999a502a85538d5beef1d7ea5b",
     "scale/metric_depth": "e6a88ff7014546f12b9bdc87a938208ead9b356a5272714aca27ef8c1764ee75",
