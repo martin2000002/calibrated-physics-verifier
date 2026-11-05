@@ -1,4 +1,4 @@
-"""R1_dyn: a rolling sphere passes through the body it would have hit (ADR 0047 section 1).
+"""R1_dyn: a rolling sphere passes through the body it would have hit.
 
 From the last row before the first object-object contact the mover keeps rolling at constant
 velocity as if its partner were absent, every other body keeps its pose, and the whole mover
@@ -55,7 +55,7 @@ class PassThrough(PluginBase[Params]):
     name: ClassVar[str] = NAME
     target_checks: ClassVar[tuple[str, ...]] = ("R1_dyn",)
     magnitude_unit: ClassVar[str] = "pen_over_size"
-    magnitude_kind: ClassVar[MagnitudeKind] = MagnitudeKind.CHECK_UNIT
+    magnitude_kind: ClassVar[MagnitudeKind] = MagnitudeKind.INJECTED_PARAMETER
     Params: ClassVar[type[PerturbationCommon]] = Params
     families: ClassVar[tuple[str, ...]] = ("f5_contact",)
 
