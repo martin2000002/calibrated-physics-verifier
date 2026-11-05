@@ -76,7 +76,7 @@ DATASET_CONTENT_HASH = {
     "fast": "7792797236e163025d89c1c518dc43ad8f90c3f511bd884e1969ca9bf1f2fa3e",
     "precise": "4a6829efdd64424d79dfc0941246de148ca50446e0f6f40738e3a02d1b8e8b4e",
 }
-NO_IDENTITY_STAGE_KEYS_HASH = "7a7540bde6c86abb4ae495218da40dbe2b88dceb03885ba002872109e82e5322"
+NO_IDENTITY_STAGE_KEYS_HASH = "25f48c51ab9527daec2f64adf330faa8b446edbba60a935c41c313784fcbde0a"
 """Hash of ``STAGE_KEYS`` computed for a dataset without cache identity (PISA, Physics-IQ,
 Objectron): the table as it was before identities entered the key, so those caches stay valid,
 except the three GeoCalib cameras, whose version moved when their draw was seeded,
@@ -84,16 +84,17 @@ except the three GeoCalib cameras, whose version moved when their draw was seede
 the back-projecting lifts and every stage after them, whose version moved when the lift output
 gained ``nearer_cover``, the size-prior scales, whose version moved when the extent sigmas of
 a length became correlated axes, ``camera/moge2_focal``, whose version moved when its frame
-spread took the shared robust scale, and the three GeoCalib cameras again, whose params gained
-the configured ``assumed`` fallback."""
+spread took the shared robust scale, the three GeoCalib cameras again, whose params gained
+the configured ``assumed`` fallback, and ``track/edgetam`` (the fast tracker) and every stage
+after it, whose version moved when its backbone config was read from ``paths.hf_home``."""
 STAGE_KEYS = {
     "camera/assumed_fov": "dddd1ad9189f13fabcc53f7e2fe5f8818b5d2bdeaf0900f0473a9207790e3c92",
     "camera/from_depth": "528097477f8abe02aee99fb728a9083fc5d6be7ef2565f09783422a4f7c4822d",
     "camera/geocalib": "6bbe25585e50cb7c606b7effd4f20ae9e6feefb2702cb123590051559e4de22d",
     "camera/moge2_focal": "ea90ddd70d84487f5ddd434cd9f3282d95fb38236f56adf937cf775a34289dfc",
-    "contacts/kinematic": "c19c73ccff61e5cdac5aae9570496d4058fd41c2bd41c6753f13f64e5339fe6a",
-    "contacts/kinematic_scene": "1f7b010bc04feb965b4f3d3fca9aa211c86861e5ffb21051a8f14e00be4c345e",
-    "contacts/proximity": "28fe128928f350658a8b6ff998310df79efab6cf614a642dbe582ff3caf68544",
+    "contacts/kinematic": "444328611d16cbb23af836b42a6caf6ea7a122f461335244e07410248696c42d",
+    "contacts/kinematic_scene": "9c5cacbf5569d08a2a479462aea235cf2ebad667d1a2642ea278b68eda913ebb",
+    "contacts/proximity": "f1411d414238733b2413c347a7b41acbd5571823732d1422202383e73d146676",
     "depth/moge2": "d8f98cce650ba75e04081abd3cc6f0ef8ca9e0607e80dd0d778782e9a4dce4f0",
     "depth/vda_small": "932e5bdd1e8e8e979e6ddd6f711dc3847a7a2c857b6e40edc6569cfa931a558b",
     "depth/vda_large": "bf81dd186e137ffe10de96898b7972a0acbb592ddcc836c9ae8ca515577a02cf",
@@ -108,28 +109,28 @@ STAGE_KEYS = {
         "c37ca9325ddfc1d25e76b62170ea4d061624556f1a950d37b527b1858531a2eb"
     ),
     "camera/ground_truth": "b2c14c9deb33cb4ba8222a4b376ebf5fcd654fa4c2a295753670d5ca3f7dcfa2",
-    "contacts/ground_truth": "e04343ba3823789bde913cec256fdceee8b696e487014ac31f20b4a857a829e3",
+    "contacts/ground_truth": "a30c1e4f85b2f5ea7d509b732f6351ea33ec66872a942600168221ae612280d4",
     "depth/ground_truth": "066f431b92050322c0ddd30e6593f2ed4b4867638b185fbd5c7f7eeabe28db22",
     "detect/ground_truth": "d824014b61086af84d16cf7898ff517a6f80f9d23aed8e6e52e96fe24a3520c1",
-    "kinematics/ground_truth": "68dad3ff9368bd6d6425e9533c50898e2f1e6d48545d4d90fd6eee23ffca6f1f",
-    "lift/ground_truth": "028c544e603d5ba3ec79640dec0ec1864058bccb1b2f3732ad3d42497fecfe36",
-    "scale/ground_truth": "accd39b486b7b512982c2579b4a6cc58568fbd9703b6d77da6b4917e20d92c47",
+    "kinematics/ground_truth": "04b220b73f1fe06d63bba67c488c7a19d21461303db3fd358c40268a7b70622e",
+    "lift/ground_truth": "dfd70e984dcb4f142db035c7931ade150a9f9c84a1011e26e586bc56eec460c1",
+    "scale/ground_truth": "642036be711ca038cfe945902a053417cc0452a5bebe527f77f9d3b133e885d6",
     "track/ground_truth": "dd06a8daf8146b910fd9088f9d80f97e73b2756dc9f4e7de730aac4fe0204f4a",
-    "kinematics/savgol": "a9c44429ba8fdba5168df28297106692e0f010caf0097e1ecbac3aa463486108",
-    "lift/backproject": "efda833eca5711cbb182079b358d105e63f8b429527074db5aab1bb79c6cef84",
-    "lift/backproject_unnested": "2bafe8e5b64495ea649adbeddf76d96d8c422290267cc0f6fe5b069f88210969",
-    "lift/ground_anchored": "b74cfce0b916220d1d151afb163ef69418fd91c5520659dcaa61f57716f84da5",
+    "kinematics/savgol": "30ad62422fdce4fe7ac8e95bb2442363f7885ed90a98015332be81ca5046fcff",
+    "lift/backproject": "6ec94215eeef50dae4f4bd8763ab1815c27d725a8518495dd36ff4d9756a83cd",
+    "lift/backproject_unnested": "fd0ce3eb05ebf53a1642ca1f05319634739e5c14313cf03679e20e1eea08f963",
+    "lift/ground_anchored": "ccc1d5bcf4756858e540e6dbe42ef471ae7a1a9c7b62e2c62820d133110282dc",
     "lift/backproject_size_constancy": (
-        "e0d1d4a13a47ad1ac473a2a02d84b2e465d36d313c79f0c14c861e3263f69cf8"
+        "3d32a8d8c7a2690d3f544d7ed98a35f1392f84d45d33fe1e85082b3b417b3db1"
     ),
     "lift/backproject_area_depth": (
-        "cd92dfccf4ebd2064a83f4b0c05b32211f2debdf1dee34a61a0f87a1eed3b540"
+        "767b384cafd38367c1ed0d2d8ee33da4cbc8f8949f00148f434c06a9a0060ff7"
     ),
-    "scale/free_fall": "35e953454486c4732ba0858bf2070e7ecc5ad18d0cd1b1c3375f86f5b2322f7d",
-    "scale/metric_depth": "a3fdd8b10d7115559cae9de0560fe1cd4def96ca09efc43af114459ee8460c25",
-    "scale/size_model": "7f0a28e8a7eca40a8c6f93782b74949759346cfddd1f7492a7750f593bff1595",
-    "scale/size_prior": "48851fc649a7bc3bb20f5865bf8471f34d38b30ffabe5f8d0b723ddc7a4130d4",
-    "track/edgetam": "d8a575fa696b6b5d3c81d0a29f1a6c38410b86fea8a59afd36c635ccaa0c546e",
+    "scale/free_fall": "1e5bf22be995ad138927ff211f04b850d7ac23cd16ed480316de9300378b952f",
+    "scale/metric_depth": "0835076df3a2476a29569328f0f180eb2cdff267bd22c9c746f6953eb445d31c",
+    "scale/size_model": "47540389d57f84942480e5c1b7a101a064415c86c251ed49af2e7654136bfc39",
+    "scale/size_prior": "a1c9767ffdbebdb0f34099d20e2c59d8e20c97d4e83090f29d8f5d0eef3d83ff",
+    "track/edgetam": "75bf023ca5f8704ea5c52b1aecfdf27be64448073d16c25e22610c9c8395c408",
     "track/sam2_1_hiera_tiny": "a38a8223ecde1e228b7b30f4889972cb07277c5effebb96451b787dff76557bf",
 }
 GROUND_TRUTH = "ground_truth"

@@ -14,7 +14,7 @@ from pydantic import Field
 
 from physverify.extraction._base import ProviderParams, StageContext, WeightSpec
 from physverify.extraction.providers._common import LazyModel
-from physverify.extraction.weights import hub_offline, local_path
+from physverify.extraction.weights import hub_cache_env, hub_offline, local_path
 from physverify.schema.perception import Detections, MaskTrack
 from physverify.schema.stages import Stage
 
@@ -63,7 +63,7 @@ def load_video_model(video_model: VideoModel, ctx: StageContext) -> tuple[Any, A
     import transformers
 
     snapshot = local_path(video_model.weights, ctx.paths)
-    with hub_offline():
+    with hub_cache_env(ctx.paths), hub_offline():
         model_class = getattr(transformers, video_model.class_name)
         model = model_class.from_pretrained(snapshot).to(ctx.device).eval()
         processor = transformers.Sam2VideoProcessor.from_pretrained(snapshot)
