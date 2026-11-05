@@ -10,7 +10,7 @@ from physverify.app import plugins
 from physverify.app.plugins import PLUGIN_KINDS
 from physverify.calibration.settings import calibration_settings
 from physverify.checks.r3b_collision_energy_gain import EnergyGainCheck
-from physverify.checks.variants._image_impulse import detect
+from physverify.checks.variants._image_impulse import apparent_radius, detect
 from physverify.checks.variants.r3b_image_relspeed import (
     RelSpeedCheck,
     RelSpeedParams,
@@ -86,6 +86,15 @@ def test_a_kink_far_from_contact_is_not_an_event() -> None:
     apart = replace(case, states=replace(case.states, position=position))
     assert detect(apart.states, apart.contacts, RelSpeedParams().gates()) == []
     assert scored(apart, PERCEIVED) == []
+
+
+def test_the_radius_window_and_the_own_record_tolerance_are_params() -> None:
+    params = RelSpeedParams()
+    assert (params.gates().radius_rows, params.same_t_frames) == (2, 1e-9)
+    assert RelSpeedParams(radius_rows=0).gates().radius_rows == 0
+    states = sc.collision(gain=0.2).states
+    size, z = np.asarray(states.size[5, 0]), float(states.position[5, 0, 2])
+    assert apparent_radius(states, 0, 5, 0) == 0.25 * (size[0] + size[1]) / z
 
 
 def test_a_noisy_track_is_detected_near_the_impact_with_a_finite_sigma() -> None:
