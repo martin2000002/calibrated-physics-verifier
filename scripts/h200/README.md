@@ -25,6 +25,7 @@ use and what each script leaves behind.
 | `run_timing.sh` | Timing benchmark |
 | `smoke_finetune.sh`, `run_preference.sh`, `run_finetune.sh` | Preference pairs and Flow-DPO fine-tuning |
 | `run_kubric.sh` | Kubric synthetic dataset (Docker or udocker) |
+| `run_train_h.sh` | Training set of the learned R1 and R2 variants (`train_h`, own version and seed) |
 | `run_perception_iteration.sh`, `perception_arms.tsv` | One iteration of the perception campaign on the calib clips |
 | `run_dev_b.sh` | The B reading of an iteration on the declared development sets |
 | `run_freeze.sh`, `freeze_query.py` | The freeze: adopted iteration, exclusion record, abstention level, `freeze.json` |
@@ -190,6 +191,13 @@ links to it) and starts with the engine and the image the container came from; `
 always runs, and the script exits with the build's exit code. When a run fails or is cut, run the
 same command again: every step skips finished items. If udocker failed and Docker responds,
 rerun it with `PHYSVERIFY_KUBRIC_ENGINE=docker`, keeping the same data directory.
+
+`run_train_h.sh [SCENES]` builds subset `train_h` as version `v2-train-h`, with the dataset seed
+`labelled_seed("plan-humano train v1")` (first 8 hex digits of its sha256) and no calib split.
+Before the build, `tools/seed_collisions.py` compares every attempt seed the subset can draw with
+the `perturbation.seed` of every `<data_dir>/synthetic/*/manifest.jsonl` and stops on any match;
+`PHYSVERIFY_TRAIN_H_DRY_RUN=1` runs that check only. `SCENES` above the configured 120 extends
+the same scene stream. Everything else is `run_kubric.sh train_h`.
 
 ### Ground-truth migrations
 

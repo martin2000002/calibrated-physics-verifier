@@ -56,7 +56,9 @@ class SubsetSettings(FrozenModel):
     scenes_per_family: int = Field(ge=1)
     levels: tuple[int, ...]
     perturbations: dict[str, tuple[str, ...]]
-    level_mode: Literal["all", "cycle"] = "all"
+    # all: every level; cycle: one per variant, cycling with scene index and perturbation;
+    # paired: one per scene, drawn from its seed and shared by every perturbation of the scene.
+    level_mode: Literal["all", "cycle", "paired"] = "all"
     # Only the scenes of this split (same scene ids, seeds and splits as without it).
     split: Literal["calib", "eval"] | None = None
     # Non-empty: a calibration extension. Its calib scenes outside the calibration subset count

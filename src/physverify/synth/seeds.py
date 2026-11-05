@@ -3,6 +3,7 @@ dataset seed and its identity, so adding scenes, subsets or plugins never shifts
 
 from __future__ import annotations
 
+import hashlib
 import math
 
 import numpy as np
@@ -37,6 +38,16 @@ def perturbation_seed(
         "attempt": attempt,
     }
     return _hash_int(payload, 15)
+
+
+def paired_level_index(seed: int, family: str, index: int, n_levels: int) -> int:
+    """Position, in the subset's levels, of the one level every perturbation of a scene shares."""
+    return _hash_int({"seed": seed, "family": family, "index": index, "paired": True}, 8) % n_levels
+
+
+def labelled_seed(label: str) -> int:
+    """Dataset seed derived from a text label: the first 8 hex digits of its sha256."""
+    return int(hashlib.sha256(label.encode("utf-8")).hexdigest()[:8], 16)
 
 
 def split_phase(seed: int, family: str) -> float:

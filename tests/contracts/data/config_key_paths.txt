@@ -130,6 +130,11 @@ dataset.subsets.local.scenes_per_family
 dataset.subsets.smoke.levels
 dataset.subsets.smoke.perturbations.f2_bounce
 dataset.subsets.smoke.scenes_per_family
+dataset.subsets.train_h.level_mode
+dataset.subsets.train_h.levels
+dataset.subsets.train_h.perturbations.f4_stack
+dataset.subsets.train_h.perturbations.f5_contact
+dataset.subsets.train_h.scenes_per_family
 dataset.velocity_convention
 dataset.version
 demo.adhoc_campaign

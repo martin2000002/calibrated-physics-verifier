@@ -131,6 +131,18 @@ checks_only = ["R3b"]
 [dataset.subsets.calib_f3_extra.perturbations]
 f3_collision = ["r3_energy_gain"]
 
+# Training set of the learned R1 and R2 variants (its own version and seed, every scene eval:
+# scripts/h200/run_train_h.sh). Per scene: the clean clip, the positive and its decoy at one level
+# shared by both (`paired`). 120 scenes is the pilot; more scenes extend the same scene stream.
+[dataset.subsets.train_h]
+scenes_per_family = 120
+levels = [1, 2, 3, 4]
+level_mode = "paired"
+
+[dataset.subsets.train_h.perturbations]
+f4_stack = ["r2_unsupported_rest", "r2_unsupported_rest_decoy"]
+f5_contact = ["r1_penetration", "r1_penetration_decoy"]
+
 [dataset.profiles.precise]
 version = "v1-precise"
 resolution = 256

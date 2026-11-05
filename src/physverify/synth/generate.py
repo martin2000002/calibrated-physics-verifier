@@ -14,7 +14,13 @@ from physverify.schema.scene import SceneSpec
 from physverify.synth.perturb import REFUSALS, SeedKey, perturb_scene
 from physverify.synth.perturbations._base import PerturbationTarget
 from physverify.synth.plan import NONE, DatasetPlan, ScenePlan, VariantPlan, clip_id_of, scene_id_of
-from physverify.synth.seeds import is_calib, scene_rng, scene_seed, split_phase
+from physverify.synth.seeds import (
+    is_calib,
+    paired_level_index,
+    scene_rng,
+    scene_seed,
+    split_phase,
+)
 from physverify.synth.settings import (
     DatasetSettings,
     FamilyClass,
@@ -64,11 +70,16 @@ def split_of(ds: DatasetSettings, family: str, index: int) -> Split:
     return Split.CALIB if calib else Split.EVAL
 
 
-def variant_levels(sub: SubsetSettings, index: int, position: int) -> tuple[int, ...]:
-    """Every configured level, or one level cycling with scene index and perturbation position."""
+def variant_levels(
+    sub: SubsetSettings, scene: ScenePlan, position: int, seed: int
+) -> tuple[int, ...]:
+    """Every configured level, one cycling with scene index and perturbation position, or one per
+    scene shared by its perturbations."""
     if sub.level_mode == "all":
         return sub.levels
-    return (sub.levels[(index + position) % len(sub.levels)],)
+    if sub.level_mode == "paired":
+        return (sub.levels[paired_level_index(seed, scene.family, scene.index, len(sub.levels))],)
+    return (sub.levels[(scene.index + position) % len(sub.levels)],)
 
 
 def scene_variants(
@@ -81,7 +92,7 @@ def scene_variants(
     for position, name in enumerate(sorted(sub.perturbations[scene.family])):
         plugin = perturbations[name]
         levels = perturbation_params(plugin, ds).levels
-        for level in variant_levels(sub, scene.index, position):
+        for level in variant_levels(sub, scene, position, ds.seed):
             clip_id = clip_id_of(scene.scene_id, name, level)
             scene_level = plugin.target is PerturbationTarget.SCENE
             sim_id = clip_id if scene_level else scene.scene_id

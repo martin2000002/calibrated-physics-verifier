@@ -106,7 +106,7 @@ def measured(
     return float(value)
 
 
-def seed_stream(plugin: ScenePerturbation | TrajectoryPerturbation) -> str:
+def seed_stream(plugin: Perturbation | PerturbationClass) -> str:
     """Name the attempt seeds are drawn under: a plugin may share another's stream so that, at the
     same level, it reproduces that plugin's random choices (a decoy and its positive)."""
     return str(getattr(plugin, "seed_stream", plugin.name))
