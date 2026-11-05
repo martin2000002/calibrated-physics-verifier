@@ -12,6 +12,7 @@ from support import make_context, run_provider
 from synthetic_clip import SyntheticClip
 
 from physverify.app.plugins import PLUGIN_KINDS
+from physverify.core.cache_keys import params_hash
 from physverify.core.errors import ConfigError
 from physverify.extraction._base import GROUND_TRUTH
 from physverify.extraction.backprojection import ObjectSummary, SummaryOptions, object_summary
@@ -22,7 +23,13 @@ from physverify.extraction.centres._base import (
     centre_strategies,
 )
 from physverify.extraction.centres.surface_median import SurfaceMedianCentre
-from physverify.extraction.lift_params import LiftParams, summary_options
+from physverify.extraction.lift_params import (
+    GroundAnchoredLiftParams,
+    LiftParams,
+    SizeConstancyLiftParams,
+    UnnestedLiftParams,
+    summary_options,
+)
 from physverify.extraction.providers.lift_backproject import BackprojectLift
 from physverify.schema.perception import MaskTrack
 from physverify.schema.stages import STAGE_ORDER, Stage
@@ -31,11 +38,35 @@ from physverify.schema.states import ObjectStateTable, PrimitiveKind
 K = np.array([[60.0, 0.0, 15.5], [0.0, 58.0, 12.0], [0.0, 0.0, 1.0]])
 SHAPE = (24, 32)
 RANDOM_CASES = 200
+DEFAULT_PARAMS_HASHES = {
+    LiftParams: "361c8bf64a9766794127aecec6c2c31f03438774e4f73f0fd93f9243d5d0de45",
+    UnnestedLiftParams: "1d3dd2014fe5a0dfc47b8551a637afbb0df93425e96018f40e04dff3889bfa9f",
+    GroundAnchoredLiftParams: "8853670addd52e45d5ce1c2e931f5290e0b4f4647ea7c44cc9d8ef87d2d1ccb7",
+    SizeConstancyLiftParams: "7a870cf78e206b3159ac87c97f92ca7ba78fbcec1215475966b4f9c3bf71e2e0",
+}
+"""The params hashes before the centre strategies existed: the measured LIFT error-profile
+entries carry them, so the default strategy must keep them."""
 
 
 def test_the_registry_lists_both_strategies_and_the_app_reads_the_same_one() -> None:
     assert sorted(centre_strategies()) == ["contour_circle", "surface_median"]
     assert dict(PLUGIN_KINDS["centre_strategies"]()) == dict(centre_strategies())
+
+
+@pytest.mark.parametrize("model", DEFAULT_PARAMS_HASHES)
+def test_the_default_centre_keeps_the_params_hash(model: type[LiftParams]) -> None:
+    explicit = model(centre="surface_median", centre_params={})
+    for params in (model(), explicit):
+        assert params_hash(params.model_dump(mode="json")) == DEFAULT_PARAMS_HASHES[model]
+
+
+@pytest.mark.parametrize(
+    "fields", [{"centre": "contour_circle"}, {"centre_params": {"area_min_px": 4}}]
+)
+def test_a_centre_off_its_default_moves_the_params_hash(fields: dict[str, object]) -> None:
+    params = LiftParams.model_validate(fields)
+    assert params_hash(params.model_dump(mode="json")) != DEFAULT_PARAMS_HASHES[LiftParams]
+    assert LiftParams.model_validate(params.model_dump(mode="json")) == params
 
 
 def test_an_unknown_centre_is_a_config_error_naming_the_known_ones() -> None:

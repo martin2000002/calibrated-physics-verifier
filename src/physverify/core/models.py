@@ -25,6 +25,12 @@ def absent_when_none() -> Any:
     return Field(default=None, exclude_if=_is_none)
 
 
+def absent_when_default(default: object) -> Any:
+    """A field added after records were hashed: its key is left out of the record while it holds
+    ``default``, so a record at the default reads (and hashes) as before the field existed."""
+    return Field(default=default, exclude_if=lambda value: value == default)
+
+
 def expect_params[P: BaseModel](params: BaseModel, model: type[P]) -> P:
     """``params`` narrowed to the ``model`` a plugin declared; another model is a wiring bug."""
     if not isinstance(params, model):

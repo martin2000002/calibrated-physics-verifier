@@ -54,12 +54,12 @@ RUN_CHECKS_HASH = {
     "fast": "5c5820acaf1bfce8270cdc8653a9eefd373f9feccde4baaac4b3a4510198f78e",
     "precise": "05f8ade4c34a9d5e374d378bd8064743086c68379a61060c1c6eb03476a3e9c9",
 }
-PRECISE_STAGE_KEYS_HASH = "8a7539138fe1b1492b3c2e4731b1260e9b6b7fd9cecaf151924c3f1994b4bfd1"
+PRECISE_STAGE_KEYS_HASH = "874ca3baefe3853a95569b7de095b7765a60bb2a1c2de72e90cbadd8ff95c903"
 """Hash of every stage key of the precise plan for the declared calib dataset. It and
 ``RUN_CHECKS_HASH["precise"]`` are what the defaults give with the same choices passed by
 ``--set``."""
 PRECISE_ROUTE_STAGE_KEYS_HASH = {
-    "area_depth": "bc26e78e1ae0b9ae4332fb12dd1b21d1c9c0e053c433d277b451a79bd1fdf823",
+    "area_depth": "cad2cfd998947532b95df078a375bde94d3954780d748c5ca1560d5919540b45",
 }
 """Per input route of the precise profile, the hash of every stage key of its plan, as
 ``PRECISE_STAGE_KEYS_HASH`` is of the main plan's."""
@@ -76,7 +76,7 @@ DATASET_CONTENT_HASH = {
     "fast": "7792797236e163025d89c1c518dc43ad8f90c3f511bd884e1969ca9bf1f2fa3e",
     "precise": "4a6829efdd64424d79dfc0941246de148ca50446e0f6f40738e3a02d1b8e8b4e",
 }
-NO_IDENTITY_STAGE_KEYS_HASH = "ae466f2767efd4796bcd848d306c69f18f4bb7548f2ad980f52882979858c36c"
+NO_IDENTITY_STAGE_KEYS_HASH = "de5f9205c792bd6117013c6db0b13333ec62fc1e5d62961eae535c236bcd5791"
 """Hash of ``STAGE_KEYS`` computed for a dataset without cache identity (PISA, Physics-IQ,
 Objectron): the table as it was before identities entered the key, so those caches stay valid,
 except the three GeoCalib cameras, whose version moved when their draw was seeded,
@@ -87,16 +87,17 @@ a length became correlated axes, ``camera/moge2_focal``, whose version moved whe
 spread took the shared robust scale, the three GeoCalib cameras again, whose params gained
 the configured ``assumed`` fallback, and ``track/edgetam`` (the fast tracker) and every stage
 after it, whose version moved when its backbone config was read from ``paths.hf_home``, and
-the back-projecting lifts and every stage after them again, whose params gained the configured
-image-plane ``centre`` strategy."""
+the back-projecting lifts and every stage after them again, whose version moved when they gained
+the configured image-plane ``centre`` strategy (absent from their params at its default, so their
+params hashes did not move)."""
 STAGE_KEYS = {
     "camera/assumed_fov": "dddd1ad9189f13fabcc53f7e2fe5f8818b5d2bdeaf0900f0473a9207790e3c92",
     "camera/from_depth": "528097477f8abe02aee99fb728a9083fc5d6be7ef2565f09783422a4f7c4822d",
     "camera/geocalib": "6bbe25585e50cb7c606b7effd4f20ae9e6feefb2702cb123590051559e4de22d",
     "camera/moge2_focal": "ea90ddd70d84487f5ddd434cd9f3282d95fb38236f56adf937cf775a34289dfc",
-    "contacts/kinematic": "1382e6580efea65330e5bd8116116d11c9ef45d7a49ac62d594f403270c55534",
-    "contacts/kinematic_scene": "1c11225d88c8a24a43ea687d610e30e7496158e226d7cd2c3bdac3e3e4f285cd",
-    "contacts/proximity": "94db57bea266b64ea1f476a367aef226436261d959d61829cde9afe1d7307091",
+    "contacts/kinematic": "8924f3619182fd8501423d82d079a90bf15a7721d4883e79cda34c1b8fa6084c",
+    "contacts/kinematic_scene": "213e1f292a1b1e7e5f16b6f4aa18613b82765b15e2c52b99ada778cdc25c4f5b",
+    "contacts/proximity": "0868179cf09a66df3ec91e416a6aba9c18c0c24183f181a70d15df08f8c0c0ba",
     "depth/moge2": "d8f98cce650ba75e04081abd3cc6f0ef8ca9e0607e80dd0d778782e9a4dce4f0",
     "depth/vda_small": "932e5bdd1e8e8e979e6ddd6f711dc3847a7a2c857b6e40edc6569cfa931a558b",
     "depth/vda_large": "bf81dd186e137ffe10de96898b7972a0acbb592ddcc836c9ae8ca515577a02cf",
@@ -111,27 +112,27 @@ STAGE_KEYS = {
         "c37ca9325ddfc1d25e76b62170ea4d061624556f1a950d37b527b1858531a2eb"
     ),
     "camera/ground_truth": "b2c14c9deb33cb4ba8222a4b376ebf5fcd654fa4c2a295753670d5ca3f7dcfa2",
-    "contacts/ground_truth": "4991c009bca2cf8950dcde7dbf752b832ab358e1a1f067092df85e08ade42fe2",
+    "contacts/ground_truth": "528c15bd65b6e0053b0bd3e7a0f6b732c338217b8520fbaa7298a9a86da45e09",
     "depth/ground_truth": "066f431b92050322c0ddd30e6593f2ed4b4867638b185fbd5c7f7eeabe28db22",
     "detect/ground_truth": "d824014b61086af84d16cf7898ff517a6f80f9d23aed8e6e52e96fe24a3520c1",
-    "kinematics/ground_truth": "4913ac55e867387af4e346d5cdf586b7c8b456560b9a8be93b8ce3b1cad2f927",
+    "kinematics/ground_truth": "82da552860bd8d99008c8f1ce6f669f7bfdda1a202132e76fea35e90fb599a47",
     "lift/ground_truth": "dfd70e984dcb4f142db035c7931ade150a9f9c84a1011e26e586bc56eec460c1",
-    "scale/ground_truth": "3764e656bd01391191805bc2af885277e6799be5c01792d1cd3e767fce638b01",
+    "scale/ground_truth": "a3ef85b291431001584555da76394be518df9ebf305f076a3b9193d0f07d7395",
     "track/ground_truth": "dd06a8daf8146b910fd9088f9d80f97e73b2756dc9f4e7de730aac4fe0204f4a",
-    "kinematics/savgol": "e1e7579ccea4b46839c6142e9150bb698cfc19df864f5190e755b427838dcc4c",
-    "lift/backproject": "91e9e330a62f7dbb854f4caf08158bc2ed7eba6f85d393893f9c6e34c1058a30",
-    "lift/backproject_unnested": "2380996da661487e9e3cf752d10f214ca7510985954bede437515b351f9b6de3",
-    "lift/ground_anchored": "205553e6fe605a0890a2c1838e4ad3fa64cdb2ed6efb58f5e55ddea7973099a9",
+    "kinematics/savgol": "5eadfb0ffc7194662e80421dce8872a9a8d7a7a069ef4fb014d2642cbe7b23cf",
+    "lift/backproject": "99690b9d9306612490575d45551ffa2b04ebb0e11fb8a95dcaeb6bb2a81dfe30",
+    "lift/backproject_unnested": "7b944ed34c56f67633acebaccc517f00381ce0a0ae705dcede3489d1476e24af",
+    "lift/ground_anchored": "6233d9e268f47771e19abb603b0085f33bb3ab8c42e53df0aaf0ef58115847f9",
     "lift/backproject_size_constancy": (
-        "aaa00c5b01156fc545d7bcd41865fd2c80c516c89fd21528ad379b4dc211c0c8"
+        "a635a773f395dd8185bfce79f93180f39d42a91beecc553f27cd1af2ce0a4335"
     ),
     "lift/backproject_area_depth": (
-        "23afc2cd595b3640b5f2978e4a06d6186c52a7e18e0fc612389dc430008eaf9c"
+        "8645310c2c29d1402c9d17da74df062d017131a96db9ef04dec130554349e1aa"
     ),
-    "scale/free_fall": "a4a48a5df33337e111deb56b2ad0181a1e4292aaed38a14e159091acd7b08adb",
-    "scale/metric_depth": "bc5fa3fd4643e9e1a2f018090ae60939e39824c03eea268200bf9166d4604c04",
-    "scale/size_model": "47d66b985aae9032ad52cb1b1d2adcb513a09663dad98d4f7bcb862efd583e9d",
-    "scale/size_prior": "ae3533325a655d7728a59efa2691f677a7883613f403f6336e7976fe010cf604",
+    "scale/free_fall": "c5aab810008d5b2bc4826bc87569f905ec7c32999a502a85538d5beef1d7ea5b",
+    "scale/metric_depth": "e6a88ff7014546f12b9bdc87a938208ead9b356a5272714aca27ef8c1764ee75",
+    "scale/size_model": "7b90a89adc9494e0b67df880e0ea7efc5333661da1208763a631551d47166634",
+    "scale/size_prior": "a27031d70ddd1bd8908e6442d3010eee1fedc938369c9771ae67f77558dc9061",
     "track/edgetam": "75bf023ca5f8704ea5c52b1aecfdf27be64448073d16c25e22610c9c8395c408",
     "track/sam2_1_hiera_tiny": "a38a8223ecde1e228b7b30f4889972cb07277c5effebb96451b787dff76557bf",
 }

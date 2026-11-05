@@ -10,6 +10,7 @@ from typing import Any, Literal
 
 from pydantic import Field, field_validator
 
+from physverify.core.models import absent_when_default
 from physverify.extraction._base import ProviderParams
 from physverify.extraction.backprojection import ShiftStrategy, SummaryOptions
 from physverify.extraction.ground_anchor import AnchorMode, GroundAnchorParams
@@ -98,9 +99,10 @@ class LiftParams(ProviderParams):
     # Version 5: extents ignore mask parts smaller than this fraction of the largest one.
     min_part_frac: float = Field(default=0.2, ge=0.0, le=1.0)
     # The image-plane centre strategy (``extraction.centres``) and its params, resolved when the
-    # provider is built.
-    centre: str = "surface_median"
-    centre_params: dict[str, Any] = {}
+    # provider is built. At their defaults they stay out of the dump, so the params hash (and the
+    # measured error-profile entries keyed on it) is the one from before the strategies existed.
+    centre: str = absent_when_default("surface_median")
+    centre_params: dict[str, Any] = absent_when_default({})
 
     @field_validator("temporal_window")
     @classmethod
