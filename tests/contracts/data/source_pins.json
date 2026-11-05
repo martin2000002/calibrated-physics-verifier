@@ -161,23 +161,23 @@
       "version": "1"
     },
     "lift/backproject": {
-      "digest": "ccd175d9fc4c308af3f59abd73cc207ff001b07888750f94f7ebd1346374181e",
+      "digest": "57d68b4be51d7b37d22c559c455aebaf4ce5c1a2c6a2f6fe03c03b2eaef5c30b",
       "version": "8"
     },
     "lift/backproject_area_depth": {
-      "digest": "0c7f9ff4dae7c43fc6251c8fdede0789e76ccdfd1fba8228fdcba346baf9e5b6",
+      "digest": "d78ef1e4cfc86e3787f9b05b9bf36207b74dd2399d0b8955bde8929267449c4a",
       "version": "2"
     },
     "lift/backproject_size_constancy": {
-      "digest": "225372f370efb0e45b38783d62ffaed7960e032c5e27bc5ce1ea30a0a0f470eb",
+      "digest": "d082b64d4fbef59e6e5e4d6e987e36b29de783941845ec2e12d4452a50188c93",
       "version": "3"
     },
     "lift/backproject_unnested": {
-      "digest": "7c9d6d9d6a54a71eb90ef8410405b05f2668ee51fd6337970e0b73496401310c",
+      "digest": "a26f103e0e09bc55b1b68295cf08ece8bd9befa40cf3f0f0c0a6a565a289dcf4",
       "version": "5"
     },
     "lift/ground_anchored": {
-      "digest": "9cdb307ab19aa01613124b73044bb31ac2ed934b9e44a34cdc0645f4874c103a",
+      "digest": "6f3a5b3c0a04f98c71839e4183c144aed466c2929a9d6e2db409a08b0592349f",
       "version": "6"
     },
     "lift/ground_truth": {
