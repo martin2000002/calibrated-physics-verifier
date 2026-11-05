@@ -63,6 +63,13 @@ reference = "others"
 # the body's depth does not enter; windows, t_c and the normal speed gate are the default's on its
 # route, and its sigma propagates position_sigma through the projection (delta method); same unit
 # as v1, so no tau or tolerance moves; --set check_variants.R3a=default restores the default.
+# R3b "image_relspeed" (no profile runs it): s = ln(c+ / -c-), the normal separation and approach
+# speeds of a two-body impact read on the relative image track, so neither body's depth enters;
+# impacts are the true object-object records on ground-truth contacts and image impulse events
+# otherwise. Its unit is log_normal_speed_ratio, so it runs only with --set
+# check_variants.R3b=image_relspeed verification.thresholds.R3b=<tau>
+# verification.threshold_units.R3b=log_normal_speed_ratio
+# calibration.tau_tolerance_units.R3b=log_normal_speed_ratio.
 # A provisional tau is read in the unit of the check's default implementation unless
 # verification.threshold_units.<id> says otherwise; a tau whose unit is not the unit of the
 # configured check, or a calibrated table fitted with other check parameters or variants (its
