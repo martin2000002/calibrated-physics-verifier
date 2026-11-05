@@ -6,7 +6,7 @@ from __future__ import annotations
 import math
 from collections.abc import Mapping
 from types import MappingProxyType
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import Field, field_validator
 
@@ -97,6 +97,10 @@ class LiftParams(ProviderParams):
     footprint_trim_mads: float = Field(default=3.0, gt=0.0)
     # Version 5: extents ignore mask parts smaller than this fraction of the largest one.
     min_part_frac: float = Field(default=0.2, ge=0.0, le=1.0)
+    # The image-plane centre strategy (``extraction.centres``) and its params, resolved when the
+    # provider is built.
+    centre: str = "surface_median"
+    centre_params: dict[str, Any] = {}
 
     @field_validator("temporal_window")
     @classmethod

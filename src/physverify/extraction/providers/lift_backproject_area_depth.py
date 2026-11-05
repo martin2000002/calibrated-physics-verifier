@@ -38,7 +38,8 @@ class AreaDepthLift(BackprojectLift):
     input route's lift it does not inherit overrides of the main lift's table."""
 
     name: ClassVar[str] = "backproject_area_depth"
-    version: ClassVar[str] = "1"
+    # 2: the inherited image-plane centre comes from a configured strategy.
+    version: ClassVar[str] = "2"
     Params: ClassVar[type[BaseModel]] = AreaDepthLiftParams
     derives_depth_from_size: ClassVar[bool] = True
 

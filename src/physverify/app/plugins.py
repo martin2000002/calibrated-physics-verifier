@@ -24,6 +24,11 @@ from physverify.core.registry import Registry, discover, discover_modules
 from physverify.datasets._base import DATASETS, DatasetSource
 from physverify.diagnosis._base import METRICS, StageMetric, metric_key
 from physverify.extraction._base import PROVIDERS, StageProvider, provider_key, validate_provider
+from physverify.extraction.centres._base import (
+    CENTRE_STRATEGIES,
+    CENTRES_PACKAGE,
+    centre_strategies,
+)
 from physverify.finetune.scorers._base import SCORERS, AggregateScorer
 from physverify.generator_comparison.judges._base import JUDGES, Judge
 from physverify.kubric_worker import TASKS_PACKAGE
@@ -73,6 +78,7 @@ PLUGIN_PACKAGES: Mapping[str, str] = MappingProxyType(
         JUDGES.name: "physverify.generator_comparison.judges",
         SCORERS.name: "physverify.finetune.scorers",
         TRUTH_MEASURES.name: "physverify.synth.truth_measures",
+        CENTRE_STRATEGIES.name: CENTRES_PACKAGE,
     }
 )
 """The package each plugin kind is discovered from."""
@@ -109,6 +115,7 @@ PLUGIN_KINDS: Mapping[str, Callable[[], Registry[Any]]] = MappingProxyType(
         TRUTH_MEASURES.name: lambda: discover(
             PLUGIN_PACKAGES[TRUTH_MEASURES.name], (TruthMeasure,), "check_id"
         ),
+        CENTRE_STRATEGIES.name: centre_strategies,
     }
 )
 """Perceived and ground-truth providers share ``providers`` (keys ``<stage>/<name>`` and

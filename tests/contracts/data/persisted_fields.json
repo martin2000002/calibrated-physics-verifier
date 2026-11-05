@@ -1191,7 +1191,9 @@
       "temporal_window",
       "temporal_edges",
       "footprint_trim_mads",
-      "min_part_frac"
+      "min_part_frac",
+      "centre",
+      "centre_params"
     ],
     "lift/backproject_size_constancy": [
       "shift",
@@ -1214,6 +1216,8 @@
       "temporal_edges",
       "footprint_trim_mads",
       "min_part_frac",
+      "centre",
+      "centre_params",
       "min_diameter_px",
       "diameter_noise_px",
       "shape_sigma_floor",
@@ -1241,6 +1245,8 @@
       "temporal_edges",
       "footprint_trim_mads",
       "min_part_frac",
+      "centre",
+      "centre_params",
       "min_rows"
     ],
     "lift/backproject_unnested": [
@@ -1264,6 +1270,8 @@
       "temporal_edges",
       "footprint_trim_mads",
       "min_part_frac",
+      "centre",
+      "centre_params",
       "nested_overlap"
     ],
     "lift/ground_anchored": [
@@ -1287,6 +1295,8 @@
       "temporal_edges",
       "footprint_trim_mads",
       "min_part_frac",
+      "centre",
+      "centre_params",
       "normal_source",
       "envelope_quantile",
       "anchor_z",

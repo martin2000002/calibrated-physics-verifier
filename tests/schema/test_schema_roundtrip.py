@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import math
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -140,3 +141,23 @@ def test_records_are_frozen_and_unhashable() -> None:
         record.sigma = 1.0  # type: ignore[misc]
     with pytest.raises(TypeError):
         hash(record)
+
+
+@pytest.mark.parametrize("suffix", [".json", ".npz"])
+def test_the_centre_method_round_trips_and_defaults_to_none(suffix: str, tmp_path: Path) -> None:
+    table = records.states()
+    assert table.centre_method is None
+    methods = np.full(table.visible.shape, "circle")
+    methods[0, 0] = "absent"
+    tagged = replace(table, centre_method=methods)
+    path = tmp_path / f"states{suffix}"
+    if suffix == ".json":
+        tagged.save_json(path)
+        loaded = ObjectStateTable.load_json(path)
+    else:
+        tagged.save_npz(path)
+        loaded = ObjectStateTable.load_npz(path)
+    assert loaded == tagged
+    assert loaded.centre_method is not None and loaded.centre_method[0, 0] == "absent"
+    with pytest.raises(SchemaError):
+        replace(table, centre_method=methods[:, :1])
