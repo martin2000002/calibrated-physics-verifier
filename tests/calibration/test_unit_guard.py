@@ -1,13 +1,14 @@
-"""Rows of one check in two magnitude units never reach a threshold fit."""
+"""Rows or sigma pairs of one check in two magnitude units never reach a threshold or sigma fit."""
 
 from __future__ import annotations
 
 from dataclasses import replace
 
 import pytest
-from calibration_cases import CHECKS, config, extension_report, row, synthetic_level
+from calibration_cases import CHECKS, UNITS, config, extension_report, row, synthetic_level
 
 from physverify.calibration.fit import fit_checks
+from physverify.calibration.sigma_recalibration import SigmaPair, fit_sigma, require_pair_units
 from physverify.calibration.table import CalibrationDataError, CalibrationRow, require_one_unit
 from physverify.calibration.thresholds import cv_verdicts, fit_tau
 from physverify.calibration.verdict import Rule
@@ -58,3 +59,35 @@ def test_rows_spliced_in_another_implementation_s_unit_stop_the_fit() -> None:
     )
     with pytest.raises(CalibrationDataError, match=r"R5b rows mix magnitude units"):
         fit_checks(replace(data, rows=rows), CHECKS, CONFIG)
+
+
+def sigma_pairs(n: int, unit_of: dict[int, str] | None = None) -> list[SigmaPair]:
+    unit = UNITS["R1"]
+    return [
+        SigmaPair(f"s{i:03d}", "R1", 0.1, 0.1 + 0.01 * (i % 5 - 2), 0.01, unit, unit)
+        if i not in (unit_of or {})
+        else SigmaPair(f"s{i:03d}", "R1", 0.1, 0.1, 0.01, unit, (unit_of or {})[i])
+        for i in range(n)
+    ]
+
+
+def test_sigma_pairs_in_one_unit_pass_and_none_have_nothing_to_mix() -> None:
+    require_pair_units(sigma_pairs(5), UNITS["R1"])
+    require_pair_units([], "u")
+    assert fit_sigma(sigma_pairs(20), CONFIG.calibration, UNITS["R1"]).n_pairs == 20
+
+
+def test_the_sigma_fit_refuses_a_pair_whose_side_is_in_another_unit() -> None:
+    with pytest.raises(CalibrationDataError, match=r"R1 sigma pairs mix magnitude units"):
+        fit_sigma(sigma_pairs(20, {4: HOST_UNIT}), CONFIG.calibration)
+
+
+def test_sigma_pairs_in_one_unit_that_is_not_the_check_s_stop_the_fit() -> None:
+    """The pairs' bias enters fit_tau, so the sigma fit is guarded before the rows are."""
+    data = synthetic_level(extension_report(), InputLevel.PERCEIVED)
+    pairs = tuple(
+        replace(p, oracle_unit=HOST_UNIT, perceived_unit=HOST_UNIT) for p in sigma_pairs(20)
+    )
+    assert fit_checks(replace(data, sigma_pairs=tuple(sigma_pairs(20))), CHECKS, CONFIG)
+    with pytest.raises(CalibrationDataError, match=r"the check reports pen_over_size"):
+        fit_checks(replace(data, sigma_pairs=pairs), CHECKS, CONFIG)

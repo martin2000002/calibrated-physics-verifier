@@ -14,7 +14,15 @@ from dataclasses import replace
 from pathlib import Path
 
 import pytest
-from calibration_cases import CHECKS, config, extension_report, fit_meta, merged, relabelled
+from calibration_cases import (
+    CHECKS,
+    config,
+    extension_report,
+    fit_meta,
+    merged,
+    pair_units,
+    relabelled,
+)
 from calibration_cases import synthetic_report as base_report
 
 from physverify.calibration.collect import level_data
@@ -70,7 +78,7 @@ def test_extension_scenes_keep_only_their_checks() -> None:
 
 def test_sigma_pairs_of_other_checks_are_dropped_on_extension_scenes() -> None:
     pairs = tuple(
-        SigmaPair(scene_id=scene, check_id=check, oracle=0.1, perceived=0.2, sigma=0.05)
+        SigmaPair(scene, check, 0.1, 0.2, 0.05, *pair_units(check))
         for scene in ("s000", "x000")
         for check in ("R1", SCOPED)
     )

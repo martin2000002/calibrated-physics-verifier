@@ -17,6 +17,7 @@ from calibration_cases import (
     clip,
     config,
     fit_meta,
+    pair_units,
     record,
 )
 
@@ -159,7 +160,7 @@ def _pairs(data: LevelData) -> tuple[SigmaPair, ...]:
     rng = np.random.default_rng(5)
     scenes = sorted({r.scene_id for r in data.rows})
     return tuple(
-        SigmaPair(scene, "R1", 0.01, 0.01 + float(rng.normal(0.0, 0.002)), 0.002)
+        SigmaPair(scene, "R1", 0.01, 0.01 + float(rng.normal(0.0, 0.002)), 0.002, *pair_units())
         for scene in scenes
         for _ in range(2)
     )
