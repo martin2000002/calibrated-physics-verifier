@@ -8,8 +8,11 @@
 # cpu by default); images builds the pair image table OUT/pairs.npz from that cache; then samples
 # and train run for R1 and R2 into OUT/<check>/. Training refuses an evaluated manifest (calib and
 # the B set to be looked at) that shares a perturbation seed with train_h.
-# Optional: PHYSVERIFY_LEARNED_DRY_RUN=1 stops after a dry images step (OUT/images_plan.json: the
-# clips, pairs and arms it would read; no encoder, no samples, no training, no manifest needed);
+# Optional: PHYSVERIFY_LEARNED_DRY_RUN=1 runs no model and computes no value: a dry images step
+# (OUT/images_plan.json: the clips, pairs and arms it would read; no encoder), then a plan of
+# samples and train per check (OUT/<check>/plan.json: clips by arm, role and validation split,
+# the leakage guard against the evaluated manifests given, if any, and the gate and control
+# populations; no sample, no training);
 # PHYSVERIFY_LEARNED_SKIP_WARM=1 reads a cache filled before.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/_common.sh"
@@ -37,6 +40,10 @@ learned() {
 mkdir -p "$OUT"
 if [[ "$DRY" == 1 ]]; then
     learned images "${SELECT[@]}" --out "$OUT/images_plan.json" --dry-run
+    for check in R1 R2; do
+        learned plan --check "$check" "${SELECT[@]}" --out "$OUT/$check/plan.json" \
+            --evaluated "$@"
+    done
     exit 0
 fi
 [[ "${PHYSVERIFY_LEARNED_SKIP_WARM:-0}" == 1 ]] || learned warm "${SELECT[@]}"

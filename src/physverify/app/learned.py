@@ -13,7 +13,7 @@ training.
 from __future__ import annotations
 
 from collections.abc import Iterable, Iterator, Sequence
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from functools import partial
 
 from physverify.app.context import AppContext
@@ -23,7 +23,7 @@ from physverify.calibration.sealed_ledger import SealedSetError
 from physverify.checks.variants._base import CHECK_VARIANTS
 from physverify.checks.variants._learned import LearnedMixin, dense_layout, require_disjoint
 from physverify.config.plugin_context import registry_of
-from physverify.core.errors import ConfigError
+from physverify.core.errors import ConfigError, UsageError
 from physverify.core.feature_table import FeatureTable
 from physverify.core.output import Echo
 from physverify.datasets._base import DatasetSource
@@ -32,7 +32,9 @@ from physverify.diagnosis.report import Failure
 from physverify.diagnosis.verification_adapter import variant_inputs
 from physverify.extraction.contact_crops import CropSettings
 from physverify.extraction.crop_encoder import CropEncoder
+from physverify.extraction.pair_features import dense_columns
 from physverify.learned.arms import Arm, arm_groups, arm_level, arm_name, arm_variant, drawn_arm
+from physverify.learned.controls import ControlSettings
 from physverify.learned.image_table import (
     ClipImages,
     clip_images,
@@ -40,9 +42,9 @@ from physverify.learned.image_table import (
     image_table,
     object_pairs,
 )
-from physverify.learned.samples import Sample, SampleSet, subject_samples
-from physverify.learned.train import Trained, TrainSettings, train
-from physverify.schema.clip import ClipManifest
+from physverify.learned.samples import Role, Sample, SampleSet, clip_role, subject_samples
+from physverify.learned.train import Trained, TrainSettings, is_validation, train
+from physverify.schema.clip import ClipManifest, Split
 from physverify.schema.perception import DepthMap, MaskTrack
 from physverify.schema.stages import Stage
 from physverify.verification.check_set import (
@@ -55,6 +57,7 @@ from physverify.verification.inputs import refuse_heavy
 COMMAND = "learned-samples"
 IMAGES_COMMAND = "learned-images"
 WARM_COMMAND = "learned-warm"
+PLAN_COMMAND = "learned-plan"
 VARIANT = "learned"
 
 
@@ -224,6 +227,97 @@ def plan_images(
         pairs += len(object_pairs(images.track))
         arms[arm_name(arm)] = arms.get(arm_name(arm), 0) + 1
     return ImagePlan(clips, pairs, arms, tuple(failed))
+
+
+@dataclass(frozen=True)
+class TrainingPlan:
+    """What ``collect``, ``fit`` and the gates and controls would read for one check, counted
+    without a cached output, a sample value or a model: no loss, score or control value."""
+
+    check_id: str
+    clips: int
+    arms: dict[str, int]
+    roles: dict[str, int]
+    validation_roles: dict[str, int]
+    dense_columns: int
+    without_inputs: tuple[str, ...]
+    leakage_checked: int
+    controls: dict[str, str]
+    settings: dict[str, dict[str, object]]
+
+
+CONTROL_INPUTS: dict[str, str] = {
+    "G-L0": "validation positives (visible) vs decoys, truth share 1",
+    "G-L1": "validation positives (visible) vs decoys, truth share 0",
+    "C-dec": "validation decoys vs clean, tau from the validation clean",
+    "C-inv": "validation positives (invisible by truth) vs clean",
+    "C-scr": "validation clips against their single frame (R1, R2) or scrambled frames (R5a)",
+    "C-hdri": "the validation repeated on hdri-dev backgrounds",
+}
+"""The population each gate and control of ``learned.controls`` reads (PREREG H2)."""
+
+
+def training_clips(clips: Iterable[ClipManifest]) -> tuple[ClipManifest, ...]:
+    """A learned variant trains on split=train clips only: never on calib or evaluation data."""
+    chosen = tuple(clips)
+    wrong = sorted(c.clip_id for c in chosen if c.split is not Split.TRAIN)
+    if wrong:
+        raise UsageError(
+            f"{len(wrong)} training clips are not split={Split.TRAIN.value}: {wrong[:5]}"
+        )
+    return chosen
+
+
+def _counts(names: Iterable[str]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for name in names:
+        counts[name] = counts.get(name, 0) + 1
+    return dict(sorted(counts.items()))
+
+
+def plan_training(
+    app: AppContext,
+    selection: tuple[str, str | None],
+    check_id: str,
+    arm_draw: tuple[int, float],
+    evaluated: Sequence[Iterable[int]],
+    *,
+    err: Echo,
+) -> TrainingPlan:
+    """``collect`` then ``fit`` of ``check_id`` up to the first value: the clips by drawn arm, by
+    role and in the validation split, which clips lack cached inputs, the leakage guard against
+    ``evaluated`` and the populations of the gates and controls."""
+    dataset, clips = _selected(app, selection, PLAN_COMMAND, err)
+    training = training_clips(clips)
+    check = learned_check(app, check_id)
+    runner = cached_runner(app, dataset)
+    seeds = training_seeds(training)
+    for found in evaluated:
+        require_disjoint(seeds, found)
+    roles = {c.clip_id: clip_role(c.perturbation, check_id) for c in training}
+    share = TrainSettings().validation_share
+    held = [c for c in training if is_validation(c.scene_id or c.clip_id, share)]
+    arms = [drawn_arm(c.clip_id, *arm_draw) for c in training]
+    missing = tuple(
+        c.clip_id for c, arm in zip(training, arms, strict=True)
+        if runner.outputs(c, arm_variant(arm)) is None
+    )  # fmt: skip
+    return TrainingPlan(
+        check_id=check_id,
+        clips=len(training),
+        arms=_counts(arm_name(a) for a in arms),
+        roles=_counts(_role_name(roles[c.clip_id]) for c in training),
+        validation_roles=_counts(_role_name(roles[c.clip_id]) for c in held),
+        dense_columns=len(dense_layout(type(check).TRACK_COLUMNS, dense_columns())),
+        without_inputs=missing,
+        leakage_checked=len(evaluated),
+        controls=dict(CONTROL_INPUTS),
+        settings={"train": asdict(TrainSettings()), "controls": asdict(ControlSettings())},
+    )
+
+
+def _role_name(role: Role | None) -> str:
+    return "other" if role is None else role.value
 
 
 def training_seeds(clips: Iterable[ClipManifest]) -> frozenset[int]:

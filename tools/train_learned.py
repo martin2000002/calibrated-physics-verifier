@@ -8,6 +8,8 @@ samples, then train it.
         --images pairs.npz --out samples.npz [--set key=value ...]
     PYTHONPATH=src python tools/train_learned.py train --check R1 --samples samples.npz \
         --dataset D --subset S --encoder-sha SHA --evaluated MANIFEST... --out DIR
+    PYTHONPATH=src python tools/train_learned.py plan --check R1 --dataset D --subset S \
+        --out plan.json [--truth-share 0.5] [--evaluated MANIFEST...]
 
 ``warm`` runs each clip's chain under its drawn substitution arm; it is the only command that
 may run a heavy stage, the others read the cache and fail a clip whose stage is not cached.
@@ -16,9 +18,11 @@ and encodes every pair's crop with the VDA-S encoder (refused unless its checkpo
 matches); ``--dry-run`` stops before the encoder and writes the counts of what it would read as
 JSON instead. ``samples`` reads the same drawn arm. Every command but ``train`` refuses a sealed
 dataset and takes ``--truth-share`` (1: every stage from ground truth, 0: none). ``train``
-refuses any evaluated manifest that shares a perturbation seed with the training clips, then
-writes ``<sha256>.npz`` (the artifact, named by its hash) and
-``training_log.json`` into ``--out``.
+trains on split=train clips only, refuses any evaluated manifest that shares a perturbation seed
+with the training clips, then writes ``<sha256>.npz`` (the artifact, named by its hash) and
+``training_log.json`` into ``--out``. ``plan`` is the dry run of ``samples`` and ``train`` for one
+check: clips by arm, role and validation split, clips without cached inputs, the leakage guard
+and the gate and control populations, as JSON; it reads no sample value and trains nothing.
 """
 
 from __future__ import annotations
@@ -37,6 +41,8 @@ from physverify.app.learned import (
     fit,
     learned_check,
     plan_images,
+    plan_training,
+    training_clips,
     training_seeds,
     warm,
 )
@@ -109,7 +115,7 @@ def _samples(args: argparse.Namespace) -> int:
 def _train(args: argparse.Namespace) -> int:
     app = _context(args)
     samples = SampleSet.from_table(FeatureTable.load(args.samples))
-    clips = dataset_for(app, args.dataset).clips(args.subset)
+    clips = training_clips(dataset_for(app, args.dataset).clips(args.subset))
     unit = type(learned_check(app, args.check)).magnitude_unit
     evaluated = [frozenset(manifest_seeds(path)) for path in args.evaluated]
     trained = fit(
@@ -129,6 +135,23 @@ def _train(args: argparse.Namespace) -> int:
     return 0
 
 
+def _plan(args: argparse.Namespace) -> int:
+    app = _context(args)
+    evaluated = [frozenset(manifest_seeds(path)) for path in args.evaluated]
+    selection = (args.dataset, args.subset)
+    plan = plan_training(
+        app, selection, args.check, (ARM_SEED, args.truth_share), evaluated, err=_stderr
+    )
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    args.out.write_text(json.dumps(asdict(plan), indent=2), encoding="utf-8")
+    print(
+        f"{args.check}: {plan.clips} clips, roles {plan.roles}, validation "
+        f"{plan.validation_roles}, {len(plan.without_inputs)} without inputs, "
+        f"{plan.leakage_checked} manifests disjoint"
+    )
+    return 0
+
+
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--profile", default=None)
@@ -138,14 +161,15 @@ def main(argv: list[str]) -> int:
     images = commands.add_parser("images")
     samples = commands.add_parser("samples")
     train = commands.add_parser("train")
-    for sub in (warm_cmd, images, samples):
+    plan = commands.add_parser("plan")
+    for sub in (warm_cmd, images, samples, plan):
         sub.add_argument("--truth-share", type=float, default=TRUTH_SHARE)
     for sub in (warm_cmd, images):
         sub.add_argument("--dataset", required=True)
         sub.add_argument("--subset", default=None)
     images.add_argument("--out", required=True, type=Path)
     images.add_argument("--dry-run", action="store_true")
-    for sub in (samples, train):
+    for sub in (samples, train, plan):
         sub.add_argument("--check", required=True)
         sub.add_argument("--dataset", required=True)
         sub.add_argument("--subset", default=None)
@@ -154,8 +178,16 @@ def main(argv: list[str]) -> int:
     train.add_argument("--samples", required=True, type=Path)
     train.add_argument("--encoder-sha", required=True)
     train.add_argument("--evaluated", nargs="+", required=True, type=Path)
+    plan.add_argument("--evaluated", nargs="*", default=[], type=Path)
     args = parser.parse_args(argv)
-    run = {"warm": _warm, "images": _images, "samples": _samples, "train": _train}[args.command]
+    commands_by_name = {
+        "warm": _warm,
+        "images": _images,
+        "samples": _samples,
+        "train": _train,
+        "plan": _plan,
+    }
+    run = commands_by_name[args.command]
     return run(args)
 
 

@@ -42,12 +42,19 @@ def env(box: Sandbox, **extra: str) -> dict[str, str]:
     return {"PHYSVERIFY_H200_ENV": str(box.root / "no-env.sh"), **extra}
 
 
-def test_the_dry_run_reads_the_inputs_only(box: Sandbox) -> None:
+def test_the_dry_run_plans_every_step_and_trains_nothing(box: Sandbox) -> None:
     out = box.root / "out"
-    done = box.call("run_learned_h.sh", str(out), **env(box, PHYSVERIFY_LEARNED_DRY_RUN="1"))
+    done = box.call(
+        "run_learned_h.sh", str(out), "calib.jsonl", **env(box, PHYSVERIFY_LEARNED_DRY_RUN="1")
+    )
     assert done.returncode == 0, done.stderr
     assert box.lines() == [
-        f"{SETTINGS}{LEARNED}images {SELECT} --out {out}/images_plan.json --dry-run"
+        f"{SETTINGS}{LEARNED}images {SELECT} --out {out}/images_plan.json --dry-run",
+        *(
+            f"{SETTINGS}{LEARNED}plan --check {check} {SELECT} --out {out}/{check}/plan.json "
+            "--evaluated calib.jsonl"
+            for check in ("R1", "R2")
+        ),
     ]
 
 
