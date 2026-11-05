@@ -33,6 +33,7 @@ from physverify.datasets._kubric_synthetic import content_identity
 from physverify.diagnosis import scene_stats
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import ClipManifest, Split
+from physverify.selective_risk.tables import split_clips
 from physverify.verification.runner import ConfiguredSuite, VerificationReport
 
 EXIT_USAGE = 2
@@ -932,3 +933,89 @@ def test_an_unmapped_legacy_line_fails_closed(
     result = evaluate_cli(env=UNSEAL)
     assert result.code == 1 and f"names {DATASET}:eval without a version" in result.err
     assert len(read_entries(ledger)) == 1 and reached == []
+
+
+TRAIN_CLIPS = tuple(replace(c, clip_id=f"t{c.clip_id}", split=Split.TRAIN) for c in CALIB.clips[:2])
+"""The learned variants' training data: no guarded command may compute on it."""
+
+
+@pytest.mark.parametrize("leaf", sorted(sealing.GUARDED_LEAVES))
+def test_every_guarded_leaf_refuses_train_clips(leaf: str) -> None:
+    """Checked before the context or the sealed sets are read, whatever else is selected."""
+    selection = sealing.Selection(DATASET, "train_h", (CALIB.clips[0], *TRAIN_CLIPS))
+    with pytest.raises(sealing.TrainingSplitError, match="split=train") as refused:
+        sealing.guard_sealed(None, leaf, [selection], err=print)  # type: ignore[arg-type]
+    assert refused.value.exit_code == EXIT_USAGE
+
+
+@pytest.fixture
+def with_train(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The fixture dataset holds training clips beside its calib and eval ones."""
+    clips = (*REPORT.clips, *TRAIN_CLIPS)
+    monkeypatch.setattr(SealFixtureDataset, "clips", lambda self, subset=None: clips)
+
+
+TRAIN_COMMANDS = ("verify", "diagnose stages", "scene-stats per-clip")
+"""Commands reading every clip of the selection; ``abstain *`` read one split (below)."""
+
+
+@pytest.mark.usefixtures("with_train")
+@pytest.mark.parametrize("name", TRAIN_COMMANDS)
+def test_each_guarded_command_refuses_train_clips_even_unsealed(
+    guarded: Callable[[str], Callable[..., CliResult]],
+    ledger: Path,
+    reached: list[int],
+    name: str,
+) -> None:
+    result = guarded(name)(env=UNSEAL)
+    assert result.code == EXIT_USAGE and "split=train" in result.err
+    assert read_entries(ledger) == () and reached == []
+
+
+@pytest.mark.usefixtures("with_train")
+def test_abstain_curve_reads_the_eval_split_without_the_train_clips(
+    guarded: Callable[[str], Callable[..., CliResult]], ledger: Path, reached: list[int]
+) -> None:
+    result = guarded("abstain curve")(env=UNSEAL)
+    assert result.code == REACHED, result.err
+    (line,) = read_entries(ledger)
+    assert [d.n_clips for d in line.datasets] == [len(HELD.clips)]
+
+
+@pytest.mark.parametrize("split", [Split.CALIB, Split.EVAL])
+def test_the_selective_risk_split_never_holds_train_clips(split: Split) -> None:
+    """``abstain fit`` reads calib, ``abstain curve`` eval, through ``split_clips``."""
+
+    class Planned:
+        def clips(self, subset: str | None = None) -> Sequence[ClipManifest]:
+            return (*REPORT.clips, *TRAIN_CLIPS)
+
+    chosen = split_clips(Planned(), "full", split)  # type: ignore[arg-type]
+    assert chosen and all(c.split is split for c in chosen)
+
+
+@pytest.mark.usefixtures("with_train")
+def test_evaluate_refuses_train_clips(
+    evaluate_cli: Callable[..., CliResult], ledger: Path, reached: list[int]
+) -> None:
+    result = evaluate_cli(env=UNSEAL)
+    assert result.code == EXIT_USAGE and "split=train" in result.err
+    assert read_entries(ledger) == () and reached == []
+
+
+@pytest.mark.usefixtures("with_train")
+def test_fit_on_named_train_clips_is_refused(
+    cli: CliRunner, monkeypatch: pytest.MonkeyPatch, ledger: Path, reached: list[int]
+) -> None:
+    monkeypatch.setattr(app_calibration, "_raw_runner", lambda session: _SentinelRunner(
+        sentinel(ledger, reached)))  # fmt: skip
+    named = ("--clips", TRAIN_CLIPS[0].clip_id)
+    result = cli(*FAST, "calibrate", "fit", "--dataset", DATASET, *named, env=UNSEAL)
+    assert result.code == EXIT_USAGE and "split=train" in result.err
+    assert read_entries(ledger) == () and reached == []
+
+
+def test_devscore_refuses_train_clips_on_its_own() -> None:
+    """Below the guard, devscore refuses anything but split=calib."""
+    with pytest.raises(PhysverifyError, match="split=calib only"):
+        calibration_session.require_calib((CALIB.clips[0], TRAIN_CLIPS[0]))

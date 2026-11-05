@@ -45,11 +45,11 @@ from physverify.calibration.settings import CalibrationSettings, calibration_set
 from physverify.config.loader import file_sections
 from physverify.config.models import validated
 from physverify.core.digests import sha256_if_file
-from physverify.core.errors import MissingInputError
+from physverify.core.errors import MissingInputError, UsageError
 from physverify.core.output import Echo
 from physverify.datasets._versions import SealedRender, versioned_name
 from physverify.runtime.runs import current_commit
-from physverify.schema.clip import ClipManifest
+from physverify.schema.clip import ClipManifest, Split
 from physverify.selective_risk.frozen import look_files
 
 GUARDED: Final = frozenset(
@@ -171,6 +171,22 @@ class Selection:
     clips: tuple[ClipManifest, ...]
 
 
+class TrainingSplitError(UsageError):
+    """A guarded command was given split=train clips, the learned variants' training data."""
+
+
+def refuse_training(command: str, selections: Sequence[Selection]) -> None:
+    """No guarded command computes on split=train clips: they are read by the learned commands
+    alone, never calibrated on, scored or looked at."""
+    found = sorted(c.clip_id for sel in selections for c in sel.clips if c.split is Split.TRAIN)
+    if found:
+        raise TrainingSplitError(
+            f"{command}: {len(found)} clips are split={Split.TRAIN.value}, the training data of "
+            f"the learned variants, and no calibration, scoring or look reads them: {found[:5]}; "
+            "nothing was computed"
+        )
+
+
 def guard_sealed(
     context: AppContext,
     command: str,
@@ -180,12 +196,13 @@ def guard_sealed(
     artifacts: Mapping[str, str] | None = None,
     run_dir: Path | None = None,
 ) -> None:
-    """Nothing when no selection touches a sealed set; otherwise refuse without the unseal
-    variable, or append the ledger line before returning. ``artifacts`` (label -> sha256) are
-    the files the command judges with beyond the default ones; they enter the freeze. ``err``
-    prints one line on the error stream."""
+    """Refuse any split=train clip; then nothing when no selection touches a sealed set; otherwise
+    refuse without the unseal variable, or append the ledger line before returning.
+    ``artifacts`` (label -> sha256) are the files the command judges with beyond the default
+    ones; they enter the freeze. ``err`` prints one line on the error stream."""
     if command not in GUARDED_LEAVES:
         raise ValueError(f"{command!r} is not a guarded subcommand")
+    refuse_training(command, selections)
     found = sealed_looks(context, selections, err=err)
     if not found:
         return

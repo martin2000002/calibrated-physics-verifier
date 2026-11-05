@@ -108,6 +108,7 @@ ERROR_CLASSES = frozenset(
         "SealedSetError",
         "StaleCalibrationError",
         "TimingError",
+        "TrainingSplitError",
         "UnitMismatchError",
         "UnreachableTargetError",
         "UnusableCalibrationError",
