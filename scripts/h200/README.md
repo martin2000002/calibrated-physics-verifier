@@ -25,6 +25,7 @@ use and what each script leaves behind.
 | `run_timing.sh` | Timing benchmark |
 | `smoke_finetune.sh`, `run_preference.sh`, `run_finetune.sh` | Preference pairs and Flow-DPO fine-tuning |
 | `run_kubric.sh` | Kubric synthetic dataset (Docker or udocker) |
+| `run_r1dyn_sets.sh` | The R1_dyn sets `calib-r1dyn` and `v2-dev-b5` through `run_kubric.sh`, after a seed check |
 | `run_perception_iteration.sh`, `perception_arms.tsv` | One iteration of the perception campaign on the calib clips |
 | `run_dev_b.sh` | The B reading of an iteration on the declared development sets |
 | `run_freeze.sh`, `freeze_query.py` | The freeze: adopted iteration, exclusion record, abstention level, `freeze.json` |

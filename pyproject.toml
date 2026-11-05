@@ -119,7 +119,7 @@ known-first-party = ["physverify"]
 [tool.mypy]
 python_version = "3.12"
 strict = true
-files = ["src/physverify", "scripts/h200", "tools/equivalence", "tools/hdri_pools.py", "tools/pin_sources.py"]
+files = ["src/physverify", "scripts/h200", "tools/equivalence", "tools/hdri_pools.py", "tools/pin_sources.py", "tools/seed_collisions.py"]
 mypy_path = "src:scripts/h200"
 explicit_package_bases = true
 plugins = ["pydantic.mypy"]
