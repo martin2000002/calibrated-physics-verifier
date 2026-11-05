@@ -85,11 +85,11 @@
       "version": "1"
     },
     "camera/from_depth": {
-      "digest": "bed3c66cd4d3d2591ab7912e35936226dabcdb06a14a1e52054aff948b5baabe",
+      "digest": "2c1065c8c7b166e3f7790084c19229f7383063551c4b54720ae3cbafb79c69ad",
       "version": "2"
     },
     "camera/geocalib": {
-      "digest": "80544677681e84f0b120f287daf230f3c02815a5f8b91cc474a4527e37d83c89",
+      "digest": "ace10b0dfb0f5c7f32f275de9d0dec0dabd1ca84b671d99ecfb51218f4972712",
       "version": "3"
     },
     "camera/ground_truth": {
@@ -97,7 +97,7 @@
       "version": "1"
     },
     "camera/moge2_focal": {
-      "digest": "f32076035bea4e9c81ca77fc9c3773ebb4ca4eaad22f558aaa9e04cac765f664",
+      "digest": "a589d5e7916725e840f419bb73d79d6fecbbf00c971e9542bdf17419c4ce127f",
       "version": "3"
     },
     "contacts/ground_truth": {
@@ -121,19 +121,19 @@
       "version": "2"
     },
     "depth/moge2": {
-      "digest": "67651f675ed5316bb7b9e6cff6a6493869874da0779c90996ad81954cdd81007",
+      "digest": "4cc41bf224e2ded706eb13766534360ddcd124b1e1dc52234630136a99371d74",
       "version": "1"
     },
     "depth/vda_large": {
-      "digest": "af2e958458f3773474d4ce7603374ea0b9bd14bcff2b7cbba16b0df0a4c0b11d",
+      "digest": "79b761e6e117022d41e5416da129c6917f5a93bb54e3c4b216a3d26680a33c57",
       "version": "1"
     },
     "depth/vda_metric_small": {
-      "digest": "3c354e78d1276cd5aae9963e3a5319b974f2f8cf67a515505d6a9e038fa7f0c3",
+      "digest": "f4de3cd0cfa457ef9f1b6e58ce6b651a61ec9075d5e53e295d375cf69f699872",
       "version": "1"
     },
     "depth/vda_small": {
-      "digest": "8b31d3c311a564611edd02bfe57d4d255cac5b805bb3f2f66b262736eb422b89",
+      "digest": "ecc5df51a0a0313977137901b75aef5815e6dc586920ae124ddf05e92566e7b3",
       "version": "1"
     },
     "detect/ground_truth": {
@@ -141,15 +141,15 @@
       "version": "1"
     },
     "detect/grounding_dino_base": {
-      "digest": "8b9a86b64c64c40f466b6d28db9da9c4bd4eaa2dd0a67fa93503836a169fa018",
+      "digest": "5c976721a6ceda364d1b9c2bafa270189631ab2f199d8746ed95f22796a238b7",
       "version": "1"
     },
     "detect/grounding_dino_tiny": {
-      "digest": "992157da93f73418eced63041d5c9633da5622d01231897c5208b1a4dff45d64",
+      "digest": "e27b8c8f9ea10a5a3e8276d32fa38ea53295aae498f3721a517da6276b770ec1",
       "version": "1"
     },
     "detect/grounding_dino_tiny_per_query": {
-      "digest": "93d55656b23488c6236afd9b43c4680aae1b5aa412c379fbfc2d49a267912233",
+      "digest": "25db2e7b072c02801d7003a2f9d999260e808fac90ddd33b9c4ab070125d122c",
       "version": "1"
     },
     "kinematics/ground_truth": {
@@ -161,27 +161,27 @@
       "version": "1"
     },
     "lift/backproject": {
-      "digest": "2f2c38434ae52e36813fe1887c022f2c797849898ee6de6dd60efdee76595289",
+      "digest": "2016fe7f3465ca417dd4ad6c03f2193eec2b515155355eff5ff190ccceeccf4e",
       "version": "7"
     },
     "lift/backproject_area_depth": {
-      "digest": "dbaa62460cf942917a44d9a77e9fe8852adf607d393eef319abfeca1ea415857",
+      "digest": "67f92502326bf909eb99ca0a12da27ff2310a9af62878081be92f0a2012efdac",
       "version": "1"
     },
     "lift/backproject_size_constancy": {
-      "digest": "31c0bf6dee41e1943a24246764aab62ae00b98eaff7c735896193fa4c65d2f40",
+      "digest": "71955bc87e3f8f3f2ec1c06a0fd1597757ed106fd4a4a00b0234c072719f5a85",
       "version": "2"
     },
     "lift/backproject_unnested": {
-      "digest": "12ef833ca38338346af25976ba36dc0f9ecf7e5850ac208799fa6e17439c7945",
+      "digest": "859d1a8cc0e71559fba50a328e950b8d818a0eac947d703e61791def4a9c35e6",
       "version": "4"
     },
     "lift/ground_anchored": {
-      "digest": "63f54f35aacd42c48c849883ac7e8f1e3ce99adf1387185432046caf824d5d85",
+      "digest": "b6dce8a731073ea0b6dcb2eac12b17bb887e8acf11fa4b7edccaad5ea1c33170",
       "version": "5"
     },
     "lift/ground_truth": {
-      "digest": "06a774a4c3de51cc9f56bbbdeb91d2eb9f3e3c1f2fd5fe2349003d637a066ced",
+      "digest": "616ab03436088af39c18ccc494e46dc7d3a9c44ab272400fb7c85c877c37b9f1",
       "version": "2"
     },
     "scale/free_fall": {
@@ -205,15 +205,15 @@
       "version": "3"
     },
     "track/edgetam": {
-      "digest": "d1444f460836efa4665b1ed4a0c9b7b7f0d2ff1e5a2865ce6c403a6f19294a32",
-      "version": "1"
+      "digest": "5935a53c4ac91722912f123b51a92885b00db56fbf176cb327b7b6c57741fb45",
+      "version": "2"
     },
     "track/ground_truth": {
       "digest": "3a01dc95c7e64e9a407908ddf95be611b2e8e2460a8489629606c5f31f2b4160",
       "version": "1"
     },
     "track/sam2_1_hiera_tiny": {
-      "digest": "c638435d2c36e812d5341c346947b9fc3a5b9190f81ed80655d03e032be01178",
+      "digest": "7d3f615626a861fa4e3dca7101fdb3f398b1f07551e80b2cf91974a808afa5ac",
       "version": "1"
     }
   }

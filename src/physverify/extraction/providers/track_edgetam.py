@@ -1,7 +1,8 @@
 """EdgeTAM box-prompted video masks, the fast-profile tracker.
 
 EdgeTAM's config builds its RepViT backbone config from ``timm/repvit_m1.dist_in1k`` through the
-hub cache, so that config is pinned here too and loaded offline via its ``refs/main``.
+hub cache, so that config is pinned here too and loaded offline via its ``refs/main`` from the
+configured ``paths.hf_home`` (``weights.hub_cache_env``).
 """
 
 from __future__ import annotations
@@ -45,7 +46,8 @@ class Params(VideoTrackParams):
 class EdgeTamTracker:
     stage: ClassVar[Stage] = Stage.TRACK
     name: ClassVar[str] = "edgetam"
-    version: ClassVar[str] = "1"
+    # 2: the backbone config is read from paths.hf_home, not the process's default hub cache.
+    version: ClassVar[str] = "2"
     requires: ClassVar[tuple[Stage, ...]] = (Stage.DETECT,)
     heavy: ClassVar[bool] = True
     is_ground_truth: ClassVar[bool] = False

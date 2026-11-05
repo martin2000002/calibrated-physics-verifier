@@ -3,6 +3,7 @@ huggingface_hub is imported only inside the network downloader."""
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import sys
@@ -21,6 +22,7 @@ from physverify.extraction._base import StageProvider, WeightKind, WeightSpec
 ALLOW_PATTERNS = ("*.json", "*.safetensors", "*.txt", "*.model")
 DEFAULT_HF_FILE = "model.safetensors"
 HF_REPO_PARTS = 2
+HUB_ENV = ("HF_HOME", "HF_HUB_CACHE")
 
 
 class Downloader(Protocol):
@@ -175,3 +177,28 @@ def hub_offline() -> Iterator[None]:
         yield
     finally:
         constants.HF_HUB_OFFLINE = previous
+
+
+@contextmanager
+def hub_cache_env(paths: PathsSettings) -> Iterator[None]:
+    """Resolve every Hugging Face Hub lookup in ``paths.hf_home`` while a model loads.
+
+    A checkpoint loaded from its snapshot directory can still name another repository (EdgeTAM's
+    backbone config), which the hub resolves in its process-wide cache, read from the
+    environment at import time; the environment and that constant are restored on exit."""
+    from huggingface_hub import constants
+
+    values = (str(paths.hf_home), str(hub_cache(paths)))
+    previous_env = {name: os.environ.get(name) for name in HUB_ENV}
+    previous_cache = constants.HF_HUB_CACHE
+    os.environ.update(zip(HUB_ENV, values, strict=True))
+    constants.HF_HUB_CACHE = values[1]
+    try:
+        yield
+    finally:
+        constants.HF_HUB_CACHE = previous_cache
+        for name, value in previous_env.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value

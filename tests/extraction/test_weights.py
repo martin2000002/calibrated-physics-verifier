@@ -3,7 +3,9 @@ failing before the lock."""
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
+import os
 import re
 from collections.abc import Mapping, Sequence
 from pathlib import Path
@@ -18,7 +20,16 @@ from synthetic_clip import SyntheticFixtureDataset
 from physverify.config.models import PathsSettings
 from physverify.core.errors import ConfigError, MissingInputError
 from physverify.extraction._base import StageProvider, WeightKind, WeightSpec, provider_key
-from physverify.extraction.weights import fetch, is_present, local_path, weight_file
+from physverify.extraction.providers.track_edgetam import EdgeTamTracker
+from physverify.extraction.weights import (
+    fetch,
+    hub_cache_env,
+    hub_offline,
+    is_present,
+    local_path,
+    missing_weights,
+    weight_file,
+)
 from physverify.schema.stages import Stage
 
 PAYLOAD = b"pinned checkpoint bytes"
@@ -139,3 +150,40 @@ def test_every_real_weight_is_pinned(real_providers: Mapping[str, type[StageProv
         assert re.fullmatch(r"[0-9a-f]{40}", spec.revision), spec.ref
         expected = r"" if spec.kind is WeightKind.GIT else r"[0-9a-f]{64}"
         assert re.fullmatch(expected, spec.sha256), spec.ref
+
+
+def _hub_state() -> tuple[str | None, str | None, str]:
+    from huggingface_hub import constants
+
+    return os.environ.get("HF_HOME"), os.environ.get("HF_HUB_CACHE"), constants.HF_HUB_CACHE
+
+
+@pytest.mark.parametrize("raises", [False, True])
+def test_the_hub_cache_is_bound_to_hf_home_and_restored(
+    paths: PathsSettings, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, raises: bool
+) -> None:
+    monkeypatch.setenv("HF_HOME", str(tmp_path / "default"))
+    monkeypatch.delenv("HF_HUB_CACHE", raising=False)
+    before = _hub_state()
+    expectation = pytest.raises(RuntimeError) if raises else contextlib.nullcontext()
+    with expectation, hub_cache_env(paths):
+        hub = str(paths.hf_home / "hub")
+        assert _hub_state() == (str(paths.hf_home), hub, hub)
+        if raises:
+            raise RuntimeError("load failed")
+    assert _hub_state() == before
+    assert "HF_HUB_CACHE" not in os.environ
+
+
+def test_a_missing_hub_cache_fails_offline_without_a_download(
+    paths: PathsSettings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    hub = pytest.importorskip("huggingface_hub")
+
+    def no_network(*args: object, **kwargs: object) -> None:
+        raise AssertionError("the hub went to the network")
+
+    monkeypatch.setattr("huggingface_hub.file_download.http_get", no_network)
+    assert missing_weights([EdgeTamTracker], paths) == EdgeTamTracker.weights
+    with hub_cache_env(paths), hub_offline(), pytest.raises(hub.errors.LocalEntryNotFoundError):
+        hub.hf_hub_download("timm/repvit_m1.dist_in1k", "config.json")
