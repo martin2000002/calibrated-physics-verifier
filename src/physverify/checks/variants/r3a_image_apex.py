@@ -13,13 +13,15 @@ from pydantic import BaseModel
 
 from physverify.checks._base import CheckInputs, abstain, unscored
 from physverify.checks._collision_windows import FloatArray, IntArray, side_rows
+from physverify.checks._image import camera_k as lifted_camera_k
+from physverify.checks._image import depth_jacobian, project
 from physverify.checks._params import as_params
 from physverify.checks.r3a_bounce_restitution import Bounce, RestitutionCheck, RestitutionParams
 from physverify.physics.tracks import body_length, flight_mask, poly_fit
 from physverify.schema.checks import AbstainReason, CheckResult
 from physverify.schema.provenance import GROUND_TRUTH
 from physverify.schema.stages import Stage
-from physverify.schema.states import CoordFrame, ObjectStateTable
+from physverify.schema.states import ObjectStateTable
 
 
 class ImageApexRestitutionCheck(RestitutionCheck):
@@ -59,7 +61,7 @@ class ImageApexRestitutionCheck(RestitutionCheck):
         span: tuple[int, int],
         details: dict[str, Any],
     ) -> CheckResult:
-        camera_k, ill = _camera_k(inputs), AbstainReason.ILL_CONDITIONED
+        camera_k, ill = lifted_camera_k(inputs), AbstainReason.ILL_CONDITIONED
         if inputs.provenance.get(Stage.LIFT.value) == GROUND_TRUTH:
             if camera_k is not None:
                 details["tangent_bias"] = _tangent_bias(camera_k, bounce, t_c)
@@ -124,12 +126,12 @@ def apex_restitution(
 ) -> ApexRestitution:
     sides = (bounce.before, bounce.after)
     ones = np.ones(1)
-    fits = [poly_fit(side.t, _project(camera_k, side.y), ones, 2) for side in sides]
+    fits = [poly_fit(side.t, project(camera_k, side.y), ones, 2) for side in sides]
     d = _image_normal(camera_k, fits[0].value_at(t_c)[0], bounce.normal)
     s_c = float(np.mean([fit.value_at(t_c)[0] @ d for fit in fits]))
     positions = states.position[:, index]
     n_rows = positions.shape[0]
-    apexes = [run_apex(states.t[rows], _project(camera_k, positions[rows]) @ d) for rows in runs]
+    apexes = [run_apex(states.t[rows], project(camera_k, positions[rows]) @ d) for rows in runs]
     drop, climb = apexes[0].height - s_c, apexes[1].height - s_c
     e = math.sqrt(climb / drop) if drop > 0.0 and climb > 0.0 else math.nan
     weights, used = _gradient(states.t, bounce, runs, apexes, t_c, (e, drop, climb))
@@ -174,22 +176,9 @@ def _gradient(
     return 0.5 * e * ((tops[1] - centre) / climb - (tops[0] - centre) / drop), used
 
 
-def _camera_k(inputs: CheckInputs) -> FloatArray | None:
-    """K of the camera the states were lifted with, None without one or off the camera frame."""
-    if inputs.camera is None or inputs.states.frame is not CoordFrame.CAMERA_OPENCV:
-        return None
-    return np.asarray(inputs.camera.K, dtype=np.float64)
-
-
-def _project(camera_k: FloatArray, positions: FloatArray) -> FloatArray:
-    """Pixels (n, 2) of camera-frame points (n, 3)."""
-    homogeneous = positions @ camera_k.T
-    return np.asarray(homogeneous[:, :2] / homogeneous[:, 2:3], dtype=np.float64)
-
-
 def _image_normal(camera_k: FloatArray, pixel: FloatArray, normal: FloatArray) -> FloatArray:
     """Unit image direction of J n at ``pixel``: J is (K[:2] - u K[2]) / z, so z drops out."""
-    direction = (camera_k[:2] - np.outer(pixel, camera_k[2])) @ normal
+    direction = depth_jacobian(camera_k, pixel) @ normal
     return np.asarray(direction / np.linalg.norm(direction), dtype=np.float64)
 
 
@@ -246,8 +235,7 @@ def _row_sigma_along(
     camera_k: FloatArray, positions: FloatArray, sigmas: FloatArray, d: FloatArray
 ) -> FloatArray:
     """sigma of u . d per row: |J^T d| weighted by the per-axis sigma, J = (K[:2] - u K[2]) / z."""
-    pixels = _project(camera_k, positions)
-    rows = camera_k[:2][None] - pixels[:, :, None] * camera_k[2][None, None]
+    rows = depth_jacobian(camera_k, project(camera_k, positions))
     along = np.einsum("i,nij->nj", d, rows) / positions[:, 2:3]
     return np.asarray(np.sqrt(np.sum(along**2 * sigmas**2, axis=1)), dtype=np.float64)
 
@@ -258,8 +246,8 @@ def _tangent_bias(camera_k: FloatArray, bounce: Bounce, t_c: float) -> float:
     v_minus, _ = bounce.velocities(t_c)
     n = bounce.normal
     p_c = bounce.p_k + v_minus * (t_c - float(bounce.before.t[-1]))
-    pixel = _project(camera_k, p_c[None])[0]
-    jacobian = (camera_k[:2] - np.outer(pixel, camera_k[2])) / float(p_c[2])
+    pixel = project(camera_k, p_c[None])[0]
+    jacobian = depth_jacobian(camera_k, pixel) / float(p_c[2])
     v_n = float(v_minus @ n)
     jn = jacobian @ n
     d = jn / np.linalg.norm(jn)

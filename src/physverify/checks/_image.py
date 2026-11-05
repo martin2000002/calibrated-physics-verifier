@@ -25,11 +25,15 @@ def project(k: FloatArray, points: FloatArray) -> FloatArray:
     return np.asarray(homogeneous[..., :2] / homogeneous[..., 2:3], dtype=np.float64)
 
 
+def depth_jacobian(k: FloatArray, pixels: FloatArray) -> FloatArray:
+    """z J (..., 2, 3) of the projection at ``pixels`` (..., 2): K[:2] - u K[2], so the
+    Jacobian of u = pi(K p) is this over the depth z of the point."""
+    return np.asarray(k[:2] - pixels[..., :, None] * k[2], dtype=np.float64)
+
+
 def row_sigma(k: FloatArray, point: FloatArray, sigma: FloatArray) -> float:
-    """Delta-method sigma of the image row of ``point`` with independent per-axis ``sigma``:
-    J_v = (K[1] - v K[2]) / z."""
-    v = float(project(k, point)[1])
-    jacobian = (k[1] - v * k[2]) / float(point[2])
+    """Delta-method sigma of the image row of ``point`` with independent per-axis ``sigma``."""
+    jacobian = depth_jacobian(k, project(k, point))[1] / float(point[2])
     return float(np.sqrt(np.sum((jacobian * sigma) ** 2)))
 
 

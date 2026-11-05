@@ -11,8 +11,7 @@ from numpy.typing import NDArray
 from pydantic import BaseModel, Field
 
 from physverify.checks._base import CheckInputs, abstain, unscored
-from physverify.checks._params import CommonParams, as_params
-from physverify.checks.separate._image import (
+from physverify.checks._image import (
     FloatArray,
     camera_k,
     outline,
@@ -20,6 +19,7 @@ from physverify.checks.separate._image import (
     project,
     row_sigma,
 )
+from physverify.checks._params import CommonParams, as_params
 from physverify.physics.geometry import matrix_from_quaternion, plane_basis
 from physverify.physics.kinematics import visible_runs
 from physverify.physics.tracks import native_span
