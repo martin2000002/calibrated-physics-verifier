@@ -123,9 +123,10 @@ class PassThrough(PluginBase[Params]):
 
 
 def first_rolling_hit(states: ObjectStateTable, contacts: ContactTable) -> tuple[int, int, int]:
-    """(mover, partner, k0): the first object-object contact of a moving body, if that body is a
-    sphere whose partner and every other body rest until then; k0 is the last row before the
-    contact starts. Contacts between bodies at rest (a resting cluster) are not hits."""
+    """(mover, partner, k0): the first object-object contact of a moving sphere, if its partner
+    rests at k0, the last row before the contact starts. Contacts without a moving sphere (a
+    resting cluster settling) are not hits; third bodies stand still from k0 on and the edit's
+    clearance check keeps them off the mover's path."""
     ids = states.object_ids.astype(str).tolist()
     hits = sorted(
         (r for r in contacts.records if ENV_ID not in (r.object_a, r.object_b)),
@@ -133,26 +134,20 @@ def first_rolling_hit(states: ObjectStateTable, contacts: ContactTable) -> tuple
     )
     for record in hits:
         start = int(np.searchsorted(states.frame_index, record.t_start, side="left")) - 1
-        pair = (ids.index(record.object_a), ids.index(record.object_b))
-        if start < 0 or all(bool(rest_mask(states, j)[start]) for j in pair):
+        a, b = ids.index(record.object_a), ids.index(record.object_b)
+        movers = [(m, p) for m, p in ((a, b), (b, a)) if start >= 0 and _rolls(states, m, start)]
+        if not movers:
             continue
-        for mover, partner in (pair, pair[::-1]):
-            if _rolls_into(states, mover, start):
-                return mover, partner, start
+        mover, partner = movers[0]
+        if bool(rest_mask(states, partner)[start]):
+            return mover, partner, start
         break
     raise PerturbationNotApplicableError(f"{NAME}: no rolling sphere hits a resting body")
 
 
-def _rolls_into(states: ObjectStateTable, mover: int, start: int) -> bool:
-    if str(states.primitive[mover]) != PrimitiveKind.SPHERE.value:
-        return False
-    if bool(rest_mask(states, mover)[start]):
-        return False
-    return all(
-        bool(np.all(rest_mask(states, j)[: start + 1]))
-        for j in range(states.n_objects)
-        if j != mover
-    )
+def _rolls(states: ObjectStateTable, index: int, row: int) -> bool:
+    is_sphere = str(states.primitive[index]) == PrimitiveKind.SPHERE.value
+    return is_sphere and not bool(rest_mask(states, index)[row])
 
 
 def absent_partner(states: ObjectStateTable, mover: int, start: int) -> ObjectStateTable:

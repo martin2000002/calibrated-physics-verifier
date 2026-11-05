@@ -141,6 +141,16 @@ def test_a_contact_inside_a_resting_cluster_is_not_the_hit(plugin: Any, bank: An
     applied(plugin, replace(clip, contacts=contacts), PEN_LEVELS[0])
 
 
+def test_settling_jitter_before_the_hit_is_not_motion(plugin: Any, bank: Any) -> None:
+    clip = clip_of(bank)
+    mover, partner, start = first_rolling_hit(clip.states, clip.contacts)
+    third = next(j for j in range(clip.states.n_objects) if j not in (mover, partner))
+    velocity = clip.states.velocity.copy()
+    velocity[0, [partner, third]] = [0.05, 0.0, 0.0]
+    states = replace(clip.states, velocity=velocity)
+    assert first_rolling_hit(states, clip.contacts) == (mover, partner, start)
+
+
 def _with_position(states: ObjectStateTable, position: np.ndarray) -> ObjectStateTable:
     return replace(states, position=position)
 
