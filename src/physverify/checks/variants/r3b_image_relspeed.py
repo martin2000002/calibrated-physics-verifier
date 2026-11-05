@@ -109,8 +109,7 @@ def boot_sigma(
 ) -> tuple[float, int]:
     """Residual bootstrap of s over both sides, residuals inflated by sqrt(n / (n - 2)); NaN
     when fewer than ``boot_min_finite`` of the draws give a ratio."""
-    fits = [line_fit(ti, yi, t0) for ti, yi in zip(t, y, strict=True)]
-    base = [f.intercept + f.slope * (ti - t0)[:, None] for f, ti in zip(fits, t, strict=True)]
+    base = _fitted(t, y, t0)
     resid = [
         (yi - bi) * math.sqrt(yi.shape[0] / (yi.shape[0] - 2))
         for yi, bi in zip(y, base, strict=True)
@@ -123,6 +122,11 @@ def boot_sigma(
         ]
         draws.append(log_ratio(slopes[0], slopes[1]))
     return _spread(draws, params)
+
+
+def _fitted(t: Sequence[FloatArray], y: Sequence[FloatArray], t0: float) -> list[FloatArray]:
+    fits = [line_fit(ti, yi, t0) for ti, yi in zip(t, y, strict=True)]
+    return [f.intercept + f.slope * (ti - t0)[:, None] for f, ti in zip(fits, t, strict=True)]
 
 
 def _spread(draws: Sequence[float], params: RelSpeedParams) -> tuple[float, int]:
@@ -142,8 +146,7 @@ def two_point_sigma(
     """``boot_sigma`` with both sides drawing from the before side's inflated residuals: a short
     after side leaves no residual of its own (none with 2 rows), so the noise is taken as
     stationary across the impact."""
-    fits = [line_fit(ti, yi, t0) for ti, yi in zip(t, y, strict=True)]
-    base = [f.intercept + f.slope * (ti - t0)[:, None] for f, ti in zip(fits, t, strict=True)]
+    base = _fitted(t, y, t0)
     n = y[0].shape[0]
     pool = (y[0] - base[0]) * math.sqrt(n / (n - 2))
     draws = []
