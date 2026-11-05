@@ -1,5 +1,13 @@
 {
   "check_variants": {
+    "R1/learned": {
+      "digest": "924417245eeb2efdf5209904c7f02c101d086db6c578f1ca65bd962d28feb0b6",
+      "version": "1"
+    },
+    "R2/learned": {
+      "digest": "1182ac50b9b1712131ad9dd15ac308ad75f082d12612d8d45030b475df44a7c4",
+      "version": "1"
+    },
     "R3a/image_apex": {
       "digest": "295dabf6adeee27d0579f35c15d68c8497811f2b1bd597044a35200bc39a2bd3",
       "version": "1"
