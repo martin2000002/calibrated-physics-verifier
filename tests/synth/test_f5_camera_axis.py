@@ -17,8 +17,9 @@ from physverify.synth.settings import DatasetSettings
 
 FAMILY = "f5_contact"
 INDICES = range(12)
-# sha256 of the twelve default scenes as sampled on main 58a116d, before the axis existed.
-ACROSS_DIGEST = "22091639b18a18d0aa1c016d9543e0ce56a0bfc3ff71b928bf0ca403dff3c3dd"
+# sha256 of the twelve default scenes as sampled on main 58a116d, before the axis existed, with
+# floats at 10 significant digits so that last-bit differences between platforms do not count.
+ACROSS_DIGEST = "12121fe07c8df3de8e551f70bd7ca04db855c5ba36aaf8f66ed04bef5aee8316"
 SPREAD_DEG = 15.0
 
 
@@ -32,6 +33,16 @@ def _scenes(ds: DatasetSettings, families: Any, priors: dict[str, Any]) -> list[
         )
         for i in INDICES
     ]
+
+
+def _rounded(value: Any) -> Any:
+    if isinstance(value, float):
+        return float(f"{value:.10g}")
+    if isinstance(value, dict):
+        return {key: _rounded(item) for key, item in value.items()}
+    if isinstance(value, list | tuple):
+        return [_rounded(item) for item in value]
+    return value
 
 
 def _along(ds: DatasetSettings) -> DatasetSettings:
@@ -53,7 +64,7 @@ def test_the_default_axis_keeps_the_committed_scenes(
 ) -> None:
     digest = hashlib.sha256()
     for scene in _scenes(ds, families, priors):
-        digest.update(dumps(scene.to_dict()).encode())
+        digest.update(dumps(_rounded(scene.to_dict())).encode())
     assert digest.hexdigest() == ACROSS_DIGEST
 
 
