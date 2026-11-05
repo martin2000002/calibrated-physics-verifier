@@ -34,12 +34,13 @@ RANDOM_CASES = 200
 
 
 def test_the_registry_lists_both_strategies_and_the_app_reads_the_same_one() -> None:
-    assert list(centre_strategies()) == ["surface_median"]
+    assert sorted(centre_strategies()) == ["contour_circle", "surface_median"]
     assert dict(PLUGIN_KINDS["centre_strategies"]()) == dict(centre_strategies())
 
 
 def test_an_unknown_centre_is_a_config_error_naming_the_known_ones() -> None:
-    with pytest.raises(ConfigError, match=r"'nope' is unknown; known: .*surface_median"):
+    known = "known: contour_circle, surface_median"
+    with pytest.raises(ConfigError, match=rf"'nope' is unknown; {known}"):
         BackprojectLift(LiftParams(centre="nope"))
 
 
