@@ -1,0 +1,266 @@
+"""R3b image_relspeed: the log ratio of separation to approach speed of a two-body impact, read on
+the relative image track, with no depth of either body."""
+
+from __future__ import annotations
+
+import math
+from collections.abc import Sequence
+from typing import Any, ClassVar
+
+import numpy as np
+from pydantic import BaseModel, Field
+
+from physverify.checks._base import CheckInputs, abstain, unscored
+from physverify.checks._collision_windows import no_contacts
+from physverify.checks._params import as_params
+from physverify.checks._uncertainty import check_rng
+from physverify.checks.r3b_collision_energy_gain import (
+    EnergyGainCheck,
+    EnergyGainParams,
+    _external_contacts,
+)
+from physverify.checks.variants._image_impulse import (
+    Event,
+    FloatArray,
+    Gates,
+    IntArray,
+    as_record,
+    detect,
+    env_records,
+    free_rows,
+    image_track,
+    line_fit,
+    truth_events,
+    walk,
+)
+from physverify.physics.tracks import native_span
+from physverify.schema.checks import AbstainReason, CheckResult
+from physverify.schema.constants import ENV_ID
+from physverify.schema.contacts import ContactRecord, ContactTable
+from physverify.schema.provenance import GROUND_TRUTH
+from physverify.schema.stages import Stage
+from physverify.schema.states import ObjectStateTable
+
+
+class RelSpeedParams(EnergyGainParams):
+    """Rows of each side, the image impulse detector's gates and the residual bootstrap."""
+
+    gap_frames: float = Field(default=1.0, ge=0.0)
+    bound_margin_rows: int = Field(default=1, ge=0)
+    side_min_rows: int = Field(default=3, ge=3)
+    side_max_rows: int = Field(default=6, ge=3)
+    event_z_min: float = Field(default=5.0, ge=0.0)
+    speed_z_min: float = Field(default=2.0, ge=0.0)
+    kappa: float = Field(default=1.5, gt=0.0)
+    cross_rows: float = Field(default=1.0, ge=0.0)
+    merge_rows: int = Field(default=2, ge=0)
+    boot_draws: int = Field(default=200, ge=2)
+    boot_min_finite: float = Field(default=0.5, gt=0.0, le=1.0)
+
+    def gates(self) -> Gates:
+        return Gates(
+            side_min=self.side_min_rows,
+            side_max=self.side_max_rows,
+            z_min=self.event_z_min,
+            speed_z_min=self.speed_z_min,
+            kappa=self.kappa,
+            cross_rows=self.cross_rows,
+            merge_rows=self.merge_rows,
+        )
+
+
+def normal_speeds(vm: FloatArray, vp: FloatArray) -> tuple[float, float, FloatArray] | None:
+    """(c-, c+, a): side slopes along the unit jump a; None unless approach then separation."""
+    jump = vp - vm
+    size = float(np.linalg.norm(jump))
+    if size == 0.0:
+        return None
+    a = jump / size
+    cm, cp = float(vm @ a), float(vp @ a)
+    return (cm, cp, a) if cm < 0.0 < cp else None
+
+
+def log_ratio(vm: FloatArray, vp: FloatArray) -> float:
+    found = normal_speeds(vm, vp)
+    return math.nan if found is None else math.log(found[1] / -found[0])
+
+
+def boot_sigma(
+    t: Sequence[FloatArray],
+    y: Sequence[FloatArray],
+    t0: float,
+    rng: np.random.Generator,
+    params: RelSpeedParams,
+) -> tuple[float, int]:
+    """Residual bootstrap of s over both sides, residuals inflated by sqrt(n / (n - 2)); NaN
+    when fewer than ``boot_min_finite`` of the draws give a ratio."""
+    fits = [line_fit(ti, yi, t0) for ti, yi in zip(t, y, strict=True)]
+    base = [f.intercept + f.slope * (ti - t0)[:, None] for f, ti in zip(fits, t, strict=True)]
+    resid = [
+        (yi - bi) * math.sqrt(yi.shape[0] / (yi.shape[0] - 2))
+        for yi, bi in zip(y, base, strict=True)
+    ]
+    draws = []
+    for _ in range(params.boot_draws):
+        slopes = [
+            line_fit(ti, bi + ri[rng.integers(0, ri.shape[0], ri.shape[0])], t0).slope
+            for ti, bi, ri in zip(t, base, resid, strict=True)
+        ]
+        draws.append(log_ratio(slopes[0], slopes[1]))
+    found = np.asarray(draws)[np.isfinite(draws)]
+    if found.size < params.boot_min_finite * params.boot_draws:
+        return math.nan, int(found.size)
+    return float(found.std(ddof=1)), int(found.size)
+
+
+class RelSpeedCheck:
+    """R3b image_relspeed [log_normal_speed_ratio]: per impact, s = ln(c+ / -c-).
+
+    Under weak perspective about the pair's mean depth, d' = (f / Z) [I | -u] v_rel = A v_rel for
+    the relative image track d = u_a - u_b. The impulse changes v_rel only along the contact
+    normal n and leaves its tangential part unchanged, so the slope jump of d lies along A n.
+    With n in the image plane, projecting each side's slope on the unit jump gives
+    (f / Z) v_rel . n on both sides and c+ / (-c-) is the normal restitution, f / Z cancelled.
+    An out-of-plane normal and a depth difference between the bodies break that.
+
+    Impacts are the object-object IMPACT records of ground-truth contacts (by provenance);
+    otherwise the image impulse events of the received track, cut at the ENV records. Each side
+    is the ``side_max_rows`` rows nearest the event beyond ``gap_frames``, outside the windows of
+    the bodies' other records. sigma is the residual bootstrap of s (``boot_sigma``)."""
+
+    check_id: ClassVar[str] = "R3b"
+    variant: ClassVar[str] = "image_relspeed"
+    version: ClassVar[str] = "1"
+    requires: ClassVar[frozenset[str]] = frozenset({"contacts"})
+    time_dependent: ClassVar[bool] = False
+    magnitude_unit: ClassVar[str] = "log_normal_speed_ratio"
+    replaced_unit: ClassVar[str] = EnergyGainCheck.magnitude_unit
+    Params: ClassVar[type[BaseModel]] = RelSpeedParams
+
+    def __init__(self, params: BaseModel) -> None:
+        self.params = as_params(RelSpeedParams, params)
+
+    def evaluate(self, inputs: CheckInputs) -> list[CheckResult]:
+        if inputs.contacts is None:
+            return no_contacts(type(self), inputs)
+        truth = _truth_contacts(inputs)
+        found = (
+            truth_events(inputs.contacts)
+            if truth
+            else detect(inputs.states, inputs.contacts, self.params.gates())
+        )
+        rng = check_rng(self.params.seed, inputs.clip.clip_id, self.check_id)
+        return [
+            self._event(inputs, e, _bounds(inputs.contacts, found, e, truth), rng) for e in found
+        ]
+
+    def _event(
+        self,
+        inputs: CheckInputs,
+        e: Event,
+        bounds: Sequence[ContactRecord],
+        rng: np.random.Generator,
+    ) -> CheckResult:
+        states, p = inputs.states, self.params
+        subject = (e.a, e.b)
+        env = ContactTable(
+            states.clip_id,
+            states.frame,
+            states.unit,
+            states.source_key,
+            tuple(env_records(inputs.contacts)),
+        )
+        external = _external_contacts(states, env, as_record(e))
+        if external:
+            scope = {"external_contacts": external, "t_e": e.t}
+            return abstain(type(self), inputs, subject, AbstainReason.OUT_OF_SCOPE, None, scope)
+        ia, ib = states.object_index(e.a), states.object_index(e.b)
+        d = image_track(states, ia) - image_track(states, ib)
+        fi = np.asarray(states.frame_index, dtype=np.int64)
+        margin = p.bound_margin_rows
+        free = free_rows(fi, bounds, e.a, margin) & free_rows(fi, bounds, e.b, margin)
+        ok = np.all(np.isfinite(d), axis=1) & free
+        left, right = self._side_rows(fi, ok, e.t)
+        details: dict[str, Any] = {
+            "t_e": e.t,
+            "rows_before": len(left),
+            "rows_after": len(right),
+            "event_z": e.z,
+        }
+        if len(left) < p.side_min_rows or len(right) < p.side_min_rows:
+            reason = AbstainReason.TOO_FEW_FRAMES
+            return abstain(type(self), inputs, subject, reason, None, details)
+        span = native_span(fi, left[0], right[-1])
+        t = [fi[left].astype(np.float64), fi[right].astype(np.float64)]
+        y = [d[left], d[right]]
+        vm, vp = (line_fit(ti, yi, e.t).slope for ti, yi in zip(t, y, strict=True))
+        speeds = normal_speeds(vm, vp)
+        details |= {"s_full": _full(vm, vp)}
+        if speeds is None:
+            reason = AbstainReason.ILL_CONDITIONED
+            return abstain(type(self), inputs, subject, reason, span, details)
+        cm, cp, a = speeds
+        sigma, finite = boot_sigma(t, y, e.t, rng, p)
+        details |= {"c_minus": cm, "c_plus": cp, "jump_dir": a.tolist(), "boot_finite": finite}
+        if _truth_contacts(inputs) and _truth_lift(inputs) and e.normal is not None:
+            details |= depth_view(states, (ia, ib), (left, right), e)
+        return unscored(type(self), inputs, subject, math.log(cp / -cm), sigma, span, details)
+
+    def _side_rows(self, fi: IntArray, ok: Any, t_e: float) -> tuple[list[int], list[int]]:
+        """Rows nearest the event with |f - t_e| > ``gap_frames``, walked outwards while ``ok``."""
+        gap, limit = self.params.gap_frames, self.params.side_max_rows
+        before = np.flatnonzero(fi < t_e - gap)
+        after = np.flatnonzero(fi > t_e + gap)
+        left = walk(ok, int(before[-1]), -1, limit) if before.size else []
+        right = walk(ok, int(after[0]), 1, limit) if after.size else []
+        return left, right
+
+
+def _truth_contacts(inputs: CheckInputs) -> bool:
+    return inputs.provenance.get(Stage.CONTACTS.value) == GROUND_TRUTH
+
+
+def _truth_lift(inputs: CheckInputs) -> bool:
+    return inputs.provenance.get(Stage.LIFT.value) == GROUND_TRUTH
+
+
+def _bounds(
+    contacts: ContactTable, found: Sequence[Event], e: Event, truth: bool
+) -> list[ContactRecord]:
+    """Every record but the event's own: the true table, or the ENV records plus the events."""
+    if truth:
+        return [r for r in contacts.records if r.object_b == ENV_ID or not _same(r, e)]
+    return env_records(contacts) + [as_record(x) for x in found if x is not e]
+
+
+def _same(r: ContactRecord, e: Event) -> bool:
+    pair = sorted((r.object_a, r.object_b)) == [e.a, e.b]
+    return pair and abs(0.5 * (r.t_start + r.t_end) - e.t) < 1e-9
+
+
+def _full(vm: FloatArray, vp: FloatArray) -> float:
+    nm, nps = float(np.linalg.norm(vm)), float(np.linalg.norm(vp))
+    return math.log(nps / nm) if nm > 0.0 and nps > 0.0 else math.nan
+
+
+def depth_view(
+    states: ObjectStateTable,
+    indices: tuple[int, int],
+    rows: tuple[list[int], list[int]],
+    e: Event,
+) -> dict[str, float]:
+    """Ground truth only: the same ratio from the 3D relative positions along the true normal,
+    and the normal's tilt out of the image plane, phi = asin |n . r|, r the unit ray to the
+    contact."""
+    assert e.normal is not None and e.point is not None
+    fi = np.asarray(states.frame_index, dtype=np.float64)
+    rel = np.asarray(states.position[:, indices[0]] - states.position[:, indices[1]])
+    n = e.normal / np.linalg.norm(e.normal)
+    vm, vp = (line_fit(fi[r], rel[r], e.t).slope for r in rows)
+    cm, cp = float(vm @ n), float(vp @ n)
+    s3 = math.log(cp / -cm) if cm < 0.0 < cp else math.nan
+    ray = e.point / np.linalg.norm(e.point)
+    return {"s_3d": s3, "phi_deg": math.degrees(math.asin(min(1.0, abs(float(n @ ray)))))}
+
+
+PLUGINS = (RelSpeedCheck,)
