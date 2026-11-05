@@ -8,7 +8,7 @@ TRAIN_H_VERSION="v2-train-h"
 # seed derived from the label and no calib split.
 export_train_h_dataset() {
     local seed
-    seed="$(uv run --no-sync python -c \
+    seed="$(PYTHONPATH="$REPO_ROOT/src" uv run --no-sync python -c \
         "import sys; from physverify.synth.seeds import labelled_seed; print(labelled_seed(sys.argv[1]))" \
         "$TRAIN_H_SEED_LABEL")" || die "could not derive the dataset seed"
     export PHYSVERIFY__DATASET__VERSION="$TRAIN_H_VERSION"

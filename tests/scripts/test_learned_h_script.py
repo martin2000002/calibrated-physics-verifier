@@ -12,11 +12,13 @@ SCRIPT_NAMES = ("_common.sh", "_train_h.sh", "run_learned_h.sh", "run_train_h.sh
 TOOLS = ("bash", "dirname", "find", "mkdir", "nproc", "sort", "cat")
 SEED = "3590338824"
 ENCODER_SHA = "encsha"
-# uv run --no-sync python ARGS: an inline program answers the seed or the table's encoder; any
-# other call is logged with the dataset settings it sees.
+# uv run --no-sync python ARGS: an inline program answers the seed or the table's encoder, and only
+# if it imports the sandbox repo's src (not the PYTHONPATH it inherits); any other call is logged
+# with the dataset settings it sees.
 FAKE_UV = rf"""#!/bin/bash
 shift 3
 if [[ "$1" == -c ]]; then
+    [[ "$PYTHONPATH" == src || "$PYTHONPATH" == "{{repo}}/src" ]] || exit 1
     [[ "$2" == *labelled_seed* ]] && echo {SEED}
     [[ "$2" == *encoder_sha256* ]] && echo {ENCODER_SHA}
     exit 0
@@ -32,7 +34,7 @@ SELECT = "--dataset kubric_synthetic --subset train_h"
 @pytest.fixture
 def box(tmp_path: Path) -> Sandbox:
     sandbox = Sandbox(tmp_path, SCRIPT_NAMES, TOOLS)
-    executable(sandbox.fakes / "uv", FAKE_UV)
+    executable(sandbox.fakes / "uv", FAKE_UV.format(repo=sandbox.repo))
     return sandbox
 
 
