@@ -9,6 +9,8 @@ import numpy as np
 from numpy.typing import NDArray
 from scipy.ndimage import binary_dilation
 
+from physverify.extraction.pinhole import ray_points
+
 FloatArray = NDArray[np.float64]
 BoolArray = NDArray[np.bool_]
 
@@ -47,9 +49,7 @@ def floor_points(
         pick = rng.choice(rows.size, min(sampling.points_per_frame, rows.size), replace=False)
         rows, cols = rows[pick], cols[pick]
         depth = z[t][rows, cols]
-        x = (cols + 0.5 - intrinsics[0, 2]) / intrinsics[0, 0] * depth
-        y = (rows + 0.5 - intrinsics[1, 2]) / intrinsics[1, 1] * depth
-        found.append(np.column_stack([x, y, depth]))
+        found.append(ray_points(cols + 0.5, rows + 0.5, depth, intrinsics))
     return np.concatenate(found) if found else np.empty((0, 3))
 
 
