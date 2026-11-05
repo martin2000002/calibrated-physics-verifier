@@ -25,6 +25,7 @@ from physverify.synth.magnitudes import (
 )
 from physverify.synth.perturb import PerturbationNotApplicableError
 from physverify.synth.perturbations._base import PerturbationTarget
+from physverify.synth.perturbations._penetration import MIN_CLEARANCE_M, PEN_LEVELS, SOLVE_TOL
 from physverify.synth.perturbations._state_edit import (
     PluginBase,
     Vec,
@@ -42,9 +43,9 @@ SOLVE_SLACK = 1e-6
 
 
 class Params(PerturbationCommon):
-    levels: tuple[float, float, float, float] = (0.05, 0.1, 0.2, 0.4)
+    levels: tuple[float, float, float, float] = PEN_LEVELS
     max_gap_m: float = 0.03
-    min_clearance_m: float = 0.01
+    min_clearance_m: float = MIN_CLEARANCE_M
 
 
 class Penetration(PluginBase[Params]):
@@ -117,7 +118,7 @@ class Penetration(PluginBase[Params]):
         active = [mid]
         while True:
             shift = solve_offset(
-                lambda s: max(per_frame(s, active)), magnitude, 0.0, reach, tol=1e-6
+                lambda s: max(per_frame(s, active)), magnitude, 0.0, reach, tol=SOLVE_TOL
             )
             values = per_frame(shift, range(states.n_frames))
             worst = int(np.argmax(values))

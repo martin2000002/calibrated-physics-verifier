@@ -35,6 +35,7 @@ from physverify.synth.settings import DatasetSettings, load_dataset_settings, pe
 from physverify.synth.truth_measures._base import measure_truth
 
 OWN_KEY = {
+    "r1_pass_through": "R1_dyn",
     "r1_penetration": "R1",
     "r2_unsupported_rest": "R2",
     "r3_restitution_gain": "R3a",
@@ -47,11 +48,15 @@ OWN_KEY = {
     "r5b_gravity_scale": "R5b",
 }
 PLUGINS = PLUGIN_KINDS["perturbations"]()
+# Targets of a separate row: no truth measure of the nine checks, and the edit needs the
+# Bullet hit the analytic twin lacks; covered by test_r1_pass_through.py.
+SEPARATE_ROWS = {"r1_pass_through"}
 APPLICABLE = {
     family: {
         name
         for name, plugin in PLUGINS.items()
         if name != "none"
+        and name not in SEPARATE_ROWS
         and plugin.target is PerturbationTarget.TRAJECTORY
         and (not plugin.families or family in plugin.families)
     }
@@ -178,7 +183,7 @@ def sweep(bank: Any, clean_ds: DatasetSettings, perturbations: Any, truth_measur
 
 
 def test_the_families_cover_every_plugin(plugins: dict[str, Any]) -> None:
-    covered = set().union(*APPLICABLE.values()) | {"r5b_gravity_scale"}
+    covered = set().union(*APPLICABLE.values()) | {"r5b_gravity_scale"} | SEPARATE_ROWS
     assert covered == set(plugins) - {"none"} == set(OWN_KEY)
 
 
@@ -186,7 +191,7 @@ def test_the_families_cover_every_plugin(plugins: dict[str, Any]) -> None:
 @pytest.mark.parametrize("family", sorted(APPLICABLE))
 def test_each_level_is_reached_and_measured(family: str, source: str, sweep: Sweep) -> None:
     clip = sweep.clip(source, family)
-    for name in sorted(trajectory_names(sweep.plugins) - APPLICABLE[family]):
+    for name in sorted(trajectory_names(sweep.plugins) - APPLICABLE[family] - SEPARATE_ROWS):
         with pytest.raises(PerturbationNotApplicableError):
             perturbed(sweep.plugins[name], clip, family, 1, 0.1, sweep.ds.seed)
     for (name, level), edit in sweep.edits(source, family).items():
