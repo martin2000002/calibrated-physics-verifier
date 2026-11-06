@@ -96,6 +96,7 @@ def test_the_clean_hit_scores_low(check: Check, bank: Any) -> None:
     result = pair_result(check.evaluate(oracle_inputs(bank.recorded(FAMILY))))
     assert result.verdict is Verdict.UNSCORED
     assert result.magnitude is not None and result.magnitude < K_FRAMES * (1.0 - NO_IMPULSE)
+    assert result.sigma == 0.0
 
 
 @pytest.mark.parametrize("level", [2, 3, 4])
@@ -147,9 +148,10 @@ def test_the_row_is_kept_out_of_the_nine_checks() -> None:
     assert list(PLUGIN_KINDS["separate_checks"]()) == ["R1_dyn"]
 
 
-def calibrated(sigma: float) -> Check:
+def calibrated(sigma: float, size_sigma: float | None = None) -> Check:
     cls = PLUGIN_KINDS["separate_checks"]()["R1_dyn"]
-    instance: Check = cls(cls.Params.model_validate({"row_sigma": sigma}))
+    params = {"row_sigma": sigma, "size_sigma": size_sigma, "autocorrelation": 1.5}
+    instance: Check = cls(cls.Params.model_validate(params))
     return instance
 
 
@@ -159,9 +161,18 @@ def test_a_calibrated_row_sigma_replaces_the_unknown_one(
     inputs = oracle_inputs(passed_through(plugins, bank.recorded(FAMILY), 3))
     unknown = np.full_like(inputs.states.position_sigma, np.nan)
     states = dataclasses.replace(inputs.states, position_sigma=unknown)
-    result = pair_result(calibrated(1.5).evaluate(dataclasses.replace(inputs, states=states)))
+    check = calibrated(1.5, 0.05)
+    result = pair_result(check.evaluate(dataclasses.replace(inputs, states=states)))
     assert result.verdict is Verdict.UNSCORED, result.abstain_reason
-    assert result.magnitude is not None and result.magnitude >= K_FRAMES * NO_IMPULSE
+    assert result.magnitude is not None and result.magnitude >= K_FRAMES * (1.0 - NO_IMPULSE)
+    assert result.sigma is not None and 0.0 < result.sigma < float("inf")
+    assert result.details["impulse_statistic"] >= 0.0
+
+
+def test_a_row_sigma_without_a_size_sigma_abstains(bank: Any, plugins: dict[str, Any]) -> None:
+    inputs = oracle_inputs(passed_through(plugins, bank.recorded(FAMILY), 3))
+    result = pair_result(calibrated(1.5).evaluate(inputs))
+    assert result.abstain_reason is AbstainReason.UNKNOWN_UNCERTAINTY
 
 
 def test_the_default_row_sigma_keeps_the_delta_method(check: Check, bank: Any) -> None:
