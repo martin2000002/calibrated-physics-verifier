@@ -1,4 +1,4 @@
-"""ADR 0053: f6 scenes keep a regulation ball at >= 24 px over a >= 0.7 s flight, and only the
+"""f6 scenes keep a regulation ball at >= 24 px over a >= 0.7 s flight, and only the
 known-size R5b perturbation applies to them."""
 
 from __future__ import annotations

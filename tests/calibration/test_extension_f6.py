@@ -1,4 +1,4 @@
-"""The known-size extension (ADR 0053, subset declared at render time, ``checks_only = ["R5b"]``):
+"""The known-size extension (subset declared at render time with ``checks_only = ["R5b"]``):
 R5b alone reads f6, every other check fits and dev-scores bit-identically with or without it."""
 
 from __future__ import annotations

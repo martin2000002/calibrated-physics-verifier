@@ -1,4 +1,4 @@
-"""ADR 0053: scale from a regulation-size anchor; no anchor, no scale."""
+"""Scale from a regulation-size anchor; no anchor, no scale."""
 
 from __future__ import annotations
 

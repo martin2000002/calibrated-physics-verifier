@@ -85,7 +85,7 @@ the back-projecting lifts and every stage after them, whose version moved when t
 gained ``nearer_cover``, the size-prior scales, whose version moved when the extent sigmas of
 a length became correlated axes, ``camera/moge2_focal``, whose version moved when its frame
 spread took the shared robust scale, and the three GeoCalib cameras again, whose params gained
-the configured ``assumed`` fallback; ``scale/known_size`` is a new key (ADR 0053)."""
+the configured ``assumed`` fallback; ``scale/known_size`` is a new key."""
 STAGE_KEYS = {
     "camera/assumed_fov": "dddd1ad9189f13fabcc53f7e2fe5f8818b5d2bdeaf0900f0473a9207790e3c92",
     "camera/from_depth": "528097477f8abe02aee99fb728a9083fc5d6be7ef2565f09783422a4f7c4822d",
