@@ -1,5 +1,6 @@
 """``kubric_synthetic`` declares its check-scoped subsets (``checks_only``) with their exported
-clips; the configured ``calib_f3_extra`` adds whole calib scenes to ``full``, scoped to R3b."""
+clips; the configured ``calib_f3_extra`` adds whole calib scenes to ``full``, scoped to R3b, and
+``calib_f3_floor`` is declared alongside it."""
 
 from __future__ import annotations
 
@@ -19,6 +20,11 @@ from physverify.synth.settings import DatasetSettings, dataset_root
 from physverify.synth.store import DatasetStore
 
 EXTENSION = "calib_f3_extra"
+DECLARED = (EXTENSION, "calib_f3_floor")
+
+
+def by_name(dataset: KubricSynthetic) -> dict[str, ScopedSubset]:
+    return {s.name: s for s in dataset.scoped_subsets()}
 
 
 def manifest(variant: VariantPlan) -> ClipManifest:
@@ -55,8 +61,11 @@ def test_the_extension_is_declared_with_its_exported_clips(
     exported(data_settings, ds, [full, extra])
     dataset = KubricSynthetic(data_settings)
     assert isinstance(dataset, ScopedSubsetSource)
-    (scoped,) = dataset.scoped_subsets()
-    assert (scoped.name, scoped.checks) == (EXTENSION, ("R3b",))
+    declared = by_name(dataset)
+    assert tuple(declared) == DECLARED
+    scoped = declared[EXTENSION]
+    assert scoped.checks == ("R3b",)
+    assert declared["calib_f3_floor"].clips == ()
     assert {c.clip_id for c in scoped.clips} == {v.clip_id for v in extra.variants}
     base_scenes = {v.scene_id for v in full.variants}
     added = [c for c in scoped.clips if c.clip_id not in {v.clip_id for v in full.variants}]
@@ -67,12 +76,11 @@ def test_the_extension_is_declared_with_its_exported_clips(
 def test_an_unplanned_extension_has_no_clips(
     data_settings: Settings, ds: DatasetSettings, families: Any, perturbations: Any
 ) -> None:
-    assert KubricSynthetic(data_settings).scoped_subsets() == (
-        ScopedSubset(EXTENSION, ("R3b",), ()),
+    assert KubricSynthetic(data_settings).scoped_subsets() == tuple(
+        ScopedSubset(name, ("R3b",), ()) for name in DECLARED
     )
     exported(data_settings, ds, [plan_subset(ds, families, perturbations, "full")])
-    (scoped,) = KubricSynthetic(data_settings).scoped_subsets()
-    assert scoped.clips == ()
+    assert all(s.clips == () for s in KubricSynthetic(data_settings).scoped_subsets())
 
 
 def test_a_split_leaves_out_the_clips_only_an_extension_plans(

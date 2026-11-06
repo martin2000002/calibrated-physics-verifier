@@ -131,6 +131,20 @@ checks_only = ["R3b"]
 [dataset.subsets.calib_f3_extra.perturbations]
 f3_collision = ["r3_energy_gain"]
 
+# Calib scenes of f3_floor for R3b only (ADR 0051): the balls collide while rolling, so the side
+# after the collision is not cut by a floor bounce. 120 indices give the 60 calib scenes, each with
+# the clean clip and the cycled r3_energy_gain level, as in calib_f3_extra. R3b results from them
+# are reported for collisions without an immediate bounce only.
+[dataset.subsets.calib_f3_floor]
+scenes_per_family = 120
+levels = [1, 2, 3, 4]
+level_mode = "cycle"
+split = "calib"
+checks_only = ["R3b"]
+
+[dataset.subsets.calib_f3_floor.perturbations]
+f3_floor = ["r3_energy_gain"]
+
 [dataset.profiles.precise]
 version = "v1-precise"
 resolution = 256

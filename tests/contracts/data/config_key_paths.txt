@@ -107,6 +107,12 @@ dataset.subsets.calib_f3_extra.levels
 dataset.subsets.calib_f3_extra.perturbations.f3_collision
 dataset.subsets.calib_f3_extra.scenes_per_family
 dataset.subsets.calib_f3_extra.split
+dataset.subsets.calib_f3_floor.checks_only
+dataset.subsets.calib_f3_floor.level_mode
+dataset.subsets.calib_f3_floor.levels
+dataset.subsets.calib_f3_floor.perturbations.f3_floor
+dataset.subsets.calib_f3_floor.scenes_per_family
+dataset.subsets.calib_f3_floor.split
 dataset.subsets.full.level_mode
 dataset.subsets.full.levels
 dataset.subsets.full.perturbations.f1_projectile

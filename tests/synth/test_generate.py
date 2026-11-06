@@ -73,6 +73,17 @@ def test_calib_f3_extra_extends_the_f3_calib_clips_of_full(
     assert extra.config_hash == full.config_hash
 
 
+def test_calib_f3_floor_is_sixty_calib_scenes_of_f3_floor_with_one_positive_each(
+    ds: DatasetSettings, families: Any, perturbations: Any
+) -> None:
+    plan = plan_subset(ds, families, perturbations, "calib_f3_floor")
+    assert len(plan.scenes) == 60 and len(plan.variants) == 120
+    assert {s.family for s in plan.scenes} == {"f3_floor"}
+    assert {v.split.value for v in plan.variants} == {"calib"}
+    assert Counter(v.perturbation for v in plan.variants) == {"none": 60, "r3_energy_gain": 60}
+    assert plan.config_hash == plan_subset(ds, families, perturbations, "full").config_hash
+
+
 def test_scene_perturbations_get_their_own_simulation(
     ds: DatasetSettings, families: Any, perturbations: Any
 ) -> None:
