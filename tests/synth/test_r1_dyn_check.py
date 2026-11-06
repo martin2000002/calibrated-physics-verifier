@@ -163,10 +163,22 @@ def without_sigma(inputs: CheckInputs) -> CheckInputs:
     )
 
 
-def hand_statistic(inputs: CheckInputs, first_frame: int, row: float, size: float) -> float:
+def lag_value(lags: Sequence[float], lag: int) -> float:
+    return 1.0 if lag == 0 else (lags[lag - 1] if lag <= len(lags) else 0.0)
+
+
+def hand_statistic(
+    inputs: CheckInputs,
+    first_frame: int,
+    row: float,
+    size: float,
+    row_lags: Sequence[float] = (),
+    size_lags: Sequence[float] = (),
+) -> float:
     """max_b q_b computed by hand: per body the two least-squares rates of D around the first
-    matched row and q = Delta' (Sigma_before + Sigma_after)^-1 Delta, Sigma = sum_t w_t^2 C_t,
-    C_t = diag((row / s_t)^2, (row / s_t)^2, 0) + size^2 D_t D_t' (independent rows)."""
+    matched row and q = Delta' Sigma^-1 Delta, Sigma = sum_t sum_t' c_t c_t' C_tt' over the rows
+    of both windows (c = (-w_before, w_after)), C_tt' = R_r(|t - t'|) diag(row^2 / (s_t s_t'),
+    row^2 / (s_t s_t'), 0) + R_s(|t - t'|) size^2 D_t D_t'^T, R the lags (1 at 0, 0 beyond)."""
     states = inputs.states
     k = np.asarray(inputs.camera.K) if inputs.camera is not None else np.eye(3)
     ids = [str(x) for x in states.object_ids]
@@ -183,14 +195,21 @@ def hand_statistic(inputs: CheckInputs, first_frame: int, row: float, size: floa
                 k[0, 0] / track.size,
             ]
         )
-        rates, sigma = [], np.zeros((3, 3))
-        for rows in windows:
+        rates, terms = [], []
+        for sign, rows in zip((-1.0, 1.0), windows, strict=True):
             rates.append(np.polyfit(states.t[rows], d[rows], 1)[0])
             centred = states.t[rows] - states.t[rows].mean()
-            for w, r in zip(centred / (centred @ centred), rows, strict=True):
-                per_row = size**2 * np.outer(d[r], d[r])
-                per_row[:2, :2] += (row / track.size[r]) ** 2 * np.eye(2)
-                sigma += w**2 * per_row
+            terms += [
+                (int(r), sign * w) for w, r in zip(centred / (centred @ centred), rows, strict=True)
+            ]
+        sigma = np.zeros((3, 3))
+        for r_i, c_i in terms:
+            for r_j, c_j in terms:
+                lag = abs(r_i - r_j)
+                per_pair = lag_value(size_lags, lag) * size**2 * np.outer(d[r_i], d[r_j])
+                scale = lag_value(row_lags, lag) * row**2 / (track.size[r_i] * track.size[r_j])
+                per_pair[:2, :2] += scale * np.eye(2)
+                sigma += c_i * c_j * per_pair
         change = rates[1] - rates[0]
         out.append(float(change @ np.linalg.inv(sigma) @ change))
     return max(out)
@@ -218,6 +237,26 @@ def test_the_impulse_statistic_is_q_of_both_windows(
     assert result.verdict is Verdict.UNSCORED, result.abstain_reason
     expected = hand_statistic(inputs, result.details["first_matched_frame"], 1.5, 0.05)
     assert result.details["impulse_statistic"] == pytest.approx(expected, rel=1e-9)
+
+
+ROW_LAGS = (0.6, 0.3, 0.1)
+SIZE_LAGS = (0.5,)
+
+
+@pytest.mark.parametrize("level", [0, 3])
+def test_the_impulse_statistic_reads_each_autocorrelation_at_its_own_lags(
+    bank: Any, plugins: dict[str, Any], level: int
+) -> None:
+    clip = bank.recorded(FAMILY)
+    inputs = without_sigma(oracle_inputs(passed_through(plugins, clip, level) if level else clip))
+    check = calibrated(1.5, 0.05, row_autocorrelation=ROW_LAGS, size_autocorrelation=SIZE_LAGS)
+    result = pair_result(check.evaluate(inputs))
+    assert result.verdict is Verdict.UNSCORED, result.abstain_reason
+    first = result.details["first_matched_frame"]
+    expected = hand_statistic(inputs, first, 1.5, 0.05, ROW_LAGS, SIZE_LAGS)
+    swapped = hand_statistic(inputs, first, 1.5, 0.05, SIZE_LAGS, ROW_LAGS)
+    assert result.details["impulse_statistic"] == pytest.approx(expected, rel=1e-9)
+    assert swapped != pytest.approx(expected, rel=1e-6)
 
 
 def test_a_separate_rate_sigma_moves_q_but_not_the_match(
