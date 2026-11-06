@@ -131,6 +131,16 @@ def test_an_event_outside_the_scope_is_not_applicable_and_keeps_its_details(trut
     assert aggregate(scoped.clip_id, RelSpeedCheck(SCOPED), [scoped]).status is RowStatus.NO_EVENT
 
 
+def test_an_abstention_in_scope_keeps_its_reason() -> None:
+    case = sc.collision(gain=-1.0)
+    plain = evaluated(RelSpeedParams(), case, truth=True)
+    assert [r.abstain_reason for r in plain] == [AbstainReason.ILL_CONDITIONED]
+    assert plain[0].details["rows_before"] >= 3 and plain[0].details["rows_after"] >= 3
+    scoped = evaluated(SCOPED, case, truth=True)
+    assert outputs(scoped) == outputs(plain)
+    assert aggregate(case.clip.clip_id, RelSpeedCheck(SCOPED), scoped).status is RowStatus.ABSTAINED
+
+
 class Recording:
     name: ClassVar[str] = "recording"
     seen: ClassVar[list[tuple[Any, ...]]] = []
