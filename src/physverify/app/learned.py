@@ -32,10 +32,12 @@ from physverify.diagnosis.report import Failure
 from physverify.diagnosis.verification_adapter import variant_inputs
 from physverify.extraction.contact_crops import CropSettings
 from physverify.extraction.crop_encoder import CropEncoder
-from physverify.extraction.pair_features import dense_columns
+from physverify.extraction.pair_features import dense_columns, middle_frame
 from physverify.learned.arms import Arm, arm_groups, arm_level, arm_name, arm_variant, drawn_arm
 from physverify.learned.controls import ControlSettings
 from physverify.learned.image_table import (
+    ALL_FRAMES,
+    MIDDLE_FRAME,
     ClipImages,
     clip_images,
     clip_rows,
@@ -72,7 +74,7 @@ def cached_runner(app: AppContext, dataset: DatasetSource) -> ChainRunner:
     return chain_runner(app, pipeline_deps(app, None, partial(refuse_heavy, dataset.name)), dataset)
 
 
-def _selected(
+def selected_clips(
     app: AppContext, selection: tuple[str, str | None], command: str, err: Echo
 ) -> tuple[DatasetSource, tuple[ClipManifest, ...]]:
     name, subset = selection
@@ -91,7 +93,7 @@ def warm(
     app: AppContext, selection: tuple[str, str | None], arm_draw: tuple[int, float], *, err: Echo
 ) -> tuple[Failure, ...]:
     """Run every clip's chain under the arm it draws, one variant at a time."""
-    dataset, clips = _selected(app, selection, WARM_COMMAND, err)
+    dataset, clips = selected_clips(app, selection, WARM_COMMAND, err)
     by_id = {clip.clip_id: clip for clip in clips}
     runner = chain_runner(app, pipeline_deps(app, None), dataset)
     failures: list[Failure] = []
@@ -125,7 +127,7 @@ def collect(
 ) -> Collected:
     """``selection``: (dataset, subset); ``images``: the pair image table and the dense and token
     columns read from it; ``arm_draw``: (seed, ground-truth share per stage)."""
-    dataset, clips = _selected(app, selection, COMMAND, err)
+    dataset, clips = selected_clips(app, selection, COMMAND, err)
     check = learned_check(app, check_id)
     runner = cached_runner(app, dataset)
     table, dense_columns, token_columns = images
@@ -185,7 +187,7 @@ def _clip_images(
     *,
     err: Echo,
 ) -> Iterator[tuple[ClipManifest, Arm, ClipImages | None]]:
-    dataset, clips = _selected(app, selection, IMAGES_COMMAND, err)
+    dataset, clips = selected_clips(app, selection, IMAGES_COMMAND, err)
     runner = cached_runner(app, dataset)
     for clip in clips:
         arm = drawn_arm(clip.clip_id, *arm_draw)
@@ -199,17 +201,21 @@ def collect_images(
     encoder: tuple[CropEncoder, CropSettings],
     *,
     err: Echo,
+    single_frame: bool = False,
 ) -> CollectedImages:
     """The pair image table of every clip under the arm it draws (``arm_draw`` as ``collect``),
-    so the rows carry the providers ``collect`` and ``verify`` look them up by."""
+    so the rows carry the providers ``collect`` and ``verify`` look them up by;
+    ``single_frame``: each row reads the middle sampled frame alone."""
+    frames = middle_frame if single_frame else None
     rows = []
     failed: list[str] = []
     for clip, _, images in _clip_images(app, selection, arm_draw, err=err):
         if images is None:
             failed.append(clip.clip_id)
             continue
-        rows.append(clip_rows(images, *encoder))
-    return CollectedImages(image_table(rows, *encoder), tuple(failed))
+        rows.append(clip_rows(images, *encoder, frames))
+    label = MIDDLE_FRAME if single_frame else ALL_FRAMES
+    return CollectedImages(image_table(rows, *encoder, label), tuple(failed))
 
 
 def plan_images(
@@ -288,7 +294,7 @@ def plan_training(
     """``collect`` then ``fit`` of ``check_id`` up to the first value: the clips by drawn arm, by
     role and in the validation split, which clips lack cached inputs, the leakage guard against
     ``evaluated`` and the populations of the gates and controls."""
-    dataset, clips = _selected(app, selection, PLAN_COMMAND, err)
+    dataset, clips = selected_clips(app, selection, PLAN_COMMAND, err)
     training = training_clips(clips)
     check = learned_check(app, check_id)
     runner = cached_runner(app, dataset)

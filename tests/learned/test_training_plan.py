@@ -36,7 +36,7 @@ class _Runner:
 
 
 def plan(monkeypatch: pytest.MonkeyPatch, chosen: tuple[ClipManifest, ...], **kw: Any) -> Any:
-    monkeypatch.setattr(learned, "_selected", lambda app, sel, command, err: (None, chosen))
+    monkeypatch.setattr(learned, "selected_clips", lambda app, sel, command, err: (None, chosen))
     monkeypatch.setattr(learned, "learned_check", lambda app, check_id: _Check())
     monkeypatch.setattr(learned, "cached_runner", lambda app, dataset: _Runner())
     evaluated = kw.get("evaluated", ())

@@ -10,11 +10,20 @@ from physverify.diagnosis.chain_runner import VariantOutputs
 from physverify.diagnosis.chain_variants import Variant
 from physverify.extraction.contact_crops import CropSettings
 from physverify.extraction.crop_encoder import CropEncoder
-from physverify.extraction.pair_features import PairFrames, dense_columns, pair_row, token_columns
+from physverify.extraction.pair_features import (
+    PairFrames,
+    dense_columns,
+    middle_frame,
+    pair_row,
+    token_columns,
+)
 from physverify.learned.arms import ARMS, arm_groups, arm_name, arm_variant, drawn_arm
 from physverify.learned.image_table import (
+    ALL_FRAMES,
     CROP_KEY,
     ENCODER_KEY,
+    FRAMES_KEY,
+    MIDDLE_FRAME,
     ClipImages,
     ImageTableError,
     clip_images,
@@ -104,6 +113,19 @@ def test_the_table_names_its_columns_encoder_and_crop() -> None:
     other = {"x": np.zeros(len(dense_columns()) + 5)}
     with pytest.raises(ImageTableError, match="token widths"):
         image_table([clip_rows(images(), ENCODER, SETTINGS), other], ENCODER, SETTINGS)
+
+
+def test_single_frame_rows_read_the_middle_frame_and_the_table_says_so() -> None:
+    found = images()
+    single = clip_rows(found, ENCODER, SETTINGS, middle_frame)
+    key = image_key("clip-1", found.provenance, "a", "c")
+    masks = found.track.masks
+    pair = PairFrames(
+        found.frames, masks[:, 1], masks[:, 0], found.depth.depth.astype(float), found.depth.valid
+    )
+    assert np.array_equal(single[key], pair_row(pair, ENCODER, SETTINGS, (1,)))
+    assert image_table([single], ENCODER, SETTINGS, MIDDLE_FRAME).meta[FRAMES_KEY] == "middle"
+    assert image_table([single], ENCODER, SETTINGS).meta[FRAMES_KEY] == ALL_FRAMES
 
 
 @dataclass

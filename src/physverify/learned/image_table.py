@@ -3,14 +3,15 @@ clip, keyed as the variant looks it up (``image_key``: clip, mask and depth prov
 
 The masks and the depth of a row come from the same plan, so they share its sampling; the frames
 are the clip's video decoded at that sampling. A table names the crop encoder (sha256) and the
-crop settings its tokens were computed with.
+crop settings its tokens were computed with, and which frames its rows read (all of the
+sampling, or its middle frame alone for the single-frame shortcut control).
 """
 
 from __future__ import annotations
 
 import itertools
 import json
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass
 
 import numpy as np
@@ -28,6 +29,11 @@ from physverify.schema.stages import Stage
 
 ENCODER_KEY = "encoder_sha256"
 CROP_KEY = "crop_settings"
+FRAMES_KEY = "frames"
+ALL_FRAMES = "all"
+MIDDLE_FRAME = "middle"
+FrameChoice = Callable[[int], Sequence[int]]
+"""The frames a row reads, from the number of sampled frames."""
 
 
 class ImageTableError(PhysverifyError):
@@ -75,19 +81,27 @@ def pair_frames(images: ClipImages, a: int, b: int) -> PairFrames:
 
 
 def clip_rows(
-    images: ClipImages, encoder: CropEncoder, settings: CropSettings
+    images: ClipImages,
+    encoder: CropEncoder,
+    settings: CropSettings,
+    frames: FrameChoice | None = None,
 ) -> dict[str, FloatArray]:
+    """``frames``: every sampled frame when None."""
     ids = images.track.object_ids
+    chosen = None if frames is None else frames(len(images.track.masks))
     return {
         image_key(images.clip_id, images.provenance, str(ids[a]), str(ids[b])): pair_row(
-            pair_frames(images, a, b), encoder, settings
+            pair_frames(images, a, b), encoder, settings, chosen
         )
         for a, b in object_pairs(images.track)
     }
 
 
 def image_table(
-    rows: Iterable[Mapping[str, FloatArray]], encoder: CropEncoder, settings: CropSettings
+    rows: Iterable[Mapping[str, FloatArray]],
+    encoder: CropEncoder,
+    settings: CropSettings,
+    frames: str = ALL_FRAMES,
 ) -> FeatureTable:
     """Every clip's rows in ``dense_columns()`` then ``token_columns(width)`` order."""
     merged = {key: row for clip in rows for key, row in clip.items()}
@@ -96,7 +110,11 @@ def image_table(
     if len(widths) > 1:
         raise ImageTableError(f"rows carry token widths {sorted(widths)}")
     width = widths.pop() if widths else 0
-    meta = {ENCODER_KEY: encoder.sha256, CROP_KEY: json.dumps(asdict(settings), sort_keys=True)}
+    meta = {
+        ENCODER_KEY: encoder.sha256,
+        CROP_KEY: json.dumps(asdict(settings), sort_keys=True),
+        FRAMES_KEY: frames,
+    }
     columns = (*dense_columns(), *token_columns(width))
     keys = tuple(sorted(merged))
     values = np.asarray([merged[k] for k in keys], dtype=np.float64).reshape(

@@ -23,7 +23,7 @@ class Dataset:
 def selected(monkeypatch: pytest.MonkeyPatch, looks: tuple[str, ...]) -> Any:
     monkeypatch.setattr(learned, "dataset_for", lambda app, name: Dataset())
     monkeypatch.setattr(learned, "sealed_looks", lambda app, selections, err: looks)
-    return learned._selected(None, ("kubric_synthetic", "train_h"), "learned-images", print)  # type: ignore[arg-type]
+    return learned.selected_clips(None, ("kubric_synthetic", "train_h"), "learned-images", print)  # type: ignore[arg-type]
 
 
 def test_a_selection_off_every_seal_is_read(monkeypatch: pytest.MonkeyPatch) -> None:
