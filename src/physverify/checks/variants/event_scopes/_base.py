@@ -11,7 +11,7 @@ from physverify.checks.variants._image_impulse import Event
 from physverify.config.plugin_context import PluginKind
 from physverify.core.errors import ConfigError
 from physverify.core.registry import Registry, discover
-from physverify.schema.states import ObjectStateTable
+from physverify.schema.states import ObjectStateTable, PrimitiveKind
 
 EVENT_SCOPES_PACKAGE = "physverify.checks.variants.event_scopes"
 
@@ -92,6 +92,12 @@ def build_scopes(
         known = ", ".join(sorted(registry))
         raise ConfigError(f"R3b event scopes {unknown} are unknown; known: {known}")
     return tuple(registry[name]() for name in names)
+
+
+def both_spheres(states: ObjectStateTable, e: Event) -> bool:
+    """Both bodies of the impact have a sphere primitive."""
+    kinds = (str(states.primitive[states.object_index(o)]) for o in (e.a, e.b))
+    return all(kind == PrimitiveKind.SPHERE.value for kind in kinds)
 
 
 def failed_scope(

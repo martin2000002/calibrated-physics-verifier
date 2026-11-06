@@ -11,9 +11,9 @@ from collections.abc import Sequence
 from typing import ClassVar
 
 from physverify.checks.variants._image_impulse import Event
-from physverify.checks.variants.event_scopes._base import ScopeLimits, SidedEvent
+from physverify.checks.variants.event_scopes._base import ScopeLimits, SidedEvent, both_spheres
 from physverify.physics.tracks import row_step
-from physverify.schema.states import ObjectStateTable, PrimitiveKind
+from physverify.schema.states import ObjectStateTable
 
 
 class TwoSidedSpheresIsolated:
@@ -37,7 +37,7 @@ class TwoSidedSpheresIsolated:
     ) -> tuple[str, ...]:
         holds = {
             "two_sided": _two_sided(event, gates),
-            "spheres": _spheres(states, event.event),
+            "spheres": both_spheres(states, event.event),
             "isolated": _isolated(states, event.event, others, gates),
         }
         return tuple(name for name, ok in holds.items() if not ok)
@@ -45,11 +45,6 @@ class TwoSidedSpheresIsolated:
 
 def _two_sided(event: SidedEvent, gates: ScopeLimits) -> bool:
     return min(len(event.left), len(event.right)) >= gates.side_min_rows
-
-
-def _spheres(states: ObjectStateTable, e: Event) -> bool:
-    kinds = (str(states.primitive[states.object_index(o)]) for o in (e.a, e.b))
-    return all(kind == PrimitiveKind.SPHERE.value for kind in kinds)
 
 
 def _isolated(

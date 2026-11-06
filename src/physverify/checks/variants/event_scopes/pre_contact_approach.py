@@ -27,8 +27,7 @@ from physverify.checks.variants._image_impulse import (
     apparent_radius,
     image_track,
 )
-from physverify.checks.variants.event_scopes._base import ScopeLimits, SidedEvent
-from physverify.checks.variants.event_scopes.two_sided_spheres_isolated import _spheres
+from physverify.checks.variants.event_scopes._base import ScopeLimits, SidedEvent, both_spheres
 from physverify.physics.tracks import row_step
 from physverify.schema.states import ObjectStateTable
 
@@ -56,7 +55,7 @@ class PreContactApproach:
         pair = (states.object_index(e.a), states.object_index(e.b))
         tracks = Tracks.of(states, gates)
         onset = tracks.onset(*pair)
-        holds = {"spheres": _spheres(states, e), "onset": onset is not None}
+        holds = {"spheres": both_spheres(states, e), "onset": onset is not None}
         if onset is not None:
             holds |= _onset_predicates(states, tracks, pair, onset, e.t, gates)
         else:
