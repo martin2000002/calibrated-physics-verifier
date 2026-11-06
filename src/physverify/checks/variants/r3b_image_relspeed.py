@@ -31,6 +31,14 @@ from physverify.checks.variants._image_impulse import (
     walk,
 )
 from physverify.checks.variants.event_gates._base import EventGate, build_gates, event_gates
+from physverify.checks.variants.event_scopes._base import (
+    EventScope,
+    ScopeLimits,
+    SidedEvent,
+    build_scopes,
+    event_scopes,
+    failed_scope,
+)
 from physverify.physics.tracks import native_span
 from physverify.schema.checks import AbstainReason, CheckResult
 from physverify.schema.constants import ENV_ID
@@ -50,7 +58,8 @@ class RelSpeedParams(CommonParams):
 
     ``post_min_rows`` < ``side_min_rows`` admits a short after side (the rows a floor bounce
     leaves), read by ``two_point_sigma``. ``event_gates`` names the gates (``event_gates/``) a
-    detected event must pass; none by default."""
+    detected event must pass; ``event_scopes`` the scopes (``event_scopes/``) a measured event
+    must lie in, else it is NOT_APPLICABLE; none of either by default."""
 
     gap_frames: float = Field(default=1.0, ge=0.0)
     bound_margin_rows: int = Field(default=1, ge=0)
@@ -67,6 +76,7 @@ class RelSpeedParams(CommonParams):
     boot_min_finite: float = Field(default=0.5, gt=0.0, le=1.0)
     post_min_rows: int = Field(default=3, ge=2)
     event_gates: tuple[str, ...] = ()
+    event_scopes: tuple[str, ...] = ()
 
     @model_validator(mode="after")
     def _post_within_side(self) -> RelSpeedParams:
@@ -84,6 +94,14 @@ class RelSpeedParams(CommonParams):
             cross_rows=self.cross_rows,
             merge_rows=self.merge_rows,
             radius_rows=self.radius_rows,
+        )
+
+    def scope_limits(self) -> ScopeLimits:
+        return ScopeLimits(
+            side_min_rows=self.side_min_rows,
+            side_max_rows=self.side_max_rows,
+            gap_frames=self.gap_frames,
+            bound_margin_rows=self.bound_margin_rows,
         )
 
 
@@ -187,11 +205,16 @@ class RelSpeedCheck:
     Params: ClassVar[type[BaseModel]] = RelSpeedParams
 
     def __init__(
-        self, params: BaseModel, gate_registry: Mapping[str, type[EventGate]] | None = None
+        self,
+        params: BaseModel,
+        gate_registry: Mapping[str, type[EventGate]] | None = None,
+        scope_registry: Mapping[str, type[EventScope]] | None = None,
     ) -> None:
         self.params = as_params(RelSpeedParams, params)
         registry = event_gates() if gate_registry is None else gate_registry
         self.event_gates = build_gates(self.params.event_gates, registry)
+        scopes = event_scopes() if scope_registry is None else scope_registry
+        self.event_scopes = build_scopes(self.params.event_scopes, scopes)
 
     def evaluate(self, inputs: CheckInputs) -> list[CheckResult]:
         if inputs.contacts is None:
@@ -205,10 +228,28 @@ class RelSpeedCheck:
         clip_id, seed = inputs.clip.clip_id, self.params.seed
         rngs = (check_rng(seed, clip_id, self.check_id), check_rng(seed, clip_id, SHORT_STREAM))
         tol = self.params.same_t_frames
-        return [
+        measured = [
             self._event(inputs, e, _bounds(inputs.contacts, found, e, truth, tol), rngs)
             for e in found
         ]
+        return [self._scoped(inputs, found, result, sided) for result, sided in measured]
+
+    def _scoped(
+        self, inputs: CheckInputs, found: Sequence[Event], result: CheckResult, sided: SidedEvent
+    ) -> CheckResult:
+        """``result``, or NOT_APPLICABLE naming the first scope its event lies outside of. Every
+        event is measured first, so the scopes leave the bootstrap streams of the others as they
+        are."""
+        if not self.event_scopes:
+            return result
+        others = [x for x in found if x is not sided.event]
+        limits = self.params.scope_limits()
+        failed = failed_scope(self.event_scopes, inputs.states, sided, others, limits)
+        if failed is None:
+            return result
+        details = {**result.details, "not_applicable": failed}
+        reason = AbstainReason.NOT_APPLICABLE
+        return abstain(type(self), inputs, result.subject, reason, result.frame_span, details)
 
     def _event(
         self,
@@ -216,9 +257,10 @@ class RelSpeedCheck:
         e: Event,
         bounds: Sequence[ContactRecord],
         rngs: tuple[np.random.Generator, np.random.Generator],
-    ) -> CheckResult:
-        """A short after side draws from its own stream, so the full-sided events of a clip
-        consume ``rngs[0]`` exactly as with the default gate."""
+    ) -> tuple[CheckResult, SidedEvent]:
+        """The event's result and its side rows (none when another body touches it). A short
+        after side draws from its own stream, so the full-sided events of a clip consume
+        ``rngs[0]`` exactly as with the default gate."""
         states, p = inputs.states, self.params
         rng, short_rng = rngs
         subject = (e.a, e.b)
@@ -232,7 +274,8 @@ class RelSpeedCheck:
         external = external_contacts(states, env, as_record(e))
         if external:
             scope = {"external_contacts": external, "t_e": e.t}
-            return abstain(type(self), inputs, subject, AbstainReason.OUT_OF_SCOPE, None, scope)
+            reason = AbstainReason.OUT_OF_SCOPE
+            return abstain(type(self), inputs, subject, reason, None, scope), SidedEvent(e, (), ())
         ia, ib = states.object_index(e.a), states.object_index(e.b)
         d = image_track(states, ia) - image_track(states, ib)
         fi = np.asarray(states.frame_index, dtype=np.int64)
@@ -240,6 +283,7 @@ class RelSpeedCheck:
         free = free_rows(fi, bounds, e.a, margin) & free_rows(fi, bounds, e.b, margin)
         ok = np.all(np.isfinite(d), axis=1) & free
         left, right = self._side_rows(fi, ok, e.t)
+        sided = SidedEvent(e, tuple(left), tuple(right))
         details: dict[str, Any] = {
             "t_e": e.t,
             "rows_before": len(left),
@@ -248,7 +292,7 @@ class RelSpeedCheck:
         }
         if len(left) < p.side_min_rows or len(right) < p.post_min_rows:
             reason = AbstainReason.TOO_FEW_FRAMES
-            return abstain(type(self), inputs, subject, reason, None, details)
+            return abstain(type(self), inputs, subject, reason, None, details), sided
         span = native_span(fi, left[0], right[-1])
         t = [fi[left].astype(np.float64), fi[right].astype(np.float64)]
         y = [d[left], d[right]]
@@ -260,7 +304,7 @@ class RelSpeedCheck:
             details |= {"short_post_fit": "two_point"}
         if speeds is None:
             reason = AbstainReason.ILL_CONDITIONED
-            return abstain(type(self), inputs, subject, reason, span, details)
+            return abstain(type(self), inputs, subject, reason, span, details), sided
         cm, cp, a = speeds
         if short:
             sigma, finite = two_point_sigma(t, y, e.t, short_rng, p)
@@ -269,7 +313,8 @@ class RelSpeedCheck:
         details |= {"c_minus": cm, "c_plus": cp, "jump_dir": a.tolist(), "boot_finite": finite}
         if _truth_contacts(inputs) and _truth_lift(inputs) and e.normal is not None:
             details |= depth_view(states, (ia, ib), (left, right), e)
-        return unscored(type(self), inputs, subject, math.log(cp / -cm), sigma, span, details)
+        magnitude = math.log(cp / -cm)
+        return unscored(type(self), inputs, subject, magnitude, sigma, span, details), sided
 
     def _side_rows(self, fi: IntArray, ok: BoolArray, t_e: float) -> tuple[list[int], list[int]]:
         """Rows nearest the event with |f - t_e| > ``gap_frames``, walked outwards while ``ok``."""

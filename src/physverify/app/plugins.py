@@ -22,6 +22,11 @@ from physverify.checks.variants.event_gates._base import (
     EVENT_GATES_PACKAGE,
     event_gates,
 )
+from physverify.checks.variants.event_scopes._base import (
+    EVENT_SCOPES,
+    EVENT_SCOPES_PACKAGE,
+    event_scopes,
+)
 from physverify.config.models import Settings
 from physverify.config.plugin_context import PluginKind
 from physverify.core.errors import InvalidPluginError, UsageError
@@ -85,6 +90,7 @@ PLUGIN_PACKAGES: Mapping[str, str] = MappingProxyType(
         TRUTH_MEASURES.name: "physverify.synth.truth_measures",
         CENTRE_STRATEGIES.name: CENTRES_PACKAGE,
         EVENT_GATES.name: EVENT_GATES_PACKAGE,
+        EVENT_SCOPES.name: EVENT_SCOPES_PACKAGE,
     }
 )
 """The package each plugin kind is discovered from."""
@@ -123,6 +129,7 @@ PLUGIN_KINDS: Mapping[str, Callable[[], Registry[Any]]] = MappingProxyType(
         ),
         CENTRE_STRATEGIES.name: centre_strategies,
         EVENT_GATES.name: event_gates,
+        EVENT_SCOPES.name: event_scopes,
     }
 )
 """Perceived and ground-truth providers share ``providers`` (keys ``<stage>/<name>`` and

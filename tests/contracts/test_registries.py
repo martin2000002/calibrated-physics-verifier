@@ -33,6 +33,7 @@ ADDED_KINDS = frozenset(
         "check_variants",
         "centre_strategies",
         "event_gates",
+        "event_scopes",
     }
 )
 CLI_KIND = "commands"
@@ -122,6 +123,7 @@ ORDER: Mapping[str, tuple[str, ...]] = {
     ),
     "centre_strategies": ("contour_circle", "surface_median"),
     "event_gates": ("reciprocal_jump",),
+    "event_scopes": ("two_sided_spheres_isolated",),
     "timing_targets": (
         "dpo_step",
         "extract_pipeline",

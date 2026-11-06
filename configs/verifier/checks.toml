@@ -72,6 +72,9 @@ reference = "others"
 # calibration.tau_tolerance_units.R3b=log_normal_speed_ratio.
 # Its event_gates (none by default) name the gates of checks/variants/event_gates/ that every
 # detected event must pass, e.g. checks.R3b/image_relspeed.event_gates=["reciprocal_jump"].
+# Its event_scopes (none by default) name the scopes of checks/variants/event_scopes/ a measured
+# event must lie in; outside one it is NOT_APPLICABLE, which neither votes nor abstains, e.g.
+# checks.R3b/image_relspeed.event_scopes=["two_sided_spheres_isolated"].
 # A provisional tau is read in the unit of the check's default implementation unless
 # verification.threshold_units.<id> says otherwise; a tau whose unit is not the unit of the
 # configured check, or a calibrated table fitted with other check parameters or variants (its
