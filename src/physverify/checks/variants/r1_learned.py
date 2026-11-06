@@ -38,7 +38,7 @@ class LearnedInterpenetrationParams(InterpenetrationParams, LearnedFields):
 
 class LearnedInterpenetrationCheck(LearnedMixin, InterpenetrationCheck):
     variant: ClassVar[str] = "learned"
-    version: ClassVar[str] = "1"
+    version: ClassVar[str] = "2"
     Params: ClassVar[type[BaseModel]] = LearnedInterpenetrationParams
     TRACK_COLUMNS: ClassVar[tuple[str, ...]] = TRACK_COLUMNS
 

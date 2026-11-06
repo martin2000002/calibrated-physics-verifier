@@ -72,6 +72,7 @@ RECORD_CLASSES = frozenset(
 
 ERROR_CLASSES = frozenset(
     {
+        "BackgroundSelectionError",
         "BudgetError",
         "CalibrationDataError",
         "CalibrationError",

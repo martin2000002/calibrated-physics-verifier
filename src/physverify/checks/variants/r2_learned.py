@@ -36,7 +36,7 @@ class LearnedEquilibriumParams(EquilibriumParams, LearnedFields):
 
 class LearnedEquilibriumCheck(LearnedMixin, EquilibriumCheck):
     variant: ClassVar[str] = "learned"
-    version: ClassVar[str] = "1"
+    version: ClassVar[str] = "2"
     magnitude_unit: ClassVar[str] = "overhang_over_size"
     replaced_unit: ClassVar[str] = EquilibriumCheck.magnitude_unit
     Params: ClassVar[type[BaseModel]] = LearnedEquilibriumParams
