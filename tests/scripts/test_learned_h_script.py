@@ -12,7 +12,9 @@ SCRIPT_NAMES = ("_common.sh", "_train_h.sh", "run_learned_h.sh", "run_train_h.sh
 TOOLS = ("bash", "dirname", "find", "mkdir", "nproc", "sort", "cat")
 SEED = "3590338824"
 ENCODER_SHA = "encsha"
-# uv run --no-sync python ARGS: an inline program answers the seed or the table's encoder, and only
+ARTIFACT_SHA = "artsha"
+# uv run --no-sync python ARGS: an inline program answers the seed, the table's encoder or the
+# trained artifact, and only
 # if it imports the sandbox repo's src (not the PYTHONPATH it inherits); any other call is logged
 # with the dataset settings it sees.
 FAKE_UV = rf"""#!/bin/bash
@@ -21,6 +23,7 @@ if [[ "$1" == -c ]]; then
     [[ "$PYTHONPATH" == src || "$PYTHONPATH" == "{{repo}}/src" ]] || exit 1
     [[ "$2" == *labelled_seed* ]] && echo {SEED}
     [[ "$2" == *encoder_sha256* ]] && echo {ENCODER_SHA}
+    [[ "$2" == *artifact_sha256* ]] && echo {ARTIFACT_SHA}
     exit 0
 fi
 printf '%s|%s|%s|%s|%s\n' "$PHYSVERIFY__DATASET__VERSION" "$PHYSVERIFY__DATASET__SEED" \
@@ -51,14 +54,34 @@ def test_the_dry_run_plans_every_step_and_trains_nothing(box: Sandbox) -> None:
     assert box.lines() == [
         f"{SETTINGS}{LEARNED}images {SELECT} --out {out}/images_plan.json --dry-run",
         *(
-            f"{SETTINGS}{LEARNED}plan --check {check} {SELECT} --out {out}/{check}/plan.json "
-            "--evaluated calib.jsonl"
+            line
             for check in ("R1", "R2")
+            for line in (
+                f"{SETTINGS}{LEARNED}plan --check {check} {SELECT} --out {out}/{check}/plan.json "
+                "--evaluated calib.jsonl",
+                f"{SETTINGS}{LEARNED}gates --dry-run --check {check} {SELECT} "
+                f"--out {out}/{check}/gate_populations.json",
+            )
         ),
     ]
 
 
-def test_training_warms_builds_the_table_then_trains_each_check(box: Sandbox) -> None:
+def gate_readings(out: Path, check: str) -> list[str]:
+    readings = (("t1", 1, "pairs_t1"), ("t0", 0, "pairs_t0"), ("t0_single", 0, "pairs_t0_single"))
+    d = f"{out}/{check}"
+    return [
+        *(
+            f"{SETTINGS}{LEARNED}samples --check {check} {SELECT} --truth-share {share} "
+            f"--images {out}/{table}.npz --out {d}/samples_{name}.npz"
+            for name, share, table in readings
+        ),
+        f"{SETTINGS}{LEARNED}gates --check {check} {SELECT} --artifact {d}/{ARTIFACT_SHA}.npz "
+        f"--oracle {d}/samples_t1.npz --perceived {d}/samples_t0.npz "
+        f"--single-frame {d}/samples_t0_single.npz --out {d}/gates.json",
+    ]
+
+
+def test_training_warms_builds_the_tables_trains_then_gates_each_check(box: Sandbox) -> None:
     out = box.root / "out"
     done = box.call("run_learned_h.sh", str(out), "calib.jsonl", "b4.jsonl", **env(box))
     assert done.returncode == 0, done.stderr
@@ -75,11 +98,18 @@ def test_training_warms_builds_the_table_then_trains_each_check(box: Sandbox) ->
                 f"{out}/{check}/samples.npz --encoder-sha {ENCODER_SHA} --evaluated calib.jsonl "
                 f"b4.jsonl --out {out}/{check}"
             ),
+            *gate_readings(out, check),
         )
     ]
     assert box.lines() == [
         f"{SETTINGS}{LEARNED}warm {SELECT}",
+        f"{SETTINGS}{LEARNED}warm {SELECT} --truth-share 1",
+        f"{SETTINGS}{LEARNED}warm {SELECT} --truth-share 0",
         f"{SETTINGS}{LEARNED}images {SELECT} --out {out}/pairs.npz",
+        f"{SETTINGS}{LEARNED}images {SELECT} --truth-share 1 --out {out}/pairs_t1.npz",
+        f"{SETTINGS}{LEARNED}images {SELECT} --truth-share 0 --out {out}/pairs_t0.npz",
+        f"{SETTINGS}{LEARNED}images {SELECT} --truth-share 0 --single-frame "
+        f"--out {out}/pairs_t0_single.npz",
         *trained,
     ]
 
