@@ -211,10 +211,12 @@ def test_fitting_and_using_a_row_sigma_together_is_refused(cli: CliRunner, tmp_p
     assert "--row-sigma" in result.err
 
 
-def row_sigma_file(tmp_path: Path, level: InputLevel, gt: tuple[str, ...]) -> str:
+def row_sigma_file(
+    tmp_path: Path, level: InputLevel, gt: tuple[str, ...], scene: str = "f-s"
+) -> str:
     fitted = fit_row_sigma(
         {f"c{j}": np.array([0.5, 1.0 + j, -2.0]) for j in range(5)},
-        {f"c{j}": f"f-s{j:03d}" for j in range(5)},
+        {f"c{j}": f"{scene}{j:03d}" for j in range(5)},
         check_id="R1_dyn",
         level=level,
         gt_stages=gt,
@@ -231,3 +233,33 @@ def test_a_row_sigma_artifact_runs_at_its_own_level(cli: CliRunner, tmp_path: Pa
     assert {row["check_id"] for row in table(used)} == {"R1_dyn"}
     other = cli(COMMAND, *DATASET, "--level", "perceived", "--row-sigma", artifact)
     assert other.code == EXIT_USAGE
+
+
+@pytest.mark.usefixtures("light_chain")
+def test_each_fold_runs_with_its_own_row_sigma_in_clip_order(
+    cli: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    artifact = row_sigma_file(tmp_path, InputLevel.PERCEIVED, (), scene="f5_contact-s")
+    by_fold = [0.5, 1.0, 1.5, 2.0, 2.5]
+    fitted = json.loads(Path(artifact).read_text("utf-8"))
+    Path(artifact).write_text(json.dumps({**fitted, "by_fold": by_fold}), encoding="utf-8")
+    ran: dict[str, float | None] = {}
+    build = separate_rows._runner
+
+    def spied(context: AppContext, sigma: float | None) -> Any:
+        runner = build(context, sigma)
+        run = runner.run
+
+        def recorded(source: InputSource, clips: Sequence[ClipManifest]) -> Any:
+            ran.update({clip.clip_id: sigma for clip in clips})
+            return run(source, clips)
+
+        monkeypatch.setattr(runner, "run", recorded)
+        return runner
+
+    monkeypatch.setattr(separate_rows, "_runner", spied)
+    result = cli(COMMAND, *CALIB_DATASET, "--level", "perceived", "--row-sigma", artifact)
+    assert result.code == 0, result.err
+    order = [clip.clip_id for clip in CalibFixtureDataset().clips()]
+    assert ran == {c: by_fold[int(c.split("__")[0][-3:]) % len(by_fold)] for c in order}
+    assert [row["clip_id"] for row in table(result)] == order
