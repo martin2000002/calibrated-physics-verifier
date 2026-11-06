@@ -25,7 +25,7 @@ from physverify.schema.io import read_jsonl
 
 DEFAULT_CHECK: Final = "R3b"
 ALL_ROLES: Final = "all"
-FAILED_KEY: Final = "not_applicable"
+PREDICATES_KEY: Final = "not_applicable_predicates"
 
 
 @dataclass
@@ -37,7 +37,7 @@ class Cell:
     def add(self, found: Sequence[CheckResult]) -> None:
         self.clips_with_event += 1
         self.clips_in_scope += any(map(in_scope, found))
-        self.failed.update(str(r.details.get(FAILED_KEY)) for r in found if not in_scope(r))
+        self.failed.update(p for r in found if not in_scope(r) for p in r.details[PREDICATES_KEY])
 
     def summary(self) -> dict[str, object]:
         return {

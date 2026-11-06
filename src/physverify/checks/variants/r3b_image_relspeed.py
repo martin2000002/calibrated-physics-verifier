@@ -237,17 +237,21 @@ class RelSpeedCheck:
     def _scoped(
         self, inputs: CheckInputs, found: Sequence[Event], result: CheckResult, sided: SidedEvent
     ) -> CheckResult:
-        """``result``, or NOT_APPLICABLE naming the first scope its event lies outside of. Every
-        event is measured first, so the scopes leave the bootstrap streams of the others as they
-        are."""
+        """``result``, or NOT_APPLICABLE naming the first scope its event lies outside of and the
+        predicates of it the event fails. Every event is measured first, so the scopes leave the
+        bootstrap streams of the others as they are."""
         if not self.event_scopes:
             return result
         others = [x for x in found if x is not sided.event]
         limits = self.params.scope_limits()
-        failed = failed_scope(self.event_scopes, inputs.states, sided, others, limits)
-        if failed is None:
+        outside = failed_scope(self.event_scopes, inputs.states, sided, others, limits)
+        if outside is None:
             return result
-        details = {**result.details, "not_applicable": failed}
+        details = {
+            **result.details,
+            "not_applicable": outside.scope,
+            "not_applicable_predicates": list(outside.predicates),
+        }
         reason = AbstainReason.NOT_APPLICABLE
         return abstain(type(self), inputs, result.subject, reason, result.frame_span, details)
 

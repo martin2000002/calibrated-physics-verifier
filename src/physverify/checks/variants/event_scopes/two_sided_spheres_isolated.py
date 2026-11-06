@@ -26,11 +26,21 @@ class TwoSidedSpheresIsolated:
         others: Sequence[Event],
         gates: ScopeLimits,
     ) -> bool:
-        return (
-            _two_sided(event, gates)
-            and _spheres(states, event.event)
-            and _isolated(states, event.event, others, gates)
-        )
+        return not self.failed(states, event, others, gates)
+
+    def failed(
+        self,
+        states: ObjectStateTable,
+        event: SidedEvent,
+        others: Sequence[Event],
+        gates: ScopeLimits,
+    ) -> tuple[str, ...]:
+        holds = {
+            "two_sided": _two_sided(event, gates),
+            "spheres": _spheres(states, event.event),
+            "isolated": _isolated(states, event.event, others, gates),
+        }
+        return tuple(name for name, ok in holds.items() if not ok)
 
 
 def _two_sided(event: SidedEvent, gates: ScopeLimits) -> bool:

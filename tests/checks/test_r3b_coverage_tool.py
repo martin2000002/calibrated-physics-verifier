@@ -49,7 +49,11 @@ def result(
 
 def outside(clip_id: str, subject: str) -> CheckResult:
     found = result("R3b", clip_id, subject, reason=AbstainReason.NOT_APPLICABLE)
-    return replace(found, details={"not_applicable": "two_sided_spheres_isolated"})
+    details = {
+        "not_applicable": "two_sided_spheres_isolated",
+        "not_applicable_predicates": ["spheres", "isolated"] if subject == "a" else ["two_sided"],
+    }
+    return replace(found, details=details)
 
 
 RESULTS = [
@@ -69,7 +73,7 @@ def test_a_clip_is_in_scope_when_one_of_its_events_is() -> None:
         "clips_with_event": 2,
         "clips_in_scope": 1,
         "coverage": 0.5,
-        "failed": {"two_sided_spheres_isolated": 3},
+        "failed": {"isolated": 2, "spheres": 2, "two_sided": 1},
     }
     assert table["perceived"]["clean"]["clips_in_scope"] == 1
     assert table["oracle"] == {

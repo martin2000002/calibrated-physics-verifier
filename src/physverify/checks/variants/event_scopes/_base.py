@@ -41,9 +41,10 @@ class ScopeLimits:
 
 
 class EventScope(Protocol):
-    """Registered by ``name``; constructed as ``cls()``. ``applies`` sees the states (with their
+    """Registered by ``name``; constructed as ``cls()``. Both methods see the states (with their
     primitives), the event with its sides and the clip's other events of the same level: never a
-    role, a perturbation or a manifest."""
+    role, a perturbation or a manifest. ``failed`` names the predicates ``event`` fails, so
+    ``applies`` is ``not failed``."""
 
     name: ClassVar[str]
 
@@ -54,6 +55,22 @@ class EventScope(Protocol):
         others: Sequence[Event],
         gates: ScopeLimits,
     ) -> bool: ...
+
+    def failed(
+        self,
+        states: ObjectStateTable,
+        event: SidedEvent,
+        others: Sequence[Event],
+        gates: ScopeLimits,
+    ) -> tuple[str, ...]: ...
+
+
+@dataclass(frozen=True)
+class Outside:
+    """The first scope an event lies outside of and the predicates of it the event fails."""
+
+    scope: str
+    predicates: tuple[str, ...]
 
 
 EVENT_SCOPES = PluginKind[type[EventScope]]("event_scopes")
@@ -80,6 +97,10 @@ def failed_scope(
     event: SidedEvent,
     others: Sequence[Event],
     gates: ScopeLimits,
-) -> str | None:
-    """The name of the first scope ``event`` lies outside of; None inside all of them."""
-    return next((s.name for s in scopes if not s.applies(states, event, others, gates)), None)
+) -> Outside | None:
+    """The first scope ``event`` lies outside of; None inside all of them."""
+    for scope in scopes:
+        predicates = scope.failed(states, event, others, gates)
+        if predicates:
+            return Outside(scope.name, predicates)
+    return None

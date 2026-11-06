@@ -80,6 +80,13 @@ def test_both_bodies_must_be_spheres(kind: PrimitiveKind) -> None:
     assert not TwoSidedSpheresIsolated().applies(states(kind), sided(), [], LIMITS)
 
 
+def test_every_failed_predicate_is_named() -> None:
+    scope, crowded = TwoSidedSpheresIsolated(), [Event("ball_i", "floor_x", 12.0)]
+    assert scope.failed(states(), sided(), [], LIMITS) == ()
+    failed = scope.failed(states(PrimitiveKind.BOX), sided(left=2), crowded, LIMITS)
+    assert failed == ("two_sided", "spheres", "isolated")
+
+
 @pytest.mark.parametrize(
     ("step", "other_t", "inside"),
     [
@@ -115,7 +122,11 @@ def test_an_event_outside_the_scope_is_not_applicable_and_keeps_its_details(trut
     assert plain.magnitude is not None
     assert scoped.verdict is Verdict.ABSTAIN and scoped.magnitude is None
     assert scoped.abstain_reason is AbstainReason.NOT_APPLICABLE
-    assert scoped.details == {**plain.details, "not_applicable": S3}
+    assert scoped.details == {
+        **plain.details,
+        "not_applicable": S3,
+        "not_applicable_predicates": ["spheres"],
+    }
     assert scoped.subject == plain.subject and scoped.frame_span == plain.frame_span
     assert aggregate(scoped.clip_id, RelSpeedCheck(SCOPED), [scoped]).status is RowStatus.NO_EVENT
 
@@ -131,8 +142,17 @@ class Recording:
         others: Sequence[Event],
         gates: ScopeLimits,
     ) -> bool:
+        return not self.failed(states, event, others, gates)
+
+    def failed(
+        self,
+        states: ObjectStateTable,
+        event: SidedEvent,
+        others: Sequence[Event],
+        gates: ScopeLimits,
+    ) -> tuple[str, ...]:
         Recording.seen.append((states, event, list(others), gates))
-        return False
+        return ("recorded",)
 
 
 def test_the_scope_receives_only_states_the_event_its_sides_and_the_other_events() -> None:
@@ -151,19 +171,21 @@ def test_the_scope_receives_only_states_the_event_its_sides_and_the_other_events
     )
     assert gates == LIMITS
     assert result.details["not_applicable"] == "recording"
+    assert result.details["not_applicable_predicates"] == ["recorded"]
 
 
 def test_the_scope_signature_carries_no_role_perturbation_or_manifest() -> None:
-    params = list(inspect.signature(EventScope.applies).parameters)
-    assert params == ["self", "states", "event", "others", "gates"]
-    hints = get_type_hints(TwoSidedSpheresIsolated.applies)
-    assert hints == {
+    inputs = {
         "states": ObjectStateTable,
         "event": SidedEvent,
         "others": Sequence[Event],
         "gates": ScopeLimits,
-        "return": bool,
     }
+    for method, returned in (("applies", bool), ("failed", tuple[str, ...])):
+        params = list(inspect.signature(getattr(EventScope, method)).parameters)
+        assert params == ["self", "states", "event", "others", "gates"]
+        hints = get_type_hints(getattr(TwoSidedSpheresIsolated, method))
+        assert hints == {**inputs, "return": returned}
     assert [f.name for f in fields(SidedEvent)] == ["event", "left", "right"]
     assert [f.name for f in fields(Event)] == ["a", "b", "t", "z", "normal", "point"]
 
