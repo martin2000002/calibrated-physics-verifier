@@ -28,12 +28,15 @@ class SidedEvent:
 
 @dataclass(frozen=True)
 class ScopeLimits:
-    """The check's side lengths in rows, its gap (native frames) and window margin (rows)."""
+    """The check's side lengths in rows, its gap (native frames), window margin (rows), proximity
+    factor and apparent-radius half window (rows)."""
 
     side_min_rows: int
     side_max_rows: int
     gap_frames: float
     bound_margin_rows: int
+    kappa: float
+    radius_rows: int
 
     def reach_frames(self, step: int) -> float:
         """Native frames from an event to the far end of its longest side window."""

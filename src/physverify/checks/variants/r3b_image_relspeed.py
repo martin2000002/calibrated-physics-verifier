@@ -102,6 +102,8 @@ class RelSpeedParams(CommonParams):
             side_max_rows=self.side_max_rows,
             gap_frames=self.gap_frames,
             bound_margin_rows=self.bound_margin_rows,
+            kappa=self.kappa,
+            radius_rows=self.radius_rows,
         )
 
 

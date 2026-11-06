@@ -58,7 +58,15 @@ def states(kind: PrimitiveKind = PrimitiveKind.SPHERE, step: int = 1) -> ObjectS
 
 def test_the_limits_come_from_the_check_params() -> None:
     assert (
-        ScopeLimits(side_min_rows=3, side_max_rows=6, gap_frames=1.0, bound_margin_rows=1) == LIMITS
+        ScopeLimits(
+            side_min_rows=3,
+            side_max_rows=6,
+            gap_frames=1.0,
+            bound_margin_rows=1,
+            kappa=1.5,
+            radius_rows=2,
+        )
+        == LIMITS
     )
     assert LIMITS.reach_frames(1) == 8.0
     assert LIMITS.reach_frames(2) == 15.0
