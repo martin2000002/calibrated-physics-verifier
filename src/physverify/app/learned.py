@@ -267,7 +267,7 @@ CONTROL_INPUTS: dict[str, str] = {
     "C-dec": "validation decoys vs clean, tau from the validation clean",
     "C-inv": "validation positives (invisible by truth) vs clean",
     "C-scr": "validation clips against their single frame (R1, R2) or scrambled frames (R5a)",
-    "C-hdri": "the validation repeated on hdri-dev backgrounds",
+    "C-hdri": "validation positives vs clean, split by whether training saw the scene's HDRI",
 }
 """The population each gate and control of ``learned.controls`` reads."""
 

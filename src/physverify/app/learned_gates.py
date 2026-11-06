@@ -1,24 +1,24 @@
 """Wiring of a learned variant's gates and controls from the application context.
 
 The training selection must be split=train and off every seal; only its internal validation
-clips are scored. The unseen-background selection (C-hdri), when given, must be off every seal
-and share no perturbation seed with the artifact's training set. Every sample file must hold the
-arm its gate reads (ground truth for G-L0, perception for the rest), rows read with the
-artifact's encoder from the frames its gate reads (the whole clip, or the middle frame for the
-single-frame control), and name only clips of its selection. Each refusal comes before any score
-is computed.
+clips are scored. C-hdri reads the same validation clips, split by whether a training scene used
+each scene's background; a background selection, when given, must be the training selection
+itself. Every sample file must hold the arm its gate reads (ground truth for G-L0, perception for
+the rest), rows read with the artifact's encoder from the frames its gate reads (the whole clip,
+or the middle frame for the single-frame control), and name only clips of its selection. Each
+refusal comes before anything is read.
 """
 
 from __future__ import annotations
 
 import math
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 
 from physverify.app.context import AppContext
-from physverify.app.learned import selected_clips, training_clips, training_seeds
-from physverify.checks.variants._learned import LearnedArtifact, require_disjoint
+from physverify.app.learned import selected_clips, training_clips
+from physverify.checks.variants._learned import LearnedArtifact
 from physverify.config.plugin_context import registry_of
 from physverify.core.digests import file_sha256
 from physverify.core.errors import MissingInputError, UsageError
@@ -26,14 +26,9 @@ from physverify.core.feature_table import FeatureTable
 from physverify.core.output import Echo
 from physverify.datasets._base import DatasetSource
 from physverify.extraction.pair_features import ZONE_MAX
+from physverify.kubric_worker.build_scene import hdri_for
 from physverify.learned.arms import PERCEIVED_ARM, TRUTH_ARM
-from physverify.learned.controls import (
-    ClipScore,
-    ControlResult,
-    ControlSettings,
-    Status,
-    clip_scores,
-)
+from physverify.learned.controls import ControlResult, ControlSettings, Status, clip_scores
 from physverify.learned.gates import ArmScores, GateReport, run_gates
 from physverify.learned.image_table import ALL_FRAMES, MIDDLE_FRAME
 from physverify.learned.populations import (
@@ -42,16 +37,18 @@ from physverify.learned.populations import (
     populations,
     validation_facts,
 )
-from physverify.learned.samples import Role, SampleSet, TableSource, clip_role
+from physverify.learned.samples import SampleSet, TableSource
 from physverify.learned.train import TrainSettings
 from physverify.learned.visibility import PositiveEvidence
 from physverify.schema.clip import ClipManifest
-from physverify.schema.scene import CameraSpec, PerturbationRecord
+from physverify.schema.scene import PerturbationRecord, SceneSpec
 from physverify.synth.perturb import seed_stream
 from physverify.synth.perturbations._base import PERTURBATIONS
+from physverify.synth.settings import load_dataset_settings
 
 GATES_COMMAND = "learned-gates"
-HDRI_COMMAND = "learned-gates-hdri"
+HDRI_BACKGROUND = "hdri"
+UNKNOWN_BACKGROUND = "unknown"
 
 
 class SampleFileError(UsageError):
@@ -60,21 +57,33 @@ class SampleFileError(UsageError):
 
 @dataclass(frozen=True)
 class GateFiles:
-    """The artifact and the sample files of each arm; ``hdri`` with ``GateSelections.hdri``."""
+    """The artifact and the sample files of each arm."""
 
     artifact: Path
     oracle: Path
     perceived: Path
     single_frame: Path
-    hdri: Path | None = None
 
 
 @dataclass(frozen=True)
 class GateSelections:
-    """(dataset, subset) of the training set and, optionally, of the unseen-background set."""
+    """(dataset, subset) of the training set and, optionally, of the background control: only
+    the training set itself is allowed."""
 
     training: tuple[str, str | None]
     hdri: tuple[str, str | None] | None = None
+
+
+class BackgroundSelectionError(UsageError):
+    """A background control selection other than the training selection."""
+
+
+def require_internal_hdri(selections: GateSelections) -> None:
+    if selections.hdri is not None and selections.hdri != selections.training:
+        raise BackgroundSelectionError(
+            f"{GATES_COMMAND}: C-hdri reads the internal validation of {selections.training} "
+            f"only, not {selections.hdri}"
+        )
 
 
 def aimed(app: AppContext) -> dict[str, tuple[str, ...]]:
@@ -85,13 +94,21 @@ def aimed(app: AppContext) -> dict[str, tuple[str, ...]]:
     )
 
 
-def _camera(dataset: DatasetSource, clip: ClipManifest) -> CameraSpec | None:
+def _scene(dataset: DatasetSource, clip: ClipManifest) -> SceneSpec | None:
     try:
         store = dataset.ground_truth(clip)
     except MissingInputError:
         return None
-    scene = None if store is None else store.scene()
-    return None if scene is None else scene.camera
+    return None if store is None else store.scene()
+
+
+def scene_background(scene: SceneSpec | None, hdri_ids: Sequence[str]) -> str:
+    """The HDRI the render picked for the scene, its plain background, or unknown without truth."""
+    if scene is None:
+        return UNKNOWN_BACKGROUND
+    if scene.background == HDRI_BACKGROUND:
+        return hdri_for(scene.seed, hdri_ids)
+    return scene.background
 
 
 def target_zones(oracle: SampleSet | None) -> dict[str, float]:
@@ -117,26 +134,25 @@ def gate_facts(
 ) -> list[ClipFacts]:
     """``share``: the validation share the artifact was trained with."""
     zones = target_zones(oracle)
+    hdri_ids = load_dataset_settings(app.settings).effective_hdri_ids()
 
     def evidence(clip: ClipManifest, record: PerturbationRecord) -> PositiveEvidence:
-        return PositiveEvidence(record, _camera(dataset, clip), zones.get(clip.clip_id))
+        scene = _scene(dataset, clip)
+        camera = None if scene is None else scene.camera
+        return PositiveEvidence(record, camera, zones.get(clip.clip_id))
 
-    return validation_facts(clips, check_id, share, aimed(app), evidence)
+    def background(clip: ClipManifest) -> str:
+        return scene_background(_scene(dataset, clip), hdri_ids)
+
+    return validation_facts(clips, check_id, share, aimed(app), (evidence, background))
 
 
 def _training(
-    app: AppContext, selection: tuple[str, str | None], err: Echo
+    app: AppContext, selections: GateSelections, err: Echo
 ) -> tuple[DatasetSource, tuple[ClipManifest, ...]]:
-    dataset, clips = selected_clips(app, selection, GATES_COMMAND, err)
+    require_internal_hdri(selections)
+    dataset, clips = selected_clips(app, selections.training, GATES_COMMAND, err)
     return dataset, training_clips(clips)
-
-
-def _hdri_clips(
-    app: AppContext, selection: tuple[str, str | None] | None, err: Echo
-) -> tuple[ClipManifest, ...] | None:
-    if selection is None:
-        return None
-    return tuple(selected_clips(app, selection, HDRI_COMMAND, err)[1])
 
 
 def plan_gates(
@@ -145,18 +161,10 @@ def plan_gates(
     """The populations of every gate and control, from the manifests alone: no sample, no score.
     The visibility of a positive that needs ground-truth image rows stays undetermined; with no
     artifact yet, the validation split is the one training will hold out."""
-    dataset, clips = _training(app, selections.training, err)
-    hdri = _hdri_clips(app, selections.hdri, err)
+    dataset, clips = _training(app, selections, err)
     share = TrainSettings().validation_share
     found = populations(gate_facts(app, dataset, clips, check_id, None, share))
-    if hdri is not None:
-        found["C-hdri"] = _hdri_population(hdri, check_id)
     return {"check_id": check_id, "populations": found}
-
-
-def _hdri_population(clips: Sequence[ClipManifest], check_id: str) -> dict[str, int]:
-    roles = [clip_role(c.perturbation, check_id) for c in clips]
-    return {r.value: roles.count(r) for r in (Role.POSITIVE, Role.CLEAN)}
 
 
 def read_samples(path: Path, arm: str, allowed: frozenset[str], source: TableSource) -> SampleSet:
@@ -191,36 +199,11 @@ def _artifact(path: Path, check_id: str) -> LearnedArtifact:
     return artifact
 
 
-def _hdri_scores(
-    artifact: LearnedArtifact,
-    clips: Sequence[ClipManifest] | None,
-    path: Path | None,
-    check_id: str,
-) -> list[ClipScore] | None:
-    if clips is None or path is None:
-        if (clips is None) != (path is None):
-            raise UsageError("the unseen-background set needs both its selection and samples")
-        return None
-    require_disjoint(artifact.training_seeds, training_seeds(clips))
-    source = TableSource(ALL_FRAMES, artifact.encoder_sha256)
-    samples = read_samples(path, PERCEIVED_ARM, frozenset(c.clip_id for c in clips), source)
-    scores = arm_scores(artifact, samples)
-    by_id = {c.clip_id: c for c in clips}
-    found = []
-    for clip_id, score in scores.items():
-        clip = by_id[clip_id]
-        role = clip_role(clip.perturbation, check_id)
-        if role is not None:
-            found.append(ClipScore(clip_id, clip.scene_id or clip_id, role, score))
-    return found
-
-
 def gate_report(
     app: AppContext, selections: GateSelections, check_id: str, files: GateFiles, *, err: Echo
 ) -> dict[str, object]:
     """Every gate and control of ``check_id`` as one JSON-ready mapping."""
-    dataset, clips = _training(app, selections.training, err)
-    hdri = _hdri_clips(app, selections.hdri, err)
+    dataset, clips = _training(app, selections, err)
     allowed = frozenset(c.clip_id for c in clips)
     artifact = _artifact(files.artifact, check_id)
     clip_rows = TableSource(ALL_FRAMES, artifact.encoder_sha256)
@@ -229,43 +212,27 @@ def gate_report(
     single = read_samples(
         files.single_frame, PERCEIVED_ARM, allowed, replace(clip_rows, frames=MIDDLE_FRAME)
     )
-    hdri_scores = _hdri_scores(artifact, hdri, files.hdri, check_id)
     facts = gate_facts(app, dataset, clips, check_id, oracle, artifact.validation_share)
     scores = ArmScores(
         arm_scores(artifact, oracle),
         arm_scores(artifact, perceived),
         arm_scores(artifact, single),
-        hdri_scores,
     )
     settings = ControlSettings()
     report = run_gates(facts, scores, settings)
-    found = populations(facts)
-    if hdri is not None:
-        found["C-hdri"] = _hdri_population(hdri, check_id)
     return {
         "check_id": check_id,
         "inputs": _inputs(files),
         "settings": asdict(settings),
-        "populations": found,
-        "unscored": _unscored(facts, scores),
+        "validation_share": artifact.validation_share,
+        "populations": populations(facts),
+        "unscored": report.unscored,
         **report_json(report),
     }
 
 
-def _inputs(files: GateFiles) -> dict[str, str | None]:
-    return {
-        name: None if path is None else f"{path} sha256={file_sha256(path)}"
-        for name, path in asdict(files).items()
-    }
-
-
-def _unscored(facts: Sequence[ClipFacts], scores: ArmScores) -> dict[str, int]:
-    arms: Mapping[str, Mapping[str, float]] = {
-        "oracle": scores.oracle,
-        "perceived": scores.perceived,
-        "single_frame": scores.single_frame,
-    }
-    return {arm: sum(f.clip_id not in s for f in facts) for arm, s in arms.items()}
+def _inputs(files: GateFiles) -> dict[str, str]:
+    return {name: f"{path} sha256={file_sha256(path)}" for name, path in asdict(files).items()}
 
 
 def _finite(value: float | None) -> float | None:

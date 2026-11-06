@@ -11,7 +11,7 @@
 # for R1 and R2 into OUT/<check>/: samples and train on the drawn arms, samples of the three gate
 # readings, and gates (gates.json: G-L0, then G-L1 and the controls). Training refuses an
 # evaluated manifest (calib and the B set to be looked at) that shares a perturbation seed with
-# train_h. C-hdri needs an hdri-dev selection and is run by hand (tools/train_learned.py gates).
+# train_h. C-hdri reads the same validation clips, split by whether training saw their HDRI.
 # Optional: PHYSVERIFY_LEARNED_DRY_RUN=1 runs no model and computes no value: a dry images step
 # (OUT/images_plan.json: the clips, pairs and arms it would read; no encoder), then a plan of
 # samples and train per check (OUT/<check>/plan.json: clips by arm, role and validation split,

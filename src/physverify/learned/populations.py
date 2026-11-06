@@ -9,12 +9,14 @@ training set, by role, with what each control needs to know about them.
   is left out of the decoy control only.
 - Positives: invisible by construction or not (``learned.visibility``); a positive whose evidence
   is missing is not marked invisible, so it counts as visible.
+- Backgrounds: a validation clip's background is unseen when no scene of the training part of the
+  selection (outside the validation split) was rendered with it.
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import StrEnum
 
 from physverify.learned.samples import CLEAN_NAME, Role, clip_role
@@ -41,6 +43,7 @@ class ClipFacts:
     invisible: bool | None = None
     origin: Origin | None = None
     broken: bool = False
+    unseen_background: bool = False
 
     @property
     def visible(self) -> bool:
@@ -87,23 +90,42 @@ def broken_scenes(clips: Iterable[ClipManifest]) -> frozenset[str]:
     )
 
 
+def scene_backgrounds(
+    clips: Sequence[ClipManifest], background: Callable[[ClipManifest], str]
+) -> dict[str, str]:
+    """Each scene's background, asked once per scene (its clips share one render setup)."""
+    found: dict[str, str] = {}
+    for clip in clips:
+        scene = _scene(clip)
+        if scene not in found:
+            found[scene] = background(clip)
+    return found
+
+
 def validation_facts(
     clips: Sequence[ClipManifest],
     check_id: str,
     share: float,
     aimed: Mapping[str, tuple[str, ...]],
-    evidence: Callable[[ClipManifest, PerturbationRecord], PositiveEvidence],
+    readers: tuple[
+        Callable[[ClipManifest, PerturbationRecord], PositiveEvidence],
+        Callable[[ClipManifest], str],
+    ],
 ) -> list[ClipFacts]:
-    """The validation clips of ``clips`` with a role for ``check_id``; ``evidence`` is asked for
-    positives only."""
+    """The validation clips of ``clips`` with a role for ``check_id``. ``readers``: the evidence
+    of a positive (asked for positives only) and the background of a scene."""
+    evidence, background = readers
     broken = broken_scenes(clips)
+    backgrounds = scene_backgrounds(clips, background)
+    trained = {b for scene, b in backgrounds.items() if not is_validation(scene, share)}
     facts = []
     for clip in clips:
         scene = _scene(clip)
         role = clip_role(clip.perturbation, check_id)
         if role is None or not is_validation(scene, share):
             continue
-        facts.append(_facts(clip, scene, role, check_id, (aimed, broken), evidence))
+        found = _facts(clip, scene, role, check_id, (aimed, broken), evidence)
+        facts.append(replace(found, unseen_background=backgrounds[scene] not in trained))
     return facts
 
 
@@ -153,4 +175,11 @@ def populations(facts: Sequence[ClipFacts]) -> dict[str, dict[str, int]]:
             "clean": roles[Role.CLEAN.value],
         },
         "C-scr": {"positive": len(positives), "clean": roles[Role.CLEAN.value]},
+        "C-hdri": {
+            f"{role.value}_{name}": sum(
+                f.role is role and f.unseen_background is unseen for f in facts
+            )
+            for name, unseen in (("seen", False), ("unseen", True))
+            for role in (Role.POSITIVE, Role.CLEAN)
+        },
     }

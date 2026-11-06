@@ -9,14 +9,16 @@ empty side, no interval) fails its gate or control.
   must contain 0.5; with fewer than ``min_invisible`` of them it is not evaluable.
 - C-scr (static checks): AUROC of the clip features minus AUROC of single-frame features over the
   same clips; it fails when the interval's lower bound is above 0.
-- C-hdri: an AUROC drop larger than ``hdri_drop`` (or undefined) on unseen backgrounds is
-  flagged; the caller does not stop on it.
+- C-hdri: an AUROC drop larger than ``hdri_drop`` (or undefined) from validation scenes whose
+  background training saw to those whose background it did not is flagged; the caller does not
+  stop on it.
 - G-L0 / G-L1: the AUROC lower bound of visible positives against decoys reaches ``oracle_floor``
   (ground-truth inputs) or exceeds 0.5 (perceived inputs).
 """
 
 from __future__ import annotations
 
+import math
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
@@ -39,6 +41,8 @@ class ControlSettings:
     hdri_drop: float = 0.10
     oracle_floor: float = 0.7
     min_invisible: int = 5
+    min_scored: int = 5
+    coverage_gap: float = 0.10
     ci: float = 0.95
     n_boot: int = 2000
     seed: int = 0
@@ -143,9 +147,11 @@ def invisible_control(
 def single_frame_control(
     clip: Sequence[ClipScore], single: Sequence[ClipScore], settings: ControlSettings
 ) -> ControlResult:
-    """Paired by clip id: the AUROC of positives against clean clips, clip minus single frame."""
+    """Paired by clip id: the AUROC of positives against clean clips, clip minus single frame;
+    a clip scored under one reading only is left out and counted."""
     paired = {c.clip_id: c for c in single}
     both = [(c, paired[c.clip_id]) for c in clip if c.clip_id in paired]
+    unpaired = len(clip) + len(single) - 2 * len(both)
     blocks = [ClusterBlock(a.scene_id, (a, b)) for a, b in both]
 
     def delta(items: Sequence[tuple[ClipScore, ClipScore]]) -> dict[str, float]:
@@ -156,19 +162,21 @@ def single_frame_control(
         AUROC_KEY, Ci()
     )
     passed = ci.low is not None and ci.low <= 0.0
-    return ControlResult("C-scr", status(passed), point, ci, f"n_paired={len(both)}")
+    detail = f"n_paired={len(both)} n_unpaired={unpaired}"
+    return ControlResult("C-scr", status(passed), point, ci, detail)
 
 
 def role_auroc(clips: Sequence[ClipScore]) -> float:
     return auroc(_scores(clips, Role.POSITIVE), _scores(clips, Role.CLEAN))
 
 
-def hdri_control(reference: float, unseen: float, settings: ControlSettings) -> ControlResult:
-    drop = reference - unseen
+def hdri_control(seen: float, unseen: float, settings: ControlSettings) -> ControlResult:
+    """``seen`` and ``unseen``: the AUROC on scenes whose background training saw or not."""
+    drop = seen - unseen
     flagged = not drop <= settings.hdri_drop
-    detail = f"reference={reference:.4f} unseen={unseen:.4f}"
+    detail = f"seen={seen:.4f} unseen={unseen:.4f}"
     if flagged:
-        detail += " texture dependence"
+        detail += " undefined" if math.isnan(drop) else " texture dependence"
     return ControlResult("C-hdri", status(not flagged), drop, None, detail)
 
 

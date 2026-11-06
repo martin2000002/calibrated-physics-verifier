@@ -12,7 +12,7 @@ samples, then train it.
         --out plan.json [--truth-share 0.5] [--evaluated MANIFEST...]
     PYTHONPATH=src python tools/train_learned.py gates --check R1 --dataset D --subset S \
         --artifact A.npz --oracle TRUTH.npz --perceived PERCEIVED.npz --single-frame SINGLE.npz \
-        [--hdri-dataset D --hdri-subset S --hdri H.npz] --out gates.json
+        [--hdri-dataset D --hdri-subset S] --out gates.json
     PYTHONPATH=src python tools/train_learned.py gates --dry-run --check R1 --dataset D \
         --subset S [--hdri-dataset D --hdri-subset S] --out populations.json
 
@@ -31,9 +31,11 @@ check: clips by arm, role and validation split, clips without cached inputs, the
 and the gate and control populations, as JSON; it reads no sample value and trains nothing.
 ``gates`` scores the internal validation clips of the training selection with the artifact, from
 samples of the ground-truth arm (``--truth-share 1``), the perceived arm (``--truth-share 0``) and
-the perceived arm's single-frame rows, and optionally an unseen-background selection's perceived
-samples; it writes every gate and control with its interval, population and pass or fail as
-JSON. ``--dry-run`` writes the populations from the manifests alone.
+the perceived arm's single-frame rows (C-hdri splits those validation clips by whether training
+saw their background; ``--hdri-dataset/--hdri-subset``, when given, must name the training
+selection itself); it writes every gate and control with its interval, population, unscored
+clips per side and pass or fail as JSON. ``--dry-run`` writes the populations from the
+manifests alone.
 """
 
 from __future__ import annotations
@@ -185,7 +187,7 @@ def _gates(args: argparse.Namespace) -> int:
             raise SystemExit(
                 f"gates needs {', '.join('--' + m.replace('_', '-') for m in missing)}"
             )
-        files = GateFiles(args.artifact, args.oracle, args.perceived, args.single_frame, args.hdri)
+        files = GateFiles(args.artifact, args.oracle, args.perceived, args.single_frame)
         found = gate_report(app, selections, args.check, files, err=_stderr)
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(found, indent=2), encoding="utf-8")
@@ -225,7 +227,7 @@ def main(argv: list[str]) -> int:
     train.add_argument("--evaluated", nargs="+", required=True, type=Path)
     plan.add_argument("--evaluated", nargs="*", default=[], type=Path)
     gates.add_argument("--dry-run", action="store_true")
-    for name in ("--artifact", "--oracle", "--perceived", "--single-frame", "--hdri"):
+    for name in ("--artifact", "--oracle", "--perceived", "--single-frame"):
         gates.add_argument(name, type=Path, default=None)
     gates.add_argument("--hdri-dataset", default=None)
     gates.add_argument("--hdri-subset", default=None)
