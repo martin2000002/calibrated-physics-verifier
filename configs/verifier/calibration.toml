@@ -29,6 +29,7 @@ development_sets = [
     "kubric_fresh@v2-fresh",
     "kubric_fresh@v2-dev-b2",
     "kubric_fresh@v2-dev-b3",
+    "kubric_fresh@v2-dev-b7r3b",
     "kubric_synthetic@v1-precise-hdri-dev",
 ]
 

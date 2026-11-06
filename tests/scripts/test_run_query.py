@@ -83,7 +83,7 @@ def test_development_version_is_the_one_declared(
 ) -> None:
     settings = make_settings()
     assert queries.development_version(settings, "kubric_synthetic") == ["v1-precise-hdri-dev"]
-    for version in ("v2-fresh", "v2-dev-b2", "v2-dev-b3"):
+    for version in ("v2-fresh", "v2-dev-b2", "v2-dev-b3", "v2-dev-b7r3b"):
         assert queries.development_version(settings, "kubric_fresh", version) == [version]
     for dataset in ("pisa_real", "kubric_fresh"):
         with pytest.raises(queries.QueryError, match="not one"):

@@ -83,6 +83,7 @@ def test_the_committed_sets_hold_the_fresh_development_renders(
         "kubric_fresh@v2-fresh",
         "kubric_fresh@v2-dev-b2",
         "kubric_fresh@v2-dev-b3",
+        "kubric_fresh@v2-dev-b7r3b",
         "kubric_synthetic@v1-precise-hdri-dev",
     )
     fresh = fresh_settings(committed)
@@ -91,6 +92,7 @@ def test_the_committed_sets_hold_the_fresh_development_renders(
         ("v2-fresh", True),
         ("v2-dev-b2", True),
         ("v2-dev-b3", True),
+        ("v2-dev-b7r3b", True),
         ("v2-fresh2", False),
     ):
         assert is_development(FreshRender(version), declared) is expected
