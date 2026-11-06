@@ -204,6 +204,13 @@ def test_the_perturbed_clips_are_left_out_of_the_row_sigma(cli: CliRunner) -> No
     assert "no residuals outside it" in result.err
 
 
+def test_fitting_and_using_a_row_sigma_together_is_refused(cli: CliRunner, tmp_path: Path) -> None:
+    artifact = row_sigma_file(tmp_path, InputLevel.MIXED, ("depth",))
+    result = cli(COMMAND, *CALIB_DATASET, *FIT, "--row-sigma", artifact)
+    assert result.code == EXIT_USAGE
+    assert "--row-sigma" in result.err
+
+
 def row_sigma_file(tmp_path: Path, level: InputLevel, gt: tuple[str, ...]) -> str:
     fitted = fit_row_sigma(
         {f"c{j}": np.array([0.5, 1.0 + j, -2.0]) for j in range(5)},

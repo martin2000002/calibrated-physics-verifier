@@ -45,13 +45,17 @@ class RowSigma(ArtifactModel):
     scenes_per_fold: tuple[tuple[str, ...], ...]
     clips_without_residuals: tuple[str, ...]
 
-    def sigma_of(self, clip: ClipManifest) -> float | None:
-        """A calib clip takes the sigma of its scene's fold (None without a scene index); any
-        other clip the pooled sigma."""
+    def sigma_of(self, clip: ClipManifest) -> float:
+        """A calib clip takes the sigma of its scene's fold, any other clip the pooled sigma.
+        Refused for a calib clip without a scene index: it has no fold to stay out of."""
         if clip.split is not Split.CALIB:
             return self.pooled
         fold = fold_of(clip.scene_id, len(self.by_fold))
-        return None if fold is None else self.by_fold[fold]
+        if fold is None:
+            raise CalibrationDataError(
+                f"calib clip {clip.clip_id} has no scene index, so no out-of-fold row sigma"
+            )
+        return self.by_fold[fold]
 
 
 def fold_of(scene_id: str | None, folds: int = ROW_SIGMA_FOLDS) -> int | None:

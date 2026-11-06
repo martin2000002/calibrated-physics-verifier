@@ -110,8 +110,17 @@ def test_calib_clips_take_their_fold_sigma_and_others_the_pooled_one() -> None:
         {f"c{j}": f"f-s{j:03d}" for j in range(5)},
     )
     assert result.sigma_of(clip(Split.CALIB, "f-s013")) == result.by_fold[3]
-    assert result.sigma_of(clip(Split.CALIB, None)) is None
     assert result.sigma_of(clip(Split.EVAL, "f-s013")) == result.pooled
+    assert result.sigma_of(clip(Split.EVAL, None)) == result.pooled
+
+
+def test_a_calib_clip_without_a_scene_index_is_refused_a_sigma() -> None:
+    result = fitted(
+        {f"c{j}": [float(j), 2.0 * j, 7.0] for j in range(5)},
+        {f"c{j}": f"f-s{j:03d}" for j in range(5)},
+    )
+    with pytest.raises(CalibrationDataError, match="no scene index"):
+        result.sigma_of(clip(Split.CALIB, None))
 
 
 def test_the_artifact_round_trips() -> None:

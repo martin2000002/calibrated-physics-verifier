@@ -12,7 +12,7 @@ from physverify.app.separate_rows import fit_separate_row_sigma, run_separate
 from physverify.app.verification import LEVELS
 from physverify.cli.context import app_context, echo_err
 from physverify.cli.options import choices_metavar, require_one_of
-from physverify.core.errors import EXIT_ERROR
+from physverify.core.errors import EXIT_ERROR, UsageError
 
 NAME = "verify-separate"
 
@@ -53,6 +53,8 @@ def verify_separate(
         typer.Option(help="Row-sigma artifact of --fit-row-sigma: R1_dyn runs with its sigma."),
     ] = None,
 ) -> None:
+    if fit_row_sigma and row_sigma is not None:
+        raise UsageError("--fit-row-sigma fits a new row sigma; it cannot run with --row-sigma")
     context, stages, chosen = app_context(ctx), gt or (), clips or ()
     if fit_row_sigma:
         fit_separate_row_sigma(
