@@ -24,14 +24,16 @@ from physverify.checks.separate._pass_through_noise import (
     ROW_COVERAGE,
     TAIL_DOF,
     band_z,
+    change_covariance,
+    change_weights,
     count_sigma,
-    descriptor_variance,
     evidence,
     evidence_sigma,
     flip_probability,
     impulse_statistic,
     magnitude_sigma,
-    slope_variance,
+    positive_definite,
+    slope_weights,
 )
 from physverify.physics.geometry import matrix_from_quaternion, plane_basis
 from physverify.physics.kinematics import visible_runs
@@ -49,19 +51,23 @@ _RIM = np.linspace(0.0, 2.0 * math.pi, 24, endpoint=False)
 class PassThroughParams(CommonParams):
     """``min_frames`` is k (native frames of one run of matched rows); the floor
     contact rows match within ``match_z`` sigma; each image rate is fitted on at least
-    ``min_rate_rows`` rows. ``row_sigma`` is the calibrated contact-row sigma in pixels of
-    every body; None, the delta-method row sigma of the lowest points is used. ``size_sigma``
-    is the calibrated relative sigma of the image size; None, the delta method of the size and
-    depth sigmas. ``autocorrelation`` is rho = 1 + 2 sum_k rho_k of the row residuals within a
-    clip. ``row_tail_dof`` is the row law of the match-flip probability: None normal, else a
-    Student t with these dof."""
+    ``min_rate_rows`` rows. ``row_sigma`` is the calibrated contact-row sigma of the row match in
+    pixels of every body (offsets included); None, the delta-method row sigma of the lowest
+    points is used. ``rate_row_sigma`` is the pixel sigma of the rates (residuals centred within
+    each clip and body); None, the match sigma. ``size_sigma`` is the relative sigma of the image
+    size, centred the same way; None, the delta method of the size and depth sigmas.
+    ``row_autocorrelation`` and ``size_autocorrelation`` are r_1, r_2, ... of the centred row
+    and size residuals across rows (0 beyond the last). ``row_tail_dof`` is the row law of the
+    match-flip probability: None normal, else a Student t with these dof."""
 
     min_frames: int = Field(default=3, ge=1)
     match_z: float = Field(default=1.96, gt=0.0)
     min_rate_rows: int = Field(default=3, ge=2)
     row_sigma: float | None = Field(default=None, ge=0.0)
+    rate_row_sigma: float | None = Field(default=None, ge=0.0)
     size_sigma: float | None = Field(default=None, ge=0.0)
-    autocorrelation: float = Field(default=1.0, ge=1.0)
+    row_autocorrelation: tuple[float, ...] = ()
+    size_autocorrelation: tuple[float, ...] = ()
     row_tail_dof: float | None = Field(default=None, gt=2.0)
 
 
@@ -70,7 +76,7 @@ class ImageTrack:
     """One body on the image, per row: its silhouette (None where unusable), its image size
     s = f D / z (D the bounding diameter of ``size``), the image rows [low, high] its floor
     footprint spans, the pixel of its lowest point, the delta-method sigma of that row and the
-    delta-method relative sigma of s."""
+    delta-method relative sigma of s; ``rate_sigma`` is the pixel sigma of the rates."""
 
     silhouette: list[FloatArray | None]
     size: FloatArray
@@ -79,6 +85,7 @@ class ImageTrack:
     contact: FloatArray
     sigma: FloatArray
     size_sigma: FloatArray
+    rate_sigma: FloatArray
 
     @property
     def usable(self) -> BoolArray:
@@ -101,19 +108,21 @@ class PassThroughCheck:
     image-size change and the contact row, never a metric depth velocity. Rates are fitted by
     least squares on the usable rows before the run and from its first row on.
 
-    With noisy inputs the impulse is read against its own noise: per body, q_b = sum_i
-    Delta_i^2 / (var_before,i + var_after,i), Delta the rate change and the variances those of
-    the fitted rates (row and relative size sigmas, ``autocorrelation``), chi-square with 3 dof
+    With noisy inputs the impulse is read against its own noise: per body, q_b = Delta' Sigma^-1
+    Delta, Delta the rate change and Sigma its full covariance (pixel and shared relative size
+    noise, each autocorrelated across rows; ``change_covariance``), chi-square with 3 dof
     without an impulse; impulse = max_b F_chi2_3(q_b). With exact inputs (every row and size
     sigma 0) q is undefined and the impulse is the rate ratio
     clip(max_b |D'_b,after - D'_b,before| / |D'_m,before|, 0, 1), m the body with the faster
     rate before (the mover). Sigma: sqrt((1 - impulse)^2 sigma_n^2 + n^2 sigma_impulse^2), sigma_n
     from the probability that each row of the run (and its two neighbours) flips its match,
     sigma_impulse the spread of max_b F(Q_b) at the plug-in noncentralities; 0 with exact inputs.
-    A row sigma that is unknown, or variances that are 0 for some components only, abstain."""
+    Without overlapping rows sigma is 0 exactly by construction: no row can match, so s = 0
+    whatever the noise. A row sigma that is unknown, or variances that are 0 for some components
+    only, abstain; a covariance that is not positive definite is ill-conditioned."""
 
     check_id: ClassVar[str] = "R1_dyn"
-    version: ClassVar[str] = "2"
+    version: ClassVar[str] = "3"
     requires: ClassVar[frozenset[str]] = frozenset({"camera"})
     time_dependent: ClassVar[bool] = True
     magnitude_unit: ClassVar[str] = "frames"
@@ -136,11 +145,13 @@ class PassThroughCheck:
         return [self._pair(inputs, k, tracks[i], tracks[j], (ids[i], ids[j])) for i, j in pairs]
 
     def _calibrated(self, track: ImageTrack) -> ImageTrack:
-        row, size = self.params.row_sigma, self.params.size_sigma
-        if row is not None:
-            track = replace(track, sigma=np.full_like(track.sigma, row))
-        if size is not None:
-            track = replace(track, size_sigma=np.full_like(track.size_sigma, size))
+        params = self.params
+        if params.row_sigma is not None:
+            track = replace(track, sigma=np.full_like(track.sigma, params.row_sigma))
+        rate = track.sigma if params.rate_row_sigma is None else params.rate_row_sigma
+        track = replace(track, rate_sigma=np.broadcast_to(rate, track.sigma.shape).copy())
+        if params.size_sigma is not None:
+            track = replace(track, size_sigma=np.full_like(track.size_sigma, params.size_sigma))
         return track
 
     def _pair(
@@ -193,14 +204,19 @@ class PassThroughCheck:
             reason = AbstainReason.ILL_CONDITIONED
             return abstain(type(self), inputs, subject, reason, span, details)
         changes = [float(np.linalg.norm(post - pre)) / reference for pre, post in rates]
+        window = change_weights(states.t, before, after)
         noise = [
-            self._change_variance(states.t, float(k[0, 0]), track, d, before, after)
+            self._change_covariance(window, track, d)
             for track, d in zip((a, b), descriptors, strict=True)
         ]
         if not _consistent(noise):
             reason = AbstainReason.UNKNOWN_UNCERTAINTY
             return abstain(type(self), inputs, subject, reason, span, details)
-        if all(not v.any() for v in noise):
+        exact = all(not v.any() for v in noise)
+        if not (exact or all(positive_definite(v) for v in noise)):
+            reason = AbstainReason.ILL_CONDITIONED
+            return abstain(type(self), inputs, subject, reason, span, details)
+        if exact:
             impulse, impulse_sigma = min(1.0, max(changes)), 0.0
         else:
             statistics = [
@@ -225,25 +241,32 @@ class PassThroughCheck:
         sigma = magnitude_sigma(frames, impulse, frames_sigma, impulse_sigma)
         return unscored(type(self), inputs, subject, magnitude, sigma, span, details)
 
-    def _change_variance(
+    def _change_covariance(
         self,
-        t: FloatArray,
-        focal: float,
+        window: tuple[NDArray[np.int64], FloatArray],
         track: ImageTrack,
         descriptor: FloatArray,
-        before: NDArray[np.int64],
-        after: NDArray[np.int64],
     ) -> FloatArray:
-        """(3,) variance of D'_after - D'_before of one body (independent fits)."""
-        variance = descriptor_variance(descriptor, track.size, focal, track.sigma, track.size_sigma)
-        rho = self.params.autocorrelation
-        return slope_variance(t, variance, before, rho) + slope_variance(t, variance, after, rho)
+        """(3, 3) covariance of D'_after - D'_before of one body (both windows together, so
+        noise correlated across their boundary counts)."""
+        rows, weights = window
+        noise = (track.size, track.rate_sigma, track.size_sigma)
+        params = self.params
+        return change_covariance(
+            rows,
+            weights,
+            descriptor,
+            noise,
+            params.row_autocorrelation,
+            params.size_autocorrelation,
+        )
 
 
 def _consistent(noise: list[FloatArray]) -> bool:
-    """Every variance finite, and either all 0 (exact inputs) or all positive."""
-    values = np.concatenate(noise)
-    return bool(np.all(np.isfinite(values)) and (np.all(values == 0.0) or np.all(values > 0.0)))
+    """Every covariance finite, and either all 0 (exact inputs) or every variance positive."""
+    finite = all(bool(np.all(np.isfinite(v))) for v in noise)
+    exact = all(not v.any() for v in noise)
+    return finite and (exact or all(bool(np.all(np.diag(v) > 0.0)) for v in noise))
 
 
 def image_track(k: FloatArray, states: ObjectStateTable, index: int) -> ImageTrack:
@@ -268,7 +291,7 @@ def image_track(k: FloatArray, states: ObjectStateTable, index: int) -> ImageTra
         size_sigma[t] = _size_sigma(
             extents, states.size_sigma[t, index], position, states.position_sigma[t, index]
         )
-    return ImageTrack(silhouette, size, low, high, contact, sigma, size_sigma)
+    return ImageTrack(silhouette, size, low, high, contact, sigma, size_sigma, sigma.copy())
 
 
 def _size_sigma(
@@ -314,9 +337,7 @@ def _descriptor(k: FloatArray, track: ImageTrack) -> FloatArray:
 
 def _rate(t: FloatArray, values: FloatArray, rows: NDArray[np.int64]) -> FloatArray:
     """Least-squares slope (per second) of ``values`` over ``rows``."""
-    times = t[rows] - float(np.mean(t[rows]))
-    centred = values[rows] - values[rows].mean(axis=0)
-    out: FloatArray = times @ centred / float(times @ times)
+    out: FloatArray = slope_weights(t, rows) @ values[rows]
     return out
 
 

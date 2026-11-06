@@ -191,8 +191,9 @@ def test_the_row_sigma_is_fitted_on_the_generated_clean_clips(cli: CliRunner) ->
     fitted = fitted_artifact(result)
     assert fitted["scenes_per_fold"] == [[f"f5_contact-s{j:03d}"] for j in range(4)] + [[]]
     assert [n > 0 for n in fitted["residuals_per_fold"]] == [True] * 4 + [False]
-    assert fitted["by_fold"] == fitted["size_by_fold"] == [0.0] * 5
-    assert fitted["autocorrelation_by_fold"] == [1.0] * 5
+    zero = {"row_sigma": 0.0, "rate_row_sigma": 0.0, "size_sigma": 0.0}
+    lags = {"row_autocorrelation": [], "size_autocorrelation": []}
+    assert fitted["by_fold"] == [{**zero, **lags, "row_tail_dof": None}] * 5
     assert fitted["law"] == "quantile"
     assert fitted["clips_without_residuals"] == [UNMAPPED]
     assert "clips without residuals: 1" in result.out
@@ -218,7 +219,9 @@ def row_sigma_file(
 ) -> str:
     fitted = fit_row_sigma(
         {
-            f"c{j}": ClipResiduals((np.array([0.5, 1.0 + j, -2.0]),), np.array([0.01, -0.02 * j]))
+            f"c{j}": ClipResiduals(
+                (np.array([0.5, 1.0 + j, -2.0]),), (np.array([0.01, -0.02 * j, 0.03]),)
+            )
             for j in range(5)
         },
         {f"c{j}": f"{scene}{j:03d}" for j in range(5)},
@@ -247,7 +250,10 @@ def test_each_fold_runs_with_its_own_row_sigma_in_clip_order(
     artifact = row_sigma_file(tmp_path, InputLevel.PERCEIVED, (), scene="f5_contact-s")
     by_fold = [0.5, 1.0, 1.5, 2.0, 2.5]
     fitted = json.loads(Path(artifact).read_text("utf-8"))
-    Path(artifact).write_text(json.dumps({**fitted, "by_fold": by_fold}), encoding="utf-8")
+    folds = [
+        {**fold, "row_sigma": sigma} for fold, sigma in zip(fitted["by_fold"], by_fold, strict=True)
+    ]
+    Path(artifact).write_text(json.dumps({**fitted, "by_fold": folds}), encoding="utf-8")
     ran: dict[str, float | None] = {}
     build = separate_rows._runner
 

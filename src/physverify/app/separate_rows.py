@@ -128,13 +128,30 @@ def fit_separate_row_sigma(
     path = run_dir / ROW_SIGMA_FILE
     write_text_atomic(path, fitted.model_dump_json(by_alias=True, indent=2) + "\n")
     echo(f"row law: {fitted.law.value} (coverage {fitted.coverage})")
-    echo(f"row sigma by fold (px): {', '.join(f'{s:.4g}' for s in fitted.by_fold)}")
-    echo(f"size sigma by fold: {', '.join(f'{s:.4g}' for s in fitted.size_by_fold)}")
-    echo(f"rho by fold: {', '.join(f'{s:.4g}' for s in fitted.autocorrelation_by_fold)}")
-    echo(f"residuals per fold: {list(fitted.residuals_per_fold)}; pooled {fitted.pooled:.4g} px")
+    for name, values in _fold_columns(fitted).items():
+        echo(f"{name} by fold: {values}")
+    echo(f"residuals per fold: {list(fitted.residuals_per_fold)}")
     echo(f"clips without residuals: {len(fitted.clips_without_residuals)}")
     echo(f"row sigma: {path}")
     return path
+
+
+def _fold_columns(fitted: RowSigma) -> dict[str, str]:
+    """Each fitted quantity across the folds, then pooled, for the log."""
+    fits = [*fitted.by_fold, fitted.pooled]
+    lags = [[f.row_autocorrelation for f in fits], [f.size_autocorrelation for f in fits]]
+    columns = {
+        "match row sigma (px)": [f"{f.row_sigma:.4g}" for f in fits],
+        "rate row sigma (px)": [f"{f.rate_row_sigma:.4g}" for f in fits],
+        "size sigma": [f"{f.size_sigma:.4g}" for f in fits],
+        "row r_k": [_lags(r) for r in lags[0]],
+        "size r_k": [_lags(r) for r in lags[1]],
+    }
+    return {name: ", ".join(values) + " (last: pooled)" for name, values in columns.items()}
+
+
+def _lags(values: Sequence[float]) -> str:
+    return "[" + " ".join(f"{r:.3g}" for r in values) + "]"
 
 
 def gt_stages(gt: Sequence[str]) -> tuple[Stage, ...]:

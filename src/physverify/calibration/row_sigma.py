@@ -6,20 +6,25 @@ Scenes go to fold = scene index mod ``ROW_SIGMA_FOLDS``; every quantity of fold 
 the residuals of every other fold, pooled over bodies and rows; ``pooled`` uses every fold, for
 clips outside calib. A sigma is the half-width of the two-sided ``ROW_COVERAGE`` band of the
 law over the normal z of that band: the band is the |r| quantile (``quantile``) or the Student
-t with ``TAIL_DOF`` dof, location 0 and maximum-likelihood scale (``student_t``). The row
-autocorrelation factor is rho = 1 + 2 sum_k r_k over the per-body row series (mean removed),
-summed from lag 1 until the first r_k <= 0 or lag ``AUTOCORRELATION_MAX_LAG``. Pure, no I/O.
+t with ``TAIL_DOF`` dof, location 0 and maximum-likelihood scale (``student_t``).
+
+The row match keeps each clip's offset (it moves the band), so its sigma is fitted on the raw
+row residuals. A constant offset does not move a rate, so the rate noise (row sigma, relative
+size sigma and their autocorrelations) is fitted on each body's series centred on its own mean
+within the clip. The autocorrelations r_1, r_2, ... of the row and of the size series are
+measured apart, from lag 1 until the first r_k <= 0 or lag ``AUTOCORRELATION_MAX_LAG``. Pure,
+no I/O.
 """
 
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass
 from enum import StrEnum
 from typing import Final
 
 import numpy as np
-from pydantic import Field
+from pydantic import BaseModel, ConfigDict, Field
 from scipy import stats
 
 from physverify.calibration.table import CalibrationDataError
@@ -39,7 +44,7 @@ from physverify.synth.scene_scope import scene_index
 
 ROW_SIGMA_FOLDS: Final = 5
 ROW_SIGMA_SCHEMA: Final = "physverify.row_sigma"
-ROW_SIGMA_VERSION: Final = "2.0.0"
+ROW_SIGMA_VERSION: Final = "3.0.0"
 ROW_SIGMA_FILE: Final = "row_sigma.json"
 AUTOCORRELATION_MAX_LAG: Final = 5
 
@@ -52,40 +57,59 @@ class RowLaw(StrEnum):
 DEFAULT_ROW_LAW: Final = RowLaw.QUANTILE
 
 
-@dataclass(frozen=True)
-class RowNoise:
-    """The R1_dyn parameters one clip runs with (field names are the check's ``Params``)."""
+class RowNoise(BaseModel):
+    """The R1_dyn parameters one clip runs with (field names are the check's ``Params``), one
+    fit of a fold or the pooled one: ``row_sigma`` of the row match (raw residuals, pixels);
+    ``rate_row_sigma`` (pixels), ``size_sigma`` (relative) and the lags r_1, r_2, ... of the
+    rates' noise (centred series); ``row_tail_dof`` of the band law."""
+
+    model_config = ConfigDict(frozen=True)
 
     row_sigma: float
+    rate_row_sigma: float
     size_sigma: float
-    autocorrelation: float
+    row_autocorrelation: tuple[float, ...]
+    size_autocorrelation: tuple[float, ...]
     row_tail_dof: float | None
 
-    def params(self) -> dict[str, float | None]:
-        return asdict(self)
+    def params(self) -> dict[str, object]:
+        return self.model_dump()
 
 
 @dataclass(frozen=True)
 class ClipResiduals:
-    """Per matched body, perceived minus true contact row on every perceived row (NaN where
-    either side has none), and the relative image-size residuals (perceived - true) / true."""
+    """Per matched body and on every perceived row (NaN where either side has none), perceived
+    minus true contact row and the relative image-size residual (perceived - true) / true."""
 
     rows: tuple[FloatArray, ...] = ()
-    sizes: FloatArray = field(default_factory=lambda: np.empty(0))
+    sizes: tuple[FloatArray, ...] = ()
 
     @property
     def flat_rows(self) -> FloatArray:
-        values = np.concatenate(self.rows) if self.rows else np.empty(0)
-        return values[np.isfinite(values)]
+        return _flat(self.rows)
+
+    @property
+    def flat_sizes(self) -> FloatArray:
+        return _flat(self.sizes)
 
     @property
     def empty(self) -> bool:
         return not self.flat_rows.size
 
 
+def _flat(series: tuple[FloatArray, ...]) -> FloatArray:
+    values = np.concatenate(series) if series else np.empty(0)
+    return values[np.isfinite(values)]
+
+
+def centred(series: Sequence[FloatArray]) -> list[FloatArray]:
+    """Each series minus its own mean (NaN rows skipped); series with fewer than two finite
+    values carry no within-clip spread and are left out."""
+    return [s - np.nanmean(s) for s in series if np.isfinite(s).sum() >= 2]
+
+
 class RowSigma(ArtifactModel):
-    """``by_fold[j]`` (row sigma, pixels), ``size_by_fold[j]`` (relative size sigma) and
-    ``autocorrelation_by_fold[j]`` are for clips of fold j, fitted without fold j."""
+    """``by_fold[j]`` is the noise of clips of fold j, fitted without fold j."""
 
     schema_: str = Field(default=ROW_SIGMA_SCHEMA, alias=SCHEMA_KEY)
     version: str = ROW_SIGMA_VERSION
@@ -94,39 +118,24 @@ class RowSigma(ArtifactModel):
     gt_stages: tuple[str, ...]
     law: RowLaw
     coverage: float
-    by_fold: tuple[float, ...]
-    size_by_fold: tuple[float, ...]
-    autocorrelation_by_fold: tuple[float, ...]
-    pooled: float
-    size_pooled: float
-    autocorrelation_pooled: float
+    by_fold: tuple[RowNoise, ...]
+    pooled: RowNoise
     residuals_per_fold: tuple[int, ...]
     size_residuals_per_fold: tuple[int, ...]
     scenes_per_fold: tuple[tuple[str, ...], ...]
     clips_without_residuals: tuple[str, ...]
 
-    @property
-    def tail_dof(self) -> float | None:
-        return TAIL_DOF if self.law is RowLaw.STUDENT_T else None
-
     def noise_of(self, clip: ClipManifest) -> RowNoise:
         """A calib clip takes the noise of its scene's fold, any other clip the pooled noise.
         Refused for a calib clip without a scene index: it has no fold to stay out of."""
         if clip.split is not Split.CALIB:
-            return RowNoise(
-                self.pooled, self.size_pooled, self.autocorrelation_pooled, self.tail_dof
-            )
+            return self.pooled
         fold = fold_of(clip.scene_id, len(self.by_fold))
         if fold is None:
             raise CalibrationDataError(
                 f"calib clip {clip.clip_id} has no scene index, so no out-of-fold row sigma"
             )
-        return RowNoise(
-            self.by_fold[fold],
-            self.size_by_fold[fold],
-            self.autocorrelation_by_fold[fold],
-            self.tail_dof,
-        )
+        return self.by_fold[fold]
 
 
 def fold_of(scene_id: str | None, folds: int = ROW_SIGMA_FOLDS) -> int | None:
@@ -168,7 +177,7 @@ def clip_residuals(perceived: CheckInputs, truth: CheckInputs, ids: IdMap | None
     to_truth = {pred: pred for pred in seen} if ids is None else ids.pred_to_gt()
     frames = [int(f) for f in perceived.states.frame_index]
     rows: list[FloatArray] = []
-    sizes: list[float] = []
+    sizes: list[FloatArray] = []
     for pred, gt in to_truth.items():
         if pred not in seen or gt not in true:
             continue
@@ -180,8 +189,16 @@ def clip_residuals(perceived: CheckInputs, truth: CheckInputs, ids: IdMap | None
                 dtype=np.float64,
             )
         )
-        sizes += [(mine[f][1] - theirs[f][1]) / theirs[f][1] for f in shared]
-    return ClipResiduals(tuple(rows), np.asarray(sizes, dtype=np.float64))
+        sizes.append(
+            np.asarray(
+                [
+                    (mine[f][1] - theirs[f][1]) / theirs[f][1] if f in shared else np.nan
+                    for f in frames
+                ],
+                dtype=np.float64,
+            )
+        )
+    return ClipResiduals(tuple(rows), tuple(sizes))
 
 
 def row_residuals(perceived: CheckInputs, truth: CheckInputs, ids: IdMap | None) -> FloatArray:
@@ -204,38 +221,49 @@ def law_sigma(values: FloatArray, law: RowLaw) -> float:
     return half / band_z()
 
 
-def autocorrelation_factor(series: Sequence[FloatArray]) -> float:
-    """rho = 1 + 2 sum_k r_k of the pooled series (each centred on its own mean, NaN rows
-    skipped), from lag 1 until the first r_k <= 0 or ``AUTOCORRELATION_MAX_LAG``; 1 for
-    residuals that are all 0, NaN without a series of two finite values."""
-    centred = [s - np.nanmean(s) for s in series if np.isfinite(s).sum() >= 2]
-    if not centred:
-        return float("nan")
-    total = float(sum(np.nansum(c**2) for c in centred))
-    if total == 0.0:
-        return 1.0
-    rho = 1.0
+def autocorrelation(series: Sequence[FloatArray]) -> tuple[float, ...] | None:
+    """r_1, r_2, ... of the pooled centred series (NaN rows skipped), from lag 1 until the first
+    r_k <= 0 or ``AUTOCORRELATION_MAX_LAG``; () for residuals that are all 0, None without a
+    series of two finite values."""
+    within = centred(series)
+    if not within:
+        return None
+    total = float(sum(np.nansum(c**2) for c in within))
+    lags: list[float] = []
     for lag in range(1, AUTOCORRELATION_MAX_LAG + 1):
-        r = float(sum(np.nansum(c[:-lag] * c[lag:]) for c in centred if c.size > lag)) / total
+        if total == 0.0:
+            break
+        r = float(sum(np.nansum(c[:-lag] * c[lag:]) for c in within if c.size > lag)) / total
         if not r > 0.0:
             break
-        rho += 2.0 * r
-    return rho
+        lags.append(r)
+    return tuple(lags)
 
 
-def _fold_sigmas(
-    by_fold: Sequence[Sequence[ClipResiduals]], law: RowLaw
-) -> tuple[list[float], list[float], list[float]]:
-    """Row sigma, size sigma and rho of each fold (fitted on the other folds), then pooled."""
-    folds = len(by_fold)
-    groups = [[c for i, part in enumerate(by_fold) if i != j for c in part] for j in range(folds)]
-    groups.append([c for part in by_fold for c in part])
-    rows = [
-        law_sigma(np.concatenate([c.flat_rows for c in g] or [np.empty(0)]), law) for g in groups
-    ]
-    sizes = [law_sigma(np.concatenate([c.sizes for c in g] or [np.empty(0)]), law) for g in groups]
-    rhos = [autocorrelation_factor([s for c in g for s in c.rows]) for g in groups]
-    return rows, sizes, rhos
+def _flat_centred(series: Sequence[FloatArray]) -> FloatArray:
+    return _flat(tuple(centred(series)))
+
+
+def _fit_group(group: Sequence[ClipResiduals], law: RowLaw) -> RowNoise | None:
+    """The noise of one group of clips; None when some quantity has no residual."""
+    rows = [s for c in group for s in c.rows]
+    sizes = [s for c in group for s in c.sizes]
+    row_lags, size_lags = autocorrelation(rows), autocorrelation(sizes)
+    sigmas = (
+        law_sigma(_flat(tuple(rows)), law),
+        law_sigma(_flat_centred(rows), law),
+        law_sigma(_flat_centred(sizes), law),
+    )
+    if row_lags is None or size_lags is None or not all(np.isfinite(sigmas)):
+        return None
+    return RowNoise(
+        row_tail_dof=TAIL_DOF if law is RowLaw.STUDENT_T else None,
+        row_sigma=sigmas[0],
+        rate_row_sigma=sigmas[1],
+        size_sigma=sigmas[2],
+        row_autocorrelation=row_lags,
+        size_autocorrelation=size_lags,
+    )
 
 
 def fit_row_sigma(
@@ -261,24 +289,22 @@ def fit_row_sigma(
             continue
         by_fold[fold].append(values)
         fold_scenes[fold].add(scene_id)
-    rows, sizes, rhos = _fold_sigmas(by_fold, law)
-    if not all(np.isfinite(rows + sizes + rhos)):
+    groups = [[c for i, part in enumerate(by_fold) if i != j for c in part] for j in range(folds)]
+    fits = [_fit_group(g, law) for g in [*groups, [c for part in by_fold for c in part]]]
+    if any(f is None for f in fits):
         counts = [sum(c.flat_rows.size for c in part) for part in by_fold]
         raise CalibrationDataError(f"some fold has no residuals outside it (per fold: {counts})")
+    done = [f for f in fits if f is not None]
     return RowSigma(
         check_id=check_id,
         level=level,
         gt_stages=tuple(gt_stages),
         law=law,
         coverage=ROW_COVERAGE,
-        by_fold=tuple(rows[:folds]),
-        size_by_fold=tuple(sizes[:folds]),
-        autocorrelation_by_fold=tuple(rhos[:folds]),
-        pooled=rows[folds],
-        size_pooled=sizes[folds],
-        autocorrelation_pooled=rhos[folds],
+        by_fold=tuple(done[:folds]),
+        pooled=done[folds],
         residuals_per_fold=tuple(sum(c.flat_rows.size for c in part) for part in by_fold),
-        size_residuals_per_fold=tuple(sum(c.sizes.size for c in part) for part in by_fold),
+        size_residuals_per_fold=tuple(sum(c.flat_sizes.size for c in part) for part in by_fold),
         scenes_per_fold=tuple(tuple(sorted(s)) for s in fold_scenes),
         clips_without_residuals=tuple(empty),
     )

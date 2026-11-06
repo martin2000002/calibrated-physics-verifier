@@ -1,10 +1,11 @@
-"""Noise of R1_dyn's frame count and impulse: per-row variance of the descriptor D, variance of
-its least-squares rate, the impulse statistic against that noise and the sigmas of both terms
-of the magnitude n (1 - p). Pure numpy/scipy, no I/O."""
+"""Noise of R1_dyn's frame count and impulse: the full covariance of the change of the
+least-squares rate of the descriptor D, the impulse statistic against it and the sigmas of both
+terms of the magnitude n (1 - p). Pure numpy/scipy, no I/O."""
 
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 from typing import Final
 
 import numpy as np
@@ -12,6 +13,7 @@ from numpy.typing import NDArray
 from scipy import stats
 
 FloatArray = NDArray[np.float64]
+IntArray = NDArray[np.int64]
 
 ROW_COVERAGE: Final = 0.90
 TAIL_DOF: Final = 3.0
@@ -25,31 +27,61 @@ def band_z() -> float:
     return float(stats.norm.ppf(0.5 + ROW_COVERAGE / 2.0))
 
 
-def descriptor_variance(
-    descriptor: FloatArray, size: FloatArray, focal: float, row: FloatArray, size_rel: FloatArray
-) -> FloatArray:
-    """(n, 3) variance of D = ((u - c_x) / s, (v - c_y) / s, f / s) per row: the pixel sigma
-    ``row`` on the column and the row, the relative size sigma ``size_rel`` on s,
-    var(D_xy) = (row / s)^2 + (D_xy size_rel)^2 and var(D_z) = (f / s size_rel)^2."""
-    pixel = (row / size)[:, None] ** 2 + (descriptor[:, :2] * size_rel[:, None]) ** 2
-    depth = (focal / size * size_rel) ** 2
-    return np.column_stack([pixel, depth])
-
-
-def slope_variance(
-    t: FloatArray, variance: FloatArray, rows: NDArray[np.int64], autocorrelation: float
-) -> FloatArray:
-    """(3,) variance of the least-squares slope over ``rows``: sum_t w_t^2 var_t, w_t =
-    (t - mean) / sum (t - mean)^2, times the autocorrelation factor rho = 1 + 2 sum_k rho_k."""
+def slope_weights(t: FloatArray, rows: IntArray) -> FloatArray:
+    """w_t = (t - mean) / sum (t - mean)^2 over ``rows``: the least-squares slope is w @ y."""
     times = t[rows] - float(np.mean(t[rows]))
-    weights = times / float(times @ times)
-    out: FloatArray = (weights**2) @ variance[rows] * autocorrelation
+    out: FloatArray = times / float(times @ times)
     return out
 
 
-def impulse_statistic(change: FloatArray, variance: FloatArray) -> float:
-    """q = sum_i change_i^2 / variance_i: chi-square with 3 dof when the rate does not change."""
-    return float(np.sum(change**2 / variance))
+def change_weights(t: FloatArray, before: IntArray, after: IntArray) -> tuple[IntArray, FloatArray]:
+    """Rows of both windows and the weights c with c @ y = slope after - slope before."""
+    rows = np.concatenate([before, after])
+    weights = np.concatenate([-slope_weights(t, before), slope_weights(t, after)])
+    return rows, weights
+
+
+def lag_correlation(rows: IntArray, autocorrelation: Sequence[float]) -> FloatArray:
+    """Correlation of the noise of two rows from their lag in rows: 1 at lag 0,
+    ``autocorrelation[k - 1]`` at lag k, 0 beyond it."""
+    table = np.concatenate([[1.0], np.asarray(autocorrelation, dtype=float), [0.0]])
+    lags = np.minimum(np.abs(rows[:, None] - rows[None, :]), table.size - 1)
+    out: FloatArray = table[lags]
+    return out
+
+
+def change_covariance(
+    rows: IntArray,
+    weights: FloatArray,
+    descriptor: FloatArray,
+    noise: tuple[FloatArray, FloatArray, FloatArray],
+    row_autocorrelation: Sequence[float],
+    size_autocorrelation: Sequence[float],
+) -> FloatArray:
+    """(3, 3) covariance of c @ D, D = ((u - c_x) / s, (v - c_y) / s, f / s), exact for the
+    first-order noise dD_t = (du_t / s_t, dv_t / s_t, 0) - D_t e_t: ``noise`` = (s, pixel sigma
+    of u and v, relative sigma of s) per row; u, v and e independent, each correlated across
+    rows by its own autocorrelation. Cov = (a' R_r a) I_xy + B' R_s B, a_t = c_t sigma_t / s_t,
+    B_t = c_t sigma_e,t D_t."""
+    size, pixel, relative = noise
+    a = weights * pixel[rows] / size[rows]
+    b = (weights * relative[rows])[:, None] * descriptor[rows]
+    out: FloatArray = b.T @ lag_correlation(rows, size_autocorrelation) @ b
+    out[:2, :2] += float(a @ lag_correlation(rows, row_autocorrelation) @ a) * np.eye(2)
+    return out
+
+
+def positive_definite(covariance: FloatArray) -> bool:
+    try:
+        np.linalg.cholesky(covariance)
+    except np.linalg.LinAlgError:
+        return False
+    return True
+
+
+def impulse_statistic(change: FloatArray, covariance: FloatArray) -> float:
+    """q = change' covariance^-1 change: chi-square with 3 dof when the rate does not change."""
+    return float(change @ np.linalg.solve(covariance, change))
 
 
 def evidence(q: float) -> float:

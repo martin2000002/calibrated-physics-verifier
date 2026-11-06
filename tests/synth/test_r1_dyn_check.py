@@ -12,6 +12,7 @@ import pytest
 from physverify.app.plugins import PLUGIN_KINDS
 from physverify.calibration.row_sigma import contact_rows, row_residuals
 from physverify.checks._base import Check, CheckInputs
+from physverify.checks.separate.r1_dyn_pass_through import image_track
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
 from physverify.schema.clip import ClipManifest, SamplingSpec, Split, TimeSource, resolve_sampling
 from physverify.schema.matching import IdMap, MatchMethod
@@ -148,25 +149,94 @@ def test_the_row_is_kept_out_of_the_nine_checks() -> None:
     assert list(PLUGIN_KINDS["separate_checks"]()) == ["R1_dyn"]
 
 
-def calibrated(sigma: float, size_sigma: float | None = None) -> Check:
+def calibrated(sigma: float, size_sigma: float | None = None, **lags: tuple[float, ...]) -> Check:
     cls = PLUGIN_KINDS["separate_checks"]()["R1_dyn"]
-    params = {"row_sigma": sigma, "size_sigma": size_sigma, "autocorrelation": 1.5}
+    params = {"row_sigma": sigma, "size_sigma": size_sigma, **lags}
     instance: Check = cls(cls.Params.model_validate(params))
     return instance
+
+
+def without_sigma(inputs: CheckInputs) -> CheckInputs:
+    unknown = np.full_like(inputs.states.position_sigma, np.nan)
+    return dataclasses.replace(
+        inputs, states=dataclasses.replace(inputs.states, position_sigma=unknown)
+    )
+
+
+def hand_statistic(inputs: CheckInputs, first_frame: int, row: float, size: float) -> float:
+    """max_b q_b computed by hand: per body the two least-squares rates of D around the first
+    matched row and q = Delta' (Sigma_before + Sigma_after)^-1 Delta, Sigma = sum_t w_t^2 C_t,
+    C_t = diag((row / s_t)^2, (row / s_t)^2, 0) + size^2 D_t D_t' (independent rows)."""
+    states = inputs.states
+    k = np.asarray(inputs.camera.K) if inputs.camera is not None else np.eye(3)
+    ids = [str(x) for x in states.object_ids]
+    tracks = [image_track(k, states, ids.index(body)) for body in PAIR]
+    usable = tracks[0].usable & tracks[1].usable
+    start = int(np.flatnonzero(states.frame_index == first_frame)[0])
+    windows = [np.flatnonzero(usable[:start]), start + np.flatnonzero(usable[start:])]
+    out = []
+    for track in tracks:
+        d = np.column_stack(
+            [
+                (track.contact[:, 0] - k[0, 2]) / track.size,
+                (track.contact[:, 1] - k[1, 2]) / track.size,
+                k[0, 0] / track.size,
+            ]
+        )
+        rates, sigma = [], np.zeros((3, 3))
+        for rows in windows:
+            rates.append(np.polyfit(states.t[rows], d[rows], 1)[0])
+            centred = states.t[rows] - states.t[rows].mean()
+            for w, r in zip(centred / (centred @ centred), rows, strict=True):
+                per_row = size**2 * np.outer(d[r], d[r])
+                per_row[:2, :2] += (row / track.size[r]) ** 2 * np.eye(2)
+                sigma += w**2 * per_row
+        change = rates[1] - rates[0]
+        out.append(float(change @ np.linalg.inv(sigma) @ change))
+    return max(out)
 
 
 def test_a_calibrated_row_sigma_replaces_the_unknown_one(
     bank: Any, plugins: dict[str, Any]
 ) -> None:
-    inputs = oracle_inputs(passed_through(plugins, bank.recorded(FAMILY), 3))
-    unknown = np.full_like(inputs.states.position_sigma, np.nan)
-    states = dataclasses.replace(inputs.states, position_sigma=unknown)
-    check = calibrated(1.5, 0.05)
-    result = pair_result(check.evaluate(dataclasses.replace(inputs, states=states)))
+    inputs = without_sigma(oracle_inputs(passed_through(plugins, bank.recorded(FAMILY), 3)))
+    check = calibrated(1.5, 0.05, row_autocorrelation=(0.6, 0.2), size_autocorrelation=(0.4,))
+    result = pair_result(check.evaluate(inputs))
     assert result.verdict is Verdict.UNSCORED, result.abstain_reason
     assert result.magnitude is not None and result.magnitude >= K_FRAMES * (1.0 - NO_IMPULSE)
     assert result.sigma is not None and 0.0 < result.sigma < float("inf")
     assert result.details["impulse_statistic"] >= 0.0
+
+
+@pytest.mark.parametrize("level", [0, 3])
+def test_the_impulse_statistic_is_q_of_both_windows(
+    bank: Any, plugins: dict[str, Any], level: int
+) -> None:
+    clip = bank.recorded(FAMILY)
+    inputs = without_sigma(oracle_inputs(passed_through(plugins, clip, level) if level else clip))
+    result = pair_result(calibrated(1.5, 0.05).evaluate(inputs))
+    assert result.verdict is Verdict.UNSCORED, result.abstain_reason
+    expected = hand_statistic(inputs, result.details["first_matched_frame"], 1.5, 0.05)
+    assert result.details["impulse_statistic"] == pytest.approx(expected, rel=1e-9)
+
+
+def test_a_separate_rate_sigma_moves_q_but_not_the_match(
+    bank: Any, plugins: dict[str, Any]
+) -> None:
+    inputs = without_sigma(oracle_inputs(passed_through(plugins, bank.recorded(FAMILY), 3)))
+    cls = PLUGIN_KINDS["separate_checks"]()["R1_dyn"]
+    params = {"row_sigma": 1.5, "rate_row_sigma": 0.75, "size_sigma": 0.05}
+    split = pair_result(cls(cls.Params.model_validate(params)).evaluate(inputs))
+    same = pair_result(calibrated(1.5, 0.05).evaluate(inputs))
+    assert split.details["matched_frames"] == same.details["matched_frames"]
+    assert split.details["impulse_statistic"] > same.details["impulse_statistic"]
+
+
+def test_without_overlapping_rows_sigma_is_exactly_zero(bank: Any) -> None:
+    inputs = without_sigma(oracle_inputs(bank.recorded(FAMILY)))
+    results = calibrated(1.5, 0.05).evaluate(inputs)
+    apart = [r for r in results if r.details.get("overlap_rows") == 0]
+    assert apart and all(r.magnitude == 0.0 and r.sigma == 0.0 for r in apart)
 
 
 def test_a_row_sigma_without_a_size_sigma_abstains(bank: Any, plugins: dict[str, Any]) -> None:
