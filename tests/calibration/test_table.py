@@ -84,6 +84,15 @@ def test_an_eval_clip_cannot_be_fitted_on() -> None:
     assert build_rows(bad, CHECKS, COUPLINGS, InputLevel.ORACLE)
 
 
+@pytest.mark.parametrize("split", [None, Split.CALIB, Split.EVAL])
+def test_a_training_clip_is_refused_under_any_split(split: Split | None) -> None:
+    report = synthetic_report(2)
+    leaked = replace(report.clips[0], split=Split.TRAIN)
+    bad = VerificationReport(report.results, report.table, (leaked, *report.clips[1:]))
+    with pytest.raises(CalibrationDataError, match="split=train"):
+        build_rows(bad, CHECKS, COUPLINGS, InputLevel.ORACLE, split=split)
+
+
 def test_rows_must_share_one_time_step() -> None:
     rows = build_rows(synthetic_report(1), CHECKS, COUPLINGS, InputLevel.ORACLE)
     assert unique_row_step(rows) == 1

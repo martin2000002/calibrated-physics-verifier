@@ -100,8 +100,10 @@ def build_rows(
     split: Split | None = None,
 ) -> tuple[CalibrationRow, ...]:
     """Rows of ``report``; with ``split`` every clip must belong to it (calib and eval never mix:
-    error, not warning)."""
+    error, not warning). A split=train clip is never read: it is a learned variant's training
+    data."""
     clips = {clip.clip_id: clip for clip in report.clips}
+    _refuse_training(clips.values())
     if split is not None:
         _require_split(clips.values(), split)
     subjects = results_by_row(report.results)
@@ -147,6 +149,15 @@ def _require_split(clips: Collection[ClipManifest], split: Split) -> None:
     if wrong:
         raise CalibrationDataError(
             f"{len(wrong)} clips are not split={split.value} and cannot be fitted on: {wrong[:5]}"
+        )
+
+
+def _refuse_training(clips: Collection[ClipManifest]) -> None:
+    found = sorted(clip.clip_id for clip in clips if clip.split is Split.TRAIN)
+    if found:
+        raise CalibrationDataError(
+            f"{len(found)} clips are split={Split.TRAIN.value}, training data that is never "
+            f"calibrated or evaluated on: {found[:5]}"
         )
 
 
