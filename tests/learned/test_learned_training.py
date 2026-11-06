@@ -189,7 +189,8 @@ def test_invisibility_markers() -> None:
     assert ray_angle_deg([0.0, 0.1, 0.0], camera) == pytest.approx(0.0)
     assert offset_invisible(along, camera)
     assert not offset_invisible(across, camera)
-    assert not offset_invisible(record("r2_offset", ("R2",)), camera)
+    assert offset_invisible(along, camera, max_angle_deg=0.0) is False
+    assert offset_invisible(record("r2_offset", ("R2",)), camera) is None
     assert zone_invisible(0.0)
     assert not zone_invisible(0.01)
 
@@ -203,6 +204,8 @@ def test_invisibility_per_check_is_undetermined_without_its_evidence() -> None:
     assert invisible("R1", PositiveEvidence(along, camera, float("nan"))) is None
     assert invisible("R2", PositiveEvidence(along, camera, None)) is True
     assert invisible("R2", PositiveEvidence(along, None, 0.0)) is None
+    no_offset = record("r2_offset", ("R2",))
+    assert invisible("R2", PositiveEvidence(no_offset, camera, 0.0)) is None
     assert invisible("R5", PositiveEvidence(along, camera, 0.0)) is None
 
 

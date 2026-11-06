@@ -2,12 +2,12 @@
 
 - Interpenetration: the ground-truth contact zone of the perturbed pair never shows a pixel
   (its ``zone_px_share_max`` over the clip is 0).
-- Support offset: the recorded offset points within ``max_angle_deg`` of the camera's line of
-  sight, so the overhang barely moves the image. The line of sight is approximated by the ray
-  from the camera position to its look-at point, not to the moved body.
+- Support offset: the recorded offset points strictly within ``max_angle_deg`` of the camera's
+  line of sight, so the overhang barely moves the image. The line of sight is approximated by the
+  ray from the camera position to its look-at point, not to the moved body.
 
-``invisible`` answers per check; None when the evidence it needs is missing (the positive is then
-not marked invisible).
+``invisible`` answers per check; None when the evidence it needs is missing (no zone share, no
+camera, no recorded offset): the positive is then not marked invisible.
 """
 
 from __future__ import annotations
@@ -41,12 +41,13 @@ def ray_angle_deg(offset: Sequence[float], camera: CameraSpec) -> float:
 
 def offset_invisible(
     record: PerturbationRecord, camera: CameraSpec, max_angle_deg: float = MAX_ANGLE_DEG
-) -> bool:
+) -> bool | None:
+    """None when the record holds no offset."""
     offset = record.params.get(OFFSET_KEY)
     if not isinstance(offset, list | tuple):
-        return False
+        return None
     angle = ray_angle_deg([float(v) for v in offset], camera)
-    return bool(angle <= max_angle_deg)
+    return bool(angle < max_angle_deg)
 
 
 @dataclass(frozen=True)
