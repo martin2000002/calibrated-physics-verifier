@@ -123,7 +123,7 @@ ORDER: Mapping[str, tuple[str, ...]] = {
     ),
     "centre_strategies": ("contour_circle", "surface_median"),
     "event_gates": ("reciprocal_jump",),
-    "event_scopes": ("two_sided_spheres_isolated",),
+    "event_scopes": ("pre_contact_approach", "two_sided_spheres_isolated"),
     "timing_targets": (
         "dpo_step",
         "extract_pipeline",

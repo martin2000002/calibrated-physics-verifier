@@ -74,7 +74,8 @@ reference = "others"
 # detected event must pass, e.g. checks.R3b/image_relspeed.event_gates=["reciprocal_jump"].
 # Its event_scopes (none by default) name the scopes of checks/variants/event_scopes/ a measured
 # event must lie in; outside one it is NOT_APPLICABLE, which neither votes nor abstains, e.g.
-# checks.R3b/image_relspeed.event_scopes=["two_sided_spheres_isolated"].
+# checks.R3b/image_relspeed.event_scopes=["two_sided_spheres_isolated"] or, deciding on the rows
+# before the pair's first approach only, ["pre_contact_approach"].
 # A provisional tau is read in the unit of the check's default implementation unless
 # verification.threshold_units.<id> says otherwise; a tau whose unit is not the unit of the
 # configured check, or a calibrated table fitted with other check parameters or variants (its
