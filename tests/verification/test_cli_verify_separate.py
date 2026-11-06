@@ -274,3 +274,19 @@ def test_each_fold_runs_with_its_own_row_sigma_in_clip_order(
 def test_an_unknown_row_law_is_refused(cli: CliRunner) -> None:
     assert cli(COMMAND, *CALIB_DATASET, *FIT, "--row-law", "mad").code == EXIT_USAGE
 
+
+def test_a_true_lift_runs_with_the_true_camera(
+    cli: CliRunner, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seen: list[tuple[Stage, ...]] = []
+
+    def inputs(
+        context: AppContext, source: Any, level: InputLevel, stages: Sequence[Stage]
+    ) -> InputSource:
+        seen.append(tuple(stages))
+        return OracleSource(source)
+
+    monkeypatch.setattr(separate_rows, "input_source", inputs)
+    result = cli(COMMAND, *DATASET, "--level", "perceived", "--gt", "lift")
+    assert result.code == 0, result.err
+    assert seen == [(Stage.CAMERA, Stage.LIFT)]

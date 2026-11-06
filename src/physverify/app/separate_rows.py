@@ -69,10 +69,11 @@ def run_separate(
     """Run the separate rows with their default parameters, R1_dyn with the fold noise of the
     ``row_sigma`` artifact when given; whether a row errored."""
     input_level = parse_level(level, gt, sweep=False)
-    fitted = None if row_sigma is None else _fitted(row_sigma, input_level, parse_stages(gt))
+    stages = gt_stages(gt)
+    fitted = None if row_sigma is None else _fitted(row_sigma, input_level, stages)
     source = dataset_for(context, dataset)
     selected = select_clips(source.clips(subset), clips)
-    inputs = input_source(context, source, input_level, parse_stages(gt))
+    inputs = input_source(context, source, input_level, stages)
     run_dir = new_run(context.settings, context.invocation.argv).run_dir
     echo(f"run: {run_dir}")
     selection = [Selection(source.name, subset, tuple(selected))]
@@ -104,7 +105,7 @@ def fit_separate_row_sigma(
     """Fit R1_dyn's contact-row and image-size noise on the clean calib clips of the selection
     (perceived against ground truth; a clip without inputs or subjects is listed without
     residuals) with the band ``law``; the artifact's path."""
-    input_level, stages = parse_level(level, gt, sweep=False), parse_stages(gt)
+    input_level, stages = parse_level(level, gt, sweep=False), gt_stages(gt)
     if input_level is InputLevel.ORACLE:
         raise UsageError("the row sigma is fitted on perceived inputs (it is 0 in the oracle)")
     source = dataset_for(context, dataset)
@@ -134,6 +135,13 @@ def fit_separate_row_sigma(
     echo(f"clips without residuals: {len(fitted.clips_without_residuals)}")
     echo(f"row sigma: {path}")
     return path
+
+
+def gt_stages(gt: Sequence[str]) -> tuple[Stage, ...]:
+    """The ``--gt`` stages, with CAMERA added when LIFT is ground truth: the true states are
+    lifted with the true camera, and R1_dyn projects them with the camera it is given."""
+    stages = parse_stages(gt)
+    return parse_stages([*gt, Stage.CAMERA.value]) if Stage.LIFT in stages else stages
 
 
 def _fitted(path: Path, level: InputLevel, stages: Sequence[Stage]) -> RowSigma:
