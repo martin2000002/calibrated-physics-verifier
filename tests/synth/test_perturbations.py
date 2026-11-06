@@ -45,6 +45,7 @@ OWN_KEY = {
     "r5a_gravity_switch": "R5a",
     "r5a_object_gravity": "R5a",
     "r5b_gravity_scale": "R5b",
+    "r5b_known_size_gravity_scale": "R5b",
 }
 PLUGINS = PLUGIN_KINDS["perturbations"]()
 APPLICABLE = {
@@ -178,7 +179,10 @@ def sweep(bank: Any, clean_ds: DatasetSettings, perturbations: Any, truth_measur
 
 
 def test_the_families_cover_every_plugin(plugins: dict[str, Any]) -> None:
-    covered = set().union(*APPLICABLE.values()) | {"r5b_gravity_scale"}
+    covered = set().union(*APPLICABLE.values()) | {
+        "r5b_gravity_scale",
+        "r5b_known_size_gravity_scale",
+    }
     assert covered == set(plugins) - {"none"} == set(OWN_KEY)
 
 

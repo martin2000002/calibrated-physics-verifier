@@ -52,8 +52,16 @@ ORDER: Mapping[str, tuple[str, ...]] = {
         "r5a_gravity_switch",
         "r5a_object_gravity",
         "r5b_gravity_scale",
+        "r5b_known_size_gravity_scale",
     ),
-    "families": ("f1_projectile", "f2_bounce", "f3_collision", "f4_stack", "f5_contact"),
+    "families": (
+        "f1_projectile",
+        "f2_bounce",
+        "f3_collision",
+        "f4_stack",
+        "f5_contact",
+        "f6_known_size",
+    ),
     "datasets": (
         "kubric_fresh",
         "kubric_fresh_ood",

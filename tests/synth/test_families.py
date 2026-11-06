@@ -64,16 +64,17 @@ def test_scenes_are_seeded_and_distinct(
 
 
 def test_objects_are_known_sized_and_above_the_floor(
-    samples: list[SceneSpec], priors: dict[str, Any], ds: DatasetSettings
+    samples: list[SceneSpec], priors: dict[str, Any], ds: DatasetSettings, families: Any
 ) -> None:
+    # A family may film its own clip (f6: clip_frames, clip_resolution) and draw a named
+    # regulation-size object (f6: label) instead of a size prior.
+    params: Any = family_params(families[samples[0].family], ds, dict(priors))
+    frames = getattr(params, "clip_frames", ds.n_frames)
+    side = getattr(params, "clip_resolution", ds.resolution)
     for spec in samples:
-        assert (spec.n_frames, spec.frame_rate, spec.resolution) == (
-            ds.n_frames,
-            ds.fps,
-            (ds.resolution, ds.resolution),
-        )
+        assert (spec.n_frames, spec.frame_rate, spec.resolution) == (frames, ds.fps, (side, side))
         for obj in spec.objects:
-            assert obj.label in priors
+            assert obj.label in priors or obj.label == getattr(params, "label", None)
             assert min(obj.extents) > 0.0 and obj.mass > 0.0
             assert obj.position[2] >= rest_height(obj.extents) - 1e-6
 
