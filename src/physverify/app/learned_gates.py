@@ -15,6 +15,7 @@ import math
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
+from typing import Protocol, runtime_checkable
 
 from physverify.app.context import AppContext
 from physverify.app.learned import selected_clips, training_clips
@@ -26,7 +27,6 @@ from physverify.core.feature_table import FeatureTable
 from physverify.core.output import Echo
 from physverify.datasets._base import DatasetSource
 from physverify.extraction.pair_features import ZONE_MAX
-from physverify.kubric_worker.build_scene import hdri_for
 from physverify.learned.arms import PERCEIVED_ARM, TRUTH_ARM
 from physverify.learned.controls import ControlResult, ControlSettings, Status, clip_scores
 from physverify.learned.gates import ArmScores, GateReport, run_gates
@@ -44,10 +44,8 @@ from physverify.schema.clip import ClipManifest
 from physverify.schema.scene import PerturbationRecord, SceneSpec
 from physverify.synth.perturb import seed_stream
 from physverify.synth.perturbations._base import PERTURBATIONS
-from physverify.synth.settings import load_dataset_settings
 
 GATES_COMMAND = "learned-gates"
-HDRI_BACKGROUND = "hdri"
 UNKNOWN_BACKGROUND = "unknown"
 
 
@@ -94,6 +92,13 @@ def aimed(app: AppContext) -> dict[str, tuple[str, ...]]:
     )
 
 
+@runtime_checkable
+class RenderedBackground(Protocol):
+    """A dataset that reads the background each clip's render recorded."""
+
+    def rendered_background(self, clip: ClipManifest) -> str | None: ...
+
+
 def _scene(dataset: DatasetSource, clip: ClipManifest) -> SceneSpec | None:
     try:
         store = dataset.ground_truth(clip)
@@ -102,13 +107,13 @@ def _scene(dataset: DatasetSource, clip: ClipManifest) -> SceneSpec | None:
     return None if store is None else store.scene()
 
 
-def scene_background(scene: SceneSpec | None, hdri_ids: Sequence[str]) -> str:
-    """The HDRI the render picked for the scene, its plain background, or unknown without truth."""
-    if scene is None:
+def scene_background(dataset: object, clip: ClipManifest) -> str:
+    """The background the clip's render recorded (its HDRI id or its kind), or unknown when the
+    render recorded none; never recomputed from the current configuration."""
+    if not isinstance(dataset, RenderedBackground):
         return UNKNOWN_BACKGROUND
-    if scene.background == HDRI_BACKGROUND:
-        return hdri_for(scene.seed, hdri_ids)
-    return scene.background
+    found = dataset.rendered_background(clip)
+    return UNKNOWN_BACKGROUND if found is None else found
 
 
 def target_zones(oracle: SampleSet | None) -> dict[str, float]:
@@ -134,7 +139,6 @@ def gate_facts(
 ) -> list[ClipFacts]:
     """``share``: the validation share the artifact was trained with."""
     zones = target_zones(oracle)
-    hdri_ids = load_dataset_settings(app.settings).effective_hdri_ids()
 
     def evidence(clip: ClipManifest, record: PerturbationRecord) -> PositiveEvidence:
         scene = _scene(dataset, clip)
@@ -142,7 +146,7 @@ def gate_facts(
         return PositiveEvidence(record, camera, zones.get(clip.clip_id))
 
     def background(clip: ClipManifest) -> str:
-        return scene_background(_scene(dataset, clip), hdri_ids)
+        return scene_background(dataset, clip)
 
     return validation_facts(clips, check_id, share, aimed(app), (evidence, background))
 

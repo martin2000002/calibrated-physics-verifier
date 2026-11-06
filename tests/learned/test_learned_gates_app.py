@@ -153,11 +153,15 @@ def test_the_target_zone_is_the_largest_over_target_subjects_only() -> None:
     assert target_zones(None) == {}
 
 
-def test_a_scene_background_is_its_rendered_hdri_its_kind_or_unknown() -> None:
-    hdri = SimpleNamespace(background="hdri", seed=3)
-    assert scene_background(hdri, ("a", "b")) == "b"  # type: ignore[arg-type]
-    assert scene_background(SimpleNamespace(background="plain"), ()) == "plain"  # type: ignore[arg-type]
-    assert scene_background(None, ("a",)) == "unknown"
+def test_a_scene_background_is_what_its_render_recorded_or_unknown() -> None:
+    def dataset(found: str | None) -> SimpleNamespace:
+        return SimpleNamespace(rendered_background=lambda clip: found)
+
+    clip = manifest()
+    assert scene_background(dataset("b"), clip) == "b"
+    assert scene_background(dataset("plain"), clip) == "plain"
+    assert scene_background(dataset(None), clip) == "unknown"
+    assert scene_background(SimpleNamespace(), clip) == "unknown"
 
 
 SHARE = 0.35
@@ -213,23 +217,16 @@ def test_a_well_formed_run_scores_the_validation_of_the_artifacts_share(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     held, trained, clips = scene_clips()
-    seeds = {s: 2 * i + (i % 2 if s in held else 0) for i, s in enumerate(held + trained)}
-    dataset = SimpleNamespace(clips=lambda subset: clips)
+    order = enumerate(held + trained)
+    rendered = {s: "unseen" if s in held and i % 2 else "seen" for i, s in order}
+    dataset = SimpleNamespace(
+        clips=lambda subset: clips,
+        rendered_background=lambda clip: rendered[clip.scene_id],
+    )
     monkeypatch.setattr(learned, "dataset_for", lambda app, name: dataset)
     monkeypatch.setattr(learned, "sealed_looks", lambda app, chosen, err: ())
     monkeypatch.setattr(learned_gates, "aimed", lambda app: {})
-    monkeypatch.setattr(
-        learned_gates,
-        "load_dataset_settings",
-        lambda settings: SimpleNamespace(effective_hdri_ids=lambda: ("seen", "unseen")),
-    )
-    monkeypatch.setattr(
-        learned_gates,
-        "_scene",
-        lambda dataset, clip: SimpleNamespace(
-            background="hdri", seed=seeds[clip.scene_id], camera=None
-        ),
-    )
+    monkeypatch.setattr(learned_gates, "_scene", lambda dataset, clip: SimpleNamespace(camera=None))
     artifact = SimpleNamespace(
         check_id="R1",
         encoder_sha256=SHA,

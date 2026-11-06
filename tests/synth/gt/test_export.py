@@ -15,7 +15,7 @@ import pytest
 
 from physverify.config.models import Settings
 from physverify.core.video import Mp4VideoSource
-from physverify.datasets._kubric_synthetic import KubricSynthetic, load_native
+from physverify.datasets._kubric_synthetic import KubricSynthetic, load_native, recorded_background
 from physverify.schema.contacts import ContactTable
 from physverify.schema.render import RenderLayers
 from physverify.schema.scene import CameraSpec, SceneSpec
@@ -285,6 +285,23 @@ def test_exported_clips_round_trip(
     native = load_native(store, clips[0].clip_id, ds.render.far_z_m)
     assert float(native.z.max()) < ds.render.far_z_m
     assert bool((native.z == 0.0).any())
+
+
+@pytest.mark.parametrize(
+    ("meta", "expected"),
+    [
+        ({"background": "hdri", "hdri_id": "abandoned_parking"}, "abandoned_parking"),
+        ({"background": "plain", "hdri_id": None}, "plain"),
+        ({"background": "hdri"}, None),
+        (None, None),
+    ],
+)
+def test_the_rendered_background_is_read_from_the_render_metadata(
+    tmp_path: Path, meta: dict[str, Any] | None, expected: str | None
+) -> None:
+    if meta is not None:
+        atomic_write_json(tmp_path / KUBRIC_META, meta)
+    assert recorded_background(tmp_path) == expected
 
 
 def test_npz_content_hash_ignores_the_zip_container(tmp_path: Path) -> None:

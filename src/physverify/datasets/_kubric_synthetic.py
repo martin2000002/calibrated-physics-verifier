@@ -29,6 +29,7 @@ from physverify.synth.store import (
     CONTACTS_CAMERA,
     CONTACTS_WORLD,
     GT_META,
+    KUBRIC_META,
     LAYERS,
     SPEC,
     STATES_CAMERA,
@@ -43,6 +44,7 @@ if TYPE_CHECKING:
     from physverify.config.models import Settings
     from physverify.synth.plan import DatasetPlan
 
+HDRI_BACKGROUND = "hdri"
 SPLITS = frozenset(s.value for s in Split if s is not Split.ALL)
 
 
@@ -82,6 +84,18 @@ def load_native(store: DatasetStore, clip_id: str, far_z_m: float) -> NativeGrou
         },
         scene=SceneSpec.load_json(store.scene_dir(str(meta["sim_id"])) / SPEC),
     )
+
+
+def recorded_background(clip_dir: Path) -> str | None:
+    """The HDRI id the render wrote into its metadata, or its background kind when it used none;
+    None when the render recorded neither (an HDRI render without its id is not guessed)."""
+    path = clip_dir / KUBRIC_META
+    if not path.is_file():
+        return None
+    meta = read_json(path)
+    background = meta.get("background")
+    found = meta.get("hdri_id") if background == HDRI_BACKGROUND else background
+    return None if found is None else str(found)
 
 
 class KubricSynthetic:
@@ -164,6 +178,9 @@ class KubricSynthetic:
                 f"{clip.clip_id}: ground truth not exported (`synth export-gt`)"
             )
         return ArrayGroundTruthStore(load_native(self._store, clip.clip_id, self._far_z_m))
+
+    def rendered_background(self, clip: ClipManifest) -> str | None:
+        return recorded_background(self._store.clip_dir(clip.clip_id))
 
     def fetch(self, subset: str | None, dest: Path) -> None:
         raise UsageError(
