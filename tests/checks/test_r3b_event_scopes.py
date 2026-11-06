@@ -141,6 +141,35 @@ def test_an_abstention_in_scope_keeps_its_reason() -> None:
     assert aggregate(case.clip.clip_id, RelSpeedCheck(SCOPED), scoped).status is RowStatus.ABSTAINED
 
 
+def renamed(case: sc.Case, clip_id: str) -> sc.Case:
+    assert case.contacts is not None
+    return replace(
+        case,
+        clip=replace(case.clip, clip_id=clip_id),
+        states=replace(case.states, clip_id=clip_id),
+        contacts=replace(case.contacts, clip_id=clip_id),
+    )
+
+
+def unseeded(results: Sequence[CheckResult]) -> list[tuple[Any, ...]]:
+    """``outputs`` without sigma and the bootstrap count, whose stream is seeded by the clip id."""
+    return [
+        (r.subject, r.magnitude, r.verdict, r.abstain_reason, r.details | {"boot_finite": None})
+        for r in results
+    ]
+
+
+@pytest.mark.parametrize("kind", [PrimitiveKind.SPHERE, PrimitiveKind.BOX])
+@pytest.mark.parametrize("truth", [False, True], ids=["perceived", "truth"])
+def test_the_scoped_result_does_not_depend_on_the_clip_id(kind: PrimitiveKind, truth: bool) -> None:
+    case = sc.collision(gain=0.2, kind=kind)
+    positive, clean = (
+        evaluated(SCOPED, renamed(case, clip_id), truth)
+        for clip_id in ("f3_collision-s000__r3_energy_gain_L1", "f3_collision-s000__none")
+    )
+    assert unseeded(positive) == unseeded(clean)
+
+
 class Recording:
     name: ClassVar[str] = "recording"
     seen: ClassVar[list[tuple[Any, ...]]] = []
