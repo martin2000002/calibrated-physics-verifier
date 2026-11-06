@@ -1,10 +1,12 @@
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import numpy as np
 import pytest
 
 from physverify.core.errors import ConfigError
+from physverify.extraction import crop_encoder
 from physverify.extraction.crop_encoder import (
     INPUT_PATCHES,
     PATCH_PX,
@@ -13,6 +15,7 @@ from physverify.extraction.crop_encoder import (
     vda_crop_encoder,
     verified_checkpoint,
 )
+from physverify.extraction.providers import _vda
 from physverify.extraction.providers._vda import CHECKPOINT
 from physverify.extraction.weights import weight_file
 
@@ -47,3 +50,24 @@ def test_the_configured_encoder_is_refused_before_loading_on_another_hash(
     checkpoint.write_bytes(b"not the checkpoint")
     with pytest.raises(ConfigError, match="expected"):
         vda_crop_encoder(paths)
+
+
+def test_the_encoder_and_the_depth_provider_share_one_loader(
+    make_settings: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[tuple[Any, ...]] = []
+
+    def build(*args: Any, **kwargs: Any) -> Any:
+        calls.append((*args, kwargs))
+        return SimpleNamespace(pretrained=None)
+
+    paths = make_settings().paths
+    monkeypatch.setattr(crop_encoder, "build_model", build)
+    monkeypatch.setattr(crop_encoder, "verified_checkpoint", lambda path: "sha")
+    monkeypatch.setattr(_vda, "build_model", build)
+    assert vda_crop_encoder(paths, "cpu").sha256 == "sha"
+    _vda.load_model(SimpleNamespace(paths=paths, device="cpu"))  # type: ignore[arg-type]
+    assert calls == [
+        (paths, "cpu", {"provider": "crop_encoder/vda_small"}),
+        (paths, "cpu", CHECKPOINT, False, "depth/vda_small", _vda.SMALL_ENCODER, {}),
+    ]

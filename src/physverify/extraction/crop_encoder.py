@@ -19,14 +19,8 @@ from physverify.config.models import PathsSettings
 from physverify.core.digests import file_sha256
 from physverify.core.errors import ConfigError
 from physverify.extraction.contact_crops import nearest_indices
-from physverify.extraction.providers._vda import (
-    CHECKPOINT,
-    CODE,
-    SMALL_ENCODER,
-    VENDORED_MODULE,
-    check_vendored_namespace,
-)
-from physverify.extraction.weights import local_path, vendored_import_path, weight_file
+from physverify.extraction.providers._vda import CHECKPOINT, build_model
+from physverify.extraction.weights import weight_file
 
 FloatArray = NDArray[np.float64]
 Backbone = Callable[[FloatArray], FloatArray]
@@ -80,27 +74,9 @@ def vda_backbone(model: object) -> Backbone:
     return run
 
 
-def load_crop_encoder(model: object, checkpoint_path: Path) -> CropEncoder:
-    """``model`` is the loaded VDA-S (``providers._vda.load_model``) whose weights came from
-    ``checkpoint_path``; the encoder is named by that file's verified sha256."""
-    return CropEncoder(vda_backbone(model), verified_checkpoint(checkpoint_path))
-
-
 def vda_crop_encoder(paths: PathsSettings, device: str = "cpu") -> CropEncoder:
-    """The VDA-S crop encoder from the configured weights, refused unless its hash matches.
-
-    Loads as ``providers._vda.load_model`` does; that loader takes a stage context and its
-    module is source-pinned under the depth providers, so it is not reshaped here."""
-    import importlib
-
-    import torch
-
-    checkpoint = weight_file(CHECKPOINT, paths)
-    sha = verified_checkpoint(checkpoint)
-    root = local_path(CODE, paths)
-    check_vendored_namespace(root, "crop_encoder/vda_small")
-    with vendored_import_path(root):
-        module = importlib.import_module(VENDORED_MODULE)
-    model = module.VideoDepthAnything(**SMALL_ENCODER.kwargs(), metric=False)
-    model.load_state_dict(torch.load(checkpoint, map_location=device, weights_only=True))
-    return CropEncoder(vda_backbone(model.to(device).eval()), sha)
+    """The VDA-S crop encoder from the configured weights, refused unless its hash matches."""
+    sha = verified_checkpoint(weight_file(CHECKPOINT, paths))
+    return CropEncoder(
+        vda_backbone(build_model(paths, device, provider="crop_encoder/vda_small")), sha
+    )

@@ -21,6 +21,7 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import BaseModel, Field
 
+from physverify.config.models import PathsSettings
 from physverify.core.errors import PluginError
 from physverify.core.resample import resize_depth
 from physverify.extraction._base import ProviderParams, StageContext, WeightKind, WeightSpec
@@ -168,15 +169,25 @@ def load_model(
 ) -> Any:
     """The vendored model; ``metric`` selects the metric head, which skips the per-window
     scale-and-shift alignment of the relative one (video_depth.py:135)."""
+    return build_model(ctx.paths, ctx.device, checkpoint, metric, provider, encoder)
+
+
+def build_model(
+    paths: PathsSettings,
+    device: str,
+    checkpoint: WeightSpec = CHECKPOINT,
+    metric: bool = False,
+    provider: str = "depth/vda_small",
+    encoder: Encoder = SMALL_ENCODER,
+) -> Any:
+    """``load_model`` from the configured paths, for a reader outside a stage context."""
     import torch
 
-    root = local_path(CODE, ctx.paths)
+    root = local_path(CODE, paths)
     check_vendored_namespace(root, provider)
     with vendored_import_path(root):
         module = importlib.import_module(VENDORED_MODULE)
     model = module.VideoDepthAnything(**encoder.kwargs(), metric=metric)
-    state = torch.load(
-        weight_file(checkpoint, ctx.paths), map_location=ctx.device, weights_only=True
-    )
+    state = torch.load(weight_file(checkpoint, paths), map_location=device, weights_only=True)
     model.load_state_dict(state, strict=True)
-    return model.to(ctx.device).eval()
+    return model.to(device).eval()

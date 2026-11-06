@@ -129,19 +129,19 @@
       "version": "2"
     },
     "depth/moge2": {
-      "digest": "de17a68324f4de7102e78eb3cb94204c60f0f0179eceb36bd31c526c11507dc2",
+      "digest": "a3fe7519b56ee4b9a55251d0710bd878385cbb8bcad89ea64da060f45341d286",
       "version": "1"
     },
     "depth/vda_large": {
-      "digest": "e35ffe8792d842bcaae704b4151ad859bbce6e6b81182140f332db6104730692",
+      "digest": "8e912f7d2a9125a98e7e2c85ffe8f98a53673b780f8b69d21e458646e118220d",
       "version": "1"
     },
     "depth/vda_metric_small": {
-      "digest": "2b89e0eaa219fdb259973207ed8e53cea16d6dd28a26bf298fd3e4a6db086686",
+      "digest": "a0d81c4b465da34f4a9868fafdb0683efaccbaaeff359ca1065dc39745099158",
       "version": "1"
     },
     "depth/vda_small": {
-      "digest": "7ab4f3e67f02e8a32caa2f491e91b69acc5c2cee492a5c2b6b4ae790baa91b16",
+      "digest": "b39d564716e04f60bfa00ea4c15cedf245f06dbaf75dfd8ed6a99fa72c71987c",
       "version": "1"
     },
     "detect/ground_truth": {
