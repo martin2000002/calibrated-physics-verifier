@@ -11,7 +11,7 @@ samples, then train it.
     PYTHONPATH=src python tools/train_learned.py plan --check R1 --dataset D --subset S \
         --out plan.json [--truth-share 0.5] [--evaluated MANIFEST...]
     PYTHONPATH=src python tools/train_learned.py gates --check R1 --dataset D --subset S \
-        --artifact A.npz --oracle T1.npz --perceived T0.npz --single-frame T0_single.npz \
+        --artifact A.npz --oracle TRUTH.npz --perceived PERCEIVED.npz --single-frame SINGLE.npz \
         [--hdri-dataset D --hdri-subset S --hdri H.npz] --out gates.json
     PYTHONPATH=src python tools/train_learned.py gates --dry-run --check R1 --dataset D \
         --subset S [--hdri-dataset D --hdri-subset S] --out populations.json
