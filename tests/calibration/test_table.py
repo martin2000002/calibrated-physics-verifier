@@ -11,6 +11,7 @@ from physverify.calibration.table import (
     CalibrationDataError,
     Role,
     build_rows,
+    is_clean,
     role_of,
     unique_row_step,
 )
@@ -39,6 +40,12 @@ def test_a_clean_clip_is_clean_with_or_without_a_none_record() -> None:
     assert role_of(clip("c"), "R4_jump", R4, COUPLINGS) is Role.CLEAN
     none = record(NONE, (), 0.0, "none", level=0)
     assert role_of(clip("c", perturbation=none), "R4_jump", R4, COUPLINGS) is Role.CLEAN
+
+
+def test_only_a_missing_or_none_record_is_clean() -> None:
+    assert is_clean(None)
+    assert is_clean(record(NONE, (), 0.0, "none", level=0))
+    assert not is_clean(record("r1_pass_through", ("R1_dyn",), 0.1, "pen_over_size"))
 
 
 def test_a_family_label_targets_the_check_with_the_same_unit() -> None:

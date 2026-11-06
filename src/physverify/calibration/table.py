@@ -70,6 +70,11 @@ def in_family(scene_id: str, family: str) -> bool:
     return family_of(scene_id) == family
 
 
+def is_clean(record: PerturbationRecord | None) -> bool:
+    """Whether a clip with this perturbation record is unperturbed (no record, or ``none``)."""
+    return record is None or record.name == NONE
+
+
 def role_of(
     clip: ClipManifest,
     check_id: str,
@@ -77,7 +82,7 @@ def role_of(
     couplings: Collection[tuple[str, str]],
 ) -> Role:
     record = clip.perturbation
-    if record is None or record.name == NONE:
+    if record is None or is_clean(record):
         return Role.CLEAN
     if check_id in target_check_ids(record, checks):
         return Role.POSITIVE if _injected(record) else Role.OFF_TARGET

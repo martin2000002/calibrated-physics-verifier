@@ -10,6 +10,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from pathlib import Path
 
+import numpy as np
+
 from physverify.app.calibration import subject_lookup
 from physverify.app.context import AppContext
 from physverify.app.sealing import Selection, guard_sealed
@@ -21,6 +23,7 @@ from physverify.calibration.row_sigma import (
     fit_row_sigma,
     row_residuals,
 )
+from physverify.calibration.table import is_clean
 from physverify.checks._image import FloatArray
 from physverify.checks.separate._base import SEPARATE_CHECKS
 from physverify.config.plugin_context import registry_of
@@ -95,12 +98,13 @@ def fit_separate_row_sigma(
     err: Echo,
 ) -> Path:
     """Fit R1_dyn's contact-row sigma on the clean calib clips of the selection (perceived rows
-    against ground-truth rows); the artifact's path."""
+    against ground-truth rows; a clip without inputs or subjects is listed without residuals);
+    the artifact's path."""
     input_level, stages = parse_level(level, gt, sweep=False), parse_stages(gt)
     if input_level is InputLevel.ORACLE:
         raise UsageError("the row sigma is fitted on perceived inputs (it is 0 in the oracle)")
     source = dataset_for(context, dataset)
-    selected = [c for c in select_clips(source.clips(subset), clips) if c.perturbation is None]
+    selected = [c for c in select_clips(source.clips(subset), clips) if is_clean(c.perturbation)]
     outside = sorted(c.clip_id for c in selected if c.split is not Split.CALIB)
     if outside:
         raise UsageError(f"the row sigma is fitted on calib clips only, not {outside[:5]}")
@@ -149,8 +153,9 @@ def _residuals(
     for seen, true in zip(perceived, truth, strict=True):
         subjects = lookup(seen.clip)
         if seen.inputs is None or true.inputs is None or subjects is None:
-            continue
-        out[seen.clip.clip_id] = row_residuals(seen.inputs, true.inputs, subjects.ids)
+            out[seen.clip.clip_id] = np.empty(0)
+        else:
+            out[seen.clip.clip_id] = row_residuals(seen.inputs, true.inputs, subjects.ids)
     return out
 
 
