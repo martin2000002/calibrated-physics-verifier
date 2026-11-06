@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+from types import MappingProxyType
 from typing import ClassVar
 
 import numpy as np
@@ -15,10 +17,16 @@ from physverify.extraction.area_depth import (
     mask_area,
     scale_depth_fields,
 )
-from physverify.extraction.lift_params import LiftParams
+from physverify.extraction.lift_params import KUBRIC_PRIMITIVES, LiftParams
 from physverify.extraction.providers._backproject import BackprojectLift
 from physverify.extraction.providers._common import expect_params
-from physverify.schema.states import ObjectStateTable
+from physverify.schema.states import ObjectStateTable, PrimitiveKind
+
+AREA_DEPTH_PRIMITIVES: Mapping[str, PrimitiveKind] = MappingProxyType(
+    {**KUBRIC_PRIMITIVES, "basketball": PrimitiveKind.SPHERE}
+)
+"""The synthetic labels plus the one-word regulation ball of the known-size scenes
+(``f6_known_size``); the other regulation balls already end in "ball"."""
 
 
 class AreaDepthLiftParams(LiftParams):
@@ -28,6 +36,9 @@ class AreaDepthLiftParams(LiftParams):
 
     # The smallest count whose median is one of the rows rather than the mean of two.
     min_rows: int = Field(default=3, ge=1)
+    primitive_by_label: dict[str, PrimitiveKind] = Field(
+        default_factory=lambda: dict(AREA_DEPTH_PRIMITIVES)
+    )
 
 
 class AreaDepthLift(BackprojectLift):
@@ -38,7 +49,8 @@ class AreaDepthLift(BackprojectLift):
     input route's lift it does not inherit overrides of the main lift's table."""
 
     name: ClassVar[str] = "backproject_area_depth"
-    version: ClassVar[str] = "1"
+    # 2: "basketball" is a sphere (AREA_DEPTH_PRIMITIVES).
+    version: ClassVar[str] = "2"
     Params: ClassVar[type[BaseModel]] = AreaDepthLiftParams
     derives_depth_from_size: ClassVar[bool] = True
 

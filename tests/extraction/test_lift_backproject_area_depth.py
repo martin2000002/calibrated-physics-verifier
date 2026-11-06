@@ -19,15 +19,18 @@ from physverify.extraction.area_depth import (
     mask_area,
     scale_depth_fields,
 )
+from physverify.extraction.lift_params import KUBRIC_PRIMITIVES, LiftParams
 from physverify.extraction.providers.lift_backproject import BackprojectLift
 from physverify.extraction.providers.lift_backproject_area_depth import (
+    AREA_DEPTH_PRIMITIVES,
     AreaDepthLift,
     AreaDepthLiftParams,
 )
 from physverify.schema.outputs import StageOutput
 from physverify.schema.perception import MaskTrack
 from physverify.schema.stages import STAGE_ORDER, Stage
-from physverify.schema.states import ObjectStateTable
+from physverify.schema.states import ObjectStateTable, PrimitiveKind
+from physverify.sizing.priors import lookup_label
 
 PERCEIVED_TRACK = "perceived_track"
 UNSCALED = ("quaternion", "visible", "in_frame", "border_cut", "nearer_cover", "primitive")
@@ -57,6 +60,15 @@ def masks_of(clip: SyntheticClip) -> MaskTrack:
     track = clip.ground_truth.masks(make_context(clip).sampling)
     assert isinstance(track, MaskTrack)
     return track
+
+
+def test_the_regulation_balls_are_spheres_only_for_the_area_depth_lift() -> None:
+    assert AreaDepthLiftParams().primitive_by_label == dict(AREA_DEPTH_PRIMITIVES)
+    assert all(AREA_DEPTH_PRIMITIVES[k] is v for k, v in KUBRIC_PRIMITIVES.items())
+    labels = AreaDepthLiftParams().primitive_by_label
+    for label in ("basketball", "tennis ball", "soccer ball"):
+        assert lookup_label(label, labels) is PrimitiveKind.SPHERE, label
+    assert lookup_label("basketball", LiftParams().primitive_by_label) is None
 
 
 def test_the_provider_is_registered_under_lift() -> None:

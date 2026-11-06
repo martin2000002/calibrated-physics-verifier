@@ -59,7 +59,7 @@ PRECISE_STAGE_KEYS_HASH = "d9b9e880768fb779384a271017fb36c975bb5e4290ebadaeee21e
 ``RUN_CHECKS_HASH["precise"]`` are what the defaults give with the same choices passed by
 ``--set``."""
 PRECISE_ROUTE_STAGE_KEYS_HASH = {
-    "area_depth": "0acea35986efeac48dc7923351f183b2c05f7f7cca3470ea03d0abae05908db4",
+    "area_depth": "17120872a995ebb9c968f4b59644636542e801ae75168e3f90a95042b70d207b",
 }
 """Per input route of the precise profile, the hash of every stage key of its plan, as
 ``PRECISE_STAGE_KEYS_HASH`` is of the main plan's."""
@@ -76,7 +76,7 @@ DATASET_CONTENT_HASH = {
     "fast": "7792797236e163025d89c1c518dc43ad8f90c3f511bd884e1969ca9bf1f2fa3e",
     "precise": "4a6829efdd64424d79dfc0941246de148ca50446e0f6f40738e3a02d1b8e8b4e",
 }
-NO_IDENTITY_STAGE_KEYS_HASH = "bb0af947e9bab945ec2abe3ad707daa2e80056dbfdf081b07904447b109e5acd"
+NO_IDENTITY_STAGE_KEYS_HASH = "f6b4241decf9f0a36816e1c35c3e0de9d2ff67d01fe9f9b1e1543d35830ae8fd"
 """Hash of ``STAGE_KEYS`` computed for a dataset without cache identity (PISA, Physics-IQ,
 Objectron): the table as it was before identities entered the key, so those caches stay valid,
 except the three GeoCalib cameras, whose version moved when their draw was seeded,
@@ -123,7 +123,7 @@ STAGE_KEYS = {
         "e0d1d4a13a47ad1ac473a2a02d84b2e465d36d313c79f0c14c861e3263f69cf8"
     ),
     "lift/backproject_area_depth": (
-        "cd92dfccf4ebd2064a83f4b0c05b32211f2debdf1dee34a61a0f87a1eed3b540"
+        "e2f10ad1683492cc1cc38fcfcb06c6e9376965f4403f702c09267fa6bbe3391b"
     ),
     "scale/free_fall": "35e953454486c4732ba0858bf2070e7ecc5ad18d0cd1b1c3375f86f5b2322f7d",
     "scale/metric_depth": "a3fdd8b10d7115559cae9de0560fe1cd4def96ca09efc43af114459ee8460c25",
