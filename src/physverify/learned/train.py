@@ -189,6 +189,7 @@ def train(
         float(np.sqrt(best[0])),
         encoder,
         training_seeds,
+        settings.validation_share,
     )
     log = TrainingLog(tuple(train_loss), tuple(val_loss), best[1], len(y), len(v_y))
     return Trained(artifact, log, held)

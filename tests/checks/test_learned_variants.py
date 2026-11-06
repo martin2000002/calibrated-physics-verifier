@@ -53,7 +53,7 @@ def artifact(check_id: str, track: tuple[str, ...], seeds: frozenset[int]) -> Le
     ones = Standardiser(np.zeros(len(dense)), np.ones(len(dense)))
     token_std = Standardiser(np.zeros(2), np.ones(2))
     return LearnedArtifact(
-        check_id, "u", dense, TOKENS, weights, ones, token_std, RMS, "enc", seeds
+        check_id, "u", dense, TOKENS, weights, ones, token_std, RMS, "enc", seeds, 0.2
     )
 
 

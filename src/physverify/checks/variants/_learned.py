@@ -50,6 +50,9 @@ class LearnedFields(FrozenModel):
 
 @dataclass(frozen=True)
 class LearnedArtifact:
+    """``validation_share``: the share of scenes held out for early stopping, which the gates read
+    back to score those scenes only."""
+
     check_id: str
     unit: str
     dense_columns: tuple[str, ...]
@@ -60,6 +63,7 @@ class LearnedArtifact:
     residual_rms: float
     encoder_sha256: str
     training_seeds: frozenset[int]
+    validation_share: float
 
     @property
     def meta(self) -> dict[str, Any]:
@@ -71,6 +75,7 @@ class LearnedArtifact:
             "residual_rms": self.residual_rms,
             "encoder_sha256": self.encoder_sha256,
             "hidden_layers": len(self.weights.hidden),
+            "validation_share": self.validation_share,
         }
 
     def save(self, path: Path) -> str:
@@ -118,6 +123,7 @@ class LearnedArtifact:
                 residual_rms=float(meta["residual_rms"]),
                 encoder_sha256=str(meta["encoder_sha256"]),
                 training_seeds=frozenset(int(s) for s in data["training_seeds"]),
+                validation_share=float(meta["validation_share"]),
             )
 
     def estimate(self, dense: FloatArray, tokens: FloatArray) -> FloatArray:

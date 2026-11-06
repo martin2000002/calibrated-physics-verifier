@@ -1,10 +1,11 @@
 from dataclasses import replace
+from pathlib import Path
 
 import numpy as np
 import pytest
 
 from physverify.app.learned import fit
-from physverify.checks.variants._learned import LeakageError
+from physverify.checks.variants._learned import LeakageError, LearnedArtifact
 from physverify.extraction.contact_crops import CropSettings
 from physverify.extraction.crop_encoder import CropEncoder
 from physverify.extraction.pair_features import (
@@ -231,3 +232,11 @@ def test_pair_row_matches_its_columns_and_reads_the_chosen_frames() -> None:
     assert touching.shape == apart.shape == (len(columns),)
     assert touching[columns.index(ZONE_MAX)] > 0.0
     assert apart[columns.index(ZONE_MAX)] == 0.0
+
+
+def test_the_artifact_keeps_the_validation_share_it_was_trained_with(tmp_path: Path) -> None:
+    settings = TrainSettings(max_epochs=2, validation_share=0.35)
+    trained = train(synthetic(4), settings, ("R1", "u", "sha"), frozenset({1}))
+    assert trained.artifact.validation_share == 0.35
+    trained.artifact.save(tmp_path / "a.npz")
+    assert LearnedArtifact.load(tmp_path / "a.npz").validation_share == 0.35

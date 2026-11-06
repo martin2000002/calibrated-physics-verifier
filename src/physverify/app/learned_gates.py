@@ -113,13 +113,14 @@ def gate_facts(
     clips: Sequence[ClipManifest],
     check_id: str,
     oracle: SampleSet | None,
+    share: float,
 ) -> list[ClipFacts]:
+    """``share``: the validation share the artifact was trained with."""
     zones = target_zones(oracle)
 
     def evidence(clip: ClipManifest, record: PerturbationRecord) -> PositiveEvidence:
         return PositiveEvidence(record, _camera(dataset, clip), zones.get(clip.clip_id))
 
-    share = TrainSettings().validation_share
     return validation_facts(clips, check_id, share, aimed(app), evidence)
 
 
@@ -142,10 +143,12 @@ def plan_gates(
     app: AppContext, selections: GateSelections, check_id: str, *, err: Echo
 ) -> dict[str, object]:
     """The populations of every gate and control, from the manifests alone: no sample, no score.
-    The visibility of a positive that needs ground-truth image rows stays undetermined."""
+    The visibility of a positive that needs ground-truth image rows stays undetermined; with no
+    artifact yet, the validation split is the one training will hold out."""
     dataset, clips = _training(app, selections.training, err)
     hdri = _hdri_clips(app, selections.hdri, err)
-    found = populations(gate_facts(app, dataset, clips, check_id, None))
+    share = TrainSettings().validation_share
+    found = populations(gate_facts(app, dataset, clips, check_id, None, share))
     if hdri is not None:
         found["C-hdri"] = _hdri_population(hdri, check_id)
     return {"check_id": check_id, "populations": found}
@@ -227,7 +230,7 @@ def gate_report(
         files.single_frame, PERCEIVED_ARM, allowed, replace(clip_rows, frames=MIDDLE_FRAME)
     )
     hdri_scores = _hdri_scores(artifact, hdri, files.hdri, check_id)
-    facts = gate_facts(app, dataset, clips, check_id, oracle)
+    facts = gate_facts(app, dataset, clips, check_id, oracle, artifact.validation_share)
     scores = ArmScores(
         arm_scores(artifact, oracle),
         arm_scores(artifact, perceived),
