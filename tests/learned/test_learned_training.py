@@ -186,6 +186,21 @@ def test_gates_read_the_auroc_lower_bound() -> None:
     assert not oracle_gate(weak, decoys, FAST).passed
 
 
+@pytest.mark.parametrize(
+    ("gate", "floor", "shift"), [(oracle_gate, 0.7, 1.0), (perceived_gate, 0.5, 0.3)]
+)
+def test_a_gate_fails_on_its_lower_bound_even_when_its_point_estimate_passes(
+    gate: object, floor: float, shift: float
+) -> None:
+    rng = np.random.default_rng(3)
+    decoys = scores(Role.DECOY, list(rng.normal(size=30)), "d")
+    positives = scores(Role.POSITIVE, list(rng.normal(size=30) + shift), "p")
+    result = gate(positives, decoys, FAST)  # type: ignore[operator]
+    assert result.value > floor
+    assert result.ci.low < floor
+    assert not result.passed
+
+
 def test_invisibility_markers() -> None:
     camera = CameraSpec((0.0, -5.0, 1.0), (0.0, 0.0, 1.0))
     along = replace(record("r2_offset", ("R2",)), params={"offset_m": [0.0, -0.1, 0.0]})
