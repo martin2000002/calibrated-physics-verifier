@@ -4,7 +4,7 @@ the relative image track, with no depth of either body."""
 from __future__ import annotations
 
 import math
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Any, ClassVar
 
 import numpy as np
@@ -30,6 +30,7 @@ from physverify.checks.variants._image_impulse import (
     truth_events,
     walk,
 )
+from physverify.checks.variants.event_gates._base import EventGate, build_gates, event_gates
 from physverify.physics.tracks import native_span
 from physverify.schema.checks import AbstainReason, CheckResult
 from physverify.schema.constants import ENV_ID
@@ -48,7 +49,8 @@ class RelSpeedParams(CommonParams):
     common fields only ``seed`` is read (``mc_draws`` stays as every check's Params has it).
 
     ``post_min_rows`` < ``side_min_rows`` admits a short after side (the rows a floor bounce
-    leaves), read by ``two_point_sigma``."""
+    leaves), read by ``two_point_sigma``. ``event_gates`` names the gates (``event_gates/``) a
+    detected event must pass; none by default."""
 
     gap_frames: float = Field(default=1.0, ge=0.0)
     bound_margin_rows: int = Field(default=1, ge=0)
@@ -64,6 +66,7 @@ class RelSpeedParams(CommonParams):
     boot_draws: int = Field(default=200, ge=2)
     boot_min_finite: float = Field(default=0.5, gt=0.0, le=1.0)
     post_min_rows: int = Field(default=3, ge=2)
+    event_gates: tuple[str, ...] = ()
 
     @model_validator(mode="after")
     def _post_within_side(self) -> RelSpeedParams:
@@ -183,8 +186,12 @@ class RelSpeedCheck:
     replaced_unit: ClassVar[str] = EnergyGainCheck.magnitude_unit
     Params: ClassVar[type[BaseModel]] = RelSpeedParams
 
-    def __init__(self, params: BaseModel) -> None:
+    def __init__(
+        self, params: BaseModel, gate_registry: Mapping[str, type[EventGate]] | None = None
+    ) -> None:
         self.params = as_params(RelSpeedParams, params)
+        registry = event_gates() if gate_registry is None else gate_registry
+        self.event_gates = build_gates(self.params.event_gates, registry)
 
     def evaluate(self, inputs: CheckInputs) -> list[CheckResult]:
         if inputs.contacts is None:
@@ -193,7 +200,7 @@ class RelSpeedCheck:
         found = (
             truth_events(inputs.contacts)
             if truth
-            else detect(inputs.states, inputs.contacts, self.params.gates())
+            else detect(inputs.states, inputs.contacts, self.params.gates(), self.event_gates)
         )
         clip_id, seed = inputs.clip.clip_id, self.params.seed
         rngs = (check_rng(seed, clip_id, self.check_id), check_rng(seed, clip_id, SHORT_STREAM))

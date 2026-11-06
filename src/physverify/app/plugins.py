@@ -17,6 +17,11 @@ from physverify.checks.variants._base import (
     validate_variant,
     variant_key,
 )
+from physverify.checks.variants.event_gates._base import (
+    EVENT_GATES,
+    EVENT_GATES_PACKAGE,
+    event_gates,
+)
 from physverify.config.models import Settings
 from physverify.config.plugin_context import PluginKind
 from physverify.core.errors import InvalidPluginError, UsageError
@@ -79,6 +84,7 @@ PLUGIN_PACKAGES: Mapping[str, str] = MappingProxyType(
         SCORERS.name: "physverify.finetune.scorers",
         TRUTH_MEASURES.name: "physverify.synth.truth_measures",
         CENTRE_STRATEGIES.name: CENTRES_PACKAGE,
+        EVENT_GATES.name: EVENT_GATES_PACKAGE,
     }
 )
 """The package each plugin kind is discovered from."""
@@ -116,6 +122,7 @@ PLUGIN_KINDS: Mapping[str, Callable[[], Registry[Any]]] = MappingProxyType(
             PLUGIN_PACKAGES[TRUTH_MEASURES.name], (TruthMeasure,), "check_id"
         ),
         CENTRE_STRATEGIES.name: centre_strategies,
+        EVENT_GATES.name: event_gates,
     }
 )
 """Perceived and ground-truth providers share ``providers`` (keys ``<stage>/<name>`` and

@@ -14,6 +14,7 @@ from __future__ import annotations
 import math
 from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import numpy as np
 from numpy.typing import NDArray
@@ -22,6 +23,9 @@ from physverify.physics.tracks import contact_window, row_step
 from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactKind, ContactRecord, ContactTable, ManifoldKind
 from physverify.schema.states import CoordFrame, ObjectStateTable
+
+if TYPE_CHECKING:
+    from physverify.checks.variants.event_gates._base import EventGate
 
 FloatArray = NDArray[np.float64]
 BoolArray = NDArray[np.bool_]
@@ -68,10 +72,16 @@ class LineFit:
 
 
 @dataclass(frozen=True)
-class _Candidate:
+class Candidate:
+    """A kink of the pair's relative track at row ``row``; ``left`` and ``right`` are the rows of
+    the two line fits."""
+
+    pair: tuple[int, int]
     row: int
     t: float
     z: float
+    left: tuple[int, ...]
+    right: tuple[int, ...]
 
 
 def image_track(states: ObjectStateTable, index: int) -> FloatArray:
@@ -147,7 +157,7 @@ def _candidate(
     k: int,
     pair: tuple[int, int],
     gates: Gates,
-) -> _Candidate | None:
+) -> Candidate | None:
     fi = np.asarray(states.frame_index, dtype=np.float64)
     left, right = walk(ok, k - 1, -1, gates.side_max), walk(ok, k + 1, 1, gates.side_max)
     if len(left) < gates.side_min or len(right) < gates.side_min:
@@ -178,12 +188,12 @@ def _candidate(
     radii = apparent_radius(states, pair[0], k, half) + apparent_radius(states, pair[1], k, half)
     if not math.isfinite(radii) or float(np.linalg.norm(de)) > gates.kappa * radii:
         return None
-    return _Candidate(k, t0 + tau, z)
+    return Candidate(pair, k, t0 + tau, z, tuple(left), tuple(right))
 
 
-def _merged(found: Sequence[_Candidate], merge_rows: int) -> list[_Candidate]:
+def _merged(found: Sequence[Candidate], merge_rows: int) -> list[Candidate]:
     """One candidate per run of rows with gaps <= ``merge_rows``: the largest z."""
-    runs: list[list[_Candidate]] = []
+    runs: list[list[Candidate]] = []
     for c in sorted(found, key=lambda c: c.row):
         if runs and c.row - runs[-1][-1].row <= merge_rows:
             runs[-1].append(c)
@@ -192,8 +202,14 @@ def _merged(found: Sequence[_Candidate], merge_rows: int) -> list[_Candidate]:
     return [max(run, key=lambda c: c.z) for run in runs]
 
 
-def detect(states: ObjectStateTable, contacts: ContactTable | None, gates: Gates) -> list[Event]:
-    """Image impulse events of every pair of tracked bodies, outside their ENV records."""
+def detect(
+    states: ObjectStateTable,
+    contacts: ContactTable | None,
+    gates: Gates,
+    event_gates: Sequence[EventGate] = (),
+) -> list[Event]:
+    """Image impulse events of every pair of tracked bodies, outside their ENV records; a merged
+    candidate is dropped unless every one of ``event_gates`` accepts it."""
     env = env_records(contacts)
     ids = [str(o) for o in states.object_ids]
     tracks = [image_track(states, i) for i in range(states.n_objects)]
@@ -208,8 +224,13 @@ def detect(states: ObjectStateTable, contacts: ContactTable | None, gates: Gates
                 for k in np.flatnonzero(ok)
                 if (c := _candidate(states, d, ok, int(k), (i, j), gates)) is not None
             ]
+            kept = [
+                c
+                for c in _merged(found, gates.merge_rows)
+                if all(g.accepts(states, c, gates) for g in event_gates)
+            ]
             a, b = sorted((ids[i], ids[j]))
-            out += [Event(a, b, c.t, c.z) for c in _merged(found, gates.merge_rows)]
+            out += [Event(a, b, c.t, c.z) for c in kept]
     return sorted(out, key=lambda e: (e.t, e.a, e.b))
 
 

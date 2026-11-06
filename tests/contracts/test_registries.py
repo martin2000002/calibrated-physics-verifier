@@ -26,7 +26,14 @@ KINDS = (
     "timing_targets",
 )
 ADDED_KINDS = frozenset(
-    {"judges", "scorers", "truth_measures", "check_variants", "centre_strategies"}
+    {
+        "judges",
+        "scorers",
+        "truth_measures",
+        "check_variants",
+        "centre_strategies",
+        "event_gates",
+    }
 )
 CLI_KIND = "commands"
 
@@ -114,6 +121,7 @@ ORDER: Mapping[str, tuple[str, ...]] = {
         "R5b",
     ),
     "centre_strategies": ("contour_circle", "surface_median"),
+    "event_gates": ("reciprocal_jump",),
     "timing_targets": (
         "dpo_step",
         "extract_pipeline",

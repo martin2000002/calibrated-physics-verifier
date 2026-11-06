@@ -70,6 +70,8 @@ reference = "others"
 # check_variants.R3b=image_relspeed verification.thresholds.R3b=<tau>
 # verification.threshold_units.R3b=log_normal_speed_ratio
 # calibration.tau_tolerance_units.R3b=log_normal_speed_ratio.
+# Its event_gates (none by default) name the gates of checks/variants/event_gates/ that every
+# detected event must pass, e.g. checks.R3b/image_relspeed.event_gates=["reciprocal_jump"].
 # A provisional tau is read in the unit of the check's default implementation unless
 # verification.threshold_units.<id> says otherwise; a tau whose unit is not the unit of the
 # configured check, or a calibrated table fitted with other check parameters or variants (its
