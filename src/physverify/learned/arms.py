@@ -60,3 +60,7 @@ def arm_groups(clip_ids: Iterable[str], seed: int, share: float) -> dict[Arm, li
     for clip_id in clip_ids:
         groups.setdefault(drawn_arm(clip_id, seed, share), []).append(clip_id)
     return {arm: groups[arm] for arm in ARMS if arm in groups}
+
+
+TRUTH_ARM = arm_name((True,) * len(ARM_STAGES))
+PERCEIVED_ARM = arm_name((False,) * len(ARM_STAGES))

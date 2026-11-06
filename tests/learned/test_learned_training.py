@@ -29,7 +29,13 @@ from physverify.learned.controls import (
 )
 from physverify.learned.samples import Role, Sample, SampleSet, clip_role, target
 from physverify.learned.train import TrainSettings, is_validation, split, train
-from physverify.learned.visibility import offset_invisible, ray_angle_deg, zone_invisible
+from physverify.learned.visibility import (
+    PositiveEvidence,
+    invisible,
+    offset_invisible,
+    ray_angle_deg,
+    zone_invisible,
+)
 from physverify.schema.checks import InputLevel
 from physverify.schema.scene import CameraSpec, MagnitudeKind, PerturbationRecord
 from physverify.schema.stages import Stage
@@ -186,6 +192,18 @@ def test_invisibility_markers() -> None:
     assert not offset_invisible(record("r2_offset", ("R2",)), camera)
     assert zone_invisible(0.0)
     assert not zone_invisible(0.01)
+
+
+def test_invisibility_per_check_is_undetermined_without_its_evidence() -> None:
+    camera = CameraSpec((0.0, -5.0, 1.0), (0.0, 0.0, 1.0))
+    along = replace(record("r2_offset", ("R2",)), params={"offset_m": [0.0, -0.1, 0.0]})
+    assert invisible("R1", PositiveEvidence(along, None, 0.0)) is True
+    assert invisible("R1", PositiveEvidence(along, None, 0.3)) is False
+    assert invisible("R1", PositiveEvidence(along, camera, None)) is None
+    assert invisible("R1", PositiveEvidence(along, camera, float("nan"))) is None
+    assert invisible("R2", PositiveEvidence(along, camera, None)) is True
+    assert invisible("R2", PositiveEvidence(along, None, 0.0)) is None
+    assert invisible("R5", PositiveEvidence(along, camera, 0.0)) is None
 
 
 def frames(meet: bool) -> PairFrames:
