@@ -57,10 +57,14 @@ def test_the_dry_run_plans_every_step_and_trains_nothing(box: Sandbox) -> None:
             line
             for check in ("R1", "R2")
             for line in (
-                f"{SETTINGS}{LEARNED}plan --check {check} {SELECT} --out {out}/{check}/plan.json "
-                "--evaluated calib.jsonl",
-                f"{SETTINGS}{LEARNED}gates --dry-run --check {check} {SELECT} "
-                f"--out {out}/{check}/gate_populations.json",
+                (
+                    f"{SETTINGS}{LEARNED}plan --check {check} {SELECT} "
+                    f"--out {out}/{check}/plan.json --evaluated calib.jsonl"
+                ),
+                (
+                    f"{SETTINGS}{LEARNED}gates --dry-run --check {check} {SELECT} "
+                    f"--out {out}/{check}/gate_populations.json"
+                ),
             )
         ),
     ]
@@ -75,9 +79,11 @@ def gate_readings(out: Path, check: str) -> list[str]:
             f"--images {out}/{table}.npz --out {d}/samples_{name}.npz"
             for name, share, table in readings
         ),
-        f"{SETTINGS}{LEARNED}gates --check {check} {SELECT} --artifact {d}/{ARTIFACT_SHA}.npz "
-        f"--oracle {d}/samples_t1.npz --perceived {d}/samples_t0.npz "
-        f"--single-frame {d}/samples_t0_single.npz --out {d}/gates.json",
+        (
+            f"{SETTINGS}{LEARNED}gates --check {check} {SELECT} --artifact {d}/{ARTIFACT_SHA}.npz "
+            f"--oracle {d}/samples_t1.npz --perceived {d}/samples_t0.npz "
+            f"--single-frame {d}/samples_t0_single.npz --out {d}/gates.json"
+        ),
     ]
 
 
@@ -108,8 +114,10 @@ def test_training_warms_builds_the_tables_trains_then_gates_each_check(box: Sand
         f"{SETTINGS}{LEARNED}images {SELECT} --out {out}/pairs.npz",
         f"{SETTINGS}{LEARNED}images {SELECT} --truth-share 1 --out {out}/pairs_t1.npz",
         f"{SETTINGS}{LEARNED}images {SELECT} --truth-share 0 --out {out}/pairs_t0.npz",
-        f"{SETTINGS}{LEARNED}images {SELECT} --truth-share 0 --single-frame "
-        f"--out {out}/pairs_t0_single.npz",
+        (
+            f"{SETTINGS}{LEARNED}images {SELECT} --truth-share 0 --single-frame "
+            f"--out {out}/pairs_t0_single.npz"
+        ),
         *trained,
     ]
 
