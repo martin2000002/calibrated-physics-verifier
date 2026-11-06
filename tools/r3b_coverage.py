@@ -4,8 +4,9 @@
 
 Each input holds serialized ``CheckResult`` records (a ``verify`` run's ``checks.jsonl``). A clip
 has an event when the check returned a result for it, and is in scope when one of those results is
-not ``NOT_APPLICABLE``. ``roles.csv`` (columns ``clip_id,role``) splits the counts by role; without it
-every clip is ``all``. Only reasons and ``details`` are read, never verdicts against a threshold.
+not ``NOT_APPLICABLE``. ``roles.csv`` (columns ``clip_id,role``) splits the counts by role;
+without it every clip is ``all``. Only reasons and ``details`` are read, never verdicts against
+a threshold.
 """
 
 from __future__ import annotations
