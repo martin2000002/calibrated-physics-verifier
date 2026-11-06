@@ -128,6 +128,29 @@ def test_the_coverage_gap_is_compared_exactly_at_its_bound(
     assert report.results["G-L1"].detail.startswith("biased coverage") is biased
 
 
+@pytest.mark.parametrize(
+    ("arm", "gate", "role"),
+    [
+        ("oracle", "G-L0", "positive"),
+        ("oracle", "G-L0", "decoy"),
+        ("perceived", "G-L1", "positive"),
+        ("perceived", "G-L1", "decoy"),
+    ],
+)
+def test_a_side_with_enough_clips_but_too_few_scored_is_undefined(
+    arm: str, gate: str, role: str
+) -> None:
+    found = facts()
+    kept = {f"{role}{i}" for i in range(4)}
+    scores = without(separating(found), lambda k: k.startswith(role) and k not in kept)
+    report = gates(found, **{arm: scores})
+    result = report.results[gate]
+    assert report.unscored[gate]["visible" if role == "positive" else role]["clips"] >= 5
+    assert result.status is Status.FAIL
+    assert result.detail.startswith("undefined: fewer than 5 scored clips")
+    assert not report.perceived_passed
+
+
 def test_unscored_clips_are_counted_per_gate_and_side() -> None:
     found = facts()
     no_clean = without(separating(found), lambda k: k in {"clean0", "clean1"})
