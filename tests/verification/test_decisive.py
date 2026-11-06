@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, ClassVar
 
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
@@ -17,6 +17,7 @@ NAN = math.nan
 class Item:
     verdict: Verdict
     magnitude: float | None
+    abstain_reason: AbstainReason | None = None
 
 
 def test_size_ranks_none_and_nan_below_every_number() -> None:
@@ -100,3 +101,31 @@ def test_a_nan_subject_listed_first_does_not_set_the_row_magnitude() -> None:
     results = _results(("a", NAN, Verdict.PASS), ("b", 0.2, Verdict.PASS))
     row = aggregate("clip", CHECK, results)
     assert row.verdict is Verdict.PASS and row.magnitude == 0.2
+
+
+def _not_applicable(subject: str) -> CheckResult:
+    found = _result(subject, NAN, Verdict.ABSTAIN)
+    return replace(found, magnitude=None, abstain_reason=AbstainReason.NOT_APPLICABLE)
+
+
+def test_a_not_applicable_subject_is_never_decisive() -> None:
+    outside = Item(Verdict.ABSTAIN, None, AbstainReason.NOT_APPLICABLE)
+    assert decisive([outside]) is None
+    assert decisive([outside, Item(Verdict.ABSTAIN, None)]) == Item(Verdict.ABSTAIN, None)
+
+
+def test_a_row_of_not_applicable_subjects_has_no_event() -> None:
+    row = aggregate("clip", CHECK, [_not_applicable("a"), _not_applicable("b")])
+    assert row.status is RowStatus.NO_EVENT and row.verdict is None
+    assert row.abstain_reason is None and (row.n_subjects, row.n_abstained) == (0, 0)
+
+
+def test_a_not_applicable_subject_neither_votes_nor_abstains_the_row() -> None:
+    passing = aggregate("clip", CHECK, [_not_applicable("a"), *_results(("b", 0.1, Verdict.PASS))])
+    assert passing.status is RowStatus.SCORED and passing.verdict is Verdict.PASS
+    assert passing.magnitude == 0.1 and passing.n_subjects == 1
+    abstained = aggregate(
+        "clip", CHECK, [_not_applicable("a"), *_results(("b", 0.1, Verdict.ABSTAIN))]
+    )
+    assert abstained.status is RowStatus.SCORED and abstained.verdict is Verdict.ABSTAIN
+    assert abstained.abstain_reason is AbstainReason.INTERVAL_CROSSES_THRESHOLD

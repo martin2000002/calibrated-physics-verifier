@@ -30,7 +30,7 @@ from physverify.verification.check_set import (
     active_checks_hash,
     build_checks,
 )
-from physverify.verification.decisive import Judged, decisive
+from physverify.verification.decisive import Judged, applicable, decisive
 from physverify.verification.inputs import ClipInputs, InputSource
 from physverify.verification.sweep import CheckUnit, SpecificitySettings
 from physverify.verification.thresholding import (
@@ -239,36 +239,41 @@ def aggregate(
     *,
     row_step: int = UNKNOWN_ROW_STEP,
 ) -> TableRow:
-    """Magnitude and sigma of the ``decisive`` scored subject; FAIL if any fails, PASS if all do."""
-    scored = [r for r in results if r.magnitude is not None]
+    """Magnitude and sigma of the ``decisive`` scored subject; FAIL if any fails, PASS if all do.
+    Only the ``applicable`` subjects make the row."""
+    kept = applicable(results)
+    scored = [r for r in kept if r.magnitude is not None]
     worst = decisive(scored)
-    reasons = Counter(r.abstain_reason for r in results if r.abstain_reason is not None)
+    reasons = Counter(r.abstain_reason for r in kept if r.abstain_reason is not None)
     return TableRow(
         clip_id=clip_id,
         check_id=check.check_id,
         status=_status(results, scored),
         magnitude=None if worst is None else worst.magnitude,
         sigma=math.nan if worst is None else worst.sigma,
-        verdict=row_verdict(results),
-        abstain_reason=reasons.most_common(1)[0][0] if reasons and _abstains(results) else None,
-        n_subjects=len(results),
-        n_abstained=sum(1 for r in results if r.verdict is Verdict.ABSTAIN),
+        verdict=row_verdict(kept),
+        abstain_reason=reasons.most_common(1)[0][0] if reasons and _abstains(kept) else None,
+        n_subjects=len(kept),
+        n_abstained=sum(1 for r in kept if r.verdict is Verdict.ABSTAIN),
         unit=check.magnitude_unit,
         row_step=row_step,
     )
 
 
 def _status(results: Sequence[CheckResult], scored: Sequence[CheckResult]) -> RowStatus:
-    if not results:
+    """NO_EVENT without results or when every one is NOT_APPLICABLE."""
+    if not applicable(results):
         return RowStatus.NO_EVENT
     return RowStatus.SCORED if scored else RowStatus.ABSTAINED
 
 
 def row_verdict(results: Sequence[Judged]) -> Verdict | None:
-    """FAIL if any subject fails, PASS if all pass, else UNSCORED if any is, else ABSTAIN."""
-    if not results:
+    """FAIL if any ``applicable`` subject fails, PASS if all pass, else UNSCORED if any is, else
+    ABSTAIN; None without applicable subjects."""
+    kept = applicable(results)
+    if not kept:
         return None
-    verdicts = {r.verdict for r in results}
+    verdicts = {r.verdict for r in kept}
     if Verdict.FAIL in verdicts:
         return Verdict.FAIL
     if verdicts == {Verdict.PASS}:
