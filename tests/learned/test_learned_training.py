@@ -133,6 +133,16 @@ def test_sample_set_round_trips_through_a_feature_table() -> None:
     assert np.allclose(back.arrays()[0], samples.arrays()[0])
 
 
+def test_a_subject_scored_twice_in_a_clip_round_trips_through_a_feature_table() -> None:
+    samples = synthetic(4)
+    twice = replace(samples, samples=(*samples.samples, samples.samples[0], samples.samples[0]))
+    table = twice.to_table()
+    assert len(set(table.keys)) == len(twice.samples)
+    back = SampleSet.from_table(table)
+    assert [s.key for s in back.samples] == [s.key for s in twice.samples]
+    assert np.allclose(back.arrays()[0], twice.arrays()[0])
+
+
 def scores(role: Role, values: list[float], prefix: str = "") -> list[ClipScore]:
     return [ClipScore(f"{prefix}{role}{i}", f"scene{i}", role, v) for i, v in enumerate(values)]
 

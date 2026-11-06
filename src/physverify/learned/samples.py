@@ -9,6 +9,7 @@ gets 0. A clip perturbed for another check is not a sample.
 from __future__ import annotations
 
 import json
+from collections import Counter
 from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
@@ -95,6 +96,18 @@ def subject_samples(
     return samples
 
 
+def row_keys(samples: Sequence[Sample]) -> tuple[str, ...]:
+    """Unique table row keys: a check can score the same subject more than once in a clip (one
+    result per resting run), so a repeated key gets its occurrence number appended."""
+    seen: Counter[str] = Counter()
+    keys = []
+    for sample in samples:
+        n = seen[sample.key]
+        seen[sample.key] += 1
+        keys.append(sample.key if n == 0 else f"{sample.key}|#{n}")
+    return tuple(keys)
+
+
 @dataclass(frozen=True)
 class TableSource:
     """The image table a sample set's rows were read from: which frames they read and the crop
@@ -138,7 +151,7 @@ class SampleSet:
             FRAMES_KEY: self.source.frames,
             ENCODER_KEY: self.source.encoder_sha256,
         }
-        return FeatureTable(tuple(s.key for s in self.samples), columns, values, meta)
+        return FeatureTable(row_keys(self.samples), columns, values, meta)
 
     @classmethod
     def from_table(cls, table: FeatureTable) -> SampleSet:
