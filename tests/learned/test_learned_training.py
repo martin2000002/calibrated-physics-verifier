@@ -27,7 +27,8 @@ from physverify.learned.controls import (
     perceived_gate,
     single_frame_control,
 )
-from physverify.learned.samples import Role, Sample, SampleSet, clip_role, target
+from physverify.learned.image_table import MIDDLE_FRAME
+from physverify.learned.samples import Role, Sample, SampleSet, TableSource, clip_role, target
 from physverify.learned.train import TrainSettings, is_validation, split, train
 from physverify.learned.visibility import (
     PositiveEvidence,
@@ -122,8 +123,10 @@ def test_training_refuses_an_evaluated_set_sharing_a_seed() -> None:
 
 
 def test_sample_set_round_trips_through_a_feature_table() -> None:
-    samples = synthetic(4)
+    samples = replace(synthetic(4), source=TableSource(MIDDLE_FRAME, "e" * 64))
     back = SampleSet.from_table(samples.to_table())
+    assert back.source == samples.source
+    assert back.subset([i % 2 == 0 for i in range(len(back.samples))]).source == samples.source
     assert back.dense_columns == samples.dense_columns
     assert [s.key for s in back.samples] == [s.key for s in samples.samples]
     assert np.allclose(back.arrays()[0], samples.arrays()[0])

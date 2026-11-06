@@ -25,7 +25,8 @@ from physverify.checks.variants._learned import LearnedArtifact
 from physverify.core.errors import UsageError
 from physverify.extraction.pair_features import ZONE_MAX
 from physverify.learned.arms import PERCEIVED_ARM, TRUTH_ARM
-from physverify.learned.samples import Role, Sample, SampleSet
+from physverify.learned.image_table import ALL_FRAMES, MIDDLE_FRAME
+from physverify.learned.samples import Role, Sample, SampleSet, TableSource
 from physverify.schema.clip import Split
 
 TRAIN = ("kubric_synthetic", "train_h")
@@ -75,26 +76,48 @@ def test_a_training_clip_off_split_train_is_refused(monkeypatch: pytest.MonkeyPa
         report()
 
 
-def samples(tmp_path: Path, arm: str, clip_id: str = "c0") -> Path:
+SOURCE = TableSource(ALL_FRAMES, "e" * 64)
+
+
+def samples(tmp_path: Path, arm: str, clip_id: str = "c0", source: TableSource = SOURCE) -> Path:
     one = Sample(clip_id, "s0", ("a",), arm, Role.POSITIVE, 1.0, np.zeros(1), np.zeros(1))
     path = tmp_path / "samples.npz"
-    SampleSet((one,), ("d0",), ("token_000",)).to_table().save(path)
+    SampleSet((one,), ("d0",), ("token_000",), source).to_table().save(path)
     return path
 
 
 def test_a_sample_file_of_another_arm_is_refused(tmp_path: Path) -> None:
     with pytest.raises(SampleFileError, match="reads A_fff"):
-        read_samples(samples(tmp_path, TRUTH_ARM), "A_fff", frozenset({"c0"}))
+        read_samples(samples(tmp_path, TRUTH_ARM), "A_fff", frozenset({"c0"}), SOURCE)
 
 
 def test_a_sample_file_naming_clips_outside_its_selection_is_refused(tmp_path: Path) -> None:
     with pytest.raises(SampleFileError, match="outside the selection"):
-        read_samples(samples(tmp_path, PERCEIVED_ARM, "elsewhere"), PERCEIVED_ARM, frozenset())
+        read_samples(
+            samples(tmp_path, PERCEIVED_ARM, "elsewhere"), PERCEIVED_ARM, frozenset(), SOURCE
+        )
 
 
 def test_a_sample_file_of_its_arm_and_selection_is_read(tmp_path: Path) -> None:
-    found = read_samples(samples(tmp_path, PERCEIVED_ARM), PERCEIVED_ARM, frozenset({"c0"}))
+    found = read_samples(samples(tmp_path, PERCEIVED_ARM), PERCEIVED_ARM, frozenset({"c0"}), SOURCE)
     assert [s.clip_id for s in found.samples] == ["c0"]
+    assert found.source == SOURCE
+
+
+@pytest.mark.parametrize(
+    "written",
+    [
+        TableSource(MIDDLE_FRAME, SOURCE.encoder_sha256),
+        TableSource(ALL_FRAMES, "f" * 64),
+        TableSource(),
+    ],
+)
+def test_a_sample_file_read_from_other_frames_or_another_encoder_is_refused(
+    tmp_path: Path, written: TableSource
+) -> None:
+    path = samples(tmp_path, PERCEIVED_ARM, source=written)
+    with pytest.raises(SampleFileError, match="rows read from"):
+        read_samples(path, PERCEIVED_ARM, frozenset({"c0"}), SOURCE)
 
 
 def test_an_artifact_of_another_check_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:

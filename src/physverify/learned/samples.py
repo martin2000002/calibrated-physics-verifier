@@ -24,6 +24,7 @@ from physverify.checks.variants._learned import (
     pair_image,
 )
 from physverify.core.feature_table import FeatureTable
+from physverify.learned.image_table import ENCODER_KEY, FRAMES_KEY
 from physverify.schema.scene import PerturbationRecord
 
 FloatArray = NDArray[np.float64]
@@ -95,10 +96,24 @@ def subject_samples(
 
 
 @dataclass(frozen=True)
+class TableSource:
+    """The image table a sample set's rows were read from: which frames they read and the crop
+    encoder's sha256 (empty when unknown)."""
+
+    frames: str = ""
+    encoder_sha256: str = ""
+
+    @classmethod
+    def of(cls, table: FeatureTable) -> TableSource:
+        return cls(table.meta.get(FRAMES_KEY, ""), table.meta.get(ENCODER_KEY, ""))
+
+
+@dataclass(frozen=True)
 class SampleSet:
     samples: tuple[Sample, ...]
     dense_columns: tuple[str, ...]
     token_columns: tuple[str, ...]
+    source: TableSource = TableSource()
 
     def arrays(self) -> tuple[FloatArray, FloatArray, FloatArray]:
         dense = np.vstack([s.dense for s in self.samples])
@@ -107,7 +122,7 @@ class SampleSet:
 
     def subset(self, keep: Sequence[bool]) -> SampleSet:
         chosen = tuple(s for s, k in zip(self.samples, keep, strict=True) if k)
-        return SampleSet(chosen, self.dense_columns, self.token_columns)
+        return SampleSet(chosen, self.dense_columns, self.token_columns, self.source)
 
     def to_table(self) -> FeatureTable:
         columns = (*self.dense_columns, *self.token_columns, LABEL)
@@ -120,6 +135,8 @@ class SampleSet:
         meta = {
             "samples": json.dumps(described),
             "dense_columns": json.dumps(list(self.dense_columns)),
+            FRAMES_KEY: self.source.frames,
+            ENCODER_KEY: self.source.encoder_sha256,
         }
         return FeatureTable(tuple(s.key for s in self.samples), columns, values, meta)
 
@@ -143,4 +160,4 @@ class SampleSet:
                 json.loads(table.meta["samples"]), table.values, strict=True
             )
         )
-        return cls(samples, dense_columns, tuple(token_columns))
+        return cls(samples, dense_columns, tuple(token_columns), TableSource.of(table))

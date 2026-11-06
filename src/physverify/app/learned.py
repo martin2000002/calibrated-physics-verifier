@@ -44,7 +44,14 @@ from physverify.learned.image_table import (
     image_table,
     object_pairs,
 )
-from physverify.learned.samples import Role, Sample, SampleSet, clip_role, subject_samples
+from physverify.learned.samples import (
+    Role,
+    Sample,
+    SampleSet,
+    TableSource,
+    clip_role,
+    subject_samples,
+)
 from physverify.learned.train import Trained, TrainSettings, is_validation, train
 from physverify.schema.clip import ClipManifest, Split
 from physverify.schema.perception import DepthMap, MaskTrack
@@ -148,7 +155,8 @@ def collect(
             check, inputs, table, (dense_columns, token_columns), arm_name(arm)
         )
     layout = dense_layout(type(check).TRACK_COLUMNS, dense_columns)
-    return Collected(SampleSet(tuple(samples), layout, token_columns), tuple(failed))
+    source = TableSource.of(table)
+    return Collected(SampleSet(tuple(samples), layout, token_columns, source), tuple(failed))
 
 
 @dataclass(frozen=True)

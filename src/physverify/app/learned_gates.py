@@ -3,15 +3,17 @@
 The training selection must be split=train and off every seal; only its internal validation
 clips are scored. The unseen-background selection (C-hdri), when given, must be off every seal
 and share no perturbation seed with the artifact's training set. Every sample file must hold the
-arm its gate reads (ground truth for G-L0, perception for the rest) and name only clips of its
-selection. Each refusal comes before any score is computed.
+arm its gate reads (ground truth for G-L0, perception for the rest), rows read with the
+artifact's encoder from the frames its gate reads (the whole clip, or the middle frame for the
+single-frame control), and name only clips of its selection. Each refusal comes before any score
+is computed.
 """
 
 from __future__ import annotations
 
 import math
 from collections.abc import Mapping, Sequence
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 
 from physverify.app.context import AppContext
@@ -33,13 +35,14 @@ from physverify.learned.controls import (
     clip_scores,
 )
 from physverify.learned.gates import ArmScores, GateReport, run_gates
+from physverify.learned.image_table import ALL_FRAMES, MIDDLE_FRAME
 from physverify.learned.populations import (
     ClipFacts,
     aimed_checks,
     populations,
     validation_facts,
 )
-from physverify.learned.samples import Role, SampleSet, clip_role
+from physverify.learned.samples import Role, SampleSet, TableSource, clip_role
 from physverify.learned.train import TrainSettings
 from physverify.learned.visibility import PositiveEvidence
 from physverify.schema.clip import ClipManifest
@@ -153,8 +156,11 @@ def _hdri_population(clips: Sequence[ClipManifest], check_id: str) -> dict[str, 
     return {r.value: roles.count(r) for r in (Role.POSITIVE, Role.CLEAN)}
 
 
-def read_samples(path: Path, arm: str, allowed: frozenset[str]) -> SampleSet:
+def read_samples(path: Path, arm: str, allowed: frozenset[str], source: TableSource) -> SampleSet:
+    """``source``: the frames and encoder the rows must have been read with."""
     samples = SampleSet.from_table(FeatureTable.load(path))
+    if samples.source != source:
+        raise SampleFileError(f"{path}: rows read from {samples.source}, this gate reads {source}")
     arms = sorted({s.arm for s in samples.samples} - {arm})
     if arms:
         raise SampleFileError(f"{path}: samples of arm(s) {arms}, this gate reads {arm} only")
@@ -193,7 +199,8 @@ def _hdri_scores(
             raise UsageError("the unseen-background set needs both its selection and samples")
         return None
     require_disjoint(artifact.training_seeds, training_seeds(clips))
-    samples = read_samples(path, PERCEIVED_ARM, frozenset(c.clip_id for c in clips))
+    source = TableSource(ALL_FRAMES, artifact.encoder_sha256)
+    samples = read_samples(path, PERCEIVED_ARM, frozenset(c.clip_id for c in clips), source)
     scores = arm_scores(artifact, samples)
     by_id = {c.clip_id: c for c in clips}
     found = []
@@ -213,9 +220,12 @@ def gate_report(
     hdri = _hdri_clips(app, selections.hdri, err)
     allowed = frozenset(c.clip_id for c in clips)
     artifact = _artifact(files.artifact, check_id)
-    oracle = read_samples(files.oracle, TRUTH_ARM, allowed)
-    perceived = read_samples(files.perceived, PERCEIVED_ARM, allowed)
-    single = read_samples(files.single_frame, PERCEIVED_ARM, allowed)
+    clip_rows = TableSource(ALL_FRAMES, artifact.encoder_sha256)
+    oracle = read_samples(files.oracle, TRUTH_ARM, allowed, clip_rows)
+    perceived = read_samples(files.perceived, PERCEIVED_ARM, allowed, clip_rows)
+    single = read_samples(
+        files.single_frame, PERCEIVED_ARM, allowed, replace(clip_rows, frames=MIDDLE_FRAME)
+    )
     hdri_scores = _hdri_scores(artifact, hdri, files.hdri, check_id)
     facts = gate_facts(app, dataset, clips, check_id, oracle)
     scores = ArmScores(
