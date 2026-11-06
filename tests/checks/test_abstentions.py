@@ -2,15 +2,18 @@
 
 from __future__ import annotations
 
+import ast
 import math
 from collections.abc import Callable
 from dataclasses import replace
+from pathlib import Path
 from typing import Any
 
 import check_scenarios as sc
 import numpy as np
 import pytest
 
+import physverify.checks as checks_package
 from physverify.app.plugins import PLUGIN_KINDS
 from physverify.checks import r2_static_equilibrium
 from physverify.checks._base import Check, CheckInputs
@@ -258,3 +261,16 @@ def test_the_policy_reasons_are_reachable() -> None:
     assert policy.decide(result(math.nan), thresholds).abstain_reason is R.UNKNOWN_UNCERTAINTY
     crosses = policy.decide(result(0.01), thresholds).abstain_reason
     assert crosses is R.INTERVAL_CROSSES_THRESHOLD
+
+
+def test_only_r3b_image_relspeed_emits_not_applicable() -> None:
+    root = Path(checks_package.__file__).parent
+    emitters = sorted(
+        path.relative_to(root).as_posix()
+        for path in root.rglob("*.py")
+        if any(
+            isinstance(node, ast.Attribute) and node.attr == R.NOT_APPLICABLE.name
+            for node in ast.walk(ast.parse(path.read_text(encoding="utf-8")))
+        )
+    )
+    assert emitters == ["variants/r3b_image_relspeed.py"]
