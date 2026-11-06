@@ -101,6 +101,7 @@ ERROR_CLASSES = frozenset(
         "RejectedSampleError",
         "ResourceBudgetError",
         "ResultsInputError",
+        "SampleFileError",
         "ScaleBindingError",
         "ScheduleError",
         "SchemaError",
