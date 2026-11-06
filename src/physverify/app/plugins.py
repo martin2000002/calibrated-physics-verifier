@@ -17,6 +17,11 @@ from physverify.checks.variants._base import (
     validate_variant,
     variant_key,
 )
+from physverify.checks.variants.env_supports._base import (
+    ENV_SUPPORTS,
+    ENV_SUPPORTS_PACKAGE,
+    env_supports,
+)
 from physverify.checks.variants.event_gates._base import (
     EVENT_GATES,
     EVENT_GATES_PACKAGE,
@@ -85,6 +90,7 @@ PLUGIN_PACKAGES: Mapping[str, str] = MappingProxyType(
         TRUTH_MEASURES.name: "physverify.synth.truth_measures",
         CENTRE_STRATEGIES.name: CENTRES_PACKAGE,
         EVENT_GATES.name: EVENT_GATES_PACKAGE,
+        ENV_SUPPORTS.name: ENV_SUPPORTS_PACKAGE,
     }
 )
 """The package each plugin kind is discovered from."""
@@ -123,6 +129,7 @@ PLUGIN_KINDS: Mapping[str, Callable[[], Registry[Any]]] = MappingProxyType(
         ),
         CENTRE_STRATEGIES.name: centre_strategies,
         EVENT_GATES.name: event_gates,
+        ENV_SUPPORTS.name: env_supports,
     }
 )
 """Perceived and ground-truth providers share ``providers`` (keys ``<stage>/<name>`` and
