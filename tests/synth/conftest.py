@@ -50,6 +50,9 @@ from physverify.synth.store import DatasetStore
 
 DATA = Path(__file__).parent / "data"
 CLEAN = DATA / "clean"
+# Families whose ball pair collides once, and whether it approaches in free fall (f3_floor rolls:
+# the floor cancels gravity, so the pair meets along straight lines).
+PAIR_FAMILIES = {"f3_collision": True, "f3_floor": False}
 Vec = np.ndarray
 
 
@@ -161,8 +164,8 @@ def recorded_clip(directory: Path, cfg: ContactSettings) -> Clip:
 
 def analytic_clip(scene: SceneSpec, cfg: ContactSettings) -> Clip:
     """Exact clean truth of ``scene``: spheres fly and bounce analytically from the spec state
-    (at native t = -settle / fps), an f3 pair collides once with the impulse law, every other body
-    stays at its spec pose; resting contacts come from the primitive manifolds."""
+    (at native t = -settle / fps), a ``PAIR_FAMILIES`` pair collides once with the impulse law,
+    every other body stays at its spec pose; resting contacts come from the primitive manifolds."""
     fps = float(scene.frame_rate)
     times = np.arange(scene.n_frames, dtype=np.float64) / fps
     flights, impacts = _flights(scene, times)
@@ -208,9 +211,9 @@ def _flights(scene: SceneSpec, times: Vec) -> tuple[dict[str, Flight], list[Cont
     starts = {o.object_id: (t0, np.asarray(o.position), np.asarray(o.velocity)) for o in balls}
     flights = {o.object_id: _fly(o, starts[o.object_id], g, times) for o in balls}
     impacts: list[ContactRecord] = []
-    if scene.family == "f3_collision":
+    if scene.family in PAIR_FAMILIES:
         a, b = sorted(balls, key=lambda o: o.object_id)[:2]
-        hit = sphere_collision(a, b, g, t0)
+        hit = sphere_collision(a, b, g if PAIR_FAMILIES[scene.family] else np.zeros(3), t0)
         if hit is not None and hit.t < times[-1]:
             impacts.append(hit.record(float(scene.frame_rate)))
             for obj, after in ((a, hit.after_a), (b, hit.after_b)):

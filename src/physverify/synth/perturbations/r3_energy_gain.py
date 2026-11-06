@@ -49,7 +49,7 @@ class EnergyGain(PluginBase[Params]):
     magnitude_unit: ClassVar[str] = "dE_over_E"
     magnitude_kind: ClassVar[MagnitudeKind] = MagnitudeKind.CHECK_UNIT
     Params: ClassVar[type[PerturbationCommon]] = Params
-    families: ClassVar[tuple[str, ...]] = ("f3_collision",)
+    families: ClassVar[tuple[str, ...]] = ("f3_collision", "f3_floor")
 
     def apply(
         self,

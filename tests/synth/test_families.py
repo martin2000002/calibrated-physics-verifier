@@ -109,7 +109,7 @@ def test_masses_are_density_times_volume(
     params: Any = family_params(families[samples[0].family], ds, dict(priors))
     for scene in samples:
         densities = {o.object_id: density_of(o) for o in scene.objects}
-        if scene.family == "f3_collision":
+        if scene.family in ("f3_collision", "f3_floor"):
             # ball_1 has the family density; ball_0 is m_A = r m_B with r from mass_ratio_range.
             ratio = scene.objects[0].mass / scene.objects[1].mass
             assert params.mass_ratio_range[0] <= ratio <= params.mass_ratio_range[1]
