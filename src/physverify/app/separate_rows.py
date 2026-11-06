@@ -1,8 +1,8 @@
 """The ``verify-separate`` service: the rows reported apart from the nine checks.
 
 They run unscored (``raw`` policy, no thresholds). ``fit_separate_row_sigma`` fits R1_dyn's
-out-of-fold contact-row sigma on clean calib clips; ``run_separate`` given that artifact runs each
-clip with the sigma of its scene's fold.
+out-of-fold contact-row and image-size noise on clean calib clips; ``run_separate`` given that
+artifact runs each clip with the noise of its scene's fold.
 """
 
 from __future__ import annotations
@@ -10,21 +10,22 @@ from __future__ import annotations
 from collections.abc import Sequence
 from pathlib import Path
 
-import numpy as np
-
 from physverify.app.calibration import subject_lookup
 from physverify.app.context import AppContext
 from physverify.app.sealing import Selection, guard_sealed
 from physverify.app.services import dataset_for
 from physverify.app.verification import input_source
 from physverify.calibration.row_sigma import (
+    DEFAULT_ROW_LAW,
     ROW_SIGMA_FILE,
+    ClipResiduals,
+    RowLaw,
+    RowNoise,
     RowSigma,
+    clip_residuals,
     fit_row_sigma,
-    row_residuals,
 )
 from physverify.calibration.table import is_clean
-from physverify.checks._image import FloatArray
 from physverify.checks.separate._base import SEPARATE_CHECKS
 from physverify.config.plugin_context import registry_of
 from physverify.core.atomic import write_text_atomic
@@ -48,6 +49,8 @@ from physverify.verification.summary import parse_level, summary_lines
 from physverify.verification.thresholding import ThresholdTable
 
 ROW_SIGMA_CHECK = "R1_dyn"
+ROW_LAWS = tuple(law.value for law in RowLaw)
+DEFAULT_LAW = DEFAULT_ROW_LAW.value
 
 
 def run_separate(
@@ -63,7 +66,7 @@ def run_separate(
     err: Echo,
     row_sigma: Path | None = None,
 ) -> bool:
-    """Run the separate rows with their default parameters, R1_dyn with the fold sigma of the
+    """Run the separate rows with their default parameters, R1_dyn with the fold noise of the
     ``row_sigma`` artifact when given; whether a row errored."""
     input_level = parse_level(level, gt, sweep=False)
     fitted = None if row_sigma is None else _fitted(row_sigma, input_level, parse_stages(gt))
@@ -75,8 +78,8 @@ def run_separate(
     selection = [Selection(source.name, subset, tuple(selected))]
     guard_sealed(context, command, selection, err=err, run_dir=run_dir)
     parts = [
-        _runner(context, sigma).run(inputs, group)
-        for sigma, group in _fold_groups(selected, fitted)
+        _runner(context, noise).run(inputs, group)
+        for noise, group in _fold_groups(selected, fitted)
     ]
     report = _joined(parts, selected)
     write_report(run_dir, report)
@@ -96,10 +99,11 @@ def fit_separate_row_sigma(
     clips: Sequence[str],
     echo: Echo,
     err: Echo,
+    law: str = DEFAULT_LAW,
 ) -> Path:
-    """Fit R1_dyn's contact-row sigma on the clean calib clips of the selection (perceived rows
-    against ground-truth rows; a clip without inputs or subjects is listed without residuals);
-    the artifact's path."""
+    """Fit R1_dyn's contact-row and image-size noise on the clean calib clips of the selection
+    (perceived against ground truth; a clip without inputs or subjects is listed without
+    residuals) with the band ``law``; the artifact's path."""
     input_level, stages = parse_level(level, gt, sweep=False), parse_stages(gt)
     if input_level is InputLevel.ORACLE:
         raise UsageError("the row sigma is fitted on perceived inputs (it is 0 in the oracle)")
@@ -118,10 +122,14 @@ def fit_separate_row_sigma(
         check_id=ROW_SIGMA_CHECK,
         level=input_level,
         gt_stages=[stage.value for stage in stages],
+        law=RowLaw(law),
     )
     path = run_dir / ROW_SIGMA_FILE
     write_text_atomic(path, fitted.model_dump_json(by_alias=True, indent=2) + "\n")
+    echo(f"row law: {fitted.law.value} (coverage {fitted.coverage})")
     echo(f"row sigma by fold (px): {', '.join(f'{s:.4g}' for s in fitted.by_fold)}")
+    echo(f"size sigma by fold: {', '.join(f'{s:.4g}' for s in fitted.size_by_fold)}")
+    echo(f"rho by fold: {', '.join(f'{s:.4g}' for s in fitted.autocorrelation_by_fold)}")
     echo(f"residuals per fold: {list(fitted.residuals_per_fold)}; pooled {fitted.pooled:.4g} px")
     echo(f"clips without residuals: {len(fitted.clips_without_residuals)}")
     echo(f"row sigma: {path}")
@@ -145,36 +153,36 @@ def _residuals(
     level: InputLevel,
     stages: Sequence[Stage],
     clips: Sequence[ClipManifest],
-) -> dict[str, FloatArray]:
+) -> dict[str, ClipResiduals]:
     perceived = input_source(context, source, level, stages).load(clips)
     truth = OracleSource(source).load(clips)
     lookup = subject_lookup(context, source)
-    out: dict[str, FloatArray] = {}
+    out: dict[str, ClipResiduals] = {}
     for seen, true in zip(perceived, truth, strict=True):
         subjects = lookup(seen.clip)
         if seen.inputs is None or true.inputs is None or subjects is None:
-            out[seen.clip.clip_id] = np.empty(0)
+            out[seen.clip.clip_id] = ClipResiduals()
         else:
-            out[seen.clip.clip_id] = row_residuals(seen.inputs, true.inputs, subjects.ids)
+            out[seen.clip.clip_id] = clip_residuals(seen.inputs, true.inputs, subjects.ids)
     return out
 
 
 def _fold_groups(
     clips: Sequence[ClipManifest], fitted: RowSigma | None
-) -> list[tuple[float | None, list[ClipManifest]]]:
-    """Clips grouped by the row sigma they run with (None: the check's own sigma)."""
+) -> list[tuple[RowNoise | None, list[ClipManifest]]]:
+    """Clips grouped by the noise they run with (None: the check's own sigmas)."""
     if fitted is None:
         return [(None, list(clips))]
-    groups: dict[float | None, list[ClipManifest]] = {}
+    groups: dict[RowNoise | None, list[ClipManifest]] = {}
     for clip in clips:
-        groups.setdefault(fitted.sigma_of(clip), []).append(clip)
+        groups.setdefault(fitted.noise_of(clip), []).append(clip)
     return list(groups.items())
 
 
-def _runner(context: AppContext, row_sigma: float | None) -> VerificationRunner:
+def _runner(context: AppContext, noise: RowNoise | None) -> VerificationRunner:
     checks = [
-        cls(cls.Params.model_validate({"row_sigma": row_sigma}))
-        if row_sigma is not None and cls.check_id == ROW_SIGMA_CHECK
+        cls(cls.Params.model_validate(noise.params()))
+        if noise is not None and cls.check_id == ROW_SIGMA_CHECK
         else cls(cls.Params())
         for cls in registry_of(context, SEPARATE_CHECKS).values()
     ]

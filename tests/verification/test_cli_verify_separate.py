@@ -18,7 +18,7 @@ from synthetic_clip import SyntheticFixtureDataset
 from physverify.app import plugins, separate_rows
 from physverify.app.context import AppContext
 from physverify.calibration.collect import Subjects
-from physverify.calibration.row_sigma import ROW_SIGMA_FILE, fit_row_sigma
+from physverify.calibration.row_sigma import ROW_SIGMA_FILE, ClipResiduals, RowNoise, fit_row_sigma
 from physverify.datasets._base import ArrayGroundTruthStore, NativeGroundTruth
 from physverify.runtime.heavy import holder_path
 from physverify.schema.checks import InputLevel, Verdict
@@ -191,7 +191,9 @@ def test_the_row_sigma_is_fitted_on_the_generated_clean_clips(cli: CliRunner) ->
     fitted = fitted_artifact(result)
     assert fitted["scenes_per_fold"] == [[f"f5_contact-s{j:03d}"] for j in range(4)] + [[]]
     assert [n > 0 for n in fitted["residuals_per_fold"]] == [True] * 4 + [False]
-    assert fitted["by_fold"] == [0.0] * 5
+    assert fitted["by_fold"] == fitted["size_by_fold"] == [0.0] * 5
+    assert fitted["autocorrelation_by_fold"] == [1.0] * 5
+    assert fitted["law"] == "quantile"
     assert fitted["clips_without_residuals"] == [UNMAPPED]
     assert "clips without residuals: 1" in result.out
 
@@ -215,7 +217,10 @@ def row_sigma_file(
     tmp_path: Path, level: InputLevel, gt: tuple[str, ...], scene: str = "f-s"
 ) -> str:
     fitted = fit_row_sigma(
-        {f"c{j}": np.array([0.5, 1.0 + j, -2.0]) for j in range(5)},
+        {
+            f"c{j}": ClipResiduals((np.array([0.5, 1.0 + j, -2.0]),), np.array([0.01, -0.02 * j]))
+            for j in range(5)
+        },
         {f"c{j}": f"{scene}{j:03d}" for j in range(5)},
         check_id="R1_dyn",
         level=level,
@@ -246,8 +251,9 @@ def test_each_fold_runs_with_its_own_row_sigma_in_clip_order(
     ran: dict[str, float | None] = {}
     build = separate_rows._runner
 
-    def spied(context: AppContext, sigma: float | None) -> Any:
-        runner = build(context, sigma)
+    def spied(context: AppContext, noise: RowNoise | None) -> Any:
+        sigma = None if noise is None else noise.row_sigma
+        runner = build(context, noise)
         run = runner.run
 
         def recorded(source: InputSource, clips: Sequence[ClipManifest]) -> Any:
@@ -263,3 +269,8 @@ def test_each_fold_runs_with_its_own_row_sigma_in_clip_order(
     order = [clip.clip_id for clip in CalibFixtureDataset().clips()]
     assert ran == {c: by_fold[int(c.split("__")[0][-3:]) % len(by_fold)] for c in order}
     assert [row["clip_id"] for row in table(result)] == order
+
+
+def test_an_unknown_row_law_is_refused(cli: CliRunner) -> None:
+    assert cli(COMMAND, *CALIB_DATASET, *FIT, "--row-law", "mad").code == EXIT_USAGE
+

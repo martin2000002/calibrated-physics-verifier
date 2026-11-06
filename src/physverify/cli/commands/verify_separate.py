@@ -8,7 +8,12 @@ from typing import Annotated
 
 import typer
 
-from physverify.app.separate_rows import fit_separate_row_sigma, run_separate
+from physverify.app.separate_rows import (
+    DEFAULT_LAW,
+    ROW_LAWS,
+    fit_separate_row_sigma,
+    run_separate,
+)
 from physverify.app.verification import LEVELS
 from physverify.cli.context import app_context, echo_err
 from physverify.cli.options import choices_metavar, require_one_of
@@ -52,6 +57,14 @@ def verify_separate(
         Path | None,
         typer.Option(help="Row-sigma artifact of --fit-row-sigma: R1_dyn runs with its sigma."),
     ] = None,
+    row_law: Annotated[
+        str,
+        typer.Option(
+            parser=functools.partial(require_one_of, values=ROW_LAWS),
+            metavar=choices_metavar(ROW_LAWS),
+            help="Band law of --fit-row-sigma.",
+        ),
+    ] = DEFAULT_LAW,
 ) -> None:
     if fit_row_sigma and row_sigma is not None:
         raise UsageError("--fit-row-sigma fits a new row sigma; it cannot run with --row-sigma")
@@ -67,6 +80,7 @@ def verify_separate(
             clips=chosen,
             echo=typer.echo,
             err=echo_err,
+            law=row_law,
         )
         return
     failed = run_separate(
