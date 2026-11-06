@@ -255,7 +255,7 @@ CONTROL_INPUTS: dict[str, str] = {
     "C-scr": "validation clips against their single frame (R1, R2) or scrambled frames (R5a)",
     "C-hdri": "the validation repeated on hdri-dev backgrounds",
 }
-"""The population each gate and control of ``learned.controls`` reads (PREREG H2)."""
+"""The population each gate and control of ``learned.controls`` reads."""
 
 
 def training_clips(clips: Iterable[ClipManifest]) -> tuple[ClipManifest, ...]:
