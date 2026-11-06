@@ -117,6 +117,17 @@ def test_sides_scored_unevenly_fail_on_biased_coverage(n_unscored: int, biased: 
     assert report.unscored["G-L1"]["visible"] == {"clips": N, "unscored": 0}
 
 
+@pytest.mark.parametrize(("visible_unscored", "biased"), [(16, False), (17, True)])
+def test_the_coverage_gap_is_compared_exactly_at_its_bound(
+    visible_unscored: int, biased: bool
+) -> None:
+    """16/40 - 12/40 is exactly 0.10 (0.4 - 0.3 in floats is 0.10000000000000003)."""
+    found = facts()
+    missing = {f"positive{i}" for i in range(visible_unscored)} | {f"decoy{i}" for i in range(12)}
+    report = gates(found, perceived=without(separating(found), missing.__contains__))
+    assert report.results["G-L1"].detail.startswith("biased coverage") is biased
+
+
 def test_unscored_clips_are_counted_per_gate_and_side() -> None:
     found = facts()
     no_clean = without(separating(found), lambda k: k in {"clean0", "clean1"})

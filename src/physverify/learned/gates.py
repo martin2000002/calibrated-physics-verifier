@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
+from fractions import Fraction
 
 from physverify.learned.controls import (
     ClipScore,
@@ -64,6 +65,11 @@ class Side:
     @property
     def unscored_rate(self) -> float:
         return self.unscored / self.clips if self.clips else float("nan")
+
+    @property
+    def exact_unscored_rate(self) -> Fraction:
+        """For the coverage rule, which compares rates exactly; only called with clips > 0."""
+        return Fraction(self.unscored, self.clips)
 
 
 Pair = tuple[Side, Side]
@@ -170,13 +176,13 @@ def coverage_failure(
         if few:
             why = f"undefined: fewer than {settings.min_scored} scored clips in {few}"
             return ControlResult(name, Status.FAIL, float("nan"), None, why)
-        gap = abs(positive.unscored_rate - negative.unscored_rate)
-        if gap > settings.coverage_gap:
+        gap = abs(positive.exact_unscored_rate - negative.exact_unscored_rate)
+        if gap > Fraction(str(settings.coverage_gap)):  # the configured decimal, exactly
             why = (
                 f"biased coverage: unscored {positive.label} {positive.unscored_rate:.4f} "
                 f"vs {negative.label} {negative.unscored_rate:.4f}"
             )
-            return ControlResult(name, Status.FAIL, gap, None, why)
+            return ControlResult(name, Status.FAIL, float(gap), None, why)
     return None
 
 
