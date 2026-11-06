@@ -30,8 +30,19 @@ from physverify.checks.variants._image_impulse import (
     truth_events,
     walk,
 )
+from physverify.checks.variants.env_supports._base import (
+    Supported,
+    SupportGeometry,
+    SupportRule,
+    build_rules,
+    env_supports,
+    supports,
+    table_of,
+    without,
+    without_resting,
+)
 from physverify.checks.variants.event_gates._base import EventGate, build_gates, event_gates
-from physverify.physics.tracks import native_span
+from physverify.physics.tracks import native_span, row_step
 from physverify.schema.checks import AbstainReason, CheckResult
 from physverify.schema.constants import ENV_ID
 from physverify.schema.contacts import ContactRecord, ContactTable
@@ -50,7 +61,11 @@ class RelSpeedParams(CommonParams):
 
     ``post_min_rows`` < ``side_min_rows`` admits a short after side (the rows a floor bounce
     leaves), read by ``two_point_sigma``. ``event_gates`` names the gates (``event_gates/``) a
-    detected event must pass; none by default."""
+    detected event must pass; none by default. ``env_supports`` names the rules
+    (``env_supports/``) that may let the ENV records overlapping an event stop counting as
+    external contacts and as bounds of its sides, within ``support_tilt_deg``; none by default.
+    ``support_bias_budget`` is the declared bound on the one-signed, s-lowering bias a supported
+    event carries (scope only, reported in ``floor_supports``)."""
 
     gap_frames: float = Field(default=1.0, ge=0.0)
     bound_margin_rows: int = Field(default=1, ge=0)
@@ -67,6 +82,9 @@ class RelSpeedParams(CommonParams):
     boot_min_finite: float = Field(default=0.5, gt=0.0, le=1.0)
     post_min_rows: int = Field(default=3, ge=2)
     event_gates: tuple[str, ...] = ()
+    env_supports: tuple[str, ...] = ()
+    support_tilt_deg: float = Field(default=2.5, gt=0.0, lt=90.0)
+    support_bias_budget: float = Field(default=0.16, ge=0.0)
 
     @model_validator(mode="after")
     def _post_within_side(self) -> RelSpeedParams:
@@ -187,11 +205,16 @@ class RelSpeedCheck:
     Params: ClassVar[type[BaseModel]] = RelSpeedParams
 
     def __init__(
-        self, params: BaseModel, gate_registry: Mapping[str, type[EventGate]] | None = None
+        self,
+        params: BaseModel,
+        gate_registry: Mapping[str, type[EventGate]] | None = None,
+        support_registry: Mapping[str, type[SupportRule]] | None = None,
     ) -> None:
         self.params = as_params(RelSpeedParams, params)
         registry = event_gates() if gate_registry is None else gate_registry
         self.event_gates = build_gates(self.params.event_gates, registry)
+        rules = env_supports() if support_registry is None else support_registry
+        self.env_supports = build_rules(self.params.env_supports, rules)
 
     def evaluate(self, inputs: CheckInputs) -> list[CheckResult]:
         if inputs.contacts is None:
@@ -205,10 +228,50 @@ class RelSpeedCheck:
         clip_id, seed = inputs.clip.clip_id, self.params.seed
         rngs = (check_rng(seed, clip_id, self.check_id), check_rng(seed, clip_id, SHORT_STREAM))
         tol = self.params.same_t_frames
-        return [
+        results = [
             self._event(inputs, e, _bounds(inputs.contacts, found, e, truth, tol), rngs)
             for e in found
         ]
+        if self.env_supports and not truth:
+            results += [
+                self._event(inputs, e, b, rngs) for e, b in self._support_events(inputs, found)
+            ]
+        return results
+
+    def _support_events(
+        self, inputs: CheckInputs, found: Sequence[Event]
+    ) -> list[tuple[Event, list[ContactRecord]]]:
+        """Events detected with the ENV RESTING records removed that no event of ``found`` (same
+        pair, within ``merge_rows`` rows) already holds, kept when the rules support them; each
+        bounded by the ENV records and every other event."""
+        assert inputs.contacts is not None
+        contacts, states, p = inputs.contacts, inputs.states, self.params
+        near = p.merge_rows * row_step(states.frame_index)
+        new = [
+            x
+            for x in detect(states, without_resting(contacts), p.gates(), self.event_gates)
+            if not any((x.a, x.b) == (o.a, o.b) and abs(x.t - o.t) <= near for o in found)
+        ]
+        every = [*found, *new]
+        tol = p.same_t_frames
+        bounded = [(e, _bounds(contacts, every, e, False, tol)) for e in new]
+        return [(e, b) for e, b in bounded if self._supports(inputs, e, b) is not None]
+
+    def _supports(
+        self, inputs: CheckInputs, e: Event, bounds: Sequence[ContactRecord]
+    ) -> Supported | None:
+        if not self.env_supports:
+            return None
+        p = self.params
+        geometry = SupportGeometry(p.bound_margin_rows, p.support_tilt_deg, p.support_bias_budget)
+
+        def sides(rest: Sequence[ContactRecord]) -> tuple[list[int], list[int]]:
+            _, _, left, right = self._sides(inputs.states, e, rest)
+            return left, right
+
+        return supports(
+            inputs.states, inputs.contacts, e, bounds, self.env_supports, sides, geometry
+        )
 
     def _event(
         self,
@@ -222,30 +285,23 @@ class RelSpeedCheck:
         states, p = inputs.states, self.params
         rng, short_rng = rngs
         subject = (e.a, e.b)
-        env = ContactTable(
-            states.clip_id,
-            states.frame,
-            states.unit,
-            states.source_key,
-            tuple(env_records(inputs.contacts)),
-        )
+        supported = self._supports(inputs, e, bounds)
+        held = () if supported is None else supported[0]
+        env = table_of(states, without(env_records(inputs.contacts), held))
         external = external_contacts(states, env, as_record(e))
         if external:
             scope = {"external_contacts": external, "t_e": e.t}
             return abstain(type(self), inputs, subject, AbstainReason.OUT_OF_SCOPE, None, scope)
         ia, ib = states.object_index(e.a), states.object_index(e.b)
-        d = image_track(states, ia) - image_track(states, ib)
-        fi = np.asarray(states.frame_index, dtype=np.int64)
-        margin = p.bound_margin_rows
-        free = free_rows(fi, bounds, e.a, margin) & free_rows(fi, bounds, e.b, margin)
-        ok = np.all(np.isfinite(d), axis=1) & free
-        left, right = self._side_rows(fi, ok, e.t)
+        fi, d, left, right = self._sides(states, e, without(bounds, held))
         details: dict[str, Any] = {
             "t_e": e.t,
             "rows_before": len(left),
             "rows_after": len(right),
             "event_z": e.z,
         }
+        if supported is not None:
+            details |= {"floor_supports": supported[1]}
         if len(left) < p.side_min_rows or len(right) < p.post_min_rows:
             reason = AbstainReason.TOO_FEW_FRAMES
             return abstain(type(self), inputs, subject, reason, None, details)
@@ -270,6 +326,19 @@ class RelSpeedCheck:
         if _truth_contacts(inputs) and _truth_lift(inputs) and e.normal is not None:
             details |= depth_view(states, (ia, ib), (left, right), e)
         return unscored(type(self), inputs, subject, math.log(cp / -cm), sigma, span, details)
+
+    def _sides(
+        self, states: ObjectStateTable, e: Event, bounds: Sequence[ContactRecord]
+    ) -> tuple[IntArray, FloatArray, list[int], list[int]]:
+        """Native frames, the relative image track and the side rows outside ``bounds``."""
+        ia, ib = states.object_index(e.a), states.object_index(e.b)
+        d = image_track(states, ia) - image_track(states, ib)
+        fi = np.asarray(states.frame_index, dtype=np.int64)
+        margin = self.params.bound_margin_rows
+        free = free_rows(fi, bounds, e.a, margin) & free_rows(fi, bounds, e.b, margin)
+        ok = np.all(np.isfinite(d), axis=1) & free
+        left, right = self._side_rows(fi, ok, e.t)
+        return fi, d, left, right
 
     def _side_rows(self, fi: IntArray, ok: BoolArray, t_e: float) -> tuple[list[int], list[int]]:
         """Rows nearest the event with |f - t_e| > ``gap_frames``, walked outwards while ``ok``."""

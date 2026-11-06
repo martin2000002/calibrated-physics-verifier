@@ -72,6 +72,11 @@ reference = "others"
 # calibration.tau_tolerance_units.R3b=log_normal_speed_ratio.
 # Its event_gates (none by default) name the gates of checks/variants/event_gates/ that every
 # detected event must pass, e.g. checks.R3b/image_relspeed.event_gates=["reciprocal_jump"].
+# Its env_supports (none by default) name the rules of checks/variants/env_supports/ that may let
+# the floor records overlapping an impact stop counting as external contacts, e.g.
+# checks.R3b/image_relspeed.env_supports=["floor_plane"] (two spheres rolling on a floor within
+# support_tilt_deg = 2.5 deg of the motion plane; s then carries a one-signed bias <= 0, bounded
+# by support_bias_budget = 0.16).
 # A provisional tau is read in the unit of the check's default implementation unless
 # verification.threshold_units.<id> says otherwise; a tau whose unit is not the unit of the
 # configured check, or a calibrated table fitted with other check parameters or variants (its
