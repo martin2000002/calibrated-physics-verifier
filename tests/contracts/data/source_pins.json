@@ -1,85 +1,85 @@
 {
   "check_variants": {
     "R3a/image_apex": {
-      "digest": "caa697a90370fe7e538e868f5d461b6e76689036e3c0c4f384e610d44aff17e3",
+      "digest": "fd7946fbf810a4b274c5daaa2cf565506f01e6a627b5baba3d09b613db8eef83",
       "version": "1"
     },
     "R3b/image_relspeed": {
-      "digest": "34e80d62908dc7f9959548c8a6d486fb6cef065ccf9d0bc07207133ca677cc0e",
+      "digest": "ffff981be88c0ea9e5edb2042b831751617efc76106d2c9447b09ff6e56dcc80",
       "version": "2"
     },
     "R4_jump/rigid2": {
-      "digest": "c787e763ff074d2100a079068b99113b4a63a04457730c0585f16e97c3c51617",
+      "digest": "1e14eb05b47277119993cca13cc90b0393ab890cd8e5528de886402d47aedd83",
       "version": "1"
     },
     "R4_jump/rigid2_dfloor": {
-      "digest": "159461707b158a799bdff853d1e61a273a84e1966dd174a6c9177167acbf9cc5",
+      "digest": "8e017ab332a2657bab8383724dcc054d2c968309d858a4bf7dc68ff552d08572",
       "version": "1"
     },
     "R4_size/v3": {
-      "digest": "d81ce09ef028bac7fba67d134650ae5bd837eef1b9a5b544d971cf21cf65f073",
+      "digest": "cc939cc07b38520cb3ec760f7db5d952c45b76edd5035ae04a28510e8ac7b3c1",
       "version": "2"
     },
     "R4_size/v3_window_depth": {
-      "digest": "73ce46aaf1413617eb0dff406b426ab7c850650a19a07a361f82378e84094c63",
+      "digest": "dc6e40901e1c7cbd96def6d2d321fd7fd73e5c2f280e9b44996a02c657d18f85",
       "version": "2"
     },
     "R4_size/v3_window_depth_unoccluded": {
-      "digest": "9024793bc24c14d8251b46ef5043ef2292a35bc2661042406872b88d9e332287",
+      "digest": "bcd7810010775dfb63e24d831c89ba4b9968709889e00275056a6ab702b096d7",
       "version": "2"
     },
     "R5a/los_tilt": {
-      "digest": "1e2c1c3fe27a7d8df9f6245b273dd0bb8118d883369e686fa633ace079ff81ac",
+      "digest": "6781f595e9ad8fc33bc278141d16a26df89e49d7ed7798a17823fe5f1857c75d",
       "version": "1"
     },
     "R5a/whitened": {
-      "digest": "e6b2be266aacfa4a9a567f31071929eb6d481dc5652bad373d4bdc15ec626476",
+      "digest": "e1b8286f744ef2782a18569930f02efbc88b641e150c169f188890c81fcd36f4",
       "version": "1"
     },
     "R5b/los_ballistic": {
-      "digest": "b4db6b8bc14dd69c5c182f21f13daae51447528c662ed276666c957522889801",
+      "digest": "6322b89a5f4bf4986836d5630f930c7f3775ba390c13e2bf8602f07134d043c1",
       "version": "1"
     },
     "R5b/unsupported": {
-      "digest": "9746b2c89c76d3bddca2e4eb098bcc8eb0252daf448fad41b379fc5fbc8ffa47",
+      "digest": "113d613e6e62e562886af7da5560a98de68c869d3c689ece21a230b0e7a08601",
       "version": "1"
     }
   },
   "checks": {
     "R1": {
-      "digest": "27cc02f1352d2239de69160d36ed453d33b02f77555a2a906a70571fde715bf6",
+      "digest": "c63e0aabb62082dfe8d2c8977faad6e427886f586c2d837fe628edd8c39cc6c6",
       "version": "2"
     },
     "R2": {
-      "digest": "e667f5be730696d49504db6f898403890783f80ec4e9f4bef0fd5fb3304e2b9a",
+      "digest": "4edcb9941e31b2ffb7a1d9a6af0a02bcc978a0adcbaedacb24734aea43a7349c",
       "version": "1"
     },
     "R3a": {
-      "digest": "5bc14ae00669d70133623f771a6dae6fd1959277d263a6dcbd91bb9b70ae91c0",
+      "digest": "4768cfa34c9bd186a6eef98b087e29e8be99087c608c1fc2a21f9975d8ce12ef",
       "version": "1"
     },
     "R3b": {
-      "digest": "a480827a7b54635c59652e84da271c9ae0ed8287d25c8cc6f3c91c091d195bc7",
+      "digest": "701fb57f057dd3ecf3c67bd46dcf309d396bd0c4f18da35338d4e31d33ea3611",
       "version": "1"
     },
     "R4_jump": {
-      "digest": "f4395639863e42fe989c06e6a0b7a1200ba65edacb8056d3723f352cf51bee26",
+      "digest": "c1b7c3de75a38f19378429f315969af374f2f21e57ccdf7dc98029b5d005677f",
       "version": "1"
     },
     "R4_missing": {
-      "digest": "afc12bf535e1c284649547f77e3048c2b8b00fa92aa9b8d7ded735b39228e736",
+      "digest": "1d94fa1e30c9257156fb447851f035aed63aa7e18f9c9ce333badf15cb7cb2b5",
       "version": "1"
     },
     "R4_size": {
-      "digest": "32f6dccf1cbe8401d36ed550f03a758538e742ad3cb92817564510bd622b26cf",
+      "digest": "78ee4ca9acb3d5c72418dbbf4d7d62a48a8cd760d946b32ef4b74f926b4594eb",
       "version": "2"
     },
     "R5a": {
-      "digest": "288ad1ddaa98f36392828dd245eb5f3255cc48453f4b552e5a5bcb4ca61592eb",
+      "digest": "dc280b01f9284a122d35013902625b9366b4783f6c51a8837b85a858d702bc72",
       "version": "1"
     },
     "R5b": {
-      "digest": "551ec535eb8a7e7d3e9abc0551df6fe35eb91c4dc312388f354756590e56fa33",
+      "digest": "9a3cc21a2ebc6a2a2b112196c4253e61c986c9eb4e62ed594754163656be8803",
       "version": "1"
     }
   },
