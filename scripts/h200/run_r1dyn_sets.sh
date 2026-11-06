@@ -5,9 +5,12 @@
 #
 #   bash scripts/h200/run_r1dyn_sets.sh calib   # calib-r1dyn: seed 2046980616, every scene calib
 #   bash scripts/h200/run_r1dyn_sets.sh b5      # v2-dev-b5: a seed drawn here once, every scene eval
+#   bash scripts/h200/run_r1dyn_sets.sh calib NAME [SEED]   # a new calib set named NAME
+#   bash scripts/h200/run_r1dyn_sets.sh b5 NAME [SEED]      # a new eval set named NAME
 #
-# The b5 seed is drawn from /dev/urandom on the first run and kept in <version>/SEED; a resumed run
-# reads it back. Before the build, tools/seed_collisions.py checks the dataset, scene and attempt
+# A named set takes SEED when given; otherwise, like b5, a seed is drawn from /dev/urandom on the
+# first run and kept in <version>/SEED, and a resumed run reads it back (a given SEED must match
+# it). Before the build, tools/seed_collisions.py checks the dataset, scene and attempt
 # seeds against the manifest of every set in R1DYN_SEED_SETS (default: every other directory of
 # the synthetic dir with a manifest) and stops on a collision.
 #
@@ -19,6 +22,8 @@ set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/_common.sh"
 
 SET="${1:-}"
+NAME="${2:-}"
+GIVEN_SEED="${3:-}"
 SCENES="${R1DYN_SCENES:-60}"
 SUBSET=r1dyn
 CALIB_SEED=2046980616
@@ -28,8 +33,14 @@ SYNTH="$DATA_DIR/synthetic"
 case "$SET" in
     calib) VERSION=calib-r1dyn FRACTION=1.0 SPLIT=calib ;;
     b5) VERSION=v2-dev-b5 FRACTION=0.0 SPLIT=eval ;;
-    *) die "usage: run_r1dyn_sets.sh calib|b5" ;;
+    *) die "usage: run_r1dyn_sets.sh calib|b5 [NAME [SEED]]" ;;
 esac
+if [[ -n "$NAME" ]]; then
+    [[ "$NAME" =~ ^[a-z0-9][a-z0-9.-]*$ ]] || die "bad set name '$NAME'"
+    [[ "$NAME" != calib-r1dyn && "$NAME" != v2-dev-b5 ]] || die "$NAME is a fixed set; omit NAME"
+    VERSION="$NAME"
+fi
+[[ -z "$GIVEN_SEED" || "$GIVEN_SEED" =~ ^[0-9]+$ ]] || die "SEED must be an integer, got '$GIVEN_SEED'"
 [[ "$SCENES" =~ ^[1-9][0-9]*$ ]] || die "R1DYN_SCENES must be a positive integer, got '$SCENES'"
 [[ -n "${PHYSVERIFY_UNSEAL:-}${PHYSVERIFY_UNSEAL_REPEAT:-}" ]] && die "unset PHYSVERIFY_UNSEAL*"
 STORE="$SYNTH/$VERSION"
@@ -37,10 +48,14 @@ STORE="$SYNTH/$VERSION"
     || die "$STORE has a plan; set RESUME=1 to resume it"
 
 mkdir -p "$STORE"
-if [[ "$SET" == calib ]]; then
+if [[ "$SET" == calib && -z "$NAME" ]]; then
     SEED="$CALIB_SEED"
 elif [[ -s "$STORE/SEED" ]]; then
     SEED="$(<"$STORE/SEED")"
+    [[ -z "$GIVEN_SEED" || "$GIVEN_SEED" == "$SEED" ]] || die "$STORE/SEED holds $SEED, not $GIVEN_SEED"
+elif [[ -n "$GIVEN_SEED" ]]; then
+    SEED="$GIVEN_SEED"
+    printf '%s\n' "$SEED" >"$STORE/SEED"
 else
     SEED="$(od -An -N4 -tu4 /dev/urandom | tr -d ' ')"
     printf '%s\n' "$SEED" >"$STORE/SEED"
