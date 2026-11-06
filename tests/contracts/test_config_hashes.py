@@ -76,7 +76,7 @@ DATASET_CONTENT_HASH = {
     "fast": "7792797236e163025d89c1c518dc43ad8f90c3f511bd884e1969ca9bf1f2fa3e",
     "precise": "4a6829efdd64424d79dfc0941246de148ca50446e0f6f40738e3a02d1b8e8b4e",
 }
-NO_IDENTITY_STAGE_KEYS_HASH = "7a7540bde6c86abb4ae495218da40dbe2b88dceb03885ba002872109e82e5322"
+NO_IDENTITY_STAGE_KEYS_HASH = "bb0af947e9bab945ec2abe3ad707daa2e80056dbfdf081b07904447b109e5acd"
 """Hash of ``STAGE_KEYS`` computed for a dataset without cache identity (PISA, Physics-IQ,
 Objectron): the table as it was before identities entered the key, so those caches stay valid,
 except the three GeoCalib cameras, whose version moved when their draw was seeded,
@@ -85,7 +85,7 @@ the back-projecting lifts and every stage after them, whose version moved when t
 gained ``nearer_cover``, the size-prior scales, whose version moved when the extent sigmas of
 a length became correlated axes, ``camera/moge2_focal``, whose version moved when its frame
 spread took the shared robust scale, and the three GeoCalib cameras again, whose params gained
-the configured ``assumed`` fallback."""
+the configured ``assumed`` fallback; ``scale/known_size`` is a new key (ADR 0053)."""
 STAGE_KEYS = {
     "camera/assumed_fov": "dddd1ad9189f13fabcc53f7e2fe5f8818b5d2bdeaf0900f0473a9207790e3c92",
     "camera/from_depth": "528097477f8abe02aee99fb728a9083fc5d6be7ef2565f09783422a4f7c4822d",
@@ -127,6 +127,7 @@ STAGE_KEYS = {
     ),
     "scale/free_fall": "35e953454486c4732ba0858bf2070e7ecc5ad18d0cd1b1c3375f86f5b2322f7d",
     "scale/metric_depth": "a3fdd8b10d7115559cae9de0560fe1cd4def96ca09efc43af114459ee8460c25",
+    "scale/known_size": "0e8b2738140470d3a9cc58d1ded64551c8269b57a1a7792c6512f0855f8d115c",
     "scale/size_model": "7f0a28e8a7eca40a8c6f93782b74949759346cfddd1f7492a7750f593bff1595",
     "scale/size_prior": "48851fc649a7bc3bb20f5865bf8471f34d38b30ffabe5f8d0b723ddc7a4130d4",
     "track/edgetam": "d8a575fa696b6b5d3c81d0a29f1a6c38410b86fea8a59afd36c635ccaa0c546e",

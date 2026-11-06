@@ -1304,6 +1304,15 @@
       "min_drop_rel",
       "max_windows"
     ],
+    "scale/known_size": [
+      "lookup",
+      "lookup.labels",
+      "lookup.fixed",
+      "lookup.fixed.mean_m",
+      "lookup.fixed.rel_spread",
+      "lookup.fixed.source",
+      "axis_errors"
+    ],
     "scale/ground_truth": [],
     "scale/metric_depth": [],
     "scale/size_model": [

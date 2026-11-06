@@ -192,6 +192,10 @@
       "digest": "293727553c533e88562f2310619a4e39e1dbf8ce4d650fd9d00f9b68144f1334",
       "version": "2"
     },
+    "scale/known_size": {
+      "digest": "9b216437e7b1d5ab004032dabe02d0b95a04312fa5e23a853e19a31ac7feb3ac",
+      "version": "1"
+    },
     "scale/metric_depth": {
       "digest": "3423fb52f2ce587c1a31129c7a0004c2d17cbe9490b72db519fc76df6e43b6e5",
       "version": "3"

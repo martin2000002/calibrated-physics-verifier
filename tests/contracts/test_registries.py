@@ -149,6 +149,7 @@ PROVIDER_ORDER = (
     "lift/backproject_size_constancy",
     "lift/backproject_area_depth",
     "scale/free_fall",
+    "scale/known_size",
     "scale/metric_depth",
     "scale/size_model",
     "scale/size_prior",
