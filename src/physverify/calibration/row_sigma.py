@@ -12,8 +12,9 @@ The row match keeps each clip's offset (it moves the band), so its sigma is fitt
 row residuals. A constant offset does not move a rate, so the rate noise (row sigma, relative
 size sigma and their autocorrelations) is fitted on each body's series centred on its own mean
 within the clip. The autocorrelations r_1, r_2, ... of the row and of the size series are
-measured apart, from lag 1 until the first r_k <= 0 or lag ``AUTOCORRELATION_MAX_LAG``. Pure,
-no I/O.
+measured apart with the biased estimator over every lag the longest series has, never cut: a
+cut (a lag cap, or the first r_k <= 0) can leave a Toeplitz that is not positive semidefinite,
+the full estimator cannot. Pure, no I/O.
 """
 
 from __future__ import annotations
@@ -24,7 +25,7 @@ from enum import StrEnum
 from typing import Final
 
 import numpy as np
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from scipy import stats
 
 from physverify.calibration.table import CalibrationDataError
@@ -44,9 +45,8 @@ from physverify.synth.scene_scope import scene_index
 
 ROW_SIGMA_FOLDS: Final = 5
 ROW_SIGMA_SCHEMA: Final = "physverify.row_sigma"
-ROW_SIGMA_VERSION: Final = "3.0.0"
+ROW_SIGMA_VERSION: Final = "4.0.0"
 ROW_SIGMA_FILE: Final = "row_sigma.json"
-AUTOCORRELATION_MAX_LAG: Final = 5
 
 
 class RowLaw(StrEnum):
@@ -124,6 +124,14 @@ class RowSigma(ArtifactModel):
     size_residuals_per_fold: tuple[int, ...]
     scenes_per_fold: tuple[tuple[str, ...], ...]
     clips_without_residuals: tuple[str, ...]
+
+    @field_validator("version")
+    @classmethod
+    def _same_major(cls, version: str) -> str:
+        """A row sigma of another major version has another estimator (3.x cut its lags)."""
+        if version.split(".")[0] != ROW_SIGMA_VERSION.split(".")[0]:
+            raise ValueError(f"row sigma version {version!r}; this code reads {ROW_SIGMA_VERSION}")
+        return version
 
     def noise_of(self, clip: ClipManifest) -> RowNoise:
         """A calib clip takes the noise of its scene's fold, any other clip the pooled noise.
@@ -222,22 +230,22 @@ def law_sigma(values: FloatArray, law: RowLaw) -> float:
 
 
 def autocorrelation(series: Sequence[FloatArray]) -> tuple[float, ...] | None:
-    """r_1, r_2, ... of the pooled centred series (NaN rows skipped), from lag 1 until the first
-    r_k <= 0 or ``AUTOCORRELATION_MAX_LAG``; () for residuals that are all 0, None without a
-    series of two finite values."""
-    within = centred(series)
+    """r_k = sum over series of sum_t c_t c_(t+k) / sum over series of sum_t c_t^2 for every lag
+    k >= 1 shorter than the longest series, c each centred series with its NaN rows as 0: each
+    series' sum is the autocorrelation of a finite sequence, so the Toeplitz of r_k (0 beyond the
+    last lag) is positive semidefinite at any size. () for residuals that are all 0, None
+    without a series of two finite values."""
+    within = [np.nan_to_num(c) for c in centred(series)]
     if not within:
         return None
-    total = float(sum(np.nansum(c**2) for c in within))
-    lags: list[float] = []
-    for lag in range(1, AUTOCORRELATION_MAX_LAG + 1):
-        if total == 0.0:
-            break
-        r = float(sum(np.nansum(c[:-lag] * c[lag:]) for c in within if c.size > lag)) / total
-        if not r > 0.0:
-            break
-        lags.append(r)
-    return tuple(lags)
+    total = float(sum(c @ c for c in within))
+    if total == 0.0:
+        return ()
+    longest = max(c.size for c in within)
+    return tuple(
+        float(sum(c[:-lag] @ c[lag:] for c in within if c.size > lag)) / total
+        for lag in range(1, longest)
+    )
 
 
 def _flat_centred(series: Sequence[FloatArray]) -> FloatArray:

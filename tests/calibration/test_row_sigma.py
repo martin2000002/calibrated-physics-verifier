@@ -1,16 +1,22 @@
 """Out-of-fold contact-row noise: folds by scene index, band quantile (or Student t) of the
 other folds; the match sigma on raw row residuals, the rate noise (row and size sigmas and
-their autocorrelations) on series centred within each clip and body."""
+their autocorrelations) on series centred within each clip and body; the full biased
+autocorrelation keeps every row Toeplitz positive semidefinite."""
 
 from __future__ import annotations
 
+import json
+from collections.abc import Callable
+from pathlib import Path
+
 import numpy as np
 import pytest
+from pydantic import ValidationError
 from scipy import stats
 
 from physverify.calibration.row_sigma import (
-    AUTOCORRELATION_MAX_LAG,
     ROW_SIGMA_FOLDS,
+    ROW_SIGMA_VERSION,
     ClipResiduals,
     RowLaw,
     RowNoise,
@@ -21,12 +27,27 @@ from physverify.calibration.row_sigma import (
     law_sigma,
 )
 from physverify.calibration.table import CalibrationDataError
+from physverify.checks.separate._pass_through_noise import lag_correlation
 from physverify.checks.separate.r1_dyn_pass_through import ROW_COVERAGE, TAIL_DOF, band_z
+from physverify.core.errors import ConfigError
+from physverify.core.jsonio import read_model
 from physverify.schema.checks import InputLevel
 from physverify.schema.clip import ClipManifest, Split, TimeSource
 from physverify.schema.stages import STAGE_ORDER
 
 SIZE_SHARE = 0.01
+# Positive semidefinite up to rounding, fixed before running.
+PSD_FLOOR = -1e-12
+PSD_SIZES = range(2, 201)
+PSD_SERIES = 60
+# Long enough for the fitted lags to approach the true ones, where a cut lag breaks the Toeplitz.
+PSD_ROWS = (24, 200)
+PSD_GAPS = 0.10
+PSD_REPLICATES = 10
+TRIANGLE_SUPPORT = 7
+AR_PHI = 0.8
+
+Process = Callable[[np.random.Generator, int], np.ndarray]
 
 
 def fitted(
@@ -188,13 +209,83 @@ def test_the_student_t_law_is_its_band_half_width_over_the_normal_z() -> None:
     assert result.noise_of(clip(Split.EVAL, None)).row_tail_dof == TAIL_DOF
 
 
-def test_the_autocorrelation_keeps_lags_until_the_first_non_positive_one() -> None:
-    assert autocorrelation([np.array([1.0, 1.0, -1.0, -1.0] * 2)]) == pytest.approx((0.125,))
-    assert autocorrelation([np.array([1.0, -1.0] * 4)]) == ()
+def test_the_autocorrelation_is_the_biased_estimator_over_every_lag() -> None:
+    series = np.array([1.0, 1.0, -1.0, -1.0] * 2)
+    full = np.correlate(series, series, "full")[series.size :] / float(series @ series)
+    assert autocorrelation([series]) == pytest.approx(tuple(full), rel=1e-12)
+    assert autocorrelation([np.array([1.0, -1.0] * 4)])[0] == pytest.approx(-7.0 / 8.0)
     assert autocorrelation([np.zeros(6)]) == ()
     assert autocorrelation([np.array([1.0, np.nan])]) is None
-    ramp = np.arange(40.0)
-    assert len(autocorrelation([ramp])) == AUTOCORRELATION_MAX_LAG
+    assert len(autocorrelation([np.arange(40.0), np.arange(9.0)]) or ()) == 39
+
+
+def test_unread_rows_count_as_zero_in_the_autocorrelation() -> None:
+    gappy = np.array([2.0, np.nan, -1.0, 0.5, -1.5])
+    filled = np.nan_to_num(gappy - np.nanmean(gappy))
+    full = np.correlate(filled, filled, "full")[filled.size :] / float(filled @ filled)
+    assert autocorrelation([gappy]) == pytest.approx(tuple(full), rel=1e-12)
+
+
+def white(rng: np.random.Generator, rows: int) -> np.ndarray:
+    out: np.ndarray = rng.standard_normal(rows)
+    return out
+
+
+def triangle(rng: np.random.Generator, rows: int) -> np.ndarray:
+    """Moving sum over ``TRIANGLE_SUPPORT`` rows: r_k = 1 - k / support up to the support."""
+    out: np.ndarray = np.convolve(
+        rng.standard_normal(rows + TRIANGLE_SUPPORT - 1), np.ones(TRIANGLE_SUPPORT), "valid"
+    )
+    return out
+
+
+def ar1(rng: np.random.Generator, rows: int) -> np.ndarray:
+    out = np.empty(rows)
+    out[0] = rng.standard_normal() / np.sqrt(1.0 - AR_PHI**2)
+    for t in range(1, rows):
+        out[t] = AR_PHI * out[t - 1] + rng.standard_normal()
+    return out
+
+
+def gappy_series(rng: np.random.Generator, process: Process) -> list[np.ndarray]:
+    """``PSD_SERIES`` series of ``PSD_ROWS`` rows with a share ``PSD_GAPS`` of unread rows."""
+    out = []
+    for _ in range(PSD_SERIES):
+        series = process(rng, int(rng.integers(PSD_ROWS[0], PSD_ROWS[1] + 1)))
+        series[rng.random(series.size) < PSD_GAPS] = np.nan
+        out.append(series)
+    return out
+
+
+@pytest.mark.parametrize("process", [white, ar1, triangle], ids=["white", "ar1", "triangle"])
+def test_the_fitted_lags_give_a_positive_semidefinite_toeplitz(process: Process) -> None:
+    rng = np.random.default_rng(7)
+    for _ in range(PSD_REPLICATES):
+        lags = autocorrelation(gappy_series(rng, process))
+        assert lags is not None
+        lowest = min(
+            float(np.linalg.eigvalsh(lag_correlation(np.arange(size), lags))[0])
+            for size in PSD_SIZES
+        )
+        assert lowest >= PSD_FLOOR
+
+
+def test_a_row_sigma_of_another_major_version_is_refused(tmp_path: Path) -> None:
+    result = fitted(
+        {f"c{j}": [float(j), 2.0 * j + 1.0, -float(j)] for j in range(5)},
+        {f"c{j}": f"f-s{j:03d}" for j in range(5)},
+    )
+    assert result.version == ROW_SIGMA_VERSION == "4.0.0"
+    path = tmp_path / "row_sigma.json"
+    path.write_text(result.to_json(), encoding="utf-8")
+    assert read_model(RowSigma, path) == result
+    data = json.loads(result.to_json())
+    for version in ("3.0.0", "5.0.0", "four"):
+        with pytest.raises(ValidationError, match="version"):
+            RowSigma.model_validate({**data, "version": version})
+    path.write_text(json.dumps({**data, "version": "3.0.0"}), encoding="utf-8")
+    with pytest.raises(ConfigError, match="version"):
+        read_model(RowSigma, path)
 
 
 def test_the_size_autocorrelation_is_measured_apart_from_the_rows() -> None:
@@ -208,9 +299,9 @@ def test_the_size_autocorrelation_is_measured_apart_from_the_rows() -> None:
         level=InputLevel.PERCEIVED,
         gt_stages=(),
     )
-    assert result.pooled.row_autocorrelation == ()
-    assert result.pooled.size_autocorrelation == autocorrelation([sizes] * 5)
-    assert len(result.pooled.size_autocorrelation) == 1
+    assert result.pooled.row_autocorrelation == autocorrelation([rows] * 5)
+    assert result.pooled.size_autocorrelation == pytest.approx(autocorrelation([sizes] * 5))
+    assert result.pooled.row_autocorrelation[0] < 0.0 < result.pooled.size_autocorrelation[0]
 
 
 def test_unread_rows_split_the_series_without_entering_the_sigma() -> None:

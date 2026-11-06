@@ -45,6 +45,9 @@ COVARIANCE_TOLERANCE = 0.08
 FRAMES_PER_ROW = 2
 WHITE: Lags = ((), ())
 CORRELATED: Lags = ((0.6, 0.3, 0.1), (0.5, 0.2))
+# Moving sum over 7 rows: r_k = 1 - k / 7 up to lag 6. Cut at lag 5 it is not positive
+# semidefinite from 8 rows on and the null departs from uniform with short windows.
+TRIANGLE: tuple[float, ...] = tuple(1.0 - lag / 7.0 for lag in range(1, 7))
 # Gap minus band of each row of a pass-through run and its neighbours, in row sigmas.
 MARGINS = np.array([-0.5, -3.0, -2.0, -0.5, -1.0, -2.5, -2.0, -1.5, -0.2, 0.4])
 
@@ -251,3 +254,45 @@ def test_the_sigma_of_s_matches_seeded_draws() -> None:
         reported[draw] = magnitude_sigma(frames, impulse, frames_sigma, evidence_sigma(statistics))
     expected = math.sqrt(float(np.mean(reported**2)))
     assert abs(float(np.std(s)) - expected) <= TOLERANCE * expected
+
+
+def window_null(rng: np.random.Generator, half: int, lags: tuple[float, ...]) -> np.ndarray:
+    """Evidence of ``NULL_DRAWS`` constant-velocity bodies read over ``half`` + ``half`` rows,
+    pixel and non-linear relative size noise both autocorrelated with ``lags``, q against the
+    covariance with those same lags at the noisy read."""
+    rows = 2 * half
+    t = np.arange(rows) / FPS
+    x, y, z = 0.6 + 1.0 * t, 0.4 + 0.0 * t, 4.0 - 1.5 * t
+    root = np.linalg.cholesky(lag_correlation(np.arange(rows), lags))
+    pixel, relative = 3.0, 0.05
+
+    def drawn() -> np.ndarray:
+        out: np.ndarray = rng.standard_normal((NULL_DRAWS, rows)) @ root.T
+        return out
+
+    noisy_s = FOCAL * LENGTH / z * (1.0 + relative * drawn())
+    d = np.stack(
+        [
+            (FOCAL * x / z + pixel * drawn()) / noisy_s,
+            (FOCAL * y / z + pixel * drawn()) / noisy_s,
+            FOCAL / noisy_s,
+        ],
+        axis=-1,
+    )
+    which, weights = change_weights(t, np.arange(half), np.arange(half, rows))
+    out = np.empty(NULL_DRAWS)
+    for n, read in enumerate(d):
+        noise = (FOCAL / read[:, 2], np.full(rows, pixel), np.full(rows, relative))
+        cov = change_covariance(which, weights, read, noise, lags, lags)
+        out[n] = evidence(impulse_statistic(weights @ read[which], cov))
+    return out
+
+
+@pytest.mark.parametrize("half", [4, 6, 8, 12])
+def test_with_every_lag_the_evidence_is_uniform_under_a_triangular_truth(half: int) -> None:
+    """The truth the measured row lags follow (r_k = 1 - k / 7), kept at every lag: p is uniform
+    even with the short windows where the old cut at lag 5 was not."""
+    evidences = window_null(np.random.default_rng(20261109), half, TRIANGLE)
+    assert abs(float(np.mean(evidences > 0.9)) - 0.1) <= TAIL_TOLERANCE
+    assert abs(float(np.mean(evidences < 0.1)) - 0.1) <= TAIL_TOLERANCE
+    assert stats.kstest(evidences, "uniform").pvalue > KS_FLOOR

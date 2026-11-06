@@ -122,7 +122,7 @@ class PassThroughCheck:
     only, abstain; a covariance that is not positive definite is ill-conditioned."""
 
     check_id: ClassVar[str] = "R1_dyn"
-    version: ClassVar[str] = "3"
+    version: ClassVar[str] = "4"
     requires: ClassVar[frozenset[str]] = frozenset({"camera"})
     time_dependent: ClassVar[bool] = True
     magnitude_unit: ClassVar[str] = "frames"
