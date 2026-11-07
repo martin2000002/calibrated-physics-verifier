@@ -165,28 +165,28 @@
       "version": "1"
     },
     "lift/backproject": {
-      "digest": "48de1eab038136a7ac86eeef9b7e554cf4d42158b77f027787f9277ac45b3c31",
-      "version": "8"
+      "digest": "1dd6648cd06b7818f50bae1dfae772b8f7a2f4096fd24e9366675b56c90fb624",
+      "version": "9"
     },
     "lift/backproject_area_depth": {
-      "digest": "24741eb689eb0e5b0b72805e3c76976df2d99e1801570d5539e03cbfd7c1159b",
-      "version": "2"
-    },
-    "lift/backproject_contour_circle": {
-      "digest": "f0238cdc69b4d05c89584636838c422454ad870f3d27cecf47ad5b143c698f38",
-      "version": "1"
-    },
-    "lift/backproject_size_constancy": {
-      "digest": "df29f5f8805f39506cdb94cc7e99b446b652c9089b19cb0cafc7995dc09648a3",
+      "digest": "eb6869968be0fd03f52b9d11fa8d395bad4d2d7b58753d3e9df60e9265adf5bd",
       "version": "3"
     },
+    "lift/backproject_contour_circle": {
+      "digest": "82ae5e24175f2c8424dd0c692e581f4e28851f644ea036f32cd758adde672097",
+      "version": "2"
+    },
+    "lift/backproject_size_constancy": {
+      "digest": "c31d5022a274888e7b9e48023ff90d539b8b68e700a0c7c79145734ac0c2ea3e",
+      "version": "4"
+    },
     "lift/backproject_unnested": {
-      "digest": "147d430f3e0a39aa361ddd38fe0ab0997797f19ef13672210a256ccab24c5c00",
-      "version": "5"
+      "digest": "2202f7285ec0d4d9f7cbea8b290c1c5ea7254a628842be84ca328d53d43fde67",
+      "version": "6"
     },
     "lift/ground_anchored": {
-      "digest": "1e8936bdf7b6c15057a748d6e94a3e9df931634916c84e091dfb47fa4c3849b1",
-      "version": "6"
+      "digest": "7dc4dc3f9b2c35bcd02504bb55e97cf93fd33e41e6b3c10b9006f5ba0882eb7f",
+      "version": "7"
     },
     "lift/ground_truth": {
       "digest": "fc49e4d5c34a9ae5764ca7a9bb5ac6e7905c3f85efa3d98fc9fc5a1ed9f67fa8",

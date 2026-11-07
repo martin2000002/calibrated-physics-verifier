@@ -52,7 +52,8 @@ class GroundAnchoredLift(BackprojectLift):
     # 4: 1c8de44 changed the inherited footprint yaw trim; cached v3 lifts went stale.
     # 5: the inherited output gains nearer_cover.
     # 6: the inherited image-plane centre comes from a configured strategy.
-    version: ClassVar[str] = "6"
+    # 7: the inherited output gains causal_centre.
+    version: ClassVar[str] = "7"
     Params: ClassVar[type[BaseModel]] = GroundAnchoredLiftParams
 
     def __init__(self, params: BaseModel, centres: CentreRegistry) -> None:

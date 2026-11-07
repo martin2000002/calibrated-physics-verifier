@@ -41,11 +41,14 @@ class CentreParams(BaseModel):
 @dataclass(frozen=True)
 class ImageCentres:
     """Per row and object (T, N): the centre ``uv`` (T, N, 2) in pixels, NaN unless the method
-    is ``CIRCLE`` or ``CENTROID``, the ``method`` values and the apparent radius ``radius_px``."""
+    is ``CIRCLE`` or ``CENTROID``, the ``method`` values and the apparent radius ``radius_px``.
+    ``causal_uv``, when the strategy gives it, is a centre of each row found from the masks of
+    that row and the earlier ones only; NaN where ``uv`` is."""
 
     uv: FloatArray
     method: NDArray[np.str_]
     radius_px: FloatArray
+    causal_uv: FloatArray | None = None
 
 
 class CentreStrategy(Protocol):

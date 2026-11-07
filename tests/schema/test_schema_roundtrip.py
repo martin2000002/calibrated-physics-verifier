@@ -161,3 +161,23 @@ def test_the_centre_method_round_trips_and_defaults_to_none(suffix: str, tmp_pat
     assert loaded.centre_method is not None and loaded.centre_method[0, 0] == "absent"
     with pytest.raises(SchemaError):
         replace(table, centre_method=methods[:, :1])
+
+
+@pytest.mark.parametrize("suffix", [".json", ".npz"])
+def test_the_causal_centre_round_trips_and_defaults_to_none(suffix: str, tmp_path: Path) -> None:
+    table = records.states()
+    assert table.causal_centre is None
+    centres = np.zeros((*table.visible.shape, 2))
+    centres[0, 0] = np.nan
+    tagged = replace(table, causal_centre=centres)
+    path = tmp_path / f"states{suffix}"
+    if suffix == ".json":
+        tagged.save_json(path)
+        loaded = ObjectStateTable.load_json(path)
+    else:
+        tagged.save_npz(path)
+        loaded = ObjectStateTable.load_npz(path)
+    assert loaded == tagged
+    assert loaded.causal_centre is not None and bool(np.isnan(loaded.causal_centre[0, 0]).all())
+    with pytest.raises(SchemaError):
+        replace(table, causal_centre=centres[..., :1])

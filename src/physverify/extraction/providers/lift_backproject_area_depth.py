@@ -39,7 +39,8 @@ class AreaDepthLift(BackprojectLift):
 
     name: ClassVar[str] = "backproject_area_depth"
     # 2: the inherited image-plane centre comes from a configured strategy.
-    version: ClassVar[str] = "2"
+    # 3: the inherited output gains causal_centre.
+    version: ClassVar[str] = "3"
     Params: ClassVar[type[BaseModel]] = AreaDepthLiftParams
     derives_depth_from_size: ClassVar[bool] = True
 

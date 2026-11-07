@@ -24,7 +24,8 @@ class SizeConstancyLift(BackprojectLift):
     name: ClassVar[str] = "backproject_size_constancy"
     # 2: the inherited output gains nearer_cover.
     # 3: the inherited image-plane centre comes from a configured strategy.
-    version: ClassVar[str] = "3"
+    # 4: the inherited output gains causal_centre.
+    version: ClassVar[str] = "4"
     Params: ClassVar[type[BaseModel]] = SizeConstancyLiftParams
 
     def __init__(self, params: BaseModel, centres: CentreRegistry) -> None:

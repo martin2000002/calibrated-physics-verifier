@@ -23,7 +23,8 @@ class UnnestedBackprojectLift(BackprojectLift):
     # 3: 1c8de44 changed the inherited footprint yaw trim; cached v2 lifts went stale.
     # 4: the inherited output gains nearer_cover.
     # 5: the inherited image-plane centre comes from a configured strategy.
-    version: ClassVar[str] = "5"
+    # 6: the inherited output gains causal_centre.
+    version: ClassVar[str] = "6"
     Params: ClassVar[type[BaseModel]] = UnnestedLiftParams
 
     def __init__(self, params: BaseModel, centres: CentreRegistry) -> None:

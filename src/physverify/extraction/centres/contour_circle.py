@@ -6,6 +6,10 @@ mask (where bodies touch or one hides the other) or of the image border are left
 is the track's own, sqrt(A / pi) on nearby rows whose mask touches nothing. The centres of a
 digitised disc's contour pixels lie about half a pixel inside its edge, so the fitted circle has
 radius R - ``boundary_inset_px``. With too little silhouette the mask centroid is used.
+
+The track's radius at a row is a median over rows on both sides of it, so the centre of a row also
+depends on later rows. A second, causal centre per row takes the radius from that row and the
+earlier ones only, so no row after it can move it.
 """
 
 from __future__ import annotations
@@ -98,9 +102,9 @@ def others_of(masks: BoolArray, t: int, index: int) -> BoolArray:
     return found
 
 
-def track_radii(masks: BoolArray, index: int, params: Params) -> FloatArray:
-    """Per row: median sqrt(A / pi) over the free rows within ``radius_window_rows``, else over
-    every free row of the track, else NaN. A free row's mask touches no blocked pixel."""
+def free_radii(masks: BoolArray, index: int, params: Params) -> FloatArray:
+    """Per row: sqrt(A / pi) where the row is free, else NaN. A free row's mask touches no
+    blocked pixel."""
     n_t = masks.shape[0]
     free_r = np.full(n_t, np.nan)
     for t in range(n_t):
@@ -108,6 +112,14 @@ def track_radii(masks: BoolArray, index: int, params: Params) -> FloatArray:
         block = blocked(others_of(masks, t, index), params.exclusion_px)
         if own.any() and not (own & block).any() and own.sum() >= params.area_min_px:
             free_r[t] = math.sqrt(float(own.sum()) / math.pi)
+    return free_r
+
+
+def track_radii(masks: BoolArray, index: int, params: Params) -> FloatArray:
+    """Per row: median sqrt(A / pi) over the free rows within ``radius_window_rows``, else over
+    every free row of the track, else NaN."""
+    n_t = masks.shape[0]
+    free_r = free_radii(masks, index, params)
     whole = float(np.nanmedian(free_r)) if np.isfinite(free_r).any() else math.nan
     out = np.full(n_t, whole)
     w = params.radius_window_rows
@@ -115,6 +127,20 @@ def track_radii(masks: BoolArray, index: int, params: Params) -> FloatArray:
         near = free_r[max(0, t - w) : t + w + 1]
         if np.isfinite(near).any():
             out[t] = float(np.nanmedian(near))
+    return out
+
+
+def causal_track_radii(masks: BoolArray, index: int, params: Params) -> FloatArray:
+    """Per row: median sqrt(A / pi) over the free rows among the ``radius_window_rows`` before it
+    and itself, else over every free row up to it, else NaN. No later row enters."""
+    free_r = free_radii(masks, index, params)
+    out = np.full(free_r.shape, np.nan)
+    w = params.radius_window_rows
+    for t in range(free_r.size):
+        for rows in (free_r[max(0, t - w) : t + 1], free_r[: t + 1]):
+            if np.isfinite(rows).any():
+                out[t] = float(np.nanmedian(rows))
+                break
     return out
 
 
@@ -146,7 +172,7 @@ class ContourCircleCentre:
     lift's surface median."""
 
     name: ClassVar[str] = "contour_circle"
-    version: ClassVar[str] = "1"
+    version: ClassVar[str] = "2"
     Params: ClassVar[type[CentreParams]] = Params
 
     def __init__(self, params: CentreParams) -> None:
@@ -159,16 +185,20 @@ class ContourCircleCentre:
     ) -> ImageCentres | None:
         n_t, n_obj = masks.shape[:2]
         uv = np.full((n_t, n_obj, 2), np.nan)
+        causal = np.full((n_t, n_obj, 2), np.nan)
         radius = np.full((n_t, n_obj), np.nan)
         method = np.full((n_t, n_obj), CentreMethod.SURFACE_MEDIAN.value)
         for n, kind in enumerate(primitives):
             if kind not in self.params.primitives:
                 continue
             radii = track_radii(masks, n, self.params)
+            causal_radii = causal_track_radii(masks, n, self.params)
             for t in range(n_t):
-                found = centre_of(masks[t, n], others_of(masks, t, n), radii[t], self.params)
+                others = others_of(masks, t, n)
+                found = centre_of(masks[t, n], others, radii[t], self.params)
                 uv[t, n], radius[t, n], method[t, n] = found[0], found[1], found[2].value
-        return ImageCentres(uv=uv, method=method, radius_px=radius)
+                causal[t, n] = centre_of(masks[t, n], others, causal_radii[t], self.params)[0]
+        return ImageCentres(uv=uv, method=method, radius_px=radius, causal_uv=causal)
 
 
 PLUGINS = (ContourCircleCentre,)

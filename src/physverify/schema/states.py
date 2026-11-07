@@ -87,7 +87,9 @@ class ObjectStateTable(Record):
     tracked objects nearer the camera on that row (by the back-projected depth, before any
     correction along the viewing ray); NaN without a mask or a depth, None without masks.
     ``centre_method`` names how the lift found each cell's image-plane centre; None when the lift
-    used its own surface median throughout.
+    used its own surface median throughout. ``causal_centre`` is each cell's image-plane centre
+    (x / z, y / z) found from the masks of that row and the earlier ones only, where the lift's
+    centre strategy gives one; NaN elsewhere, None when it gives none.
     """
 
     clip_id: str
@@ -119,6 +121,7 @@ class ObjectStateTable(Record):
     border_cut: NDArray[np.bool_] | None = None
     nearer_cover: NDArray[np.float64] | None = None
     centre_method: NDArray[np.str_] | None = None
+    causal_centre: NDArray[np.float64] | None = None
 
     _arrays = MappingProxyType(
         {
@@ -138,6 +141,7 @@ class ObjectStateTable(Record):
             "border_cut": ArraySpec("?", ("T", "N"), optional=True),
             "nearer_cover": ArraySpec("f8", ("T", "N"), optional=True),
             "centre_method": ArraySpec("U", ("T", "N"), optional=True),
+            "causal_centre": ArraySpec("f8", ("T", "N", 2), optional=True),
         }
     )
 

@@ -15,6 +15,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
 
+import disc_tracks
 import numpy as np
 import pytest
 from support import make_context, run_provider
@@ -34,7 +35,9 @@ from physverify.extraction.centres.contour_circle import (
     Params,
     angular_span_deg,
     blocked,
+    causal_track_radii,
     silhouette_contour,
+    track_radii,
 )
 from physverify.extraction.lift_params import LiftParams
 from physverify.extraction.providers.lift_backproject import BackprojectLift
@@ -48,6 +51,7 @@ REFERENCE_METHODS = {"circle": "circle", "centroid": "centroid", "none": "absent
 SHAPE = (48, 48)
 TRUE_CENTRE = (21.3, 24.6)
 FREE_ROWS = 3
+CAUSAL_CASES = 200
 
 
 def disc(centre: tuple[float, float], radius: float) -> np.ndarray:
@@ -217,3 +221,64 @@ def test_the_lift_records_the_method_and_moves_only_the_sphere(
     placed = np.isin(contour.centre_method[:, sphere], [CentreMethod.CIRCLE, CentreMethod.CENTROID])
     assert bool(placed.any())
     assert bool((contour.visible[:, sphere] == placed).all())
+    assert default.causal_centre is None and contour.causal_centre is not None
+    assert bool(np.isnan(contour.causal_centre[:, ~sphere]).all())
+    seen = contour.causal_centre[:, sphere]
+    assert bool((np.isfinite(seen).all(axis=-1) == placed).all())
+    image = contour.position[:, sphere, :2] / contour.position[:, sphere, 2:]
+    np.testing.assert_allclose(seen[placed], image[placed], rtol=0, atol=0.02)
+
+
+def test_the_causal_radius_reads_the_window_before_the_row_then_every_earlier_row() -> None:
+    radii = [5.0, 6.0, 7.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0]
+    masks = np.stack([np.stack([disc(TRUE_CENTRE, r)]) for r in radii])
+    masks[0, 0] = masks[3, 0] = False
+    free = [math.sqrt(float(m.sum()) / math.pi) if m.any() else math.nan for m in masks[:, 0]]
+    found = causal_track_radii(masks, 0, Params(radius_window_rows=2))
+    assert math.isnan(found[0])
+    assert found[2] == pytest.approx(float(np.median(free[1:3])))
+    assert found[3] == pytest.approx(float(np.median(free[1:3])))
+    assert found[9] == pytest.approx(free[9])
+
+
+def causal_and_lookahead_unmoved(seed: int) -> tuple[bool, bool]:
+    """Whether rewriting the rows after a random row leaves rows up to it unchanged in the
+    causal centres and radii, and in the track's centres and radii."""
+    rng = np.random.default_rng(seed)
+    masks = disc_tracks.approach(rng)
+    row = int(rng.integers(0, masks.shape[0] - 1))
+    late = disc_tracks.rewritten_after(masks, row, rng)
+    kinds = (PrimitiveKind.SPHERE,) * masks.shape[1]
+    before, after = centres_of(masks, kinds), centres_of(late, kinds)
+    assert before.causal_uv is not None and after.causal_uv is not None
+    head = slice(0, row + 1)
+
+    def same(a: np.ndarray, b: np.ndarray) -> bool:
+        return bool(np.array_equal(a[head], b[head], equal_nan=True))
+
+    objects = range(masks.shape[1])
+    causal = same(before.causal_uv, after.causal_uv) and all(
+        same(causal_track_radii(masks, n, Params()), causal_track_radii(late, n, Params()))
+        for n in objects
+    )
+    lookahead = same(before.uv, after.uv) and all(
+        same(track_radii(masks, n, Params()), track_radii(late, n, Params())) for n in objects
+    )
+    return causal, lookahead
+
+
+@pytest.mark.parametrize("seed", range(CAUSAL_CASES))
+def test_no_row_after_a_row_moves_its_causal_centre(seed: int) -> None:
+    assert causal_and_lookahead_unmoved(seed)[0]
+
+
+def test_the_track_radius_looks_ahead_where_the_causal_one_does_not() -> None:
+    moved = sum(not causal_and_lookahead_unmoved(seed)[1] for seed in range(20))
+    assert moved > 0
+
+
+def test_the_causal_centre_is_the_track_centre_when_every_row_is_free_at_one_radius() -> None:
+    masks = np.stack([np.stack([disc(TRUE_CENTRE, 6.0)])] * 4)
+    found = centres_of(masks, (PrimitiveKind.SPHERE,))
+    assert found.causal_uv is not None
+    np.testing.assert_array_equal(found.causal_uv, found.uv)

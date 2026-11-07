@@ -54,12 +54,12 @@ RUN_CHECKS_HASH = {
     "fast": "5c5820acaf1bfce8270cdc8653a9eefd373f9feccde4baaac4b3a4510198f78e",
     "precise": "05f8ade4c34a9d5e374d378bd8064743086c68379a61060c1c6eb03476a3e9c9",
 }
-PRECISE_STAGE_KEYS_HASH = "874ca3baefe3853a95569b7de095b7765a60bb2a1c2de72e90cbadd8ff95c903"
+PRECISE_STAGE_KEYS_HASH = "052379bc83efa249807641d15928b476ad6c21d9e3f853c827771daa0f8ba192"
 """Hash of every stage key of the precise plan for the declared calib dataset. It and
 ``RUN_CHECKS_HASH["precise"]`` are what the defaults give with the same choices passed by
 ``--set``."""
 PRECISE_ROUTE_STAGE_KEYS_HASH = {
-    "area_depth": "cad2cfd998947532b95df078a375bde94d3954780d748c5ca1560d5919540b45",
+    "area_depth": "ee4b41b09b56514c0863830253a3087f35c8844534ccbfe32b957935172cbf8f",
 }
 """Per input route of the precise profile, the hash of every stage key of its plan, as
 ``PRECISE_STAGE_KEYS_HASH`` is of the main plan's."""
@@ -76,7 +76,7 @@ DATASET_CONTENT_HASH = {
     "fast": "7792797236e163025d89c1c518dc43ad8f90c3f511bd884e1969ca9bf1f2fa3e",
     "precise": "4a6829efdd64424d79dfc0941246de148ca50446e0f6f40738e3a02d1b8e8b4e",
 }
-NO_IDENTITY_STAGE_KEYS_HASH = "7929f55b7ca4ea18f032dc26bbf202686054505d597324f8f4d653dbe671e3d8"
+NO_IDENTITY_STAGE_KEYS_HASH = "f6b6e4fb2558df36b86957edc645fd82db99199a9a084923e8987da5883b0bef"
 """Hash of ``STAGE_KEYS`` computed for a dataset without cache identity (PISA, Physics-IQ,
 Objectron): the table as it was before identities entered the key, so those caches stay valid,
 except the three GeoCalib cameras, whose version moved when their draw was seeded,
@@ -95,9 +95,9 @@ STAGE_KEYS = {
     "camera/from_depth": "528097477f8abe02aee99fb728a9083fc5d6be7ef2565f09783422a4f7c4822d",
     "camera/geocalib": "6bbe25585e50cb7c606b7effd4f20ae9e6feefb2702cb123590051559e4de22d",
     "camera/moge2_focal": "ea90ddd70d84487f5ddd434cd9f3282d95fb38236f56adf937cf775a34289dfc",
-    "contacts/kinematic": "8924f3619182fd8501423d82d079a90bf15a7721d4883e79cda34c1b8fa6084c",
-    "contacts/kinematic_scene": "213e1f292a1b1e7e5f16b6f4aa18613b82765b15e2c52b99ada778cdc25c4f5b",
-    "contacts/proximity": "0868179cf09a66df3ec91e416a6aba9c18c0c24183f181a70d15df08f8c0c0ba",
+    "contacts/kinematic": "b6e3f0c30c2a870e0ecd0d7f6faaa165f5fe4d3e536e9c8038c85c92f25b9377",
+    "contacts/kinematic_scene": "0e8d06ddf1de1d5b5a6c99666fec45400311d29ffa1231c15e629a2a01bf3898",
+    "contacts/proximity": "124b9d7cdbf9da3cecec8d153227a9fb5fbc67fe2744e74bead008471314b7d1",
     "depth/moge2": "d8f98cce650ba75e04081abd3cc6f0ef8ca9e0607e80dd0d778782e9a4dce4f0",
     "depth/vda_small": "932e5bdd1e8e8e979e6ddd6f711dc3847a7a2c857b6e40edc6569cfa931a558b",
     "depth/vda_large": "bf81dd186e137ffe10de96898b7972a0acbb592ddcc836c9ae8ca515577a02cf",
@@ -112,30 +112,30 @@ STAGE_KEYS = {
         "c37ca9325ddfc1d25e76b62170ea4d061624556f1a950d37b527b1858531a2eb"
     ),
     "camera/ground_truth": "b2c14c9deb33cb4ba8222a4b376ebf5fcd654fa4c2a295753670d5ca3f7dcfa2",
-    "contacts/ground_truth": "528c15bd65b6e0053b0bd3e7a0f6b732c338217b8520fbaa7298a9a86da45e09",
+    "contacts/ground_truth": "f468435e57b718bbeed286e4de0990e9d0bb3f0a75b9804f7a6bd79afdb1a9e9",
     "depth/ground_truth": "066f431b92050322c0ddd30e6593f2ed4b4867638b185fbd5c7f7eeabe28db22",
     "detect/ground_truth": "d824014b61086af84d16cf7898ff517a6f80f9d23aed8e6e52e96fe24a3520c1",
-    "kinematics/ground_truth": "82da552860bd8d99008c8f1ce6f669f7bfdda1a202132e76fea35e90fb599a47",
+    "kinematics/ground_truth": "fd669ef48007c01be3a515187bb4b49642abaf545296063904ef7e82279153a5",
     "lift/ground_truth": "dfd70e984dcb4f142db035c7931ade150a9f9c84a1011e26e586bc56eec460c1",
-    "scale/ground_truth": "a3ef85b291431001584555da76394be518df9ebf305f076a3b9193d0f07d7395",
+    "scale/ground_truth": "438f8569c38a05cd2393a22587fb15ae28ce5ce27d1de9a922d42c714e827f2e",
     "track/ground_truth": "dd06a8daf8146b910fd9088f9d80f97e73b2756dc9f4e7de730aac4fe0204f4a",
-    "kinematics/savgol": "5eadfb0ffc7194662e80421dce8872a9a8d7a7a069ef4fb014d2642cbe7b23cf",
-    "lift/backproject": "99690b9d9306612490575d45551ffa2b04ebb0e11fb8a95dcaeb6bb2a81dfe30",
-    "lift/backproject_unnested": "7b944ed34c56f67633acebaccc517f00381ce0a0ae705dcede3489d1476e24af",
-    "lift/ground_anchored": "6233d9e268f47771e19abb603b0085f33bb3ab8c42e53df0aaf0ef58115847f9",
+    "kinematics/savgol": "e808d096d4be605143c96fdfe7330083dd96c4848b96f1e9592b0973a4dcb7b7",
+    "lift/backproject": "85edb58305a29c24ad95fc5ed57406fe1013e23a0af199287b65cd41db9c06a6",
+    "lift/backproject_unnested": "353c08f74b892040d941df7a9e29d8c49ac26bdeceaf2cc861ed6e41bf12fad0",
+    "lift/ground_anchored": "447ad0f260e2bdb0625293fd062e2d0c9c42d9c03dd4f3a845332c7631e7fc6c",
     "lift/backproject_size_constancy": (
-        "a635a773f395dd8185bfce79f93180f39d42a91beecc553f27cd1af2ce0a4335"
+        "aee76cff3714fd6c5bfc8fe824d914f66112536c6c46d3259105388fe721a4ef"
     ),
     "lift/backproject_area_depth": (
-        "8645310c2c29d1402c9d17da74df062d017131a96db9ef04dec130554349e1aa"
+        "4c6cb81ebc2302383baf24c9923b6d5b07252139a8ab4b2a924db643fe53d010"
     ),
     "lift/backproject_contour_circle": (
-        "7cb997e5a761b8c0a7578777f2d39742337cc4e30d4b2a1d71cb595782164d1c"
+        "00fbb61da9c33b08d10b9349259bd5e85e875dddce7d6bac1da3a58550a325d0"
     ),
-    "scale/free_fall": "c5aab810008d5b2bc4826bc87569f905ec7c32999a502a85538d5beef1d7ea5b",
-    "scale/metric_depth": "e6a88ff7014546f12b9bdc87a938208ead9b356a5272714aca27ef8c1764ee75",
-    "scale/size_model": "7b90a89adc9494e0b67df880e0ea7efc5333661da1208763a631551d47166634",
-    "scale/size_prior": "a27031d70ddd1bd8908e6442d3010eee1fedc938369c9771ae67f77558dc9061",
+    "scale/free_fall": "af8766cbd44ea7842952a6fc03ed8bf21a346b33ad6a25c26881b852ed9f1fa6",
+    "scale/metric_depth": "bf24e4c3f40e83d8738e52a9dc8405fb7959fadee3e91f6b2ba43495d24ddd07",
+    "scale/size_model": "e963cbae1ca02b6de6698fcb8b1f1d83f18220f1b7dd1121f04ae03f08129955",
+    "scale/size_prior": "85c33e209b8d3b6730bcf7a29b580b3ddd07beb051aca0951aaa5830bc50688a",
     "track/edgetam": "75bf023ca5f8704ea5c52b1aecfdf27be64448073d16c25e22610c9c8395c408",
     "track/sam2_1_hiera_tiny": "a38a8223ecde1e228b7b30f4889972cb07277c5effebb96451b787dff76557bf",
 }

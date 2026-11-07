@@ -42,6 +42,7 @@ from physverify.extraction.lift_geometry import (
 from physverify.extraction.lift_params import GravityMode, summary_options
 from physverify.extraction.lift_params import LiftParams as Params
 from physverify.extraction.mask_border import border_cut
+from physverify.extraction.pinhole import ray_points
 from physverify.extraction.pipeline import PENDING_SOURCE_KEY
 from physverify.extraction.providers._common import expect_params
 from physverify.extraction.providers._temporal_smoothing import stabilize_summaries
@@ -70,7 +71,8 @@ class BackprojectLift:
     # 6: 1c8de44 changed the footprint yaw trim (robust_scale) and cached v5 lifts went stale.
     # 7: the output gains nearer_cover.
     # 8: the image-plane centre comes from a configured strategy (params ``centre``).
-    version: ClassVar[str] = "8"
+    # 9: the output gains causal_centre where the strategy gives one.
+    version: ClassVar[str] = "9"
     requires: ClassVar[tuple[Stage, ...]] = (Stage.TRACK, Stage.DEPTH, Stage.CAMERA)
     heavy: ClassVar[bool] = False
     is_ground_truth: ClassVar[bool] = False
@@ -133,6 +135,7 @@ class BackprojectLift:
             border_cut=cut,
             nearer_cover=cover,
             centre_method=None if centres is None else centres.method,
+            causal_centre=_causal_centre(centres, camera.K),
         )
 
     def _track(self, ctx: StageContext) -> MaskTrack:
@@ -245,6 +248,16 @@ class BackprojectLift:
         if math.isfinite(camera.gravity_sigma_deg):
             return math.radians(camera.gravity_sigma_deg)
         return math.radians(self.params.pose_sigma_deg)
+
+
+def _causal_centre(centres: ImageCentres | None, intrinsics: FloatArray) -> FloatArray | None:
+    """The strategy's causal pixel centres as K^-1 [u, v, 1] without its third coordinate."""
+    if centres is None or centres.causal_uv is None:
+        return None
+    uv = centres.causal_uv.reshape(-1, 2)
+    xy = ray_points(uv[:, 0], uv[:, 1], np.ones(len(uv)), intrinsics)[:, :2]
+    out: FloatArray = xy.reshape(centres.causal_uv.shape)
+    return out
 
 
 def _mutable_fields(table: ObjectStateTable) -> dict[str, Any]:
