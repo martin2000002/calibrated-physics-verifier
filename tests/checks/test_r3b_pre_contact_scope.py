@@ -6,6 +6,7 @@ from itertools import combinations
 from typing import Any, get_type_hints
 
 import check_scenarios as sc
+import disc_tracks
 import numpy as np
 import pytest
 
@@ -17,6 +18,7 @@ from physverify.checks.variants.event_scopes.pre_contact_approach import (
     Tracks,
 )
 from physverify.checks.variants.r3b_image_relspeed import RelSpeedCheck, RelSpeedParams
+from physverify.extraction.centres.contour_circle import ContourCircleCentre, Params
 from physverify.schema.checks import AbstainReason, CheckResult, InputLevel, Verdict
 from physverify.schema.provenance import GROUND_TRUTH
 from physverify.schema.stages import Stage
@@ -32,6 +34,7 @@ ALL = ("spheres", "onset", "approach_seen", "isolated_before", "matched")
 SIDE = 0.2  # every body's extents: apparent radius 0.1 / z
 FRAMES = 32
 PROPERTY_CASES = 240
+MASK_CASES = 200
 
 
 def table(
@@ -244,6 +247,66 @@ def test_the_decision_depends_on_the_rows_up_to_the_onset_only(seed: int) -> Non
     for (i, j), k in onsets.items():
         if k is not None and k <= first:
             assert mutated_tracks.onset(i, j) == k
+
+
+def test_the_scope_reads_the_causal_centre_where_the_lift_gives_one() -> None:
+    position = head_on()
+    apart = table(head_on(speed=0.0), [SPHERE, SPHERE])
+    assert onset(replace(apart, causal_centre=np.full((FRAMES, 2, 2), math.nan))) is None
+    states = replace(apart, causal_centre=position[..., :2] / position[..., 2:])
+    assert onset(states) == 22
+    assert failed(states, 22.0) == ()
+
+
+def from_masks(masks: np.ndarray, causal: bool) -> ObjectStateTable:
+    """States of sphere tracks at depth 1 in pixel units (f = 1, no offset): the contour centre
+    as position, its causal centre when ``causal``, and each row's own sqrt(A / pi) as radius."""
+    count = masks.shape[1]
+    centres = ContourCircleCentre(Params()).image_centres(masks, (SPHERE,) * count)
+    assert centres is not None and centres.causal_uv is not None
+    position = np.concatenate([centres.uv, np.ones((*centres.uv.shape[:2], 1))], axis=2)
+    area = masks.sum(axis=(2, 3)).astype(np.float64)
+    radius = np.where(area > 0, np.sqrt(area / math.pi), math.nan)
+    states = table(position, [SPHERE] * count, size=np.repeat(2.0 * radius[..., None], 3, axis=2))
+    return replace(states, causal_centre=centres.causal_uv if causal else None)
+
+
+def masks_hold_the_prefix(seed: int, causal: bool) -> bool:
+    """Whether rewriting the masks after k* leaves k*, every onset up to it, the decision and the
+    scope's inputs up to k* unchanged."""
+    rng = np.random.default_rng(seed)
+    masks = disc_tracks.approach(rng)
+    states = from_masks(masks, causal)
+    tracks = Tracks.of(states, LIMITS)
+    first = tracks.onset(0, 1)
+    assert first is not None
+    t = first + float(rng.uniform(-12.0, 12.0))
+    mutated = from_masks(disc_tracks.rewritten_after(masks, first, rng), causal)
+    after = Tracks.of(mutated, LIMITS)
+    head = slice(0, first + 1)
+    inputs = all(
+        np.array_equal(a[head], b[head], equal_nan=True)
+        for a, b in zip(
+            (*tracks.centres, *tracks.radii), (*after.centres, *after.radii), strict=True
+        )
+    )
+    onsets = all(
+        after.onset(i, j) == k
+        for i, j in combinations(range(masks.shape[1]), 2)
+        if (k := tracks.onset(i, j)) is not None and k <= first
+    )
+    return (
+        inputs and onsets and after.onset(0, 1) == first and failed(mutated, t) == failed(states, t)
+    )
+
+
+@pytest.mark.parametrize("seed", range(MASK_CASES))
+def test_masks_rewritten_after_the_onset_leave_the_decision_and_its_inputs(seed: int) -> None:
+    assert masks_hold_the_prefix(seed, causal=True)
+
+
+def test_the_contour_centre_without_its_causal_one_breaks_the_property() -> None:
+    assert not all(masks_hold_the_prefix(seed, causal=False) for seed in range(20))
 
 
 def test_the_property_cases_span_both_decisions() -> None:

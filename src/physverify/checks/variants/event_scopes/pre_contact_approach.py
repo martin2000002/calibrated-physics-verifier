@@ -2,13 +2,14 @@
 pair first comes near (route D). Every predicate reads rows up to that onset only.
 
 Near at row k: the image centres are within ``kappa`` times the sum of the apparent radii, or the
-closing speed of the last step closes the gap d - S within one more step. The radius at k is
-``apparent_radius`` over rows k - 2 ``radius_rows``..k: the check's window, made causal. The
-onset k* is the first near row, a stopping time (whether k* = k depends on rows <= k only), so
-rows rewritten after the impact cannot move the decision. ``approach_seen``: the
-``side_min_rows`` rows ending ``gap_frames`` before k* have centres. ``isolated_before``: no other
-body is near either one within ``ScopeLimits.reach_frames`` up to k*. ``matched`` only says the
-event is this pair's onset: within the same reach of it."""
+closing speed of the last step closes the gap d - S within one more step. The centre at k is the
+lift's ``causal_centre`` where it has one (the contour centre's own radius looks at later rows),
+else the image track. The radius at k is ``apparent_radius`` over rows k - 2 ``radius_rows``..k:
+the check's window, made causal. The onset k* is the first near row, a stopping time (whether
+k* = k depends on rows <= k only), so rows rewritten after the impact cannot move the decision.
+``approach_seen``: the ``side_min_rows`` rows ending ``gap_frames`` before k* have centres.
+``isolated_before``: no other body is near either one within ``ScopeLimits.reach_frames`` up to
+k*. ``matched`` only says the event is this pair's onset: within the same reach of it."""
 
 from __future__ import annotations
 
@@ -75,7 +76,7 @@ class Tracks:
     def of(cls, states: ObjectStateTable, gates: ScopeLimits) -> Tracks:
         n = range(states.n_objects)
         return cls(
-            tuple(image_track(states, i) for i in n),
+            tuple(_causal_centres(states, i) for i in n),
             tuple(_causal_radius(states, i, gates.radius_rows) for i in n),
             gates.kappa,
         )
@@ -93,6 +94,15 @@ class Tracks:
         """The first row the pair is near; None if it never is."""
         hits = np.flatnonzero(self.near(i, j))
         return int(hits[0]) if hits.size else None
+
+
+def _causal_centres(states: ObjectStateTable, index: int) -> FloatArray:
+    track = image_track(states, index)
+    if states.causal_centre is None:
+        return track
+    causal = np.asarray(states.causal_centre[:, index], dtype=np.float64)
+    centres: FloatArray = np.where(np.isfinite(causal), causal, track)
+    return centres
 
 
 def _causal_radius(states: ObjectStateTable, index: int, half: int) -> FloatArray:
