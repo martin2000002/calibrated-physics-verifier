@@ -97,12 +97,6 @@ EXTRA_TAG = (
 )
 
 KEPT_FRAGMENTS = (
-    Kept(
-        "README.md",
-        "`--a8v2-dir`",
-        1,
-        "renamed-names table: the old `results` option that stored launchers may still pass",
-    ),
     Kept("configs/studies/prompt_sets.toml", '"extra:amendment4"', 1, EXTRA_TAG),
     Kept("scripts/h200/_common.sh", '"$H200_ROOT/a8v2"', 1, CHAIN_DIR),
     Kept("scripts/h200/perception_arms.tsv", "it3-r", 1, ARM_IDS),
