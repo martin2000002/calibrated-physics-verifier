@@ -10,14 +10,15 @@ It is part of an undergraduate thesis (Computer Science, USFQ) built on three st
 calibration of each check against violations of known size injected into synthetic scenes, the
 agreement of the verifier with human physics labels on generated video (VideoPhy) compared with a
 reference vision-language model, and the comparison of a video generator fine-tuned with the
-verifier as preference signal against best-of-8 sampling from the base generator.
+verifier as preference signal against best-of-8 sampling from the base generator. The results of
+the final test and the demo videos are in this repository's
+[releases](https://github.com/martin2000002/calibrated-physics-verifier/releases).
 
-## Status
+## Overview
 
-Every subcommand is implemented. The library code has unit tests, and most subcommands are also
-invoked by a test of their own. The checks are calibrated on the calibration split of the synthetic
-dataset only; `calibrate publish` writes the thresholds that `verify` uses, and the values in
-`configs/verifier/checks.toml` are provisional fallbacks for when none is published. A published
+The checks are calibrated on the calibration split of the synthetic dataset only; `calibrate
+publish` writes the thresholds that `verify` uses, and the values in `configs/verifier/checks.toml`
+are provisional fallbacks for when none is published. A published
 threshold table carries the `checks_hash` of the check parameters and variants it was fitted with,
 and `verify` refuses (exit 2) a table without that hash or with another one. A provisional
 `verification.thresholds.<id>` is read in the unit of the check's default implementation; a variant
@@ -26,9 +27,7 @@ tau. `configs/verifier/sealed.toml` lists the sealed sets: a command refuses to 
 unless it is unsealed explicitly, and each look is logged before any number is computed. The final
 test (`scripts/h200/final_run.sh`) makes its looks in a clean checkout at the frozen commit, which
 its `freeze.json` records with the `configs/` tree, the profile, the device and the sha256 of each
-file a look judges with. The tag `final-freeze` marks an earlier freeze; the ledger lines written at
-its commit name a bare dataset, and `configs/verifier/sealed_legacy.toml` maps them to the dataset
-version each one read.
+file a look judges with.
 
 The calibration artifact is a run output and is not versioned. The size model is versioned
 (`configs/verifier/size_model.toml`): its coefficients are estimates and carry their measured
@@ -52,7 +51,7 @@ video on the GPU or scores a given video on the CPU.
 | `compare-generators` | Fine-tuned vs base vs best-of-8 under the verifier and VideoPhy-2 AutoEval, with a pre-registration and a regression gate for the judge |
 | `demo` | One prompt or video through the whole verifier: per-check report and overlay video |
 | `scene-stats` | Per-clip detection and depth errors, per-scene tables and scene-bootstrap differences between two extractor configurations |
-| `results` | Collects the reported numbers of a calibration chain (the stored output directory of a calibration-chain runner that is no longer in the repository) and an agreement run into `results.md` and `results.json`, each value with its source and estimates marked |
+| `results` | Collects the reported numbers of a calibration chain and an agreement run into `results.md` and `results.json`, each value with its source and estimates marked |
 | `final-table` | The final run's checks and closing table: no weight-0 check can make a clip abstain (`preflight`), every active check of an evaluation got its input (`inputs`), and `final_table.{md,json}` with one row per closing criterion (`build`) |
 | `report` | Publication figures of a finished final run: one grayscale vector PDF per figure from the outputs the run wrote, texts from a labels TOML (`figures`; needs matplotlib, see the `figures` extra) |
 | `doctor` | Effective configuration, paths, lock and package versions |
@@ -115,34 +114,6 @@ sealed sets), `datasets/` the settings of each dataset that has some (`kubric_fr
 distribution and `studies/` one file per study. Each top-level table lives in exactly one file.
 
 Exit codes: 0 ok, 1 error, 2 usage, configuration or resource budget, 75 heavy lock busy.
-
-### Renamed names
-
-Older runs, notes and launchers may use these names; the old names are no longer read.
-
-| Old | Current |
-|---|---|
-| `physverify h3` | `physverify compare-generators` |
-| `physverify abstain` | `physverify selective-risk` |
-| `physverify data` | `physverify download` |
-| `physverify dataset` | `physverify synth` |
-| `physverify calibrate devscore` | `physverify calibrate dev-score` |
-| `results` options `--a8v2-dir`, `--h1-evaluation`, `--h2-run`, `--abstention-run` | `--chain-dir`, `--calibration-evaluation`, `--agreement-run`, `--selective-risk-run` |
-| `PHYSVERIFY_H2_*` | `PHYSVERIFY_AGREEMENT_*` |
-| `PHYSVERIFY_H2_A8V2_DIR` | `PHYSVERIFY_AGREEMENT_CHAIN_DIR` |
-| `PHYSVERIFY_ITER_*` | `PHYSVERIFY_ITERATION_*` |
-| `PHYSVERIFY_FREEZE_P2_COMMIT` | `PHYSVERIFY_FREEZE_EARLY_EXTRACTION_COMMIT` |
-| `scripts/h200/setup.sh` | `scripts/h200/setup_cuda.sh` |
-| `scripts/h200/run_h2.sh`, `h2_query.py` | `scripts/h200/run_human_agreement.sh`, `agreement_query.py` |
-| `scripts/h200/run_h3.sh` | `scripts/h200/run_generator_comparison.sh` |
-| `scripts/h200/run_iteration.sh`, `iteration_arms.tsv` | `scripts/h200/run_perception_iteration.sh`, `perception_arms.tsv` |
-| `scripts/h200/a8v2_query.py` | `scripts/h200/run_query.py` |
-| `scripts/h200/run_a8v2.sh` (`PHYSVERIFY_A8V2_*`) | Removed. Its stored output directory, a calibration chain, is still read by `results --chain-dir` and `run_human_agreement.sh`; new runs use `run_freeze.sh` and its `freeze.json` |
-| `scripts/h200/run_p1_perception.sh` (`PHYSVERIFY_P1_*`) | Removed. Perception configurations run as declared arms of `scripts/h200/run_perception_iteration.sh` (`perception_arms.tsv`) |
-| `scripts/h200/migrate_velocity.sh` (`PHYSVERIFY_MIGRATE_*`) | Removed. `physverify synth migrate`, then `synth build` and `extract purge` by hand (see the H200 README, Ground-truth migrations) |
-
-Persisted names (record classes, schema ids, config tables and keys, ledger labels) did not
-change, so existing runs, caches and artifacts stay readable.
 
 ## Tutorial
 
@@ -417,23 +388,15 @@ clips, which have two balls, and neither the impacts with the ground that R3a ju
 collision of the collision clips. Step 4 fits the thresholds and the sigma correction on the
 calibration split.
 
-R5a's alarms have a cause that no threshold fixes, and on perceived states R5a does not meet the
-calibration clause (it is not among the checks counted as met). Its ratio is at most 2, and
-perceived depth drives it there. The perceived depth of a small object tends to move against its
-true depth: on the perceived states of the calibration split (the `precise` chain), the acceleration
-fitted along the line of sight has the wrong sign in 87% of the 858 long flights, and two windows of
-one flight can point opposite ways; a window can also span an impact the perceived contacts missed.
-On those states the ratio is above 0.15 on all 74 clean clips with an R5a result, against none of
-the 55 with ground truth, and its per-clip maximum has a median of 1.87 on the clean clips and 1.90
-on the clips with a fault injected for R5a. `precise`, the profile the reported results use, scores
-R5a with a Wald contrast of the two accelerations weighted by their propagated sigma
-(`accel_wald_chi2_3`, provisional tau 11.34), which has no such bound. On perceived states it does
-not separate those faults either: its stratified AUROC on the calibration split is 0.51 [0.41,
-0.61], so it does not meet the clause. Selecting it under `fast` with
-`--set check_variants.R5a=whitened`, `--set verification.thresholds.R5a=11.34` and
-`--set verification.threshold_units.R5a=accel_wald_chi2_3` does not clear these clips: with this
-four-clip error profile the clean projectile still fails, at W = 167 +/- 26, and the clean collision
-passes.
+R5a's alarms have a cause that no threshold fixes. Its ratio is at most 2, and perceived depth
+drives it there: the perceived depth of a small object tends to move against its true depth, so two
+windows of one flight can point opposite ways, and on perceived states R5a does not meet the
+calibration clause. `precise`, the profile the reported results use, scores R5a with a Wald
+contrast of the two accelerations weighted by their propagated sigma (`accel_wald_chi2_3`,
+provisional tau 11.34), which has no such bound but does not separate those faults on perceived
+states either. It can be selected under `fast` with `--set check_variants.R5a=whitened`,
+`--set verification.thresholds.R5a=11.34` and
+`--set verification.threshold_units.R5a=accel_wald_chi2_3`.
 
 ### 3. Score a real video
 
