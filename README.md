@@ -10,7 +10,9 @@ It is part of an undergraduate thesis (Computer Science, USFQ) built on three st
 calibration of each check against violations of known size injected into synthetic scenes, the
 agreement of the verifier with human physics labels on generated video (VideoPhy) compared with a
 reference vision-language model, and the comparison of a video generator fine-tuned with the
-verifier as preference signal against best-of-8 sampling from the base generator.
+verifier as preference signal against best-of-8 sampling from the base generator. The results of
+the final test and the demo videos are in this repository's
+[releases](https://github.com/martin2000002/calibrated-physics-verifier/releases).
 
 ## Overview
 
