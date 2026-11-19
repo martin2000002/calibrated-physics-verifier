@@ -1,0 +1,158 @@
+"""The real provider registry, its execution contract and lazy heavy imports."""
+
+from __future__ import annotations
+
+import ast
+from pathlib import Path
+
+import pytest
+from child_python import run_python
+from cli_runner import CliRunner
+
+from physverify.app.context import AppContext, GlobalOptions, Invocation
+from physverify.core.errors import InvalidPluginError
+from physverify.extraction._base import StageProvider, derives_depth_from_size, validate_provider
+from physverify.extraction.cache import reads_own_error
+from physverify.schema.stages import Stage, check_upstream_order
+
+REPO = Path(__file__).resolve().parents[2]
+PROVIDERS_DIR = REPO / "src" / "physverify" / "extraction" / "providers"
+LAZY_MODULES = ("torch", "transformers", "huggingface_hub", "timm", "geocalib", "kornia")
+
+
+@pytest.fixture(scope="module")
+def registry() -> dict[str, type[StageProvider]]:
+    context = AppContext(
+        Invocation(argv=("physverify",), environ={}), GlobalOptions(config_dir=REPO / "configs")
+    )
+    return dict(context.registry("providers"))
+
+
+def test_every_provider_validates_and_only_providers_with_weights_are_heavy(
+    registry: dict[str, type[StageProvider]],
+) -> None:
+    for provider in registry.values():
+        validate_provider(provider)
+        check_upstream_order(provider.stage, provider.error_profile_reads)
+    assert all(provider.heavy == bool(provider.weights) for provider in registry.values())
+    assert any(provider.heavy for provider in registry.values())
+
+
+def test_a_provider_that_does_not_declare_a_size_derived_depth_reads_the_protocol_default(
+    registry: dict[str, type[StageProvider]],
+) -> None:
+    lift = registry["lift/backproject"]
+    assert "derives_depth_from_size" not in vars(lift)
+    assert derives_depth_from_size(lift) is StageProvider.derives_depth_from_size is False
+    assert derives_depth_from_size(registry["lift/backproject_area_depth"]) is True
+
+
+def test_a_size_derived_depth_declaration_must_be_a_bool(
+    registry: dict[str, type[StageProvider]],
+) -> None:
+    lift = registry["lift/backproject"]
+    malformed = type("Malformed", (lift,), {"derives_depth_from_size": "yes"})
+    with pytest.raises(InvalidPluginError, match="derives_depth_from_size must be a bool"):
+        validate_provider(malformed)
+
+
+def test_only_the_backproject_lifts_and_the_moge2_focal_read_their_own_profile_entry(
+    registry: dict[str, type[StageProvider]],
+) -> None:
+    lifts = (
+        "lift/backproject",
+        "lift/backproject_unnested",
+        "lift/ground_anchored",
+        "lift/backproject_size_constancy",
+        "lift/backproject_area_depth",
+        "lift/backproject_contour_circle",
+    )
+    for key in lifts:
+        assert registry[key].error_profile_reads == (Stage.TRACK, Stage.DEPTH)
+        assert reads_own_error(registry[key])
+    assert registry["camera/moge2_focal"].error_profile_reads == ()
+    others = [key for key, p in registry.items() if key not in lifts and reads_own_error(p)]
+    assert others == ["camera/moge2_focal"]
+
+
+@pytest.mark.parametrize("command", ["run", "fetch-weights"])
+def test_extract_help_goes_through_the_real_registry(cli: CliRunner, command: str) -> None:
+    result = cli("extract", command, "--help")
+    assert result.code == 0, result.err
+
+
+def test_building_the_registry_imports_no_heavy_library() -> None:
+    script = (
+        "import sys\n"
+        "from physverify.app.plugins import PLUGIN_KINDS\n"
+        "import physverify.extraction.weights, physverify.extraction.pipeline\n"
+        "assert len(PLUGIN_KINDS['providers']()) == 36\n"
+        f"print(sorted(m for m in {LAZY_MODULES!r} if m in sys.modules))\n"
+    )
+    assert run_python("-c", script).strip() == "[]"
+
+
+def _module_level_imports(tree: ast.Module) -> set[str]:
+    names: set[str] = set()
+    for node in tree.body:
+        if isinstance(node, ast.Import):
+            names.update(alias.name.split(".")[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            names.add(node.module.split(".")[0])
+    return names
+
+
+def _sources() -> list[Path]:
+    extra = [PROVIDERS_DIR.parent / "weights.py", PROVIDERS_DIR.parent / "pipeline.py"]
+    return sorted(PROVIDERS_DIR.glob("*.py")) + extra
+
+
+def test_heavy_libraries_are_imported_only_inside_functions() -> None:
+    for path in _sources():
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        assert not _module_level_imports(tree) & set(LAZY_MODULES), path.name
+
+
+def _parents(tree: ast.AST) -> dict[ast.AST, ast.AST]:
+    return {child: node for node in ast.walk(tree) for child in ast.iter_child_nodes(node)}
+
+
+def _is_attr(node: ast.AST, base: str, attr: str) -> bool:
+    return (
+        isinstance(node, ast.Attribute)
+        and node.attr == attr
+        and isinstance(node.value, ast.Name)
+        and node.value.id == base
+    )
+
+
+def test_cpu_literal_appears_only_as_a_device_comparison() -> None:
+    for path in sorted(PROVIDERS_DIR.glob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        parents = _parents(tree)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Constant) and node.value == "cpu":
+                parent = parents[node]
+                assert isinstance(parent, ast.Compare), path.name
+                assert _is_attr(parent.left, "ctx", "device"), path.name
+
+
+def test_frames_are_requested_with_the_context_sampling() -> None:
+    """``ctx.video.frames(s.start, <stop>, s.step, s.max_side)``; <stop> is ``s.stop`` except in
+    DINO, which reads only the first ``search_frames`` sampled frames."""
+    calls = 0
+    for path in sorted(PROVIDERS_DIR.glob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)):
+                continue
+            if node.func.attr != "frames":
+                continue
+            calls += 1
+            assert _is_attr(node.func.value, "ctx", "video"), path.name
+            start, stop, step, max_side = node.args
+            assert _is_attr(start, "s", "start") and _is_attr(step, "s", "step"), path.name
+            assert _is_attr(max_side, "s", "max_side"), path.name
+            dino = path.name == "_grounding_dino.py"
+            assert _is_attr(stop, "s", "stop") or (dino and isinstance(stop, ast.Name)), path.name
+    assert calls == 8

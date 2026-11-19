@@ -1,0 +1,230 @@
+"""The cases of the selective-risk study and the threshold sweeps over them.
+
+The checks read cached stage outputs (V8 oracle and V0 perceived chains) and a stage missing
+from the cache fails its clip, which is counted. The reference of an event is the oracle's point
+verdict; on real video, where there is no oracle, every scored event is PASS."""
+
+from __future__ import annotations
+
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass
+from pathlib import Path
+
+import numpy as np
+from numpy.typing import NDArray
+
+from physverify.calibration.artifact_io import load_calibration
+from physverify.core.errors import MissingInputError, PhysverifyError, UsageError
+from physverify.datasets._base import DatasetSource
+from physverify.diagnosis.chain_runner import ChainRunner
+from physverify.diagnosis.chain_variants import oracle_variant, perceived_variant
+from physverify.diagnosis.end_to_end import track_of, variant_outputs, variant_results
+from physverify.diagnosis.pairing import pair_results, subject_map
+from physverify.diagnosis.verification_adapter import VerificationCheckSuite, require_routable
+from physverify.schema.checks import InputLevel, Verdict
+from physverify.schema.clip import ClipManifest, Split
+from physverify.selective_risk.curve import (
+    Case,
+    CaseCounts,
+    IntArray,
+    alpha_grid,
+    curve_point,
+    decision_codes,
+    k_of,
+    paired_cases,
+    reference_codes,
+)
+from physverify.selective_risk.fit import choose_k, curve_rows, paired_aurc_difference
+from physverify.selective_risk.records import ComparedTables, SweptTable
+from physverify.selective_risk.settings import AbstentionSettings, Population
+from physverify.verification.sweep import CheckUnit
+from physverify.verification.thresholding import ThresholdTable, load_thresholds
+
+FITTED_K, CONFIGURED_K = "k_star", "k_2"
+"""The persisted names of the rows at k* of calibration and at the configured ``k_sigma`` of the
+threshold policy."""
+
+
+@dataclass(frozen=True)
+class Collected:
+    cases: list[Case]
+    counts: CaseCounts
+    clips: dict[str, ClipManifest]
+    failed: list[str]
+
+
+ChainFor = Callable[[str], tuple[ChainRunner, DatasetSource]]
+"""The cached oracle/perceived chain of a dataset, and the dataset."""
+
+
+@dataclass(frozen=True)
+class Session:
+    chain: ChainFor
+    calibration_dir: Path
+    settings: AbstentionSettings
+    population: Population
+    suite: VerificationCheckSuite
+    reference_table: ThresholdTable
+    """Oracle level: the reference is the point verdict against its raw taus."""
+    thresholds: ThresholdTable
+    """Perceived level: the table every swept decision uses."""
+    min_span_iou: float
+    checks: tuple[CheckUnit, ...]
+    couplings: frozenset[tuple[str, str]]
+    configured_k: float
+    """``k_sigma`` of ``[verification.policies.threshold]``, what ``verify`` decides with."""
+
+
+def level_tables(
+    artifact: Path | None,
+    profile: str,
+    fallback: ThresholdTable,
+    overrides: Mapping[InputLevel, Path],
+    *,
+    guard: Callable[[ThresholdTable], ThresholdTable],
+    stale_hash: str | None = None,
+) -> dict[InputLevel, ThresholdTable]:
+    """Per level: an explicit table file (through ``guard``), else the projection of the
+    calibration chain's stratum, else ``fallback`` (what ``verify`` uses) when there is no
+    artifact."""
+    for level, given in overrides.items():
+        if not given.is_file():
+            raise UsageError(f"no {level.value} threshold table at {given}")
+    calibration = (
+        load_calibration(artifact, checks_hash=stale_hash)
+        if artifact is not None and artifact.is_file()
+        else None
+    )
+    root = None if artifact is None else artifact.parent
+    out: dict[InputLevel, ThresholdTable] = {}
+    for level in (InputLevel.ORACLE, InputLevel.PERCEIVED):
+        path = overrides.get(level)
+        if path is not None:
+            out[level] = guard(load_thresholds(path, {}))
+        elif calibration is not None:
+            stratum = calibration.stratum(level, profile)
+            out[level] = ThresholdTable.complete(
+                stratum.thresholds_projection(root), stratum.source
+            )
+        else:
+            out[level] = fallback
+    return out
+
+
+def split_clips(source: DatasetSource, subset: str, split: Split) -> list[ClipManifest]:
+    """The clips of one split of a planned subset, as the calibration chain selects them."""
+    return [c for c in source.clips(subset) if c.split is split]
+
+
+def collect_synthetic(session: Session, split: Split) -> Collected:
+    """Oracle/perceived pairs of every cached clip of the population's ``split`` as cases."""
+    population = session.population
+    chain, source = session.chain(population.dataset)
+    require_routable(chain, (oracle_variant(), perceived_variant()))
+    clips = split_clips(source, population.subset, split)
+    cases: list[Case] = []
+    counts, failed = CaseCounts(), []
+    suite = session.suite
+    for clip in clips:
+        try:
+            v8 = variant_outputs(chain, clip, oracle_variant())
+            v0 = variant_outputs(chain, clip, perceived_variant())
+            oracle = variant_results(suite, chain, clip, v8, InputLevel.ORACLE)
+            perceived = variant_results(suite, chain, clip, v0, InputLevel.PERCEIVED)
+            subjects = subject_map(track_of(v0), track_of(v8))
+        except (PhysverifyError, ValueError):
+            failed.append(clip.clip_id)
+            continue
+        paired = pair_results(oracle, perceived, subjects, session.min_span_iou)
+        found, seen = paired_cases(paired, session.reference_table)
+        cases += found
+        counts += seen
+    return Collected(cases, counts, {c.clip_id: c for c in clips}, failed)
+
+
+def collect_real(session: Session, dataset: str) -> Collected:
+    """Perceived events of real video, all with reference PASS (real physics)."""
+    chain, source = session.chain(dataset)
+    require_routable(chain, (perceived_variant(),))
+    clips = list(source.clips(None))
+    cases: list[Case] = []
+    failed = []
+    for clip in clips:
+        try:
+            v0 = variant_outputs(chain, clip, perceived_variant())
+            results = variant_results(session.suite, chain, clip, v0, InputLevel.PERCEIVED)
+        except (PhysverifyError, ValueError):
+            failed.append(clip.clip_id)
+            continue
+        cases += [
+            Case(r.clip_id, r.check_id, Verdict.PASS, r) for r in results if r.magnitude is not None
+        ]
+    return Collected(cases, CaseCounts(), {c.clip_id: c for c in clips}, failed)
+
+
+def _grid(settings: AbstentionSettings) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+    alphas = alpha_grid(settings)
+    return alphas, k_of(alphas)
+
+
+def require(collected: Collected, what: str) -> None:
+    if not collected.cases and collected.counts.no_reference:
+        raise MissingInputError(
+            f"{what}: none of {collected.counts.no_reference} oracle events has a reference; "
+            "the oracle table has no tau for their checks"
+        )
+    if not collected.cases:
+        raise MissingInputError(
+            f"{what}: no case ({len(collected.failed)} clips without cached chains); "
+            "run `physverify extract run` first"
+        )
+
+
+@dataclass(frozen=True)
+class Swept:
+    """A sweep's record and its decision codes, ``(len(ks), len(cases))``."""
+
+    table: SweptTable
+    codes: IntArray
+
+
+def sweep(collected: Collected, thresholds: ThresholdTable, settings: AbstentionSettings) -> Swept:
+    alphas, ks = _grid(settings)
+    reference = reference_codes(collected.cases)
+    codes = decision_codes(collected.cases, ks, thresholds)
+    points = [curve_point(row, reference) for row in codes]
+    best = choose_k(points, list(ks), settings.risk_target, settings.ci)
+    table = SweptTable(
+        curve=tuple(curve_rows(codes, reference, list(ks), list(alphas), settings.ci)),
+        best=best,
+        alpha_star=None if best is None else float(alphas[best]),
+        k_star=None if best is None else float(ks[best]),
+    )
+    return Swept(table, codes)
+
+
+def named_ks(fitted: float | None, configured: float) -> dict[str, float]:
+    return ({} if fitted is None else {FITTED_K: fitted}) | {CONFIGURED_K: configured}
+
+
+def compare_tables(
+    collected: Collected, calibrated: ThresholdTable, raw: ThresholdTable, s: AbstentionSettings
+) -> ComparedTables:
+    """Both tables swept on the same cases; AURC difference with a bootstrap paired by clip."""
+    swept_raw, swept_calibrated = sweep(collected, raw, s), sweep(collected, calibrated, s)
+    reference = reference_codes(collected.cases)
+    difference = paired_aurc_difference(
+        swept_raw.codes,
+        swept_calibrated.codes,
+        reference,
+        [c.clip_id for c in collected.cases],
+        n_boot=s.bootstrap,
+        seed=s.seed,
+        ci=s.ci,
+    )
+    return ComparedTables(
+        raw=swept_raw.table,
+        calibrated=swept_calibrated.table,
+        aurc_calibrated_minus_raw=difference,
+        identical_tables=calibrated.dump()["checks"] == raw.dump()["checks"],
+    )

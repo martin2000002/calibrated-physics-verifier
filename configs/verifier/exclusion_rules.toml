@@ -1,0 +1,45 @@
+# Preregistered exclusion rules, applied by `physverify exclusions decide`
+# (calibration/exclusions/rules.py). The ids in `rules` name the three tables below: 1.1 the R5a
+# usable stratum, 1.2 the R2 detector comparison, 1.5 the real false-positive rate. Every threshold
+# lives here: changing one after the calibration chain has run is a declared deviation and changes
+# the record's rules_sha256. The record is written where [check_scope].decision_record points (its
+# .md view next to it).
+[exclusion_rules]
+version = "2"
+# The stratum the human-agreement study and the generator comparison consume.
+consumed_level = "perceived"
+consumed_profile = "precise"
+rules = ["1.1", "1.2", "1.5"]
+
+# 1.1-v2: the 1.1 test over every check, so no check without weight or monotonicity votes in the
+# consumed rule. The table keeps its v1 name, r5a (renaming it changes the record's schema).
+[exclusion_rules.r5a]                 # 1.1: usable stratum, weight > 0, tau_b CI low > 0
+check_ids = ["R1", "R2", "R3a", "R3b", "R4_jump", "R4_missing", "R4_size", "R5a", "R5b"]
+min_weight = 0.0                      # strict: weight > 0 (status ok and Youden J low > 0)
+min_tau_b_low = 0.0                   # strict: tau_b CI low > 0
+
+[exclusion_rules.r2]                  # 1.2: both detector arms at the artifact's tau
+check_ids = ["R2"]
+dataset = "kubric_synthetic"
+subset = "full"
+family = "f4_stack"
+perturbation = "r2_unsupported_rest"
+split = "calib"
+base_detector = "grounding_dino_base" # the precise profile's per-query detector
+tiny_detector = "grounding_dino_tiny" # the joint-prompt detector of the fast plan
+rates = "total"                       # FPR = FAIL / clean clips, TPR = FAIL / positive clips
+max_fpr_increase = 0.10               # exclude when FPR(base) - FPR(tiny) > 0.10
+tpr_ci = 0.95                         # exclude when the high of the CI of TPR(base) - TPR(tiny) < 0
+bootstrap_n = 2000                    # paired scene bootstrap of the TPR difference
+bootstrap_seed = 20261019
+
+[exclusion_rules.real]                # 1.5: exclude when the worst CP low of the real FPR > 0.10
+datasets = ["physics_iq", "pisa_real"]
+max_fpr_lower = 0.10
+ci = 0.95
+sided = "two_sided"                   # exact Clopper-Pearson over (k, n) clips, like v1's intervals
+allowed_sets = [
+    { physics_iq = 54, pisa_real = 360 },   # the calibration chain's v1 set
+    { physics_iq = 54, pisa_real = 40 },    # fallback when GPU time is short
+    { physics_iq = 54, pisa_real = 361 },   # only if PISA clip 0229 comes in
+]

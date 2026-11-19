@@ -1,0 +1,208 @@
+{
+  "ball-and-block-fall": [
+    {
+      "phrase": "ball",
+      "expected_count": 1
+    },
+    {
+      "phrase": "block",
+      "expected_count": 1
+    }
+  ],
+  "balls-collide": [
+    {
+      "phrase": "ball",
+      "expected_count": 2
+    }
+  ],
+  "ball-rolls-off": [
+    {
+      "phrase": "ball",
+      "expected_count": 1
+    }
+  ],
+  "unstable-block-stack": [
+    {
+      "phrase": "block",
+      "expected_count": null
+    }
+  ],
+  "stable-blocks": [
+    {
+      "phrase": "block",
+      "expected_count": null
+    }
+  ],
+  "ball-hits-duck": [
+    {
+      "phrase": "ball",
+      "expected_count": 1
+    },
+    {
+      "phrase": "rubber duck",
+      "expected_count": 1
+    }
+  ],
+  "ball-hits-nothing": [
+    {
+      "phrase": "ball",
+      "expected_count": 1
+    }
+  ],
+  "ball-in-basket": [
+    {
+      "phrase": "ball",
+      "expected_count": 1
+    },
+    {
+      "phrase": "basket",
+      "expected_count": 1
+    }
+  ],
+  "ball-ramp": [
+    {
+      "phrase": "ball",
+      "expected_count": 1
+    },
+    {
+      "phrase": "ramp",
+      "expected_count": 1
+    }
+  ],
+  "ball-rolls-on-glass": [
+    {
+      "phrase": "ball",
+      "expected_count": 1
+    },
+    {
+      "phrase": "glass",
+      "expected_count": 1
+    }
+  ],
+  "ball-train": [
+    {
+      "phrase": "ball",
+      "expected_count": null
+    }
+  ],
+  "block-domino": [
+    {
+      "phrase": "block",
+      "expected_count": 1
+    },
+    {
+      "phrase": "domino",
+      "expected_count": null
+    }
+  ],
+  "dominos-with-space": [
+    {
+      "phrase": "domino",
+      "expected_count": null
+    }
+  ],
+  "double-cradle": [
+    {
+      "phrase": "ball",
+      "expected_count": null
+    }
+  ],
+  "duck-and-dominos": [
+    {
+      "phrase": "rubber duck",
+      "expected_count": 1
+    },
+    {
+      "phrase": "domino",
+      "expected_count": null
+    }
+  ],
+  "duck-falls-in-box": [
+    {
+      "phrase": "rubber duck",
+      "expected_count": 1
+    },
+    {
+      "phrase": "box",
+      "expected_count": 1
+    }
+  ],
+  "marble-run-x": [
+    {
+      "phrase": "marble",
+      "expected_count": null
+    }
+  ],
+  "marble-run-y": [
+    {
+      "phrase": "marble",
+      "expected_count": null
+    }
+  ],
+  "mirror-ball-fall": [
+    {
+      "phrase": "ball",
+      "expected_count": 1
+    }
+  ],
+  "roll-behind-box": [
+    {
+      "phrase": "ball",
+      "expected_count": 1
+    },
+    {
+      "phrase": "box",
+      "expected_count": 1
+    }
+  ],
+  "roll-front-box": [
+    {
+      "phrase": "ball",
+      "expected_count": 1
+    },
+    {
+      "phrase": "box",
+      "expected_count": 1
+    }
+  ],
+  "roll-in-box": [
+    {
+      "phrase": "ball",
+      "expected_count": 1
+    },
+    {
+      "phrase": "box",
+      "expected_count": 1
+    }
+  ],
+  "single-cradle": [
+    {
+      "phrase": "ball",
+      "expected_count": null
+    }
+  ],
+  "solid-ball-peakaboo": [
+    {
+      "phrase": "ball",
+      "expected_count": 1
+    }
+  ],
+  "two-balls-pass": [
+    {
+      "phrase": "ball",
+      "expected_count": 2
+    }
+  ],
+  "duck-static": [
+    {
+      "phrase": "rubber duck",
+      "expected_count": 1
+    }
+  ],
+  "glass-stays-same": [
+    {
+      "phrase": "glass",
+      "expected_count": 1
+    }
+  ]
+}

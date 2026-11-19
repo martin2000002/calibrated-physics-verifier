@@ -1,0 +1,3 @@
+# Sealed real control of the freeze: the other views of the [physics_iq] scenarios and takes.
+[physics_iq_views]
+views = ["left", "right"]

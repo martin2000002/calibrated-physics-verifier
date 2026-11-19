@@ -1,0 +1,671 @@
+"""scripts/h200/freeze_query.py: the checks of the freeze and of the sealed final looks."""
+
+from __future__ import annotations
+
+import dataclasses
+import hashlib
+import importlib.util
+import json
+import sys
+from collections.abc import Callable, Iterator, Mapping, Sequence
+from datetime import datetime
+from pathlib import Path
+from types import ModuleType
+from typing import Any
+
+import pytest
+from iteration_artifact import calibration_text
+from repo_configs import CALIBRATION_FILE, declare
+
+from physverify.app.plugins import PLUGIN_KINDS
+from physverify.calibration.ledger_versions import LegacyLook, LegacySettings
+from physverify.calibration.sealed_ledger import LedgerEntry, append_entry
+from physverify.config.loader import load_settings
+from physverify.config.models import Settings
+from physverify.core.errors import InvalidPluginError
+from physverify.datasets.kubric_fresh import fresh_settings
+from physverify.freeze.diffs import DIFF_PATHS, Git
+from physverify.freeze.errors import QueryError
+from physverify.freeze.files import field
+from physverify.freeze.fresh_render import (
+    VERSION_ENV,
+    plan_lines,
+    render_overrides,
+    sealed_overrides,
+)
+from physverify.freeze.ledger import ledger_entries, look_state, recorded_look, v1_state
+from physverify.freeze.ledger import ledger_line as summary_line
+from physverify.freeze.manifest import ManifestInputs, artifact_problems, manifest
+from physverify.freeze.selection import J4_RULE, candidate, chosen_candidate, seed_of, select
+from physverify.schema.clip import Split
+from physverify.synth.generate import load_plan, plan_subset, save_plan
+from physverify.synth.settings import dataset_root, load_dataset_settings
+from physverify.synth.store import DatasetStore
+
+HELPER = Path(__file__).resolve().parents[2] / "scripts" / "h200" / "freeze_query.py"
+HEAD = "c" * 40
+DATASETS = PLUGIN_KINDS["datasets"]()
+VERSION_OVERRIDE = "PHYSVERIFY__KUBRIC_FRESH__VERSION"
+V1 = "a" * 40
+LEGACY = "0641659e61d12b1a63d4c57cf5a391a2081d9757"
+
+
+def _sha(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+@pytest.fixture(scope="module")
+def script() -> Iterator[ModuleType]:
+    spec = importlib.util.spec_from_file_location("freeze_query", HELPER)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    try:
+        spec.loader.exec_module(module)
+        yield module
+    finally:
+        del sys.modules[spec.name]
+
+
+def test_the_most_n_met_wins_then_auroc_cv_at_full_precision(
+    script: ModuleType,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    iteration_factory: Callable[..., Path],
+) -> None:
+    dirs = [
+        iteration_factory(tmp_path, "it0-baseline", 1, 0.99),
+        iteration_factory(tmp_path, "it1-fixes", 3, 0.5861),
+        iteration_factory(tmp_path, "it2-state", 3, 0.5862),
+        iteration_factory(tmp_path, "it4-selfrel", 2, 0.9),
+    ]
+    found = select([candidate(d) for d in dirs])
+    assert found["chosen"] == "it2-state"
+    assert found["rule"] == J4_RULE
+    assert [c["auroc_cv"] for c in found["candidates"]] == [0.99, 0.5861, 0.5862, 0.9]
+    assert found["candidates"][2]["commit"] == HEAD
+    selection = tmp_path / "selection.json"
+    selection.write_text(json.dumps(found))
+    for key, value in (("id", "it2-state"), ("dir", str(dirs[2])), ("commit", HEAD)):
+        assert script.main(["chosen", str(selection), key]) == 0
+        assert capsys.readouterr().out == f"{value}\n"
+
+
+def test_a_full_tie_goes_to_the_later_iteration_and_a_null_auroc_ranks_last(
+    tmp_path: Path, iteration_factory: Callable[..., Path]
+) -> None:
+    tied = [
+        iteration_factory(tmp_path, "it4-selfrel", 2, 0.586),
+        iteration_factory(tmp_path, "it1-fixes", 2, 0.586),
+        iteration_factory(tmp_path, "it2-state", 2, None),
+    ]
+    assert select([candidate(d) for d in tied])["chosen"] == "it4-selfrel"
+
+
+def test_an_incomplete_iteration_is_refused(
+    tmp_path: Path, iteration_factory: Callable[..., Path]
+) -> None:
+    directory = iteration_factory(tmp_path, "it3-arms", 9, 0.99, steps=(1, 2, 3, 4))
+    with pytest.raises(QueryError, match=r"steps \[5\]"):
+        candidate(directory)
+
+
+@pytest.mark.parametrize("device", ["cpu", "cuda"])
+def test_iterations_of_one_device_are_chosen_with_their_device_and_profile(
+    tmp_path: Path, device: str, iteration_factory: Callable[..., Path]
+) -> None:
+    dirs = [
+        iteration_factory(tmp_path, "it1-fixes", 2, 0.6, device=device),
+        iteration_factory(tmp_path, "it2-state", 3, 0.6, device=device),
+    ]
+    found = select([candidate(d) for d in dirs])
+    chosen = chosen_candidate(found)
+    assert (chosen["id"], chosen["device"], chosen["profile"]) == ("it2-state", device, "precise")
+
+
+@pytest.mark.parametrize(
+    "change", [{"device": "cuda"}, {"profile": "fast"}], ids=["device", "profile"]
+)
+def test_iterations_of_mixed_devices_or_profiles_are_refused(
+    tmp_path: Path, change: Mapping[str, Any], iteration_factory: Callable[..., Path]
+) -> None:
+    dirs = [
+        iteration_factory(tmp_path, "it1-fixes", 2, 0.6),
+        iteration_factory(tmp_path, "it2-state", 3, 0.6, **change),
+    ]
+    with pytest.raises(QueryError, match="never mixes"):
+        select([candidate(d) for d in dirs])
+
+
+def test_an_iteration_without_its_device_or_profile_is_refused(
+    tmp_path: Path, iteration_factory: Callable[..., Path]
+) -> None:
+    directory = iteration_factory(tmp_path, "it3-arms", 9, 0.99)
+    state = directory / "state.env"
+    lines = state.read_text().splitlines(keepends=True)
+    state.write_text("".join(line for line in lines if not line.startswith("CHAIN_PROFILE=")))
+    with pytest.raises(QueryError, match="no CHAIN_DEVICE or no CHAIN_PROFILE"):
+        candidate(directory)
+
+
+def test_a_file_that_moved_after_the_iteration_is_refused(
+    tmp_path: Path, iteration_factory: Callable[..., Path]
+) -> None:
+    directory = iteration_factory(tmp_path, "it2-state", 3, 0.6)
+    (directory / "calibration" / "stage_sigma.json").write_bytes(b"refit")
+    with pytest.raises(QueryError, match="STAGE_SIGMA_SHA"):
+        candidate(directory)
+
+
+def test_only_a_fit_on_the_whole_calib_population_is_a_candidate(
+    tmp_path: Path, iteration_factory: Callable[..., Path]
+) -> None:
+    whole = iteration_factory(tmp_path, "it2-state", 3, 0.6)
+    assert candidate(whole).id == "it2-state"
+    rehearsal = iteration_factory(tmp_path, "it3-arms", 9, 0.99, whole=False)
+    with pytest.raises(QueryError, match="not fitted on the whole calib population"):
+        candidate(rehearsal)
+
+
+def test_an_artifact_that_records_no_population_is_refused(
+    tmp_path: Path, iteration_factory: Callable[..., Path]
+) -> None:
+    directory = iteration_factory(tmp_path, "it2-state", 3, 0.6)
+    artifact = directory / "calibration.json"
+    data = json.loads(artifact.read_text())
+    del data["dataset"]["population_hash"]
+    artifact.write_text(json.dumps(data))
+    state = directory / "state.env"
+    sha = _sha(artifact.read_bytes())
+    lines = [
+        f"CALIBRATION_SHA={sha}" if line.startswith("CALIBRATION_SHA=") else line
+        for line in state.read_text().splitlines()
+    ]
+    state.write_text("\n".join(lines) + "\n")
+    with pytest.raises(QueryError, match="population_hash None"):
+        candidate(directory)
+
+
+def test_the_candidate_query_exits_2_on_a_rehearsal(
+    script: ModuleType,
+    tmp_path: Path,
+    iteration_factory: Callable[..., Path],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    whole = iteration_factory(tmp_path, "it2-state", 3, 0.6)
+    assert script.main(["candidate", str(whole)]) == 0
+    assert json.loads(capsys.readouterr().out)["id"] == "it2-state"
+    rehearsal = iteration_factory(tmp_path, "it3-arms", 9, 0.99, whole=False)
+    assert script.main(["candidate", str(rehearsal)]) == 2
+    assert "not fitted on the whole calib population" in capsys.readouterr().err
+
+
+def test_two_directories_of_one_iteration_are_refused(
+    tmp_path: Path, iteration_factory: Callable[..., Path]
+) -> None:
+    dirs = [
+        iteration_factory(tmp_path / "a", "it2-state", 3, 0.6),
+        iteration_factory(tmp_path / "b", "it2-x", 1, 0.6),
+    ]
+    with pytest.raises(QueryError, match="two directories"):
+        select([candidate(d) for d in dirs])
+
+
+def test_the_seed_is_the_preregistered_formula() -> None:
+    calibration, exclusions = "1" * 64, "2" * 64
+    digest = hashlib.sha256((HEAD + calibration + exclusions).encode("utf-8")).hexdigest()
+    assert seed_of(HEAD, calibration, exclusions) == int(digest[:8], 16)
+    with pytest.raises(QueryError, match="40 lowercase"):
+        seed_of(HEAD.upper(), calibration, exclusions)
+    with pytest.raises(QueryError, match="64 lowercase"):
+        seed_of(HEAD, calibration[:-1], exclusions)
+
+
+def test_a_bad_input_exits_2_with_the_message(
+    script: ModuleType, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert script.main(["seed", "abc", "1" * 64, "2" * 64]) == 2
+    assert capsys.readouterr().err.startswith("freeze_query: the commit must be")
+
+
+def _settings(config_dir: Path, environ: Mapping[str, str], tmp_path: Path) -> Settings:
+    env = {
+        **environ,
+        "PHYSVERIFY__PATHS__CALIBRATION_DIR": str(tmp_path / "freeze" / "calibration"),
+        "PHYSVERIFY__PATHS__DATA_DIR": str(tmp_path / "data"),
+    }
+    return load_settings(config_dir, environ=env, profile="precise", device="cpu")
+
+
+def _frozen_files(settings: Settings) -> dict[str, bytes]:
+    directory = settings.paths.calibration_dir
+    directory.mkdir(parents=True, exist_ok=True)
+    files = {
+        "calibration.json": calibration_text("it2-state").encode(),
+        "exclusions.json": b"record",
+        "stage_errors.precise.json": b"profile",
+        "stage_sigma.json": b"sigma",
+        "abstention.json": b"abstention",
+    }
+    for name, data in files.items():
+        (directory / name).write_bytes(data)
+    return files
+
+
+class FakeGit:
+    def __init__(self, changed: Mapping[str, Sequence[str]]) -> None:
+        self.changed = changed
+        self.calls: list[tuple[str, ...]] = []
+
+    def __call__(self, args: Sequence[str]) -> str:
+        self.calls.append(tuple(args))
+        if args[0] == "rev-parse":
+            return ("t" * 40 if args[1] == "HEAD:configs" else HEAD) + "\n"
+        assert list(args[:4]) == ["diff", "--name-only", args[2], "HEAD"]
+        return "".join(f"{p}\n" for p in self.changed.get(args[2], ()))
+
+
+def _inputs(
+    tmp_path: Path, iteration_factory: Callable[..., Path], device: str = "cpu", **change: Any
+) -> ManifestInputs:
+    directory = iteration_factory(
+        tmp_path / "iterations", "it2-state", 3, 0.6, device=device, commit="b" * 40
+    )
+    selection = select([candidate(directory)])
+    v1 = tmp_path / "v1-calibration.json"
+    v1.write_bytes(b"v1")
+    fields = {
+        "selection": selection,
+        "record_sha": "r" * 64,
+        "p2_commit": "d" * 40,
+        "v1_commit": V1,
+        "v1_calibration": v1,
+    }
+    return ManifestInputs(**{**fields, **change})
+
+
+def _manifest(inputs: ManifestInputs, settings: Settings, git: Git) -> dict[str, Any]:
+    return manifest(inputs, settings, git, record=lambda: "r" * 64, now=datetime.now)
+
+
+@pytest.mark.parametrize("device", ["cpu", "cuda"])
+def test_the_manifest_records_the_freeze(
+    tmp_path: Path,
+    config_dir: Path,
+    environ: dict[str, str],
+    device: str,
+    iteration_factory: Callable[..., Path],
+) -> None:
+    """Commit, configs tree, the chosen iteration's device and profile, artifacts, record, seed,
+    selection, both diffs, v1."""
+    settings = _settings(config_dir, environ, tmp_path)
+    files = _frozen_files(settings)
+    git = FakeGit({"d" * 40: ["configs/verifier/extraction.toml"]})
+    data = _manifest(_inputs(tmp_path, iteration_factory, device), settings, git)
+    assert (data["commit"], data["configs_tree"]) == (HEAD, "t" * 40)
+    assert (data["profile"], data["device"]) == ("precise", device)
+    artifacts = data["artifacts"]
+    assert artifacts["calibration"]["sha256"] == _sha(files["calibration.json"])
+    assert artifacts["exclusions"]["sha256"] == _sha(files["exclusions.json"])
+    assert artifacts["error_profile"]["sha256"] == _sha(files["stage_errors.precise.json"])
+    assert artifacts["stage_sigma"]["sha256"] == _sha(files["stage_sigma.json"])
+    assert artifacts["abstention"]["sha256"] == _sha(files["abstention.json"])
+    assert artifacts["thresholds"]["sha256"] is None
+    calibration, exclusions = _sha(files["calibration.json"]), _sha(files["exclusions.json"])
+    assert data["seed"] == seed_of(HEAD, calibration, exclusions)
+    assert data["record_sha"] == "r" * 64
+    assert data["iteration"] == {
+        "id": "it2-state",
+        "dir": data["selection"]["candidates"][0]["dir"],
+        "commit": "b" * 40,
+    }
+    assert data["diffs"]["j3"]["empty"] and data["diffs"]["j3"]["from"] == "b" * 40
+    assert data["diffs"]["j13"]["changed"] == ["configs/verifier/extraction.toml"]
+    assert data["v1"] == {"commit": V1, "calibration_sha256": _sha(b"v1")}
+    diffs = [c for c in git.calls if c[0] == "diff"]
+    assert {c[5:] for c in diffs} == {DIFF_PATHS["j3"], DIFF_PATHS["j13"]}
+    assert "src/physverify/checks" in DIFF_PATHS["j3"]
+    json.dumps(data)
+
+
+def test_a_refit_change_record_mismatch_or_other_calibration_refuses_the_manifest(
+    tmp_path: Path,
+    config_dir: Path,
+    environ: dict[str, str],
+    iteration_factory: Callable[..., Path],
+) -> None:
+    """A change under checks, physics, extraction or verification means refit, not adopt; the
+    record sha the script parsed must be the record's."""
+    settings = _settings(config_dir, environ, tmp_path)
+    _frozen_files(settings)
+    inputs = _inputs(tmp_path, iteration_factory)
+    moved = FakeGit({"b" * 40: ["src/physverify/checks/r1.py"]})
+    with pytest.raises(QueryError, match="refit, not adopt"):
+        _manifest(inputs, settings, moved)
+    with pytest.raises(QueryError, match="exclusions show printed"):
+        _manifest(dataclasses.replace(inputs, record_sha="e" * 64), settings, FakeGit({}))
+    (settings.paths.calibration_dir / "calibration.json").write_bytes(b"another fit")
+    with pytest.raises(QueryError, match="not the full calib fit"):
+        _manifest(inputs, settings, FakeGit({}))
+
+
+def test_a_plugin_that_fails_to_load_refuses_the_manifest_after_the_diffs(
+    script: ModuleType,
+    tmp_path: Path,
+    config_dir: Path,
+    environ: dict[str, str],
+    iteration_factory: Callable[..., Path],
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The check registry is built only for the record, after the diff and v1 refusals, and a
+    plugin that fails to load is a refusal (exit 2), not a traceback."""
+    settings = _settings(config_dir, environ, tmp_path)
+    _frozen_files(settings)
+    inputs = _inputs(tmp_path, iteration_factory)
+    selection = tmp_path / "selection.json"
+    selection.write_text(json.dumps(inputs.selection), encoding="utf-8")
+    argv = ["manifest", "--selection", str(selection), "--record-sha", "r" * 64]
+    argv += ["--p2-commit", "d" * 40, "--v1-commit", V1]
+    argv += ["--v1-calibration", str(inputs.v1_calibration), "--out", str(tmp_path / "f.json")]
+
+    def broken(kind: str) -> Any:
+        raise InvalidPluginError(f"the {kind} plugin r9 does not load")
+
+    monkeypatch.setattr("physverify.app.plugins.build", broken)
+    monkeypatch.setattr(script, "_settings", lambda extra=None: settings)
+    monkeypatch.setattr(script, "_git", FakeGit({"b" * 40: ["src/physverify/checks/r1.py"]}))
+    assert script.main(argv) == 2
+    refusal = capsys.readouterr().err
+    assert refusal.startswith("freeze_query: ") and "refit, not adopt" in refusal
+    monkeypatch.setattr(script, "_git", FakeGit({}))
+    assert script.main(argv) == 2
+    assert capsys.readouterr().err == "freeze_query: the checks plugin r9 does not load\n"
+    assert not (tmp_path / "f.json").exists()
+
+
+def test_the_frozen_files_must_stay_as_frozen(
+    tmp_path: Path,
+    config_dir: Path,
+    environ: dict[str, str],
+    iteration_factory: Callable[..., Path],
+) -> None:
+    settings = _settings(config_dir, environ, tmp_path)
+    _frozen_files(settings)
+    inputs = _inputs(tmp_path, iteration_factory)
+    data = json.loads(json.dumps(_manifest(inputs, settings, FakeGit({}))))
+    assert artifact_problems(data, settings) == []
+    settings.paths.thresholds.write_text("{}")
+    (settings.paths.calibration_dir / "abstention.json").write_bytes(b"refit")
+    problems = artifact_problems(data, settings)
+    assert len(problems) == 2 and any("abstention" in p for p in problems)
+    elsewhere = _settings(config_dir, environ, tmp_path / "other")
+    assert all("frozen" in p for p in artifact_problems(data, elsewhere))
+
+
+def test_a_field_is_one_value() -> None:
+    data = {"seed": 7, "v1": {"commit": V1}, "artifacts": {}}
+    assert field(data, "seed") == "7"
+    assert field(data, "v1.commit") == V1
+    with pytest.raises(QueryError):
+        field(data, "artifacts")
+    with pytest.raises(QueryError):
+        field(data, "v1.missing")
+
+
+def _render(
+    config_dir: Path, environ: Mapping[str, str], tmp_path: Path, name: str
+) -> tuple[dict[str, str], Settings]:
+    base = _settings(config_dir, environ, tmp_path)
+    overrides = render_overrides(fresh_settings(base), DATASETS, name, 12345)
+    env = {**environ, **overrides, "PHYSVERIFY__PATHS__DATA_DIR": str(tmp_path / "data")}
+    return overrides, load_settings(config_dir, environ=env, profile="precise", device="cpu")
+
+
+def test_the_render_settings_are_the_fresh_sets(
+    tmp_path: Path, config_dir: Path, environ: dict[str, str]
+) -> None:
+    """New seed, no calib scene, the set's version, scene count and backgrounds."""
+    _, fresh = _render(config_dir, environ, tmp_path, "kubric_fresh")
+    _, ood = _render(config_dir, environ, tmp_path, "kubric_fresh_ood")
+    _, blind = _render(config_dir, environ, tmp_path, "kubric_fresh_blind")
+    section = fresh_settings(fresh)
+    ds, ood_ds = load_dataset_settings(fresh), load_dataset_settings(ood)
+    assert (ds.version, ds.seed, ds.calib_fraction) == (section.version, 12345, 0.0)
+    assert ds.subsets["full"].scenes_per_family == section.scenes_per_family
+    assert ood_ds.version == section.ood_version
+    assert ood_ds.subsets["full"].scenes_per_family == section.ood_scenes_per_family
+    pools = load_dataset_settings(fresh).hdri_pools
+    assert set(ood_ds.effective_hdri_ids()) == set(pools[section.ood_hdri_pool])
+    assert ood_ds.content_hash() != ds.content_hash()
+    assert load_dataset_settings(blind) == ds
+    with pytest.raises(QueryError, match="not a fresh Kubric set"):
+        render_overrides(section, DATASETS, "kubric_synthetic", 1)
+
+
+@pytest.mark.parametrize(
+    ("environment", "dataset", "spec"),
+    [
+        ({VERSION_OVERRIDE: "v2-fresh"}, "kubric_fresh", "kubric_fresh@v2-fresh"),
+        ({}, "kubric_fresh", "kubric_fresh@v3-test"),
+        ({}, "kubric_fresh_ood", "kubric_fresh_ood@v2-fresh-ood"),
+    ],
+    ids=["environment", "file", "ood"],
+)
+def test_a_sealed_render_of_a_development_version_is_refused(
+    tmp_path: Path,
+    config_dir: Path,
+    environ: dict[str, str],
+    environment: dict[str, str],
+    dataset: str,
+    spec: str,
+) -> None:
+    """render-env and plan refuse a render whose name@version is a declared development set."""
+    if not environment:
+        declare(config_dir, CALIBRATION_FILE, "development_sets", f'["{spec}"]')
+    settings = _settings(config_dir, {**environ, **environment}, tmp_path)
+    with pytest.raises(QueryError, match=f"{spec} is a sealed render and a declared"):
+        sealed_overrides(settings, DATASETS, dataset, 12345)
+
+
+def test_the_committed_sealed_renders_are_not_development_sets(
+    tmp_path: Path, config_dir: Path, environ: dict[str, str]
+) -> None:
+    settings = _settings(config_dir, environ, tmp_path)
+    for dataset in ("kubric_fresh", "kubric_fresh_ood"):
+        overrides = sealed_overrides(settings, DATASETS, dataset, 12345)
+        assert overrides == render_overrides(fresh_settings(settings), DATASETS, dataset, 12345)
+    assert overrides[VERSION_ENV] == "v2-fresh-ood"
+
+
+def _stored_plan(settings: Settings) -> DatasetStore:
+    ds = load_dataset_settings(settings)
+    plan = plan_subset(ds, PLUGIN_KINDS["families"](), PLUGIN_KINDS["perturbations"](), "full")
+    store = DatasetStore(dataset_root(settings, ds))
+    save_plan(store, plan)
+    return store
+
+
+def test_the_plan_check_accepts_only_the_render_of_the_seed(
+    tmp_path: Path, config_dir: Path, environ: dict[str, str]
+) -> None:
+    """A plan of another seed (or none) under the fresh version stops before any look."""
+    overrides, settings = _render(config_dir, environ, tmp_path, "kubric_fresh")
+    version = overrides[VERSION_ENV]
+    with pytest.raises(QueryError, match="render first"):
+        plan_lines(settings, version, 12345)
+    store = _stored_plan(settings)
+    (line,) = plan_lines(settings, version, 12345)
+    section = fresh_settings(settings)
+    assert f"{section.scenes_per_family * 5} scenes" in line and "0 calib" in line
+    with pytest.raises(QueryError, match=f"not {version} 1"):
+        plan_lines(settings, version, 1)
+    other = {**overrides, "PHYSVERIFY__DATASET__SEED": "1"}
+    reseeded = load_settings(
+        config_dir,
+        environ={**environ, **other, "PHYSVERIFY__PATHS__DATA_DIR": str(tmp_path / "data")},
+        profile="precise",
+        device="cpu",
+    )
+    with pytest.raises(QueryError, match="is not the render"):
+        plan_lines(reseeded, version, 1)
+    plan = query_plan(store)
+    calib = dataclasses.replace(plan.scenes[0], split=Split.CALIB)
+    store.plan_path.write_text(
+        json.dumps(dataclasses.replace(plan, scenes=(calib, *plan.scenes[1:])).to_json())
+    )
+    with pytest.raises(QueryError, match="1 calib"):
+        plan_lines(settings, version, 12345)
+
+
+def query_plan(store: DatasetStore) -> Any:
+    plan = load_plan(store)
+    assert plan is not None
+    return plan
+
+
+def ledger_line(sets: Sequence[str], commit: str, run_dir: Path | None) -> LedgerEntry:
+    return LedgerEntry(
+        utc="2026-10-30T00:00:00+00:00",
+        commit=commit,
+        command="calibrate evaluate",
+        argv=("physverify",),
+        sets=tuple(sets),
+        sealed=tuple(sets),
+        datasets=(),
+        artifacts={},
+        config_hash="h",
+        freeze="f",
+        repeat=False,
+        run_dir=None if run_dir is None else str(run_dir),
+        user="u",
+        host="h",
+    )
+
+
+def test_a_set_is_looked_at_once_with_one_retry_when_nothing_was_written(tmp_path: Path) -> None:
+    spec = ("kubric_fresh",)
+    other = [ledger_line(["kubric_synthetic:eval"], HEAD, tmp_path)]
+    assert look_state(other, spec, retry=False) == "first"
+    with pytest.raises(QueryError, match="exactly one earlier look"):
+        look_state(other, spec, retry=True)
+    run = tmp_path / "run"
+    run.mkdir()
+    looked = [*other, ledger_line(spec, HEAD, run)]
+    with pytest.raises(QueryError, match="already has 1 ledger lines"):
+        look_state(looked, spec, retry=False)
+    assert look_state(looked, spec, retry=True) == "retry"
+    (run / "evaluation.md").write_text("# partial")
+    with pytest.raises(QueryError, match="no retry"):
+        look_state(looked, spec, retry=True)
+    twice = [*looked, ledger_line(spec, HEAD, tmp_path / "again")]
+    with pytest.raises(QueryError, match="found 2"):
+        look_state(twice, spec, retry=True)
+
+
+def test_a_look_is_recorded_only_by_its_own_line(tmp_path: Path) -> None:
+    """The run's line, of the commit, over exactly the specs; any other line does not count."""
+    run, specs = tmp_path / "run", ("physics_iq_views", "objectron_static")
+    others = [
+        ledger_line(specs, HEAD, tmp_path / "other"),
+        ledger_line(specs, V1, run),
+        ledger_line(specs[:1], HEAD, run),
+        ledger_line(specs, HEAD, None),
+    ]
+    with pytest.raises(QueryError, match=r"no ledger line of run .* covers exactly"):
+        recorded_look(others, run, HEAD, specs)
+    line = ledger_line(specs[::-1], HEAD, tmp_path / "." / "run")
+    assert recorded_look([*others, line], run, HEAD, specs).startswith(f"recorded: {line.utc} ")
+
+
+def test_the_v1_arm_follows_the_look_once(tmp_path: Path) -> None:
+    """The look is found by version, the v1 arm (old code, bare spec) by spec."""
+    frozen = {"commit": HEAD, "v1": {"commit": V1}}
+    looks = {"kubric_fresh": "kubric_fresh@v2-fresh2"}
+    legacy = LegacySettings(
+        versions={"kubric_fresh": LegacyLook(version="v2-fresh", commit=LEGACY, reason="r")}
+    )
+    old = [ledger_line(["kubric_fresh"], LEGACY, None)]
+    other = ledger_line(["kubric_fresh@v2-fresh"], HEAD, None)
+    with pytest.raises(QueryError, match="no look of the freeze"):
+        v1_state([*old, other, ledger_line(["kubric_fresh"], V1, None)], frozen, looks, legacy)
+    look = [*old, ledger_line(list(looks.values()), HEAD, tmp_path)]
+    assert v1_state(look, frozen, looks, legacy) == "v1arm"
+    with pytest.raises(QueryError, match="already looked"):
+        v1_state([*look, ledger_line(["kubric_fresh"], V1, None)], frozen, looks, legacy)
+    with pytest.raises(QueryError, match="without a version"):
+        v1_state(look, {"commit": HEAD, "v1": {"commit": HEAD}}, looks, LegacySettings())
+
+
+@pytest.fixture
+def legacy_ledger(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """The two lines of the H200 ledger: bare specs written at the legacy commit."""
+    ledger = tmp_path / "ledger-copy.txt"
+    ledger.touch()
+    for sets in (["kubric_synthetic:eval"], ["kubric_fresh"]):
+        append_entry(ledger, ledger_line(sets, LEGACY, None))
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("PHYSVERIFY__SEALED__LEDGER", str(ledger))
+    return ledger
+
+
+def _query(script: ModuleType, capsys: pytest.CaptureFixture[str], *args: str) -> tuple[int, str]:
+    code = script.main(list(args))
+    out = capsys.readouterr()
+    return code, out.out + out.err
+
+
+def test_the_legacy_look_blocks_only_the_render_it_looked_at(
+    script: ModuleType,
+    legacy_ledger: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    assert _query(script, capsys, "look-state", "kubric_fresh", "kubric_fresh_blind") == (
+        0,
+        "first\n",
+    )
+    monkeypatch.setenv(VERSION_OVERRIDE, "v2-fresh")
+    code, out = _query(script, capsys, "look-state", "kubric_fresh", "kubric_fresh_blind")
+    assert code == 2
+    assert "kubric_fresh@v2-fresh,kubric_fresh_blind@v2-fresh already has 1 ledger lines" in out
+
+
+def test_a_versioned_line_blocks_its_render(
+    script: ModuleType, legacy_ledger: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    run = legacy_ledger.parent / "run"
+    append_entry(legacy_ledger, ledger_line(["kubric_fresh@v3-test"], HEAD, run))
+    code, out = _query(script, capsys, "look-state", "kubric_fresh", "kubric_fresh_blind")
+    assert (code, "already has 1 ledger lines" in out) == (2, True)
+    assert _query(script, capsys, "look-recorded", str(run), HEAD, "kubric_fresh")[0] == 0
+    assert _query(script, capsys, "look-state", "kubric_fresh_blind") == (0, "first\n")
+
+
+def test_an_unmapped_legacy_line_fails_closed(
+    script: ModuleType, legacy_ledger: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    append_entry(legacy_ledger, ledger_line(["kubric_fresh_ood"], HEAD, None))
+    code, out = _query(script, capsys, "look-state", "kubric_fresh_ood")
+    assert code == 2
+    assert "names kubric_fresh_ood without a version" in out
+    assert _query(script, capsys, "look-state", "kubric_fresh") == (0, "first\n")
+
+
+def test_a_missing_ledger_is_refused(
+    tmp_path: Path,
+    config_dir: Path,
+    environ: dict[str, str],
+) -> None:
+    """The ledger is created by hand; without it no look starts."""
+    settings = _settings(config_dir, environ, tmp_path)
+    home = Path(environ["HOME"])
+    with pytest.raises(QueryError, match="no sealed ledger"):
+        ledger_entries(settings, home)
+    home.mkdir(parents=True)
+    ledger = home / "sealed-ledger.txt"
+    ledger.touch()
+    assert ledger_entries(settings, home) == ()
+    append_entry(ledger, ledger_line(["kubric_fresh"], HEAD, None))
+    assert len(ledger_entries(settings, home)) == 1
+    assert summary_line(settings, home) == f"ledger {ledger}: 1 lines"

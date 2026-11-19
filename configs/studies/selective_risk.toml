@@ -1,0 +1,11 @@
+# Abstention by risk-coverage: sweep k_sigma of the threshold policy,
+# pick k* on calib. k* is reported; the main thread sets [verification.policies.threshold].
+# The clips are the calibration chain's: [calibration] dataset, subset and real_datasets.
+[abstention]
+risk_target = 0.10
+ci = 0.95
+alpha_max = 0.5
+alpha_min = 1e-4
+grid_points = 25
+bootstrap = 1000
+seed = 0

@@ -1,0 +1,433 @@
+from __future__ import annotations
+
+import ast
+import json
+import sys
+from pathlib import Path
+from typing import Any
+
+CALIBRATION_TESTS = str(Path(__file__).resolve().parent.parent / "calibration")
+if CALIBRATION_TESTS not in sys.path:
+    sys.path.insert(0, CALIBRATION_TESTS)
+
+import pytest  # noqa: E402
+from cli_runner import CliRunner  # noqa: E402
+from exclusion_cases import write_record as write_exclusions  # noqa: E402
+from wiring import active_checks_hash, checks  # noqa: E402
+
+from physverify.core.digests import sha256_if_file  # noqa: E402
+from physverify.core.errors import UsageError  # noqa: E402
+from physverify.finetune.records import BASE_TAG, write_record  # noqa: E402
+from physverify.generator_comparison.compare import (  # noqa: E402
+    eval_judges,
+    external_status,
+    require_bound,
+    require_stamp,
+    task_values,
+)
+from physverify.generator_comparison.prereg import (  # noqa: E402
+    ComparisonPreregistration,
+    chain_shas,
+    load_prereg,
+)
+from physverify.generator_comparison.prereg_state import require_exclusion_record  # noqa: E402
+from physverify.generator_comparison.preregistered_numbers import SECONDARY_TESTS  # noqa: E402
+from physverify.generator_comparison.records import (  # noqa: E402
+    GateReport,
+    GateTask,
+    JudgeOutput,
+    JudgeRow,
+    Usability,
+)
+from physverify.generator_comparison.scoring import manifest  # noqa: E402
+from physverify.generator_comparison.status import GATE_LINE, GATE_PASSED  # noqa: E402
+from physverify.generator_comparison.verdict import NO_VERDICT  # noqa: E402
+
+SUBCOMMANDS = (
+    "generate",
+    "freeze",
+    "score",
+    "rescore",
+    "judge",
+    "gate-autoeval",
+    "compare",
+    "status",
+)
+COMPARE_GENERATORS_MODULE = (
+    Path(__file__).resolve().parents[2] / "src/physverify/cli/commands/compare_generators.py"
+)
+
+
+@pytest.mark.parametrize("name", SUBCOMMANDS)
+def test_every_subcommand_has_help(cli: CliRunner, name: str) -> None:
+    result = cli("compare-generators", name, "--help")
+    assert result.code == 0, result.err
+    assert "Usage" in result.out
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [("generate", "--arm", "base"), ("score", "--arm", "base"), ("judge", "--split", "dev")],
+)
+def test_gpu_subcommands_exit_2_on_cpu(
+    cli: CliRunner, comparison_environ: dict[str, str], argv: tuple[str, ...]
+) -> None:
+    result = cli("--device", "cpu", "compare-generators", *argv, env=comparison_environ)
+    assert result.code == 2
+    assert "--device cuda" in result.err
+
+
+def test_the_compare_generators_command_does_not_import_the_finetune_command() -> None:
+    tree = ast.parse(COMPARE_GENERATORS_MODULE.read_text(encoding="utf-8"))
+    imported = {n.module for n in ast.walk(tree) if isinstance(n, ast.ImportFrom)}
+    assert "physverify.cli.commands.finetune" not in imported
+
+
+def test_status_runs_on_an_empty_campaign(
+    cli: CliRunner, comparison_environ: dict[str, str]
+) -> None:
+    result = cli("compare-generators", "status", env=comparison_environ)
+    assert result.code == 0, result.err
+    assert "pre-registration: none" in result.out
+    assert "gate: not run" in result.out
+
+
+@pytest.fixture
+def frozen(
+    cli: CliRunner, campaign: Any, comparison_environ: dict[str, str]
+) -> ComparisonPreregistration:
+    campaign.build()
+    result = cli("compare-generators", "freeze", env=comparison_environ)
+    assert result.code == 0, result.err
+    assert "frozen:" in result.out
+    return load_prereg(campaign.layout.prereg)
+
+
+def _score_eval(campaign: Any, prereg: ComparisonPreregistration) -> str:
+    """Scores both arms on eval and writes their manifests, as `compare-generators score` does on
+    the H200."""
+    campaign.write_split("eval", scored=True)
+    sha256 = sha256_if_file(campaign.layout.prereg)
+    assert sha256 is not None
+    for tag in (BASE_TAG, prereg.adapter_tag):
+        record = manifest(campaign.store, tag, campaign.scorer, None, sha256)
+        write_record(campaign.layout.scoring(tag, campaign.scorer.name), record)
+    return sha256
+
+
+def test_freeze_records_the_state_and_is_idempotent(
+    cli: CliRunner,
+    campaign: Any,
+    comparison_environ: dict[str, str],
+    frozen: ComparisonPreregistration,
+) -> None:
+    assert frozen.adapter_tag == campaign.ft_tag
+    assert frozen.rule_status == "provisional"
+    assert tuple(frozen.secondary_tests) == SECONDARY_TESTS
+    assert frozen.margins == {"pc": 0.13, "sa": 0.05}
+    again = cli("compare-generators", "freeze", env=comparison_environ)
+    assert again.code == 0, again.err
+    assert "unchanged" in again.out
+
+
+def test_the_first_freeze_is_refused_after_eval_scores_exist(
+    cli: CliRunner, campaign: Any, comparison_environ: dict[str, str]
+) -> None:
+    campaign.build(eval_scored=True)
+    result = cli("compare-generators", "freeze", env=comparison_environ)
+    assert result.code == 2
+    assert "not blind" in result.err
+    assert not campaign.layout.prereg.exists()
+
+
+def test_compare_writes_the_provisional_report_end_to_end(
+    cli: CliRunner,
+    campaign: Any,
+    comparison_environ: dict[str, str],
+    frozen: ComparisonPreregistration,
+) -> None:
+    _score_eval(campaign, frozen)
+    result = cli("compare-generators", "compare", env=comparison_environ)
+    assert result.code == 0, result.err
+    assert f"verdict: {NO_VERDICT}" in result.out
+    report = json.loads(campaign.layout.report_json.read_text(encoding="utf-8"))
+    assert report["verdict"]["verdict"] == NO_VERDICT
+    assert report["audit"]["blind"] is True
+    assert report["audit"]["frozen_after_eval"] is False
+    assert report["analysis"]["primary"]["n"] == 8
+    text = campaign.layout.report_md.read_text(encoding="utf-8")
+    for heading in (
+        "## Arms",
+        "## Primary and external (fixed sequence)",
+        "## Secondary tests (Holm, m = 3)",
+        "## Guards",
+        "## Sensitivities and strata",
+        "## Minimum detectable effect and margins",
+        "## Freeze audit",
+        "## Circularity",
+    ):
+        assert heading in text
+    assert "code commit at the freeze" in text
+    status = cli("compare-generators", "status", env=comparison_environ)
+    assert status.code == 0, status.err
+    assert "provisional" in status.out
+
+
+def test_compare_refuses_scores_without_a_bound_manifest(
+    cli: CliRunner,
+    campaign: Any,
+    comparison_environ: dict[str, str],
+    frozen: ComparisonPreregistration,
+) -> None:
+    _score_eval(campaign, frozen)
+    campaign.layout.scoring(BASE_TAG, campaign.scorer.name).unlink()
+    result = cli("compare-generators", "compare", env=comparison_environ)
+    assert result.code == 2
+    assert "compare-generators score" in result.err
+
+
+@pytest.mark.parametrize(
+    ("version", "label", "accepted"),
+    [("2", "provisional", True), ("2", "calibrated:abc", False), ("1", "provisional", False)],
+)
+def test_require_stamp_refuses_scores_of_another_version_or_label(
+    make_score: Any, version: str, label: str, accepted: bool
+) -> None:
+    scores = [make_score("e0__k00", 0.5)]
+    prereg = ComparisonPreregistration.model_construct(scorer_version=version, rule_label=label)
+    if accepted:
+        require_stamp(scores, prereg, BASE_TAG)
+    else:
+        with pytest.raises(UsageError, match=r"scorer version '2'.*rescore"):
+            require_stamp(scores, prereg, BASE_TAG)
+    with pytest.raises(UsageError, match="no eval scores"):
+        require_stamp([], prereg, BASE_TAG)
+
+
+def test_freeze_records_the_scorer_version(
+    campaign: Any, frozen: ComparisonPreregistration
+) -> None:
+    assert (frozen.scorer_version, frozen.rule_label) == (
+        campaign.scorer.version,
+        campaign.scorer.thresholds(),
+    )
+
+
+@pytest.mark.parametrize(
+    ("passed", "shown"), [(None, "not run"), (False, "failed"), (True, "passed")]
+)
+def test_status_shows_the_gate_line_the_comparison_script_reads(
+    cli: CliRunner,
+    campaign: Any,
+    comparison_environ: dict[str, str],
+    passed: bool | None,
+    shown: str,
+) -> None:
+    campaign.build()
+    if passed is not None:
+        gate = GateReport(
+            tasks={}, clip_ids=[], reference_sha256=None, freeze_sha256=None, passed=passed
+        )
+        campaign.layout.gate.parent.mkdir(parents=True, exist_ok=True)
+        write_record(campaign.layout.gate, gate)
+    result = cli("compare-generators", "status", env=comparison_environ)
+    assert result.code == 0, result.err
+    assert f"{GATE_LINE}{shown}" in result.out.splitlines()
+    assert (f"{GATE_LINE}{GATE_PASSED}" in result.out.splitlines()) is bool(passed)
+
+
+def test_require_bound_accepts_only_hashes_of_the_chain() -> None:
+    require_bound("a", {"a", "b"}, "x")
+    with pytest.raises(UsageError, match="not bound"):
+        require_bound(None, {"a"}, "x")
+
+
+def _output(tag: str, stamp: str, sha256: str | None, value: float) -> JudgeOutput:
+    return JudgeOutput(
+        split="eval",
+        model_tag=tag,
+        task="pc",
+        stamp=stamp,
+        scale=(1.0, 5.0),
+        prereg_sha256=sha256,
+        rows={"e0__k00": JudgeRow(value=value, reason=None)},
+    )
+
+
+def test_task_values_keep_the_arms_of_one_seed_apart() -> None:
+    outputs = {
+        f"{BASE_TAG}__pc": _output(BASE_TAG, "s", None, 3.0),
+        "lora__pc": _output("lora", "s", None, 4.0),
+        f"{BASE_TAG}__sa": None,
+    }
+    assert task_values(outputs, "pc") == {(BASE_TAG, "e0__k00"): 3.0, ("lora", "e0__k00"): 4.0}
+    assert task_values(outputs, "sa") == {}
+
+
+def test_eval_judges_refuse_an_unbound_or_restamped_output(
+    campaign: Any, frozen: ComparisonPreregistration
+) -> None:
+    sha256 = sha256_if_file(campaign.layout.prereg)
+    assert sha256 is not None
+    known = chain_shas(campaign.layout, frozen, sha256)
+    path = campaign.layout.judge_output("eval", BASE_TAG, "pc")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    write_record(path, _output(BASE_TAG, frozen.judge_stamps["pc"], "other", 3.0))
+    with pytest.raises(UsageError, match="not bound"):
+        eval_judges(campaign.layout, [BASE_TAG], frozen, known)
+    write_record(path, _output(BASE_TAG, "another-stamp", sha256, 3.0))
+    with pytest.raises(UsageError, match="stamp"):
+        eval_judges(campaign.layout, [BASE_TAG], frozen, known)
+    write_record(path, _output(BASE_TAG, frozen.judge_stamps["pc"], sha256, 3.0))
+    found = eval_judges(campaign.layout, [BASE_TAG], frozen, known)
+    assert found[f"{BASE_TAG}__pc"] is not None and found[f"{BASE_TAG}__sa"] is None
+
+
+def test_external_status_follows_the_gate_and_the_dev_usability(
+    campaign: Any, frozen: ComparisonPreregistration
+) -> None:
+    layout = campaign.layout
+    assert external_status(layout, frozen, {}) == "not_run"
+    gate = GateReport(
+        tasks={}, clip_ids=[], reference_sha256=None, freeze_sha256=None, passed=False
+    )
+    layout.gate.parent.mkdir(parents=True, exist_ok=True)
+    write_record(layout.gate, gate)
+    assert external_status(layout, frozen, {}) == "failed_gate"
+    write_record(layout.gate, gate.model_copy(update={"passed": True}))
+    assert frozen.usability is None
+    assert external_status(layout, frozen, {}) == "not_run"
+
+
+def test_external_status_needs_the_gate_of_the_frozen_judge_stamps(
+    campaign: Any, frozen: ComparisonPreregistration
+) -> None:
+    layout = campaign.layout
+    usable = frozen.model_copy(update={"usability": Usability(usable=True)})
+    outputs = {"base__pc": _output(BASE_TAG, frozen.judge_stamps["pc"], "s", 3.0)}
+
+    def gate(stamps: dict[str, str]) -> GateReport:
+        tasks = {
+            task: GateTask(
+                task=task,
+                stamp=stamp,
+                n=10,
+                exact=5,
+                exact_share=0.5,
+                mae=0.5,
+                parse_failures=0,
+                passed=True,
+            )
+            for task, stamp in stamps.items()
+        }
+        return GateReport(
+            tasks=tasks, clip_ids=[], reference_sha256=None, freeze_sha256=None, passed=True
+        )
+
+    layout.gate.parent.mkdir(parents=True, exist_ok=True)
+    write_record(layout.gate, gate(dict(frozen.judge_stamps)))
+    assert external_status(layout, usable, outputs) == "ok"
+    write_record(layout.gate, gate(dict.fromkeys(frozen.judge_stamps, "another-stamp")))
+    assert external_status(layout, usable, outputs) == "not_run"
+
+
+ENFORCE = ("--set", "finetune.stop_rule.enforce=true")
+
+
+@pytest.mark.parametrize("argv", [("freeze",), ("--device", "cpu", "generate")])
+def test_a_fired_stop_rule_blocks_the_eval_arm(
+    cli: CliRunner, campaign: Any, comparison_environ: dict[str, str], argv: tuple[str, ...]
+) -> None:
+    campaign.build()
+    options, command = argv[:-1], argv[-1:]
+    result = cli(*ENFORCE, *options, "compare-generators", *command, env=comparison_environ)
+    assert result.code == 2
+    assert "pilot stop rule fired" in result.err and "not evaluable" in result.err
+    assert not campaign.layout.prereg.exists()
+    declared = cli(
+        *ENFORCE,
+        *options,
+        "compare-generators",
+        *command,
+        "--stop-rule-deviation",
+        "pilot accepted",
+        env=comparison_environ,
+    )
+    verdict = json.loads(
+        (campaign.store.pairs_dir(campaign.scorer.name) / "stop_rule.json").read_text("utf-8")
+    )
+    assert verdict["deviation"] == "pilot accepted" and not verdict["passed"]
+    assert "pilot stop rule fired" not in declared.err
+    if command == ("freeze",):
+        assert declared.code == 0, declared.err
+        prereg = json.loads(campaign.layout.prereg.read_text("utf-8"))
+        assert prereg["stop_rule_deviation"] == "pilot accepted"
+        assert not prereg["stop_rule"]["passed"] and prereg["deviations"] == []
+        assert "NO VERDICT: pilot stop rule fired" in declared.out
+    else:
+        assert declared.code == 2 and "--device cuda" in declared.err
+
+
+def test_a_freeze_deviation_does_not_let_a_fired_stop_rule_through(
+    cli: CliRunner, campaign: Any, comparison_environ: dict[str, str]
+) -> None:
+    campaign.build()
+    deviation = ("--declare-deviation", "alpha fixed")
+    other = cli(*ENFORCE, "compare-generators", "freeze", *deviation, env=comparison_environ)
+    assert other.code == 2 and "--stop-rule-deviation" in other.err
+    assert not campaign.layout.prereg.exists()
+
+
+def test_a_stop_rule_file_of_other_pairs_is_not_enough(
+    cli: CliRunner, campaign: Any, comparison_environ: dict[str, str]
+) -> None:
+    campaign.build()
+    path = campaign.store.pairs_dir(campaign.scorer.name) / "stop_rule.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"passed": True, "pairs_sha256": "other"}), "utf-8")
+    result = cli(*ENFORCE, "compare-generators", "freeze", env=comparison_environ)
+    assert result.code == 2 and "pilot stop rule fired" in result.err
+
+
+def test_the_stop_rule_is_off_in_the_fast_profile(
+    cli: CliRunner, campaign: Any, comparison_environ: dict[str, str]
+) -> None:
+    campaign.build()
+    result = cli("compare-generators", "freeze", env=comparison_environ)
+    assert result.code == 0, result.err
+    assert "pilot stop rule: FIRED (reported only)" in result.err
+
+
+def _exclusion_record(campaign: Any, artifact_sha256: str = "artifact") -> str:
+    settings = campaign.settings
+    path = settings.paths.calibration_dir / "exclusions.json"
+    found = write_exclusions(
+        path, artifact_sha256=artifact_sha256, checks_hash=active_checks_hash(settings)
+    )
+    return found.sha256
+
+
+def test_freeze_records_the_exclusion_record_sha(
+    cli: CliRunner, campaign: Any, comparison_environ: dict[str, str]
+) -> None:
+    campaign.build()
+    sha256 = _exclusion_record(campaign)
+    result = cli("compare-generators", "freeze", env=comparison_environ)
+    assert result.code == 0, result.err
+    assert load_prereg(campaign.layout.prereg).exclusion_record_sha256 == sha256
+
+
+def test_a_calibrated_comparison_rule_needs_the_record_of_its_artifact(
+    campaign: Any, frozen: ComparisonPreregistration
+) -> None:
+    calibrated = frozen.model_copy(
+        update={"rule_status": "calibrated", "calibration_artifact_sha256": "artifact"}
+    )
+    require_exclusion_record(campaign.settings, frozen, checks())
+    with pytest.raises(UsageError, match="exclusions decide"):
+        require_exclusion_record(campaign.settings, calibrated, checks())
+    _exclusion_record(campaign, "artifact")
+    require_exclusion_record(campaign.settings, calibrated, checks())
+    _exclusion_record(campaign, "another")
+    with pytest.raises(UsageError, match="decide again"):
+        require_exclusion_record(campaign.settings, calibrated, checks())

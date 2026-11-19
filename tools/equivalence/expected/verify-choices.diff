@@ -1,0 +1,26 @@
+1252,1259c1235,1242
+< │ *  --dataset                  <str>  Dataset name. [required]                                                        │
+< │    --level                    <str>  oracle or perceived.                                                            │
+< │    --gt                       <str>  Stages replaced by ground truth (perceived).                                    │
+< │    --subset                   <str>  Dataset subset.                                                                 │
+< │    --clips                    <str>  Clip ids (repeatable).                                                          │
+< │    --policy                   <str>  Verdict policy: threshold or raw.                                               │
+< │    --sweep      --no-sweep           Specificity sweep (oracle only). [default: no-sweep]                            │
+< │    --help                            Show this message and exit.                                                     │
+---
+> │ *  --dataset                  <str>               Dataset name. [required]                                           │
+> │ *  --level                    [oracle|perceived]  Input level. [required]                                            │
+> │    --gt                       <str>               Stages replaced by ground truth (perceived).                       │
+> │    --subset                   <str>               Dataset subset.                                                    │
+> │    --clips                    <str>               Clip ids (repeatable).                                             │
+> │    --policy                   <str>               Verdict policy (default: verification.policy).                     │
+> │    --sweep      --no-sweep                        Specificity sweep (oracle only). [default: no-sweep]               │
+> │    --help                                         Show this message and exit.                                        │
+diff -r left/_capture/verify_usage_error.err right/_capture/verify_usage_error.err
+1c1,4
+< error: --level is required: one of ['oracle', 'perceived']
+---
+> Usage: physverify verify [OPTIONS] COMMAND [ARGS]...
+> Try 'physverify verify --help' for help.
+> 
+> Error: Missing option '--level'.

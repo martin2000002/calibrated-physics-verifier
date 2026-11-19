@@ -1,0 +1,59 @@
+# Extractor: stage -> provider plan and sampling, as data.
+# The base tables are the `fast` profile.
+
+[extraction.plan]
+detect = "grounding_dino_tiny"
+track = "edgetam"
+depth = "vda_small"
+camera = "assumed_fov"
+lift = "backproject"
+scale = "size_prior"
+kinematics = "savgol"
+contacts = "proximity"
+
+[extraction.sampling]
+max_side = 640
+
+# The sealed sets of the freeze sample like their source dataset (test_target_fps_follows_source).
+[extraction.sampling.target_fps]
+kubric_synthetic = 24
+physics_iq = 16
+pisa_real = 60
+kubric_fresh = 24
+kubric_fresh_ood = 24
+kubric_fresh_blind = 24
+physics_iq_views = 16
+objectron_static = 16
+
+# Local depth resolution: 518 and 392 were OOM-killed on the 7.6 GB laptop.
+[extraction.providers.depth.vda_small]
+input_size = 280
+
+# One query per object with the base detector: recall +0.16 measured on held-out v1-precise scenes.
+[extraction.profiles.precise.plan]
+detect = "grounding_dino_base"
+track = "sam2_1_hiera_tiny"
+# One MoGe-2 focal per clip with GeoCalib gravity: the assumed 60 deg FOV was biased by
+# +10.9 deg on Kubric. camera/geocalib with an assumed focal was the earlier choice.
+camera = "moge2_focal"
+# The base chain finally chosen is an earlier iteration's chain on CPU, with GeoCalib gravity,
+# so precise keeps vda_small.
+depth = "vda_small"
+# Kinematic-scene contacts replaced proximity once a held-out look on fresh scenes confirmed them.
+contacts = "kinematic_scene"
+
+[extraction.profiles.precise.sampling]
+max_side = 960
+
+[extraction.profiles.precise.sampling.target_fps]
+physics_iq = 30
+pisa_real = 120
+physics_iq_views = 30
+objectron_static = 30
+
+[extraction.profiles.precise.providers.depth.vda_small]
+input_size = 518
+
+# The same input size for depth/vda_large (the G-depth gate compares the two at 518).
+[extraction.profiles.precise.providers.depth.vda_large]
+input_size = 518

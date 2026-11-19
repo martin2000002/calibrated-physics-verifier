@@ -1,0 +1,77 @@
+"""``physverify extract``: run the stage plan over a dataset, fetch its weights."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Annotated
+
+import typer
+
+from physverify.app import extraction
+from physverify.cli.context import app_context, heavy_command
+from physverify.cli.options import ClipsOption
+from physverify.core.errors import EXIT_ERROR
+
+NAME = "extract"
+
+app = typer.Typer(
+    help="Perception pipeline: from video to states and contacts.",
+    no_args_is_help=True,
+)
+
+
+@app.command("run", help="Run the extraction plan over a dataset.")
+def run(
+    ctx: typer.Context,
+    dataset: Annotated[str, typer.Option(help="Dataset name.")],
+    clips: ClipsOption = None,
+    gt: Annotated[list[str] | None, typer.Option(help="Stages replaced by ground truth.")] = None,
+    fps: Annotated[float | None, typer.Option(help="Target sampling fps.")] = None,
+    max_side: Annotated[int | None, typer.Option(help="Longest frame side in pixels.")] = None,
+    subset: Annotated[str | None, typer.Option(help="Dataset subset.")] = None,
+    strict_profile: Annotated[
+        bool,
+        typer.Option(help="Exit 2 when a provider reads a missing or stale error profile."),
+    ] = False,
+) -> None:
+    reports = extraction.run_extraction(
+        app_context(ctx),
+        dataset,
+        clips or (),
+        gt or (),
+        fps=fps,
+        max_side=max_side,
+        subset=subset,
+        strict_profile=strict_profile,
+        echo=typer.echo,
+    )
+    if any(report.failures for report in reports):
+        raise typer.Exit(code=EXIT_ERROR)
+
+
+@app.command("fetch-weights", help="Download the weights of the active profile's providers.")
+@heavy_command
+def fetch_weights(ctx: typer.Context) -> None:
+    extraction.fetch_weights(app_context(ctx), echo=typer.echo)
+
+
+@app.command(
+    "purge",
+    help="Remove every cached stage of the clips a dataset migration re-rendered (all providers).",
+)
+def purge(
+    ctx: typer.Context,
+    clips_from: Annotated[
+        Path, typer.Option(help="Migration manifest (<dataset>/migrations/<name>.json).")
+    ],
+    cache_root: Annotated[
+        list[Path] | None,
+        typer.Option(help="Cache root (repeatable; default: paths.cache_dir)."),
+    ] = None,
+) -> None:
+    extraction.purge_rerendered(
+        clips_from,
+        cache_root or (),
+        default_root=lambda: app_context(ctx).settings.paths.cache_dir,
+        echo=typer.echo,
+    )

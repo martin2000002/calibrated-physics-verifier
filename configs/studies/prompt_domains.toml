@@ -1,0 +1,67 @@
+# Domain rules that certify a prompt set (prompt_sets.<name>.domain).
+# A rule is a plugin of physverify.finetune.domains; its lexicons live here, never in code.
+
+# Rigid bodies, a rigid event and at least two bodies. Lexicons copied word for word from the
+# frozen rubric (classify_domain.py sha256 97f636def9d4cec497b1a293aa6daf01ec57f5d9e5b5c7f09443b39ffb0ddfd8);
+# colors adds pink, purple and cyan for the preference set.
+# colors also holds the seven colors of prompt_sets.rigid_tabletop.extra_train.
+# A word in no lexicon is an error, never a guess.
+[prompt_domains.rigid_multibody]
+rule = "rigid_multibody"
+rubric_sha256 = "78c659146f7f0d029fe96a7f7dae4ec9cd3262a3c7f1fd895878fcbdcd0c5f36"
+
+[prompt_domains.rigid_multibody.lexicon]
+token_pattern = "[a-z_]+|[,;]"
+# Joined before tokenizing, in this order.
+multiword = [
+  ["tennis ball", "tennis_ball"], ["soccer ball", "soccer_ball"], ["cereal boxes", "cereal_boxes"],
+  ["cereal box", "cereal_box"],
+]
+spheres = ["ball", "balls", "basketball", "basketballs", "tennis_ball", "soccer_ball"]
+# Rigid objects besides the spheres.
+rigid = [
+  "cube", "cubes", "cylinder", "cylinders", "domino", "dominoes", "cup", "cups", "bottle", "bottles",
+  "cereal_box", "cereal_boxes",
+]
+articulated_or_soft = ["book", "books", "shoe", "shoes"]
+soft = [
+  "cloth", "fabric", "towel", "blanket", "curtain", "flag", "rope", "string", "ribbon", "paper", "sponge",
+  "pillow", "cushion", "balloon", "jelly", "dough", "clay", "foam", "slime",
+]
+fluid = [
+  "water", "liquid", "pour", "pours", "poured", "splash", "splashes", "sand", "flour", "rice", "smoke",
+  "honey", "milk", "juice", "oil",
+]
+fracture = [
+  "break", "breaks", "broken", "shatter", "shatters", "crack", "cracks", "smash", "smashes", "split",
+  "splits", "snap", "snaps", "cut", "cuts", "slice", "slices", "tear", "tears", "crush", "crushes",
+  "crumple", "crumples", "burst", "bursts", "explode", "explodes",
+]
+agents = [
+  "person", "man", "woman", "boy", "girl", "child", "people", "player", "hand", "hands", "dog", "cat", "bird",
+  "horse", "animal",
+]
+furniture = ["table", "shelf"]
+ground = ["floor", "carpet", "ground", "tiled", "concrete"]
+colors = [
+  "red", "green", "blue", "yellow", "black", "white", "pink", "purple", "cyan",
+  "orange", "brown", "gray", "magenta", "teal", "navy", "maroon",
+]
+materials = ["wooden", "metal", "rubber"]
+numerals = { one = 1, two = 2, three = 3, four = 4, five = 5 }
+singular_det = ["a", "an", "another"]
+anaphora = ["the"]
+fall_verbs = ["falls", "fall", "falling", "dropped", "drop", "drops", "bounces", "bounce"]
+# Event verbs besides the fall verbs.
+event_verbs = [
+  "rolls", "roll", "move", "moves", "slides", "slide", "collide", "collides", "hits", "hit", "knocks", "knock",
+  "topples", "topple", "pushed",
+]
+rest_verbs = ["rests", "rest", "stands", "stand"]
+function = [
+  "a", "an", "the", "of", "on", "onto", "off", "from", "about", "meter", "and", "is", "are", "toward", "each",
+  "other", "another", "near", "edge", "to", "after", "in", "into", "across", "stops", "line", "row", "sequence",
+  "stacked", "tower", "it", "them", "over", "several", "times", "shoulder", "height", "static", "camera",
+]
+implied_agent = ["is dropped", "is pushed", "shoulder height"]
+clause_break = [",", ";", "and"]

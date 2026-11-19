@@ -1,0 +1,20 @@
+diff -r left/_capture/help.out right/_capture/help.out
+698,704c698,707
+< │ *  --dataset         <str>    Dataset name. [required]                                                               │
+< │    --clips           <str>    Clip ids (repeatable).                                                                 │
+< │    --gt              <str>    Stages replaced by ground truth.                                                       │
+< │    --fps             <float>  Target sampling fps.                                                                   │
+< │    --max-side        <int>    Longest frame side in pixels.                                                          │
+< │    --subset          <str>    Dataset subset.                                                                        │
+< │    --help                     Show this message and exit.                                                            │
+---
+> │ *  --dataset                                  <str>    Dataset name. [required]                                      │
+> │    --clips                                    <str>    Clip ids (repeatable).                                        │
+> │    --gt                                       <str>    Stages replaced by ground truth.                              │
+> │    --fps                                      <float>  Target sampling fps.                                          │
+> │    --max-side                                 <int>    Longest frame side in pixels.                                 │
+> │    --subset                                   <str>    Dataset subset.                                               │
+> │    --strict-profile    --no-strict-profile             Exit 2 when a provider reads a missing or stale error         │
+> │                                                        profile.                                                      │
+> │                                                        [default: no-strict-profile]                                  │
+> │    --help                                              Show this message and exit.                                   │

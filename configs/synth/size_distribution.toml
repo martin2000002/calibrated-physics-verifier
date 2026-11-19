@@ -1,0 +1,16 @@
+# Synthetic generator only: object label -> distribution that its characteristic size (full extent,
+# meters) is sampled from. mean_m is the typical size and rel_spread the relative standard
+# deviation. Only physverify.synth reads this table; the verifier's size prior lives in
+# configs/verifier/size_priors.toml and must never be copied from here (tests/test_size_leak.py).
+
+[size_distribution.cube]
+mean_m = 0.10
+rel_spread = 0.5
+
+[size_distribution.ball]
+mean_m = 0.10
+rel_spread = 0.5
+
+[size_distribution.cylinder]
+mean_m = 0.10
+rel_spread = 0.5

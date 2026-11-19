@@ -1,0 +1,341 @@
+"""``evaluate``: the frozen artifact on held-out clips and real video, never on calib. No
+fitting."""
+
+from __future__ import annotations
+
+from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass, replace
+
+from physverify.calibration.apply import policy_for, rule_for, score_clip
+from physverify.calibration.artifact import (
+    Auroc,
+    CheckMonotonicity,
+    DatasetRef,
+    EvaluationReport,
+    EvaluationStratum,
+    HeldoutCheck,
+    PrimaryScenesView,
+    RealFpr,
+    SceneKendall,
+)
+from physverify.calibration.artifact_io import Calibration, CalibrationError, Stratum
+from physverify.calibration.clip_values import ClipValueOf, clip_scores
+from physverify.calibration.fit import LevelData, auroc_of
+from physverify.calibration.heldout_monotonicity import heldout_h1
+from physverify.calibration.input_gaps import all_input_gaps
+from physverify.calibration.monotonicity import monotonicity_of, scene_kendall
+from physverify.calibration.settings import CalibrationConfig, CalibrationSettings
+from physverify.calibration.stats import clustered_rate
+from physverify.calibration.stratified import FamilyOf
+from physverify.calibration.table import (
+    CalibrationRow,
+    Role,
+    require_one_clean_per_scene,
+    unique_row_step,
+)
+from physverify.calibration.thresholds import (
+    fails,
+    false_positive_rates,
+    off_target_rate,
+    tpr_by_level,
+    verdict_of,
+)
+from physverify.calibration.verdict import Rule
+from physverify.schema.checks import CheckResult
+from physverify.schema.clip import Split
+from physverify.stats.intervals import Rate
+from physverify.synth.scene_scope import SceneScope, in_scope
+
+SCORE_CHECK = "score"
+
+GradedOf = Callable[[Stratum], ClipValueOf]
+"""The verifier's graded ordering value (B1) of a clip under a stratum, injected by the
+application: it lives above the calibration chain."""
+
+
+@dataclass(frozen=True)
+class EvaluationInputs:
+    """``synthetic`` holds every selected clip of a level (calib ones only feed the per-scene
+    Kendall of ``levels``); ``real`` maps a real dataset to its rows at the same level."""
+
+    synthetic: LevelData
+    real: Mapping[str, LevelData]
+
+
+@dataclass(frozen=True)
+class PrimaryScope:
+    """The primary scenes and the reference of the clips they select."""
+
+    scope: SceneScope
+    dataset: DatasetRef
+
+
+@dataclass(frozen=True)
+class EvaluationMeta:
+    """``profile`` is the sampling profile the evaluated clips were run with; ``primary`` adds
+    the primary-scenes view next to the all-scenes strata."""
+
+    created_utc: str
+    run_id: str
+    artifact_path: str
+    dataset: DatasetRef
+    profile: str
+    real_sets: tuple[DatasetRef, ...] = ()
+    primary: PrimaryScope | None = None
+    score_all_clips: bool = False
+    """Score the calib rows too (a development set evaluated with another set's artifact)."""
+
+
+def evaluate(
+    calibration: Calibration,
+    inputs: Sequence[EvaluationInputs],
+    meta: EvaluationMeta,
+    config: CalibrationConfig,
+    family_of: FamilyOf,
+    graded: GradedOf | None = None,
+) -> EvaluationReport:
+    """Applies the strata of the run's level and profile; raises CalibrationError when there is
+    none or when the data's row_step differs from the stratum's. ``family_of`` names the family
+    of a scene (None: none), for the stratified block of the held-out monotonicity; ``graded``
+    adds the held-out AUROC of the graded value next to that of 1 - S."""
+    matched = [
+        (_matching(calibration.stratum(level, profile), item, meta.profile), item)
+        for item in inputs
+        for level, profile in calibration.strata()
+        if level is item.synthetic.level and profile == meta.profile
+    ]
+    if not matched:
+        raise CalibrationError(
+            f"the artifact has no stratum of profile {meta.profile!r} at the evaluated levels"
+        )
+    pooled = fit_settings(calibration, config)
+    return EvaluationReport(
+        created_utc=meta.created_utc,
+        run_id=meta.run_id,
+        artifact_path=meta.artifact_path,
+        artifact_sha256=calibration.sha256,
+        artifact_run_id=calibration.run_id,
+        dataset=meta.dataset,
+        real_datasets=tuple(sorted({name for item in inputs for name in item.real})),
+        real_sets=meta.real_sets,
+        strata=tuple(
+            _stratum(
+                stratum,
+                item,
+                config,
+                pooled,
+                family_of,
+                score_all=meta.score_all_clips,
+                graded=graded,
+            )
+            for stratum, item in matched
+        ),
+        h1_primary=_primary(
+            matched, meta.primary, config, pooled, family_of, meta.score_all_clips, graded
+        ),
+        scored_splits=_scored_splits(inputs) if meta.score_all_clips else None,
+        missing_input=tuple(
+            gap
+            for item in inputs
+            for gap in all_input_gaps(meta.dataset.name, item.synthetic, item.real)
+        ),
+    )
+
+
+def _scored_splits(inputs: Sequence[EvaluationInputs]) -> tuple[str, ...]:
+    return tuple(sorted({r.split.value for item in inputs for r in item.synthetic.rows}))
+
+
+def _primary(
+    matched: Sequence[tuple[Stratum, EvaluationInputs]],
+    primary: PrimaryScope | None,
+    config: CalibrationConfig,
+    pooled: CalibrationSettings,
+    family_of: FamilyOf,
+    score_all: bool,
+    graded: GradedOf | None,
+) -> PrimaryScenesView | None:
+    if primary is None or not primary.scope.primary_scenes:
+        return None
+    keep = primary.scope.indices
+    return PrimaryScenesView(
+        scenes=primary.scope.primary_scenes,
+        dataset=primary.dataset,
+        strata=tuple(
+            _stratum(
+                stratum,
+                item,
+                config,
+                pooled,
+                family_of,
+                keep=keep,
+                score_all=score_all,
+                graded=graded,
+            )
+            for stratum, item in matched
+        ),
+    )
+
+
+def _matching(stratum: Stratum, item: EvaluationInputs, profile: str) -> Stratum:
+    named = {"synthetic": item.synthetic, **item.real}
+    for name, data in sorted(named.items()):
+        problem = stratum.time_base_problem(profile, unique_row_step(data.rows))
+        if problem is not None:
+            raise CalibrationError(f"{name} clips: {problem}")
+    return stratum
+
+
+def _rule(stratum: Stratum, check_id: str) -> Rule:
+    return rule_for(stratum, check_id, policy_for(stratum))
+
+
+def _stratum(
+    stratum: Stratum,
+    item: EvaluationInputs,
+    config: CalibrationConfig,
+    pooled: CalibrationSettings,
+    family_of: FamilyOf,
+    keep: frozenset[int] | None = None,
+    *,
+    score_all: bool = False,
+    graded: GradedOf | None = None,
+) -> EvaluationStratum:
+    """``keep``: only the scenes of these indices, and no real video (the primary view);
+    ``score_all``: the calib rows are scored too."""
+    rows = [r for r in item.synthetic.rows if keep is None or in_scope(r.scene_id, keep)]
+    real: Mapping[str, LevelData] = item.real if keep is None else {}
+    heldout = rows if score_all else [r for r in rows if r.split is not Split.CALIB]
+    uncalib = [r for r in rows if r.split is not Split.CALIB]
+    check_ids = sorted(stratum.model.checks)
+    return EvaluationStratum(
+        level=stratum.level,
+        profile=stratum.profile,
+        checks=tuple(heldout_check(stratum, c, heldout, config) for c in check_ids),
+        scene_kendall=_kendall(stratum, rows, check_ids),
+        real=tuple(
+            RealFpr(dataset=name, check_id=c, fpr=_real_fpr(stratum, c, data.rows, config))
+            for name, data in sorted(real.items())
+            for c in check_ids
+        ),
+        real_clip_flags=tuple(
+            RealFpr(dataset=name, check_id=SCORE_CHECK, fpr=clip_flags(stratum, data, config))
+            for name, data in sorted(real.items())
+        ),
+        monotonicity=pooled_monotonicity(stratum, rows, check_ids, pooled),
+        heldout_h1=heldout_h1(stratum, rows, check_ids, pooled, family_of),
+        auroc=heldout_auroc(stratum, item.synthetic, uncalib, pooled),
+        auroc_graded=(
+            None
+            if graded is None
+            else heldout_auroc(stratum, item.synthetic, uncalib, pooled, graded(stratum))
+        ),
+    )
+
+
+def heldout_auroc(
+    stratum: Stratum,
+    data: LevelData,
+    heldout: Sequence[CalibrationRow],
+    settings: CalibrationSettings,
+    value_of: ClipValueOf | None = None,
+) -> Auroc:
+    """The fit's aggregate AUROC (``auroc_of`` of ``clip_scores``) on the held-out clips, with the
+    fit's own bootstrap settings; calib clips never enter, even when the calib rows are scored.
+    The clip value is 1 - S, or ``value_of`` when given (same clips, bootstrap and seed)."""
+    clips = {r.clip_id for r in heldout}
+    view = replace(
+        data, rows=tuple(heldout), results=tuple(r for r in data.results if r.clip_id in clips)
+    )
+    scored = auroc_of(clip_scores(stratum.model, view, value_of), settings)
+    return scored.model_copy(update={"in_sample": False})
+
+
+def fit_settings(calibration: Calibration, config: CalibrationConfig) -> CalibrationSettings:
+    """The bootstrap, seed and level the artifact was fitted with, so that the pooled tau_b of
+    the evaluated calib clips can be compared with the artifact's own."""
+    snapshot = calibration.artifact.settings
+    return config.calibration.model_copy(
+        update={"bootstrap": snapshot.bootstrap, "seed": snapshot.seed, "ci": snapshot.ci}
+    )
+
+
+def pooled_monotonicity(
+    stratum: Stratum,
+    rows: Sequence[CalibrationRow],
+    check_ids: Sequence[str],
+    settings: CalibrationSettings,
+) -> tuple[CheckMonotonicity, ...]:
+    """The pooled monotonicity tau_b over the calib rows (or the primary scenes when ``rows``
+    are those); checks without a (level, delta) pair are left out rather than reported as NaN."""
+    found: list[CheckMonotonicity] = []
+    for check_id in check_ids:
+        calib = [r for r in rows if r.check_id == check_id and r.split is Split.CALIB]
+        pooled = monotonicity_of(calib, stratum.sigma_correction(check_id)[0], settings)
+        if pooled.n_pairs:
+            found.append(CheckMonotonicity(check_id=check_id, monotonicity=pooled))
+    return tuple(found)
+
+
+def heldout_check(
+    stratum: Stratum, check_id: str, rows: Sequence[CalibrationRow], config: CalibrationConfig
+) -> HeldoutCheck:
+    check = stratum.model.checks[check_id]
+    mine = [r for r in rows if r.check_id == check_id]
+    rule = _rule(stratum, check_id)
+    off = [r for r in mine if r.role is Role.OFF_TARGET and r.scored]
+    clean = [r for r in mine if r.role is Role.CLEAN]
+    require_one_clean_per_scene(clean)
+    total, decided = false_positive_rates(
+        [verdict_of(r, rule, check.tau) for r in clean if r.scored], config.calibration.ci
+    )
+    return HeldoutCheck(
+        check_id=check_id,
+        status=check.status,
+        tau=check.tau,
+        fpr_clean=total,
+        fpr_clean_decided=decided,
+        fpr_off_target=off_target_rate(off, rule, check.tau, config.calibration),
+        tpr_by_level=tpr_by_level(
+            [r for r in mine if r.role is Role.POSITIVE], rule, check.tau, config.calibration.ci
+        ),
+    )
+
+
+def _real_fpr(
+    stratum: Stratum, check_id: str, rows: Sequence[CalibrationRow], config: CalibrationConfig
+) -> Rate:
+    """Real clips are all negatives; takes of one scene are clustered."""
+    check = stratum.model.checks[check_id]
+    rule = _rule(stratum, check_id)
+    mine = [r for r in rows if r.check_id == check_id and r.scored]
+    flags = [(r.scene_id, fails(r, rule, check.tau)) for r in mine]
+    cal = config.calibration
+    return clustered_rate(flags, cal.bootstrap, cal.seed, cal.ci)
+
+
+def _kendall(
+    stratum: Stratum, rows: Sequence[CalibrationRow], check_ids: Sequence[str]
+) -> tuple[SceneKendall, ...]:
+    found: list[SceneKendall] = []
+    for check_id in check_ids:
+        mine = [r for r in rows if r.check_id == check_id]
+        if mine:
+            found += scene_kendall(mine, stratum.sigma_correction(check_id)[0])
+    return tuple(found)
+
+
+def clip_flags(stratum: Stratum, data: LevelData, config: CalibrationConfig) -> Rate:
+    """Clips whose 1 - S exceeds s*, over the clips with a score (clustered by scene)."""
+    threshold = stratum.score_threshold()
+    scene = {r.clip_id: r.scene_id for r in data.rows}
+    by_clip: dict[str, list[CheckResult]] = {}
+    for result in data.results:
+        by_clip.setdefault(result.clip_id, []).append(result)
+    flags: list[tuple[str, bool]] = []
+    for clip_id, results in sorted(by_clip.items()):
+        score = score_clip(results, stratum).score
+        if score is not None and threshold is not None:
+            flags.append((scene.get(clip_id, clip_id), 1.0 - score > threshold))
+    cal = config.calibration
+    return clustered_rate(flags, cal.bootstrap, cal.seed, cal.ci)

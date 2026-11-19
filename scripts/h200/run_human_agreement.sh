@@ -1,0 +1,467 @@
+#!/usr/bin/env bash
+# The human-agreement study on the H200, in two phases a person runs in turn (final_run.sh stage 7
+# runs prefetch, dev, prefetch-test and test in that order):
+#
+#   bash scripts/h200/run_human_agreement.sh dev
+#       pre, dev-fetch, dev-extract, dev-verify, freeze (h2_dev); ends with exit 0 and the frozen
+#       rule, gate and cut in summary.md, which a person reads before the test phase
+#   bash scripts/h200/run_human_agreement.sh test
+#       test-pre, test-fetch, test-extract, test-verify, then the one pre-registered
+#       `agreement compare --rule <the configured calibrated rule>`
+#   bash scripts/h200/run_human_agreement.sh prefetch
+#       fetch and extract h2_dev only, so that the dev preflight finds its clip cached; its
+#       bookkeeping goes to $OUT/prefetch/ and its runs to $OUT/prefetch/runs. It does not touch
+#       h2_test, the pre-registration or the comparison log
+#   bash scripts/h200/run_human_agreement.sh prefetch-test
+#       the same for h2_test, so that the test preflight finds its clip cached, in
+#       $OUT/prefetch-test/: fetch and extract are exempt (no verdict), so it neither verifies,
+#       compares nor lists anything in the ledger, and it does not spend the test
+#
+# The runs of every phase go to its bookkeeping directory ($OUT/runs, $OUT/prefetch/runs,
+# $OUT/prefetch-test/runs), never to the derived DATA/runs; all phases share CACHE_DIR, so dev and
+# test find what the prefetch phases extracted. A runs or cache directory under DATA stops at
+# startup, before anything is written.
+#
+# Every call is --profile precise --device $PHYSVERIFY_AGREEMENT_DEVICE through
+# $PHYSVERIFY_AGREEMENT_PYTHON: no uv, no setup_cuda.sh. cpu (the default, whose keys the VideoPhy
+# cache holds) hides the GPUs; cuda needs one GPU of 0-3 in CUDA_VISIBLE_DEVICES.
+# Extract and verify exit 1 when some clips fail; compare counts those clips, so that is not fatal.
+# The `pre` steps verify one cached clip and stop when its checks carry an error (an uncached heavy
+# stage), so a wrong cache stops before hours of recomputation; it then prints the prefetch (dev)
+# or prefetch-test (test) command with this run's PHYSVERIFY_AGREEMENT_* variables.
+#
+# Startup (exit 2, before any physverify call): the phase argument; no PHYSVERIFY__* variable but
+# the ones this script exports (a foreign one would change verify or the rule without moving the
+# frozen hashes), no PHYSVERIFY_CONFIG_DIR and no configs/local.toml (git status cannot see it);
+# PHYSVERIFY_AGREEMENT_DEVICE cpu or cuda; HEAD is PHYSVERIFY_AGREEMENT_EXPECT_COMMIT with nothing
+# uncommitted or untracked under src, configs, scripts or annotations; no other instance on
+# $OUT/run.lock; the calibration chain in PHYSVERIFY_AGREEMENT_CHAIN_DIR, of this run's device and
+# profile, completed steps 0..9 and published calibration.json, exclusions.json and
+# stage_errors.precise.json in the calibration directory, or, with PHYSVERIFY_AGREEMENT_FREEZE, the
+# freeze manifest (run_freeze.sh) stands for that chain: this run's device and profile, HEAD its
+# commit, the calibration directory its own and its frozen files unchanged; its record_sha stands
+# for the calibration chain's RECORD_SHA. Both pairs go through require_pair (_common.sh).
+# Then doctor must report config_dir $REPO_ROOT/configs, this run's device, the four exported
+# paths, the precise error profile and the thresholds of that calibration directory, and the
+# caption review must be recorded.
+#
+# dev refuses once a test comparison is logged (a freeze after looking at test is post hoc). After
+# the freeze the pre-registration must be calibrated (or carry a calibration gate), of this run's
+# device and profile, and bound to the calibration chain's calibration.json and decision record.
+# state.env keeps what test checks: the pre-registration and its sha256, the frozen commit, the
+# sha256 of the chain files, of the exported PHYSVERIFY__* environment and doctor's config_hash.
+#
+# test runs once: it refuses, with no physverify call, when state.env records TEST_COMPARED, the
+# comparison log has an entry, or so does any log listed in $H200_ROOT/h2-test-ledger.txt (each
+# test phase lists its log there before compare, so moving PHYSVERIFY_AGREEMENT_DIR and
+# PHYSVERIFY_AGREEMENT_DATA does not hide a spent test). No variable skips this; dev refuses on the
+# same evidence. It requires the freeze step's last exit 0 and every value dev recorded unchanged.
+# A pre-registration with a calibration gate (the stratum was not usable) makes the human-agreement
+# study "not evaluable with the calibrated rule" whether or not test runs; test then needs
+# PHYSVERIFY_AGREEMENT_ACCEPT_NOT_EVALUABLE=1 to spend it on that result.
+#
+# Optional (defaults in brackets), all PHYSVERIFY_AGREEMENT_*:
+#   EXPECT_COMMIT            required: prefix (>= 7 chars) of the HEAD this checkout is at
+#   DEVICE                   cpu or cuda [cpu]
+#   PYTHON                   interpreter [/home/mmonterot/dev/venv/bin/python]
+#   THREADS                  runtime.threads [32]
+#   DIR                      output: logs/, steps.tsv, state.env, summary.md, runs/ [$H200_ROOT/h2]
+#   DATA                     paths.data_dir: agreement/ [$H200_ROOT/h2-data]
+#   CACHE_DIR                paths.cache_dir [$H200_ROOT/Repo/data/cache]
+#   RAW_DIR                  paths.raw_dir, the VideoPhy videos [$H200_ROOT/Repo/data/raw]
+#   CALIBRATION_DIR          the calibration chain's artifacts, read only
+#                            [$H200_ROOT/kubric-data/calibration]
+#   CHAIN_DIR                the calibration chain's run, read only [the chain's directory]
+#   FREEZE                   the freeze's freeze.json in place of the chain's run [none]; set
+#                            CALIBRATION_DIR to its calibration directory
+#   PREFLIGHT_CLIP           dev preflight clip [v1-a8208f4dd41e]
+#   PREFLIGHT_TEST_CLIP      test preflight clip [the first h2_test clip with a video and an object
+#                            query]
+#   ACCEPT_NOT_EVALUABLE     1 to run test on a pre-registration with a calibration gate
+set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/_common.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/_steps.sh"
+cd "$REPO_ROOT"
+
+[[ $# -eq 1 && " dev test prefetch prefetch-test " == *" $1 "* ]] \
+    || die "usage: run_human_agreement.sh dev|test|prefetch|prefetch-test"
+PHASE="$1"
+DEV_SUBSET=h2_dev
+TEST_SUBSET=h2_test
+AGREEMENT_LINK=h2-latest
+CHAIN_STEPS=9
+PROVISIONAL=provisional_any_fail
+
+source_h200_env
+OWN_VARS=" PATHS__DATA_DIR PATHS__CACHE_DIR PATHS__RAW_DIR PATHS__CALIBRATION_DIR PATHS__WEIGHTS_DIR
+    PATHS__VENDOR_DIR PATHS__HF_HOME RUNTIME__HEAVY_LOCK CHECK_SCOPE__REQUIRE_DECISION_RECORD "
+foreign=""
+for name in $(compgen -e -X '!PHYSVERIFY__*'); do
+    [[ "$OWN_VARS" == *[[:space:]]"${name#PHYSVERIFY__}"[[:space:]]* ]] || foreign+=" $name"
+done
+[[ -z "$foreign" ]] || die "the environment sets configuration run_human_agreement.sh does not own:$foreign" \
+    "(it would change the human-agreement study without moving its frozen hashes); unset it"
+
+[[ -z "${PHYSVERIFY_CONFIG_DIR+set}" ]] \
+    || die "PHYSVERIFY_CONFIG_DIR is set: the human-agreement study reads only the committed $REPO_ROOT/configs; unset it"
+[[ ! -e "$REPO_ROOT/configs/local.toml" ]] \
+    || die "$REPO_ROOT/configs/local.toml exists: it is not committed, so the human-agreement" \
+        "study would not run the frozen configuration; remove it (run_human_agreement.sh sets" \
+        "every path and the lock itself)"
+
+PHYSVERIFY_AGREEMENT_DEVICE="${PHYSVERIFY_AGREEMENT_DEVICE:-cpu}"
+use_device PHYSVERIFY_AGREEMENT_DEVICE
+EXPECT="${PHYSVERIFY_AGREEMENT_EXPECT_COMMIT:-}"
+[[ ${#EXPECT} -ge 7 ]] || die "set PHYSVERIFY_AGREEMENT_EXPECT_COMMIT to the commit this run uses"
+HEAD_COMMIT="$(git -C "$REPO_ROOT" rev-parse HEAD)" || die "$REPO_ROOT is not a git checkout"
+[[ "$HEAD_COMMIT" == "$EXPECT"* ]] || die "HEAD is $HEAD_COMMIT, expected $EXPECT"
+DIRTY="$(git -C "$REPO_ROOT" status --porcelain -- src configs scripts annotations)" \
+    || die "git status failed in $REPO_ROOT"
+[[ -z "$DIRTY" ]] || die "uncommitted or untracked files under src, configs, scripts or" \
+    "annotations (they enter the frozen hashes):"$'\n'"$DIRTY"
+PY="${PHYSVERIFY_AGREEMENT_PYTHON:-/home/mmonterot/dev/venv/bin/python}"
+[[ -x "$PY" ]] || die "no interpreter at $PY (PHYSVERIFY_AGREEMENT_PYTHON)"
+THREADS="${PHYSVERIFY_AGREEMENT_THREADS:-32}"
+[[ "$THREADS" =~ ^[1-9][0-9]*$ ]] || die "PHYSVERIFY_AGREEMENT_THREADS must be a positive integer"
+
+OUT="${PHYSVERIFY_AGREEMENT_DIR:-$H200_ROOT/h2}"
+
+export PHYSVERIFY__PATHS__DATA_DIR="${PHYSVERIFY_AGREEMENT_DATA:-$H200_ROOT/h2-data}"
+export PHYSVERIFY__PATHS__CACHE_DIR="${PHYSVERIFY_AGREEMENT_CACHE_DIR:-$H200_ROOT/Repo/data/cache}"
+export PHYSVERIFY__PATHS__RAW_DIR="${PHYSVERIFY_AGREEMENT_RAW_DIR:-$H200_ROOT/Repo/data/raw}"
+export PHYSVERIFY__PATHS__CALIBRATION_DIR="${PHYSVERIFY_AGREEMENT_CALIBRATION_DIR:-$H200_ROOT/kubric-data/calibration}"
+export PHYSVERIFY__PATHS__WEIGHTS_DIR="$H200_ROOT/Repo/data/weights"
+export PHYSVERIFY__PATHS__VENDOR_DIR="$H200_ROOT/Repo/data/vendor"
+export PHYSVERIFY__PATHS__HF_HOME="$H200_ROOT/.cache/huggingface"
+# The calibration chain's lock: no heavy step here runs while a calibration chain step does.
+export PHYSVERIFY__RUNTIME__HEAVY_LOCK="$H200_ROOT/kubric.lock"
+# No step runs without the sealed exclusion record.
+export PHYSVERIFY__CHECK_SCOPE__REQUIRE_DECISION_RECORD=true
+unset PHYSVERIFY_LOCK_HELD
+BOOK="$OUT"
+[[ "$PHASE" != prefetch* ]] || BOOK="$OUT/$PHASE"
+PHYSVERIFY__PATHS__RUNS_DIR="$(realpath -m "$BOOK/runs")"
+export PHYSVERIFY__PATHS__RUNS_DIR
+
+# outside_data NAME VAR: paths.NAME is neither DATA nor below it (no run writes into the data
+# directory); VAR is the PHYSVERIFY_AGREEMENT_* variable that moves it.
+outside_data() {
+    local path="PHYSVERIFY__PATHS__$1" data="$PHYSVERIFY__PATHS__DATA_DIR"
+    ! same_path "${!path}" "$data" && ! under "${!path}" "$data" \
+        || die "paths.${1,,} ${!path} is under the data directory $PHYSVERIFY__PATHS__DATA_DIR:" \
+            "set $2 outside it"
+}
+outside_data RUNS_DIR PHYSVERIFY_AGREEMENT_DIR
+outside_data CACHE_DIR PHYSVERIFY_AGREEMENT_CACHE_DIR
+outside_data RAW_DIR PHYSVERIFY_AGREEMENT_RAW_DIR
+mkdir -p "$OUT"
+exec 9>"$OUT/run.lock"
+flock -n 9 || die "another run_human_agreement.sh holds $OUT/run.lock"
+CAL="$PHYSVERIFY__PATHS__CALIBRATION_DIR"
+CHAIN_DIR="${PHYSVERIFY_AGREEMENT_CHAIN_DIR:-$CHAIN_ROOT}"
+FREEZE="${PHYSVERIFY_AGREEMENT_FREEZE:-}"
+FROZEN_BY="the calibration chain"
+[[ -z "$FREEZE" ]] || FROZEN_BY="the freeze"
+LEDGER="$H200_ROOT/h2-test-ledger.txt"
+ENV_SHA="$(env | grep '^PHYSVERIFY__' | LC_ALL=C sort | sha256sum | cut -d ' ' -f 1)"
+
+LOGS="$BOOK/logs"
+STATE="$BOOK/state.env"
+STEPS="$BOOK/steps.tsv"
+NOTES="$BOOK/notes.md"
+SUMMARY="$BOOK/summary.md"
+SUMMARY_TITLE="Human-agreement study on VideoPhy ($PV_DEVICE)"
+SUMMARY_INFO="commit $HEAD_COMMIT, device $PV_DEVICE, profile $PV_PROFILE, data $PHYSVERIFY__PATHS__DATA_DIR, cache $PHYSVERIFY__PATHS__CACHE_DIR, calibration $CAL, threads $THREADS"
+mkdir -p "$LOGS"
+touch "$STEPS" "$NOTES"
+if [[ -f "$STATE" ]]; then
+    # shellcheck disable=SC1090
+    source "$STATE"
+fi
+
+require_chain() {
+    local k code name
+    require_chain_pair "$CHAIN_DIR"
+    CHAIN_RECORD_SHA="$(state_value "$CHAIN_DIR/state.env" RECORD_SHA)"
+    [[ -n "$CHAIN_RECORD_SHA" ]] || die "$CHAIN_DIR/state.env has no RECORD_SHA: its step 9 is not done"
+    for ((k = 0; k <= CHAIN_STEPS; k++)); do
+        code="$(last_exit "$k" "$CHAIN_DIR/steps.tsv")"
+        [[ "$code" == 0 ]] \
+            || die "calibration chain step $k has not completed (last exit '${code:-none}' in $CHAIN_DIR/steps.tsv)"
+    done
+    for name in calibration.json exclusions.json stage_errors.precise.json; do
+        [[ -f "$CAL/$name" ]] || die "no $CAL/$name: the calibration chain has not published it"
+    done
+}
+
+# freeze_field KEY: one value of the freeze manifest.
+freeze_field() {
+    h200_py freeze_query.py field "$FREEZE" "$1" || die "$FREEZE gives no $1"
+}
+
+require_freeze() {
+    [[ -f "$FREEZE" ]] || die "no freeze manifest at $FREEZE (PHYSVERIFY_AGREEMENT_FREEZE)"
+    require_pair "$FREEZE" "$(freeze_field device)" "$(freeze_field profile)"
+    [[ "$(freeze_field commit)" == "$HEAD_COMMIT" ]] \
+        || die "$FREEZE froze commit $(freeze_field commit), HEAD is $HEAD_COMMIT"
+    same_path "$(freeze_field calibration_dir)" "$CAL" \
+        || die "$FREEZE froze $(freeze_field calibration_dir), not $CAL" \
+            "(set PHYSVERIFY_AGREEMENT_CALIBRATION_DIR to it)"
+    CHAIN_RECORD_SHA="$(freeze_field record_sha)"
+    h200_py freeze_query.py artifacts "$FREEZE" >/dev/null \
+        || die "the frozen files of $FREEZE changed (freeze_query artifacts)"
+}
+
+save_artifacts() {
+    save CALIB_SHA "$(sha_of "$CAL/calibration.json")"
+    save RECORD_FILE_SHA "$(sha_of "$CAL/exclusions.json")"
+    save PROFILE_SHA "$(sha_of "$CAL/stage_errors.precise.json")"
+}
+
+artifacts_unchanged() {
+    [[ "$(sha_of "$CAL/calibration.json")" == "${CALIB_SHA:-}" \
+        && "$(sha_of "$CAL/exclusions.json")" == "${RECORD_FILE_SHA:-}" \
+        && "$(sha_of "$CAL/stage_errors.precise.json")" == "${PROFILE_SHA:-}" ]] \
+        || die "$FROZEN_BY's files in $CAL changed since the dev phase: the human-agreement study must be frozen again"
+}
+
+# Neither the comparison log of the configured pre-registration nor any counted log in the
+# ledger holds an entry. A ledger line is a log path (a run frozen by its calibration chain) or
+# "freeze:<sha256>\t<log>" (a run frozen by run_freeze.sh). A chain-frozen run counts every line;
+# a freeze-frozen run counts only the freeze lines, so the test is spent once per mode: the
+# chain-frozen verifier and the freeze-frozen one are different verifiers.
+untested() {
+    local n line log
+    n="$(h200_py agreement_query.py tested)" || die "cannot read the test-comparison log"
+    [[ "$n" == 0 ]] || return 1
+    [[ -f "$LEDGER" ]] || return 0
+    while IFS= read -r line; do
+        log="${line#freeze:*$'\t'}"
+        [[ -z "$FREEZE" || "$log" != "$line" ]] || continue
+        [[ -z "$log" || ! -s "$log" ]] || ! grep -q . "$log" || return 1
+    done <"$LEDGER"
+}
+
+# Lists this phase's comparison log in the ledger before compare can write to it.
+enter_ledger() {
+    local log
+    log="$(h200_py agreement_query.py log-path)" || die "cannot locate the test-comparison log"
+    [[ -z "$FREEZE" ]] || log="freeze:$(sha_of "$FREEZE")"$'\t'"$log"
+    grep -qxF -- "$log" "$LEDGER" 2>/dev/null || printf '%s\n' "$log" >>"$LEDGER"
+}
+
+check_doctor() {
+    local name var
+    DOCTOR="$(pv doctor)" || die "physverify doctor failed"
+    same_path "$(doctor_value config_dir)" "$REPO_ROOT/configs" \
+        || die "doctor reports config_dir '$(doctor_value config_dir)', not $REPO_ROOT/configs"
+    [[ "$(doctor_value device)" == "$PV_DEVICE" ]] \
+        || die "doctor reports device '$(doctor_value device)', not $PV_DEVICE"
+    for name in DATA_DIR RUNS_DIR CACHE_DIR RAW_DIR CALIBRATION_DIR; do
+        var="PHYSVERIFY__PATHS__$name"
+        same_path "$(doctor_value "paths.${name,,}")" "${!var}" \
+            || die "doctor reports paths.${name,,} '$(doctor_value "paths.${name,,}")', not ${!var}"
+    done
+    same_path "$(doctor_value paths.error_profile)" "$CAL/stage_errors.precise.json" \
+        || die "doctor reports paths.error_profile '$(doctor_value paths.error_profile)', not $CAL/stage_errors.precise.json"
+    same_path "$(dirname "$(doctor_value paths.thresholds)")" "$CAL" \
+        || die "doctor reports paths.thresholds '$(doctor_value paths.thresholds)', outside $CAL"
+    CONFIG_HASH="$(doctor_value config_hash)"
+    [[ -n "$CONFIG_HASH" ]] || die "doctor reports no config_hash"
+    pv agreement subset --check || die "record the caption review first (agreement subset --record)"
+}
+
+prereg_field() {
+    h200_py agreement_query.py prereg "$PREREG" "$1" || die "cannot read $1 of $PREREG"
+}
+
+# What makes the pre-registration unusable for the human-agreement study (nothing when it is usable).
+prereg_problem() {
+    local rule gate value configured
+    rule="$(prereg_field rule)"
+    configured="$(h200_py agreement_query.py rule)" \
+        || { echo "configs/studies/human_agreement.toml has no calibrated rule"; return; }
+    gate="$(prereg_field calibration_gate)"
+    [[ -z "$gate" || "$rule" == "$PROVISIONAL" ]] \
+        || { echo "rule '$rule' with a calibration gate"; return; }
+    [[ -n "$gate" || "$rule" == "$configured" ]] \
+        || { echo "rule '$rule', not $configured: configs/studies/human_agreement.toml is not the committed one"; return; }
+    value="$(prereg_field device)"
+    [[ "$value" == "$PV_DEVICE" ]] || { echo "device '$value', not $PV_DEVICE"; return; }
+    value="$(prereg_field profile)"
+    [[ "$value" == "$PV_PROFILE" ]] || { echo "profile '$value', not $PV_PROFILE"; return; }
+    value="$(prereg_field calibration_artifact_sha256)"
+    [[ "$value" == "$CALIB_SHA" ]] \
+        || { echo "calibration artifact $value, not $FROZEN_BY's $CAL/calibration.json ($CALIB_SHA)"; return; }
+    value="$(prereg_field exclusion_record_sha256)"
+    [[ "$value" == "$CHAIN_RECORD_SHA" ]] \
+        || { echo "decision record $value, not $FROZEN_BY's $CHAIN_RECORD_SHA"; return; }
+}
+
+# prefetch_command PHASE: the prefetch phase PHASE with this run's PHYSVERIFY_AGREEMENT_* variables,
+# as a command to paste; on cuda through the server's GPU slot launcher, which takes the GPU lock
+# and picks the GPU.
+prefetch_command() {
+    local name command="cd $(printf %q "$REPO_ROOT") &&"
+    local run="bash scripts/h200/run_human_agreement.sh $1"
+    for name in $(compgen -e -X '!PHYSVERIFY_AGREEMENT_*'); do
+        command+=" $name=$(printf %q "${!name}")"
+    done
+    [[ "$PV_DEVICE" != cuda ]] || run="~/work/scratch/gpu_slot.sh h2-$1 $run"
+    echo "$command $run"
+}
+
+# preflight STEP SUBSET CLIP: one cached clip verified; any error in its checks stops.
+preflight() {
+    begin "$1" "$PHASE"
+    [[ -n "$3" ]] || stop "no $2 clip to preflight"
+    call 1 -- verify --dataset videophy --level perceived --subset "$2" --clips "$3"
+    local run errors prefetch=prefetch
+    run="$(run_of)"
+    [[ "$2" == "$DEV_SUBSET" ]] || prefetch=prefetch-test
+    local hint=$'\n'"Cache $2 first (fetch and extract only, runs under $OUT/$prefetch/runs):"
+    hint+=$'\n'"  $(prefetch_command "$prefetch")"
+    # verify exits 0 on an uncached clip: its rows abstain with the error in checks.jsonl.
+    errors="$(query run-errors "$run" 2>&1)" \
+        || stop "preflight: $3 failed or is not cached for --device $PV_DEVICE:"$'\n'"$errors$hint"
+    note "preflight: $2 $3 cached, run $run"
+    row 0
+}
+
+# pass PREFIX SUBSET: fetch, extract and verify SUBSET; leaves its verify run in VERIFY_RUN.
+pass() {
+    begin "$1-fetch" "$PHASE"
+    call 0 -- agreement fetch --subset "$2"
+    row 0
+    begin "$1-extract" "$PHASE"
+    call 1 -- extract run --dataset videophy --subset "$2"
+    row 0
+    begin "$1-verify" "$PHASE"
+    call 1 -- verify --dataset videophy --level perceived --subset "$2"
+    VERIFY_RUN="$(run_of)"
+    row 0
+}
+
+note_gaps() {
+    local lines
+    lines="$(h200_py agreement_query.py gaps "$1")" || die "cannot count the input gaps of $1"
+    note_block "Input gaps ($1)" <<<"$lines"
+}
+
+phase_dev() {
+    untested || die "a test comparison is already logged (see also $LEDGER): a freeze now is" \
+        "post hoc (agreement freeze --force --declare-deviation, by hand)"
+    check_doctor
+    save DEV_ENV_SHA "$ENV_SHA"
+    save DEV_CONFIG_HASH "$CONFIG_HASH"
+    save_artifacts
+    preflight pre "$DEV_SUBSET" "${PHYSVERIFY_AGREEMENT_PREFLIGHT_CLIP:-v1-a8208f4dd41e}"
+    pass dev "$DEV_SUBSET"
+    save DEV_VERIFY_RUN "$VERIFY_RUN"
+    begin freeze "$PHASE"
+    # An unchanged frozen state keeps the pre-registration (exit 0); a changed one exits 2.
+    call 0 -- agreement freeze --verify-run "$DEV_VERIFY_RUN"
+    PREREG="$(sed -n '/^preregistration: /{s///p;q}' "$LAST_LOG")"
+    [[ -n "$PREREG" && -f "$PREREG" ]] || stop "no pre-registration in $LAST_LOG"
+    local problem field
+    problem="$(prereg_problem)"
+    [[ -z "$problem" ]] || stop "the pre-registration $PREREG is not this study's: $problem"
+    save PREREG "$PREREG"
+    save PREREG_SHA "$(sha_of "$PREREG")"
+    save FROZEN_COMMIT "$HEAD_COMMIT"
+    for field in rule rule_label calibration_gate n_dev n_dev_decided dev_majority dev_cut \
+        dev_cut_rejection dev_tuned_cut calibration_artifact_sha256 exclusion_record_sha256; do
+        note "$field: $(prereg_field "$field")"
+    done
+    note_gaps "$DEV_SUBSET"
+    artifacts_unchanged
+    row 0
+    local gate
+    gate="$(prereg_field calibration_gate)"
+    if [[ -n "$gate" ]]; then
+        echo "WARNING: calibration_gate not null ($gate): the human-agreement study is not evaluable with" \
+            "the calibrated rule, whether or not test runs; test needs" \
+            "PHYSVERIFY_AGREEMENT_ACCEPT_NOT_EVALUABLE=1" >&2
+    fi
+    echo "dev frozen ($PREREG); review $SUMMARY, then run_human_agreement.sh test"
+}
+
+phase_test() {
+    local spent="the human-agreement study's test is spent: a test comparison is already logged (configured log or $LEDGER)"
+    spent+=" and compare never runs twice. Its report is in <test verify run>/agreement/ if the"
+    spent+=" write completed; if not, the compare step's log in $LOGS (or the ledger's run) says why"
+    [[ -z "${TEST_COMPARED:-}" ]] || die "$spent (TEST_COMPARED in $STATE)"
+    untested || die "$spent"
+    [[ "$(last_exit freeze)" == 0 ]] || die "the dev phase has not completed: run run_human_agreement.sh dev"
+    [[ -n "${PREREG:-}" && -f "$PREREG" && "$(sha_of "$PREREG")" == "${PREREG_SHA:-}" ]] \
+        || die "the pre-registration ${PREREG:-?} changed since the dev phase"
+    [[ "$HEAD_COMMIT" == "${FROZEN_COMMIT:-}" ]] \
+        || die "HEAD is $HEAD_COMMIT, the freeze was at ${FROZEN_COMMIT:-?}"
+    [[ "$ENV_SHA" == "${DEV_ENV_SHA:-}" ]] \
+        || die "the PHYSVERIFY__* environment differs from the dev phase's (paths or lock moved)"
+    artifacts_unchanged
+    local problem gate
+    problem="$(prereg_problem)"
+    [[ -z "$problem" ]] || die "the pre-registration $PREREG is not this study's: $problem"
+    gate="$(prereg_field calibration_gate)"
+    if [[ -n "$gate" && "${PHYSVERIFY_AGREEMENT_ACCEPT_NOT_EVALUABLE:-}" != 1 ]]; then
+        die "the calibrated stratum was not usable at the freeze ($gate): the human-agreement study is not" \
+            "evaluable with the calibrated rule whether or not test runs, and redoing the chain or" \
+            "the freeze to avoid that is post hoc. Set PHYSVERIFY_AGREEMENT_ACCEPT_NOT_EVALUABLE=1 to" \
+            "spend test on the descriptive result."
+    fi
+    check_doctor
+    local rule
+    rule="$(h200_py agreement_query.py rule)" \
+        || die "configs/studies/human_agreement.toml has no calibrated rule"
+    [[ "$CONFIG_HASH" == "${DEV_CONFIG_HASH:-}" ]] \
+        || die "doctor's config_hash $CONFIG_HASH differs from the dev phase's ${DEV_CONFIG_HASH:-?}"
+    local clip="${PHYSVERIFY_AGREEMENT_PREFLIGHT_TEST_CLIP:-}"
+    [[ -n "$clip" ]] || clip="$(h200_py agreement_query.py ready "$TEST_SUBSET")" \
+        || die "no $TEST_SUBSET clip to preflight"
+    preflight test-pre "$TEST_SUBSET" "$clip"
+    pass test "$TEST_SUBSET"
+    save TEST_VERIFY_RUN "$VERIFY_RUN"
+    begin compare "$PHASE"
+    enter_ledger
+    call 0 -- agreement compare --verify-run "$TEST_VERIFY_RUN" --subset "$TEST_SUBSET" \
+        --rule "$rule"
+    save TEST_COMPARED 1
+    mkdir -p "$TEST_VERIFY_RUN/agreement"
+    cp "$PREREG" "$TEST_VERIFY_RUN/agreement/preregistration.json"
+    ln -sfn "$(basename "$TEST_VERIFY_RUN")" "$(dirname "$TEST_VERIFY_RUN")/$AGREEMENT_LINK"
+    note "$(sed -n '/^H2: /{p;q}' "$LAST_LOG")"
+    note "report: $TEST_VERIFY_RUN/agreement/summary.md"
+    note_gaps "$TEST_SUBSET"
+    artifacts_unchanged
+    row 0
+    echo "Agreement run: $(dirname "$TEST_VERIFY_RUN")/$AGREEMENT_LINK (summary: agreement/summary.md)"
+}
+
+# prefetch SUBSET NEXT: fetch and extract SUBSET only, then name the phase NEXT that reads it.
+prefetch() {
+    check_doctor
+    begin "$PHASE-fetch" "$PHASE"
+    call 0 -- agreement fetch --subset "$1"
+    row 0
+    begin "$PHASE-extract" "$PHASE"
+    call 1 -- extract run --dataset videophy --subset "$1"
+    note "$PHASE: $1 extracted, run $(run_of)"
+    row 0
+    echo "$1 cached; run run_human_agreement.sh $2"
+}
+
+phase_prefetch() {
+    prefetch "$DEV_SUBSET" dev
+}
+
+phase_prefetch_test() {
+    prefetch "$TEST_SUBSET" test
+}
+
+if [[ -n "$FREEZE" ]]; then
+    require_freeze
+else
+    require_chain
+fi
+"phase_${PHASE//-/_}"

@@ -1,0 +1,29 @@
+# Verifier vs the reference VLM on VideoPhy human labels (human-agreement study).
+# Every file is pinned by revision (and sha256 for the label tables). Nothing here is tuned on
+# test: the score cut is fixed on h2_dev by `agreement freeze` and frozen in preregistration.json.
+
+[agreement]
+# Implausible on a calibrated FAIL of a voting check, abstain otherwise (a PASS is not evidence of
+# plausibility). Provisional only as fallback.
+rule = "calibrated_fail_only"
+# Deliberate guard: must equal the stratum's fitted k_sigma ([verification] k_sigma), else exit 2.
+k_sigma = 2.0
+primary_policy = "as_plausible"
+alpha = 0.05
+power = 0.8
+bootstrap_n = 10000
+bootstrap_seed = 20261017
+ci = 0.95
+permutation_exact_max = 20             # caption McNemar (secondary): exact up to 20 discordant captions, else Monte Carlo
+error_sample_per_class = 15
+error_seed = 20261017
+# Excluded and time-dependent check ids live in [check_scope] (configs/verifier/check_scope.toml).
+on_unusable_stratum = "descriptive"    # calibrated rule, stratum not usable: provisional + "not evaluable"; "error" = exit 2
+exclude_time_dependent = false         # [check_scope] time-dependent checks stay in the primary; a sensitivity run drops them
+min_cut_side_fraction = 0.05           # the dev cut leaves >= 5 % of the decided clips on either side, else none is frozen
+dev_subset = "h2_dev"
+test_subset = "h2_test"
+preregistration = "agreement/preregistration.json"   # under paths.data_dir
+
+[agreement.profiles.fast]
+bootstrap_n = 1000

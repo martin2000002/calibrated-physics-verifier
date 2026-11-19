@@ -1,0 +1,86 @@
+"""Temporal stabilisation of LIFT's per-object summaries (LIFT version 3).
+
+Along each visible run of an object, a running median replaces the surface depth z and the image
+extent q = (e_x, e_y) / z (pixels / f, independent of depth). The centre is rescaled along its
+viewing ray by z_new / z, so its pixel stays put; e_x, e_y = q_new z_new and e_z follows from
+them by the LIFT rule. The silhouette's lengths against the vertical (normalised, so independent
+of depth) take the same median; its footprint yaw does not. A median of w = 2h + 1 rows removes
+impulses of up to h rows and keeps steps, monotone runs and plateaus of h + 1 or more rows; a real
+change shorter than that is lost.
+
+Ends of a run: ``"keep"`` (LIFT's rule) leaves the first and last h rows as measured.
+``"shifted"`` moves the window inside the run (row 0 uses rows 0..w - 1): an impulse on those rows
+is removed too, but a monotone run also loses its slope there, since such an impulse is itself
+monotone. It fails the survival test of the detections
+(tests/verification/test_temporal_filter_keeps_detections.py) and exists only for a descriptive
+comparison run.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Sequence
+from dataclasses import replace
+
+import numpy as np
+from numpy.typing import NDArray
+
+from physverify.extraction.backprojection import ObjectSummary, full_extents
+from physverify.extraction.lift_geometry import SilhouetteView
+from physverify.physics.kinematics import visible_runs
+from physverify.physics.running_median import EdgeMode, running_median
+
+FloatArray = NDArray[np.float64]
+
+
+def stabilize_run(
+    centres: FloatArray, extents: FloatArray, window: int, edges: EdgeMode
+) -> tuple[FloatArray, FloatArray]:
+    """(n, 3) centres and extents of one visible run with the median depth and image extent."""
+    z = centres[:, 2]
+    image_extent = extents[:, :2] / z[:, None]
+    z_new = running_median(z, window, edges)
+    q_new = np.column_stack([running_median(image_extent[:, k], window, edges) for k in range(2)])
+    ratio = z_new / z
+    usable = np.isfinite(ratio) & np.isfinite(q_new).all(axis=1)
+    new_centres = np.where(usable[:, None], centres * ratio[:, None], centres)
+    new_extents = np.where(usable[:, None], full_extents(q_new * z_new[:, None]), extents)
+    return new_centres, new_extents
+
+
+def stabilize_views(
+    views: Sequence[SilhouetteView | None], window: int, edges: EdgeMode
+) -> list[SilhouetteView | None]:
+    """One run's silhouettes with the median widths and area; unchanged when any is missing."""
+    present = [view for view in views if view is not None]
+    if len(present) < len(views):
+        return list(views)
+    lengths = np.array([[view.across, view.along, view.area] for view in present])
+    smoothed = np.column_stack(
+        [running_median(lengths[:, k], window, edges) for k in range(lengths.shape[1])]
+    )
+    smoothed = np.where(np.isfinite(smoothed), smoothed, lengths)
+    return [
+        replace(view, across=float(row[0]), along=float(row[1]), area=float(row[2]))
+        for view, row in zip(present, smoothed, strict=True)
+    ]
+
+
+def stabilize_summaries(
+    column: Sequence[ObjectSummary | None], window: int, edges: EdgeMode
+) -> list[ObjectSummary | None]:
+    """One object's summaries over time, each visible run stabilised (``None`` = not visible)."""
+    out = list(column)
+    present = np.array([summary is not None for summary in column], dtype=bool)
+    for run in visible_runs(present):
+        if run.stop - run.start < window:
+            continue
+        summaries = [s for s in out[run] if s is not None]
+        centres = np.stack([s.centre for s in summaries])
+        extents = np.stack([s.extents for s in summaries])
+        new_centres, new_extents = stabilize_run(centres, extents, window, edges)
+        views = stabilize_views([s.view for s in summaries], window, edges)
+        out[run] = [
+            replace(s, centre=c, extents=e, view=v)
+            for s, c, e, v in zip(summaries, new_centres, new_extents, views, strict=True)
+        ]
+    return out

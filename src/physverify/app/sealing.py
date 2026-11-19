@@ -1,0 +1,337 @@
+"""The sealed-ledger guard (``calibration.sealed_ledger``) of the commands that compute numbers on
+dataset clips, and the table that classifies every subcommand: a new one fails a test until it is
+listed here, so no command escapes the guard by omission."""
+
+from __future__ import annotations
+
+import datetime as dt
+import socket
+import subprocess
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
+from pathlib import Path
+from types import MappingProxyType
+from typing import Final
+
+from physverify.app.context import AppContext
+from physverify.app.services import dataset_for
+from physverify.calibration.development import is_development, may_be_development, require_sealed
+from physverify.calibration.ledger_versions import legacy_settings, looks_of, resolved
+from physverify.calibration.sealed_ledger import (
+    REPEAT_ENV,
+    UNSEAL_ENV,
+    LedgerEntry,
+    SealedSpec,
+    append_entry,
+    check_repeat,
+    dataset_entry,
+    earlier,
+    freeze_of,
+    ledger_path,
+    locked,
+    look_config_hash,
+    read_entries,
+    require_clean,
+    require_unsealed,
+    sealed_settings,
+    touched,
+    unsealed,
+)
+from physverify.calibration.settings import SECTION as CALIBRATION_SECTION
+from physverify.calibration.settings import CalibrationSettings, calibration_settings
+from physverify.config.loader import file_sections
+from physverify.config.models import validated
+from physverify.core.digests import sha256_if_file
+from physverify.core.errors import MissingInputError, UsageError
+from physverify.core.output import Echo
+from physverify.datasets._versions import SealedRender, versioned_name
+from physverify.runtime.runs import current_commit
+from physverify.schema.clip import ClipManifest
+from physverify.selective_risk.frozen import look_files
+
+GUARDED: Final = frozenset(
+    {
+        "abstain curve",
+        "abstain fit",
+        "calibrate devscore",
+        "calibrate evaluate",
+        "calibrate fit",
+        "calibrate stage-sigma",
+        "diagnose attribution",
+        "diagnose end-to-end",
+        "diagnose real",
+        "diagnose stages",
+        "scene-stats per-clip",
+        "baselines compare",
+        "verify",
+    }
+)
+"""Run the checks or measure stage errors on the clips of a dataset. These are the labels the
+ledger records, persisted in sealed ledgers: a renamed leaf keeps its label."""
+
+LEDGER_LABELS_BY_LEAF: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        "calibrate dev-score": "calibrate devscore",
+        "selective-risk curve": "abstain curve",
+        "selective-risk fit": "abstain fit",
+    }
+)
+"""CLI leaf -> the ledger label it writes, where the two differ."""
+
+
+def ledger_label(leaf: str) -> str:
+    return LEDGER_LABELS_BY_LEAF.get(leaf, leaf)
+
+
+_LEAVES_BY_LABEL: Final = {label: leaf for leaf, label in LEDGER_LABELS_BY_LEAF.items()}
+GUARDED_LEAVES: Final = frozenset(_LEAVES_BY_LABEL.get(label, label) for label in GUARDED)
+"""The CLI leaves whose label is in ``GUARDED``."""
+
+_DATA = "builds, fetches or lists data; computes no check or error number"
+_READS = "re-reads files a guarded command wrote (its look is already in the ledger)"
+_GENERATED = (
+    "scores generated videos, not a dataset split "
+    "(the generator comparison has its own pre-registration)"
+)
+_TIMING = "measures wall time only"
+EXEMPT: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        "agreement compare": "VideoPhy h2_test keeps its own ledger (run_human_agreement.sh)",
+        "agreement fetch": _DATA,
+        "agreement freeze": "reads the h2_dev verify run (development data)",
+        "agreement subset": _DATA,
+        "baselines score": (
+            "an external judge scores each clip's video into a cache keyed by clip id and video "
+            "sha; prints no number (only `baselines compare` reads the scores beside the labels)"
+        ),
+        "calibrate compare-devscore": _READS,
+        "calibrate publish": _READS,
+        "calibrate show": _READS,
+        "compare-generators compare": _GENERATED,
+        "compare-generators freeze": _GENERATED,
+        "compare-generators gate-autoeval": _GENERATED,
+        "compare-generators generate": _GENERATED,
+        "compare-generators judge": _GENERATED,
+        "compare-generators rescore": _GENERATED,
+        "compare-generators score": _GENERATED,
+        "compare-generators status": _GENERATED,
+        "demo redraw": "redraws stored demo reports; computes no check or score",
+        "demo report": _GENERATED,
+        "demo run": _GENERATED + "; a --video path is a file, not a dataset selection",
+        "demo scenes": _GENERATED,
+        "doctor": _DATA,
+        "download fetch": _DATA,
+        "exclusions decide": _READS,
+        "exclusions r2-clips": _DATA,
+        "exclusions show": _READS,
+        "extract fetch-weights": _DATA,
+        "extract purge": _DATA,
+        "extract run": "fills the stage cache and prints no number (fresh controls need it)",
+        "final-table build": _READS,
+        "final-table comparison": _READS,
+        "final-table preflight": "reads a calibration artifact, no dataset split",
+        "final-table inputs": "reads an evaluation report and the preflight, no dataset split",
+        "finetune beta-grid": _GENERATED,
+        "finetune budget": _GENERATED,
+        "finetune generate": _GENERATED,
+        "finetune pairs": _GENERATED,
+        "finetune pilot-review": _GENERATED,
+        "finetune prompts": _GENERATED,
+        "finetune score": _GENERATED,
+        "finetune select": _GENERATED,
+        "finetune status": _GENERATED,
+        "finetune train": _GENERATED,
+        "report figures": _READS,
+        "results": _READS,
+        "scene-stats delta": _READS,
+        "scene-stats table": _READS,
+        "size e2e-eval": "Objectron through sizing/, not a DatasetSource",
+        "size e2e-prepare": _DATA,
+        "size eval": "Objectron through sizing/, not a DatasetSource",
+        "size fetch": _DATA,
+        "size fit": "fits on Objectron train",
+        "synth build": _DATA,
+        "synth export-gt": _DATA,
+        "synth generate": _DATA,
+        "synth list": _DATA,
+        "synth migrate": _DATA,
+        "synth migrate-velocity": _DATA,
+        "synth perturb": _DATA,
+        "synth pull-image": _DATA,
+        "synth render": _DATA,
+        "synth simulate": _DATA,
+        "timing budget": _TIMING,
+        "timing env": _TIMING,
+        "timing fetch": _DATA,
+        "timing list": _TIMING,
+        "timing run": _TIMING,
+        "timing summarize": _TIMING,
+    }
+)
+"""Subcommand -> why it needs no guard."""
+
+
+@dataclass(frozen=True)
+class Selection:
+    dataset: str
+    subset: str | None
+    clips: tuple[ClipManifest, ...]
+
+
+def guard_sealed(
+    context: AppContext,
+    command: str,
+    selections: Sequence[Selection],
+    *,
+    err: Echo,
+    artifacts: Mapping[str, str] | None = None,
+    run_dir: Path | None = None,
+) -> None:
+    """Nothing when no selection touches a sealed set; otherwise refuse without the unseal
+    variable, or append the ledger line before returning. ``artifacts`` (label -> sha256) are
+    the files the command judges with beyond the default ones; they enter the freeze. ``err``
+    prints one line on the error stream."""
+    if command not in GUARDED_LEAVES:
+        raise ValueError(f"{command!r} is not a guarded subcommand")
+    sealed = sealed_settings(context.settings)
+    specs = [(sel, touched(sel.dataset, sel.clips, sealed.sets)) for sel in selections]
+    found = tuple(
+        dict.fromkeys(
+            s
+            for sel, seen in specs
+            if seen and not _development(context, sel.dataset, err)
+            for s in seen
+        )
+    )
+    if not found:
+        return
+    environ = context.invocation.environ
+    require_unsealed(found, unsealed(environ.get(UNSEAL_ENV)))
+    settings = context.settings
+    looks = looks_of(found, lambda name: dataset_for(context, name), settings.sections)
+    path = _ledger(context)
+    err(f"ledger: {path}")
+    look = _look(context, tuple(looks.values()), artifacts or {})
+    with locked(path):
+        previous = resolved(read_entries(path), looks, legacy_settings(settings))
+        repeat = check_repeat(previous, look.sets, look.freeze, environ.get(REPEAT_ENV) == "1")
+        for entry in earlier(previous, look.sets):
+            err(
+                f"earlier look at {','.join(entry.sets)}: {entry.utc} commit {entry.commit[:12]} "
+                f"{entry.command} freeze {entry.freeze[:12]}"
+            )
+        entry = look.model_copy(
+            update={
+                "command": ledger_label(command),
+                "datasets": tuple(dataset_entry(s.dataset, s.subset, s.clips) for s in selections),
+                "repeat": repeat,
+                "run_dir": None if run_dir is None else str(run_dir),
+            }
+        )
+        append_entry(path, entry)
+    err(f"sealed look: {','.join(look.sets)} freeze {look.freeze[:12]}")
+
+
+def refuse_sealed_clips(
+    context: AppContext, datasets: Sequence[str], clips: Sequence[str], *, err: Echo
+) -> None:
+    """``--clips`` narrows a development set only: refused, before any read or ledger line, on a
+    dataset some sealed spec names, whatever split the clips are in, unless that version is a
+    declared development set."""
+    if not clips:
+        return
+    named = {SealedSpec.parse(spec).dataset for spec in sealed_settings(context.settings).sets}
+    sealed = [d for d in datasets if d in named and not _development(context, d, err)]
+    if sealed:
+        raise UsageError(f"--clips narrows development sets only; sealed: {', '.join(sealed)}")
+
+
+def own_looks(context: AppContext, command: str, run_dir: Path) -> tuple[str | None, int]:
+    """The freeze of the ledger line run ``run_dir`` wrote and how many lines of ``command``
+    share that freeze, this one included; (None, 0) when the run wrote no line."""
+    path = _ledger(context)
+    entries = read_entries(path) if path.is_file() else ()
+    mine = [e for e in entries if e.run_dir == str(run_dir)]
+    if not mine:
+        return None, 0
+    freeze, label = mine[-1].freeze, ledger_label(command)
+    return freeze, sum(e.freeze == freeze and e.command == label for e in entries)
+
+
+def _ledger(context: AppContext) -> Path:
+    """``~`` in ``[sealed] ledger`` is the invoking HOME."""
+    settings = context.settings
+    home = Path(context.invocation.environ.get("HOME") or Path.home())
+    return ledger_path(sealed_settings(settings), home, settings.repo_root)
+
+
+def _development(context: AppContext, dataset: str, err: Echo) -> bool:
+    """A selection of a development set (that exact version) declared in the config files is not
+    a sealed look. One declared only by ``local.toml``, the environment or ``--set`` stays sealed:
+    those layers never lift a seal. A sealed render whose version the config files also declare a
+    development set fails closed."""
+    settings = context.settings
+    effective = calibration_settings(settings)
+    if not may_be_development(dataset, effective):
+        return False
+    try:
+        source = dataset_for(context, dataset)
+        name = versioned_name(source)
+    except MissingInputError as exc:
+        raise MissingInputError(
+            f"cannot read the version of {dataset} to tell a development look from a "
+            f"sealed one: {exc}"
+        ) from exc
+    if not is_development(source, effective):
+        return False
+    sections = file_sections(settings.config_dir, settings.profile)
+    declared = sections.get(CALIBRATION_SECTION, {})
+    filed = validated(CalibrationSettings, declared, CALIBRATION_SECTION)
+    if not is_development(source, filed):
+        err(f"development set {name} is not declared in the config files: a sealed look")
+        return False
+    if isinstance(source, SealedRender):
+        require_sealed(f"{dataset}@{source.sealed_version(sections)}", filed)
+    err(f"development set {name}: not a sealed look")
+    return True
+
+
+def _tree_state(root: Path) -> str | None:
+    """``git status --porcelain -- src configs`` (None outside a checkout)."""
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(root), "status", "--porcelain", "-uall", "--", "src", "configs"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return None
+    return result.stdout if result.returncode == 0 else None
+
+
+def _look(context: AppContext, looks: tuple[str, ...], artifacts: Mapping[str, str]) -> LedgerEntry:
+    """The invocation's part of the line: who, where, the looks (``spec@version`` for a dataset
+    whose content has versions) and the frozen state it looks with."""
+    settings = context.settings
+    commit = current_commit(settings.repo_root)
+    require_clean(commit, _tree_state(settings.repo_root))
+    config_hash = look_config_hash(settings)
+    frozen = {label: sha256_if_file(path) for label, path in look_files(settings).items()}
+    frozen |= dict(artifacts)
+    return LedgerEntry(
+        utc=dt.datetime.now(dt.UTC).isoformat(timespec="seconds"),
+        commit=commit,
+        command="",
+        argv=context.invocation.argv,
+        sets=looks,
+        sealed=sealed_settings(settings).sets,
+        datasets=(),
+        artifacts={k: v for k, v in frozen.items() if v is not None},
+        config_hash=config_hash,
+        freeze=freeze_of(commit, config_hash, frozen),
+        repeat=False,
+        run_dir=None,
+        user=context.invocation.environ.get("USER", ""),
+        host=socket.gethostname(),
+    )

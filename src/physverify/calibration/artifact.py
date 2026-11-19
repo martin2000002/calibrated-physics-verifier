@@ -1,0 +1,396 @@
+"""The calibration artifact ``calibration.json`` and the evaluation report.
+
+Semver: a different major version is rejected; a newer minor version may only add optional
+fields, which a lenient load drops. Every non-finite number is written as null.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Iterable
+from enum import StrEnum
+from typing import Literal
+
+from pydantic import Field
+
+from physverify.calibration.gap_record import InputGap
+from physverify.core.models import SCHEMA_KEY, ArtifactModel, absent_when_default, absent_when_none
+from physverify.schema.checks import InputLevel
+from physverify.schema.clip import ClipManifest
+from physverify.schema.io import stable_hash
+from physverify.stats.intervals import Ci, Rate
+
+CALIBRATION_SCHEMA = "physverify.calibration"
+CALIBRATION_VERSION = "1.11.0"
+EVALUATION_SCHEMA = "physverify.calibration.evaluation"
+
+CheckStatus = Literal["ok", "insufficient", "no_positives", "no_negatives", "unranked_negatives"]
+OpenSide = Literal["low", "high"]
+ArtifactStatus = Literal["calibrated", "insufficient", "provisional"]
+Censoring = Literal["none", "below", "above"]
+OK: CheckStatus = "ok"
+UNRANKED_NEGATIVES: CheckStatus = "unranked_negatives"
+"""Clean clips have an event but every magnitude is NaN: the measurement is missing, not data."""
+
+
+class Fpr(ArtifactModel):
+    """Totals count an abstention as no false positive; ``*_decided`` count over PASS/FAIL only."""
+
+    cv: Rate
+    """Scene-grouped cross-validation: tau fitted without the held-out clean scenes."""
+    cv_decided: Rate
+    in_sample: Rate
+    in_sample_decided: Rate
+    in_sample_optimistic: bool = True
+    off_target: Rate
+    """Perturbed clips not aimed at this check (couplings excluded); never fix tau. Several clips
+    share a scene, so its interval is clustered by scene."""
+    undeclared_coupling: bool
+    off_target_failures: tuple[str, ...] = ()
+
+
+class LevelTpr(ArtifactModel):
+    level: int
+    mu_median: float | None
+    total: Rate
+    """Abstentions count as misses."""
+    decided: Rate
+
+
+class Auroc(ArtifactModel):
+    value: float | None
+    ci: Ci
+    n_positive: int
+    n_negative: int
+    in_sample: bool = True
+
+
+class DetectionLimit(ArtifactModel):
+    """L_D at miss rate ``beta`` in the injected unit. ``censored`` below: L_D <= ``bound``;
+    above: L_D > ``bound``. A fitted value is an estimate. ``ci`` is the profile-likelihood
+    interval; a side in ``ci_open`` did not close inside the tested range (its bound is null)."""
+
+    value: float | None
+    ci: Ci
+    censored: Censoring
+    bound: float | None
+    unit: str
+    beta: float
+    n: int
+    reason: str | None = None
+    estimated: bool = True
+    ci_method: str = "profile_likelihood"
+    ci_open: tuple[OpenSide, ...] = ()
+
+
+class Monotonicity(ArtifactModel):
+    kendall_tau_b: float | None
+    ci: Ci
+    n_pairs: int
+    n_scenes: int
+    median_delta_by_level: dict[str, float | None]
+    monotone_medians: bool
+    h1_pass: bool
+    n_unranked: int | None = absent_when_none()
+    """Scored rows left out of the deltas for a NaN magnitude (``monotonicity.unranked``)."""
+
+
+class Weight(ArtifactModel):
+    value: float
+    """max(0, informedness_ci.low) normalised by the largest weight of the stratum."""
+    informedness: float | None
+    informedness_ci: Ci
+    n_positive: int
+    n_negative: int
+
+
+class Reading(StrEnum):
+    SCORED = "scored"
+    """The rows with a finite value."""
+    OPERATIONAL = "operational"
+    """Every labelled row; one without a finite value reads 0.0."""
+
+
+READINGS = tuple(Reading)
+
+
+class Stratified(ArtifactModel):
+    """A score's validity inside the scene families (``calibration.stratified``)."""
+
+    auroc_cv: dict[Reading, Auroc]
+    family_floor: dict[Reading, float | None]
+    """In-sample AUROC of the family positive rate: what the family alone separates."""
+    j_cv: Weight | None = None
+    """Informedness per family, weighted by positives; None for the clip score."""
+
+
+class Probability(ArtifactModel):
+    """p = 1 / (1 + exp(-(a + b u))), u = (m - bias - tau) / scale; class-balanced Platt fit.
+    An estimate conditional on the calib design, not a real-world probability."""
+
+    a: float | None
+    b: float | None
+    scale: float
+    ece_cv: float | None
+    ece_ci: Ci
+    n: int
+    estimated: bool = True
+
+
+class CoverageAt(ArtifactModel):
+    k: float
+    nominal: float
+    observed: float | None
+    n: int
+
+
+class SigmaCorrection(ArtifactModel):
+    """m' = m - bias, sigma' = factor * sigma; ``factor`` null = error not measured (abstain)."""
+
+    bias: float
+    bias_ci: Ci
+    factor: float | None
+    factor_ci: Ci
+    n_pairs: int
+    coverage_before: tuple[CoverageAt, ...]
+    coverage_after: tuple[CoverageAt, ...]
+    """Cross-fitted by scene."""
+    reason: str | None = None
+    estimated: bool = True
+    n_informative: int | None = None
+    """Pairs with a nonzero magnitude on some side; None when the factor uses every pair."""
+    coverage_after_informative: tuple[CoverageAt, ...] = ()
+    coverage_after_degenerate: tuple[CoverageAt, ...] = ()
+    """``coverage_after`` split into the informative pairs and the 0-against-0 ones."""
+
+
+class CheckCalibration(ArtifactModel):
+    unit: str
+    status: CheckStatus
+    tau: float | None
+    tau_rule: str = "max(conformal_clean_scene, tolerance)"
+    tau_tolerance: float = 0.0
+    """Numerical tolerance epsilon_c (check units): tau = max(q, epsilon_c)."""
+    tau_conformal: float | None = None
+    """The conformal quantile q before the tolerance."""
+    n_clean_scenes: int
+    n_clean_dropped: int = 0
+    """Clean scenes whose magnitude was NaN: counted, not ranked by the conformal quantile."""
+    n_positive_clips: int
+    n_off_target_clips: int
+    fpr: Fpr
+    tpr_by_level: tuple[LevelTpr, ...]
+    auroc: Auroc
+    abstention_rate: Rate
+    detection_limit: DetectionLimit
+    monotonicity: Monotonicity
+    weight: Weight
+    probability: Probability
+    sigma: SigmaCorrection
+
+
+class Aggregate(ArtifactModel):
+    """A clip is flagged when 1 - S > ``score_threshold`` (conformal over clean scenes)."""
+
+    score_threshold: float | None
+    sufficient: bool
+    score_threshold_in_sample: bool = True
+    """s* is fitted on the clips that also fitted tau, p_c and the weights: optimistic."""
+    n_clean_scenes: int
+    n_perturbed_clips: int
+    auroc: Auroc
+
+
+class Stratum(ArtifactModel):
+    level: InputLevel
+    profile: str
+    row_step: int
+    k_sigma: float
+    on_unknown_sigma: Literal["abstain", "point"]
+    checks: dict[str, CheckCalibration]
+    aggregate: Aggregate
+
+
+class DatasetRef(ArtifactModel):
+    name: str
+    version: str
+    subset: str
+    split: str
+    n_clips: int
+    n_scenes: int
+    clip_ids_hash: str
+    identity: str | None = absent_when_none()
+    """The content's cache identity (``dataset_identity``); absent for plain datasets."""
+    population_hash: str | None = absent_when_none()
+    """``clip_ids_hash`` of the clips a calib fit without ``--clips`` takes (the subset's calib
+    clips and its extensions); absent outside a calib fit and before 1.9.0."""
+
+    @property
+    def whole_population(self) -> bool:
+        """The fit took its whole population, not a subset of it (a rehearsal's ``--clips``)."""
+        return self.population_hash is not None and self.population_hash == self.clip_ids_hash
+
+
+def clip_ids_hash(clips: Iterable[ClipManifest]) -> str:
+    """``DatasetRef.clip_ids_hash`` of ``clips``: their sorted ids, hashed."""
+    return stable_hash(sorted(clip.clip_id for clip in clips))
+
+
+class SettingsSnapshot(ArtifactModel):
+    alpha: float
+    beta: float
+    k_sigma: float
+    folds: int
+    bootstrap: int
+    seed: int
+    ci: float
+    min_sigma_pairs: int
+    platt_l2: float
+    sigma_pair_filter: str | None = None
+    """Pairs of the per-check sigma factor (``CalibrationSettings.sigma_pair_filter``); None in an
+    artifact older than 1.5.0, which did not record it (those fits used every pair)."""
+
+
+class StageFactor(ArtifactModel):
+    stage: str
+    provider: str
+    quantity: str
+    factor: float | None
+    n: int
+    coverage_before: tuple[CoverageAt, ...]
+    coverage_after: tuple[CoverageAt, ...]
+    estimated: bool = True
+
+
+class StageSigma(ArtifactModel):
+    path: str | None
+    hash: str | None
+    entries: tuple[StageFactor, ...] = ()
+
+
+class CalibrationArtifact(ArtifactModel):
+    schema_: str = Field(default=CALIBRATION_SCHEMA, alias=SCHEMA_KEY)
+    version: str = CALIBRATION_VERSION
+    status: ArtifactStatus
+    created_utc: str
+    run_id: str
+    commit: str
+    config_hash: str
+    checks_hash: str
+    error_profile_hash: str
+    dataset: DatasetRef
+    settings: SettingsSnapshot
+    strata: tuple[Stratum, ...]
+    stage_sigma: StageSigma
+    device: str | None = None
+    """The runtime device the stratum features were extracted on; None in an artifact older
+    than 1.7.0, which did not record it."""
+
+
+class SceneKendall(ArtifactModel):
+    scene_id: str
+    check_id: str
+    kendall_tau_b: float | None
+    n_levels: int
+    split: str
+
+
+class HeldoutCheck(ArtifactModel):
+    """Rates of the frozen tau on held-out clips; ``status`` is the fit's (not ok: indicative)."""
+
+    check_id: str
+    status: CheckStatus
+    tau: float | None
+    fpr_clean: Rate
+    fpr_clean_decided: Rate
+    fpr_off_target: Rate
+    tpr_by_level: tuple[LevelTpr, ...]
+
+
+class CheckMonotonicity(ArtifactModel):
+    """The pooled monotonicity tau_b recomputed on the evaluated calib clips (the fit's statistic
+    and its ``h1_pass`` rule); held-out clips never enter it."""
+
+    check_id: str
+    split: Literal["calib"] = "calib"
+    monotonicity: Monotonicity
+
+
+class HeldoutMonotonicityCheck(ArtifactModel):
+    """Held-out monotonicity of one check: the pooled tau_b and the J of the frozen tau and sigma
+    correction, bootstrapped as the artifact was, and the dev score's n_met clause
+    (``calibration.clause``) on them. No refit, no folds."""
+
+    check_id: str
+    split: Literal["heldout"] = "heldout"
+    monotonicity: Monotonicity
+    j: Weight
+    """``value`` is max(0, J^lo), not normalised."""
+    meets_h1: bool
+    meets_j: bool
+    meets_both: bool
+    auroc_readings: dict[Reading, Auroc] = Field(default_factory=dict)
+    """AUROC of the frozen-bias corrected magnitude, global (from 1.8.0)."""
+    stratified: Stratified | None = None
+    """None where the held-out scenes have no families (or before 1.8.0)."""
+    meets_stratified: bool | None = None
+    meets_clause: bool | None = None
+    """``meets_both`` and, where stratified, ``meets_stratified``; None before 1.8.0."""
+
+    @property
+    def counted(self) -> bool:
+        """Counts in n_met: the clause from 1.8.0 on, ``meets_both`` in an older report."""
+        return self.meets_both if self.meets_clause is None else self.meets_clause
+
+
+class RealFpr(ArtifactModel):
+    dataset: str
+    check_id: str
+    fpr: Rate
+
+
+class EvaluationStratum(ArtifactModel):
+    level: InputLevel
+    profile: str
+    checks: tuple[HeldoutCheck, ...]
+    scene_kendall: tuple[SceneKendall, ...]
+    real: tuple[RealFpr, ...]
+    real_clip_flags: tuple[RealFpr, ...]
+    """Share of real clips whose aggregate score is flagged (check_id ``score``)."""
+    monotonicity: tuple[CheckMonotonicity, ...] = ()
+    """From 1.4.0; checks with at least one calib (level, delta) pair."""
+    heldout_h1: tuple[HeldoutMonotonicityCheck, ...] = ()
+    """From 1.6.0; checks with at least one held-out row (none when every row is calib)."""
+    auroc: Auroc | None = absent_when_none()
+    """From 1.10.0; AUROC of the clip score 1 - S, perturbed against clean held-out clips."""
+    auroc_graded: Auroc | None = absent_when_none()
+    """From 1.11.0; the same AUROC (clips, bootstrap, seed) of the verifier's graded score B1."""
+
+
+class PrimaryScenesView(ArtifactModel):
+    """The strata restricted to the primary scenes; real video is not repeated."""
+
+    scenes: tuple[str, ...]
+    dataset: DatasetRef
+    strata: tuple[EvaluationStratum, ...]
+
+
+class EvaluationReport(ArtifactModel):
+    schema_: str = Field(default=EVALUATION_SCHEMA, alias=SCHEMA_KEY)
+    version: str = CALIBRATION_VERSION
+    created_utc: str
+    run_id: str
+    artifact_path: str
+    artifact_sha256: str
+    artifact_run_id: str
+    dataset: DatasetRef
+    real_datasets: tuple[str, ...]
+    strata: tuple[EvaluationStratum, ...]
+    real_sets: tuple[DatasetRef, ...] = ()
+    """The real clip sets the evaluation scored (empty before 1.2.0): what rule 1.5 checks."""
+    h1_primary: PrimaryScenesView | None = None
+    """The primary-scenes view (from 1.3.0); ``strata`` stays the all-scenes view."""
+    scored_splits: tuple[str, ...] | None = absent_when_none()
+    """The splits whose rows were scored, when every row was (a development set); absent when
+    only the rows outside calib were."""
+    missing_input: tuple[InputGap, ...] = absent_when_default(())
+    """From 1.10.0; per set, level and check, the clips left without input."""

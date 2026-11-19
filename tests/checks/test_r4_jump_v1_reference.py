@@ -1,0 +1,22 @@
+"""The v1 R4_jump (``ContinuityCheck``, out of the registry) and R4_size with
+``reference = "self"`` and ``axis_errors = "independent"`` (the v1 sigma) reproduce, field by
+field, what the v1 code (10e37ff) wrote into ``golden/r4_v1.json`` (``r4_v1_golden_case.py``)."""
+
+from __future__ import annotations
+
+import json
+
+import pytest
+from golden import same
+from r4_v1_golden_case import GOLDEN, SCENES, results
+
+
+@pytest.fixture(scope="module")
+def current() -> dict[str, list[object]]:
+    return results({"reference": "self", "axis_errors": "independent"})
+
+
+@pytest.mark.parametrize("scene", sorted(SCENES))
+def test_the_v1_results_do_not_move(current: dict[str, list[object]], scene: str) -> None:
+    golden = json.loads(GOLDEN.read_text(encoding="utf-8"))
+    assert same(current[scene], golden[scene])

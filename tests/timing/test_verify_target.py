@@ -1,0 +1,278 @@
+"""The verification target: the check suite built on demand, one span over load plus runner,
+per-check times."""
+
+from __future__ import annotations
+
+import types
+from collections.abc import Callable, Iterator, Sequence
+from dataclasses import dataclass, field, replace
+from pathlib import Path
+from typing import Any
+
+import pytest
+from child_python import run_python
+
+from physverify.app import plugins
+from physverify.config.models import Settings
+from physverify.core.errors import TimingError
+from physverify.datasets._base import DatasetSource
+from physverify.extraction.pipeline import ClipFailure, ExtractionReport, PipelineDeps
+from physverify.schema.checks import InputLevel
+from physverify.schema.clip import ClipManifest
+from physverify.schema.stages import Stage
+from physverify.timing._base import TimingContext
+from physverify.timing.records import (
+    VERIFY_CHECKS_S,
+    VERIFY_CPU_S,
+    VERIFY_LOAD_S,
+    VERIFY_WALL_S,
+    check_measures,
+)
+from physverify.timing.target_services import TimingServices
+from physverify.timing.targets.verify_checks import (
+    Verifier,
+    VerifyChecks,
+    check_measure,
+    load_suite,
+)
+
+PLAN: Any = object()
+INPUTS: Any = object()
+CHECK: Any = object()
+
+
+@dataclass(frozen=True)
+class Loaded:
+    clip: ClipManifest
+    inputs: Any
+    error: str | None = None
+
+    def for_check(self, check_id: str) -> Loaded:
+        return self
+
+
+def fake_check(
+    check_id: str,
+    seconds: float,
+    clock: Any,
+    *,
+    requires: frozenset[str] = frozenset(),
+    fails: bool = False,
+    inputs: Any = INPUTS,
+) -> Any:
+    def evaluate(self: Any, given: Any) -> None:
+        assert given is inputs
+        clock.advance(seconds)
+        if fails:
+            raise ValueError("contacts is None")
+
+    attrs = {"check_id": check_id, "requires": requires, "evaluate": evaluate}
+    return type(f"Check_{check_id}", (), attrs)()
+
+
+@dataclass
+class FakeRunner:
+    clock: Any
+    cpu_clock: Any
+    seconds: float
+    seen: list[list[str]] = field(default_factory=list)
+
+    def run(self, source: Any, clips: Sequence[ClipManifest]) -> None:
+        self.seen.append([item.clip.clip_id for item in source.load(clips)])
+        self.clock.advance(self.seconds)
+        self.cpu_clock.advance(self.seconds * 2)
+
+
+@dataclass
+class FakeSource:
+    clock: Any
+    seconds: float
+    error: str | None = None
+    loads: int = 0
+
+    def load(self, clips: Sequence[ClipManifest]) -> Iterator[Loaded]:
+        self.loads += 1
+        self.clock.advance(self.seconds)
+        return iter([Loaded(clip, None if self.error else INPUTS, self.error) for clip in clips])
+
+
+@dataclass
+class FakeSuite:
+    """A ``SuiteFactory``: two checks (0.125 s and 0.0625 s), a 0.5 s runner, a 0.25 s load."""
+
+    clock: Any
+    cpu_clock: Any
+    error: str | None = None
+    builds: int = 0
+    sources: list[tuple[str, Any, PipelineDeps]] = field(default_factory=list)
+    runner: FakeRunner = field(init=False)
+    source: FakeSource = field(init=False)
+
+    def __post_init__(self) -> None:
+        self.runner = FakeRunner(self.clock, self.cpu_clock, 0.5)
+        self.source = FakeSource(self.clock, 0.25, self.error)
+
+    def __call__(self, settings: Settings, checks: Any, policies: Any) -> Verifier:
+        self.builds += 1
+        built = (fake_check("R4_jump", 0.125, self.clock), fake_check("R1-pen", 0.0625, self.clock))
+        return Verifier(built, self.runner, self.make_source)
+
+    def make_source(
+        self, settings: Settings, dataset: DatasetSource, resolve: Any, deps: PipelineDeps
+    ) -> FakeSource:
+        self.sources.append((dataset.name, resolve(settings), deps))
+        return self.source
+
+
+@dataclass
+class FakeFill:
+    failures: tuple[ClipFailure, ...] = ()
+    runs: list[tuple[str, list[str], PipelineDeps]] = field(default_factory=list)
+
+    def __call__(self, plan: Any, deps: PipelineDeps) -> FakeFill:
+        self._deps = deps
+        return self
+
+    def run(self, dataset: DatasetSource, clips: Sequence[ClipManifest]) -> ExtractionReport:
+        ids = [clip.clip_id for clip in clips]
+        self.runs.append((dataset.name, ids, self._deps))
+        failures = tuple(failure for failure in self.failures if failure.clip_id in ids)
+        return ExtractionReport(events=(), failures=failures, keys={})
+
+
+def plan_of(settings: Settings, services: Any, dataset: str) -> Any:
+    return PLAN
+
+
+@dataclass
+class Setup:
+    services: TimingServices
+    suite: FakeSuite
+    fill: FakeFill
+    ctx: TimingContext
+
+    def target(self, **changes: Any) -> VerifyChecks:
+        options: dict[str, Any] = {
+            "suite_factory": self.suite,
+            "pipeline_factory": self.fill,
+            "plan_factory": plan_of,
+        }
+        return VerifyChecks(self.services, **{**options, **changes})
+
+
+@pytest.fixture
+def setup(
+    make_settings: Callable[..., Settings],
+    make_services: Callable[..., TimingServices],
+    fake_clock: Callable[..., Any],
+    tmp_path: Path,
+) -> Setup:
+    clock, cpu_clock = fake_clock(), fake_clock()
+    services = make_services(clock=clock, cpu_clock=cpu_clock)
+    observer: Any = object()
+    ctx = TimingContext(make_settings(), "cpu", 1, tmp_path / "run", observer)
+    return Setup(services, FakeSuite(clock, cpu_clock), FakeFill(), ctx)
+
+
+def test_wall_spans_load_and_runner_and_checks_are_timed_apart(
+    setup: Setup, clip_factory: Callable[..., ClipManifest]
+) -> None:
+    target = setup.target()
+    measures = target.run(clip_factory("c0"), setup.ctx)
+    check_measures(measures)
+    assert measures == {
+        VERIFY_WALL_S: 0.75,
+        VERIFY_LOAD_S: 0.25,
+        VERIFY_CPU_S: 1.0,
+        VERIFY_CHECKS_S: 0.1875,
+        "verify.r4_jump.wall_s": 0.125,
+        "verify.r1_pen.wall_s": 0.0625,
+    }
+    assert setup.suite.source.loads == 1
+    assert setup.suite.runner.seen == [["c0"]]
+
+
+def test_check_timing_skips_missing_inputs_and_survives_a_failing_check(setup: Setup) -> None:
+    inputs = types.SimpleNamespace(contacts=None)
+    item: Any = Loaded(types.SimpleNamespace(), inputs)
+    checks = (
+        fake_check("R2", 0.5, setup.suite.clock, requires=frozenset({"contacts"}), inputs=inputs),
+        fake_check("R5a", 0.25, setup.suite.clock, fails=True, inputs=inputs),
+    )
+    assert setup.target()._time_checks(checks, item) == {"verify.r5a.wall_s": 0.25}
+
+
+def test_inputs_come_from_the_persistent_cache_without_an_observer(
+    setup: Setup, clip_factory: Callable[..., ClipManifest]
+) -> None:
+    setup.target().run(clip_factory("c0"), setup.ctx)
+    [(dataset, plan, deps)] = setup.suite.sources
+    assert (dataset, plan) == ("fake_ds", PLAN)
+    assert deps.cache.root == setup.ctx.settings.paths.cache_dir
+    assert deps.observer is None
+    assert deps.lock.acquisitions == 0
+
+
+def test_prepare_fills_the_cache_per_dataset_and_builds_the_suite_once(
+    setup: Setup, clip_factory: Callable[..., ClipManifest]
+) -> None:
+    setup.fill.failures = (ClipFailure("c1", Stage.DEPTH, "boom"),)
+    clips = [clip_factory("c0"), clip_factory("x0", dataset="other_ds"), clip_factory("c1")]
+    datasets = {**setup.services.datasets, "other_ds": setup.services.datasets["fake_ds"]}
+    setup.services = replace(setup.services, datasets=datasets)
+    target = setup.target()
+    assert target.prepare(clips, setup.ctx) == {}
+    assert [ids for _, ids, _ in setup.fill.runs] == [["c0", "c1"], ["x0"]]
+    for _, _, deps in setup.fill.runs:
+        assert deps.observer is setup.ctx.observer
+        assert deps.cache.root == setup.ctx.settings.paths.cache_dir
+    info = target.describe(setup.ctx)
+    assert info == {
+        "input_level": InputLevel.PERCEIVED.value,
+        "checks": "R4_jump,R1-pen",
+        "prepare_failures": "c1 depth: boom",
+    }
+    target.run(clips[0], setup.ctx)
+    target.run(clips[2], setup.ctx)
+    assert setup.suite.builds == 1
+    target.close()
+    target.run(clips[0], setup.ctx)
+    assert setup.suite.builds == 2
+
+
+def test_failed_inputs_raise(setup: Setup, clip_factory: Callable[..., ClipManifest]) -> None:
+    setup.suite = FakeSuite(setup.suite.clock, setup.suite.cpu_clock, error="no depth")
+    with pytest.raises(TimingError, match="c0: verification inputs failed: no depth"):
+        setup.target().run(clip_factory("c0"), setup.ctx)
+    assert setup.suite.runner.seen == []
+
+
+@pytest.mark.parametrize(
+    ("check_id", "measure"),
+    [("R4_jump", "verify.r4_jump.wall_s"), ("R3-collision", "verify.r3_collision.wall_s")],
+)
+def test_check_ids_become_lower_case_measures(check_id: str, measure: str) -> None:
+    assert check_measure(check_id) == measure
+
+
+def test_load_suite_builds_the_real_suite_api(
+    make_settings: Callable[..., Settings],
+) -> None:
+    checks, policies = plugins.PLUGIN_KINDS["checks"](), plugins.PLUGIN_KINDS["policies"]()
+    verifier = load_suite(make_settings(), checks, policies)
+    assert verifier.checks
+    assert {check.check_id for check in verifier.checks} <= set(checks)
+    assert callable(verifier.runner.run)
+
+
+def test_importing_the_targets_loads_no_heavy_library_nor_the_suite() -> None:
+    probe = (
+        "import sys\n"
+        "import physverify.timing.targets.extract_pipeline\n"
+        "import physverify.timing.targets.verify_checks\n"
+        "import physverify.timing.targets.kubric_render\n"
+        "banned = ('torch', 'transformers', 'diffusers', 'kubric', 'bpy',"
+        " 'physverify.verification.runner')\n"
+        "print(sorted(name for name in banned if name in sys.modules))\n"
+    )
+    assert run_python("-c", probe).strip() == "[]"

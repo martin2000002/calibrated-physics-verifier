@@ -1,0 +1,212 @@
+"""Stage execution contract: providers, their context, weights and observers.
+
+Heavy libraries (torch, transformers) are imported inside ``run()``, never at module level.
+"""
+
+from __future__ import annotations
+
+import math
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass, field
+from enum import StrEnum
+from typing import Any, ClassVar, Protocol, runtime_checkable
+
+from pydantic import BaseModel
+
+from physverify.config.models import PathsSettings
+from physverify.config.plugin_context import PluginKind
+from physverify.core.errors import InvalidPluginError, MissingInputError
+from physverify.core.models import FrozenModel
+from physverify.core.registry import Registry
+from physverify.datasets._base import GroundTruthStore, VideoSource
+from physverify.schema.clip import ClipManifest, FrameSampling
+from physverify.schema.error_profile import EntryFilter, ErrorEntry, ErrorProfile
+from physverify.schema.errors import SchemaError
+from physverify.schema.outputs import StageOutput
+from physverify.schema.provenance import GROUND_TRUTH as GROUND_TRUTH
+from physverify.schema.stages import Stage, check_upstream_order, stage_index
+
+
+class ProviderParams(FrozenModel):
+    """Base of every provider's parameters, which its cache key covers."""
+
+
+class WeightKind(StrEnum):
+    HF = "hf"
+    URL = "url"
+    GIT = "git"
+
+
+@dataclass(frozen=True)
+class WeightSpec:
+    """A checkpoint or repository a provider downloads with ``extract fetch-weights``."""
+
+    kind: WeightKind
+    ref: str
+    revision: str = ""
+    sha256: str = ""
+
+
+@dataclass(frozen=True)
+class StageContext:
+    """Everything a provider may read; ``upstream`` holds only the stages it requires.
+
+    ``entry_filter`` holds the plan's profile and stage params hashes; a profile entry is read
+    only when it was measured under that profile with those params. ``stage_params`` holds the
+    plan's validated params of every stage, for a provider that must treat data as another stage
+    does (their cache keys reach it through the upstream keys)."""
+
+    clip: ClipManifest
+    video: VideoSource
+    sampling: FrameSampling
+    upstream: Mapping[Stage, StageOutput]
+    plan: Mapping[Stage, str]
+    gt: GroundTruthStore | None
+    error_profile: ErrorProfile | None
+    device: str
+    threads: int
+    paths: PathsSettings
+    entry_filter: EntryFilter = field(default_factory=EntryFilter)
+    stage_params: Mapping[Stage, BaseModel] = field(default_factory=dict)
+
+    def require[O](self, stage: Stage, kind: type[O]) -> O:
+        output = self.upstream.get(stage)
+        if output is None:
+            raise MissingInputError(f"{self.clip.clip_id}: upstream {stage.value} is missing")
+        if not isinstance(output, kind):
+            raise MissingInputError(
+                f"{self.clip.clip_id}: upstream {stage.value} is {type(output).__name__}, "
+                f"expected {kind.__name__}"
+            )
+        return output
+
+    def require_gt(self) -> GroundTruthStore:
+        if self.gt is None:
+            raise MissingInputError(f"{self.clip.clip_id}: no ground truth for this clip")
+        return self.gt
+
+    def error_entry(self, stage: Stage, quantity: str) -> ErrorEntry | None:
+        """Error of the provider that ran ``stage`` in the active plan (None = unknown sigma).
+
+        A ground-truth upstream contributes zero error; a stage without a plan params hash has
+        no readable entry."""
+        provider = self.plan.get(stage)
+        if provider is None:
+            return None
+        if provider == GROUND_TRUTH:
+            return ErrorEntry.exact(stage, GROUND_TRUTH, quantity)
+        if self.error_profile is None or stage not in self.entry_filter.params_hashes:
+            return None
+        return self.error_profile.lookup(stage, provider, quantity, self.entry_filter)
+
+
+def error_profile_keys(
+    reads: tuple[Stage, ...], plan: Mapping[Stage, str]
+) -> tuple[tuple[Stage, str], ...]:
+    """(stage, provider) profile keys a provider declares; ground truth has no entry."""
+    stages = sorted((s for s in reads if s in plan and plan[s] != GROUND_TRUTH), key=stage_index)
+    return tuple((stage, plan[stage]) for stage in stages)
+
+
+@runtime_checkable
+class StageProvider(Protocol):
+    """A perception model or conditional ground truth for one stage; key ``<stage>/<name>``."""
+
+    stage: ClassVar[Stage]
+    name: ClassVar[str]
+    version: ClassVar[str]
+    requires: ClassVar[tuple[Stage, ...]]
+    heavy: ClassVar[bool]
+    is_ground_truth: ClassVar[bool]
+    error_profile_reads: ClassVar[tuple[Stage, ...]]
+    weights: ClassVar[tuple[WeightSpec, ...]]
+    Params: ClassVar[type[BaseModel]]
+    derives_depth_from_size: ClassVar[bool] = False
+    """The depth it gives follows the object's apparent size; read through
+    :func:`derives_depth_from_size`."""
+
+    def __init__(self, params: BaseModel) -> None: ...
+
+    def run(self, ctx: StageContext) -> StageOutput: ...
+
+
+PROVIDERS = PluginKind[type[StageProvider]]("providers")
+
+PluginRegistry = Callable[[str], Registry[Any]]
+"""The registry of a plugin kind by name, as ``PluginContext.registry`` hands it out."""
+PLUGIN_READS_ATTR = "plugin_reads"
+
+
+def plugin_reads(provider: type[StageProvider]) -> Mapping[str, PluginKind[Any]]:
+    """Constructor keywords a provider is built with, each the registry of a plugin kind; a
+    provider that declares no ``plugin_reads`` is built from its params alone."""
+    reads: Mapping[str, PluginKind[Any]] = getattr(provider, PLUGIN_READS_ATTR, {})
+    return reads
+
+
+def build_provider(
+    provider: type[StageProvider], params: BaseModel, registry: PluginRegistry
+) -> StageProvider:
+    plugins = {arg: registry(kind.name) for arg, kind in plugin_reads(provider).items()}
+    return provider(params, **plugins)
+
+
+@runtime_checkable
+class SupportGapGate(Protocol):
+    """Params of a CONTACTS provider that gates support contacts on the LIFT's support gap at
+    K sigma_gap; a provider without it has no gap gate (``CheckInputs.support_gap_bound`` NaN)."""
+
+    def support_gap_z(self) -> float:
+        """K, the normal quantile the gate multiplies sigma_gap by."""
+        ...
+
+
+def derives_depth_from_size(provider: type[StageProvider]) -> bool:
+    return _declared_size_depth(provider) is True
+
+
+def _declared_size_depth(provider: type[StageProvider]) -> object:
+    """A provider that does not declare it gets the protocol's default, which a structural
+    implementation does not inherit."""
+    return getattr(provider, "derives_depth_from_size", StageProvider.derives_depth_from_size)
+
+
+def provider_key(provider: type[StageProvider]) -> str:
+    return f"{provider.stage.value}/{provider.name}"
+
+
+def validate_provider(provider: type[StageProvider]) -> None:
+    """Registry hook: dependency order, ground-truth naming, parameter model and declared traits."""
+    try:
+        check_upstream_order(provider.stage, provider.requires)
+        check_upstream_order(provider.stage, provider.error_profile_reads)
+    except SchemaError as exc:
+        raise InvalidPluginError(f"{provider.__name__}: {exc}") from exc
+    if provider.is_ground_truth != (provider.name == GROUND_TRUTH):
+        raise InvalidPluginError(f"{provider.__name__}: ground truth iff name == {GROUND_TRUTH!r}")
+    if not (isinstance(provider.Params, type) and issubclass(provider.Params, BaseModel)):
+        raise InvalidPluginError(f"{provider.__name__}: Params must be a pydantic model")
+    if not isinstance(_declared_size_depth(provider), bool):
+        raise InvalidPluginError(f"{provider.__name__}: derives_depth_from_size must be a bool")
+    if not all(isinstance(kind, PluginKind) for kind in plugin_reads(provider).values()):
+        raise InvalidPluginError(f"{provider.__name__}: plugin_reads must map to PluginKind")
+
+
+@dataclass(frozen=True)
+class StageEvent:
+    clip_id: str
+    stage: Stage
+    provider: str
+    cached: bool
+    device: str
+    wall_s: float = math.nan
+    peak_rss_mb: float = math.nan
+
+
+@runtime_checkable
+class StageObserver(Protocol):
+    """Receives stage timings (used by the timing harness)."""
+
+    def on_stage_start(self, event: StageEvent) -> None: ...
+
+    def on_stage_end(self, event: StageEvent) -> None: ...

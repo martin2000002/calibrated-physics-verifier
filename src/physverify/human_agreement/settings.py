@@ -1,0 +1,67 @@
+"""``[agreement]`` (configs/studies/human_agreement.toml): the pre-registered comparison of the
+human-agreement study."""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Literal
+
+from pydantic import Field, model_validator
+
+from physverify.core.models import FrozenModel
+from physverify.datasets._base import DEFAULT_LABEL_SOURCE
+from physverify.human_agreement.clip_decision import RULES
+from physverify.human_agreement.undecided_policy import POLICIES
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from physverify.config.models import Settings
+
+SECTION = "agreement"
+
+
+class AgreementSettings(FrozenModel):
+    rule: str
+    primary_policy: str
+    k_sigma: float | None = Field(default=None, gt=0)
+    """The interval width the calibrated rules use: the stratum's fitted one, pinned (another value
+    is a configuration error); None takes whatever the stratum was fitted with."""
+    alpha: float = Field(gt=0, lt=1)
+    power: float = Field(gt=0, lt=1)
+    bootstrap_n: int = Field(ge=0)
+    bootstrap_seed: int
+    ci: float = Field(gt=0, lt=1)
+    permutation_exact_max: int = Field(ge=0)
+    """Discordant captions up to which the secondary caption McNemar is exact (2^m flips)."""
+    error_sample_per_class: int = Field(ge=0)
+    error_seed: int
+    on_unusable_stratum: Literal["descriptive", "error"] = "descriptive"
+    """A calibrated rule whose stratum cannot score yet: fall back to the provisional rule and
+    report the study as not evaluable, or stop with a configuration error."""
+    exclude_time_dependent: bool = False
+    """Leave the [check_scope] time-dependent checks out of the primary rule, which keeps them by
+    default (true is a pre-registration change, declared before the freeze)."""
+    min_cut_side_fraction: float = Field(ge=0, lt=0.5)
+    """The dev cut must leave at least this fraction of the decided dev clips on either side;
+    when no observed score does, no cut is frozen and the rejection is recorded."""
+    dev_subset: str
+    test_subset: str
+    preregistration: str
+    label_source: str = DEFAULT_LABEL_SOURCE
+    """The dataset plugin whose human labels the study compares with (a ``HumanLabelSource``)."""
+
+    @model_validator(mode="after")
+    def _known(self) -> AgreementSettings:
+        if self.rule not in RULES:
+            raise ValueError(f"rule must be one of {RULES}, got {self.rule!r}")
+        if self.primary_policy not in POLICIES:
+            raise ValueError(f"primary_policy must be one of {POLICIES}")
+        return self
+
+
+def agreement_settings(settings: Settings) -> AgreementSettings:
+    return settings.section(SECTION, AgreementSettings)
+
+
+def preregistration_path(settings: Settings, agreement: AgreementSettings) -> Path:
+    return settings.paths.data_dir / agreement.preregistration

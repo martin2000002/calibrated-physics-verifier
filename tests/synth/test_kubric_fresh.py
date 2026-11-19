@@ -1,0 +1,257 @@
+"""``kubric_fresh`` over a store is ``kubric_synthetic`` over it, except the dataset name and the
+cache root; the blind and OOD variants only change what they declare. Both read the queries blind
+unless ``dataset.blind_queries`` is false."""
+
+from __future__ import annotations
+
+import dataclasses
+import json
+import shutil
+import sys
+from collections.abc import Mapping, Sequence
+from contextlib import nullcontext
+from pathlib import Path
+from typing import Any
+
+import pytest
+from wiring import resolve_plan
+
+from physverify.app.plugins import PLUGIN_KINDS
+from physverify.app.plugins import build as plugin_registry
+from physverify.calibration.settings import calibration_config
+from physverify.calibration.table import build_rows
+from physverify.config.loader import load_settings
+from physverify.config.models import Settings
+from physverify.core.errors import UsageError
+from physverify.datasets._base import DatasetSource
+from physverify.datasets._kubric_synthetic import KubricSynthetic
+from physverify.datasets.kubric_fresh import KubricFresh, KubricFreshBlind, KubricFreshOod
+from physverify.extraction.cache import StageCache
+from physverify.extraction.pipeline import ExtractionPipeline, ExtractionReport, PipelineDeps
+from physverify.extraction.pipeline_resources import LazyLock, ProcRssProbe
+from physverify.schema.checks import InputLevel
+from physverify.schema.clip import ClipManifest
+from physverify.schema.stages import STAGE_ORDER
+from physverify.synth.generate import load_plan
+from physverify.synth.settings import dataset_root, load_dataset_settings
+from physverify.synth.store import DatasetStore
+from physverify.verification.check_set import ChecksSettings, build_checks
+from physverify.verification.inputs import OracleSource
+from physverify.verification.policies.raw import RawPolicy
+from physverify.verification.runner import VerificationRunner
+from physverify.verification.sweep import CheckUnit
+
+HERE = str(Path(__file__).parent / "gt")
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+
+from test_export import exported_smoke  # noqa: E402
+
+from physverify.verification.thresholding import ThresholdTable  # noqa: E402
+
+SYNTHETIC = KubricSynthetic.name
+FRESH = KubricFresh.name
+COUNTS = {"PHYSVERIFY__DATASET__BLIND_QUERIES": "false"}
+"""The reading with the true object counts as detector queries."""
+
+
+@pytest.fixture
+def smoke_env(
+    data_settings: Settings,
+    families: Any,
+    perturbations: Any,
+    truth_measures: Any,
+    environ: dict[str, str],
+) -> dict[str, str]:
+    """The exported smoke store, seen by ``kubric_fresh`` through its own section."""
+    exported_smoke(data_settings, families, perturbations, truth_measures)
+    version = load_dataset_settings(data_settings).version
+    return environ | {
+        "PHYSVERIFY__PATHS__DATA_DIR": str(data_settings.paths.data_dir),
+        "PHYSVERIFY__KUBRIC_FRESH__VERSION": version,
+        "PHYSVERIFY__KUBRIC_FRESH__OOD_VERSION": version,
+    }
+
+
+def fresh_settings(config_dir: Path, env: Mapping[str, str], **extra: str) -> Settings:
+    return load_settings(config_dir, environ={**env, **extra})
+
+
+def unlabelled(clips: Sequence[ClipManifest]) -> list[dict[str, Any]]:
+    return [{k: v for k, v in c.to_dict().items() if k != "dataset"} for c in clips]
+
+
+def oracle_report(dataset: DatasetSource, clips: Sequence[ClipManifest]) -> Any:
+    checks = build_checks(PLUGIN_KINDS["checks"](), ChecksSettings({}))
+    runner = VerificationRunner(checks, RawPolicy(), ThresholdTable.provisional({}))
+    return runner.run(OracleSource(dataset), clips)
+
+
+def ground_truth_chain(
+    settings: Settings, dataset: DatasetSource, clips: Sequence[ClipManifest]
+) -> ExtractionReport:
+    plan = resolve_plan(
+        settings, PLUGIN_KINDS["providers"](), dataset=dataset.name, gt_stages=STAGE_ORDER
+    )
+    deps = PipelineDeps(
+        cache=StageCache(settings.paths.cache_dir),
+        lock=LazyLock(nullcontext),
+        paths=settings.paths,
+        device="cpu",
+        threads=1,
+        error_profile=None,
+        observer=None,
+        rss=ProcRssProbe(),
+        registry=plugin_registry,
+    )
+    return ExtractionPipeline(plan, deps).run(dataset, clips)
+
+
+def test_fresh_manifests_are_the_synthetic_ones_under_its_own_name(
+    config_dir: Path, smoke_env: dict[str, str]
+) -> None:
+    settings = fresh_settings(config_dir, smoke_env)
+    synthetic, fresh = KubricSynthetic(settings), KubricFresh(settings)
+    for subset in (None, "calib", "eval", "smoke"):
+        mine, theirs = fresh.clips(subset), synthetic.clips(subset)
+        assert unlabelled(mine) == unlabelled(theirs)
+        assert {c.dataset for c in mine} <= {FRESH}
+        assert {c.dataset for c in theirs} <= {SYNTHETIC}
+    assert fresh.clips("smoke")
+
+
+def test_fresh_oracle_inputs_and_calibration_rows_match(
+    config_dir: Path, smoke_env: dict[str, str]
+) -> None:
+    settings = fresh_settings(config_dir, smoke_env)
+    synthetic, fresh = KubricSynthetic(settings), KubricFresh(settings)
+    theirs = oracle_report(synthetic, synthetic.clips("smoke"))
+    mine = oracle_report(fresh, fresh.clips("smoke"))
+    assert [r.to_dict() for r in mine.results] == [r.to_dict() for r in theirs.results]
+    assert any(r.magnitude is not None for r in mine.results)
+    registry = PLUGIN_KINDS["checks"]()
+    units = tuple(CheckUnit.of(registry[c]) for c in sorted(registry))
+    couplings = calibration_config(settings).couplings
+    rows = [build_rows(r, units, couplings, InputLevel.ORACLE) for r in (mine, theirs)]
+    assert rows[0] == rows[1]
+    assert rows[0]
+
+
+def test_fresh_stage_keys_match_and_only_the_cache_root_moves(
+    config_dir: Path, smoke_env: dict[str, str]
+) -> None:
+    settings = fresh_settings(config_dir, smoke_env)
+    synthetic, fresh = KubricSynthetic(settings), KubricFresh(settings)
+    theirs = ground_truth_chain(settings, synthetic, synthetic.clips("smoke"))
+    mine = ground_truth_chain(settings, fresh, fresh.clips("smoke"))
+    assert not mine.failures and not theirs.failures
+    assert mine.keys and mine.keys == theirs.keys
+    assert not any(event.cached for event in mine.events)
+    cache = StageCache(settings.paths.cache_dir)
+    for (clip_id, stage), key in mine.keys.items():
+        provider = next(e.provider for e in mine.events if (e.clip_id, e.stage) == (clip_id, stage))
+        own = cache.directory(FRESH, clip_id, stage, provider, key)
+        other = cache.directory(SYNTHETIC, clip_id, stage, provider, key)
+        assert own.relative_to(cache.root / FRESH) == other.relative_to(cache.root / SYNTHETIC)
+        assert own.is_dir() and other.is_dir()
+
+
+def test_another_version_of_the_store_misses_every_stage(
+    config_dir: Path, smoke_env: dict[str, str]
+) -> None:
+    """Over a real store, a copy under another version (same name and clip ids) shares no
+    cache entry with the original, ground truth included."""
+    settings = fresh_settings(config_dir, smoke_env)
+    calib = KubricSynthetic(settings)
+    other = KubricSynthetic(settings, root=renamed_copy(settings, "smoke-other"))
+    first = ground_truth_chain(settings, calib, calib.clips("smoke"))
+    second = ground_truth_chain(settings, other, other.clips("smoke"))
+    again = ground_truth_chain(settings, calib, calib.clips("smoke"))
+    assert first.events and not first.failures and not second.failures
+    assert not any(event.cached for event in (*first.events, *second.events))
+    assert all(event.cached for event in again.events)
+    assert all(second.keys[cell] != key for cell, key in first.keys.items())
+
+
+def renamed_copy(settings: Settings, version: str) -> Path:
+    """The configured store copied to ``version``, its plan relabelled with that version."""
+    source = DatasetStore(dataset_root(settings, load_dataset_settings(settings)))
+    target = source.root.with_name(version)
+    shutil.copytree(source.root, target)
+    plan = load_plan(source)
+    assert plan is not None
+    relabelled = dataclasses.replace(plan, version=version).to_json()
+    DatasetStore(target).plan_path.write_text(json.dumps(relabelled), encoding="utf-8")
+    return target
+
+
+def test_fresh_sampling_follows_kubric_synthetic(
+    config_dir: Path, smoke_env: dict[str, str]
+) -> None:
+    settings = fresh_settings(config_dir, smoke_env)
+    providers = PLUGIN_KINDS["providers"]()
+    reference = resolve_plan(settings, providers, dataset=SYNTHETIC).sampling
+    for cls in (KubricFresh, KubricFreshOod, KubricFreshBlind):
+        assert resolve_plan(settings, providers, dataset=cls.name).sampling == reference
+
+
+def test_ood_reads_its_own_version(config_dir: Path, smoke_env: dict[str, str]) -> None:
+    moved = fresh_settings(config_dir, smoke_env, PHYSVERIFY__KUBRIC_FRESH__OOD_VERSION="absent")
+    assert KubricFreshOod(moved).clips() == []
+    settings = fresh_settings(config_dir, smoke_env)
+    ood = KubricFreshOod(settings).clips()
+    assert unlabelled(ood) == unlabelled(KubricSynthetic(settings).clips())
+    assert {c.dataset for c in ood} == {KubricFreshOod.name}
+
+
+def test_blind_keeps_its_scenes_and_withholds_the_counts(
+    config_dir: Path, smoke_env: dict[str, str]
+) -> None:
+    outside = fresh_settings(config_dir, smoke_env)
+    assert KubricFreshBlind(outside).clips() == []
+    counted = fresh_settings(
+        config_dir, smoke_env, PHYSVERIFY__KUBRIC_FRESH__BLIND_SCENES='["s000"]', **COUNTS
+    )
+    blind, seen = KubricFreshBlind(counted).clips(), KubricFresh(counted).clips()
+    assert [c.clip_id for c in blind] == [c.clip_id for c in seen]
+    for mine, theirs in zip(blind, seen, strict=True):
+        assert mine.dataset == KubricFreshBlind.name
+        assert [q.phrase for q in mine.object_queries] == [q.phrase for q in theirs.object_queries]
+        assert all(q.expected_count is None for q in mine.object_queries)
+        assert any(q.expected_count is not None for q in theirs.object_queries)
+
+
+def test_fresh_cannot_be_fetched(
+    config_dir: Path, smoke_env: dict[str, str], tmp_path: Path
+) -> None:
+    with pytest.raises(UsageError, match="generated locally"):
+        KubricFresh(fresh_settings(config_dir, smoke_env)).fetch("full", tmp_path)
+
+
+def test_synthetic_queries_are_blind_unless_the_counts_are_asked(
+    config_dir: Path, smoke_env: dict[str, str]
+) -> None:
+    """Whatever the split: calib is read as the held-out sets are."""
+    blind = KubricSynthetic(fresh_settings(config_dir, smoke_env)).clips()
+    counted = KubricSynthetic(fresh_settings(config_dir, smoke_env, **COUNTS)).clips()
+    assert blind and [c.clip_id for c in blind] == [c.clip_id for c in counted]
+    assert all(q.expected_count is None for c in blind for q in c.object_queries)
+    assert all(q.expected_count is not None for c in counted for q in c.object_queries)
+    for mine, theirs in zip(blind, counted, strict=True):
+        assert [q.phrase for q in mine.object_queries] == [q.phrase for q in theirs.object_queries]
+
+
+def test_the_blind_reading_is_another_cache_identity(
+    config_dir: Path, smoke_env: dict[str, str]
+) -> None:
+    """With the counts the identity is the one before blind readings existed."""
+    settings = fresh_settings(config_dir, smoke_env)
+    blind = KubricSynthetic(settings)
+    counted = KubricSynthetic(fresh_settings(config_dir, smoke_env, **COUNTS))
+    plan = load_plan(DatasetStore(dataset_root(settings, load_dataset_settings(settings))))
+    assert plan is not None
+    assert counted.cache_identity() == f"{plan.version}:{plan.config_hash}"
+    assert blind.cache_identity() != counted.cache_identity()
+    assert KubricFreshBlind(fresh_settings(config_dir, smoke_env, **COUNTS)).cache_identity() == (
+        blind.cache_identity()
+    )

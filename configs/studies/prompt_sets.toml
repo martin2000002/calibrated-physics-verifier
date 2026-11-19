@@ -1,0 +1,314 @@
+# Prompt sets of the preference cycle; [finetune] names one with prompt_set.
+# A set is declared whole (wan21_v1) or selects families, shapes and scenes from [prompt_library]
+# by id: every shape text is written once, here, and rendered per support surface.
+
+# Shapes and scenes name {surface} and {plane}. A shape renders as template <shape>_<surface>,
+# with {surface} -> the surface slot ("{table}") and {plane} -> its plane word; a scene renders
+# with {surface} -> its support value on the set's scene_surface.
+[prompt_library.surfaces.table]
+slot = "table"
+plane = "table"
+values = ["wooden table", "white table", "black table"]
+
+[prompt_library.surfaces.floor]   # no carpet: not a rigid support for a bounce
+slot = "floor"
+plane = "floor"
+values = ["wooden floor", "concrete floor", "tiled floor"]
+
+[prompt_library.slots]
+ball = ["tennis ball", "soccer ball", "basketball"]
+block = ["cube", "cylinder"]
+color = [
+  "red", "blue", "green", "yellow", "white", "black", "pink", "purple", "cyan",
+  "orange", "brown", "gray", "magenta", "teal", "navy", "maroon",
+]
+material = ["wooden", "metal", "rubber"]
+
+[[prompt_library.families]]
+name = "tt_bounce"
+target_checks = ["R3a", "R4_size", "R4_missing"]
+[[prompt_library.families.shapes]]
+id = "tt_bounce_near"
+text = "On a {surface}, a {ball} falls from about one meter and bounces several times near a {color} {material} {block}, static camera"
+queries = [{ phrase = "{ball}", expected_count = 1 }, { phrase = "{block}", expected_count = 1 }]
+[[prompt_library.families.shapes]]
+id = "tt_bounce_rests"
+text = "On a {surface}, a {color} {material} {block} rests and a {ball} falls onto the {plane} near it and bounces several times, static camera"
+queries = [{ phrase = "{ball}", expected_count = 1 }, { phrase = "{block}", expected_count = 1 }]
+[[prompt_library.families.shapes]]
+id = "tt_bounce_onto"
+holdout = true
+text = "On a {surface}, a {ball} falls onto a {color} {material} {block} and bounces off it onto the {plane}, static camera"
+queries = [{ phrase = "{ball}", expected_count = 1 }, { phrase = "{block}", expected_count = 1 }]
+
+[[prompt_library.families]]
+name = "tt_collide"
+target_checks = ["R4_size", "R4_missing", "R3b"]
+[[prompt_library.families.shapes]]
+id = "tt_collide_blocks"
+text = "On a {surface}, two {color} {material} {block}s slide toward each other and collide, static camera"
+queries = [{ phrase = "{block}", expected_count = 2 }]
+[[prompt_library.families.shapes]]
+id = "tt_collide_mixed"
+text = "On a {surface}, a {ball} and a {color} {material} {block} move toward each other and collide, static camera"
+queries = [{ phrase = "{ball}", expected_count = 1 }, { phrase = "{block}", expected_count = 1 }]
+[[prompt_library.families.shapes]]
+id = "tt_collide_balls"
+holdout = true
+text = "On a {surface}, two {color} {material} balls roll toward each other and collide, static camera"
+queries = [{ phrase = "ball", expected_count = 2 }]
+
+[[prompt_library.families]]
+name = "tt_roll"
+target_checks = ["R4_size", "R4_missing", "R3b"]
+[[prompt_library.families.shapes]]
+id = "tt_roll_hits"
+text = "On a {surface}, a {ball} rolls across the {plane} and hits a {color} {material} {block}, static camera"
+queries = [{ phrase = "{ball}", expected_count = 1 }, { phrase = "{block}", expected_count = 1 }]
+[[prompt_library.families.shapes]]
+id = "tt_roll_into"
+text = "On a {surface}, a {color} {material} cylinder rolls across the {plane} into a {ball}, static camera"
+queries = [{ phrase = "cylinder", expected_count = 1 }, { phrase = "{ball}", expected_count = 1 }]
+[[prompt_library.families.shapes]]
+id = "tt_roll_knocks"
+holdout = true
+text = "On a {surface}, a {color} {material} cylinder stands and a {ball} rolls into it and knocks it over, static camera"
+queries = [{ phrase = "cylinder", expected_count = 1 }, { phrase = "{ball}", expected_count = 1 }]
+
+[[prompt_library.scenes]]
+id = "demo-ball-collision"
+family = "tt_collide"
+text = "On a {surface}, a basketball and a tennis ball move toward each other and collide, static camera"
+queries = [{ phrase = "basketball", expected_count = 1 }, { phrase = "tennis ball", expected_count = 1 }]
+support = { table = "wooden table", floor = "wooden floor" }
+
+[[prompt_library.scenes]]
+id = "demo-ball-on-cube"
+family = "tt_bounce"
+text = "On a {surface}, a tennis ball falls from about one meter onto a red wooden cube and bounces off it onto the {plane}, static camera"
+queries = [{ phrase = "tennis ball", expected_count = 1 }, { phrase = "cube", expected_count = 1 }]
+support = { table = "white table", floor = "wooden floor" }
+
+# The preference set. Its design pilot fixed the surface and the seen shapes
+# before the final 'prompts build'; nothing else here moves.
+[prompt_sets.rigid_tabletop]
+seed = 20261116
+n_train = 200
+n_dev = 32
+n_eval = 80
+eval_unseen_fraction = 0.5
+val_fraction = 0.1
+domain = "rigid_multibody"
+# No template queries the table; an ad-hoc demo query may (scripts/h200/README.md).
+unscaled_queries = ["table"]
+
+[prompt_sets.rigid_tabletop.library]
+families = ["tt_bounce", "tt_collide"]
+drop_shapes = ["tt_collide_mixed"]   # seen shapes with no pair in the pilot
+surfaces = ["floor"]
+# yellow is the pilot's; eight colors fill tt_collide_blocks, each read after "a"
+slots = { color = ["red", "blue", "green", "white", "black", "pink", "purple", "cyan"] }
+scenes = ["demo-ball-collision", "demo-ball-on-cube"]
+scene_surface = "floor"
+
+# Train prompts appended after the set: tt_collide_blocks on the floor in seven colors no other
+# color list here uses, so every text lies outside the set; holdout shapes are left out by code.
+[prompt_sets.rigid_tabletop.extra_train]
+seed = 20261117
+n = 120
+tag = "extra:amendment4"
+families = ["tt_collide"]
+drop_shapes = ["tt_collide_mixed"]
+surfaces = ["floor"]
+slots = { color = ["orange", "brown", "gray", "magenta", "teal", "navy", "maroon"] }
+
+# Design pilot: yellow only, so its texts are disjoint from rigid_tabletop by
+# construction. 36 fit prompts, no dev, eval or val; the holdouts are declared and never drawn.
+[prompt_sets.tt_pilot_table]
+seed = 20261115
+n_train = 36
+n_dev = 0
+n_eval = 0
+val_fraction = 0.0
+domain = "rigid_multibody"
+
+[prompt_sets.tt_pilot_table.library]
+families = ["tt_bounce", "tt_collide", "tt_roll"]
+surfaces = ["table"]
+slots = { color = ["yellow"] }
+
+[prompt_sets.tt_pilot_floor]
+seed = 20261115
+n_train = 36
+n_dev = 0
+n_eval = 0
+val_fraction = 0.0
+domain = "rigid_multibody"
+
+[prompt_sets.tt_pilot_floor.library]
+families = ["tt_bounce", "tt_collide", "tt_roll"]
+surfaces = ["floor"]
+slots = { color = ["yellow"] }
+
+# The first set (wan21_v1), kept whole so its prompts stay reproducible.
+[prompt_sets.wan21_v1]
+seed = 0
+n_train = 200
+n_dev = 32
+n_eval = 60
+eval_unseen_fraction = 0.5
+val_fraction = 0.1
+# Query nouns must have a size prior (sizing.model.sized_labels). These two do not: the checks
+# that need a metric scale abstain on them (declared; no scale is invented).
+unscaled_queries = ["domino", "table"]
+
+[prompt_sets.wan21_v1.slots]
+color = ["red", "blue", "green", "yellow", "white", "black"]
+material = ["wooden", "metal", "rubber"]
+surface = ["wooden floor", "concrete floor", "carpet", "tiled floor"]
+primitive = ["cube", "ball", "cylinder"]
+item = ["cup", "bottle", "book", "shoe", "cereal box"]
+ball = ["tennis ball", "basketball", "soccer ball"]
+
+[[prompt_sets.wan21_v1.families]]
+name = "fall"
+target_checks = ["R5a", "R5b", "R4_jump"]
+[[prompt_sets.wan21_v1.families.templates]]
+id = "fall_drop"
+text = "A {color} {material} {primitive} falls from about one meter onto a {surface}, static camera"
+queries = [{ phrase = "{primitive}", expected_count = 1 }]
+[[prompt_sets.wan21_v1.families.templates]]
+id = "fall_shelf"
+text = "A {color} {item} falls off a shelf onto a {surface}, static camera"
+queries = [{ phrase = "{item}", expected_count = 1 }]
+[[prompt_sets.wan21_v1.families.templates]]
+id = "fall_release"
+holdout = true
+text = "A hand lets go of a {color} {item} and it drops onto a {surface}, static camera"
+queries = [{ phrase = "{item}", expected_count = 1 }]
+
+[[prompt_sets.wan21_v1.families]]
+name = "bounce"
+target_checks = ["R3a", "R5a"]
+[[prompt_sets.wan21_v1.families.templates]]
+id = "bounce_rubber"
+text = "A {color} rubber ball is dropped and bounces several times on a {surface}, static camera"
+queries = [{ phrase = "ball", expected_count = 1 }]
+[[prompt_sets.wan21_v1.families.templates]]
+id = "bounce_sport"
+text = "A {ball} is dropped and bounces several times on a {surface}, static camera"
+queries = [{ phrase = "{ball}", expected_count = 1 }]
+[[prompt_sets.wan21_v1.families.templates]]
+id = "bounce_shoulder"
+text = "A {ball} is dropped from shoulder height onto a {surface} and bounces, static camera"
+queries = [{ phrase = "{ball}", expected_count = 1 }]
+[[prompt_sets.wan21_v1.families.templates]]
+id = "bounce_rest"
+holdout = true
+text = "A {ball} bounces on a {surface} a few times and comes to rest, static camera"
+queries = [{ phrase = "{ball}", expected_count = 1 }]
+
+[[prompt_sets.wan21_v1.families]]
+name = "collision"
+target_checks = ["R3b", "R1"]
+[[prompt_sets.wan21_v1.families.templates]]
+id = "collision_pair"
+text = "Two {color} {material} {primitive}s move toward each other on a {surface} and collide, static camera"
+queries = [{ phrase = "{primitive}", expected_count = 2 }]
+[[prompt_sets.wan21_v1.families.templates]]
+id = "collision_item"
+text = "A {color} {item} slides into another {item} on a {surface}, static camera"
+queries = [{ phrase = "{item}", expected_count = 2 }]
+[[prompt_sets.wan21_v1.families.templates]]
+id = "collision_roll"
+holdout = true
+text = "A {ball} rolls across a {surface} and hits a {color} {item}, static camera"
+queries = [{ phrase = "{ball}", expected_count = 1 }, { phrase = "{item}", expected_count = 1 }]
+
+[[prompt_sets.wan21_v1.families]]
+name = "stack"
+target_checks = ["R2", "R1"]
+[[prompt_sets.wan21_v1.families.templates]]
+id = "stack_tower"
+text = "A tower of three {color} wooden cubes stands on a {surface}; a ball hits it, static camera"
+queries = [{ phrase = "cube", expected_count = 3 }, { phrase = "ball", expected_count = 1 }]
+[[prompt_sets.wan21_v1.families.templates]]
+id = "stack_knock"
+text = "Three {color} {material} cubes are stacked on a {surface} and a {ball} knocks them over, static camera"
+queries = [{ phrase = "cube", expected_count = 3 }, { phrase = "{ball}", expected_count = 1 }]
+[[prompt_sets.wan21_v1.families.templates]]
+id = "stack_item"
+holdout = true
+text = "A {color} {item} rests on top of two stacked {material} cubes on a {surface}, static camera"
+queries = [{ phrase = "{item}", expected_count = 1 }, { phrase = "cube", expected_count = 2 }]
+
+[[prompt_sets.wan21_v1.families]]
+name = "support"
+target_checks = ["R2", "R5a"]
+[[prompt_sets.wan21_v1.families.templates]]
+id = "support_edge"
+text = "A {color} {item} rests near the edge of a table and is pushed off, falling to the {surface}, static camera"
+queries = [{ phrase = "{item}", expected_count = 1 }, { phrase = "table", expected_count = 1 }]
+[[prompt_sets.wan21_v1.families.templates]]
+id = "support_block"
+text = "A {color} {material} {primitive} rests near the edge of a table and is pushed off, falling to the {surface}, static camera"
+queries = [{ phrase = "{primitive}", expected_count = 1 }, { phrase = "table", expected_count = 1 }]
+[[prompt_sets.wan21_v1.families.templates]]
+id = "support_slip"
+holdout = true
+text = "A {color} {item} placed half over the edge of a table tips and falls to the {surface}, static camera"
+queries = [{ phrase = "{item}", expected_count = 1 }, { phrase = "table", expected_count = 1 }]
+
+[[prompt_sets.wan21_v1.families]]
+name = "slide"
+target_checks = ["R4_missing", "R4_size", "R1"]
+[[prompt_sets.wan21_v1.families.templates]]
+id = "slide_block"
+text = "A {color} {material} {primitive} slides across a {surface} and stops, static camera"
+queries = [{ phrase = "{primitive}", expected_count = 1 }]
+[[prompt_sets.wan21_v1.families.templates]]
+id = "slide_item"
+text = "A {color} {item} slides across a {surface} and stops, static camera"
+queries = [{ phrase = "{item}", expected_count = 1 }]
+[[prompt_sets.wan21_v1.families.templates]]
+id = "slide_push"
+holdout = true
+text = "A hand pushes a {color} {item} along a {surface}; it slides and stops, static camera"
+queries = [{ phrase = "{item}", expected_count = 1 }]
+
+[[prompt_sets.wan21_v1.families]]
+name = "domino"
+target_checks = ["R1", "R3b", "R2"]
+[[prompt_sets.wan21_v1.families.templates]]
+id = "domino_row"
+text = "A row of five {color} dominoes topples one after another on a {surface}, static camera"
+queries = [{ phrase = "domino", expected_count = 5 }]
+[[prompt_sets.wan21_v1.families.templates]]
+id = "domino_line"
+text = "Five {color} {material} dominoes stand in a line on a {surface} and fall in sequence, static camera"
+queries = [{ phrase = "domino", expected_count = 5 }]
+[[prompt_sets.wan21_v1.families.templates]]
+id = "domino_tip"
+holdout = true
+text = "A finger tips a {color} domino, which knocks down four more dominoes on a {surface}, static camera"
+queries = [{ phrase = "domino", expected_count = 5 }]
+
+[[prompt_sets.wan21_v1.fixed_eval]]
+id = "demo-domino-chain"
+family = "domino"
+text = "A long chain of wooden dominoes topples one after another across a wooden floor, static camera"
+queries = [{ phrase = "domino" }]
+target_checks = ["R1", "R3b", "R2"]
+
+[[prompt_sets.wan21_v1.fixed_eval]]
+id = "demo-block-tower"
+family = "stack"
+text = "A tall tower of red wooden blocks on a table is hit by a ball and collapses, static camera"
+queries = [{ phrase = "cube" }, { phrase = "ball", expected_count = 1 }, { phrase = "table", expected_count = 1 }]
+target_checks = ["R2", "R1"]
+
+[prompt_sets.profiles.fast.wan21_v1]   # the smoke run: 2 prompts
+n_train = 2
+n_dev = 0
+n_eval = 0
+val_fraction = 0.0

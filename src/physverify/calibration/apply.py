@@ -1,0 +1,272 @@
+"""Calibrated verdicts, violation probabilities and the clip score.
+
+What abstention, the human-agreement study and preference fine-tuning import. The verdict rule is
+``ThresholdRule.judge`` (no copy of k sigma); p_c is an estimate conditional on the calib design
+and S inherits that label."""
+
+from __future__ import annotations
+
+import math
+from collections.abc import Collection, Mapping, Sequence
+from dataclasses import dataclass, field, replace
+from types import MappingProxyType
+
+from scipy.special import expit
+
+from physverify.calibration.artifact import CheckCalibration
+from physverify.calibration.artifact_io import KSigmaMismatchError, Stratum
+from physverify.calibration.verdict import DECIDED, Outcome, Rule, clip_verdict
+from physverify.schema.checks import AbstainReason, CheckResult, Verdict
+from physverify.verification.thresholding import ThresholdParams, ThresholdRule
+
+NO_DECIDED = "no_decided_check"
+NO_INFORMATIVE = "no_informative_check"
+NO_WEIGHTED = "no_weighted_check"
+"""Every decided check has weight 0: no vote, so the clip abstains instead of scoring S = 1."""
+P_MAX = 1.0 - 1e-12
+
+
+@dataclass(frozen=True)
+class CalibratedResult:
+    """``magnitude`` is m - bias and ``sigma`` factor * sigma (NaN: not measured)."""
+
+    check_id: str
+    magnitude: float | None
+    sigma: float
+    tau: float | None
+    p_violation: float | None
+    verdict: Verdict
+    abstain_reason: AbstainReason | None
+
+
+def stratum_k_sigma(stratum: Stratum, k_sigma: float | None = None) -> float:
+    """The k of the fit. tau, p_c and the weights were fitted with it, so another k is an error."""
+    fitted = stratum.model.k_sigma
+    if k_sigma is not None and not math.isclose(k_sigma, fitted, rel_tol=1e-12, abs_tol=1e-12):
+        raise KSigmaMismatchError(
+            f"k_sigma {k_sigma} differs from the {fitted} the stratum {stratum.source} was "
+            "calibrated with; refit or omit it"
+        )
+    return fitted
+
+
+def policy_for(stratum: Stratum, k_sigma: float | None = None) -> ThresholdRule:
+    params = ThresholdParams(
+        k_sigma=stratum_k_sigma(stratum, k_sigma), on_unknown_sigma=stratum.model.on_unknown_sigma
+    )
+    return ThresholdRule(params)
+
+
+def violation_probability(check: CheckCalibration, magnitude: float) -> float | None:
+    """p = expit(a + b u), u = (m - bias - tau) / s: an estimate. None when not fitted."""
+    prob = check.probability
+    if prob.a is None or prob.b is None or check.tau is None:
+        return None
+    u = (magnitude - check.sigma.bias - check.tau) / prob.scale
+    return float(expit(prob.a + prob.b * u))
+
+
+def rule_for(stratum: Stratum, check_id: str, policy: ThresholdRule) -> Rule:
+    """The stratum's bias and sigma factor of ``check_id`` (0 and unmeasured when unknown)."""
+    check = stratum.check(check_id)
+    if check is None:
+        return Rule(policy, 0.0, None)
+    return Rule(policy, check.sigma.bias, check.sigma.factor)
+
+
+def _calibrated(
+    check_id: str, results: Sequence[CheckResult], stratum: Stratum, policy: ThresholdRule
+) -> CalibratedResult:
+    tau = stratum.tau(check_id)
+    outcome = clip_verdict(results, rule_for(stratum, check_id, policy), tau)
+    return CalibratedResult(
+        check_id=check_id,
+        magnitude=outcome.magnitude,
+        sigma=outcome.sigma,
+        tau=tau,
+        p_violation=_probability(stratum.check(check_id), outcome),
+        verdict=outcome.verdict,
+        abstain_reason=outcome.abstain_reason,
+    )
+
+
+def _probability(check: CheckCalibration | None, outcome: Outcome) -> float | None:
+    raw = None if outcome.result is None else outcome.result.magnitude
+    if check is None or not outcome.judged or raw is None:
+        return None
+    return violation_probability(check, raw)
+
+
+@dataclass(frozen=True)
+class ClipScore:
+    """S = prod_{c in D} (1 - p_c)^{w_c} (1 = no evidence of violation); ``sigma`` by the delta
+    method (0 on the oracle). ``coverage`` = sum_D w / sum_A w over checks with an event. D holds
+    the decided checks of weight > 0 (``decided_checks``); a decided check of weight 0 has no vote
+    and is listed in ``unweighted_checks``, apart from the ``abstained_checks``."""
+
+    clip_id: str
+    score: float | None
+    sigma: float | None
+    coverage: float
+    abstained: bool
+    reason: str | None
+    n_failed: int
+    decided_checks: tuple[str, ...]
+    abstained_checks: tuple[str, ...]
+    unweighted_checks: tuple[str, ...]
+    per_check: Mapping[str, float] = field(default_factory=lambda: MappingProxyType({}))
+    failed_checks: tuple[str, ...] = ()
+    """The voting checks whose verdict is FAIL (``n_failed`` of them)."""
+
+
+@dataclass(frozen=True)
+class Vote:
+    """One check's term of S: ``p`` clipped below 1, ``dp_dm`` its slope in the magnitude,
+    ``sigma`` factor * sigma of the subject it was read from."""
+
+    check_id: str
+    weight: float
+    p: float
+    dp_dm: float
+    sigma: float
+    failed: bool
+
+
+def vote(
+    check_id: str, check: CheckCalibration, p: float, weight: float, sigma: float, failed: bool
+) -> Vote:
+    clipped = min(p, P_MAX)
+    return Vote(check_id, weight, clipped, _derivative(check, clipped), sigma, failed)
+
+
+def check_outcome(
+    results: Sequence[CheckResult], stratum: Stratum, policy: ThresholdRule
+) -> CalibratedResult | None:
+    """The check's clip outcome (``clip_verdict``, the rule ``fit`` measured); None when it has
+    no event."""
+    if not results:
+        return None
+    return _calibrated(results[0].check_id, results, stratum, policy)
+
+
+def _derivative(check: CheckCalibration, p: float) -> float:
+    """dp/dm = p (1 - p) b / s."""
+    b = check.probability.b or 0.0
+    return p * (1.0 - p) * b / check.probability.scale
+
+
+def score_clip(
+    results: Sequence[CheckResult],
+    stratum: Stratum,
+    k_sigma: float | None = None,
+    only: Collection[str] | None = None,
+) -> ClipScore:
+    """Score of one clip's results; ``only`` restricts the checks (preference fine-tuning compares
+    two videos on the checks decided in both). ``k_sigma`` defaults to the stratum's; a different
+    one raises KSigmaMismatchError."""
+    policy = policy_for(stratum, k_sigma)
+    by_check: dict[str, list[CheckResult]] = {}
+    for result in results:
+        if stratum.tau(result.check_id) is not None and (only is None or result.check_id in only):
+            by_check.setdefault(result.check_id, []).append(result)
+    clip_id = results[0].clip_id if results else ""
+    return _score(clip_id, _split(by_check, stratum, policy), stratum)
+
+
+@dataclass(frozen=True)
+class _Split:
+    """``voting``: decided with weight > 0; ``unweighted``: decided with weight 0."""
+
+    voting: tuple[Vote, ...]
+    unweighted: tuple[str, ...]
+    abstained: tuple[str, ...]
+
+
+def _split(
+    by_check: Mapping[str, Sequence[CheckResult]], stratum: Stratum, policy: ThresholdRule
+) -> _Split:
+    decided: list[Vote] = []
+    abstained: list[str] = []
+    for check_id in sorted(by_check):
+        outcome = check_outcome(by_check[check_id], stratum, policy)
+        check = stratum.check(check_id)
+        if outcome is None or check is None:
+            continue
+        if outcome.verdict not in DECIDED or outcome.p_violation is None:
+            abstained.append(check_id)
+            continue
+        decided.append(
+            vote(
+                check_id,
+                check,
+                outcome.p_violation,
+                stratum.weight(check_id),
+                outcome.sigma,
+                outcome.verdict is Verdict.FAIL,
+            )
+        )
+    return _Split(
+        voting=tuple(d for d in decided if d.weight > 0.0),
+        unweighted=tuple(d.check_id for d in decided if d.weight <= 0.0),
+        abstained=tuple(abstained),
+    )
+
+
+def _score(clip_id: str, split: _Split, stratum: Stratum) -> ClipScore:
+    voting = split.voting
+    total = sum(d.weight for d in voting) + sum(stratum.weight(c) for c in split.abstained)
+    base = ClipScore(
+        clip_id=clip_id,
+        score=None,
+        sigma=None,
+        coverage=sum(d.weight for d in voting) / total if total > 0.0 else 0.0,
+        abstained=True,
+        reason=None,
+        n_failed=sum(d.failed for d in voting),
+        failed_checks=tuple(d.check_id for d in voting if d.failed),
+        decided_checks=tuple(d.check_id for d in voting),
+        abstained_checks=split.abstained,
+        unweighted_checks=split.unweighted,
+        per_check=MappingProxyType({d.check_id: d.p for d in voting}),
+    )
+    if stratum.max_weight() <= 0.0:
+        return replace(base, reason=NO_INFORMATIVE)
+    if not voting:
+        return replace(base, reason=NO_WEIGHTED if split.unweighted else NO_DECIDED)
+    score, sigma = weighted_score(voting)
+    return replace(base, score=score, sigma=sigma, abstained=False)
+
+
+def weighted_score(voting: Sequence[Vote]) -> tuple[float, float | None]:
+    """S = prod_c (1 - p_c)^{w_c} and its delta-method sigma."""
+    score = math.prod((1.0 - d.p) ** d.weight for d in voting)
+    return score, score_sigma(score, voting)
+
+
+def score_sigma(score: float, voting: Sequence[Vote]) -> float | None:
+    """sigma_S^2 = sum_c (S w_c p'_c sigma_c / (1 - p_c))^2; None when a sigma is unknown."""
+    terms = [score * d.weight * d.dp_dm * d.sigma / (1.0 - d.p) for d in voting]
+    if any(not math.isfinite(t) for t in terms):
+        return None
+    return math.sqrt(sum(t * t for t in terms))
+
+
+def unweighted_abstentions(stratum: Stratum) -> tuple[str, ...]:
+    """The weight-0 checks whose abstention would change a clip that every weighted check
+    decides (the active set rule: none, by construction of ``_score``)."""
+    voting = tuple(
+        Vote(check_id=c, weight=stratum.weight(c), p=0.5, dp_dm=0.0, sigma=0.0, failed=False)
+        for c in sorted(stratum.model.checks)
+        if stratum.weight(c) > 0.0
+    )
+
+    def verdict(abstained: tuple[str, ...]) -> tuple[object, ...]:
+        found = _score("", _Split(voting, (), abstained), stratum)
+        return (found.score, found.sigma, found.coverage, found.abstained, found.reason)
+
+    baseline = verdict(())
+    return tuple(
+        c
+        for c in sorted(stratum.model.checks)
+        if stratum.weight(c) <= 0.0 and verdict((c,)) != baseline
+    )

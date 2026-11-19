@@ -1,0 +1,382 @@
+"""Check inputs from ground truth (oracle) or from cached pipeline outputs."""
+
+from __future__ import annotations
+
+import math
+from collections.abc import Iterator, Mapping, Sequence
+from dataclasses import dataclass, field
+from functools import cached_property
+from types import MappingProxyType
+from typing import NoReturn, Protocol
+
+from physverify.checks._base import CheckInputs
+from physverify.core.errors import MissingInputError
+from physverify.datasets._base import DatasetSource, VideoSource
+from physverify.extraction._base import GROUND_TRUTH, SupportGapGate
+from physverify.extraction.cache import plan_entry_filter
+from physverify.extraction.camera_motion._base import (
+    CAMERA_MOTION_ESTIMATORS,
+    CameraMotionEstimator,
+    build_estimator,
+)
+from physverify.extraction.camera_motion.run import CameraMotionStore, ensure_camera_motion
+from physverify.extraction.pipeline import DOMAIN_ERRORS, ExtractionPipeline, PipelineDeps
+from physverify.extraction.plan import ResolvedPlan
+from physverify.physics import tracks
+from physverify.physics.uncertainty import entry_rms
+from physverify.schema.camera_motion import CameraMotion
+from physverify.schema.checks import InputLevel
+from physverify.schema.clip import ClipManifest, FrameSampling, SamplingSpec, resolve_sampling
+from physverify.schema.contacts import ContactTable
+from physverify.schema.error_profile import SUPPORT_GAP_REL, ErrorProfile
+from physverify.schema.errors import ScaleBindingError
+from physverify.schema.outputs import StageOutput
+from physverify.schema.perception import CameraModel, MaskTrack
+from physverify.schema.scale import ScaleEstimate, ScaleSource, effective_scale
+from physverify.schema.scene import SceneSpec
+from physverify.schema.stages import STAGE_ORDER, Stage
+from physverify.schema.states import CoordFrame, ObjectStateTable, ground_truth_source_key
+from physverify.verification.still_camera import StillCameraSettings
+
+SCALE_SOURCE_KEY = "scale_source"
+CHECK_FRAME = CoordFrame.CAMERA_OPENCV
+INPUT_STAGES = (Stage.CAMERA, Stage.KINEMATICS, Stage.CONTACTS, Stage.SCALE)
+
+
+@dataclass(frozen=True)
+class RawInputs:
+    clip: ClipManifest
+    states: ObjectStateTable
+    contacts: ContactTable | None
+    scale: ScaleEstimate | None
+    scene: SceneSpec | None
+    level: InputLevel
+    provenance: Mapping[str, str]
+    camera: CameraModel | None = None
+    support_gap_bound: float = math.nan
+    camera_motion: CameraMotion | None = None
+
+
+@dataclass(frozen=True)
+class ClipInputs:
+    """``inputs`` or ``error``; ``level`` labels the abstentions of a clip without inputs.
+    ``by_check`` holds the inputs of the checks routed to another plan."""
+
+    clip: ClipManifest
+    inputs: CheckInputs | None
+    error: str | None
+    level: InputLevel | None = None
+    by_check: Mapping[str, ClipInputs] = field(default_factory=lambda: MappingProxyType({}))
+
+    def __post_init__(self) -> None:
+        if (self.inputs is None) == (self.error is None):
+            raise ValueError("ClipInputs needs exactly one of inputs and error")
+        if self.inputs is None and self.level is None:
+            raise ValueError("a ClipInputs without inputs needs its level")
+
+    def for_check(self, check_id: str) -> ClipInputs:
+        return self.by_check.get(check_id, self)
+
+    @property
+    def input_level(self) -> InputLevel:
+        if self.inputs is not None:
+            return self.inputs.input_level
+        assert self.level is not None
+        return self.level
+
+
+@dataclass(frozen=True)
+class StageOutputs:
+    """Cached outputs of one clip plus the provider name of every stage of the plan, the
+    plan's ``CheckInputs.support_gap_bound`` and the clip's camera motion (keyed from TRACK)."""
+
+    outputs: Mapping[Stage, StageOutput]
+    names: Mapping[Stage, str]
+    support_gap_bound: float = math.nan
+    camera_motion: CameraMotion | None = None
+
+
+class InputSource(Protocol):
+    def load(self, clips: Sequence[ClipManifest]) -> Iterator[ClipInputs]: ...
+
+
+class StageOutputLoader(Protocol):
+    def load(
+        self, dataset: DatasetSource, clips: Sequence[ClipManifest]
+    ) -> Mapping[str, StageOutputs | str]: ...
+
+
+class InputsError(ValueError):
+    pass
+
+
+def build_inputs(raw: RawInputs) -> CheckInputs:
+    """Validate the time axis and bind the scale to the table it was fitted on."""
+    states = raw.states
+    try:
+        tracks.row_step(states.frame_index)
+        tracks.check_time_axis(states.t, states.frame_index, raw.clip.seconds_per_frame)
+    except ValueError as exc:
+        raise InputsError(f"time_axis: {exc}") from exc
+    try:
+        scale = effective_scale(states, raw.scale)
+    except ScaleBindingError as exc:
+        raise InputsError(f"scale_binding: {exc}") from exc
+    return CheckInputs(
+        clip=raw.clip,
+        states=states,
+        contacts=raw.contacts,
+        scale=scale,
+        input_level=raw.level,
+        provenance=dict(raw.provenance),
+        scene=raw.scene,
+        camera=raw.camera,
+        support_gap_bound=raw.support_gap_bound,
+        camera_motion=raw.camera_motion,
+    )
+
+
+def oracle_scale(clip_id: str) -> ScaleEstimate:
+    return ScaleEstimate(1.0, 0.0, ScaleSource.GROUND_TRUTH, ground_truth_source_key(clip_id))
+
+
+def provenance(names: Mapping[Stage, str], scale: ScaleEstimate | None) -> dict[str, str]:
+    source = ScaleSource.NONE if scale is None else scale.source
+    return {stage.value: name for stage, name in names.items()} | {SCALE_SOURCE_KEY: source.value}
+
+
+def perceived_inputs(
+    clip: ClipManifest,
+    outputs: Mapping[Stage, StageOutput],
+    names: Mapping[Stage, str],
+    level: InputLevel,
+    support_gap_bound: float = math.nan,
+    camera_motion: CameraMotion | None = None,
+) -> CheckInputs:
+    """States from KINEMATICS, contacts from CONTACTS, scale from SCALE, camera from CAMERA
+    (``lift_camera``), the plan's ``support_gap_bound`` and the clip's ``camera_motion``; raises
+    ``MissingInputError`` without states and ``InputsError`` on an invalid table."""
+    states = _output(outputs, Stage.KINEMATICS, ObjectStateTable)
+    if states is None:
+        raise MissingInputError(f"no {Stage.KINEMATICS.value} output")
+    scale = _output(outputs, Stage.SCALE, ScaleEstimate)
+    raw = RawInputs(
+        clip=clip,
+        states=states,
+        contacts=_output(outputs, Stage.CONTACTS, ContactTable),
+        scale=scale,
+        scene=None,
+        level=level,
+        provenance=provenance(names, scale),
+        camera=lift_camera(outputs, names),
+        support_gap_bound=support_gap_bound,
+        camera_motion=camera_motion,
+    )
+    return build_inputs(raw)
+
+
+def scene_gap_bound(plan: ResolvedPlan, profile: ErrorProfile | None) -> float:
+    """``CheckInputs.support_gap_bound`` of ``plan``: the K its CONTACTS provider declares
+    (``SupportGapGate``) times the rms of the LIFT ``support_gap_rel`` entry it may read; 0 for a
+    ground-truth LIFT, whose gap is exact; NaN when CONTACTS has no gap gate or the entry is
+    unknown."""
+    lift = plan.names.get(Stage.LIFT)
+    if lift == GROUND_TRUTH:
+        return 0.0
+    contacts = next((s.params for s in plan.stages if s.stage is Stage.CONTACTS), None)
+    if not isinstance(contacts, SupportGapGate) or lift is None:
+        return math.nan
+    entry = (
+        None
+        if profile is None
+        else profile.lookup(Stage.LIFT, lift, SUPPORT_GAP_REL, plan_entry_filter(plan))
+    )
+    return contacts.support_gap_z() * entry_rms(entry)
+
+
+def lift_camera(
+    outputs: Mapping[Stage, StageOutput], names: Mapping[Stage, str]
+) -> CameraModel | None:
+    """The CAMERA output of the plan, which LIFT back-projected the states with; None when LIFT
+    is ground truth but CAMERA is not (the states were not lifted with that camera)."""
+    lift_truth = names.get(Stage.LIFT) == GROUND_TRUTH
+    if lift_truth and names.get(Stage.CAMERA) != GROUND_TRUTH:
+        return None
+    return _output(outputs, Stage.CAMERA, CameraModel)
+
+
+def native_sampling(clip: ClipManifest) -> FrameSampling:
+    """Every native frame at the native size: the resolution of the oracle's camera."""
+    return resolve_sampling(clip, SamplingSpec())
+
+
+def refuse_heavy(dataset: str) -> NoReturn:
+    """Lock factory of ``verify``: a heavy stage missing from the cache fails its clip."""
+    raise MissingInputError(
+        f"a heavy stage is not cached; run `physverify extract run --dataset {dataset}` first"
+    )
+
+
+def error_message(exc: BaseException) -> str:
+    return str(exc) if isinstance(exc, InputsError) else f"{type(exc).__name__}: {exc}"
+
+
+def _prepared(raw: RawInputs) -> ClipInputs:
+    try:
+        return ClipInputs(raw.clip, build_inputs(raw), None)
+    except DOMAIN_ERRORS as exc:
+        return ClipInputs(raw.clip, None, error_message(exc), raw.level)
+
+
+class OracleSource:
+    """Native ground truth of the dataset, camera frame, exact scale."""
+
+    def __init__(self, dataset: DatasetSource) -> None:
+        self._dataset = dataset
+
+    def load(self, clips: Sequence[ClipManifest]) -> Iterator[ClipInputs]:
+        for clip in clips:
+            yield self._one(clip)
+
+    def _one(self, clip: ClipManifest) -> ClipInputs:
+        store = self._dataset.ground_truth(clip)
+        if store is None:
+            return ClipInputs(
+                clip, None, "MissingInputError: dataset has no ground truth", InputLevel.ORACLE
+            )
+        scale = oracle_scale(clip.clip_id)
+        names = dict.fromkeys(STAGE_ORDER, GROUND_TRUTH)
+        try:
+            raw = RawInputs(
+                clip=clip,
+                states=store.states(CHECK_FRAME),
+                contacts=store.contacts(CHECK_FRAME),
+                scale=scale,
+                scene=store.scene(),
+                level=InputLevel.ORACLE,
+                provenance=provenance(names, scale),
+                camera=store.camera(native_sampling(clip)),
+                support_gap_bound=0.0,
+            )
+        except DOMAIN_ERRORS as exc:
+            return ClipInputs(clip, None, error_message(exc), InputLevel.ORACLE)
+        return _prepared(raw)
+
+
+class PipelineOutputLoader:
+    """Runs the stage plan (light stages only: the lock refuses) and loads the cached outputs;
+    with ``still_camera`` it also loads or computes each clip's camera motion."""
+
+    def __init__(
+        self,
+        plan: ResolvedPlan,
+        deps: PipelineDeps,
+        still_camera: StillCameraSettings | None = None,
+    ) -> None:
+        self._plan = plan
+        self._deps = deps
+        self._still_camera = still_camera
+
+    def load(
+        self, dataset: DatasetSource, clips: Sequence[ClipManifest]
+    ) -> Mapping[str, StageOutputs | str]:
+        try:
+            return self._load(dataset, clips)
+        except DOMAIN_ERRORS as exc:
+            if len(clips) <= 1:
+                return {clip.clip_id: error_message(exc) for clip in clips}
+        return {clip.clip_id: self.load(dataset, [clip])[clip.clip_id] for clip in clips}
+
+    def _load(
+        self, dataset: DatasetSource, clips: Sequence[ClipManifest]
+    ) -> dict[str, StageOutputs | str]:
+        report = ExtractionPipeline(self._plan, self._deps).run(dataset, clips)
+        failed = {f.clip_id: f"{f.stage.value}: {f.error}" for f in report.failures}
+        loaded: dict[str, StageOutputs | str] = {}
+        for clip in clips:
+            error = failed.get(clip.clip_id)
+            loaded[clip.clip_id] = (
+                error if error is not None else self._outputs(dataset, clip, report.keys)
+            )
+        return loaded
+
+    def _outputs(
+        self, dataset: DatasetSource, clip: ClipManifest, keys: Mapping[tuple[str, Stage], str]
+    ) -> StageOutputs:
+        outputs: dict[Stage, StageOutput] = {}
+        for step in self._plan.stages:
+            key = keys.get((clip.clip_id, step.stage))
+            if step.stage not in INPUT_STAGES or key is None:
+                continue
+            output = self._deps.cache.load(dataset.name, clip.clip_id, step.stage, step.name, key)
+            if output is not None:
+                outputs[step.stage] = output
+        bound = scene_gap_bound(self._plan, self._deps.error_profile)
+        motion = self._camera_motion(dataset, clip, keys.get((clip.clip_id, Stage.TRACK)))
+        return StageOutputs(outputs, dict(self._plan.names), bound, motion)
+
+    @cached_property
+    def _estimator(self) -> CameraMotionEstimator | None:
+        settings = self._still_camera
+        if settings is None:
+            return None
+        registry = self._deps.registry(CAMERA_MOTION_ESTIMATORS.name)
+        return build_estimator(settings.estimator, settings.params, registry)
+
+    def _camera_motion(
+        self, dataset: DatasetSource, clip: ClipManifest, track_key: str | None
+    ) -> CameraMotion | None:
+        """The clip's motion over the plan's TRACK, which every route shares; None without the
+        still-camera section or a TRACK key."""
+        estimator = self._estimator
+        track = self._plan.names.get(Stage.TRACK)
+        if estimator is None or track_key is None or track is None:
+            return None
+
+        def inputs() -> tuple[VideoSource, MaskTrack]:
+            masks = self._deps.cache.load(dataset.name, clip.clip_id, Stage.TRACK, track, track_key)
+            if not isinstance(masks, MaskTrack):
+                raise MissingInputError(f"no {Stage.TRACK.value} output")
+            return dataset.video(clip), masks
+
+        store = CameraMotionStore(self._deps.cache.root)
+        return ensure_camera_motion(estimator, store, dataset.name, clip.clip_id, track_key, inputs)
+
+
+class PerceivedSource:
+    """Pipeline outputs: states from KINEMATICS, contacts from CONTACTS, scale from SCALE."""
+
+    def __init__(
+        self, dataset: DatasetSource, loader: StageOutputLoader, level: InputLevel
+    ) -> None:
+        self._dataset = dataset
+        self._loader = loader
+        self._level = level
+
+    def load(self, clips: Sequence[ClipManifest]) -> Iterator[ClipInputs]:
+        loaded = self._loader.load(self._dataset, clips)
+        for clip in clips:
+            found = loaded.get(clip.clip_id, "MissingInputError: no pipeline outputs")
+            if isinstance(found, str):
+                yield ClipInputs(clip, None, found, self._level)
+            else:
+                yield self._one(clip, found)
+
+    def _one(self, clip: ClipManifest, found: StageOutputs) -> ClipInputs:
+        try:
+            inputs = perceived_inputs(
+                clip,
+                found.outputs,
+                found.names,
+                self._level,
+                found.support_gap_bound,
+                found.camera_motion,
+            )
+        except DOMAIN_ERRORS as exc:
+            return ClipInputs(clip, None, error_message(exc), self._level)
+        return ClipInputs(clip, inputs, None)
+
+
+def _output[O](outputs: Mapping[Stage, StageOutput], stage: Stage, kind: type[O]) -> O | None:
+    value = outputs.get(stage)
+    return value if isinstance(value, kind) else None

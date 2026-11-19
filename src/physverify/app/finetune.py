@@ -1,0 +1,380 @@
+"""Fine-tuning wiring shared by the finetune and compare-generators commands: CUDA, generator,
+scoring and the pilot stop rule.
+
+The stop-rule verdict is always recomputed from the current ``pairs.jsonl``, ``report.json``,
+base scores and pilot review; a ``stop_rule.json`` left from other pairs never counts.
+"""
+
+from __future__ import annotations
+
+import json
+from collections.abc import Sequence
+from pathlib import Path
+from typing import Final
+
+from physverify.app.context import AppContext
+from physverify.app.services import dataset_for, perceived_source, scorer_for
+from physverify.checks._base import CHECKS
+from physverify.config.models import Settings, is_cuda_device
+from physverify.config.plugin_context import registry_of
+from physverify.core.atomic import write_text_atomic
+from physverify.core.choices import choice
+from physverify.core.errors import UsageError
+from physverify.core.output import Echo
+from physverify.datasets.local_video import NAME as LOCAL_VIDEO
+from physverify.extraction.cache import StageCache
+from physverify.finetune.cache_claims import PURGE_FLAG as PURGE_FLAG
+from physverify.finetune.cache_claims import CacheGuard
+from physverify.finetune.candidate_scoring import ScoringDeps, score_candidates
+from physverify.finetune.candidates import CandidateGenerator, generate_candidates, generation_hash
+from physverify.finetune.domain_guard import check_universe
+from physverify.finetune.domains._base import PROMPT_DOMAINS, load_domain
+from physverify.finetune.layout import (
+    PAIRS_FILE,
+    REPORT_FILE,
+    VAL_PAIRS_FILE,
+    VAL_REPORT_FILE,
+    CampaignStore,
+)
+from physverify.finetune.pairs_report import check_current, pairs_of, report_lines
+from physverify.finetune.pilot import fit_and_val, pilot_prompts
+from physverify.finetune.prompt_report import build_lines
+from physverify.finetune.prompts import (
+    build_prompt_set,
+    campaign_prompts,
+    only_appends,
+    sizing_labels,
+)
+from physverify.finetune.records import BASE_TAG as BASE_TAG
+from physverify.finetune.records import (
+    CandidateScore,
+    PromptRecord,
+    records_text,
+    write_record,
+    write_records,
+)
+from physverify.finetune.scorer_scope import family_targets, scorer_exclusion
+from physverify.finetune.scorers._base import AggregateScorer, CalibrationStatusSource
+from physverify.finetune.seeds import parse_shard
+from physverify.finetune.settings import (
+    SPLITS,
+    CandidateSettings,
+    FinetuneSettings,
+    PromptSplit,
+    load_finetune,
+)
+from physverify.finetune.status import status_lines
+from physverify.finetune.stop_rule import STOP_RULE_DEVIATION as STOP_RULE_DEVIATION
+from physverify.finetune.stop_rule import (
+    StopVerdict,
+    base_abstention,
+    evaluate_stop,
+    pairs_on_disk,
+    review_pilot,
+    stored_report,
+    stored_review,
+    verdict_lines,
+    write_verdict,
+)
+from physverify.generation.wan21 import load_wan_pipeline, snapshot_dir, snapshot_problem
+from physverify.generator_comparison.arms import EVAL_SPLIT
+from physverify.runtime.heavy import NullLock
+from physverify.runtime.runs import current_commit
+from physverify.schema.checks import InputLevel
+from physverify.schema.io import json_ready
+from physverify.timing.environment import TorchCudaProbe
+from physverify.timing.finetune_budget import BudgetRequest as BudgetRequest
+from physverify.timing.finetune_budget import budget_report
+from physverify.timing.settings import load_timing
+from physverify.verification._base import POLICIES
+from physverify.verification.runner import configured_suite
+
+NESTED_LOCK: Final = "held by finetune"
+
+
+def require_cuda(settings: Settings) -> None:
+    device = settings.runtime.device
+    if not is_cuda_device(device):
+        raise UsageError(f"this subcommand needs --device cuda (device is {device!r})")
+    if not TorchCudaProbe().available():
+        raise UsageError("this subcommand needs a CUDA device and none is available")
+
+
+def require_scoring_device(settings: Settings) -> None:
+    """Scoring runs on the configured device: cpu as is, cuda only when a device is present.
+    Generation and training keep ``require_cuda``."""
+    if is_cuda_device(settings.runtime.device):
+        require_cuda(settings)
+
+
+def candidate_generator(
+    context: AppContext,
+    store: CampaignStore,
+    adapter: Path | None,
+    *,
+    candidates: CandidateSettings | None = None,
+) -> CandidateGenerator:
+    settings = context.settings
+    gen = load_timing(settings).generation
+    problem = snapshot_problem(gen, settings.paths)
+    if problem is not None:
+        raise UsageError(f"Wan2.1 weights: {problem}")
+    if adapter is not None and not adapter.exists():
+        raise UsageError(f"adapter {adapter} does not exist")
+    device = settings.runtime.device
+    snapshot = snapshot_dir(gen, settings.paths)
+    return CandidateGenerator(
+        store,
+        gen,
+        load_finetune(settings).candidates if candidates is None else candidates,
+        pipe_factory=lambda: load_wan_pipeline(snapshot, gen, device),
+        device=device,
+        adapter=adapter,
+        commit=current_commit(settings.repo_root),
+    )
+
+
+def cache_guard(settings: Settings, purge: bool) -> CacheGuard:
+    gen = load_timing(settings).generation
+    hashed = generation_hash(gen, load_finetune(settings).candidates.base_seed)
+    return CacheGuard(StageCache(settings.paths.cache_dir), hashed, purge)
+
+
+def scoring_deps(context: AppContext, purge_stale_cache: bool = False) -> ScoringDeps:
+    """Perceived inputs from the extraction pipeline over ``local_video``; checks from the suite;
+    the stage cache is ``paths.cache_dir``, the one ``pipeline_deps`` extracts into."""
+    suite = configured_suite(
+        context.settings, registry_of(context, CHECKS), registry_of(context, POLICIES)
+    )
+    dataset = dataset_for(context, LOCAL_VIDEO)
+    source = perceived_source(
+        context, dataset, InputLevel.PERCEIVED, heavy_lock=lambda: NullLock(NESTED_LOCK)
+    )
+    return ScoringDeps(
+        clips=dataset.clips,
+        source=source,
+        runner=suite.runner(),
+        guard=cache_guard(context.settings, purge_stale_cache),
+    )
+
+
+def write_calibration_status(store: CampaignStore, model_tag: str, scorer: AggregateScorer) -> None:
+    """Per check, the calibration state the scores were made under (calibrated scorer only)."""
+    if not isinstance(scorer, CalibrationStatusSource):
+        return
+    status = scorer.calibration_status()
+    if status is not None:
+        text = json.dumps(json_ready(dict(status)), indent=2, sort_keys=True)
+        write_text_atomic(store.calibration_status_path(model_tag, scorer.name), text)
+
+
+def current_verdict(
+    context: AppContext, cfg: FinetuneSettings, store: CampaignStore, scorer: AggregateScorer
+) -> StopVerdict:
+    name = scorer.name
+    return evaluate_stop(
+        stored_report(store, name),
+        pairs_on_disk(store, name),
+        base_abstention(store, scorer),
+        stored_review(store, name),
+        cfg.stop_rule,
+        family_targets(cfg, scorer_exclusion(context.settings, cfg, registry_of(context, CHECKS))),
+        (scorer.version, scorer.thresholds()),
+    )
+
+
+def require_stop_rule(
+    context: AppContext,
+    cfg: FinetuneSettings,
+    store: CampaignStore,
+    scorer: AggregateScorer,
+    deviation: str | None,
+    *,
+    err: Echo,
+) -> StopVerdict:
+    """Exit 2 when the rule fires, is enforced and no deviation is declared; the verdict, with
+    the deviation that let it through, is written to ``stop_rule.json`` (and printed when it
+    fired) either way."""
+    verdict = current_verdict(context, cfg, store, scorer)
+    if not verdict.passed and deviation is not None:
+        verdict = verdict.model_copy(update={"deviation": deviation})
+    write_verdict(store, scorer.name, verdict)
+    if not verdict.passed:
+        for line in verdict_lines(verdict):
+            err(line)
+    if not verdict.passed and verdict.enforced and deviation is None:
+        raise UsageError(
+            f"pilot stop rule fired: {'; '.join(verdict.reasons)}; the generator comparison is not "
+            f"evaluable with this verifier ({STOP_RULE_DEVIATION} TEXT, or "
+            "finetune.stop_rule.enforce = false, to go on)"
+        )
+    return verdict
+
+
+def active_scorer(context: AppContext, name: str | None) -> AggregateScorer:
+    built = scorer_for(context, name or load_finetune(context.settings).scorer)
+    reason = built.unavailable()
+    if reason is not None:
+        raise UsageError(f"scorer {built.name} is unavailable: {reason}")
+    return built
+
+
+def score_prompts(
+    context: AppContext,
+    store: CampaignStore,
+    model_tag: str,
+    prompts: Sequence[PromptRecord],
+    scorer: AggregateScorer,
+    shard: str | None = None,
+    *,
+    echo: Echo,
+    purge_stale_cache: bool = False,
+) -> list[CandidateScore]:
+    deps = scoring_deps(context, purge_stale_cache)
+    scores = score_candidates(store, model_tag, prompts, scorer, deps, parse_shard(shard))
+    write_calibration_status(store, model_tag, scorer)
+    wanted = {p.prompt_id for p in prompts}
+    selected = [s for s in scores if s.prompt_id in wanted]
+    abstained = sum(s.score is None for s in selected)
+    echo(f"{model_tag}/{scorer.name}: {len(selected)} scored, {abstained} abstained")
+    return selected
+
+
+def build_prompts(context: AppContext, check: bool, *, echo: Echo, err: Echo) -> bool:
+    """Writes prompts.jsonl, or with ``check`` only compares it; False when the check fails.
+    Once candidates exist, only ``extra_train`` prompts may be appended."""
+    store = CampaignStore.from_settings(context.settings)
+    cfg = load_finetune(context.settings)
+    if cfg.prompts.domain is not None:
+        rules = registry_of(context, PROMPT_DOMAINS)
+        check_universe(cfg.prompts, load_domain(context.settings, rules, cfg.prompts.domain))
+    records = build_prompt_set(cfg.prompts, sizing_labels(context.settings))
+    text = records_text(records)
+    path = store.prompts_path
+    current = path.read_text(encoding="utf-8") if path.is_file() else None
+    if check:
+        if current != text:
+            err(f"{path} differs from the configuration")
+            return False
+    elif current != text:
+        appended = current is not None and only_appends(current, text, cfg.prompts)
+        if current is not None and store.model_tags() and not appended:
+            raise UsageError(
+                f"{path} differs from the configuration and candidates exist: "
+                "use a new finetune.campaign"
+            )
+        write_records(path, records)
+    for line in build_lines(path, records):
+        echo(line)
+    return True
+
+
+def campaign_split(split: str, comparison_step: str) -> PromptSplit:
+    """A train or dev split; the eval candidates and scores belong to the generator comparison,
+    whose generation stamp and pre-registration a finetune run would break."""
+    parsed = choice(split, SPLITS, "--split")
+    if parsed == EVAL_SPLIT:
+        raise UsageError(
+            "the eval split belongs to the generator comparison: run "
+            f"`physverify compare-generators {comparison_step} --arm base|ft`"
+        )
+    return parsed
+
+
+def generate_split(
+    context: AppContext,
+    split: str,
+    adapter: Path | None,
+    shard: str | None,
+    limit: int | None,
+    pilot: int | None,
+    *,
+    echo: Echo,
+) -> None:
+    which = campaign_split(split, "generate")
+    if pilot is not None and which != "train":
+        raise UsageError("--pilot draws train prompts: use it with --split train")
+    require_cuda(context.settings)
+    store = CampaignStore.from_settings(context.settings)
+    prompts = campaign_prompts(store, which)
+    if pilot is not None:
+        prompts = pilot_prompts(prompts, pilot)
+    generate_candidates(
+        candidate_generator(context, store, adapter), prompts, shard, limit, echo=echo
+    )
+
+
+def score_split(
+    context: AppContext,
+    split: str,
+    model_tag: str,
+    scorer: str | None,
+    shard: str | None,
+    purge_stale_cache: bool,
+    *,
+    echo: Echo,
+) -> None:
+    which = campaign_split(split, "score")
+    require_scoring_device(context.settings)
+    store = CampaignStore.from_settings(context.settings)
+    prompts = campaign_prompts(store, which)
+    active = active_scorer(context, scorer)
+    score_prompts(
+        context,
+        store,
+        model_tag,
+        prompts,
+        active,
+        shard,
+        echo=echo,
+        purge_stale_cache=purge_stale_cache,
+    )
+
+
+def campaign_status_lines(context: AppContext) -> list[str]:
+    return status_lines(CampaignStore.from_settings(context.settings))
+
+
+def budget_lines(context: AppContext, request: BudgetRequest) -> list[str]:
+    return budget_report(context.settings, request)
+
+
+def write_pairs(context: AppContext, scorer: str | None, *, echo: Echo) -> None:
+    """Winner-loser pairs of the fit prompts and of the val prompts, then the stop-rule verdict."""
+    cfg = load_finetune(context.settings)
+    store = CampaignStore.from_settings(context.settings)
+    active = active_scorer(context, scorer)
+    train = campaign_prompts(store, "train")
+    train_ids = {p.prompt_id for p in train}
+    scores = [s for s in store.scores(BASE_TAG, active.name) if s.prompt_id in train_ids]
+    if not scores:
+        raise UsageError(
+            f"no {active.name} scores of {BASE_TAG}: run 'finetune score --split train'"
+        )
+    check_current(store, BASE_TAG, scores, active, "train")
+    fit, held = fit_and_val(train)
+    directory = store.pairs_dir(active.name)
+    outputs = (
+        (fit, PAIRS_FILE, REPORT_FILE, "train"),
+        (held, VAL_PAIRS_FILE, VAL_REPORT_FILE, "val"),
+    )
+    for prompts, pairs_file, report_file, label in outputs:
+        records, report = pairs_of(prompts, scores, cfg.pairs, active)
+        write_records(directory / pairs_file, records)
+        if report is not None:
+            write_record(directory / report_file, report)
+            for line in report_lines(label, report):
+                echo(line)
+    verdict = current_verdict(context, cfg, store, active)
+    write_verdict(store, active.name, verdict)
+    for line in verdict_lines(verdict):
+        echo(line)
+    echo(f"pairs: {directory}")
+
+
+def pilot_review_lines(
+    context: AppContext, scorer: str | None, better: int | None, note: str | None
+) -> list[str]:
+    cfg = load_finetune(context.settings)
+    store = CampaignStore.from_settings(context.settings)
+    return review_pilot(store, scorer or cfg.scorer, cfg.stop_rule, better, note)

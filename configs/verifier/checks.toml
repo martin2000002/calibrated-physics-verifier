@@ -1,0 +1,203 @@
+# Checks R1-R5b and verdict policy (the check suite). Every threshold is PROVISIONAL until the
+# calibration chain writes data/calibration/thresholds.json, which then takes precedence.
+# Deliverable 1 is a local proof of the pipeline: ~25 synthetic clips (5 families x 1 seed x
+# none + 1 mid level per applicable perturbation) plus 5 Physics-IQ and 5 PISA clips.
+# The full dataset and the large runs happen on the H200.
+# Windows (*_s) are SECONDS of real time, turned into table rows at each clip's row rate
+# (physics/row_time.py); the defaults are the former row counts at 24 fps.
+# Any check id (R1, R2, R3a, R3b, R4_missing, R4_size, R4_jump, R5a, R5b) accepts a
+# [checks.<id>] table overriding fields of its default implementation's Params, and a variant a
+# [checks."<id>/<variant>"] table of its own; a selected variant also takes the [checks.<id>]
+# fields it declares. Unknown fields are a ConfigError, selected or not.
+
+# R2's friction is an interval (friction_range, default FRICTION_RANGE in
+# checks/r2_static_equilibrium.py) sampled in its Monte Carlo: the static coefficients of dry
+# everyday material pairs in open tables (OpenStax, College Physics 2e, table 5.1, and the others
+# cited at FRICTION_RANGE), never the simulator's floor value.
+[checks.R2]            # plugin defaults live in checks/r2_static_equilibrium.py; override here
+mass_floor = 0.2
+
+# The size relative to the other bodies of each frame; "self" is the v1 rule.
+[checks.R4_size]
+reference = "others"
+
+# Alternative implementations (checks/variants/) are chosen per check in [check_variants],
+# check id -> variant name; a check left out, or set to "default", runs its registered
+# implementation. R4_size "v3": persistent change against a running median, windows in seconds,
+# rows whose mask the lift saw cut by the image border left out. R4_jump "rigid2": v2 without the
+# stencils where the apparent size steps, in the statistic and in its noise estimate. R4_jump
+# "rigid2_dfloor": rigid2 with the depth axis of its noise no smaller than the median depth sigma
+# the lift declares (blind to line-of-sight jumps below about sqrt(20) times it).
+# R4_jump "rigid2_dfloor_null": rigid2_dfloor that abstains (UNKNOWN_UNCERTAINTY) when the
+# stencils more than null_guard rows from the peak exceed the chi_3 level null_level more often
+# than a binomial test at null_alpha allows (a heuristic gate: adjacent stencils are correlated,
+# so the binomial p-value is not exact): the peak is read as a chi_3 draw, which needs the rest
+# of the track to have white-noise tails (a real camera's irregular frame timing breaks it).
+# R4_jump "rigid2_dfloor_shape": rigid2_dfloor_null that also abstains, for a peak at or over
+# shape_level, when the whitened third differences around it are fitted (GLS) no better by the
+# step of a displaced body than by a velocity kink (an impact with no contact record, as on real
+# video) or a one-frame outlier; a tie, or fewer finite rows than a step spans, also abstains.
+# R4_size "v3_window_depth": v3 on extents and their sigmas multiplied by runmed_W(z) / z, z the
+# object's camera depth and W v3's window, so the per-row noise of a monocular depth is not read
+# as a size change; a ground-truth lift is left as v3 sees it.
+# R4_size "v3_window_depth_unoccluded": v3_window_depth that also leaves out the rows where the
+# mask of a tracked object nearer the camera covers part of the object's mask box
+# (nearer_cover > 0, from the lift); a ground-truth lift is left as v3_window_depth sees it.
+# The precise profile runs v3_window_depth_unoccluded and rigid2_dfloor_shape (same units as v3
+# and rigid2, so no tau or tolerance moves); --set check_variants.R4_size=default (or
+# R4_jump=default) restores v2, --set check_variants.R4_size=v3 (or v3_window_depth) keeps that
+# variant, --set check_variants.R4_jump=rigid2 keeps rigid2 without the depth floor and
+# R4_jump=rigid2_dfloor keeps the depth floor without the null-tail and shape abstentions.
+# R5a "whitened" (the precise profile runs it): each candidate scored by the Wald contrast of
+# its two accelerations fitted with weights 1 / position_sigma^2, chi-square with 3 degrees of
+# freedom per candidate under white noise independent per axis. Its unit is not v1's: thresholds
+# come from fold calibration, and an uncalibrated run reads the a priori chi-square(3) 0.99
+# quantile (about the 0.90 quantile of the maximum over a flight's ~13 cuts) and its unit from
+# [verification.profiles.precise] (its tau_tolerance from [calibration.profiles.precise]);
+# --set check_variants.R5a=default under precise also needs --set verification.thresholds.R5a=0.15
+# --set verification.threshold_units.R5a=accel_rel_diff
+# --set calibration.tau_tolerance_units.R5a=accel_rel_diff.
+# R5b "unsupported" (no profile runs it): a flight counts only if on some row the body's lowest
+# point rises above its scene plane by more than the scene contacts' gap gate K sigma_gap (the
+# same z and sigma_gap), so a roll the contacts left unmarked is not a fall; same unit as v1.
+# R5a "los_tilt" and R5b "los_ballistic" (no profile runs them; the arm k of
+# scripts/h200/perception_arms.tsv does): each window is fitted by generalized least squares on the
+# covariance of a monocular lift (a depth error moves the point along its ray). los_tilt scores
+# the tilt of each window's acceleration away from the perceived gravity, summed over the two
+# windows, about chi-square(4) [accel_tilt_chi2_4], so under precise the arm also sets its tau
+# (13.28, the a priori chi-square(4) 0.99 quantile) and the units of the R5a tau and tolerance.
+# los_ballistic reads g along the perceived gravity from the ballistic fit of each flight; same
+# unit as v1.
+# R3a "image_apex" (the precise profile runs it): e = sqrt(H+ / H-), the apex heights of the
+# flight runs on each side of the impact read on the image plane along the projected normal, so
+# the body's depth does not enter; windows, t_c and the normal speed gate are the default's on its
+# route, and its sigma propagates position_sigma through the projection (delta method); same unit
+# as v1, so no tau or tolerance moves; --set check_variants.R3a=default restores the default.
+# R3b "image_relspeed" (the precise profile runs it): s = ln(c+ / -c-), the normal separation and approach
+# speeds of a two-body impact read on the relative image track, so neither body's depth enters;
+# impacts are the true object-object records on ground-truth contacts and image impulse events
+# otherwise. Its unit is log_normal_speed_ratio, so the precise profile also sets its threshold,
+# threshold unit and tolerance unit; --set check_variants.R3b=default restores the default only
+# with verification.threshold_units.R3b and calibration.tau_tolerance_units.R3b set back to
+# dE_over_E.
+# Its event_gates (none by default) name the gates of checks/variants/event_gates/ that every
+# detected event must pass, e.g. checks.R3b/image_relspeed.event_gates=["reciprocal_jump"].
+# Its event_scopes (none by default) name the scopes of checks/variants/event_scopes/ a measured
+# event must lie in; outside one it is NOT_APPLICABLE, which neither votes nor abstains, e.g.
+# checks.R3b/image_relspeed.event_scopes=["two_sided_spheres_isolated"] or, deciding on the rows
+# before the pair's first approach only, ["pre_contact_approach"].
+# A provisional tau is read in the unit of the check's default implementation unless
+# verification.threshold_units.<id> says otherwise; a tau whose unit is not the unit of the
+# configured check, or a calibrated table fitted with other check parameters or variants (its
+# checks_hash), stops the run with a ConfigError.
+[check_variants]
+
+[check_variants.profiles.precise]
+R4_size = "v3_window_depth_unoccluded"
+R4_jump = "rigid2_dfloor_shape"
+R5a = "whitened"
+R3a = "image_apex"
+R3b = "image_relspeed"
+
+[verification]
+policy = "threshold"
+
+[verification.policies.threshold]
+k_sigma = 2.0
+on_unknown_sigma = "abstain"
+
+[verification.thresholds]   # provisional, check units
+R1 = 0.05
+R2 = 0.01
+R3a = 0.05
+R3b = 0.05
+# R4_missing is in seconds: 2 frames at 24 fps.
+R4_missing = 0.08333333333333333
+R4_size = 0.10
+# R4_jump v2 is in units of the track's own noise: sqrt of the chi-square(3) quantile at
+# 1 - 0.05 / 20 (Bonferroni over about 20 stencils), fixed a priori, not tuned on data. Every
+# magnitude is restated at the 21 stencils of a 24-row clip (same family-wise tail), so the
+# threshold holds for clips of any length.
+R4_jump = 3.78
+R5a = 0.15
+R5b = 0.15
+
+[verification.profiles.precise.thresholds]
+R5a = 11.34
+R3b = 0.0
+
+[verification.profiles.precise.threshold_units]
+R5a = "accel_wald_chi2_3"
+R3b = "log_normal_speed_ratio"
+
+# Still-camera precondition (verification/still_camera.py): a check that assumes a still camera
+# (every check but R4_missing) abstains with CAMERA_NOT_STILL when the 90th percentile over the
+# clip's frame pairs of the background's affine motion, in image diagonals per second, exceeds
+# p90_limit; no max_limit, so the largest pair alone never gates. The limit is 2 x the largest
+# such percentile on the still-camera dev sets (Kubric calibration and Physics-IQ center), the
+# factor 2 fixed before measuring. A clip without measurable background is never gated.
+[verification.still_camera]
+estimator = "affine_flow"
+per_second = true
+p90_limit = 0.019148242354768558
+
+[verification.still_camera.params]
+max_side = 160
+dilation_frac = 0.02
+min_dilation_px = 2
+min_background_frac = 0.05
+grid_step_px = 4
+min_points = 12
+flow_pyr_scale = 0.5
+flow_levels = 4
+flow_winsize = 15
+flow_iterations = 3
+flow_poly_n = 5
+flow_poly_sigma = 1.2
+ransac_threshold_px = 0.5
+ransac_max_iters = 500
+ransac_refine_iters = 5
+
+# Input routes (verification/check_routes.py): routes.<name>.<stage> = <provider> is the main
+# extraction plan with that stage's provider substituted, and check_routes.<id> = <name> makes
+# that check read the route's inputs; every other check reads the main plan. Stages a route
+# leaves alone, and every stage upstream of the first one it changes, share the main plan's
+# cache keys. R3a under precise reads depth from the apparent mask area along each track
+# (lift/backproject_area_depth; its min_rows, 3 by default, is set with
+# --set extraction.providers.lift.backproject_area_depth.min_rows=<n>), so its kinematics and
+# contacts are recomputed from it. No profile may route R4_size to that lift: a
+# size-change check fed a depth taken from the apparent size would measure its own input.
+# --set verification.routes.area_depth.lift=backproject points the route back at the main lift,
+# so R3a reads the main plan again (the checks hash still names the route).
+# lift/backproject_contour_circle is the main lift with the contour_circle image-plane centre;
+# R3b under precise reads it on the contour_centre route, so its image track follows the
+# silhouette's fitted circle rather than the mask centroid.
+# R4_size under precise reads its depth from DA3MONO-LARGE (depth/da3mono_large) on the
+# da3mono_depth route: a learned relative depth stored as affine disparity, never metric; the
+# lift and every stage after it are recomputed from it.
+[verification.profiles.precise.routes.area_depth]
+lift = "backproject_area_depth"
+
+[verification.profiles.precise.routes.contour_centre]
+lift = "backproject_contour_circle"
+
+[verification.profiles.precise.routes.da3mono_depth]
+depth = "da3mono_large"
+
+[verification.profiles.precise.check_routes]
+R3a = "area_depth"
+R3b = "contour_centre"
+R4_size = "da3mono_depth"
+
+[verification.specificity]
+abs_tol = 1e-3
+rel_tol = 0.02
+null_tol = 1e-3
+# Physical couplings: reported as "expected coupling", never failed.
+# r5a_gravity_switch -> R5b: one parabola over a flight whose g rotates by theta mid-flight fits
+#   |a| ~ g cos(theta / 2) (0.4 % on the local f1 clip, far below the R5b threshold).
+# r5a_gravity_switch -> R4_jump: the switch is a jump of the acceleration; the third difference
+#   peaks at most |delta g| dt^2, spread over the stencils around the switch; R4_jump v2 divides it
+#   by sqrt(20) times the track's noise (one pixel on the oracle), so it is a coupling in units
+#   of the noise, not of the body (v1: 0.0135 body lengths on the local f1 clip).
+couplings = [["r5a_gravity_switch", "R5b"], ["r5a_gravity_switch", "R4_jump"]]

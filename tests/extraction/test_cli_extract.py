@@ -1,0 +1,183 @@
+"""``physverify extract run`` over the fixture with heavy fakes (``--help`` is in
+test_registry.py)."""
+
+from __future__ import annotations
+
+import json
+from collections.abc import Mapping
+from pathlib import Path
+from types import MappingProxyType
+from typing import Any
+
+import pytest
+from cli_runner import CliRunner
+from fakes import FAKE, FAKES, FakeDepth
+from support import plan_overrides
+from synthetic_clip import CLIP_ID, SyntheticFixtureDataset
+
+from physverify.app import extraction, plugins
+from physverify.app.extraction import EVENTS_FILE, route_events_file
+from physverify.config.models import PathsSettings
+from physverify.core.errors import EXIT_USAGE, PluginError
+from physverify.extraction._base import StageContext, WeightSpec, provider_key
+from physverify.extraction.providers.depth_vda_large import VideoDepthAnythingLarge
+from physverify.runtime.heavy import holder_path
+from physverify.schema.stages import STAGE_ORDER
+
+FAKE_PLAN = [
+    arg for item in plan_overrides(detect=FAKE, track=FAKE, depth=FAKE) for arg in ("--set", item)
+]
+RUN = ("extract", "run", "--dataset", "synthetic_fixture", "--gt", "camera")
+
+
+@pytest.fixture(autouse=True)
+def fixture_registries(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The real registries plus the heavy fakes and the fixture dataset."""
+    kinds: Mapping[str, Any] = plugins.PLUGIN_KINDS
+    providers, datasets = kinds["providers"], kinds["datasets"]
+    patched = {
+        **kinds,
+        "providers": lambda: {**providers(), **{provider_key(f): f for f in FAKES}},
+        "datasets": lambda: {**datasets(), SyntheticFixtureDataset.name: SyntheticFixtureDataset},
+    }
+    monkeypatch.setattr(plugins, "PLUGIN_KINDS", MappingProxyType(patched))
+
+
+def events_of(output: str, events_file: str = EVENTS_FILE) -> list[dict[str, Any]]:
+    (line,) = [line for line in output.splitlines() if line.startswith("run: ")]
+    run_dir = Path(line.removeprefix("run: "))
+    lines = (run_dir / events_file).read_text().splitlines()
+    return [json.loads(line) for line in lines]
+
+
+@pytest.mark.parametrize(
+    ("argv", "message"),
+    [
+        (("extract", "run", "--dataset", "nope"), "unknown dataset"),
+        ((*RUN, "--clips", "nope"), "unknown clip ids"),
+    ],
+)
+def test_unknown_dataset_or_clip_is_a_usage_error(
+    cli: CliRunner, argv: tuple[str, ...], message: str
+) -> None:
+    result = cli(*argv)
+    assert result.code == 2
+    assert message in result.err
+
+
+def test_a_fixture_run_succeeds_and_its_rerun_never_takes_the_lock(
+    cli: CliRunner, lock_path: Path
+) -> None:
+    first = cli(*FAKE_PLAN, *RUN)
+    assert first.code == 0, first.err
+    events = events_of(first.out)
+    assert [e["stage"] for e in events] == [s.value for s in STAGE_ORDER]
+    assert not any(e["cached"] for e in events)
+    holder_path(lock_path).unlink(missing_ok=True)
+    again = cli(*FAKE_PLAN, *RUN, "--clips", CLIP_ID)
+    assert again.code == 0, again.err
+    assert all(e["cached"] for e in events_of(again.out))
+    assert not holder_path(lock_path).exists()
+
+
+def test_a_failed_clip_exits_with_one(cli: CliRunner) -> None:
+    fail = f"extraction.providers.depth.fake.fail_clip={CLIP_ID}"
+    result = cli(*FAKE_PLAN, "--set", fail, *RUN)
+    assert result.code == 1
+    assert f"FAILED {CLIP_ID} at depth" in result.out
+    failure = events_of(result.out)[-1]
+    assert (failure["clip_id"], failure["stage"]) == (CLIP_ID, "depth")
+    assert "fails on" in failure["error"]
+
+
+def test_an_aborted_run_still_writes_the_finished_events(
+    cli: CliRunner, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def explode(self: FakeDepth, ctx: StageContext) -> None:
+        raise PluginError("boom")
+
+    monkeypatch.setattr(FakeDepth, "run", explode)
+    result = cli(*FAKE_PLAN, *RUN)
+    assert result.code == 1
+    assert "boom" in result.err
+    events = events_of(result.out)
+    assert [e["stage"] for e in events] == ["detect", "track", "depth"]
+    assert (events[-1]["clip_id"], events[-1]["error"]) == (CLIP_ID, "aborted: PluginError: boom")
+
+
+AREA_ROUTE = [
+    "--set",
+    "verification.routes.area_depth.lift=backproject_area_depth",
+    "--set",
+    "verification.check_routes.R3a=area_depth",
+]
+HEAVY = ["detect", "track", "depth", "camera"]
+
+
+def test_a_route_reuses_the_main_runs_upstream_stages_and_recomputes_from_its_lift(
+    cli: CliRunner,
+) -> None:
+    result = cli(*FAKE_PLAN, *AREA_ROUTE, *RUN)
+    assert result.code == 0, result.err
+    assert "route area_depth:" in result.out
+    assert result.out.count("run: ") == 1
+    main = events_of(result.out)
+    assert [e["stage"] for e in main] == [s.value for s in STAGE_ORDER]
+    assert not any(e["cached"] for e in main)
+    routed = events_of(result.out, route_events_file("area_depth"))
+    assert [e["stage"] for e in routed] == [s.value for s in STAGE_ORDER]
+    assert [e["stage"] for e in routed if e["cached"]] == HEAVY
+    lift = {e["stage"]: e["provider"] for e in routed}["lift"]
+    assert lift == "backproject_area_depth"
+    again = cli(*FAKE_PLAN, *AREA_ROUTE, *RUN)
+    assert again.code == 0, again.err
+    assert all(e["cached"] for e in events_of(again.out, route_events_file("area_depth")))
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        ["--set", "extraction.plan.lift=backproject_area_depth"],
+        [*AREA_ROUTE, "--set", "verification.check_routes.R4_size=area_depth"],
+    ],
+)
+def test_a_size_derived_depth_for_r4_size_is_refused_before_any_extraction(
+    cli: CliRunner, overrides: list[str]
+) -> None:
+    result = cli(*FAKE_PLAN, *overrides, *RUN)
+    assert result.code == EXIT_USAGE, result.out
+    assert "R4_size would read lift/backproject_area_depth" in result.err
+    assert "run: " not in result.out
+
+
+def test_without_a_route_no_route_events_are_written(cli: CliRunner) -> None:
+    result = cli(*FAKE_PLAN, *RUN)
+    assert result.code == 0, result.err
+    assert "route " not in result.out
+    with pytest.raises(FileNotFoundError):
+        events_of(result.out, route_events_file("area_depth"))
+
+
+def test_fetch_weights_also_fetches_the_providers_of_the_input_routes(
+    cli: CliRunner, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    fetched: list[WeightSpec] = []
+
+    def record(spec: WeightSpec, paths: PathsSettings, downloader: object) -> Path:
+        fetched.append(spec)
+        return tmp_path
+
+    monkeypatch.setattr(extraction, "fetch", record)
+    route = ("--set", "verification.routes.vda.depth=vda_large")
+    result = cli(
+        *FAKE_PLAN,
+        *route,
+        "--set",
+        "verification.check_routes.R4_size=vda",
+        "extract",
+        "fetch-weights",
+    )
+    assert result.code == 0, result.err
+    assert set(VideoDepthAnythingLarge.weights) <= set(fetched)
+    assert len(fetched) == len(set(fetched))
+    assert "depth/vda_large" in result.out

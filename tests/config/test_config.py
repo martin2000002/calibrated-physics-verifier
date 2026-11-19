@@ -1,0 +1,262 @@
+from __future__ import annotations
+
+import re
+from pathlib import Path
+
+import pytest
+
+from physverify.config.loader import MODEL_ONLY_SECTIONS, load_settings
+from physverify.config.models import PathsSettings, SizePriorTable
+from physverify.core.errors import ConfigError
+from physverify.runtime.container import SECTION as CONTAINER_SECTION
+from physverify.verification.check_set import CHECK_VARIANTS_SECTION
+
+BASE = """
+[runtime]
+threads = 2
+device = "cpu"
+
+[demo]
+level = "file"
+kept = true
+
+[demo.profiles.precise]
+level = "profile"
+"""
+
+
+def _write(directory: Path, name: str, text: str) -> None:
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / name).write_text(text, encoding="utf-8")
+
+
+def _load(config: Path, **kwargs: object) -> tuple[str, int, str]:
+    settings = load_settings(config, environ=kwargs.pop("environ", {}), **kwargs)  # type: ignore[arg-type]
+    return settings.sections["demo"]["level"], settings.runtime.threads, settings.runtime.device
+
+
+def test_precedence_level_by_level(tmp_path: Path) -> None:
+    config = tmp_path / "configs"
+    _write(config, "empty.toml", "")
+    assert load_settings(config, environ={}).runtime.threads == 4
+    _write(config, "base.toml", BASE)
+    assert _load(config) == ("file", 2, "cpu")
+    assert _load(config, profile="precise") == ("profile", 2, "cpu")
+    _write(config, "local.toml", '[demo]\nlevel = "local"\n[runtime]\nthreads = 3\n')
+    assert _load(config, profile="precise") == ("local", 3, "cpu")
+    env = {"PHYSVERIFY__DEMO__LEVEL": "env", "PHYSVERIFY__RUNTIME__DEVICE": "cuda:1"}
+    assert _load(config, environ=env) == ("env", 3, "cuda:1")
+    assert _load(config, environ=env, device="cuda") == ("env", 3, "cuda")
+    overrides = ("demo.level=set", "runtime.device=cpu", "runtime.threads=7")
+    assert _load(config, environ=env, device="cuda", overrides=overrides) == ("set", 7, "cpu")
+    settings = load_settings(config, environ=env, overrides=overrides)
+    assert settings.sections["demo"]["kept"] is True
+    assert any(source.endswith("local.toml") for source in settings.sources)
+    assert "--set demo.level=set" in settings.sources
+
+
+def test_repeated_top_level_table_raises(tmp_path: Path) -> None:
+    _write(tmp_path, "a.toml", "[demo]\nx = 1\n")
+    _write(tmp_path, "b.toml", "[demo]\ny = 2\n")
+    with pytest.raises(ConfigError, match="both"):
+        load_settings(tmp_path, environ={})
+
+
+def test_local_files_are_not_globbed(tmp_path: Path) -> None:
+    _write(tmp_path, "default.toml", "[runtime]\nthreads = 2\n")
+    _write(tmp_path, "local.example.toml", "[runtime]\nthreads = 9\n")
+    assert load_settings(tmp_path, environ={}).runtime.threads == 2
+
+
+def test_tables_are_read_from_subdirectories(tmp_path: Path) -> None:
+    _write(tmp_path, "default.toml", "[runtime]\nthreads = 2\n")
+    _write(tmp_path / "studies", "demo.toml", '[demo]\nlevel = "nested"\n')
+    settings = load_settings(tmp_path, environ={})
+    assert settings.sections["demo"]["level"] == "nested"
+    assert str(tmp_path.resolve() / "studies" / "demo.toml") in settings.sources
+
+
+def test_local_files_in_subdirectories_are_read(tmp_path: Path) -> None:
+    _write(tmp_path / "studies", "local.toml", '[demo]\nlevel = "nested"\n')
+    assert load_settings(tmp_path, environ={}).sections["demo"]["level"] == "nested"
+
+
+def test_a_table_repeated_across_subdirectories_names_both_files(tmp_path: Path) -> None:
+    _write(tmp_path / "datasets", "a.toml", "[demo]\nx = 1\n")
+    _write(tmp_path / "studies", "b.toml", "[demo]\ny = 2\n")
+    with pytest.raises(ConfigError, match=r"both datasets/a\.toml and studies/b\.toml"):
+        load_settings(tmp_path, environ={})
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [{"PHYSVERIFY__RUNTIME__DEVICE": "tpu"}, {"PHYSVERIFY__NOKEY": "1"}],
+)
+def test_invalid_values_raise(tmp_path: Path, bad: dict[str, str]) -> None:
+    _write(tmp_path, "default.toml", "")
+    with pytest.raises(ConfigError):
+        load_settings(tmp_path, environ=bad)
+
+
+def test_unknown_profile_and_bad_set_raise(tmp_path: Path) -> None:
+    _write(tmp_path, "default.toml", "")
+    with pytest.raises(ConfigError, match="profile"):
+        load_settings(tmp_path, environ={}, profile="nope")
+    with pytest.raises(ConfigError, match="--set"):
+        load_settings(tmp_path, environ={}, overrides=("threads=3",))
+
+
+@pytest.mark.parametrize(
+    ("environ", "overrides", "local", "origin"),
+    [
+        ({}, ("demo.profiles.precise.level=x",), "", "--set"),
+        ({"PHYSVERIFY__DEMO__PROFILES": "x"}, (), "", "PHYSVERIFY__<SECTION>__<KEY>"),
+        ({}, (), '[demo.profiles.precise]\nlevel = "x"\n', "local.toml"),
+    ],
+)
+def test_a_profiles_key_above_the_files_raises(
+    tmp_path: Path, environ: dict[str, str], overrides: tuple[str, ...], local: str, origin: str
+) -> None:
+    _write(tmp_path, "default.toml", BASE)
+    if local:
+        _write(tmp_path, "local.toml", local)
+    with pytest.raises(ConfigError, match="use --profile or the key without 'profiles'") as caught:
+        load_settings(tmp_path, environ=environ, overrides=overrides, profile="precise")
+    assert origin in str(caught.value)
+
+
+def test_the_real_configs_reject_a_profiles_set(config_dir: Path) -> None:
+    with pytest.raises(ConfigError, match=re.escape("[extraction.profiles]")):
+        load_settings(
+            config_dir, environ={}, overrides=("extraction.profiles.precise.plan.depth=x",)
+        )
+
+
+@pytest.mark.parametrize(
+    ("environ", "overrides", "local", "origin"),
+    [
+        ({}, ("sealed.sets=[]",), "", "--set"),
+        ({"PHYSVERIFY__SEALED__SETS": "[]"}, (), "", "PHYSVERIFY__<SECTION>__<KEY>"),
+        ({}, (), "[sealed]\nsets = []\n", "local.toml"),
+        ({}, ('calibration.development_sets=["kubric_synthetic@v1"]',), "", "--set"),
+        (
+            {"PHYSVERIFY__CALIBRATION__DEVELOPMENT_SETS": '["kubric_synthetic@v1"]'},
+            (),
+            "",
+            "PHYSVERIFY__<SECTION>__<KEY>",
+        ),
+        ({}, (), '[calibration]\ndevelopment_sets = ["kubric_synthetic@v1"]\n', "local.toml"),
+        ({}, ('sealed_legacy.versions.kubric_fresh.version="v2-fresh2"',), "", "--set"),
+        ({"PHYSVERIFY__SEALED_LEGACY__VERSIONS": "{}"}, (), "", "PHYSVERIFY__<SECTION>__<KEY>"),
+        ({}, (), '[sealed_legacy.versions.kubric_fresh]\nversion = "x"\n', "local.toml"),
+    ],
+)
+def test_the_seal_keys_come_only_from_the_files(
+    config_dir: Path, environ: dict[str, str], overrides: tuple[str, ...], local: str, origin: str
+) -> None:
+    if local:
+        (config_dir / "local.toml").write_text(local, encoding="utf-8")
+    with pytest.raises(ConfigError, match="only the committed configs") as caught:
+        load_settings(config_dir, environ=environ, overrides=overrides)
+    assert origin in str(caught.value)
+
+
+def test_the_sealed_ledger_stays_overridable(config_dir: Path, tmp_path: Path) -> None:
+    ledger = tmp_path / "dry-run-ledger.txt"
+    settings = load_settings(config_dir, environ={}, overrides=(f"sealed.ledger={ledger}",))
+    assert settings.sections["sealed"]["ledger"] == str(ledger)
+
+
+def test_paths_derive_from_data_dir_and_expand_env(tmp_path: Path) -> None:
+    _write(tmp_path / "configs", "default.toml", '[paths]\ndata_dir = "${BIG}/data"\n')
+    settings = load_settings(tmp_path / "configs", environ={"BIG": "/mnt/big", "HOME": "/h"})
+    assert settings.paths.cache_dir == Path("/mnt/big/data/cache")
+    assert settings.paths.error_profile == Path("/mnt/big/data/calibration/stage_errors.fast.json")
+    assert settings.paths.hf_home == Path("/h/.cache/huggingface")
+    assert settings.repo_root == tmp_path.resolve()
+
+
+def test_relative_lock_is_anchored_at_repo_root(tmp_path: Path) -> None:
+    _write(tmp_path / "configs", "default.toml", '[runtime]\nheavy_lock = "run/heavy.lock"\n')
+    settings = load_settings(tmp_path / "configs", environ={})
+    assert settings.runtime.heavy_lock == str(tmp_path.resolve() / "run" / "heavy.lock")
+
+
+@pytest.mark.parametrize(
+    ("environ", "overrides", "origin"),
+    [
+        ({"PHYSVERIFY__NOSUCH__KEY": "1"}, (), "PHYSVERIFY__<SECTION>__<KEY>"),
+        ({}, ("nosuch.key=1",), "--set"),
+    ],
+)
+def test_overrides_of_an_unknown_section_raise(
+    tmp_path: Path, environ: dict[str, str], overrides: tuple[str, ...], origin: str
+) -> None:
+    _write(tmp_path, "default.toml", BASE)
+    with pytest.raises(ConfigError, match=re.escape(f"{origin} sets unknown section [nosuch]")):
+        load_settings(tmp_path, environ=environ, overrides=overrides)
+
+
+def test_overrides_of_model_only_and_nested_sections_load(config_dir: Path) -> None:
+    environ = {
+        "PHYSVERIFY__H3__AUTOEVAL__ROOT": "/elsewhere",
+        "PHYSVERIFY__CONTAINER__ENGINE": "udocker",
+    }
+    settings = load_settings(config_dir, environ=environ, overrides=("paths.data_dir=/d",))
+    assert settings.sections["h3"]["autoeval"]["root"] == "/elsewhere"
+    assert settings.sections["container"] == {"engine": "udocker"}
+    assert CONTAINER_SECTION in MODEL_ONLY_SECTIONS
+    assert CHECK_VARIANTS_SECTION in MODEL_ONLY_SECTIONS
+    assert settings.sections[CHECK_VARIANTS_SECTION] == {}
+
+
+def test_repository_configs(config_dir: Path) -> None:
+    fast = load_settings(config_dir, environ={})
+    precise = load_settings(config_dir, environ={}, profile="precise")
+    assert fast.profile == "fast" and fast.sections["extraction"]["plan"]["track"] == "edgetam"
+    assert precise.sections["extraction"]["plan"]["track"] == "sam2_1_hiera_tiny"
+    # The chosen base chain is the CPU one.
+    assert precise.sections["extraction"]["plan"]["depth"] == "vda_small"
+    assert precise.sections["extraction"]["plan"]["contacts"] == "kinematic_scene"
+    assert fast.sections["extraction"]["plan"]["contacts"] == "proximity"
+    assert precise.sections["extraction"]["sampling"]["max_side"] == 960
+    assert precise.sections["extraction"]["sampling"]["target_fps"] == {
+        "kubric_synthetic": 24, "physics_iq": 30, "pisa_real": 120,
+        "kubric_fresh": 24, "kubric_fresh_ood": 24, "kubric_fresh_blind": 24,
+        "physics_iq_views": 30, "objectron_static": 30,
+    }  # fmt: skip
+    assert fast.runtime.docker_image.startswith("kubricdockerhub/kubruntu@sha256:")
+    priors = fast.section("size_priors", SizePriorTable)
+    assert set(priors.root) == {"primitive"}
+    assert fast.config_hash() != precise.config_hash()
+
+
+def test_section_validation_error_is_a_config_error(config_dir: Path) -> None:
+    settings = load_settings(config_dir, environ={}, overrides=("size_priors.primitive.mean_m=-1",))
+    with pytest.raises(ConfigError, match="size_priors"):
+        settings.section("size_priors", SizePriorTable)
+
+
+def test_the_error_profile_defaults_to_one_file_per_profile(config_dir: Path) -> None:
+    fast = load_settings(config_dir, environ={})
+    precise = load_settings(config_dir, environ={}, profile="precise")
+    assert fast.paths.error_profile == fast.paths.calibration_dir / "stage_errors.fast.json"
+    assert (
+        precise.paths.error_profile == precise.paths.calibration_dir / "stage_errors.precise.json"
+    )
+
+
+def test_an_explicit_error_profile_wins_over_the_profile_default(config_dir: Path) -> None:
+    by_env = load_settings(
+        config_dir, environ={"PHYSVERIFY__PATHS__ERROR_PROFILE": "/x/env.json"}, profile="precise"
+    )
+    by_set = load_settings(
+        config_dir, environ={}, profile="precise", overrides=("paths.error_profile=/x/set.json",)
+    )
+    assert by_env.paths.error_profile == Path("/x/env.json")
+    assert by_set.paths.error_profile == Path("/x/set.json")
+
+
+def test_direct_validation_without_a_profile_keeps_the_shared_name() -> None:
+    paths = PathsSettings.model_validate({"data_dir": "/d"})
+    assert paths.error_profile == Path("/d/calibration/stage_errors.json")

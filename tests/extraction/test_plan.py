@@ -1,0 +1,186 @@
+"""The active profile resolved into one provider and validated parameters per stage."""
+
+from __future__ import annotations
+
+import re
+from collections.abc import Mapping
+from dataclasses import replace
+from typing import Any, ClassVar
+
+import pytest
+from pydantic import BaseModel
+from settings_factory import SettingsFactory
+from wiring import resolve_plan
+
+from physverify.config.models import SizePriorTable
+from physverify.core.errors import ConfigError
+from physverify.extraction._base import GROUND_TRUTH, ProviderParams, StageProvider
+from physverify.schema.stages import STAGE_ORDER, Stage
+
+Providers = Mapping[str, type[StageProvider]]
+
+
+class BackwardsLift:
+    stage: ClassVar[Stage] = Stage.LIFT
+    name: ClassVar[str] = "backwards"
+    version: ClassVar[str] = "1"
+    requires: ClassVar[tuple[Stage, ...]] = (Stage.SCALE,)
+    heavy: ClassVar[bool] = False
+    is_ground_truth: ClassVar[bool] = False
+    error_profile_reads: ClassVar[tuple[Stage, ...]] = ()
+    weights: ClassVar[tuple[Any, ...]] = ()
+    Params: ClassVar[type[BaseModel]] = ProviderParams
+
+
+def test_fast_and_precise_come_from_the_extraction_config(
+    make_settings: SettingsFactory, real_providers: Providers
+) -> None:
+    fast = resolve_plan(make_settings(), real_providers, dataset="kubric_synthetic")
+    precise = resolve_plan(
+        make_settings(profile="precise"), real_providers, dataset="kubric_synthetic"
+    )
+    assert fast.names[Stage.TRACK] == "edgetam" and fast.sampling.max_side == 640
+    assert precise.names[Stage.TRACK] == "sam2_1_hiera_tiny" and precise.sampling.max_side == 960
+    assert fast.names[Stage.DETECT] == "grounding_dino_tiny"
+    assert precise.names[Stage.DETECT] == "grounding_dino_base"
+    assert [step.stage for step in fast.stages] == list(STAGE_ORDER)
+    assert fast.names[Stage.LIFT] == precise.names[Stage.LIFT] == "backproject"
+    assert fast.ground_truth_stages() == ()
+
+
+def test_gt_substitutes_the_named_stages(
+    make_settings: SettingsFactory, real_providers: Providers
+) -> None:
+    plan = resolve_plan(
+        make_settings(), real_providers, dataset="x", gt_stages=(Stage.DEPTH, Stage.SCALE)
+    )
+    assert plan.ground_truth_stages() == (Stage.DEPTH, Stage.SCALE)
+    assert plan.names[Stage.DEPTH] == plan.names[Stage.SCALE] == GROUND_TRUTH
+    assert plan.names[Stage.TRACK] == "edgetam"
+
+
+@pytest.mark.parametrize(
+    ("override", "message"),
+    [
+        ("extraction.plan.lift=nope", "unknown provider 'lift/nope'"),
+        ("extraction.providers.kinematics.savgol.window_s=0", "savgol] is invalid"),
+        ("extraction.providers.lift.backproject.unknown_field=1", "backproject] is invalid"),
+        (
+            "extraction.providers.scale.size_prior.priors={ball={mean_m=1.0,rel_spread=0.1}}",
+            "comes from",
+        ),
+    ],
+)
+def test_bad_plans_are_config_errors(
+    make_settings: SettingsFactory, real_providers: Providers, override: str, message: str
+) -> None:
+    with pytest.raises(ConfigError, match=re.escape(message)):
+        resolve_plan(make_settings(override), real_providers, dataset="x")
+
+
+def test_an_invalid_size_prior_table_names_its_params_model(
+    make_settings: SettingsFactory, real_providers: Providers
+) -> None:
+    settings = make_settings("extraction.providers.scale.size_prior.unknown_field=1")
+    with pytest.raises(ConfigError) as caught:
+        resolve_plan(settings, real_providers, dataset="x")
+    header, first_error = str(caught.value).splitlines()[:2]
+    assert header == "[extraction.providers.scale.size_prior] is invalid:"
+    assert first_error == "1 validation error for Params"
+
+
+def test_requires_out_of_stage_order_is_a_config_error(
+    make_settings: SettingsFactory, real_providers: Providers
+) -> None:
+    providers = {**real_providers, "lift/backwards": BackwardsLift}
+    with pytest.raises(ConfigError, match="lift/backwards"):
+        resolve_plan(make_settings("extraction.plan.lift=backwards"), providers, dataset="x")
+
+
+def test_a_missing_settings_section_is_a_config_error(
+    make_settings: SettingsFactory, real_providers: Providers
+) -> None:
+    settings = make_settings()
+    sections = {k: v for k, v in settings.sections.items() if k != "size_priors"}
+    with pytest.raises(ConfigError, match=r"\[size_priors\]"):
+        resolve_plan(replace(settings, sections=sections), real_providers, dataset="x")
+
+
+def test_provider_overrides_and_settings_sections_reach_params(
+    make_settings: SettingsFactory, real_providers: Providers
+) -> None:
+    settings = make_settings(
+        "extraction.providers.kinematics.savgol.window_s=0.375", "size_priors.primitive.mean_m=0.2"
+    )
+    plan = resolve_plan(settings, real_providers, dataset="x")
+    assert plan.step(Stage.KINEMATICS).params.window_s == 0.375  # type: ignore[attr-defined]
+    priors = plan.step(Stage.SCALE).params.priors  # type: ignore[attr-defined]
+    assert isinstance(priors, SizePriorTable)
+    assert priors.root["primitive"].mean_m == 0.2
+
+
+@pytest.mark.parametrize("camera", ["geocalib", "moge2_focal", "from_depth"])
+def test_a_fallback_camera_runs_with_the_configured_assumed_fov(
+    make_settings: SettingsFactory, real_providers: Providers, camera: str
+) -> None:
+    settings = make_settings(
+        f"extraction.plan.camera={camera}",
+        "extraction.providers.camera.assumed_fov.fov_deg=50.0",
+        "extraction.providers.camera.assumed_fov.fov_sigma_deg=4.0",
+    )
+    assumed = resolve_plan(settings, real_providers, dataset="x").step(Stage.CAMERA).params
+    fov = assumed.assumed  # type: ignore[attr-defined]
+    assert (fov.fov_deg, fov.fov_sigma_deg) == (50.0, 4.0)
+
+
+def test_a_field_filled_from_another_provider_cannot_be_configured(
+    make_settings: SettingsFactory, real_providers: Providers
+) -> None:
+    settings = make_settings(
+        "extraction.plan.camera=moge2_focal",
+        "extraction.providers.camera.moge2_focal.assumed.fov_deg=50.0",
+    )
+    with pytest.raises(ConfigError, match=r"\[extraction.providers.camera.assumed_fov\]"):
+        resolve_plan(settings, real_providers, dataset="x")
+
+
+def test_sampling_from_flags_and_per_dataset_fps(
+    make_settings: SettingsFactory, real_providers: Providers
+) -> None:
+    settings = make_settings()
+    assert (
+        resolve_plan(settings, real_providers, dataset="kubric_synthetic").sampling.target_fps == 24
+    )
+    assert (
+        resolve_plan(settings, real_providers, dataset="synthetic_fixture").sampling.target_fps
+        is None
+    )
+    flagged = resolve_plan(
+        settings, real_providers, dataset="kubric_synthetic", fps=5.0, max_side=320
+    ).sampling
+    assert (flagged.target_fps, flagged.max_side) == (5.0, 320)
+    stopped = resolve_plan(
+        make_settings("extraction.sampling.stop=6"), real_providers, dataset="x"
+    ).sampling
+    assert stopped.stop == 6
+
+
+@pytest.mark.parametrize(
+    ("depth", "metric"), [("moge2", True), ("vda_small", False), ("vda_metric_small", False)]
+)
+def test_true_depth_follows_the_kind_of_the_depth_it_replaces(
+    make_settings: SettingsFactory, real_providers: Providers, depth: str, metric: bool
+) -> None:
+    settings = make_settings(f"extraction.plan.depth={depth}")
+    plan = resolve_plan(settings, real_providers, dataset="x", gt_stages=(Stage.DEPTH,))
+    assert plan.step(Stage.DEPTH).params.metric is metric  # type: ignore[attr-defined]
+
+
+def test_a_followed_truth_field_cannot_be_configured(
+    make_settings: SettingsFactory, real_providers: Providers
+) -> None:
+    settings = make_settings(
+        "extraction.plan.depth=moge2", "extraction.providers.depth.ground_truth.metric=false"
+    )
+    with pytest.raises(ConfigError, match="follows the perceived provider"):
+        resolve_plan(settings, real_providers, dataset="x", gt_stages=(Stage.DEPTH,))

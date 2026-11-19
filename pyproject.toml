@@ -1,0 +1,218 @@
+[project]
+name = "physverify"
+version = "0.1.0"
+description = "Calibrated physics verifier for generated video of rigid bodies."
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+authors = [{ name = "Martin Montero" }]
+dependencies = [
+    "numpy>=2.0",
+    "scipy>=1.14",
+    "pydantic>=2.11",
+    "typer>=0.27.2",
+    "opencv-python-headless>=4.10",
+    "psutil>=6",
+]
+
+[project.optional-dependencies]
+figures = ["matplotlib>=3.8"]
+
+[project.scripts]
+physverify = "physverify.cli.main:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/physverify"]
+
+[dependency-groups]
+dev = ["pytest>=8.3", "ruff>=0.11", "mypy>=1.13"]
+cpu = ["torch>=2.8", "torchvision>=0.23"]
+cu128 = ["torch>=2.8", "torchvision>=0.23"]
+# Packages physverify itself does not import are annotated with who needs them.
+perception = [
+    "transformers>=4.57,<6",
+    "accelerate",  # not imported; timing/environment.py records its version
+    "timm",  # the EdgeTAM backbone of transformers (TimmWrapper)
+    "huggingface-hub",
+    "safetensors",
+    "einops",  # required by the vendored Video-Depth-Anything
+    "easydict",  # required by the vendored Video-Depth-Anything
+    "imageio",  # only the vendored Video-Depth-Anything's utils and benchmark scripts
+    "matplotlib",  # the vendored Video-Depth-Anything's utils; the figures extra declares its own
+    "tqdm",  # required by the vendored Video-Depth-Anything
+    "kornia==0.8.3",  # required by the vendored GeoCalib
+    "omegaconf",  # required by the vendored Depth Anything 3
+    "addict",  # required by the vendored Depth Anything 3
+]
+data = ["remotezip", "huggingface-hub"]
+generation = ["diffusers>=0.37", "peft>=0.21,<0.22"]
+
+[tool.uv]
+default-groups = ["dev", "cpu", "perception", "data"]
+conflicts = [[{ group = "cpu" }, { group = "cu128" }]]
+environments = ["sys_platform == 'linux'"]
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu", group = "cpu" },
+    { index = "pytorch-cu128", group = "cu128" },
+]
+torchvision = [
+    { index = "pytorch-cpu", group = "cpu" },
+    { index = "pytorch-cu128", group = "cu128" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.per-file-target-version]
+"src/physverify/schema/**" = "py39"
+"src/physverify/kubric_worker/**" = "py39"
+
+[tool.ruff.lint]
+select = [
+    "E", "F", "I", "UP", "B", "SIM", "N", "C90",
+    "RUF", "ERA", "PIE", "RET", "PTH", "T20", "TID", "ARG", "C4", "PERF", "FURB", "ISC", "FLY",
+    "BLE001", "PT011", "PLW1510",
+]
+# RUF012: a ClassVar annotation would drop the field from a pydantic model. RUF009: a call default
+# in a dataclass is shared on purpose; default_factory would build one per instance. ARG002:
+# plugin methods implement protocol signatures whether or not they read every argument.
+ignore = ["RUF012", "RUF009", "ARG002"]
+allowed-confusables = ["’"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["ARG", "T20", "TID251"]
+"tools/**" = ["T20", "TID251"]
+# The physverify.cli ban for scripts is the contract "Scripts call the application layer" below,
+# enforced by tests/test_architecture.py.
+"scripts/**" = ["T20", "TID251"]
+"src/physverify/cli/main.py" = ["T20"]
+"src/physverify/kubric_worker/__main__.py" = ["T20"]
+"src/physverify/__main__.py" = ["TID251"]
+"src/physverify/cli/**" = ["TID251"]
+"src/physverify/app/**" = ["TID251"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "parents"
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"physverify.cli".msg = "only the CLI, tools and tests import physverify.cli; call physverify.app"
+"physverify.app".msg = "physverify.app is the composition root: only the CLI, scripts, tools and tests import it"
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.isort]
+known-first-party = ["physverify"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = [
+    "src/physverify",
+    "scripts/h200",
+    "tools/equivalence",
+    "tools/hdri_pools.py",
+    "tools/pin_sources.py",
+    "tools/r3b_coverage.py",
+]
+mypy_path = "src:scripts/h200"
+explicit_package_bases = true
+plugins = ["pydantic.mypy"]
+untyped_calls_exclude = ["transformers"]
+enable_error_code = ["ignore-without-code", "truthy-bool", "truthy-iterable", "possibly-undefined"]
+
+[[tool.mypy.overrides]]
+module = ["torch.*", "torchvision.*", "transformers.*", "kubric.*", "bpy.*", "pybullet.*", "scipy.*", "psutil.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+addopts = "--import-mode=importlib --strict-markers --strict-config -m 'not docker'"
+testpaths = ["tests"]
+pythonpath = ["tests/fixtures", "tests/fixtures/plugins"]
+xfail_strict = true
+filterwarnings = ["error::pytest.PytestCollectionWarning"]
+markers = ["docker: needs the pinned Kubric image (run under the heavy lock)"]
+
+[tool.importlinter]
+root_package = "physverify"
+
+[[tool.importlinter.contracts]]
+name = "Layers, top to bottom; modules joined by | are independent siblings"
+type = "layers"
+layers = [
+    "physverify.cli",
+    "physverify.app",
+    "physverify.reporting",
+    "physverify.baselines",
+    "physverify.generator_comparison | physverify.timing | physverify.demo",
+    "physverify.finetune | physverify.freeze",
+    "physverify.human_agreement | physverify.selective_risk",
+    "physverify.calibration",
+    "physverify.diagnosis",
+    "physverify.verification | physverify.generation",
+    "physverify.checks | physverify.extraction",
+    "physverify.datasets",
+    "physverify.synth | physverify.sizing",
+    "physverify.physics",
+    "physverify.runtime",
+    "physverify.config",
+    "physverify.stats",
+    "physverify.core",
+    "physverify.schema",
+]
+
+[[tool.importlinter.contracts]]
+name = "The estimator never reads the synthetic generator (no size or physics leak, ADR 0023)"
+type = "forbidden"
+source_modules = ["physverify.extraction", "physverify.checks", "physverify.sizing"]
+forbidden_modules = ["physverify.synth"]
+
+[[tool.importlinter.contracts]]
+name = "The CLI parses arguments and calls the application layer; core gives it errors and exit codes"
+type = "forbidden"
+source_modules = ["physverify.cli"]
+forbidden_modules = ["physverify"]
+allowed_modules = ["physverify.app", "physverify.core"]
+
+[[tool.importlinter.contracts]]
+name = "Wire records import no other physverify package nor pydantic, typer or torch"
+type = "forbidden"
+source_modules = ["physverify.schema"]
+forbidden_modules = ["physverify", "pydantic", "typer", "torch"]
+
+[[tool.importlinter.contracts]]
+name = "Container worker imports only the wire records from physverify, and no pydantic, typer or torch"
+type = "forbidden"
+source_modules = ["physverify.kubric_worker"]
+forbidden_modules = ["physverify", "pydantic", "typer", "torch"]
+allowed_modules = ["physverify.schema"]
+
+[[tool.importlinter.contracts]]
+name = "Scripts call the application layer, never the CLI"
+type = "forbidden"
+source_modules = ["scripts"]
+forbidden_modules = ["physverify.cli"]
+
+[[tool.importlinter.contracts]]
+name = "The query scripts ask the application layer; schema and core give them records and errors"
+type = "forbidden"
+source_modules = ["scripts.h200.run_query", "scripts.h200.agreement_query"]
+forbidden_modules = ["physverify"]
+allowed_modules = ["physverify.app", "physverify.schema", "physverify.core"]

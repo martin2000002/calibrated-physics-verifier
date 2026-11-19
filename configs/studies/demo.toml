@@ -1,0 +1,20 @@
+# End-to-end demo: one video through the whole verifier, with its report and overlay.
+# Ad-hoc prompts and given videos never touch the generator comparison campaign.
+
+[demo]
+adhoc_campaign = "demo_adhoc"            # under paths.data_dir/finetune and raw_dir/local_video
+out_dir = "demo"                         # under paths.data_dir unless absolute
+allow_provisional = true                 # fall back to the provisional rule, labelled as such
+select_run = "main"                      # `finetune select` run of `scenes --from-select`
+
+[demo.overlay]                           # pixels of a 480-pixel-high frame; scaled with height
+font_scale = 0.55
+min_font_scale = 0.35                    # the top bar shrinks down to this to fit the frame width
+label_scale = 0.7                        # arm names under the side by side
+bar_height = 26
+badge_height = 18
+badge_width = 120                        # minimum width of the badge panel
+badge_alpha = 0.6                        # opacity of the badge boxes over the scene
+all_checks = false                       # badge every check, not only targeted, decided or failing
+margin = 6
+reference_height = 480

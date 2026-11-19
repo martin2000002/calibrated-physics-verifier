@@ -1,0 +1,395 @@
+"""Stage-by-stage extraction over many clips with a lazy heavy lock."""
+
+from __future__ import annotations
+
+import gc
+import time
+from collections.abc import Callable, Mapping, Sequence
+from contextlib import AbstractContextManager
+from dataclasses import dataclass, field, replace
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Final
+
+from physverify.config.models import PathsSettings
+from physverify.core.cache_keys import error_profile_hash, sampling_hash, upstream_keys
+from physverify.core.errors import MissingInputError, ResourceBudgetError
+from physverify.core.log import get_logger
+from physverify.datasets._base import DatasetSource, dataset_identity
+from physverify.extraction._base import (
+    PluginRegistry,
+    StageContext,
+    StageEvent,
+    StageObserver,
+    StageProvider,
+    build_provider,
+)
+from physverify.extraction.cache import (
+    StageCache,
+    plan_entry_filter,
+    profile_keys,
+    stage_key,
+    step_params_hash,
+)
+from physverify.extraction.error_profile import load_error_profile, plan_profile_keys, stale_entries
+from physverify.extraction.pipeline_resources import LazyLock, RssProbe
+from physverify.extraction.plan import ResolvedPlan, StagePlan
+from physverify.extraction.weights import missing_weights
+from physverify.schema.clip import ClipManifest, FrameSampling, resolve_sampling
+from physverify.schema.error_profile import PARAMS_HASH_CONDITION, PROFILE_CONDITION, ErrorProfile
+from physverify.schema.errors import SchemaError
+from physverify.schema.outputs import StageOutput, check_stage_output
+from physverify.schema.scale import ScaleEstimate
+from physverify.schema.stages import Stage, StageArtifactMeta
+from physverify.schema.states import ObjectStateTable
+
+PENDING_SOURCE_KEY: Final = "pending"
+"""LIFT providers emit this ``source_key``; the pipeline replaces it with LIFT's cache key."""
+
+DOMAIN_ERRORS: Final = (MissingInputError, ResourceBudgetError, SchemaError, ValueError)
+LIGHT_DEVICE: Final = "cpu"
+
+log = get_logger("extraction.pipeline")
+
+
+@dataclass(frozen=True)
+class ClipFailure:
+    clip_id: str
+    stage: Stage
+    error: str
+
+
+@dataclass(frozen=True)
+class ExtractionReport:
+    events: tuple[StageEvent, ...]
+    failures: tuple[ClipFailure, ...]
+    keys: Mapping[tuple[str, Stage], str]
+
+
+@dataclass(frozen=True)
+class PipelineDeps:
+    cache: StageCache
+    lock: LazyLock
+    paths: PathsSettings
+    device: str
+    threads: int
+    error_profile: ErrorProfile | None
+    observer: StageObserver | None
+    rss: RssProbe
+    registry: PluginRegistry
+    clock: Callable[[], float] = time.perf_counter
+
+    @classmethod
+    def build(
+        cls,
+        paths: PathsSettings,
+        cache_root: Path,
+        lock: Callable[[], AbstractContextManager[object]],
+        *,
+        device: str,
+        threads: int,
+        observer: StageObserver | None,
+        rss: RssProbe,
+        registry: PluginRegistry,
+    ) -> PipelineDeps:
+        """Deps over the stage cache at ``cache_root``, the lazily entered ``lock`` and the error
+        profile at ``paths.error_profile``, loaded when the file exists."""
+        return cls(
+            cache=StageCache(cache_root),
+            lock=LazyLock(lock),
+            paths=paths,
+            device=device,
+            threads=threads,
+            error_profile=load_error_profile(paths.error_profile),
+            observer=observer,
+            rss=rss,
+            registry=registry,
+        )
+
+
+@dataclass
+class _Cell:
+    clip: ClipManifest
+    dataset: str | None
+    sampling: FrameSampling
+    gt_version: str | None
+    keys: dict[Stage, str]
+    cached: dict[Stage, bool]
+
+
+@dataclass
+class _Progress:
+    events: list[StageEvent] = field(default_factory=list)
+    failures: list[ClipFailure] = field(default_factory=list)
+    keys: dict[tuple[str, Stage], str] = field(default_factory=dict)
+
+    def fail(self, clip: ClipManifest, stage: Stage, exc: BaseException) -> None:
+        self.failures.append(ClipFailure(clip.clip_id, stage, f"{type(exc).__name__}: {exc}"))
+
+
+class ExtractionPipeline:
+    """Runs every stage in order over all live clips; one provider instance alive at a time."""
+
+    def __init__(self, plan: ResolvedPlan, deps: PipelineDeps) -> None:
+        self._plan = plan
+        self._deps = deps
+        self._names = dict(plan.names)
+        self._filter = plan_entry_filter(plan)
+        self._params = {step.stage: step.params for step in plan.stages}
+
+    def run(self, dataset: DatasetSource, clips: Sequence[ClipManifest]) -> ExtractionReport:
+        self._warn_rejected_entries()
+        progress = _Progress()
+        identity = dataset_identity(dataset)
+        cells = [c for clip in clips if (c := self._prepare(dataset, identity, clip, progress))]
+        self._check_weights(cells)
+        try:
+            for index, step in enumerate(self._plan.stages):
+                cells = self._run_stage(step, dataset, cells, progress)
+                if not self._heavy_pending(self._plan.stages[index + 1 :], cells):
+                    self._deps.lock.release()
+        finally:
+            self._deps.lock.release()
+        return ExtractionReport(
+            tuple(progress.events), tuple(progress.failures), dict(progress.keys)
+        )
+
+    def _warn_rejected_entries(self) -> None:
+        """Loud, once per entry: a profile or params mismatch turns that sigma unknown (NaN)."""
+        profile = self._deps.error_profile
+        if profile is None:
+            if plan_profile_keys(self._plan):
+                log.warning(
+                    "no error profile is loaded for profile %s (paths.error_profile is missing); "
+                    "every measured sigma is unknown (run `diagnose stages --write-profile`)",
+                    self._filter.profile,
+                )
+            return
+        for entry in stale_entries(self._plan, profile):
+            log.warning(
+                "error profile entry %s/%s %s was measured under profile %s with params_hash %s "
+                "but the plan is profile %s with params_hash %s; it is ignored and its sigma is "
+                "unknown (re-run `diagnose stages --write-profile` for this profile)",
+                entry.stage.value,
+                entry.provider,
+                entry.quantity,
+                entry.conditions.get(PROFILE_CONDITION),
+                entry.conditions.get(PARAMS_HASH_CONDITION),
+                self._filter.profile,
+                self._filter.params_hashes[entry.stage],
+            )
+
+    def _prepare(
+        self,
+        dataset: DatasetSource,
+        identity: str | None,
+        clip: ClipManifest,
+        progress: _Progress,
+    ) -> _Cell | None:
+        gt_stages = self._plan.ground_truth_stages()
+        missing = [stage for stage in gt_stages if stage not in clip.gt_stages]
+        if missing:
+            error = MissingInputError(f"no ground truth for {[s.value for s in missing]}")
+            progress.fail(clip, missing[0], error)
+            return None
+        try:
+            sampling = resolve_sampling(clip, self._plan.sampling)
+            cell = _Cell(clip, identity, sampling, None, {}, {})
+        except DOMAIN_ERRORS as exc:
+            progress.fail(clip, self._plan.stages[0].stage, exc)
+            return None
+        if gt_stages:
+            store = dataset.ground_truth(clip)
+            if store is None:
+                progress.fail(clip, gt_stages[0], MissingInputError("dataset has no ground truth"))
+                return None
+            cell.gt_version = store.version
+        for step in self._plan.stages:
+            key = self._key(step, cell)
+            cell.keys[step.stage] = key
+            cell.cached[step.stage] = self._deps.cache.contains(
+                dataset.name, clip.clip_id, step.stage, step.name, key
+            )
+        return cell
+
+    def _key(self, step: StagePlan, cell: _Cell) -> str:
+        return stage_key(
+            step,
+            clip_id=cell.clip.clip_id,
+            object_queries=cell.clip.object_queries,
+            sampling=cell.sampling,
+            upstream=cell.keys,
+            plan=self._names,
+            entry_filter=self._filter,
+            gt_version=cell.gt_version if step.provider.is_ground_truth else None,
+            error_profile=self._deps.error_profile,
+            device=self._deps.device,
+            dataset=cell.dataset,
+        )
+
+    def _check_weights(self, cells: Sequence[_Cell]) -> None:
+        """Fail before taking the lock when a heavy provider that must run lacks weights."""
+        needed = [
+            step.provider
+            for step in self._plan.stages
+            if step.provider.heavy and any(not cell.cached[step.stage] for cell in cells)
+        ]
+        missing = missing_weights(needed, self._deps.paths)
+        if missing:
+            refs = ", ".join(f"{spec.kind.value}:{spec.ref}@{spec.revision}" for spec in missing)
+            raise MissingInputError(
+                f"missing weights {refs}; run `physverify extract fetch-weights` first"
+            )
+
+    @staticmethod
+    def _heavy_pending(steps: Sequence[StagePlan], cells: Sequence[_Cell]) -> bool:
+        return any(
+            step.provider.heavy and not cell.cached[step.stage] for step in steps for cell in cells
+        )
+
+    def _run_stage(
+        self, step: StagePlan, dataset: DatasetSource, cells: list[_Cell], progress: _Progress
+    ) -> list[_Cell]:
+        instance: StageProvider | None = None
+        alive: list[_Cell] = []
+        for cell in cells:
+            event = StageEvent(
+                cell.clip.clip_id,
+                step.stage,
+                step.name,
+                cell.cached[step.stage],
+                self._device(step),
+            )
+            self._notify_start(event)
+            try:
+                if not event.cached:
+                    instance = instance or self._instantiate(step)
+                    event = self._compute(step, instance, dataset, cell, event)
+            except DOMAIN_ERRORS as exc:
+                progress.fail(cell.clip, step.stage, exc)
+                continue
+            progress.events.append(event)
+            progress.keys[(cell.clip.clip_id, step.stage)] = cell.keys[step.stage]
+            self._notify_end(event)
+            alive.append(cell)
+        if instance is not None:
+            # Frees a model before the next stage loads its own; a stage served wholly from the
+            # cache built nothing, and a full collection costs more as the heap grows.
+            del instance
+            gc.collect()
+        return alive
+
+    def _instantiate(self, step: StagePlan) -> StageProvider:
+        if step.provider.heavy:
+            self._deps.lock.ensure()
+        return build_provider(step.provider, step.params, self._deps.registry)
+
+    def _device(self, step: StagePlan) -> str:
+        return self._deps.device if step.provider.heavy else LIGHT_DEVICE
+
+    def _compute(
+        self,
+        step: StagePlan,
+        instance: StageProvider,
+        dataset: DatasetSource,
+        cell: _Cell,
+        event: StageEvent,
+    ) -> StageEvent:
+        upstream = {stage: self._load(dataset, cell, stage) for stage in step.provider.requires}
+        ctx = StageContext(
+            clip=cell.clip,
+            video=dataset.video(cell.clip),
+            sampling=cell.sampling,
+            upstream=upstream,
+            plan=self._names,
+            entry_filter=self._filter,
+            stage_params=self._params,
+            gt=dataset.ground_truth(cell.clip) if step.provider.is_ground_truth else None,
+            error_profile=self._deps.error_profile,
+            device=self._deps.device,
+            threads=self._deps.threads,
+            paths=self._deps.paths,
+        )
+        self._deps.rss.reset()
+        started = self._deps.clock()
+        output = instance.run(ctx)
+        wall_s = self._deps.clock() - started
+        peak_mb = self._deps.rss.peak_mb()
+        output = self._bind(step.stage, output, upstream, cell)
+        meta = self._meta(step, cell, wall_s, peak_mb)
+        self._deps.cache.store(
+            dataset.name, cell.clip.clip_id, step.stage, output, meta, step.params
+        )
+        return replace(event, wall_s=wall_s, peak_rss_mb=peak_mb)
+
+    def _load(self, dataset: DatasetSource, cell: _Cell, stage: Stage) -> StageOutput:
+        name = self._names[stage]
+        output = self._deps.cache.load(
+            dataset.name, cell.clip.clip_id, stage, name, cell.keys[stage]
+        )
+        if output is None:
+            raise MissingInputError(f"{cell.clip.clip_id}: cached {stage.value}/{name} is missing")
+        return output
+
+    @staticmethod
+    def _bind(
+        stage: Stage, output: StageOutput, upstream: Mapping[Stage, StageOutput], cell: _Cell
+    ) -> StageOutput:
+        """LIFT carries its own key; SCALE, KINEMATICS and CONTACTS must point back to it."""
+        check_stage_output(stage, output)
+        lift_key = cell.keys[Stage.LIFT]
+        if stage is Stage.LIFT and isinstance(output, ObjectStateTable):
+            return replace(output, source_key=lift_key)
+        if isinstance(output, ScaleEstimate) and output.lift_key != lift_key:
+            raise SchemaError(f"scale.lift_key {output.lift_key!r} != lift key {lift_key!r}")
+        if stage in (Stage.KINEMATICS, Stage.CONTACTS):
+            _check_binding(stage, output, upstream, lift_key)
+        return output
+
+    def _meta(
+        self, step: StagePlan, cell: _Cell, wall_s: float, peak_mb: float
+    ) -> StageArtifactMeta:
+        provider = step.provider
+        return StageArtifactMeta(
+            stage=step.stage,
+            provider=provider.name,
+            provider_version=provider.version,
+            params_hash=step_params_hash(step),
+            sampling_hash=sampling_hash(cell.sampling),
+            upstream=upstream_keys(provider.requires, cell.keys),
+            error_profile_hash=error_profile_hash(
+                self._deps.error_profile, profile_keys(provider, self._names), self._filter
+            ),
+            gt_version=cell.gt_version if provider.is_ground_truth else None,
+            device=self._deps.device if provider.heavy else None,
+            cache_key=cell.keys[step.stage],
+            clip_id=cell.clip.clip_id,
+            is_ground_truth=provider.is_ground_truth,
+            wall_s=wall_s,
+            peak_rss_mb=peak_mb,
+            created_utc=datetime.now(UTC).isoformat(timespec="seconds"),
+        )
+
+    def _notify_start(self, event: StageEvent) -> None:
+        if self._deps.observer is not None:
+            self._deps.observer.on_stage_start(event)
+
+    def _notify_end(self, event: StageEvent) -> None:
+        if self._deps.observer is not None:
+            self._deps.observer.on_stage_end(event)
+
+
+def _check_binding(
+    stage: Stage, output: StageOutput, upstream: Mapping[Stage, StageOutput], lift_key: str
+) -> None:
+    source_key = getattr(output, "source_key", None)
+    if source_key != lift_key:
+        raise SchemaError(f"{stage.value}.source_key {source_key!r} != lift key {lift_key!r}")
+    reference = upstream.get(Stage.KINEMATICS) or upstream.get(Stage.LIFT)
+    if not isinstance(reference, ObjectStateTable):
+        return
+    frame, unit = getattr(output, "frame", None), getattr(output, "unit", None)
+    if (frame, unit) != (reference.frame, reference.unit):
+        raise SchemaError(
+            f"{stage.value} is {frame}/{unit} but its states are {reference.frame}/{reference.unit}"
+        )

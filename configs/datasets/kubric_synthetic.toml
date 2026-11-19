@@ -1,0 +1,141 @@
+# Synthetic Kubric dataset. The base table is the `fast` profile used on the
+# laptop; `precise` is the H200 profile. Clip content depends on everything here except
+# [dataset.render], [dataset.subsets] and `version`: changing it requires a new `version`.
+
+[dataset]
+version = "v1"
+seed = 0
+n_frames = 24
+fps = 24
+step_rate = 240
+resolution = 128
+samples_per_pixel = 64
+background = "plain"
+# Backgrounds of `background = "hdri"`, picked by scene seed. `hdri_pool` (default "") names a
+# list of [dataset.hdri_pools] instead. Neither enters the content hash while the backgrounds are
+# this legacy one, so v1 and v1-precise keep their hash.
+hdri_ids = ["abandoned_parking"]
+assets = "kubasic"
+calib_fraction = 0.5
+# Ground-truth velocities: "position" adds g h / 2 to the simulator's semi-implicit Euler
+# velocity outside resting contact, the velocity the rendered positions imply
+# (synth/gt/velocity.py); "state" keeps PyBullet's. A dataset planned before this key existed
+# is moved over with `physverify synth migrate --name velocity-<convention>`, never by bumping
+# `version`.
+velocity_convention = "position"
+# Detector queries without the true object counts, as real and generated video are read. A
+# reading, not content: it changes the cache identity, never `version`. false (the counted
+# reading) only measures the gap on calib.
+blind_queries = true
+
+# HDRI Haven ids outside GeoCalib's OpenPano training panoramas, so the camera estimate is tested
+# on backgrounds it never saw. Preregistered:
+# `PYTHONPATH=src python tools/hdri_pools.py HDRI_haven.json openpano-listing.txt` over Kubric's
+# public manifest (sha256 6407c265...79c1, 509 ids) and the listing of the public openpano.zip
+# (749 panoramas, sha256 96a68ba8...8217); 12 ids remain. `openpano_ood_dev` renders the development
+# set v1-precise-hdri-dev; `openpano_ood_reserved` is never rendered before the freeze.
+[dataset.hdri_pools]
+openpano_ood_dev = ["shudu_lake", "sunset_forest", "orbita", "bergen", "art_studio", "vintage_measuring_lab"]
+openpano_ood_reserved = ["boiler_room", "bethnal_green_entrance", "lot_01", "lot_02", "artist_workshop", "aircraft_workshop_01"]
+
+[dataset.floor]
+friction = 0.6
+# The floor is fully elastic so the object's restitution drives each bounce. Bullet's combined
+# value is not the plain product (0.824 on a ball gave e = 0.900), so e_clean is always measured.
+restitution = 1.0
+
+[dataset.contacts]
+tol_m = 0.002
+gap_frames = 0.25
+impact_max_frames = 0.5
+impact_min_speed = 0.05
+normal_split_deg = 10.0
+area_split_rel = 0.25
+drift_split_m = 0.01
+
+[dataset.render]
+jobs_per_process = 20
+workers = 1
+far_z_m = 1e4
+
+[dataset.subsets.smoke]
+scenes_per_family = 1
+levels = [4]
+perturbations = { f2_bounce = ["r3_restitution_gain"] }
+
+# Deliverable 1 is a local proof of the pipeline, not the dataset: one scene per family and one mid
+# level of every applicable perturbation (23 clips, 7 simulations). The full dataset below is
+# generated on the H200: `physverify --profile precise dataset build --subset full`.
+[dataset.subsets.local]
+scenes_per_family = 1
+levels = [3]
+
+[dataset.subsets.local.perturbations]
+f1_projectile = ["r4_resize", "r4_vanish", "r5a_gravity_switch", "r5a_object_gravity", "r5b_gravity_scale"]
+f2_bounce = ["r3_restitution_gain", "r4_resize", "r4_teleport", "r4_vanish", "r5b_gravity_scale"]
+f3_collision = ["r3_energy_gain", "r4_vanish"]
+f4_stack = ["r2_unsupported_rest", "r4_teleport", "r4_vanish"]
+f5_contact = ["r1_penetration", "r4_teleport", "r4_vanish"]
+
+# Level sweep for the local held-out monotonicity test: all four levels of one perturbation per
+# check family (R1, R3, R5b) on the same clean scenes. With `local` and `smoke` on disk it adds
+# 8 clips.
+[dataset.subsets.levels]
+scenes_per_family = 1
+levels = [1, 2, 3, 4]
+
+[dataset.subsets.levels.perturbations]
+f1_projectile = ["r5b_gravity_scale"]
+f2_bounce = ["r3_restitution_gain"]
+f5_contact = ["r1_penetration"]
+
+# H200 only (920 clips at the precise profile).
+[dataset.subsets.full]
+scenes_per_family = 40
+levels = [1, 2, 3, 4]
+level_mode = "cycle"
+
+[dataset.subsets.full.perturbations]
+f1_projectile = ["r4_resize", "r4_vanish", "r5a_gravity_switch", "r5a_object_gravity", "r5b_gravity_scale"]
+f2_bounce = ["r3_restitution_gain", "r4_resize", "r4_teleport", "r4_vanish", "r5b_gravity_scale"]
+f3_collision = ["r3_energy_gain", "r4_vanish"]
+f4_stack = ["r2_unsupported_rest", "r4_teleport", "r4_vanish"]
+f5_contact = ["r1_penetration", "r4_teleport", "r4_vanish"]
+
+# The clean clips of the 100 calib scenes of `full` (same scene ids, seeds, physics and camera),
+# for a version rendered with other backgrounds (v1-precise-hdri-dev).
+[dataset.subsets.calib_clean]
+scenes_per_family = 40
+levels = [1]
+split = "calib"
+
+[dataset.subsets.calib_clean.perturbations]
+f1_projectile = []
+f2_bounce = []
+f3_collision = []
+f4_stack = []
+f5_contact = []
+
+# More calib scenes of f3_collision: the calib half of s000-s159 (80 scenes, the even indices; the
+# 20 calib scenes of `full` are among them, so 60 are new), each with the clean clip and the cycled
+# r3_energy_gain level of `full`. They extend the clean scenes R3b's conformal threshold is fitted
+# on (n >= 19 at alpha 0.05), and only those (`checks_only`): with them f3 would be half of calib
+# for every other check, against a fifth in the held-out sets.
+[dataset.subsets.calib_f3_extra]
+scenes_per_family = 160
+levels = [1, 2, 3, 4]
+level_mode = "cycle"
+split = "calib"
+checks_only = ["R3b"]
+
+[dataset.subsets.calib_f3_extra.perturbations]
+f3_collision = ["r3_energy_gain"]
+
+[dataset.profiles.precise]
+version = "v1-precise"
+resolution = 256
+samples_per_pixel = 64
+background = "hdri"
+
+[dataset.profiles.precise.render]
+workers = 8

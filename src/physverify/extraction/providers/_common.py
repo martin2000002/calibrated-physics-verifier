@@ -1,0 +1,53 @@
+"""Small helpers shared by several providers (not a plugin module)."""
+
+from __future__ import annotations
+
+from collections.abc import Callable
+
+import numpy as np
+from numpy.typing import NDArray
+
+from physverify.core.models import expect_params as expect_params
+from physverify.extraction._base import StageContext
+from physverify.schema.clip import FrameSampling
+
+
+def centred_intrinsics(focal: float, sampling: FrameSampling) -> NDArray[np.float64]:
+    """Pinhole K in processing pixels with square pixels and the principal point at the centre."""
+    return np.array(
+        [
+            [focal, 0.0, sampling.width / 2.0],
+            [0.0, focal, sampling.height / 2.0],
+            [0.0, 0.0, 1.0],
+        ]
+    )
+
+
+def frame_indices(n_total: int, n_frames: int) -> NDArray[np.int64]:
+    """``n_frames`` equally spaced rows from first to last (every row of a shorter clip)."""
+    if n_total <= n_frames:
+        return np.arange(n_total, dtype=np.int64)
+    return np.round(np.linspace(0.0, n_total - 1.0, n_frames)).astype(np.int64)
+
+
+def set_torch_threads(threads: int) -> None:
+    """Bound torch's intra-op pool to ``runtime.threads`` (torch is imported lazily)."""
+    import torch
+
+    torch.set_num_threads(threads)
+
+
+class LazyModel[M]:
+    """A heavy provider's model, loaded by the first ``get`` and kept by the provider instance.
+
+    The pipeline keeps one instance per stage for every clip and drops it when the stage
+    ends, so the weights load once per stage with the first context's device and paths."""
+
+    def __init__(self, loader: Callable[[StageContext], M]) -> None:
+        self._loader = loader
+        self._model: M | None = None
+
+    def get(self, ctx: StageContext) -> M:
+        if self._model is None:
+            self._model = self._loader(ctx)
+        return self._model

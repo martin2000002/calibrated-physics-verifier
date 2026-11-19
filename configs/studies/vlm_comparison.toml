@@ -1,0 +1,50 @@
+# The verifier's graded score B1 against the VLM judges on the final run's sets. Part of the
+# commit the final run looks with: nothing here comes from the environment. One judge for now:
+# AutoEval, integer scores at the published cut.
+
+[vlm_comparison]
+clean_fpr = 0.10            # u_B1: the smallest calib clean B1 value u with frac(clean B1 > u) <= this
+max_uninterpretable = 0.10  # Part 1 is not evaluable when the judge reads no score on more clips
+real_fpr = 0.10             # Part 2, per real sealed set: FPR of B1 > u_B1 at most this...
+real_fpr_upper = 0.20       # ...and its Clopper-Pearson upper bound at most this
+agreement_partition = "v2"  # Part 3 on the h2_test items of this VideoPhy-2 version
+
+[vlm_comparison.pairs]      # PA, Delta and detection: whole scenes resampled
+n = 2000
+seed = 0
+ci = 0.95
+
+[vlm_comparison.agreement]  # Part 3: whole captions resampled
+n = 10000
+seed = 20261017
+ci = 0.95
+
+[vlm_comparison.judges.autoeval]
+plugin = "videophy2_autoeval"
+task = "pc"
+cut = 4.0                   # published: a score below 4 breaks physical commonsense
+prompt_file = "autoeval/repo/VIDEOPHY2/template.py"
+prompt_sha256 = "74adde4cad3ccd6cc5dfc69f2319f03d0559e63a7da996bcca5ede76b6c30299"
+clips_per_call = 100        # one model load per call; the cache is appended after each call
+
+# Per set: Kubric is clean and perturbed clips grouped by scene; a real set is clean clips, one
+# unit each. The caption goes with every clip (the pc prompt does not read it).
+[vlm_comparison.sets.kubric_fresh]
+part = "kubric"
+caption = "Rigid objects move, fall and collide on a floor."
+
+[vlm_comparison.sets.physics_iq_views]
+part = "real"
+caption = "Objects move on a table."
+
+[vlm_comparison.sets.objectron_static]
+part = "real"
+caption = "Objects rest on a surface."
+
+[vlm_comparison.sets.physics_iq]
+part = "real"
+caption = "Objects move on a table."
+
+[vlm_comparison.sets.pisa_real]
+part = "real"
+caption = "Objects fall."
